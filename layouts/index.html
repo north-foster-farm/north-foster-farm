@@ -1,0 +1,7 @@
+{{ define "main" }}
+  <section class="home">
+    <h1 class="visually-hidden">{{ .Site.Data.company.name }}</h1>
+    {{ partial "home/copy.html" . }}
+    {{ partial "home/contact.html" . }}
+  </section>
+{{ end }}

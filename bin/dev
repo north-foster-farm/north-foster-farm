@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+if [ "$HUGO_BIND_TO_IP" == "true" ] && [ "$HUGO_SERVERLESS" == "true" ]; then
+  echo >&2 "☞ Not starting the Hugo server because \$HUGO_BIND_TO_IP and " \
+    "\$HUGO_SERVERLESS are both set (can't do both simultaneously)"
+  exit 1
+fi
+
+if [ -n "$HUGO_BIND_TO_IP" ]; then
+  bindToIP=""
+  services="$(networksetup -listallnetworkservices | grep -v "*")"
+
+  while read -r service; do
+    ip="$( \
+      networksetup -getinfo "$service" \
+      | grep "IP address: 1" \
+      | cut -d" " -f3 || true \
+    )"
+
+    [ -n "$ip" ] && bindToIP="$ip" && break
+  done <<< "$services"
+
+  if [ -z "$bindToIP" ]; then
+    echo -e >&2 "No network services are available"
+    exit 1
+  fi
+
+  if ! grep -q "$bindToIP" /etc/hosts; then
+    echo "Missing entries in /etc/hosts:"
+    echo
+    echo "$bindToIP northfosterfarm.local"
+    echo "$bindToIP www.northfosterfarm.local"
+    echo
+
+    exit
+  fi
+
+  # Ensure correct ownership after running `hugo server` with `sudo`
+  # (explained in the commit message, blame this line)
+  trap sudo_hugo_server_cleanup INT
+
+  function sudo_hugo_server_cleanup() {
+    sudo chown -R "$(stat -c "%U:%G" .)" .
+  }
+
+  sudo hugo server \
+    --appendPort "false" \
+    --baseURL "http://www.northfosterfarm.local" \
+    --bind "$bindToIP" \
+    --buildDrafts \
+    --buildExpired \
+    --buildFuture \
+    --cleanDestinationDir \
+    --disableFastRender \
+    --noHTTPCache \
+    --port 80 \
+    --printMemoryUsage \
+    --printPathWarnings \
+    --printUnusedTemplates \
+    --templateMetrics \
+    --templateMetricsHints \
+    --logLevel info
+elif [ -n "$HUGO_SERVERLESS" ]; then
+  serverless_command="hugo server
+    --buildDrafts
+    --buildExpired
+    --buildFuture
+    --cleanDestinationDir
+    --disableFastRender
+    --noHTTPCache
+    --printMemoryUsage
+    --printPathWarnings
+    --printUnusedTemplates
+    --templateMetrics
+    --templateMetricsHints
+    --logLevel info"
+
+  netlify dev \
+    --command "$(echo $serverless_command)" \
+    --targetPort 1313
+else
+  hugo server \
+    --buildDrafts \
+    --buildExpired \
+    --buildFuture \
+    --cleanDestinationDir \
+    --disableFastRender \
+    --noHTTPCache \
+    --printMemoryUsage \
+    --printPathWarnings \
+    --printUnusedTemplates \
+    --templateMetrics \
+    --templateMetricsHints \
+    --logLevel info
+fi

@@ -1,0 +1,49 @@
+copyright = 2024
+disableKinds = ["RSS", "taxonomy", "term"]
+enableEmoji = true
+enableRobotsTXT = true
+languageCode = "en-us"
+paginate = 20
+pluralizeListTitles = true
+relativeURLs = true
+timeZone = "America/New_York"
+
+[build]
+  noJSConfigInAssets = true
+
+  [build.buildStats]
+    enable = true
+
+[imaging]
+  quality = 85
+
+  [imaging.exif]
+    disableDate = true
+    disableLatLong = true
+
+[params]
+  logo = "logo-horizontal.svg"
+  slogan = "True pasture-raised eggs"
+
+  [params.defaults]
+
+    [params.defaults.ctas]
+      [params.defaults.ctas.default]
+        path = "simple.html"
+
+      [params.defaults.ctas.simple]
+        text = "Place an order!"
+        label = "Contact"
+        link = "/contact"
+
+    [params.defaults.featuredImage]
+      [params.defaults.featuredImage.default]
+        path = "default-featured-image.png"
+
+      [params.defaults.featuredImage.linkToOriginal]
+        list = true
+        section = true
+        single = true
+
+[sitemap]
+  changefreq = "weekly"

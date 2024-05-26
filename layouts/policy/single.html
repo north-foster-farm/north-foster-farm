@@ -1,0 +1,12 @@
+{{ define "main" }}
+  <section class="{{ .Type }}">
+    <div class="page container py-5">
+      <div class="row justify-content-center mb-5">
+        <div class="col text-column">
+          {{ partial "page-heading.html" . }}
+          {{ .Content }}
+        </div>
+      </div>
+    </div>
+  </section>
+{{ end }}

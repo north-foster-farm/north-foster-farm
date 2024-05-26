@@ -1,0 +1,4 @@
+{{ $favicon := . }}
+{{ $queryString := querify "v" "1" }}
+{{ $urlPath := print "/favicons/" $favicon "?" $queryString }}
+{{ return ($urlPath | safeURL) }}

@@ -1,0 +1,6 @@
+facebook:
+  type: "facebook"
+  url: "https://facebook.com/#"
+instagram:
+  type: "instagram"
+  url: "https://instagram.com/#"

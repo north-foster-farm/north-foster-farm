@@ -1,0 +1,37 @@
+{
+  "name": "north-foster-farm",
+  "version": "1.0",
+  "description": "North Foster Farm website",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/north-foster-farm/north-foster-farm.git"
+  },
+  "private": true,
+  "browserslist": "defaults",
+  "scripts": {
+    "lint": "npm run lint:scripts && npm run lint:styles",
+    "lint:scripts": "eslint assets/scripts/**/*.js *.config.js",
+    "lint:styles": "stylelint assets/styles/**/*.scss",
+    "start": "bin/dev",
+    "start:bind": "HUGO_BIND_TO_IP=true bin/dev",
+    "start:serverless": "HUGO_SERVERLESS=true bin/dev",
+    "deploy": "npm run lint && bin/prod"
+  },
+  "devDependencies": {
+    "@fullhuman/postcss-purgecss": "6.0.0",
+    "autoprefixer": "10.4.19",
+    "eslint": "9.3.0",
+    "globals": "15.3.0",
+    "postcss": "8.4.38",
+    "postcss-cli": "11.0.0",
+    "stylelint": "16.6.0",
+    "stylelint-config-standard-scss": "13.1.0",
+    "stylelint-scss": "6.3.0"
+  },
+  "dependencies": {
+    "@popperjs/core": "2.11.8",
+    "bootstrap": "5.3.3",
+    "node-fetch": "3.3.2",
+    "sanitize-html": "2.13.0"
+  }
+}

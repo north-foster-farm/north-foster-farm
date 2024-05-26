@@ -1,0 +1,40 @@
+header {
+  font-family: Aller, sans-serif;
+
+  .navbar-brand {
+    svg {
+      fill: $white;
+      height: 7.5rem;
+
+      .black {
+        transition: fill 0.1s ease-in-out;
+      }
+
+      &:hover {
+        .black {
+          fill: tint-color($black, 30%);
+        }
+      }
+    }
+  }
+
+  .nav-link {
+    font-size: 1.5rem;
+
+    &.active {
+      &:hover {
+        color: tint-color($navbar-light-active-color, 30%);
+      }
+    }
+
+    @include media-breakpoint-up(lg) {
+      font-size: 1rem;
+    }
+  }
+
+  .navbar-flex-group {
+    display: flex;
+    flex-shrink: 1;
+    flex-basis: 0;
+  }
+}

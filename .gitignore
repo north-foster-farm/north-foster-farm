@@ -1,0 +1,14 @@
+# Files
+# -----
+*.bak
+*.env
+*.log
+.hugo_build.lock
+hugo_stats.json
+
+# Directories
+# -----------
+node_modules/
+public/
+resources/
+.netlify/

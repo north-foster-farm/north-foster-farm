@@ -1,0 +1,10 @@
+name: "North Foster Farm"
+address:
+  street: "99 East Killingly Road"
+  city: "Foster"
+  state: "RI"
+  zip: "02825"
+phone:
+  display: "+1 (401) 555-5555"
+  plain: "+14015555555"
+email: "sales@northfosterfarm.com"

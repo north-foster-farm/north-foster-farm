@@ -1,0 +1,19 @@
+{{ define "template" }}
+  {{ $template := dict
+    "path" "layouts/_default/list.html"
+    "kind" .Kind
+    "type" .Type
+  }}
+  {{ partial "debug/template.html" $template }}
+{{ end }}
+{{ define "main" }}
+  <section class="{{ .Type }}">
+    <div class="page container py-5">
+      <div class="row g-xl-0">
+        <div class="col col-xl-10 offset-xl-1">
+          {{ partial "page-heading.html" . }}
+        </div>
+      </div>
+    </div>
+  </section>
+{{ end }}

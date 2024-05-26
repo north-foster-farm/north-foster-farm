@@ -1,0 +1,42 @@
+[build]
+publish = "public"
+command = "yarn deploy && hugo --gc"
+
+[build.environment]
+HUGO_VERSION = "0.124.1"
+HUGO_ENV = "production"
+HUGO_ENABLEGITINFO = "true"
+
+[context.deploy-preview]
+command = "yarn deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL"
+
+[context.branch-deploy]
+command = "yarn deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL"
+
+[functions]
+  directory = "lambdas"
+  node_bundler = "esbuild"
+
+[[headers]]
+  for = "/*"
+
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Cache-Control = '''
+      max-age=86400,
+      must-revalidate
+    '''
+    X-Content-Type-Options = "nosniff"
+    Content-Security-Policy = '''
+      default-src 'none';
+      base-uri 'self';
+      connect-src 'self';
+      font-src 'self';
+      frame-ancestors 'none';
+      img-src 'self' data:;
+      manifest-src 'self';
+      script-src 'self' 'unsafe-inline';
+      style-src 'self' 'unsafe-inline';
+    '''
+    Referrer-Policy = "same-origin"
+    Strict-Transport-Security = "max-age=86400; includeSubDomains"

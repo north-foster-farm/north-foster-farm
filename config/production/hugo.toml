@@ -1,0 +1,5 @@
+baseURL = "https://www.northfosterfarm.com"
+title = "North Foster Farm"
+
+[build]
+  useResourceCacheWhen = "fallback"
