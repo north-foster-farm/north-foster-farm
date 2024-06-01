@@ -1,10 +1,9 @@
 <div class="card">
   <div class="card-body">
     <p class="card-text text-center">
-      <strong>North Foster Farm</strong> is located in Foster, Rhode Island.
-      <br>
-      🐓🥚🐓
-      <br>
+      <span class="text-nowrap"><strong>North Foster Farm</strong></span> is located in Foster, <span class="text-nowrap">Rhode Island</span>.
+    </p>
+    <p class="card-text text-center mb-0">
       {{ $email := .Site.Data.company.email }}
       <strong>Email:</strong> <a class="text-decoration-none" href="mailto:{{ $email }}">{{ $email }}</a>
     </p>

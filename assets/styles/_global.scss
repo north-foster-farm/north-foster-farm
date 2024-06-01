@@ -85,14 +85,14 @@ svg {
 }
 
 .img-supporting {
-  object-fit: cover;
-  max-height: 433px;
+  object-fit: contain;
+  max-height: 260px;
   height: auto;
   width: 100%;
   overflow: hidden;
 
   @media (max-height: 800px) and (hover: none) {
-    object-fit: cover;
+    object-fit: contain;
     max-height: 90vh;
     width: 100%;
     overflow: hidden;

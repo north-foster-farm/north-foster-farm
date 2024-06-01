@@ -1,6 +1,10 @@
 facebook:
   type: "facebook"
   url: "https://facebook.com/#"
+  hide: true
 instagram:
   type: "instagram"
-  url: "https://instagram.com/#"
+  url: "https://instagram.com/northfosterfarm"
+email:
+  type: "email"
+  url: "mailto:sales@northfosterfarm.com"

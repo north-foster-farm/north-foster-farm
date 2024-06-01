@@ -4,7 +4,10 @@
     "@type": "Organization",
     "name": "{{ .Site.Title }}",
     "url": {{ .Site.BaseURL }},
-    "logo": {{ partial "logo-url.html" . }}
+    "logo": {{ partial "logo-url.html" . }},
+    "sameAs": [
+      {{ .Site.Data.socialMedia.instagram.url }}
+    ]
   }
 </script>
 
