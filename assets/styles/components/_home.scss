@@ -8,3 +8,13 @@
   padding: 0;
   border: 0;
 }
+
+.home {
+  .bg-img {
+    @include bg-cover("/images/chickens.jpg");
+  }
+
+  .bg-overlay {
+    @include bg-opacity($gray-700, 0.5);
+  }
+}
