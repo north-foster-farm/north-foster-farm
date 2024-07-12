@@ -20,13 +20,13 @@
   "devDependencies": {
     "@fullhuman/postcss-purgecss": "6.0.0",
     "autoprefixer": "10.4.19",
-    "eslint": "9.3.0",
-    "globals": "15.3.0",
-    "postcss": "8.4.38",
+    "eslint": "9.6.0",
+    "globals": "15.8.0",
+    "postcss": "8.4.39",
     "postcss-cli": "11.0.0",
-    "stylelint": "16.6.0",
+    "stylelint": "16.6.1",
     "stylelint-config-standard-scss": "13.1.0",
-    "stylelint-scss": "6.3.0"
+    "stylelint-scss": "6.4.1"
   },
   "dependencies": {
     "@popperjs/core": "2.11.8",
