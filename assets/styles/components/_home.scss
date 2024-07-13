@@ -8,6 +8,6 @@
   }
 
   .bg-overlay {
-    @include bg-opacity($gray-700, 0.5);
+    @include bg-opacity($gray-700, 0.65);
   }
 }

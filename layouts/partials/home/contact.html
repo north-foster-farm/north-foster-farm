@@ -2,19 +2,22 @@
   <div class="row py-5">
     <div class="col-md-6 col-xl-4 offset-xl-2 py-3">
       <h3 class="fs-2">Get in touch!</h3>
-      <p class="mb-5">
+      <p>
         Send us an email to find out more about our farm and our eggs, or to
         place an order. All requests are subject to availability—first come,
         first served!
       </p>
-      {{ partial "contact-card.html" . }}
     </div>
     <div class="col-md-6 col-xl-4 py-3">
+      {{ partial "contact-card.html" . }}
+    </div>
+  </div>
+  <div class="row pb-5">
+    <div class="col d-flex justify-content-center">
       {{ $args := dict
-        "path" "egg-basket.jpg"
-        "alt" "Fresh eggs in a basket"
+        "path" "egg-carton.jpg"
+        "alt" "North Foster Farm egg carton"
         "class" "img-supporting"
-        "linkToOriginal" false
       }}
       {{ partial "image.html" $args }}
     </div>
