@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "@fullhuman/postcss-purgecss": "6.0.0",
-    "autoprefixer": "10.4.19",
+    "autoprefixer": "10.4.20",
     "eslint": "9.7.0",
     "globals": "15.8.0",
     "postcss": "8.4.39",
