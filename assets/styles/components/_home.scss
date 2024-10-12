@@ -10,4 +10,31 @@
   .bg-overlay {
     @include bg-opacity($gray-700, 0.65);
   }
+
+  .apppa-logo {
+    svg {
+      height: 4rem;
+      display: block;
+    }
+
+    .apppa-black {
+      fill: #010101;
+    }
+
+    .apppa-white {
+      fill: #fff;
+    }
+
+    .apppa-bright-red {
+      fill: #ee011e;
+    }
+
+    .apppa-dark-red {
+      fill: #7a0039;
+    }
+
+    .apppa-green {
+      fill: #04ff00;
+    }
+  }
 }

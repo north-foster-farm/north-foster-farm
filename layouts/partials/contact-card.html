@@ -3,9 +3,14 @@
     <p class="card-text text-center">
       <span class="text-nowrap"><strong>North Foster Farm</strong></span> is located in Foster, <span class="text-nowrap">Rhode Island</span>.
     </p>
-    <p class="card-text text-center mb-0">
+    <p class="card-text text-center">
       {{ $email := .Site.Data.company.email }}
       <strong>Email:</strong> <a class="text-decoration-none" href="mailto:{{ $email }}">{{ $email }}</a>
     </p>
+    <div class="d-flex justify-content-center py-3">
+      <div class="apppa-logo">
+        {{ partial "svg.html" "apppa-logo" }}
+      </div>
+    </div>
   </div>
 </div>
