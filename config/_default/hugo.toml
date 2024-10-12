@@ -3,7 +3,6 @@ disableKinds = ["RSS", "taxonomy", "term"]
 enableEmoji = true
 enableRobotsTXT = true
 languageCode = "en-us"
-paginate = 20
 pluralizeListTitles = true
 relativeURLs = true
 timeZone = "America/New_York"
@@ -33,6 +32,9 @@ timeZone = "America/New_York"
   [[module.mounts]]
     source = "hugo_stats.json"
     target = "assets/watching/hugo_stats.json"
+
+[pagination]
+  pagerSize = 10
 
 [params]
   logo = "logo-vertical.svg"
