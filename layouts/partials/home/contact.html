@@ -1,15 +1,24 @@
+{{ $emailAddress := .Site.Data.company.email }}
+{{ $emailSubject := "Add me to the NFF email list!" }}
+{{ $emailBody := "I'd like to get email updates from NFF please!" }}
+{{ $emailHref := printf "mailto:%s?subject=%s&body=%s" $emailAddress $emailSubject $emailBody }}
+{{ $email := partial "link.html" (dict
+  "href" $emailHref
+  "innerHTML" "email"
+  "classes" "text-decorate-none")
+}}
 <div class="container">
   <div class="row py-5">
     <div class="col-md-6 col-xl-4 offset-xl-2 py-3">
       <h3 class="fs-2">Get in touch!</h3>
       <p>
-        Send us an email to join our email list, to place an order, or to find
-        out more about our farm and our eggs.
+        Send us an {{ $email }} to join our email list, to place an order, or
+        to find out more about our farm and our eggs.
       </p>
       <p>
-        Visit us at our weekend drop site at the <strong>Scituate Rotary Farmers
-        Market location</strong> (46 Institute Lane in North Scituate) from
-        10:00 AM to 11:00 AM every Saturday.
+        Visit us at our weekend drop site at the <strong>Scituate Rotary
+        Farmers Market location</strong> (46 Institute Lane in North Scituate)
+        from 10:00 AM to 11:00 AM every Saturday.
       </p>
     </div>
     <div class="col-md-6 col-xl-4 py-3">

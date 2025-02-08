@@ -1,0 +1,10 @@
+{{/* Returns an anchor tag constructed from the provided arguments. */}}
+
+{{ $classes := cond .classes (printf `class="%s"` .classes) "" }}
+{{ $href := printf `href="%s"` .href }}
+{{ $target := cond .newTab `target="_blank"` "" }}
+{{ $title := cond .title (printf `title="%s"` .title) "" }}
+{{ $innerHTML := .innerHTML }}
+{{ $attributes := printf "%s %s %s %s" $classes $href $target $title }}
+
+{{ return (printf "<a %s>%s</a>" $attributes $innerHTML | safeHTML) }}

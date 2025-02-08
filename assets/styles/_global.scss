@@ -38,6 +38,14 @@ svg {
   }
 }
 
+li {
+  main & {
+    &:not(:first-child) {
+      margin-top: 0.333rem;
+    }
+  }
+}
+
 .ls-outside {
   list-style: outside;
 }
@@ -70,6 +78,19 @@ svg {
 
 .text-shadow {
   text-shadow: 2px 2px 6px $black, -2px -2px 6px $black;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  main & {
+    &:not(:first-child) {
+      margin-top: 0.333rem;
+    }
+  }
 }
 
 .img-cover {

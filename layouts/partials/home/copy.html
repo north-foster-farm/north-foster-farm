@@ -1,23 +1,127 @@
+{{ $nonGMO := partial "link.html" (dict
+  "href" "https://en.wikipedia.org/wiki/The_Non-GMO_Project"
+  "innerHTML" "non-GMO"
+  "newTab" true
+  "title" "The Non-GMO Project article on Wikipedia")
+}}
+{{ $pastureRaised := partial "link.html" (dict
+  "href" "https://www.getrealchicken.com/why-pasture-raised"
+  "innerHTML" "pasture-raised"
+  "newTab" true
+  "title" "Information about the benefits of pasture-raised farming from APPPA")
+}}
+{{ $growthHormones := partial "link.html" (dict
+  "href" "https://www.centerforfoodsafety.org/files/ractopamine_factsheet_02211.pdf"
+  "innerHTML" "growth hormones that have been outlawed in other countries (PDF)"
+  "newTab" true
+  "title" "Ractopamine PDF factsheet from the Center for Food Safety")
+}}
+{{ $email := .Site.Data.company.email }}
+{{ $emailSubject := "Add me to the NFF email list!" }}
+{{ $emailBody := "I'd like to get email updates from NFF please!" }}
+{{ $emailHref := printf "mailto:%s?subject=%s&body=%s" $email $emailSubject $emailBody }}
+{{ $emailAddress := partial "link.html" (dict
+  "href" $emailHref
+  "innerHTML" $email
+  "classes" "text-decorate-none")
+}}
 <div class="border-bottom border-light hero text-dark">
   <div class="bg-warning bg-opacity-25">
     <div class="container">
       <div class="row py-5">
         <div class="col d-flex flex-column align-items-center py-3">
-          <h2 class="fmw-575 text-center">Winter Update</h2>
-          <p class="fmw-575">
-            Our Saturday-morning egg drop schedule will continue through the
-            winter months. You will find us at the Scituate Rotary Farmers
-            Market site (46 Institute Lane in North Scituate) on Saturdays from
-            10 to 11 AM.
-          </p>
-          <p class="fmw-575">
-            {{ $email := .Site.Data.company.email }}
-            Changes to our schedule and periodic updates will be posted on our
-            website. If you’d like to receive these occasional updates in an
-            email, please join our email list. Sign up by sending a message to
-            <a class="text-decoration-none" href="mailto:{{ $email }}">{{ $email }}</a>
-            with your email address.
-          </p>
+          <div class="fmw-575 w-100">
+            <h2 class="text-center">Mid-Winter Update</h2>
+            <p>
+              The past few weeks have presented an unusually long list of
+              challenges for us and our hens including:
+            </p>
+            <ul>
+              <li>
+                <strong>The ongoing nationwide egg shortage.</strong> Reduced
+                availability and rising costs have more people than ever
+                seeking alternative egg sources. We are receiving many new
+                requests for eggs.
+              </li>
+              <li>
+                <strong>Flock productivity.</strong> Our most senior hens are
+                showing their age and producing fewer eggs. Cold temperatures
+                also affect production. When hens use additional energy to keep
+                warm, it often leads to fewer eggs.
+              </li>
+              <li>
+                <strong>Frozen eggs.</strong> Despite collecting our eggs
+                several times a day, very cold temperatures can cause some eggs
+                to freeze and crack, rendering them unsellable.
+              </li>
+              <li>
+                <strong>Flock numbers.</strong> Sadly, we have recently lost
+                several hens to predation by the local hawk population.
+              </li>
+            </ul>
+            <p>In response, we are making adjustments:</p>
+            <ul>
+              <li>
+                <strong>Temporary quantity limits.</strong> To ensure we are
+                able to provide all of our customers with eggs, we are asking
+                that you limit your weekly purchase to <strong>no more than 3
+                dozen </strong>until further notice. Hopefully, this will allow
+                us to continue to provide eggs to everyone. We are sorry for
+                the inconvenience and appreciate your understanding.
+              </li>
+              <li>
+                <strong>New winter quarters.</strong> Our hens have been moved
+                into a new winter home: a 16ʹ × 50ʹ high-tunnel greenhouse.
+                Benefits include warmer chickens, warmer eggs, and better
+                protection from airborne predators.
+              </li>
+              <li>
+                <strong>New employees.</strong> Bird flu is making new laying
+                hens more difficult to find.  Fortunately, we will be receiving
+                100 “ready-to-lay” hens in April that aren’t quite ready to
+                lay… we expect the new recruits to lay full-size, sellable eggs
+                no later than early June.
+              </li>
+            </ul>
+            <p>
+              In addition to these adjustments, we are also making a big change
+              that will make our already high-quality eggs even better.
+            </p>
+            <h3>Non-GMO transition</h3>
+            <p>
+              Since we began, we’ve had many requests for {{ $nonGMO }} eggs.
+              We believe that transitioning our hens to a non-GMO diet aligns
+              with our goal of producing the healthiest and most humane
+              {{ $pastureRaised }} eggs we can. As of February 1<sup>st</sup>,
+              we will begin feeding our hens non-GMO grain, and when the ground
+              has thawed and the snow has melted, they will continue to have
+              access to pasture.
+            </p>
+            <p>
+              With this change comes a small increase in cost. <strong>Our
+              price will increase 17 cents per egg to $7.00 per dozen,
+              beginning February 8<sup>th.</sup></strong> This modest price
+              increase will allow us to provide the highest quality product we
+              can.
+            </p>
+          </div>
+          <div class="fmw-575 w-100">
+            {{ partial "separator.html" "my-1" }}
+          </div>
+          <div class="fmw-575 w-100">
+            <p>
+              Our Saturday-morning egg drop schedule will continue through the
+              winter months. You will find us at the Scituate Rotary Farmers
+              Market site (46 Institute Lane in North Scituate) on Saturdays
+              from 10 to 11 AM.
+            </p>
+            <p>
+              Changes to our schedule and periodic updates will be posted on
+              our website. If you’d like to receive these occasional updates in
+              an email, please join our email list. Sign up by sending a
+              message to {{ $emailAddress }} with your email address.
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -28,29 +132,31 @@
     <div class="container">
       <div class="row py-5">
         <div class="col d-flex flex-column align-items-center py-3">
-          <h2 class="fmw-575 text-center">We love eggs.</h2>
-          <p class="fmw-575 text-center">
-            Over the years we’ve purchased all kinds of eggs from the store:
-            inexpensive eggs, eggs called "free-range", eggs called
-            "cage-free", and more recently, eggs called "pasture-raised". Some
-            of these labels sound better than others, but we eventually learned
-            the truth about each of these categories. In fact, pasture-raised
-            eggs stand head and shoulders above the rest.
-          </p>
-          <p class="fmw-575 text-center">
-            At North Foster Farm, we proudly produce pasture-raised eggs. At
-            night, our hens are kept inside a secure mobile coop. During the
-            day, they spend their time on grass, enjoying fresh air, sunshine,
-            and abundant access to clean water and fresh feed. They roam freely
-            in a safe enclosure and enjoy grasses and insects—just like
-            chickens are supposed to.
-          </p>
-          <p class="fmw-575 text-center">
-            After about a week, when the "good stuff" begins to dwindle, we
-            move them (coop and all) to a new spot in the pasture to start
-            fresh. As a result, we have happy, healthy hens that lay healthy,
-            delicious eggs.
-          </p>
+          <div class="fmw-575 w-100 text-center">
+            <h2>We love eggs.</h2>
+            <p>
+              Over the years we’ve purchased all kinds of eggs from the store:
+              inexpensive eggs, eggs called “free-range”, eggs called
+              “cage-free”, and more recently, eggs called “pasture-raised”.
+              Some of these labels sound better than others, but we eventually
+              learned ghe truth about each of these categories. In fact,
+              pasture-raised eggs stand head and shoulders above the rest.
+            </p>
+            <p>
+              At North Foster Farm, we proudly produce pasture-raised eggs. At
+              night, our hens are kept inside a secure mobile coop. During the
+              day, they spend their time on grass, enjoying fresh air,
+              sunshine, and abundant access to clean water and fresh feed. They
+              roam freely in a safe enclosure and enjoy grasses and
+              insects—just like chickens are supposed to.
+            </p>
+            <p>
+              After about a week, when the “good stuff” begins to dwindle, we
+              move them (coop and all) to a new spot in the pasture to start
+              fresh. As a result, we have happy, healthy hens that lay healthy,
+              delicious eggs.
+            </p>
+          </div>
         </div>
       </div>
     </div>
