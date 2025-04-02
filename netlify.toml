@@ -33,6 +33,7 @@ command = "yarn deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -
       connect-src 'self';
       font-src 'self';
       frame-ancestors 'none';
+      frame-src https://www.youtube.com;
       img-src 'self' data:;
       manifest-src 'self';
       script-src 'self' 'unsafe-inline';
