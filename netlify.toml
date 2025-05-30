@@ -17,6 +17,12 @@ command = "yarn deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -
   directory = "lambdas"
   node_bundler = "esbuild"
 
+[[redirects]]
+  from = "/venmo"
+  to = "https://venmo.com/u/northfosterfarm"
+  status = 301
+  force = false
+
 [[headers]]
   for = "/*"
 
