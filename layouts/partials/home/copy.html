@@ -23,6 +23,18 @@
   "newTab" true
   "title" "Scituate Rotary Farmers Market website")
 }}
+{{ $instagram := partial "link.html" (dict
+  "href" "https://www.instagram.com/northfosterfarm"
+  "innerHTML" "@northfosterfarm on Instagram"
+  "newTab" true
+  "title" "North Foster Farm on Instagram")
+}}
+{{ $apppaVideo := partial "link.html" (dict
+  "href" "https://www.youtube.com/watch?v=ztXH8ILNNks"
+  "innerHTML" "youtube.com/watch?v=ztXH8ILNNks"
+  "newTab" true
+  "title" "Let Us Show You Real Pasture Raised Eggs - YouTube.com")
+}}
 {{ $email := .Site.Data.company.email }}
 {{ $emailSubject := "Add me to the NFF email list!" }}
 {{ $emailBody := "I'd like to get email updates from NFF please!" }}
@@ -38,30 +50,64 @@
       <div class="row py-5">
         <div class="col d-flex flex-column align-items-center py-3">
           <div class="fmw-575 w-100">
-            <h2 class="text-center">June Update</h2>
+            <h2 class="text-center">Fall Update</h2>
             <p>
-              The 2025 farmers market season is finally here! Here's where
-              you'll find us on the weekends:
+              I'm sure I say it every year, but <i>I can't believe fall is here
+              already.</i> We've had a busy 2025 and the hens have been doing a
+              great job providing us with delicious, pasture-raised, non-GMO
+              eggs. This method of production does make a difference. Raising
+              layers on pasture and moving them to clean grass yields a better
+              egg, and provides a healthier, happier environment for the
+              chickens. "Certified humane", "free range", "cage free", or
+              "organic" may be better than living in a tiny cage in an
+              industrial egg factory, but they simply don't compare to
+              pasture-raised.
             </p>
-            <ul>
-              <li>
-                <strong>{{ $scituateFarmersMarket }}</strong><br>
-                <strong>When:</strong> every Saturday<br>
-                <strong>Time:</strong> 9:00 AM to 12:00 PM<br>
-                <strong>Where:</strong> 46 Institute Lane, Scituate, RI 02857
-              </li>
-              <li>
-                <strong>{{ $fosterFarmersMarket }}</strong><br>
-                <strong>When:</strong> every Sunday<br>
-                <strong>Time:</strong> 9:00 AM to 12:30 PM<br>
-                <strong>Where:</strong> 164 Danielson Pike, Foster, RI 02825
-              </li>
-            </ul>
             <p>
-              We offer <strong>pasture-raised, non-GMO chicken eggs</strong> by
-              the dozen. Stop by our booth to purchase eggs, learn about our
-              farm, and find out why we believe pasture-raised chickens lay the
-              best eggs.
+              Our hens live on pasture for most of the year. They still have
+              access to the outdoors, but are moved to a high tunnel greenhouse
+              for protection from the winter weather. When on pasture, they are
+              moved to clean grass regularly and able to supplement their
+              non-GMO grain diet with seeds, grasses, legumes, insects and
+              worms. They are never fed hormones or antibiotics.
+            </p>
+            <p>
+              Egg production has slowed a bit, partially due to shorter days,
+              and partially because our chickens are molting—the time of year
+              when hens slow or stop egg production and focus their energy on
+              replacing feathers. We'll soon be heading to Pennsylvania to pick
+              up 100 new employees. These 16-week-old, ready-to-lay pullets
+              (young chickens) will help us keep up with demand during the
+              progressively shorter days of winter. As mentioned in previous
+              updates, they're called "ready-to-lay", but actually need a few
+              additional weeks before they begin to lay their first small eggs.
+              Hopefully, they'll be contributing large eggs by the end of
+              December. Until then, we only pay them minimum chicken wage.
+            </p>
+            <p>
+              The outdoor farmer's market season is winding down. The last day
+              of the Scituate Rotary Farmers Market is this Saturday, September
+              27<sup>th</sup>. We may be wearing long johns, but the Foster
+              Farmer's Market will be hanging on until October 26<sup>th</sup>.
+              Even though the markets will close for the winter, our eggs are
+              available all year long. We will be offering a weekly egg drop
+              off at the site of the Scituate Rotary Farmers Market on Saturday
+              mornings from 10 - 11. All you need to do is stop by and purchase
+              as usual.
+            </p>
+            <p>
+              We're already excited about what's to come in 2026. We've started
+              clearing some additional pastures, and as we get closer to the
+              new season we'll provide more details. In the meantime, please
+              visit {{ $instagram }} to see pictures and videos of our flock in
+              action. We also recommend this excellent video from APPPA that
+              explains what it means to be pasture raised, and why it's so
+              beneficial: {{ $apppaVideo }}
+            </p>
+            <p>
+              Thank you, as always, for supporting North Foster Farm and all of
+              our local farmer friends. Your support helps all of us grow and
+              allows us to provide delicious, nutritious foods!
             </p>
           </div>
           <div class="fmw-575 w-100">
