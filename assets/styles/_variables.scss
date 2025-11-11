@@ -75,6 +75,16 @@ $theme-colors: (
 // Add white to theme colors
 $theme-colors: map-merge($theme-colors, ("white": $white));
 
+// Subtle background colors
+$primary-bg-subtle:       tint-color($primary, 95%);
+$secondary-bg-subtle:     tint-color($secondary, 95%);
+$success-bg-subtle:       tint-color($success, 95%);
+$info-bg-subtle:          tint-color($info, 95%);
+$warning-bg-subtle:       tint-color($warning, 95%);
+$danger-bg-subtle:        tint-color($danger, 95%);
+$light-bg-subtle:         mix($gray-100, $white);
+$dark-bg-subtle:          $gray-400;
+
 // Options
 $enable-rounded:              false;
 $enable-cssgrid:              true;
