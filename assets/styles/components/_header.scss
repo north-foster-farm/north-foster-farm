@@ -1,5 +1,6 @@
 header {
   font-family: Aller, sans-serif;
+  color: $navbar-light-color;
 
   .navbar-brand {
     svg {
@@ -36,5 +37,22 @@ header {
     display: flex;
     flex-shrink: 1;
     flex-basis: 0;
+  }
+
+  .social-media {
+    line-height: 1.5;
+    fill: currentcolor;
+
+    a {
+      color: $navbar-light-color;
+
+      &:hover {
+        color: shade-color($navbar-light-color, 30%);
+      }
+    }
+
+    svg {
+      height: 1.125rem;
+    }
   }
 }
