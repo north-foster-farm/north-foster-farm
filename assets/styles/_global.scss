@@ -38,14 +38,6 @@ svg {
   }
 }
 
-li {
-  main & {
-    &:not(:first-child) {
-      margin-top: 0.333rem;
-    }
-  }
-}
-
 .ls-outside {
   list-style: outside;
 }
