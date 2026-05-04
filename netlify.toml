@@ -18,6 +18,18 @@ command = "yarn deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -
   node_bundler = "esbuild"
 
 [[redirects]]
+  from = "/admin"
+  to = "https://admin.northfosterfarm.com"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/dashboard"
+  to = "https://admin.northfosterfarm.com"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/venmo"
   to = "https://venmo.com/u/northfosterfarm"
   status = 301
