@@ -3,6 +3,10 @@
     color: $white;
   }
 
+  .photo-frame {
+    background-color: rgb(190 217 187 / 84%);
+  }
+
   .bg-img {
     @include bg-cover("/images/chickens.jpg");
   }

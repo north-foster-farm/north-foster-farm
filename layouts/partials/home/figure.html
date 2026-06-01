@@ -1,0 +1,29 @@
+{{/*
+  A captioned photo, optionally displayed in a tinted frame.
+
+  Params:
+    image    Image resource displayed in the figure
+    alt      Alt text for the image
+    caption  Caption text displayed beneath the image
+    classes  Additional classes for the figure element (optional)
+    frame    Display the photo in a tinted frame (optional, default true)
+    lazy     Lazy-load the image (optional, default true)
+*/}}
+
+{{ $image := .image }}
+{{ $alt := .alt }}
+{{ $caption := .caption }}
+{{ $classes := .classes }}
+{{ $frame := .frame | default true }}
+{{ $lazy := .lazy | default true }}
+
+<figure class="figure d-block mx-auto{{ if $frame }} photo-frame rounded-3 shadow-sm overflow-hidden{{ end }}{{ with $classes }} {{ . }}{{ end }}">
+  <img src="{{ $image.RelPermalink }}"
+    width="{{ $image.Width }}" height="{{ $image.Height }}"
+    alt="{{ $alt }}"
+    class="figure-img img-fluid d-block {{ if $frame }}mb-0{{ else }}rounded-4 mb-2{{ end }}"
+    {{- if $lazy }} loading="lazy"{{ end }} />
+  <figcaption class="figure-caption text-center fst-italic px-3 py-2">
+    {{ $caption }}
+  </figcaption>
+</figure>

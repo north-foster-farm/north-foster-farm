@@ -1,9 +1,15 @@
 {{ $embedSrc := "https://www.youtube.com/embed/ztXH8ILNNks" }}
 {{ $fosterFarmersMarket := partial "link.html" (dict
   "href" "https://www.fosterfarmersmarketri.com"
-  "innerHTML" "Foster Farmers' Market"
+  "innerHTML" "Foster Farmers Market"
   "newTab" true
-  "title" "Foster Farmers' Market website")
+  "title" "Foster Farmers Market website")
+}}
+{{ $tiltedBarnMarket := partial "link.html" (dict
+  "href" "https://www.tiltedbarnbrewery.com/summer-market"
+  "innerHTML" "Summer Market at Tilted Barn"
+  "newTab" true
+  "title" "Summer Market at Tilted Barn")
 }}
 {{ $nonGMO := partial "link.html" (dict
   "href" "https://en.wikipedia.org/wiki/The_Non-GMO_Project"
@@ -11,9 +17,21 @@
   "newTab" true
   "title" "The Non-GMO Project article on Wikipedia")
 }}
+{{ $freeOfGMOs := partial "link.html" (dict
+  "href" "https://en.wikipedia.org/wiki/The_Non-GMO_Project"
+  "innerHTML" "free of GMOs"
+  "newTab" true
+  "title" "The Non-GMO Project article on Wikipedia")
+}}
 {{ $pastureRaised := partial "link.html" (dict
   "href" "https://www.getrealchicken.com/why-pasture-raised"
   "innerHTML" "pasture-raised"
+  "newTab" true
+  "title" "Information about the benefits of pasture-raised farming from APPPA")
+}}
+{{ $moveThemToFreshPastureRegularly := partial "link.html" (dict
+  "href" "https://www.getrealchicken.com/why-pasture-raised"
+  "innerHTML" "move them to fresh pasture regularly"
   "newTab" true
   "title" "Information about the benefits of pasture-raised farming from APPPA")
 }}
@@ -44,49 +62,99 @@
   "innerHTML" $email
   "classes" "text-decorate-none")
 }}
+{{ $henImg := resources.Get "images/photogenic-hen.jpg" }}
+{{ $chicksImg := resources.Get "images/chicks.jpg" }}
+{{ $ivyImg := resources.Get "images/ivy-sniffs-chick.jpg" }}
 <div class="border-bottom border-light hero text-dark">
   <div class="container">
     <div class="row py-3 py-md-5">
       <div class="col d-flex flex-column align-items-center py-3">
-        <div class="bg-success-subtle border border-1 border-success border-opacity-50 rounded-4 px-4 px-md-5 py-4 py-md-5">
+        <div class="bg-success-subtle border border-1 border-success border-opacity-50 rounded-4 px-3 px-sm-5 py-3 py-sm-5">
           <div class="fmw-575 w-100">
             <h2 class="text-center mb-4">
               <span class="border-bottom">
-                2026 Update
+                June Update
               </span>
             </h2>
+            {{ $hen := $henImg.Resize "1150x webp q82" }}
+            <img src="{{ $hen.RelPermalink }}"
+              width="{{ $hen.Width }}" height="{{ $hen.Height }}"
+              alt="One of our laying hens out on pasture"
+              class="img-fluid rounded-4 mb-4 d-block mx-auto" />
             <p>
-              Time is passing quickly and the 2026 Farmer’s Market season will
-              be here before we know it. In addition to our pasture-raised,
-              non-GMO eggs, we’re excited to announce that we will be offering
-              pasture-raised, non-GMO chicken. If you’ve never experienced
-              pasture-raised chicken, you’re in for a surprise. It’s fantastic!
-              If you’re old enough to remember chicken before it became a
-              “manufactured” product, you probably know what I mean.
-              Pasture-raised chicken tastes like <em>chicken!</em>
+              It’s been quiet here on the website these past few months, but
+              not out on the farm. The grass has come back, the chickens are
+              out rotating through our pastures, the brooder is full of peeping
+              chicks, and the market season is finally here.
             </p>
             <p>
-              In addition to great taste, you get the health benefits of
-              chicken that is moved to fresh grass daily, fed non-GMO grains,
-              and never received antibiotics or hormones. If everything goes as
-              planned, we hope to have whole chickens and cuts available for
-              the start of our market season.
+              If we haven’t met yet: we’re <strong>North Foster Farm</strong>,
+              a small family farm in Foster, Rhode Island. We raise chickens on
+              grass, {{ $moveThemToFreshPastureRegularly }}, and feed them
+              grain that’s {{ $freeOfGMOs }}. We think that’s how chickens
+              should be raised—and we think you can taste the difference.
             </p>
             <p>
-              Our laying flock will be welcoming another group of new recruits
-              in April to ensure we can continue to meet the growing demand for
-              eggs. We figure that the new employees will be providing us with
-              great tasting eggs by mid to late May. Until then, the
-              experienced employees will do their best to keep up with demand.
+              This year, we’re proud to be selling our own pastured eggs and
+              pastured chicken. <strong>Eggs by the dozen</strong> and
+              <strong>Cornish hens</strong> are in stock right now. The
+              rest of our lineup—whole chickens, boneless breasts, bone-in
+              thighs, drumsticks, tenders, and wings—will be in our freezers
+              later this week and available for purchase by Saturday, June
+              6<sup>th</sup>.
             </p>
+            {{ partial "home/figure.html" (dict
+              "image" ($chicksImg.Resize "1150x webp q82")
+              "alt" "New chicks settling in under the heat lamps in the brooder"
+              "caption" "Heat lamps for now, but in just a few weeks, they’ll be fully feathered and ready for pasture."
+              "classes" "my-4")
+            }}
             <p>
-              2026 will be a year of growth here at North Foster Farm. More
-              layers, broiler chickens and with them, more pasture. We’ll be
-              working hard to clear additional space to ensure we have enough
-              grass to keep our flavorful flock happy.
+              You can find us at three farmers markets every week. We’d love
+              for you to stop by, say hello, and see what we’ve got.
             </p>
+            <ul class="list-unstyled">
+              <li class="pb-2"><strong>{{ $tiltedBarnMarket }}:</strong>
+                <ul>
+                  <li>Wednesdays</li>
+                  <li>4:00 PM - 7:00 PM</li>
+                  <li>Tilted Barn Brewery, One Hemsley Place, Exeter, RI</li>
+                </ul>
+              </li>
+              <li class="pb-2"><strong>{{ $scituateFarmersMarket }}:</strong>
+                <ul>
+                  <li>Saturdays</li>
+                  <li>9:00 AM - 12:00 PM</li>
+                  <li>The Village Green, 46 Institute Lane, North Scituate, RI</li>
+                </ul>
+              </li>
+              <li><strong>{{ $fosterFarmersMarket }}:</strong>
+                <ul>
+                  <li>Sundays</li>
+                  <li>9:00 AM - 1:00 PM</li>
+                  <li>Shady Acres Diner, 164 Danielson Pike, Foster, RI</li>
+                </ul>
+              </li>
+            </ul>
             <p>
-              As always, we can’t say “thank you” enough.
+              In addition to our weekly markets, you’ll find our tent at a
+              handful of summer pop-up events around Warwick from July into
+              September. We’ll share the whole schedule in a future
+              update—check back soon!
+            </p>
+            {{ partial "home/figure.html" (dict
+              "image" ($ivyImg.Resize "1150x webp q82")
+              "alt" "Ivy the sheep nose-to-nose with one of the hens"
+              "caption" "And if you were ever curious: yes, the sheep and the chickens get along… mostly. This is Ivy, conducting a thorough inspection."
+              "classes" "my-4")
+            }}
+            <p>
+              As always, we can’t say “thank you” enough. Your support is what
+              lets us keep doing this, and we can’t wait to see you at market
+              this summer.
+            </p>
+            <p class="fs-4 text-body-secondary mt-4">
+              — The NFF team
             </p>
           </div>
           <div class="fmw-575 w-100">
@@ -97,7 +165,8 @@
               Changes to our schedule and periodic updates will be posted on
               our website. If you’d like to receive these occasional updates in
               an email, please join our email list. Sign up by sending a
-              message to {{ $emailAddress }} with your email address.
+              message to {{ $emailAddress }} with your email address. You can
+              also follow along with {{ $instagram }}.
             </p>
           </div>
         </div>
