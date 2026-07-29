@@ -62,9 +62,17 @@
   "innerHTML" $email
   "classes" "text-decorate-none")
 }}
-{{ $henImg := resources.Get "images/photogenic-hen.jpg" }}
-{{ $chicksImg := resources.Get "images/chicks.jpg" }}
-{{ $ivyImg := resources.Get "images/ivy-sniffs-chick.jpg" }}
+{{ $deliverySubject := "I'm interested in local delivery" }}
+{{ $deliveryBody := "I'd like to hear more about local delivery from NFF." }}
+{{ $deliveryHref := printf "mailto:%s?subject=%s&body=%s" $email $deliverySubject $deliveryBody }}
+{{ $deliveryEmail := partial "link.html" (dict
+  "href" $deliveryHref
+  "innerHTML" "send us an email"
+  "classes" "text-decorate-none")
+}}
+{{ $lilyImg := resources.Get "images/lily.jpg" }}
+{{ $tiltedMarketImg := resources.Get "images/tilted-market.jpg" }}
+{{ $scituateMarketImg := resources.Get "images/scituate-market.jpg" }}
 <div class="border-bottom border-light hero text-dark">
   <div class="container">
     <div class="row py-3 py-md-5">
@@ -73,19 +81,21 @@
           <div class="fmw-575 w-100">
             <h2 class="text-center mb-4">
               <span class="border-bottom">
-                June Update
+                August Update
               </span>
             </h2>
-            {{ $hen := $henImg.Resize "1150x webp q82" }}
-            <img src="{{ $hen.RelPermalink }}"
-              width="{{ $hen.Width }}" height="{{ $hen.Height }}"
-              alt="One of our laying hens out on pasture"
-              class="img-fluid rounded-4 mb-4 d-block mx-auto" />
+            {{ partial "home/figure.html" (dict
+              "image" ($lilyImg.Resize "1150x webp q82")
+              "alt" "Lily the sheep looking over the pasture fence on a summer afternoon"
+              "caption" "This is Lily. She doesn’t lay eggs, and she isn’t for sale!"
+              "lazy" false
+              "classes" "mb-4")
+            }}
             <p>
-              It’s been quiet here on the website these past few months, but
-              not out on the farm. The grass has come back, the chickens are
-              out rotating through our pastures, the brooder is full of peeping
-              chicks, and the market season is finally here.
+              We can’t believe it’s August already. The summer has gone by so
+              quickly—it feels like we were setting up the brooder a couple of
+              weeks ago, and here we are already past the halfway point of the
+              market season. Things are going great out on the farm.
             </p>
             <p>
               If we haven’t met yet: we’re <strong>North Foster Farm</strong>,
@@ -95,23 +105,40 @@
               should be raised—and we think you can taste the difference.
             </p>
             <p>
-              This year, we’re proud to be selling our own pastured eggs and
-              pastured chicken. <strong>Eggs by the dozen</strong> and
-              <strong>Cornish hens</strong> are in stock right now. The
-              rest of our lineup—whole chickens, boneless breasts, bone-in
-              thighs, drumsticks, tenders, and wings—will be in our freezers
-              later this week and available for purchase by Saturday, June
-              6<sup>th</sup>.
+              This week we moved another batch of chicks out of the brooder and
+              onto pasture, which is one of our favorite days of the season.
+              They spend their first few weeks indoors under heat lamps, and
+              once they’re fully feathered they graduate to the field. From
+              then on they live in mobile pens that we move onto fresh grass
+              every day.
             </p>
             {{ partial "home/figure.html" (dict
-              "image" ($chicksImg.Resize "1150x webp q82")
-              "alt" "New chicks settling in under the heat lamps in the brooder"
-              "caption" "Heat lamps for now, but in just a few weeks, they’ll be fully feathered and ready for pasture."
+              "image" ($tiltedMarketImg.Resize "1150x webp q82")
+              "alt" "Vendor tents set up in the field at Tilted Barn Brewery"
+              "caption" "Wednesday evening at Tilted Barn in Exeter"
               "classes" "my-4")
             }}
             <p>
-              You can find us at three farmers markets every week. We’d love
-              for you to stop by, say hello, and see what we’ve got.
+              Our freezers are fully stocked, and right now we have the whole
+              lineup on hand:
+            </p>
+            <ul>
+              <li class="pb-1"><strong>Eggs by the dozen</strong></li>
+              <li class="pb-1"><strong>Whole chickens</strong></li>
+              <li class="pb-1"><strong>Cornish hens</strong></li>
+              <li class="pb-1"><strong>Boneless breasts</strong></li>
+              <li class="pb-1"><strong>Bone-in thighs</strong></li>
+              <li class="pb-1"><strong>Tenders</strong></li>
+              <li class="pb-1"><strong>Drumsticks</strong></li>
+              <li class="pb-1"><strong>Wings</strong></li>
+              <li class="pb-1"><strong>Chicken sausage</strong> (maple breakfast
+                and sweet Italian)</li>
+              <li><strong>Livers</strong></li>
+            </ul>
+            <p>
+              Everything is available at all three of our weekly farmers
+              markets. We’d love for you to stop by, say hello, and see what
+              we’ve got.
             </p>
             <ul class="list-unstyled">
               <li class="pb-2"><strong>{{ $tiltedBarnMarket }}:</strong>
@@ -137,21 +164,29 @@
               </li>
             </ul>
             <p>
-              In addition to our weekly markets, you’ll find our tent at a
-              handful of summer pop-up events around Warwick from July into
-              September. We’ll share the whole schedule in a future
-              update—check back soon!
+              We’re also getting close to something a lot of you have asked us
+              about: <strong>local delivery</strong>. If you’re interested,
+              please {{ $deliveryEmail }} and we’ll get you more information.
+              We’ll publish full details on the website soon.
             </p>
             {{ partial "home/figure.html" (dict
-              "image" ($ivyImg.Resize "1150x webp q82")
-              "alt" "Ivy the sheep nose-to-nose with one of the hens"
-              "caption" "And if you were ever curious: yes, the sheep and the chickens get along… mostly. This is Ivy, conducting a thorough inspection."
+              "image" ($scituateMarketImg.Resize "1150x webp q82")
+              "alt" "Vendor tents lining the Village Green at the Scituate Rotary Farmers Market"
+              "caption" "Saturday morning on the Village Green in North Scituate"
               "classes" "my-4")
             }}
             <p>
-              As always, we can’t say “thank you” enough. Your support is what
-              lets us keep doing this, and we can’t wait to see you at market
-              this summer.
+              This was our first year selling our own chicken, and honestly, we
+              weren’t sure what to expect. What means the most is how many of
+              you came back to tell us how it tasted—and then bought more. If
+              you’re old enough to remember chicken before it became a
+              “manufactured” product, you probably know what we mean. As we
+              like to say, pasture-raised chicken tastes like <em>chicken</em>.
+            </p>
+            <p>
+              Thank you to everyone who has supported our farm this year. We
+              just can’t say “thank you” enough. We’ve got more good things
+              coming soon!
             </p>
             <p class="fs-4 text-body-secondary mt-4">
               — The NFF team
