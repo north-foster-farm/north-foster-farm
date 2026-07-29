@@ -1,7 +1,12 @@
 <div class="card bg-success-subtle border border-1 border-success border-opacity-50 rounded-4">
   <div class="card-body">
+    {{ $address := partial "address.html" . }}
+    {{ $phone := partial "phone.html" . }}
     <p class="card-text text-center">
-      <span class="text-nowrap"><strong>North Foster Farm</strong></span> is located in Foster, <span class="text-nowrap">Rhode Island</span>.
+      <span class="text-nowrap"><strong>North Foster Farm</strong></span> is located at {{ $address.street }} in {{ $address.city }}, <span class="text-nowrap">Rhode Island</span>.
+    </p>
+    <p class="card-text text-center">
+      <strong>Call or text:</strong> <a class="text-decoration-none" href="{{ $phone.href }}">{{ $phone.display }}</a>
     </p>
     <p class="card-text text-center">
       {{ $email := .Site.Data.company.email }}
