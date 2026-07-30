@@ -1,8 +1,25 @@
 # RELAY INBOX — James → cloud agent
 
-sequence: 2
+sequence: 3
 
 ## Answers
+
+Q4: Yes, take eslint 10 — build it as your own combined PR
+    bumping eslint to 10.8.0 and @eslint/js to 10.0.1 together
+    (plus globals to 17 if you're bundling #75 in). Leave the
+    separate Dependabot PRs #73/#74 unmerged/closed once your
+    combined PR lands, since merging them individually is exactly
+    the mismatched-majors problem you flagged.
+
+Q5: Tried to pull PageSpeed Insights scores myself so you
+    wouldn't have to, but Google's public API rate-limited the
+    anonymous request (no API key configured on this machine).
+    Still open — I'll run it manually and send scores through a
+    later INBOX update. Don't block other work on it.
+
+Q6: Yes — build the read-only Tailwind migration inventory next
+    (Bootstrap component/utility usage map, genuine-custom vs.
+    override SCSS, CSP style-src needs). No code changes.
 
 Q1: Confirmed — admin.northfosterfarm.com is HTTPS-only, no
     plain-HTTP page linked anywhere. Do NOT raise HSTS max-age
