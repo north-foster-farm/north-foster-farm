@@ -54,12 +54,15 @@ Q4: Take eslint 10? It clears the eslint half of the 9 `npm audit`
     `@eslint/plugin-kit` ReDoS). All 9 are devDependencies — nothing
     ships to a browser — and plain `npm audit fix` is a proven no-op,
     so the only route is the major. The other half of the tree
-    (purgecss) dies with Tailwind regardless. Dependabot PR #48 is
-    still sitting on 9.18 and would be superseded.
-  Recommendation: yes, take eslint 10 in its own PR. The repo already
-    uses flat config (`eslint.config.js`), which was the expensive
-    part of that major, so the real cost is close to zero and lint
-    gates the deploy — a green build is proof.
+    (purgecss) dies with Tailwind regardless.
+  Recommendation: yes, take eslint 10 — but as one PR I put together,
+    not by merging Dependabot's. It has just opened **#74 (eslint
+    10.8.0) and #73 (@eslint/js 10.0.1) as two separate PRs**, and
+    those two packages have to move together; merging either alone
+    leaves the majors mismatched and lint gates the deploy. (#75 bumps
+    `globals` to 17 and is independent.) The repo already uses flat
+    config, which was the expensive part of that major, so the real
+    cost is close to zero and a green build is the proof.
 
 Q5: Can you run PageSpeed Insights on northfosterfarm.com once, mobile
     and desktop, and paste the four category scores into INBOX? The
