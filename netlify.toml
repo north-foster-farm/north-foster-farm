@@ -32,6 +32,12 @@ command = "yarn deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -
   status = 301
   force = false
 
+[[redirects]]
+  from = "/privacy-policy"
+  to = "/privacy"
+  status = 301
+  force = false
+
 [[headers]]
   for = "/*"
 
