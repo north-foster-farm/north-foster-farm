@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-North Foster Farm website - a static site built with Hugo (v0.135.0+) and hosted on Netlify. The site uses Bootstrap 5.3.3, custom SCSS styling, and vanilla JavaScript with ES modules.
+North Foster Farm website - a static site built with Hugo (v0.164.0) and hosted on Netlify. The site uses Bootstrap 5.3.3, custom SCSS styling, and vanilla JavaScript with ES modules.
 
 ## Development Commands
 
@@ -45,7 +45,7 @@ Configuration is environment-specific using Hugo's layered config system:
 Key Hugo settings:
 - Uses Hugo Pipes for asset processing
 - Mounts `hugo_stats.json` to assets for PurgeCSS
-- Requires extended Hugo >= 0.126.0
+- Requires extended Hugo >= 0.164.0
 - Timezone: America/New_York
 
 ### Directory Structure
@@ -135,7 +135,7 @@ ES6 modules with explicit imports:
 
 Deployment configured in `netlify.toml`:
 - Build command: `yarn deploy && hugo --gc`
-- Hugo version: 0.135.0
+- Hugo version: 0.164.0 (pinned; Node 26 via NODE_VERSION and .nvmrc)
 - Deploy previews build drafts/future/expired content
 - Custom redirects (e.g., `/venmo` → Venmo profile)
 - Security headers: CSP, HSTS, nosniff, etc.
@@ -143,7 +143,7 @@ Deployment configured in `netlify.toml`:
 ## Data Management
 
 Site data stored in YAML files under `data/`:
-- Access in templates via `.Site.Data.company` or `.Site.Data.socialMedia`
+- Access in templates via `hugo.Data.company` or `hugo.Data.socialMedia`
 - Company info includes phone (display + plain formats), email, address
 - Centralized data avoids hardcoding in templates
 

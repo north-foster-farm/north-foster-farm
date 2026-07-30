@@ -46,7 +46,7 @@
   "newTab" true
   "title" "North Foster Farm on Instagram")
 }}
-{{ $email := .Site.Data.company.email }}
+{{ $email := hugo.Data.company.email }}
 {{ $emailSubject := "Add me to the NFF email list!" }}
 {{ $emailBody := "I'd like to get email updates from NFF please!" }}
 {{ $emailHref := printf "mailto:%s?subject=%s&body=%s" $email $emailSubject $emailBody }}

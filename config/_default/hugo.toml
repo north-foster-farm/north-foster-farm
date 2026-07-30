@@ -1,8 +1,8 @@
 copyright = 2024
-disableKinds = ["RSS", "taxonomy", "term"]
+disableKinds = ["rss", "taxonomy", "term"]
 enableEmoji = true
 enableRobotsTXT = true
-languageCode = "en-us"
+locale = "en-us"
 pluralizeListTitles = true
 relativeURLs = true
 timeZone = "America/New_York"
@@ -14,7 +14,14 @@ timeZone = "America/New_York"
     enable = true
 
 [imaging]
-  quality = 85
+  [imaging.avif]
+    quality = 85
+
+  [imaging.jpeg]
+    quality = 85
+
+  [imaging.webp]
+    quality = 85
 
   [imaging.exif]
     disableDate = true
@@ -23,7 +30,7 @@ timeZone = "America/New_York"
 [module]
   [module.hugoVersion]
     extended = true
-    min = "0.126.0"
+    min = "0.164.0"
 
   [[module.mounts]]
     source = "assets"
