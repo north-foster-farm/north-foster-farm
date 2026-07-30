@@ -1,0 +1,54 @@
+name: LGTM auto-merge
+
+# James can't approve his own PRs on GitHub (he's the author), so the
+# LGTM label stands in for a review. This waits for the Netlify
+# deploy preview status, then merges: squash first, falling back to
+# rebase, then a plain merge commit if both are rejected.
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    if: github.event.label.name == 'LGTM'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Netlify deploy preview
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          for i in $(seq 1 20); do
+            state=$(gh api "repos/$REPO/commits/$SHA/status" --jq '
+              .statuses[] | select(.context == "deploy/netlify") | .state
+            ')
+            if [ "$state" = "success" ]; then
+              exit 0
+            fi
+            if [ "$state" = "failure" ] || [ "$state" = "error" ]; then
+              echo "Deploy preview $state — not merging." >&2
+              exit 1
+            fi
+            sleep 15
+          done
+          echo "Timed out waiting for deploy preview status." >&2
+          exit 1
+
+      - name: Merge PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          merge_pr() {
+            gh pr merge "$PR_NUMBER" --repo "$REPO" --delete-branch "$1"
+          }
+          merge_pr --squash && exit 0
+          merge_pr --rebase && exit 0
+          merge_pr --merge
