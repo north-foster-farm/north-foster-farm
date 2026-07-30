@@ -429,6 +429,18 @@ of them get redone post-migration.
   prerequisites, no commands, and no mention that pushing to main
   auto-deploys production.
 - A4 — Lighthouse/PageSpeed baseline, recorded here pre-Tailwind.
+  **Take this after deciding the dead-`Collapse` question** — see
+  `docs/tailwind-inventory.md` Finding 1; the JS payload it measures is
+  24.5 KB gzipped that may be about to disappear.
+- ~~Tailwind migration inventory~~ **DONE** —
+  `docs/tailwind-inventory.md`. Read-only survey measured against a real
+  0.164.0 production build: what Bootstrap the site actually uses, which
+  SCSS is genuinely custom versus an override, what the CSP needs, and
+  what the migration deletes outright. Three things in it are actionable
+  before any Tailwind work starts: the Bootstrap JS bundle is 24.5 KB
+  gzipped and is bound to nothing, the header menu partials render
+  nothing because no `[menu]` is configured, and `style-src`
+  `'unsafe-inline'` is held up by exactly one inline custom property.
 - **Netlify UI checklist (needs you, nothing in-repo covers it):**
   orphaned env vars from the lambdas era, build image / any UI-set
   Node version, leftover Functions or Forms state, build hooks,
