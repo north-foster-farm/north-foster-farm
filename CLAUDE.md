@@ -22,10 +22,15 @@ npm run lint                # All linters
 npm run lint:scripts        # ESLint for JS files
 npm run lint:styles         # Stylelint for SCSS
 
-# Production build (installs Dart Sass, runs linters, builds site)
+# Production build. NETLIFY ONLY -- do not run this locally.
+# bin/prod installs Dart Sass into /opt/build/repo, a path that only
+# exists on the Netlify build image, so this fails on a dev machine.
+# Netlify runs it via `yarn deploy && hugo --gc`.
 npm run deploy
-# or: bin/prod && hugo --gc
 ```
+
+To check a production build locally, run the linters and then
+`hugo --environment production` directly, skipping `bin/prod`.
 
 ### Development Server Modes
 
