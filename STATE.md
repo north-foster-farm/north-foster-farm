@@ -1,87 +1,115 @@
-LEASE: 2026-07-30T23:34:59Z hourly-1785454499
 # RELAY STATE — cloud agent ledger
 
-inbox-processed: 2
+inbox-processed: 3
 status: waiting-on-james
 
 ## Last run
 
-2026-07-30T22:36Z — Second pass, same hour. You merged #69/#70/#71 and
-answered all three questions, so this run applied the answers and then
-kept going into the work they unblocked. Q2 became PR #76 (yarn → npm),
-Q1 and Q3 became PR #77 (recorded in project-audit.md, no header change
-— per your instruction the HSTS bump is slated, not committed), and the
-README rewrite that needed no answer became PR #78. All three previews
-are green. Two things worth knowing. First, `npm audit` is loud where
-yarn was quiet: 9 advisories, but every one is a devDependency and
-`--omit=dev` is 0, so nothing reaches a browser; clearing them means
-eslint 10, which is Q4 rather than something I did quietly. Second, I
-noticed you added the LGTM auto-merge workflow mid-run — I have left it
-strictly alone. Applying that label is a merge, so it stays yours; I
-will not add it to my own PRs.
+2026-07-30T23:34Z — Applied INBOX sequence 3. Q4 became PR #79 (the
+combined eslint 10 bump) and Q6 became PR #80 (the Tailwind migration
+inventory, docs only). Both build clean against real Hugo
+0.164.0-extended, and #80's deploy preview is green. The inventory
+turned up three things I did not expect and did not act on
+unilaterally, all queued below as Q7–Q9; the biggest is that the site
+ships 24.5 KB gzipped of Bootstrap JS bound to absolutely nothing. One
+correction to my own Q4 note: I expected eslint 10 to have dropped the
+deprecated formatting rules this config leans on, so I checked against
+a deliberately-bad file rather than trusting a clean pass on clean
+sources — it hasn't, `quotes`/`semi`/`indent`/`max-len` all still
+resolve and still error, so `eslint.config.js` needed no edits at all.
+
+Note on #79's shape: it is **stacked on #76**, base
+`agent/wip-npm-migration` rather than `main`. A version bump has to
+touch a lockfile and #76 deletes `yarn.lock`, so building it against
+main would have been a guaranteed delete/modify conflict plus throwaway
+work. GitHub retargets it to main automatically once #76 merges. The
+side effect is that Netlify had not attached a deploy preview to #79 as
+of this write-up — previews normally only fire for PRs against the
+production branch — so for #79 the build proof is my local production
+build rather than a preview. It should get one once #76 lands and it
+retargets.
 
 ## Roadmap position
 
-project-audit.md is close to its exit criteria. Once #76–#78 land, the
-only open items are: the eslint-10 question (Q4), the A4
-Lighthouse/PageSpeed baseline (Q5, needs a browser I do not have), the
-`script-src`/`style-src` tightening that is deliberately parked until
-Tailwind, the slated-but-unscheduled HSTS bump, and your Netlify UI
-checklist. Resume point: nothing in the audit is both unblocked and
-unclaimed, which is why Q6 asks what the next arc should be rather than
-picking one. If you want motion without answering anything, the honest
-answer is that the audit is done and the next real work is Tailwind
-prep.
+`project-audit.md` is done; `docs/tailwind-inventory.md` (new, in #80)
+is now the forward-looking document. Resume point: nothing is both
+unblocked and unclaimed. The next real work is Tailwind prep proper,
+and the inventory says the honest first step is not CSS at all — it is
+Q7, because whether the header nav is coming back decides whether the
+Bootstrap JS bundle can be deleted, and that in turn decides whether
+the Q5 PageSpeed baseline is worth taking yet. Q5 is still open and
+still not blocking anything else.
+
+Merge order when you get to it: **#76 → #79** (#79 is stacked on it),
+then **#78** (written against npm), with **#77** and **#80** free to go
+any time. After #79 lands, close #73, #74 and #75 as superseded.
 
 ## Open PRs
 
 - #76 https://github.com/north-foster-farm/north-foster-farm/pull/76 —
-  yarn → npm. Preview green, built CSS byte-identical to the yarn
-  baseline. **Merge this before #78.**
+  yarn → npm. Preview green. **Merge first.**
 - #77 https://github.com/north-foster-farm/north-foster-farm/pull/77 —
-  docs only, records your Q1/Q3 answers in project-audit.md so they
-  outlive this ledger. Preview green.
+  docs only, records the Q1/Q3 answers. Preview green.
 - #78 https://github.com/north-foster-farm/north-foster-farm/pull/78 —
-  README rewrite. Preview green. Written against npm, so it wants #76
-  first; no file conflict either way.
+  README rewrite. Preview green. Wants #76 first; no file conflict.
+- #79 https://github.com/north-foster-farm/north-foster-farm/pull/79 —
+  eslint 10.8.0 + @eslint/js 10.0.1 + globals 17.8.0, one PR as you
+  asked. Lint green, production build green, build output byte-identical
+  to the pre-bump baseline across all of `public/`. `npm audit` 9 → 5
+  (both sides measured); all 5 remaining are the purgecss → glob →
+  minimatch chain that dies with Tailwind, and `--omit=dev` is 0 before
+  and after. Stacked on #76, see above.
+- #80 https://github.com/north-foster-farm/north-foster-farm/pull/80 —
+  Tailwind migration inventory. Docs only, no behaviour change. Preview
+  green.
 
 Nothing pushed to main, nothing self-merged, no LGTM labels applied by
-me.
+me. Dependabot's #73/#74/#75 untouched.
 
 ## QUESTIONS
 
-Q4: Take eslint 10? It clears the eslint half of the 9 `npm audit`
-    advisories (a `brace-expansion` DoS via minimatch/glob and a
-    `@eslint/plugin-kit` ReDoS). All 9 are devDependencies — nothing
-    ships to a browser — and plain `npm audit fix` is a proven no-op,
-    so the only route is the major. The other half of the tree
-    (purgecss) dies with Tailwind regardless.
-  Recommendation: yes, take eslint 10 — but as one PR I put together,
-    not by merging Dependabot's. It has just opened **#74 (eslint
-    10.8.0) and #73 (@eslint/js 10.0.1) as two separate PRs**, and
-    those two packages have to move together; merging either alone
-    leaves the majors mismatched and lint gates the deploy. (#75 bumps
-    `globals` to 17 and is independent.) The repo already uses flat
-    config, which was the expensive part of that major, so the real
-    cost is close to zero and a green build is the proof.
+Q7: Is the header nav coming back, or is that scaffolding dead? Right
+    now `layouts/partials/header.html` calls `header/menu.html`, but
+    there is no `[menu]` configured anywhere in `config/` — so the range
+    is empty and the rendered header is just the logo and social icons.
+    The knock-on is the real cost: `main.js` imports Bootstrap's
+    `Collapse`, never calls it (that is what the
+    `// eslint-disable-next-line` is silencing), and there are zero
+    `data-bs-*` attributes in any template or in the built HTML of all
+    six pages — so the data-API has nothing to bind either. The site
+    ships 83 KB raw / **24.5 KB gzipped** of Bootstrap ESM + Popper to
+    do nothing. Largest payload item on the site, one line to remove.
+  Recommendation: tell me the nav is not coming and I will delete the
+    import, the two menu partials and the `.nav-link` /
+    `.navbar-flex-group` rules — JS drops to ~0.5 KB gzipped. If the nav
+    IS coming, say so and I will leave every bit of it alone, because
+    `Collapse` becomes load-bearing the moment a `navbar-toggler`
+    appears. I have not guessed either way; a half-built nav is exactly
+    the thing I should not quietly delete.
 
-Q5: Can you run PageSpeed Insights on northfosterfarm.com once, mobile
-    and desktop, and paste the four category scores into INBOX? The
-    audit wants a pre-Tailwind baseline so the migration can be shown
-    not to have regressed anything, and that number is only meaningful
-    if it is taken before the surgery starts. My egress proxy cannot
-    reach the live site, so this is the one A4 item I cannot do.
-  Recommendation: worth the two minutes now rather than reconstructing
-    it later — after the migration lands there is no way to go back
-    and measure the old site.
+Q8: Drop `'unsafe-inline'` from `style-src` now, rather than parking it
+    until Tailwind? I measured what actually needs it: exactly one
+    inline style, `style="--bs-breadcrumb-divider: '・';"`, repeated 12
+    times from `footer/menu.html:1` and `social-media.html:1`. There are
+    no `<style>` blocks anywhere on the site. Move that custom property
+    into a class and `style-src` becomes plain `'self'`.
+  Recommendation: yes, and it is nearly free — the property is `--bs-*`,
+    so the Tailwind migration rewrites it regardless; doing it now just
+    tightens the CSP a few weeks earlier. `script-src` is a separate and
+    larger job (six inline JSON-LD blocks, needing either a hash-based
+    policy or emitting the schema as a file) — I would leave that one
+    parked.
 
-Q6: What is the next arc — Tailwind prep, or something else? The audit
-    is effectively complete; everything still open is either parked
-    until Tailwind, waiting on you in the Netlify UI, or Q4/Q5. I have
-    a standing instruction not to start the framework rewrite itself.
-  Recommendation: let me build the migration inventory first — a
-    written map of which Bootstrap components and utility classes the
-    site actually uses, which custom SCSS is genuinely custom versus
-    an override, and what the CSP `style-src` will need to become.
-    Read-only, no code changes, and it is the thing that makes the
-    real migration estimable instead of open-ended.
+Q9: Keep or delete `.waves` / `.parallax`? It is ~41 lines in
+    `components/_waves.scss` — an animated SVG wave with four nth-child
+    delay variants — and **no template references it at all**. It is not
+    dormant like the snow (which `ctas/winter.html` still renders); it
+    is genuinely unreferenced. It is also the single largest block of
+    real custom CSS in the repo, so it is the one piece of dead code
+    where deleting it might lose something you actually want.
+  Recommendation: delete it, but I am asking rather than doing because I
+    cannot see the site and this reads like a design element that was
+    built and shelved rather than abandoned. If you want it kept, it is
+    ~41 lines to hand-port to Tailwind later and worth knowing now. If
+    you would rather look at it before deciding, say so and I will wire
+    it onto a throwaway branch with a deploy preview.
