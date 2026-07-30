@@ -143,7 +143,8 @@ hourly cloud agent (2026-07-30).** The toolchain is pinned and
 matched. What remains of A2–A4 is the deliberately-cut list at the
 bottom of this file; the agent works it one small PR at a time and
 parks anything it cannot verify as a question in STATE.md on the
-`agent/relay` branch. Open agent PRs: #69, #70.
+`agent/relay` branch. Merged so far: #69, #70, #71. In flight: #76
+(yarn → npm).
 
 The survey sections below are history — they describe how the
 toolchain target was chosen, not work still to do.
@@ -381,19 +382,38 @@ of them get redone post-migration.
 - ~~Drop `Access-Control-Allow-Origin = "*"`~~ **in PR #69.** Nothing
   on the site makes a cross-origin request — no `fetch`/`XHR` in
   `assets/scripts`, no `crossorigin` attribute in any template.
-- Still open: HSTS `max-age` 86400 → 31536000. Blocked on confirming
-  `admin.northfosterfarm.com` is HTTPS-only, since `includeSubDomains`
-  is set. The cloud agent's egress proxy refuses that host, so this
-  one needs a human with a browser.
+- **Slated, not yet scheduled: raise HSTS `max-age` to 31536000.** The
+  precondition is met — James confirmed 2026-07-30 that
+  `admin.northfosterfarm.com` is HTTPS-only with no plain-HTTP page
+  linked anywhere, which is what `includeSubDomains` needed. Held back
+  from an immediate commit at his direction; land it when there is a
+  reason to touch the header block, not on its own.
 - `script-src` / `style-src` tightening: parked, see above.
 - ~~Fold `static/_redirects` (`/privacy-policy` → `/privacy`) into
   `netlify.toml`~~ **in PR #69**, as a 301 to match what `_redirects`
   defaulted to.
-- `/order-form.pdf` is deployed but linked from nowhere — wire it up
-  or drop it.
-- npm-vs-yarn decision (dashboard repo is npm; this is yarn 1, which
-  is EOL). Change surface is small: `yarn.lock`, three `command =`
-  lines in `netlify.toml`, two lines in `CLAUDE.md`.
+- **`/order-form.pdf` is deliberate — leave it exactly as it is.** It
+  is unlinked on purpose: a stopgap for not having e-commerce yet, and
+  the URL gets handed out directly. It is superseded and deleted when
+  e-comm ships, not before. Recorded here (James, 2026-07-30) because
+  an unreferenced file in `static/` reads like an orphan to every
+  audit pass that meets it — this one is not one. Do not link it, do
+  not delete it, do not re-flag it.
+- ~~npm-vs-yarn decision~~ **in PR #76 — npm.** yarn 1 is EOL and the
+  dashboard repo is npm. Done before the Tailwind migration rather
+  than after, so that a broken build during the migration has one
+  possible cause instead of two. The built CSS is byte-identical
+  across the swap, which also closes the `@eslint/js` hoisting trap
+  recorded above: it is an explicit devDependency and lint is green on
+  an npm-installed tree.
+- `npm audit` reports 9 advisories (8 high, 1 low), **all
+  devDependencies** — `npm audit --omit=dev` is 0, so nothing ships to
+  a browser. Roots are a `brace-expansion` DoS via `minimatch`/`glob`
+  and a `@eslint/plugin-kit` ReDoS. Plain `npm audit fix` is a proven
+  no-op; only `--force` clears them, and that means eslint 10, a
+  major. Half the affected tree (`purgecss`,
+  `@fullhuman/postcss-purgecss`) retires with the Tailwind migration.
+  Needs a decision, not a reflex.
 - ~~Dependency bumps worth taking~~ **in PR #70.** `postcss` → 8.5.25,
   `postcss-cli` → 11.0.1, `autoprefixer` → 10.5.4, all re-checked
   against the registry rather than trusted from this file. The built
@@ -412,5 +432,5 @@ of them get redone post-migration.
 - **Netlify UI checklist (needs you, nothing in-repo covers it):**
   orphaned env vars from the lambdas era, build image / any UI-set
   Node version, leftover Functions or Forms state, build hooks,
-  deploy notifications, and confirming `admin.northfosterfarm.com` is
-  HTTPS-only before extending HSTS `includeSubDomains` to a year.
+  deploy notifications. ~~Confirming `admin.northfosterfarm.com` is
+  HTTPS-only~~ done — see the HSTS item above.
