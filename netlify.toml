@@ -42,7 +42,6 @@ command = "yarn deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -
   for = "/*"
 
   [headers.values]
-    Access-Control-Allow-Origin = "*"
     # HTML must never be cached for longer than a deploy takes to
     # matter. Netlify sends strong ETags, so this revalidates with a
     # cheap 304 rather than re-downloading the page.
