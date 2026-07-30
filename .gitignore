@@ -16,3 +16,10 @@ node_modules/
 public/
 resources/
 .netlify/
+
+# Vendored Hugo reference material. These are upstream snapshots, not
+# our code — 169 MB that would sit in history forever. Re-clone them
+# with the commands in docs/README.md. Ignoring them also protects them
+# from `git clean -fd`, which skips ignored files.
+docs/example-projects/
+docs/hugo-docs-source/
