@@ -37,8 +37,12 @@ command = "yarn deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -
 
   [headers.values]
     Access-Control-Allow-Origin = "*"
+    # HTML must never be cached for longer than a deploy takes to
+    # matter. Netlify sends strong ETags, so this revalidates with a
+    # cheap 304 rather than re-downloading the page.
     Cache-Control = '''
-      max-age=86400,
+      public,
+      max-age=0,
       must-revalidate
     '''
     X-Content-Type-Options = "nosniff"
@@ -55,3 +59,38 @@ command = "yarn deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -
     '''
     Referrer-Policy = "same-origin"
     Strict-Transport-Security = "max-age=86400; includeSubDomains"
+
+# Hugo fingerprints these with a content hash, so the URL changes
+# whenever the bytes do and they can be cached forever.
+[[headers]]
+  for = "/styles/*"
+
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/scripts/*"
+
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Not fingerprinted -- /images holds both Hugo-processed derivatives
+# and pass-through originals -- so these get a long cache but stay
+# revalidatable. A replacement propagates within a week.
+[[headers]]
+  for = "/fonts/*"
+
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/images/*"
+
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/favicons/*"
+
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
