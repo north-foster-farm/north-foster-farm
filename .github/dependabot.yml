@@ -7,3 +7,14 @@ updates:
       day: "monday"
       time: "08:00"
       timezone: "America/New_York"
+    # The Bootstrap + SCSS stack is scheduled for deletion by the
+    # Tailwind migration, so updates to it are noise: the PRs pile up
+    # unmerged and the packages leave the tree either way. Drop these
+    # ignores once the migration lands.
+    ignore:
+      - dependency-name: "bootstrap"
+      - dependency-name: "@popperjs/core"
+      - dependency-name: "@fullhuman/postcss-purgecss"
+      - dependency-name: "stylelint"
+      - dependency-name: "stylelint-config-standard-scss"
+      - dependency-name: "stylelint-scss"
