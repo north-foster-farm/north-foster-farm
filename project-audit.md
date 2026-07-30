@@ -138,9 +138,15 @@ or supplement the file — check both):
 
 ## Status
 
-**Survey complete, no changes made yet (2026-07-30).** All "Facts
-measured" re-verified as accurate. Toolchain target decided; awaiting
-go-ahead to start committing.
+**A1 complete and on main; A2–A4 leftovers being picked off by the
+hourly cloud agent (2026-07-30).** The toolchain is pinned and
+matched. What remains of A2–A4 is the deliberately-cut list at the
+bottom of this file; the agent works it one small PR at a time and
+parks anything it cannot verify as a question in STATE.md on the
+`agent/relay` branch. Open agent PRs: #69, #70.
+
+The survey sections below are history — they describe how the
+toolchain target was chosen, not work still to do.
 
 ### Verified this session
 
@@ -309,12 +315,22 @@ the WebP files (libwebp 1.6.0 re-encode) differ. The
 image *bytes* are unchanged. `npm run deploy && hugo --gc` succeeds
 from an empty `public/` and `resources/`. Lint clean.
 
-### Next step — awaiting go-ahead to push
+### A1 landed on main
 
-Push `audit/toolchain-parity`, confirm the deploy preview is green
-and its build log reports Hugo 0.164.0 and Node 26, then squash as
-needed, rebase, fast-forward main, and delete the branch. Nothing has
-been pushed yet.
+`audit/toolchain-parity` is merged. `main` now carries the five
+pre-bump commits, `Pin Hugo 0.164.0 and Node 26 across local and
+Netlify`, `Stop caching HTML for a day`, and
+`Document bin/prod as Netlify-only`. The sections above are kept as
+the record of how the target was chosen; read them as history, not as
+pending work.
+
+One thing the survey could not have caught, found while rebuilding on
+0.164.0 in the cloud agent's container: **the silent LibSass fallback
+is gone.** With `dart-sass` off PATH, 0.164.0 does not quietly fall
+back — it panics with `TOCSS-DART: failed to transform
+"/styles/main.scss" ... You need to install Dart Sass`. That turns the
+latent trap recorded above into a loud one, which is strictly better,
+and it confirms `bin/prod`'s install block is load-bearing on Netlify.
 
 ### Scope decision (2026-07-30) — audit cut short on purpose
 
@@ -362,25 +378,33 @@ of them get redone post-migration.
   `/favicons/*` get a week, revalidatable, because they are NOT
   fingerprinted (`/images/` mixes Hugo derivatives with
   pass-through originals like `chickens.jpg`).
-- Still open: HSTS `max-age` 86400 → 31536000 (confirm
-  `admin.northfosterfarm.com` is HTTPS-only first, since
-  `includeSubDomains` is set), and drop
-  `Access-Control-Allow-Origin = "*"` — nothing on the site needs
-  CORS. Both are one-liners, neither is migration-blocking.
+- ~~Drop `Access-Control-Allow-Origin = "*"`~~ **in PR #69.** Nothing
+  on the site makes a cross-origin request — no `fetch`/`XHR` in
+  `assets/scripts`, no `crossorigin` attribute in any template.
+- Still open: HSTS `max-age` 86400 → 31536000. Blocked on confirming
+  `admin.northfosterfarm.com` is HTTPS-only, since `includeSubDomains`
+  is set. The cloud agent's egress proxy refuses that host, so this
+  one needs a human with a browser.
 - `script-src` / `style-src` tightening: parked, see above.
-- Fold `static/_redirects` (`/privacy-policy` → `/privacy`) into
-  `netlify.toml` so redirects live in one file.
+- ~~Fold `static/_redirects` (`/privacy-policy` → `/privacy`) into
+  `netlify.toml`~~ **in PR #69**, as a 301 to match what `_redirects`
+  defaulted to.
 - `/order-form.pdf` is deployed but linked from nowhere — wire it up
   or drop it.
 - npm-vs-yarn decision (dashboard repo is npm; this is yarn 1, which
   is EOL). Change surface is small: `yarn.lock`, three `command =`
   lines in `netlify.toml`, two lines in `CLAUDE.md`.
-- Dependency bumps worth taking: `postcss` 8.4.47 → 8.5.25,
-  `postcss-cli` 11.0.0 → 11.0.1, `autoprefixer` 10.4.20 → 10.5.4.
+- ~~Dependency bumps worth taking~~ **in PR #70.** `postcss` → 8.5.25,
+  `postcss-cli` → 11.0.1, `autoprefixer` → 10.5.4, all re-checked
+  against the registry rather than trusted from this file. The built
+  CSS is byte-identical afterwards, filename hash included.
   Deliberately NOT bumping bootstrap / stylelint* / purgecss — all
-  retire with the Tailwind migration.
-- Dependabot is opening PRs nobody merges; add an `ignore:` block for
-  the retiring packages or set `open-pull-requests-limit: 0`.
+  retire with the Tailwind migration. `eslint` 10 exists; it is a
+  major and nothing needs it, so PR #48 (9.18) still wants a decision.
+- ~~Dependabot is opening PRs nobody merges~~ **in PR #70**, via an
+  `ignore:` block for the six retiring packages rather than
+  `open-pull-requests-limit: 0`, so eslint and the postcss stack keep
+  getting offered. Delete the block when the migration lands.
 - README rewrite — it is a 3-line stub with no versions, no
   prerequisites, no commands, and no mention that pushing to main
   auto-deploys production.
