@@ -6,6 +6,10 @@
 .hugo_build.lock
 hugo_stats.json
 
+# Personal, machine-specific Claude Code settings. The shared
+# .claude/settings.json (if any) stays tracked.
+.claude/settings.local.json
+
 # Directories
 # -----------
 node_modules/
