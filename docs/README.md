@@ -108,7 +108,18 @@ dependencies instead of vendoring them.
 ## `hugo-sites-on-github.md`
 
 A wider survey of large, popular Hugo sites on GitHub, each verified as
-genuinely Hugo rather than trusted from its topic tags.
+genuinely Hugo by reading its file tree rather than trusting topic tags.
+Also covers:
+
+- **E-commerce** — why there is no healthy open-source Hugo store
+  ecosystem, and what people actually do instead (Snipcart, Shopify Buy
+  Button, Stripe Payment Links).
+- **Tailwind CSS** — maintained Hugo + Tailwind starters with their
+  Tailwind versions, plus why the most-starred search result is stale.
+- **Tailwind UI** — it is a paid product that cannot be redistributed,
+  with free MIT-licensed alternatives.
+- **Checked and ruled out** — 17 repos confirmed *not* to be Hugo, with
+  the generator each one actually uses.
 
 ## Restoring the clones
 
