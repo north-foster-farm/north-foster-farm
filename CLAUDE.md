@@ -17,9 +17,6 @@ npm start
 # Start server bound to local IP (requires /etc/hosts configuration)
 npm run start:bind
 
-# Start with Netlify serverless functions (proxies to lambdas/)
-npm run start:serverless
-
 # Run linters
 npm run lint                # All linters
 npm run lint:scripts        # ESLint for JS files
@@ -32,10 +29,9 @@ npm run deploy
 
 ### Development Server Modes
 
-The `bin/dev` script supports three modes via environment variables:
+The `bin/dev` script supports two modes via environment variables:
 - **Default**: Standard Hugo server on localhost:1313
 - **`HUGO_BIND_TO_IP=true`**: Binds to local network IP (requires /etc/hosts entries for `northfosterfarm.local`)
-- **`HUGO_SERVERLESS=true`**: Uses Netlify Dev to proxy serverless functions on port 1313
 
 ## Architecture
 
@@ -140,7 +136,6 @@ ES6 modules with explicit imports:
 Deployment configured in `netlify.toml`:
 - Build command: `yarn deploy && hugo --gc`
 - Hugo version: 0.135.0
-- Functions directory: `lambdas/` (esbuild bundler)
 - Deploy previews build drafts/future/expired content
 - Custom redirects (e.g., `/venmo` → Venmo profile)
 - Security headers: CSP, HSTS, nosniff, etc.

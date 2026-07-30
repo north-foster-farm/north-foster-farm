@@ -14,7 +14,6 @@
     "lint:styles": "stylelint assets/styles/**/*.scss",
     "start": "bin/dev",
     "start:bind": "HUGO_BIND_TO_IP=true bin/dev",
-    "start:serverless": "HUGO_SERVERLESS=true bin/dev",
     "deploy": "npm run lint && bin/prod"
   },
   "devDependencies": {
@@ -31,8 +30,6 @@
   },
   "dependencies": {
     "@popperjs/core": "2.11.8",
-    "bootstrap": "5.3.3",
-    "node-fetch": "3.3.2",
-    "sanitize-html": "2.13.1"
+    "bootstrap": "5.3.3"
   }
 }

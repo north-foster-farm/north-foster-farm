@@ -17,8 +17,9 @@ Foster Farm website.
 
 We collect personal information you provide to us.
 
-Web form submissions require that you provide a first name, email address, and
-message; you may optionally provide your last name and phone number.
+This website has no forms and collects nothing from you directly. If you
+contact us using one of the email or phone links on the site, we receive
+whatever you choose to send us.
 
 ### Technical basics
 

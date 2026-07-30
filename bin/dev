@@ -2,12 +2,6 @@
 
 set -eo pipefail
 
-if [ "$HUGO_BIND_TO_IP" == "true" ] && [ "$HUGO_SERVERLESS" == "true" ]; then
-  echo >&2 "☞ Not starting the Hugo server because \$HUGO_BIND_TO_IP and " \
-    "\$HUGO_SERVERLESS are both set (can't do both simultaneously)"
-  exit 1
-fi
-
 if [ -n "$HUGO_BIND_TO_IP" ]; then
   bindToIP=""
   services="$(networksetup -listallnetworkservices | grep -v "*")"
@@ -62,24 +56,6 @@ if [ -n "$HUGO_BIND_TO_IP" ]; then
     --templateMetrics \
     --templateMetricsHints \
     --logLevel info
-elif [ -n "$HUGO_SERVERLESS" ]; then
-  serverless_command="hugo server
-    --buildDrafts
-    --buildExpired
-    --buildFuture
-    --cleanDestinationDir
-    --disableFastRender
-    --noHTTPCache
-    --printMemoryUsage
-    --printPathWarnings
-    --printUnusedTemplates
-    --templateMetrics
-    --templateMetricsHints
-    --logLevel info"
-
-  netlify dev \
-    --command "$(echo $serverless_command)" \
-    --targetPort 1313
 else
   hugo server \
     --buildDrafts \
