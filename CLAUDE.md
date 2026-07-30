@@ -9,9 +9,12 @@ North Foster Farm website - a static site built with Hugo (v0.164.0) and hosted 
 ## Development Commands
 
 ```bash
+# Install dependencies (npm, not yarn -- package-lock.json is the
+# lockfile and Netlify picks its package manager from it)
+npm install
+
 # Start local development server (default)
 npm start
-# or: yarn start
 # or: bin/dev
 
 # Start server bound to local IP (requires /etc/hosts configuration)
@@ -25,7 +28,7 @@ npm run lint:styles         # Stylelint for SCSS
 # Production build. NETLIFY ONLY -- do not run this locally.
 # bin/prod installs Dart Sass into /opt/build/repo, a path that only
 # exists on the Netlify build image, so this fails on a dev machine.
-# Netlify runs it via `yarn deploy && hugo --gc`.
+# Netlify runs it via `npm run deploy && hugo --gc`.
 npm run deploy
 ```
 
@@ -139,7 +142,7 @@ ES6 modules with explicit imports:
 ## Netlify Configuration
 
 Deployment configured in `netlify.toml`:
-- Build command: `yarn deploy && hugo --gc`
+- Build command: `npm run deploy && hugo --gc`
 - Hugo version: 0.164.0 (pinned; Node 26 via NODE_VERSION and .nvmrc)
 - Deploy previews build drafts/future/expired content
 - Custom redirects (e.g., `/venmo` → Venmo profile)
