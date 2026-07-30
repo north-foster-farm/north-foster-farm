@@ -1,4 +1,3 @@
-{{ $embedSrc := "https://www.youtube.com/embed/ztXH8ILNNks" }}
 {{ $fosterFarmersMarket := partial "link.html" (dict
   "href" "https://www.fosterfarmersmarketri.com"
   "innerHTML" "Foster Farmers Market"
@@ -46,12 +45,6 @@
   "innerHTML" "@northfosterfarm on Instagram"
   "newTab" true
   "title" "North Foster Farm on Instagram")
-}}
-{{ $apppaVideo := partial "link.html" (dict
-  "href" "https://www.youtube.com/watch?v=ztXH8ILNNks"
-  "innerHTML" "youtube.com/watch?v=ztXH8ILNNks"
-  "newTab" true
-  "title" "Let Us Show You Real Pasture Raised Eggs - YouTube.com")
 }}
 {{ $email := .Site.Data.company.email }}
 {{ $emailSubject := "Add me to the NFF email list!" }}
