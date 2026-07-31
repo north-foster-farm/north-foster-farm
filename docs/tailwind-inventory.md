@@ -29,6 +29,12 @@ The site is much smaller than the framework carrying it.
 PurgeCSS is doing real work: Bootstrap's full stylesheet is ~280 KB and
 what ships is 23 KB. The JS is the opposite story — see below.
 
+> **Status: findings 1, 3 and 5 are now acted on.** The `Collapse`
+> import is gone (JS 24,556 B → **837 B** gzipped), `style-src` no
+> longer carries `'unsafe-inline'`, and the dead selectors are deleted.
+> Finding 2 was partly wrong and is corrected in place below. The
+> measurements are kept as the pre-migration baseline.
+
 ## Finding 1 — the JS bundle is 24.5 KB gzipped of nothing
 
 `assets/scripts/main.js` imports Bootstrap's `Collapse`:
@@ -54,18 +60,36 @@ This is the single largest payload item on the site and it costs one
 line to remove. It is raised as a question rather than done, because
 Finding 2 suggests a nav may be half-built.
 
-## Finding 2 — the header menu renders nothing
+## Finding 2 — the header has no nav (corrected)
 
-`layouts/partials/header.html:2` calls `header/menu.html`, which ranges
-over a Hugo menu. **No `[menu]` is configured anywhere in `config/`.**
-So the range is empty, `header/menu-item.html` never executes, and
-`nav-link` / `nav-item` / `navbar-nav` / `navbar-toggler` / `collapse`
-appear in no rendered page.
+**This section was wrong when first written and is corrected here.** The
+original text said `header/menu.html` ranges over a Hugo menu that is
+never configured, and that both header menu partials were therefore
+dead. That is not right, and acting on it would have deleted a live
+partial.
 
-The rendered header is therefore just the logo and the social icons.
-Both menu partials and the `.nav-link` / `.navbar-flex-group` rules in
-`components/_header.scss` are scaffolding for a nav that was never
-switched on. This is also why `Collapse` has nothing to bind to.
+What is actually true:
+
+- `layouts/partials/header.html:2` calls `header/menu.html`, but that
+  partial does **not** range over anything. Despite the name it is the
+  header itself — the `navbar-brand` logo plus the social-media strip.
+  It is live on every page and must not be touched.
+- `header/menu-item.html` **is** orphaned: nothing calls it. It is the
+  leftover of a header nav that no longer exists, and it is the only
+  reason `nav-link` / `nav-item` appear anywhere in the source.
+- Menus are not absent from the site — they are declared in **content
+  front matter**, not `config/`. `content/accessibility.md` and
+  `content/privacy.md` both carry `menu: footer:`, so `.Site.Menus.footer`
+  is populated and `footer/menu.html` + `footer/menu-item.html` are both
+  live. The original "no `[menu]` is configured anywhere" was literally
+  true of `config/` and misleading about the site.
+
+What survives from the original finding is the part that mattered: the
+rendered header contains no nav, so `navbar-toggler` / `collapse` /
+`data-bs-*` appear on no page, which is why `Collapse` had nothing to
+bind to. `header/menu-item.html` and the `.nav-link` /
+`.navbar-flex-group` rules in `components/_header.scss` are dead and
+have been removed; `header/menu.html` has not been.
 
 ## Finding 3 — CSP `unsafe-inline` is nearly droppable
 
