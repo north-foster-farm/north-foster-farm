@@ -17,7 +17,7 @@
     "deploy": "npm run lint && bin/prod"
   },
   "devDependencies": {
-    "@eslint/js": "9.14.0",
+    "@eslint/js": "10.0.1",
     "@fullhuman/postcss-purgecss": "6.0.0",
     "autoprefixer": "10.5.4",
     "eslint": "9.14.0",
