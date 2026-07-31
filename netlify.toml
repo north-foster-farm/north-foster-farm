@@ -59,7 +59,7 @@ command = "npm run deploy && hugo --gc --buildDrafts --buildExpired --buildFutur
       frame-ancestors 'none';
       img-src 'self' data:;
       manifest-src 'self';
-      script-src 'self' 'unsafe-inline';
+      script-src 'self';
       style-src 'self';
     '''
     Referrer-Policy = "same-origin"

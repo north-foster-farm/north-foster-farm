@@ -105,15 +105,31 @@ needs it:
   become plain `'self'` — and note the property is `--bs-*`, so the
   Tailwind migration deletes the need for it regardless.
 - **`script-src`** — six `<script type="application/ld+json">` schema
-  blocks. The one real `<script>` is external, with `src` + `integrity`,
-  so `'self'` already covers it. CSP does apply `script-src` to JSON-LD,
-  so those six are the only thing keeping `'unsafe-inline'` alive.
-  Options are a hash-based policy or emitting the schema as a file.
+  blocks, plus one external `<script>` with `src` + `integrity` that
+  `'self'` already covers. This section originally claimed CSP applies
+  `script-src` to JSON-LD, so those six blocks were holding
+  `'unsafe-inline'` in place, and proposed either a hash-based policy or
+  moving the schema to a file. **That was wrong.** `application/ld+json`
+  is a *data block*, not a script: the browser never executes it and CSP
+  never evaluates it.
 
-So `style-src` is a cheap win available today, and `script-src` is a
-slightly larger one; neither has to wait for Tailwind. This supersedes
-the "parked until after Tailwind" note in `project-audit.md` to the
-extent that the *measurement* is now done.
+  Measured in headless Chromium rather than argued: a page carrying
+  `script-src 'self'` with an inline JSON-LD block and an inline
+  executable `<script>` reports exactly one violation — the executable
+  one. The JSON-LD reports none. Repeated against the real built site
+  under the exact production policy, all four pages report zero
+  violations, with a `script-src 'none'` negative control confirming the
+  harness detects violations when they exist.
+
+  So `'unsafe-inline'` was doing nothing for `script-src` and has simply
+  been deleted. No hashes, no external file — which is just as well,
+  since Google's structured-data crawler requires JSON-LD inline and
+  moving it to a file would have traded a real SEO signal for no
+  security gain.
+
+Both `script-src` and `style-src` are now plain `'self'`. This
+supersedes the "parked until after Tailwind" note in
+`project-audit.md` — the CSP work is done, not deferred.
 
 ## Finding 4 — what is genuinely custom vs. an override
 
