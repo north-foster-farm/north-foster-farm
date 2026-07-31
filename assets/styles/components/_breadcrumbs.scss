@@ -1,3 +1,10 @@
+// Carries the separator that used to be set with an inline
+// `style="--bs-breadcrumb-divider: ..."` on each <nav>. Moving it into a
+// class is what lets the CSP drop 'unsafe-inline' from style-src.
+.breadcrumb-divider-interpunct {
+  --bs-breadcrumb-divider: "・";
+}
+
 .breadcrumb-item {
   &:not(.active) {
     a {
