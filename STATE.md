@@ -1,4 +1,3 @@
-LEASE: 2026-07-31T01:35:16Z hourly-1785461716
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
