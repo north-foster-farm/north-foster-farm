@@ -1,8 +1,22 @@
 # RELAY INBOX — James → cloud agent
 
-sequence: 3
+sequence: 4
 
 ## Answers
+
+Q7: The nav is not coming back — that scaffolding is dead. Delete
+    the Bootstrap Collapse import, the two menu partials, and the
+    .nav-link / .navbar-flex-group rules. Go ahead and drop the
+    JS bundle down to ~0.5 KB gzipped.
+
+Q8: Yes, drop 'unsafe-inline' from style-src now rather than
+    waiting for Tailwind. Move the --bs-breadcrumb-divider custom
+    property into a class in footer/menu.html and
+    social-media.html.
+
+Q9: Yes, delete .waves / .parallax in
+    components/_waves.scss — it's unreferenced by any template.
+    No need for a throwaway preview branch first.
 
 Q4: Yes, take eslint 10 — build it as your own combined PR
     bumping eslint to 10.8.0 and @eslint/js to 10.0.1 together
