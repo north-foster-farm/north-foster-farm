@@ -1,102 +1,100 @@
-LEASE: 2026-07-31T00:21:41Z hourly-1785457301
 # RELAY STATE — cloud agent ledger
 
-inbox-processed: 4
+inbox-processed: 5
 status: waiting-on-james
 
 ## Last run
 
-2026-07-31T00:03Z — Applied INBOX sequence 4. Q7/Q8/Q9 became PR #81 and
-Q4 was rebuilt as PR #82; both are green. **One thing you need to know
-before merging #81: I got part of Finding 2 in the inventory wrong, and
-my Q7 question inherited the error.** I told you to delete "the two menu
-partials". `header/menu.html` is NOT dead — despite the name it does not
-range over a menu, it *is* the header (the logo and the social strip), and
-deleting it would have visibly broken every page. I caught it while
-implementing, kept the file, and corrected `docs/tailwind-inventory.md`
-in #81 rather than leaving the error on main. Only
-`header/menu-item.html` was actually orphaned. Related: menus are not
-missing from the site at all — they are declared in **content front
-matter** (`accessibility.md` and `privacy.md` both carry `menu: footer:`),
-not in `config/`, so the footer menu is live. My "no `[menu]` anywhere in
-`config/`" was literally true and misleading.
+2026-07-31T00:21Z — Applied INBOX sequence 5. Q10 and Q11 became PR #83
+(now merged), and Q12 is done: #73, #74 and #75 are closed with a
+one-line reason on each. **You approved the wrong thing on Q11 and I did
+not build it.** You said "external fingerprinted file, not hashes" —
+because I told you the six inline JSON-LD blocks were holding
+`script-src 'unsafe-inline'` in place. They were not.
+`application/ld+json` is a *data block*: the browser never executes it,
+so CSP never evaluates it. Nothing was holding `'unsafe-inline'`, so I
+deleted it outright. That matters beyond tidiness — the route I
+recommended would have been actively harmful, since JSON-LD is not
+fetched via `src` and Google's structured-data crawler wants it inline,
+so it would have cost a real SEO signal to buy nothing.
 
-Everything else in Q7 held up: `Collapse` was bound to nothing, and
-removing it took the JS bundle from 24,556 to **837 bytes gzipped**. Q8
-went in with `style-src 'self'` and I verified after building that no
-`style=` attribute or `<style>` block survives anywhere in `public/`, so
-the tightened CSP cannot break a page. Q9 deleted as asked.
+I measured it rather than arguing it, in the container's headless
+Chromium: a probe page under `script-src 'self'` carrying both an inline
+JSON-LD block and an inline executable script reports exactly one
+violation — the executable one — and the control script demonstrably did
+not run. Then the real built site under the exact production policy:
+zero violations across `/`, `/privacy/`, `/accessibility/` and
+`/404.html`, with a `script-src 'none'` negative control confirming the
+harness detects violations when they exist. `docs/tailwind-inventory.md`
+is corrected; it had asserted the opposite.
 
-On #79: you had LGTM'd it, so it was approved, and it still closed
-unmerged at `mergeable_state: dirty`. That was my stacking, not the
-change — I based it on `agent/wip-npm-migration`, that branch was never
-deleted, so GitHub never retargeted it to main. #82 is the same change
-rebuilt against main as an ordinary two-file diff. If you would rather it
-stay dead, close it and say so in INBOX; I rebuilt it because the Q4
-answer is still the standing instruction there.
+Q10 landed with an honest caveat rather than a headline: removing
+`@popperjs/core` from `dependencies` does **not** shrink `node_modules`,
+because bootstrap 5.3.3 declares it as a `peerDependency` and npm still
+installs it. It is a declaration fix, and it disappears for real when
+bootstrap does.
 
 ## Roadmap position
 
-Audit closed, inventory landed and now corrected. Resume point: nothing
-is blocked and nothing is half-done — #81 and #82 are the whole of the
-outstanding work and both need only your merge. The next arc is Tailwind
-proper, which I am not starting on my own. Q5 (PageSpeed) is still open
-and still not blocking; note that after #81 the JS payload is 96.6%
-smaller, so a baseline taken before it merges measures a site that no
-longer exists. Take it after #81 lands.
+**The audit and all of its follow-on work are finished.** `main` now
+carries: Hugo 0.164.0 / Node 26 pinned and matched, npm, eslint 10,
+the cache-control split, no dead Bootstrap JS, no dead SCSS, and a CSP
+whose `script-src` and `style-src` are both plain `'self'`. The JS
+bundle is 837 bytes gzipped, down from 24,556.
+
+Resume point: nothing is in flight and nothing is half-done. The next
+arc is the Tailwind migration itself, which I have a standing
+instruction not to start on my own — hence Q15. Q5 (PageSpeed) is now
+not just unblocked but *meaningful*: the site is finally in its
+pre-migration final shape, so a baseline taken now is the one worth
+keeping. It is the single most useful thing you could do next.
 
 ## Open PRs
 
-- #81 https://github.com/north-foster-farm/north-foster-farm/pull/81 —
-  Q7+Q8+Q9. Dead `Collapse` import, `header/menu-item.html`, the
-  `.nav-link`/`.navbar-flex-group` rules and `_waves.scss` all removed;
-  the breadcrumb divider moved into a class so `style-src` can drop
-  `'unsafe-inline'`. **Preview green.** Also carries the Finding 2
-  correction. JS 83,049 → 1,737 B raw, 24,556 → 837 B gzipped. HTML diff
-  against the pre-change build is exactly the three `<nav>` tags and the
-  two asset hashes. *Worth an eyeball on the preview: the `・` separators
-  in the social strip and footer are the one visible thing in it.*
-- #82 https://github.com/north-foster-farm/north-foster-farm/pull/82 —
-  Q4 rebuilt against main. eslint 10.8.0 + @eslint/js 10.0.1 + globals
-  17.8.0. Lint green, production build green, output byte-identical to
-  the pre-bump baseline. `npm audit` 9 → 5 (both sides measured on this
-  branch), `--omit=dev` 0 before and after. Replaces the closed #79.
+(none)
 
-Merged since last run: #76, #77, #78, #80. Nothing pushed to main,
-nothing self-merged, no LGTM labels applied by me.
+Merged this run: #83. Closed this run: #73, #74, #75 (Q12, with reasons
+posted). Merged earlier tonight: #76, #77, #78, #80, #81, #82. Nothing
+pushed to main, nothing self-merged, no LGTM labels applied by me.
 
 ## QUESTIONS
 
-Q10: Remove `@popperjs/core` from `package.json`? The audit previously
-     recorded "do NOT remove it — `bootstrap.esm.min.js` imports it, so
-     esbuild bundles it". That was correct then. #81 removes the only
-     import of Bootstrap's JS, so nothing pulls Popper in any more and
-     the dependency is now genuinely dead. `bootstrap` itself stays —
-     the SCSS still needs it until Tailwind.
-  Recommendation: yes, but *after* #81 merges, not bundled into it — the
-     claim only becomes true once #81 lands, and I would rather the
-     removal be its own commit that a `git log` can explain. One line,
-     and I will prove the build is byte-identical.
+Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
+     leftovers, or is content coming for them? All three currently
+     render on **no page** — `content/` holds exactly three files, and
+     they are served by `index.html` (home), `policy/single.html`
+     (accessibility, privacy) and `404.html`. This is not idle
+     curiosity: those three templates are the only thing referencing
+     `.page-content`, `.circle`, `.inner`, `.list-group-img` and
+     `.img-supporting`, so your answer decides whether ~5 dormant SCSS
+     blocks get hand-ported to Tailwind or deleted before the migration
+     starts.
+  Recommendation: tell me what is coming. If a shop/products section is
+     planned, they stay and get ported; if they are scaffolding from an
+     earlier shape of the site, I would delete them and their SCSS now,
+     while the inventory is fresh — porting dead templates is the most
+     wasteful thing the migration could do.
 
-Q11: Finish the CSP by killing `script-src 'unsafe-inline'` too? The only
-     thing keeping it alive is six inline `<script type="application/ld+json">`
-     schema blocks — the one real script is external with `src` +
-     `integrity`, so `'self'` already covers it. Two routes: emit the
-     JSON-LD as a fingerprinted file and reference it, or compute SHA-256
-     hashes and list them in the policy.
-  Recommendation: the external file. Hashes mean the CSP has to be
-     regenerated every time the schema content changes, which is a
-     footgun on a site where content edits are the normal case; a file
-     just works and gets the same caching treatment as everything else.
-     Slightly larger job than Q8 was, but self-contained.
+Q14: Ready to take HSTS `max-age` to 31536000 now? You slated it rather
+     than committing it back on Q1, having confirmed
+     `admin.northfosterfarm.com` is HTTPS-only. It is still at 86400,
+     which is short enough to be close to decorative. Everything that
+     was uncertain then is settled now, and the rest of the header block
+     is as tight as it is going to get before Tailwind.
+  Recommendation: yes, take it — one line in `netlify.toml`. The only
+     real risk with a long `includeSubDomains` max-age is a subdomain
+     that needs plain HTTP later, and you have already ruled that out.
+     If you would rather stage it, say so and I will go to 2592000 (30
+     days) as a checkpoint instead of the full year.
 
-Q12: Want me to close Dependabot's #73, #74 and #75, or will you? They
-     are no longer merely superseded — they are **broken**. All three
-     were generated against `yarn.lock`, which no longer exists on main
-     (#74's diff is `package.json` plus 305 lines of `yarn.lock`), so
-     merging any of them now is a delete/modify conflict. Dependabot will
-     reopen equivalents against `package-lock.json` on its next run.
-  Recommendation: close all three once #82 merges. I have not touched
-     them — they are not my branches and closing them is a write on
-     someone else's PR, so I would rather you said go first. Say the word
-     and I will close them with a one-line reason on each.
+Q15: What is the first Tailwind step you actually want? The prep work is
+     genuinely done and I am told not to start the framework rewrite, so
+     I will not pick this myself.
+  Recommendation: a single-page spike on a throwaway branch — convert
+     `/privacy` or `/404` only, leave Bootstrap in place for everything
+     else, and put it behind a deploy preview you can look at. It costs
+     little, it is fully reversible, and it puts a real number on the
+     one thing the inventory could not: how much work the 10 `@extend`
+     sites and the `tint-color`/`shade-color` calls actually are in
+     practice. That is the difference between an estimable migration and
+     an open-ended one, and it is not the rewrite itself.
