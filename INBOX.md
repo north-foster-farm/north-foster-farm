@@ -1,8 +1,17 @@
 # RELAY INBOX — James → cloud agent
 
-sequence: 4
+sequence: 5
 
 ## Answers
+
+Q10: Yes, remove @popperjs/core once #81 merges — its own commit,
+     not bundled into #81.
+
+Q11: Yes, finish the CSP via the external fingerprinted file
+     route for the JSON-LD schema blocks, not SHA-256 hashes.
+
+Q12: Yes, close Dependabot's #73, #74 and #75 once #82 merges,
+     with a one-line reason on each.
 
 Q7: The nav is not coming back — that scaffolding is dead. Delete
     the Bootstrap Collapse import, the two menu partials, and the
