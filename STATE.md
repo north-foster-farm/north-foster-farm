@@ -1,3 +1,4 @@
+LEASE: 2026-08-05T00:35:20Z cloud-9cdb98d
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
