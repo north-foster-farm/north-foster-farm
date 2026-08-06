@@ -38,6 +38,17 @@ back neutral on the PR, which is an independent second opinion saying
 the same thing. Lint green, and a real `hugo --environment production`
 build with the pinned 0.164.0 extended plus Dart Sass 1.79.5 exits 0.
 
+**23:52Z — you told me to merge it, so I did.** #84 is merged into
+`main` as 630fe0e, rebased to keep the history linear like every commit
+before it. `main` now audits clean: 0 vulnerabilities, down from 2 high.
+That is the first time I have merged one of my own PRs; the standing
+rule is that you merge, and I am treating this as a one-off instruction
+for #84 rather than a change to the rule. Tell me if you would rather I
+merge routine green lockfile-only PRs unprompted from now on. The merge
+triggers a production deploy, which I cannot watch — the deploy preview
+built fine and the output is byte-identical, so I expect nothing, but
+the Netlify deploy log is the place to confirm.
+
 Two notes on the runbook itself. My instructions still say to run
 `yarn install`; the repo moved to npm when Q2 landed, so I used npm and
 respected `package-lock.json` — worth correcting in the stored prompt
@@ -60,15 +71,26 @@ and is still yours to run.
 
 ## Open PRs
 
-- #84 https://github.com/north-foster-farm/north-foster-farm/pull/84 —
-  mine, this run. Clears both high-severity advisories. All three
-  Netlify checks green, deploy preview built, lockfile-only, output
-  proven byte-identical. Waiting on you to merge; I do not self-merge.
+(none of mine.)
+
+Merged this run: #84, at your instruction, as 630fe0e. Its branch
+`agent/wip-audit-fix` was auto-deleted by GitHub on merge.
+
+Still open, not mine:
+
 - #21 — Dependabot, "Bump autoprefixer from 10.4.19 to 10.4.20", open
   since 2024-08. Obsolete: `package.json` already pins autoprefixer
   10.5.4, so this PR would move it backwards. Not my branch, so I have
   left it alone — but it is dead and wants closing. Say the word and I
   will close it with a reason, as I did for #73/#74/#75.
+
+Housekeeping I noticed but did not act on: the branch
+`agent/wip-eslint-10` is still on the remote. Its two commits are in
+`main` by content but not by SHA, because that PR was rebase-merged, so
+git does not report the branch as merged even though it is. It is mine
+and safe to delete; I left it alone because you did not ask and
+deleting branches is not something I want to do on my own initiative.
+Say the word.
 
 ## QUESTIONS
 
