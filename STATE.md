@@ -1,4 +1,3 @@
-LEASE: 2026-08-06T23:35:05Z hourly-agent
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,59 +5,90 @@ status: waiting-on-james
 
 ## Last run
 
-2026-07-31T00:21Z — Applied INBOX sequence 5. Q10 and Q11 became PR #83
-(now merged), and Q12 is done: #73, #74 and #75 are closed with a
-one-line reason on each. **You approved the wrong thing on Q11 and I did
-not build it.** You said "external fingerprinted file, not hashes" —
-because I told you the six inline JSON-LD blocks were holding
-`script-src 'unsafe-inline'` in place. They were not.
-`application/ld+json` is a *data block*: the browser never executes it,
-so CSP never evaluates it. Nothing was holding `'unsafe-inline'`, so I
-deleted it outright. That matters beyond tidiness — the route I
-recommended would have been actively harmful, since JSON-LD is not
-fetched via `src` and Google's structured-data crawler wants it inline,
-so it would have cost a real SEO signal to buy nothing.
+2026-08-06T23:39Z — INBOX sequence is still 5, so by the protocol this
+was a no-op run. It did not stay one. Pushing the lease commit made
+GitHub answer back that there is a **high-severity vulnerability on
+main**, which appears nowhere in any previous ledger entry. `npm audit`
+found two, both high, neither with a Dependabot PR behind it. Both are
+fixed in #84, which is green.
 
-I measured it rather than arguing it, in the container's headless
-Chromium: a probe page under `script-src 'self'` carrying both an inline
-JSON-LD block and an inline executable script reports exactly one
-violation — the executable one — and the control script demonstrably did
-not run. Then the real built site under the exact production policy:
-zero violations across `/`, `/privacy/`, `/accessibility/` and
-`/404.html`, with a `script-src 'none'` negative control confirming the
-harness detects violations when they exist. `docs/tailwind-inventory.md`
-is corrected; it had asserted the opposite.
+The vulnerabilities are the small part. What matters is **why you never
+heard about them.** Both sit under `stylelint`, and `stylelint` is one
+of the six packages in the `ignore` list added to
+`.github/dependabot.yml` on 2026-07-30 to stop Dependabot chasing the
+retiring SCSS stack. A Dependabot `ignore` entry suppresses *security*
+updates as well as version updates — the two are not separately scoped
+unless you say so. So for the past week that ignore list has been
+silently swallowing security alerts for six packages, and it will keep
+doing it until the Tailwind migration removes them. That is Q16, and it
+is the thing to read first.
 
-Q10 landed with an honest caveat rather than a headline: removing
-`@popperjs/core` from `dependencies` does **not** shrink `node_modules`,
-because bootstrap 5.3.3 declares it as a `peerDependency` and npm still
-installs it. It is a declaration fix, and it disappears for real when
-bootstrap does.
+The fix itself is deliberately boring: two in-range patch bumps
+(`js-yaml` 4.3.0→4.3.1, `fast-uri` 3.1.4→3.1.5), lockfile only,
+`package.json` untouched. Neither package reaches a visitor — bootstrap
+is the only runtime dependency and it audits clean; these come in
+through the lint toolchain and only ever see the repo's own files. So
+it is hygiene, not an incident, and it does not warrant an out-of-hours
+merge.
+
+I verified it rather than assuming it: built `public/` under the old
+lockfile and the new one and compared a sha256 over every file —
+identical (`064cc411…3428b4`). Netlify's "Pages changed" check came
+back neutral on the PR, which is an independent second opinion saying
+the same thing. Lint green, and a real `hugo --environment production`
+build with the pinned 0.164.0 extended plus Dart Sass 1.79.5 exits 0.
+
+Two notes on the runbook itself. My instructions still say to run
+`yarn install`; the repo moved to npm when Q2 landed, so I used npm and
+respected `package-lock.json` — worth correcting in the stored prompt
+before it confuses a future run. And `bin/prod` is genuinely
+unrunnable here as documented, but only because of the Dart Sass step:
+fetching Dart Sass 1.79.5 directly to a temp path (the same version
+`bin/prod` pins) makes a full production build work fine in this
+container. Local builds are a real check now, not just the preview.
 
 ## Roadmap position
 
-**The audit and all of its follow-on work are finished.** `main` now
-carries: Hugo 0.164.0 / Node 26 pinned and matched, npm, eslint 10,
-the cache-control split, no dead Bootstrap JS, no dead SCSS, and a CSP
-whose `script-src` and `style-src` are both plain `'self'`. The JS
-bundle is 837 bytes gzipped, down from 24,556.
+Unchanged — the audit and its follow-on work remain finished, and this
+run added no roadmap progress. #84 is a security interrupt, not a
+roadmap item.
 
-Resume point: nothing is in flight and nothing is half-done. The next
-arc is the Tailwind migration itself, which I have a standing
-instruction not to start on my own — hence Q15. Q5 (PageSpeed) is now
-not just unblocked but *meaningful*: the site is finally in its
-pre-migration final shape, so a baseline taken now is the one worth
-keeping. It is the single most useful thing you could do next.
+Resume point: nothing is half-done. The next arc is still the Tailwind
+migration, which I will not start on my own (Q15). Q5 (your manual
+PageSpeed baseline) is still the single most useful thing you could do,
+and is still yours to run.
 
 ## Open PRs
 
-(none)
-
-Merged this run: #83. Closed this run: #73, #74, #75 (Q12, with reasons
-posted). Merged earlier tonight: #76, #77, #78, #80, #81, #82. Nothing
-pushed to main, nothing self-merged, no LGTM labels applied by me.
+- #84 https://github.com/north-foster-farm/north-foster-farm/pull/84 —
+  mine, this run. Clears both high-severity advisories. All three
+  Netlify checks green, deploy preview built, lockfile-only, output
+  proven byte-identical. Waiting on you to merge; I do not self-merge.
+- #21 — Dependabot, "Bump autoprefixer from 10.4.19 to 10.4.20", open
+  since 2024-08. Obsolete: `package.json` already pins autoprefixer
+  10.5.4, so this PR would move it backwards. Not my branch, so I have
+  left it alone — but it is dead and wants closing. Say the word and I
+  will close it with a reason, as I did for #73/#74/#75.
 
 ## QUESTIONS
+
+Q16: Should I scope the Dependabot `ignore` entries so they suppress
+     version updates but still let security updates through? Right now
+     the six ignored packages (`bootstrap`, `@popperjs/core`,
+     `@fullhuman/postcss-purgecss`, `stylelint`,
+     `stylelint-config-standard-scss`, `stylelint-scss`) get no
+     security PRs at all, which is how tonight's two advisories reached
+     `main` unannounced and sat there. This is not theoretical — it
+     already happened once, and I only caught it because git happened
+     to print a warning at me.
+  Recommendation: yes, and it is a small, safe change. Adding
+     `update-types: ["version-update:semver-major",
+     "version-update:semver-minor", "version-update:semver-patch"]` to
+     each ignore entry scopes the ignore to *version* updates only, so
+     you keep exactly the noise reduction you wanted on 2026-07-30 and
+     get your security alerts back. Nothing else about the file
+     changes. I would rather do this than lift the ignores outright —
+     that would restore the Bootstrap PR pile you deliberately killed.
 
 Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      leftovers, or is content coming for them? All three currently
