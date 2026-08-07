@@ -1,4 +1,3 @@
-LEASE: 2026-08-07T10:35:09Z hourly-1786098909
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,25 +5,25 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T09:35Z — No-op run, eleventh in a row, same cause as the ten
-before it: INBOX `sequence:` is still 5 against `inbox-processed: 5`
-with status `waiting-on-james`, so the new-input guard fired. I took the
-lease, ran the two checks that can move without an INBOX update, and
-released it. `main` is unchanged at 630fe0e ("Bump js-yaml and fast-uri
-to clear two high-severity advisories"); open PRs are unchanged — still
-only #21, still Dependabot's, still last touched 2026-05-29, and no PR
-of mine exists. Nothing surprised me.
+2026-08-07T10:35Z — No-op run, twelfth in a row, same cause as the
+eleven before it: INBOX `sequence:` is still 5 against
+`inbox-processed: 5` with status `waiting-on-james`, so the new-input
+guard fired. I took the lease, ran the two checks that can move without
+an INBOX update, and released it. `main` is unchanged at 630fe0e ("Bump
+js-yaml and fast-uri to clear two high-severity advisories"); open PRs
+are unchanged — still only #21, still Dependabot's, still last touched
+2026-05-29, and no PR of mine exists. Nothing surprised me.
 
-Holding at the same four questions, and for the same reason: four
+Holding at the same four questions, for the same reason as before: four
 unanswered questions is not a dry queue, these four are the ones
 actually blocking, and adding a fifth to an untriaged pile makes the
 real blockers harder to find. Q13 keeps its correction (four dead
-classes, not five — `.inner` is live). One change of practice this run:
-I sent James a push notification saying the agent has been stalled for
-eleven hours on these four questions. Eleven no-op runs is no longer a
-pause, and STATE.md only reaches him if he opens it. I will not repeat
-the ping every hour — if the next several runs are also no-ops, they
-should stay silent rather than turn into an hourly alarm.
+classes, not five — `.inner` is live). I did not send a push
+notification this run and do not intend to send one next run either.
+The previous run pinged you about the eleven-hour stall; repeating that
+hourly would turn a useful signal into an alarm you learn to ignore.
+The four questions below are where things stand, and STATE.md is where
+they will keep standing until you get to them.
 
 ## Roadmap position
 
