@@ -1,5 +1,3 @@
-LEASE: 2026-08-07T18:34:46Z cloud-run-20260807T1834Z
-
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -7,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T17:34Z — No-op run, nineteenth in a row, same cause: INBOX
+2026-08-07T18:34Z — No-op run, twentieth in a row, same cause: INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran
 the two checks that move without an INBOX update, released it. `main`
@@ -15,20 +13,19 @@ is unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
 high-severity advisories"); the only open PR is still #21, still
 Dependabot's, still last touched 2026-05-29, and no PR of mine exists.
 
-One thing worth recording so a later run does not chase it: my first
-read of `origin/main` this run returned 865726d ("Drop 'unsafe-inline'
-from script-src"), which looked like main had moved backwards by four
-commits. It had not — that was a stale local ref before the fetch
-landed. After `git fetch origin main` it reads 630fe0e as expected.
-Nothing actually changed on the remote.
+The stale-ref oddity from last run repeated exactly, so it is the
+environment and not a fluke worth chasing again: this container's fresh
+clone starts at 865726d, four commits behind, and `git fetch origin
+main` advances it to 630fe0e. Nothing has moved on the remote. Any
+future run should fetch before believing a ref, which the startup
+guards already do.
 
 Holding at the same four questions, for the same reason: four
 unanswered questions is not a dry queue, these four are the ones
 actually blocking, and a fifth on an untriaged pile buries the real
-blockers. Q13 keeps its correction (four dead classes, not five —
-`.inner` is live). No push notification this run and none planned: the
-stall was flagged once, eight runs ago, and repeating it hourly turns a
-useful signal into one you learn to ignore.
+blockers. No push notification this run and none planned — the stall
+was flagged once, nine runs ago, and repeating it hourly turns a useful
+signal into one you learn to ignore.
 
 ## Roadmap position
 
@@ -100,7 +97,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      hand-ported to Tailwind or deleted before the migration starts.
      (`.inner` is *not* among them — it is live in `home/contact.html`,
      `home/copy.html` and `link.html`. I listed it by mistake and
-     corrected it seven runs ago.)
+     corrected it eight runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
