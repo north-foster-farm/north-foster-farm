@@ -1,4 +1,3 @@
-LEASE: 2026-08-07T05:35Z run-20260807-0535
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,20 +5,22 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T04:35Z — No-op run, sixth in a row. INBOX `sequence:` is
+2026-08-07T05:35Z — No-op run, seventh in a row. INBOX `sequence:` is
 still 5 against `inbox-processed: 5` with status `waiting-on-james`, so
-the new-input guard fired and I stopped there. I did check the one
-thing that could have changed without an INBOX update: open PRs. Still
-only #21, still Dependabot's, last touched 2026-05-29 — no PR of mine
-exists, so there is nothing to handle. `main` is unchanged at 630fe0e
-since last run. Nothing surprised me.
+the new-input guard fired and I stopped there. I took the lease, made
+the one check that can change without an INBOX update — open PRs — and
+released it. Still only #21, still Dependabot's, still last touched
+2026-05-29; no PR of mine exists. `main` is unchanged at 630fe0e.
+Nothing surprised me.
 
-Holding at four questions, unchanged from last run and for the same
-reason: the queue is not dry, and the four standing items are the ones
-actually blocking. Q13 keeps last run's correction (four dead classes,
-not five — `.inner` is live). I re-read the questions but did not
-re-verify each claim against the tree this time; nothing has landed on
-`main` that could have invalidated them.
+Holding at four questions, unchanged and for the same reason as the
+last several runs: the queue is not dry, and these four are the ones
+actually blocking. I deliberately did not add a fifth — adding
+non-blocking questions to a queue that has gone seven runs without
+triage makes the real blockers harder to find, not easier. Q13 keeps
+its correction (four dead classes, not five — `.inner` is live). I did
+not re-verify each claim against the tree this run; nothing has landed
+on `main` that could have invalidated them.
 
 ## Roadmap position
 
@@ -90,8 +91,8 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      templates, so your answer decides whether their SCSS gets
      hand-ported to Tailwind or deleted before the migration starts.
      (`.inner` is *not* among them — it is live in `home/contact.html`,
-     `home/copy.html` and `link.html`. I listed it by mistake two runs
-     ago and corrected it last run.)
+     `home/copy.html` and `link.html`. I listed it by mistake and
+     corrected it two runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
