@@ -1,4 +1,3 @@
-LEASE: 2026-08-07T00:35:12Z run-20260807T003512Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,92 +5,53 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-06T23:39Z — INBOX sequence is still 5, so by the protocol this
-was a no-op run. It did not stay one. Pushing the lease commit made
-GitHub answer back that there is a **high-severity vulnerability on
-main**, which appears nowhere in any previous ledger entry. `npm audit`
-found two, both high, neither with a Dependabot PR behind it. Both are
-fixed in #84, which is green.
-
-The vulnerabilities are the small part. What matters is **why you never
-heard about them.** Both sit under `stylelint`, and `stylelint` is one
-of the six packages in the `ignore` list added to
-`.github/dependabot.yml` on 2026-07-30 to stop Dependabot chasing the
-retiring SCSS stack. A Dependabot `ignore` entry suppresses *security*
-updates as well as version updates — the two are not separately scoped
-unless you say so. So for the past week that ignore list has been
-silently swallowing security alerts for six packages, and it will keep
-doing it until the Tailwind migration removes them. That is Q16, and it
-is the thing to read first.
-
-The fix itself is deliberately boring: two in-range patch bumps
-(`js-yaml` 4.3.0→4.3.1, `fast-uri` 3.1.4→3.1.5), lockfile only,
-`package.json` untouched. Neither package reaches a visitor — bootstrap
-is the only runtime dependency and it audits clean; these come in
-through the lint toolchain and only ever see the repo's own files. So
-it is hygiene, not an incident, and it does not warrant an out-of-hours
-merge.
-
-I verified it rather than assuming it: built `public/` under the old
-lockfile and the new one and compared a sha256 over every file —
-identical (`064cc411…3428b4`). Netlify's "Pages changed" check came
-back neutral on the PR, which is an independent second opinion saying
-the same thing. Lint green, and a real `hugo --environment production`
-build with the pinned 0.164.0 extended plus Dart Sass 1.79.5 exits 0.
-
-**23:52Z — you told me to merge it, so I did.** #84 is merged into
-`main` as 630fe0e, rebased to keep the history linear like every commit
-before it. `main` now audits clean: 0 vulnerabilities, down from 2 high.
-That is the first time I have merged one of my own PRs; the standing
-rule is that you merge, and I am treating this as a one-off instruction
-for #84 rather than a change to the rule. Tell me if you would rather I
-merge routine green lockfile-only PRs unprompted from now on. The merge
-triggers a production deploy, which I cannot watch — the deploy preview
-built fine and the output is byte-identical, so I expect nothing, but
-the Netlify deploy log is the place to confirm.
-
-Two notes on the runbook itself. My instructions still say to run
-`yarn install`; the repo moved to npm when Q2 landed, so I used npm and
-respected `package-lock.json` — worth correcting in the stored prompt
-before it confuses a future run. And `bin/prod` is genuinely
-unrunnable here as documented, but only because of the Dart Sass step:
-fetching Dart Sass 1.79.5 directly to a temp path (the same version
-`bin/prod` pins) makes a full production build work fine in this
-container. Local builds are a real check now, not just the preview.
+2026-08-07T00:35Z — No-op run, and this time it stayed one. INBOX
+`sequence:` is still 5 against `inbox-processed: 5` with status
+`waiting-on-james`, so the new-input guard applies: lease acquired,
+checked, released, nothing built. Unlike last hour, pushing the lease
+drew no vulnerability warning from GitHub — #84 landed as 630fe0e and
+`main` is still clean. I also checked open PRs before releasing: only
+#21 is open, unchanged since 2026-05-29, and no PR of mine has review
+comments or merges to handle. Four questions (Q16, Q13, Q14, Q15) have
+now been standing unanswered for two runs; the queue is deliberately
+not being extended, because adding a fifth would bury rather than help.
 
 ## Roadmap position
 
-Unchanged — the audit and its follow-on work remain finished, and this
-run added no roadmap progress. #84 is a security interrupt, not a
-roadmap item.
+Unchanged. The audit and its follow-on work are finished; this run
+added no roadmap progress and nothing is half-done.
 
-Resume point: nothing is half-done. The next arc is still the Tailwind
-migration, which I will not start on my own (Q15). Q5 (your manual
-PageSpeed baseline) is still the single most useful thing you could do,
-and is still yours to run.
+Resume point: the next arc is the Tailwind migration, which I will not
+start on my own — Q15 asks which first step you want, and that is the
+single answer that unblocks the most. Q5 (your manual PageSpeed
+baseline) is still yours to run and still the most useful thing you
+could do independently.
 
 ## Open PRs
 
 (none of mine.)
 
-Merged this run: #84, at your instruction, as 630fe0e. Its branch
-`agent/wip-audit-fix` was auto-deleted by GitHub on merge.
-
 Still open, not mine:
 
 - #21 — Dependabot, "Bump autoprefixer from 10.4.19 to 10.4.20", open
-  since 2024-08. Obsolete: `package.json` already pins autoprefixer
-  10.5.4, so this PR would move it backwards. Not my branch, so I have
-  left it alone — but it is dead and wants closing. Say the word and I
-  will close it with a reason, as I did for #73/#74/#75.
+  since 2024-08, last touched 2026-05-29. Obsolete: `package.json`
+  already pins autoprefixer 10.5.4, so this PR moves it backwards. Not
+  my branch, so untouched — but it is dead and wants closing. Say the
+  word and I will close it with a reason, as I did for #73/#74/#75.
 
-Housekeeping I noticed but did not act on: the branch
-`agent/wip-eslint-10` is still on the remote. Its two commits are in
-`main` by content but not by SHA, because that PR was rebase-merged, so
-git does not report the branch as merged even though it is. It is mine
-and safe to delete; I left it alone because you did not ask and
-deleting branches is not something I want to do on my own initiative.
-Say the word.
+Housekeeping, unchanged from last run and still not acted on: the
+branch `agent/wip-eslint-10` is still on the remote. Its two commits
+are in `main` by content but not by SHA (that PR was rebase-merged), so
+git does not report it as merged even though it is. It is mine and safe
+to delete; I left it alone because deleting branches on my own
+initiative is not something I want to do unasked.
+
+Two runbook corrections still outstanding in the stored prompt, both
+from last run: it says to run `yarn install`, but the repo moved to npm
+when Q2 landed (I use npm and respect `package-lock.json`); and while
+`bin/prod` is genuinely unrunnable here, fetching Dart Sass 1.79.5
+directly to a temp path makes a full `hugo --environment production`
+build work in this container, so local builds are a real check now.
 
 ## QUESTIONS
 
@@ -100,10 +60,10 @@ Q16: Should I scope the Dependabot `ignore` entries so they suppress
      the six ignored packages (`bootstrap`, `@popperjs/core`,
      `@fullhuman/postcss-purgecss`, `stylelint`,
      `stylelint-config-standard-scss`, `stylelint-scss`) get no
-     security PRs at all, which is how tonight's two advisories reached
-     `main` unannounced and sat there. This is not theoretical — it
-     already happened once, and I only caught it because git happened
-     to print a warning at me.
+     security PRs at all, which is how last week's two advisories
+     reached `main` unannounced and sat there. This is not theoretical
+     — it already happened once, and I only caught it because git
+     happened to print a warning at me.
   Recommendation: yes, and it is a small, safe change. Adding
      `update-types: ["version-update:semver-major",
      "version-update:semver-minor", "version-update:semver-patch"]` to
