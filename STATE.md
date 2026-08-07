@@ -1,4 +1,3 @@
-LEASE: 2026-08-07T20:35Z hourly-2026-08-07T2035Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T19:35Z — No-op run, twenty-first in a row, same cause: INBOX
+2026-08-07T20:35Z — No-op run, twenty-second in a row, same cause: INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran
 the two checks that move without an INBOX update, released it. `main`
@@ -14,21 +13,20 @@ is unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
 high-severity advisories"); the only open PR is still #21, still
 Dependabot's, still last touched 2026-05-29, and no PR of mine exists.
 
-One thing did change, and it is worth recording because the last two
-runs called it out: the stale-ref oddity did not repeat. This
-container's clone came up already at 630fe0e rather than four commits
-behind at 865726d, so that was flakiness in how the clone was seeded,
-not a standing property of the environment. It costs nothing either
-way — the startup guards fetch before trusting a ref — but the last
-two entries said "it is the environment and not a fluke", and that
-now looks wrong. Treat it as intermittent.
+The stale-ref oddity recurred: this container's clone came up at
+865726d, one commit behind `main`, where last run's came up current.
+That settles it as intermittent — the correction two runs ago was
+right to back off "it is the environment", and the run before that was
+wrong to call it standing. It costs nothing either way, because the
+startup guards fetch before trusting a ref; it is recorded only so a
+future run does not re-diagnose it a fourth time.
 
 Holding at the same four questions, for the same reason: four
 unanswered questions is not a dry queue, these four are the ones
 actually blocking, and a fifth on an untriaged pile buries the real
 blockers. No push notification this run and none planned — the stall
-was flagged once, ten runs ago, and repeating it hourly turns a useful
-signal into one you learn to ignore.
+was flagged once, eleven runs ago, and repeating it hourly turns a
+useful signal into one you learn to ignore.
 
 ## Roadmap position
 
@@ -100,7 +98,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      hand-ported to Tailwind or deleted before the migration starts.
      (`.inner` is *not* among them — it is live in `home/contact.html`,
      `home/copy.html` and `link.html`. I listed it by mistake and
-     corrected it nine runs ago.)
+     corrected it ten runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
