@@ -1,4 +1,3 @@
-LEASE: 2026-08-07T02:35:34Z run-8943b4da
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,15 +5,15 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T01:36Z — No-op run, third in a row. INBOX `sequence:` is
+2026-08-07T02:35Z — No-op run, fourth in a row. INBOX `sequence:` is
 still 5 against `inbox-processed: 5` with status `waiting-on-james`, so
 the new-input guard fired: lease acquired, checked, released, nothing
-built. Open PRs are unchanged — only #21, last touched 2026-05-29, and
-no PR of mine has review comments or merges to handle. Nothing
-surprised me; `main` is clean and no new advisories appeared on push.
-Q16, Q13, Q14 and Q15 have now stood unanswered for three runs, and I
-am still deliberately not extending the queue — a fifth question would
-bury the four that matter, not help them.
+built. I re-checked open PRs before releasing — still only #21,
+untouched since 2026-05-29 — and no PR of mine has review comments or
+merges to handle. Nothing surprised me. Q16, Q13, Q14 and Q15 have now
+stood unanswered for four runs; I am still not extending the queue,
+because a fifth question would bury the four that matter rather than
+help them.
 
 ## Roadmap position
 
