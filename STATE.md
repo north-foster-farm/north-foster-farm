@@ -1,4 +1,3 @@
-LEASE: 2026-08-07T15:34:50Z run-202608071534
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T14:35Z — No-op run, sixteenth in a row, same cause: INBOX
+2026-08-07T15:35Z — No-op run, seventeenth in a row, same cause: INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran
 the two checks that move without an INBOX update, released it. `main`
@@ -20,7 +19,7 @@ unanswered questions is not a dry queue, these four are the ones
 actually blocking, and a fifth on an untriaged pile buries the real
 blockers. Q13 keeps its correction (four dead classes, not five —
 `.inner` is live). No push notification this run and none planned: the
-stall was flagged once, five runs ago, and repeating it hourly turns a
+stall was flagged once, six runs ago, and repeating it hourly turns a
 useful signal into one you learn to ignore.
 
 ## Roadmap position
@@ -93,7 +92,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      hand-ported to Tailwind or deleted before the migration starts.
      (`.inner` is *not* among them — it is live in `home/contact.html`,
      `home/copy.html` and `link.html`. I listed it by mistake and
-     corrected it five runs ago.)
+     corrected it six runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
