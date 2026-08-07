@@ -1,4 +1,3 @@
-LEASE: 2026-08-07T06:35:35Z hourly-e32265a-3701
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,27 +5,26 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T05:35Z — No-op run, seventh in a row. INBOX `sequence:` is
-still 5 against `inbox-processed: 5` with status `waiting-on-james`, so
-the new-input guard fired and I stopped there. I took the lease, made
-the one check that can change without an INBOX update — open PRs — and
-released it. Still only #21, still Dependabot's, still last touched
-2026-05-29; no PR of mine exists. `main` is unchanged at 630fe0e.
-Nothing surprised me.
+2026-08-07T06:35Z — No-op run, eighth in a row, for the same reason as
+the seven before it: INBOX `sequence:` is still 5 against
+`inbox-processed: 5` with status `waiting-on-james`, so the new-input
+guard fired. I took the lease, ran the two checks that can move without
+an INBOX update, and released it. `main` is unchanged at 630fe0e ("Bump
+js-yaml and fast-uri to clear two high-severity advisories"); open PRs
+are unchanged — still only #21, still Dependabot's, still last touched
+2026-05-29, and no PR of mine exists. Nothing surprised me.
 
-Holding at four questions, unchanged and for the same reason as the
-last several runs: the queue is not dry, and these four are the ones
-actually blocking. I deliberately did not add a fifth — adding
-non-blocking questions to a queue that has gone seven runs without
-triage makes the real blockers harder to find, not easier. Q13 keeps
-its correction (four dead classes, not five — `.inner` is live). I did
-not re-verify each claim against the tree this run; nothing has landed
-on `main` that could have invalidated them.
+Holding at the same four questions. I did not add a fifth: the queue is
+not dry, these four are the ones actually blocking, and padding an
+untriaged queue makes the real blockers harder to find. Q13 keeps its
+correction (four dead classes, not five — `.inner` is live). I did not
+re-verify each question's claims against the tree this run; nothing has
+landed on `main` that could have invalidated them.
 
 ## Roadmap position
 
-Unchanged. The audit and its follow-on work are finished; this run
-added no roadmap progress and nothing is half-done.
+Unchanged. The audit and its follow-on work are finished; this run added
+no roadmap progress and nothing is half-done.
 
 Resume point: the next arc is the Tailwind migration, which I will not
 start on my own — Q15 asks which first step you want, and that is the
@@ -55,8 +53,8 @@ delete; I left it alone because deleting branches on my own initiative
 is not something I want to do unasked.
 
 Two runbook corrections still outstanding in the stored prompt, both
-unchanged: it says to run `yarn install`, but the repo moved to npm
-when Q2 landed (I use npm and respect `package-lock.json`); and while
+unchanged: it says to run `yarn install`, but the repo moved to npm when
+Q2 landed (I use npm and respect `package-lock.json`); and while
 `bin/prod` is genuinely unrunnable here, fetching Dart Sass 1.79.5
 directly to a temp path makes a full `hugo --environment production`
 build work in this container, so local builds are a real check now.
