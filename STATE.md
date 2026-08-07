@@ -1,5 +1,3 @@
-LEASE: 2026-08-07T04:35:22Z 1c86438a
-
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -7,21 +5,20 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T03:35Z — No-op run, fifth in a row: INBOX `sequence:` is
+2026-08-07T04:35Z — No-op run, sixth in a row. INBOX `sequence:` is
 still 5 against `inbox-processed: 5` with status `waiting-on-james`, so
-the new-input guard fired. Rather than reprint the ledger untouched, I
-re-verified the four standing questions against current `main`, and one
-was overstating its case — see the Q13 correction below. Open PRs are
-unchanged (#21 only, not mine, untouched since 2026-05-29) and no PR of
-mine has review comments or merges to handle. One thing did briefly
-look like news: `main` had moved to 630fe0e, but that is the js-yaml /
-fast-uri security commit from 2026-08-06T23:51Z, already recorded two
-runs ago — my container's clone was simply stale.
+the new-input guard fired and I stopped there. I did check the one
+thing that could have changed without an INBOX update: open PRs. Still
+only #21, still Dependabot's, last touched 2026-05-29 — no PR of mine
+exists, so there is nothing to handle. `main` is unchanged at 630fe0e
+since last run. Nothing surprised me.
 
-Still holding at four questions, not five. The pipeline-filling mandate
-is there to keep the queue from running dry; the queue is not dry, and
-a fifth item competes with the four that are actually blocking rather
-than adding anything.
+Holding at four questions, unchanged from last run and for the same
+reason: the queue is not dry, and the four standing items are the ones
+actually blocking. Q13 keeps last run's correction (four dead classes,
+not five — `.inner` is live). I re-read the questions but did not
+re-verify each claim against the tree this time; nothing has landed on
+`main` that could have invalidated them.
 
 ## Roadmap position
 
@@ -32,9 +29,8 @@ Resume point: the next arc is the Tailwind migration, which I will not
 start on my own — Q15 asks which first step you want, and that is the
 single answer that unblocks the most. Q5 (your manual PageSpeed
 baseline) is still yours to run and still the most useful thing you
-could do independently; note that its blocker cleared when you answered
-Q7, since the 24.5 KB JS payload it was waiting on is now known to be
-deletable.
+could do independently; its blocker cleared when you answered Q7, since
+the 24.5 KB JS payload it was waiting on is now known to be deletable.
 
 ## Open PRs
 
@@ -65,9 +61,9 @@ build work in this container, so local builds are a real check now.
 ## QUESTIONS
 
 Q16: Should I scope the Dependabot `ignore` entries so they suppress
-     version updates but still let security updates through? Re-checked
-     this run: `.github/dependabot.yml` still carries six bare
-     `dependency-name` ignores (`bootstrap`, `@popperjs/core`,
+     version updates but still let security updates through?
+     `.github/dependabot.yml` carries six bare `dependency-name`
+     ignores (`bootstrap`, `@popperjs/core`,
      `@fullhuman/postcss-purgecss`, `stylelint`,
      `stylelint-config-standard-scss`, `stylelint-scss`) with no
      `update-types`, so those packages get no security PRs at all.
@@ -84,33 +80,29 @@ Q16: Should I scope the Dependabot `ignore` entries so they suppress
      that would restore the Bootstrap PR pile you deliberately killed.
 
 Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
-     leftovers, or is content coming for them? All three still render
-     on **no page** — `content/` holds exactly three files, served by
+     leftovers, or is content coming for them? All three render on **no
+     page** — `content/` holds exactly three files, served by
      `index.html` (home), `policy/single.html` (accessibility, privacy)
-     and `404.html`.
-     **Correction to what I told you last run:** I listed `.inner`
-     among the classes these dead templates hold hostage. That was
-     wrong — `.inner` is live, used by `home/contact.html`,
-     `home/copy.html` and `link.html`, and it is not referenced by the
-     three dormant templates at all. The real list is four classes, not
-     five: `.page-content`, `.circle`, `.list-group-img` and
+     and `404.html`. The classes they hold hostage are four:
+     `.page-content`, `.circle`, `.list-group-img` and
      `.img-supporting`. Those four are referenced by nothing but these
      templates, so your answer decides whether their SCSS gets
      hand-ported to Tailwind or deleted before the migration starts.
-     Smaller stake than I implied, same decision.
+     (`.inner` is *not* among them — it is live in `home/contact.html`,
+     `home/copy.html` and `link.html`. I listed it by mistake two runs
+     ago and corrected it last run.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
      while the inventory is fresh — porting dead templates is the most
      wasteful thing the migration could do.
 
-Q14: Ready to take HSTS `max-age` to 31536000 now? Confirmed still at
-     86400 in `netlify.toml` this run. You slated it rather than
-     committing it back on Q1, having confirmed
-     `admin.northfosterfarm.com` is HTTPS-only. 86400 is short enough
-     to be close to decorative. Everything that was uncertain then is
-     settled now, and the rest of the header block is as tight as it is
-     going to get before Tailwind.
+Q14: Ready to take HSTS `max-age` to 31536000 now? It is still at 86400
+     in `netlify.toml`. You slated it rather than committing it back on
+     Q1, having confirmed `admin.northfosterfarm.com` is HTTPS-only.
+     86400 is short enough to be close to decorative. Everything that
+     was uncertain then is settled now, and the rest of the header
+     block is as tight as it is going to get before Tailwind.
   Recommendation: yes, take it — one line in `netlify.toml`. The only
      real risk with a long `includeSubDomains` max-age is a subdomain
      that needs plain HTTP later, and you have already ruled that out.
