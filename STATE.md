@@ -1,4 +1,3 @@
-LEASE: 2026-08-07T07:35:24Z hourly-roadmap
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,18 +5,19 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T06:35Z — No-op run, eighth in a row, for the same reason as
-the seven before it: INBOX `sequence:` is still 5 against
-`inbox-processed: 5` with status `waiting-on-james`, so the new-input
-guard fired. I took the lease, ran the two checks that can move without
-an INBOX update, and released it. `main` is unchanged at 630fe0e ("Bump
-js-yaml and fast-uri to clear two high-severity advisories"); open PRs
-are unchanged — still only #21, still Dependabot's, still last touched
-2026-05-29, and no PR of mine exists. Nothing surprised me.
+2026-08-07T07:35Z — No-op run, ninth in a row, same cause as the eight
+before it: INBOX `sequence:` is still 5 against `inbox-processed: 5`
+with status `waiting-on-james`, so the new-input guard fired. I took the
+lease, ran the two checks that can move without an INBOX update, and
+released it. `main` is unchanged at 630fe0e ("Bump js-yaml and fast-uri
+to clear two high-severity advisories"); open PRs are unchanged — still
+only #21, still Dependabot's, still last touched 2026-05-29, and no PR
+of mine exists. Nothing surprised me.
 
-Holding at the same four questions. I did not add a fifth: the queue is
-not dry, these four are the ones actually blocking, and padding an
-untriaged queue makes the real blockers harder to find. Q13 keeps its
+Holding at the same four questions. I did not add a fifth, for the same
+reason as before: four unanswered questions is not a dry queue, these
+four are the ones actually blocking, and adding to an untriaged pile
+makes the real blockers harder to find rather than easier. Q13 keeps its
 correction (four dead classes, not five — `.inner` is live). I did not
 re-verify each question's claims against the tree this run; nothing has
 landed on `main` that could have invalidated them.
