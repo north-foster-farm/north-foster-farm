@@ -1,4 +1,3 @@
-LEASE: 2026-08-07T17:34Z run-2026080717
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,21 +5,27 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T16:35Z — No-op run, eighteenth in a row, same cause: INBOX
+2026-08-07T17:34Z — No-op run, nineteenth in a row, same cause: INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran
 the two checks that move without an INBOX update, released it. `main`
 is unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
 high-severity advisories"); the only open PR is still #21, still
 Dependabot's, still last touched 2026-05-29, and no PR of mine exists.
-Nothing surprised me.
+
+One thing worth recording so a later run does not chase it: my first
+read of `origin/main` this run returned 865726d ("Drop 'unsafe-inline'
+from script-src"), which looked like main had moved backwards by four
+commits. It had not — that was a stale local ref before the fetch
+landed. After `git fetch origin main` it reads 630fe0e as expected.
+Nothing actually changed on the remote.
 
 Holding at the same four questions, for the same reason: four
 unanswered questions is not a dry queue, these four are the ones
 actually blocking, and a fifth on an untriaged pile buries the real
 blockers. Q13 keeps its correction (four dead classes, not five —
 `.inner` is live). No push notification this run and none planned: the
-stall was flagged once, seven runs ago, and repeating it hourly turns a
+stall was flagged once, eight runs ago, and repeating it hourly turns a
 useful signal into one you learn to ignore.
 
 ## Roadmap position
