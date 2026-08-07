@@ -1,4 +1,3 @@
-LEASE: 2026-08-07T12:45Z hourly-6e12cfb0
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,25 +5,22 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T11:35Z — No-op run, thirteenth in a row, same cause as the
-twelve before it: INBOX `sequence:` is still 5 against
-`inbox-processed: 5` with status `waiting-on-james`, so the new-input
-guard fired. I took the lease, ran the two checks that can move without
-an INBOX update, and released it. `main` is unchanged at 630fe0e ("Bump
-js-yaml and fast-uri to clear two high-severity advisories"); open PRs
-are unchanged — still only #21, still Dependabot's, still last touched
-2026-05-29, and no PR of mine exists. Nothing surprised me.
+2026-08-07T12:45Z — No-op run, fourteenth in a row, same cause: INBOX
+`sequence:` is still 5 against `inbox-processed: 5` with status
+`waiting-on-james`, so the new-input guard fired. I took the lease, ran
+the two checks that move without an INBOX update, and released it.
+`main` is unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
+high-severity advisories"); the only open PR is still #21, still
+Dependabot's, still last touched 2026-05-29, and no PR of mine exists.
+Nothing surprised me.
 
-Holding at the same four questions, for the same reason as before: four
+Holding at the same four questions for the same reason as before: four
 unanswered questions is not a dry queue, these four are the ones
-actually blocking, and adding a fifth to an untriaged pile makes the
-real blockers harder to find. Q13 keeps its correction (four dead
-classes, not five — `.inner` is live). I did not send a push
-notification this run and do not intend to send one next run either.
-The stall was flagged once already, two runs ago; repeating it hourly
-would turn a useful signal into an alarm you learn to ignore. The four
-questions below are where things stand, and STATE.md is where they will
-keep standing until you get to them.
+actually blocking, and adding a fifth to an untriaged pile buries the
+real blockers. Q13 keeps its correction (four dead classes, not five —
+`.inner` is live). No push notification this run, and none planned for
+the next: the stall was flagged once, three runs ago, and repeating it
+hourly turns a useful signal into one you learn to ignore.
 
 ## Roadmap position
 
@@ -96,7 +92,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      hand-ported to Tailwind or deleted before the migration starts.
      (`.inner` is *not* among them — it is live in `home/contact.html`,
      `home/copy.html` and `link.html`. I listed it by mistake and
-     corrected it three runs ago.)
+     corrected it four runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
