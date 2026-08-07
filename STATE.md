@@ -1,4 +1,3 @@
-LEASE: 2026-08-07T11:35:52Z cloud-run-1786102552
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,8 +5,8 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T10:35Z — No-op run, twelfth in a row, same cause as the
-eleven before it: INBOX `sequence:` is still 5 against
+2026-08-07T11:35Z — No-op run, thirteenth in a row, same cause as the
+twelve before it: INBOX `sequence:` is still 5 against
 `inbox-processed: 5` with status `waiting-on-james`, so the new-input
 guard fired. I took the lease, ran the two checks that can move without
 an INBOX update, and released it. `main` is unchanged at 630fe0e ("Bump
@@ -21,10 +20,10 @@ actually blocking, and adding a fifth to an untriaged pile makes the
 real blockers harder to find. Q13 keeps its correction (four dead
 classes, not five — `.inner` is live). I did not send a push
 notification this run and do not intend to send one next run either.
-The previous run pinged you about the eleven-hour stall; repeating that
-hourly would turn a useful signal into an alarm you learn to ignore.
-The four questions below are where things stand, and STATE.md is where
-they will keep standing until you get to them.
+The stall was flagged once already, two runs ago; repeating it hourly
+would turn a useful signal into an alarm you learn to ignore. The four
+questions below are where things stand, and STATE.md is where they will
+keep standing until you get to them.
 
 ## Roadmap position
 
@@ -96,7 +95,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      hand-ported to Tailwind or deleted before the migration starts.
      (`.inner` is *not* among them — it is live in `home/contact.html`,
      `home/copy.html` and `link.html`. I listed it by mistake and
-     corrected it two runs ago.)
+     corrected it three runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
