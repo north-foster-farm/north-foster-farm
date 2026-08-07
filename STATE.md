@@ -1,4 +1,3 @@
-LEASE: 2026-08-07T09:35Z cloud-run-9c41
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T08:35Z — No-op run, tenth in a row, same cause as the nine
+2026-08-07T09:35Z — No-op run, eleventh in a row, same cause as the ten
 before it: INBOX `sequence:` is still 5 against `inbox-processed: 5`
 with status `waiting-on-james`, so the new-input guard fired. I took the
 lease, ran the two checks that can move without an INBOX update, and
@@ -15,13 +14,16 @@ to clear two high-severity advisories"); open PRs are unchanged — still
 only #21, still Dependabot's, still last touched 2026-05-29, and no PR
 of mine exists. Nothing surprised me.
 
-Holding at the same four questions. I did not add a fifth, for the same
-reason as before: four unanswered questions is not a dry queue, these
-four are the ones actually blocking, and adding to an untriaged pile
-makes the real blockers harder to find rather than easier. Q13 keeps its
-correction (four dead classes, not five — `.inner` is live). I did not
-re-verify each question's claims against the tree this run; nothing has
-landed on `main` that could have invalidated them.
+Holding at the same four questions, and for the same reason: four
+unanswered questions is not a dry queue, these four are the ones
+actually blocking, and adding a fifth to an untriaged pile makes the
+real blockers harder to find. Q13 keeps its correction (four dead
+classes, not five — `.inner` is live). One change of practice this run:
+I sent James a push notification saying the agent has been stalled for
+eleven hours on these four questions. Eleven no-op runs is no longer a
+pause, and STATE.md only reaches him if he opens it. I will not repeat
+the ping every hour — if the next several runs are also no-ops, they
+should stay silent rather than turn into an hourly alarm.
 
 ## Roadmap position
 
