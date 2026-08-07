@@ -1,4 +1,3 @@
-LEASE: 2026-08-07T14:35:19Z run-20260807T1435
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T13:52Z — No-op run, fifteenth in a row, same cause: INBOX
+2026-08-07T14:35Z — No-op run, sixteenth in a row, same cause: INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran
 the two checks that move without an INBOX update, released it. `main`
@@ -19,9 +18,9 @@ Holding at the same four questions, for the same reason: four
 unanswered questions is not a dry queue, these four are the ones
 actually blocking, and a fifth on an untriaged pile buries the real
 blockers. Q13 keeps its correction (four dead classes, not five —
-`.inner` is live). No push notification this run and none planned:
-the stall was flagged once, four runs ago, and repeating it hourly
-turns a useful signal into one you learn to ignore.
+`.inner` is live). No push notification this run and none planned: the
+stall was flagged once, five runs ago, and repeating it hourly turns a
+useful signal into one you learn to ignore.
 
 ## Roadmap position
 
