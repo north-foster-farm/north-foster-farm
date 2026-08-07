@@ -1,4 +1,3 @@
-LEASE: 2026-08-07T13:52:31Z run-20260807T1352
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,27 +5,27 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T12:45Z — No-op run, fourteenth in a row, same cause: INBOX
+2026-08-07T13:52Z — No-op run, fifteenth in a row, same cause: INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
-`waiting-on-james`, so the new-input guard fired. I took the lease, ran
-the two checks that move without an INBOX update, and released it.
-`main` is unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
+`waiting-on-james`, so the new-input guard fired. Took the lease, ran
+the two checks that move without an INBOX update, released it. `main`
+is unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
 high-severity advisories"); the only open PR is still #21, still
 Dependabot's, still last touched 2026-05-29, and no PR of mine exists.
 Nothing surprised me.
 
-Holding at the same four questions for the same reason as before: four
+Holding at the same four questions, for the same reason: four
 unanswered questions is not a dry queue, these four are the ones
-actually blocking, and adding a fifth to an untriaged pile buries the
-real blockers. Q13 keeps its correction (four dead classes, not five —
-`.inner` is live). No push notification this run, and none planned for
-the next: the stall was flagged once, three runs ago, and repeating it
-hourly turns a useful signal into one you learn to ignore.
+actually blocking, and a fifth on an untriaged pile buries the real
+blockers. Q13 keeps its correction (four dead classes, not five —
+`.inner` is live). No push notification this run and none planned:
+the stall was flagged once, four runs ago, and repeating it hourly
+turns a useful signal into one you learn to ignore.
 
 ## Roadmap position
 
-Unchanged. The audit and its follow-on work are finished; this run added
-no roadmap progress and nothing is half-done.
+Unchanged. The audit and its follow-on work are finished; this run
+added no roadmap progress and nothing is half-done.
 
 Resume point: the next arc is the Tailwind migration, which I will not
 start on my own — Q15 asks which first step you want, and that is the
@@ -55,8 +54,8 @@ delete; I left it alone because deleting branches on my own initiative
 is not something I want to do unasked.
 
 Two runbook corrections still outstanding in the stored prompt, both
-unchanged: it says to run `yarn install`, but the repo moved to npm when
-Q2 landed (I use npm and respect `package-lock.json`); and while
+unchanged: it says to run `yarn install`, but the repo moved to npm
+when Q2 landed (I use npm and respect `package-lock.json`); and while
 `bin/prod` is genuinely unrunnable here, fetching Dart Sass 1.79.5
 directly to a temp path makes a full `hugo --environment production`
 build work in this container, so local builds are a real check now.
@@ -93,7 +92,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      hand-ported to Tailwind or deleted before the migration starts.
      (`.inner` is *not* among them — it is live in `home/contact.html`,
      `home/copy.html` and `link.html`. I listed it by mistake and
-     corrected it four runs ago.)
+     corrected it five runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
