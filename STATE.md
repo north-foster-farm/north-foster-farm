@@ -1,4 +1,3 @@
-LEASE: 2026-08-07T03:35:34Z run-39f0384a
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,15 +5,21 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T02:35Z — No-op run, fourth in a row. INBOX `sequence:` is
+2026-08-07T03:35Z — No-op run, fifth in a row: INBOX `sequence:` is
 still 5 against `inbox-processed: 5` with status `waiting-on-james`, so
-the new-input guard fired: lease acquired, checked, released, nothing
-built. I re-checked open PRs before releasing — still only #21,
-untouched since 2026-05-29 — and no PR of mine has review comments or
-merges to handle. Nothing surprised me. Q16, Q13, Q14 and Q15 have now
-stood unanswered for four runs; I am still not extending the queue,
-because a fifth question would bury the four that matter rather than
-help them.
+the new-input guard fired. Rather than reprint the ledger untouched, I
+re-verified the four standing questions against current `main`, and one
+was overstating its case — see the Q13 correction below. Open PRs are
+unchanged (#21 only, not mine, untouched since 2026-05-29) and no PR of
+mine has review comments or merges to handle. One thing did briefly
+look like news: `main` had moved to 630fe0e, but that is the js-yaml /
+fast-uri security commit from 2026-08-06T23:51Z, already recorded two
+runs ago — my container's clone was simply stale.
+
+Still holding at four questions, not five. The pipeline-filling mandate
+is there to keep the queue from running dry; the queue is not dry, and
+a fifth item competes with the four that are actually blocking rather
+than adding anything.
 
 ## Roadmap position
 
@@ -25,7 +30,9 @@ Resume point: the next arc is the Tailwind migration, which I will not
 start on my own — Q15 asks which first step you want, and that is the
 single answer that unblocks the most. Q5 (your manual PageSpeed
 baseline) is still yours to run and still the most useful thing you
-could do independently.
+could do independently; note that its blocker cleared when you answered
+Q7, since the 24.5 KB JS payload it was waiting on is now known to be
+deletable.
 
 ## Open PRs
 
@@ -56,14 +63,15 @@ build work in this container, so local builds are a real check now.
 ## QUESTIONS
 
 Q16: Should I scope the Dependabot `ignore` entries so they suppress
-     version updates but still let security updates through? Right now
-     the six ignored packages (`bootstrap`, `@popperjs/core`,
+     version updates but still let security updates through? Re-checked
+     this run: `.github/dependabot.yml` still carries six bare
+     `dependency-name` ignores (`bootstrap`, `@popperjs/core`,
      `@fullhuman/postcss-purgecss`, `stylelint`,
-     `stylelint-config-standard-scss`, `stylelint-scss`) get no
-     security PRs at all, which is how last week's two advisories
-     reached `main` unannounced and sat there. This is not theoretical
-     — it already happened once, and I only caught it because git
-     happened to print a warning at me.
+     `stylelint-config-standard-scss`, `stylelint-scss`) with no
+     `update-types`, so those packages get no security PRs at all.
+     That is how last week's two advisories reached `main` unannounced
+     and sat there — not theoretical, it already happened once, and I
+     only caught it because git happened to print a warning at me.
   Recommendation: yes, and it is a small, safe change. Adding
      `update-types: ["version-update:semver-major",
      "version-update:semver-minor", "version-update:semver-patch"]` to
@@ -74,27 +82,33 @@ Q16: Should I scope the Dependabot `ignore` entries so they suppress
      that would restore the Bootstrap PR pile you deliberately killed.
 
 Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
-     leftovers, or is content coming for them? All three currently
-     render on **no page** — `content/` holds exactly three files, and
-     they are served by `index.html` (home), `policy/single.html`
-     (accessibility, privacy) and `404.html`. This is not idle
-     curiosity: those three templates are the only thing referencing
-     `.page-content`, `.circle`, `.inner`, `.list-group-img` and
-     `.img-supporting`, so your answer decides whether ~5 dormant SCSS
-     blocks get hand-ported to Tailwind or deleted before the migration
-     starts.
+     leftovers, or is content coming for them? All three still render
+     on **no page** — `content/` holds exactly three files, served by
+     `index.html` (home), `policy/single.html` (accessibility, privacy)
+     and `404.html`.
+     **Correction to what I told you last run:** I listed `.inner`
+     among the classes these dead templates hold hostage. That was
+     wrong — `.inner` is live, used by `home/contact.html`,
+     `home/copy.html` and `link.html`, and it is not referenced by the
+     three dormant templates at all. The real list is four classes, not
+     five: `.page-content`, `.circle`, `.list-group-img` and
+     `.img-supporting`. Those four are referenced by nothing but these
+     templates, so your answer decides whether their SCSS gets
+     hand-ported to Tailwind or deleted before the migration starts.
+     Smaller stake than I implied, same decision.
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
      while the inventory is fresh — porting dead templates is the most
      wasteful thing the migration could do.
 
-Q14: Ready to take HSTS `max-age` to 31536000 now? You slated it rather
-     than committing it back on Q1, having confirmed
-     `admin.northfosterfarm.com` is HTTPS-only. It is still at 86400,
-     which is short enough to be close to decorative. Everything that
-     was uncertain then is settled now, and the rest of the header block
-     is as tight as it is going to get before Tailwind.
+Q14: Ready to take HSTS `max-age` to 31536000 now? Confirmed still at
+     86400 in `netlify.toml` this run. You slated it rather than
+     committing it back on Q1, having confirmed
+     `admin.northfosterfarm.com` is HTTPS-only. 86400 is short enough
+     to be close to decorative. Everything that was uncertain then is
+     settled now, and the rest of the header block is as tight as it is
+     going to get before Tailwind.
   Recommendation: yes, take it — one line in `netlify.toml`. The only
      real risk with a long `includeSubDomains` max-age is a subdomain
      that needs plain HTTP later, and you have already ruled that out.
