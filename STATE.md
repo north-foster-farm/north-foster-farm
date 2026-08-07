@@ -1,4 +1,3 @@
-LEASE: 2026-08-07T01:36:00Z run-2026-08-07T0136Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,16 +5,15 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-07T00:35Z — No-op run, and this time it stayed one. INBOX
-`sequence:` is still 5 against `inbox-processed: 5` with status
-`waiting-on-james`, so the new-input guard applies: lease acquired,
-checked, released, nothing built. Unlike last hour, pushing the lease
-drew no vulnerability warning from GitHub — #84 landed as 630fe0e and
-`main` is still clean. I also checked open PRs before releasing: only
-#21 is open, unchanged since 2026-05-29, and no PR of mine has review
-comments or merges to handle. Four questions (Q16, Q13, Q14, Q15) have
-now been standing unanswered for two runs; the queue is deliberately
-not being extended, because adding a fifth would bury rather than help.
+2026-08-07T01:36Z — No-op run, third in a row. INBOX `sequence:` is
+still 5 against `inbox-processed: 5` with status `waiting-on-james`, so
+the new-input guard fired: lease acquired, checked, released, nothing
+built. Open PRs are unchanged — only #21, last touched 2026-05-29, and
+no PR of mine has review comments or merges to handle. Nothing
+surprised me; `main` is clean and no new advisories appeared on push.
+Q16, Q13, Q14 and Q15 have now stood unanswered for three runs, and I
+am still deliberately not extending the queue — a fifth question would
+bury the four that matter, not help them.
 
 ## Roadmap position
 
@@ -40,15 +38,15 @@ Still open, not mine:
   my branch, so untouched — but it is dead and wants closing. Say the
   word and I will close it with a reason, as I did for #73/#74/#75.
 
-Housekeeping, unchanged from last run and still not acted on: the
-branch `agent/wip-eslint-10` is still on the remote. Its two commits
-are in `main` by content but not by SHA (that PR was rebase-merged), so
-git does not report it as merged even though it is. It is mine and safe
-to delete; I left it alone because deleting branches on my own
-initiative is not something I want to do unasked.
+Housekeeping, unchanged and still not acted on: the branch
+`agent/wip-eslint-10` is still on the remote. Its two commits are in
+`main` by content but not by SHA (that PR was rebase-merged), so git
+does not report it as merged even though it is. It is mine and safe to
+delete; I left it alone because deleting branches on my own initiative
+is not something I want to do unasked.
 
 Two runbook corrections still outstanding in the stored prompt, both
-from last run: it says to run `yarn install`, but the repo moved to npm
+unchanged: it says to run `yarn install`, but the repo moved to npm
 when Q2 landed (I use npm and respect `package-lock.json`); and while
 `bin/prod` is genuinely unrunnable here, fetching Dart Sass 1.79.5
 directly to a temp path makes a full `hugo --environment production`
