@@ -1,4 +1,3 @@
-LEASE: 2026-08-08T06:34Z hourly-roadmap
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,25 +5,24 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-08T05:34Z — No-op run, thirty-first in a row, same cause: INBOX
-`sequence:` is still 5 against `inbox-processed: 5` with status
+2026-08-08T06:34Z — No-op run, thirty-second in a row, same cause:
+INBOX `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran
 the two checks that move without an INBOX update, released it. `main`
 is unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
 high-severity advisories"); the only open PR is still #21, still
 Dependabot's, still last touched 2026-05-29, and no PR of mine exists.
 
-The stale-clone quirk last run noticed is reproducible, not a one-off:
-this container's clone again started with `origin/main` at 865726d, one
-commit behind, and again a fetch corrected it to 630fe0e. So it is a
-property of how these containers are seeded, not a transient glitch.
-Fetch before trusting any SHA read locally — I have now been caught by
-this twice and neither time was the remote actually wrong.
+The stale-clone quirk has now happened three runs running: this
+container's clone again started with `origin/main` at 865726d, one
+commit behind, and again a fetch corrected it to 630fe0e. Three for
+three is not a glitch — treat it as how these containers are seeded and
+fetch before trusting any SHA read locally.
 
 Nothing else surprised me and nothing needed fixing. I added no new
 questions this run: four are already stacked unanswered, and a fifth
 would make the list harder to answer, not easier. No push notification,
-for the same reason as the last eighteen runs — the stall was flagged
+for the same reason as the last nineteen runs — the stall was flagged
 once and repeating it hourly trains you to ignore it.
 
 ## Roadmap position
@@ -97,7 +95,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      hand-ported to Tailwind or deleted before the migration starts.
      (`.inner` is *not* among them — it is live in `home/contact.html`,
      `home/copy.html` and `link.html`. I listed it by mistake and
-     corrected it eighteen runs ago.)
+     corrected it nineteen runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
