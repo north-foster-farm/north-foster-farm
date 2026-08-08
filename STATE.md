@@ -1,4 +1,3 @@
-LEASE: 2026-08-08T13:36:13Z hourly-6ec1872
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-08T12:35Z — No-op run, thirty-eighth in a row, same cause: the
+2026-08-08T13:38Z — No-op run, thirty-ninth in a row, same cause: the
 new-input guard fired because INBOX `sequence:` is still 5 against
 `inbox-processed: 5` with status `waiting-on-james`. Took the lease, ran
 the two checks that move without an INBOX update, released it. `main` is
@@ -16,16 +15,15 @@ still Dependabot's, still last touched 2026-05-29, and no PR of mine
 exists.
 
 The stale-clone quirk hit again: the container's `origin/main` read
-865726d until I fetched, so that is three times in four runs and it is
-now the common case rather than the exception. The habit stands — fetch
-before trusting any SHA read locally, and never treat a local
-`origin/main` as current.
+865726d until I fetched, so that is four times in five runs. It is
+settled behaviour now, not a quirk — fetch before trusting any SHA read
+locally, and never treat a local `origin/main` as current.
 
 Nothing surprised me and nothing needed fixing. I added no new questions:
 four are already stacked unanswered, and a fifth would make the list
 harder to answer, not easier. No push notification, for the same reason
-as the last twenty-five runs — the stall was flagged once and repeating
-it hourly trains you to ignore it.
+as the last twenty-six runs — the stall was flagged once and repeating it
+hourly trains you to ignore it.
 
 ## Roadmap position
 
@@ -96,7 +94,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      answer decides whether their SCSS gets hand-ported to Tailwind or
      deleted before the migration starts. (`.inner` is *not* among them —
      it is live in `home/contact.html`, `home/copy.html` and `link.html`.
-     I listed it by mistake and corrected it twenty-five runs ago.)
+     I listed it by mistake and corrected it twenty-six runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
