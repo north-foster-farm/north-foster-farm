@@ -1,4 +1,3 @@
-LEASE: 2026-08-08T21:34:48Z run-20260808T2134Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,24 +5,23 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-08T20:35Z — No-op run, forty-sixth in a row, same cause: the
-new-input guard fired because INBOX `sequence:` is still 5 against
-`inbox-processed: 5` with status `waiting-on-james`. Took the lease, ran
-the two checks that move without an INBOX update, released it. `main` is
+2026-08-08T21:34Z — No-op run, forty-seventh in a row, same cause: INBOX
+`sequence:` is still 5 against `inbox-processed: 5` with status
+`waiting-on-james`, so the new-input guard fired. Took the lease, ran the
+two checks that move without an INBOX update, released it. `main` is
 unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
-high-severity advisories", 2026-08-06); the only open PR is still #21,
-still Dependabot's, still last touched 2026-05-29, and no PR of mine
-exists. No review comments arrived on anything of mine, because there is
-nothing of mine open to comment on.
+high-severity advisories", 2026-08-06); #21 is still the only open PR,
+still Dependabot's, still last touched 2026-05-29. Nothing of mine is
+open, so there were no reviews or merges to handle.
 
-The stale-clone behaviour repeated again: the container checked out
-630fe0e but `origin/main` did not exist locally until I fetched. Fetch
-before trusting any SHA read locally.
+The stale-clone behaviour repeated: the container checked out 630fe0e but
+`origin/main` did not exist locally until I fetched. Fetch before trusting
+any SHA read locally.
 
-Nothing surprised me and nothing needed fixing. I added no new questions:
+Nothing surprised me and nothing needed fixing. I added no new questions —
 four are already stacked unanswered, and a fifth would make the list
-harder to answer, not easier. No push notification, for the same reason
-as the last thirty-odd runs — the stall was flagged once and repeating it
+harder to answer, not easier. No push notification, for the same reason as
+the last thirty-odd runs: the stall was flagged once, and repeating it
 hourly trains you to ignore it.
 
 ## Roadmap position
@@ -35,8 +33,8 @@ Resume point: the next arc is the Tailwind migration, which I will not
 start on my own — Q15 asks which first step you want, and that is the
 single answer that unblocks the most. Q5 (your manual PageSpeed baseline)
 is still yours to run and still the most useful thing you could do
-independently; its blocker cleared when you answered Q7, since the
-24.5 KB JS payload it was waiting on is now known to be deletable.
+independently; its blocker cleared when you answered Q7, since the 24.5 KB
+JS payload it was waiting on is now known to be deletable.
 
 ## Open PRs
 
@@ -53,16 +51,16 @@ Still open, not mine:
 Housekeeping, unchanged and still not acted on: the branch
 `agent/wip-eslint-10` is still on the remote at 5744535. Its two commits
 are in `main` by content but not by SHA (that PR was rebase-merged), so
-git does not report it as merged even though it is. It is mine and safe
-to delete; I left it alone because deleting branches on my own initiative
-is not something I want to do unasked.
+git does not report it as merged even though it is. It is mine and safe to
+delete; I left it alone because deleting branches on my own initiative is
+not something I want to do unasked.
 
 Two runbook corrections still outstanding in the stored prompt, both
 unchanged: it says to run `yarn install`, but the repo moved to npm when
-Q2 landed (I use npm and respect `package-lock.json`); and while
-`bin/prod` is genuinely unrunnable here, fetching Dart Sass 1.79.5
-directly to a temp path makes a full `hugo --environment production`
-build work in this container, so local builds are a real check now.
+Q2 landed (I use npm and respect `package-lock.json`); and while `bin/prod`
+is genuinely unrunnable here, fetching Dart Sass 1.79.5 directly to a temp
+path makes a full `hugo --environment production` build work in this
+container, so local builds are a real check now.
 
 ## QUESTIONS
 
