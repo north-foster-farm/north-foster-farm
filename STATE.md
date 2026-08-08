@@ -1,4 +1,3 @@
-LEASE: 2026-08-08T18:35:00Z cloud-run-1786214100
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,14 +5,15 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-08T17:34Z — No-op run, forty-third in a row, same cause: the
+2026-08-08T18:35Z — No-op run, forty-fourth in a row, same cause: the
 new-input guard fired because INBOX `sequence:` is still 5 against
 `inbox-processed: 5` with status `waiting-on-james`. Took the lease, ran
 the two checks that move without an INBOX update, released it. `main` is
 unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
 high-severity advisories", 2026-08-06); the only open PR is still #21,
 still Dependabot's, still last touched 2026-05-29, and no PR of mine
-exists.
+exists. No review comments arrived on anything of mine, because there is
+nothing of mine open to comment on.
 
 The stale-clone behaviour repeated again: the container checked out
 630fe0e but `origin/main` did not exist locally until I fetched. Fetch
@@ -22,7 +22,7 @@ before trusting any SHA read locally.
 Nothing surprised me and nothing needed fixing. I added no new questions:
 four are already stacked unanswered, and a fifth would make the list
 harder to answer, not easier. No push notification, for the same reason
-as the last thirty runs — the stall was flagged once and repeating it
+as the last thirty-odd runs — the stall was flagged once and repeating it
 hourly trains you to ignore it.
 
 ## Roadmap position
