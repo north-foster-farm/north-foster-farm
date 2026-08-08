@@ -1,4 +1,3 @@
-LEASE: 2026-08-08T11:35:19Z run-20260808T1135Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-08T10:35Z — No-op run, thirty-sixth in a row, same cause: the
+2026-08-08T11:35Z — No-op run, thirty-seventh in a row, same cause: the
 new-input guard fired because INBOX `sequence:` is still 5 against
 `inbox-processed: 5` with status `waiting-on-james`. Took the lease, ran
 the two checks that move without an INBOX update, released it. `main` is
@@ -15,16 +14,16 @@ high-severity advisories", 2026-08-06); the only open PR is still #21,
 still Dependabot's, still last touched 2026-05-29, and no PR of mine
 exists.
 
-The stale-clone quirk did not appear this run — the container's clone
-came up with `origin/main` already at 630fe0e, so the one-commit lag of
-the last six runs was a property of those containers, not a standing
-condition. The habit still holds: fetch before trusting any SHA read
-locally.
+The container's clone came up one commit behind again (`origin/main` at
+865726d until I fetched), so the stale-clone quirk is intermittent rather
+than gone — that is the second time in three runs. The habit stands:
+fetch before trusting any SHA read locally, and do not treat a local
+`origin/main` as current.
 
 Nothing surprised me and nothing needed fixing. I added no new questions:
 four are already stacked unanswered, and a fifth would make the list
 harder to answer, not easier. No push notification, for the same reason
-as the last twenty-three runs — the stall was flagged once and repeating
+as the last twenty-four runs — the stall was flagged once and repeating
 it hourly trains you to ignore it.
 
 ## Roadmap position
@@ -96,7 +95,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      answer decides whether their SCSS gets hand-ported to Tailwind or
      deleted before the migration starts. (`.inner` is *not* among them —
      it is live in `home/contact.html`, `home/copy.html` and `link.html`.
-     I listed it by mistake and corrected it twenty-three runs ago.)
+     I listed it by mistake and corrected it twenty-four runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
