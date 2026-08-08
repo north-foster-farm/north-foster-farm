@@ -1,4 +1,3 @@
-LEASE: 2026-08-08T22:35:09Z run-dfcb436
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-08T21:34Z — No-op run, forty-seventh in a row, same cause: INBOX
+2026-08-08T22:35Z — No-op run, forty-eighth in a row, same cause: INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran the
 two checks that move without an INBOX update, released it. `main` is
@@ -15,9 +14,9 @@ high-severity advisories", 2026-08-06); #21 is still the only open PR,
 still Dependabot's, still last touched 2026-05-29. Nothing of mine is
 open, so there were no reviews or merges to handle.
 
-The stale-clone behaviour repeated: the container checked out 630fe0e but
-`origin/main` did not exist locally until I fetched. Fetch before trusting
-any SHA read locally.
+The stale-clone behaviour repeated again: the container came up on
+630fe0e in detached HEAD with no local `origin/main` until I fetched.
+Fetch before trusting any SHA read locally.
 
 Nothing surprised me and nothing needed fixing. I added no new questions —
 four are already stacked unanswered, and a fifth would make the list
