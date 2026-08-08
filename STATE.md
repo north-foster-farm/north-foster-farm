@@ -1,4 +1,3 @@
-LEASE: 2026-08-08T20:35:39Z hourly-2979
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-08T19:34Z — No-op run, forty-fifth in a row, same cause: the
+2026-08-08T20:35Z — No-op run, forty-sixth in a row, same cause: the
 new-input guard fired because INBOX `sequence:` is still 5 against
 `inbox-processed: 5` with status `waiting-on-james`. Took the lease, ran
 the two checks that move without an INBOX update, released it. `main` is
