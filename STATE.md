@@ -1,4 +1,3 @@
-LEASE: 2026-08-08T02:35Z cloud-run-2026-08-08T0235Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-08T01:35Z — No-op run, twenty-seventh in a row, same cause:
+2026-08-08T02:35Z — No-op run, twenty-eighth in a row, same cause:
 INBOX `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran
 the two checks that move without an INBOX update, released it. `main`
@@ -17,7 +16,7 @@ Dependabot's, still last touched 2026-05-29, and no PR of mine exists.
 Nothing surprised me and nothing needed fixing. I added no new
 questions this run: four are already stacked unanswered, and stacking a
 fifth would make the list harder to answer, not easier. No push
-notification, for the same reason as the last fourteen runs — the stall
+notification, for the same reason as the last fifteen runs — the stall
 was flagged once and repeating it hourly trains you to ignore it.
 
 ## Roadmap position
@@ -90,7 +89,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      hand-ported to Tailwind or deleted before the migration starts.
      (`.inner` is *not* among them — it is live in `home/contact.html`,
      `home/copy.html` and `link.html`. I listed it by mistake and
-     corrected it fourteen runs ago.)
+     corrected it fifteen runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
