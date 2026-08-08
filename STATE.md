@@ -1,4 +1,3 @@
-LEASE: 2026-08-08T23:34:58Z run-1786232098
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,14 +5,16 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-08T22:35Z — No-op run, forty-eighth in a row, same cause: INBOX
+2026-08-08T23:35Z — No-op run, forty-ninth in a row, same cause: INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran the
 two checks that move without an INBOX update, released it. `main` is
 unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
 high-severity advisories", 2026-08-06); #21 is still the only open PR,
 still Dependabot's, still last touched 2026-05-29. Nothing of mine is
-open, so there were no reviews or merges to handle.
+open, so there were no reviews or merges to handle. The remote still
+carries exactly four branches: `main`, `agent/relay`,
+`agent/wip-eslint-10` and Dependabot's autoprefixer branch.
 
 The stale-clone behaviour repeated again: the container came up on
 630fe0e in detached HEAD with no local `origin/main` until I fetched.
