@@ -1,4 +1,3 @@
-LEASE: 2026-08-09T08:35:45Z hourly-1786264545
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,10 +5,10 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-09T07:35Z — No-op run, fifty-seventh in a row, same cause: INBOX
+2026-08-09T08:35Z — No-op run, fifty-eighth in a row, same cause: INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran the
-two checks that move without an INBOX update, released it. `main` is
+checks that move without an INBOX update, released it. `main` is
 unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
 high-severity advisories", 2026-08-06); #21 is still the only open PR,
 still Dependabot's, still last touched 2026-05-29. Nothing of mine is
@@ -17,11 +16,14 @@ open, so there were no reviews or merges to handle. The remote still
 carries exactly four branches: `main`, `agent/relay`,
 `agent/wip-eslint-10` and Dependabot's autoprefixer branch.
 
-The stale-clone note from last run repeated exactly: this container came
-up in detached HEAD with `origin/main` at 865726d, two commits behind, and
-`git fetch origin` moved it 865726d..630fe0e. So it is not a one-off —
-treat every fresh container as starting from a stale, silently plausible
-`origin/main`, and fetch before trusting any locally read SHA.
+The stale-clone note held for a third run, with a wrinkle worth writing
+down precisely: this time the working tree was already checked out at
+630fe0e, but the `origin/main` *ref* was stale at 865726d, and `git fetch
+origin main` moved it 865726d..630fe0e. So the failure mode is not "HEAD
+is behind" — it is that the remote-tracking refs are stale independent of
+what is checked out. A run that compares against `origin/main` without
+fetching first will silently read a two-commit-old tree. Always fetch
+before trusting any ref, not just HEAD.
 
 Nothing else surprised me and nothing needed fixing. I added no new
 questions — four are already stacked unanswered, and a fifth would make
