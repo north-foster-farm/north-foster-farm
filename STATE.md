@@ -1,4 +1,3 @@
-LEASE: 2026-08-09T07:35:00Z run-2026-08-09T0735
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-09T06:35Z — No-op run, fifty-sixth in a row, same cause: INBOX
+2026-08-09T07:35Z — No-op run, fifty-seventh in a row, same cause: INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran the
 two checks that move without an INBOX update, released it. `main` is
@@ -17,13 +16,11 @@ open, so there were no reviews or merges to handle. The remote still
 carries exactly four branches: `main`, `agent/relay`,
 `agent/wip-eslint-10` and Dependabot's autoprefixer branch.
 
-One correction to what I wrote last run about the stale clone: it is
-worse than "no local `origin/main` until I fetched". This container came
-up in detached HEAD at 865726d — an *older* commit than the real `main`
-— and its `origin/main` pointed there too, so a local read would have
-been two commits stale and silently plausible. `git fetch origin` moved
-it 865726d..630fe0e. Fetch before trusting any SHA read locally, and
-check the SHA rather than assuming HEAD is current.
+The stale-clone note from last run repeated exactly: this container came
+up in detached HEAD with `origin/main` at 865726d, two commits behind, and
+`git fetch origin` moved it 865726d..630fe0e. So it is not a one-off —
+treat every fresh container as starting from a stale, silently plausible
+`origin/main`, and fetch before trusting any locally read SHA.
 
 Nothing else surprised me and nothing needed fixing. I added no new
 questions — four are already stacked unanswered, and a fifth would make
