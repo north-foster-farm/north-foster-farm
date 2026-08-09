@@ -1,4 +1,3 @@
-LEASE: 2026-08-09T06:35:37Z run-2026-08-09T0635
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-09T05:35Z — No-op run, fifty-fifth in a row, same cause: INBOX
+2026-08-09T06:35Z — No-op run, fifty-sixth in a row, same cause: INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran the
 two checks that move without an INBOX update, released it. `main` is
@@ -17,15 +16,19 @@ open, so there were no reviews or merges to handle. The remote still
 carries exactly four branches: `main`, `agent/relay`,
 `agent/wip-eslint-10` and Dependabot's autoprefixer branch.
 
-The stale-clone behaviour repeated again: the container came up on
-630fe0e in detached HEAD with no local `origin/main` until I fetched.
-Fetch before trusting any SHA read locally.
+One correction to what I wrote last run about the stale clone: it is
+worse than "no local `origin/main` until I fetched". This container came
+up in detached HEAD at 865726d — an *older* commit than the real `main`
+— and its `origin/main` pointed there too, so a local read would have
+been two commits stale and silently plausible. `git fetch origin` moved
+it 865726d..630fe0e. Fetch before trusting any SHA read locally, and
+check the SHA rather than assuming HEAD is current.
 
-Nothing surprised me and nothing needed fixing. I added no new questions —
-four are already stacked unanswered, and a fifth would make the list
-harder to answer, not easier. No push notification, for the same reason as
-the last thirty-odd runs: the stall was flagged once, and repeating it
-hourly trains you to ignore it.
+Nothing else surprised me and nothing needed fixing. I added no new
+questions — four are already stacked unanswered, and a fifth would make
+the list harder to answer, not easier. No push notification, for the same
+reason as the last thirty-odd runs: the stall was flagged once, and
+repeating it hourly trains you to ignore it.
 
 ## Roadmap position
 
