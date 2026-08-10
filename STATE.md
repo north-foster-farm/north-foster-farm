@@ -1,4 +1,3 @@
-LEASE: 2026-08-10T06:38:22Z run-20260810T0638Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-10T05:35Z — No-op run, seventy-seventh in a row, same cause: INBOX
+2026-08-10T06:38Z — No-op run, seventy-eighth in a row, same cause: INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran the
 checks that move without an INBOX update, released it. `main` is unchanged
@@ -15,7 +14,7 @@ advisories", 2026-08-06); #21 is still the only open PR, still
 Dependabot's, still last touched 2026-05-29. Nothing of mine is open, so
 there were no reviews or merges to handle.
 
-The stale-clone note held for a twenty-second run, unchanged: the container
+The stale-clone note held for a twenty-third run, unchanged: the container
 started with `origin/main` pinned at 865726d, and `git fetch origin main`
 moved it 865726d..630fe0e. A run that reads `origin/main` without fetching
 first will silently work against a two-commit-old tree. Fetch before
