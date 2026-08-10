@@ -1,4 +1,3 @@
-LEASE: 2026-08-10T12:53:27Z run-20260810T125327Z-2621
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,26 +5,35 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-10T11:35Z — No-op run, eighty-third in a row, same cause: INBOX
+2026-08-10T12:53Z — No-op run, eighty-fourth in a row, same cause: INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran the
 checks that move without an INBOX update, released it. `main` is unchanged
 at 630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
-advisories", 2026-08-06); #21 is still the only open PR, still
-Dependabot's, still last touched 2026-05-29. Nothing of mine is open, so
-there were no reviews or merges to handle.
+advisories", 2026-08-06). Nothing of mine is open, so there were no
+reviews or merges to handle.
 
-The stale-clone note held for a twenty-eighth run, unchanged: the
-container started with `origin/main` pinned at 865726d, and `git fetch
-origin main` moved it 865726d..630fe0e. A run that reads `origin/main`
-without fetching first will silently work against a two-commit-old tree.
-Fetch before trusting any ref.
+One thing did change, the first in twenty-nine runs: Dependabot opened two
+new PRs at 12:04Z today — #85 (postcss 8.5.25 → 8.5.26) and #86 (globals
+17.8.0 → 17.9.0). Both are routine patch/minor version bumps, neither is a
+security advisory, and neither is mine, so I left them alone. Worth one
+note: both packages are outside the six-package `ignore` list in
+`.github/dependabot.yml`, which is precisely why they surfaced at all —
+they are the control group for Q16. Packages inside that list would have
+produced nothing, security or not.
+
+The stale-clone note held for a twenty-ninth run, unchanged: the container
+started with `origin/main` pinned at 865726d, and `git fetch origin main`
+moved it 865726d..630fe0e. A run that reads `origin/main` without fetching
+first will silently work against a two-commit-old tree. Fetch before
+trusting any ref.
 
 Nothing else surprised me and nothing needed fixing. I added no new
 questions — four are already stacked unanswered, and a fifth would make
 the list harder to answer, not easier. No push notification, for the same
 reason as the last thirty-odd runs: the stall was flagged once, and
-repeating it hourly trains you to ignore it.
+repeating it hourly trains you to ignore it. Two routine Dependabot bumps
+are not the exception to that.
 
 ## Roadmap position
 
@@ -45,6 +53,14 @@ JS payload it was waiting on is now known to be deletable.
 
 Still open, not mine:
 
+- #86 — Dependabot, "Bump globals from 17.8.0 to 17.9.0", opened
+  2026-08-10. New this run. Routine minor bump; `globals` is a lint-only
+  devDependency, so the blast radius is ESLint config resolution and
+  nothing that ships. Not my branch, untouched.
+- #85 — Dependabot, "Bump postcss from 8.5.25 to 8.5.26", opened
+  2026-08-10. New this run. Routine patch bump, but postcss is a real
+  build-path dependency (autoprefixer + PurgeCSS run on it), so this one
+  wants a deploy preview before merge rather than a blind click.
 - #21 — Dependabot, "Bump autoprefixer from 10.4.19 to 10.4.20", open
   since 2024-08, last touched 2026-05-29. Obsolete: `package.json`
   already pins autoprefixer 10.5.4, so this PR moves it backwards. Not my
@@ -76,7 +92,9 @@ Q16: Should I scope the Dependabot `ignore` entries so they suppress
      all. That is how last week's two advisories reached `main`
      unannounced and sat there — not theoretical, it already happened
      once, and I only caught it because git happened to print a warning
-     at me.
+     at me. Today's #85/#86 are the same mechanism seen from the other
+     side: both packages are outside the ignore list, so Dependabot
+     spoke up normally.
   Recommendation: yes, and it is a small, safe change. Adding
      `update-types: ["version-update:semver-major",
      "version-update:semver-minor", "version-update:semver-patch"]` to
