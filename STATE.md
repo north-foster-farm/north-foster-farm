@@ -1,4 +1,3 @@
-LEASE: 2026-08-10T22:35Z hourly-2235
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-10T21:35Z — No-op run, the ninety-third in a row, same cause:
+2026-08-10T22:35Z — No-op run, the ninety-fourth in a row, same cause:
 INBOX `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran the
 checks that move without an INBOX update, released it. `main` is unchanged
@@ -14,7 +13,7 @@ at 630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
 advisories", 2026-08-06). Nothing of mine is open, so there were no
 reviews or merges to handle.
 
-Nothing changed since the 20:35Z run. The three open PRs are the same
+Nothing changed since the 21:35Z run. The three open PRs are the same
 three, all Dependabot's, none mine: #85 and #86 from this morning and the
 long-dead #21. No new PRs, no new commits, no review activity anywhere.
 The remote branch list is unchanged too — `main`, `agent/relay`,
