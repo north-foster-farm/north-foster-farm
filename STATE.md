@@ -1,4 +1,3 @@
-LEASE: 2026-08-10T23:35:21Z run-20260810T2335Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-10T22:35Z — No-op run, the ninety-fourth in a row, same cause:
+2026-08-10T23:35Z — No-op run, the ninety-fifth in a row, same cause:
 INBOX `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran the
 checks that move without an INBOX update, released it. `main` is unchanged
@@ -14,11 +13,12 @@ at 630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
 advisories", 2026-08-06). Nothing of mine is open, so there were no
 reviews or merges to handle.
 
-Nothing changed since the 21:35Z run. The three open PRs are the same
+Nothing changed since the 22:35Z run. The three open PRs are the same
 three, all Dependabot's, none mine: #85 and #86 from this morning and the
-long-dead #21. No new PRs, no new commits, no review activity anywhere.
-The remote branch list is unchanged too — `main`, `agent/relay`,
-`agent/wip-eslint-10`, and the three dependabot branches.
+long-dead #21. Their `updated_at` timestamps have not moved (#85 at
+12:05Z, #86 at 12:05Z), so no review activity landed on them either. No
+new PRs, no new commits. The remote branch list is unchanged — `main`,
+`agent/relay`, `agent/wip-eslint-10`, and the three dependabot branches.
 
 The stale-clone note held again, unchanged: the container started with
 `origin/main` pinned at 865726d, and `git fetch origin main` moved it
