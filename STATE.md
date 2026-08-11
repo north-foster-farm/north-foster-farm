@@ -1,4 +1,3 @@
-LEASE: 2026-08-11T23:35:21Z hourly-3339
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,12 +5,12 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-11T22:35Z — No-op run, same cause as every run since the audit
+2026-08-11T23:35Z — No-op run, same cause as every run since the audit
 finished: INBOX `sequence:` is still 5 against `inbox-processed: 5` with
 status `waiting-on-james`, so the new-input guard fired. Took the lease,
 checked the things that move without an INBOX update, released it.
 
-Nothing changed since the 21:35Z run. `main` is unchanged at 630fe0e
+Nothing changed since the 22:35Z run. `main` is unchanged at 630fe0e
 ("Bump js-yaml and fast-uri to clear two high-severity advisories",
 2026-08-06). The three open PRs are the same three, all Dependabot's,
 none mine: #86 (`updated_at` 2026-08-10T12:05:30Z), #85
@@ -19,22 +18,22 @@ none mine: #86 (`updated_at` 2026-08-10T12:05:30Z), #85
 timestamps identical to last run, so no review activity, no rebases, no
 new PRs, no new commits.
 
-The stale-clone wrinkle reproduced an eighteenth time: the container
-woke with `origin/main` pinned at 865726d while the working tree was
-already at 630fe0e, and `git fetch origin main` moved the ref
-865726d..630fe0e again. Treat it as this container's normal wake
-state — fetch before trusting any ref.
+The stale-clone wrinkle reproduced a nineteenth time: the container woke
+with `origin/main` pinned at 865726d while the working tree was already
+at 630fe0e, and `git fetch origin main` moved the ref 865726d..630fe0e
+again. Treat it as this container's normal wake state — fetch before
+trusting any ref.
 
 Nothing surprised me and nothing needed fixing. I added no new
 questions — four are already stacked unanswered, and a fifth would make
 the list harder to answer, not easier. No push notification, for the
-same reason as the last thirty-odd runs: the stall was flagged once,
-and repeating it hourly trains you to ignore it.
+same reason as the last thirty-odd runs: the stall was flagged once, and
+repeating it hourly trains you to ignore it.
 
 ## Roadmap position
 
-Unchanged. The audit and its follow-on work are finished; this run
-added no roadmap progress and nothing is half-done.
+Unchanged. The audit and its follow-on work are finished; this run added
+no roadmap progress and nothing is half-done.
 
 Resume point: the next arc is the Tailwind migration, which I will not
 start on my own — Q15 asks which first step you want, and that is the
@@ -64,15 +63,15 @@ Still open, not mine:
   word and I will close it with a reason, as I did for #73/#74/#75.
 
 Housekeeping, unchanged and still not acted on: the branch
-`agent/wip-eslint-10` is still on the remote at 5744535. Its two
-commits are in `main` by content but not by SHA (that PR was
-rebase-merged), so git does not report it as merged even though it is.
-It is mine and safe to delete; I left it alone because deleting
-branches on my own initiative is not something I want to do unasked.
+`agent/wip-eslint-10` is still on the remote at 5744535. Its two commits
+are in `main` by content but not by SHA (that PR was rebase-merged), so
+git does not report it as merged even though it is. It is mine and safe
+to delete; I left it alone because deleting branches on my own
+initiative is not something I want to do unasked.
 
 Two runbook corrections still outstanding in the stored prompt, both
-unchanged: it says to run `yarn install`, but the repo moved to npm
-when Q2 landed (I use npm and respect `package-lock.json`); and while
+unchanged: it says to run `yarn install`, but the repo moved to npm when
+Q2 landed (I use npm and respect `package-lock.json`); and while
 `bin/prod` is genuinely unrunnable here, fetching Dart Sass 1.79.5
 directly to a temp path makes a full `hugo --environment production`
 build work in this container, so local builds are a real check now.
