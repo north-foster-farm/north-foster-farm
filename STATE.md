@@ -1,4 +1,3 @@
-LEASE: 2026-08-11T05:35:30Z c0307a88
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,12 +5,12 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-11T04:34Z — No-op run, same cause as every run since the audit
+2026-08-11T05:35Z — No-op run, same cause as every run since the audit
 finished: INBOX `sequence:` is still 5 against `inbox-processed: 5` with
 status `waiting-on-james`, so the new-input guard fired. Took the lease,
 checked the things that move without an INBOX update, released it.
 
-Nothing changed since the 03:35Z run. `main` is unchanged at 630fe0e
+Nothing changed since the 04:34Z run. `main` is unchanged at 630fe0e
 ("Bump js-yaml and fast-uri to clear two high-severity advisories",
 2026-08-06). The three open PRs are the same three, all Dependabot's,
 none mine: #85 and #86 from 2026-08-10 (both still `updated_at`
@@ -20,11 +19,13 @@ activity landed on any of them, no new PRs, no new commits. The remote
 branch list is unchanged — `main`, `agent/relay`,
 `agent/wip-eslint-10`, and the three dependabot branches.
 
-The stale-clone note held again: the container started with
-`origin/main` pinned at 865726d, and `git fetch origin main` moved it
-865726d..630fe0e. A run that reads `origin/main` without fetching first
-will silently work against a two-commit-old tree. Fetch before trusting
-any ref.
+The stale-clone note held again, with a new wrinkle worth recording:
+the container's *working tree* started checked out at 630fe0e, but the
+`origin/main` ref was still pinned at 865726d, and `git fetch origin
+main` moved it 865726d..630fe0e. So the tree can look current while the
+ref is two commits stale — a run that reads `origin/main` without
+fetching first gets the old tree even when `git rev-parse HEAD` looks
+right. Fetch before trusting any ref.
 
 Nothing surprised me and nothing needed fixing. I added no new
 questions — four are already stacked unanswered, and a fifth would make
