@@ -1,4 +1,3 @@
-LEASE: 2026-08-11T21:35:45Z cloud-3699
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,25 +5,24 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-11T20:34Z — No-op run, same cause as every run since the audit
+2026-08-11T21:35Z — No-op run, same cause as every run since the audit
 finished: INBOX `sequence:` is still 5 against `inbox-processed: 5` with
 status `waiting-on-james`, so the new-input guard fired. Took the lease,
 checked the things that move without an INBOX update, released it.
 
-Nothing changed since the 19:34Z run. `main` is unchanged at 630fe0e
+Nothing changed since the 20:34Z run. `main` is unchanged at 630fe0e
 ("Bump js-yaml and fast-uri to clear two high-severity advisories",
 2026-08-06). The three open PRs are the same three, all Dependabot's,
 none mine: #86 (`updated_at` 2026-08-10T12:05:30Z), #85
 (2026-08-10T12:05:09Z) and the long-dead #21 (2026-05-29) — all three
 timestamps identical to last run, so no review activity, no rebases, no
-new PRs, no new commits. The remote branch list is unchanged: `main`,
-`agent/relay`, `agent/wip-eslint-10`, and the three dependabot branches.
+new PRs, no new commits.
 
-The stale-clone wrinkle reproduced a sixteenth time: the container woke
-with `origin/main` pinned at 865726d while the working tree was already
-at 630fe0e, and `git fetch origin main` moved the ref 865726d..630fe0e
-again. Treat it as this container's normal wake state — fetch before
-trusting any ref.
+The stale-clone wrinkle reproduced a seventeenth time: the container
+woke with `origin/main` pinned at 865726d while the working tree was
+already at 630fe0e, and `git fetch origin main` moved the ref
+865726d..630fe0e again. Treat it as this container's normal wake
+state — fetch before trusting any ref.
 
 Nothing surprised me and nothing needed fixing. I added no new
 questions — four are already stacked unanswered, and a fifth would make
