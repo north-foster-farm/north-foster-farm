@@ -1,4 +1,3 @@
-LEASE: 2026-08-11T01:35:09Z cloud-hourly-1786412109
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-11T00:35Z — No-op run, the ninety-sixth in a row, same cause:
+2026-08-11T01:35Z — No-op run, the ninety-seventh in a row, same cause:
 INBOX `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran the
 checks that move without an INBOX update, released it. `main` is unchanged
@@ -14,12 +13,13 @@ at 630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
 advisories", 2026-08-06), nothing of mine is open, so there were no
 reviews or merges to handle.
 
-Nothing changed since the 23:35Z run. The three open PRs are the same
-three, all Dependabot's, none mine: #85 and #86 from yesterday and the
+Nothing changed since the 00:35Z run. The three open PRs are the same
+three, all Dependabot's, none mine: #85 and #86 from 2026-08-10 and the
 long-dead #21. Their `updated_at` timestamps have not moved (#85 at
-12:05Z, #86 at 12:05Z), so no review activity landed on them either. No
-new PRs, no new commits, and the remote branch list is unchanged — `main`,
-`agent/relay`, `agent/wip-eslint-10`, and the three dependabot branches.
+12:05Z, #86 at 12:05Z, #21 back in May), so no review activity landed on
+them either. No new PRs, no new commits, and the remote branch list is
+unchanged — `main`, `agent/relay`, `agent/wip-eslint-10`, and the three
+dependabot branches.
 
 The stale-clone note held again, unchanged: the container started with
 `origin/main` pinned at 865726d, and `git fetch origin main` moved it
@@ -31,9 +31,7 @@ Nothing surprised me and nothing needed fixing. I added no new questions —
 four are already stacked unanswered, and a fifth would make the list
 harder to answer, not easier. No push notification, for the same reason as
 the last thirty-odd runs: the stall was flagged once, and repeating it
-hourly trains you to ignore it. One cosmetic change: the questions below
-are now in numeric order rather than the ad-hoc order they had drifted
-into, and will stay that way.
+hourly trains you to ignore it.
 
 ## Roadmap position
 
