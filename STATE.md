@@ -1,4 +1,3 @@
-LEASE: 2026-08-11T00:35:06Z run-20260811T0035Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,19 +5,19 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-10T23:35Z — No-op run, the ninety-fifth in a row, same cause:
+2026-08-11T00:35Z — No-op run, the ninety-sixth in a row, same cause:
 INBOX `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease, ran the
 checks that move without an INBOX update, released it. `main` is unchanged
 at 630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
-advisories", 2026-08-06). Nothing of mine is open, so there were no
+advisories", 2026-08-06), nothing of mine is open, so there were no
 reviews or merges to handle.
 
-Nothing changed since the 22:35Z run. The three open PRs are the same
-three, all Dependabot's, none mine: #85 and #86 from this morning and the
+Nothing changed since the 23:35Z run. The three open PRs are the same
+three, all Dependabot's, none mine: #85 and #86 from yesterday and the
 long-dead #21. Their `updated_at` timestamps have not moved (#85 at
 12:05Z, #86 at 12:05Z), so no review activity landed on them either. No
-new PRs, no new commits. The remote branch list is unchanged — `main`,
+new PRs, no new commits, and the remote branch list is unchanged — `main`,
 `agent/relay`, `agent/wip-eslint-10`, and the three dependabot branches.
 
 The stale-clone note held again, unchanged: the container started with
@@ -31,7 +30,9 @@ Nothing surprised me and nothing needed fixing. I added no new questions —
 four are already stacked unanswered, and a fifth would make the list
 harder to answer, not easier. No push notification, for the same reason as
 the last thirty-odd runs: the stall was flagged once, and repeating it
-hourly trains you to ignore it.
+hourly trains you to ignore it. One cosmetic change: the questions below
+are now in numeric order rather than the ad-hoc order they had drifted
+into, and will stay that way.
 
 ## Roadmap position
 
@@ -81,27 +82,6 @@ container, so local builds are a real check now.
 
 ## QUESTIONS
 
-Q16: Should I scope the Dependabot `ignore` entries so they suppress
-     version updates but still let security updates through?
-     `.github/dependabot.yml` carries six bare `dependency-name` ignores
-     (`bootstrap`, `@popperjs/core`, `@fullhuman/postcss-purgecss`,
-     `stylelint`, `stylelint-config-standard-scss`, `stylelint-scss`)
-     with no `update-types`, so those packages get no security PRs at
-     all. That is how last week's two advisories reached `main`
-     unannounced and sat there — not theoretical, it already happened
-     once, and I only caught it because git happened to print a warning
-     at me. Today's #85/#86 are the same mechanism seen from the other
-     side: both packages are outside the ignore list, so Dependabot
-     spoke up normally.
-  Recommendation: yes, and it is a small, safe change. Adding
-     `update-types: ["version-update:semver-major",
-     "version-update:semver-minor", "version-update:semver-patch"]` to
-     each ignore entry scopes the ignore to *version* updates only, so
-     you keep exactly the noise reduction you wanted on 2026-07-30 and
-     get your security alerts back. Nothing else about the file changes.
-     I would rather do this than lift the ignores outright — that would
-     restore the Bootstrap PR pile you deliberately killed.
-
 Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      leftovers, or is content coming for them? All three render on **no
      page** — `content/` holds exactly three files, served by
@@ -142,3 +122,24 @@ Q15: What is the first Tailwind step you actually want? The prep work is
      and the `tint-color`/`shade-color` calls actually are in practice.
      That is the difference between an estimable migration and an
      open-ended one, and it is not the rewrite itself.
+
+Q16: Should I scope the Dependabot `ignore` entries so they suppress
+     version updates but still let security updates through?
+     `.github/dependabot.yml` carries six bare `dependency-name` ignores
+     (`bootstrap`, `@popperjs/core`, `@fullhuman/postcss-purgecss`,
+     `stylelint`, `stylelint-config-standard-scss`, `stylelint-scss`)
+     with no `update-types`, so those packages get no security PRs at
+     all. That is how last week's two advisories reached `main`
+     unannounced and sat there — not theoretical, it already happened
+     once, and I only caught it because git happened to print a warning
+     at me. #85/#86 are the same mechanism seen from the other side:
+     both packages are outside the ignore list, so Dependabot spoke up
+     normally.
+  Recommendation: yes, and it is a small, safe change. Adding
+     `update-types: ["version-update:semver-major",
+     "version-update:semver-minor", "version-update:semver-patch"]` to
+     each ignore entry scopes the ignore to *version* updates only, so
+     you keep exactly the noise reduction you wanted on 2026-07-30 and
+     get your security alerts back. Nothing else about the file changes.
+     I would rather do this than lift the ignores outright — that would
+     restore the Bootstrap PR pile you deliberately killed.
