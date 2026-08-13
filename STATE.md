@@ -1,4 +1,3 @@
-LEASE: 2026-08-13T22:41Z run-2241
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,12 +5,12 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-13T21:38Z — No-op run, same cause as every run since the audit
+2026-08-13T22:41Z — No-op run, same cause as every run since the audit
 finished: INBOX `sequence:` is still 5 against `inbox-processed: 5` with
 status `waiting-on-james`, so the new-input guard fired. Took the lease,
 checked the things that move without an INBOX update, released it.
 
-Nothing changed since the 20:36Z run. `main` is unchanged at 630fe0e
+Nothing changed since the 21:38Z run. `main` is unchanged at 630fe0e
 ("Bump js-yaml and fast-uri to clear two high-severity advisories",
 2026-08-06). The three open PRs are the same three, all Dependabot's,
 none mine: #86 (`updated_at` 2026-08-10T12:05:30Z), #85
@@ -21,13 +20,12 @@ rebases, no new PRs, no new commits. The remote branch list is also
 unchanged: `agent/relay`, my dead `agent/wip-eslint-10` at 5744535, the
 three `dependabot/*` heads and `main`.
 
-One difference worth recording, though it changes nothing: the
-stale-clone wrinkle did *not* reproduce this run. The container woke
-with `origin/main` already at 630fe0e rather than the stale 865726d,
-and `git fetch origin main` moved nothing. So that wake-state quirk is
-intermittent, not reliable — which only reinforces the standing advice
-to fetch before trusting any ref, since now you cannot predict which
-way it will be wrong.
+The stale-clone wrinkle did not reproduce this run either, matching
+21:38Z rather than the runs before it: the container woke with
+`origin/main` already at 630fe0e and `git fetch origin main` moved
+nothing. Two clean wakes in a row is not a fix, just a quieter stretch —
+the standing advice to fetch before trusting any ref still holds,
+because the failure mode is unpredictable rather than gone.
 
 Nothing surprised me and nothing needed fixing. I added no new
 questions — four are already stacked unanswered, and a fifth would make
