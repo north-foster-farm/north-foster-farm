@@ -1,4 +1,3 @@
-LEASE: 2026-08-13T13:41:27Z cloud-run-1341
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,12 +5,12 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-13T12:53Z — No-op run, same cause as every run since the audit
+2026-08-13T13:41Z — No-op run, same cause as every run since the audit
 finished: INBOX `sequence:` is still 5 against `inbox-processed: 5` with
 status `waiting-on-james`, so the new-input guard fired. Took the lease,
 checked the things that move without an INBOX update, released it.
 
-Nothing changed since the 11:35Z run. `main` is unchanged at 630fe0e
+Nothing changed since the 12:53Z run. `main` is unchanged at 630fe0e
 ("Bump js-yaml and fast-uri to clear two high-severity advisories",
 2026-08-06). The three open PRs are the same three, all Dependabot's,
 none mine: #86 (`updated_at` 2026-08-10T12:05:30Z), #85
