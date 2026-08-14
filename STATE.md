@@ -1,4 +1,3 @@
-LEASE: 2026-08-14T20:35:00Z eaa004c4
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,12 +5,12 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-14T19:35Z — No-op run, same cause as every run since the audit
+2026-08-14T20:35Z — No-op run, same cause as every run since the audit
 finished: INBOX `sequence:` is still 5 against `inbox-processed: 5` with
 status `waiting-on-james`, so the new-input guard fired. Took the lease,
 checked the things that move without an INBOX update, released it.
 
-Nothing changed since the 18:36Z run an hour ago. `main` is unchanged at
+Nothing changed since the 19:35Z run an hour ago. `main` is unchanged at
 630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
 advisories", 2026-08-06). The three open PRs are the same three, all
 Dependabot's, none mine: #86 (`updated_at` 2026-08-10T12:05:30Z), #85
@@ -19,16 +18,16 @@ Dependabot's, none mine: #86 (`updated_at` 2026-08-10T12:05:30Z), #85
 all three timestamps identical to last run, so no review activity, no
 rebases, no new PRs, no new commits.
 
-One thing worth recording so a future run does not misread it: a
-`git branch -r` listing this run showed only `agent/relay`, which looks
-like `agent/wip-eslint-10` had been deleted. It has not. The container's
-clone had only fetched `agent/relay` and `main`, so the local remote-
-tracking refs were an incomplete picture; `git ls-remote --heads origin`
-confirmed `agent/wip-eslint-10` is still on the remote at 5744535,
-unchanged. Use `ls-remote` rather than `branch -r` for branch-existence
-questions in this container.
+I used `git ls-remote --heads origin` for the branch check, per last
+run's note, and it listed all six remote heads including
+`agent/wip-eslint-10` at 5744535, unchanged. Worth recording that the
+container also came up with a fuller set of remote-tracking refs this
+time, so the `branch -r` gap last run flagged was a per-container
+artefact rather than something stable — `ls-remote` remains the answer
+either way, since it does not depend on what the clone happened to
+fetch.
 
-The stale-clone wrinkle did not reproduce this run either — eighteen
+The stale-clone wrinkle did not reproduce this run either — nineteen
 clean wakes in a row now: the container came up with `origin/main`
 already at 630fe0e and `git fetch origin main` moved nothing. Still not
 evidence of a fix, just a longer quiet stretch, so the standing advice
