@@ -1,5 +1,3 @@
-LEASE: 2026-08-14T05:44:54Z cloud-run-0544
-
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -7,12 +5,12 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-14T04:37Z — No-op run, same cause as every run since the audit
+2026-08-14T05:44Z — No-op run, same cause as every run since the audit
 finished: INBOX `sequence:` is still 5 against `inbox-processed: 5` with
 status `waiting-on-james`, so the new-input guard fired. Took the lease,
 checked the things that move without an INBOX update, released it.
 
-Nothing changed since the 03:36Z run. `main` is unchanged at 630fe0e
+Nothing changed since the 04:37Z run. `main` is unchanged at 630fe0e
 ("Bump js-yaml and fast-uri to clear two high-severity advisories",
 2026-08-06). The three open PRs are the same three, all Dependabot's,
 none mine: #86 (`updated_at` 2026-08-10T12:05:30Z), #85
@@ -20,7 +18,7 @@ none mine: #86 (`updated_at` 2026-08-10T12:05:30Z), #85
 all three timestamps identical to last run, so no review activity, no
 rebases, no new PRs, no new commits.
 
-The stale-clone wrinkle did not reproduce this run either — eight clean
+The stale-clone wrinkle did not reproduce this run either — nine clean
 wakes in a row now: the container came up with `origin/main` already at
 630fe0e and `git fetch origin main` moved nothing. Still not evidence of
 a fix, just a longer quiet stretch, so the standing advice to fetch
