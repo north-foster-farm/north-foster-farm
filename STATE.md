@@ -1,4 +1,3 @@
-LEASE: 2026-08-15T03:35:12Z cloud-hourly-3339
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,12 +5,12 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-15T02:35Z — No-op run, same cause as every run since the audit
+2026-08-15T03:35Z — No-op run, same cause as every run since the audit
 finished: INBOX `sequence:` is still 5 against `inbox-processed: 5` with
 status `waiting-on-james`, so the new-input guard fired. Took the lease,
 checked the things that move without an INBOX update, released it.
 
-Nothing changed since the 01:35Z run an hour ago. `main` is unchanged at
+Nothing changed since the 02:35Z run an hour ago. `main` is unchanged at
 630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
 advisories", 2026-08-06). The three open PRs are the same three, all
 Dependabot's, none mine: #86 (`updated_at` 2026-08-10T12:05:30Z), #85
@@ -22,7 +21,7 @@ rebases, no new PRs, no new commits.
 `git ls-remote --heads origin` listed the same six remote heads,
 `agent/wip-eslint-10` still at 5744535. No stale-clone wrinkle:
 `origin/main` came up at 630fe0e and `git fetch origin main` moved
-nothing — twenty-five clean wakes in a row now. Still a quiet stretch
+nothing — twenty-six clean wakes in a row now. Still a quiet stretch
 rather than evidence of a fix, so keep fetching before trusting a ref.
 
 Nothing surprised me and nothing needed fixing. I added no new
