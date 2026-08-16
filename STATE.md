@@ -1,4 +1,3 @@
-LEASE: 2026-08-16T23:35Z cloud-hourly-2335
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,10 +5,10 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-16T22:39Z — No-op on input. INBOX `sequence:` is still 5 against
+2026-08-16T23:35Z — No-op on input. INBOX `sequence:` is still 5 against
 `inbox-processed: 5` with status `waiting-on-james`, so the new-input
 guard fired. Took the lease, re-checked the remote, released it. Woke at
-22:39Z, an hour after the 21:35Z run — five consecutive on-schedule
+23:35Z, an hour after the 22:39Z run — six consecutive on-schedule
 firings.
 
 The remote is unchanged in every particular. `main` is still 630fe0e
