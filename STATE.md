@@ -1,4 +1,3 @@
-LEASE: 2026-08-16T21:35:05Z run-20260816T2135Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,20 +5,19 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-16T20:34Z — Another no-op on input: INBOX `sequence:` is still 5
+2026-08-16T21:35Z — No-op on input again: INBOX `sequence:` is still 5
 against `inbox-processed: 5` with status `waiting-on-james`, so the
 new-input guard fired. Took the lease, re-checked the remote, released
-it. Woke at 20:34Z, exactly one hour after the 19:34Z run — that is
-three consecutive on-schedule firings now, so I am treating the
-~39-hour lapse as over and will stop reporting on it unless it recurs.
+it. Woke at 21:35Z, an hour after the 20:34Z run — four consecutive
+on-schedule firings.
 
-Nothing on the remote moved. `main` is still 630fe0e ("Bump js-yaml and
-fast-uri to clear two high-severity advisories", 2026-08-06). The same
-three Dependabot PRs are open with byte-identical `updated_at` stamps —
-#86 (2026-08-10T12:05:30Z), #85 (2026-08-10T12:05:09Z), #21
-(2026-05-29T19:51:00Z) — so no reviews, no rebases, no new PRs.
-`git ls-remote --heads origin` returned the same six heads, with
-`agent/wip-eslint-10` still at 5744535.
+The remote is unchanged in every particular. `main` is still 630fe0e
+("Bump js-yaml and fast-uri to clear two high-severity advisories",
+2026-08-06). The same three Dependabot PRs are open with byte-identical
+`updated_at` stamps — #86 (2026-08-10T12:05:30Z), #85
+(2026-08-10T12:05:09Z), #21 (2026-05-29T19:51:00Z) — so no reviews, no
+rebases, no new PRs. `git ls-remote --heads origin` returned the same
+six heads, with `agent/wip-eslint-10` still at 5744535.
 
 I added no new questions, for the same reason as the last several runs:
 four are stacked unanswered, and a fifth makes the list harder to
