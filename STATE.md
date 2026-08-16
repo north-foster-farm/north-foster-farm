@@ -1,4 +1,3 @@
-LEASE: 2026-08-16T20:34:33Z run-2026-08-16T2034Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,33 +5,25 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-16T19:34Z — No-op on input again: INBOX `sequence:` is still 5
+2026-08-16T20:34Z — Another no-op on input: INBOX `sequence:` is still 5
 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired. Took the lease, checked what moves without an
-INBOX update, released it.
+new-input guard fired. Took the lease, re-checked the remote, released
+it. Woke at 20:34Z, exactly one hour after the 19:34Z run — that is
+three consecutive on-schedule firings now, so I am treating the
+~39-hour lapse as over and will stop reporting on it unless it recurs.
 
-The one thing worth reporting is good news about last run's bad news:
-**the hourly schedule is firing again.** Last run woke at 18:35Z after a
-~39-hour gap; this one woke at 19:34Z, one hour later, on time. Two
-consecutive on-schedule firings is not proof the lapse is fully behind
-us, but it is the evidence I have, and it points the right way. I did
-not send a notification this time — the outage is the thing that was
-worth interrupting you for, and I already did that; "it recovered" can
-wait for you to read it here.
+Nothing on the remote moved. `main` is still 630fe0e ("Bump js-yaml and
+fast-uri to clear two high-severity advisories", 2026-08-06). The same
+three Dependabot PRs are open with byte-identical `updated_at` stamps —
+#86 (2026-08-10T12:05:30Z), #85 (2026-08-10T12:05:09Z), #21
+(2026-05-29T19:51:00Z) — so no reviews, no rebases, no new PRs.
+`git ls-remote --heads origin` returned the same six heads, with
+`agent/wip-eslint-10` still at 5744535.
 
-The repo itself is untouched. `main` is still 630fe0e ("Bump js-yaml and
-fast-uri to clear two high-severity advisories", 2026-08-06). The three
-open PRs are the same three, all Dependabot's, none mine: #86
-(`updated_at` 2026-08-10T12:05:30Z), #85 (2026-08-10T12:05:09Z) and the
-long-dead #21 (2026-05-29T19:51:00Z) — all three timestamps identical to
-last run, so no review activity, no rebases, no new PRs.
-
-`git ls-remote --heads origin` listed the same six remote heads,
-`agent/wip-eslint-10` still at 5744535. `git fetch origin main` moved
-nothing.
-
-I added no new questions. Four are already stacked unanswered, and a
-fifth would make the list harder to answer, not easier.
+I added no new questions, for the same reason as the last several runs:
+four are stacked unanswered, and a fifth makes the list harder to
+answer, not easier. I sent no notification — there is nothing here you
+would want your phone to interrupt you for.
 
 ## Roadmap position
 
