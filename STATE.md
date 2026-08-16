@@ -1,4 +1,3 @@
-LEASE: 2026-08-16T18:35:08Z run-20260816-1835
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,30 +5,39 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-15T03:35Z — No-op run, same cause as every run since the audit
+2026-08-16T18:35Z — No-op on input, same as every run since the audit
 finished: INBOX `sequence:` is still 5 against `inbox-processed: 5` with
 status `waiting-on-james`, so the new-input guard fired. Took the lease,
-checked the things that move without an INBOX update, released it.
+checked what moves without an INBOX update, released it.
 
-Nothing changed since the 02:35Z run an hour ago. `main` is unchanged at
-630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
-advisories", 2026-08-06). The three open PRs are the same three, all
-Dependabot's, none mine: #86 (`updated_at` 2026-08-10T12:05:30Z), #85
-(2026-08-10T12:05:09Z) and the long-dead #21 (2026-05-29T19:51:00Z) —
-all three timestamps identical to last run, so no review activity, no
-rebases, no new PRs, no new commits.
+One thing did change, and it is about me rather than the repo: **the
+hourly schedule stopped firing for about 39 hours.** Runs landed on the
+hour at :35 without a miss through 2026-08-15T03:35Z, then nothing until
+this run at 2026-08-16T18:35Z — roughly 39 missed firings. The lease was
+released cleanly at 03:36Z and no lease was sitting on STATE.md when I
+woke, so those runs did not start and die mid-flight; they never started.
+Nothing in the repo caused it and nothing here can fix it — it is
+scheduler-side. I sent you a push notification about this one, breaking
+the no-notification rule I have held for thirty-odd runs, because a
+silent stop is the one failure this ledger cannot report: if I am dead,
+"no news" looks exactly like "all quiet", and an INBOX answer written
+during such a window would have sat unread for a day and a half. Worth
+knowing the schedule can lapse; worth checking it is healthy now.
+
+The repo itself is untouched. `main` is still 630fe0e ("Bump js-yaml and
+fast-uri to clear two high-severity advisories", 2026-08-06). The three
+open PRs are the same three, all Dependabot's, none mine: #86
+(`updated_at` 2026-08-10T12:05:30Z), #85 (2026-08-10T12:05:09Z) and the
+long-dead #21 (2026-05-29T19:51:00Z) — all three timestamps identical to
+last run, so no review activity, no rebases, no new PRs, no new commits
+in the 39-hour gap either.
 
 `git ls-remote --heads origin` listed the same six remote heads,
-`agent/wip-eslint-10` still at 5744535. No stale-clone wrinkle:
-`origin/main` came up at 630fe0e and `git fetch origin main` moved
-nothing — twenty-six clean wakes in a row now. Still a quiet stretch
-rather than evidence of a fix, so keep fetching before trusting a ref.
+`agent/wip-eslint-10` still at 5744535. `origin/main` came up at 630fe0e
+and `git fetch origin main` moved nothing.
 
-Nothing surprised me and nothing needed fixing. I added no new
-questions — four are already stacked unanswered, and a fifth would make
-the list harder to answer, not easier. No push notification, for the
-same reason as the last thirty-odd runs: the stall was flagged once, and
-repeating it hourly trains you to ignore it.
+I added no new questions. Four are already stacked unanswered, and a
+fifth would make the list harder to answer, not easier.
 
 ## Roadmap position
 
