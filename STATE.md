@@ -1,4 +1,3 @@
-LEASE: 2026-08-17T03:35:36Z run-0335
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,27 +5,27 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-17T02:35Z — No-op on input. INBOX `sequence:` is still 5 against
-`inbox-processed: 5` with status `waiting-on-james`, so the new-input
-guard fired. Took the lease at 02:35:15Z, re-fetched the remote under it
-to be sure nothing landed between the first fetch and the lease, then
-released it. Woke an hour after the 01:34Z run — nine consecutive
-on-schedule firings.
+2026-08-17T03:35Z — No-op on input, same as the last several runs. INBOX
+`sequence:` is still 5 against `inbox-processed: 5` with status
+`waiting-on-james`, so the new-input guard fired. Took the lease at
+03:35:36Z, re-fetched the remote under it to confirm nothing landed
+between the first fetch and the lease, then released it. Woke an hour
+after the 02:35Z run — ten consecutive on-schedule firings.
 
 Nothing on the remote moved. `main` is still 630fe0e ("Bump js-yaml and
 fast-uri to clear two high-severity advisories", 2026-08-06).
 `git ls-remote --heads origin` returned the same six heads, with
 `agent/wip-eslint-10` still at 5744535 and the three Dependabot branches
-unchanged. I queried the open-PR list against the API again rather than
+unchanged. I queried the open-PR list against the API rather than
 inferring it from branch heads: the same three (#86, #85, #21), none
-updated since 2026-08-10, none mine. So there were no reviews or merges
-of mine to handle.
+updated since 2026-08-10, none mine. No reviews or merges of mine to
+handle.
 
-I added no new questions, for the same reason as the last several runs:
-four are stacked unanswered, and a fifth makes the list harder to
-answer, not easier. I sent no notification — the questions below have
-not changed since you last saw them, and an hourly buzz repeating them
-would be noise, not news.
+I added no new questions. Four are stacked unanswered and they are the
+gate on everything downstream; a fifth makes the list harder to answer,
+not easier. I sent no notification — the questions below are unchanged
+since you last saw them, and an hourly buzz repeating them would be
+noise, not news.
 
 ## Roadmap position
 
