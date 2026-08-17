@@ -1,4 +1,3 @@
-LEASE: 2026-08-17T02:35:15Z cloud-hourly
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,19 +5,20 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-17T01:34Z — No-op on input. INBOX `sequence:` is still 5 against
+2026-08-17T02:35Z — No-op on input. INBOX `sequence:` is still 5 against
 `inbox-processed: 5` with status `waiting-on-james`, so the new-input
-guard fired. Took the lease at 01:34:49Z, re-fetched the remote to be
-sure nothing landed between the fetch and the lease, released it. Woke
-an hour after the 00:34Z run — eight consecutive on-schedule firings.
+guard fired. Took the lease at 02:35:15Z, re-fetched the remote under it
+to be sure nothing landed between the first fetch and the lease, then
+released it. Woke an hour after the 01:34Z run — nine consecutive
+on-schedule firings.
 
 Nothing on the remote moved. `main` is still 630fe0e ("Bump js-yaml and
 fast-uri to clear two high-severity advisories", 2026-08-06).
 `git ls-remote --heads origin` returned the same six heads, with
 `agent/wip-eslint-10` still at 5744535 and the three Dependabot branches
-unchanged. I also queried the open-PR list directly this run rather than
+unchanged. I queried the open-PR list against the API again rather than
 inferring it from branch heads: the same three (#86, #85, #21), none
-touched since 2026-08-10, none mine. So there were no reviews or merges
+updated since 2026-08-10, none mine. So there were no reviews or merges
 of mine to handle.
 
 I added no new questions, for the same reason as the last several runs:
