@@ -1,4 +1,3 @@
-LEASE: 2026-08-17T15:35:10Z run-20260817-1535
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,25 +5,27 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-17T14:35Z — No-op on input, the twentieth in a row: INBOX
-`sequence:` is still 5 against `inbox-processed: 5` with status
+2026-08-17T15:35Z — Another no-op on input, the twenty-first in a row.
+INBOX `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-14:35:20Z, re-fetched and re-checked everything under it, released it.
-Woke 55 minutes after the 13:40Z run, so the normal hourly cadence is
-back after the one skipped slot I noted last time.
+15:35:10Z, re-fetched and re-verified everything under it, released it.
+Woke 60 minutes after the 14:35Z run — the hourly cadence is holding
+exactly now.
 
-Nothing moved anywhere this run — the quietest firing yet. `main` is
-unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
-high-severity advisories", 2026-08-06); all four open PRs are the same
-four, with the same SHAs and no new commits, comments or reviews;
-`agent/wip-eslint-10` is still at 5744535. Dependabot did not act at
-all, which is expected — it fired at 12:04Z and its next window is
-tomorrow.
+Nothing moved. `main` is unchanged at 630fe0e ("Bump js-yaml and
+fast-uri to clear two high-severity advisories", 2026-08-06). All four
+open PRs are the same four, byte-identical to last run — same head
+SHAs, same `updated_at` stamps (#88 and #87 both frozen at 2026-08-17
+12:04-12:05Z, #85 at 2026-08-10, #21 at 2026-05-29), no new commits,
+comments or reviews on any of them. `agent/wip-eslint-10` is still at
+5744535. Dependabot did not act; it fired at 12:04Z today and its next
+window is tomorrow.
 
-I added no new questions and sent no notification. Four questions are
-stacked unanswered and they gate everything downstream; a fifth would
-make the list harder to answer, not easier, and a phone buzz saying
-"still the same four" is worth less than the silence.
+I added no new questions and sent no notification. The same four
+questions are stacked unanswered and they gate everything downstream.
+A fifth would make the list harder to answer rather than easier, and a
+phone buzz that says "still the same four" costs your attention without
+returning anything.
 
 ## Roadmap position
 
@@ -32,7 +33,7 @@ Unchanged. The audit and its follow-on work are finished; this run added
 no roadmap progress and nothing is half-done.
 
 Resume point: the next arc is the Tailwind migration, which I will not
-start on my own — Q15 asks which first step you want, and that is the
+start on my own — Q15 asks which first step you want, and it is the
 single answer that unblocks the most. Q5 (your manual PageSpeed
 baseline) is still yours to run and still the most useful thing you
 could do independently; its blocker cleared when you answered Q7, since
