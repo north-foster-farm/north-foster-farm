@@ -1,4 +1,3 @@
-LEASE: 2026-08-17T18:35:00Z run-20260817T1835Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,12 +5,12 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-17T17:34Z — No-op on input, the twenty-third in a row. INBOX
+2026-08-17T18:35Z — No-op on input, the twenty-fourth in a row. INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-17:34:51Z, re-verified `main` and every open PR under it, released it.
-Woke 59 minutes after the 16:35Z run; the hourly cadence continues to
-hold.
+18:35:00Z, re-verified `main` and every open PR under it, released it.
+Woke 60 minutes after the 17:34Z run; the hourly cadence continues to
+hold exactly.
 
 Nothing moved. `main` is unchanged at 630fe0e ("Bump js-yaml and
 fast-uri to clear two high-severity advisories", 2026-08-06). The same
