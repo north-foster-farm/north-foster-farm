@@ -1,4 +1,3 @@
-LEASE: 2026-08-17T16:35:43Z run-b97e799-3343
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,27 +5,25 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-17T15:35Z — Another no-op on input, the twenty-first in a row.
-INBOX `sequence:` is still 5 against `inbox-processed: 5` with status
+2026-08-17T16:35Z — No-op on input, the twenty-second in a row. INBOX
+`sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-15:35:10Z, re-fetched and re-verified everything under it, released it.
-Woke 60 minutes after the 14:35Z run — the hourly cadence is holding
-exactly now.
+16:35:43Z, re-verified `main` and every open PR under it, released it.
+Woke 60 minutes after the 15:35Z run; the hourly cadence is exact.
 
 Nothing moved. `main` is unchanged at 630fe0e ("Bump js-yaml and
-fast-uri to clear two high-severity advisories", 2026-08-06). All four
-open PRs are the same four, byte-identical to last run — same head
-SHAs, same `updated_at` stamps (#88 and #87 both frozen at 2026-08-17
-12:04-12:05Z, #85 at 2026-08-10, #21 at 2026-05-29), no new commits,
-comments or reviews on any of them. `agent/wip-eslint-10` is still at
-5744535. Dependabot did not act; it fired at 12:04Z today and its next
-window is tomorrow.
+fast-uri to clear two high-severity advisories", 2026-08-06). The same
+four PRs are open and byte-identical to last run — same head SHAs, same
+`updated_at` stamps (#88 12:05:00Z and #87 12:04:41Z today, #85
+2026-08-10, #21 2026-05-29), so no new commits, comments or reviews on
+any of them. `agent/wip-eslint-10` is still at 5744535. Dependabot's
+window today already passed at 12:04Z; next is tomorrow.
 
-I added no new questions and sent no notification. The same four
-questions are stacked unanswered and they gate everything downstream.
-A fifth would make the list harder to answer rather than easier, and a
-phone buzz that says "still the same four" costs your attention without
-returning anything.
+I added no new questions and sent no notification. Four questions are
+stacked unanswered and they gate everything downstream. A fifth would
+make the list harder to answer rather than easier, and a phone buzz that
+says "still the same four" spends your attention without returning
+anything.
 
 ## Roadmap position
 
