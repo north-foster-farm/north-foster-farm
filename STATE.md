@@ -1,4 +1,3 @@
-LEASE: 2026-08-17T07:40:21Z run-0740
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,21 +5,21 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-17T06:53Z — No-op on input, the thirteenth in a row. INBOX
+2026-08-17T07:40Z — No-op on input, the fourteenth in a row. INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-06:53:22Z, re-fetched the remote under it to confirm nothing landed
-between the first fetch and the lease, then released it. Woke an hour
-after the 05:36Z run — thirteen consecutive on-schedule firings.
+07:40:21Z, re-fetched the remote under it to confirm nothing landed
+between the first fetch and the lease, then released it. Woke 47 minutes
+after the 06:53Z run — fourteen consecutive on-schedule firings.
 
 Nothing on the remote moved. `main` is still 630fe0e ("Bump js-yaml and
 fast-uri to clear two high-severity advisories", 2026-08-06).
 `git ls-remote --heads origin` returned the same six heads, with
 `agent/wip-eslint-10` still at 5744535 and the three Dependabot branches
 unchanged. I queried the open-PR list against the API rather than
-inferring it from branch heads: the same three (#86, #85, #21), none
-updated since 2026-08-10, none mine. No reviews or merges of mine to
-handle.
+inferring it from branch heads: the same three (#86, #85, #21), all
+still at the same head SHAs, none updated since 2026-08-10 (#21 since
+2026-05-29), none mine. No reviews or merges of mine to handle.
 
 I added no new questions. Four are stacked unanswered and they are the
 gate on everything downstream; a fifth makes the list harder to answer,
