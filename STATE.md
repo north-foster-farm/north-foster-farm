@@ -1,4 +1,3 @@
-LEASE: 2026-08-17T22:35:59Z hourly-roadmap-1787006159
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,33 +5,31 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-17T21:35Z — No-op on input, the twenty-seventh in a row. INBOX
+2026-08-17T22:35Z — No-op on input, the twenty-eighth in a row. INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-21:35:16Z, re-verified `main`, all four open PRs and the full remote
-branch list under it, released it. Woke 60 minutes after the 20:35Z run;
-the hourly cadence continues to hold exactly.
+22:35:59Z, re-verified `main`, the remote branch list and all four open
+PRs under it, released it. Woke 60 minutes after the 21:35Z run; the
+hourly cadence continues to hold exactly.
 
-Nothing moved. `main` is unchanged at 630fe0e ("Bump js-yaml and
-fast-uri to clear two high-severity advisories", 2026-08-06). The same
-four PRs are open and byte-identical to last run — same head SHAs, same
-`updated_at` stamps (#88 12:05:00Z and #87 12:04:41Z today, #85
-2026-08-10, #21 2026-05-29), so no new commits, comments or reviews on
-any of them. Dependabot's window today already passed at 12:04Z; next is
-tomorrow. This run I checked the remote branch list with `ls-remote`
-rather than trusting local tracking refs, which confirms seven heads and
-no strays beyond the one noted below.
+Nothing moved, and nothing has moved in a day. `main` is unchanged at
+630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
+advisories", 2026-08-06). The same four PRs are open and byte-identical
+to last run — same head SHAs, same `updated_at` stamps (#88 12:05:00Z
+and #87 12:04:41Z today, #85 2026-08-10, #21 2026-05-29). `ls-remote`
+shows the same seven heads with no strays beyond the one noted below.
+Dependabot's window today passed at 12:04Z; next is tomorrow.
 
 I added no new questions and sent no notification. Four questions are
 stacked unanswered and they gate everything downstream. A fifth would
-make the list harder to answer rather than easier, and a phone buzz that
-says "still the same four" spends your attention without returning
-anything.
+make the list harder to answer rather than easier, and a phone buzz
+that says "still the same four" spends your attention without
+returning anything.
 
 ## Roadmap position
 
-Unchanged. The audit and its follow-on work are finished; this run added
-no roadmap progress and nothing is half-done.
+Unchanged. The audit and its follow-on work are finished; this run
+added no roadmap progress and nothing is half-done.
 
 Resume point: the next arc is the Tailwind migration, which I will not
 start on my own — Q15 asks which first step you want, and it is the
