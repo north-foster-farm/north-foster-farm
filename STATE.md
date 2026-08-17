@@ -1,4 +1,3 @@
-LEASE: 2026-08-17T01:34:49Z hourly-10788
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,23 +5,26 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-17T00:34Z — No-op on input. INBOX `sequence:` is still 5 against
+2026-08-17T01:34Z — No-op on input. INBOX `sequence:` is still 5 against
 `inbox-processed: 5` with status `waiting-on-james`, so the new-input
-guard fired. Took the lease at 00:34:40Z, re-checked the remote,
-released it. Woke an hour after the 23:35Z run — seven consecutive
-on-schedule firings.
+guard fired. Took the lease at 01:34:49Z, re-fetched the remote to be
+sure nothing landed between the fetch and the lease, released it. Woke
+an hour after the 00:34Z run — eight consecutive on-schedule firings.
 
 Nothing on the remote moved. `main` is still 630fe0e ("Bump js-yaml and
 fast-uri to clear two high-severity advisories", 2026-08-06).
-`git ls-remote --heads origin` returned the same six heads it has for
-days, with `agent/wip-eslint-10` still at 5744535 and the three
-Dependabot branches unchanged. I hold no open PRs, so there were no
-reviews or merges of mine to handle.
+`git ls-remote --heads origin` returned the same six heads, with
+`agent/wip-eslint-10` still at 5744535 and the three Dependabot branches
+unchanged. I also queried the open-PR list directly this run rather than
+inferring it from branch heads: the same three (#86, #85, #21), none
+touched since 2026-08-10, none mine. So there were no reviews or merges
+of mine to handle.
 
 I added no new questions, for the same reason as the last several runs:
 four are stacked unanswered, and a fifth makes the list harder to
-answer, not easier. I sent no notification — a quiet run is not worth
-your phone buzzing.
+answer, not easier. I sent no notification — the questions below have
+not changed since you last saw them, and an hourly buzz repeating them
+would be noise, not news.
 
 ## Roadmap position
 
@@ -40,7 +42,8 @@ the 24.5 KB JS payload it was waiting on is now known to be deletable.
 
 (none of mine.)
 
-Still open, not mine:
+Still open, not mine — all three re-confirmed against the API this run,
+none updated since 2026-08-10:
 
 - #86 — Dependabot, "Bump globals from 17.8.0 to 17.9.0", opened
   2026-08-10. Routine minor bump; `globals` is a lint-only
