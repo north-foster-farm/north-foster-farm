@@ -1,4 +1,3 @@
-LEASE: 2026-08-17T14:35:20Z run-hourly-1435
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,36 +5,25 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-17T13:40Z — No-op on input, the nineteenth in a row: INBOX
+2026-08-17T14:35Z — No-op on input, the twentieth in a row: INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-13:40:20Z, re-fetched under it, released it. Woke 123 minutes after the
-11:37Z run — the first gap over an hour in nineteen firings, so one
-scheduled 12:35Z-ish slot appears to have been skipped. Worth knowing
-but not worth acting on; nothing was lost, since the run it would have
-replaced had no input either.
+14:35:20Z, re-fetched and re-checked everything under it, released it.
+Woke 55 minutes after the 13:40Z run, so the normal hourly cadence is
+back after the one skipped slot I noted last time.
 
-Unlike the last eighteen, the remote did move — all of it Dependabot,
-none of it mine. At 12:04Z Dependabot closed **#86** (globals 17.9.0)
-unmerged and superseded it with **#88** (globals 17.11.0, skipping
-straight past 17.9.0 and 17.10.0), and opened **#87** (eslint 10.8.0 →
-10.8.1). `main` is unchanged at 630fe0e ("Bump js-yaml and fast-uri to
-clear two high-severity advisories", 2026-08-06), and
-`agent/wip-eslint-10` is still at 5744535. No reviews or merges of mine
-to handle.
+Nothing moved anywhere this run — the quietest firing yet. `main` is
+unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
+high-severity advisories", 2026-08-06); all four open PRs are the same
+four, with the same SHAs and no new commits, comments or reviews;
+`agent/wip-eslint-10` is still at 5744535. Dependabot did not act at
+all, which is expected — it fired at 12:04Z and its next window is
+tomorrow.
 
-Note for Q16: #87 and #88 are the ignore list working as intended from
-the other side. Neither `eslint` nor `globals` is in
-`.github/dependabot.yml`'s ignore list, so Dependabot speaks up about
-them normally — which is exactly the behaviour the six ignored packages
-have lost, security advisories included. Nothing about this run changes
-the recommendation there.
-
-I added no new questions. Four are stacked unanswered and they gate
-everything downstream; a fifth would make the list harder to answer, not
-easier. I sent no notification — two routine Dependabot bumps and a
-supersede are not worth a phone buzz, and the questions below are
-unchanged since you last saw them.
+I added no new questions and sent no notification. Four questions are
+stacked unanswered and they gate everything downstream; a fifth would
+make the list harder to answer, not easier, and a phone buzz saying
+"still the same four" is worth less than the silence.
 
 ## Roadmap position
 
@@ -53,36 +41,32 @@ the 24.5 KB JS payload it was waiting on is now known to be deletable.
 
 (none of mine.)
 
-Still open, not mine — all four re-confirmed against the API this run:
+Still open, not mine — all four re-confirmed against the API this run,
+all four byte-identical to last run:
 
 - #88 — Dependabot, "Bump globals from 17.8.0 to 17.11.0", opened
-  2026-08-17. NEW this run; replaces #86, which Dependabot closed
-  unmerged two seconds earlier. `globals` is a lint-only
-  devDependency, so the blast radius is ESLint config resolution and
-  nothing that ships. Same routine call as #86 was, one version
-  further along.
+  2026-08-17. `globals` is a lint-only devDependency, so the blast
+  radius is ESLint config resolution and nothing that ships. Replaced
+  #86, which Dependabot closed unmerged.
   https://github.com/north-foster-farm/north-foster-farm/pull/88
 - #87 — Dependabot, "Bump eslint from 10.8.0 to 10.8.1", opened
-  2026-08-17. NEW this run. Patch release, all bug fixes (ASI hazards
-  in two autofixes, `getter-return`/`accessor-pairs` false positives).
-  Lint-only, nothing shipped. This sits directly on top of the eslint
-  10.8.0 you took via Q4, so it is a clean follow-on rather than a new
+  2026-08-17. Patch release, all bug fixes (ASI hazards in two
+  autofixes, `getter-return`/`accessor-pairs` false positives).
+  Lint-only, nothing shipped. Sits directly on top of the eslint 10.8.0
+  you took via Q4, so it is a clean follow-on rather than a new
   decision.
   https://github.com/north-foster-farm/north-foster-farm/pull/87
 - #85 — Dependabot, "Bump postcss from 8.5.25 to 8.5.26", opened
   2026-08-10. Routine patch bump, but postcss is a real build-path
   dependency (autoprefixer + PurgeCSS run on it), so this one wants a
   deploy preview before merge rather than a blind click.
+  https://github.com/north-foster-farm/north-foster-farm/pull/85
 - #21 — Dependabot, "Bump autoprefixer from 10.4.19 to 10.4.20", open
   since 2024-08, last touched 2026-05-29. Obsolete: `package.json`
   already pins autoprefixer 10.5.4, so this PR moves it backwards. Not
   my branch, so untouched — but it is dead and wants closing. Say the
   word and I will close it with a reason, as I did for #73/#74/#75.
-
-Closed since last run, for the record: #86 (globals 17.9.0), closed
-unmerged by Dependabot at 12:04:22Z because #88 supersedes it. No action
-needed; that is Dependabot's normal housekeeping, not a decision anyone
-made.
+  https://github.com/north-foster-farm/north-foster-farm/pull/21
 
 Housekeeping, unchanged and still not acted on: the branch
 `agent/wip-eslint-10` is still on the remote at 5744535 (re-confirmed
