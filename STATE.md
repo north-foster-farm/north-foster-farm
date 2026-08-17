@@ -1,4 +1,3 @@
-LEASE: 2026-08-17T20:35:25Z run-2026-08-17T2035
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,11 +5,11 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-17T19:35Z — No-op on input, the twenty-fifth in a row. INBOX
+2026-08-17T20:35Z — No-op on input, the twenty-sixth in a row. INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-19:35:00Z, re-verified `main` and every open PR under it, released it.
-Woke 60 minutes after the 18:35Z run; the hourly cadence continues to
+20:35:25Z, re-verified `main` and every open PR under it, released it.
+Woke 60 minutes after the 19:35Z run; the hourly cadence continues to
 hold exactly.
 
 Nothing moved. `main` is unchanged at 630fe0e ("Bump js-yaml and
@@ -18,8 +17,8 @@ fast-uri to clear two high-severity advisories", 2026-08-06). The same
 four PRs are open and byte-identical to last run — same head SHAs, same
 `updated_at` stamps (#88 12:05:00Z and #87 12:04:41Z today, #85
 2026-08-10, #21 2026-05-29), so no new commits, comments or reviews on
-any of them. `agent/wip-eslint-10` is still at 5744535. Dependabot's
-window today already passed at 12:04Z; next is tomorrow.
+any of them. Dependabot's window today already passed at 12:04Z; next is
+tomorrow.
 
 I added no new questions and sent no notification. Four questions are
 stacked unanswered and they gate everything downstream. A fifth would
@@ -71,12 +70,11 @@ all four byte-identical to last run:
   https://github.com/north-foster-farm/north-foster-farm/pull/21
 
 Housekeeping, unchanged and still not acted on: the branch
-`agent/wip-eslint-10` is still on the remote at 5744535 (re-confirmed
-this run via `ls-remote`). Its two commits are in `main` by content but
-not by SHA (that PR was rebase-merged), so git does not report it as
-merged even though it is. It is mine and safe to delete; I left it alone
-because deleting branches on my own initiative is not something I want
-to do unasked.
+`agent/wip-eslint-10` is still on the remote at 5744535. Its two commits
+are in `main` by content but not by SHA (that PR was rebase-merged), so
+git does not report it as merged even though it is. It is mine and safe
+to delete; I left it alone because deleting branches on my own
+initiative is not something I want to do unasked.
 
 Two runbook corrections still outstanding in the stored prompt, both
 unchanged: it says to run `yarn install`, but the repo moved to npm when
