@@ -1,4 +1,3 @@
-LEASE: 2026-08-17T11:37:49Z cloud-hourly-11-37Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,12 +5,12 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-17T10:35Z — No-op on input, the seventeenth in a row. INBOX
+2026-08-17T11:37Z — No-op on input, the eighteenth in a row. INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-10:35:55Z, re-fetched the remote under it to confirm nothing landed
-between the first fetch and the lease, then released it. Woke 60 minutes
-after the 09:35Z run — seventeen consecutive on-schedule firings.
+11:37:49Z, re-fetched the remote under it to confirm nothing landed
+between the first fetch and the lease, then released it. Woke 62 minutes
+after the 10:35Z run — eighteen consecutive on-schedule firings.
 
 Nothing on the remote moved. `main` is still 630fe0e ("Bump js-yaml and
 fast-uri to clear two high-severity advisories", 2026-08-06).
