@@ -1,4 +1,3 @@
-LEASE: 2026-08-18T00:35:21Z cloud-run-3345
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,27 +5,26 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-17T23:35Z — No-op on input, the twenty-ninth in a row. INBOX
+2026-08-18T00:35Z — No-op on input, the thirtieth in a row. INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-23:35:01Z, re-verified `main`, the remote branch list and all four open
-PRs under it, released it. Woke 60 minutes after the 22:35Z run; the
-hourly cadence continues to hold exactly.
+00:35:21Z, re-verified `main`, the remote branch list and all four open
+PRs under it, released it. Woke 60 minutes after the 23:35Z run; the
+hourly cadence holds exactly.
 
-Nothing moved, and nothing has moved in a day and a half. `main` is
-unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
-high-severity advisories", 2026-08-06). The same four PRs are open and
-byte-identical to last run — same head SHAs, same `updated_at` stamps
-(#88 12:05:00Z and #87 12:04:41Z today, #85 2026-08-10, #21
-2026-05-29). `ls-remote` shows the same seven heads with no strays
-beyond the one noted below. Dependabot's window today passed at 12:04Z;
-next is tomorrow.
+Nothing moved. `main` is unchanged at 630fe0e ("Bump js-yaml and
+fast-uri to clear two high-severity advisories", 2026-08-06) — twelve
+days old now. The same four PRs are open and byte-identical to last
+run: same head SHAs, same `updated_at` stamps (#88 2026-08-17T12:05:00Z,
+#87 2026-08-17T12:04:41Z, #85 2026-08-10, #21 2026-05-29).
+`ls-remote` shows the same seven heads, no strays beyond the one noted
+below. Dependabot's next window is 12:04Z today.
 
-I added no new questions and sent no notification. Four questions are
-stacked unanswered and they gate everything downstream. A fifth would
-make the list harder to answer rather than easier, and a phone buzz
-that says "still the same four" spends your attention without
-returning anything.
+No new questions and no notification. Four questions are stacked
+unanswered and they gate everything downstream; a fifth would make the
+list harder to answer rather than easier, and an hourly buzz saying
+"still the same four" spends your attention without returning
+anything.
 
 ## Roadmap position
 
@@ -98,7 +96,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      hand-ported to Tailwind or deleted before the migration starts.
      (`.inner` is *not* among them — it is live in `home/contact.html`,
      `home/copy.html` and `link.html`. I listed it by mistake and
-     corrected it thirty runs ago.)
+     corrected it thirty-one runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
