@@ -1,3 +1,4 @@
+LEASE: 2026-08-18T19:35:22Z hourly-roadmap-run
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
