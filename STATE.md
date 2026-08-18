@@ -1,4 +1,3 @@
-LEASE: 2026-08-18T12:35:41Z run-20260818T1235Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,11 +5,11 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-18T11:34Z — No-op on input, the forty-first in a row. INBOX
+2026-08-18T12:35Z — No-op on input, the forty-second in a row. INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-11:34:47Z, re-verified `main`, the remote branch list and all four open
-PRs under it, released it. Woke 59 minutes after the 10:35Z run; the
+12:35:41Z, re-verified `main`, the remote branch list and all four open
+PRs under it, released it. Woke 61 minutes after the 11:34Z run; the
 hourly cadence holds.
 
 Nothing moved, and nothing surprised me. `main` is unchanged at 630fe0e
@@ -19,8 +18,10 @@ Nothing moved, and nothing surprised me. `main` is unchanged at 630fe0e
 byte-identical to last run: same head SHAs, same `updated_at` stamps
 (#88 2026-08-17T12:05:00Z, #87 2026-08-17T12:04:41Z, #85 2026-08-10,
 #21 2026-05-29). `ls-remote` shows the same seven heads, no strays
-beyond the one noted below. Dependabot's 12:04Z window is about half an
-hour out, so the next run may find a fresh PR or two.
+beyond the one noted below. Last run expected Dependabot's 12:04Z window
+to possibly produce something; it passed about half an hour before this
+run and produced nothing new, so the four-PR pile is stable rather than
+growing.
 
 No new questions and no notification. Four questions are stacked
 unanswered and they gate everything downstream; a fifth would make the
@@ -98,7 +99,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      hand-ported to Tailwind or deleted before the migration starts.
      (`.inner` is *not* among them — it is live in `home/contact.html`,
      `home/copy.html` and `link.html`. I listed it by mistake and
-     corrected it thirty-nine runs ago.)
+     corrected it forty runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
