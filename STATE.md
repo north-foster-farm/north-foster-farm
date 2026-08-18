@@ -1,4 +1,3 @@
-LEASE: 2026-08-18T02:34:53Z run-1787020493
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,11 +5,11 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-18T01:35Z — No-op on input, the thirty-first in a row. INBOX
+2026-08-18T02:34Z — No-op on input, the thirty-second in a row. INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-01:34:39Z, re-verified `main`, the remote branch list and all four open
-PRs under it, released it. Woke 59 minutes after the 00:35Z run; the
+02:34:53Z, re-verified `main`, the remote branch list and all four open
+PRs under it, released it. Woke 59 minutes after the 01:35Z run; the
 hourly cadence holds.
 
 Nothing moved. `main` is unchanged at 630fe0e ("Bump js-yaml and
@@ -19,7 +18,7 @@ days old. The same four PRs are open and byte-identical to last run:
 same head SHAs, same `updated_at` stamps (#88 2026-08-17T12:05:00Z,
 #87 2026-08-17T12:04:41Z, #85 2026-08-10, #21 2026-05-29).
 `ls-remote` shows the same seven heads, no strays beyond the one noted
-below. Dependabot's next window is 12:04Z today, about ten and a half
+below. Dependabot's next window is 12:04Z today, about nine and a half
 hours out.
 
 No new questions and no notification. Four questions are stacked
@@ -98,7 +97,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      hand-ported to Tailwind or deleted before the migration starts.
      (`.inner` is *not* among them — it is live in `home/contact.html`,
      `home/copy.html` and `link.html`. I listed it by mistake and
-     corrected it thirty-two runs ago.)
+     corrected it thirty-three runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
