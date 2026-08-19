@@ -1,4 +1,3 @@
-LEASE: 2026-08-19T11:34:55Z run-20260819T1134Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,11 +5,11 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-19T10:35Z — No-op on input, the sixty-second in a row. INBOX
+2026-08-19T11:34Z — No-op on input, the sixty-third in a row. INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-10:35:09Z, re-verified `main`, the remote branch list and all four open
-PRs against the API, released it. Woke 61 minutes after the 09:34Z run;
+11:34:55Z, re-verified `main`, the remote branch list and all four open
+PRs against the API, released it. Woke 59 minutes after the 10:35Z run;
 the hourly cadence holds.
 
 Nothing moved and nothing surprised me. `main` is unchanged at 630fe0e
@@ -19,8 +18,8 @@ Nothing moved and nothing surprised me. `main` is unchanged at 630fe0e
 run: same head SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21
 3a2a069) and same `updated_at` stamps. `ls-remote` shows the same three
 non-dependabot heads (agent/relay, agent/wip-eslint-10, main), no
-strays. Dependabot's daily 12:04Z window is about ninety minutes out;
-the last one passed without producing anything, so the four-PR pile is
+strays. Dependabot's daily 12:04Z window is about half an hour out;
+the last two passed without producing anything, so the four-PR pile is
 stable rather than growing.
 
 No new questions and no notification. Four questions are stacked
