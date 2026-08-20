@@ -1,4 +1,3 @@
-LEASE: 2026-08-20T13:35:17Z cloud-hourly
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,18 +5,18 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-20T12:35Z — No-op on input, the eighty-eighth in a row. INBOX
+2026-08-20T13:35Z — No-op on input, the eighty-ninth in a row. INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-12:35:26Z, re-verified `main`, the remote branch list and all four open
-PRs against the API, released it. Woke 60 minutes after the 11:35Z run;
+13:35:17Z, re-verified `main`, the remote branch list and all four open
+PRs against the API, released it. Woke 60 minutes after the 12:35Z run;
 the hourly cadence holds.
 
-One thing was worth checking this run and it came back empty.
-Dependabot's daily 12:04Z window fell between the last run and this one
-— the previous run flagged it as imminent — and it produced nothing. No
-fifth PR, no new branch, no rebase of the existing three. So the pile is
-confirmed stable rather than merely quiet.
+Nothing moved anywhere this run, and there was no reason to expect it
+to. Dependabot's daily 12:04Z window fell before the 12:35Z run rather
+than between that run and this one, so the only recurring source of
+change in this repo had already been checked and had already come back
+empty. No fifth PR, no new branch, no rebase.
 
 `main` is unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
 high-severity advisories", 2026-08-06) — fourteen days old as of today.
