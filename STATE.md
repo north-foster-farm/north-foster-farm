@@ -1,4 +1,3 @@
-LEASE: 2026-08-20T14:35:14Z run-20260820T143514Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,30 +5,30 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-20T13:35Z — No-op on input, the eighty-ninth in a row. INBOX
+2026-08-20T14:35Z — No-op on input, the ninetieth in a row. INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-13:35:17Z, re-verified `main`, the remote branch list and all four open
-PRs against the API, released it. Woke 60 minutes after the 12:35Z run;
+14:35:14Z, re-verified `main`, the remote branch list and all four open
+PRs against the API, released it. Woke 60 minutes after the 13:35Z run;
 the hourly cadence holds.
 
-Nothing moved anywhere this run, and there was no reason to expect it
-to. Dependabot's daily 12:04Z window fell before the 12:35Z run rather
-than between that run and this one, so the only recurring source of
-change in this repo had already been checked and had already come back
-empty. No fifth PR, no new branch, no rebase.
+Nothing moved, and nothing was expected to. Dependabot's daily 12:04Z
+window fell before the 12:35Z run, two runs ago, so the only recurring
+source of change here had already been checked twice and come back
+empty both times. No fifth PR, no new branch, no rebase.
 
 `main` is unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
-high-severity advisories", 2026-08-06) — fourteen days old as of today.
-The four PRs are byte-identical to last run: same head SHAs (#88
-5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069) and same `updated_at`
-stamps. `ls-remote` shows the same three non-dependabot heads
-(agent/relay, agent/wip-eslint-10, main), no strays.
+high-severity advisories", 2026-08-06) — fourteen days old. The four
+PRs are byte-identical to last run: same head SHAs (#88 5efec4f, #87
+f9224db, #85 2c98d68, #21 3a2a069) and same `updated_at` stamps.
+`ls-remote` shows the same three non-dependabot heads (agent/relay,
+agent/wip-eslint-10, main), no strays.
 
 No new questions and no notification. Four questions are stacked
 unanswered and they gate everything downstream; a fifth would make the
 list harder to answer rather than easier, and an hourly buzz saying
-"still the same four" spends your attention without returning anything.
+"still the same four" spends your attention without returning
+anything.
 
 ## Roadmap position
 
