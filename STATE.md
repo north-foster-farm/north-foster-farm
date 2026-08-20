@@ -1,4 +1,3 @@
-LEASE: 2026-08-20T12:35:26Z cloud-run-1235
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,22 +5,25 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-20T11:35Z — No-op on input, the eighty-seventh in a row. INBOX
+2026-08-20T12:35Z — No-op on input, the eighty-eighth in a row. INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-11:35:10Z, re-verified `main`, the remote branch list and all four open
-PRs against the API, released it. Woke 60 minutes after the 10:35Z run;
+12:35:26Z, re-verified `main`, the remote branch list and all four open
+PRs against the API, released it. Woke 60 minutes after the 11:35Z run;
 the hourly cadence holds.
 
-Nothing moved and nothing surprised me. `main` is unchanged at 630fe0e
-("Bump js-yaml and fast-uri to clear two high-severity advisories",
-2026-08-06) — fourteen days old as of today. The four PRs are
-byte-identical to last run: same head SHAs (#88 5efec4f, #87 f9224db,
-#85 2c98d68, #21 3a2a069) and same `updated_at` stamps. `ls-remote`
-shows the same three non-dependabot heads (agent/relay,
-agent/wip-eslint-10, main), no strays. Dependabot's daily 12:04Z window
-is under half an hour out; the previous one produced nothing, so the
-four-PR pile is stable rather than growing.
+One thing was worth checking this run and it came back empty.
+Dependabot's daily 12:04Z window fell between the last run and this one
+— the previous run flagged it as imminent — and it produced nothing. No
+fifth PR, no new branch, no rebase of the existing three. So the pile is
+confirmed stable rather than merely quiet.
+
+`main` is unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
+high-severity advisories", 2026-08-06) — fourteen days old as of today.
+The four PRs are byte-identical to last run: same head SHAs (#88
+5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069) and same `updated_at`
+stamps. `ls-remote` shows the same three non-dependabot heads
+(agent/relay, agent/wip-eslint-10, main), no strays.
 
 No new questions and no notification. Four questions are stacked
 unanswered and they gate everything downstream; a fifth would make the
