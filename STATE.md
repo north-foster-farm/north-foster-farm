@@ -1,4 +1,3 @@
-LEASE: 2026-08-20T07:35:45Z run-20260820T0735Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,11 +5,11 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-20T06:34Z — No-op on input, the eighty-second in a row. INBOX
+2026-08-20T07:36Z — No-op on input, the eighty-third in a row. INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-06:34:49Z, re-verified `main`, the remote branch list and all four open
-PRs against the API, released it. Woke 60 minutes after the 05:35Z run;
+07:35:45Z, re-verified `main`, the remote branch list and all four open
+PRs against the API, released it. Woke 61 minutes after the 06:34Z run;
 the hourly cadence holds.
 
 Nothing moved and nothing surprised me. `main` is unchanged at 630fe0e
@@ -20,8 +19,8 @@ byte-identical to last run: same head SHAs (#88 5efec4f, #87 f9224db,
 #85 2c98d68, #21 3a2a069) and same `updated_at` stamps. `ls-remote`
 shows the same three non-dependabot heads (agent/relay,
 agent/wip-eslint-10, main), no strays. Dependabot's daily 12:04Z window
-passed about eighteen and a half hours before this run and produced
-nothing, so the four-PR pile is stable rather than growing.
+is about four and a half hours out; the previous one produced nothing,
+so the four-PR pile is stable rather than growing.
 
 No new questions and no notification. Four questions are stacked
 unanswered and they gate everything downstream; a fifth would make the
@@ -98,7 +97,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      hand-ported to Tailwind or deleted before the migration starts.
      (`.inner` is *not* among them — it is live in `home/contact.html`,
      `home/copy.html` and `link.html`. I listed it by mistake and
-     corrected it fifty-seven runs ago.)
+     corrected it fifty-eight runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
