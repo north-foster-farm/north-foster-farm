@@ -1,4 +1,3 @@
-LEASE: 2026-08-20T15:35:54Z run-3339
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,30 +5,24 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-20T14:35Z — No-op on input, the ninetieth in a row. INBOX
+2026-08-20T15:35Z — No-op on input, the ninety-first in a row. INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-14:35:14Z, re-verified `main`, the remote branch list and all four open
-PRs against the API, released it. Woke 60 minutes after the 13:35Z run;
-the hourly cadence holds.
+15:35:54Z, re-verified `main`, the branch list and all four open PRs
+against the API, released it. Woke 60 minutes after the 14:35Z run; the
+hourly cadence still holds.
 
-Nothing moved, and nothing was expected to. Dependabot's daily 12:04Z
-window fell before the 12:35Z run, two runs ago, so the only recurring
-source of change here had already been checked twice and come back
-empty both times. No fifth PR, no new branch, no rebase.
-
-`main` is unchanged at 630fe0e ("Bump js-yaml and fast-uri to clear two
-high-severity advisories", 2026-08-06) — fourteen days old. The four
-PRs are byte-identical to last run: same head SHAs (#88 5efec4f, #87
-f9224db, #85 2c98d68, #21 3a2a069) and same `updated_at` stamps.
-`ls-remote` shows the same three non-dependabot heads (agent/relay,
+Nothing moved and nothing was expected to. `main` is unchanged at
+630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
+advisories", 2026-08-06) — fifteen days old. The four PRs are
+byte-identical to last run: same head SHAs (#88 5efec4f, #87 f9224db,
+#85 2c98d68, #21 3a2a069) and same `updated_at` stamps. Branch list
+shows the same three non-dependabot heads (agent/relay,
 agent/wip-eslint-10, main), no strays.
 
-No new questions and no notification. Four questions are stacked
-unanswered and they gate everything downstream; a fifth would make the
-list harder to answer rather than easier, and an hourly buzz saying
-"still the same four" spends your attention without returning
-anything.
+No new questions and no notification. Q13–Q16 are still the four that
+gate everything downstream; adding a fifth without answers to those
+would make the list harder to answer, not easier.
 
 ## Roadmap position
 
