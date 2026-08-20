@@ -1,4 +1,3 @@
-LEASE: 2026-08-20T18:35:31Z run-94-7054afa
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,17 +5,18 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-20T17:35Z — No-op on input, run 93. INBOX `sequence:` is still
+2026-08-20T18:35Z — No-op on input, run 94. INBOX `sequence:` is still
 5 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired. Took the lease at 17:34:57Z, re-verified `main`,
-the open-PR list and all four PR head SHAs against the API, released
-it. Woke ~60 minutes after the 16:35Z run; hourly cadence holds.
+new-input guard fired. Took the lease at 18:35:31Z, re-verified `main`
+and all four open PR head SHAs against the API, released it. Woke ~60
+minutes after the 17:35Z run; hourly cadence holds.
 
 Nothing moved and nothing was expected to. `main` is unchanged at
 630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
-advisories", 2026-08-06) — now sixteen days old. The four PRs are
-byte-identical to last run: same head SHAs (#88 5efec4f, #87 f9224db,
-#85 2c98d68, #21 3a2a069) and same `updated_at` stamps.
+advisories", 2026-08-06) — now fourteen days old by commit date and
+unchanged across every run since. The four PRs are byte-identical to
+last run: same head SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21
+3a2a069) and same `updated_at` stamps.
 
 No new questions and no notification. Q13–Q16 are still the four that
 gate everything downstream; adding a fifth without answers to those
