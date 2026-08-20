@@ -1,4 +1,3 @@
-LEASE: 2026-08-20T00:34:53Z cloud-run-20260820T003453Z
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,22 +5,22 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-19T23:35Z — No-op on input, the seventy-fifth in a row. INBOX
+2026-08-20T00:34Z — No-op on input, the seventy-sixth in a row. INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`, so the new-input guard fired. Took the lease at
-23:35:27Z, re-verified `main`, the remote branch list and all four open
-PRs against the API, released it. Woke exactly 60 minutes after the
-22:35Z run; the hourly cadence holds.
+00:34:53Z, re-verified `main`, the remote branch list and all four open
+PRs against the API, released it. Woke about 60 minutes after the
+23:35Z run; the hourly cadence holds.
 
 Nothing moved and nothing surprised me. `main` is unchanged at 630fe0e
 ("Bump js-yaml and fast-uri to clear two high-severity advisories",
-2026-08-06) — thirteen days old. The four PRs are byte-identical to last
-run: same head SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21
-3a2a069) and same `updated_at` stamps. `ls-remote` shows the same three
-non-dependabot heads (agent/relay, agent/wip-eslint-10, main), no
-strays. Dependabot's daily 12:04Z window passed about eleven and a half
-hours before this run and produced nothing, so the four-PR pile is
-stable rather than growing.
+2026-08-06) — fourteen days old as of today. The four PRs are
+byte-identical to last run: same head SHAs (#88 5efec4f, #87 f9224db,
+#85 2c98d68, #21 3a2a069) and same `updated_at` stamps. `ls-remote`
+shows the same three non-dependabot heads (agent/relay,
+agent/wip-eslint-10, main), no strays. Dependabot's daily 12:04Z window
+passed about twelve and a half hours before this run and produced
+nothing, so the four-PR pile is stable rather than growing.
 
 No new questions and no notification. Four questions are stacked
 unanswered and they gate everything downstream; a fifth would make the
@@ -98,7 +97,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      hand-ported to Tailwind or deleted before the migration starts.
      (`.inner` is *not* among them — it is live in `home/contact.html`,
      `home/copy.html` and `link.html`. I listed it by mistake and
-     corrected it fifty-three runs ago.)
+     corrected it fifty-four runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
