@@ -1,4 +1,3 @@
-LEASE: 2026-08-21T07:35:23Z run-107
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,19 +5,20 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-21T06:35Z — No-op on input, run 106. INBOX `sequence:` is still
+2026-08-21T07:35Z — No-op on input, run 107. INBOX `sequence:` is still
 5 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired. Took the lease at 06:35:30Z, re-verified `main`
+new-input guard fired. Took the lease at 07:35:23Z, re-verified `main`
 and all four open PR head SHAs against the API, released it. Woke ~60
-minutes after the 05:35Z run; hourly cadence holds.
+minutes after the 06:35Z run; hourly cadence holds.
 
 Nothing moved and nothing was expected to. `main` is unchanged at
 630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
-advisories", 2026-08-06) — now fifteen days old by commit date and
+advisories", 2026-08-06) — now sixteen days old by commit date and
 unchanged across every run since. The four PRs are byte-identical to
 last run: same head SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21
 3a2a069) and same `updated_at` stamps (#88/#87 2026-08-17, #85
-2026-08-10, #21 2026-05-29).
+2026-08-10, #21 2026-05-29). #88, #87 and #85 all still report `main`
+at 630fe0e as their base, so none of them has drifted behind.
 
 No new questions and no notification. Q13–Q16 are still the four that
 gate everything downstream; adding a fifth without answers to those
@@ -63,9 +63,11 @@ all four byte-identical to last run:
   https://github.com/north-foster-farm/north-foster-farm/pull/85
 - #21 — Dependabot, "Bump autoprefixer from 10.4.19 to 10.4.20", open
   since 2024-08, last touched 2026-05-29. Obsolete: `package.json`
-  already pins autoprefixer 10.5.4, so this PR moves it backwards. Not
-  my branch, so untouched — but it is dead and wants closing. Say the
-  word and I will close it with a reason, as I did for #73/#74/#75.
+  already pins autoprefixer 10.5.4, so this PR moves it backwards. Its
+  base is still recorded as 57e89d5, a commit `main` left behind long
+  ago. Not my branch, so untouched — but it is dead and wants closing.
+  Say the word and I will close it with a reason, as I did for
+  #73/#74/#75.
   https://github.com/north-foster-farm/north-foster-farm/pull/21
 
 Housekeeping, unchanged and still not acted on: the branch
