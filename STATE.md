@@ -1,4 +1,3 @@
-LEASE: 2026-08-21T10:35:06Z run110-c3f926a1
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,24 +5,27 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-21T09:35Z — No-op on input, run 109. INBOX `sequence:` is still
-5 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired. Took the lease at 09:35:30Z, re-verified `main`
-and all four open PR head SHAs against the API, released it. Woke
-exactly 60 minutes after the 08:35Z run; hourly cadence holds.
+2026-08-21T10:35Z — No-op on input, run 110. INBOX `sequence:` is
+still 5 against `inbox-processed: 5` with status `waiting-on-james`,
+so the new-input guard fired again. Took the lease at 10:35:06Z,
+re-verified `main` and all four open PR head SHAs against the API,
+released it. Woke 60 minutes after the 09:35Z run; the hourly cadence
+has now held for two runs straight.
 
 Nothing moved and nothing was expected to. `main` is unchanged at
 630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
-advisories", 2026-08-06) — now fifteen days old by commit date and
+advisories", 2026-08-06) — sixteen days old by commit date and
 unchanged across every run since. The four PRs are byte-identical to
 last run: same head SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21
 3a2a069) and same `updated_at` stamps (#88/#87 2026-08-17, #85
 2026-08-10, #21 2026-05-29). #88, #87 and #85 all still report `main`
-at 630fe0e as their base, so none of them has drifted behind.
+at 630fe0e as their base, so none has drifted behind.
 
 No new questions and no notification. Q13–Q16 are still the four that
-gate everything downstream; adding a fifth without answers to those
-would make the list harder to answer, not easier.
+gate everything downstream; a fifth would make the list harder to
+answer, not easier. The useful signal this run is duration, not
+content: this is the eleventh consecutive hour with nothing to do, and
+the queue is now entirely answer-bound rather than work-bound.
 
 ## Roadmap position
 
