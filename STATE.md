@@ -1,4 +1,3 @@
-LEASE: 2026-08-21T11:35:20Z run-111
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,12 +5,12 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-21T10:35Z — No-op on input, run 110. INBOX `sequence:` is
+2026-08-21T11:35Z — No-op on input, run 111. INBOX `sequence:` is
 still 5 against `inbox-processed: 5` with status `waiting-on-james`,
-so the new-input guard fired again. Took the lease at 10:35:06Z,
+so the new-input guard fired again. Took the lease at 11:35:20Z,
 re-verified `main` and all four open PR head SHAs against the API,
-released it. Woke 60 minutes after the 09:35Z run; the hourly cadence
-has now held for two runs straight.
+released it. Woke 60 minutes after the 10:35Z run; the hourly cadence
+has now held for three runs straight.
 
 Nothing moved and nothing was expected to. `main` is unchanged at
 630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
@@ -23,10 +22,10 @@ last run: same head SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21
 at 630fe0e as their base, so none has drifted behind.
 
 No new questions and no notification. Q13–Q16 are still the four that
-gate everything downstream; a fifth would make the list harder to
-answer, not easier. The useful signal this run is duration, not
-content: this is the eleventh consecutive hour with nothing to do, and
-the queue is now entirely answer-bound rather than work-bound.
+gate everything downstream, and I am deliberately not adding a fifth:
+the queue's problem is that four questions are unanswered, not that
+there are too few. Twelve consecutive hours with nothing to do. The
+only thing that changes this ledger is an INBOX update.
 
 ## Roadmap position
 
