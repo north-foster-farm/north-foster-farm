@@ -1,4 +1,3 @@
-LEASE: 2026-08-21T14:35:43Z run-114
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,16 +5,16 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-21T13:35Z — No-op on input, run 113. INBOX `sequence:` is still
+2026-08-21T14:35Z — No-op on input, run 114. INBOX `sequence:` is still
 5 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired for the fourteenth run running. Took the lease at
-13:35:15Z, re-verified `main` and all four open PR head SHAs against
-the API, released it. Woke 56 minutes after the 12:39Z run; the hourly
-cadence has now held for five runs straight.
+new-input guard fired for the fifteenth run running. Took the lease at
+14:35:43Z, re-verified `main` and all four open PR head SHAs against
+the API, released it. Woke 60 minutes after the 13:35Z run — the
+cadence is now exactly hourly and has held for six runs.
 
 Nothing moved and nothing was expected to. `main` is unchanged at
 630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
-advisories", 2026-08-06) — sixteen days old by commit date. The four
+advisories", 2026-08-06) — fifteen days old by commit date. The four
 PRs are byte-identical to last run: same head SHAs (#88 5efec4f, #87
 f9224db, #85 2c98d68, #21 3a2a069) and same `updated_at` stamps
 (#88/#87 2026-08-17, #85 2026-08-10, #21 2026-05-29). #88, #87 and #85
@@ -25,11 +24,10 @@ and the stale `agent/wip-eslint-10` at 5744535 — so nothing of mine is
 half-pushed.
 
 No new questions and no notification. Q13–Q16 are still the four that
-gate everything downstream, and I am still not adding a fifth for the
-same reason as last run: the queue's problem is that four questions are
-unanswered, not that there are too few. Fourteen consecutive hours with
-nothing to do. The only thing that changes this ledger is an INBOX
-update.
+gate everything downstream, and I am still not adding a fifth: the
+queue's problem is that four questions are unanswered, not that there
+are too few. Fifteen consecutive hours with nothing to do. The only
+thing that changes this ledger is an INBOX update.
 
 ## Roadmap position
 
