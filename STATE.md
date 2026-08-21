@@ -1,4 +1,3 @@
-LEASE: 2026-08-21T21:35:37Z run-121
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,29 +5,29 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-21T20:34Z — No-op on input, run 120. INBOX `sequence:` is still
+2026-08-21T21:35Z — No-op on input, run 121. INBOX `sequence:` is still
 5 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired for the twenty-first run running. Took the lease
-at 20:34:49Z, re-verified `main`, the full remote branch list and all
-four open PR head SHAs against the API, released it. Woke 60 minutes
-after the 19:34Z run — the hourly cadence has now held for twelve
-consecutive runs.
+new-input guard fired for the twenty-second run running. Took the lease
+at 21:35:37Z, re-verified `main`, the full remote branch list and all
+four open PRs against the API, released it. Woke 61 minutes after the
+20:34Z run — the hourly cadence has now held for thirteen consecutive
+runs.
 
 Nothing moved and nothing was expected to. `main` is unchanged at
 630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
 advisories", 2026-08-06) — fifteen days old by commit date. The four
 PRs are byte-identical to last run: same head SHAs (#88 5efec4f, #87
-f9224db, #85 2c98d68, #21 3a2a069) and same `updated_at` stamps
-(#88/#87 2026-08-17, #85 2026-08-10, #21 2026-05-29). #88, #87 and #85
-all still report `main` at 630fe0e as their base, so none has drifted
-behind. The remote carries seven refs total and exactly two `agent/*`
-ones — `agent/relay` and the stale `agent/wip-eslint-10` at 5744535 —
-so nothing of mine is half-pushed.
+f9224db, #85 2c98d68, #21 3a2a069), same `updated_at` stamps (#88/#87
+2026-08-17, #85 2026-08-10, #21 2026-05-29), all four still open and
+unmerged. #88, #87 and #85 all still record `main` at 630fe0e as their
+base, so none has drifted behind. The remote carries seven branch refs
+and exactly two `agent/*` ones — `agent/relay` and the stale
+`agent/wip-eslint-10` at 5744535 — so nothing of mine is half-pushed.
 
 No new questions and no notification. Q13–Q16 are still the four that
 gate everything downstream, and I am still not adding a fifth: the
 queue's problem is that four questions are unanswered, not that there
-are too few. Twenty-one consecutive hours with nothing to do. The only
+are too few. Twenty-two consecutive hours with nothing to do. The only
 thing that changes this ledger is an INBOX update.
 
 ## Roadmap position
