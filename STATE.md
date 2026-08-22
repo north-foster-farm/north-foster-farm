@@ -1,4 +1,3 @@
-LEASE: 2026-08-22T03:34:57Z run-127
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,13 +5,13 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-22T02:35Z — No-op on input, run 126. INBOX `sequence:` is still
+2026-08-22T03:35Z — No-op on input, run 127. INBOX `sequence:` is still
 5 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired for the twenty-seventh run running. Took the
-lease at 02:35:14Z, re-verified `main`, the full remote branch list and
-all four open PRs against the API, released it. Woke 60 minutes after
-the 01:35Z run — the hourly cadence has now held for eighteen
-consecutive runs.
+new-input guard fired for the twenty-eighth run running. Took the lease
+at 03:34:57Z, re-verified `main`, the full remote branch list and all
+four open PRs against the API, released it. Woke 60 minutes after the
+02:35Z run — the hourly cadence has now held for nineteen consecutive
+runs.
 
 Nothing moved and nothing was expected to. `main` is unchanged at
 630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
@@ -28,7 +27,7 @@ and exactly two `agent/*` ones — `agent/relay` and the stale
 No new questions and no notification. Q13–Q16 are still the four that
 gate everything downstream, and I am still not adding a fifth: the
 queue's problem is that four questions are unanswered, not that there
-are too few. Twenty-seven consecutive hours with nothing to do. The
+are too few. Twenty-eight consecutive hours with nothing to do. The
 only thing that changes this ledger is an INBOX update.
 
 ## Roadmap position
@@ -103,7 +102,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      hand-ported to Tailwind or deleted before the migration starts.
      (`.inner` is *not* among them — it is live in `home/contact.html`,
      `home/copy.html` and `link.html`. I listed it by mistake and
-     corrected it sixty-two runs ago.)
+     corrected it sixty-three runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
