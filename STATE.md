@@ -1,4 +1,3 @@
-LEASE: 2026-08-22T18:35:22Z run-142
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,18 +5,17 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-22T17:35Z — No-op on input, run 141. INBOX `sequence:` is still
+2026-08-22T18:35Z — No-op on input, run 142. INBOX `sequence:` is still
 5 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired for the forty-second run running. Took the lease
-at 17:35:22Z, re-verified `main`, the full remote branch list and all
-four open PRs against the API, released it. Woke ~60 minutes after the
-16:35Z run — the hourly cadence has now held for thirty-three
-consecutive runs.
+new-input guard fired for the forty-third run running. Took the lease at
+18:35:22Z, re-verified `main`, the full remote branch list and all four
+open PRs against the API, released it. Woke ~60 minutes after the 17:35Z
+run — the hourly cadence has now held for thirty-four consecutive runs.
 
 Nothing moved and nothing was expected to. `main` is unchanged at
 630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
-advisories", 2026-08-06) — sixteen days old by commit date. The four
-PRs are byte-identical to last run: same head SHAs (#88 5efec4f, #87
+advisories", 2026-08-06) — sixteen days old by commit date. The four PRs
+are byte-identical to last run: same head SHAs (#88 5efec4f, #87
 f9224db, #85 2c98d68, #21 3a2a069), same `updated_at` stamps (#88/#87
 2026-08-17, #85 2026-08-10, #21 2026-05-29), all four still open and
 unmerged. #88, #87 and #85 all still record `main` at 630fe0e as their
@@ -28,13 +26,13 @@ and exactly two `agent/*` ones — `agent/relay` and the stale
 No new questions and no notification. Q13–Q16 are still the four that
 gate everything downstream, and I am still not adding a fifth: the
 queue's problem is that four questions are unanswered, not that there
-are too few. Forty-two consecutive hours with nothing to do. The only
+are too few. Forty-three consecutive hours with nothing to do. The only
 thing that changes this ledger is an INBOX update.
 
 ## Roadmap position
 
-Unchanged. The audit and its follow-on work are finished; this run
-added no roadmap progress and nothing is half-done.
+Unchanged. The audit and its follow-on work are finished; this run added
+no roadmap progress and nothing is half-done.
 
 Resume point: the next arc is the Tailwind migration, which I will not
 start on my own — Q15 asks which first step you want, and it is the
@@ -77,15 +75,15 @@ all four byte-identical to last run:
   https://github.com/north-foster-farm/north-foster-farm/pull/21
 
 Housekeeping, unchanged and still not acted on: the branch
-`agent/wip-eslint-10` is still on the remote at 5744535. Its two
-commits are in `main` by content but not by SHA (that PR was
-rebase-merged), so git does not report it as merged even though it is.
-It is mine and safe to delete; I left it alone because deleting
-branches on my own initiative is not something I want to do unasked.
+`agent/wip-eslint-10` is still on the remote at 5744535. Its two commits
+are in `main` by content but not by SHA (that PR was rebase-merged), so
+git does not report it as merged even though it is. It is mine and safe
+to delete; I left it alone because deleting branches on my own
+initiative is not something I want to do unasked.
 
 Two runbook corrections still outstanding in the stored prompt, both
-unchanged: it says to run `yarn install`, but the repo moved to npm
-when Q2 landed (I use npm and respect `package-lock.json`); and while
+unchanged: it says to run `yarn install`, but the repo moved to npm when
+Q2 landed (I use npm and respect `package-lock.json`); and while
 `bin/prod` is genuinely unrunnable here, fetching Dart Sass 1.79.5
 directly to a temp path makes a full `hugo --environment production`
 build work in this container, so local builds are a real check now.
@@ -103,7 +101,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      hand-ported to Tailwind or deleted before the migration starts.
      (`.inner` is *not* among them — it is live in `home/contact.html`,
      `home/copy.html` and `link.html`. I listed it by mistake and
-     corrected it seventy-two runs ago.)
+     corrected it seventy-three runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
@@ -114,25 +112,25 @@ Q14: Ready to take HSTS `max-age` to 31536000 now? It is still at 86400
      in `netlify.toml`. You slated it rather than committing it back on
      Q1, having confirmed `admin.northfosterfarm.com` is HTTPS-only.
      86400 is short enough to be close to decorative. Everything that
-     was uncertain then is settled now, and the rest of the header
-     block is as tight as it is going to get before Tailwind.
+     was uncertain then is settled now, and the rest of the header block
+     is as tight as it is going to get before Tailwind.
   Recommendation: yes, take it — one line in `netlify.toml`. The only
      real risk with a long `includeSubDomains` max-age is a subdomain
      that needs plain HTTP later, and you have already ruled that out.
      If you would rather stage it, say so and I will go to 2592000 (30
      days) as a checkpoint instead of the full year.
 
-Q15: What is the first Tailwind step you actually want? The prep work
-     is genuinely done and I am told not to start the framework
-     rewrite, so I will not pick this myself.
+Q15: What is the first Tailwind step you actually want? The prep work is
+     genuinely done and I am told not to start the framework rewrite, so
+     I will not pick this myself.
   Recommendation: a single-page spike on a throwaway branch — convert
      `/privacy` or `/404` only, leave Bootstrap in place for everything
      else, and put it behind a deploy preview you can look at. It costs
      little, it is fully reversible, and it puts a real number on the
      one thing the inventory could not: how much work the 10 `@extend`
      sites and the `tint-color`/`shade-color` calls actually are in
-     practice. That is the difference between an estimable migration
-     and an open-ended one, and it is not the rewrite itself.
+     practice. That is the difference between an estimable migration and
+     an open-ended one, and it is not the rewrite itself.
 
 Q16: Should I scope the Dependabot `ignore` entries so they suppress
      version updates but still let security updates through?
