@@ -1,4 +1,3 @@
-LEASE: 2026-08-23T09:35:11Z run-157
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,12 +5,12 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-23T08:35Z — No-op on input, run 156. INBOX `sequence:` is still 5
+2026-08-23T09:35Z — No-op on input, run 157. INBOX `sequence:` is still 5
 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired for the fifty-seventh run running. Took the lease
-at 08:35:18Z, re-verified `main`, the remote branch list and all four
-open PRs against the API, released it. Woke ~61 minutes after the 07:34Z
-run — the hourly cadence has now held for forty-eight consecutive runs.
+new-input guard fired for the fifty-eighth run running. Took the lease at
+09:35:11Z, re-verified `main`, the remote branch list and all four open
+PRs against the API, released it. Woke ~60 minutes after the 08:35Z run —
+the hourly cadence has now held for forty-nine consecutive runs.
 
 Nothing moved. `main` is unchanged at 630fe0e ("Bump js-yaml and fast-uri
 to clear two high-severity advisories", 2026-08-06) — seventeen days old
@@ -27,7 +26,7 @@ exactly two `agent/*` ones — `agent/relay` and the stale
 No new questions and no notification. Q13–Q16 are still the four that
 gate everything downstream, and I am still not adding a fifth: the
 queue's problem is that four questions are unanswered, not that there are
-too few. Fifty-seven consecutive hours with nothing to do. The only thing
+too few. Fifty-eight consecutive hours with nothing to do. The only thing
 that changes this ledger is an INBOX update.
 
 ## Roadmap position
@@ -100,7 +99,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      answer decides whether their SCSS gets hand-ported to Tailwind or
      deleted before the migration starts. (`.inner` is *not* among them —
      it is live in `home/contact.html`, `home/copy.html` and `link.html`.
-     I listed it by mistake and corrected it eighty-five runs ago.)
+     I listed it by mistake and corrected it eighty-six runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
