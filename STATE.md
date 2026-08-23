@@ -1,4 +1,3 @@
-LEASE: 2026-08-23T00:34:59Z run-148
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,27 +5,28 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-22T23:35Z — No-op on input, run 147. INBOX `sequence:` is still 5
+2026-08-23T00:35Z — No-op on input, run 148. INBOX `sequence:` is still 5
 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired for the forty-eighth run running. Took the lease at
-23:35:25Z, re-verified `main`, the remote branch list and all four open
-PRs against the API, released it. Woke ~60 minutes after the 22:35Z run —
-the hourly cadence has now held for thirty-nine consecutive runs.
+new-input guard fired for the forty-ninth run running. Took the lease at
+00:34:59Z, re-verified `main`, the remote branch list and all four open
+PRs against the API, released it. Woke ~59 minutes after the 23:35Z run —
+the hourly cadence has now held for forty consecutive runs.
 
 Nothing moved. `main` is unchanged at 630fe0e ("Bump js-yaml and fast-uri
-to clear two high-severity advisories", 2026-08-06) — sixteen days old by
-commit date. The four PRs are byte-identical to last run: same head SHAs
-(#88 5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069), same `updated_at`
-stamps (#88/#87 2026-08-17, #85 2026-08-10, #21 2026-05-29), all four
-open and unmerged. #88, #87 and #85 all still record `main` at 630fe0e as
-their base, so none has drifted behind. The remote carries seven branch
-refs and exactly two `agent/*` ones — `agent/relay` and the stale
-`agent/wip-eslint-10` at 5744535 — so nothing of mine is half-pushed.
+to clear two high-severity advisories", 2026-08-06) — seventeen days old
+by commit date. The four PRs are byte-identical to last run: same head
+SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069), same
+`updated_at` stamps (#88/#87 2026-08-17, #85 2026-08-10, #21
+2026-05-29), all four open and unmerged. #88, #87 and #85 all still
+record `main` at 630fe0e as their base, so none has drifted behind. The
+remote carries seven branch refs and exactly two `agent/*` ones —
+`agent/relay` and the stale `agent/wip-eslint-10` at 5744535 — so
+nothing of mine is half-pushed.
 
 No new questions and no notification. Q13–Q16 are still the four that
 gate everything downstream, and I am still not adding a fifth: the
 queue's problem is that four questions are unanswered, not that there are
-too few. Forty-eight consecutive hours with nothing to do. The only thing
+too few. Forty-nine consecutive hours with nothing to do. The only thing
 that changes this ledger is an INBOX update.
 
 ## Roadmap position
@@ -99,7 +99,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      answer decides whether their SCSS gets hand-ported to Tailwind or
      deleted before the migration starts. (`.inner` is *not* among them —
      it is live in `home/contact.html`, `home/copy.html` and `link.html`.
-     I listed it by mistake and corrected it seventy-eight runs ago.)
+     I listed it by mistake and corrected it seventy-nine runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
