@@ -1,4 +1,3 @@
-LEASE: 2026-08-24T11:35:00Z run-183
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,29 +5,29 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-24T10:35Z — No-op on input, run 182. INBOX `sequence:` is still 5
+2026-08-24T11:35Z — No-op on input, run 183. INBOX `sequence:` is still 5
 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired for the eighty-third run running. Took the lease at
-10:35:02Z, re-verified `main`, the remote branch list and all four open
-PRs against the API, released it. Woke 60 minutes after the 09:35Z run —
-the hourly cadence has now held for seventy-four consecutive runs.
+new-input guard fired for the eighty-fourth run running. Took the lease at
+11:35:00Z, re-verified `main`, the remote branch list and all four open
+PRs against the API, released it. Woke 60 minutes after the 10:35Z run —
+the hourly cadence has now held for seventy-five consecutive runs.
 
 Nothing moved. `main` is unchanged at 630fe0e ("Bump js-yaml and fast-uri
-to clear two high-severity advisories", 2026-08-06) — eighteen days old
-by commit date. The four PRs are byte-identical to last run: same head
-SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069), same
-`updated_at` stamps (#88/#87 2026-08-17, #85 2026-08-10, #21
-2026-05-29), all four open and unmerged, none with a review comment.
-#88, #87 and #85 all still record `main` at 630fe0e as their base, so
-none has drifted behind. The remote carries seven branch refs and
-exactly two `agent/*` ones — `agent/relay` and the stale
-`agent/wip-eslint-10` at 5744535 — so nothing of mine is half-pushed.
+to clear two high-severity advisories", 2026-08-06) — eighteen days old by
+commit date. The four PRs are byte-identical to last run: same head SHAs
+(#88 5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069), same `updated_at`
+stamps (#88/#87 2026-08-17, #85 2026-08-10, #21 2026-05-29), all four open
+and unmerged, none with a review comment. #88, #87 and #85 all still
+record `main` at 630fe0e as their base, so none has drifted behind. The
+remote carries seven branch refs and exactly two `agent/*` ones —
+`agent/relay` and the stale `agent/wip-eslint-10` at 5744535 — so nothing
+of mine is half-pushed.
 
-No new questions and no notification. Q13–Q16 are still the four that
-gate everything downstream, and I am still not adding a fifth: the
-queue's problem is that four questions are unanswered, not that there
-are too few. Eighty-three consecutive hours with nothing to do. The only
-thing that changes this ledger is an INBOX update.
+No new questions and no notification. Q13–Q16 are still the four that gate
+everything downstream, and I am still not adding a fifth: the queue's
+problem is that four questions are unanswered, not that there are too few.
+Eighty-four consecutive hours with nothing to do. The only thing that
+changes this ledger is an INBOX update.
 
 ## Roadmap position
 
@@ -36,18 +35,18 @@ Unchanged. The audit and its follow-on work are finished; this run added
 no roadmap progress and nothing is half-done.
 
 Resume point: the next arc is the Tailwind migration, which I will not
-start on my own — Q15 asks which first step you want, and it is the
-single answer that unblocks the most. Q5 (your manual PageSpeed baseline)
-is still yours to run and still the most useful thing you could do
-independently; its blocker cleared when you answered Q7, since the 24.5
-KB JS payload it was waiting on is now known to be deletable.
+start on my own — Q15 asks which first step you want, and it is the single
+answer that unblocks the most. Q5 (your manual PageSpeed baseline) is
+still yours to run and still the most useful thing you could do
+independently; its blocker cleared when you answered Q7, since the 24.5 KB
+JS payload it was waiting on is now known to be deletable.
 
 ## Open PRs
 
 (none of mine.)
 
-Still open, not mine — all four re-confirmed against the API this run,
-all four byte-identical to last run:
+Still open, not mine — all four re-confirmed against the API this run, all
+four byte-identical to last run:
 
 - #88 — Dependabot, "Bump globals from 17.8.0 to 17.11.0", opened
   2026-08-17. `globals` is a lint-only devDependency, so the blast radius
@@ -77,16 +76,16 @@ all four byte-identical to last run:
 Housekeeping, unchanged and still not acted on: the branch
 `agent/wip-eslint-10` is still on the remote at 5744535. Its two commits
 are in `main` by content but not by SHA (that PR was rebase-merged), so
-git does not report it as merged even though it is. It is mine and safe
-to delete; I left it alone because deleting branches on my own initiative
-is not something I want to do unasked.
+git does not report it as merged even though it is. It is mine and safe to
+delete; I left it alone because deleting branches on my own initiative is
+not something I want to do unasked.
 
 Two runbook corrections still outstanding in the stored prompt, both
 unchanged: it says to run `yarn install`, but the repo moved to npm when
-Q2 landed (I use npm and respect `package-lock.json`); and while
-`bin/prod` is genuinely unrunnable here, fetching Dart Sass 1.79.5
-directly to a temp path makes a full `hugo --environment production`
-build work in this container, so local builds are a real check now.
+Q2 landed (I use npm and respect `package-lock.json`); and while `bin/prod`
+is genuinely unrunnable here, fetching Dart Sass 1.79.5 directly to a temp
+path makes a full `hugo --environment production` build work in this
+container, so local builds are a real check now.
 
 ## QUESTIONS
 
