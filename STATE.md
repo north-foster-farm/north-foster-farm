@@ -1,4 +1,3 @@
-LEASE: 2026-08-24T01:35:12Z run-173
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,12 +5,12 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-24T00:35Z — No-op on input, run 172. INBOX `sequence:` is still 5
+2026-08-24T01:35Z — No-op on input, run 173. INBOX `sequence:` is still 5
 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired for the seventy-third run running. Took the lease
-at 00:35:19Z, re-verified `main`, the remote branch list and all four
-open PRs against the API, released it. Woke 60 minutes after the 23:35Z
-run — the hourly cadence has now held for sixty-four consecutive runs.
+new-input guard fired for the seventy-fourth run running. Took the lease
+at 01:35:12Z, re-verified `main`, the remote branch list and all four
+open PRs against the API, released it. Woke 60 minutes after the 00:35Z
+run — the hourly cadence has now held for sixty-five consecutive runs.
 
 Nothing moved. `main` is unchanged at 630fe0e ("Bump js-yaml and fast-uri
 to clear two high-severity advisories", 2026-08-06) — eighteen days old
@@ -27,7 +26,7 @@ exactly two `agent/*` ones — `agent/relay` and the stale
 No new questions and no notification. Q13–Q16 are still the four that
 gate everything downstream, and I am still not adding a fifth: the
 queue's problem is that four questions are unanswered, not that there
-are too few. Seventy-three consecutive hours with nothing to do. The
+are too few. Seventy-four consecutive hours with nothing to do. The
 only thing that changes this ledger is an INBOX update.
 
 ## Roadmap position
