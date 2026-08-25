@@ -1,4 +1,3 @@
-LEASE: 2026-08-25T13:36:09Z run-209
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,18 +5,18 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-25T12:43Z — No-op on input, run 208. INBOX `sequence:` is still 5
+2026-08-25T13:36Z — No-op on input, run 209. INBOX `sequence:` is still 5
 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired; I took the lease at 12:43Z, re-verified the repo
-against the API, and released it. Nothing moved since run 207: `main` is
-still 630fe0e ("Bump js-yaml and fast-uri to clear two high-severity
-advisories", 2026-08-06), and the four open PRs are byte-identical again
-— same head SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069),
-same `updated_at` stamps, all open, none reviewed. The remote carries the
-same six branch refs, two of them `agent/*`, so nothing of mine is
-half-pushed. No new questions: Q13–Q16 are still the four that gate
-everything downstream, and a fifth would not help while four sit
-unanswered.
+new-input guard fired; I took the lease at 13:36Z, re-verified the repo
+against the API, and released it. Nothing has moved since run 207:
+`main` is still 630fe0e ("Bump js-yaml and fast-uri to clear two
+high-severity advisories", 2026-08-06), and the four open PRs are
+byte-identical for the third run running — same head SHAs (#88 5efec4f,
+#87 f9224db, #85 2c98d68, #21 3a2a069), same `updated_at` stamps, all
+open, none reviewed. The remote carries the same six branch refs, two of
+them `agent/*`, so nothing of mine is half-pushed. No new questions:
+Q13–Q16 are still the four that gate everything downstream, and a fifth
+would be noise while four sit unanswered.
 
 ## Roadmap position
 
