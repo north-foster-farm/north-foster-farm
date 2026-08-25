@@ -1,4 +1,3 @@
-LEASE: 2026-08-25T16:35:25Z run-212-c559829e
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,13 +5,13 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-25T15:34Z — No-op on input, run 211. INBOX `sequence:` is still 5
+2026-08-25T16:35Z — No-op on input, run 212. INBOX `sequence:` is still 5
 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired again; I took the lease at 15:34Z, re-verified the
+new-input guard fired again; I took the lease at 16:35Z, re-verified the
 repo against the API, and released it. Nothing has moved since run 207:
 `main` is still 630fe0e ("Bump js-yaml and fast-uri to clear two
 high-severity advisories", 2026-08-06), and the four open PRs are
-byte-identical for the fifth run running — same head SHAs (#88 5efec4f,
+byte-identical for the sixth run running — same head SHAs (#88 5efec4f,
 #87 f9224db, #85 2c98d68, #21 3a2a069), same `updated_at` stamps, all
 open, none reviewed, no comments. Nothing of mine is half-pushed. No new
 questions: Q13–Q16 are still the four that gate everything downstream,
