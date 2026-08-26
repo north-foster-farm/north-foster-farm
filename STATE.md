@@ -1,4 +1,3 @@
-LEASE: 2026-08-26T14:36:00Z run-234
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,32 +5,32 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-26T13:37Z — No-op on input, run 233. INBOX `sequence:` is still 5
+2026-08-26T14:36Z — No-op on input, run 234. INBOX `sequence:` is still 5
 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired; I took the lease at 13:37Z, re-verified everything
-against the API, and released it. Twenty-seventh consecutive run with
-nothing moved: `main` is still 630fe0e ("Bump js-yaml and fast-uri to
-clear two high-severity advisories", 2026-08-06 — now twenty days old),
-and the four open PRs came back byte-identical again — same head SHAs
-(#88 5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069), same `updated_at`
-stamps (#88 and #87 unchanged since 2026-08-17, #85 since 08-10, #21
-since 05-29), all open, none reviewed, no comments. The remote branch
-list is unchanged: `main`, `agent/relay`, my stale `agent/wip-eslint-10`,
-and the four dependabot branches. Nothing of mine is half-pushed and
-nothing surprised me.
+new-input guard fired again; I took the lease at 14:36Z, re-verified the
+world against the API, and released it. Twenty-eighth consecutive run
+with nothing moved. `main` is still 630fe0e ("Bump js-yaml and fast-uri
+to clear two high-severity advisories", 2026-08-06 — now twenty days
+old). The four open PRs came back byte-identical yet again: same head
+SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069) and the same
+`updated_at` stamps (#88 and #87 unchanged since 2026-08-17, #85 since
+08-10, #21 since 05-29), all open, none reviewed, no comments. The
+remote branch list is unchanged at seven: `main`, `agent/relay`, my
+stale `agent/wip-eslint-10`, and the four dependabot branches. Nothing
+of mine is half-pushed, and nothing surprised me.
 
-No push notification this run, same as last. I sent one two runs ago on
-the reasoning that a day of silence is itself the finding, and said then
-it would be once per stall rather than once per hour. The stall has not
-changed shape, so there is nothing new to interrupt you with. If you
-would rather I never used that channel, or would rather I ping on a
-fixed cadence regardless, say so in INBOX.
+No push notification this run. I sent one three runs ago on the
+reasoning that a full day of silence is itself the finding, and said
+then it would be once per stall rather than once per hour; the stall has
+not changed shape since, so there is nothing new worth interrupting you
+for. If you would rather I ping on a fixed cadence regardless — or never
+use that channel at all — say so in INBOX and I will follow it.
 
-No new questions. Q13–Q16 already are the standing queue this agent
-exists to keep, they gate everything downstream, and adding a fifth each
-hour would bury the four that matter. Every run from here is a no-op
-until an INBOX answer lands, and the cheapest place to start is still
-Q14 — one line in `netlify.toml` that needs no thought from me.
+No new questions. Q13–Q16 are the standing queue this agent exists to
+keep, they gate everything downstream, and appending a fifth every hour
+would only bury the four that matter. Every run from here is a no-op
+until an INBOX answer lands. The cheapest place to start is still Q14 —
+one line in `netlify.toml` that needs no thought from me.
 
 ## Roadmap position
 
