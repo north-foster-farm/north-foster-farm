@@ -1,4 +1,3 @@
-LEASE: 2026-08-26T15:35:05Z run-235
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,26 +5,24 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-26T14:36Z — No-op on input, run 234. INBOX `sequence:` is still 5
+2026-08-26T15:35Z — No-op on input, run 235. INBOX `sequence:` is still 5
 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired again; I took the lease at 14:36Z, re-verified the
-world against the API, and released it. Twenty-eighth consecutive run
-with nothing moved. `main` is still 630fe0e ("Bump js-yaml and fast-uri
-to clear two high-severity advisories", 2026-08-06 — now twenty days
-old). The four open PRs came back byte-identical yet again: same head
-SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069) and the same
-`updated_at` stamps (#88 and #87 unchanged since 2026-08-17, #85 since
-08-10, #21 since 05-29), all open, none reviewed, no comments. The
-remote branch list is unchanged at seven: `main`, `agent/relay`, my
-stale `agent/wip-eslint-10`, and the four dependabot branches. Nothing
-of mine is half-pushed, and nothing surprised me.
+new-input guard fired; I took the lease at 15:35Z, re-verified everything
+against the API, and released it. Twenty-ninth consecutive run with
+nothing moved. `main` is still 630fe0e ("Bump js-yaml and fast-uri to
+clear two high-severity advisories", 2026-08-06 — now twenty days old).
+The four open PRs came back byte-identical again: same head SHAs (#88
+5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069) and the same `updated_at`
+stamps (#88 and #87 unchanged since 2026-08-17, #85 since 08-10, #21
+since 05-29), all open, none reviewed, no comments. The remote branch
+list is unchanged at seven. Nothing of mine is half-pushed, and nothing
+surprised me.
 
-No push notification this run. I sent one three runs ago on the
-reasoning that a full day of silence is itself the finding, and said
-then it would be once per stall rather than once per hour; the stall has
-not changed shape since, so there is nothing new worth interrupting you
-for. If you would rather I ping on a fixed cadence regardless — or never
-use that channel at all — say so in INBOX and I will follow it.
+No push notification this run, and none since the one four runs ago. The
+stall has not changed shape, so there is nothing new worth interrupting
+you for; I would rather stay quiet than ping hourly about the same
+unchanged fact. If you would prefer a fixed cadence regardless — or that
+I never use that channel — say so in INBOX and I will follow it.
 
 No new questions. Q13–Q16 are the standing queue this agent exists to
 keep, they gate everything downstream, and appending a fifth every hour
@@ -40,10 +37,10 @@ no roadmap progress and nothing is half-done.
 
 Resume point: the next arc is the Tailwind migration, which I will not
 start on my own — Q15 asks which first step you want, and it is the
-single answer that unblocks the most. Q5 (your manual PageSpeed
-baseline) is still yours to run and still the most useful thing you
-could do independently; its blocker cleared when you answered Q7, since
-the 24.5 KB JS payload it was waiting on is now known to be deletable.
+single answer that unblocks the most. Q5 (your manual PageSpeed baseline)
+is still yours to run and still the most useful thing you could do
+independently; its blocker cleared when you answered Q7, since the
+24.5 KB JS payload it was waiting on is now known to be deletable.
 
 ## Open PRs
 
@@ -52,16 +49,15 @@ the 24.5 KB JS payload it was waiting on is now known to be deletable.
 Still open, not mine — all four re-confirmed against the API this run:
 
 - #88 — Dependabot, "Bump globals from 17.8.0 to 17.11.0", opened
-  2026-08-17. `globals` is a lint-only devDependency, so the blast
-  radius is ESLint config resolution and nothing that ships. Replaced
-  #86, which Dependabot closed unmerged.
+  2026-08-17. `globals` is a lint-only devDependency, so the blast radius
+  is ESLint config resolution and nothing that ships. Replaced #86, which
+  Dependabot closed unmerged.
   https://github.com/north-foster-farm/north-foster-farm/pull/88
 - #87 — Dependabot, "Bump eslint from 10.8.0 to 10.8.1", opened
-  2026-08-17. Patch release, all bug fixes (ASI hazards in two
-  autofixes, `getter-return`/`accessor-pairs` false positives).
-  Lint-only, nothing shipped. Sits directly on top of the eslint 10.8.0
-  you took via Q4, so it is a clean follow-on rather than a new
-  decision.
+  2026-08-17. Patch release, all bug fixes (ASI hazards in two autofixes,
+  `getter-return`/`accessor-pairs` false positives). Lint-only, nothing
+  shipped. Sits directly on top of the eslint 10.8.0 you took via Q4, so
+  it is a clean follow-on rather than a new decision.
   https://github.com/north-foster-farm/north-foster-farm/pull/87
 - #85 — Dependabot, "Bump postcss from 8.5.25 to 8.5.26", opened
   2026-08-10. Routine patch bump, but postcss is a real build-path
@@ -81,8 +77,8 @@ Housekeeping, unchanged and still not acted on: the branch
 `agent/wip-eslint-10` is still on the remote at 5744535. Its two commits
 are in `main` by content but not by SHA (that PR was rebase-merged), so
 git does not report it as merged even though it is. It is mine and safe
-to delete; I left it alone because deleting branches on my own
-initiative is not something I want to do unasked.
+to delete; I left it alone because deleting branches on my own initiative
+is not something I want to do unasked.
 
 Two runbook corrections still outstanding in the stored prompt, both
 unchanged: it says to run `yarn install`, but the repo moved to npm when
@@ -98,13 +94,12 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      page** — `content/` holds exactly three files, served by
      `index.html` (home), `policy/single.html` (accessibility, privacy)
      and `404.html`. The classes they hold hostage are four:
-     `.page-content`, `.circle`, `.list-group-img` and
-     `.img-supporting`. Those four are referenced by nothing but these
-     templates, so your answer decides whether their SCSS gets
-     hand-ported to Tailwind or deleted before the migration starts.
-     (`.inner` is *not* among them — it is live in `home/contact.html`,
-     `home/copy.html` and `link.html`. I listed it by mistake and
-     corrected it a hundred runs ago.)
+     `.page-content`, `.circle`, `.list-group-img` and `.img-supporting`.
+     Those four are referenced by nothing but these templates, so your
+     answer decides whether their SCSS gets hand-ported to Tailwind or
+     deleted before the migration starts. (`.inner` is *not* among them —
+     it is live in `home/contact.html`, `home/copy.html` and `link.html`.
+     I listed it by mistake and corrected it a hundred runs ago.)
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
@@ -114,14 +109,14 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
 Q14: Ready to take HSTS `max-age` to 31536000 now? It is still at 86400
      in `netlify.toml`. You slated it rather than committing it back on
      Q1, having confirmed `admin.northfosterfarm.com` is HTTPS-only.
-     86400 is short enough to be close to decorative. Everything that
-     was uncertain then is settled now, and the rest of the header block
-     is as tight as it is going to get before Tailwind.
+     86400 is short enough to be close to decorative. Everything that was
+     uncertain then is settled now, and the rest of the header block is
+     as tight as it is going to get before Tailwind.
   Recommendation: yes, take it — one line in `netlify.toml`. The only
      real risk with a long `includeSubDomains` max-age is a subdomain
-     that needs plain HTTP later, and you have already ruled that out.
-     If you would rather stage it, say so and I will go to 2592000 (30
-     days) as a checkpoint instead of the full year.
+     that needs plain HTTP later, and you have already ruled that out. If
+     you would rather stage it, say so and I will go to 2592000 (30 days)
+     as a checkpoint instead of the full year.
 
 Q15: What is the first Tailwind step you actually want? The prep work is
      genuinely done and I am told not to start the framework rewrite, so
@@ -129,11 +124,11 @@ Q15: What is the first Tailwind step you actually want? The prep work is
   Recommendation: a single-page spike on a throwaway branch — convert
      `/privacy` or `/404` only, leave Bootstrap in place for everything
      else, and put it behind a deploy preview you can look at. It costs
-     little, it is fully reversible, and it puts a real number on the
-     one thing the inventory could not: how much work the 10 `@extend`
-     sites and the `tint-color`/`shade-color` calls actually are in
-     practice. That is the difference between an estimable migration and
-     an open-ended one, and it is not the rewrite itself.
+     little, it is fully reversible, and it puts a real number on the one
+     thing the inventory could not: how much work the 10 `@extend` sites
+     and the `tint-color`/`shade-color` calls actually are in practice.
+     That is the difference between an estimable migration and an
+     open-ended one, and it is not the rewrite itself.
 
 Q16: Should I scope the Dependabot `ignore` entries so they suppress
      version updates but still let security updates through?
