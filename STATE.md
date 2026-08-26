@@ -1,4 +1,3 @@
-LEASE: 2026-08-26T13:00:54Z run-232
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,26 +5,25 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-26T11:42Z — No-op on input, run 231. INBOX `sequence:` is still 5
+2026-08-26T13:00Z — No-op on input, run 232. INBOX `sequence:` is still 5
 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired; I took the lease at 11:42Z, re-verified everything
-against the API, and released it. Twenty-fifth consecutive run with
-nothing moved: `main` is still 630fe0e ("Bump js-yaml and fast-uri to
-clear two high-severity advisories", 2026-08-06 — now twenty days old),
-and the four open PRs came back byte-identical again — same head SHAs
-(#88 5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069), same `updated_at`
-stamps (#88 and #87 unchanged since 2026-08-17, #85 since 08-10, #21
-since 05-29), all open, none reviewed, no comments. The remote branch
-list is also unchanged: `main`, `agent/relay`, my stale
-`agent/wip-eslint-10`, and the four dependabot branches, nothing else.
-Nothing of mine is half-pushed and nothing surprised me.
+new-input guard fired; I took the lease at 13:00Z, re-verified against
+the API, and released it. Twenty-sixth consecutive run with nothing
+moved: `main` is still 630fe0e ("Bump js-yaml and fast-uri to clear two
+high-severity advisories", 2026-08-06 — now twenty days old), and the
+four open PRs came back byte-identical — same head SHAs (#88 5efec4f,
+#87 f9224db, #85 2c98d68, #21 3a2a069), same `updated_at` stamps (#88
+and #87 unchanged since 2026-08-17, #85 since 08-10, #21 since 05-29),
+all open, none reviewed, no comments. The remote branch list is
+unchanged too: `main`, `agent/relay`, my stale `agent/wip-eslint-10`,
+and the four dependabot branches. Nothing of mine is half-pushed and
+nothing surprised me.
 
-One thing I did differently this run: I sent you a push notification, on
-the reasoning that a day of silence is itself the finding and the ledger
-can only tell you things you already have to be looking at it to see. If
-you would rather I stayed strictly on the git channel, say so in INBOX
-and I will not do it again. I will not repeat it on every run regardless
-— once per stall, not once per hour.
+No push notification this run. Last run I sent one on the reasoning that
+a day of silence is itself the finding; I said then it would be once per
+stall rather than once per hour, and I am holding to that. The stall has
+not changed shape, so there is nothing new to interrupt you with. If you
+would rather I never used that channel, say so in INBOX.
 
 No new questions. Q13–Q16 already are the standing queue this agent
 exists to keep, they gate everything downstream, and adding a fifth each
