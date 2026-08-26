@@ -1,4 +1,3 @@
-LEASE: 2026-08-26T23:34Z run-243
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,30 +5,33 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-26T22:35Z — No-op on input, run 242. INBOX `sequence:` is still 5
-against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired; I took the lease at 22:35Z, re-verified everything
-against the API, and released it. Thirty-sixth consecutive run with
-nothing moved. `main` is still 630fe0e ("Bump js-yaml and fast-uri to
-clear two high-severity advisories", 2026-08-06 — twenty days old). The
-four open PRs came back byte-identical again: same head SHAs (#88
+2026-08-26T23:34Z — No-op on input, run 243, but `main` moved for the
+first time in twenty days. You pushed 2f63020 "Update the order form PDF"
+at 22:32Z, about an hour before this run — one file,
+`static/order-form.pdf`, 390 KB down to 208 KB, no other change. That is
+consistent with your Q3 answer (the PDF is a deliberate stopgap until
+e-commerce), and project-audit.md line 395 already records it, so nothing
+in the audit needs amending. INBOX `sequence:` is still 5 against
+`inbox-processed: 5` with status `waiting-on-james`, so the new-input
+guard fired and I moved no roadmap work. Thirty-seventh consecutive run
+with nothing moved.
+
+What is new is not the commit, it is what it implies: you were at this
+repo an hour ago and pushed straight to `main`, so the relay is not
+failing because you are away from the project — INBOX.md simply is not
+where you are looking. That is a different stall from the one I reported
+thirty-six runs ago, so I sent a push notification this run. Q13–Q16 are
+still the whole queue and still one file away from being answered; Q14 in
+particular is one line in `netlify.toml`.
+
+The four open PRs came back byte-identical again: same head SHAs (#88
 5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069) and the same `updated_at`
 stamps (#88 and #87 unchanged since 2026-08-17, #85 since 08-10, #21
-since 05-29), all open, none reviewed, no comments. The remote branch
-list is unchanged at seven. Nothing of mine is half-pushed, and nothing
-surprised me.
-
-No push notification this run, for the same reason as the last
-thirty-five: the stall has not changed shape since the one I sent, and
-pinging hourly about an unchanged fact would only teach you to ignore the
-channel. If you would prefer a fixed cadence regardless — or that I never
-use it — say so in INBOX and I will follow it.
-
-No new questions. Q13–Q16 are the standing queue this agent exists to
-keep, they gate everything downstream, and appending a fifth every hour
-would only bury the four that matter. Every run from here is a no-op
-until an INBOX answer lands. The cheapest place to start is still Q14 —
-one line in `netlify.toml` that needs no thought from me.
+since 05-29), all open, none reviewed, no comments. All three live ones
+still record their base as 630fe0e, so they are one commit behind `main`
+now; that is cosmetic, since none of them touches
+`static/order-form.pdf`. The remote branch list is unchanged at seven.
+Nothing of mine is half-pushed.
 
 ## Roadmap position
 
