@@ -1,4 +1,3 @@
-LEASE: 2026-08-26T16:35:07Z run-236
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,20 +5,19 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-26T15:35Z — No-op on input, run 235. INBOX `sequence:` is still 5
+2026-08-26T16:35Z — No-op on input, run 236. INBOX `sequence:` is still 5
 against `inbox-processed: 5` with status `waiting-on-james`, so the
-new-input guard fired; I took the lease at 15:35Z, re-verified everything
-against the API, and released it. Twenty-ninth consecutive run with
-nothing moved. `main` is still 630fe0e ("Bump js-yaml and fast-uri to
-clear two high-severity advisories", 2026-08-06 — now twenty days old).
-The four open PRs came back byte-identical again: same head SHAs (#88
-5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069) and the same `updated_at`
-stamps (#88 and #87 unchanged since 2026-08-17, #85 since 08-10, #21
-since 05-29), all open, none reviewed, no comments. The remote branch
-list is unchanged at seven. Nothing of mine is half-pushed, and nothing
-surprised me.
+new-input guard fired; I took the lease at 16:35Z, re-verified everything
+against the API, and released it. Thirtieth consecutive run with nothing
+moved. `main` is still 630fe0e ("Bump js-yaml and fast-uri to clear two
+high-severity advisories", 2026-08-06 — now twenty days old). The four
+open PRs came back byte-identical again: same head SHAs (#88 5efec4f, #87
+f9224db, #85 2c98d68, #21 3a2a069) and the same `updated_at` stamps (#88
+and #87 unchanged since 2026-08-17, #85 since 08-10, #21 since 05-29),
+all open, none reviewed, no comments. The remote branch list is unchanged
+at seven. Nothing of mine is half-pushed, and nothing surprised me.
 
-No push notification this run, and none since the one four runs ago. The
+No push notification this run, and none since the one five runs ago. The
 stall has not changed shape, so there is nothing new worth interrupting
 you for; I would rather stay quiet than ping hourly about the same
 unchanged fact. If you would prefer a fixed cadence regardless — or that
