@@ -364,9 +364,14 @@ rather than two, and the byte-level baseline above was captured
 while the pipeline was still known-good — which is not something
 that can be recovered once cutting starts.
 
-**Parked until after Tailwind:** README rewrite, npm-vs-yarn,
-dependency bumps, and the `script-src` / `style-src` tightening. All
-of them get redone post-migration.
+~~**Parked until after Tailwind:** README rewrite, npm-vs-yarn,
+dependency bumps, and the `script-src` / `style-src` tightening.~~
+**Nothing on this line is parked any more — all four landed early.**
+README rewritten; npm-vs-yarn settled as npm in PR #76; the bumps
+taken in PR #70; and both `script-src` and `style-src` are now plain
+`'self'`, with no `'unsafe-inline'` left in `netlify.toml`. Kept
+struck rather than deleted because the reasoning for deferring them
+is still worth reading — it just no longer applies.
 
 ### Remaining (A2–A4)
 
@@ -388,7 +393,10 @@ of them get redone post-migration.
   linked anywhere, which is what `includeSubDomains` needed. Held back
   from an immediate commit at his direction; land it when there is a
   reason to touch the header block, not on its own.
-- `script-src` / `style-src` tightening: parked, see above.
+- ~~`script-src` / `style-src` tightening: parked~~ **both done.**
+  `netlify.toml` now carries `script-src 'self'` and `style-src
+  'self'` with no `'unsafe-inline'` in either, the style-src half by
+  James's answer to Q8.
 - ~~Fold `static/_redirects` (`/privacy-policy` → `/privacy`) into
   `netlify.toml`~~ **in PR #69**, as a 301 to match what `_redirects`
   defaulted to.
@@ -406,14 +414,21 @@ of them get redone post-migration.
   across the swap, which also closes the `@eslint/js` hoisting trap
   recorded above: it is an explicit devDependency and lint is green on
   an npm-installed tree.
-- `npm audit` reports 9 advisories (8 high, 1 low), **all
-  devDependencies** — `npm audit --omit=dev` is 0, so nothing ships to
-  a browser. Roots are a `brace-expansion` DoS via `minimatch`/`glob`
-  and a `@eslint/plugin-kit` ReDoS. Plain `npm audit fix` is a proven
-  no-op; only `--force` clears them, and that means eslint 10, a
-  major. Half the affected tree (`purgecss`,
-  `@fullhuman/postcss-purgecss`) retires with the Tailwind migration.
-  Needs a decision, not a reflex.
+- ~~`npm audit` reports 9 advisories (8 high, 1 low)~~ **clear as of
+  2026-08-27.** The eslint 10 upgrade taken via Q4 carried the
+  `brace-expansion` and `@eslint/plugin-kit` roots away with it, which
+  left exactly one: a `nanoid` <3.3.18 infinite-loop advisory reached
+  only through `postcss`. That one did NOT need `--force` — `postcss`
+  asks for `nanoid` at `^3.3.16`, so a plain `npm audit fix` moves it
+  to 3.3.18 inside the existing range, touching three lines of
+  `package-lock.json` and nothing else. `npm audit` is now 0, and the
+  built CSS and JS are byte-identical across the change, fingerprinted
+  filenames included. Note this did not require Dependabot's #85
+  (`postcss` 8.5.26): 8.5.26 also pulls a fixed `nanoid`, so it would
+  have cleared the same advisory as a side effect, but it is an
+  ordinary patch bump on its own merits, not a security fix.
+  Throughout, `npm audit --omit=dev` was 0 — none of this ever
+  shipped to a browser.
 - ~~Dependency bumps worth taking~~ **in PR #70.** `postcss` → 8.5.25,
   `postcss-cli` → 11.0.1, `autoprefixer` → 10.5.4, all re-checked
   against the registry rather than trusted from this file. The built
@@ -425,9 +440,11 @@ of them get redone post-migration.
   `ignore:` block for the six retiring packages rather than
   `open-pull-requests-limit: 0`, so eslint and the postcss stack keep
   getting offered. Delete the block when the migration lands.
-- README rewrite — it is a 3-line stub with no versions, no
-  prerequisites, no commands, and no mention that pushing to main
-  auto-deploys production.
+- ~~README rewrite — it is a 3-line stub~~ **done.** `README.md` is
+  now ~100 lines and covers the version pins, prerequisites, the
+  commands, the `npm run deploy` trap, the layout, and the
+  push-to-`main`-deploys-production warning. This bullet outlived the
+  work it described; struck so a later pass does not re-open it.
 - A4 — Lighthouse/PageSpeed baseline, recorded here pre-Tailwind.
   **Take this after deciding the dead-`Collapse` question** — see
   `docs/tailwind-inventory.md` Finding 1; the JS payload it measures is
