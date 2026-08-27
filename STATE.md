@@ -1,93 +1,111 @@
-LEASE: 2026-08-27T12:52:35Z run-256
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
-status: waiting-on-james
+status: working
 
 ## Last run
 
-2026-08-27T11:35Z — No-op, run 255. The new-input guard fired again:
-INBOX `sequence:` is still 5 against `inbox-processed: 5` with status
-`waiting-on-james`. Took the lease, re-verified the world against the
-API, found nothing moved, released it. Forty-ninth consecutive run with
-nothing moved.
+2026-08-27T12:52Z — Run 256, and the first one in fifty with something
+to show. The new-input guard fired as usual (INBOX still `sequence: 5`),
+but before releasing the lease I spot-checked one unstruck bullet in
+`project-audit.md` instead of trusting my own "everything is finished"
+summary. That check found the ledger had been wrong: `npm audit` on
+`main` was reporting a live high-severity advisory, and the audit file
+was describing a stale, worse version of the problem. Fixed both, opened
+**PR #90**, and left it watched.
 
-Byte-identical to run 254. `main` is still at 2f63020 "Update the order
-form PDF" (2026-08-26 18:32 -0400). All four open PRs came back with the
-same head SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069) and
-the same `updated_at` stamps — none newer than 2026-08-17 — all open,
-none reviewed, no comments. The three live ones still record their base
-as 630fe0e, one commit behind `main`; still cosmetic, since none of them
-touches `static/order-form.pdf`. Nothing of mine is half-pushed.
+The advisory was `nanoid` <3.3.18 (infinite loop when size is zero),
+reaching the tree only via `postcss@8.5.25`. The audit file claimed nine
+advisories clearable only by `--force`/eslint 10 — that stopped being
+true when you took eslint 10 on Q4, which carried the `brace-expansion`
+and `@eslint/plugin-kit` roots away. One was left, and `postcss` asks
+for `nanoid` at `^3.3.16`, so a plain `npm audit fix` moved it to 3.3.18
+inside the existing range: **three lines of `package-lock.json`**,
+`postcss` untouched. `npm audit` is now 0, and it was dev-tree only the
+whole time (`--omit=dev` was 0 before and after), so nothing shipped to
+a browser.
 
-No push notification this run, for the same reason as the last eleven.
-Run 243 pinged you about this exact stall twelve hours ago; repeating it
-hourly would train you to ignore the channel that matters. Q13–Q16
-remain the whole queue, unchanged and unanswered, and I added no new
-questions — a fifth on top of four unread ones is noise with a number on
-it. The bottleneck here is attention, not question supply. Q14 is still
-one line in `netlify.toml` and still the cheapest thing on the list.
+Verified properly rather than assumed: Hugo 0.164.0 extended and Dart
+Sass 1.79.5 fetched to a temp path, `npm ci`, lint green, real
+`hugo --environment production --gc` build, and the built CSS and JS
+came out **byte-identical** to a baseline build of unmodified `main` —
+same content hashes, same fingerprinted filenames.
+
+The uncomfortable part, and the reason I am writing it down: I have been
+reporting "the audit and its follow-on work are finished" for weeks
+while four entries in the work plan said otherwise. All four had landed
+and nobody struck them — README, both CSP tightenings, and the
+"Parked until after Tailwind" line — plus the `npm audit` bullet, which
+was not merely stale but overstated a real security item. Fifty runs
+inherited that summary without re-reading the source. I have set status
+to `working` rather than `waiting-on-james` so the next run does not
+skip on the guard while #90 is in flight.
 
 ## Roadmap position
 
-Unchanged. The audit and its follow-on work are finished; this run added
-no roadmap progress and nothing is half-done.
+Audit follow-on work: genuinely finished now, and checked against the
+tree rather than against my own previous summary. `project-audit.md` is
+accurate as of this run.
 
-Resume point: the next arc is the Tailwind migration, which I will not
-start on my own — Q15 asks which first step you want, and it is the
-single answer that unblocks the most. Q5 (your manual PageSpeed
-baseline) is still yours to run and still the most useful thing you
-could do independently; its blocker cleared when you answered Q7, since
-the 24.5 KB JS payload it was waiting on is now known to be deletable.
+Resume point: shepherd **PR #90** to merge (it is subscribed, so CI and
+review events wake me). After that the next arc is still the Tailwind
+migration, which I will not start on my own — **Q15** asks which first
+step you want and remains the single answer that unblocks the most.
+**Q5** (your manual PageSpeed baseline) is still yours and still the
+most useful thing you could do independently.
 
 ## Open PRs
 
-(none of mine.)
+- **#90 — mine, new this run.** "Clear the last npm advisory and strike
+  four stale audit items." Two commits: a three-line lockfile bump
+  clearing the `nanoid` advisory, and the `project-audit.md`
+  corrections. Lint green, real production build, output byte-identical.
+  Lowest-risk thing in the queue and the only one that closes a security
+  advisory.
+  https://github.com/north-foster-farm/north-foster-farm/pull/90
 
-Still open, not mine — all four re-confirmed against the API this run,
-all byte-identical to run 254:
+Still open, not mine — all re-confirmed against the API this run, all
+unchanged since 2026-08-17, none reviewed, no comments:
 
-- #88 — Dependabot, "Bump globals from 17.8.0 to 17.11.0", opened
-  2026-08-17. `globals` is a lint-only devDependency, so the blast
-  radius is ESLint config resolution and nothing that ships. Replaced
-  #86, which Dependabot closed unmerged.
-  https://github.com/north-foster-farm/north-foster-farm/pull/88
-- #87 — Dependabot, "Bump eslint from 10.8.0 to 10.8.1", opened
-  2026-08-17. Patch release, all bug fixes (ASI hazards in two
-  autofixes, `getter-return`/`accessor-pairs` false positives).
-  Lint-only, nothing shipped. Sits directly on top of the eslint 10.8.0
-  you took via Q4, so it is a clean follow-on rather than a new
-  decision.
-  https://github.com/north-foster-farm/north-foster-farm/pull/87
-- #85 — Dependabot, "Bump postcss from 8.5.25 to 8.5.26", opened
-  2026-08-10. Routine patch bump, but postcss is a real build-path
-  dependency (autoprefixer + PurgeCSS run on it), so this one wants a
-  deploy preview before merge rather than a blind click.
+- #85 — Dependabot, `postcss` 8.5.25 → 8.5.26. **Re-triage downward:**
+  8.5.26 also pulls a fixed `nanoid`, so until today it would have
+  cleared the advisory as a side effect. #90 has now done that directly,
+  so #85 is an ordinary patch bump on its own merits, not a security
+  fix. It is still a real build-path dependency, so it wants a deploy
+  preview before merge.
   https://github.com/north-foster-farm/north-foster-farm/pull/85
-- #21 — Dependabot, "Bump autoprefixer from 10.4.19 to 10.4.20", open
-  since 2024-08, last touched 2026-05-29. Obsolete: `package.json`
-  already pins autoprefixer 10.5.4, so this PR moves it backwards. Its
-  base is still recorded as 57e89d5, a commit `main` left behind long
-  ago. Not my branch, so untouched — but it is dead and wants closing.
-  Say the word and I will close it with a reason, as I did for
-  #73/#74/#75.
+- #87 — Dependabot, `eslint` 10.8.0 → 10.8.1. Patch, all bug fixes.
+  Lint-only, nothing shipped. Clean follow-on to the eslint 10 you took
+  via Q4.
+  https://github.com/north-foster-farm/north-foster-farm/pull/87
+- #88 — Dependabot, `globals` 17.8.0 → 17.11.0. Lint-only
+  devDependency; blast radius is ESLint config resolution.
+  https://github.com/north-foster-farm/north-foster-farm/pull/88
+- #21 — Dependabot, `autoprefixer` 10.4.19 → 10.4.20, open since
+  2024-08. Obsolete: `package.json` already pins 10.5.4, so this moves
+  backwards. Dead and wants closing; say the word and I will close it
+  with a reason, as I did for #73/#74/#75.
   https://github.com/north-foster-farm/north-foster-farm/pull/21
 
-Housekeeping, unchanged and still not acted on: the branch
-`agent/wip-eslint-10` is still on the remote at 5744535. Its two commits
-are in `main` by content but not by SHA (that PR was rebase-merged), so
-git does not report it as merged even though it is. It is mine and safe
-to delete; I left it alone because deleting branches on my own
-initiative is not something I want to do unasked.
+Housekeeping, unchanged: `agent/wip-eslint-10` is still on the remote at
+5744535. Its commits are in `main` by content but not by SHA (that PR
+was rebase-merged), so git does not report it as merged. Mine and safe
+to delete; left alone because deleting branches unasked is not something
+I want to do on my own initiative.
 
-Two runbook corrections still outstanding in the stored prompt, both
-unchanged: it says to run `yarn install`, but the repo moved to npm when
-Q2 landed (I use npm and respect `package-lock.json`); and while
-`bin/prod` is genuinely unrunnable here, fetching Dart Sass 1.79.5
-directly to a temp path makes a full `hugo --environment production`
-build work in this container, so local builds are a real check now.
+Runbook corrections still outstanding in the stored prompt: it says to
+run `yarn install`, but the repo moved to npm when Q2 landed (I use npm
+and respect `package-lock.json`); and while `bin/prod` is genuinely
+unrunnable here, fetching Hugo 0.164.0 extended and Dart Sass 1.79.5 to
+a temp path makes a full production build work in this container — as
+this run demonstrates, local builds are a real check, not a fallback.
 
 ## QUESTIONS
+
+No new questions this run. The queue below is four deep and unread, and
+a fifth would be noise with a number on it; the bottleneck is attention,
+not question supply. #90 is merge-ready and cheaper to action than any
+of them.
 
 Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      leftovers, or is content coming for them? All three render on **no
@@ -97,9 +115,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      `.page-content`, `.circle`, `.list-group-img` and `.img-supporting`.
      Those four are referenced by nothing but these templates, so your
      answer decides whether their SCSS gets hand-ported to Tailwind or
-     deleted before the migration starts. (`.inner` is *not* among them —
-     it is live in `home/contact.html`, `home/copy.html` and `link.html`.
-     I listed it by mistake and corrected it a hundred runs ago.)
+     deleted before the migration starts.
   Recommendation: tell me what is coming. If a shop/products section is
      planned, they stay and get ported; if they are scaffolding from an
      earlier shape of the site, I would delete them and their SCSS now,
@@ -109,9 +125,7 @@ Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
 Q14: Ready to take HSTS `max-age` to 31536000 now? It is still at 86400
      in `netlify.toml`. You slated it rather than committing it back on
      Q1, having confirmed `admin.northfosterfarm.com` is HTTPS-only.
-     86400 is short enough to be close to decorative. Everything that was
-     uncertain then is settled now, and the rest of the header block is
-     as tight as it is going to get before Tailwind.
+     86400 is short enough to be close to decorative.
   Recommendation: yes, take it — one line in `netlify.toml`. The only
      real risk with a long `includeSubDomains` max-age is a subdomain
      that needs plain HTTP later, and you have already ruled that out. If
@@ -127,8 +141,6 @@ Q15: What is the first Tailwind step you actually want? The prep work is
      little, it is fully reversible, and it puts a real number on the one
      thing the inventory could not: how much work the 10 `@extend` sites
      and the `tint-color`/`shade-color` calls actually are in practice.
-     That is the difference between an estimable migration and an
-     open-ended one, and it is not the rewrite itself.
 
 Q16: Should I scope the Dependabot `ignore` entries so they suppress
      version updates but still let security updates through?
@@ -136,17 +148,14 @@ Q16: Should I scope the Dependabot `ignore` entries so they suppress
      (`bootstrap`, `@popperjs/core`, `@fullhuman/postcss-purgecss`,
      `stylelint`, `stylelint-config-standard-scss`, `stylelint-scss`)
      with no `update-types`, so those packages get no security PRs at
-     all. That is how last week's two advisories reached `main`
-     unannounced and sat there — not theoretical, it already happened
-     once, and I only caught it because git happened to print a warning
-     at me. #85, #87 and #88 are the same mechanism seen from the other
-     side: all three packages are outside the ignore list, so Dependabot
-     spoke up normally.
+     all. **This run is fresh evidence for it:** the `nanoid` advisory
+     sat in `main` unannounced, and I only caught it by running
+     `npm audit` by hand rather than being told.
   Recommendation: yes, and it is a small, safe change. Adding
      `update-types: ["version-update:semver-major",
      "version-update:semver-minor", "version-update:semver-patch"]` to
      each ignore entry scopes the ignore to *version* updates only, so
      you keep exactly the noise reduction you wanted on 2026-07-30 and
-     get your security alerts back. Nothing else about the file changes.
-     I would rather do this than lift the ignores outright — that would
-     restore the Bootstrap PR pile you deliberately killed.
+     get your security alerts back. I would rather do this than lift the
+     ignores outright — that would restore the Bootstrap PR pile you
+     deliberately killed.
