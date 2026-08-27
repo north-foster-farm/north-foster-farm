@@ -1,10 +1,13 @@
 facebook:
   type: "facebook"
+  label: "North Foster Farm on Facebook"
   url: "https://facebook.com/#"
   hide: true
 instagram:
   type: "instagram"
+  label: "North Foster Farm on Instagram"
   url: "https://instagram.com/northfosterfarm"
 email:
   type: "email"
+  label: "Email North Foster Farm"
   url: "mailto:sales@northfosterfarm.com"
