@@ -1,4 +1,3 @@
-LEASE: 2026-08-27T13:35:24Z run-257
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,103 +5,120 @@ status: working
 
 ## Last run
 
-2026-08-27T12:52Z — Run 256, and the first one in fifty with something
-to show. The new-input guard fired as usual (INBOX still `sequence: 5`),
-but before releasing the lease I spot-checked one unstruck bullet in
-`project-audit.md` instead of trusting my own "everything is finished"
-summary. That check found the ledger had been wrong: `npm audit` on
-`main` was reporting a live high-severity advisory, and the audit file
-was describing a stale, worse version of the problem. Fixed both, opened
-**PR #90**, and left it watched.
+2026-08-27T13:35Z — Run 257. INBOX is still `sequence: 5`, but status
+was `working` rather than `waiting-on-james`, so the guard did not fire
+and I went looking for work instead of exiting. **PR #90 is unchanged
+and still green** — head `5894d48`, `mergeable_state: clean`, the only
+comment on it is Netlify's bot. Nothing for me to push there; it still
+wants your merge click.
 
-The advisory was `nanoid` <3.3.18 (infinite loop when size is zero),
-reaching the tree only via `postcss@8.5.25`. The audit file claimed nine
-advisories clearable only by `--force`/eslint 10 — that stopped being
-true when you took eslint 10 on Q4, which carried the `brace-expansion`
-and `@eslint/plugin-kit` roots away. One was left, and `postcss` asks
-for `nanoid` at `^3.3.16`, so a plain `npm audit fix` moved it to 3.3.18
-inside the existing range: **three lines of `package-lock.json`**,
-`postcss` untouched. `npm audit` is now 0, and it was dev-tree only the
-whole time (`--omit=dev` was 0 before and after), so nothing shipped to
-a browser.
+With the queue blocked I went back to `project-audit.md` and found one
+unstruck item whose precondition had quietly cleared: **A4's Lighthouse
+baseline**, gated on the dead-`Collapse` decision because the JS payload
+it measures was about to change. Q7 answered that and it landed in
+`7074887`, so the gate has been open and nobody noticed. I ran it.
 
-Verified properly rather than assumed: Hugo 0.164.0 extended and Dart
-Sass 1.79.5 fetched to a temp path, `npm ci`, lint green, real
-`hugo --environment production --gc` build, and the built CSS and JS
-came out **byte-identical** to a baseline build of unmodified `main` —
-same content hashes, same fingerprinted filenames.
+Running it turned up two real accessibility defects, both mechanical,
+both fixed in **PR #91**:
 
-The uncomfortable part, and the reason I am writing it down: I have been
-reporting "the audit and its follow-on work are finished" for weeks
-while four entries in the work plan said otherwise. All four had landed
-and nobody struck them — README, both CSP tightenings, and the
-"Parked until after Tailwind" line — plus the `npm audit` bullet, which
-was not merely stale but overstated a real security item. Fifty runs
-inherited that summary without re-reading the source. I have set status
-to `working` rather than `waiting-on-james` so the next run does not
-skip on the guard while #90 is in flight.
+- `baseof.html:2` hardcoded `lang="en_US"`. BCP 47 wants a hyphen, so
+  that is not a valid language tag at all — assistive tech could not
+  resolve the page language on **any** page. Now derived from
+  `site.Language.LanguageCode`, which reads the `locale = "en-us"`
+  already in the config, so it cannot drift again.
+- The social-media partial wraps an inline SVG in a bare anchor, so the
+  links have no accessible name. It renders twice per page, header and
+  footer: **four unnamed links in the tab order on every page**. Added a
+  `label` to `data/socialMedia.yaml` and applied it as `aria-label`.
+  No visual change.
 
-**12:59Z update — #90 is green and mergeable.** Netlify's deploy
-preview built and passed (`deploy/netlify` success), `mergeable_state`
-is `clean`, no review comments. That preview is the stronger check of
-the two: it runs `npm run deploy && hugo --gc`, so `bin/prod` executed
-the lockfile change on the real Netlify build image, which is the one
-path I cannot exercise here. Preview:
-https://deploy-preview-90--north-foster-farm.netlify.app — it should
-look identical to production, since the build output is byte-identical.
-Nothing left for me to push; it wants your merge click. I will not
-merge it myself.
+Accessibility went **91 → 100**, with no failed audits left in that
+category. Verified the same way as last run: lint green, real
+`hugo --environment production --gc` at the pinned versions, built CSS
+and JS **byte-identical** to `main`, and the only differences anywhere
+in the build output are the `lang` attribute and the four `aria-label`s
+across four HTML pages. Netlify's deploy preview on #91 is already
+green.
+
+**The thing you will actually care about**, and the reason I am not
+burying it: the home page is **7.26 MB**, and `/images/chickens.jpg` is
+**6.6 MB of that — 91% of the page**. It is a 2923x1692 baseline JPEG
+still carrying its iPhone 13 Pro Max EXIF block, used as the hero
+background. Because it sits in `static/` instead of `assets/` it
+bypasses Hugo's image pipeline completely — no resize, no WebP, none of
+the `[imaging]` quality settings apply. Every other image on the site is
+Hugo-processed and lands between 169 KB and 222 KB. It is the mobile LCP
+cost, and it is worth far more than the entire Tailwind migration is to
+that number. It is design-shaped, so it is **Q17** below rather than
+something I fixed on my own judgement.
+
+For scale, and it is a useful corrective to how the migration is being
+sized: the CSS and JS that Tailwind actually touches are **26 KB of that
+7.26 MB page**, a third of a percent. The script is down to 2.31 KB from
+the 24.5 KB gzipped the inventory measured, so Q7 did exactly what it
+was meant to.
+
+Baseline recorded in a new `docs/perf-baseline.md` rather than in
+`project-audit.md`, deliberately: #90 is still in flight and edits that
+file, and I did not want a conflict between my own two PRs.
+
+One thing I checked and it was fine, recorded so a later run does not
+re-flag it: `layouts/partials/header/menu.html` and
+`layouts/partials/footer/menu.html` both still exist after Q7's
+deletions. Neither is dead — the header one renders the logo and the
+social row, and the footer one really does emit the privacy and
+accessibility links. Not a leftover.
 
 ## Roadmap position
 
-Audit follow-on work: genuinely finished now, and checked against the
-tree rather than against my own previous summary. `project-audit.md` is
-accurate as of this run.
+A4's Lighthouse/PageSpeed baseline: **done**, in `docs/perf-baseline.md`
+(PR #91). That was the last unstruck A2–A4 item that did not need you.
+Everything else remaining in the audit is either blocked on a question
+below or needs the Netlify UI.
 
-Resume point: shepherd **PR #90** to merge (it is subscribed, so CI and
-review events wake me). After that the next arc is still the Tailwind
-migration, which I will not start on my own — **Q15** asks which first
-step you want and remains the single answer that unblocks the most.
-**Q5** (your manual PageSpeed baseline) is still yours and still the
-most useful thing you could do independently.
+Resume point, in order: (1) shepherd **#90** and **#91** to merge — both
+green, both subscribed, so CI and review events wake me; (2) once #90
+merges, strike the A4 bullet in `project-audit.md` and point it at
+`docs/perf-baseline.md` — deliberately left out of #91 to avoid a
+conflict between my own two PRs; (3) if Q17 comes back approved, build
+the hero-image PR behind a deploy preview so you can compare it against
+production side by side.
+
+The Tailwind migration is still the next arc and I still will not start
+it unprompted. **Q15** remains the single answer that unblocks the most.
 
 ## Open PRs
 
-- **#90 — mine, new this run. GREEN AND MERGEABLE — wants your merge.**
-  "Clear the last npm advisory and strike four stale audit items." Two
-  commits: a three-line lockfile bump clearing the `nanoid` advisory,
-  and the `project-audit.md` corrections. Lint green, byte-identical
-  build output, and Netlify's deploy preview passed on the real build
-  image. `mergeable_state: clean`, no review comments, head 5894d48.
-  Lowest-risk thing in the queue and the only one that closes a
+- **#90 — mine. GREEN AND MERGEABLE — wants your merge.** Unchanged
+  since last run. "Clear the last npm advisory and strike four stale
+  audit items." Three-line lockfile bump closing the `nanoid` advisory,
+  plus `project-audit.md` corrections. `mergeable_state: clean`, head
+  `5894d48`, no review comments. The only open item that closes a
   security advisory.
   https://github.com/north-foster-farm/north-foster-farm/pull/90
+- **#91 — mine, new this run. Deploy preview green.** "Fix two
+  accessibility defects and record the pre-Tailwind performance
+  baseline." Three commits, head `cb03946`. Accessibility 91 → 100;
+  CSS and JS byte-identical to `main`. Preview:
+  https://deploy-preview-91--north-foster-farm.netlify.app
+  https://github.com/north-foster-farm/north-foster-farm/pull/91
 
-Still open, not mine — all re-confirmed against the API this run, all
-unchanged since 2026-08-17, none reviewed, no comments:
+Still open, not mine — unchanged, none reviewed, no comments:
 
-- #85 — Dependabot, `postcss` 8.5.25 → 8.5.26. **Re-triage downward:**
-  8.5.26 also pulls a fixed `nanoid`, so until today it would have
-  cleared the advisory as a side effect. #90 has now done that directly,
-  so #85 is an ordinary patch bump on its own merits, not a security
-  fix. It is still a real build-path dependency, so it wants a deploy
-  preview before merge.
-  https://github.com/north-foster-farm/north-foster-farm/pull/85
-- #87 — Dependabot, `eslint` 10.8.0 → 10.8.1. Patch, all bug fixes.
-  Lint-only, nothing shipped. Clean follow-on to the eslint 10 you took
-  via Q4.
-  https://github.com/north-foster-farm/north-foster-farm/pull/87
+- #85 — Dependabot, `postcss` 8.5.25 → 8.5.26. Ordinary patch bump on
+  its own merits now that #90 clears the advisory directly. Real
+  build-path dependency, so it wants a deploy preview before merge.
+- #87 — Dependabot, `eslint` 10.8.0 → 10.8.1. Patch, bug fixes only,
+  lint-only. Clean follow-on to the eslint 10 you took on Q4.
 - #88 — Dependabot, `globals` 17.8.0 → 17.11.0. Lint-only
-  devDependency; blast radius is ESLint config resolution.
-  https://github.com/north-foster-farm/north-foster-farm/pull/88
+  devDependency.
 - #21 — Dependabot, `autoprefixer` 10.4.19 → 10.4.20, open since
   2024-08. Obsolete: `package.json` already pins 10.5.4, so this moves
   backwards. Dead and wants closing; say the word and I will close it
   with a reason, as I did for #73/#74/#75.
-  https://github.com/north-foster-farm/north-foster-farm/pull/21
 
 Housekeeping, unchanged: `agent/wip-eslint-10` is still on the remote at
-5744535. Its commits are in `main` by content but not by SHA (that PR
+`5744535`. Its commits are in `main` by content but not by SHA (that PR
 was rebase-merged), so git does not report it as merged. Mine and safe
 to delete; left alone because deleting branches unasked is not something
 I want to do on my own initiative.
@@ -111,15 +127,12 @@ Runbook corrections still outstanding in the stored prompt: it says to
 run `yarn install`, but the repo moved to npm when Q2 landed (I use npm
 and respect `package-lock.json`); and while `bin/prod` is genuinely
 unrunnable here, fetching Hugo 0.164.0 extended and Dart Sass 1.79.5 to
-a temp path makes a full production build work in this container — as
-this run demonstrates, local builds are a real check, not a fallback.
+a temp path makes a full production build work in this container. This
+run adds a third: **Lighthouse runs here too**, against a local
+production build using the pre-installed Chromium, so the A4 baseline
+never actually needed the PageSpeed API that rate-limited you on Q5.
 
 ## QUESTIONS
-
-No new questions this run. The queue below is four deep and unread, and
-a fifth would be noise with a number on it; the bottleneck is attention,
-not question supply. #90 is merge-ready and cheaper to action than any
-of them.
 
 Q13: Are `layouts/_default/single.html`, `section.html` and `list.html`
      leftovers, or is content coming for them? All three render on **no
@@ -155,6 +168,10 @@ Q15: What is the first Tailwind step you actually want? The prep work is
      little, it is fully reversible, and it puts a real number on the one
      thing the inventory could not: how much work the 10 `@extend` sites
      and the `tint-color`/`shade-color` calls actually are in practice.
+     Worth knowing before you answer: this run measured the CSS and JS
+     the migration touches at 26 KB of a 7.26 MB page. Whatever else the
+     migration is worth, it is not a performance win — Q17 is where the
+     performance is.
 
 Q16: Should I scope the Dependabot `ignore` entries so they suppress
      version updates but still let security updates through?
@@ -162,9 +179,8 @@ Q16: Should I scope the Dependabot `ignore` entries so they suppress
      (`bootstrap`, `@popperjs/core`, `@fullhuman/postcss-purgecss`,
      `stylelint`, `stylelint-config-standard-scss`, `stylelint-scss`)
      with no `update-types`, so those packages get no security PRs at
-     all. **This run is fresh evidence for it:** the `nanoid` advisory
-     sat in `main` unannounced, and I only caught it by running
-     `npm audit` by hand rather than being told.
+     all. The `nanoid` advisory that #90 clears sat in `main` unannounced
+     and was only caught by running `npm audit` by hand.
   Recommendation: yes, and it is a small, safe change. Adding
      `update-types: ["version-update:semver-major",
      "version-update:semver-minor", "version-update:semver-patch"]` to
@@ -173,3 +189,27 @@ Q16: Should I scope the Dependabot `ignore` entries so they suppress
      get your security alerts back. I would rather do this than lift the
      ignores outright — that would restore the Bootstrap PR pile you
      deliberately killed.
+
+Q17: The hero image is 6.6 MB. How do you want it cut?
+     `static/images/chickens.jpg` is 2923x1692, 6.6 MB, still carrying
+     its iPhone EXIF block, and it is **91% of a 7.26 MB home page**. It
+     is the mobile LCP cost. This is design-shaped — it changes how the
+     hero looks and I cannot see the rendered site — so I want your eye
+     on it rather than my judgement.
+  Recommendation: leave it in `static/` and just replace the file with a
+     2048px-wide WebP at quality 82, changing the one `bg-cover` argument
+     in `assets/styles/components/_home.scss:11` from `.jpg` to `.webp`.
+     Expect roughly 150–250 KB — a ~97% cut — for a background that is
+     scaled with `background-size: cover` and sits under a 65% grey
+     overlay, so the quality loss should be invisible in place. I would
+     build it behind a deploy preview and let you compare against
+     production before it goes anywhere near main.
+     Why not the tidier-looking option: moving the file into `assets/`
+     to get Hugo's pipeline and responsive variants sounds better, but
+     SCSS cannot call Hugo's image processing, so the fingerprinted URL
+     has to reach the stylesheet from a template — and `style-src 'self'`
+     now forbids the inline `<style>` route that would normally carry it.
+     That means emitting a separate fingerprinted CSS file just for one
+     background rule. Real work, and it buys nothing the file swap does
+     not, so I would only do it if you want true responsive `image-set`
+     variants. Say "assets" if you do.
