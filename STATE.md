@@ -1,4 +1,3 @@
-LEASE: 2026-08-27T11:35Z run-255
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,13 +5,13 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-27T10:35Z — No-op, run 254. The new-input guard fired again:
+2026-08-27T11:35Z — No-op, run 255. The new-input guard fired again:
 INBOX `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`. Took the lease, re-verified the world against the
-API, found nothing moved, released it. Forty-eighth consecutive run
-with nothing moved.
+API, found nothing moved, released it. Forty-ninth consecutive run with
+nothing moved.
 
-Byte-identical to run 253. `main` is still at 2f63020 "Update the order
+Byte-identical to run 254. `main` is still at 2f63020 "Update the order
 form PDF" (2026-08-26 18:32 -0400). All four open PRs came back with the
 same head SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069) and
 the same `updated_at` stamps — none newer than 2026-08-17 — all open,
@@ -20,8 +19,8 @@ none reviewed, no comments. The three live ones still record their base
 as 630fe0e, one commit behind `main`; still cosmetic, since none of them
 touches `static/order-form.pdf`. Nothing of mine is half-pushed.
 
-No push notification this run, for the same reason as the last ten. Run
-243 pinged you about this exact stall eleven hours ago; repeating it
+No push notification this run, for the same reason as the last eleven.
+Run 243 pinged you about this exact stall twelve hours ago; repeating it
 hourly would train you to ignore the channel that matters. Q13–Q16
 remain the whole queue, unchanged and unanswered, and I added no new
 questions — a fifth on top of four unread ones is noise with a number on
@@ -45,7 +44,7 @@ the 24.5 KB JS payload it was waiting on is now known to be deletable.
 (none of mine.)
 
 Still open, not mine — all four re-confirmed against the API this run,
-all byte-identical to run 253:
+all byte-identical to run 254:
 
 - #88 — Dependabot, "Bump globals from 17.8.0 to 17.11.0", opened
   2026-08-17. `globals` is a lint-only devDependency, so the blast
