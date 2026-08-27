@@ -1,4 +1,3 @@
-LEASE: 2026-08-27T01:34:53Z run-245
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,58 +5,59 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-27T00:35Z — No-op, run 244. The new-input guard fired: INBOX
-`sequence:` is still 5 against `inbox-processed: 5` with status
-`waiting-on-james`, so I acquired the lease, re-verified the world, and
-released it without moving roadmap work. Thirty-eighth consecutive run
-with nothing moved.
+2026-08-27T01:34Z — No-op, run 245. The new-input guard fired again:
+INBOX `sequence:` is still 5 against `inbox-processed: 5` with status
+`waiting-on-james`. I took the lease, re-verified the world, found
+nothing moved, and released it. Thirty-ninth consecutive run with
+nothing moved.
 
-Nothing at all changed in the hour since run 243. `main` is still at
-2f63020 "Update the order form PDF" — the commit you pushed at 22:32Z
-yesterday, which run 243 already recorded, so it is no longer news. The
-four open PRs came back byte-identical for the second run running: same
-head SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069), same
-`updated_at` stamps, all open, none reviewed, no comments. The three live
-ones still record their base as 630fe0e, one commit behind `main`; still
-cosmetic, since none of them touches `static/order-form.pdf`. The remote
-branch list is unchanged at seven. Nothing of mine is half-pushed.
+The world is byte-identical to run 244 for the third run running.
+`main` is still at 2f63020 "Update the order form PDF". All four open
+PRs came back with the same head SHAs (#88 5efec4f, #87 f9224db, #85
+2c98d68, #21 3a2a069) and the same `updated_at` stamps — none newer
+than 2026-08-17 — all open, none reviewed, no comments. The three live
+ones still record their base as 630fe0e, one commit behind `main`;
+still cosmetic, since none of them touches `static/order-form.pdf`.
+The remote branch list is unchanged at seven. Nothing of mine is
+half-pushed.
 
-I did not send a push notification this run. Run 243 sent one an hour ago
-about exactly this stall, and nothing has happened since that would make a
-second ping anything but noise. Q13–Q16 remain the whole queue, unchanged
-and unanswered; I added no new questions, because a fifth question on a
-queue of four unread ones does not help you. Q14 is still one line in
-`netlify.toml` and still the cheapest thing on the list.
+No push notification this run. Run 243 pinged you about this exact
+stall two hours ago; a third ping saying the same thing would be noise
+rather than news. Q13–Q16 remain the whole queue, unchanged and
+unanswered, and I added no new questions — a fifth on a queue of four
+unread ones does not help you. Q14 is still one line in `netlify.toml`
+and still the cheapest thing on the list.
 
 ## Roadmap position
 
-Unchanged. The audit and its follow-on work are finished; this run added
-no roadmap progress and nothing is half-done.
+Unchanged. The audit and its follow-on work are finished; this run
+added no roadmap progress and nothing is half-done.
 
 Resume point: the next arc is the Tailwind migration, which I will not
 start on my own — Q15 asks which first step you want, and it is the
-single answer that unblocks the most. Q5 (your manual PageSpeed baseline)
-is still yours to run and still the most useful thing you could do
-independently; its blocker cleared when you answered Q7, since the
-24.5 KB JS payload it was waiting on is now known to be deletable.
+single answer that unblocks the most. Q5 (your manual PageSpeed
+baseline) is still yours to run and still the most useful thing you
+could do independently; its blocker cleared when you answered Q7, since
+the 24.5 KB JS payload it was waiting on is now known to be deletable.
 
 ## Open PRs
 
 (none of mine.)
 
 Still open, not mine — all four re-confirmed against the API this run,
-all byte-identical to run 243:
+all byte-identical to run 244:
 
 - #88 — Dependabot, "Bump globals from 17.8.0 to 17.11.0", opened
-  2026-08-17. `globals` is a lint-only devDependency, so the blast radius
-  is ESLint config resolution and nothing that ships. Replaced #86, which
-  Dependabot closed unmerged.
+  2026-08-17. `globals` is a lint-only devDependency, so the blast
+  radius is ESLint config resolution and nothing that ships. Replaced
+  #86, which Dependabot closed unmerged.
   https://github.com/north-foster-farm/north-foster-farm/pull/88
 - #87 — Dependabot, "Bump eslint from 10.8.0 to 10.8.1", opened
-  2026-08-17. Patch release, all bug fixes (ASI hazards in two autofixes,
-  `getter-return`/`accessor-pairs` false positives). Lint-only, nothing
-  shipped. Sits directly on top of the eslint 10.8.0 you took via Q4, so
-  it is a clean follow-on rather than a new decision.
+  2026-08-17. Patch release, all bug fixes (ASI hazards in two
+  autofixes, `getter-return`/`accessor-pairs` false positives).
+  Lint-only, nothing shipped. Sits directly on top of the eslint 10.8.0
+  you took via Q4, so it is a clean follow-on rather than a new
+  decision.
   https://github.com/north-foster-farm/north-foster-farm/pull/87
 - #85 — Dependabot, "Bump postcss from 8.5.25 to 8.5.26", opened
   2026-08-10. Routine patch bump, but postcss is a real build-path
@@ -74,15 +74,15 @@ all byte-identical to run 243:
   https://github.com/north-foster-farm/north-foster-farm/pull/21
 
 Housekeeping, unchanged and still not acted on: the branch
-`agent/wip-eslint-10` is still on the remote at 5744535. Its two commits
-are in `main` by content but not by SHA (that PR was rebase-merged), so
-git does not report it as merged even though it is. It is mine and safe
-to delete; I left it alone because deleting branches on my own initiative
-is not something I want to do unasked.
+`agent/wip-eslint-10` is still on the remote at 5744535. Its two
+commits are in `main` by content but not by SHA (that PR was
+rebase-merged), so git does not report it as merged even though it is.
+It is mine and safe to delete; I left it alone because deleting
+branches on my own initiative is not something I want to do unasked.
 
 Two runbook corrections still outstanding in the stored prompt, both
-unchanged: it says to run `yarn install`, but the repo moved to npm when
-Q2 landed (I use npm and respect `package-lock.json`); and while
+unchanged: it says to run `yarn install`, but the repo moved to npm
+when Q2 landed (I use npm and respect `package-lock.json`); and while
 `bin/prod` is genuinely unrunnable here, fetching Dart Sass 1.79.5
 directly to a temp path makes a full `hugo --environment production`
 build work in this container, so local builds are a real check now.
