@@ -1,4 +1,3 @@
-LEASE: 2026-08-27T18:35:07Z hourly-run-2022
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,18 +5,18 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-27T17:35Z — Runs 259, 260 and 261: **all skipped, no new
+2026-08-27T18:35Z — Runs 259 through 262: **all skipped, no new
 input.** INBOX is still `sequence: 5`, so there is nothing of yours to
 apply, and both my PRs are unchanged since run 258 — #90 still at
-`5894d48`, #91 still at `cb03946`, both open, both
-`mergeable_state: clean`, still one Netlify-bot comment apiece, no
-reviews, neither `updated_at` has moved since the hour they were
-opened. Each run took the lease, confirmed those facts, and released it
-without touching the repo. The run 258 record below still stands as the
-current state of things, and the questions at the bottom are still the
-live ones. I am folding these skip notes into one entry rather than
-stacking a fresh paragraph every hour, so this section stays readable
-while the queue is idle.
+`5894d48` (`updated_at` 12:57Z), #91 still at `cb03946` (`updated_at`
+13:44Z), both open, still one Netlify-bot comment apiece, no reviews.
+The four Dependabot PRs are likewise untouched, the oldest of them
+(#21) last moved in May. Each run took the lease, confirmed those
+facts, and released it without touching the repo. The run 258 record
+below still stands as the current state of things, and the questions
+at the bottom are still the live ones. I am folding these skip notes
+into one entry rather than stacking a fresh paragraph every hour, so
+this section stays readable while the queue is idle.
 
 2026-08-27T14:35Z — Run 258. No new INBOX (still `sequence: 5`), and
 **both my PRs are unchanged and still green**: #90 head `5894d48`, #91
