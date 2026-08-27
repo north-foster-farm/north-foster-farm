@@ -1,4 +1,3 @@
-LEASE: 2026-08-27T06:35:35Z run-250
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,32 +5,32 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-27T05:35Z — No-op, run 249. The new-input guard fired again:
-INBOX `sequence:` is still 5 against `inbox-processed: 5` with status
+2026-08-27T06:35Z — No-op, run 250. The new-input guard fired: INBOX
+`sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`. Took the lease, re-verified the world, found nothing
-moved, released it. Forty-third consecutive run with nothing moved.
+moved, released it. Forty-fourth consecutive run with nothing moved.
 
-The world is byte-identical to run 248. `main` is still at 2f63020
-"Update the order form PDF". All four open PRs came back with the same
-head SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069) and the
-same `updated_at` stamps — none newer than 2026-08-17 — all open, none
-reviewed, no comments. The three live ones still record their base as
-630fe0e, one commit behind `main`; still cosmetic, since none of them
-touches `static/order-form.pdf`. The remote branch list is unchanged at
-seven. Nothing of mine is half-pushed.
+The world is byte-identical to run 249. `main` is still at 2f63020
+"Update the order form PDF" (2026-08-26 18:32 -0400). All four open PRs
+came back with the same head SHAs (#88 5efec4f, #87 f9224db, #85
+2c98d68, #21 3a2a069) and the same `updated_at` stamps — none newer than
+2026-08-17 — all open, none reviewed, no comments. The three live ones
+still record their base as 630fe0e, one commit behind `main`; still
+cosmetic, since none of them touches `static/order-form.pdf`. The remote
+branch list is unchanged at seven. Nothing of mine is half-pushed.
 
-No push notification this run, for the same reason as the last five.
-Run 243 pinged you about this exact stall six hours ago; repeating it
+No push notification this run, for the same reason as the last six. Run
+243 pinged you about this exact stall seven hours ago; repeating it
 hourly would train you to ignore the channel that matters. Q13–Q16
 remain the whole queue, unchanged and unanswered, and I added no new
-questions — piling a fifth onto four unread ones is not pipeline
-filling, it is noise with a number on it. Q14 is still one line in
-`netlify.toml` and still the cheapest thing on the list.
+questions — a fifth on top of four unread ones is noise with a number on
+it. Q14 is still one line in `netlify.toml` and still the cheapest thing
+on the list.
 
 ## Roadmap position
 
-Unchanged. The audit and its follow-on work are finished; this run
-added no roadmap progress and nothing is half-done.
+Unchanged. The audit and its follow-on work are finished; this run added
+no roadmap progress and nothing is half-done.
 
 Resume point: the next arc is the Tailwind migration, which I will not
 start on my own — Q15 asks which first step you want, and it is the
@@ -45,7 +44,7 @@ the 24.5 KB JS payload it was waiting on is now known to be deletable.
 (none of mine.)
 
 Still open, not mine — all four re-confirmed against the API this run,
-all byte-identical to run 248:
+all byte-identical to run 249:
 
 - #88 — Dependabot, "Bump globals from 17.8.0 to 17.11.0", opened
   2026-08-17. `globals` is a lint-only devDependency, so the blast
@@ -74,15 +73,15 @@ all byte-identical to run 248:
   https://github.com/north-foster-farm/north-foster-farm/pull/21
 
 Housekeeping, unchanged and still not acted on: the branch
-`agent/wip-eslint-10` is still on the remote at 5744535. Its two
-commits are in `main` by content but not by SHA (that PR was
-rebase-merged), so git does not report it as merged even though it is.
-It is mine and safe to delete; I left it alone because deleting
-branches on my own initiative is not something I want to do unasked.
+`agent/wip-eslint-10` is still on the remote at 5744535. Its two commits
+are in `main` by content but not by SHA (that PR was rebase-merged), so
+git does not report it as merged even though it is. It is mine and safe
+to delete; I left it alone because deleting branches on my own
+initiative is not something I want to do unasked.
 
 Two runbook corrections still outstanding in the stored prompt, both
-unchanged: it says to run `yarn install`, but the repo moved to npm
-when Q2 landed (I use npm and respect `package-lock.json`); and while
+unchanged: it says to run `yarn install`, but the repo moved to npm when
+Q2 landed (I use npm and respect `package-lock.json`); and while
 `bin/prod` is genuinely unrunnable here, fetching Dart Sass 1.79.5
 directly to a temp path makes a full `hugo --environment production`
 build work in this container, so local builds are a real check now.
