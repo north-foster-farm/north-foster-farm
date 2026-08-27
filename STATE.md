@@ -1,10 +1,18 @@
-LEASE: 2026-08-27T15:35:31Z run-259
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
 status: waiting-on-james
 
 ## Last run
+
+2026-08-27T15:35Z — Run 259: **skipped, no new input.** INBOX is still
+`sequence: 5`, so there is nothing of yours to apply, and both my PRs
+are unchanged since run 258 — #90 still at `5894d48`, #91 still at
+`cb03946`, both open, both `mergeable_state: clean`, still one
+Netlify-bot comment apiece and no reviews. I took the lease, confirmed
+those four facts, and released it without touching the repo. The run
+258 record below still stands as the current state of things, and the
+questions at the bottom are still the live ones.
 
 2026-08-27T14:35Z — Run 258. No new INBOX (still `sequence: 5`), and
 **both my PRs are unchanged and still green**: #90 head `5894d48`, #91
