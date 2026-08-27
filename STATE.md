@@ -1,4 +1,3 @@
-LEASE: 2026-08-27T07:35:56Z run-251
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,12 +5,13 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-27T06:35Z — No-op, run 250. The new-input guard fired: INBOX
+2026-08-27T07:35Z — No-op, run 251. The new-input guard fired: INBOX
 `sequence:` is still 5 against `inbox-processed: 5` with status
-`waiting-on-james`. Took the lease, re-verified the world, found nothing
-moved, released it. Forty-fourth consecutive run with nothing moved.
+`waiting-on-james`. Took the lease, re-verified the world against the
+API, found nothing moved, released it. Forty-fifth consecutive run with
+nothing moved.
 
-The world is byte-identical to run 249. `main` is still at 2f63020
+The world is byte-identical to run 250. `main` is still at 2f63020
 "Update the order form PDF" (2026-08-26 18:32 -0400). All four open PRs
 came back with the same head SHAs (#88 5efec4f, #87 f9224db, #85
 2c98d68, #21 3a2a069) and the same `updated_at` stamps — none newer than
@@ -20,13 +20,13 @@ still record their base as 630fe0e, one commit behind `main`; still
 cosmetic, since none of them touches `static/order-form.pdf`. The remote
 branch list is unchanged at seven. Nothing of mine is half-pushed.
 
-No push notification this run, for the same reason as the last six. Run
-243 pinged you about this exact stall seven hours ago; repeating it
+No push notification this run, for the same reason as the last seven.
+Run 243 pinged you about this exact stall eight hours ago; repeating it
 hourly would train you to ignore the channel that matters. Q13–Q16
 remain the whole queue, unchanged and unanswered, and I added no new
 questions — a fifth on top of four unread ones is noise with a number on
-it. Q14 is still one line in `netlify.toml` and still the cheapest thing
-on the list.
+it. The bottleneck here is attention, not question supply. Q14 is still
+one line in `netlify.toml` and still the cheapest thing on the list.
 
 ## Roadmap position
 
@@ -45,7 +45,7 @@ the 24.5 KB JS payload it was waiting on is now known to be deletable.
 (none of mine.)
 
 Still open, not mine — all four re-confirmed against the API this run,
-all byte-identical to run 249:
+all byte-identical to run 250:
 
 - #88 — Dependabot, "Bump globals from 17.8.0 to 17.11.0", opened
   2026-08-17. `globals` is a lint-only devDependency, so the blast
