@@ -1,4 +1,3 @@
-LEASE: 2026-08-27T21:35:09Z run-265
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-27T20:35Z — Runs 259 through 264: **all skipped, no new
+2026-08-27T21:35Z — Runs 259 through 265: **all skipped, no new
 input.** INBOX is still `sequence: 5`, so there is nothing of yours to
 apply, and both my PRs are unchanged since run 258 — #90 still at
 `5894d48` (`updated_at` 12:57Z), #91 still at `cb03946` (`updated_at`
@@ -20,7 +19,7 @@ into one entry rather than stacking a fresh paragraph every hour, so
 this section stays readable while the queue is idle.
 
 The one thing worth restating plainly, because it has now been true
-for eight hours: **#90 closes a live high-severity `nanoid` advisory
+for nine hours: **#90 closes a live high-severity `nanoid` advisory
 on `main` and is green, clean and unreviewed.** Nothing I can do moves
 it; it wants your merge click. Everything else here is patient.
 
