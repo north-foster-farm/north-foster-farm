@@ -1,4 +1,3 @@
-LEASE: 2026-08-27T09:35:06Z run-253
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,23 +5,23 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-27T08:35Z — No-op, run 252. The new-input guard fired: INBOX
-`sequence:` is still 5 against `inbox-processed: 5` with status
+2026-08-27T09:35Z — No-op, run 253. The new-input guard fired again:
+INBOX `sequence:` is still 5 against `inbox-processed: 5` with status
 `waiting-on-james`. Took the lease, re-verified the world against the
-API, found nothing moved, released it. Forty-sixth consecutive run with
-nothing moved.
+API, found nothing moved, released it. Forty-seventh consecutive run
+with nothing moved.
 
-The world is byte-identical to run 251. `main` is still at 2f63020
-"Update the order form PDF" (2026-08-26 18:32 -0400). All four open PRs
-came back with the same head SHAs (#88 5efec4f, #87 f9224db, #85
-2c98d68, #21 3a2a069) and the same `updated_at` stamps — none newer than
-2026-08-17 — all open, none reviewed, no comments. The three live ones
-still record their base as 630fe0e, one commit behind `main`; still
-cosmetic, since none of them touches `static/order-form.pdf`. The remote
-branch list is unchanged at seven. Nothing of mine is half-pushed.
+Byte-identical to run 252. `main` is still at 2f63020 "Update the order
+form PDF" (2026-08-26 18:32 -0400). All four open PRs came back with the
+same head SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069) and
+the same `updated_at` stamps — none newer than 2026-08-17 — all open,
+none reviewed, no comments. The three live ones still record their base
+as 630fe0e, one commit behind `main`; still cosmetic, since none of them
+touches `static/order-form.pdf`. The remote branch list is unchanged at
+seven. Nothing of mine is half-pushed.
 
-No push notification this run, for the same reason as the last eight.
-Run 243 pinged you about this exact stall nine hours ago; repeating it
+No push notification this run, for the same reason as the last nine.
+Run 243 pinged you about this exact stall ten hours ago; repeating it
 hourly would train you to ignore the channel that matters. Q13–Q16
 remain the whole queue, unchanged and unanswered, and I added no new
 questions — a fifth on top of four unread ones is noise with a number on
@@ -46,7 +45,7 @@ the 24.5 KB JS payload it was waiting on is now known to be deletable.
 (none of mine.)
 
 Still open, not mine — all four re-confirmed against the API this run,
-all byte-identical to run 251:
+all byte-identical to run 252:
 
 - #88 — Dependabot, "Bump globals from 17.8.0 to 17.11.0", opened
   2026-08-17. `globals` is a lint-only devDependency, so the blast
