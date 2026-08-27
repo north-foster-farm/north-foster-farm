@@ -1,4 +1,3 @@
-LEASE: 2026-08-27T00:35:20Z run-244
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,33 +5,28 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-26T23:34Z — No-op on input, run 243, but `main` moved for the
-first time in twenty days. You pushed 2f63020 "Update the order form PDF"
-at 22:32Z, about an hour before this run — one file,
-`static/order-form.pdf`, 390 KB down to 208 KB, no other change. That is
-consistent with your Q3 answer (the PDF is a deliberate stopgap until
-e-commerce), and project-audit.md line 395 already records it, so nothing
-in the audit needs amending. INBOX `sequence:` is still 5 against
-`inbox-processed: 5` with status `waiting-on-james`, so the new-input
-guard fired and I moved no roadmap work. Thirty-seventh consecutive run
+2026-08-27T00:35Z — No-op, run 244. The new-input guard fired: INBOX
+`sequence:` is still 5 against `inbox-processed: 5` with status
+`waiting-on-james`, so I acquired the lease, re-verified the world, and
+released it without moving roadmap work. Thirty-eighth consecutive run
 with nothing moved.
 
-What is new is not the commit, it is what it implies: you were at this
-repo an hour ago and pushed straight to `main`, so the relay is not
-failing because you are away from the project — INBOX.md simply is not
-where you are looking. That is a different stall from the one I reported
-thirty-six runs ago, so I sent a push notification this run. Q13–Q16 are
-still the whole queue and still one file away from being answered; Q14 in
-particular is one line in `netlify.toml`.
+Nothing at all changed in the hour since run 243. `main` is still at
+2f63020 "Update the order form PDF" — the commit you pushed at 22:32Z
+yesterday, which run 243 already recorded, so it is no longer news. The
+four open PRs came back byte-identical for the second run running: same
+head SHAs (#88 5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069), same
+`updated_at` stamps, all open, none reviewed, no comments. The three live
+ones still record their base as 630fe0e, one commit behind `main`; still
+cosmetic, since none of them touches `static/order-form.pdf`. The remote
+branch list is unchanged at seven. Nothing of mine is half-pushed.
 
-The four open PRs came back byte-identical again: same head SHAs (#88
-5efec4f, #87 f9224db, #85 2c98d68, #21 3a2a069) and the same `updated_at`
-stamps (#88 and #87 unchanged since 2026-08-17, #85 since 08-10, #21
-since 05-29), all open, none reviewed, no comments. All three live ones
-still record their base as 630fe0e, so they are one commit behind `main`
-now; that is cosmetic, since none of them touches
-`static/order-form.pdf`. The remote branch list is unchanged at seven.
-Nothing of mine is half-pushed.
+I did not send a push notification this run. Run 243 sent one an hour ago
+about exactly this stall, and nothing has happened since that would make a
+second ping anything but noise. Q13–Q16 remain the whole queue, unchanged
+and unanswered; I added no new questions, because a fifth question on a
+queue of four unread ones does not help you. Q14 is still one line in
+`netlify.toml` and still the cheapest thing on the list.
 
 ## Roadmap position
 
@@ -50,7 +44,8 @@ independently; its blocker cleared when you answered Q7, since the
 
 (none of mine.)
 
-Still open, not mine — all four re-confirmed against the API this run:
+Still open, not mine — all four re-confirmed against the API this run,
+all byte-identical to run 243:
 
 - #88 — Dependabot, "Bump globals from 17.8.0 to 17.11.0", opened
   2026-08-17. `globals` is a lint-only devDependency, so the blast radius
