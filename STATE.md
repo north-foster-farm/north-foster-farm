@@ -1,4 +1,3 @@
-LEASE: 2026-08-27T12:59:27Z run-256b
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -42,6 +41,17 @@ inherited that summary without re-reading the source. I have set status
 to `working` rather than `waiting-on-james` so the next run does not
 skip on the guard while #90 is in flight.
 
+**12:59Z update — #90 is green and mergeable.** Netlify's deploy
+preview built and passed (`deploy/netlify` success), `mergeable_state`
+is `clean`, no review comments. That preview is the stronger check of
+the two: it runs `npm run deploy && hugo --gc`, so `bin/prod` executed
+the lockfile change on the real Netlify build image, which is the one
+path I cannot exercise here. Preview:
+https://deploy-preview-90--north-foster-farm.netlify.app — it should
+look identical to production, since the build output is byte-identical.
+Nothing left for me to push; it wants your merge click. I will not
+merge it myself.
+
 ## Roadmap position
 
 Audit follow-on work: genuinely finished now, and checked against the
@@ -57,12 +67,14 @@ most useful thing you could do independently.
 
 ## Open PRs
 
-- **#90 — mine, new this run.** "Clear the last npm advisory and strike
-  four stale audit items." Two commits: a three-line lockfile bump
-  clearing the `nanoid` advisory, and the `project-audit.md`
-  corrections. Lint green, real production build, output byte-identical.
-  Lowest-risk thing in the queue and the only one that closes a security
-  advisory.
+- **#90 — mine, new this run. GREEN AND MERGEABLE — wants your merge.**
+  "Clear the last npm advisory and strike four stale audit items." Two
+  commits: a three-line lockfile bump clearing the `nanoid` advisory,
+  and the `project-audit.md` corrections. Lint green, byte-identical
+  build output, and Netlify's deploy preview passed on the real build
+  image. `mergeable_state: clean`, no review comments, head 5894d48.
+  Lowest-risk thing in the queue and the only one that closes a
+  security advisory.
   https://github.com/north-foster-farm/north-foster-farm/pull/90
 
 Still open, not mine — all re-confirmed against the API this run, all
