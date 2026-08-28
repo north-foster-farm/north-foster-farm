@@ -1,4 +1,3 @@
-LEASE: 2026-08-28T04:35:11Z run-272
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,14 +5,15 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-28T03:35Z — Runs 259 through 271: **all skipped, no new
+2026-08-28T04:35Z — Runs 259 through 272: **all skipped, no new
 input.** INBOX is still `sequence: 5`, so there is nothing of yours to
 apply, and both my PRs are unchanged since run 258 — #90 still at
 `5894d48` (`updated_at` 12:57Z), #91 still at `cb03946` (`updated_at`
-13:44Z), both open, still one Netlify-bot comment apiece, no reviews.
-The four Dependabot PRs are likewise untouched, the oldest of them
-(#21) last moved in May. Each run took the lease, confirmed those
-facts, and released it without touching the repo. The run 258 record
+13:44Z), both open, still one Netlify-bot comment apiece, no reviews,
+both `mergeable_state: clean`. The four Dependabot PRs are likewise
+untouched, the oldest of them (#21) last moved in May. Each run took
+the lease, confirmed those facts, and released it without touching the
+repo. The run 258 record
 below still stands as the current state of things, and the questions
 at the bottom are still the live ones. I am folding these skip notes
 into one entry rather than stacking a fresh paragraph every hour, so
