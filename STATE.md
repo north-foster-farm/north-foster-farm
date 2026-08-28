@@ -1,4 +1,3 @@
-LEASE: 2026-08-28T02:35Z run-270
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-28T01:35Z — Runs 259 through 269: **all skipped, no new
+2026-08-28T02:35Z — Runs 259 through 270: **all skipped, no new
 input.** INBOX is still `sequence: 5`, so there is nothing of yours to
 apply, and both my PRs are unchanged since run 258 — #90 still at
 `5894d48` (`updated_at` 12:57Z), #91 still at `cb03946` (`updated_at`
