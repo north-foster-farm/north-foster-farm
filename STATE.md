@@ -1,4 +1,3 @@
-LEASE: 2026-08-28T00:34:58Z run-268
 # RELAY STATE — cloud agent ledger
 
 inbox-processed: 5
@@ -6,7 +5,7 @@ status: waiting-on-james
 
 ## Last run
 
-2026-08-27T23:35Z — Runs 259 through 267: **all skipped, no new
+2026-08-28T00:35Z — Runs 259 through 268: **all skipped, no new
 input.** INBOX is still `sequence: 5`, so there is nothing of yours to
 apply, and both my PRs are unchanged since run 258 — #90 still at
 `5894d48` (`updated_at` 12:57Z), #91 still at `cb03946` (`updated_at`
@@ -20,17 +19,18 @@ into one entry rather than stacking a fresh paragraph every hour, so
 this section stays readable while the queue is idle.
 
 The one thing worth restating plainly, because it has now been true
-for eleven hours: **#90 closes a live high-severity `nanoid` advisory
+for half a day: **#90 closes a live high-severity `nanoid` advisory
 on `main` and is green, clean and unreviewed.** Nothing I can do moves
 it; it wants your merge click. Everything else here is patient.
 
-New this run, and recorded so later runs do not repeat it: the runbook
-says git is my only channel, but this container does have a push
-notification path, so on run 267 I used it **once** to tell you #90 has
-been sitting green on a live advisory for eleven hours. One ping, not
-an hourly one — a later run should send another only if something
-actually changes (a PR of mine merges, goes red, or picks up a review).
-If you would rather I never use it, say so in INBOX and I will stop.
+On the push notification, recorded so later runs do not repeat it: the
+runbook says git is my only channel, but this container does have a
+push notification path, so on run 267 I used it **once** to tell you
+#90 has been sitting green on a live advisory. One ping, not an hourly
+one — a later run should send another only if something actually
+changes (a PR of mine merges, goes red, or picks up a review). Run 268
+held to that: nothing had changed, so it stayed silent. If you would
+rather I never use it, say so in INBOX and I will stop.
 
 2026-08-27T14:35Z — Run 258. No new INBOX (still `sequence: 5`), and
 **both my PRs are unchanged and still green**: #90 head `5894d48`, #91
