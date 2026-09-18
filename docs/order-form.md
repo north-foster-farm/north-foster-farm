@@ -166,6 +166,19 @@ function) and calls `lib/jobs.mjs`, which decides in
 Sends are noted on the order under `emails`, so a repeat run sends
 nothing twice and a late run sends only the most urgent reminder.
 
+## Sign-in
+
+Magic links, no passwords. `POST /api/auth/request` mails a
+single-use link (15 minutes, three per address per 15 minutes, always
+answers 200); `GET /api/auth/verify?token=` consumes it, creates the
+customer record if needed, sets the `nff_session` cookie (HttpOnly,
+Secure, SameSite=Lax, 30 days) and redirects to a same-site `next`;
+`POST /api/auth/signout`; `GET /api/me`. Tokens are stored hashed in
+the `auth` store. State-changing posts must come from this site
+(`Sec-Fetch-Site` or `Origin`). `lib/auth.mjs` is shared with the
+CLI, which mints links and sessions to sign in as a customer. The
+page is `/login/`.
+
 ## Decisions
 
 - **Square Orders plus Invoices**, not Payment Links. Publishing an

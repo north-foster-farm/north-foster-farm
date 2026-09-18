@@ -1,0 +1,37 @@
+// Sign-in and account pages: narrow columns of cards, the same soft
+// shadow and radius as the order page.
+
+.login,
+.account {
+  .account-narrow {
+    max-width: 480px;
+    margin-inline: auto;
+  }
+
+  .account-wide {
+    max-width: 760px;
+    margin-inline: auto;
+  }
+
+  .account-card {
+    margin-bottom: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    border: 1px solid var(--bs-border-color-translucent);
+    border-radius: var(--bs-border-radius-lg);
+    background-color: var(--bs-body-bg);
+    box-shadow: var(--bs-box-shadow-sm);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .order-hp {
+    position: absolute;
+    top: auto;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+}
