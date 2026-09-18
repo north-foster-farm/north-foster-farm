@@ -14,7 +14,9 @@ import { indexCatalog } from "../../assets/scripts/order/lib/catalog.mjs";
 import { validateOrder } from "../../assets/scripts/order/lib/validate.mjs";
 import { parts } from "../../assets/scripts/order/lib/zoned.mjs";
 import { json, readJson, retry } from "./lib/http.mjs";
+import { saveOrder, touchCustomer } from "./lib/records.mjs";
 import { createOrderAndInvoice } from "./lib/square.mjs";
+import { stores as defaultStores } from "./lib/store.mjs";
 
 const index = indexCatalog(catalog);
 
@@ -52,6 +54,7 @@ export const orderId = (key, now) => {
 
 export const handle = async (req, {
   square = createOrderAndInvoice,
+  stores = defaultStores(),
   now = new Date(),
   ip = "",
   sleep,
@@ -105,8 +108,15 @@ export const handle = async (req, {
   try {
     const square_ = await retry(() => square(order, key), { sleep });
 
+    // The record is the customer's copy: their order history, the
+    // reminders and the account pages all read it. Square remains the
+    // system of record for money.
+    await saveOrder(stores, { ...order, square: square_ }, now);
+    await touchCustomer(stores, order.customer, now);
+
     console.info(JSON.stringify({
       event: "order.created", order, square: square_,
+      persistent: stores.persistent,
     }));
 
     return json(200, {

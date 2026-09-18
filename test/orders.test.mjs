@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { handle, orderId } from "../netlify/functions/orders.mjs";
+import {
+  getCustomer, getOrder, openOrders,
+} from "../netlify/functions/lib/records.mjs";
+import { testStores } from "../netlify/functions/lib/store.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 
 const now = instant("2026-10-06", 9, 0, "America/New_York");
@@ -59,6 +63,37 @@ describe("POST /api/orders", () => {
     assert.equal(seen[0].key, KEY);
     assert.equal(seen[0].order.id, orderId(KEY, now));
     assert.equal(seen[0].order.lines[0].unitPrice, 30);
+  });
+
+  it("persists the order, its Square ids and the customer", async () => {
+    const stores = testStores();
+
+    await handle(post(body()), { square: ok, stores, now, ...quiet });
+
+    const id = orderId(KEY, now);
+    const saved = await getOrder(stores, id);
+
+    assert.equal(saved.status, "submitted");
+    assert.equal(saved.square.invoiceId, "INV");
+    assert.equal(saved.customer.email, "pat@example.com");
+    assert.equal(saved.history[0].event, "submitted");
+    assert.deepEqual((await openOrders(stores)).map((o) => o.id), [id]);
+    assert.equal((await getCustomer(stores, "pat@example.com")).name,
+      "Pat Example");
+
+    // A retried submission with the same key writes the same record.
+    await handle(post(body()), { square: ok, stores, now, ...quiet });
+    assert.equal((await openOrders(stores)).length, 1);
+  });
+
+  it("does not persist an order Square rejected", async () => {
+    const stores = testStores();
+    const down = async () => {
+      throw Object.assign(new Error("400"), { retryable: false });
+    };
+
+    await handle(post(body()), { square: down, stores, now, ...quiet });
+    assert.equal(await getOrder(stores, orderId(KEY, now)), null);
   });
 
   it("rejects a bad body", async () => {
