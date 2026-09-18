@@ -1,0 +1,53 @@
+{{ $money := hugo.Data.delivery.money }}
+<fieldset class="order-section mb-5">
+  <legend class="h2">Your order</legend>
+  <p class="mb-2">
+    Chicken is priced by pack weight; we pick the closest packs we have.
+    Bulk discounts:
+    {{ range $i, $tier := $money.bulkTiers -}}
+      {{- if $i }} &middot; {{ end -}}
+      <span class="text-nowrap">${{ $tier.off }} off ${{ $tier.threshold }}+</span>
+    {{- end }}.
+  </p>
+  <div class="invalid-feedback d-block mb-2" data-error-for="lines"></div>
+  <table class="table order-table mb-0">
+    <thead class="visually-hidden">
+      <tr>
+        <th scope="col">Item</th>
+        <th scope="col">Price</th>
+        <th scope="col">Quantity</th>
+        <th scope="col">Total</th>
+      </tr>
+    </thead>
+    {{ range hugo.Data.catalog.groups }}
+      <tbody class="order-group" data-group="{{ .key }}">
+        <tr class="order-group-heading">
+          <th scope="rowgroup" colspan="4">{{ .label }}</th>
+        </tr>
+        {{ range .items }}
+          {{ $id := printf "qty-%s" (.sku | lower) }}
+          <tr class="order-item{{ if not .inStock }} order-item-out{{ end }}" data-sku="{{ .sku }}" data-price="{{ .price }}" data-in-stock="{{ .inStock }}">
+            <td class="order-item-label">
+              <label for="{{ $id }}">{{ .label }}</label>
+              {{ if not .inStock }}<span class="badge text-bg-light ms-2">Sold out</span>{{ end }}
+            </td>
+            <td class="order-item-price text-nowrap">${{ .price }}</td>
+            <td class="order-item-qty">
+              {{ if .inStock }}
+                <div class="order-stepper" role="group" aria-label="Quantity of {{ .label }}">
+                  <button type="button" class="btn btn-outline-secondary" data-step="-1" aria-label="Fewer {{ .label }}" tabindex="-1">&minus;</button>
+                  <input class="form-control" type="text" id="{{ $id }}" name="qty.{{ .sku }}" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="0" data-qty="{{ .sku }}" aria-describedby="err-{{ $id }}">
+                  <button type="button" class="btn btn-outline-secondary" data-step="1" aria-label="More {{ .label }}" tabindex="-1">+</button>
+                </div>
+                <div class="invalid-feedback" id="err-{{ $id }}" data-error-for="lines.{{ .sku }}"></div>
+              {{ else }}
+                <span class="visually-hidden">Not available</span>
+              {{ end }}
+            </td>
+            <td class="order-item-total text-end text-nowrap" data-line-total="{{ .sku }}"></td>
+          </tr>
+        {{ end }}
+      </tbody>
+    {{ end }}
+  </table>
+</fieldset>

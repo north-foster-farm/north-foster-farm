@@ -1,0 +1,60 @@
+{{ $data := dict
+  "catalog" hugo.Data.catalog
+  "terms" hugo.Data.delivery
+  "contact" (dict "email" hugo.Data.company.email "phone" hugo.Data.company.phone)
+}}
+<script type="application/json" id="order-data">{{ $data | jsonify | safeJS }}</script>
+
+<div id="order-restored" class="alert alert-info order-restored" role="status" hidden>
+  <span>We restored the order you started earlier.</span>
+  <button type="button" class="btn btn-sm btn-outline-secondary text-nowrap" id="order-discard">Start over</button>
+</div>
+
+<div id="order-pending" class="alert alert-warning" role="status" hidden>
+  Sending your saved order&hellip;
+</div>
+
+<form id="order-form" class="order-form" novalidate data-version="{{ hugo.Data.catalog.version }}">
+  {{ partial "order/customer.html" . }}
+  {{ partial "order/catalog.html" . }}
+  {{ partial "order/fulfilment.html" . }}
+  {{ partial "order/wrap.html" . }}
+</form>
+
+{{ partial "order/summary.html" . }}
+
+<div id="order-result" class="order-result" aria-live="polite" hidden></div>
+
+<template id="order-success">
+  <div class="alert alert-success">
+    <h2 class="h3">Thank you, <span data-out="name"></span>!</h2>
+    <div data-out="details">
+      <p>
+        Your order <strong data-out="orderId"></strong> is in. We've emailed an
+        invoice for <strong data-out="total"></strong> to
+        <strong data-out="email"></strong>. Your order is reserved once payment
+        comes through.
+      </p>
+      <p>
+        <a class="btn btn-primary" data-out="invoiceUrl" href="#" target="_blank" rel="noopener">Pay now</a>
+      </p>
+      <ul class="order-result-lines" data-out="lines"></ul>
+    </div>
+    <p class="mb-0">
+      Questions? Email <a href="mailto:{{ hugo.Data.company.email }}">{{ hugo.Data.company.email }}</a>.
+    </p>
+  </div>
+</template>
+
+<template id="order-failed">
+  <div class="alert alert-danger">
+    <h2 class="h3">We couldn't place your order online</h2>
+    <p data-out="message"></p>
+    <p>
+      Please send the details below to <a data-out="mailto" href="#"></a>, or
+      call or text <a data-out="phone" href="#"></a>, and we'll take it from
+      there. Your order is also still saved on this page.
+    </p>
+    <pre data-out="summary"></pre>
+  </div>
+</template>

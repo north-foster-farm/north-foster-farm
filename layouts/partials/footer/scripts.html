@@ -13,3 +13,13 @@
 {{ $integrity := $script.Data.Integrity }}
 
 <script src="{{ $src }}" type="module" integrity="{{ $integrity }}" defer></script>
+
+{{/* A page can ask for its own bundle; every other page is unchanged. */}}
+{{ with .Params.pageScript }}
+  {{ $pageScript :=
+    resources.Get (printf "scripts/%s/main.js" .)
+    | js.Build $options
+    | fingerprint "sha512"
+  }}
+  <script src="{{ $pageScript.RelPermalink }}" type="module" integrity="{{ $pageScript.Data.Integrity }}" defer></script>
+{{ end }}

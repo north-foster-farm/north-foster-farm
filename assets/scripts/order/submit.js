@@ -1,0 +1,42 @@
+// Sends an order and turns every outcome into one of a few shapes the
+// form knows how to handle:
+//
+//   { kind: "ok", data }                 created, invoice on its way
+//   { kind: "invalid", errors, dates }   fix and resubmit
+//   { kind: "stale", dates }             date closed, fresh list attached
+//   { kind: "retry" }                    transient, safe to try again
+//   { kind: "failed", message }          permanent
+
+export class Submitter {
+  async send(payload) {
+    let res;
+
+    try {
+      res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      return { kind: "retry" };
+    }
+
+    if (res.status === 204) return { kind: "ok", data: null };
+
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok) return { kind: "ok", data };
+    if (res.status === 409) return { kind: "stale", dates: data.dates || [] };
+    if (res.status === 422 || res.status === 400) {
+      return { kind: "invalid", errors: data.errors || {} };
+    }
+    if (res.status === 503 || res.status === 429 || res.status >= 500) {
+      return { kind: "retry" };
+    }
+
+    return {
+      kind: "failed",
+      message: data.message || "Something went wrong placing your order.",
+    };
+  }
+}

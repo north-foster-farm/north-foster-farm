@@ -1,0 +1,33 @@
+<fieldset class="order-section mb-4">
+  <legend class="h2">Almost done</legend>
+  <div class="row g-3">
+    <div class="col-12">
+      <label class="form-label" for="order-notes">Notes or special requests <span class="text-body-secondary">(optional)</span></label>
+      <textarea class="form-control" id="order-notes" name="notes" rows="3" placeholder="Substitutions you would accept, anything at all" data-field="notes"></textarea>
+    </div>
+    <div class="col-md-7">
+      <label class="form-label" for="order-source">How did you hear about us? <span class="text-body-secondary">(optional)</span></label>
+      <select class="form-select" id="order-source" name="source" data-field="source">
+        <option value="">Choose one</option>
+        <option>Farmers market</option>
+        <option>Flyer</option>
+        <option>Friend or family</option>
+        <option>Social media</option>
+        <option>Somewhere else</option>
+      </select>
+    </div>
+    <div class="order-hp" aria-hidden="true">
+      <label for="order-website">Website</label>
+      <input type="text" id="order-website" name="website" tabindex="-1" autocomplete="off">
+    </div>
+  </div>
+</fieldset>
+
+<div class="order-submit">
+  <div class="alert alert-danger" role="alert" data-form-error hidden></div>
+  <button type="submit" class="btn btn-primary btn-lg" id="order-submit">Place order</button>
+  <p class="form-text mt-2 mb-0">
+    We'll email your total and a secure link to pay by card. Nothing is
+    charged now.
+  </p>
+</div>

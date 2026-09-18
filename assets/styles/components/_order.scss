@@ -1,0 +1,234 @@
+// The order form. Written against Bootstrap's CSS variables only: no
+// @extend, no mixins, no colour functions, so it survives the
+// Tailwind migration unchanged.
+
+.order {
+  .text-column {
+    max-width: 760px;
+  }
+
+  .order-section {
+    legend {
+      margin-bottom: 1rem;
+    }
+  }
+
+  // The order table
+
+  .order-table {
+    th,
+    td {
+      padding: 0.5rem 0.25rem;
+      vertical-align: middle;
+    }
+
+    .order-group-heading th {
+      padding-top: 1rem;
+      font-size: 0.875rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--bs-success-text-emphasis);
+      background-color: var(--bs-success-bg-subtle);
+    }
+
+    .order-item-label label {
+      margin: 0;
+    }
+
+    .order-item-out {
+      color: var(--bs-secondary-color);
+    }
+
+    .order-item-price {
+      width: 3.5rem;
+    }
+
+    .order-item-qty {
+      width: 8rem;
+    }
+
+    .order-item-total {
+      width: 4.5rem;
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  .order-stepper {
+    display: inline-flex;
+    align-items: stretch;
+
+    .btn {
+      width: 2.25rem;
+      padding: 0;
+      font-size: 1.1rem;
+      line-height: 1;
+    }
+
+    .form-control {
+      width: 3rem;
+      padding-right: 0.25rem;
+      padding-left: 0.25rem;
+      text-align: center;
+    }
+  }
+
+  // Fulfilment cards
+
+  .order-methods {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .order-method {
+    position: relative;
+    padding: 1rem 1rem 1rem 2.75rem;
+    border: 1px solid var(--bs-border-color);
+
+    > .form-check-input {
+      position: absolute;
+      top: 1.15rem;
+      left: 1rem;
+      margin: 0;
+    }
+
+    &:has(> .form-check-input:checked) {
+      border-color: var(--bs-success);
+      background-color: var(--bs-success-bg-subtle);
+    }
+
+    &:has(> .form-check-input:focus-visible) {
+      outline: 2px solid var(--bs-primary);
+      outline-offset: 2px;
+    }
+  }
+
+  .order-method-label {
+    display: block;
+    margin: 0;
+    cursor: pointer;
+  }
+
+  .order-method-title {
+    display: block;
+    font-weight: bold;
+  }
+
+  .order-method-meta {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+  }
+
+  .order-method-body {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--bs-border-color);
+  }
+
+  .order-method-disabled {
+    background-color: var(--bs-tertiary-bg);
+
+    .order-method-label {
+      cursor: not-allowed;
+    }
+
+    .order-method-title {
+      color: var(--bs-secondary-color);
+    }
+  }
+
+  .order-vote {
+    border-top-style: dashed;
+  }
+
+  .order-countdown {
+    font-weight: bold;
+  }
+
+  // Running summary, pinned to the bottom while the form scrolls
+
+  .order-summary {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    margin-top: 1.5rem;
+    padding: 0.75rem 0;
+    border-top: 2px solid var(--bs-success);
+    background-color: var(--bs-body-bg);
+  }
+
+  .order-summary-lines {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    column-gap: 1.5rem;
+
+    > div {
+      display: contents;
+    }
+
+    dt {
+      font-weight: normal;
+    }
+
+    dd {
+      margin: 0;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .order-summary-total {
+      dt,
+      dd {
+        padding-top: 0.25rem;
+        border-top: 1px solid var(--bs-border-color);
+        font-weight: bold;
+      }
+    }
+  }
+
+  .order-summary-nudge {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--bs-success-text-emphasis);
+  }
+
+  // A display utility would beat [hidden], so this notice styles its
+  // own flex layout.
+  .order-restored {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  // Submit and results
+
+  .order-busy {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .order-hp {
+    position: absolute;
+    top: auto;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+
+  .order-result {
+    .order-result-lines {
+      padding-left: 1.25rem;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      user-select: all;
+    }
+  }
+}

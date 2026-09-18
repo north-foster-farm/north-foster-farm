@@ -12,6 +12,13 @@ const plugins = [
         ...(elements.tags || []),
         ...(elements.classes || []),
         ...(elements.ids || []),
+        // Hugo's stats carry no attributes, so attribute selectors
+        // such as [hidden] and [type="radio"] need naming here.
+        "hidden",
+        "disabled",
+        "type",
+        "radio",
+        "checkbox",
       ];
     },
     safelist: [
@@ -23,6 +30,10 @@ const plugins = [
       "fade",
       "show",
       "was-validated",
+      // Applied by the order form's JavaScript, never in a template.
+      "is-invalid",
+      "is-valid",
+      "order-busy",
     ],
   }),
 ];

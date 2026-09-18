@@ -1,0 +1,15 @@
+{{ define "main" }}
+  <section class="{{ .Type }}">
+    <div class="page container py-5">
+      <div class="row justify-content-center">
+        <div class="col text-column">
+          {{ partial "page-heading.html" . }}
+          <div class="mb-4">
+            {{ .Content }}
+          </div>
+          {{ partial "order/form.html" . }}
+        </div>
+      </div>
+    </div>
+  </section>
+{{ end }}
