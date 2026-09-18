@@ -1,0 +1,8 @@
+[
+  { "key": "hen-brown", "label": "Brown hen" },
+  { "key": "hen-black", "label": "Black hen" },
+  { "key": "hen-white", "label": "White hen" },
+  { "key": "hen-gold", "label": "Golden hen" },
+  { "key": "rooster", "label": "Rooster" },
+  { "key": "chick", "label": "Chick" }
+]

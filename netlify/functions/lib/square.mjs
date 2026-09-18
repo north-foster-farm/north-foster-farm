@@ -350,3 +350,62 @@ export const cancelInvoice = async (invoiceId, {
     cancelled: true,
   };
 };
+
+// Square's copy of the fulfilment is what the farm packs from, so a
+// customer's change to the date or the details goes there too. Square
+// wants the order's current version and the fulfilment's uid.
+const currentOrder = async (cfg, squareOrderId, fetchImpl) => {
+  const data = await call(
+    cfg, `/v2/orders/${squareOrderId}`, null, fetchImpl, "GET"
+  );
+
+  return data.order || {};
+};
+
+export const updateFulfilment = async (squareOrderId, order, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  const cfg = settings(env);
+  const current = await currentOrder(cfg, squareOrderId, fetchImpl);
+  const existing = (current.fulfillments || [])[0];
+
+  if (!existing) throw new SquareError("Square order has no fulfilment");
+
+  const next = fulfillment(order);
+
+  delete next.state;
+
+  const data = await call(cfg, `/v2/orders/${squareOrderId}`, {
+    order: {
+      location_id: cfg.locationId,
+      version: current.version,
+      fulfillments: [{ uid: existing.uid, ...next }],
+    },
+  }, fetchImpl, "PUT");
+
+  return { id: squareOrderId, version: data.order && data.order.version };
+};
+
+export const cancelFulfilment = async (squareOrderId, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  const cfg = settings(env);
+  const current = await currentOrder(cfg, squareOrderId, fetchImpl);
+  const existing = (current.fulfillments || [])[0];
+
+  if (!existing || existing.state === "CANCELED") {
+    return { id: squareOrderId, cancelled: false };
+  }
+
+  await call(cfg, `/v2/orders/${squareOrderId}`, {
+    order: {
+      location_id: cfg.locationId,
+      version: current.version,
+      fulfillments: [{ uid: existing.uid, state: "CANCELED" }],
+    },
+  }, fetchImpl, "PUT");
+
+  return { id: squareOrderId, cancelled: true };
+};

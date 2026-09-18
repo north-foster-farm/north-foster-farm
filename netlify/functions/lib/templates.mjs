@@ -226,6 +226,56 @@ export const magicLink = (email, url, { minutes = 15 } = {}) => {
   return { subject: title, ...render(title, blocks) };
 };
 
+// After a customer cancels. A paid order is refunded by hand.
+export const orderCancelled = (order, { refund = false } = {}) => {
+  const title = `Order ${order.id} is cancelled`;
+  const blocks = [
+    p(`Hi ${firstName(order.customer.name)},`),
+    p(`We've cancelled your order for ${whenWhere(order).toLowerCase()}.`),
+  ];
+
+  if (refund) {
+    blocks.push(strong("Your refund is on its way."));
+    blocks.push(p("We refund through Square to the card you paid with; " +
+      "it usually shows within a few business days."));
+  } else {
+    blocks.push(p("The invoice is closed and nothing was charged."));
+  }
+  blocks.push(p("Changed your mind? You can place a new order any time."));
+
+  return { subject: title, ...render(title, blocks) };
+};
+
+// After a customer changes the date or details of an order.
+export const orderChanged = (order) => {
+  const title = `Order ${order.id} updated`;
+  const f = order.fulfilment;
+  const details = [];
+
+  if (f.method === "onfarm" && f.onfarm) {
+    details.push(`Window: ${f.onfarm.window}`);
+    details.push(
+      `Phone: ${f.onfarm.phone}${f.onfarm.textOk ? " (text ok)" : ""}`
+    );
+  }
+  if (f.method === "delivery" && f.delivery) {
+    details.push(`Cooler: ${f.delivery.cooler}`);
+    if (f.delivery.gate) details.push(`Gate or keypad: ${f.delivery.gate}`);
+    if (f.delivery.notes) details.push(`Notes: ${f.delivery.notes}`);
+  }
+  if (order.notes) details.push(`Order notes: ${order.notes}`);
+
+  const blocks = [
+    p(`Hi ${firstName(order.customer.name)}, here's your order as it stands.`),
+    strong(`${whenWhere(order)}.`),
+  ];
+
+  if (details.length) blocks.push(list(details));
+  blocks.push(lines(order));
+
+  return { subject: title, ...render(title, blocks) };
+};
+
 // A short line for the CLI and logs.
 export const summaryLine = (order) =>
   `${order.id} ${order.status} ${dollars(order.totals.total)} ` +

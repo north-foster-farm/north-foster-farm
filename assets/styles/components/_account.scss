@@ -34,4 +34,302 @@
     height: 1px;
     overflow: hidden;
   }
+
+  .account-loading {
+    color: var(--bs-secondary-color);
+  }
+
+  // Head: avatar, name, sign out
+
+  .account-head {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .account-avatar {
+    flex: none;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+  }
+
+  .account-who {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .account-name {
+    margin: 0;
+    font-weight: bold;
+  }
+
+  .account-email {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+    overflow-wrap: anywhere;
+  }
+
+  // Tabs
+
+  .account-nav {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--bs-border-color);
+    scrollbar-width: none;
+  }
+
+  .account-tab {
+    padding: 0.5rem 0.875rem;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    white-space: nowrap;
+    color: var(--bs-secondary-color);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--bs-body-color);
+    }
+
+    &.is-active {
+      border-bottom-color: var(--bs-primary);
+      color: var(--bs-primary-text-emphasis);
+      font-weight: bold;
+    }
+  }
+
+  .account-section > h2 {
+    margin-bottom: 0.75rem;
+  }
+
+  .account-empty {
+    color: var(--bs-secondary-color);
+  }
+
+  // Orders
+
+  .account-order-head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .account-order-title {
+    margin: 0;
+    font-size: 1.0625rem;
+  }
+
+  .account-order-meta {
+    margin: 0.125rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--bs-secondary-color);
+  }
+
+  .account-status {
+    flex: none;
+    padding: 0.125rem 0.625rem;
+    border-radius: 999px;
+    background-color: var(--bs-tertiary-bg);
+    font-size: 0.75rem;
+    font-weight: bold;
+    white-space: nowrap;
+  }
+
+  .account-order[data-status="submitted"] .account-status {
+    background-color: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+  }
+
+  .account-order[data-status="paid"] .account-status,
+  .account-order[data-status="fulfilled"] .account-status {
+    background-color: var(--bs-success-bg-subtle);
+    color: var(--bs-success-text-emphasis);
+  }
+
+  .account-order[data-status="cancelled"] .account-status,
+  .account-order[data-status="abandoned"] .account-status {
+    background-color: var(--bs-danger-bg-subtle);
+    color: var(--bs-danger-text-emphasis);
+  }
+
+  .account-order-note {
+    margin: 0 0 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--bs-border-radius);
+    background-color: var(--bs-warning-bg-subtle);
+    font-size: 0.9375rem;
+  }
+
+  .account-lines {
+    margin: 0 0 0.5rem;
+    padding: 0;
+    list-style: none;
+  }
+
+  .account-line {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr auto;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    font-size: 0.9375rem;
+  }
+
+  .account-line-qty {
+    color: var(--bs-secondary-color);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .account-line-total {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .account-totals {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    margin: 0 0 0.75rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--bs-border-color);
+    font-size: 0.9375rem;
+
+    > div {
+      display: contents;
+    }
+
+    dt {
+      font-weight: normal;
+      color: var(--bs-secondary-color);
+    }
+
+    dd {
+      margin: 0;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .account-totals-total dt,
+    .account-totals-total dd {
+      font-weight: bold;
+      color: var(--bs-body-color);
+    }
+  }
+
+  .account-order-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .account-return {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+  }
+
+  .account-order-panel {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: var(--bs-border-radius);
+    background-color: var(--bs-tertiary-bg);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .account-panel-title {
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+  }
+
+  .account-panel-form .form-label {
+    width: 100%;
+  }
+
+  .account-panel-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  .account-return-items {
+    margin-bottom: 0.75rem;
+  }
+
+  // Invoices, address, avatars
+
+  .account-table {
+    font-size: 0.9375rem;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .account-address-status {
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--bs-border-radius);
+    font-size: 0.9375rem;
+
+    &[data-tone="ok"] {
+      background-color: var(--bs-success-bg-subtle);
+      color: var(--bs-success-text-emphasis);
+    }
+
+    &[data-tone="wait"] {
+      background-color: var(--bs-warning-bg-subtle);
+      color: var(--bs-warning-text-emphasis);
+    }
+
+    &[data-tone="no"] {
+      background-color: var(--bs-danger-bg-subtle);
+      color: var(--bs-danger-text-emphasis);
+    }
+  }
+
+  .account-avatars {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+  }
+
+  .account-avatar-choice {
+    display: grid;
+    justify-items: center;
+    gap: 0.25rem;
+    padding: 0.75rem 0.5rem;
+    border: 2px solid var(--bs-border-color-translucent);
+    border-radius: var(--bs-border-radius-lg);
+    text-align: center;
+    font-size: 0.8125rem;
+    cursor: pointer;
+
+    input {
+      position: absolute;
+      opacity: 0;
+    }
+
+    &:has(input:checked) {
+      border-color: var(--bs-primary);
+      background-color: var(--bs-primary-bg-subtle);
+    }
+
+    &:has(input:focus-visible) {
+      outline: 2px solid var(--bs-primary);
+      outline-offset: 2px;
+    }
+  }
+
+  @media (min-width: 576px) {
+    .account-avatars {
+      grid-template-columns: repeat(6, 1fr);
+    }
+  }
 }

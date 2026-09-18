@@ -1,0 +1,291 @@
+{{ define "main" }}
+  {{ $data := dict "avatars" hugo.Data.avatars "terms" hugo.Data.delivery }}
+  <section class="{{ .Type }}">
+    {{ partial "avatars.html" . }}
+    <script type="application/json" id="account-data">{{ $data | jsonify | safeJS }}</script>
+    <div class="page container py-5">
+      <div class="account-wide">
+        {{ partial "page-heading.html" . }}
+
+        <p class="account-loading" id="account-loading" role="status">Loading your account…</p>
+
+        <div id="account-app" hidden>
+          <header class="account-head">
+            <svg class="account-avatar" id="account-avatar" aria-hidden="true"><use href="#avatar-hen-brown"/></svg>
+            <div class="account-who">
+              <p class="account-name" id="account-name"></p>
+              <p class="account-email" id="account-email"></p>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="account-signout">Sign out</button>
+          </header>
+
+          <nav class="account-nav" aria-label="Account sections">
+            <a class="account-tab" href="#orders" data-tab="orders">Orders</a>
+            <a class="account-tab" href="#invoices" data-tab="invoices">Invoices</a>
+            <a class="account-tab" href="#address" data-tab="address">Address</a>
+            <a class="account-tab" href="#settings" data-tab="settings">Settings</a>
+            <a class="account-tab" href="#help" data-tab="help">Help</a>
+          </nav>
+
+          <div class="alert alert-success" id="account-flash" role="status" aria-live="polite" hidden></div>
+
+          <section class="account-section" id="acct-orders" data-section="orders" aria-labelledby="acct-orders-h">
+            <h2 class="h4" id="acct-orders-h">Your orders</h2>
+            <p class="account-empty" id="orders-empty" hidden>
+              No orders yet. <a href="{{ relURL "order/" }}">Browse what's in stock</a>.
+            </p>
+            <div id="orders-list"></div>
+          </section>
+
+          <section class="account-section" id="acct-invoices" data-section="invoices" aria-labelledby="acct-invoices-h" hidden>
+            <h2 class="h4" id="acct-invoices-h">Invoices</h2>
+            <p class="text-body-secondary">Each order has one Square invoice. Open ones can be paid here; paid ones link to the receipt.</p>
+            <table class="table account-table" id="invoices-table">
+              <thead>
+                <tr><th scope="col">Order</th><th scope="col">Invoice</th><th scope="col">Total</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Link</span></th></tr>
+              </thead>
+              <tbody id="invoices-body"></tbody>
+            </table>
+            <p class="account-empty" id="invoices-empty" hidden>No invoices yet.</p>
+          </section>
+
+          <section class="account-section" id="acct-address" data-section="address" aria-labelledby="acct-address-h" hidden>
+            <h2 class="h4" id="acct-address-h">Delivery address</h2>
+            <p class="text-body-secondary">Kept on file so delivery orders fill themselves in. An address outside our usual area is checked by us first.</p>
+            <p class="account-address-status" id="address-status" hidden></p>
+            <form class="account-card" id="address-form" novalidate>
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label" for="addr-address1">Street address</label>
+                  <input class="form-control" type="text" id="addr-address1" name="address1" autocomplete="shipping address-line1" data-field="address1" aria-describedby="err-addr-address1">
+                  <div class="invalid-feedback" id="err-addr-address1" data-error-for="address1"></div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label" for="addr-address2">Apartment, unit, or floor <span class="text-body-secondary">(optional)</span></label>
+                  <input class="form-control" type="text" id="addr-address2" name="address2" autocomplete="shipping address-line2" data-field="address2">
+                </div>
+                <div class="col-md-8">
+                  <label class="form-label" for="addr-town">Town</label>
+                  <input class="form-control" type="text" id="addr-town" name="town" autocomplete="shipping address-level2" data-field="town" aria-describedby="err-addr-town">
+                  <div class="invalid-feedback" id="err-addr-town" data-error-for="town"></div>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label" for="addr-zip">ZIP</label>
+                  <input class="form-control" type="text" id="addr-zip" name="zip" autocomplete="shipping postal-code" inputmode="numeric" maxlength="10" data-field="zip" aria-describedby="err-addr-zip">
+                  <div class="invalid-feedback" id="err-addr-zip" data-error-for="zip"></div>
+                </div>
+                <div class="col-md-7">
+                  <label class="form-label" for="addr-cooler">Where will we find your cooler?</label>
+                  <input class="form-control" type="text" id="addr-cooler" name="cooler" data-field="cooler">
+                </div>
+                <div class="col-md-5">
+                  <label class="form-label" for="addr-gate">Gate or keypad code <span class="text-body-secondary">(optional)</span></label>
+                  <input class="form-control" type="text" id="addr-gate" name="gate" autocomplete="off" data-field="gate">
+                </div>
+                <div class="col-12">
+                  <label class="form-label" for="addr-notes">Anything we should know about the drop-off? <span class="text-body-secondary">(optional)</span></label>
+                  <textarea class="form-control" id="addr-notes" name="notes" rows="2" data-field="notes"></textarea>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary mt-3">Save address</button>
+            </form>
+          </section>
+
+          <section class="account-section" id="acct-settings" data-section="settings" aria-labelledby="acct-settings-h" hidden>
+            <h2 class="h4" id="acct-settings-h">Settings</h2>
+            <form class="account-card" id="profile-form" novalidate>
+              <div class="row g-3">
+                <div class="col-md-7">
+                  <label class="form-label" for="prof-name">Name</label>
+                  <input class="form-control" type="text" id="prof-name" name="name" autocomplete="name" data-field="name" aria-describedby="err-prof-name">
+                  <div class="invalid-feedback" id="err-prof-name" data-error-for="name"></div>
+                </div>
+                <div class="col-md-5">
+                  <label class="form-label" for="prof-phone">Phone <span class="text-body-secondary">(optional)</span></label>
+                  <input class="form-control" type="tel" id="prof-phone" name="phone" autocomplete="tel" inputmode="tel" data-field="phone" aria-describedby="err-prof-phone">
+                  <div class="invalid-feedback" id="err-prof-phone" data-error-for="phone"></div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label" for="prof-email">Email</label>
+                  <input class="form-control-plaintext" type="email" id="prof-email" readonly>
+                  <div class="form-text">Your email is how you sign in. Write us to change it.</div>
+                </div>
+                <fieldset class="col-12">
+                  <legend class="form-label">Your chicken</legend>
+                  <div class="account-avatars" id="avatar-picker">
+                    {{ range hugo.Data.avatars }}
+                      <label class="account-avatar-choice">
+                        <input type="radio" name="avatar" value="{{ .key }}" data-field="avatar">
+                        <svg class="account-avatar" aria-hidden="true"><use href="#avatar-{{ .key }}"/></svg>
+                        <span>{{ .label }}</span>
+                      </label>
+                    {{ end }}
+                  </div>
+                  <div class="invalid-feedback d-block" data-error-for="avatar"></div>
+                </fieldset>
+              </div>
+              <button type="submit" class="btn btn-primary mt-3">Save settings</button>
+            </form>
+          </section>
+
+          <section class="account-section" id="acct-help" data-section="help" aria-labelledby="acct-help-h" hidden>
+            <h2 class="h4" id="acct-help-h">Help</h2>
+            <p class="text-body-secondary">
+              Something wrong with an order? Open it under Orders and use
+              "Report a problem". For anything else, write to us here and
+              we'll answer by email.
+            </p>
+            <form class="account-card" id="support-form" novalidate>
+              <div class="row g-3">
+                <div class="col-md-7">
+                  <label class="form-label" for="sup-subject">Subject <span class="text-body-secondary">(optional)</span></label>
+                  <input class="form-control" type="text" id="sup-subject" name="subject" data-field="subject">
+                </div>
+                <div class="col-md-5">
+                  <label class="form-label" for="sup-order">About an order <span class="text-body-secondary">(optional)</span></label>
+                  <select class="form-select" id="sup-order" name="orderId" data-field="orderId">
+                    <option value="">No particular order</option>
+                  </select>
+                </div>
+                <div class="col-12">
+                  <label class="form-label" for="sup-message">Your message</label>
+                  <textarea class="form-control" id="sup-message" name="message" rows="4" data-field="message" aria-describedby="err-sup-message"></textarea>
+                  <div class="invalid-feedback" id="err-sup-message" data-error-for="message"></div>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary mt-3">Send</button>
+            </form>
+          </section>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <template id="tpl-order">
+    <article class="account-order account-card" data-order>
+      <header class="account-order-head">
+        <div>
+          <h3 class="account-order-title"><span data-out="when"></span></h3>
+          <p class="account-order-meta"><span data-out="id"></span> · placed <span data-out="placed"></span></p>
+        </div>
+        <span class="account-status" data-out="status"></span>
+      </header>
+      <p class="account-order-note" data-out="note" hidden></p>
+      <ul class="account-lines" data-out="lines"></ul>
+      <dl class="account-totals" data-out="totals"></dl>
+      <div class="account-order-actions" data-out="actions"></div>
+      <div class="account-order-panel" data-out="panel" hidden></div>
+    </article>
+  </template>
+
+  <template id="tpl-line">
+    <li class="account-line">
+      <span class="account-line-qty" data-out="qty"></span>
+      <span class="account-line-label" data-out="label"></span>
+      <span class="account-line-total" data-out="total"></span>
+    </li>
+  </template>
+
+  <template id="tpl-change-delivery">
+    <form class="account-panel-form" novalidate>
+      <p class="account-panel-title">Change this delivery</p>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Delivery date
+            <select class="form-select" name="date" data-dates></select>
+          </label>
+          <div class="invalid-feedback" data-error-for="date"></div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Where will we find your cooler?
+            <input class="form-control" type="text" name="cooler">
+          </label>
+          <div class="invalid-feedback" data-error-for="delivery.cooler"></div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Gate or keypad code
+            <input class="form-control" type="text" name="gate" autocomplete="off">
+          </label>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Drop-off notes
+            <input class="form-control" type="text" name="dnotes">
+          </label>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Order notes
+            <input class="form-control" type="text" name="notes">
+          </label>
+        </div>
+      </div>
+      <p class="form-text">To change what's in the order, cancel it and place a new one.</p>
+      <div class="account-panel-actions">
+        <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-close>Never mind</button>
+      </div>
+    </form>
+  </template>
+
+  <template id="tpl-change-pickup">
+    <form class="account-panel-form" novalidate>
+      <p class="account-panel-title">Change this pickup</p>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Day
+            <select class="form-select" name="date" data-dates></select>
+          </label>
+          <div class="invalid-feedback" data-error-for="date"></div>
+        </div>
+        <div class="col-md-6" data-onfarm>
+          <span class="form-label d-block">Roughly when?</span>
+          <label class="form-check-inline"><input class="form-check-input" type="radio" name="window" value="morning"> Morning</label>
+          <label class="form-check-inline"><input class="form-check-input" type="radio" name="window" value="afternoon"> Afternoon</label>
+          <div class="invalid-feedback" data-error-for="onfarm.window"></div>
+        </div>
+        <div class="col-md-6" data-onfarm>
+          <label class="form-label">Phone for the day
+            <input class="form-control" type="tel" name="phone" inputmode="tel">
+          </label>
+          <div class="invalid-feedback" data-error-for="onfarm.phone"></div>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Order notes
+            <input class="form-control" type="text" name="notes">
+          </label>
+        </div>
+      </div>
+      <p class="form-text">To change what's in the order, cancel it and place a new one.</p>
+      <div class="account-panel-actions">
+        <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-close>Never mind</button>
+      </div>
+    </form>
+  </template>
+
+  <template id="tpl-return">
+    <form class="account-panel-form" novalidate>
+      <p class="account-panel-title">Report a problem</p>
+      <p class="form-text">Tell us what happened and which items, and we'll make it right by email.</p>
+      <div class="account-return-items" data-items></div>
+      <label class="form-label w-100">What went wrong?
+        <textarea class="form-control" name="reason" rows="3"></textarea>
+      </label>
+      <div class="invalid-feedback" data-error-for="reason"></div>
+      <div class="account-panel-actions">
+        <button type="submit" class="btn btn-primary btn-sm">Send</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-close>Never mind</button>
+      </div>
+    </form>
+  </template>
+
+  <template id="tpl-cancel">
+    <form class="account-panel-form" novalidate>
+      <p class="account-panel-title">Cancel this order?</p>
+      <p class="form-text" data-out="explain"></p>
+      <div class="account-panel-actions">
+        <button type="submit" class="btn btn-danger btn-sm">Yes, cancel it</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-close>Keep it</button>
+      </div>
+    </form>
+  </template>
+{{ end }}

@@ -179,6 +179,31 @@ the `auth` store. State-changing posts must come from this site
 CLI, which mints links and sessions to sign in as a customer. The
 page is `/login/`.
 
+## Account
+
+`/account/` is one page with tabs (Orders, Invoices, Address,
+Settings, Help) rendered from `GET /api/me` and
+`GET /api/account/orders`. `lib/account.mjs` holds the rules:
+
+- Cancel: unpaid orders close at once (Square invoice and fulfilment
+  cancelled); paid orders are flagged `cancelRequested` and the farm
+  refunds in Square, then closes the order in the CLI. Allowed until
+  the abandon time (delivery cutoff, or midnight before a pickup).
+- Change: the date (from the offered list), pickup window and phone,
+  drop-off cooler, gate and notes, order notes. Square's fulfilment is
+  updated; if that fails the order is flagged `squareOutOfSync` and
+  the farm is emailed. Items cannot change: cancel and reorder.
+- Address: approved at once when the ZIP is on the list; otherwise
+  `pending` and the farm gets an address-review email; `denied` is set
+  by the CLI. Changing only the drop-off details keeps the decision.
+- Returns: a request on a paid or fulfilled order, recorded under
+  `order.returns` and emailed to the farm.
+- Support: stored under `support/<email>/<id>` in the customers store
+  and emailed to the farm, who replies by email.
+
+Avatars are the six SVG symbols in `layouts/partials/avatars.html`,
+keyed by `data/avatars.json`.
+
 ## Decisions
 
 - **Square Orders plus Invoices**, not Payment Links. Publishing an
