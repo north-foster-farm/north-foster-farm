@@ -28,6 +28,9 @@ module.exports = {
         ],
       },
     ],
+    // Range syntax (width >= 768px) is unsupported in Safari before
+    // 16.4, so the classic prefixes stay.
+    "media-feature-range-notation": "prefix",
     "no-empty-source": null,
     "scss/at-extend-no-missing-placeholder": null,
   },

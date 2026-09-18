@@ -1,0 +1,22 @@
+{{/* Category navigation: a sticky sidebar from lg up, an offcanvas
+     drawer below it. ScrollSpy on the product list keeps the active
+     link in step. */}}
+{{ $groups := partial "order/groups.html" . }}
+<aside class="order-side offcanvas-lg offcanvas-start" id="order-side" tabindex="-1" aria-labelledby="order-side-title">
+  <div class="offcanvas-header">
+    <h2 class="offcanvas-title h5" id="order-side-title">Categories</h2>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#order-side" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body">
+    <nav class="order-side-nav" aria-label="Product categories">
+      <p class="order-side-title d-none d-lg-block" aria-hidden="true">Categories</p>
+      <ul class="nav flex-column" id="order-cats">
+        {{ range $i, $g := $groups }}
+          <li class="nav-item">
+            <a class="nav-link{{ if eq $i 0 }} active{{ end }}" href="#cat-{{ $g.key }}" data-bs-dismiss="offcanvas" data-bs-target="#order-side">{{ $g.short }}</a>
+          </li>
+        {{ end }}
+      </ul>
+    </nav>
+  </div>
+</aside>

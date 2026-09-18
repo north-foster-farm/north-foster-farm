@@ -128,10 +128,39 @@ check every request body and idempotency key.
   PDF's "over $150" would charge $5 on exactly $150.
 - **$40 minimum is a hard block** with pickup and the drop site as the
   escape hatch, both without a minimum.
-- **South County vote sits inside the disabled card**, always visible.
-- **Out-of-stock items are shown greyed and unselectable**, matching
-  the v4 PDF, which lists everything.
-- **No Connecticut meat-only rule.** Lifted; the six CT towns stay.
+- **No South County option.** Dropped on 18 September 2026, along with
+  the demand vote.
+- **Sold-out items are not rendered**, and a category with nothing in
+  stock is left out along with its nav pill. The data keeps them.
+- **The order page is the product list.** No intro prose; a category
+  sidebar (Bootstrap ScrollSpy) that becomes an offcanvas drawer below
+  `lg`; one section per category; each product a row card with the
+  unit price, an Add button that morphs into a stepper, and the line
+  total once a quantity is set. Row cards and the summary use the
+  theme's small shadow instead of rules. The summary panel floats
+  above the list while it scrolls and settles into the flow after the
+  last row. It carries text-only badges (Local delivery, each bulk
+  tier, Free delivery) that turn green when earned, the one-line nudge,
+  and a Checkout button that scrolls to the fulfilment cards. A dozen
+  feathers drift from the pointer once when the $40 line is crossed.
+  Everything the panel says comes from `lib/summary.mjs`, whose tests
+  pin every sentence and prove the nudge's promise against the totals
+  at every cent to $250. The design spec behind the page lives in
+  `.ignored/handoffs/online-orders-but-fable/design-critique.md`.
+- **"Your order isn't final until it's paid"** is said twice: in a
+  note above the Place your order button and as the headline of the
+  success state.
+- **Browser support** is set by `:has()`, `inert` and `color-mix()`:
+  Safari 16.2, Chrome 111, Firefox 121 and later. Media queries use
+  classic min/max-width for Safari before 16.4.
+- **Connecticut is eggs only for now.** Chicken cannot be sold there
+  yet. A CT ZIP with any non-egg line is rejected, the ZIP field says
+  why as it is typed, and `onlyGroups` on the state entry in
+  `data/delivery.json` is the switch.
+- **The delivery terms are shown and linked, not ticked.** Four lines
+  and a link to the policy sit above the delivery fields; placing the
+  order is the agreement. No drop-off contact name or phone: the
+  customer's own name and phone go to Square as the recipient.
 - **West Greenwich is ZIP 02817.** The v4 PDF prints 02818, which is
   East Greenwich. Corrected in `data/delivery.json`.
 - **No Venmo on `/order`.** The `/venmo` redirect stays for the PDF.

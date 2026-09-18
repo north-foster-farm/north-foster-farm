@@ -1,53 +1,44 @@
-{{ $money := hugo.Data.delivery.money }}
-<fieldset class="order-section mb-5">
-  <legend class="h2">Your order</legend>
-  <p class="mb-2">
-    Chicken is priced by pack weight; we pick the closest packs we have.
-    Bulk discounts:
-    {{ range $i, $tier := $money.bulkTiers -}}
-      {{- if $i }} &middot; {{ end -}}
-      <span class="text-nowrap">${{ $tier.off }} off ${{ $tier.threshold }}+</span>
-    {{- end }}.
-  </p>
-  <div class="invalid-feedback d-block mb-2" data-error-for="lines"></div>
-  <table class="table order-table mb-0">
-    <thead class="visually-hidden">
-      <tr>
-        <th scope="col">Item</th>
-        <th scope="col">Price</th>
-        <th scope="col">Quantity</th>
-        <th scope="col">Total</th>
-      </tr>
-    </thead>
-    {{ range hugo.Data.catalog.groups }}
-      <tbody class="order-group" data-group="{{ .key }}">
-        <tr class="order-group-heading">
-          <th scope="rowgroup" colspan="4">{{ .label }}</th>
-        </tr>
+{{ $groups := partial "order/groups.html" . }}
+<div class="order-topbar d-lg-none">
+  <button type="button" class="btn btn-outline-secondary btn-sm order-topbar-btn" data-bs-toggle="offcanvas" data-bs-target="#order-side" aria-controls="order-side">
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M2 4h12M2 8h12M2 12h12" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+    </svg>
+    Categories
+  </button>
+</div>
+
+<h2 class="visually-hidden">Choose your items</h2>
+<div class="invalid-feedback d-block mb-2" data-error-for="lines"></div>
+
+<div class="order-catalog" id="order-catalog" data-bs-spy="scroll" data-bs-target="#order-cats" data-bs-root-margin="-20% 0px -65%" data-bs-smooth-scroll="true" tabindex="0">
+  {{ range $groups }}
+    <section class="order-cat" id="cat-{{ .key }}" aria-labelledby="cat-{{ .key }}-h">
+      <h3 class="order-cat-title" id="cat-{{ .key }}-h">
+        {{ .short }}
+        {{ with .note }}<span class="order-cat-note">{{ . }}</span>{{ end }}
+      </h3>
+      <ul class="order-items list-unstyled mb-0">
         {{ range .items }}
           {{ $id := printf "qty-%s" (.sku | lower) }}
-          <tr class="order-item{{ if not .inStock }} order-item-out{{ end }}" data-sku="{{ .sku }}" data-price="{{ .price }}" data-in-stock="{{ .inStock }}">
-            <td class="order-item-label">
+          <li class="order-item" data-sku="{{ .sku }}" tabindex="-1">
+            <span class="order-item-name">
               <label for="{{ $id }}">{{ .label }}</label>
-              {{ if not .inStock }}<span class="badge text-bg-light ms-2">Sold out</span>{{ end }}
-            </td>
-            <td class="order-item-price text-nowrap">${{ .price }}</td>
-            <td class="order-item-qty">
-              {{ if .inStock }}
-                <div class="order-stepper" role="group" aria-label="Quantity of {{ .label }}">
-                  <button type="button" class="btn btn-outline-secondary" data-step="-1" aria-label="Fewer {{ .label }}" tabindex="-1">&minus;</button>
-                  <input class="form-control" type="text" id="{{ $id }}" name="qty.{{ .sku }}" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="0" data-qty="{{ .sku }}" aria-describedby="err-{{ $id }}">
-                  <button type="button" class="btn btn-outline-secondary" data-step="1" aria-label="More {{ .label }}" tabindex="-1">+</button>
-                </div>
-                <div class="invalid-feedback" id="err-{{ $id }}" data-error-for="lines.{{ .sku }}"></div>
-              {{ else }}
-                <span class="visually-hidden">Not available</span>
-              {{ end }}
-            </td>
-            <td class="order-item-total text-end text-nowrap" data-line-total="{{ .sku }}"></td>
-          </tr>
+            </span>
+            <span class="order-item-price">${{ .price }}</span>
+            <div class="order-qty" data-qty-state="empty">
+              <button type="button" class="btn btn-outline-primary order-qty-add" data-step="1" aria-hidden="true" tabindex="-1">Add</button>
+              <div class="order-qty-step" role="group" aria-label="Quantity of {{ .label }}">
+                <button type="button" class="btn" data-step="-1" aria-label="One fewer">&minus;</button>
+                <input class="form-control" type="text" id="{{ $id }}" name="qty.{{ .sku }}" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="0" data-qty="{{ .sku }}" aria-describedby="err-{{ $id }}">
+                <button type="button" class="btn" data-step="1" aria-label="One more">+</button>
+              </div>
+            </div>
+            <span class="order-item-total" data-line-total="{{ .sku }}"></span>
+            <div class="invalid-feedback order-item-error" id="err-{{ $id }}" data-error-for="lines.{{ .sku }}"></div>
+          </li>
         {{ end }}
-      </tbody>
-    {{ end }}
-  </table>
-</fieldset>
+      </ul>
+    </section>
+  {{ end }}
+</div>

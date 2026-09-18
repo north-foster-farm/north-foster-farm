@@ -2,7 +2,7 @@
 // Some keys (the date, for one) have a slot in every fulfilment
 // section, so the visible one wins.
 
-const visible = (el) => !el.closest("[hidden]");
+const visible = (el) => !el.closest("[hidden], [inert]");
 
 export class Errors {
   constructor(form) {

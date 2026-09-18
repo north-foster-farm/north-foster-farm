@@ -1,49 +1,59 @@
 {{ $terms := hugo.Data.delivery }}
 {{ $money := $terms.money }}
 {{ $policy := relURL "local-delivery-policy/" }}
-<fieldset class="order-section mb-5">
-  <legend class="h2">How would you like to get your order?</legend>
+<fieldset class="order-section mb-5" id="pickup">
+  <legend class="h2" tabindex="-1">Pickup or delivery</legend>
   <div class="invalid-feedback d-block mb-2" data-error-for="fulfilment.method"></div>
-  <div class="order-methods" role="radiogroup" aria-label="Pickup or delivery">
+  <div class="order-methods" role="radiogroup" aria-label="How to get your order">
 
     <div class="order-method">
       <input class="form-check-input" type="radio" name="method" id="method-onfarm" value="onfarm" data-field="fulfilment.method">
       <label class="order-method-label" for="method-onfarm">
         <span class="order-method-title">On-farm pickup</span>
-        <span class="order-method-meta">{{ $terms.onFarm.address }}. {{ $terms.onFarm.note }} No minimum, no fee.</span>
+        <dl class="order-method-facts">
+          <dt>When</dt>
+          <dd>By appointment, most days.</dd>
+          <dt>Where</dt>
+          <dd>{{ $terms.onFarm.address }}.</dd>
+          <dt>Cost</dt>
+          <dd>No minimum, no fee.</dd>
+        </dl>
       </label>
-      <div class="order-method-body" data-method-body="onfarm" hidden>
-        <div class="row g-3">
-          <div class="col-md-7">
-            <label class="form-label" for="onfarm-date">Requested pickup day</label>
-            <select class="form-select" id="onfarm-date" name="onfarm.date" data-dates="onfarm" data-field="fulfilment.date" disabled aria-describedby="err-onfarm-date">
-              <option value="">Loading dates&hellip;</option>
-            </select>
-            <div class="invalid-feedback" id="err-onfarm-date" data-error-for="fulfilment.date"></div>
-          </div>
-          <div class="col-md-5">
-            <span class="form-label d-block" id="onfarm-window-label">Morning or afternoon?</span>
-            <div class="d-flex gap-4" role="radiogroup" aria-labelledby="onfarm-window-label" data-field="onfarm.window">
-              <div class="form-check">
-                <input class="form-check-input" type="radio" name="onfarm.window" id="onfarm-morning" value="morning">
-                <label class="form-check-label" for="onfarm-morning">Morning</label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input" type="radio" name="onfarm.window" id="onfarm-afternoon" value="afternoon">
-                <label class="form-check-label" for="onfarm-afternoon">Afternoon</label>
-              </div>
+      <div class="order-method-reveal" data-method-body="onfarm" inert>
+        <div class="order-method-body">
+          <div class="row g-3">
+            <div class="col-md-7">
+              <label class="form-label" for="onfarm-date">Which day works?</label>
+              <select class="form-select" id="onfarm-date" name="onfarm.date" data-dates="onfarm" data-field="fulfilment.date" disabled aria-describedby="err-onfarm-date">
+                <option value="">Loading dates&hellip;</option>
+              </select>
+              <div class="invalid-feedback" id="err-onfarm-date" data-error-for="fulfilment.date"></div>
             </div>
-            <div class="invalid-feedback" data-error-for="onfarm.window"></div>
-          </div>
-          <div class="col-md-7">
-            <label class="form-label" for="onfarm-phone">Pickup contact phone</label>
-            <input class="form-control" type="tel" id="onfarm-phone" name="onfarm.phone" autocomplete="tel" inputmode="tel" data-field="onfarm.phone" aria-describedby="err-onfarm-phone">
-            <div class="invalid-feedback" id="err-onfarm-phone" data-error-for="onfarm.phone"></div>
-          </div>
-          <div class="col-md-5 d-flex align-items-end">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="onfarm-text" name="onfarm.textOk" value="1" data-field="onfarm.textOk">
-              <label class="form-check-label" for="onfarm-text">It's okay to text this number</label>
+            <div class="col-md-5">
+              <span class="form-label d-block" id="onfarm-window-label">Roughly when?</span>
+              <div class="d-flex gap-4" role="radiogroup" aria-labelledby="onfarm-window-label" data-field="onfarm.window">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="onfarm.window" id="onfarm-morning" value="morning">
+                  <label class="form-check-label" for="onfarm-morning">Morning</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="onfarm.window" id="onfarm-afternoon" value="afternoon">
+                  <label class="form-check-label" for="onfarm-afternoon">Afternoon</label>
+                </div>
+              </div>
+              <div class="invalid-feedback" data-error-for="onfarm.window"></div>
+            </div>
+            <div class="col-md-7">
+              <label class="form-label" for="onfarm-phone">A phone number for the day</label>
+              <input class="form-control" type="tel" id="onfarm-phone" name="onfarm.phone" autocomplete="tel" inputmode="tel" data-field="onfarm.phone" aria-describedby="help-onfarm-phone err-onfarm-phone">
+              <div class="form-text" id="help-onfarm-phone">So we can find each other.</div>
+              <div class="invalid-feedback" id="err-onfarm-phone" data-error-for="onfarm.phone"></div>
+            </div>
+            <div class="col-md-5 d-flex align-items-end">
+              <div class="form-check order-check-lg">
+                <input class="form-check-input" type="checkbox" id="onfarm-text" name="onfarm.textOk" value="1" data-field="onfarm.textOk">
+                <label class="form-check-label" for="onfarm-text">You can text me</label>
+              </div>
             </div>
           </div>
         </div>
@@ -54,46 +64,26 @@
       <input class="form-check-input" type="radio" name="method" id="method-scituate" value="scituate" data-field="fulfilment.method">
       <label class="order-method-label" for="method-scituate">
         <span class="order-method-title">Scituate drop site</span>
-        <span class="order-method-meta">Saturdays, {{ $terms.scituate.window }}, starting {{ dateFormat "January 2" $terms.scituate.start }}. {{ $terms.scituate.location }}: {{ $terms.scituate.note | lower }} Pre-paid orders only. No minimum, no fee.</span>
+        <dl class="order-method-facts">
+          <dt>When</dt>
+          <dd>Saturdays, {{ $terms.scituate.window }}, from {{ dateFormat "January 2" $terms.scituate.start }}.</dd>
+          <dt>Where</dt>
+          <dd>{{ $terms.scituate.location }}, where our market tent sits.</dd>
+          <dt>Cost</dt>
+          <dd>No minimum, no fee.</dd>
+        </dl>
       </label>
-      <div class="order-method-body" data-method-body="scituate" hidden>
-        <div class="row g-3">
-          <div class="col-md-7">
-            <label class="form-label" for="scituate-date">Which Saturday?</label>
-            <select class="form-select" id="scituate-date" name="scituate.date" data-dates="scituate" data-field="fulfilment.date" disabled aria-describedby="err-scituate-date">
-              <option value="">Loading dates&hellip;</option>
-            </select>
-            <div class="invalid-feedback" id="err-scituate-date" data-error-for="fulfilment.date"></div>
+      <div class="order-method-reveal" data-method-body="scituate" inert>
+        <div class="order-method-body">
+          <div class="row g-3">
+            <div class="col-md-7">
+              <label class="form-label" for="scituate-date">Which Saturday?</label>
+              <select class="form-select" id="scituate-date" name="scituate.date" data-dates="scituate" data-field="fulfilment.date" disabled aria-describedby="err-scituate-date">
+                <option value="">Loading dates&hellip;</option>
+              </select>
+              <div class="invalid-feedback" id="err-scituate-date" data-error-for="fulfilment.date"></div>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="order-method order-method-disabled" aria-disabled="true">
-      <input class="form-check-input" type="radio" name="method" id="method-southcounty" value="southcounty" disabled>
-      <label class="order-method-label" for="method-southcounty">
-        <span class="order-method-title">South County drop site <span class="badge text-bg-secondary ms-1">Not open yet</span></span>
-        <span class="order-method-meta">We're working on a drop site near {{ $terms.southCounty.near }}, in the {{ $terms.southCounty.area }} area, and we'll open it once enough people want it.</span>
-      </label>
-      <div class="order-method-body order-vote">
-        <span class="form-label d-block" id="vote-label">Would you use a South County drop site?</span>
-        <div class="d-flex flex-wrap gap-3" role="radiogroup" aria-labelledby="vote-label">
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="vote.southCounty" id="vote-regularly" value="regularly" data-field="vote.southCounty">
-            <label class="form-check-label" for="vote-regularly">Yes, regularly</label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="vote.southCounty" id="vote-occasionally" value="occasionally" data-field="vote.southCounty">
-            <label class="form-check-label" for="vote-occasionally">Yes, occasionally</label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="vote.southCounty" id="vote-no" value="no" data-field="vote.southCounty">
-            <label class="form-check-label" for="vote-no">No</label>
-          </div>
-        </div>
-        <div class="mt-3 col-md-7 px-0">
-          <label class="form-label" for="vote-town">Which town would you come from?</label>
-          <input class="form-control" type="text" id="vote-town" name="vote.town" autocomplete="off" data-field="vote.town">
         </div>
       </div>
     </div>
@@ -102,87 +92,78 @@
       <input class="form-check-input" type="radio" name="method" id="method-delivery" value="delivery" data-field="fulfilment.method">
       <label class="order-method-label" for="method-delivery">
         <span class="order-method-title">Local delivery</span>
-        <span class="order-method-meta">Thursdays, roughly {{ $terms.delivery.window }}. ${{ $money.deliveryMinimum }} minimum, ${{ $money.deliveryFee }} flat fee, free on orders of ${{ $money.feeWaivedAt }} or more. Orders close Wednesday at 12:00 PM.</span>
+        <dl class="order-method-facts">
+          <dt>When</dt>
+          <dd>Thursdays, {{ $terms.delivery.window }}. Order by Wednesday noon.</dd>
+          <dt>Where</dt>
+          <dd>Rhode Island, and eggs to nearby Connecticut.</dd>
+          <dt>Cost</dt>
+          <dd>${{ $money.deliveryMinimum }} minimum. ${{ $money.deliveryFee }} fee, waived on orders of ${{ $money.feeWaivedAt }} or more.</dd>
+        </dl>
       </label>
-      <div class="order-method-body" data-method-body="delivery" hidden>
-        <p class="order-countdown mb-3" data-countdown aria-live="off"></p>
-        <div class="alert alert-warning py-2" data-minimum-warning hidden>
-          Delivery orders are ${{ $money.deliveryMinimum }} or more after discounts. Add a little more, or choose on-farm pickup or the Scituate drop site, which have no minimum.
-        </div>
-        <p class="mb-2">
-          Please read the <a href="{{ $policy }}" target="_blank" rel="noopener">local delivery policy</a>, then confirm all four:
-        </p>
-        <div class="mb-3" data-field="delivery.acknowledgements">
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="ack-policy" name="ack.policy" value="1" data-ack="policy">
-            <label class="form-check-label" for="ack-policy">I have read the local delivery policy</label>
+      <div class="order-method-reveal" data-method-body="delivery" inert>
+        <div class="order-method-body">
+          <p class="order-countdown" data-countdown aria-live="off">
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <circle cx="7" cy="7" r="5.75" fill="none" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M7 3.75V7l2.25 1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+            <span data-countdown-text></span>
+          </p>
+          <div class="order-terms">
+            <p class="order-terms-title">Local delivery terms</p>
+            <ul class="order-terms-list">
+              <li>Thursdays, {{ $terms.delivery.window }}. The window is approximate.</li>
+              <li>Leave a cooler with ice out on Thursday morning, somewhere easy to find.</li>
+              <li>${{ $money.deliveryMinimum }} minimum after discounts. The ${{ $money.deliveryFee }} fee is waived on orders of ${{ $money.feeWaivedAt }} or more.</li>
+              <li>Rhode Island gets chicken and eggs. Connecticut is eggs only for now.</li>
+            </ul>
+            <p class="order-terms-link">By placing a delivery order you agree to the <a href="{{ $policy }}" target="_blank" rel="noopener">local delivery policy</a>.</p>
           </div>
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="ack-area" name="ack.area" value="1" data-ack="area">
-            <label class="form-check-label" for="ack-area">I am roughly within the delivery area</label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="ack-minimum" name="ack.minimum" value="1" data-ack="minimum">
-            <label class="form-check-label" for="ack-minimum">My order meets or exceeds the ${{ $money.deliveryMinimum }} minimum</label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="ack-cooler" name="ack.cooler" value="1" data-ack="cooler">
-            <label class="form-check-label" for="ack-cooler">There will be a cooler with ice ready on Thursday morning</label>
-          </div>
-          <div class="invalid-feedback" data-error-for="delivery.acknowledgements"></div>
-        </div>
-        <div class="invalid-feedback d-block mb-2" data-error-for="delivery.minimum"></div>
-        <div class="row g-3">
-          <div class="col-md-7">
-            <label class="form-label" for="delivery-date">Delivery date</label>
-            <select class="form-select" id="delivery-date" name="delivery.date" data-dates="delivery" data-field="fulfilment.date" disabled aria-describedby="err-delivery-date">
-              <option value="">Loading dates&hellip;</option>
-            </select>
-            <div class="invalid-feedback" id="err-delivery-date" data-error-for="fulfilment.date"></div>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label" for="delivery-contact-name">Drop-off contact name</label>
-            <input class="form-control" type="text" id="delivery-contact-name" name="delivery.contactName" autocomplete="name" data-field="delivery.contactName" aria-describedby="err-delivery-contact-name">
-            <div class="invalid-feedback" id="err-delivery-contact-name" data-error-for="delivery.contactName"></div>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label" for="delivery-contact-phone">Drop-off contact phone</label>
-            <input class="form-control" type="tel" id="delivery-contact-phone" name="delivery.contactPhone" autocomplete="tel" inputmode="tel" data-field="delivery.contactPhone" aria-describedby="help-delivery-contact-phone err-delivery-contact-phone">
-            <div class="form-text" id="help-delivery-contact-phone">Someone reachable on delivery day.</div>
-            <div class="invalid-feedback" id="err-delivery-contact-phone" data-error-for="delivery.contactPhone"></div>
-          </div>
-          <div class="col-12">
-            <label class="form-label" for="delivery-address1">Street address</label>
-            <input class="form-control" type="text" id="delivery-address1" name="delivery.address1" autocomplete="shipping address-line1" data-field="delivery.address1" aria-describedby="err-delivery-address1">
-            <div class="invalid-feedback" id="err-delivery-address1" data-error-for="delivery.address1"></div>
-          </div>
-          <div class="col-12">
-            <label class="form-label" for="delivery-address2">Apartment, unit, or floor <span class="text-body-secondary">(optional)</span></label>
-            <input class="form-control" type="text" id="delivery-address2" name="delivery.address2" autocomplete="shipping address-line2" data-field="delivery.address2">
-          </div>
-          <div class="col-md-8">
-            <label class="form-label" for="delivery-town">Town or city</label>
-            <input class="form-control" type="text" id="delivery-town" name="delivery.town" autocomplete="shipping address-level2" data-field="delivery.town" aria-describedby="err-delivery-town">
-            <div class="invalid-feedback" id="err-delivery-town" data-error-for="delivery.town"></div>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label" for="delivery-zip">ZIP code</label>
-            <input class="form-control" type="text" id="delivery-zip" name="delivery.zip" autocomplete="shipping postal-code" inputmode="numeric" maxlength="10" data-field="delivery.zip" aria-describedby="help-delivery-zip err-delivery-zip">
-            <div class="form-text" id="help-delivery-zip" data-zip-note></div>
-            <div class="invalid-feedback" id="err-delivery-zip" data-error-for="delivery.zip"></div>
-          </div>
-          <div class="col-md-5">
-            <label class="form-label" for="delivery-gate">Gate or keypad code <span class="text-body-secondary">(optional)</span></label>
-            <input class="form-control" type="text" id="delivery-gate" name="delivery.gate" autocomplete="off" data-field="delivery.gate">
-          </div>
-          <div class="col-md-7">
-            <label class="form-label" for="delivery-cooler">Where will we find your cooler?</label>
-            <input class="form-control" type="text" id="delivery-cooler" name="delivery.cooler" placeholder="On the side porch, left of the garage door" data-field="delivery.cooler" aria-describedby="err-delivery-cooler">
-            <div class="invalid-feedback" id="err-delivery-cooler" data-error-for="delivery.cooler"></div>
-          </div>
-          <div class="col-12">
-            <label class="form-label" for="delivery-notes">Anything else we should know? <span class="text-body-secondary">(optional)</span></label>
-            <textarea class="form-control" id="delivery-notes" name="delivery.notes" rows="2" placeholder="Dog in the yard, do not block the driveway" data-field="delivery.notes"></textarea>
+          <div class="invalid-feedback d-block mb-2" data-error-for="delivery.minimum"></div>
+          <div class="row g-3">
+            <div class="col-md-7">
+              <label class="form-label" for="delivery-date">Delivery date</label>
+              <select class="form-select" id="delivery-date" name="delivery.date" data-dates="delivery" data-field="fulfilment.date" disabled aria-describedby="err-delivery-date">
+                <option value="">Loading dates&hellip;</option>
+              </select>
+              <div class="invalid-feedback" id="err-delivery-date" data-error-for="fulfilment.date"></div>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="delivery-address1">Street address</label>
+              <input class="form-control" type="text" id="delivery-address1" name="delivery.address1" autocomplete="shipping address-line1" data-field="delivery.address1" aria-describedby="err-delivery-address1">
+              <div class="invalid-feedback" id="err-delivery-address1" data-error-for="delivery.address1"></div>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="delivery-address2">Apartment, unit, or floor <span class="text-body-secondary">(optional)</span></label>
+              <input class="form-control" type="text" id="delivery-address2" name="delivery.address2" autocomplete="shipping address-line2" data-field="delivery.address2">
+            </div>
+            <div class="col-md-8">
+              <label class="form-label" for="delivery-town">Town</label>
+              <input class="form-control" type="text" id="delivery-town" name="delivery.town" autocomplete="shipping address-level2" data-field="delivery.town" aria-describedby="err-delivery-town">
+              <div class="invalid-feedback" id="err-delivery-town" data-error-for="delivery.town"></div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="delivery-zip">ZIP</label>
+              <input class="form-control" type="text" id="delivery-zip" name="delivery.zip" autocomplete="shipping postal-code" inputmode="numeric" maxlength="10" data-field="delivery.zip" aria-describedby="help-delivery-zip err-delivery-zip">
+              <div class="form-text" id="help-delivery-zip" data-zip-note></div>
+              <div class="invalid-feedback" id="err-delivery-zip" data-error-for="delivery.zip"></div>
+            </div>
+            <div class="col-md-7">
+              <label class="form-label" for="delivery-cooler">Where will we find your cooler?</label>
+              <input class="form-control" type="text" id="delivery-cooler" name="delivery.cooler" data-field="delivery.cooler" aria-describedby="help-delivery-cooler err-delivery-cooler">
+              <div class="form-text" id="help-delivery-cooler">Somewhere we can see from the driveway: the side porch, under the carport, by the garage door.</div>
+              <div class="invalid-feedback" id="err-delivery-cooler" data-error-for="delivery.cooler"></div>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label" for="delivery-gate">Gate or keypad code <span class="text-body-secondary">(optional)</span></label>
+              <input class="form-control" type="text" id="delivery-gate" name="delivery.gate" autocomplete="off" data-field="delivery.gate">
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="delivery-notes">Anything we should know about the drop-off? <span class="text-body-secondary">(optional)</span></label>
+              <textarea class="form-control" id="delivery-notes" name="delivery.notes" rows="2" data-field="delivery.notes" aria-describedby="help-delivery-notes"></textarea>
+              <div class="form-text" id="help-delivery-notes">A dog in the yard, a driveway not to block, anything else.</div>
+            </div>
           </div>
         </div>
       </div>

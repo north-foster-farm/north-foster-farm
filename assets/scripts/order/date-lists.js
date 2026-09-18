@@ -3,8 +3,9 @@
 // visitor's wrong clock cannot offer a closed date.
 
 const RETRY = [2000, 5000, 15000, 30000];
+const HOUR = 3_600_000;
 
-const pad = (n) => String(n).padStart(2, "0");
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 export class DateLists {
   constructor(form, onChange) {
@@ -14,7 +15,8 @@ export class DateLists {
     this.lists = null;
     this.attempt = 0;
     this.timer = null;
-    this.countdown = form.querySelector("[data-countdown]");
+    this.chip = form.querySelector("[data-countdown]");
+    this.text = form.querySelector("[data-countdown-text]");
   }
 
   now() {
@@ -90,19 +92,26 @@ export class DateLists {
     }
   }
 
-  note(text) {
-    if (this.countdown) this.countdown.textContent = text;
+  note(text, urgency = "") {
+    if (!this.chip) return;
+
+    this.text.textContent = text;
+    if (urgency) {
+      this.chip.dataset.urgency = urgency;
+    } else {
+      delete this.chip.dataset.urgency;
+    }
   }
 
   tick() {
     clearTimeout(this.timer);
 
-    if (!this.countdown || !this.lists) return;
+    if (!this.chip || !this.lists) return;
 
     const next = this.lists.delivery[0];
 
     if (!next) {
-      this.note("Ordering for delivery is closed right now.");
+      this.note("Delivery ordering is closed right now.");
 
       return;
     }
@@ -118,16 +127,27 @@ export class DateLists {
       return;
     }
 
-    const total = Math.floor(remaining / 1000);
-    const days = Math.floor(total / 86400);
-    const hours = Math.floor((total % 86400) / 3600);
-    const minutes = Math.floor((total % 3600) / 60);
-    const seconds = total % 60;
-    const left = days > 0
-      ? `${days}d ${hours}h ${pad(minutes)}m`
-      : `${hours}h ${pad(minutes)}m ${pad(seconds)}s`;
+    const minutes = Math.floor(remaining / 60_000);
+    const hours = Math.floor(remaining / HOUR);
+    const days = Math.floor(hours / 24);
+    let left;
+    let urgency = "";
+    let every = 60_000;
 
-    this.note(`Ordering for ${next.label} closes in ${left}.`);
-    this.timer = setTimeout(() => this.tick(), 1000);
+    if (remaining < HOUR) {
+      left = `${plural(Math.max(minutes, 1), "minute")} left`;
+      urgency = "last";
+      every = 10_000;
+    } else if (remaining < 6 * HOUR) {
+      left = `${plural(hours, "hour")} left`;
+      urgency = "soon";
+    } else if (days >= 1) {
+      left = `${plural(days, "day")}, ${plural(hours % 24, "hour")} left`;
+    } else {
+      left = `${plural(hours, "hour")} left`;
+    }
+
+    this.note(`Order by Wednesday noon for ${next.label}: ${left}.`, urgency);
+    this.timer = setTimeout(() => this.tick(), every);
   }
 }

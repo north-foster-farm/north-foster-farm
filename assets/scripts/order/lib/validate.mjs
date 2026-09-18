@@ -48,8 +48,6 @@ export const disallowedFor = (lines, state) => {
   return lines.filter((line) => !state.onlyGroups.includes(line.groupKey));
 };
 
-const ACKS = ["policy", "area", "cooler"];
-
 // Returns { ok: true, order } or { ok: false, status, errors, dates? }.
 export const validateOrder = (payload, { index, terms, now }) => {
   const errors = {};
@@ -123,14 +121,7 @@ export const validateOrder = (payload, { index, terms, now }) => {
 
   if (method === "delivery") {
     const f = fulfilment.delivery || {};
-    const acks = f.acknowledgements || {};
 
-    for (const key of ACKS) {
-      if (acks[key] !== true) {
-        errors["delivery.acknowledgements"] =
-          "Please confirm all three.";
-      }
-    }
     if (!meetsMinimum(totals, money)) {
       errors["delivery.minimum"] =
         `Delivery orders are $${money.deliveryMinimum} or more after ` +
@@ -164,9 +155,6 @@ export const validateOrder = (payload, { index, terms, now }) => {
       gate: text(f.gate, 100),
       cooler: text(f.cooler, 300),
       notes: text(f.notes, 1000),
-      acknowledgements: Object.fromEntries(
-        ACKS.map((k) => [k, acks[k] === true])
-      ),
       zipStatus: status,
     };
   }

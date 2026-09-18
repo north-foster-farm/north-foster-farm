@@ -1,20 +1,37 @@
 import { indexCatalog } from "./lib/catalog.mjs";
+import { summarize } from "./lib/summary.mjs";
 import {
-  computeTotals, dollars, meetsMinimum, nextTier,
+  computeTotals, dollars, meetsMinimum, toCents,
 } from "./lib/totals.mjs";
-import { validateOrder, zipStatus } from "./lib/validate.mjs";
+import {
+  disallowedFor, validateOrder, zipInfo,
+} from "./lib/validate.mjs";
+import { label } from "./lib/zoned.mjs";
+import { celebrate } from "./celebrate.js";
 import { DateLists } from "./date-lists.js";
 import { Draft } from "./draft.js";
 import { Errors } from "./errors.js";
 import { Submitter } from "./submit.js";
 
-const NUDGE_WITHIN = 1500;
 const RETRY_DELAYS = [5000, 15000, 45000, 120000, 300000];
 const MAX_ATTEMPTS = 6;
-const METHOD_DATES = ["onfarm", "scituate", "delivery"];
 
 const qs = (root, selector) => root.querySelector(selector);
 const all = (root, selector) => Array.from(root.querySelectorAll(selector));
+
+// Restart a CSS animation by re-applying its class.
+const pulse = (el, className) => {
+  el.classList.remove(className);
+  void el.offsetWidth;
+  el.classList.add(className);
+};
+
+// Where an element is, in viewport pixels, for a keyboard-driven change.
+const centre = (el) => {
+  const r = el.getBoundingClientRect();
+
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+};
 
 export class OrderForm {
   static init() {
@@ -38,13 +55,17 @@ export class OrderForm {
     this.draft = new Draft();
     this.dates = new DateLists(form, () => this.refresh());
     this.submitter = new Submitter();
-    this.summary = document.getElementById("order-summary");
+    this.cart = document.getElementById("order-cart");
     this.result = document.getElementById("order-result");
     this.restored = document.getElementById("order-restored");
     this.pendingNotice = document.getElementById("order-pending");
     this.submitButton = document.getElementById("order-submit");
     this.retryTimer = null;
+    this.lastTotal = null;
+    this.crossed = false;
     this.busy = false;
+    // Where the last change came from, so the feathers start there.
+    this.pointer = null;
   }
 
   start() {
@@ -64,33 +85,54 @@ export class OrderForm {
       }
     }
 
+    // Anything restored has already been through the threshold.
+    this.crossed = this.eligible(this.totals());
     this.dates.load();
     this.refresh();
   }
 
   wire() {
-    this.form.addEventListener("input", () => this.changed());
-    this.form.addEventListener("change", () => this.changed());
-    this.form.addEventListener("submit", (e) => this.submit(e));
-
-    this.form.addEventListener("click", (e) => {
-      const button = e.target.closest("[data-step]");
-
-      if (!button) return;
-
-      const input = qs(button.parentElement, "[data-qty]");
-      const next = this.qty(input) + Number(button.dataset.step);
-
-      input.value = String(Math.min(99, Math.max(0, next)));
+    // A typed quantity celebrates from the box; a click from the cursor.
+    this.form.addEventListener("input", (e) => {
+      if (e.target.matches("[data-qty]")) this.pointer = centre(e.target);
       this.changed();
+    });
+    this.form.addEventListener("change", (e) => {
+      this.changed();
+      if (e.target.name === "method") this.revealMethod();
+    });
+    this.form.addEventListener("submit", (e) => this.submit(e));
+    this.form.addEventListener("click", (e) => this.step(e));
+
+    // Blur normalises whatever was typed into a quantity box.
+    this.form.addEventListener("focusout", (e) => {
+      if (e.target.matches("[data-qty]")) {
+        this.setQty(e.target, this.qty(e.target));
+      }
     });
 
     qs(document, "#order-discard").addEventListener("click", () => {
       this.draft.clear();
       this.form.reset();
+      for (const input of all(this.form, "[data-qty]")) this.setQty(input, 0);
       this.restored.hidden = true;
       this.errors.clear();
+      this.crossed = false;
       this.refresh();
+    });
+
+    qs(this.cart, "[data-checkout]").addEventListener("click", () => {
+      const target = document.getElementById("pickup");
+
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      qs(target, "legend").focus({ preventScroll: true });
+    });
+
+    // Keep the active category link in view as the list scrolls.
+    const catalog = document.getElementById("order-catalog");
+
+    catalog.addEventListener("activate.bs.scrollspy", (e) => {
+      e.relatedTarget.scrollIntoView({ block: "nearest", behavior: "smooth" });
     });
 
     const retryNow = () => {
@@ -108,12 +150,46 @@ export class OrderForm {
     this.draft.save(this.collect());
   }
 
-  // Everything derived from the current field values.
+  // Quantity controls.
 
   qty(input) {
     const n = parseInt(String(input.value).replace(/\D/g, ""), 10);
 
     return Number.isFinite(n) ? Math.min(99, Math.max(0, n)) : 0;
+  }
+
+  // Both the property and the attribute, so CSS can see the state.
+  setQty(input, n) {
+    const value = String(n);
+
+    input.value = value;
+    input.setAttribute("value", value);
+  }
+
+  step(e) {
+    const button = e.target.closest("[data-step]");
+
+    if (!button) return;
+
+    const box = button.closest(".order-qty");
+    const input = qs(box, "[data-qty]");
+    const was = this.qty(input);
+    const next = Math.min(99, Math.max(0, was + Number(button.dataset.step)));
+
+    // A real click carries its coordinates; a keyboard click has none.
+    this.pointer = e.clientX || e.clientY
+      ? { x: e.clientX, y: e.clientY }
+      : centre(button);
+    this.setQty(input, next);
+    pulse(input, "order-qty-tick");
+
+    if (was === 0 && next > 0) {
+      qs(box, ".order-qty-step [data-step='1']").focus();
+    } else if (next === 0) {
+      button.closest(".order-item").focus();
+    }
+
+    this.changed();
   }
 
   method() {
@@ -128,6 +204,13 @@ export class OrderForm {
       .filter((line) => line.qty > 0);
   }
 
+  // Lines with their catalog entries, for rules that need the group.
+  lineDetails() {
+    return this.lines().map((line) => ({
+      ...line, groupKey: this.index.get(line.sku).groupKey,
+    }));
+  }
+
   totals() {
     return computeTotals({
       lines: this.lines(),
@@ -137,72 +220,140 @@ export class OrderForm {
     });
   }
 
+  eligible(totals) {
+    return meetsMinimum(totals, this.money);
+  }
+
+  // Everything derived from the current field values.
+
   refresh() {
     const method = this.method();
     const totals = this.totals();
 
     for (const input of all(this.form, "[data-qty]")) {
-      const cell = qs(this.form, `[data-line-total="${input.dataset.qty}"]`);
       const item = this.index.get(input.dataset.qty);
       const qty = this.qty(input);
+      const line = qs(this.form, `[data-line-total="${input.dataset.qty}"]`);
+      const box = input.closest(".order-qty");
+      const state = qty > 0 ? "active" : "empty";
 
-      if (cell) {
-        cell.textContent = qty > 0 ? dollars(qty * item.price * 100) : "";
+      if (box.dataset.qtyState !== state) box.dataset.qtyState = state;
+      qs(box, "[data-step='-1']").setAttribute(
+        "aria-label", qty === 1 ? "Remove" : "One fewer"
+      );
+      if (line) {
+        line.textContent = qty > 0 ? dollars(qty * toCents(item.price)) : "";
       }
     }
 
     for (const body of all(this.form, "[data-method-body]")) {
-      body.hidden = body.dataset.methodBody !== method;
+      body.toggleAttribute("inert", body.dataset.methodBody !== method);
     }
 
-    this.renderTotals(totals, method);
+    this.renderCart(totals, method);
     this.renderZipNote();
   }
 
-  renderTotals(totals, method) {
-    const s = this.summary;
+  revealMethod() {
+    const body = qs(this.form, `[data-method-body="${this.method()}"]`);
 
-    qs(s, "[data-total='subtotal']").textContent = dollars(totals.subtotal);
-    qs(s, "[data-total='total']").textContent = dollars(totals.total);
+    if (!body) return;
 
-    const discountRow = qs(s, "[data-total-row='discount']");
-    const feeRow = qs(s, "[data-total-row='fee']");
+    setTimeout(() => {
+      const field = qs(body, "select, input");
 
-    discountRow.hidden = totals.discountAmount === 0;
-    qs(s, "[data-total='discount']").textContent =
-      `−${dollars(totals.discountAmount)}`;
-    feeRow.hidden = totals.deliveryFee === 0;
-    qs(s, "[data-total='fee']").textContent = dollars(totals.deliveryFee);
+      if (field) {
+        field.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }, 240);
+  }
 
-    const nudge = qs(s, "[data-nudge]");
-    const next = nextTier(totals.subtotal, this.money);
+  // Every string in the panel comes from summarize(), which the tests
+  // pin; this only puts them in the DOM.
+  renderCart(totals, method) {
+    const c = this.cart;
+    const count = this.lines().reduce((n, line) => n + line.qty, 0);
+    const s = summarize({ totals, method, money: this.money, count });
 
-    if (next && totals.subtotal > 0 && next.gap <= NUDGE_WITHIN) {
-      nudge.textContent =
-        `Add ${dollars(next.gap)} more to save ${dollars(next.off)}.`;
-      nudge.hidden = false;
-    } else {
-      nudge.hidden = true;
+    qs(c, "[data-total='subtotal']").textContent = s.subtotal;
+
+    qs(c, "[data-total-row='discount']").hidden = !s.discount;
+    qs(c, "[data-total='tier']").textContent =
+      s.discount ? s.discount.tier : "";
+    qs(c, "[data-total='discount']").textContent =
+      s.discount ? s.discount.text : "";
+
+    const fee = qs(c, "[data-total='fee']");
+
+    qs(c, "[data-total-row='fee']").hidden = !s.fee.show;
+    fee.textContent = "";
+    if (s.fee.show && s.fee.waived) {
+      const free = document.createElement("span");
+      const struck = document.createElement("s");
+
+      free.className = "order-cart-free";
+      struck.textContent = s.fee.was;
+      free.append(struck, "Free");
+      fee.appendChild(free);
+    } else if (s.fee.show) {
+      fee.textContent = s.fee.text;
     }
 
-    const warning = qs(this.form, "[data-minimum-warning]");
+    const total = qs(c, "[data-total='total']");
 
-    warning.hidden = !(
-      method === "delivery" && totals.subtotal > 0 &&
-      !meetsMinimum(totals, this.money)
+    if (this.lastTotal !== null && this.lastTotal !== s.total) {
+      pulse(total, "is-bumped");
+    }
+    total.textContent = s.total;
+    this.lastTotal = s.total;
+
+    qs(c, "[data-total='count']").textContent = s.countText;
+    qs(c, ".order-cart-toggle").setAttribute(
+      "aria-label",
+      `Order total ${s.total}, ${s.countText}. Show the breakdown.`
     );
+    qs(c, "[data-checkout]").disabled = count === 0;
+
+    for (const badge of s.badges) {
+      const el = qs(c, `[data-badge="${badge.key}"]`);
+
+      if (el) el.dataset.on = String(badge.on);
+    }
+
+    const nudge = qs(c, "[data-nudge]");
+
+    if (nudge.textContent !== s.nudge) nudge.textContent = s.nudge;
+    nudge.hidden = !s.nudge;
+
+    if (s.eligible && !this.crossed) {
+      this.crossed = true;
+      celebrate(this.pointer || centre(total));
+    } else if (!s.eligible) {
+      this.crossed = false;
+    }
   }
 
   renderZipNote() {
     const zip = qs(this.form, "[data-field='delivery.zip']");
     const note = qs(this.form, "[data-zip-note]");
-    const status = zipStatus(zip.value, this.terms.area);
+    const info = zipInfo(zip.value, this.terms.area);
+    const bad = disallowedFor(this.lineDetails(), info.state);
 
-    if (status === "unlisted") {
-      note.textContent =
-        "That's a little outside our usual area, but we'll make it work.";
-    } else if (status === "outside") {
-      note.textContent = "That's outside our delivery range.";
+    note.classList.remove("text-danger-emphasis");
+
+    if (info.status === "outside") {
+      note.textContent = "That's outside our delivery area. On-farm pickup " +
+        "and the Scituate drop site are open to everyone.";
+      note.classList.add("text-danger-emphasis");
+    } else if (info.status === "unlisted") {
+      note.textContent = "A little outside our usual area. We'll confirm " +
+        "before we charge you.";
+    } else if (bad.length) {
+      note.textContent = "We can only deliver eggs to Connecticut for now. " +
+        "Remove the chicken, or choose pickup.";
+      note.classList.add("text-danger-emphasis");
+    } else if (info.state && info.state.note) {
+      note.textContent = info.state.note;
     } else {
       note.textContent = "";
     }
@@ -217,8 +368,8 @@ export class OrderForm {
       if (!el) return "";
       if (el.type === "checkbox") return el.checked;
       if (el.type === "radio" || el.getAttribute("role") === "radiogroup") {
-        const checked = qs(this.form, `[name="${el.getAttribute("name") ||
-          qs(el, "input").name}"]:checked`);
+        const name = el.getAttribute("name") || qs(el, "input").name;
+        const checked = qs(this.form, `[name="${name}"]:checked`);
 
         return checked ? checked.value : "";
       }
@@ -227,11 +378,6 @@ export class OrderForm {
     };
     const method = this.method();
     const dateSelect = qs(this.form, `[data-dates="${method}"]`);
-    const acks = {};
-
-    for (const box of all(this.form, "[data-ack]")) {
-      acks[box.dataset.ack] = box.checked;
-    }
 
     return {
       formVersion: this.form.dataset.version,
@@ -250,8 +396,6 @@ export class OrderForm {
           textOk: value("onfarm.textOk"),
         },
         delivery: {
-          contactName: value("delivery.contactName"),
-          contactPhone: value("delivery.contactPhone"),
           address1: value("delivery.address1"),
           address2: value("delivery.address2"),
           town: value("delivery.town"),
@@ -259,12 +403,7 @@ export class OrderForm {
           gate: value("delivery.gate"),
           cooler: value("delivery.cooler"),
           notes: value("delivery.notes"),
-          acknowledgements: acks,
         },
-      },
-      vote: {
-        southCounty: value("vote.southCounty"),
-        town: value("vote.town"),
       },
       notes: value("notes"),
       source: value("source"),
@@ -295,7 +434,6 @@ export class OrderForm {
     const f = payload.fulfilment || {};
     const o = f.onfarm || {};
     const d = f.delivery || {};
-    const v = payload.vote || {};
 
     set("customer.name", c.name);
     set("customer.email", c.email);
@@ -304,7 +442,7 @@ export class OrderForm {
     for (const line of payload.lines || []) {
       const input = qs(this.form, `[data-qty="${line.sku}"]`);
 
-      if (input) input.value = String(line.qty);
+      if (input) this.setQty(input, line.qty);
     }
 
     if (f.method) set("fulfilment.method", f.method);
@@ -313,27 +451,19 @@ export class OrderForm {
     set("onfarm.textOk", o.textOk);
 
     for (const key of [
-      "contactName", "contactPhone", "address1", "address2", "town", "zip",
-      "gate", "cooler", "notes",
+      "address1", "address2", "town", "zip", "gate", "cooler", "notes",
     ]) {
       set(`delivery.${key}`, d[key]);
-    }
-    for (const box of all(this.form, "[data-ack]")) {
-      box.checked = !!(d.acknowledgements || {})[box.dataset.ack];
     }
 
     if (f.method && f.date) {
       const select = qs(this.form, `[data-dates="${f.method}"]`);
 
-      if (select) {
-        // Kept until the real list arrives; fill() honours it if the
-        // date is still valid.
-        select.value = f.date;
-      }
+      // Kept until the real list arrives; fill() honours it if the
+      // date is still valid.
+      if (select) select.value = f.date;
     }
 
-    set("vote.southCounty", v.southCounty);
-    set("vote.town", v.town);
     set("notes", payload.notes);
     set("source", payload.source);
   }
@@ -388,8 +518,8 @@ export class OrderForm {
       this.pendingNotice.hidden = true;
       this.dates.replace(payload.fulfilment.method, outcome.dates);
       this.errors.show({
-        "fulfilment.date": "That date just closed. We've updated the " +
-            "list; please pick another and submit again.",
+        "fulfilment.date": "That date just closed. Pick another from the " +
+            "updated list and try again.",
       });
       break;
     case "retry":
@@ -437,7 +567,27 @@ export class OrderForm {
     this.busy = busy;
     this.form.classList.toggle("order-busy", busy);
     this.submitButton.disabled = busy;
-    this.submitButton.textContent = busy ? "Placing order…" : "Place order";
+    this.submitButton.textContent = busy
+      ? "Placing your order…"
+      : "Place your order";
+  }
+
+  // One line saying when and where, the sentence people screenshot.
+  when(fulfilment) {
+    const f = fulfilment;
+    const day = f.date ? label(f.date) : "";
+
+    if (f.method === "delivery" && f.delivery) {
+      return `${day}, delivered to ${f.delivery.address1}.`;
+    }
+    if (f.method === "scituate") {
+      return `${day}, Scituate drop site, ${this.terms.scituate.window}.`;
+    }
+    if (f.method === "onfarm" && f.onfarm) {
+      return `${day}, ${f.onfarm.window}, at the farm.`;
+    }
+
+    return day;
   }
 
   summaryText(payload) {
@@ -446,28 +596,28 @@ export class OrderForm {
       const item = this.index.get(line.sku);
 
       return `${line.qty} × ${item.groupLabel}, ${item.label} ` +
-        `(${dollars(line.qty * item.price * 100)})`;
+        `(${dollars(line.qty * toCents(item.price))})`;
     });
-    const f = payload.fulfilment;
-    const where = {
-      onfarm: "On-farm pickup",
-      scituate: "Scituate drop site",
-      delivery: "Local delivery",
-    }[f.method] || f.method;
 
     return [
       `${payload.customer.name} <${payload.customer.email}>`,
-      `${where}, ${f.date}`,
+      this.when(payload.fulfilment),
       ...lines,
       `Total ${dollars(totals.total)}`,
     ].join("\n");
   }
 
-  succeed(data, payload) {
+  finish(node) {
     this.pendingNotice.hidden = true;
+    this.result.textContent = "";
+    this.result.appendChild(node);
+    this.result.hidden = false;
+    this.result.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
 
-    const template = document.getElementById("order-success");
-    const node = template.content.cloneNode(true);
+  succeed(data, payload) {
+    const node = document.getElementById("order-success").content
+      .cloneNode(true);
     const fill = (name, text) => {
       const el = qs(node, `[data-out="${name}"]`);
 
@@ -479,6 +629,7 @@ export class OrderForm {
       fill("email", data.customer.email);
       fill("orderId", data.orderId);
       fill("total", dollars(data.totals.total));
+      fill("when", this.when(data.fulfilment));
 
       const link = qs(node, "[data-out='invoiceUrl']");
 
@@ -503,22 +654,18 @@ export class OrderForm {
       qs(node, "[data-out='details']").hidden = true;
     }
 
-    this.result.textContent = "";
-    this.result.appendChild(node);
-    this.result.hidden = false;
     this.form.hidden = true;
-    this.summary.hidden = true;
     this.restored.hidden = true;
-    this.result.scrollIntoView({ block: "start", behavior: "smooth" });
+    this.finish(node);
   }
 
   fail(payload, message) {
-    this.pendingNotice.hidden = true;
-
-    const template = document.getElementById("order-failed");
-    const node = template.content.cloneNode(true);
+    const node = document.getElementById("order-failed").content
+      .cloneNode(true);
     const text = this.summaryText(payload);
     const mail = qs(node, "[data-out='mailto']");
+    const phone = qs(node, "[data-out='phone']");
+    const copy = qs(node, "[data-out='copy']");
 
     qs(node, "[data-out='message']").textContent = message;
     qs(node, "[data-out='summary']").textContent = text;
@@ -526,19 +673,20 @@ export class OrderForm {
       `${encodeURIComponent("Order from the website")}&body=` +
       `${encodeURIComponent(text)}`;
     mail.textContent = this.contact.email;
-
-    const phone = qs(node, "[data-out='phone']");
-
     phone.href = `tel:${this.contact.phone.plain}`;
     phone.textContent = this.contact.phone.display;
 
-    console.error(JSON.stringify({ event: "order.undeliverable", payload }));
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        copy.textContent = "Copied";
+        setTimeout(() => { copy.textContent = "Copy summary"; }, 2000);
+      } catch {
+        copy.textContent = "Select the text above to copy it";
+      }
+    });
 
-    this.result.textContent = "";
-    this.result.appendChild(node);
-    this.result.hidden = false;
-    this.result.scrollIntoView({ block: "start", behavior: "smooth" });
+    console.error(JSON.stringify({ event: "order.undeliverable", payload }));
+    this.finish(node);
   }
 }
-
-export { METHOD_DATES };

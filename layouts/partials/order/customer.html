@@ -1,20 +1,21 @@
-<fieldset class="order-section mb-5">
-  <legend class="h2">About you</legend>
+<fieldset class="order-section mb-5" id="details">
+  <legend class="h2">Your details</legend>
   <div class="row g-3">
     <div class="col-12">
-      <label class="form-label" for="customer-name">Full name</label>
+      <label class="form-label" for="customer-name">Name</label>
       <input class="form-control" type="text" id="customer-name" name="customer.name" autocomplete="name" required data-field="customer.name" aria-describedby="err-customer-name">
       <div class="invalid-feedback" id="err-customer-name" data-error-for="customer.name"></div>
     </div>
     <div class="col-md-7">
-      <label class="form-label" for="customer-email">Email for your payment link</label>
+      <label class="form-label" for="customer-email">Email</label>
       <input class="form-control" type="email" id="customer-email" name="customer.email" autocomplete="email" inputmode="email" required data-field="customer.email" aria-describedby="help-customer-email err-customer-email">
-      <div class="form-text" id="help-customer-email">We email a secure link to pay by card. Please double-check it.</div>
+      <div class="form-text" id="help-customer-email">Your payment link goes here, so please check it twice.</div>
       <div class="invalid-feedback" id="err-customer-email" data-error-for="customer.email"></div>
     </div>
     <div class="col-md-5">
       <label class="form-label" for="customer-phone">Phone <span class="text-body-secondary">(optional)</span></label>
-      <input class="form-control" type="tel" id="customer-phone" name="customer.phone" autocomplete="tel" inputmode="tel" data-field="customer.phone" aria-describedby="err-customer-phone">
+      <input class="form-control" type="tel" id="customer-phone" name="customer.phone" autocomplete="tel" inputmode="tel" data-field="customer.phone" aria-describedby="help-customer-phone err-customer-phone">
+      <div class="form-text" id="help-customer-phone">Only if something goes sideways with your order.</div>
       <div class="invalid-feedback" id="err-customer-phone" data-error-for="customer.phone"></div>
     </div>
   </div>

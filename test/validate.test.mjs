@@ -35,7 +35,6 @@ const delivery = (overrides = {}) => ({
       town: "Foster",
       zip: "02825",
       cooler: "Side porch",
-      acknowledgements: { policy: true, area: true, cooler: true },
       ...overrides,
     },
   },
@@ -149,14 +148,6 @@ describe("delivery rules", () => {
 
     assert.equal(r.status, 422);
     assert.match(r.errors["delivery.minimum"], /Scituate/);
-  });
-
-  it("requires all three acknowledgements", () => {
-    const acknowledgements = { policy: true, area: true };
-    const r = validateOrder(delivery({ acknowledgements }), ctx);
-
-    assert.equal(r.status, 422);
-    assert.ok(r.errors["delivery.acknowledgements"]);
   });
 
   it("records the state and takes eggs to Connecticut", () => {

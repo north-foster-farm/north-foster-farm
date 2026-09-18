@@ -1,12 +1,13 @@
 <fieldset class="order-section mb-4">
-  <legend class="h2">Almost done</legend>
+  <legend class="h2">Anything else?</legend>
   <div class="row g-3">
     <div class="col-12">
       <label class="form-label" for="order-notes">Notes or special requests <span class="text-body-secondary">(optional)</span></label>
-      <textarea class="form-control" id="order-notes" name="notes" rows="3" placeholder="Substitutions you would accept, anything at all" data-field="notes"></textarea>
+      <textarea class="form-control" id="order-notes" name="notes" rows="3" data-field="notes" aria-describedby="help-order-notes"></textarea>
+      <div class="form-text" id="help-order-notes">Substitutions you'd accept, or anything else we should know.</div>
     </div>
     <div class="col-md-7">
-      <label class="form-label" for="order-source">How did you hear about us? <span class="text-body-secondary">(optional)</span></label>
+      <label class="form-label" for="order-source">How did you find us? <span class="text-body-secondary">(optional)</span></label>
       <select class="form-select" id="order-source" name="source" data-field="source">
         <option value="">Choose one</option>
         <option>Farmers market</option>
@@ -25,9 +26,12 @@
 
 <div class="order-submit">
   <div class="alert alert-danger" role="alert" data-form-error hidden></div>
-  <button type="submit" class="btn btn-primary btn-lg" id="order-submit">Place order</button>
-  <p class="form-text mt-2 mb-0">
-    We'll email your total and a secure link to pay by card. Nothing is
-    charged now.
-  </p>
+  <div class="order-submit-note">
+    <p class="order-submit-note-title">Your order isn't final until it's paid.</p>
+    <p class="mb-0">
+      Placing it sends you a Square invoice by email. Nothing is charged
+      now; pay the invoice by card and your order is confirmed.
+    </p>
+  </div>
+  <button type="submit" class="btn btn-primary btn-lg" id="order-submit">Place your order</button>
 </div>

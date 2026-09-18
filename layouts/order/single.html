@@ -1,12 +1,13 @@
 {{ define "main" }}
   <section class="{{ .Type }}">
-    <div class="page container py-5">
-      <div class="row justify-content-center">
-        <div class="col text-column">
-          {{ partial "page-heading.html" . }}
-          <div class="mb-4">
-            {{ .Content }}
-          </div>
+    <div class="page order-page container py-5">
+      {{ partial "page-heading.html" . }}
+      {{ with .Content }}
+        <div class="mb-4">{{ . }}</div>
+      {{ end }}
+      <div class="order-layout">
+        {{ partial "order/side.html" . }}
+        <div class="order-main">
           {{ partial "order/form.html" . }}
         </div>
       </div>

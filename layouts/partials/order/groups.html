@@ -1,0 +1,18 @@
+{{/* The in-stock catalog groups, for the sidebar and the product list.
+     A group with nothing to sell is left out, and so is its link. */}}
+{{ $notes := dict
+  "eggs" "per dozen"
+  "sausage" ""
+  "other" "about 1 lb each"
+}}
+{{ $groups := slice }}
+{{ range hugo.Data.catalog.groups }}
+  {{ $items := where .items "inStock" true }}
+  {{ if $items }}
+    {{ $note := "by pack weight" }}
+    {{ if isset $notes .key }}{{ $note = index $notes .key }}{{ end }}
+    {{ $short := replaceRE ` \(.*\)$` "" .label }}
+    {{ $groups = $groups | append (dict "key" .key "label" .label "short" $short "note" $note "items" $items) }}
+  {{ end }}
+{{ end }}
+{{ return $groups }}

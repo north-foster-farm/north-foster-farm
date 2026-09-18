@@ -6,7 +6,7 @@
 <script type="application/json" id="order-data">{{ $data | jsonify | safeJS }}</script>
 
 <div id="order-restored" class="alert alert-info order-restored" role="status" hidden>
-  <span>We restored the order you started earlier.</span>
+  <span>Picking up where you left off.</span>
   <button type="button" class="btn btn-sm btn-outline-secondary text-nowrap" id="order-discard">Start over</button>
 </div>
 
@@ -15,46 +15,58 @@
 </div>
 
 <form id="order-form" class="order-form" novalidate data-version="{{ hugo.Data.catalog.version }}">
-  {{ partial "order/customer.html" . }}
   {{ partial "order/catalog.html" . }}
+  {{ partial "order/cart.html" . }}
+  {{ partial "order/customer.html" . }}
   {{ partial "order/fulfilment.html" . }}
   {{ partial "order/wrap.html" . }}
 </form>
 
-{{ partial "order/summary.html" . }}
-
 <div id="order-result" class="order-result" aria-live="polite" hidden></div>
 
 <template id="order-success">
-  <div class="alert alert-success">
-    <h2 class="h3">Thank you, <span data-out="name"></span>!</h2>
+  <div class="order-result-card">
+    <div class="order-result-mark" aria-hidden="true">
+      <svg width="28" height="28" viewBox="0 0 28 28">
+        <path d="M6 14.5 11.5 20 22 8.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h2 class="h3">One more step, <span data-out="name"></span>.</h2>
     <div data-out="details">
       <p>
-        Your order <strong data-out="orderId"></strong> is in. We've emailed an
-        invoice for <strong data-out="total"></strong> to
-        <strong data-out="email"></strong>. Your order is reserved once payment
-        comes through.
+        <strong>Your order isn't final until it's paid.</strong> We emailed
+        a payment link for <strong data-out="total"></strong> to
+        <strong data-out="email"></strong>. Pay it by card and your order is
+        confirmed.
       </p>
+      <p class="order-result-when" data-out="when"></p>
       <p>
-        <a class="btn btn-primary" data-out="invoiceUrl" href="#" target="_blank" rel="noopener">Pay now</a>
+        <a class="btn btn-primary btn-lg" data-out="invoiceUrl" href="#" target="_blank" rel="noopener">Pay now</a>
       </p>
-      <ul class="order-result-lines" data-out="lines"></ul>
+      <details class="order-result-details">
+        <summary>What you ordered <span class="text-body-secondary" data-out="orderId"></span></summary>
+        <ul class="order-result-lines" data-out="lines"></ul>
+      </details>
     </div>
-    <p class="mb-0">
+    <p class="mb-0 text-body-secondary">
       Questions? Email <a href="mailto:{{ hugo.Data.company.email }}">{{ hugo.Data.company.email }}</a>.
     </p>
   </div>
 </template>
 
 <template id="order-failed">
-  <div class="alert alert-danger">
-    <h2 class="h3">We couldn't place your order online</h2>
+  <div class="order-result-card order-result-failed">
+    <h2 class="h3">Send this to us and we'll finish it by hand</h2>
     <p data-out="message"></p>
     <p>
-      Please send the details below to <a data-out="mailto" href="#"></a>, or
-      call or text <a data-out="phone" href="#"></a>, and we'll take it from
-      there. Your order is also still saved on this page.
+      Something went wrong on our end, not yours. Email the summary below to
+      <a data-out="mailto" href="#"></a>, or call or text
+      <a data-out="phone" href="#"></a>. Your order is still saved on this
+      page.
     </p>
     <pre data-out="summary"></pre>
+    <p class="mb-0">
+      <button type="button" class="btn btn-outline-secondary btn-sm" data-out="copy">Copy summary</button>
+    </p>
   </div>
 </template>

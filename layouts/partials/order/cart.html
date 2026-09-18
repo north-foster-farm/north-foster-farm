@@ -1,0 +1,41 @@
+{{ $money := hugo.Data.delivery.money }}
+<aside class="order-cart" id="order-cart" aria-label="Order summary">
+  <div class="collapse" id="order-cart-lines">
+    <dl class="order-cart-lines">
+      <div class="order-cart-row">
+        <dt>Subtotal</dt>
+        <dd data-total="subtotal">$0</dd>
+      </div>
+      <div class="order-cart-row order-cart-credit" data-total-row="discount" hidden>
+        <dt>Bulk discount <span class="order-cart-tier" data-total="tier"></span></dt>
+        <dd data-total="discount">&minus;$0</dd>
+      </div>
+      <div class="order-cart-row" data-total-row="fee" hidden>
+        <dt>Delivery fee</dt>
+        <dd data-total="fee">+$0</dd>
+      </div>
+    </dl>
+  </div>
+
+  <ul class="order-badges list-unstyled" aria-label="What this order qualifies for">
+    <li class="order-badge" data-badge="delivery">Local delivery</li>
+    {{ range $money.bulkTiers }}
+      <li class="order-badge" data-badge="tier-{{ .threshold }}">${{ .threshold }}+</li>
+    {{ end }}
+    <li class="order-badge" data-badge="free-delivery">Free delivery</li>
+  </ul>
+
+  <button class="order-cart-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#order-cart-lines" aria-expanded="false" aria-controls="order-cart-lines">
+    <span class="order-cart-label">
+      <span data-total="count">Nothing yet</span>
+      <svg class="order-cart-caret" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+        <path d="M2 4.5 6 8.5 10 4.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+    <span class="order-cart-total" data-total="total">$0</span>
+  </button>
+
+  <button type="button" class="btn btn-primary order-cart-checkout" data-checkout disabled>Checkout</button>
+
+  <p class="order-cart-nudge" data-nudge aria-live="polite" hidden></p>
+</aside>

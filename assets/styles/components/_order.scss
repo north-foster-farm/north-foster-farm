@@ -3,73 +3,448 @@
 // Tailwind migration unchanged.
 
 .order {
-  .text-column {
-    max-width: 760px;
+  --order-gutter: 1rem;
+  --order-radius: var(--bs-border-radius);
+  --order-shadow: var(--bs-box-shadow-sm);
+  --order-topbar-h: 3rem;
+  --order-ease: cubic-bezier(0.2, 0.8, 0.25, 1);
+  --order-fast: 140ms;
+  --order-base: 220ms;
+  --order-slow: 420ms;
+
+  .order-page {
+    max-width: 1040px;
   }
 
-  .order-section {
-    legend {
-      margin-bottom: 1rem;
+  .order-section legend {
+    margin-bottom: 1rem;
+  }
+
+  // Layout: sidebar and main column from lg up
+
+  .order-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 2.5rem;
+  }
+
+  .order-main {
+    min-width: 0;
+  }
+
+  // Category sidebar. Below lg it is Bootstrap's offcanvas drawer; the
+  // drawer chrome is Bootstrap's, only the list is styled here.
+
+  .order-side-title {
+    margin: 0 0 0.5rem;
+    font-size: 0.75rem;
+    font-weight: bold;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color);
+  }
+
+  .order-side-nav .nav-link {
+    padding: 0.5rem 0.75rem;
+    border-left: 3px solid transparent;
+    border-radius: 0 var(--order-radius) var(--order-radius) 0;
+    color: var(--bs-body-color);
+    transition:
+      background-color var(--order-fast) ease,
+      border-color var(--order-fast) ease,
+      color var(--order-fast) ease;
+
+    &:hover {
+      background-color: var(--bs-tertiary-bg);
+    }
+
+    &.active {
+      border-left-color: var(--bs-primary);
+      background-color: var(--bs-primary-bg-subtle);
+      color: var(--bs-primary-text-emphasis);
+      font-weight: bold;
     }
   }
 
-  // The order table
+  // Phone-only bar with the drawer toggle, stuck to the top.
 
-  .order-table {
-    th,
-    td {
-      padding: 0.5rem 0.25rem;
-      vertical-align: middle;
+  .order-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    min-height: var(--order-topbar-h);
+    margin: 0 calc(-1 * var(--order-gutter)) 0.75rem;
+    padding: 0.375rem var(--order-gutter);
+    background-color: var(--bs-body-bg);
+    box-shadow: var(--order-shadow);
+  }
+
+  .order-topbar-btn {
+    --bs-btn-color: var(--bs-body-color);
+    --bs-btn-border-color: var(--bs-border-color);
+    --bs-btn-hover-color: var(--bs-body-color);
+    --bs-btn-hover-bg: var(--bs-tertiary-bg);
+    --bs-btn-hover-border-color: var(--bs-border-color);
+    --bs-btn-active-color: var(--bs-body-color);
+    --bs-btn-active-bg: var(--bs-tertiary-bg);
+    --bs-btn-active-border-color: var(--bs-border-color);
+
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  // Product list: each category is a heading and a stack of row cards
+
+  .order-cat + .order-cat {
+    margin-top: 2rem;
+  }
+
+  .order-cat-title {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin: 0 0 0.75rem;
+    padding: 0 0.25rem;
+    font-size: 1.0625rem;
+    scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
+  }
+
+  .order-cat-note {
+    font-size: 0.75rem;
+    font-weight: normal;
+    color: var(--bs-secondary-color);
+  }
+
+  .order-items {
+    display: grid;
+    gap: 0.625rem;
+  }
+
+  .order-item {
+    display: grid;
+    grid-template-columns: 1fr max-content 7.5rem 4rem;
+    grid-template-areas:
+      "name  price qty   total"
+      "error error error error";
+    align-items: center;
+    column-gap: 1rem;
+    padding: 0.5rem 0.75rem 0.5rem 1rem;
+    border: 1px solid var(--bs-border-color-translucent);
+    border-radius: var(--order-radius);
+    background-color: var(--bs-body-bg);
+    box-shadow: var(--order-shadow);
+    outline: none;
+    transition:
+      background-color var(--order-base) var(--order-ease),
+      border-color var(--order-base) var(--order-ease);
+
+    &:hover {
+      border-color: var(--bs-border-color);
     }
 
-    .order-group-heading th {
-      padding-top: 1rem;
-      font-size: 0.875rem;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
-      color: var(--bs-success-text-emphasis);
-      background-color: var(--bs-success-bg-subtle);
+    &:focus-within {
+      outline: 2px solid var(--bs-primary);
+      outline-offset: -2px;
     }
 
-    .order-item-label label {
+    // Row is in the order.
+    &:has(.order-qty[data-qty-state="active"]) {
+      border-color: var(--bs-success-border-subtle);
+      background-color: color-mix(
+        in srgb, var(--bs-success-bg-subtle) 55%, var(--bs-body-bg)
+      );
+    }
+  }
+
+  .order-item-name {
+    grid-area: name;
+
+    label {
       margin: 0;
+      cursor: pointer;
     }
+  }
 
-    .order-item-out {
-      color: var(--bs-secondary-color);
+  .order-item-price {
+    grid-area: price;
+    color: var(--bs-secondary-color);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .order-item-total {
+    grid-area: total;
+    text-align: right;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+    transition: opacity var(--order-fast) ease;
+
+    &:empty {
+      opacity: 0;
+    }
+  }
+
+  .order-item-error {
+    grid-area: error;
+  }
+
+  @media (max-width: 30rem) {
+    .order-item {
+      grid-template-columns: max-content 1fr 7.5rem;
+      grid-template-areas:
+        "name  name  name"
+        "price total qty"
+        "error error error";
+      gap: 0.375rem 0.75rem;
+      padding-block: 0.625rem;
     }
 
     .order-item-price {
-      width: 3.5rem;
-    }
-
-    .order-item-qty {
-      width: 8rem;
+      font-size: 0.9375rem;
     }
 
     .order-item-total {
-      width: 4.5rem;
+      text-align: left;
+    }
+  }
+
+  // Quantity control: Add morphs into a stepper
+
+  .order-qty {
+    position: relative;
+    grid-area: qty;
+    display: grid;
+    width: 7.5rem;
+    height: 2.75rem;
+
+    > * {
+      grid-area: 1 / 1;
+      transition:
+        opacity var(--order-fast) ease,
+        transform var(--order-base) var(--order-ease),
+        visibility 0s linear var(--order-fast);
+    }
+  }
+
+  .order-qty-add {
+    width: 100%;
+    letter-spacing: 0;
+  }
+
+  .order-qty-step {
+    display: grid;
+    grid-template-columns: 2.75rem 1fr 2.75rem;
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--order-radius);
+    background-color: var(--bs-body-bg);
+
+    .btn {
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      font-size: 1.25rem;
+      line-height: 1;
+      color: var(--bs-primary);
+
+      &:hover {
+        background-color: var(--bs-primary-bg-subtle);
+      }
+    }
+
+    .form-control {
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      text-align: center;
+      font-weight: bold;
+      font-variant-numeric: tabular-nums;
+
+      &:focus {
+        box-shadow: none;
+        background-color: var(--bs-primary-bg-subtle);
+      }
+    }
+  }
+
+  .order-qty[data-qty-state="empty"] .order-qty-step,
+  .order-qty[data-qty-state="active"] .order-qty-add {
+    visibility: hidden;
+    opacity: 0;
+    transform: scale(0.94);
+  }
+
+  .order-qty-tick {
+    animation: order-tick 200ms var(--order-ease);
+  }
+
+  // Summary panel: floats above the list while it scrolls, then
+  // settles into the flow after the last row.
+
+  .order-cart {
+    position: sticky;
+    bottom: 0.75rem;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 0.375rem 0.75rem;
+    margin-top: 1.25rem;
+    padding: 0.75rem var(--order-gutter) 0.875rem;
+    border: 1px solid var(--bs-border-color-translucent);
+    border-radius: var(--order-radius);
+    background-color: var(--bs-body-bg);
+    box-shadow:
+      var(--order-shadow),
+      0 0.75rem 2rem rgb(0 0 0 / 12%);
+  }
+
+  #order-cart-lines,
+  .order-badges,
+  .order-cart-nudge {
+    grid-column: 1 / -1;
+  }
+
+  #order-cart-lines {
+    order: -2;
+  }
+
+  .order-badges {
+    order: -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin: 0 0 0.25rem;
+  }
+
+  // Text-only badges: muted until earned, green once they are.
+  .order-badge {
+    padding: 0.125rem 0.5rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: var(--bs-tertiary-color);
+    transition:
+      background-color var(--order-base) ease,
+      border-color var(--order-base) ease,
+      color var(--order-base) ease;
+
+    &[data-on="true"] {
+      border-color: var(--bs-success-border-subtle);
+      background-color: var(--bs-success-bg-subtle);
+      color: var(--bs-success-text-emphasis);
+    }
+  }
+
+  .order-cart-toggle {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-height: 2.75rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: left;
+    color: inherit;
+  }
+
+  .order-cart-label {
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+  }
+
+  .order-cart-caret {
+    transition: transform var(--order-base) var(--order-ease);
+  }
+
+  .order-cart-toggle[aria-expanded="true"] .order-cart-caret {
+    transform: rotate(180deg);
+  }
+
+  .order-cart-total {
+    display: inline-block;
+    font-size: 1.375rem;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+
+    &.is-bumped {
+      animation: order-bump 260ms var(--order-ease);
+    }
+  }
+
+  .order-cart-checkout {
+    min-height: 2.75rem;
+    padding-inline: 1.5rem;
+  }
+
+  .order-cart-lines {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    row-gap: 0.125rem;
+    margin: 0 0 0.625rem;
+    padding-bottom: 0.625rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    font-size: 0.9375rem;
+
+    .order-cart-row {
+      display: contents;
+    }
+
+    dt {
+      font-weight: normal;
+    }
+
+    dd {
+      margin: 0;
+      text-align: right;
       font-variant-numeric: tabular-nums;
     }
   }
 
-  .order-stepper {
-    display: inline-flex;
-    align-items: stretch;
-
-    .btn {
-      width: 2.25rem;
-      padding: 0;
-      font-size: 1.1rem;
-      line-height: 1;
+  .order-cart-credit {
+    dt,
+    dd {
+      color: var(--bs-success-text-emphasis);
     }
+  }
 
-    .form-control {
-      width: 3rem;
-      padding-right: 0.25rem;
-      padding-left: 0.25rem;
-      text-align: center;
+  .order-cart-tier {
+    display: inline-block;
+    margin-left: 0.375rem;
+    padding: 0 0.375rem;
+    border-radius: 999px;
+    background-color: var(--bs-success-bg-subtle);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+
+    &:empty {
+      display: none;
     }
+  }
+
+  .order-cart-free s {
+    margin-right: 0.375rem;
+    color: var(--bs-secondary-color);
+  }
+
+  .order-cart-nudge {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--bs-secondary-color);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  // The sections after the list
+
+  .order-section {
+    margin-top: 2.5rem;
   }
 
   // Fulfilment cards
@@ -79,21 +454,55 @@
     gap: 0.75rem;
   }
 
+  // Reveal: 0fr to 1fr, the one height transition that works on auto.
+  .order-method-reveal {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows var(--order-base) var(--order-ease);
+
+    > * {
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity var(--order-fast) ease 60ms;
+    }
+  }
+
   .order-method {
     position: relative;
     padding: 1rem 1rem 1rem 2.75rem;
-    border: 1px solid var(--bs-border-color);
+    border: 1px solid var(--bs-border-color-translucent);
+    border-radius: var(--order-radius);
+    box-shadow: var(--order-shadow);
+    transition:
+      border-color var(--order-fast) ease,
+      background-color var(--order-fast) ease,
+      box-shadow var(--order-fast) ease;
 
     > .form-check-input {
       position: absolute;
-      top: 1.15rem;
+      top: 1.1rem;
       left: 1rem;
+      width: 1.25rem;
+      height: 1.25rem;
       margin: 0;
     }
 
+    &:hover {
+      border-color: var(--bs-border-color);
+    }
+
     &:has(> .form-check-input:checked) {
-      border-color: var(--bs-success);
-      background-color: var(--bs-success-bg-subtle);
+      border-color: var(--bs-primary);
+      box-shadow: inset 3px 0 0 var(--bs-primary), var(--order-shadow);
+      background-color: var(--bs-primary-bg-subtle);
+
+      .order-method-reveal {
+        grid-template-rows: 1fr;
+
+        > * {
+          opacity: 1;
+        }
+      }
     }
 
     &:has(> .form-check-input:focus-visible) {
@@ -110,13 +519,26 @@
 
   .order-method-title {
     display: block;
+    margin-bottom: 0.375rem;
     font-weight: bold;
   }
 
-  .order-method-meta {
-    display: block;
-    font-size: 0.875rem;
+  .order-method-facts {
+    display: grid;
+    grid-template-columns: 3.25rem 1fr;
+    gap: 0.125rem 0.75rem;
+    margin: 0;
+    font-size: 0.8125rem;
     color: var(--bs-secondary-color);
+
+    dt {
+      font-weight: normal;
+      color: var(--bs-tertiary-color);
+    }
+
+    dd {
+      margin: 0;
+    }
   }
 
   .order-method-body {
@@ -125,72 +547,68 @@
     border-top: 1px solid var(--bs-border-color);
   }
 
-  .order-method-disabled {
-    background-color: var(--bs-tertiary-bg);
+  .order-check-lg {
+    padding-block: 0.5rem;
 
-    .order-method-label {
-      cursor: not-allowed;
+    .form-check-input {
+      width: 1.15em;
+      height: 1.15em;
     }
-
-    .order-method-title {
-      color: var(--bs-secondary-color);
-    }
-  }
-
-  .order-vote {
-    border-top-style: dashed;
   }
 
   .order-countdown {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-bottom: 1rem;
+    padding: 0.1875rem 0.625rem;
+    border-radius: 999px;
+    background-color: var(--bs-tertiary-bg);
+    font-size: 0.8125rem;
+    font-weight: bold;
+
+    &[data-urgency="soon"] {
+      background-color: var(--bs-warning-bg-subtle);
+      color: var(--bs-warning-text-emphasis);
+    }
+
+    &[data-urgency="last"] {
+      background-color: var(--bs-danger-bg-subtle);
+      color: var(--bs-danger-text-emphasis);
+    }
+  }
+
+  // The delivery terms, shown and linked, nothing to tick.
+  .order-terms {
+    margin-bottom: 1.25rem;
+    padding: 0.875rem 1rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--order-radius);
+    background-color: var(--bs-body-bg);
+    font-size: 0.875rem;
+  }
+
+  .order-terms-title {
+    margin-bottom: 0.375rem;
     font-weight: bold;
   }
 
-  // Running summary, pinned to the bottom while the form scrolls
+  .order-terms-list {
+    margin: 0 0 0.5rem;
+    padding-left: 1.125rem;
+    color: var(--bs-secondary-color);
 
-  .order-summary {
-    position: sticky;
-    bottom: 0;
-    z-index: 10;
-    margin-top: 1.5rem;
-    padding: 0.75rem 0;
-    border-top: 2px solid var(--bs-success);
-    background-color: var(--bs-body-bg);
-  }
-
-  .order-summary-lines {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    column-gap: 1.5rem;
-
-    > div {
-      display: contents;
-    }
-
-    dt {
-      font-weight: normal;
-    }
-
-    dd {
-      margin: 0;
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .order-summary-total {
-      dt,
-      dd {
-        padding-top: 0.25rem;
-        border-top: 1px solid var(--bs-border-color);
-        font-weight: bold;
-      }
+    li + li {
+      margin-top: 0.125rem;
     }
   }
 
-  .order-summary-nudge {
-    margin-top: 0.25rem;
-    font-size: 0.875rem;
-    color: var(--bs-success-text-emphasis);
+  .order-terms-link {
+    margin: 0;
+    color: var(--bs-secondary-color);
   }
+
+  // Notices, submit and results
 
   // A display utility would beat [hidden], so this notice styles its
   // own flex layout.
@@ -204,8 +622,6 @@
       display: none;
     }
   }
-
-  // Submit and results
 
   .order-busy {
     opacity: 0.6;
@@ -221,14 +637,135 @@
     overflow: hidden;
   }
 
-  .order-result {
-    .order-result-lines {
-      padding-left: 1.25rem;
+  .order-submit-note {
+    margin-bottom: 1rem;
+    padding: 0.875rem 1rem;
+    border-left: 3px solid var(--bs-warning);
+    border-radius: 0 var(--order-radius) var(--order-radius) 0;
+    background-color: var(--bs-warning-bg-subtle);
+    font-size: 0.9375rem;
+  }
+
+  .order-submit-note-title {
+    margin-bottom: 0.25rem;
+    font-weight: bold;
+  }
+
+  .order-result-card {
+    position: relative;
+    padding: 1.5rem 1.5rem 1.5rem 4.5rem;
+    border: 1px solid var(--bs-success-border-subtle);
+    border-radius: var(--order-radius);
+    background-color: var(--bs-success-bg-subtle);
+  }
+
+  .order-result-mark {
+    position: absolute;
+    top: 1.5rem;
+    left: 1.25rem;
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background-color: var(--bs-success);
+    color: #fff;
+  }
+
+  .order-result-when {
+    font-weight: bold;
+  }
+
+  .order-result-details {
+    margin-bottom: 1rem;
+
+    summary {
+      cursor: pointer;
     }
+  }
+
+  .order-result-lines {
+    margin: 0.5rem 0 0;
+    padding-left: 1.25rem;
+  }
+
+  .order-result-failed {
+    padding-left: 1.5rem;
+    border-color: var(--bs-danger-border-subtle);
+    background-color: var(--bs-danger-bg-subtle);
 
     pre {
+      padding: 0.75rem;
+      border-radius: var(--order-radius);
+      background-color: var(--bs-body-bg);
       white-space: pre-wrap;
       user-select: all;
     }
+  }
+
+  @media (min-width: 992px) {
+    .order-layout {
+      grid-template-columns: 13rem minmax(0, 1fr);
+    }
+
+    .order-side {
+      position: sticky;
+      top: 1rem;
+      align-self: start;
+    }
+
+    .order-cat-title {
+      scroll-margin-top: 0.75rem;
+    }
+  }
+}
+
+// The feather canvas sits over everything and catches nothing.
+.order-feathers {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+@keyframes order-tick {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+
+  35% {
+    transform: translateY(-3px) scale(1.14);
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes order-bump {
+  0% {
+    transform: scale(1);
+    color: var(--bs-body-color);
+  }
+
+  40% {
+    transform: scale(1.07);
+    color: var(--bs-success-text-emphasis);
+  }
+
+  100% {
+    transform: scale(1);
+    color: var(--bs-body-color);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .order * {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
   }
 }
