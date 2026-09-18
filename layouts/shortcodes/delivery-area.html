@@ -1,6 +1,16 @@
 {{- range hugo.Data.delivery.area.states }}
-<h3>{{ .name }}</h3>
-<table class="table table-sm">
+<h3 class="zip-state">
+  {{ .name }}
+  {{- with .onlyGroups }} <span class="badge text-bg-secondary">Eggs only</span>{{ end }}
+</h3>
+{{- with .note }}
+<p class="zip-note">{{ . }}</p>
+{{- end }}
+<table class="table table-sm zip-table">
+  <colgroup>
+    <col class="zip-col-town">
+    <col>
+  </colgroup>
   <thead>
     <tr>
       <th scope="col">Town</th>
@@ -10,7 +20,7 @@
   <tbody>
     {{- range .towns }}
     <tr>
-      <td>{{ .town }}</td>
+      <th scope="row">{{ .town }}</th>
       <td>{{ delimit .zips ", " }}</td>
     </tr>
     {{- end }}

@@ -1,0 +1,24 @@
+{{ $hen := resources.Get "images/photogenic-hen.jpg" }}
+{{ $widths := slice 800 1200 1600 2200 }}
+{{ $srcset := slice }}
+{{ range $widths }}
+  {{ $img := $hen.Resize (printf "%dx webp q82" .) }}
+  {{ $srcset = $srcset | append (printf "%s %dw" $img.RelPermalink .) }}
+{{ end }}
+{{ $fallback := $hen.Resize "1600x jpg q82" }}
+<div class="home-hero border-bottom border-light">
+  <img class="home-hero-img" src="{{ $fallback.RelPermalink }}" srcset="{{ delimit $srcset ", " }}" sizes="100vw" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="" fetchpriority="high">
+  <div class="home-hero-overlay"></div>
+  <div class="home-hero-body container">
+    <div class="text-center text-white">
+      <h1 class="home-hero-title"><span class="home-hero-line">Chicken that tastes</span><br><span class="home-hero-line">like <span class="home-hero-accent">chicken</span></span></h1>
+      <p class="home-hero-sub">
+        Pasture-raised chicken and eggs from a farm you can trust.
+      </p>
+      <div class="home-hero-actions">
+        <a class="btn btn-hero btn-lg" href="{{ relURL "order/" }}">Order now</a>
+        <a class="btn btn-outline-light btn-lg" href="#how-to-buy">How to buy</a>
+      </div>
+    </div>
+  </div>
+</div>

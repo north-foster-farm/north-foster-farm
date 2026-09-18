@@ -1,38 +1,72 @@
+// One compact row: wordmark left, actions right. Plain media queries
+// and CSS variables only, like the order form.
+
 header {
   font-family: Aller, sans-serif;
-  color: $navbar-light-color;
+  background-color: var(--bs-body-bg);
+}
 
-  .navbar-brand {
-    svg {
-      fill: $white;
-      height: 7.5rem;
+.site-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.5rem;
+}
 
-      .black {
-        transition: fill 0.1s ease-in-out;
-      }
+.site-brand {
+  display: block;
+  flex: 0 1 auto;
 
-      &:hover {
-        .black {
-          fill: tint-color($black, 30%);
-        }
-      }
+  svg {
+    display: block;
+    width: 11rem;
+    max-width: 100%;
+    height: auto;
+
+    .black {
+      fill: var(--bs-green);
+      transition: opacity 0.14s ease;
     }
   }
 
+  &:hover svg .black {
+    opacity: 0.75;
+  }
+}
+
+.site-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.site-social {
   .social-media {
+    margin: 0;
     line-height: 1.5;
     fill: currentcolor;
+  }
 
-    a {
-      color: $navbar-light-color;
+  a {
+    color: var(--bs-secondary-color);
 
-      &:hover {
-        color: shade-color($navbar-light-color, 30%);
-      }
+    &:hover {
+      color: var(--bs-body-color);
     }
+  }
 
-    svg {
-      height: 1.125rem;
-    }
+  svg {
+    height: 1.0625rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .site-header-inner {
+    min-height: 4.25rem;
+  }
+
+  .site-brand svg {
+    width: 15rem;
   }
 }

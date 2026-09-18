@@ -1,14 +1,16 @@
-<nav class="navbar navbar-expand-lg">
-  <div class="container justify-content-center">
-    <a class="navbar-brand d-flex mx-0" href="{{ .Site.BaseURL }}" aria-label="Home" {{- if .IsHome -}} aria-current="page" {{ end }}>
-      {{ partial "svg.html" "logo-vertical" }}
-    </a>
-  </div>
-</nav>
-<div class="container">
-  <div class="row py-1">
-    <div class="col text-center">
+{{ $onOrder := eq .RelPermalink (relURL "order/") }}
+<div class="container site-header-inner">
+  <a class="site-brand" href="{{ .Site.BaseURL }}" aria-label="Home" {{- if .IsHome }} aria-current="page" {{ end }}>
+    {{ partial "svg.html" "logo" }}
+  </a>
+  <nav class="site-actions" aria-label="Main">
+    {{ if $onOrder }}
+      <span class="btn btn-outline-primary btn-sm site-order" aria-current="page">Order</span>
+    {{ else }}
+      <a class="btn btn-primary btn-sm site-order" href="{{ relURL "order/" }}">Order</a>
+    {{ end }}
+    <span class="site-social d-none d-sm-inline-flex">
       {{ partial "social-media.html" . }}
-    </div>
-  </div>
+    </span>
+  </nav>
 </div>

@@ -1,15 +1,87 @@
 .policy {
   h2 {
-    @extend .mt-5;
-    @extend .mb-3;
+    margin-top: 2.25rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--bs-border-color);
   }
 
   h3 {
-    @extend .mt-4;
-    @extend .mb-3;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  p {
+    max-width: 62ch;
   }
 
   .text-column {
     max-width: 700px;
+  }
+
+  // Markdown tables in the body copy.
+  table {
+    margin-bottom: 1.5rem;
+    border-collapse: collapse;
+
+    th,
+    td {
+      padding: 0.375rem 1.25rem 0.375rem 0;
+      border-bottom: 1px solid var(--bs-border-color);
+      vertical-align: baseline;
+    }
+  }
+
+  // The delivery-area tables share one declared town-column width, so
+  // the two line up and a town name never wraps.
+  .zip-table {
+    table-layout: fixed;
+    width: 100%;
+    margin-bottom: 2rem;
+
+    th,
+    td {
+      padding: 0.375rem 0.5rem 0.375rem 0;
+      vertical-align: baseline;
+    }
+
+    tbody th {
+      font-weight: normal;
+      white-space: nowrap;
+    }
+
+    td {
+      color: var(--bs-secondary-color);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  .zip-col-town {
+    width: 11rem;
+  }
+
+  .zip-state {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+
+  .zip-note {
+    margin-top: -0.5rem;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-left: 3px solid var(--bs-secondary);
+    background-color: var(--bs-secondary-bg-subtle);
+    font-size: 0.875rem;
+  }
+
+  @media (max-width: 30rem) {
+    .zip-table {
+      font-size: 0.875rem;
+    }
+
+    .zip-col-town {
+      width: 8.5rem;
+    }
   }
 }

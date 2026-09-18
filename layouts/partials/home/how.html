@@ -1,0 +1,31 @@
+{{ $steps := slice
+  (dict "icon" "cart" "title" "Start your order"
+    "copy" "Pick up on our farm or get it hand-delivered to your door.")
+  (dict "icon" "emails" "title" "Get a payment link"
+    "copy" "We'll email you a link where you'll pay for your order.")
+  (dict "icon" "payment" "title" "Submit your order"
+    "copy" "Your order is finalized when we receive your payment.")
+  (dict "icon" "tractor" "title" "Pick up or delivery"
+    "copy" "Flexible, commitment-free, and available all year long.")
+}}
+<div class="how border-bottom border-light" id="how-to-buy">
+  <div class="container">
+    <p class="how-eyebrow">How to buy</p>
+    <h2 class="how-title">From our pasture to your table</h2>
+    <ol class="how-steps list-unstyled">
+      {{ range $i, $step := $steps }}
+        <li class="how-step">
+          <span class="how-icon" aria-hidden="true">
+            {{ partial "svg.html" (printf "icons/%s" $step.icon) }}
+            <span class="how-num">{{ add $i 1 }}</span>
+          </span>
+          <h3 class="how-step-title"><span class="visually-hidden">Step {{ add $i 1 }}: </span>{{ $step.title }}</h3>
+          <p class="how-step-copy">{{ $step.copy }}</p>
+        </li>
+      {{ end }}
+    </ol>
+    <p class="how-cta mb-0">
+      <a class="btn btn-success btn-lg" href="{{ relURL "order/" }}">Browse our current stock</a>
+    </p>
+  </div>
+</div>

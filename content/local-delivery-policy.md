@@ -11,41 +11,42 @@ type: "policy"
 layout: "policy/single.html"
 ---
 
-Local delivery is on Thursdays. Orders close Wednesday at 12:00 PM.
+We deliver on Thursdays. Order by Wednesday at noon.
 
 ## How it works
 
-- We deliver weekly on Thursdays, roughly between 10:00 AM and 4:00 PM. The
-  window is approximate, not a promise.
-- Orders are pre-paid by the Square invoice we email you. Nothing is charged
-  when you submit the form.
-- The minimum for delivery is $40, after bulk discounts.
-- The delivery fee is a flat $5, waived on orders of $150 or more.
+- Deliveries run Thursdays, roughly between 10:00 AM and 4:00 PM. The
+  window is approximate.
+- Orders are prepaid. We email you a Square invoice, and nothing is
+  charged when you submit the form.
+- Leave a cooler with ice outside on Thursday morning, somewhere easy to
+  find. The form asks where.
+- Rhode Island deliveries can include chicken and eggs. Connecticut
+  deliveries are eggs only for now, because we can't sell chicken there
+  yet.
 - On-farm pickup and the Scituate drop site have no minimum and no fee.
-- Everything arrives frozen, except the eggs.
-- Leave a cooler with ice outside, where it is easy to find, on Thursday
-  morning. The form asks where the cooler will be.
-- Deliveries in both Rhode Island and Connecticut can include meat and eggs.
 
-## Bulk discounts
+## What it costs
 
-- $5 off orders of $50 or more
-- $10 off orders of $100 or more
-- $15 off orders of $150 or more
-- $20 off orders of $200 or more
+Delivery orders are $40 or more, after bulk discounts. The delivery fee
+is $5, waived on orders of $150 or more.
 
-Only the highest tier you reach applies, and it is applied automatically.
+| Order total  | Discount                          |
+| ------------ | --------------------------------- |
+| $50 or more  | $5 off                            |
+| $100 or more | $10 off                           |
+| $150 or more | $15 off, and the delivery is free |
+| $200 or more | $20 off                           |
+
+The highest tier you reach applies, automatically.
 
 ## Where we deliver
 
-We deliver to the towns and ZIP codes below.
-
 {{< delivery-area >}}
 
-If your ZIP code is not listed, the form will still accept a Rhode Island
-address a little outside the area, and we will follow up. We cannot deliver
-to addresses outside Rhode Island and the listed Connecticut towns. If that
-is you, choose on-farm pickup or the Scituate drop site instead.
+If you're in Rhode Island and your ZIP isn't listed, the form will still
+take your order and we'll be in touch. Outside Rhode Island and the
+Connecticut towns above, choose on-farm pickup or the Scituate drop site.
 
 ## Questions
 
