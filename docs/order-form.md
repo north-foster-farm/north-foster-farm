@@ -82,6 +82,9 @@ dropped silently (honeypot or rate limit).
 3. The function retries 429, 5xx and network errors three times.
 4. A `503` leaves a pending record in the browser, which retries on
    backoff, on `online`, on `visibilitychange` and on the next load.
+   A panel under the submit button shows the attempt count, a live
+   countdown to the next try, a Try now and a Stop trying button; the
+   submit button is disabled while a retry is scheduled.
 5. After six attempts the customer sees the order as selectable text, a
    prefilled `mailto:` and the phone number. Every terminal failure is
    one structured `console.error` in the function log, with the whole

@@ -651,6 +651,64 @@
     font-weight: bold;
   }
 
+  // Background retries: attempt count, live countdown, a way to stop.
+  .order-pending {
+    margin-top: 1rem;
+    padding: 1rem 1.125rem;
+    border: 1px solid var(--bs-warning-border-subtle);
+    border-radius: var(--order-radius);
+    background-color: var(--bs-warning-bg-subtle);
+    box-shadow: var(--order-shadow);
+
+    &[data-pending-state="sending"] .order-pending-title::after {
+      content: "";
+      display: inline-block;
+      width: 0.75rem;
+      height: 0.75rem;
+      margin-left: 0.5rem;
+      border: 2px solid currentcolor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      vertical-align: -0.0625rem;
+      animation: order-spin 0.6s linear infinite;
+    }
+  }
+
+  .order-pending-title {
+    margin-bottom: 0.25rem;
+    font-weight: bold;
+  }
+
+  .order-pending-text {
+    margin-bottom: 0.5rem;
+    font-size: 0.9375rem;
+  }
+
+  .order-pending-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+  }
+
+  .order-pending-countdown {
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+    color: var(--bs-body-color);
+
+    &:empty {
+      display: none;
+    }
+  }
+
+  .order-pending-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
   .order-result-card {
     position: relative;
     padding: 1.5rem 1.5rem 1.5rem 4.5rem;
@@ -741,6 +799,12 @@
 
   100% {
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes order-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 

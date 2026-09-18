@@ -11,6 +11,7 @@ import { celebrate } from "./celebrate.js";
 import { DateLists } from "./date-lists.js";
 import { Draft } from "./draft.js";
 import { Errors } from "./errors.js";
+import { Pending } from "./pending.js";
 import { Submitter } from "./submit.js";
 
 const RETRY_DELAYS = [5000, 15000, 45000, 120000, 300000];
@@ -58,7 +59,11 @@ export class OrderForm {
     this.cart = document.getElementById("order-cart");
     this.result = document.getElementById("order-result");
     this.restored = document.getElementById("order-restored");
-    this.pendingNotice = document.getElementById("order-pending");
+    this.pending = new Pending(document.getElementById("order-pending"), {
+      max: MAX_ATTEMPTS,
+      onRetry: () => this.resume(this.draft.pending()),
+      onCancel: () => this.cancelRetries(),
+    });
     this.submitButton = document.getElementById("order-submit");
     this.retryTimer = null;
     this.lastTotal = null;
@@ -76,6 +81,7 @@ export class OrderForm {
     if (pending) {
       this.restore(pending.payload);
       this.resume(pending);
+      this.pending.focus();
     } else {
       const draft = this.draft.load();
 
@@ -495,8 +501,10 @@ export class OrderForm {
     await this.deliver(payload, 0);
   }
 
+  // `attempts` is how many have already failed.
   async deliver(payload, attempts) {
     this.setBusy(true);
+    this.pending.sending(attempts + 1);
 
     const outcome = await this.submitter.send(payload);
 
@@ -510,12 +518,12 @@ export class OrderForm {
       break;
     case "invalid":
       this.draft.clearPending();
-      this.pendingNotice.hidden = true;
+      this.pending.hide();
       this.errors.show(outcome.errors);
       break;
     case "stale":
       this.draft.clearPending();
-      this.pendingNotice.hidden = true;
+      this.pending.hide();
       this.dates.replace(payload.fulfilment.method, outcome.dates);
       this.errors.show({
         "fulfilment.date": "That date just closed. Pick another from the " +
@@ -540,17 +548,16 @@ export class OrderForm {
       return;
     }
 
+    const delay = RETRY_DELAYS[Math.min(attempts - 1, RETRY_DELAYS.length - 1)];
+
     this.draft.savePending(payload, attempts);
-    this.pendingNotice.hidden = false;
-    this.pendingNotice.textContent =
-      "We're having trouble reaching our payment system. Your order is " +
-      "saved on this device and we'll keep trying. You can leave this " +
-      "page open or come back later.";
+    this.pending.waiting(attempts, delay);
+    // One submission at a time: the notice owns the next attempt.
+    this.submitButton.disabled = true;
 
     clearTimeout(this.retryTimer);
     this.retryTimer = setTimeout(
-      () => this.resume(this.draft.pending()),
-      RETRY_DELAYS[Math.min(attempts - 1, RETRY_DELAYS.length - 1)]
+      () => this.resume(this.draft.pending()), delay
     );
   }
 
@@ -558,9 +565,18 @@ export class OrderForm {
     if (!pending || this.busy) return;
 
     clearTimeout(this.retryTimer);
-    this.pendingNotice.hidden = false;
-    this.pendingNotice.textContent = "Sending your saved order…";
     this.deliver(pending.payload, pending.attempts);
+  }
+
+  // The customer stops the background retries. The form keeps their
+  // order and stays editable; the draft key is kept, so a later
+  // submission cannot duplicate anything an earlier try created.
+  cancelRetries() {
+    clearTimeout(this.retryTimer);
+    this.draft.clearPending();
+    this.pending.hide();
+    this.submitButton.disabled = false;
+    this.submitButton.focus();
   }
 
   setBusy(busy) {
@@ -608,7 +624,7 @@ export class OrderForm {
   }
 
   finish(node) {
-    this.pendingNotice.hidden = true;
+    this.pending.hide();
     this.result.textContent = "";
     this.result.appendChild(node);
     this.result.hidden = false;

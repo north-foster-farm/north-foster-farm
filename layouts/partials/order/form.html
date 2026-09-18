@@ -10,10 +10,6 @@
   <button type="button" class="btn btn-sm btn-outline-secondary text-nowrap" id="order-discard">Start over</button>
 </div>
 
-<div id="order-pending" class="alert alert-warning" role="status" hidden>
-  Sending your saved order&hellip;
-</div>
-
 <form id="order-form" class="order-form" novalidate data-version="{{ hugo.Data.catalog.version }}">
   {{ partial "order/catalog.html" . }}
   {{ partial "order/cart.html" . }}

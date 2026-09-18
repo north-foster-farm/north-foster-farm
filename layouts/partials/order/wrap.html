@@ -34,4 +34,16 @@
     </p>
   </div>
   <button type="submit" class="btn btn-primary btn-lg" id="order-submit">Place your order</button>
+  <div class="order-pending" id="order-pending" role="status" aria-live="polite" hidden>
+    <p class="order-pending-title" data-pending-title></p>
+    <p class="order-pending-text" data-pending-text></p>
+    <p class="order-pending-meta">
+      <span data-pending-count></span>
+      <span class="order-pending-countdown" data-pending-countdown></span>
+    </p>
+    <div class="order-pending-actions">
+      <button type="button" class="btn btn-sm btn-outline-primary" data-pending-retry>Try now</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-pending-cancel>Stop trying</button>
+    </div>
+  </div>
 </div>
