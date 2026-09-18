@@ -318,9 +318,35 @@ export const getInvoice = async (invoiceId, {
   return {
     id: invoice.id,
     status: invoice.status,
+    version: invoice.version,
     paidAt: request.total_completed_amount_money
       && request.total_completed_amount_money.amount > 0
       ? invoice.updated_at || null
       : null,
+  };
+};
+
+// Cancels an unpaid invoice so the pay link stops working. Square
+// needs the current version; a fresh read supplies it. An invoice
+// that is already paid or cancelled is left alone.
+export const cancelInvoice = async (invoiceId, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  const cfg = settings(env);
+  const current = await getInvoice(invoiceId, { env, fetchImpl });
+
+  if (!["UNPAID", "SCHEDULED", "DRAFT"].includes(current.status)) {
+    return { id: invoiceId, status: current.status, cancelled: false };
+  }
+
+  const data = await call(cfg, `/v2/invoices/${invoiceId}/cancel`, {
+    version: current.version,
+  }, fetchImpl);
+
+  return {
+    id: invoiceId,
+    status: (data.invoice && data.invoice.status) || "CANCELED",
+    cancelled: true,
   };
 };

@@ -147,6 +147,25 @@ a cancelled invoice cancels the order. `lib/payments.mjs` owns this
 and the poll that asks Square about unpaid orders when a webhook was
 missed.
 
+## Schedule
+
+`netlify/functions/jobs.mjs` runs every 15 minutes (Netlify scheduled
+function) and calls `lib/jobs.mjs`, which decides in
+`America/New_York` from the records alone:
+
+| When                                   | What                      |
+| -------------------------------------- | ------------------------- |
+| every run                              | poll Square for unpaid    |
+| 30 min after placing, unpaid           | reminder `soon`           |
+| 24 h after placing, unpaid             | reminder `nextDay`        |
+| 8:00 the day before fulfilment, unpaid | reminder `final`          |
+| delivery cutoff (Wed noon) or midnight before a pickup, unpaid | `abandoned`, invoice cancelled |
+| 18:00 the day before a paid delivery   | cooler reminder           |
+| the day after fulfilment, paid         | `fulfilled`               |
+
+Sends are noted on the order under `emails`, so a repeat run sends
+nothing twice and a late run sends only the most urgent reminder.
+
 ## Decisions
 
 - **Square Orders plus Invoices**, not Payment Links. Publishing an
