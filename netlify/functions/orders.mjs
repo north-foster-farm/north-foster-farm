@@ -129,6 +129,10 @@ export const handle = async (req, {
       order,
     }));
 
+    // Outside production the answer carries Square's own error, so a
+    // sandbox failure can be read from the response.
+    const sandbox = process.env.SQUARE_ENV !== "production";
+
     return json(retryable ? 503 : 502, {
       retryable,
       orderId: order.id,
@@ -136,6 +140,8 @@ export const handle = async (req, {
         ? "We couldn't reach our payment provider. Your order is saved on " +
           "this device and will be retried."
         : "Something went wrong creating your invoice.",
+      detail: sandbox ? { error: String(error.message), square: error.detail }
+        : undefined,
     });
   }
 };
