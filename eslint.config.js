@@ -88,4 +88,11 @@ module.exports = [
       "camelcase": ["error", { "properties": "never" }],
     },
   },
+  {
+    // The CLI has no extension; it is an ES module all the same.
+    "files": ["bin/nff"],
+    "languageOptions": {
+      "sourceType": "module",
+    },
+  },
 ];

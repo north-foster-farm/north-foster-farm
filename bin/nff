@@ -1,0 +1,176 @@
+#!/usr/bin/env node
+// The farm's command line for orders, customers, stock and sign-in.
+// Reads .env from the repo root. Off Netlify the records live in the
+// site's Blobs stores only when NETLIFY_SITE_ID and NETLIFY_AUTH_TOKEN
+// are set; otherwise everything is in memory and lost on exit, which
+// the banner says.
+
+import { spawn } from "node:child_process";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { loadEnv } from "../netlify/functions/lib/env.mjs";
+
+const USAGE = `Usage:
+  bin/nff customers list
+  bin/nff customers show <email>
+  bin/nff customers set <email> name=.. phone=.. group=friends|none
+  bin/nff customers delete <email>
+  bin/nff address approve|deny <email>
+  bin/nff orders list [--open] [--status=paid] [--email=x]
+  bin/nff orders show <id>
+  bin/nff orders paid <id>            mark paid by hand (cash, check)
+  bin/nff orders cancel <id> [--refund]
+  bin/nff orders fulfil <id>
+  bin/nff orders delete <id>
+  bin/nff returns resolve <id> <returnId> [note...]
+  bin/nff stock list
+  bin/nff stock set <sku> <count|none>
+  bin/nff login <email>               print a sign-in link
+  bin/nff masquerade <email>          open a sign-in link as them
+  bin/nff jobs run`;
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+loadEnv(join(root, ".env"));
+
+const [
+  { default: terms },
+  admin,
+  { requestLink },
+  { runJobs },
+  { stores: makeStores },
+  { summaryLine },
+] = await Promise.all([
+  import("../data/delivery.json", { with: { type: "json" } }),
+  import("../netlify/functions/lib/admin.mjs"),
+  import("../netlify/functions/lib/auth.mjs"),
+  import("../netlify/functions/lib/jobs.mjs"),
+  import("../netlify/functions/lib/store.mjs"),
+  import("../netlify/functions/lib/templates.mjs"),
+]);
+
+const stores = makeStores();
+const flags = {};
+const words = [];
+
+for (const a of process.argv.slice(2)) {
+  const m = a.match(/^--([a-z-]+)(?:=(.*))?$/);
+
+  if (m) {
+    flags[m[1]] = m[2] === undefined ? true : m[2];
+  } else {
+    words.push(a);
+  }
+}
+
+const [group, action, ...rest] = words;
+const out = (value) => console.log(
+  typeof value === "string" ? value : JSON.stringify(value, null, 2)
+);
+const kv = (pairs) => Object.fromEntries(pairs.map((p) => {
+  const eq = p.indexOf("=");
+
+  return eq > 0 ? [p.slice(0, eq), p.slice(eq + 1)] : [p, true];
+}));
+
+if (!stores.persistent) {
+  console.error("[nff] No NETLIFY_SITE_ID/NETLIFY_AUTH_TOKEN: using memory " +
+    "stores. Nothing here persists.");
+}
+
+// A sign-in link for any customer. Following it is the masquerade.
+const signIn = async (email, open) => {
+  const r = await requestLink(stores, { email, next: "/account/" }, {
+    send: false,
+  });
+
+  if (!r.ok) throw new Error(`Could not make a link: ${r.reason}.`);
+  out(r.url);
+  if (open) {
+    spawn(process.platform === "darwin" ? "open" : "xdg-open", [r.url], {
+      stdio: "ignore", detached: true,
+    }).unref();
+  }
+};
+
+const run = async () => {
+  if (group === "login" && action) return signIn(action, false);
+  if (group === "masquerade" && action) return signIn(action, true);
+
+  switch (`${group} ${action}`) {
+  case "customers list": {
+    const list = await admin.listCustomers(stores);
+
+    for (const c of list) {
+      out(`${c.email}  ${c.name || "-"}  ${c.discountGroup || ""}  ${
+        c.address ? `${c.address.zip} ${c.address.status}` : ""}`);
+    }
+    if (!list.length) out("No customers.");
+
+    return undefined;
+  }
+  case "customers show":
+    return out(await admin.showCustomer(stores, rest[0]));
+  case "customers set":
+    return out(await admin.setCustomer(stores, rest[0], kv(rest.slice(1)),
+      terms.money));
+  case "customers delete":
+    await admin.removeCustomer(stores, rest[0]);
+
+    return out(`Deleted ${rest[0]}.`);
+  case "address approve":
+  case "address deny":
+    return out(await admin.decideAddress(stores, rest[0],
+      action === "approve" ? "approved" : "denied"));
+  case "orders list": {
+    const list = await admin.listOrders(stores, {
+      status: flags.status, email: flags.email, open: !!flags.open,
+    });
+
+    for (const o of list) out(summaryLine(o));
+    if (!list.length) out("No orders.");
+
+    return undefined;
+  }
+  case "orders show":
+    return out(await admin.showOrder(stores, rest[0]));
+  case "orders paid":
+    return out(summaryLine(await admin.payOrder(stores, rest[0])));
+  case "orders cancel":
+    return out(summaryLine(await admin.cancelOrder(stores, rest[0], {
+      refund: !!flags.refund,
+    })));
+  case "orders fulfil":
+  case "orders fulfill":
+    return out(summaryLine(await admin.fulfilOrder(stores, rest[0])));
+  case "orders delete":
+    await admin.removeOrder(stores, rest[0]);
+
+    return out(`Deleted ${rest[0]}.`);
+  case "returns resolve":
+    return out(summaryLine(await admin.resolveReturn(stores, rest[0],
+      rest[1], {
+        note: rest.slice(2).join(" "),
+        outcome: flags.outcome || "resolved",
+      })));
+  case "stock list":
+    return out(await admin.stockList(stores));
+  case "stock set":
+    return out(await admin.stockSet(stores, rest[0], rest[1]));
+  case "jobs run":
+    return out(await runJobs(stores));
+  default:
+    console.error(USAGE);
+    process.exit(1);
+  }
+
+  return undefined;
+};
+
+try {
+  await run();
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}

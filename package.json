@@ -10,7 +10,7 @@
   "browserslist": "defaults",
   "scripts": {
     "lint": "npm run lint:scripts && npm run lint:styles",
-    "lint:scripts": "eslint 'assets/scripts/**/*.{js,mjs}' 'netlify/**/*.mjs' 'test/**/*.mjs' *.config.js",
+    "lint:scripts": "eslint 'assets/scripts/**/*.{js,mjs}' 'netlify/**/*.mjs' 'test/**/*.mjs' bin/nff *.config.js",
     "lint:styles": "stylelint assets/styles/**/*.scss",
     "start": "bin/dev",
     "start:bind": "HUGO_BIND_TO_IP=true bin/dev",

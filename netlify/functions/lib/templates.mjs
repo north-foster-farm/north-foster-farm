@@ -276,6 +276,41 @@ export const orderChanged = (order) => {
   return { subject: title, ...render(title, blocks) };
 };
 
+// The farm decided on an address outside the usual area.
+export const addressDecision = (customer, decision) => {
+  const a = customer.address || {};
+  const where = `${a.address1 || ""}, ${a.town || ""} ${a.zip || ""}`.trim();
+  const approved = decision === "approved";
+  const title = approved
+    ? "We can deliver to your address"
+    : "We can't deliver to your address";
+  const blocks = [
+    p(`Hi ${firstName(customer.name)},`),
+    approved
+      ? p(`Good news: ${where} is on our route. Choose local delivery ` +
+        "next time you order and it will fill itself in.")
+      : p(`We looked at ${where} and it's further than we can drive on a ` +
+        "Thursday. On-farm pickup and the Scituate drop site are open to " +
+        "everyone, with no minimum and no fee."),
+  ];
+
+  return { subject: title, ...render(title, blocks) };
+};
+
+// The farm settled a return request.
+export const returnResolved = (order, request) => {
+  const title = `About your order ${order.id}`;
+  const blocks = [
+    p(`Hi ${firstName(order.customer.name)},`),
+    p(`Thanks for telling us about ${order.id}. We've looked into it.`),
+  ];
+
+  if (request.note) blocks.push(strong(request.note));
+  blocks.push(p("Reply to this email if there's anything else."));
+
+  return { subject: title, ...render(title, blocks) };
+};
+
 // A short line for the CLI and logs.
 export const summaryLine = (order) =>
   `${order.id} ${order.status} ${dollars(order.totals.total)} ` +

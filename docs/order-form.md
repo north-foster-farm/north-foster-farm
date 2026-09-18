@@ -226,6 +226,19 @@ keyed by `data/avatars.json`. The header (`session.js` in the site
 bundle) asks `/api/me` once per five minutes, cached in
 `sessionStorage`, and shows a Sign in link or the avatar menu.
 
+## CLI
+
+`bin/nff` is the farm's admin surface; there are no admin pages. It
+reads `.env` from the repo root and needs `NETLIFY_SITE_ID` and
+`NETLIFY_AUTH_TOKEN` (a personal access token) to reach the site's
+Blobs stores, plus the Square and mail variables for anything that
+talks to them; without the Netlify pair it runs against memory and
+says so. `bin/nff` with no arguments prints the commands: customers
+(list, show, set, delete), address (approve, deny), orders (list,
+show, paid, cancel, fulfil, delete), returns resolve, stock (list,
+set), login and masquerade (a single-use sign-in link, opened for
+you), jobs run. `lib/admin.mjs` holds the rules with tests.
+
 ## Decisions
 
 - **Square Orders plus Invoices**, not Payment Links. Publishing an
@@ -302,7 +315,11 @@ answers `502` after validation, which is enough to exercise the form.
 
 - Export the Square item library as a backup, seed the catalog, and
   fill `squareVariationId` in `data/catalog.json`.
-- Set the four environment variables on Netlify.
+- Set the environment variables on Netlify: the Square four, plus
+  `SQUARE_WEBHOOK_SIGNATURE_KEY`, `MAIL_DRIVER=resend`,
+  `RESEND_API_KEY`, `MAIL_FROM`, `MAIL_REPLY_TO`, `ADMIN_EMAILS`, and
+  `SITE_URL` if the primary URL is not the one links should use.
+  Register the webhook in Square; verify the sending domain in Resend.
 - Run the manual checks in the build plan on a deploy preview: a
   twelve-SKU order on a phone, a $35 delivery, the three ZIP cases, a
   Wednesday-noon rollover, keyboard and screen-reader passes, a killed
