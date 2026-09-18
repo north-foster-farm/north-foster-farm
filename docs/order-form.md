@@ -253,9 +253,12 @@ bundle) asks `/api/me` once per five minutes, cached in
   theme's small shadow instead of rules. The summary panel floats
   above the list while it scrolls and settles into the flow after the
   last row. It carries text-only badges (Local delivery, each bulk
-  tier, Free delivery) that turn green when earned, the one-line nudge,
-  and a Checkout button that scrolls to the fulfilment cards. A dozen
-  feathers drift from the pointer once when the $40 line is crossed.
+  tier, Free delivery) that turn green when earned and explain
+  themselves in a tooltip on tap; a handful of chicks hop out of a
+  badge the moment it lights. The breakdown opens by default behind a
+  full-width toggle, written like a sum with the total under the line;
+  then the "Next discount: add $X for $Y off" nudge, Empty cart and
+  Checkout. A saved draft is restored silently; Empty cart starts over.
   Everything the panel says comes from `lib/summary.mjs`, whose tests
   pin every sentence and prove the nudge's promise against the totals
   at every cent to $250. The design spec behind the page lives in

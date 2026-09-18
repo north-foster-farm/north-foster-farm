@@ -7,11 +7,6 @@
 
 <div id="order-stock" class="alert alert-warning" role="status" aria-live="polite" hidden></div>
 
-<div id="order-restored" class="alert alert-info order-restored" role="status" hidden>
-  <span>Picking up where you left off.</span>
-  <button type="button" class="btn btn-sm btn-outline-secondary text-nowrap" id="order-discard">Start over</button>
-</div>
-
 <form id="order-form" class="order-form" novalidate data-version="{{ hugo.Data.catalog.version }}">
   {{ partial "order/catalog.html" . }}
   {{ partial "order/cart.html" . }}

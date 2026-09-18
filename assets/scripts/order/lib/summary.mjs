@@ -75,10 +75,10 @@ export const nudge = (totals, method, money) => {
     && s < toCents(money.feeWaivedAt);
 
   if (waivesFee && (isDelivery || !method)) {
-    return `Add ${gap} and we'll take ${off} off, and delivery is free.`;
+    return `Next discount: add ${gap} for ${off} off and free delivery.`;
   }
 
-  return `Add ${gap} and we'll take ${off} off.`;
+  return `Next discount: add ${gap} for ${off} off.`;
 };
 
 // The fee cell: nothing outside delivery, the fee, or a struck fee.

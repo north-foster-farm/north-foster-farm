@@ -1,37 +1,57 @@
-// A few feathers drift out from the pointer, once, when an order first
-// qualifies for local delivery. Quiet by design: a dozen small shapes,
-// a short rise, then a slow, swaying fall. Nothing under reduced
-// motion; the badge carries the news on its own.
+// A handful of chicks hop out of a badge the moment it is earned. Each
+// is a little yellow body and head with a beak and an eye; they leap
+// up, tumble, land past the badge and fade. Nothing under reduced
+// motion; the badge turning green carries the news on its own.
 
-const COLORS = ["#fffdf7", "#f3ead8", "#cfe3d3", "#e7d3b3"];
-const TTL = 1.5;
-const COUNT = 12;
+const TTL = 1.3;
+const COUNT = 6;
+const GRAVITY = 1400;
 
-// One feather: a leaf-shaped vane with a short quill, drawn around the
-// origin along the +x axis, about 14px long.
-const feather = (ctx, color) => {
-  ctx.fillStyle = color;
+// One chick drawn around the origin, facing +x, about 14px tall.
+const chick = (ctx, blink) => {
+  ctx.fillStyle = "#ffd94a";
   ctx.beginPath();
-  ctx.moveTo(-7, 0);
-  ctx.bezierCurveTo(-4, -4, 3, -4.5, 7, 0);
-  ctx.bezierCurveTo(3, 4.5, -4, 4, -7, 0);
+  ctx.ellipse(0, 3, 6.5, 5.5, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = "rgba(0, 0, 0, 0.18)";
-  ctx.lineWidth = 0.8;
+  ctx.fillStyle = "#ffe27a";
   ctx.beginPath();
-  ctx.moveTo(-7, 0);
-  ctx.lineTo(6, 0);
-  ctx.stroke();
+  ctx.arc(4, -4, 4.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#f2953c";
+  ctx.beginPath();
+  ctx.moveTo(8, -4.5);
+  ctx.lineTo(12, -3.5);
+  ctx.lineTo(8, -2.5);
+  ctx.fill();
+  ctx.fillStyle = "#1d1c1b";
+  ctx.beginPath();
+  if (blink) {
+    ctx.rect(4.5, -5.5, 2, 0.8);
+  } else {
+    ctx.arc(5.5, -5, 1, 0, Math.PI * 2);
+  }
+  ctx.fill();
+  ctx.fillStyle = "#f2c23a";
+  ctx.beginPath();
+  ctx.ellipse(-2, 3.5, 3, 2, -0.4, 0, Math.PI * 2);
+  ctx.fill();
 };
 
-// `origin` is a { x, y } in viewport pixels, the pointer as a rule.
+// `origin` is an element (the badge) or a { x, y } in viewport pixels.
 export const celebrate = (origin) => {
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
+  const from = origin instanceof Element
+    ? (() => {
+      const r = origin.getBoundingClientRect();
+
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    })()
+    : origin;
   const canvas = document.createElement("canvas");
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-  canvas.className = "order-feathers";
+  canvas.className = "order-chicks";
   canvas.width = window.innerWidth * dpr;
   canvas.height = window.innerHeight * dpr;
   document.body.appendChild(canvas);
@@ -43,20 +63,18 @@ export const celebrate = (origin) => {
   const parts = [];
 
   for (let i = 0; i < COUNT; i += 1) {
-    const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
-    const speed = 90 + Math.random() * 110;
+    const dir = i % 2 ? 1 : -1;
 
     parts.push({
-      x: origin.x,
-      y: origin.y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      rot: Math.random() * Math.PI * 2,
-      spin: (Math.random() - 0.5) * 4,
-      sway: 1.5 + Math.random() * 2,
-      phase: Math.random() * Math.PI * 2,
-      scale: 0.7 + Math.random() * 0.5,
-      color: COLORS[i % COLORS.length],
+      x: from.x,
+      y: from.y,
+      vx: dir * (60 + Math.random() * 140),
+      vy: -(380 + Math.random() * 220),
+      rot: 0,
+      spin: dir * (2 + Math.random() * 6),
+      face: dir,
+      scale: 0.8 + Math.random() * 0.4,
+      delay: i * 0.04,
       life: 0,
     });
   }
@@ -71,24 +89,25 @@ export const celebrate = (origin) => {
 
     for (const p of parts) {
       p.life += dt;
-      if (p.life > TTL) continue;
+      if (p.life < p.delay) {
+        alive += 1;
+        continue;
+      }
+      if (p.life > TTL + p.delay) continue;
       alive += 1;
-
-      // Light gravity and heavy drag: a brief lift, then a slow drift
-      // down with a sideways sway, the way a feather falls.
-      p.vy += 140 * dt;
-      p.vx *= 0.96;
-      p.vy = Math.min(p.vy, 55);
-      p.x += (p.vx + Math.sin(p.life * p.sway + p.phase) * 28) * dt;
+      p.vy += GRAVITY * dt;
+      p.x += p.vx * dt;
       p.y += p.vy * dt;
-      p.rot += (p.spin + Math.cos(p.life * p.sway + p.phase) * 1.2) * dt;
+      p.rot += p.spin * dt;
+
+      const t = p.life - p.delay;
 
       ctx.save();
-      ctx.globalAlpha = 0.9 * Math.min(1, (TTL - p.life) / 0.5);
+      ctx.globalAlpha = Math.min(1, (TTL - t) / 0.35);
       ctx.translate(p.x, p.y);
       ctx.rotate(p.rot);
-      ctx.scale(p.scale, p.scale);
-      feather(ctx, p.color);
+      ctx.scale(p.scale * p.face, p.scale);
+      chick(ctx, Math.floor(t * 6) % 7 === 3);
       ctx.restore();
     }
 

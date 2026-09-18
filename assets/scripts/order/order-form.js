@@ -1,3 +1,5 @@
+import Tooltip from "bootstrap/js/dist/tooltip.js";
+
 import { indexCatalog } from "./lib/catalog.mjs";
 import { summarize } from "./lib/summary.mjs";
 import {
@@ -29,12 +31,6 @@ const pulse = (el, className) => {
   el.classList.add(className);
 };
 
-// Where an element is, in viewport pixels, for a keyboard-driven change.
-const centre = (el) => {
-  const r = el.getBoundingClientRect();
-
-  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-};
 
 export class OrderForm {
   static init() {
@@ -65,7 +61,6 @@ export class OrderForm {
     this.stockNotice = document.getElementById("order-stock");
     this.cart = document.getElementById("order-cart");
     this.result = document.getElementById("order-result");
-    this.restored = document.getElementById("order-restored");
     this.pending = new Pending(document.getElementById("order-pending"), {
       max: MAX_ATTEMPTS,
       onRetry: () => this.resume(this.draft.pending()),
@@ -74,10 +69,10 @@ export class OrderForm {
     this.submitButton = document.getElementById("order-submit");
     this.retryTimer = null;
     this.lastTotal = null;
-    this.crossed = false;
     this.busy = false;
-    // Where the last change came from, so the feathers start there.
-    this.pointer = null;
+    // Which badges were lit at the last render, so a badge that turns
+    // on can celebrate. Null until the first render, which never does.
+    this.lit = null;
     // The signed-in customer's discount group, from /api/me. The server
     // applies it again from the session; this only shows it.
     this.group = null;
@@ -95,14 +90,9 @@ export class OrderForm {
     } else {
       const draft = this.draft.load();
 
-      if (draft && draft.payload) {
-        this.restore(draft.payload);
-        this.restored.hidden = false;
-      }
+      if (draft && draft.payload) this.restore(draft.payload);
     }
 
-    // Anything restored has already been through the threshold.
-    this.crossed = this.eligible(this.totals());
     this.dates.load();
     this.refresh();
     this.stock.start();
@@ -120,11 +110,7 @@ export class OrderForm {
   }
 
   wire() {
-    // A typed quantity celebrates from the box; a click from the cursor.
-    this.form.addEventListener("input", (e) => {
-      if (e.target.matches("[data-qty]")) this.pointer = centre(e.target);
-      this.changed();
-    });
+    this.form.addEventListener("input", () => this.changed());
     this.form.addEventListener("change", (e) => {
       this.changed();
       if (e.target.name === "method") this.revealMethod();
@@ -139,14 +125,31 @@ export class OrderForm {
       }
     });
 
-    qs(document, "#order-discard").addEventListener("click", () => {
+    // Empty cart forgets the draft and every field, quietly.
+    qs(this.cart, "[data-empty]").addEventListener("click", () => {
       this.draft.clear();
       this.form.reset();
       for (const input of all(this.form, "[data-qty]")) this.setQty(input, 0);
-      this.restored.hidden = true;
       this.errors.clear();
-      this.crossed = false;
       this.refresh();
+      qs(this.cart, ".order-cart-toggle").focus();
+    });
+
+    // A tap on a badge explains it; the next tap, or a tap elsewhere,
+    // closes it.
+    const tips = all(this.cart, "[data-badge]").map((badge) => new Tooltip(
+      badge, { title: badge.dataset.tip, trigger: "click", placement: "top" }
+    ));
+
+    this.cart.addEventListener("show.bs.tooltip", (e) => {
+      for (const tip of tips) {
+        if (tip._element !== e.target) tip.hide();
+      }
+    });
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest("[data-badge]")) {
+        for (const tip of tips) tip.hide();
+      }
     });
 
     qs(this.cart, "[data-checkout]").addEventListener("click", () => {
@@ -214,10 +217,6 @@ export class OrderForm {
     const was = this.qty(input);
     const next = Math.min(99, Math.max(0, was + Number(button.dataset.step)));
 
-    // A real click carries its coordinates; a keyboard click has none.
-    this.pointer = e.clientX || e.clientY
-      ? { x: e.clientX, y: e.clientY }
-      : centre(button);
     this.setQty(input, next);
     pulse(input, "order-qty-tick");
 
@@ -353,23 +352,26 @@ export class OrderForm {
     );
     qs(c, "[data-checkout]").disabled = count === 0;
 
+    // A badge that just turned on sends its chicks; the first render
+    // (a restored draft) only sets the baseline.
+    const lit = {};
+
     for (const badge of s.badges) {
       const el = qs(c, `[data-badge="${badge.key}"]`);
 
-      if (el) el.dataset.on = String(badge.on);
+      lit[badge.key] = badge.on;
+      if (!el) continue;
+      el.dataset.on = String(badge.on);
+      if (badge.on && this.lit && !this.lit[badge.key]) celebrate(el);
     }
+    this.lit = lit;
+
+    qs(c, "[data-empty]").hidden = count === 0;
 
     const nudge = qs(c, "[data-nudge]");
 
     if (nudge.textContent !== s.nudge) nudge.textContent = s.nudge;
     nudge.hidden = !s.nudge;
-
-    if (s.eligible && !this.crossed) {
-      this.crossed = true;
-      celebrate(this.pointer || centre(total));
-    } else if (!s.eligible) {
-      this.crossed = false;
-    }
   }
 
   renderZipNote() {
@@ -715,7 +717,6 @@ export class OrderForm {
     }
 
     this.form.hidden = true;
-    this.restored.hidden = true;
     this.finish(node);
   }
 

@@ -72,40 +72,25 @@ describe("the nudge", () => {
   });
 
   it("names the next discount and the exact gap", () => {
-    assert.equal(nudge(at(1), "", money), "Add $49 and we'll take $5 off.");
-    assert.equal(
-      nudge(at(42.5), "", money), "Add $7.50 and we'll take $5 off."
-    );
-    assert.equal(
-      nudge(at(49.99), "", money), "Add $0.01 and we'll take $5 off."
-    );
-    assert.equal(nudge(at(50), "", money), "Add $50 and we'll take $10 off.");
-    assert.equal(
-      nudge(at(99.99), "", money), "Add $0.01 and we'll take $10 off."
-    );
-    assert.equal(
-      nudge(at(100), "onfarm", money), "Add $50 and we'll take $15 off."
-    );
-    assert.equal(
-      nudge(at(150), "onfarm", money), "Add $50 and we'll take $20 off."
-    );
+    const next = (gap, off) => `Next discount: add ${gap} for ${off} off.`;
+
+    assert.equal(nudge(at(1), "", money), next("$49", "$5"));
+    assert.equal(nudge(at(42.5), "", money), next("$7.50", "$5"));
+    assert.equal(nudge(at(49.99), "", money), next("$0.01", "$5"));
+    assert.equal(nudge(at(50), "", money), next("$50", "$10"));
+    assert.equal(nudge(at(99.99), "", money), next("$0.01", "$10"));
+    assert.equal(nudge(at(100), "onfarm", money), next("$50", "$15"));
+    assert.equal(nudge(at(150), "onfarm", money), next("$50", "$20"));
   });
 
   it("mentions free delivery at the $150 line only when it applies", () => {
-    assert.equal(
-      nudge(at(120), "", money),
-      "Add $30 and we'll take $15 off, and delivery is free."
-    );
-    assert.equal(
-      nudge(at(120, "delivery"), "delivery", money),
-      "Add $30 and we'll take $15 off, and delivery is free."
-    );
-    assert.equal(
-      nudge(at(120), "onfarm", money), "Add $30 and we'll take $15 off."
-    );
-    assert.equal(
-      nudge(at(120), "scituate", money), "Add $30 and we'll take $15 off."
-    );
+    const both = "Next discount: add $30 for $15 off and free delivery.";
+    const only = "Next discount: add $30 for $15 off.";
+
+    assert.equal(nudge(at(120), "", money), both);
+    assert.equal(nudge(at(120, "delivery"), "delivery", money), both);
+    assert.equal(nudge(at(120), "onfarm", money), only);
+    assert.equal(nudge(at(120), "scituate", money), only);
   });
 
   it("stops at the top tier", () => {
@@ -129,17 +114,18 @@ describe("the nudge", () => {
     );
     assert.equal(
       nudge(at(40, "delivery"), "delivery", money),
-      "Add $10 and we'll take $5 off."
+      "Next discount: add $10 for $5 off."
     );
     // Without delivery chosen the minimum is not the customer's problem.
-    assert.equal(nudge(at(25), "", money), "Add $25 and we'll take $5 off.");
+    assert.equal(nudge(at(25), "", money),
+      "Next discount: add $25 for $5 off.");
   });
 
   it("agrees with the totals it promises", () => {
     // Whatever the nudge says, adding that gap must produce that
     // discount row, at every cent from $0.01 to $250.
     const parse = (text) => {
-      const m = text.match(/^Add \$([\d.]+) and we'll take \$(\d+) off/);
+      const m = text.match(/^Next discount: add \$([\d.]+) for \$(\d+) off/);
 
       if (!m) return null;
 
@@ -197,7 +183,7 @@ describe("summarize", () => {
     assert.equal(s.fee.waived, true);
     assert.equal(s.total, "$140");
     assert.equal(s.eligible, true);
-    assert.equal(s.nudge, "Add $45 and we'll take $20 off.");
+    assert.equal(s.nudge, "Next discount: add $45 for $20 off.");
   });
 
   it("counts one item in the singular and none as nothing", () => {
