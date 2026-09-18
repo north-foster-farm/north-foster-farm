@@ -86,6 +86,54 @@ describe("POST /api/orders", () => {
     assert.equal((await openOrders(stores)).length, 1);
   });
 
+  it("emails the pay link and records it, and survives mail failing",
+    async () => {
+      const stores = testStores();
+      const sent = [];
+      const mail = async (message) => {
+        sent.push(message);
+
+        return { id: "email_1", driver: "test" };
+      };
+      const env = {
+        MAIL_DRIVER: "resend", RESEND_API_KEY: "k", MAIL_FROM: "f@x",
+        URL: "https://northfosterfarm.com",
+      };
+      let squareOpts;
+      const square = async (order, key, opts) => {
+        squareOpts = opts;
+
+        return ok();
+      };
+
+      await handle(post(body()), {
+        square, stores, mail, env, now, ...quiet,
+      });
+
+      assert.equal(sent.length, 1);
+      assert.equal(sent[0].to, "pat@example.com");
+      assert.match(sent[0].subject, /One more step: pay for order/);
+      assert.match(sent[0].text, /https:\/\/northfosterfarm.com\/account\//);
+      assert.equal(squareOpts.emailInvoice, false, "our mail, not Square's");
+
+      const saved = await getOrder(stores, orderId(KEY, now));
+
+      assert.equal(saved.emails.completeYourOrder.id, "email_1");
+      assert.equal(saved.history.at(-1).event, "mail.completeYourOrder");
+
+      // Mail down: the order still succeeds and Square emails instead.
+      const broken = testStores();
+      const down = async () => { throw new Error("resend down"); };
+      const res = await handle(post(body()), {
+        square, stores: broken, mail: down, env: {}, now, ...quiet,
+      });
+
+      assert.equal(res.status, 200);
+      assert.equal(squareOpts.emailInvoice, true, "Square emails the link");
+      assert.equal((await getOrder(broken, orderId(KEY, now))).emails,
+        undefined);
+    });
+
   it("does not persist an order Square rejected", async () => {
     const stores = testStores();
     const down = async () => {

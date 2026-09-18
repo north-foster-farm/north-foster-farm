@@ -1,5 +1,7 @@
 // The Square seam: one order in, one published invoice out. Square
-// emails the invoice, sends the reminders and issues the receipt.
+// issues the receipt; it emails the invoice too unless the farm's own
+// mail is configured, in which case our "complete your order" email
+// carries the pay link and Square stays quiet.
 //
 // Every mutation carries an idempotency key derived from the order's
 // key, so a retry of any step, or of the whole function, returns the
@@ -7,8 +9,9 @@
 
 import terms from "../../../data/delivery.json" with { type: "json" };
 import {
-  addDays, instant, label, today,
+  addDays, instant, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { describe } from "./describe.mjs";
 
 const HOSTS = {
   production: "https://connect.squareup.com",
@@ -209,24 +212,9 @@ export const buildOrder = (order, customerId, cfg) => {
   return out;
 };
 
-const describe = (order) => {
-  const f = order.fulfilment;
-  const when = label(f.date);
-
-  if (f.method === "delivery") {
-    return `Local delivery on ${when}, ${terms.delivery.window}. ` +
-      "Please have a cooler with ice out that morning.";
-  }
-  if (f.method === "scituate") {
-    return `Scituate drop site, ${when}, ${terms.scituate.window}, at the ` +
-      `${terms.scituate.location}.`;
-  }
-
-  return `On-farm pickup on ${when}, ${f.onfarm.window}, at ` +
-    `${terms.onFarm.address}. By appointment: we'll confirm a time.`;
-};
-
-export const buildInvoice = (order, squareOrderId, customerId, cfg, now) => {
+export const buildInvoice = (
+  order, squareOrderId, customerId, cfg, now, { emailInvoice = true } = {}
+) => {
   const date = order.fulfilment.date;
   const current = today(now, terms.timeZone);
   const dayBefore = addDays(date, -1);
@@ -235,7 +223,7 @@ export const buildInvoice = (order, squareOrderId, customerId, cfg, now) => {
     location_id: cfg.locationId,
     order_id: squareOrderId,
     primary_recipient: { customer_id: customerId },
-    delivery_method: "EMAIL",
+    delivery_method: emailInvoice ? "EMAIL" : "SHARE_MANUALLY",
     payment_requests: [{
       request_type: "BALANCE",
       due_date: dayBefore > current ? dayBefore : current,
@@ -282,6 +270,7 @@ export const createOrderAndInvoice = async (order, key, {
   env = process.env,
   fetchImpl = globalThis.fetch,
   now = new Date(),
+  emailInvoice = true,
 } = {}) => {
   const cfg = settings(env);
   const customerId = await findOrCreateCustomer(
@@ -294,7 +283,9 @@ export const createOrderAndInvoice = async (order, key, {
   const squareOrderId = created.order.id;
   const drafted = await call(cfg, "/v2/invoices", {
     idempotency_key: `${key}-invoice`,
-    invoice: buildInvoice(order, squareOrderId, customerId, cfg, now),
+    invoice: buildInvoice(
+      order, squareOrderId, customerId, cfg, now, { emailInvoice }
+    ),
   }, fetchImpl);
   const { id, version } = drafted.invoice;
   const published = await call(cfg, `/v2/invoices/${id}/publish`, {

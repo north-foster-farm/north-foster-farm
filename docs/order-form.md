@@ -112,6 +112,29 @@ Not yet exercised against a real account: the sandbox has not been
 credentialed from this environment. The unit tests mock `fetch` and
 check every request body and idempotency key.
 
+## Records
+
+Orders are persisted in Netlify Blobs (`netlify/functions/lib/store.mjs`
+is the seam; memory off Netlify) after Square has invoiced them, with
+the Square ids, and a customer record is created or touched by email.
+`lib/records.mjs` owns the documents and the indexes: `order/<id>`,
+`by-email/<email>/<id>` and `open/<id>` for orders the jobs still
+watch (submitted, paid). Statuses: submitted, paid, fulfilled,
+cancelled, abandoned. Square stays the system of record for money.
+
+## Mail
+
+`lib/mail.mjs` sends through Resend when `MAIL_DRIVER=resend`,
+`RESEND_API_KEY` and `MAIL_FROM` are set, otherwise to the function
+log. `MAIL_REPLY_TO` and `ADMIN_EMAILS` (comma-separated) are
+optional. `lib/templates.mjs` holds every message as a pure function
+with tests: complete your order, order confirmed, payment reminders
+(soon, nextDay, final), delivery reminder, address review, sign-in
+link. With the farm's mail configured, the Square invoice is created
+`SHARE_MANUALLY` and our email carries the pay link; without it Square
+emails the invoice. Links point at `SITE_URL`, else Netlify's
+`DEPLOY_PRIME_URL`, else `URL`.
+
 ## Decisions
 
 - **Square Orders plus Invoices**, not Payment Links. Publishing an
