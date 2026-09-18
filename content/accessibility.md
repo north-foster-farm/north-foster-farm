@@ -7,7 +7,6 @@ slug: "accessibility"
 title: "Accessibility"
 type: "policy"
 layout: "policy/single.html"
-hideCTA: true
 ---
 
 North Foster Farm is committed to ensuring digital accessibility for people

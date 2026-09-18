@@ -1,0 +1,252 @@
+#!/usr/bin/env bash
+
+# Interactive updater for data/catalog.json. Walks every item, takes one
+# keypress per item, and writes the file only on save. Run from any
+# directory.
+
+set -eo pipefail
+
+root="$(cd "$(dirname "$0")/.." && pwd)"
+rel="data/catalog.json"
+file="$root/$rel"
+
+for tool in jq fzf; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo >&2 "bin/stock needs $tool; install it and try again"
+    exit 1
+  fi
+done
+
+if [ ! -f "$file" ]; then
+  echo >&2 "Missing $file"
+  exit 1
+fi
+
+tmp="$(mktemp)"
+trap 'rm -f "$tmp" "$tmp.new"' EXIT
+cp "$file" "$tmp"
+
+# Flatten the catalog in file order. Parallel arrays indexed by item.
+gidx=()    # group index in .groups
+iidx=()    # item index in .groups[g].items
+glabel=()  # group label
+ilabel=()  # item label
+price=()
+orig=()    # inStock as read from the file
+cur=()     # inStock as edited
+
+# Per group: first flat index and label, for jumps and skips.
+gstart=()
+gname=()
+
+total=0
+while IFS=$'\t' read -r g i gl il p st; do
+  gidx[total]="$g"
+  iidx[total]="$i"
+  glabel[total]="$gl"
+  ilabel[total]="$il"
+  price[total]="$p"
+  orig[total]="$st"
+  cur[total]="$st"
+  if [ -z "${gstart[$g]+x}" ]; then
+    gstart[g]="$total"
+    gname[g]="$gl"
+  fi
+  total=$((total + 1))
+done < <(jq -r '
+  .groups | to_entries[] | .key as $g | .value.label as $gl
+  | .value.items | to_entries[]
+  | [$g, .key, $gl, .value.label, .value.price, .value.inStock] | @tsv
+' "$file")
+
+if [ "$total" -eq 0 ]; then
+  echo >&2 "No items in $rel"
+  exit 1
+fi
+
+help() {
+  cat <<'EOF'
+Keys:
+  Enter/space  keep and move on
+  y            in stock
+  n            out of stock
+  s            skip the rest of this group
+  g            jump to a group (fzf)
+  b            back one item
+  w            save and exit
+  q            quit without saving
+  ?            this help
+EOF
+}
+
+state() {
+  if [ "$1" = true ]; then echo IN; else echo out; fi
+}
+
+set_stock() {
+  local i="$1" v="$2"
+  cur[i]="$v"
+  jq --indent 2 \
+    --argjson g "${gidx[$i]}" --argjson i "${iidx[$i]}" --argjson v "$v" \
+    '.groups[$g].items[$i].inStock = $v' "$tmp" > "$tmp.new"
+  mv "$tmp.new" "$tmp"
+}
+
+# Reads one key into $key. Empty on Enter or space. Returns 1 on EOF.
+getkey() {
+  key=""
+  read -rsn1 key || return 1
+  return 0
+}
+
+# Prints one line per changed item, in file order.
+changes() {
+  local i
+  for ((i = 0; i < total; i++)); do
+    [ "${orig[$i]}" = "${cur[$i]}" ] && continue
+    if [ "${cur[$i]}" = true ]; then
+      echo "+ ${glabel[$i]}, ${ilabel[$i]}: out -> IN"
+    else
+      echo "- ${glabel[$i]}, ${ilabel[$i]}: IN -> out"
+    fi
+  done
+}
+
+summary() {
+  local i in=0 out=0
+  for ((i = 0; i < total; i++)); do
+    if [ "${cur[$i]}" = true ]; then in=$((in + 1)); else out=$((out + 1)); fi
+  done
+  echo "In stock: $in, out: $out (of $total)"
+}
+
+confirm() {
+  local ans
+  printf '%s [y/N] ' "$1"
+  read -r ans || ans=""
+  echo
+  case "$ans" in
+    y|Y|yes|YES) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Jumps to the first item of a group picked with fzf. Leaves $idx alone
+# if the picker is cancelled.
+jump() {
+  local pick g
+  pick="$(printf '%s\n' "${gname[@]}" \
+    | fzf --height 40% --reverse --prompt 'Group> ')" || return 0
+  for g in "${!gname[@]}"; do
+    if [ "${gname[$g]}" = "$pick" ]; then
+      idx="${gstart[$g]}"
+      return 0
+    fi
+  done
+}
+
+# Skips to the first item of the next group, or the end.
+skip_group() {
+  local g="${gidx[$idx]}"
+  while [ "$idx" -lt "$total" ] && [ "${gidx[$idx]}" = "$g" ]; do
+    idx=$((idx + 1))
+  done
+}
+
+save() {
+  local diff n_in n_out branch title body
+
+  diff="$(changes)"
+  if [ -z "$diff" ]; then
+    echo "No changes."
+    summary
+    exit 0
+  fi
+
+  echo "Changes:"
+  echo "$diff"
+  echo
+
+  if ! confirm "Write $rel?"; then
+    echo "Not written; continue editing, or q to abandon."
+    return 0
+  fi
+
+  jq --indent 2 . "$tmp" > "$tmp.new"
+  mv "$tmp.new" "$file"
+  echo "Wrote $rel"
+  summary
+
+  if git -C "$root" --no-pager status --porcelain \
+    | grep -qvE "^.. $rel\$"; then
+    echo "Other changes in the working tree; commit $rel yourself."
+    exit 0
+  fi
+
+  if ! confirm "Commit?"; then
+    exit 0
+  fi
+
+  n_in="$(echo "$diff" | grep -c '^+' || true)"
+  n_out="$(echo "$diff" | grep -c '^-' || true)"
+  title="Update stock: $n_in in, $n_out out"
+  body="$(echo "$diff" | fold -s -w 72)"
+
+  git -C "$root" add "$rel"
+  printf '%s\n\n%s\n' "$title" "$body" | git -C "$root" commit -q -F -
+  echo "Committed: $title"
+
+  branch="$(git -C "$root" rev-parse --abbrev-ref HEAD)"
+  echo "Warning: pushing main deploys the live site (branch: $branch)."
+  if confirm "Push?"; then
+    git -C "$root" push
+  fi
+  exit 0
+}
+
+help
+echo
+
+idx=0
+while :; do
+  if [ "$idx" -ge "$total" ]; then
+    printf 'End of catalog (w save, q quit, b back, g group, ? help) '
+    if ! getkey; then
+      echo
+      echo "End of input; nothing written."
+      exit 0
+    fi
+    echo
+    case "$key" in
+      w) save ;;
+      q) echo "Abandoned; nothing written."; exit 0 ;;
+      b) idx=$((idx - 1)) ;;
+      g) jump ;;
+      \?) help ;;
+    esac
+    continue
+  fi
+
+  printf '[%2d/%d] %s, %s  $%s  %s > ' \
+    "$((idx + 1))" "$total" "${glabel[$idx]}" "${ilabel[$idx]}" \
+    "${price[$idx]}" "$(state "${cur[$idx]}")"
+
+  if ! getkey; then
+    echo
+    echo "End of input; nothing written."
+    exit 0
+  fi
+
+  case "$key" in
+    "") echo "keep"; idx=$((idx + 1)) ;;
+    y) echo "IN"; set_stock "$idx" true; idx=$((idx + 1)) ;;
+    n) echo "out"; set_stock "$idx" false; idx=$((idx + 1)) ;;
+    s) echo "skip group"; skip_group ;;
+    g) echo "group"; jump ;;
+    b) echo "back"; [ "$idx" -gt 0 ] && idx=$((idx - 1)) ;;
+    w) echo "save"; save ;;
+    q) echo "quit"; echo "Abandoned; nothing written."; exit 0 ;;
+    \?) echo; help ;;
+    *) echo "? for help" ;;
+  esac
+done

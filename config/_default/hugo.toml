@@ -54,8 +54,8 @@ timeZone = "America/New_York"
 
       [params.defaults.ctas.simple]
         text = "Place an order!"
-        label = "Contact"
-        link = "/contact"
+        label = "Order now"
+        link = "/order"
 
     [params.defaults.featuredImage]
       [params.defaults.featuredImage.default]

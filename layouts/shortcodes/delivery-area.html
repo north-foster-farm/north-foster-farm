@@ -1,0 +1,19 @@
+{{- range hugo.Data.delivery.area.states }}
+<h3>{{ .name }}</h3>
+<table class="table table-sm">
+  <thead>
+    <tr>
+      <th scope="col">Town</th>
+      <th scope="col">ZIP codes</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{- range .towns }}
+    <tr>
+      <td>{{ .town }}</td>
+      <td>{{ delimit .zips ", " }}</td>
+    </tr>
+    {{- end }}
+  </tbody>
+</table>
+{{- end }}

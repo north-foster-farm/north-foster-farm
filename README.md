@@ -45,12 +45,24 @@ and expects `northfosterfarm.local` and `www.northfosterfarm.local` in
 
 ```bash
 npm run lint            # both linters
-npm run lint:scripts    # ESLint, assets/scripts
+npm run lint:scripts    # ESLint, assets/scripts, netlify, test
 npm run lint:styles     # Stylelint, assets/styles
+npm test                # node:test, the order form's shared logic
 ```
 
-Lint gates the deploy — Netlify runs it as part of the build, so a lint
-error fails the deploy rather than shipping.
+Lint and tests gate the deploy — Netlify runs both as part of the
+build, so a failure fails the deploy rather than shipping.
+
+## The order form
+
+`/order` is a custom form backed by two Netlify Functions and Square.
+`docs/order-form.md` explains the data files, the rules, the recovery
+design and what is still needed before launch. Day to day:
+
+```bash
+bin/stock                 # flip items in and out of stock, no code edit
+npm run start:functions   # netlify dev: Hugo plus /api/* on :8888
+```
 
 To check a production build locally:
 
@@ -72,7 +84,10 @@ silently falling back to LibSass the way older versions did.
 assets/          SCSS and JS, processed by Hugo Pipes
 config/          Hugo config, layered: _default, development, production
 content/         Markdown pages
-data/            company.yaml, socialMedia.yaml — read via hugo.Data
+data/            company.yaml, socialMedia.yaml, catalog.json,
+                 delivery.json — read via hugo.Data
+netlify/         Functions behind /api/* for the order form
+test/            node:test suite for the order form's shared logic
 layouts/         Templates; partials/ is heavily reused
 static/          Copied to the output verbatim
 bin/dev          Dev server wrapper

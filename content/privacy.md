@@ -7,7 +7,6 @@ slug: "privacy"
 title: "Privacy policy"
 type: "policy"
 layout: "policy/single.html"
-hideCTA: true
 ---
 
 This policy applies to all information collected or submitted on the North
@@ -17,9 +16,18 @@ Foster Farm website.
 
 We collect personal information you provide to us.
 
-This website has no forms and collects nothing from you directly. If you
-contact us using one of the email or phone links on the site, we receive
-whatever you choose to send us.
+The order form at [/order](/order) collects your name, email address, phone
+number, and, for delivery, a delivery address and contact details, along
+with your order. We send that information to Square to create your order and
+email you an invoice. Square processes the payment. We never see your card
+details.
+
+While you fill out the order form, a draft of your unsent order is kept in
+your browser's local storage until it is submitted or discarded. It never
+leaves your device.
+
+If you contact us using one of the email or phone links on the site, we
+receive whatever you choose to send us.
 
 ### Technical basics
 
@@ -33,6 +41,7 @@ basic technical information passing through their services, and data stored
 using their resources:
 
 - [Netlify](https://www.netlify.com/) ([Privacy policy](https://www.netlify.com/privacy/))
+- [Square](https://squareup.com/) ([Privacy policy](https://squareup.com/us/en/legal/general/privacy))
 
 ### Ads and analytics
 
