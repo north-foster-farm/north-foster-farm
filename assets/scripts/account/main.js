@@ -5,6 +5,7 @@
 
 import { dollars } from "../order/lib/totals.mjs";
 import { label } from "../order/lib/zoned.mjs";
+import { forget } from "../session/session.js";
 import { api } from "../utils/api.js";
 
 const qs = (root, selector) => root.querySelector(selector);
@@ -93,6 +94,7 @@ class Account {
     document.getElementById("account-signout").addEventListener("click",
       async () => {
         await api("/api/auth/signout", { method: "POST", body: {} });
+        forget();
         location.href = "/";
       });
 
@@ -263,6 +265,7 @@ class Account {
     this.clearErrors(form);
     this.customer = data.customer;
     this.renderHead();
+    forget();
     this.say("Settings saved.");
   }
 

@@ -42,6 +42,8 @@ const plugins = [
         "ok",
         "wait",
         "no",
+        "data-bs-popper",
+        "static",
         "data-urgency",
         "soon",
         "last",

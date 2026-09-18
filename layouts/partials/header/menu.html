@@ -5,12 +5,30 @@
   </a>
   <nav class="site-actions" aria-label="Main">
     {{ if $onOrder }}
-      <span class="btn btn-outline-primary btn-sm site-order" aria-current="page">Order</span>
+      <span class="site-order is-current" aria-current="page">Order</span>
     {{ else }}
-      <a class="btn btn-primary btn-sm site-order" href="{{ relURL "order/" }}">Order</a>
+      <a class="site-order" href="{{ relURL "order/" }}">Order</a>
     {{ end }}
-    <span class="site-social d-none d-sm-inline-flex">
-      {{ partial "social-media.html" . }}
-    </span>
+    {{/* Filled by session.js once /api/me answers: a sign-in link, or
+         the customer's avatar with a menu. Nothing shows until then. */}}
+    <div class="site-account dropdown" data-account hidden>
+      <a class="site-signin" href="{{ relURL "login/" }}" data-account-signin hidden>Sign in</a>
+      <button class="site-avatar-btn" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" aria-label="Your account" data-account-menu hidden>
+        <svg class="site-avatar" aria-hidden="true"><use href="#avatar-hen-brown" data-account-avatar/></svg>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end site-account-menu">
+        <li class="site-account-who">
+          <span class="site-account-name" data-account-name></span>
+          <span class="site-account-email" data-account-email></span>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="{{ relURL "account/" }}#orders">Your orders</a></li>
+        <li><a class="dropdown-item" href="{{ relURL "account/" }}#invoices">Invoices</a></li>
+        <li><a class="dropdown-item" href="{{ relURL "account/" }}#settings">Account settings</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><button class="dropdown-item" type="button" data-account-signout>Sign out</button></li>
+      </ul>
+    </div>
   </nav>
 </div>
+{{ partial "avatars.html" . }}

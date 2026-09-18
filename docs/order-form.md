@@ -202,7 +202,9 @@ Settings, Help) rendered from `GET /api/me` and
   and emailed to the farm, who replies by email.
 
 Avatars are the six SVG symbols in `layouts/partials/avatars.html`,
-keyed by `data/avatars.json`.
+keyed by `data/avatars.json`. The header (`session.js` in the site
+bundle) asks `/api/me` once per five minutes, cached in
+`sessionStorage`, and shows a Sign in link or the avatar menu.
 
 ## Decisions
 
