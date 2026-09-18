@@ -23,3 +23,6 @@ resources/
 # from `git clean -fd`, which skips ignored files.
 docs/example-projects/
 docs/hugo-docs-source/
+
+# Written by the Netlify CLI when it serves functions locally.
+deno.lock
