@@ -24,10 +24,6 @@
     "note": "The same corner of the lot where our tent sits in market season.",
     "datesToOffer": 2
   },
-  "southCounty": {
-    "area": "Exeter / North Kingstown",
-    "near": "Tilted Barn"
-  },
   "delivery": {
     "weekday": 4,
     "cutoffWeekday": 3,
@@ -75,6 +71,8 @@
       {
         "code": "CT",
         "name": "Connecticut",
+        "onlyGroups": ["eggs"],
+        "note": "Connecticut is eggs only for now. We can't sell chicken there yet.",
         "towns": [
           { "town": "Brooklyn", "zips": ["06234"] },
           { "town": "Danielson", "zips": ["06239"] },

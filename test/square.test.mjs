@@ -39,7 +39,6 @@ const order = (overrides = {}) => ({
   },
   notes: "",
   source: "Flyer",
-  vote: { southCounty: "", town: "" },
   flags: { zipUnlisted: false, totalMismatch: false },
   ...overrides,
 });
@@ -129,8 +128,6 @@ describe("buildOrder", () => {
         date: "2026-10-08",
         onfarm: null,
         delivery: {
-          contactName: "Pat",
-          contactPhone: "4015550100",
           address1: "1 Main St",
           address2: "",
           town: "Foster",

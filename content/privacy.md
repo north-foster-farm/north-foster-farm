@@ -17,14 +17,12 @@ Foster Farm website.
 We collect personal information you provide to us.
 
 The order form at [/order](/order) collects your name, email address, phone
-number, and, for delivery, a delivery address and contact details, along
-with your order. We send that information to Square to create your order and
-email you an invoice. Square processes the payment. We never see your card
-details.
+number and your order, plus a delivery address if you choose delivery. We
+send that to Square, which creates your invoice and processes the payment.
+We never see your card details.
 
-While you fill out the order form, a draft of your unsent order is kept in
-your browser's local storage until it is submitted or discarded. It never
-leaves your device.
+While you fill out the form, a draft is kept in your browser until you
+submit or discard it. It never leaves your device.
 
 If you contact us using one of the email or phone links on the site, we
 receive whatever you choose to send us.

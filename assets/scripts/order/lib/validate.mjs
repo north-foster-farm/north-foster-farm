@@ -5,7 +5,7 @@
 import { datesFor } from "./dates.mjs";
 import { computeTotals, meetsMinimum } from "./totals.mjs";
 
-export const METHODS = ["onfarm", "scituate", "southcounty", "delivery"];
+export const METHODS = ["onfarm", "scituate", "delivery"];
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -21,24 +21,34 @@ export const phoneOk = (value) => {
 };
 
 // Approved ZIP passes; an unlisted ZIP with an in-state prefix warns
-// and flags the order; anything else is blocked.
-export const zipStatus = (zip, area) => {
+// and flags the order; anything else is blocked. A state can limit
+// what it may receive (Connecticut takes eggs only for now).
+export const zipInfo = (zip, area) => {
   const z = digits(zip).slice(0, 5);
 
-  if (z.length !== 5) return "invalid";
+  if (z.length !== 5) return { status: "invalid", state: null };
 
   for (const state of area.states) {
     for (const town of state.towns) {
-      if (town.zips.includes(z)) return "approved";
+      if (town.zips.includes(z)) return { status: "approved", state };
     }
   }
 
   const nearby = area.warnPrefixes.some((p) => z.startsWith(p));
 
-  return nearby ? "unlisted" : "outside";
+  return { status: nearby ? "unlisted" : "outside", state: null };
 };
 
-const ACKS = ["policy", "area", "minimum", "cooler"];
+export const zipStatus = (zip, area) => zipInfo(zip, area).status;
+
+// Items a state cannot receive, given the lines and the state entry.
+export const disallowedFor = (lines, state) => {
+  if (!state || !state.onlyGroups) return [];
+
+  return lines.filter((line) => !state.onlyGroups.includes(line.groupKey));
+};
+
+const ACKS = ["policy", "area", "cooler"];
 
 // Returns { ok: true, order } or { ok: false, status, errors, dates? }.
 export const validateOrder = (payload, { index, terms, now }) => {
@@ -52,7 +62,7 @@ export const validateOrder = (payload, { index, terms, now }) => {
   const email = text(customer.email, 254).toLowerCase();
   const phone = text(customer.phone, 40);
 
-  if (!name) errors["customer.name"] = "Please tell us your name.";
+  if (!name) errors["customer.name"] = "Please enter your name.";
   if (!EMAIL.test(email)) {
     errors["customer.email"] = "That email address doesn't look right.";
   }
@@ -80,21 +90,19 @@ export const validateOrder = (payload, { index, terms, now }) => {
       continue;
     }
 
-    lines.push({ sku, qty, item });
+    lines.push({ sku, qty, item, groupKey: item.groupKey });
   }
 
   const lineErrors = Object.keys(errors).some((k) => k.startsWith("lines."));
 
   if (lines.length === 0 && !lineErrors) {
-    errors.lines = "Add at least one item to your order.";
+    errors.lines = "Add at least one item.";
   }
 
   const method = text(fulfilment.method, 20);
 
   if (!METHODS.includes(method)) {
     errors["fulfilment.method"] = "Choose how you'd like to get your order.";
-  } else if (method === "southcounty") {
-    errors["fulfilment.method"] = "The South County drop site isn't open yet.";
   }
 
   const totals = computeTotals({ lines, method, index, money });
@@ -108,7 +116,7 @@ export const validateOrder = (payload, { index, terms, now }) => {
       errors["onfarm.window"] = "Morning or afternoon?";
     }
     if (!phoneOk(f.phone)) {
-      errors["onfarm.phone"] = "We need a phone number for pickup.";
+      errors["onfarm.phone"] = "We need a phone number for pickup day.";
     }
     out.onfarm = { window, phone: text(f.phone, 40), textOk: !!f.textOk };
   }
@@ -120,7 +128,7 @@ export const validateOrder = (payload, { index, terms, now }) => {
     for (const key of ACKS) {
       if (acks[key] !== true) {
         errors["delivery.acknowledgements"] =
-          "Please confirm all four delivery points.";
+          "Please confirm all three.";
       }
     }
     if (!meetsMinimum(totals, money)) {
@@ -130,29 +138,28 @@ export const validateOrder = (payload, { index, terms, now }) => {
         "minimum.";
     }
 
-    const status = zipStatus(f.zip, terms.area);
+    const { status, state } = zipInfo(f.zip, terms.area);
 
     if (status === "invalid") {
       errors["delivery.zip"] = "Please enter a five-digit ZIP code.";
     } else if (status === "outside") {
-      errors["delivery.zip"] = "That's outside our delivery range.";
+      errors["delivery.zip"] = "That's outside our delivery area.";
+    } else if (disallowedFor(lines, state).length) {
+      errors["delivery.zip"] = state.note;
     }
-    if (!text(f.contactName)) errors["delivery.contactName"] = "Required.";
-    if (!phoneOk(f.contactPhone)) {
-      errors["delivery.contactPhone"] = "We need a number for delivery day.";
+    if (!text(f.address1)) {
+      errors["delivery.address1"] = "Please enter your street address.";
     }
-    if (!text(f.address1)) errors["delivery.address1"] = "Required.";
-    if (!text(f.town)) errors["delivery.town"] = "Required.";
+    if (!text(f.town)) errors["delivery.town"] = "Please enter your town.";
     if (!text(f.cooler)) {
       errors["delivery.cooler"] = "Tell us where the cooler will be.";
     }
 
     out.delivery = {
-      contactName: text(f.contactName, 120),
-      contactPhone: text(f.contactPhone, 40),
       address1: text(f.address1, 200),
       address2: text(f.address2, 200),
       town: text(f.town, 100),
+      state: state ? state.code : null,
       zip: digits(f.zip).slice(0, 5),
       gate: text(f.gate, 100),
       cooler: text(f.cooler, 300),
@@ -165,7 +172,7 @@ export const validateOrder = (payload, { index, terms, now }) => {
   }
 
   // The chosen date must still be valid now, not when the page loaded.
-  if (["onfarm", "scituate", "delivery"].includes(method)) {
+  if (METHODS.includes(method)) {
     const dates = datesFor(method, now, terms);
     const date = text(fulfilment.date, 10);
 
@@ -186,8 +193,6 @@ export const validateOrder = (payload, { index, terms, now }) => {
   }
 
   if (Object.keys(errors).length) return { ok: false, status: 422, errors };
-
-  const vote = p.vote || {};
 
   return {
     ok: true,
@@ -211,10 +216,6 @@ export const validateOrder = (payload, { index, terms, now }) => {
       totals,
       notes: text(p.notes, 2000),
       source: text(p.source, 100),
-      vote: {
-        southCounty: text(vote.southCounty, 20),
-        town: text(vote.town, 100),
-      },
       flags: {
         zipUnlisted: !!(out.delivery && out.delivery.zipStatus === "unlisted"),
         totalMismatch: Number(p.claimedTotal) !== totals.total,

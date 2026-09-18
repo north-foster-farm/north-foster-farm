@@ -110,11 +110,6 @@ const staffNote = (order) => {
   }
   if (order.notes) bits.push(`notes: ${order.notes}`);
   if (order.source) bits.push(`heard via ${order.source}`);
-  if (order.vote.southCounty) {
-    const town = order.vote.town ? ` from ${order.vote.town}` : "";
-
-    bits.push(`South County vote: ${order.vote.southCounty}${town}`);
-  }
   if (order.flags.totalMismatch) bits.push("client total differed; recomputed");
 
   return bits.join(" · ").slice(0, 500);
@@ -134,14 +129,14 @@ const fulfillment = (order) => {
       state: "PROPOSED",
       delivery_details: {
         recipient: {
-          display_name: d.contactName,
+          display_name: name,
           email_address: email,
-          phone_number: e164(d.contactPhone),
+          phone_number: e164(phone),
           address: {
             address_line_1: d.address1,
             address_line_2: d.address2 || undefined,
             locality: d.town,
-            administrative_district_level_1: stateFor(d.zip),
+            administrative_district_level_1: d.state || stateFor(d.zip),
             postal_code: d.zip,
             country: "US",
           },
@@ -223,12 +218,12 @@ const describe = (order) => {
       "Please have a cooler with ice out that morning.";
   }
   if (f.method === "scituate") {
-    return `Scituate drop site, ${when}, ${terms.scituate.window}, ` +
+    return `Scituate drop site, ${when}, ${terms.scituate.window}, at the ` +
       `${terms.scituate.location}.`;
   }
 
-  return `On-farm pickup on ${when} (${f.onfarm.window}), ` +
-    `${terms.onFarm.address}. ${terms.onFarm.note}`;
+  return `On-farm pickup on ${when}, ${f.onfarm.window}, at ` +
+    `${terms.onFarm.address}. By appointment: we'll confirm a time.`;
 };
 
 export const buildInvoice = (order, squareOrderId, customerId, cfg, now) => {
@@ -254,8 +249,8 @@ export const buildInvoice = (order, squareOrderId, customerId, cfg, now) => {
       cash_app_pay: false,
     },
     title: `North Foster Farm order ${order.id}`,
-    description: `${describe(order)} Everything arrives frozen, except ` +
-      "the eggs. Your order is reserved once payment comes through.",
+    description: `${describe(order)} Chicken arrives frozen. Once this ` +
+      "invoice is paid, your order is reserved.",
     sale_or_service_date: date,
     store_payment_method_enabled: false,
   };

@@ -12,8 +12,3 @@ layout: "order/single.html"
 hideCTA: true
 pageScript: "order"
 ---
-
-Pasture-raised chicken and eggs from our farm in Foster, Rhode Island.
-Everything arrives frozen, except the eggs. Nothing is charged when you
-submit this form: we email you a secure link to pay by card, and your
-order is reserved once payment comes through.

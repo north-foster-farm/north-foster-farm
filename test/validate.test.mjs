@@ -31,15 +31,11 @@ const delivery = (overrides = {}) => ({
     method: "delivery",
     date: "2026-10-08",
     delivery: {
-      contactName: "Pat",
-      contactPhone: "4015550100",
       address1: "1 Main St",
       town: "Foster",
       zip: "02825",
       cooler: "Side porch",
-      acknowledgements: {
-        policy: true, area: true, minimum: true, cooler: true,
-      },
+      acknowledgements: { policy: true, area: true, cooler: true },
       ...overrides,
     },
   },
@@ -109,7 +105,7 @@ describe("lines", () => {
 });
 
 describe("fulfilment", () => {
-  it("rejects South County", () => {
+  it("rejects an unknown method", () => {
     const fulfilment = { method: "southcounty", date: "2026-10-17" };
     const r = validateOrder({ ...base(), fulfilment }, ctx);
 
@@ -155,12 +151,29 @@ describe("delivery rules", () => {
     assert.match(r.errors["delivery.minimum"], /Scituate/);
   });
 
-  it("requires all four acknowledgements", () => {
-    const acknowledgements = { policy: true, area: true, minimum: true };
+  it("requires all three acknowledgements", () => {
+    const acknowledgements = { policy: true, area: true };
     const r = validateOrder(delivery({ acknowledgements }), ctx);
 
     assert.equal(r.status, 422);
     assert.ok(r.errors["delivery.acknowledgements"]);
+  });
+
+  it("records the state and takes eggs to Connecticut", () => {
+    const eggs = delivery({ zip: "06239" });
+
+    eggs.lines = [{ sku: "NFF-CHK-EGG-LG", qty: 6 }];
+    const r = validateOrder(eggs, ctx);
+
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.equal(r.order.fulfilment.delivery.state, "CT");
+  });
+
+  it("refuses chicken to Connecticut for now", () => {
+    const r = validateOrder(delivery({ zip: "06239" }), ctx);
+
+    assert.equal(r.status, 422);
+    assert.match(r.errors["delivery.zip"], /eggs only/);
   });
 
   it("warns and flags an unlisted Rhode Island ZIP", () => {
