@@ -6,6 +6,7 @@
 <script type="application/json" id="order-data">{{ $data | jsonify | safeJS }}</script>
 
 <div id="order-stock" class="alert alert-warning" role="status" aria-live="polite" hidden></div>
+<div id="order-added" class="alert alert-success" role="status" aria-live="polite" hidden></div>
 
 <form id="order-form" class="order-form" novalidate data-version="{{ hugo.Data.catalog.version }}">
   {{ partial "order/catalog.html" . }}

@@ -93,6 +93,7 @@ export class OrderForm {
       if (draft && draft.payload) this.restore(draft.payload);
     }
 
+    this.addFromQuery();
     this.dates.load();
     this.refresh();
     this.stock.start();
@@ -179,6 +180,59 @@ export class OrderForm {
   changed() {
     this.refresh();
     this.draft.save(this.collect());
+  }
+
+  // /order/?add=SKU:qty,SKU:qty puts those items in the cart: the
+  // "Add again" links on the account page, and anything else that
+  // wants to. Unknown or sold-out SKUs are named, not added; a live
+  // stock check right after brings any quantity down if it must. The
+  // query is cleared so a reload does not add again.
+  addFromQuery() {
+    const params = new URLSearchParams(location.search);
+    const raw = params.get("add");
+
+    if (!raw) return;
+
+    const added = [];
+    const missing = [];
+
+    for (const part of raw.split(",")) {
+      const [sku, qtyText] = part.split(":");
+      const input = qs(this.form, `[data-qty="${CSS.escape(sku || "")}"]`);
+      const qty = Math.min(99, Math.max(1, parseInt(qtyText, 10) || 1));
+
+      if (!input) {
+        const item = this.index.get(sku);
+
+        missing.push(item ? `${item.groupLabel}, ${item.label}` : sku);
+        continue;
+      }
+      this.setQty(input, Math.min(99, this.qty(input) + qty));
+      added.push(`${qty} × ${this.index.get(sku).label}`);
+    }
+
+    const notice = document.getElementById("order-added");
+    const bits = [];
+
+    if (added.length) bits.push(`Added to your cart: ${added.join(", ")}.`);
+    if (missing.length) {
+      bits.push(`No longer available: ${missing.join(", ")}.`);
+    }
+    notice.textContent = bits.join(" ");
+    notice.hidden = !bits.length;
+    notice.classList.toggle("alert-warning", !added.length);
+    notice.classList.toggle("alert-success", added.length > 0);
+
+    params.delete("add");
+    history.replaceState(null, "", `${location.pathname}${
+      params.toString() ? `?${params}` : ""}${location.hash}`);
+
+    if (added.length) {
+      this.draft.save(this.collect());
+      setTimeout(() => this.cart.scrollIntoView({
+        block: "end", behavior: "smooth",
+      }), 300);
+    }
   }
 
   // Stock moved under the cart: quantities were already brought into

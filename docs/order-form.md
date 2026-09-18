@@ -216,6 +216,10 @@ Settings, Help) rendered from `GET /api/me` and
   `order.returns` and emailed to the farm.
 - Support: stored under `support/<email>/<id>` in the customers store
   and emailed to the farm, who replies by email.
+- Add again and Reorder: plain links to `/order/?add=SKU:qty,...`.
+  The order page merges the quantities into the cart on load, names
+  anything no longer sold, saves the draft, scrolls to the summary
+  and clears the query. The live stock check then clamps if needed.
 
 Avatars are the six SVG symbols in `layouts/partials/avatars.html`,
 keyed by `data/avatars.json`. The header (`session.js` in the site

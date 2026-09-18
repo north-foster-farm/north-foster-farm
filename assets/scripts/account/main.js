@@ -51,6 +51,11 @@ const placed = (iso) => new Date(iso).toLocaleDateString("en-US", {
   month: "short", day: "numeric", year: "numeric",
 });
 
+// The order page takes ?add=SKU:qty,... and puts those in the cart.
+const addUrl = (lines) => `/order/?add=${encodeURIComponent(
+  lines.map((l) => `${l.sku}:${l.qty}`).join(",")
+)}`;
+
 class Account {
   constructor() {
     const data = JSON.parse(
@@ -364,12 +369,18 @@ class Account {
 
     const lines = qs(node, "[data-out='lines']");
 
+    // Each line links back to the order page with that item in the
+    // cart; a plain link, so it works everywhere and needs no state.
     for (const line of order.lines) {
       const li = clone("tpl-line");
+      const add = qs(li, "[data-out='add']");
 
       qs(li, "[data-out='qty']").textContent = `${line.qty} ×`;
       qs(li, "[data-out='label']").textContent = line.label;
       qs(li, "[data-out='total']").textContent = dollars(line.lineTotal * 100);
+      add.href = addUrl([line]);
+      add.setAttribute("aria-label", `Add ${line.qty} × ${line.label} to ` +
+        "your cart again");
       lines.appendChild(li);
     }
 
@@ -400,6 +411,14 @@ class Account {
       b.addEventListener("click", onClick);
       actions.appendChild(b);
     };
+
+    // Reorder is a plain link: the order page does the adding.
+    const again = el("a", "btn btn-sm btn-outline-primary", "Reorder");
+
+    again.href = addUrl(order.lines);
+    again.setAttribute("aria-label", `Add everything in ${order.id} to ` +
+      "your cart again");
+    actions.appendChild(again);
 
     if (order.canChange) {
       button("Change", "btn-outline-primary",
