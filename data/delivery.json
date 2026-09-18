@@ -1,0 +1,89 @@
+{
+  "timeZone": "America/New_York",
+  "money": {
+    "deliveryMinimum": 40,
+    "deliveryFee": 5,
+    "feeWaivedAt": 150,
+    "bulkTiers": [
+      { "threshold": 50, "off": 5 },
+      { "threshold": 100, "off": 10 },
+      { "threshold": 150, "off": 15 },
+      { "threshold": 200, "off": 20 }
+    ]
+  },
+  "onFarm": {
+    "address": "99 East Killingly Road, Foster, RI 02825",
+    "note": "By appointment only."
+  },
+  "scituate": {
+    "start": "2026-10-17",
+    "weekday": 6,
+    "opensHour": 10,
+    "window": "10:00 – 11:00 AM",
+    "location": "Village Green, 46 Institute Lane, North Scituate",
+    "note": "The same corner of the lot where our tent sits in market season.",
+    "datesToOffer": 2
+  },
+  "southCounty": {
+    "area": "Exeter / North Kingstown",
+    "near": "Tilted Barn"
+  },
+  "delivery": {
+    "weekday": 4,
+    "cutoffWeekday": 3,
+    "cutoffHour": 12,
+    "window": "10:00 AM – 4:00 PM",
+    "datesToOffer": 2
+  },
+  "holidays": [
+    "2026-01-01", "2026-01-19", "2026-02-16", "2026-05-25", "2026-06-19",
+    "2026-07-03", "2026-09-07", "2026-10-12", "2026-11-11", "2026-11-26",
+    "2026-12-25",
+    "2027-01-01", "2027-01-18", "2027-02-15", "2027-05-31", "2027-06-18",
+    "2027-07-05", "2027-09-06", "2027-10-11", "2027-11-11", "2027-11-25",
+    "2027-12-24"
+  ],
+  "area": {
+    "warnPrefixes": ["028", "029"],
+    "states": [
+      {
+        "code": "RI",
+        "name": "Rhode Island",
+        "towns": [
+          { "town": "Chepachet", "zips": ["02814"] },
+          { "town": "Coventry", "zips": ["02816"] },
+          { "town": "Cranston",
+            "zips": ["02905", "02907", "02910", "02920", "02921"] },
+          { "town": "East Greenwich", "zips": ["02818"] },
+          { "town": "Exeter", "zips": ["02822"] },
+          { "town": "Foster", "zips": ["02825"] },
+          { "town": "Glocester", "zips": ["02814"] },
+          { "town": "Johnston", "zips": ["02919"] },
+          { "town": "North Kingstown", "zips": ["02852"] },
+          { "town": "North Providence", "zips": ["02911"] },
+          { "town": "North Scituate", "zips": ["02857"] },
+          { "town": "Providence",
+            "zips": ["02901", "02902", "02903", "02904", "02905", "02906",
+                     "02907", "02908", "02909", "02912", "02918", "02940"] },
+          { "town": "Scituate", "zips": ["02857"] },
+          { "town": "Smithfield", "zips": ["02917"] },
+          { "town": "Warwick", "zips": ["02886", "02888", "02889"] },
+          { "town": "West Greenwich", "zips": ["02817"] },
+          { "town": "West Warwick", "zips": ["02893"] }
+        ]
+      },
+      {
+        "code": "CT",
+        "name": "Connecticut",
+        "towns": [
+          { "town": "Brooklyn", "zips": ["06234"] },
+          { "town": "Danielson", "zips": ["06239"] },
+          { "town": "Killingly", "zips": ["06239"] },
+          { "town": "Plainfield", "zips": ["06374"] },
+          { "town": "Putnam", "zips": ["06260"] },
+          { "town": "Sterling", "zips": ["06377"] }
+        ]
+      }
+    ]
+  }
+}

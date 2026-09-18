@@ -81,4 +81,11 @@ module.exports = [
       "spaced-comment": "error",
     },
   },
+  {
+    // Square's request and response bodies are snake_case.
+    "files": ["netlify/functions/lib/square.mjs", "test/square.test.mjs"],
+    "rules": {
+      "camelcase": ["error", { "properties": "never" }],
+    },
+  },
 ];

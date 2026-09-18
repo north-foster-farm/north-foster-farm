@@ -1,0 +1,367 @@
+{
+  "version": "2026-v6",
+  "groups": [
+    {
+      "key": "eggs",
+      "label": "Eggs (per dozen)",
+      "items": [
+        {
+          "sku": "NFF-CHK-EGG-LG",
+          "label": "Large",
+          "name": "Eggs (per dozen), Large",
+          "price": 7,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-EGG-MD",
+          "label": "Medium",
+          "name": "Eggs (per dozen), Medium",
+          "price": 5,
+          "inStock": false,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-EGG-SM",
+          "label": "Pullet",
+          "name": "Eggs (per dozen), Pullet",
+          "price": 2,
+          "inStock": false,
+          "squareVariationId": null
+        }
+      ]
+    },
+    {
+      "key": "whole",
+      "label": "Whole Chicken",
+      "items": [
+        {
+          "sku": "NFF-CHK-WHL-0200-0250",
+          "label": "2.0 – 2.4 lbs",
+          "name": "Whole Chicken (per each), 2.0 – 2.4 lbs",
+          "price": 20,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-WHL-0250-0300",
+          "label": "2.5 – 2.9 lbs",
+          "name": "Whole Chicken (per each), 2.5 – 2.9 lbs",
+          "price": 24,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-WHL-0300-0350",
+          "label": "3.0 – 3.4 lbs",
+          "name": "Whole Chicken (per each), 3.0 – 3.4 lbs",
+          "price": 26,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-WHL-0350-0400",
+          "label": "3.5 – 3.9 lbs",
+          "name": "Whole Chicken (per each), 3.5 – 3.9 lbs",
+          "price": 30,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-WHL-0400-0450",
+          "label": "4.0 – 4.4 lbs",
+          "name": "Whole Chicken (per each), 4.0 – 4.4 lbs",
+          "price": 34,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-WHL-0450-0500",
+          "label": "4.5 – 4.9 lbs",
+          "name": "Whole Chicken (per each), 4.5 – 4.9 lbs",
+          "price": 40,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-WHL-0500-0600",
+          "label": "5.0 – 5.9 lbs",
+          "name": "Whole Chicken (per each), 5.0 – 5.9 lbs",
+          "price": 46,
+          "inStock": false,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-WHL-0600-0700",
+          "label": "6.0 – 6.9 lbs",
+          "name": "Whole Chicken (per each), 6.0 – 6.9 lbs",
+          "price": 52,
+          "inStock": false,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-WHL-0700-0800",
+          "label": "7.0 – 7.9 lbs",
+          "name": "Whole Chicken (per each), 7.0 – 7.9 lbs",
+          "price": 60,
+          "inStock": false,
+          "squareVariationId": null
+        }
+      ]
+    },
+    {
+      "key": "cornish",
+      "label": "Cornish Hens",
+      "items": [
+        {
+          "sku": "NFF-CHK-CRN-0000-0300",
+          "label": "under 3.0 lbs",
+          "name": "Cornish Hens (per pack), under 3.0 lbs",
+          "price": 20,
+          "inStock": false,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-CRN-0300-0400",
+          "label": "over 3.0 lbs",
+          "name": "Cornish Hens (per pack), over 3.0 lbs",
+          "price": 24,
+          "inStock": false,
+          "squareVariationId": null
+        }
+      ]
+    },
+    {
+      "key": "breasts",
+      "label": "Boneless Breasts",
+      "items": [
+        {
+          "sku": "NFF-CHK-BRSBL-0000-0125",
+          "label": "under 1.25 lbs",
+          "name": "Boneless Breasts (per pack), under 1.25 lbs",
+          "price": 15,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-BRSBL-0125-0150",
+          "label": "1.25 – 1.5 lbs",
+          "name": "Boneless Breasts (per pack), 1.25 – 1.5 lbs",
+          "price": 20,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-BRSBL-0150-0175",
+          "label": "1.5 – 1.75 lbs",
+          "name": "Boneless Breasts (per pack), 1.5 – 1.75 lbs",
+          "price": 24,
+          "inStock": false,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-BRSBL-0175-0250",
+          "label": "over 1.75 lbs",
+          "name": "Boneless Breasts (per pack), over 1.75 lbs",
+          "price": 28,
+          "inStock": false,
+          "squareVariationId": null
+        }
+      ]
+    },
+    {
+      "key": "thighs",
+      "label": "Bone-In Thighs",
+      "items": [
+        {
+          "sku": "NFF-CHK-THGBN-0000-0150",
+          "label": "under 1.5 lbs",
+          "name": "Bone-In Thighs (per pack), under 1.5 lbs",
+          "price": 12,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-THGBN-0150-0200",
+          "label": "1.5 – 2.0 lbs",
+          "name": "Bone-In Thighs (per pack), 1.5 – 2.0 lbs",
+          "price": 17,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-THGBN-0200-0300",
+          "label": "over 2.0 lbs",
+          "name": "Bone-In Thighs (per pack), over 2.0 lbs",
+          "price": 20,
+          "inStock": false,
+          "squareVariationId": null
+        }
+      ]
+    },
+    {
+      "key": "tenders",
+      "label": "Tenders",
+      "items": [
+        {
+          "sku": "NFF-CHK-TND-0000-0125",
+          "label": "under 1.25 lbs",
+          "name": "Tenders (per pack), under 1.25 lbs",
+          "price": 15,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-TND-0125-0150",
+          "label": "1.25 – 1.5 lbs",
+          "name": "Tenders (per pack), 1.25 – 1.5 lbs",
+          "price": 20,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-TND-0150-0250",
+          "label": "over 1.5 lbs",
+          "name": "Tenders (per pack), over 1.5 lbs",
+          "price": 24,
+          "inStock": false,
+          "squareVariationId": null
+        }
+      ]
+    },
+    {
+      "key": "drums",
+      "label": "Drumsticks",
+      "items": [
+        {
+          "sku": "NFF-CHK-DRM-0000-0150",
+          "label": "under 1.5 lbs",
+          "name": "Drumsticks (per pack), under 1.5 lbs",
+          "price": 8,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-DRM-0150-0300",
+          "label": "over 1.5 lbs",
+          "name": "Drumsticks (per pack), over 1.5 lbs",
+          "price": 10,
+          "inStock": true,
+          "squareVariationId": null
+        }
+      ]
+    },
+    {
+      "key": "wings",
+      "label": "Wings",
+      "items": [
+        {
+          "sku": "NFF-CHK-WNG-0000-0200",
+          "label": "under 2.0 lbs",
+          "name": "Wings (per pack), under 2.0 lbs",
+          "price": 10,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-WNG-0200-0300",
+          "label": "2.0 – 3.0 lbs",
+          "name": "Wings (per pack), 2.0 – 3.0 lbs",
+          "price": 16,
+          "inStock": false,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-WNG-0300-0400",
+          "label": "over 3.0 lbs",
+          "name": "Wings (per pack), over 3.0 lbs",
+          "price": 20,
+          "inStock": false,
+          "squareVariationId": null
+        }
+      ]
+    },
+    {
+      "key": "ground",
+      "label": "Ground Chicken",
+      "items": [
+        {
+          "sku": "NFF-CHK-GRD-0000-0125",
+          "label": "under 1.25 lbs",
+          "name": "Ground Chicken (per pack), under 1.25 lbs",
+          "price": 12,
+          "inStock": false,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-GRD-0125-0175",
+          "label": "over 1.25 lbs",
+          "name": "Ground Chicken (per pack), over 1.25 lbs",
+          "price": 15,
+          "inStock": false,
+          "squareVariationId": null
+        }
+      ]
+    },
+    {
+      "key": "sausage",
+      "label": "Chicken Sausage",
+      "items": [
+        {
+          "sku": "NFF-CHK-SAUMPL-0075-0125",
+          "label": "Maple breakfast (8 links)",
+          "name": "Maple Breakfast Sausage (per pack), Links",
+          "price": 18,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-SAUSWT-0075-0125",
+          "label": "Sweet Italian (6 links)",
+          "name": "Sweet Italian Sausage (per pack), Links",
+          "price": 18,
+          "inStock": false,
+          "squareVariationId": null
+        }
+      ]
+    },
+    {
+      "key": "other",
+      "label": "Other Items (1 lb avg.)",
+      "items": [
+        {
+          "sku": "NFF-CHK-LVR-0075-0125",
+          "label": "Livers",
+          "name": "Livers (per pack)",
+          "price": 7,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-NCK-0075-0125",
+          "label": "Necks",
+          "name": "Necks (per pack)",
+          "price": 5,
+          "inStock": true,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-FET-0075-0125",
+          "label": "Feet",
+          "name": "Feet (per pack)",
+          "price": 5,
+          "inStock": false,
+          "squareVariationId": null
+        },
+        {
+          "sku": "NFF-CHK-BCK-0075-0125",
+          "label": "Backs",
+          "name": "Backs (per each)",
+          "price": 5,
+          "inStock": true,
+          "squareVariationId": null
+        }
+      ]
+    }
+  ]
+}
