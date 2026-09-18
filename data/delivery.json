@@ -9,7 +9,11 @@
       { "threshold": 100, "off": 10 },
       { "threshold": 150, "off": 15 },
       { "threshold": 200, "off": 20 }
-    ]
+    ],
+    "discountGroups": {
+      "friends": { "label": "Friends & family", "percent": 10 },
+      "wholesale": { "label": "Wholesale", "percent": 20 }
+    }
   },
   "onFarm": {
     "address": "99 East Killingly Road, Foster, RI 02825",

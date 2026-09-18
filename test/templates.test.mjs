@@ -17,6 +17,7 @@ const order = (method = "delivery") => ({
   ],
   totals: {
     subtotal: 6700, discountTier: 50, discountAmount: 500,
+    discountLabel: "Bulk discount ($50+)",
     deliveryFee: method === "delivery" ? 500 : 0,
     total: method === "delivery" ? 6700 : 6200,
   },

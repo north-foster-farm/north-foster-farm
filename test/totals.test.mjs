@@ -64,6 +64,45 @@ describe("delivery fee", () => {
   });
 });
 
+describe("discount groups", () => {
+  const withGroup = (price, group, method = "onfarm") => computeTotals({
+    lines: [{ sku: "X", qty: 1 }], method, index: priced(price), money, group,
+  });
+
+  it("take a percentage off the subtotal, labelled", () => {
+    const t = withGroup(30, "friends");
+
+    assert.equal(t.discountAmount, 300);
+    assert.equal(t.discountGroup, "friends");
+    assert.equal(t.discountTier, null);
+    assert.equal(t.discountLabel, "Friends & family (10%)");
+    assert.equal(t.total, 2700);
+  });
+
+  it("never stack with a bulk tier: the larger one wins", () => {
+    // $60: bulk $5 beats friends $6? No, $6 wins.
+    assert.equal(withGroup(60, "friends").discountAmount, 600);
+    assert.equal(withGroup(60, "friends").discountGroup, "friends");
+    // $45: friends $4.50 beats no tier.
+    assert.equal(withGroup(45, "friends").discountAmount, 450);
+    // $100: bulk $10 equals friends $10; the bulk tier stands.
+    assert.equal(withGroup(100, "friends").discountGroup, null);
+    assert.equal(withGroup(100, "friends").discountLabel,
+      "Bulk discount ($100+)");
+    // $100 wholesale $20 beats bulk $10.
+    assert.equal(withGroup(100, "wholesale").discountAmount, 2000);
+  });
+
+  it("ignore an unknown group", () => {
+    assert.equal(withGroup(60, "nope").discountAmount, 500);
+    assert.equal(withGroup(60, null).discountLabel, "Bulk discount ($50+)");
+  });
+
+  it("round to the cent", () => {
+    assert.equal(withGroup(33.33, "friends").discountAmount, 333);
+  });
+});
+
 describe("the $40 delivery minimum", () => {
   it("is met at $40 after discount and not at $39", () => {
     assert.ok(meetsMinimum(totalsAt(40, "delivery"), money));

@@ -49,11 +49,19 @@ Money is integer cents, in this order. Client figures are display only.
 
 ```
 subtotal    = Σ qty × unitPrice
-discount    = highest tier where subtotal >= threshold   (never stacked)
+bulk        = highest tier where subtotal >= threshold   (never stacked)
+group       = customer's discountGroup percent × subtotal (signed in)
+discount    = max(bulk, group)                            (never both)
 deliveryFee = delivery && subtotal < 150.00 ? 5.00 : 0    (pre-discount)
 total       = subtotal - discount + deliveryFee
 minimum     = delivery only: subtotal - discount >= 40.00
 ```
+
+`money.discountGroups` in `data/delivery.json` names the groups
+(`friends` 10%, `wholesale` 20%). A customer's group lives on their
+record and is set by the CLI; the order handler reads it from the
+session, never from the payload. `totals.discountLabel` names whichever
+discount applied and is what every surface shows.
 
 Dates are computed at request time in `America/New_York`, holidays
 skipped rather than shifted:

@@ -58,6 +58,7 @@ class Account {
     );
 
     this.avatars = data.avatars;
+    this.terms = data.terms;
     this.app = document.getElementById("account-app");
     this.loading = document.getElementById("account-loading");
     this.flash = document.getElementById("account-flash");
@@ -211,6 +212,17 @@ class Account {
     document.getElementById("prof-email").value = c.email;
     for (const radio of all(form, "[data-field='avatar']")) {
       radio.checked = radio.value === c.avatar;
+    }
+
+    const groups = (this.terms.money && this.terms.money.discountGroups) || {};
+    const group = c.discountGroup && groups[c.discountGroup];
+    const row = document.getElementById("prof-group-row");
+
+    row.hidden = !group;
+    if (group) {
+      document.getElementById("prof-group").textContent =
+        `${group.label}: ${group.percent}% off, whenever that beats the ` +
+        "bulk discount.";
     }
   }
 
@@ -372,8 +384,7 @@ class Account {
     const t = order.totals;
 
     if (t.discountAmount) {
-      row(`Bulk discount ($${t.discountTier}+)`,
-        `−${dollars(t.discountAmount)}`);
+      row(t.discountLabel || "Discount", `−${dollars(t.discountAmount)}`);
     }
     if (order.fulfilment.method === "delivery") {
       row("Delivery fee",

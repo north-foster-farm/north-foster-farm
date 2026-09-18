@@ -191,7 +191,9 @@ describe("summarize", () => {
 
     assert.equal(s.countText, "3 items");
     assert.equal(s.subtotal, "$155");
-    assert.deepEqual(s.discount, { tier: "$150+", text: "−$15" });
+    assert.deepEqual(s.discount, {
+      label: "Bulk discount ($150+)", text: "−$15",
+    });
     assert.equal(s.fee.waived, true);
     assert.equal(s.total, "$140");
     assert.equal(s.eligible, true);

@@ -49,7 +49,9 @@ export const disallowedFor = (lines, state) => {
 };
 
 // Returns { ok: true, order } or { ok: false, status, errors, dates? }.
-export const validateOrder = (payload, { index, terms, now }) => {
+// `group` is the signed-in customer's discount group, never the
+// payload's: the server decides who gets it.
+export const validateOrder = (payload, { index, terms, now, group }) => {
   const errors = {};
   const p = payload && typeof payload === "object" ? payload : {};
   const customer = p.customer || {};
@@ -103,7 +105,7 @@ export const validateOrder = (payload, { index, terms, now }) => {
     errors["fulfilment.method"] = "Choose how you'd like to get your order.";
   }
 
-  const totals = computeTotals({ lines, method, index, money });
+  const totals = computeTotals({ lines, method, index, money, group });
   const out = { customer: { name, email, phone }, method };
 
   if (method === "onfarm") {

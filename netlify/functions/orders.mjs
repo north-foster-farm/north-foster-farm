@@ -13,6 +13,7 @@ import terms from "../../data/delivery.json" with { type: "json" };
 import { indexCatalog } from "../../assets/scripts/order/lib/catalog.mjs";
 import { validateOrder } from "../../assets/scripts/order/lib/validate.mjs";
 import { parts } from "../../assets/scripts/order/lib/zoned.mjs";
+import { sessionFrom } from "./lib/auth.mjs";
 import { json, readJson, retry } from "./lib/http.mjs";
 import { mailConfigured, sendMail } from "./lib/mail.mjs";
 import { amendOrder, saveOrder, touchCustomer } from "./lib/records.mjs";
@@ -79,7 +80,13 @@ export const handle = async (req, {
     return json(422, { errors: { idempotencyKey: "Missing submission key." } });
   }
 
-  const result = validateOrder(payload, { index, terms, now });
+  // A signed-in customer's discount group comes from their record,
+  // never from the payload.
+  const session = await sessionFrom(stores, req, { now });
+  const group = session && session.customer
+    ? session.customer.discountGroup || null
+    : null;
+  const result = validateOrder(payload, { index, terms, now, group });
 
   if (!result.ok) {
     return json(result.status, {

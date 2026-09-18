@@ -78,7 +78,7 @@ const totalsBlock = (order) => {
 
   if (t.discountAmount) {
     items.push(
-      `Bulk discount ($${t.discountTier}+) −${dollars(t.discountAmount)}`
+      `${t.discountLabel || "Discount"} −${dollars(t.discountAmount)}`
     );
   }
   if (order.fulfilment.method === "delivery") {

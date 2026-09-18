@@ -13,6 +13,7 @@ import { Draft } from "./draft.js";
 import { Errors } from "./errors.js";
 import { Pending } from "./pending.js";
 import { Submitter } from "./submit.js";
+import { me } from "../session/session.js";
 
 const RETRY_DELAYS = [5000, 15000, 45000, 120000, 300000];
 const MAX_ATTEMPTS = 6;
@@ -71,6 +72,9 @@ export class OrderForm {
     this.busy = false;
     // Where the last change came from, so the feathers start there.
     this.pointer = null;
+    // The signed-in customer's discount group, from /api/me. The server
+    // applies it again from the session; this only shows it.
+    this.group = null;
   }
 
   start() {
@@ -95,6 +99,17 @@ export class OrderForm {
     this.crossed = this.eligible(this.totals());
     this.dates.load();
     this.refresh();
+
+    // A signed-in customer with a discount group sees it as they shop.
+    me().then((who) => {
+      const group = who.signedIn && who.customer
+        ? who.customer.discountGroup : null;
+
+      if (group && group !== this.group) {
+        this.group = group;
+        this.refresh();
+      }
+    }).catch(() => {});
   }
 
   wire() {
@@ -223,6 +238,7 @@ export class OrderForm {
       method: this.method(),
       index: this.index,
       money: this.money,
+      group: this.group,
     });
   }
 
@@ -284,8 +300,8 @@ export class OrderForm {
     qs(c, "[data-total='subtotal']").textContent = s.subtotal;
 
     qs(c, "[data-total-row='discount']").hidden = !s.discount;
-    qs(c, "[data-total='tier']").textContent =
-      s.discount ? s.discount.tier : "";
+    qs(c, "[data-total='discount-label']").textContent =
+      s.discount ? s.discount.label : "";
     qs(c, "[data-total='discount']").textContent =
       s.discount ? s.discount.text : "";
 
@@ -484,6 +500,7 @@ export class OrderForm {
     const payload = this.collect();
     const check = validateOrder(payload, {
       index: this.index, terms: this.terms, now: this.dates.now(),
+      group: this.group,
     });
 
     if (!check.ok) {

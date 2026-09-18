@@ -41,8 +41,26 @@ export const nextTier = (subtotal, money) => {
   return null;
 };
 
-// `lines` is [{ sku, qty }]; `index` is indexCatalog(catalog).
-export const computeTotals = ({ lines, method, index, money }) => {
+// A customer's discount group, from money.discountGroups, as a
+// percentage of the subtotal. -> { key, label, percent, amount }.
+export const groupDiscountFor = (subtotal, group, money) => {
+  const groups = money.discountGroups || {};
+  const found = group && groups[group];
+
+  if (!found || !(found.percent > 0)) return null;
+
+  return {
+    key: group,
+    label: found.label || group,
+    percent: found.percent,
+    amount: Math.round(subtotal * found.percent / 100),
+  };
+};
+
+// `lines` is [{ sku, qty }]; `index` is indexCatalog(catalog); `group`
+// is the customer's discount group key, if any. The bulk tier and the
+// group discount never stack: the customer gets the larger one.
+export const computeTotals = ({ lines, method, index, money, group }) => {
   let subtotal = 0;
 
   for (const { sku, qty } of lines) {
@@ -51,7 +69,9 @@ export const computeTotals = ({ lines, method, index, money }) => {
     if (item) subtotal += toCents(item.price) * qty;
   }
 
-  const discount = discountFor(subtotal, money);
+  const bulk = discountFor(subtotal, money);
+  const byGroup = groupDiscountFor(subtotal, group, money);
+  const useGroup = !!byGroup && byGroup.amount > bulk.amount;
   const isDelivery = method === "delivery";
   const deliveryFee = isDelivery && subtotal < toCents(money.feeWaivedAt)
     ? toCents(money.deliveryFee)
@@ -59,10 +79,14 @@ export const computeTotals = ({ lines, method, index, money }) => {
 
   return {
     subtotal,
-    discountTier: discount.tier,
-    discountAmount: discount.amount,
+    discountTier: useGroup ? null : bulk.tier,
+    discountGroup: useGroup ? byGroup.key : null,
+    discountLabel: useGroup
+      ? `${byGroup.label} (${byGroup.percent}%)`
+      : (bulk.tier ? `Bulk discount ($${bulk.tier}+)` : null),
+    discountAmount: useGroup ? byGroup.amount : bulk.amount,
     deliveryFee,
-    total: subtotal - discount.amount + deliveryFee,
+    total: subtotal - (useGroup ? byGroup.amount : bulk.amount) + deliveryFee,
   };
 };
 

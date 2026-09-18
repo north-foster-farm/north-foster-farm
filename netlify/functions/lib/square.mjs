@@ -195,7 +195,7 @@ export const buildOrder = (order, customerId, cfg) => {
 
   if (t.discountAmount > 0) {
     out.discounts = [{
-      name: `Bulk discount ($${t.discountTier}+)`,
+      name: t.discountLabel || "Discount",
       amount_money: money(t.discountAmount),
       scope: "ORDER",
     }];

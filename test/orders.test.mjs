@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { handle, orderId } from "../netlify/functions/orders.mjs";
+import { createSession } from "../netlify/functions/lib/auth.mjs";
 import {
-  getCustomer, getOrder, openOrders,
+  getCustomer, getOrder, openOrders, saveCustomer,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
@@ -132,6 +133,34 @@ describe("POST /api/orders", () => {
       assert.equal(squareOpts.emailInvoice, true, "Square emails the link");
       assert.equal((await getOrder(broken, orderId(KEY, now))).emails,
         undefined);
+    });
+
+  it("applies a signed-in customer's discount group from the record",
+    async () => {
+      const stores = testStores();
+      const session = await createSession(stores, "pat@example.com", { now });
+
+      await saveCustomer(stores, {
+        ...(await getCustomer(stores, "pat@example.com")),
+        discountGroup: "wholesale",
+      });
+
+      // $60 subtotal: wholesale 20% ($12) beats the $5 tier.
+      const res = await handle(post(body(), {
+        cookie: `nff_session=${session.id}`,
+      }), { square: ok, stores, now, ...quiet });
+      const data = await res.json();
+
+      assert.equal(res.status, 200);
+      assert.equal(data.totals.discountAmount, 1200);
+      assert.equal(data.totals.discountLabel, "Wholesale (20%)");
+
+      // The payload cannot claim a group.
+      const anon = await handle(post({ ...body(), group: "wholesale" }), {
+        square: ok, stores: testStores(), now, ...quiet,
+      });
+
+      assert.equal((await anon.json()).totals.discountAmount, 500);
     });
 
   it("does not persist an order Square rejected", async () => {

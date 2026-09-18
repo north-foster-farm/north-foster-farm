@@ -103,7 +103,7 @@ export const summarize = ({ totals, method, money, count }) => ({
   subtotal: dollars(totals.subtotal),
   discount: totals.discountAmount
     ? {
-      tier: `$${totals.discountTier}+`,
+      label: totals.discountLabel || "Discount",
       text: `−${dollars(totals.discountAmount)}`,
     }
     : null,
