@@ -19,6 +19,7 @@ import { mailConfigured, sendMail } from "./lib/mail.mjs";
 import { amendOrder, saveOrder, touchCustomer } from "./lib/records.mjs";
 import { accountUrlFor } from "./lib/site.mjs";
 import { createOrderAndInvoice } from "./lib/square.mjs";
+import { adjust, checkLines } from "./lib/stock.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 import { completeYourOrder } from "./lib/templates.mjs";
 
@@ -95,6 +96,15 @@ export const handle = async (req, {
     });
   }
 
+  // The catalog said it was in stock at build time; the count says
+  // whether it still is. Field errors, like the validator's, plus the
+  // fresh availability so the page can bring the cart into line.
+  const stock = await checkLines(stores, result.order.lines);
+
+  if (!stock.ok) {
+    return json(422, { errors: stock.errors, stock: stock.items });
+  }
+
   const order = {
     id: orderId(key, now),
     submittedAt: now.toISOString(),
@@ -131,6 +141,7 @@ export const handle = async (req, {
     const saved = await saveOrder(stores, { ...order, square: square_ }, now);
 
     await touchCustomer(stores, order.customer, now);
+    await adjust(stores, order.lines, -1);
 
     console.info(JSON.stringify({
       event: "order.created", order, square: square_,

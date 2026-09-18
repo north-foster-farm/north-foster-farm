@@ -12,6 +12,7 @@ import { DateLists } from "./date-lists.js";
 import { Draft } from "./draft.js";
 import { Errors } from "./errors.js";
 import { Pending } from "./pending.js";
+import { Stock } from "./stock.js";
 import { Submitter } from "./submit.js";
 import { me } from "../session/session.js";
 
@@ -57,6 +58,11 @@ export class OrderForm {
     this.draft = new Draft();
     this.dates = new DateLists(form, () => this.refresh());
     this.submitter = new Submitter();
+    this.stock = new Stock(form, {
+      onChange: (notice) => this.stockMoved(notice),
+      setQty: (input, n) => this.setQty(input, n),
+    });
+    this.stockNotice = document.getElementById("order-stock");
     this.cart = document.getElementById("order-cart");
     this.result = document.getElementById("order-result");
     this.restored = document.getElementById("order-restored");
@@ -99,6 +105,7 @@ export class OrderForm {
     this.crossed = this.eligible(this.totals());
     this.dates.load();
     this.refresh();
+    this.stock.start();
 
     // A signed-in customer with a discount group sees it as they shop.
     me().then((who) => {
@@ -169,6 +176,16 @@ export class OrderForm {
   changed() {
     this.refresh();
     this.draft.save(this.collect());
+  }
+
+  // Stock moved under the cart: quantities were already brought into
+  // line by Stock; say so, and let a submission in flight stop.
+  stockMoved(notice) {
+    this.moved = true;
+    this.stockNotice.textContent = notice;
+    this.stockNotice.hidden = false;
+    this.stockNotice.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    this.changed();
   }
 
   // Quantity controls.
@@ -512,6 +529,12 @@ export class OrderForm {
       return;
     }
 
+    // One last look at stock. If the cart had to change, the customer
+    // sees why and decides again; nothing is sent.
+    this.moved = false;
+    await this.stock.refresh();
+    if (this.moved) return;
+
     this.errors.clear();
     payload.idempotencyKey = this.draft.key();
     this.draft.save(payload);
@@ -536,6 +559,10 @@ export class OrderForm {
     case "invalid":
       this.draft.clearPending();
       this.pending.hide();
+      if (outcome.stock) {
+        this.stock.items = outcome.stock;
+        this.stock.apply();
+      }
       this.errors.show(outcome.errors);
       break;
     case "stale":

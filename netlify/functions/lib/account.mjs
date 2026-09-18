@@ -22,6 +22,7 @@ import { siteUrl } from "./site.mjs";
 import {
   cancelInvoice, cancelFulfilment, updateFulfilment,
 } from "./square.mjs";
+import { adjust } from "./stock.mjs";
 import { addressReview, orderCancelled, orderChanged } from "./templates.mjs";
 
 export const AVATARS = avatars.map((a) => a.key);
@@ -114,6 +115,8 @@ export const cancelOrder = async (stores, customer, id, {
       source: "customer",
     });
 
+    await adjust(stores, order.lines, 1);
+
     if (order.square && order.square.invoiceId) {
       try {
         await square.cancelInvoice(order.square.invoiceId, { env });
@@ -136,6 +139,9 @@ export const cancelOrder = async (stores, customer, id, {
   const flagged = await amendOrder(stores, id, {
     cancelRequested: true, cancelRequestedAt: now.toISOString(),
   }, "cancel.requested", now);
+
+  // The packs will not ship; put them back for the next customer.
+  await adjust(stores, order.lines, 1);
 
   await sendForOrder(stores, flagged, "orderCancelled",
     orderCancelled(flagged, { refund: true }), { mail, env, now });

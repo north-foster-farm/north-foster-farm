@@ -28,7 +28,8 @@ export class Submitter {
     if (res.ok) return { kind: "ok", data };
     if (res.status === 409) return { kind: "stale", dates: data.dates || [] };
     if (res.status === 422 || res.status === 400) {
-      return { kind: "invalid", errors: data.errors || {} };
+      // A stock refusal carries the fresh availability with it.
+      return { kind: "invalid", errors: data.errors || {}, stock: data.stock };
     }
     if (res.status === 503 || res.status === 429 || res.status >= 500) {
       return { kind: "retry" };

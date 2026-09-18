@@ -22,6 +22,7 @@ import { pollUnpaid, sendForOrder } from "./payments.mjs";
 import { openOrders, setStatus } from "./records.mjs";
 import { accountUrlFor } from "./site.mjs";
 import { cancelInvoice, getInvoice } from "./square.mjs";
+import { adjust } from "./stock.mjs";
 import { deliveryReminder, paymentReminder } from "./templates.mjs";
 
 const MINUTE = 60_000;
@@ -92,6 +93,7 @@ export const runJobs = async (stores, {
           source: "jobs",
         });
         report.abandoned.push(order.id);
+        await adjust(stores, order.lines, 1);
         if (order.square && order.square.invoiceId) {
           try {
             await cancel(order.square.invoiceId, { env });

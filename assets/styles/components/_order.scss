@@ -190,6 +190,45 @@
     grid-area: error;
   }
 
+  // Live stock: a note under the name, and a closed row when sold out.
+  .order-item-stock {
+    grid-area: name;
+    align-self: end;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: var(--bs-warning-text-emphasis);
+
+    &:empty {
+      display: none;
+    }
+  }
+
+  .order-item[data-stock] {
+    grid-template-areas:
+      "name  price qty   total"
+      "stock stock qty   total"
+      "error error error error";
+  }
+
+  .order-item[data-stock] .order-item-stock {
+    grid-area: stock;
+  }
+
+  .order-item[data-stock="out"] {
+    background-color: var(--bs-tertiary-bg);
+    box-shadow: none;
+
+    .order-item-name label {
+      color: var(--bs-secondary-color);
+      text-decoration: line-through;
+      cursor: default;
+    }
+
+    .order-item-stock {
+      color: var(--bs-secondary-color);
+    }
+  }
+
   @media (max-width: 30rem) {
     .order-item {
       grid-template-columns: max-content 1fr 7.5rem;
@@ -278,6 +317,10 @@
 
   .order-qty-tick {
     animation: order-tick 200ms var(--order-ease);
+  }
+
+  .order-item[data-stock="out"] .order-qty {
+    visibility: hidden;
   }
 
   // Summary panel: floats above the list while it scrolls, then

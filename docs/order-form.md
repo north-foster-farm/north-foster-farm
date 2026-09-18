@@ -42,6 +42,14 @@ file for availability, so the two cannot drift.
 
 `bin/stock` walks the catalog one keypress per item, shows a diff,
 writes the file, and offers to commit and push. Pushing `main` deploys.
+That flag is the coarse switch. On top of it the `stock` store keeps a
+count of packs per SKU (`counts`), set by the CLI and moved by orders:
+down on placing, back up on cancel or abandon. `GET /api/stock` gives
+every item's `{ inStock, available }`; the page asks on load, on
+return to the tab, every two minutes and before submitting, closes
+sold-out rows, shows "N left" at five or fewer, clamps the cart and
+says so. The order handler checks the same counts and answers `422`
+with `lines.<sku>` errors plus the fresh `stock`.
 
 ## Rules
 

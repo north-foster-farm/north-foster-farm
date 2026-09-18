@@ -6,6 +6,7 @@ import { createSession } from "../netlify/functions/lib/auth.mjs";
 import {
   getCustomer, getOrder, openOrders, saveCustomer,
 } from "../netlify/functions/lib/records.mjs";
+import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 
@@ -161,6 +162,30 @@ describe("POST /api/orders", () => {
       });
 
       assert.equal((await anon.json()).totals.discountAmount, 500);
+    });
+
+  it("refuses what just sold out and moves the count when it sells",
+    async () => {
+      const stores = testStores();
+
+      await setCount(stores, "NFF-CHK-WHL-0350-0400", 1);
+
+      const short = await handle(post(body()), {
+        square: ok, stores, now, ...quiet,
+      });
+      const data = await short.json();
+
+      assert.equal(short.status, 422);
+      assert.match(data.errors["lines.NFF-CHK-WHL-0350-0400"], /Only 1/);
+      assert.equal(data.stock["NFF-CHK-WHL-0350-0400"].available, 1);
+
+      await setCount(stores, "NFF-CHK-WHL-0350-0400", 5);
+      const sold = await handle(post(body()), {
+        square: ok, stores, now, ...quiet,
+      });
+
+      assert.equal(sold.status, 200);
+      assert.equal((await getCounts(stores))["NFF-CHK-WHL-0350-0400"], 3);
     });
 
   it("does not persist an order Square rejected", async () => {
