@@ -21,6 +21,7 @@ const emailKey = (email) => String(email || "").trim().toLowerCase();
 export const orderKey = (id) => `order/${id}`;
 export const openKey = (id) => `open/${id}`;
 export const byEmailKey = (email, id) => `by-email/${emailKey(email)}/${id}`;
+export const byInvoiceKey = (invoiceId) => `by-invoice/${invoiceId}`;
 
 const stamp = (order, event, now, extra = {}) => ({
   ...order,
@@ -38,6 +39,11 @@ export const saveOrder = async (stores, order, now = new Date()) => {
   await stores.orders.set(byEmailKey(record.customer.email, record.id), {
     id: record.id, at: record.submittedAt,
   });
+  if (record.square && record.square.invoiceId) {
+    await stores.orders.set(byInvoiceKey(record.square.invoiceId), {
+      id: record.id,
+    });
+  }
   if (OPEN.includes(record.status)) {
     await stores.orders.set(openKey(record.id), { id: record.id });
   } else {
@@ -48,6 +54,12 @@ export const saveOrder = async (stores, order, now = new Date()) => {
 };
 
 export const getOrder = (stores, id) => stores.orders.get(orderKey(id));
+
+export const orderByInvoice = async (stores, invoiceId) => {
+  const ref = await stores.orders.get(byInvoiceKey(invoiceId));
+
+  return ref ? getOrder(stores, ref.id) : null;
+};
 
 // Moves an order to a new status with a history line, keeping the
 // open index in step. Returns the updated record, or null if unknown.
@@ -124,6 +136,9 @@ export const deleteOrder = async (stores, id) => {
   await stores.orders.delete(orderKey(id));
   await stores.orders.delete(openKey(id));
   await stores.orders.delete(byEmailKey(order.customer.email, id));
+  if (order.square && order.square.invoiceId) {
+    await stores.orders.delete(byInvoiceKey(order.square.invoiceId));
+  }
 
   return true;
 };

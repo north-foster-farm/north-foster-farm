@@ -46,18 +46,18 @@ export const settings = (env = process.env) => {
   };
 };
 
-const call = async (cfg, path, body, fetchImpl) => {
+const call = async (cfg, path, body, fetchImpl, method = "POST") => {
   let res;
 
   try {
     res = await fetchImpl(`${cfg.host}${path}`, {
-      method: "POST",
+      method,
       headers: {
         "Authorization": `Bearer ${cfg.token}`,
         "Square-Version": cfg.version,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
+      body: method === "GET" ? undefined : JSON.stringify(body),
     });
   } catch (error) {
     throw new SquareError(`Network error calling ${path}`, {
@@ -298,5 +298,29 @@ export const createOrderAndInvoice = async (order, key, {
     invoiceId: id,
     invoiceNumber: published.invoice.invoice_number || null,
     invoiceUrl: published.invoice.public_url || null,
+  };
+};
+
+// -> { id, status, paidAt } for one invoice; status is Square's
+// (DRAFT, UNPAID, SCHEDULED, PARTIALLY_PAID, PAID, CANCELED, FAILED,
+// PAYMENT_PENDING, REFUNDED, PARTIALLY_REFUNDED).
+export const getInvoice = async (invoiceId, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  const cfg = settings(env);
+  const data = await call(
+    cfg, `/v2/invoices/${invoiceId}`, null, fetchImpl, "GET"
+  );
+  const invoice = data.invoice || {};
+  const request = (invoice.payment_requests || [])[0] || {};
+
+  return {
+    id: invoice.id,
+    status: invoice.status,
+    paidAt: request.total_completed_amount_money
+      && request.total_completed_amount_money.amount > 0
+      ? invoice.updated_at || null
+      : null,
   };
 };

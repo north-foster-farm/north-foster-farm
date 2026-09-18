@@ -135,6 +135,18 @@ link. With the farm's mail configured, the Square invoice is created
 emails the invoice. Links point at `SITE_URL`, else Netlify's
 `DEPLOY_PRIME_URL`, else `URL`.
 
+## Payment
+
+`POST /api/square/webhook` takes Square's invoice events, verified
+with `SQUARE_WEBHOOK_SIGNATURE_KEY` against the registered URL
+(`SQUARE_WEBHOOK_URL`, else the site's `/api/square/webhook`). In the
+Square developer dashboard, subscribe the app to `invoice.payment_made`
+and `invoice.updated` at that URL and copy the signature key. A paid
+invoice moves the order to `paid` and sends the confirmation once;
+a cancelled invoice cancels the order. `lib/payments.mjs` owns this
+and the poll that asks Square about unpaid orders when a webhook was
+missed.
+
 ## Decisions
 
 - **Square Orders plus Invoices**, not Payment Links. Publishing an
