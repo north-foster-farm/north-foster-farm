@@ -6,7 +6,6 @@ slug: "login"
 title: "Sign in"
 type: "login"
 layout: "login/single.html"
-hideCTA: true
 pageScript: "login"
 sitemap:
   disable: true

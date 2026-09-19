@@ -9,6 +9,5 @@ slug: "order"
 title: "Order"
 type: "order"
 layout: "order/single.html"
-hideCTA: true
 pageScript: "order"
 ---

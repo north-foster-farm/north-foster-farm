@@ -9,7 +9,6 @@ slug: "account"
 title: "Your account"
 type: "account"
 layout: "account/single.html"
-hideCTA: true
 pageScript: "account"
 sitemap:
   disable: true

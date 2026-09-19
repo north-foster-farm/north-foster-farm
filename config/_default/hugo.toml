@@ -48,15 +48,6 @@ timeZone = "America/New_York"
   slogan = "Pasture-raised eggs"
 
   [params.defaults]
-    [params.defaults.ctas]
-      [params.defaults.ctas.default]
-        path = "simple.html"
-
-      [params.defaults.ctas.simple]
-        text = "Place an order!"
-        label = "Order now"
-        link = "/order"
-
     [params.defaults.featuredImage]
       [params.defaults.featuredImage.default]
         path = "default-featured-image.png"
