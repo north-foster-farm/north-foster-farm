@@ -80,9 +80,19 @@ h5,
 h6 {
   main & {
     &:not(:first-child) {
-      margin-top: 0.333rem;
+      margin-top: 1.5rem;
     }
   }
+}
+
+// A short aside set off by a bar down its left: the delivery-area
+// notes on the policy page and the countdown on the order form.
+.zip-note {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--bs-primary);
+  background-color: var(--bs-primary-bg-subtle);
+  font-size: 0.875rem;
 }
 
 .img-cover {

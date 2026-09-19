@@ -8,6 +8,7 @@
   --order-shadow: var(--bs-box-shadow-sm);
   --order-topbar-h: 3rem;
   --order-ease: cubic-bezier(0.2, 0.8, 0.25, 1);
+  --order-hover: 70ms;
   --order-fast: 140ms;
   --order-base: 220ms;
   --order-slow: 420ms;
@@ -50,9 +51,9 @@
     border-radius: 0 var(--order-radius) var(--order-radius) 0;
     color: var(--bs-body-color);
     transition:
-      background-color var(--order-fast) ease,
-      border-color var(--order-fast) ease,
-      color var(--order-fast) ease;
+      background-color var(--order-hover) ease,
+      border-color var(--order-hover) ease,
+      color var(--order-hover) ease;
 
     &:hover {
       background-color: var(--bs-tertiary-bg);
@@ -139,7 +140,7 @@
     outline: none;
     transition:
       background-color var(--order-base) var(--order-ease),
-      border-color var(--order-base) var(--order-ease);
+      border-color var(--order-hover) ease;
 
     &:hover {
       border-color: var(--bs-border-color);
@@ -364,6 +365,10 @@
       border-color var(--order-base) ease,
       color var(--order-base) ease;
 
+    &:hover {
+      border-color: var(--bs-secondary-color);
+    }
+
     &[data-on="true"] {
       border-color: var(--bs-success-border-subtle);
       background-color: var(--bs-success-bg-subtle);
@@ -534,9 +539,9 @@
     border-radius: var(--order-radius);
     box-shadow: var(--order-shadow);
     transition:
-      border-color var(--order-fast) ease,
-      background-color var(--order-fast) ease,
-      box-shadow var(--order-fast) ease;
+      border-color var(--order-hover) ease,
+      background-color var(--order-hover) ease,
+      box-shadow var(--order-hover) ease;
 
     > .form-check-input {
       position: absolute;

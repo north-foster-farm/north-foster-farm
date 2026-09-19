@@ -52,7 +52,7 @@ $colors: (
   "gray-dark":  $gray-800
 );
 
-$primary:   $blue;
+$primary:   shade-color($green, 20%); // The dark brand green.
 $secondary: $orange;
 $success:   $green;
 $info:      $cyan;
@@ -124,7 +124,7 @@ $border-radius-xxl:           0.5rem;
 $box-shadow-sm:               0 0.1rem 0.2rem rgba($black, 0.2);
 $box-shadow:                  $box-shadow-sm;
 
-$component-active-color:      $orange;
+$component-active-color:      $white;
 
 // Typography
 $font-family-sans-serif:      Aller, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
@@ -159,7 +159,11 @@ $btn-border-radius:           $border-radius;
 $btn-border-radius-sm:        $border-radius;
 $btn-border-radius-lg:        $border-radius;
 
-$btn-transition:              color 0.1s ease-in-out, background-color 0.1s ease-in-out, border-color 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+// Hover transitions run at half Bootstrap's pace, site-wide.
+$btn-transition:              color 0.05s ease-in-out, background-color 0.05s ease-in-out, border-color 0.05s ease-in-out, box-shadow 0.05s ease-in-out;
+$input-transition:            border-color 0.075s ease-in-out, box-shadow 0.075s ease-in-out;
+$form-check-transition:       background-color 0.075s ease-in-out, border-color 0.075s ease-in-out, box-shadow 0.075s ease-in-out;
+$nav-link-transition:         color 0.075s ease-in-out, background-color 0.075s ease-in-out, border-color 0.075s ease-in-out;
 
 $btn-hover-bg-shade-amount:       30%;
 $btn-hover-bg-tint-amount:        30%;
