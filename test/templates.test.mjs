@@ -81,8 +81,10 @@ describe("order confirmed", () => {
 
     assert.equal(m.subject, "Order NFF-2610-ABCD is confirmed");
     assert.match(m.text, /\$62 came through/);
-    assert.match(m.text, /On-farm pickup on Thursday, October 8, morning\./);
+    assert.match(m.text, /On-farm pickup on Thursday, October 8, morning, at/);
     assert.match(m.text, /By appointment/);
+    // Said once, not as a headline and again in the description.
+    assert.equal(m.text.match(/On-farm pickup on/g).length, 1);
   });
 });
 

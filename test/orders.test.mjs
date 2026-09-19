@@ -104,7 +104,7 @@ describe("POST /api/orders", () => {
       };
       const env = {
         MAIL_DRIVER: "resend", RESEND_API_KEY: "k", MAIL_FROM: "f@x",
-        URL: "https://northfosterfarm.com",
+        URL: "https://northfosterfarm.com", ACCOUNTS_ENABLED: "true",
       };
       let squareOpts;
       const square = async (order, key, opts) => {

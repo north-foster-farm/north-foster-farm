@@ -346,8 +346,10 @@ Sign-in and the account pages are out of scope for the first launch:
 `params.features.accounts` in `config/_default/hugo.toml` is `false`,
 which drops the Sign in link from the header, and the cascade beside
 it stops `/login/` and `/account/` from being built. The functions
-behind them stay deployed and idle. Flip the flag and remove the
-cascade to bring them back; nothing else changes.
+behind them stay deployed and idle, and emails carry no account link
+until `ACCOUNTS_ENABLED=true` is set on Netlify. Flip the flag, remove
+the cascade and set that variable to bring them back; nothing else
+changes.
 
 What the order flow needs to run in production is Square and nothing
 else. Netlify Blobs is part of Netlify and needs no account. Mail is

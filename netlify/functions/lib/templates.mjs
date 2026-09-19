@@ -99,8 +99,8 @@ export const completeYourOrder = (order, { accountUrl } = {}) => {
   const blocks = [
     p(`Hi ${firstName(order.customer.name)},`),
     strong("Your order isn't final until it's paid."),
-    p(`Here's your invoice for ${dollars(order.totals.total)}. Pay it by ` +
-      "card and your order is confirmed."),
+    p(`Here's your invoice for ${dollars(order.totals.total)}. Pay it ` +
+      "and your order is confirmed."),
     button("Pay your invoice", payUrl(order)),
     p(`${describe(order)}`),
     p("What you ordered:"),
@@ -122,8 +122,7 @@ export const orderConfirmed = (order, { accountUrl } = {}) => {
     p(`Thanks, ${firstName(order.customer.name)}. Your payment of ` +
       `${dollars(order.totals.total)} came through and your order is ` +
       "reserved."),
-    strong(`${whenWhere(order)}.`),
-    p(describe(order)),
+    strong(describe(order)),
     p("What you ordered:"),
     lines(order),
   ];

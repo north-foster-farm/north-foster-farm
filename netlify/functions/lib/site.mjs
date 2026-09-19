@@ -10,8 +10,11 @@ export const siteUrl = (env = process.env) => {
   return raw.replace(/\/+$/, "");
 };
 
+// The account pages exist only when the site is built with them
+// (params.features.accounts in Hugo); ACCOUNTS_ENABLED=true says so
+// to the functions, and until then no email links to them.
 export const accountUrlFor = (env = process.env) =>
-  `${siteUrl(env)}/account/`;
+  (env.ACCOUNTS_ENABLED === "true" ? `${siteUrl(env)}/account/` : null);
 
 export const orderUrlFor = (env, id) =>
   `${siteUrl(env)}/account/orders/#${encodeURIComponent(id)}`;
