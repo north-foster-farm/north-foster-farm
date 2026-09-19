@@ -76,7 +76,7 @@
         "code": "CT",
         "name": "Connecticut",
         "onlyGroups": ["eggs"],
-        "note": "Connecticut is eggs only for now. We can't sell chicken there yet.",
+        "note": "We are only able to deliver eggs in Connecticut at this time. Please consider on-farm pickup as an alternative (our farm is about 5 minutes from the RI/CT line).",
         "towns": [
           { "town": "Brooklyn", "zips": ["06234"] },
           { "town": "Danielson", "zips": ["06239"] },

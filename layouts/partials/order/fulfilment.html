@@ -1,6 +1,6 @@
 {{ $terms := hugo.Data.delivery }}
 {{ $money := $terms.money }}
-{{ $policy := relURL "local-delivery-policy/" }}
+{{ $policy := relURL "delivery-policy/" }}
 <fieldset class="order-section mb-5" id="pickup">
   <legend class="h2" tabindex="-1">Pickup or delivery</legend>
   <div class="invalid-feedback d-block mb-2" data-error-for="fulfilment.method"></div>

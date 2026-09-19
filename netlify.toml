@@ -52,6 +52,12 @@ framework = "#custom"
   status = 301
   force = false
 
+[[redirects]]
+  from = "/local-delivery-policy"
+  to = "/delivery-policy"
+  status = 301
+  force = false
+
 [[headers]]
   for = "/*"
 

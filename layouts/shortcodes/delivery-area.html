@@ -1,8 +1,5 @@
 {{- range hugo.Data.delivery.area.states }}
-<h3 class="zip-state">
-  {{ .name }}
-  {{- with .onlyGroups }} <span class="badge text-bg-secondary">Eggs only</span>{{ end }}
-</h3>
+<h3 class="zip-state">{{ .name }}</h3>
 {{- with .note }}
 <p class="zip-note">{{ . }}</p>
 {{- end }}

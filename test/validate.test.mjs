@@ -164,7 +164,7 @@ describe("delivery rules", () => {
     const r = validateOrder(delivery({ zip: "06239" }), ctx);
 
     assert.equal(r.status, 422);
-    assert.match(r.errors["delivery.zip"], /eggs only/);
+    assert.match(r.errors["delivery.zip"], /only able to deliver eggs/);
   });
 
   it("warns and flags an unlisted Rhode Island ZIP", () => {
