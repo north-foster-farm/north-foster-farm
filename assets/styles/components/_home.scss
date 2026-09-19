@@ -7,6 +7,15 @@
     background-color: rgb(190 217 187 / 84%);
   }
 
+  // The "We love eggs" band: the flock photograph under a dark tint.
+  .bg-img {
+    @include bg-cover("/images/chickens.jpg");
+  }
+
+  .bg-overlay {
+    @include bg-opacity($gray-700, 0.65);
+  }
+
   .apppa-logo {
     svg {
       height: 6rem;
@@ -59,15 +68,18 @@
     background-color: rgb(10 17 12 / 68%);
   }
 
+  // Block padding only: the container keeps its side gutters, so the
+  // subtitle never runs to the edge of a phone.
   .home-hero-body {
     position: relative;
-    padding: 3rem 0 calc(3rem + 3.5rem);
+    padding-block: 3rem calc(3rem + 3.5rem);
   }
 
   .home-hero-title {
     margin-bottom: 0;
-    font-size: clamp(1.75rem, 6.5vw, 4.5rem);
+    font-size: clamp(2.125rem, 9.2vw, 4.5rem);
     line-height: 1.1;
+    letter-spacing: -0.01rem;
   }
 
   .home-hero-line {
@@ -76,11 +88,13 @@
 
   .home-hero-accent {
     color: tint-color($green, 55%);
+    letter-spacing: -0.12rem;
   }
 
   .home-hero-sub {
     max-width: 44ch;
     margin: 1.25rem auto 2rem;
+    padding-inline: 1.5rem;
     font-size: 1.125rem;
   }
 
@@ -221,6 +235,10 @@
   }
 
   @media (min-width: 992px) {
+    .home-hero-sub {
+      font-size: 1.375rem;
+    }
+
     .how-steps {
       grid-template-columns: repeat(4, 1fr);
       max-width: none;
