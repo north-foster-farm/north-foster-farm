@@ -26,30 +26,31 @@
 
 <template id="order-success">
   <div class="order-result-card">
-    <div class="order-result-mark" aria-hidden="true">
-      <svg width="28" height="28" viewBox="0 0 28 28">
-        <path d="M6 14.5 11.5 20 22 8.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+    <div class="order-result-head">
+      <div class="order-result-mark" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 28 28">
+          <path d="M6 14.5 11.5 20 22 8.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2 class="h3 mb-0">One more step, <span data-out="name"></span>.</h2>
     </div>
-    <h2 class="h3">One more step, <span data-out="name"></span>.</h2>
     <div data-out="details">
+      <p><strong>Your order isn't final until it's paid.</strong></p>
       <p>
-        <strong>Your order isn't final until it's paid.</strong> We emailed
-        a payment link for <strong data-out="total"></strong> to
-        <strong data-out="email"></strong>. Pay it by card and your order is
+        We emailed a payment link for <strong data-out="total"></strong> to
+        <strong data-out="email"></strong>. Pay it and your order is
         confirmed.
       </p>
-      <p class="order-result-when" data-out="when"></p>
       <p>
         <a class="btn btn-primary btn-lg" data-out="invoiceUrl" href="#" target="_blank" rel="noopener">Pay now</a>
       </p>
-      <details class="order-result-details">
-        <summary>What you ordered <span class="text-body-secondary" data-out="orderId"></span></summary>
-        <ul class="order-result-lines" data-out="lines"></ul>
-      </details>
+      <p>
+        Your invoice number is <strong data-out="invoiceNumber"></strong>.
+        Have it handy if you need to ask us about this order.
+      </p>
     </div>
     <p class="mb-0 text-body-secondary">
-      Questions? Email <a href="mailto:{{ hugo.Data.company.email }}">{{ hugo.Data.company.email }}</a>.
+      Questions? Email us at <a href="mailto:{{ hugo.Data.company.email }}">{{ hugo.Data.company.email }}</a>
     </p>
   </div>
 </template>

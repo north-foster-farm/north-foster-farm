@@ -810,9 +810,10 @@ export class OrderForm {
     if (data) {
       fill("name", data.customer.name.split(" ")[0]);
       fill("email", data.customer.email);
-      fill("orderId", data.orderId);
       fill("total", dollars(data.totals.total));
-      fill("when", this.when(data.fulfilment));
+      // The number printed on the Square invoice, which is what a
+      // customer will quote; the order id stands in if it is missing.
+      fill("invoiceNumber", data.invoiceNumber || data.orderId);
 
       const link = qs(node, "[data-out='invoiceUrl']");
 
@@ -820,15 +821,6 @@ export class OrderForm {
         link.href = data.invoiceUrl;
       } else {
         link.parentElement.hidden = true;
-      }
-
-      const list = qs(node, "[data-out='lines']");
-
-      for (const line of data.lines) {
-        const li = document.createElement("li");
-
-        li.textContent = `${line.qty} × ${line.label}`;
-        list.appendChild(li);
       }
     } else {
       // Dropped silently by the server: show nothing that could be

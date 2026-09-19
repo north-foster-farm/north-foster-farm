@@ -907,17 +907,22 @@
   }
 
   .order-result-card {
-    position: relative;
-    padding: 1.5rem 1.5rem 1.5rem 4.5rem;
+    padding: 1.5rem;
     border: 1px solid var(--bs-success-border-subtle);
     border-radius: var(--order-radius);
     background-color: var(--bs-success-bg-subtle);
   }
 
+  // The mark and the headline on one centre line.
+  .order-result-head {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    margin-bottom: 1rem;
+  }
+
   .order-result-mark {
-    position: absolute;
-    top: 1.5rem;
-    left: 1.25rem;
+    flex: none;
     display: grid;
     place-items: center;
     width: 2.5rem;
@@ -927,25 +932,7 @@
     color: #fff;
   }
 
-  .order-result-when {
-    font-weight: bold;
-  }
-
-  .order-result-details {
-    margin-bottom: 1rem;
-
-    summary {
-      cursor: pointer;
-    }
-  }
-
-  .order-result-lines {
-    margin: 0.5rem 0 0;
-    padding-left: 1.25rem;
-  }
-
   .order-result-failed {
-    padding-left: 1.5rem;
     border-color: var(--bs-danger-border-subtle);
     background-color: var(--bs-danger-bg-subtle);
 
