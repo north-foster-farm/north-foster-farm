@@ -38,11 +38,16 @@ export const settings = (env = process.env) => {
     });
   }
 
+  const production = env.SQUARE_ENV === "production";
+
   return {
     token: env.SQUARE_ACCESS_TOKEN,
     locationId: env.SQUARE_LOCATION_ID,
-    host: HOSTS[env.SQUARE_ENV === "production" ? "production" : "sandbox"],
+    host: HOSTS[production ? "production" : "sandbox"],
     version: env.SQUARE_VERSION || "2026-09-16",
+    // The variation ids in the catalog belong to the production item
+    // library; the sandbox has its own, so there lines go ad hoc.
+    catalog: production,
   };
 };
 
@@ -178,16 +183,17 @@ export const buildOrder = (order, customerId, cfg) => {
     location_id: cfg.locationId,
     reference_id: order.id,
     customer_id: customerId,
-    line_items: order.lines.map((line) => (line.squareVariationId
-      ? {
-        catalog_object_id: line.squareVariationId,
-        quantity: String(line.qty),
-      }
-      : {
-        name: line.name,
-        quantity: String(line.qty),
-        base_price_money: money(line.unitPrice * 100),
-      })),
+    line_items: order.lines.map((line) => (
+      cfg.catalog && line.squareVariationId
+        ? {
+          catalog_object_id: line.squareVariationId,
+          quantity: String(line.qty),
+        }
+        : {
+          name: line.name,
+          quantity: String(line.qty),
+          base_price_money: money(line.unitPrice * 100),
+        })),
     fulfillments: [fulfillment(order)],
   };
 

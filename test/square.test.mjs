@@ -98,14 +98,28 @@ describe("buildOrder", () => {
     });
   });
 
-  it("uses the catalog object once the variation id is set", () => {
+  it("uses the catalog object in production once the id is set", () => {
+    const o = order();
+
+    o.lines[0].squareVariationId = "VAR1";
+
+    const production = settings({ ...env, SQUARE_ENV: "production" });
+    const built = buildOrder(o, "CUST", production);
+
+    assert.deepEqual(built.line_items[0],
+      { catalog_object_id: "VAR1", quantity: "2" });
+  });
+
+  it("sends ad hoc lines to the sandbox, whose library is its own", () => {
     const o = order();
 
     o.lines[0].squareVariationId = "VAR1";
     const built = buildOrder(o, "CUST", cfg);
 
-    assert.deepEqual(built.line_items[0],
-      { catalog_object_id: "VAR1", quantity: "2" });
+    assert.equal(built.line_items[0].catalog_object_id, undefined);
+    assert.equal(built.line_items[0].name, o.lines[0].name);
+    assert.deepEqual(built.line_items[0].base_price_money,
+      { amount: 3000, currency: "USD" });
   });
 
   it("carries the discount as an order-scope amount", () => {
