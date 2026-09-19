@@ -21,7 +21,18 @@
     margin-bottom: 1rem;
   }
 
-  // Layout: sidebar and main column from lg up
+  .order-section-hint {
+    margin: -0.5rem 0 1rem;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  // Layout: sidebar and main column from lg up; from xl the main
+  // column is itself a grid with the cart beside the catalog.
 
   .order-layout {
     display: grid;
@@ -82,6 +93,28 @@
     box-shadow: var(--order-shadow);
   }
 
+  // The page title rides in the bar below lg, so it stays in view
+  // while the bar is stuck; the heading above the list is then read
+  // by screen readers only.
+  .order-topbar-title {
+    margin-left: 0.875rem;
+    font-size: 1.25rem;
+    font-weight: bold;
+    line-height: 1.2;
+  }
+
+  @media (max-width: 991.98px) {
+    .order-head .page-heading {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+    }
+  }
+
   .order-topbar-btn {
     --bs-btn-color: var(--bs-body-color);
     --bs-btn-border-color: var(--bs-border-color);
@@ -97,13 +130,16 @@
     gap: 0.5rem;
   }
 
-  // Product list: each category is a heading and a stack of row cards
+  // Product list: each category is a heading and a stack of row cards.
+  // The active category's heading slides right to make room for a
+  // chevron that slides in from the left.
 
   .order-cat + .order-cat {
     margin-top: 2rem;
   }
 
   .order-cat-title {
+    position: relative;
     display: flex;
     align-items: baseline;
     gap: 0.5rem;
@@ -111,6 +147,36 @@
     padding: 0 0.25rem;
     font-size: 1.0625rem;
     scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
+    transition: padding-left var(--order-base) var(--order-ease);
+  }
+
+  .order-cat-chev {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    display: inline-flex;
+    color: var(--bs-primary);
+    opacity: 0;
+    translate: -0.75rem -50%;
+    transition:
+      translate var(--order-base) var(--order-ease),
+      opacity var(--order-base) ease;
+
+    svg {
+      width: 1.125rem;
+      height: 1.125rem;
+    }
+  }
+
+  .order-cat.is-active {
+    .order-cat-title {
+      padding-left: 1.375rem;
+    }
+
+    .order-cat-chev {
+      opacity: 1;
+      translate: 0.125rem -50%;
+    }
   }
 
   .order-cat-note {
@@ -126,13 +192,13 @@
 
   .order-item {
     display: grid;
-    grid-template-columns: 1fr max-content 7.5rem 4rem;
+    grid-template-columns: 1fr max-content 7.5rem;
     grid-template-areas:
-      "name  price qty   total"
-      "error error error error";
+      "name  price qty"
+      "error error error";
     align-items: center;
     column-gap: 1rem;
-    padding: 0.5rem 0.75rem 0.5rem 1rem;
+    padding: 0.625rem 0.75rem 0.625rem 1rem;
     border: 1px solid var(--bs-border-color-translucent);
     border-radius: var(--order-radius);
     background-color: var(--bs-body-bg);
@@ -175,16 +241,8 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .order-item-total {
-    grid-area: total;
-    text-align: right;
-    font-weight: bold;
-    font-variant-numeric: tabular-nums;
-    transition: opacity var(--order-fast) ease;
-
-    &:empty {
-      opacity: 0;
-    }
+  .order-item-unit {
+    font-size: 0.8125rem;
   }
 
   .order-item-error {
@@ -206,9 +264,9 @@
 
   .order-item[data-stock] {
     grid-template-areas:
-      "name  price qty   total"
-      "stock stock qty   total"
-      "error error error error";
+      "name  price qty"
+      "stock stock qty"
+      "error error error";
   }
 
   .order-item[data-stock] .order-item-stock {
@@ -232,32 +290,35 @@
 
   @media (max-width: 30rem) {
     .order-item {
-      grid-template-columns: max-content 1fr 7.5rem;
+      grid-template-columns: 1fr 7.5rem;
       grid-template-areas:
-        "name  name  name"
-        "price total qty"
-        "error error error";
-      gap: 0.375rem 0.75rem;
-      padding-block: 0.625rem;
+        "name  qty"
+        "price qty"
+        "error error";
+      gap: 0.125rem 0.75rem;
+    }
+
+    .order-item[data-stock] {
+      grid-template-areas:
+        "name  qty"
+        "price qty"
+        "stock stock"
+        "error error";
     }
 
     .order-item-price {
       font-size: 0.9375rem;
     }
-
-    .order-item-total {
-      text-align: left;
-    }
   }
 
-  // Quantity control: Add morphs into a stepper
+  // Quantity control: Add morphs into a stepper. Both share one cell
+  // and take their height from their padding.
 
   .order-qty {
     position: relative;
     grid-area: qty;
     display: grid;
     width: 7.5rem;
-    height: 2.75rem;
 
     > * {
       grid-area: 1 / 1;
@@ -275,7 +336,7 @@
 
   .order-qty-step {
     display: grid;
-    grid-template-columns: 2.75rem 1fr 2.75rem;
+    grid-template-columns: 2.25rem 1fr 2.25rem;
     overflow: hidden;
     border: 1px solid var(--bs-border-color);
     border-radius: var(--order-radius);
@@ -285,7 +346,7 @@
       padding: 0;
       border: 0;
       border-radius: 0;
-      font-size: 1.25rem;
+      font-size: 1.125rem;
       line-height: 1;
       color: var(--bs-primary);
 
@@ -295,10 +356,12 @@
     }
 
     .form-control {
-      padding: 0;
+      min-width: 0;
+      padding: 0.25rem 0;
       border: 0;
       border-radius: 0;
       text-align: center;
+      font-size: 0.9375rem;
       font-weight: bold;
       font-variant-numeric: tabular-nums;
 
@@ -324,17 +387,17 @@
     visibility: hidden;
   }
 
-  // Summary panel: floats above the list while it scrolls, then
-  // settles into the flow after the last row.
+  // The cart. Below xl it floats above the list while it scrolls and
+  // settles into the flow after the last row; a caret folds it down
+  // to the total and the Next button. From xl it is a column beside
+  // the catalog that sticks to the top for the length of the page.
 
   .order-cart {
     position: sticky;
     bottom: 0.75rem;
     z-index: 30;
-    display: grid;
-    gap: 0.25rem;
     margin-top: 1.25rem;
-    padding: 0.75rem var(--order-gutter) 0.875rem;
+    padding: 0.75rem var(--order-gutter);
     border: 1px solid var(--bs-border-color-translucent);
     border-radius: var(--order-radius);
     background-color: var(--bs-body-bg);
@@ -343,109 +406,113 @@
       0 0.75rem 2rem rgb(0 0 0 / 12%);
   }
 
+  // Folds with the one height transition that works on auto.
+  .order-cart-body {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows var(--order-base) var(--order-ease);
+
+    > .order-cart-inner {
+      min-height: 0;
+      overflow: hidden;
+    }
+  }
+
+  // Badges: one tight line of small text, delimited by dots like the
+  // footer nav. Muted until earned; earned ones turn the primary green
+  // and italic. A tap explains one.
   .order-badges {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.375rem;
-    margin: 0 0 0.375rem;
-  }
-
-  // Text-only badges: muted until earned, green once they are. A tap
-  // explains one.
-  .order-badge {
-    padding: 0.125rem 0.5rem;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 999px;
-    background: none;
-    font-size: 0.75rem;
+    align-items: baseline;
+    margin: 0 0 0.625rem;
+    padding: 0;
+    font-size: 0.7rem;
     font-weight: bold;
+    line-height: 1.4;
     color: var(--bs-tertiary-color);
-    transition:
-      background-color var(--order-base) ease,
-      border-color var(--order-base) ease,
-      color var(--order-base) ease;
 
-    &:hover {
-      border-color: var(--bs-secondary-color);
+    li {
+      display: inline-flex;
+      align-items: baseline;
     }
 
-    &[data-on="true"] {
-      border-color: var(--bs-success-border-subtle);
-      background-color: var(--bs-success-bg-subtle);
-      color: var(--bs-success-text-emphasis);
+    li + li::before {
+      content: "·";
+      padding: 0 0.2rem;
+      color: var(--bs-breadcrumb-divider-color);
     }
   }
 
-  // The whole row toggles the breakdown: a big target on a phone.
-  .order-cart-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    width: 100%;
-    min-height: 2.5rem;
+  .order-badge {
     padding: 0;
     border: 0;
     background: none;
-    text-align: left;
-    font-size: 0.875rem;
-    color: var(--bs-secondary-color);
-  }
+    font: inherit;
+    color: inherit;
+    white-space: nowrap;
+    transition:
+      color var(--order-base) ease,
+      font-style var(--order-base) ease;
 
-  .order-cart-caret {
-    transition: transform var(--order-base) var(--order-ease);
-  }
+    &:hover {
+      color: var(--bs-secondary-color);
+    }
 
-  .order-cart-toggle[aria-expanded="true"] .order-cart-caret {
-    transform: rotate(180deg);
-  }
-
-  // The total sits under the breakdown like the answer to a sum.
-  .order-cart-sum {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    padding-top: 0.5rem;
-    border-top: 2px solid var(--bs-body-color);
-  }
-
-  .order-cart-sum-label {
-    font-weight: bold;
-  }
-
-  .order-cart-total {
-    display: inline-block;
-    font-size: 1.375rem;
-    font-weight: bold;
-    font-variant-numeric: tabular-nums;
-
-    &.is-bumped {
-      animation: order-bump 260ms var(--order-ease);
+    &[data-on="true"] {
+      color: var(--bs-primary);
+      font-style: italic;
     }
   }
 
-  .order-cart-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 0.75rem;
-    margin-top: 0.5rem;
+  // The lines: what is in the cart, grouped under its category with
+  // the tiers indented beneath, then the sum. Related things sit
+  // closer together than unrelated ones.
+  .order-cart-items {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0 0 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    font-size: 0.875rem;
   }
 
-  .order-cart-empty {
-    padding: 0;
+  .order-cart-group-name {
+    display: block;
+    font-weight: bold;
+  }
+
+  .order-cart-group-items {
+    display: grid;
+    gap: 0.0625rem;
+    margin: 0.0625rem 0 0;
+    padding-left: 0.875rem;
+  }
+
+  .order-cart-item {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    column-gap: 0.75rem;
+    align-items: baseline;
+  }
+
+  .order-cart-item-qty {
     color: var(--bs-secondary-color);
-    text-transform: none;
-    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .order-cart-item-sub {
+    min-width: 3.5rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .order-cart-none {
+    color: var(--bs-secondary-color);
 
     &[hidden] {
       display: none;
     }
-  }
-
-  .order-cart-checkout {
-    min-height: 2.75rem;
-    padding-inline: 1.5rem;
   }
 
   .order-cart-lines {
@@ -453,7 +520,7 @@
     grid-template-columns: 1fr auto;
     row-gap: 0.125rem;
     margin: 0 0 0.5rem;
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
 
     .order-cart-row {
       display: contents;
@@ -477,27 +544,66 @@
     }
   }
 
-  .order-cart-tier {
-    display: inline-block;
-    margin-left: 0.375rem;
-    padding: 0 0.375rem;
-    border-radius: 999px;
-    background-color: var(--bs-success-bg-subtle);
-    font-size: 0.75rem;
-    font-variant-numeric: tabular-nums;
+  .order-cart-free {
+    font-weight: bold;
+    color: var(--bs-success-text-emphasis);
+  }
 
-    &:empty {
-      display: none;
+  // The foot: caret, Total, the amount under the line, and Next.
+  .order-cart-foot {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-top: 0.5rem;
+    border-top: 2px solid var(--bs-body-color);
+    transition:
+      padding-top var(--order-base) var(--order-ease),
+      border-color var(--order-base) ease;
+  }
+
+  .order-cart-toggle {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    margin-left: -0.5rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: var(--bs-secondary-color);
+
+    &:hover {
+      background-color: var(--bs-tertiary-bg);
     }
   }
 
-  .order-cart-free s {
-    margin-right: 0.375rem;
-    color: var(--bs-secondary-color);
+  .order-cart-caret {
+    transition: transform var(--order-base) var(--order-ease);
+  }
+
+  .order-cart-sum-label {
+    font-weight: bold;
+  }
+
+  .order-cart-total {
+    display: inline-block;
+    font-size: 1.375rem;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+
+    &.is-bumped {
+      animation: order-bump 260ms var(--order-ease);
+    }
+  }
+
+  .order-cart-next {
+    margin-left: auto;
+    padding-inline: 1.5rem;
   }
 
   .order-cart-nudge {
-    margin: 0;
+    margin: 0.5rem 0 0;
     font-size: 0.8125rem;
     color: var(--bs-secondary-color);
 
@@ -506,10 +612,63 @@
     }
   }
 
+  // Folded: only the foot shows. Written flat, after the rules above,
+  // so the selectors compile in the right order.
+  .order-cart[data-open="false"] {
+    .order-cart-body {
+      grid-template-rows: 0fr;
+    }
+
+    .order-cart-foot {
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    .order-cart-caret {
+      transform: rotate(180deg);
+    }
+
+    .order-cart-nudge {
+      display: none;
+    }
+  }
+
   // The sections after the list
 
   .order-section {
     margin-top: 2.5rem;
+  }
+
+  // Horizontal form layout: label column, field column.
+  .order-hform {
+    .row + .row {
+      margin-top: 0.75rem;
+    }
+
+    .col-form-label {
+      font-size: 0.875rem;
+    }
+
+    .form-control-plaintext {
+      cursor: pointer;
+      border-radius: var(--order-radius);
+      transition: background-color var(--order-hover) ease;
+
+      &:hover {
+        background-color: var(--bs-tertiary-bg);
+      }
+    }
+  }
+
+  .order-radios {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    padding-top: 0.45rem;
+
+    .form-check {
+      margin: 0;
+    }
   }
 
   // Fulfilment cards
@@ -606,71 +765,54 @@
     }
   }
 
+  // The body sits inside a clipped reveal, so it keeps a little room
+  // at its edges for a field's focus ring.
   .order-method-body {
-    margin-top: 1rem;
-    padding-top: 1rem;
+    margin: 1rem -0.25rem 0;
+    padding: 1rem 0.25rem 0.25rem;
     border-top: 1px solid var(--bs-border-color);
   }
 
-  .order-check-lg {
-    padding-block: 0.5rem;
-
-    .form-check-input {
-      width: 1.15em;
-      height: 1.15em;
-    }
-  }
-
   .order-countdown {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    margin-bottom: 1rem;
-    padding: 0.1875rem 0.625rem;
-    border-radius: 999px;
-    background-color: var(--bs-tertiary-bg);
-    font-size: 0.8125rem;
+    margin-bottom: 0.75rem;
     font-weight: bold;
 
     &[data-urgency="soon"] {
+      border-left-color: var(--bs-warning);
       background-color: var(--bs-warning-bg-subtle);
       color: var(--bs-warning-text-emphasis);
     }
 
     &[data-urgency="last"] {
+      border-left-color: var(--bs-danger);
       background-color: var(--bs-danger-bg-subtle);
       color: var(--bs-danger-text-emphasis);
     }
   }
 
-  // The delivery terms, shown and linked, nothing to tick.
-  .order-terms {
+  // The agreement: one sentence in the note style above it, in the
+  // yellow, with a dismiss that is remembered.
+  .order-agree {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    justify-content: space-between;
     margin-bottom: 1.25rem;
-    padding: 0.875rem 1rem;
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--order-radius);
-    background-color: var(--bs-body-bg);
-    font-size: 0.875rem;
-  }
-
-  .order-terms-title {
-    margin-bottom: 0.375rem;
     font-weight: bold;
-  }
 
-  .order-terms-list {
-    margin: 0 0 0.5rem;
-    padding-left: 1.125rem;
-    color: var(--bs-secondary-color);
+    a {
+      text-decoration: underline;
+    }
 
-    li + li {
-      margin-top: 0.125rem;
+    &[hidden] {
+      display: none;
     }
   }
 
-  .order-terms-link {
-    margin: 0;
-    color: var(--bs-secondary-color);
+  .order-agree-dismiss {
+    flex: none;
+    margin-top: 0.1875rem;
+    font-size: 0.625rem;
   }
 
   // Notices, submit and results
@@ -689,18 +831,21 @@
     overflow: hidden;
   }
 
+  // The one thing a customer must not miss: the order is not done
+  // until the invoice is paid.
   .order-submit-note {
-    margin-bottom: 1rem;
-    padding: 0.875rem 1rem;
-    border-left: 3px solid var(--bs-warning);
-    border-radius: 0 var(--order-radius) var(--order-radius) 0;
+    margin-bottom: 1.25rem;
+    padding: 1.125rem 1.25rem;
+    border: 2px solid var(--bs-warning);
+    border-left-width: 0.5rem;
+    border-radius: var(--order-radius);
     background-color: var(--bs-warning-bg-subtle);
-    font-size: 0.9375rem;
-  }
+    font-size: 1.0625rem;
+    line-height: 1.5;
 
-  .order-submit-note-title {
-    margin-bottom: 0.25rem;
-    font-weight: bold;
+    strong {
+      color: var(--bs-danger-text-emphasis);
+    }
   }
 
   // Background retries: attempt count, live countdown, a way to stop.
@@ -828,15 +973,81 @@
       scroll-margin-top: 0.75rem;
     }
   }
+
+  @media (min-width: 1200px) {
+    .order-page {
+      max-width: 1320px;
+    }
+
+    .order-main {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+      grid-template-areas:
+        "head    head"
+        "catalog cart"
+        "rest    cart";
+      column-gap: 2rem;
+      align-items: start;
+    }
+
+    .order-form {
+      display: contents;
+    }
+
+    .order-head {
+      grid-area: head;
+    }
+
+    .order-catalog-col {
+      grid-area: catalog;
+      min-width: 0;
+    }
+
+    .order-rest {
+      grid-area: rest;
+      min-width: 0;
+    }
+
+    .order-result {
+      grid-column: 1 / -1;
+    }
+
+    .order-cart {
+      grid-area: cart;
+      position: sticky;
+      top: 1rem;
+      bottom: auto;
+      margin-top: 0;
+      box-shadow: var(--order-shadow);
+    }
+
+    .order-cart-toggle {
+      display: none;
+    }
+
+    // Never folded in the column.
+    .order-cart[data-open="false"] {
+      .order-cart-body {
+        grid-template-rows: 1fr;
+      }
+
+      .order-cart-foot {
+        padding-top: 0.5rem;
+        border-top: 2px solid var(--bs-body-color);
+      }
+
+      .order-cart-nudge {
+        display: block;
+      }
+    }
+  }
 }
 
-// The chick canvas sits over everything and catches nothing.
+// The chick canvas sits over a box around the badge and catches
+// nothing.
 .order-chicks {
   position: fixed;
-  inset: 0;
   z-index: 1080;
-  width: 100%;
-  height: 100%;
   pointer-events: none;
 }
 

@@ -12,48 +12,38 @@
         <span class="order-method-title">On-farm pickup</span>
         <dl class="order-method-facts">
           <dt>When</dt>
-          <dd>By appointment, most days.</dd>
+          <dd>By appointment only</dd>
           <dt>Where</dt>
-          <dd>{{ $terms.onFarm.address }}.</dd>
+          <dd>{{ $terms.onFarm.address }}</dd>
           <dt>Cost</dt>
-          <dd>No minimum, no fee.</dd>
+          <dd>No minimum, no fee</dd>
         </dl>
       </label>
       <div class="order-method-reveal" data-method-body="onfarm" inert>
-        <div class="order-method-body">
-          <div class="row g-3">
-            <div class="col-md-7">
-              <label class="form-label" for="onfarm-date">Which day works?</label>
+        <div class="order-method-body order-hform">
+          <div class="row">
+            <label class="col-sm-4 col-form-label" for="onfarm-date">Requested pick-up day</label>
+            <div class="col-sm-8">
               <select class="form-select" id="onfarm-date" name="onfarm.date" data-dates="onfarm" data-field="fulfilment.date" disabled aria-describedby="err-onfarm-date">
                 <option value="">Loading dates&hellip;</option>
               </select>
               <div class="invalid-feedback" id="err-onfarm-date" data-error-for="fulfilment.date"></div>
             </div>
-            <div class="col-md-5">
-              <span class="form-label d-block" id="onfarm-window-label">Roughly when?</span>
-              <div class="d-flex gap-4" role="radiogroup" aria-labelledby="onfarm-window-label" data-field="onfarm.window">
-                <div class="form-check">
+          </div>
+          <div class="row">
+            <span class="col-sm-4 col-form-label" id="onfarm-window-label">Preferred window</span>
+            <div class="col-sm-8">
+              <div class="order-radios" role="radiogroup" aria-labelledby="onfarm-window-label" data-field="onfarm.window">
+                <div class="form-check form-check-inline">
                   <input class="form-check-input" type="radio" name="onfarm.window" id="onfarm-morning" value="morning">
                   <label class="form-check-label" for="onfarm-morning">Morning</label>
                 </div>
-                <div class="form-check">
+                <div class="form-check form-check-inline">
                   <input class="form-check-input" type="radio" name="onfarm.window" id="onfarm-afternoon" value="afternoon">
                   <label class="form-check-label" for="onfarm-afternoon">Afternoon</label>
                 </div>
               </div>
               <div class="invalid-feedback" data-error-for="onfarm.window"></div>
-            </div>
-            <div class="col-md-7">
-              <label class="form-label" for="onfarm-phone">A phone number for the day</label>
-              <input class="form-control" type="tel" id="onfarm-phone" name="onfarm.phone" autocomplete="tel" inputmode="tel" data-field="onfarm.phone" aria-describedby="help-onfarm-phone err-onfarm-phone">
-              <div class="form-text" id="help-onfarm-phone">So we can find each other.</div>
-              <div class="invalid-feedback" id="err-onfarm-phone" data-error-for="onfarm.phone"></div>
-            </div>
-            <div class="col-md-5 d-flex align-items-end">
-              <div class="form-check order-check-lg">
-                <input class="form-check-input" type="checkbox" id="onfarm-text" name="onfarm.textOk" value="1" data-field="onfarm.textOk">
-                <label class="form-check-label" for="onfarm-text">You can text me</label>
-              </div>
             </div>
           </div>
         </div>
@@ -66,18 +56,18 @@
         <span class="order-method-title">Scituate drop site</span>
         <dl class="order-method-facts">
           <dt>When</dt>
-          <dd>Saturdays, {{ $terms.scituate.window }}, from {{ dateFormat "January 2" $terms.scituate.start }}.</dd>
+          <dd>Saturdays, {{ $terms.scituate.window }}, starting {{ dateFormat "January 2" $terms.scituate.start }}</dd>
           <dt>Where</dt>
-          <dd>{{ $terms.scituate.location }}, where our market tent sits.</dd>
+          <dd>{{ $terms.scituate.location }}</dd>
           <dt>Cost</dt>
-          <dd>No minimum, no fee.</dd>
+          <dd>No minimum, no fee</dd>
         </dl>
       </label>
       <div class="order-method-reveal" data-method-body="scituate" inert>
-        <div class="order-method-body">
-          <div class="row g-3">
-            <div class="col-md-7">
-              <label class="form-label" for="scituate-date">Which Saturday?</label>
+        <div class="order-method-body order-hform">
+          <div class="row">
+            <label class="col-sm-4 col-form-label" for="scituate-date">Choose a pick-up day</label>
+            <div class="col-sm-8">
               <select class="form-select" id="scituate-date" name="scituate.date" data-dates="scituate" data-field="fulfilment.date" disabled aria-describedby="err-scituate-date">
                 <option value="">Loading dates&hellip;</option>
               </select>
@@ -94,75 +84,71 @@
         <span class="order-method-title">Local delivery</span>
         <dl class="order-method-facts">
           <dt>When</dt>
-          <dd>Thursdays, {{ $terms.delivery.window }}. Order by Wednesday noon.</dd>
+          <dd>Thursdays, approximately {{ $terms.delivery.window }}</dd>
           <dt>Where</dt>
-          <dd>Rhode Island, and eggs to nearby Connecticut.</dd>
+          <dd>Check <a href="{{ $policy }}#delivery-area" target="_blank" rel="noopener">our delivery area</a></dd>
           <dt>Cost</dt>
-          <dd>${{ $money.deliveryMinimum }} minimum. ${{ $money.deliveryFee }} fee, waived on orders of ${{ $money.feeWaivedAt }} or more.</dd>
+          <dd>${{ $money.deliveryMinimum }} minimum, ${{ $money.deliveryFee }} delivery fee</dd>
         </dl>
       </label>
       <div class="order-method-reveal" data-method-body="delivery" inert>
-        <div class="order-method-body">
-          <p class="order-countdown" data-countdown aria-live="off">
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-              <circle cx="7" cy="7" r="5.75" fill="none" stroke="currentColor" stroke-width="1.3"/>
-              <path d="M7 3.75V7l2.25 1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-            </svg>
+        <div class="order-method-body order-hform">
+          <p class="zip-note order-countdown" data-countdown aria-live="off">
             <span data-countdown-text></span>
           </p>
-          <div class="order-terms">
-            <p class="order-terms-title">Local delivery terms</p>
-            <ul class="order-terms-list">
-              <li>Thursdays, {{ $terms.delivery.window }}. The window is approximate.</li>
-              <li>Leave a cooler with ice out on Thursday morning, somewhere easy to find.</li>
-              <li>${{ $money.deliveryMinimum }} minimum after discounts. The ${{ $money.deliveryFee }} fee is waived on orders of ${{ $money.feeWaivedAt }} or more.</li>
-              <li>Rhode Island gets chicken and eggs. Connecticut is eggs only for now.</li>
-            </ul>
-            <p class="order-terms-link">By placing a delivery order you agree to the <a href="{{ $policy }}" target="_blank" rel="noopener">local delivery policy</a>.</p>
-          </div>
+          <p class="zip-note zip-note-warning order-agree" data-agree>
+            <span>By placing a delivery order you agree to our <a href="{{ $policy }}" target="_blank" rel="noopener">delivery policy</a>.</span>
+            <button type="button" class="btn-close order-agree-dismiss" aria-label="Dismiss" data-agree-dismiss></button>
+          </p>
           <div class="invalid-feedback d-block mb-2" data-error-for="delivery.minimum"></div>
-          <div class="row g-3">
-            <div class="col-md-7">
-              <label class="form-label" for="delivery-date">Delivery date</label>
+          <div class="row">
+            <label class="col-sm-4 col-form-label" for="delivery-date">Delivery date</label>
+            <div class="col-sm-8 col-lg-6">
               <select class="form-select" id="delivery-date" name="delivery.date" data-dates="delivery" data-field="fulfilment.date" disabled aria-describedby="err-delivery-date">
                 <option value="">Loading dates&hellip;</option>
               </select>
               <div class="invalid-feedback" id="err-delivery-date" data-error-for="fulfilment.date"></div>
             </div>
-            <div class="col-12">
-              <label class="form-label" for="delivery-address1">Street address</label>
+          </div>
+          <div class="row">
+            <label class="col-sm-4 col-form-label" for="delivery-address1">Street address</label>
+            <div class="col-sm-8">
               <input class="form-control" type="text" id="delivery-address1" name="delivery.address1" autocomplete="shipping address-line1" data-field="delivery.address1" aria-describedby="err-delivery-address1">
               <div class="invalid-feedback" id="err-delivery-address1" data-error-for="delivery.address1"></div>
             </div>
-            <div class="col-12">
-              <label class="form-label" for="delivery-address2">Apartment, unit, or floor <span class="text-body-secondary">(optional)</span></label>
+          </div>
+          <div class="row">
+            <label class="col-sm-4 col-form-label" for="delivery-address2">Apartment, unit, or floor <span class="text-body-secondary">(optional)</span></label>
+            <div class="col-sm-8">
               <input class="form-control" type="text" id="delivery-address2" name="delivery.address2" autocomplete="shipping address-line2" data-field="delivery.address2">
             </div>
-            <div class="col-md-8">
-              <label class="form-label" for="delivery-town">Town</label>
+          </div>
+          <div class="row">
+            <label class="col-sm-4 col-form-label" for="delivery-town">City or town</label>
+            <div class="col-sm-8">
               <input class="form-control" type="text" id="delivery-town" name="delivery.town" autocomplete="shipping address-level2" data-field="delivery.town" aria-describedby="err-delivery-town">
               <div class="invalid-feedback" id="err-delivery-town" data-error-for="delivery.town"></div>
             </div>
-            <div class="col-md-4">
-              <label class="form-label" for="delivery-zip">ZIP</label>
+          </div>
+          <div class="row">
+            <label class="col-sm-4 col-form-label" for="delivery-zip">ZIP</label>
+            <div class="col-sm-8 col-lg-4">
               <input class="form-control" type="text" id="delivery-zip" name="delivery.zip" autocomplete="shipping postal-code" inputmode="numeric" maxlength="10" data-field="delivery.zip" aria-describedby="help-delivery-zip err-delivery-zip">
               <div class="form-text" id="help-delivery-zip" data-zip-note></div>
               <div class="invalid-feedback" id="err-delivery-zip" data-error-for="delivery.zip"></div>
             </div>
-            <div class="col-md-7">
-              <label class="form-label" for="delivery-cooler">Where will we find your cooler?</label>
-              <input class="form-control" type="text" id="delivery-cooler" name="delivery.cooler" data-field="delivery.cooler" aria-describedby="help-delivery-cooler err-delivery-cooler">
-              <div class="form-text" id="help-delivery-cooler">Somewhere we can see from the driveway: the side porch, under the carport, by the garage door.</div>
+          </div>
+          <div class="row">
+            <label class="col-sm-4 col-form-label" for="delivery-cooler">Where will we find your cooler?</label>
+            <div class="col-sm-8">
+              <textarea class="form-control" id="delivery-cooler" name="delivery.cooler" rows="2" data-field="delivery.cooler" aria-describedby="err-delivery-cooler"></textarea>
               <div class="invalid-feedback" id="err-delivery-cooler" data-error-for="delivery.cooler"></div>
             </div>
-            <div class="col-md-5">
-              <label class="form-label" for="delivery-gate">Gate or keypad code <span class="text-body-secondary">(optional)</span></label>
-              <input class="form-control" type="text" id="delivery-gate" name="delivery.gate" autocomplete="off" data-field="delivery.gate">
-            </div>
-            <div class="col-12">
-              <label class="form-label" for="delivery-notes">Anything we should know about the drop-off? <span class="text-body-secondary">(optional)</span></label>
-              <textarea class="form-control" id="delivery-notes" name="delivery.notes" rows="2" data-field="delivery.notes" aria-describedby="help-delivery-notes"></textarea>
-              <div class="form-text" id="help-delivery-notes">A dog in the yard, a driveway not to block, anything else.</div>
+          </div>
+          <div class="row">
+            <label class="col-sm-4 col-form-label" for="delivery-notes">Other notes or instructions <span class="text-body-secondary">(optional)</span></label>
+            <div class="col-sm-8">
+              <textarea class="form-control" id="delivery-notes" name="delivery.notes" rows="2" data-field="delivery.notes"></textarea>
             </div>
           </div>
         </div>

@@ -15,12 +15,17 @@ const KEY = "0f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f";
 
 const body = (overrides = {}) => ({
   idempotencyKey: KEY,
-  customer: { name: "Pat Example", email: "pat@example.com", phone: "" },
+  customer: {
+    name: "Pat Example",
+    email: "pat@example.com",
+    phone: "401-555-0100",
+    contact: "call",
+  },
   lines: [{ sku: "NFF-CHK-WHL-0350-0400", qty: 2 }],
   fulfilment: {
     method: "onfarm",
     date: "2026-10-07",
-    onfarm: { window: "morning", phone: "401-555-0100", textOk: false },
+    onfarm: { window: "morning" },
   },
   claimedTotal: 5500,
   ...overrides,

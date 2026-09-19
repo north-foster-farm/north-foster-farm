@@ -6,6 +6,7 @@
     </svg>
     Jump to&hellip;
   </button>
+  <span class="order-topbar-title" aria-hidden="true">{{ .Params.heading | default .Title }}</span>
 </div>
 
 <h2 class="visually-hidden">Choose your items</h2>
@@ -15,8 +16,9 @@
   {{ range $groups }}
     <section class="order-cat" id="cat-{{ .key }}" aria-labelledby="cat-{{ .key }}-h">
       <h3 class="order-cat-title" id="cat-{{ .key }}-h">
-        {{ .short }}
-        {{ with .note }}<span class="order-cat-note">{{ . }}</span>{{ end }}
+        <span class="order-cat-chev" aria-hidden="true">{{ partial "svg.html" "icons/chevron-right" }}</span>
+        <span class="order-cat-text">{{ .short }}</span>
+        {{ with .unit }}<span class="order-cat-note">{{ . }}</span>{{ end }}
       </h3>
       <ul class="order-items list-unstyled mb-0">
         {{ range .items }}
@@ -25,17 +27,18 @@
             <span class="order-item-name">
               <label for="{{ $id }}">{{ .label }}</label>
             </span>
-            <span class="order-item-price">${{ .price }}</span>
+            <span class="order-item-price">
+              ${{ .price }}{{ with .unit }} <span class="order-item-unit">{{ . }}</span>{{ end }}
+            </span>
             <span class="order-item-stock" data-stock-note aria-live="polite"></span>
             <div class="order-qty" data-qty-state="empty">
-              <button type="button" class="btn btn-outline-primary order-qty-add" data-step="1" aria-hidden="true" tabindex="-1">Add</button>
+              <button type="button" class="btn btn-outline-primary btn-sm order-qty-add" data-step="1" aria-hidden="true" tabindex="-1">Add</button>
               <div class="order-qty-step" role="group" aria-label="Quantity of {{ .label }}">
                 <button type="button" class="btn" data-step="-1" aria-label="One fewer">&minus;</button>
                 <input class="form-control" type="text" id="{{ $id }}" name="qty.{{ .sku }}" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="0" data-qty="{{ .sku }}" aria-describedby="err-{{ $id }}">
                 <button type="button" class="btn" data-step="1" aria-label="One more">+</button>
               </div>
             </div>
-            <span class="order-item-total" data-line-total="{{ .sku }}"></span>
             <div class="invalid-feedback order-item-error" id="err-{{ $id }}" data-error-for="lines.{{ .sku }}"></div>
           </li>
         {{ end }}

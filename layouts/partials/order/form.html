@@ -5,15 +5,21 @@
 }}
 <script type="application/json" id="order-data">{{ $data | jsonify | safeJS }}</script>
 
-<div id="order-stock" class="alert alert-warning" role="status" aria-live="polite" hidden></div>
-<div id="order-added" class="alert alert-success" role="status" aria-live="polite" hidden></div>
-
+{{/* From xl up the form is `display: contents`, so its three parts
+     are grid columns of .order-main: the catalog, the cart beside it,
+     and the sections that follow under the catalog. */}}
 <form id="order-form" class="order-form" novalidate data-version="{{ hugo.Data.catalog.version }}">
-  {{ partial "order/catalog.html" . }}
+  <div class="order-catalog-col">
+    <div id="order-stock" class="alert alert-warning" role="status" aria-live="polite" hidden></div>
+    <div id="order-added" class="alert alert-success" role="status" aria-live="polite" hidden></div>
+    {{ partial "order/catalog.html" . }}
+  </div>
   {{ partial "order/cart.html" . }}
-  {{ partial "order/customer.html" . }}
-  {{ partial "order/fulfilment.html" . }}
-  {{ partial "order/wrap.html" . }}
+  <div class="order-rest">
+    {{ partial "order/customer.html" . }}
+    {{ partial "order/fulfilment.html" . }}
+    {{ partial "order/wrap.html" . }}
+  </div>
 </form>
 
 <div id="order-result" class="order-result" aria-live="polite" hidden></div>

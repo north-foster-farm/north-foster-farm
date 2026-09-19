@@ -100,6 +100,12 @@ h6 {
   font-size: 0.875rem;
 }
 
+// The same aside in the yellow, for something to attend to.
+.zip-note-warning {
+  border-left-color: var(--bs-warning);
+  background-color: var(--bs-warning-bg-subtle);
+}
+
 .img-cover {
   object-fit: cover;
   height: 100%;

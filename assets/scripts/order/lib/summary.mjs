@@ -2,9 +2,7 @@
 // nudge and the delivery status. Pure, so every sentence the customer
 // might read is pinned by a test. Money is integer cents.
 
-import { discountFor, dollars, meetsMinimum, toCents } from "./totals.mjs";
-
-const BIGGEST = (off) => `That's our biggest discount: ${dollars(off)} off.`;
+import { dollars, meetsMinimum, toCents } from "./totals.mjs";
 
 // Badges in the order they are shown. Each is on or off, never a
 // number that could disagree with the totals.
@@ -48,7 +46,7 @@ const nextTierAbove = (subtotal, money) => {
 
 // One sentence, or none. Every figure is what the customer will see in
 // the breakdown once they act on it: "take $10 off" is the discount
-// row that will appear, not an increment.
+// row that will appear, not an increment. Nothing at the top tier.
 export const nudge = (totals, method, money) => {
   const s = totals.subtotal;
 
@@ -65,9 +63,7 @@ export const nudge = (totals, method, money) => {
 
   const next = nextTierAbove(s, money);
 
-  if (!next) {
-    return BIGGEST(discountFor(s, money).amount);
-  }
+  if (!next) return "";
 
   const gap = dollars(next.threshold - s);
   const off = dollars(next.off);
@@ -81,13 +77,11 @@ export const nudge = (totals, method, money) => {
   return `Next discount: add ${gap} for ${off} off.`;
 };
 
-// The fee cell: nothing outside delivery, the fee, or a struck fee.
-export const feeCell = (totals, method, money) => {
+// The fee cell: nothing outside delivery, the fee, or "Free".
+export const feeCell = (totals, method) => {
   if (method !== "delivery") return { show: false };
   if (totals.deliveryFee === 0) {
-    return {
-      show: true, waived: true, was: dollars(toCents(money.deliveryFee)),
-    };
+    return { show: true, waived: true, text: "Free" };
   }
 
   return {
@@ -97,9 +91,43 @@ export const feeCell = (totals, method, money) => {
 
 const plural = (n) => `${n} item${n === 1 ? "" : "s"}`;
 
-export const summarize = ({ totals, method, money, count }) => ({
+// A group label without its parenthetical: "Eggs (per dozen)" -> "Eggs".
+const short = (label) => label.replace(/ \(.*\)$/, "");
+
+// The cart's own lines, grouped by category in catalog order: each
+// tier with how many at what price and the line's subtotal. `lines`
+// is [{ sku, qty }] with qty > 0.
+export const itemGroups = (lines, index) => {
+  const groups = [];
+  const byKey = new Map();
+
+  for (const { sku, qty } of lines) {
+    const item = index.get(sku);
+    const unit = toCents(item.price);
+    let group = byKey.get(item.groupKey);
+
+    if (!group) {
+      group = {
+        key: item.groupKey, label: short(item.groupLabel), items: [],
+      };
+      byKey.set(item.groupKey, group);
+      groups.push(group);
+    }
+    group.items.push({
+      sku,
+      label: item.label,
+      qtyText: `${qty} × ${dollars(unit)}`,
+      subtotal: dollars(qty * unit),
+    });
+  }
+
+  return groups;
+};
+
+export const summarize = ({ totals, method, money, count, lines, index }) => ({
   count,
-  countText: count === 0 ? "Nothing yet" : plural(count),
+  countText: plural(count),
+  groups: lines && index ? itemGroups(lines, index) : [],
   subtotal: dollars(totals.subtotal),
   discount: totals.discountAmount
     ? {
@@ -107,7 +135,7 @@ export const summarize = ({ totals, method, money, count }) => ({
       text: `−${dollars(totals.discountAmount)}`,
     }
     : null,
-  fee: feeCell(totals, method, money),
+  fee: feeCell(totals, method),
   total: dollars(totals.total),
   eligible: meetsMinimum(totals, money),
   badges: badges(totals, money),

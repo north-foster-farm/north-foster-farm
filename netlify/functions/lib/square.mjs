@@ -101,10 +101,8 @@ const staffNote = (order) => {
   const bits = [];
   const f = order.fulfilment;
 
-  if (f.method === "onfarm") {
-    bits.push(`${f.onfarm.window} pickup`);
-    bits.push(`phone ${f.onfarm.phone}${f.onfarm.textOk ? " (text ok)" : ""}`);
-  }
+  if (order.customer.contact) bits.push(`prefers ${order.customer.contact}`);
+  if (f.method === "onfarm") bits.push(`${f.onfarm.window} pickup`);
   if (f.method === "delivery") {
     bits.push(`cooler: ${f.delivery.cooler}`);
     if (f.delivery.gate) bits.push(`gate: ${f.delivery.gate}`);
@@ -165,7 +163,7 @@ const fulfillment = (order) => {
       recipient: {
         display_name: name,
         email_address: email,
-        phone_number: e164(f.method === "onfarm" ? f.onfarm.phone : phone),
+        phone_number: e164(phone),
       },
       schedule_type: "SCHEDULED",
       pickup_at: instant(f.date, hour, 0, tz).toISOString(),

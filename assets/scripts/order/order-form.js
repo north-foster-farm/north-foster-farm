@@ -19,6 +19,7 @@ import { Submitter } from "./submit.js";
 import { me } from "../session/session.js";
 
 const RETRY_DELAYS = [5000, 15000, 45000, 120000, 300000];
+const AGREE_SEEN = "nff-delivery-policy-seen";
 const MAX_ATTEMPTS = 6;
 
 const qs = (root, selector) => root.querySelector(selector);
@@ -98,16 +99,43 @@ export class OrderForm {
     this.refresh();
     this.stock.start();
 
-    // A signed-in customer with a discount group sees it as they shop.
+    // A signed-in customer sees their discount group as they shop, and
+    // their details arrive already filled in.
     me().then((who) => {
-      const group = who.signedIn && who.customer
-        ? who.customer.discountGroup : null;
+      if (!who.signedIn || !who.customer) return;
+
+      const group = who.customer.discountGroup || null;
 
       if (group && group !== this.group) {
         this.group = group;
         this.refresh();
       }
+      this.prefill(who.customer);
     }).catch(() => {});
+  }
+
+  // Name, email and phone from the customer's record, shown as plain
+  // text. A click turns one back into a field; leaving it, filled,
+  // turns it into text again.
+  prefill(customer) {
+    let any = false;
+
+    for (const input of all(this.form, "[data-prefill]")) {
+      const value = customer[input.dataset.prefill];
+
+      if (!value) continue;
+      if (!input.value) input.value = value;
+      this.plain(input, true);
+      any = true;
+    }
+
+    if (any) this.draft.save(this.collect());
+  }
+
+  plain(input, on) {
+    input.classList.toggle("form-control-plaintext", on);
+    input.classList.toggle("form-control", !on);
+    input.readOnly = on;
   }
 
   wire() {
@@ -119,21 +147,40 @@ export class OrderForm {
     this.form.addEventListener("submit", (e) => this.submit(e));
     this.form.addEventListener("click", (e) => this.step(e));
 
-    // Blur normalises whatever was typed into a quantity box.
+    // Blur normalises whatever was typed into a quantity box, and
+    // turns an edited detail back into plain text.
     this.form.addEventListener("focusout", (e) => {
       if (e.target.matches("[data-qty]")) {
         this.setQty(e.target, this.qty(e.target));
       }
+      if (e.target.matches("[data-prefill]") && e.target.value.trim()) {
+        this.plain(e.target, true);
+      }
     });
 
-    // Empty cart forgets the draft and every field, quietly.
-    qs(this.cart, "[data-empty]").addEventListener("click", () => {
-      this.draft.clear();
-      this.form.reset();
-      for (const input of all(this.form, "[data-qty]")) this.setQty(input, 0);
-      this.errors.clear();
-      this.refresh();
-      qs(this.cart, ".order-cart-toggle").focus();
+    // A click on a plain-text detail makes it a field again.
+    this.form.addEventListener("click", (e) => {
+      if (e.target.matches("[data-prefill][readonly]")) {
+        this.plain(e.target, false);
+        e.target.focus();
+      }
+    });
+
+    // The delivery-policy note can be dismissed, and stays dismissed.
+    const agree = qs(this.form, "[data-agree]");
+
+    agree.hidden = this.draft.flag(AGREE_SEEN);
+    qs(agree, "[data-agree-dismiss]").addEventListener("click", () => {
+      this.draft.setFlag(AGREE_SEEN);
+      agree.hidden = true;
+    });
+
+    // Below xl the cart folds down to the total and the Next button.
+    qs(this.cart, "[data-cart-toggle]").addEventListener("click", (e) => {
+      const open = this.cart.dataset.open !== "true";
+
+      this.cart.dataset.open = String(open);
+      e.currentTarget.setAttribute("aria-expanded", String(open));
     });
 
     // A tap on a badge explains it; the next tap, or a tap elsewhere,
@@ -154,18 +201,25 @@ export class OrderForm {
     });
 
     qs(this.cart, "[data-checkout]").addEventListener("click", () => {
-      const target = document.getElementById("pickup");
+      const target = document.getElementById("details");
 
       target.scrollIntoView({ behavior: "smooth", block: "start" });
       qs(target, "legend").focus({ preventScroll: true });
     });
 
-    // Keep the active category link in view as the list scrolls.
+    // Keep the active category link in view as the list scrolls, and
+    // mark the category itself so its heading can show the chevron.
     const catalog = document.getElementById("order-catalog");
 
     catalog.addEventListener("activate.bs.scrollspy", (e) => {
-      e.relatedTarget.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      const link = e.relatedTarget;
+
+      link.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      for (const cat of all(catalog, ".order-cat")) {
+        cat.classList.toggle("is-active", `#${cat.id}` === link.hash);
+      }
     });
+    qs(catalog, ".order-cat").classList.add("is-active");
 
     const retryNow = () => {
       if (this.draft.pending() && !this.busy) this.resume(this.draft.pending());
@@ -323,9 +377,7 @@ export class OrderForm {
     const totals = this.totals();
 
     for (const input of all(this.form, "[data-qty]")) {
-      const item = this.index.get(input.dataset.qty);
       const qty = this.qty(input);
-      const line = qs(this.form, `[data-line-total="${input.dataset.qty}"]`);
       const box = input.closest(".order-qty");
       const state = qty > 0 ? "active" : "empty";
 
@@ -333,9 +385,6 @@ export class OrderForm {
       qs(box, "[data-step='-1']").setAttribute(
         "aria-label", qty === 1 ? "Remove" : "One fewer"
       );
-      if (line) {
-        line.textContent = qty > 0 ? dollars(qty * toCents(item.price)) : "";
-      }
     }
 
     for (const body of all(this.form, "[data-method-body]")) {
@@ -364,8 +413,13 @@ export class OrderForm {
   // pin; this only puts them in the DOM.
   renderCart(totals, method) {
     const c = this.cart;
-    const count = this.lines().reduce((n, line) => n + line.qty, 0);
-    const s = summarize({ totals, method, money: this.money, count });
+    const lines = this.lines();
+    const count = lines.reduce((n, line) => n + line.qty, 0);
+    const s = summarize({
+      totals, method, money: this.money, count, lines, index: this.index,
+    });
+
+    this.renderItems(s);
 
     qs(c, "[data-total='subtotal']").textContent = s.subtotal;
 
@@ -378,18 +432,8 @@ export class OrderForm {
     const fee = qs(c, "[data-total='fee']");
 
     qs(c, "[data-total-row='fee']").hidden = !s.fee.show;
-    fee.textContent = "";
-    if (s.fee.show && s.fee.waived) {
-      const free = document.createElement("span");
-      const struck = document.createElement("s");
-
-      free.className = "order-cart-free";
-      struck.textContent = s.fee.was;
-      free.append(struck, "Free");
-      fee.appendChild(free);
-    } else if (s.fee.show) {
-      fee.textContent = s.fee.text;
-    }
+    fee.textContent = s.fee.show ? s.fee.text : "";
+    fee.classList.toggle("order-cart-free", !!s.fee.waived);
 
     const total = qs(c, "[data-total='total']");
 
@@ -399,10 +443,8 @@ export class OrderForm {
     total.textContent = s.total;
     this.lastTotal = s.total;
 
-    qs(c, "[data-total='count']").textContent = s.countText;
-    qs(c, ".order-cart-toggle").setAttribute(
-      "aria-label",
-      `Order total ${s.total}, ${s.countText}. Show the breakdown.`
+    qs(c, "[data-cart-toggle]").setAttribute(
+      "aria-label", `${s.countText}, total ${s.total}. Show or hide the cart.`
     );
     qs(c, "[data-checkout]").disabled = count === 0;
 
@@ -420,12 +462,45 @@ export class OrderForm {
     }
     this.lit = lit;
 
-    qs(c, "[data-empty]").hidden = count === 0;
-
     const nudge = qs(c, "[data-nudge]");
 
     if (nudge.textContent !== s.nudge) nudge.textContent = s.nudge;
     nudge.hidden = !s.nudge;
+  }
+
+  // The cart's lines: each category, with its tiers indented beneath,
+  // or "0 items". The list is small, so it is rebuilt on each render.
+  renderItems(s) {
+    const list = qs(this.cart, "[data-cart-items]");
+    const make = (tag, className, text) => {
+      const el = document.createElement(tag);
+
+      el.className = className;
+      if (text !== undefined) el.textContent = text;
+
+      return el;
+    };
+
+    for (const row of all(list, ".order-cart-group")) row.remove();
+
+    for (const group of s.groups) {
+      const li = make("li", "order-cart-group");
+      const items = make("ul", "order-cart-group-items list-unstyled");
+
+      li.appendChild(make("span", "order-cart-group-name", group.label));
+      for (const item of group.items) {
+        const row = make("li", "order-cart-item");
+
+        row.appendChild(make("span", "order-cart-item-name", item.label));
+        row.appendChild(make("span", "order-cart-item-qty", item.qtyText));
+        row.appendChild(make("span", "order-cart-item-sub", item.subtotal));
+        items.appendChild(row);
+      }
+      li.appendChild(items);
+      list.appendChild(li);
+    }
+
+    qs(list, ".order-cart-none").hidden = s.groups.length > 0;
   }
 
   renderZipNote() {
@@ -480,6 +555,7 @@ export class OrderForm {
         name: value("customer.name"),
         email: value("customer.email"),
         phone: value("customer.phone"),
+        contact: value("customer.contact"),
       },
       lines: this.lines(),
       fulfilment: {
@@ -487,21 +563,16 @@ export class OrderForm {
         date: dateSelect ? dateSelect.value : "",
         onfarm: {
           window: value("onfarm.window"),
-          phone: value("onfarm.phone"),
-          textOk: value("onfarm.textOk"),
         },
         delivery: {
           address1: value("delivery.address1"),
           address2: value("delivery.address2"),
           town: value("delivery.town"),
           zip: value("delivery.zip"),
-          gate: value("delivery.gate"),
           cooler: value("delivery.cooler"),
           notes: value("delivery.notes"),
         },
       },
-      notes: value("notes"),
-      source: value("source"),
       claimedTotal: this.totals().total,
       website: qs(this.form, "[name='website']").value,
     };
@@ -533,6 +604,7 @@ export class OrderForm {
     set("customer.name", c.name);
     set("customer.email", c.email);
     set("customer.phone", c.phone);
+    set("customer.contact", c.contact);
 
     for (const line of payload.lines || []) {
       const input = qs(this.form, `[data-qty="${line.sku}"]`);
@@ -542,11 +614,9 @@ export class OrderForm {
 
     if (f.method) set("fulfilment.method", f.method);
     set("onfarm.window", o.window);
-    set("onfarm.phone", o.phone);
-    set("onfarm.textOk", o.textOk);
 
     for (const key of [
-      "address1", "address2", "town", "zip", "gate", "cooler", "notes",
+      "address1", "address2", "town", "zip", "cooler", "notes",
     ]) {
       set(`delivery.${key}`, d[key]);
     }
@@ -558,9 +628,6 @@ export class OrderForm {
       // date is still valid.
       if (select) select.value = f.date;
     }
-
-    set("notes", payload.notes);
-    set("source", payload.source);
   }
 
   // Submission and recovery.

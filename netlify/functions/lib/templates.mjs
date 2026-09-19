@@ -254,9 +254,6 @@ export const orderChanged = (order) => {
 
   if (f.method === "onfarm" && f.onfarm) {
     details.push(`Window: ${f.onfarm.window}`);
-    details.push(
-      `Phone: ${f.onfarm.phone}${f.onfarm.textOk ? " (text ok)" : ""}`
-    );
   }
   if (f.method === "delivery" && f.delivery) {
     details.push(`Cooler: ${f.delivery.cooler}`);

@@ -14,15 +14,28 @@ const now = instant("2026-10-06", 9, 0, "America/New_York");
 const ctx = { index, terms, now };
 
 const base = () => ({
-  customer: { name: "Pat Example", email: "pat@example.com", phone: "" },
+  customer: {
+    name: "Pat Example",
+    email: "pat@example.com",
+    phone: "401-555-0100",
+    contact: "text",
+  },
   lines: [{ sku: "NFF-CHK-WHL-0350-0400", qty: 2 }],
   fulfilment: {
     method: "onfarm",
     date: "2026-10-07",
-    onfarm: { window: "morning", phone: "401-555-0100", textOk: true },
+    onfarm: { window: "morning" },
   },
   claimedTotal: 5500,
 });
+
+const withCustomer = (patch) => {
+  const p = base();
+
+  p.customer = { ...p.customer, ...patch };
+
+  return p;
+};
 
 const delivery = (overrides = {}) => ({
   ...base(),
@@ -51,6 +64,97 @@ describe("a valid on-farm order", () => {
     assert.equal(r.order.lines[0].label, "Whole Chicken, 3.5 – 3.9 lbs");
     assert.equal(r.order.lines[0].unitPrice, 30);
     assert.equal(r.order.flags.totalMismatch, false);
+  });
+});
+
+describe("the customer's details", () => {
+  it("are trimmed, the email lowercased, and the preference kept", () => {
+    const r = validateOrder(withCustomer({
+      name: "  Pat Example ", email: " Pat@Example.COM ", contact: "call",
+    }), ctx);
+
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.deepEqual(r.order.customer, {
+      name: "Pat Example",
+      email: "pat@example.com",
+      phone: "401-555-0100",
+      contact: "call",
+    });
+  });
+
+  it("need a name", () => {
+    const r = validateOrder(withCustomer({ name: "   " }), ctx);
+
+    assert.equal(r.status, 422);
+    assert.match(r.errors["customer.name"], /name/);
+  });
+
+  it("need an email that looks like one", () => {
+    for (const email of ["", "pat", "pat@", "pat@example", "@example.com"]) {
+      const r = validateOrder(withCustomer({ email }), ctx);
+
+      assert.equal(r.status, 422, email);
+      assert.match(r.errors["customer.email"], /email/);
+    }
+  });
+
+  it("need a phone number, and a plausible one", () => {
+    const missing = validateOrder(withCustomer({ phone: "" }), ctx);
+
+    assert.equal(missing.status, 422);
+    assert.equal(
+      missing.errors["customer.phone"], "Please enter a phone number."
+    );
+
+    for (const phone of ["12345", "401-555-010", "+44 20 7946 0958"]) {
+      const r = validateOrder(withCustomer({ phone }), ctx);
+
+      assert.equal(r.status, 422, phone);
+      assert.match(r.errors["customer.phone"], /doesn't look right/);
+    }
+
+    for (const phone of ["4015550100", "(401) 555-0100", "1-401-555-0100"]) {
+      assert.ok(validateOrder(withCustomer({ phone }), ctx).ok, phone);
+    }
+  });
+
+  it("need to say text or call", () => {
+    for (const contact of ["", "email", "TEXT", 7]) {
+      const r = validateOrder(withCustomer({ contact }), ctx);
+
+      assert.equal(r.status, 422, String(contact));
+      assert.equal(r.errors["customer.contact"], "Text or call?");
+    }
+  });
+
+  it("report every missing field at once", () => {
+    const r = validateOrder({
+      ...base(), customer: {}, lines: [], fulfilment: {},
+    }, ctx);
+
+    assert.equal(r.status, 422);
+    assert.deepEqual(Object.keys(r.errors).sort(), [
+      "customer.contact", "customer.email", "customer.name",
+      "customer.phone", "fulfilment.method", "lines",
+    ]);
+  });
+});
+
+describe("on-farm pickup", () => {
+  it("needs a window and nothing else", () => {
+    const p = base();
+
+    p.fulfilment.onfarm = { window: "evening" };
+    const r = validateOrder(p, ctx);
+
+    assert.equal(r.status, 422);
+    assert.equal(r.errors["onfarm.window"], "Morning or afternoon?");
+
+    p.fulfilment.onfarm = { window: "afternoon" };
+    const ok = validateOrder(p, ctx);
+
+    assert.ok(ok.ok);
+    assert.deepEqual(ok.order.fulfilment.onfarm, { window: "afternoon" });
   });
 });
 
@@ -138,6 +242,38 @@ describe("delivery rules", () => {
     assert.ok(r.ok, JSON.stringify(r));
     assert.equal(r.order.totals.deliveryFee, 500);
     assert.equal(r.order.flags.zipUnlisted, false);
+  });
+
+  it("needs a street, a town and a cooler spot; notes are optional", () => {
+    const r = validateOrder(delivery({
+      address1: " ", town: "", cooler: "  ", notes: "",
+    }), ctx);
+
+    assert.equal(r.status, 422);
+    assert.match(r.errors["delivery.address1"], /street address/);
+    assert.match(r.errors["delivery.town"], /town/);
+    assert.match(r.errors["delivery.cooler"], /cooler/);
+    assert.equal(r.errors["delivery.notes"], undefined);
+  });
+
+  it("keeps the drop-off details, trimmed, with the ZIP status", () => {
+    const r = validateOrder(delivery({
+      address2: " Apt 2 ",
+      cooler: " Side porch, under the bench ",
+      notes: " Dog in the yard ",
+    }), ctx);
+
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.deepEqual(r.order.fulfilment.delivery, {
+      address1: "1 Main St",
+      address2: "Apt 2",
+      town: "Foster",
+      state: "RI",
+      zip: "02825",
+      cooler: "Side porch, under the bench",
+      notes: "Dog in the yard",
+      zipStatus: "approved",
+    });
   });
 
   it("blocks a $35 order and names the escape hatches", () => {

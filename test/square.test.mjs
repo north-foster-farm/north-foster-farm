@@ -17,11 +17,16 @@ const now = instant("2026-10-06", 9, 0, "America/New_York");
 
 const order = (overrides = {}) => ({
   id: "NFF-2610-ABCD",
-  customer: { name: "Pat Example", email: "pat@example.com", phone: "" },
+  customer: {
+    name: "Pat Example",
+    email: "pat@example.com",
+    phone: "401-555-0100",
+    contact: "text",
+  },
   fulfilment: {
     method: "onfarm",
     date: "2026-10-07",
-    onfarm: { window: "morning", phone: "401-555-0100", textOk: true },
+    onfarm: { window: "morning" },
     delivery: null,
   },
   lines: [{
@@ -118,7 +123,8 @@ describe("buildOrder", () => {
     assert.equal(f.type, "PICKUP");
     assert.equal(f.pickup_details.pickup_at, "2026-10-07T13:00:00.000Z");
     assert.equal(f.pickup_details.recipient.phone_number, "+14015550100");
-    assert.match(f.pickup_details.note, /text ok/);
+    assert.match(f.pickup_details.note, /prefers text/);
+    assert.match(f.pickup_details.note, /morning pickup/);
   });
 
   it("builds a delivery fulfillment with fee and address", () => {

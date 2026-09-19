@@ -1,38 +1,16 @@
-<fieldset class="order-section mb-4">
-  <legend class="h2">Anything else?</legend>
-  <div class="row g-3">
-    <div class="col-12">
-      <label class="form-label" for="order-notes">Notes or special requests <span class="text-body-secondary">(optional)</span></label>
-      <textarea class="form-control" id="order-notes" name="notes" rows="3" data-field="notes" aria-describedby="help-order-notes"></textarea>
-      <div class="form-text" id="help-order-notes">Substitutions you'd accept, or anything else we should know.</div>
-    </div>
-    <div class="col-md-7">
-      <label class="form-label" for="order-source">How did you find us? <span class="text-body-secondary">(optional)</span></label>
-      <select class="form-select" id="order-source" name="source" data-field="source">
-        <option value="">Choose one</option>
-        <option>Farmers market</option>
-        <option>Flyer</option>
-        <option>Friend or family</option>
-        <option>Social media</option>
-        <option>Somewhere else</option>
-      </select>
-    </div>
-    <div class="order-hp" aria-hidden="true">
-      <label for="order-website">Website</label>
-      <input type="text" id="order-website" name="website" tabindex="-1" autocomplete="off">
-    </div>
-  </div>
-</fieldset>
+<div class="order-hp" aria-hidden="true">
+  <label for="order-website">Website</label>
+  <input type="text" id="order-website" name="website" tabindex="-1" autocomplete="off">
+</div>
 
 <div class="order-submit">
   <div class="alert alert-danger" role="alert" data-form-error hidden></div>
-  <div class="order-submit-note">
-    <p class="order-submit-note-title">Your order isn't final until it's paid.</p>
-    <p class="mb-0">
-      Placing it sends you a Square invoice by email. Nothing is charged
-      now; pay the invoice by card and your order is confirmed.
-    </p>
-  </div>
+  <p class="order-submit-note">
+    Within a minute or two of placing an order, you will receive a Square
+    invoice by email. <strong>You must pay the invoice to complete your
+    order.</strong> Confirmation will be sent by email when your payment
+    is received.
+  </p>
   <button type="submit" class="btn btn-primary btn-lg" id="order-submit">Place your order</button>
   <div class="order-pending" id="order-pending" role="status" aria-live="polite" hidden>
     <p class="order-pending-title" data-pending-title></p>

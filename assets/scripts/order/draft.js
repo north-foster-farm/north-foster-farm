@@ -65,6 +65,15 @@ export class Draft {
     return current.key;
   }
 
+  // Small remembered facts, such as a note the customer dismissed.
+  flag(key) {
+    return read(key) === true;
+  }
+
+  setFlag(key) {
+    write(key, true);
+  }
+
   pending() {
     return read(PENDING);
   }

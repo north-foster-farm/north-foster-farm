@@ -4,6 +4,7 @@
     {
       "key": "eggs",
       "label": "Eggs (per dozen)",
+      "unit": "per dozen",
       "items": [
         {
           "sku": "NFF-CHK-EGG-LG",
@@ -34,6 +35,7 @@
     {
       "key": "whole",
       "label": "Whole Chicken",
+      "unit": "per each",
       "items": [
         {
           "sku": "NFF-CHK-WHL-0200-0250",
@@ -112,6 +114,7 @@
     {
       "key": "cornish",
       "label": "Cornish Hens",
+      "unit": "per each",
       "items": [
         {
           "sku": "NFF-CHK-CRN-0000-0300",
@@ -134,6 +137,7 @@
     {
       "key": "breasts",
       "label": "Boneless Breasts",
+      "unit": "per pack",
       "items": [
         {
           "sku": "NFF-CHK-BRSBL-0000-0125",
@@ -172,6 +176,7 @@
     {
       "key": "thighs",
       "label": "Bone-In Thighs",
+      "unit": "per pack",
       "items": [
         {
           "sku": "NFF-CHK-THGBN-0000-0150",
@@ -202,6 +207,7 @@
     {
       "key": "tenders",
       "label": "Tenders",
+      "unit": "per pack",
       "items": [
         {
           "sku": "NFF-CHK-TND-0000-0125",
@@ -232,6 +238,7 @@
     {
       "key": "drums",
       "label": "Drumsticks",
+      "unit": "per pack",
       "items": [
         {
           "sku": "NFF-CHK-DRM-0000-0150",
@@ -254,6 +261,7 @@
     {
       "key": "wings",
       "label": "Wings",
+      "unit": "per pack",
       "items": [
         {
           "sku": "NFF-CHK-WNG-0000-0200",
@@ -284,6 +292,7 @@
     {
       "key": "ground",
       "label": "Ground Chicken",
+      "unit": "per pack",
       "items": [
         {
           "sku": "NFF-CHK-GRD-0000-0125",
@@ -306,10 +315,11 @@
     {
       "key": "sausage",
       "label": "Chicken Sausage",
+      "unit": "per pack",
       "items": [
         {
           "sku": "NFF-CHK-SAUMPL-0075-0125",
-          "label": "Maple breakfast (8 links)",
+          "label": "Maple breakfast links",
           "name": "Maple Breakfast Sausage (per pack), Links",
           "price": 18,
           "inStock": true,
@@ -317,7 +327,7 @@
         },
         {
           "sku": "NFF-CHK-SAUSWT-0075-0125",
-          "label": "Sweet Italian (6 links)",
+          "label": "Sweet Italian links",
           "name": "Sweet Italian Sausage (per pack), Links",
           "price": 18,
           "inStock": false,
@@ -328,10 +338,12 @@
     {
       "key": "other",
       "label": "Other Items (1 lb avg.)",
+      "unit": "",
       "items": [
         {
           "sku": "NFF-CHK-LVR-0075-0125",
           "label": "Livers",
+          "unit": "per pack",
           "name": "Livers (per pack)",
           "price": 7,
           "inStock": true,
@@ -340,6 +352,7 @@
         {
           "sku": "NFF-CHK-NCK-0075-0125",
           "label": "Necks",
+          "unit": "per pack",
           "name": "Necks (per pack)",
           "price": 5,
           "inStock": true,
@@ -348,6 +361,7 @@
         {
           "sku": "NFF-CHK-FET-0075-0125",
           "label": "Feet",
+          "unit": "per pack",
           "name": "Feet (per pack)",
           "price": 5,
           "inStock": false,
@@ -356,6 +370,7 @@
         {
           "sku": "NFF-CHK-BCK-0075-0125",
           "label": "Backs",
+          "unit": "per each",
           "name": "Backs (per each)",
           "price": 5,
           "inStock": true,

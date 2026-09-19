@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import terms from "../data/delivery.json" with { type: "json" };
 import {
-  badges, feeCell, nudge, summarize,
+  badges, feeCell, itemGroups, nudge, summarize,
 } from "../assets/scripts/order/lib/summary.mjs";
 import { computeTotals } from "../assets/scripts/order/lib/totals.mjs";
 
@@ -93,14 +93,9 @@ describe("the nudge", () => {
     assert.equal(nudge(at(120), "scituate", money), only);
   });
 
-  it("stops at the top tier", () => {
-    assert.equal(
-      nudge(at(200), "", money), "That's our biggest discount: $20 off."
-    );
-    assert.equal(
-      nudge(at(500, "delivery"), "delivery", money),
-      "That's our biggest discount: $20 off."
-    );
+  it("says nothing at the top tier", () => {
+    assert.equal(nudge(at(200), "", money), "");
+    assert.equal(nudge(at(500, "delivery"), "delivery", money), "");
   });
 
   it("puts the delivery minimum first when delivery is chosen", () => {
@@ -156,16 +151,67 @@ describe("the fee cell", () => {
     assert.deepEqual(feeCell(at(60), "onfarm", money), { show: false });
   });
 
-  it("charges under $150 and strikes the fee at $150 or more", () => {
+  it("charges under $150 and says Free at $150 or more", () => {
     assert.deepEqual(feeCell(at(149.99, "delivery"), "delivery", money), {
       show: true, waived: false, text: "+$5",
     });
     assert.deepEqual(feeCell(at(150, "delivery"), "delivery", money), {
-      show: true, waived: true, was: "$5",
+      show: true, waived: true, text: "Free",
     });
     assert.deepEqual(feeCell(at(250, "delivery"), "delivery", money), {
-      show: true, waived: true, was: "$5",
+      show: true, waived: true, text: "Free",
     });
+  });
+});
+
+describe("the cart's lines", () => {
+  const index = new Map([
+    ["EGG", {
+      groupKey: "eggs", groupLabel: "Eggs (per dozen)", label: "Large",
+      price: 7,
+    }],
+    ["WHL35", {
+      groupKey: "whole", groupLabel: "Whole Chicken", label: "3.5 – 3.9 lbs",
+      price: 30,
+    }],
+    ["WHL40", {
+      groupKey: "whole", groupLabel: "Whole Chicken", label: "4.0 – 4.4 lbs",
+      price: 34,
+    }],
+  ]);
+
+  it("group the tiers under their category, in catalog order", () => {
+    assert.deepEqual(itemGroups([
+      { sku: "EGG", qty: 6 },
+      { sku: "WHL35", qty: 1 },
+      { sku: "WHL40", qty: 2 },
+    ], index), [
+      {
+        key: "eggs",
+        label: "Eggs",
+        items: [
+          { sku: "EGG", label: "Large", qtyText: "6 × $7", subtotal: "$42" },
+        ],
+      },
+      {
+        key: "whole",
+        label: "Whole Chicken",
+        items: [
+          {
+            sku: "WHL35", label: "3.5 – 3.9 lbs", qtyText: "1 × $30",
+            subtotal: "$30",
+          },
+          {
+            sku: "WHL40", label: "4.0 – 4.4 lbs", qtyText: "2 × $34",
+            subtotal: "$68",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("are empty for an empty cart", () => {
+    assert.deepEqual(itemGroups([], index), []);
   });
 });
 
@@ -186,10 +232,10 @@ describe("summarize", () => {
     assert.equal(s.nudge, "Next discount: add $45 for $20 off.");
   });
 
-  it("counts one item in the singular and none as nothing", () => {
+  it("counts one item in the singular and none as 0 items", () => {
     assert.equal(summarize({
       totals: at(0), method: "", money, count: 0,
-    }).countText, "Nothing yet");
+    }).countText, "0 items");
     assert.equal(summarize({
       totals: at(7), method: "", money, count: 1,
     }).countText, "1 item");

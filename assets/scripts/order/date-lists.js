@@ -7,6 +7,21 @@ const HOUR = 3_600_000;
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
+// "2 days, 5 hours, and 12 minutes"; the leading zero units are left
+// off, so under an hour it is just the minutes.
+export const countdown = (days, hours, minutes) => {
+  const parts = [];
+
+  if (days) parts.push(plural(days, "day"));
+  if (days || hours) parts.push(plural(hours, "hour"));
+  parts.push(plural(minutes, "minute"));
+
+  if (parts.length === 1) return parts[0];
+  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+
+  return `${parts[0]}, ${parts[1]}, and ${parts[2]}`;
+};
+
 export class DateLists {
   constructor(form, onChange) {
     this.form = form;
@@ -130,24 +145,19 @@ export class DateLists {
     const minutes = Math.floor(remaining / 60_000);
     const hours = Math.floor(remaining / HOUR);
     const days = Math.floor(hours / 24);
-    let left;
     let urgency = "";
     let every = 60_000;
 
     if (remaining < HOUR) {
-      left = `${plural(Math.max(minutes, 1), "minute")} left`;
       urgency = "last";
       every = 10_000;
     } else if (remaining < 6 * HOUR) {
-      left = `${plural(hours, "hour")} left`;
       urgency = "soon";
-    } else if (days >= 1) {
-      left = `${plural(days, "day")}, ${plural(hours % 24, "hour")} left`;
-    } else {
-      left = `${plural(hours, "hour")} left`;
     }
 
-    this.note(`Order by Wednesday noon for ${next.label}: ${left}.`, urgency);
+    this.note(`Order in the next ${countdown(days, hours % 24,
+      Math.max(minutes % 60, days || hours ? 0 : 1))} to get your order on ` +
+      "our next delivery day.", urgency);
     this.timer = setTimeout(() => this.tick(), every);
   }
 }

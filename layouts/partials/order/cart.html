@@ -1,48 +1,49 @@
 {{ $money := hugo.Data.delivery.money }}
 {{ $deliveryTip := printf "Orders of $%v or more after discounts can be delivered on Thursdays. $%v fee, waived at $%v." $money.deliveryMinimum $money.deliveryFee $money.feeWaivedAt }}
 {{ $freeTip := printf "No delivery fee on orders of $%v or more." $money.feeWaivedAt }}
-<aside class="order-cart" id="order-cart" aria-label="Order summary">
-  <ul class="order-badges list-unstyled" aria-label="What this order qualifies for">
-    <li><button type="button" class="order-badge" data-badge="delivery" data-tip="{{ $deliveryTip }}">Local delivery</button></li>
-    {{ range $money.bulkTiers }}
-      <li><button type="button" class="order-badge" data-badge="tier-{{ .threshold }}" data-tip="${{ .off }} off orders of ${{ .threshold }} or more.">${{ .threshold }}+</button></li>
-    {{ end }}
-    <li><button type="button" class="order-badge" data-badge="free-delivery" data-tip="{{ $freeTip }}">Free delivery</button></li>
-  </ul>
+{{/* Badges: the delivery pair, then the tiers, on one dotted line. */}}
+<aside class="order-cart" id="order-cart" aria-label="Your cart" data-open="true">
+  <div class="order-cart-body" id="order-cart-body">
+    <div class="order-cart-inner">
+      <ul class="order-badges list-unstyled" aria-label="What this order qualifies for">
+        <li><button type="button" class="order-badge" data-badge="delivery" data-tip="{{ $deliveryTip }}">Local delivery</button></li>
+        <li><button type="button" class="order-badge" data-badge="free-delivery" data-tip="{{ $freeTip }}">Free delivery</button></li>
+        {{ range $money.bulkTiers }}
+          <li><button type="button" class="order-badge" data-badge="tier-{{ .threshold }}" data-tip="${{ .off }} off orders of ${{ .threshold }} or more.">${{ .threshold }}+</button></li>
+        {{ end }}
+      </ul>
 
-  <button class="order-cart-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#order-cart-lines" aria-expanded="true" aria-controls="order-cart-lines">
-    <span data-total="count">Nothing yet</span>
-    <svg class="order-cart-caret" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-      <path d="M2 4.5 6 8.5 10 4.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-  </button>
+      <ul class="order-cart-items list-unstyled" data-cart-items>
+        <li class="order-cart-none">0 items</li>
+      </ul>
 
-  <div class="collapse show" id="order-cart-lines">
-    <dl class="order-cart-lines">
-      <div class="order-cart-row">
-        <dt>Subtotal</dt>
-        <dd data-total="subtotal">$0</dd>
-      </div>
-      <div class="order-cart-row order-cart-credit" data-total-row="discount" hidden>
-        <dt data-total="discount-label">Bulk discount</dt>
-        <dd data-total="discount">&minus;$0</dd>
-      </div>
-      <div class="order-cart-row" data-total-row="fee" hidden>
-        <dt>Delivery fee</dt>
-        <dd data-total="fee">+$0</dd>
-      </div>
-    </dl>
+      <dl class="order-cart-lines">
+        <div class="order-cart-row">
+          <dt>Subtotal</dt>
+          <dd data-total="subtotal">$0</dd>
+        </div>
+        <div class="order-cart-row order-cart-credit" data-total-row="discount" hidden>
+          <dt data-total="discount-label">Bulk discount</dt>
+          <dd data-total="discount">&minus;$0</dd>
+        </div>
+        <div class="order-cart-row" data-total-row="fee" hidden>
+          <dt>Delivery fee</dt>
+          <dd data-total="fee">+$0</dd>
+        </div>
+      </dl>
+    </div>
   </div>
 
-  <div class="order-cart-sum">
+  <div class="order-cart-foot">
+    <button class="order-cart-toggle" type="button" aria-expanded="true" aria-controls="order-cart-body" aria-label="Show or hide the cart details" data-cart-toggle>
+      <svg class="order-cart-caret" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+        <path d="M2 4.5 6 8.5 10 4.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
     <span class="order-cart-sum-label">Total</span>
     <span class="order-cart-total" data-total="total">$0</span>
+    <button type="button" class="btn btn-primary order-cart-next" data-checkout disabled>Next</button>
   </div>
 
   <p class="order-cart-nudge" data-nudge aria-live="polite" hidden></p>
-
-  <div class="order-cart-actions">
-    <button type="button" class="btn btn-link btn-sm order-cart-empty" data-empty hidden>Empty cart</button>
-    <button type="button" class="btn btn-primary order-cart-checkout" data-checkout disabled>Checkout</button>
-  </div>
 </aside>

@@ -6,6 +6,7 @@ import { datesFor } from "./dates.mjs";
 import { computeTotals, meetsMinimum } from "./totals.mjs";
 
 export const METHODS = ["onfarm", "scituate", "delivery"];
+export const CONTACT = ["text", "call"];
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -61,13 +62,19 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
   const name = text(customer.name, 120);
   const email = text(customer.email, 254).toLowerCase();
   const phone = text(customer.phone, 40);
+  const contact = text(customer.contact, 10);
 
   if (!name) errors["customer.name"] = "Please enter your name.";
   if (!EMAIL.test(email)) {
     errors["customer.email"] = "That email address doesn't look right.";
   }
-  if (phone && !phoneOk(phone)) {
+  if (!phone) {
+    errors["customer.phone"] = "Please enter a phone number.";
+  } else if (!phoneOk(phone)) {
     errors["customer.phone"] = "That phone number doesn't look right.";
+  }
+  if (!CONTACT.includes(contact)) {
+    errors["customer.contact"] = "Text or call?";
   }
 
   const lines = [];
@@ -106,7 +113,7 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
   }
 
   const totals = computeTotals({ lines, method, index, money, group });
-  const out = { customer: { name, email, phone }, method };
+  const out = { customer: { name, email, phone, contact }, method };
 
   if (method === "onfarm") {
     const f = fulfilment.onfarm || {};
@@ -115,10 +122,7 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
     if (!["morning", "afternoon"].includes(window)) {
       errors["onfarm.window"] = "Morning or afternoon?";
     }
-    if (!phoneOk(f.phone)) {
-      errors["onfarm.phone"] = "We need a phone number for pickup day.";
-    }
-    out.onfarm = { window, phone: text(f.phone, 40), textOk: !!f.textOk };
+    out.onfarm = { window };
   }
 
   if (method === "delivery") {
@@ -154,7 +158,6 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
       town: text(f.town, 100),
       state: state ? state.code : null,
       zip: digits(f.zip).slice(0, 5),
-      gate: text(f.gate, 100),
       cooler: text(f.cooler, 300),
       notes: text(f.notes, 1000),
       zipStatus: status,

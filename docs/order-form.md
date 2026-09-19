@@ -35,6 +35,10 @@ until the catalog is seeded into Square; while it is null the order
 handler sends an ad hoc line item with the same name and price, so the
 form works before the seed and switches to catalog lines after it.
 
+Each group carries a `unit` ("per dozen", "per each", "per pack") that
+sits by its heading on the page; where a group mixes units (Other
+Items) each item carries its own and it sits in the row.
+
 The Square import CSV is generated from the same table and reads this
 file for availability, so the two cannot drift.
 
@@ -83,6 +87,13 @@ skipped rather than shifted:
 
 Delivery ZIPs: on the approved list passes; an unlisted `028`/`029` ZIP
 passes and flags the order for follow-up; anything else is blocked.
+
+The customer: a name, an email, a phone number (required, ten digits
+or eleven with a leading 1) and whether they prefer a text or a call
+(`customer.contact`, `text` or `call`). The preference and the on-farm
+window go to Square in the fulfilment note. On-farm pickup asks only
+for the day and the window; delivery asks for the address, the town,
+the ZIP, where the cooler will be and optional notes.
 
 Server responses the client acts on: `200` created, `422` field errors,
 `409` stale date with a fresh list, `503` transient and retried, `204`
@@ -222,9 +233,10 @@ Settings, Help) rendered from `GET /api/me` and
   and clears the query. The live stock check then clamps if needed.
 
 Avatars are the six SVG symbols in `layouts/partials/avatars.html`,
-keyed by `data/avatars.json`. The header (`session.js` in the site
-bundle) asks `/api/me` once per five minutes, cached in
-`sessionStorage`, and shows a Sign in link or the avatar menu.
+keyed by `data/avatars.json`, shown on the account page only. The
+header (`session.js` in the site bundle) asks `/api/me` once per five
+minutes, cached in `sessionStorage`, and shows a Sign in link or an
+Account menu (orders, invoices, settings, sign out).
 
 ## CLI
 
@@ -262,27 +274,41 @@ you), jobs run. `lib/admin.mjs` holds the rules with tests.
   the demand vote.
 - **Sold-out items are not rendered**, and a category with nothing in
   stock is left out along with its nav pill. The data keeps them.
-- **The order page is the product list.** No intro prose; a category
-  sidebar (Bootstrap ScrollSpy) that becomes an offcanvas drawer below
-  `lg`; one section per category; each product a row card with the
-  unit price, an Add button that morphs into a stepper, and the line
-  total once a quantity is set. Row cards and the summary use the
-  theme's small shadow instead of rules. The summary panel floats
-  above the list while it scrolls and settles into the flow after the
-  last row. It carries text-only badges (Local delivery, each bulk
-  tier, Free delivery) that turn green when earned and explain
-  themselves in a tooltip on tap; a handful of chicks hop out of a
-  badge the moment it lights. The breakdown opens by default behind a
-  full-width toggle, written like a sum with the total under the line;
-  then the "Next discount: add $X for $Y off" nudge, Empty cart and
-  Checkout. A saved draft is restored silently; Empty cart starts over.
+- **The order page is the product list**, headed "All products" (the
+  `heading` front-matter param; the title stays "Order" for the tab
+  and the breadcrumb). A "Catalog" sidebar (Bootstrap ScrollSpy)
+  becomes an offcanvas drawer below `lg`; the active category's
+  heading slides right and a chevron slides in beside it. One section
+  per category with its unit by the heading; each product a row card
+  with the unit price and an Add button, rightmost, that morphs into
+  a stepper. Buttons take their height from padding, never a fixed
+  height.
+- **The cart.** From `xl` it is a column to the right of the catalog,
+  under the page heading, about 60/40, and sticks to the top for the
+  length of the page like the sidebar. Below `xl` it floats above the
+  list while it scrolls and a caret folds it down to the total and
+  the Next button. It itemises every line (name, quantity at the unit
+  price, subtotal, or "0 items"), then subtotal, discount and fee
+  ("Free" when waived), then the total under the line, and Next,
+  which scrolls to Your details. Lines are grouped under their
+  category with the tiers indented beneath, at 0.875rem. The "Next
+  discount" nudge is hidden at the top tier. There is no Empty cart; a
+  saved draft is restored silently. The badges are one dotted line of
+  0.7rem text, the delivery pair then the tiers, muted until earned
+  and then primary green and italic; a handful of chicks hop out of
+  one the moment it lights (`celebrate.js`, on a small canvas around
+  the badge). Below `lg` the page title rides in the sticky Jump to
+  bar beside the button.
   Everything the panel says comes from `lib/summary.mjs`, whose tests
   pin every sentence and prove the nudge's promise against the totals
   at every cent to $250. The design spec behind the page lives in
   `.ignored/handoffs/online-orders-but-fable/design-critique.md`.
-- **"Your order isn't final until it's paid"** is said twice: in a
-  note above the Place your order button and as the headline of the
-  success state.
+- **Forms are horizontal**: a label column and a field column. A
+  signed-in customer's name, email and phone arrive as plain text
+  under a "Click to edit" hint; a click makes one a field again.
+- **"You must pay the invoice to complete your order"** is the note
+  above the Place your order button, set large; the success state's
+  headline says it again.
 - **Browser support** is set by `:has()`, `inert` and `color-mix()`:
   Safari 16.2, Chrome 111, Firefox 121 and later. Media queries use
   classic min/max-width for Safari before 16.4.
@@ -290,9 +316,12 @@ you), jobs run. `lib/admin.mjs` holds the rules with tests.
   yet. A CT ZIP with any non-egg line is rejected, the ZIP field says
   why as it is typed, and `onlyGroups` on the state entry in
   `data/delivery.json` is the switch.
-- **The delivery terms are shown and linked, not ticked.** Four lines
-  and a link to the policy sit above the delivery fields; placing the
-  order is the agreement. No drop-off contact name or phone: the
+- **The delivery terms are linked, not ticked.** Above the delivery
+  fields a live countdown says "Order in the next N days, N hours, and
+  N minutes to get your order on our next delivery day", and a yellow
+  note in the same style says that placing a delivery order is agreeing
+  to the policy at `/delivery-policy`. The note has a dismiss that is
+  remembered in `localStorage`. No drop-off contact name or phone: the
   customer's own name and phone go to Square as the recipient.
 - **West Greenwich is ZIP 02817.** The v4 PDF prints 02818, which is
   East Greenwich. Corrected in `data/delivery.json`.
@@ -311,17 +340,62 @@ server and proxies the functions at <http://localhost:8888>. Put Square
 sandbox credentials in `.env` (ignored). Without them `/api/orders`
 answers `502` after validation, which is enough to exercise the form.
 
+## Shipping scope
+
+Sign-in and the account pages are out of scope for the first launch:
+`params.features.accounts` in `config/_default/hugo.toml` is `false`,
+which drops the Sign in link from the header, and the cascade beside
+it stops `/login/` and `/account/` from being built. The functions
+behind them stay deployed and idle. Flip the flag and remove the
+cascade to bring them back; nothing else changes.
+
+What the order flow needs to run in production is Square and nothing
+else. Netlify Blobs is part of Netlify and needs no account. Mail is
+optional: without it Square emails the invoice and the receipt itself,
+the reminders and the address-review notes go to the function log,
+and the scheduled job still cancels unpaid invoices at the cutoff.
+
 ## Before launch
 
-- Export the Square item library as a backup, seed the catalog, and
-  fill `squareVariationId` in `data/catalog.json`.
-- Set the environment variables on Netlify: the Square four, plus
-  `SQUARE_WEBHOOK_SIGNATURE_KEY`, `MAIL_DRIVER=resend`,
-  `RESEND_API_KEY`, `MAIL_FROM`, `MAIL_REPLY_TO`, `ADMIN_EMAILS`, and
-  `SITE_URL` if the primary URL is not the one links should use.
-  Register the webhook in Square; verify the sending domain in Resend.
-- Run the manual checks in the build plan on a deploy preview: a
-  twelve-SKU order on a phone, a $35 delivery, the three ZIP cases, a
-  Wednesday-noon rollover, keyboard and screen-reader passes, a killed
-  network mid-submit, and one real sandbox invoice.
-- Point the Google Form and the PDF at `/order`, then retire them.
+In order. The first two are today's work; the market is tomorrow.
+
+1. **Seed the Square catalog.** The import CSV is at
+   `.ignored/handoffs/online-orders-v1/square-catalog-2026-v6/`
+   (`Items-Table 1.csv`). Export the current item library first as a
+   backup, then Items → Actions → Import in the Square dashboard.
+   Rename the two sausage variations to "Maple breakfast links" and
+   "Sweet Italian links" to match the site, and check that the twenty
+   in-stock items are enabled at the market location so the Square
+   app on the phone sells them tomorrow.
+2. **Copy the variation ids.** Export the library after the import and
+   paste each variation's token into `squareVariationId` in
+   `data/catalog.json`. Until then the order handler sends ad hoc
+   line items with the same names and prices, which is enough to sell.
+3. **Production credentials.** In the Square developer dashboard make
+   a production access token with `CUSTOMERS_READ`, `CUSTOMERS_WRITE`,
+   `ORDERS_WRITE` and `INVOICES_WRITE`. On Netlify set
+   `SQUARE_ACCESS_TOKEN`, `SQUARE_LOCATION_ID` and
+   `SQUARE_ENV=production` for the production context, and the sandbox
+   pair with `SQUARE_ENV=sandbox` for deploy previews, so a preview can
+   never invoice a real customer. Set `SITE_URL` to the primary URL.
+4. **Payment detection.** Register a webhook for `invoice.payment_made`
+   and `invoice.updated` at `https://www.northfosterfarm.com/api/square/webhook`
+   and set `SQUARE_WEBHOOK_SIGNATURE_KEY`. If this waits, the
+   15-minute poll marks orders paid on its own; the webhook only makes
+   it immediate.
+5. **The CLI.** Put `NETLIFY_SITE_ID` and a Netlify personal access
+   token as `NETLIFY_AUTH_TOKEN` in `.env` so `bin/nff orders list`
+   reads the live records.
+6. **Prove it on the deploy preview.** A twelve-SKU order on a phone, a
+   $35 delivery, the three ZIP cases, keyboard and screen-reader
+   passes, a killed network mid-submit, and one sandbox invoice paid
+   with a sandbox card: the order should turn `paid` within fifteen
+   minutes and appear in `bin/nff orders list`.
+7. **Merge and deploy** per the branch rules, then place one real $7
+   egg order on the live site, pay it, confirm the receipt and the
+   Square order with its fulfilment, and refund it.
+8. **Retire the Google Form and the PDF**: point both at `/order`.
+9. **Later, not blocking:** a Resend account and verified domain
+   (`MAIL_DRIVER=resend`, `RESEND_API_KEY`, `MAIL_FROM`,
+   `MAIL_REPLY_TO`, `ADMIN_EMAILS`) for the farm's own reminders and
+   notices, then sign-in and accounts, which depend on mail.

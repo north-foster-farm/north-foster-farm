@@ -51,6 +51,8 @@ const plugins = [
         "soon",
         "last",
         "data-on",
+        "data-open",
+        "readonly",
       ];
     },
     safelist: {
@@ -73,8 +75,16 @@ const plugins = [
         "is-bumped",
         "order-busy",
         "order-cart-free",
+        "order-cart-group",
+        "order-cart-group-name",
+        "order-cart-group-items",
+        "order-cart-item",
+        "order-cart-item-name",
+        "order-cart-item-qty",
+        "order-cart-item-sub",
         "order-chicks",
         "order-qty-tick",
+        "form-control-plaintext",
         "text-danger-emphasis",
       ],
       // Bootstrap builds the tooltip at runtime.
