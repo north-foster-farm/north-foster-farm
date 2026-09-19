@@ -25,6 +25,11 @@ svg {
   }
 }
 
+// A symbol sprite: present for <use>, absent from the layout.
+.svg-sprite {
+  position: absolute;
+}
+
 .btn {
   text-transform: uppercase;
   letter-spacing: -0.2px;

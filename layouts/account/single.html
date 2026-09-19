@@ -1,5 +1,6 @@
 {{ define "main" }}
   {{ $data := dict "avatars" hugo.Data.avatars "terms" hugo.Data.delivery }}
+  {{ partial "avatars.html" . }}
   <section class="{{ .Type }}">
     <script type="application/json" id="account-data">{{ $data | jsonify | safeJS }}</script>
     <div class="page container py-5">

@@ -47,6 +47,10 @@ timeZone = "America/New_York"
   logo = "logo-vertical.svg"
   slogan = "Pasture-raised eggs"
 
+  [params.features]
+    # Sign-in and the account pages: the header slot and the pages.
+    accounts = true
+
   [params.defaults]
     [params.defaults.featuredImage]
       [params.defaults.featuredImage.default]

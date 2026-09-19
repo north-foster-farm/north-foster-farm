@@ -1,7 +1,7 @@
 // Who is signed in, for every page. Asks /api/me once per five
 // minutes (cached in sessionStorage) and fills the header slot: a
-// Sign in link, or the customer's avatar with a menu. The /login and
-// /account pages keep the slot empty.
+// Sign in link, or an Account menu. The /login and /account pages
+// keep the slot empty, and a build without accounts has no slot.
 
 import { api } from "../utils/api.js";
 
@@ -60,13 +60,6 @@ const fill = (slot, who) => {
     return;
   }
 
-  const c = who.customer;
-
-  slot.querySelector("[data-account-avatar]").setAttribute(
-    "href", `#avatar-${c.avatar || "hen-brown"}`
-  );
-  slot.querySelector("[data-account-name]").textContent = c.name || "Welcome";
-  slot.querySelector("[data-account-email]").textContent = c.email;
   signin.hidden = true;
   menu.hidden = false;
   slot.hidden = false;
