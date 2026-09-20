@@ -1,12 +1,12 @@
 {{ $steps := slice
   (dict "icon" "cart" "title" "Start your order"
-    "copy" "Pick up on our farm or get it hand-delivered to your door.")
+    "copy" "Add what you'd like to your cart and choose when and how to get it.")
   (dict "icon" "emails" "title" "Get a payment link"
     "copy" "We'll email you a link where you'll pay for your order.")
-  (dict "icon" "payment" "title" "Submit your order"
-    "copy" "Your order is finalized when we receive your payment.")
+  (dict "icon" "payment" "title" "Pay to confirm"
+    "copy" "Your order is final when we receive your payment.")
   (dict "icon" "tractor" "title" "Pick up or delivery"
-    "copy" "Flexible, commitment-free, and available all year long.")
+    "copy" "Pick up on our farm or get it hand-delivered to your door.")
 }}
 <div class="how border-bottom border-light" id="how-to-buy">
   <div class="container">
@@ -25,7 +25,7 @@
       {{ end }}
     </ol>
     <p class="how-cta mb-0">
-      <a class="btn btn-primary btn-lg" href="{{ relURL "order/" }}">Browse our current stock</a>
+      <a class="btn btn-primary btn-lg" href="{{ relURL "order/" }}">Shop all products</a>
     </p>
   </div>
 </div>

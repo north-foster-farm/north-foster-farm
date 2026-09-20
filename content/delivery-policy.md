@@ -28,8 +28,8 @@ We deliver on Thursdays. Order by Wednesday at noon.
 
 ## What it costs
 
-Delivery orders are $40 or more, after bulk discounts. The delivery fee
-is $5, waived on orders of $150 or more.
+Delivery is available for orders of $40 or more, after bulk
+discounts. The delivery fee is $5, waived on orders of $150 or more.
 
 | Order total  | Discount | Delivery fee |
 | ------------ | -------- | ------------ |

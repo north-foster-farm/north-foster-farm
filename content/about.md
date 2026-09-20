@@ -34,14 +34,18 @@ or [local delivery](/delivery-policy).
 ## Where to find us
 
 - **Summer Market at Tilted Barn**, Wednesdays, 4:00 – 7:00 PM.
-  Tilted Barn Brewery, One Hemsley Place, Exeter, RI.
+  [Tilted Barn Brewery, One Hemsley Place, Exeter, RI][map-tilted].
 - **Scituate Rotary Farmers Market**, Saturdays, 9:00 AM – 12:00 PM.
-  The Village Green, 46 Institute Lane, North Scituate, RI.
-- **Foster Farmers Market**, Sundays, 9:00 AM – 1:00 PM. Shady Acres
-  Diner, 164 Danielson Pike, Foster, RI.
+  [The Village Green, 46 Institute Lane, North Scituate, RI][map-scituate].
+- **Foster Farmers Market**, Sundays, 9:00 AM – 1:00 PM. [Shady Acres
+  Diner, 164 Danielson Pike, Foster, RI][map-foster].
 
 ## Get in touch
 
 Email [sales@northfosterfarm.com](mailto:sales@northfosterfarm.com) or
 call or text [(401) 578-3713](tel:+14015783713). You can also follow
 [@northfosterfarm on Instagram](https://www.instagram.com/northfosterfarm).
+
+[map-tilted]: https://www.google.com/maps/search/?api=1&query=Tilted+Barn+Brewery%2C+One+Hemsley+Place%2C+Exeter%2C+RI
+[map-scituate]: https://www.google.com/maps/search/?api=1&query=46+Institute+Lane%2C+North+Scituate%2C+RI
+[map-foster]: https://www.google.com/maps/search/?api=1&query=Shady+Acres+Diner%2C+164+Danielson+Pike%2C+Foster%2C+RI

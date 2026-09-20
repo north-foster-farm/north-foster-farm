@@ -320,6 +320,7 @@
         {
           "sku": "NFF-CHK-SAUMPL-0075-0125",
           "label": "Maple breakfast links",
+          "note": "8 links per pack",
           "name": "Maple Breakfast Sausage, Links",
           "price": 18,
           "inStock": true,
@@ -328,6 +329,7 @@
         {
           "sku": "NFF-CHK-SAUSWT-0075-0125",
           "label": "Sweet Italian links",
+          "note": "6 links per pack",
           "name": "Sweet Italian Sausage, Links",
           "price": 18,
           "inStock": false,
