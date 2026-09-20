@@ -1,6 +1,6 @@
 ---
 description: >
-  "Pasture-raised eggs from our farm that stand head and shoulders above the
-  rest."
+  "Pasture-raised chicken and eggs from a small family farm in Foster,
+  Rhode Island. Order online for pickup or local delivery."
 ---
 

@@ -75,8 +75,12 @@
     padding-block: 3rem calc(3rem + 3.5rem);
   }
 
+  // The tagline, a paragraph inside the hgroup, styled exactly as the
+  // h1 it used to be. The h1 is the smaller line beneath it.
   .home-hero-title {
     margin-bottom: 0;
+    font-family: $headings-font-family;
+    font-weight: $headings-font-weight;
     font-size: clamp(2.125rem, 9.2vw, 4.5rem);
     line-height: 1.1;
     letter-spacing: -0.01rem;
@@ -89,6 +93,14 @@
   .home-hero-accent {
     color: tint-color($green, 55%);
     letter-spacing: -0.12rem;
+  }
+
+  .home-hero-where {
+    margin: 0.75rem 0 0;
+    font-size: clamp(1.0625rem, 3.2vw, 1.5rem);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    line-height: 1.3;
   }
 
   .home-hero-sub {

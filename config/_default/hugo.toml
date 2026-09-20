@@ -45,7 +45,7 @@ timeZone = "America/New_York"
 
 [params]
   logo = "logo-vertical.svg"
-  slogan = "Pasture-raised eggs"
+  slogan = "Pasture-raised chicken and eggs in Foster, Rhode Island"
 
   [params.features]
     # Sign-in and the account pages are out of the first launch. This
