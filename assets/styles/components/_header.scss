@@ -114,12 +114,29 @@ header {
   line-height: 1;
   text-decoration: none;
   transition:
-    background-color 0.07s ease,
-    color 0.07s ease;
+    background-color 0.16s ease-out,
+    box-shadow 0.16s ease-out,
+    transform 0.16s ease-out;
 
+  // The same quiet hover as every .btn: a wash of its own color, a
+  // lift and a shadow, never a fill.
   &:hover {
-    background-color: var(--bs-primary);
-    color: #fff;
+    background-color: color-mix(in srgb, currentcolor 20%, transparent);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -8px rgba($black, 0.45);
+  }
+
+  &:active {
+    background-color: color-mix(in srgb, currentcolor 30%, transparent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px -5px rgba($black, 0.4);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &:hover,
+    &:active {
+      transform: none;
+    }
   }
 
   &.is-current {

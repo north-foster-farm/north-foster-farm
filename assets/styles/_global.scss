@@ -32,7 +32,46 @@ svg {
 
 .btn {
   text-transform: uppercase;
-  letter-spacing: -0.2px;
+  letter-spacing: -0.5px;
+}
+
+// One hover for every button: the fill shades a step, the button
+// lifts a pixel and casts a soft shadow. Nothing inverts. Transform
+// and shadow stay off the layout thread, so it is cheap.
+.btn:not(.btn-link) {
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -8px rgba($black, 0.45);
+  }
+
+  &:active,
+  &.active {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px -5px rgba($black, 0.4);
+  }
+}
+
+// Outline buttons keep their color and gain a tint of it, rather
+// than filling with it and swapping the type to white. Named one by
+// one because PurgeCSS drops an attribute selector; add a variant
+// here when a template first uses it.
+.btn-outline-primary,
+.btn-outline-secondary,
+.btn-outline-light {
+  --bs-btn-hover-color: var(--bs-btn-color);
+  --bs-btn-hover-bg: color-mix(in srgb, currentcolor 20%, transparent);
+  --bs-btn-hover-border-color: var(--bs-btn-border-color);
+  --bs-btn-active-color: var(--bs-btn-color);
+  --bs-btn-active-bg: color-mix(in srgb, currentcolor 30%, transparent);
+  --bs-btn-active-border-color: var(--bs-btn-border-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .btn:hover,
+  .btn:active {
+    transform: none;
+  }
 }
 
 .btn-cta {
