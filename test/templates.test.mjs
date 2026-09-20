@@ -54,6 +54,18 @@ describe("complete your order", () => {
     assert.match(m.html, /Hi Pat,/);
   });
 
+  it("greets by the first name on the record when there is one", () => {
+    const o = order();
+
+    o.customer.firstName = "Mary Ann";
+    o.customer.name = "Mary Ann Smith";
+    const m = completeYourOrder(o);
+
+    assert.match(m.html, /Hi Mary Ann,/);
+    assert.match(completeYourOrder(order()).html, /Hi Pat,/,
+      "an order from before the split still greets by the first word");
+  });
+
   it("escapes what the customer typed", () => {
     const o = order();
 

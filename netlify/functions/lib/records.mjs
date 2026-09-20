@@ -159,7 +159,9 @@ export const saveCustomer = async (stores, customer) => {
   return record;
 };
 
-export const touchCustomer = async (stores, { name, email, phone }, now) => {
+export const touchCustomer = async (
+  stores, { firstName, lastName, name, email, phone }, now
+) => {
   const existing = await getCustomer(stores, email);
   const at = now.toISOString();
 
@@ -167,6 +169,8 @@ export const touchCustomer = async (stores, { name, email, phone }, now) => {
     return saveCustomer(stores, {
       ...existing,
       name: existing.name || name,
+      firstName: existing.firstName || firstName || "",
+      lastName: existing.lastName || lastName || "",
       phone: existing.phone || phone || "",
       lastOrderAt: at,
     });
@@ -175,6 +179,8 @@ export const touchCustomer = async (stores, { name, email, phone }, now) => {
   return saveCustomer(stores, {
     email,
     name,
+    firstName: firstName || "",
+    lastName: lastName || "",
     phone: phone || "",
     avatar: null,
     discountGroup: null,

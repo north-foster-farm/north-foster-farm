@@ -15,7 +15,8 @@ const ctx = { index, terms, now };
 
 const base = () => ({
   customer: {
-    name: "Pat Example",
+    firstName: "Pat",
+    lastName: "Example",
     email: "pat@example.com",
     phone: "401-555-0100",
     contact: "text",
@@ -70,23 +71,39 @@ describe("a valid on-farm order", () => {
 describe("the customer's details", () => {
   it("are trimmed, the email lowercased, and the preference kept", () => {
     const r = validateOrder(withCustomer({
-      name: "  Pat Example ", email: " Pat@Example.COM ", contact: "call",
+      firstName: "  Mary Ann ", lastName: " Smith ",
+      email: " Pat@Example.COM ", contact: "call",
     }), ctx);
 
     assert.ok(r.ok, JSON.stringify(r));
     assert.deepEqual(r.order.customer, {
-      name: "Pat Example",
+      firstName: "Mary Ann",
+      lastName: "Smith",
+      name: "Mary Ann Smith",
       email: "pat@example.com",
       phone: "401-555-0100",
       contact: "call",
     });
   });
 
-  it("need a name", () => {
-    const r = validateOrder(withCustomer({ name: "   " }), ctx);
+  it("need a first name and a last name, each on its own", () => {
+    const noFirst = validateOrder(withCustomer({ firstName: "   " }), ctx);
+    const noLast = validateOrder(withCustomer({ lastName: "" }), ctx);
+
+    assert.equal(noFirst.status, 422);
+    assert.match(noFirst.errors["customer.firstName"], /first name/);
+    assert.equal(noFirst.errors["customer.lastName"], undefined);
+    assert.equal(noLast.status, 422);
+    assert.match(noLast.errors["customer.lastName"], /last name/);
+  });
+
+  it("ignore a full name sent on its own", () => {
+    const r = validateOrder(withCustomer({
+      firstName: "", lastName: "", name: "Pat Example",
+    }), ctx);
 
     assert.equal(r.status, 422);
-    assert.match(r.errors["customer.name"], /name/);
+    assert.ok(r.errors["customer.firstName"]);
   });
 
   it("need an email that looks like one", () => {
@@ -134,8 +151,8 @@ describe("the customer's details", () => {
 
     assert.equal(r.status, 422);
     assert.deepEqual(Object.keys(r.errors).sort(), [
-      "customer.contact", "customer.email", "customer.name",
-      "customer.phone", "fulfilment.method", "lines",
+      "customer.contact", "customer.email", "customer.firstName",
+      "customer.lastName", "customer.phone", "fulfilment.method", "lines",
     ]);
   });
 });

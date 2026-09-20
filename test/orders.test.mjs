@@ -16,7 +16,8 @@ const KEY = "0f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f";
 const body = (overrides = {}) => ({
   idempotencyKey: KEY,
   customer: {
-    name: "Pat Example",
+    firstName: "Pat",
+    lastName: "Example",
     email: "pat@example.com",
     phone: "401-555-0100",
     contact: "call",

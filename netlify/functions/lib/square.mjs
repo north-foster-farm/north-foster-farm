@@ -256,7 +256,9 @@ const findOrCreateCustomer = async (cfg, customer, key, fetchImpl) => {
 
   if (found.customers && found.customers.length) return found.customers[0].id;
 
-  const [given, ...rest] = customer.name.split(/\s+/);
+  const [given, ...rest] = customer.firstName
+    ? [customer.firstName, customer.lastName || ""]
+    : customer.name.split(/\s+/);
   const created = await call(cfg, "/v2/customers", {
     idempotency_key: `${key}-customer`,
     given_name: given,

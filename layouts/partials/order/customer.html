@@ -6,10 +6,17 @@
   <p class="order-section-hint">Click to edit</p>
   <div class="order-hform">
     <div class="row">
-      <label class="col-sm-3 col-form-label" for="customer-name">Name</label>
+      <label class="col-sm-3 col-form-label" for="customer-first-name">First name</label>
       <div class="col-sm-9">
-        <input class="form-control" type="text" id="customer-name" name="customer.name" autocomplete="name" required data-field="customer.name" data-prefill="name" aria-describedby="err-customer-name">
-        <div class="invalid-feedback" id="err-customer-name" data-error-for="customer.name"></div>
+        <input class="form-control" type="text" id="customer-first-name" name="customer.firstName" autocomplete="given-name" required data-field="customer.firstName" data-prefill="firstName" aria-describedby="err-customer-first-name">
+        <div class="invalid-feedback" id="err-customer-first-name" data-error-for="customer.firstName"></div>
+      </div>
+    </div>
+    <div class="row">
+      <label class="col-sm-3 col-form-label" for="customer-last-name">Last name</label>
+      <div class="col-sm-9">
+        <input class="form-control" type="text" id="customer-last-name" name="customer.lastName" autocomplete="family-name" required data-field="customer.lastName" data-prefill="lastName" aria-describedby="err-customer-last-name">
+        <div class="invalid-feedback" id="err-customer-last-name" data-error-for="customer.lastName"></div>
       </div>
     </div>
     <div class="row">

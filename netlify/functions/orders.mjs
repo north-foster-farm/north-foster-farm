@@ -174,7 +174,11 @@ export const handle = async (req, {
       totals: order.totals,
       fulfilment: order.fulfilment,
       lines: order.lines,
-      customer: { name: order.customer.name, email: order.customer.email },
+      customer: {
+        firstName: order.customer.firstName || "",
+        name: order.customer.name,
+        email: order.customer.email,
+      },
     });
   } catch (error) {
     const retryable = !!(error && error.retryable);

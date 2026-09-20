@@ -59,12 +59,19 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
   const fulfilment = p.fulfilment || {};
   const money = terms.money;
 
-  const name = text(customer.name, 120);
+  const firstName = text(customer.firstName, 60);
+  const lastName = text(customer.lastName, 60);
+  // The full name stays on the record: templates, Square, the CLI and
+  // orders placed before the split all read it.
+  const name = [firstName, lastName].filter(Boolean).join(" ");
   const email = text(customer.email, 254).toLowerCase();
   const phone = text(customer.phone, 40);
   const contact = text(customer.contact, 10);
 
-  if (!name) errors["customer.name"] = "Please enter your name.";
+  if (!firstName) {
+    errors["customer.firstName"] = "Please enter your first name.";
+  }
+  if (!lastName) errors["customer.lastName"] = "Please enter your last name.";
   if (!EMAIL.test(email)) {
     errors["customer.email"] = "That email address doesn't look right.";
   }
@@ -113,7 +120,9 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
   }
 
   const totals = computeTotals({ lines, method, index, money, group });
-  const out = { customer: { name, email, phone, contact }, method };
+  const out = {
+    customer: { firstName, lastName, name, email, phone, contact }, method,
+  };
 
   if (method === "onfarm") {
     const f = fulfilment.onfarm || {};

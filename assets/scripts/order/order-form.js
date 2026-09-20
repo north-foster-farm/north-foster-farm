@@ -552,7 +552,8 @@ export class OrderForm {
     return {
       formVersion: this.form.dataset.version,
       customer: {
-        name: value("customer.name"),
+        firstName: value("customer.firstName"),
+        lastName: value("customer.lastName"),
         email: value("customer.email"),
         phone: value("customer.phone"),
         contact: value("customer.contact"),
@@ -601,7 +602,8 @@ export class OrderForm {
     const o = f.onfarm || {};
     const d = f.delivery || {};
 
-    set("customer.name", c.name);
+    set("customer.firstName", c.firstName);
+    set("customer.lastName", c.lastName);
     set("customer.email", c.email);
     set("customer.phone", c.phone);
     set("customer.contact", c.contact);
@@ -783,7 +785,8 @@ export class OrderForm {
     });
 
     return [
-      `${payload.customer.name} <${payload.customer.email}>`,
+      `${payload.customer.firstName} ${payload.customer.lastName} ` +
+        `<${payload.customer.email}>`,
       this.when(payload.fulfilment),
       ...lines,
       `Total ${dollars(totals.total)}`,
@@ -808,7 +811,7 @@ export class OrderForm {
     };
 
     if (data) {
-      fill("name", data.customer.name.split(" ")[0]);
+      fill("name", data.customer.firstName || data.customer.name);
       fill("email", data.customer.email);
       fill("total", dollars(data.totals.total));
       // The number printed on the Square invoice, which is what a
@@ -825,7 +828,7 @@ export class OrderForm {
     } else {
       // Dropped silently by the server: show nothing that could be
       // used to probe the filter, just a plain thank-you.
-      fill("name", payload.customer.name.split(" ")[0]);
+      fill("name", payload.customer.firstName);
       qs(node, "[data-out='details']").hidden = true;
     }
 

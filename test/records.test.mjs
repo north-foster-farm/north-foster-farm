@@ -117,10 +117,13 @@ describe("customer records", () => {
   it("are created from a first order and only filled in after", async () => {
     const stores = testStores();
     const first = await touchCustomer(stores, {
-      name: "Pat Example", email: "Pat@Example.com", phone: "",
+      firstName: "Pat", lastName: "Example", name: "Pat Example",
+      email: "Pat@Example.com", phone: "",
     }, now);
 
     assert.equal(first.email, "pat@example.com");
+    assert.equal(first.firstName, "Pat");
+    assert.equal(first.lastName, "Example");
     assert.equal(first.discountGroup, null);
     assert.equal(first.createdAt, now.toISOString());
 
@@ -129,6 +132,7 @@ describe("customer records", () => {
     }, later);
 
     assert.equal(second.name, "Pat Example", "a chosen name is kept");
+    assert.equal(second.firstName, "Pat", "and so are its parts");
     assert.equal(second.phone, "4015550100", "a blank phone is filled");
     assert.equal(second.lastOrderAt, later.toISOString());
     assert.equal((await getCustomer(stores, "PAT@example.com")).createdAt,

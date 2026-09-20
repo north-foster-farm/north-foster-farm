@@ -14,7 +14,14 @@ const escape = (s) => String(s)
   .replace(/>/g, "&gt;")
   .replace(/"/g, "&quot;");
 
-const firstName = (name) => String(name || "").trim().split(/\s+/)[0] || "";
+// Accepts a customer record (firstName preferred) or a bare name.
+const firstName = (who) => {
+  if (who && typeof who === "object") {
+    return who.firstName || firstName(who.name);
+  }
+
+  return String(who || "").trim().split(/\s+/)[0] || "";
+};
 
 // A paragraph, or a bulleted block, or a link. Text and HTML at once.
 const p = (text) => ({ text, html: `<p>${escape(text)}</p>` });
@@ -97,7 +104,7 @@ const payUrl = (order) => (order.square && order.square.invoiceUrl) || "";
 export const completeYourOrder = (order, { accountUrl } = {}) => {
   const title = `One more step: pay for order ${order.id}`;
   const blocks = [
-    p(`Hi ${firstName(order.customer.name)},`),
+    p(`Hi ${firstName(order.customer)},`),
     strong("Your order isn't final until it's paid."),
     p(`Here's your invoice for ${dollars(order.totals.total)}. Pay it ` +
       "and your order is confirmed."),
@@ -119,7 +126,7 @@ export const completeYourOrder = (order, { accountUrl } = {}) => {
 export const orderConfirmed = (order, { accountUrl } = {}) => {
   const title = `Order ${order.id} is confirmed`;
   const blocks = [
-    p(`Thanks, ${firstName(order.customer.name)}. Your payment of ` +
+    p(`Thanks, ${firstName(order.customer)}. Your payment of ` +
       `${dollars(order.totals.total)} came through and your order is ` +
       "reserved."),
     strong(describe(order)),
@@ -142,7 +149,7 @@ export const paymentReminder = (order, stage, { accountUrl } = {}) => {
     final: `Last call: order ${order.id} will be cancelled unpaid`,
   };
   const title = titles[stage] || titles.soon;
-  const blocks = [p(`Hi ${firstName(order.customer.name)},`)];
+  const blocks = [p(`Hi ${firstName(order.customer)},`)];
 
   if (stage === "final") {
     blocks.push(strong(`If we don't receive payment, this order will be ` +
@@ -173,7 +180,7 @@ export const deliveryReminder = (order, { accountUrl } = {}) => {
   const d = order.fulfilment.delivery || {};
   const title = `Your delivery is tomorrow, ${label(order.fulfilment.date)}`;
   const blocks = [
-    p(`Hi ${firstName(order.customer.name)},`),
+    p(`Hi ${firstName(order.customer)},`),
     strong("Please leave a cooler with ice out tomorrow morning."),
     p(`We'll be by between ${whenWhere(order).split(", ").pop()} with:`),
     lines(order),
@@ -229,7 +236,7 @@ export const magicLink = (email, url, { minutes = 15 } = {}) => {
 export const orderCancelled = (order, { refund = false } = {}) => {
   const title = `Order ${order.id} is cancelled`;
   const blocks = [
-    p(`Hi ${firstName(order.customer.name)},`),
+    p(`Hi ${firstName(order.customer)},`),
     p(`We've cancelled your order for ${whenWhere(order).toLowerCase()}.`),
   ];
 
@@ -262,7 +269,7 @@ export const orderChanged = (order) => {
   if (order.notes) details.push(`Order notes: ${order.notes}`);
 
   const blocks = [
-    p(`Hi ${firstName(order.customer.name)}, here's your order as it stands.`),
+    p(`Hi ${firstName(order.customer)}, here's your order as it stands.`),
     strong(`${whenWhere(order)}.`),
   ];
 
@@ -281,7 +288,7 @@ export const addressDecision = (customer, decision) => {
     ? "We can deliver to your address"
     : "We can't deliver to your address";
   const blocks = [
-    p(`Hi ${firstName(customer.name)},`),
+    p(`Hi ${firstName(customer)},`),
     approved
       ? p(`Good news: ${where} is on our route. Choose local delivery ` +
         "next time you order and it will fill itself in.")
@@ -297,7 +304,7 @@ export const addressDecision = (customer, decision) => {
 export const returnResolved = (order, request) => {
   const title = `About your order ${order.id}`;
   const blocks = [
-    p(`Hi ${firstName(order.customer.name)},`),
+    p(`Hi ${firstName(order.customer)},`),
     p(`Thanks for telling us about ${order.id}. We've looked into it.`),
   ];
 

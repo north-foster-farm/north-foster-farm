@@ -200,9 +200,23 @@ export const sameSite = (req) => {
 };
 
 // The public shape of a customer, for /api/me and the account pages.
+// Records from before the name split carry only `name`; derive the
+// parts so the order form can prefill both fields.
+const nameParts = (customer) => {
+  if (customer.firstName || customer.lastName) {
+    return [customer.firstName || "", customer.lastName || ""];
+  }
+
+  const [first, ...rest] = String(customer.name || "").trim().split(/\s+/);
+
+  return [first || "", rest.join(" ")];
+};
+
 export const publicCustomer = (customer) => ({
   email: customer.email,
   name: customer.name || "",
+  firstName: nameParts(customer)[0],
+  lastName: nameParts(customer)[1],
   phone: customer.phone || "",
   avatar: customer.avatar || null,
   discountGroup: customer.discountGroup || null,

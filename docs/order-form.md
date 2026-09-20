@@ -88,10 +88,12 @@ skipped rather than shifted:
 Delivery ZIPs: on the approved list passes; an unlisted `028`/`029` ZIP
 passes and flags the order for follow-up; anything else is blocked.
 
-The customer: a name, an email, a phone number (required, ten digits
-or eleven with a leading 1) and whether they prefer a text or a call
-(`customer.contact`, `text` or `call`). The preference and the on-farm
-window go to Square in the fulfilment note. On-farm pickup asks only
+The customer: a first and last name (kept together as `name` as well,
+which records from before the split carry alone), an email, a phone
+number (required, ten digits or eleven with a leading 1) and whether
+they prefer a text or a call (`customer.contact`, `text` or `call`).
+The preference and the on-farm window go to Square in the fulfilment
+note. On-farm pickup asks only
 for the day and the window; delivery asks for the address, the town,
 the ZIP, where the cooler will be and optional notes.
 
