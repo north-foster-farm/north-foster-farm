@@ -16,12 +16,15 @@ import { parts } from "../../assets/scripts/order/lib/zoned.mjs";
 import { sessionFrom } from "./lib/auth.mjs";
 import { json, readJson, retry } from "./lib/http.mjs";
 import { mailConfigured, sendMail } from "./lib/mail.mjs";
-import { amendOrder, saveOrder, touchCustomer } from "./lib/records.mjs";
+import { notifyFarm } from "./lib/payments.mjs";
+import {
+  amendOrder, getOrder, saveOrder, touchCustomer,
+} from "./lib/records.mjs";
 import { accountUrlFor } from "./lib/site.mjs";
-import { createOrderAndInvoice } from "./lib/square.mjs";
+import { createOrderAndInvoice, dashboardUrl } from "./lib/square.mjs";
 import { adjust, checkLines } from "./lib/stock.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
-import { completeYourOrder } from "./lib/templates.mjs";
+import { completeYourOrder, farmOrderPlaced } from "./lib/templates.mjs";
 
 const index = indexCatalog(catalog);
 
@@ -138,7 +141,18 @@ export const handle = async (req, {
     // The record is the customer's copy: their order history, the
     // reminders and the account pages all read it. Square remains the
     // system of record for money.
-    const saved = await saveOrder(stores, { ...order, square: square_ }, now);
+    //
+    // A retry of the same submission rebuilds the order from the
+    // payload, which knows nothing of what the first attempt did, so
+    // carry its record forward: nobody is emailed twice about one
+    // order, and the history keeps the whole story.
+    const first = await getOrder(stores, order.id);
+    const saved = await saveOrder(stores, {
+      ...order,
+      square: square_,
+      ...(first && first.emails ? { emails: first.emails } : {}),
+      ...(first && first.history ? { history: first.history } : {}),
+    }, now);
 
     await touchCustomer(stores, order.customer, now);
     await adjust(stores, order.lines, -1);
@@ -150,22 +164,32 @@ export const handle = async (req, {
 
     // A mail failure never fails the order: the invoice exists and the
     // reminders will pick the order up.
-    try {
-      const sent = await mail({
-        to: order.customer.email,
-        idempotencyKey: `${key}-complete`,
-        ...completeYourOrder(saved, { accountUrl: accountUrlFor(env) }),
-      }, { env });
+    if (!(saved.emails && saved.emails.completeYourOrder)) {
+      try {
+        const sent = await mail({
+          to: order.customer.email,
+          idempotencyKey: `${key}-complete`,
+          ...completeYourOrder(saved, { accountUrl: accountUrlFor(env) }),
+        }, { env });
 
-      await amendOrder(stores, order.id, {
-        emails: { completeYourOrder: { at: now.toISOString(), ...sent } },
-      }, "mail.completeYourOrder", now);
-    } catch (error) {
-      console.error(JSON.stringify({
-        event: "mail.failed", template: "completeYourOrder", id: order.id,
-        error: String(error && error.message), detail: error && error.detail,
-      }));
+        await amendOrder(stores, order.id, {
+          emails: {
+            ...(saved.emails || {}),
+            completeYourOrder: { at: now.toISOString(), ...sent },
+          },
+        }, "mail.completeYourOrder", now);
+      } catch (error) {
+        console.error(JSON.stringify({
+          event: "mail.failed", template: "completeYourOrder", id: order.id,
+          error: String(error && error.message), detail: error && error.detail,
+        }));
+      }
     }
+
+    // The farm's own notice. It never fails the order either.
+    await notifyFarm(stores, saved, "farmOrderPlaced", farmOrderPlaced(saved, {
+      squareUrl: dashboardUrl(square_, env),
+    }), { mail, env, now });
 
     return json(200, {
       orderId: order.id,

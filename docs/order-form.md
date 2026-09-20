@@ -165,6 +165,17 @@ link. With the farm's mail configured, the Square invoice is created
 emails the invoice. Links point at `SITE_URL`, else Netlify's
 `DEPLOY_PRIME_URL`, else `URL`.
 
+Two of the messages go to the farm rather than the customer, to every
+address in `ADMIN_EMAILS`: `farmOrderPlaced` when the invoice is
+published and `farmOrderPaid` when it clears. Square notifies nobody
+about an invoice the farm's own account issued, so without these the
+farm learns of an order only by looking. Each carries the fulfilment
+sentence, how to reach the customer, the drop-off details for a
+delivery, the lines, the totals and a link into the Square Dashboard.
+Both are recorded under the order's `emails`, like every other send,
+so a retried submission or a second payment event never sends twice;
+with `ADMIN_EMAILS` unset they are skipped.
+
 ## Payment
 
 `POST /api/square/webhook` takes Square's invoice events, verified
@@ -172,7 +183,8 @@ with `SQUARE_WEBHOOK_SIGNATURE_KEY` against the registered URL
 (`SQUARE_WEBHOOK_URL`, else the site's `/api/square/webhook`). In the
 Square developer dashboard, subscribe the app to `invoice.payment_made`
 and `invoice.updated` at that URL and copy the signature key. A paid
-invoice moves the order to `paid` and sends the confirmation once;
+invoice moves the order to `paid`, sends the customer's confirmation
+and tells the farm, each once however many times the news arrives;
 a cancelled invoice cancels the order. A bank transfer leaves the
 invoice `PAYMENT_PENDING` for days; the order is held meanwhile (no
 reminders, not abandoned at the cutoff, not confirmed) until Square

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  addressReview, completeYourOrder, deliveryReminder, magicLink,
-  orderConfirmed, paymentReminder, summaryLine,
+  addressReview, completeYourOrder, deliveryReminder, farmOrderPaid,
+  farmOrderPlaced, magicLink, orderConfirmed, paymentReminder, summaryLine,
 } from "../netlify/functions/lib/templates.mjs";
 
 const order = (method = "delivery") => ({
@@ -165,5 +165,66 @@ describe("farm-side and sign-in mail", () => {
       assert.match(both(m), /sales@northfosterfarm.com/);
       assert.match(both(m), /\(401\) 578-3713/);
     }
+  });
+});
+
+describe("the farm's own notices", () => {
+  const reachable = (method) => {
+    const o = order(method);
+
+    o.customer = {
+      name: "Pat Example", email: "pat@example.com",
+      phone: "401-555-0100", contact: "text",
+    };
+
+    return o;
+  };
+  const url = "https://app.squareup.com/dashboard/orders/overview/SO-1";
+
+  it("says in the subject what it is, which order and how much", () => {
+    assert.equal(
+      farmOrderPlaced(reachable("delivery")).subject,
+      "New order NFF-2610-ABCD — $67, local delivery"
+    );
+    assert.equal(
+      farmOrderPaid(reachable("onfarm")).subject,
+      "Paid: order NFF-2610-ABCD — $62"
+    );
+  });
+
+  it("packs the order: when, who, what, how much", () => {
+    const m = farmOrderPlaced(reachable("onfarm"), { squareUrl: url });
+
+    assert.match(m.text, /On-farm pickup on Thursday, October 8/);
+    assert.match(m.text, /pat@example.com · 401-555-0100, prefers a text/);
+    assert.match(m.text, /2 × Whole Chicken/);
+    assert.match(m.text, /Total \$62/);
+    assert.match(m.text, /Bulk discount/);
+    assert.match(m.html, new RegExp(`href="${url}"`));
+    assert.match(m.text, /invoice is out and unpaid/);
+  });
+
+  it("gives a delivery its address, cooler spot and note", () => {
+    const o = reachable("delivery");
+
+    o.fulfilment.delivery.notes = "Dog in the yard";
+
+    const m = farmOrderPaid(o, { squareUrl: url });
+
+    assert.match(m.text, /Pat Example paid \$67. It's reserved./);
+    assert.match(m.text, /1 Main St/);
+    assert.match(m.text, /Foster 02825/);
+    assert.match(m.text, /Cooler: Side porch/);
+    assert.match(m.text, /Notes: Dog in the yard/);
+    assert.match(m.text, /Delivery fee \+\$5/);
+  });
+
+  it("leaves out what the order doesn't have", () => {
+    const m = farmOrderPlaced(order("onfarm"));
+
+    assert.doesNotMatch(m.text, /Open it in Square/);
+    assert.doesNotMatch(m.text, /prefers/);
+    assert.doesNotMatch(m.text, /Cooler/);
+    assert.doesNotMatch(m.text, /Their note/);
   });
 });

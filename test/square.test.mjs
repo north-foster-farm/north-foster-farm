@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   SquareError, buildInvoice, buildOrder, closeBankTransfer,
-  createOrderAndInvoice, e164, settings,
+  createOrderAndInvoice, dashboardUrl, e164, settings,
 } from "../netlify/functions/lib/square.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 
@@ -349,5 +349,31 @@ describe("createOrderAndInvoice", () => {
         { env, fetchImpl: offline, now }),
       (e) => e.retryable === true
     );
+  });
+});
+
+describe("dashboardUrl", () => {
+  const square = { squareOrderId: "SO-1", invoiceId: "INV-1" };
+
+  it("points at the order, in the right Square", () => {
+    assert.equal(
+      dashboardUrl(square, { SQUARE_ENV: "production" }),
+      "https://app.squareup.com/dashboard/orders/overview/SO-1"
+    );
+    assert.equal(
+      dashboardUrl(square, env),
+      "https://app.squareupsandbox.com/dashboard/orders/overview/SO-1"
+    );
+    assert.equal(dashboardUrl(square, {}).includes("sandbox"), true,
+      "anything but production is the sandbox");
+  });
+
+  it("falls back to the invoice, then to nothing", () => {
+    assert.equal(
+      dashboardUrl({ invoiceId: "INV-1" }, env),
+      "https://app.squareupsandbox.com/dashboard/invoices/INV-1"
+    );
+    assert.equal(dashboardUrl({}, env), "");
+    assert.equal(dashboardUrl(null, env), "");
   });
 });

@@ -68,6 +68,58 @@ describe("markPaid", () => {
     await markPaid(stores, "NFF-1", { mail, env: {}, now });
     assert.deepEqual((await openOrders(stores)).map((o) => o.id), ["NFF-1"]);
   });
+
+  it("tells the farm too, once, without losing the customer's", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const env = { ADMIN_EMAILS: "farm@x.com, second@x.com" };
+
+    await saveOrder(stores, order("NFF-1"), now);
+
+    const paid = await markPaid(stores, "NFF-1", { mail, env, now });
+
+    assert.equal(sent.length, 2);
+    assert.equal(sent[0].to, "pat@example.com");
+    assert.deepEqual(sent[1].to, ["farm@x.com", "second@x.com"]);
+    assert.match(sent[1].subject, /^Paid: order NFF-1/);
+
+    // The farm's note must not write over the customer's.
+    assert.equal(paid.emails.orderConfirmed.id, "m1");
+    assert.equal(paid.emails.farmOrderPaid.id, "m2");
+
+    await markPaid(stores, "NFF-1", { mail, env, now });
+    assert.equal(sent.length, 2, "both sent once");
+  });
+
+  it("stays quiet when no one at the farm is listed", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await saveOrder(stores, order("NFF-1"), now);
+    await markPaid(stores, "NFF-1", { mail, env: {}, now });
+    assert.equal(sent.length, 1);
+  });
+
+  it("still tells the farm when the customer's mail failed", async () => {
+    const stores = testStores();
+    const sent = [];
+    const mail = async (m) => {
+      if (m.to === "pat@example.com") throw new Error("resend down");
+      sent.push(m);
+
+      return { id: "m1", driver: "test" };
+    };
+
+    await saveOrder(stores, order("NFF-1"), now);
+
+    const paid = await markPaid(stores, "NFF-1", {
+      mail, env: { ADMIN_EMAILS: "farm@x.com" }, now,
+    });
+
+    assert.equal(paid.status, "paid");
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].subject, /^Paid: order NFF-1/);
+  });
 });
 
 describe("applyInvoiceEvent", () => {

@@ -314,6 +314,76 @@ export const returnResolved = (order, request) => {
   return { subject: title, ...render(title, blocks) };
 };
 
+// --- To the farm ---------------------------------------------------
+//
+// Square tells the farm nothing about an invoice the farm's own
+// account issued, so these two are the only notice of an order. They
+// go to ADMIN_EMAILS and say everything needed to pack it.
+
+const CONTACT_WORD = { text: "prefers a text", call: "prefers a call" };
+
+const reachThem = (c) => {
+  const word = CONTACT_WORD[c.contact];
+
+  return `${c.name || c.email} · ${c.email}${
+    c.phone ? ` · ${c.phone}${word ? `, ${word}` : ""}` : ""}`;
+};
+
+const dropOff = (order) => {
+  const d = order.fulfilment.delivery || {};
+  const items = [
+    `${d.address1 || ""}${d.address2 ? `, ${d.address2}` : ""}`,
+    `${d.town || ""} ${d.state || ""} ${d.zip || ""}`
+      .replace(/\s+/g, " ").trim(),
+    `Cooler: ${d.cooler || "not given"}`,
+  ];
+
+  if (d.notes) items.push(`Notes: ${d.notes}`);
+
+  return list(items);
+};
+
+// Everything the farm acts on, in the order it acts on it.
+const orderSheet = (order, squareUrl) => {
+  const blocks = [strong(whenWhere(order)), p(reachThem(order.customer))];
+
+  if (order.fulfilment.method === "delivery") {
+    blocks.push(p("Drop-off:"), dropOff(order));
+  }
+
+  blocks.push(p("What they ordered:"), lines(order), totalsBlock(order));
+
+  if (order.notes) blocks.push(p(`Their note: ${order.notes}`));
+  if (squareUrl) blocks.push(link("Open it in Square", squareUrl));
+
+  return blocks;
+};
+
+// The moment an order is placed, paid or not.
+export const farmOrderPlaced = (order, { squareUrl } = {}) => {
+  const title = `New order ${order.id} — ${dollars(order.totals.total)}, ` +
+    `${methodName(order.fulfilment.method).toLowerCase()}`;
+  const blocks = [
+    ...orderSheet(order, squareUrl),
+    p("The invoice is out and unpaid. There's a second notice when it " +
+      "clears."),
+  ];
+
+  return { subject: title, ...render(title, blocks) };
+};
+
+// When the invoice clears, from the webhook or the 15-minute poll.
+export const farmOrderPaid = (order, { squareUrl } = {}) => {
+  const title = `Paid: order ${order.id} — ${dollars(order.totals.total)}`;
+  const blocks = [
+    p(`${order.customer.name || order.customer.email} paid ` +
+      `${dollars(order.totals.total)}. It's reserved.`),
+    ...orderSheet(order, squareUrl),
+  ];
+
+  return { subject: title, ...render(title, blocks) };
+};
+
 // A short line for the CLI and logs.
 export const summaryLine = (order) =>
   `${order.id} ${order.status} ${dollars(order.totals.total)} ` +

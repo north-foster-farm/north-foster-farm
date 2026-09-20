@@ -36,6 +36,28 @@ const HOSTS = {
   sandbox: "https://connect.squareupsandbox.com",
 };
 
+const DASHBOARDS = {
+  production: "https://app.squareup.com/dashboard",
+  sandbox: "https://app.squareupsandbox.com/dashboard",
+};
+
+// Where the farm opens an order in Square, for the links in its own
+// notices. Falls back to the invoice when a record predates the
+// squareOrderId, and to nothing at all when it has neither.
+export const dashboardUrl = (square, env = process.env) => {
+  const base = DASHBOARDS[
+    env.SQUARE_ENV === "production" ? "production" : "sandbox"
+  ];
+
+  if (!square) return "";
+  if (square.squareOrderId) {
+    return `${base}/orders/overview/${square.squareOrderId}`;
+  }
+  if (square.invoiceId) return `${base}/invoices/${square.invoiceId}`;
+
+  return "";
+};
+
 export class SquareError extends Error {
   constructor(message, { retryable = false, status = 0, detail = null } = {}) {
     super(message);

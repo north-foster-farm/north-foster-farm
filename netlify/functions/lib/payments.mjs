@@ -2,30 +2,38 @@
 // the Square webhook, the scheduled poll, or the CLI. One function
 // moves the order to paid and sends the confirmation, once.
 
-import { sendMail } from "./mail.mjs";
-import { amendOrder, orderByInvoice, setStatus } from "./records.mjs";
+import { adminEmails, sendMail } from "./mail.mjs";
+import {
+  amendOrder, getOrder, orderByInvoice, setStatus,
+} from "./records.mjs";
 import { accountUrlFor } from "./site.mjs";
-import { getInvoice } from "./square.mjs";
-import { orderConfirmed } from "./templates.mjs";
+import { dashboardUrl, getInvoice } from "./square.mjs";
+import { farmOrderPaid, orderConfirmed } from "./templates.mjs";
 
-// Sends one templated email to the order's customer and notes it on
-// the order. Never throws: a mail failure is logged and the order is
-// left for the next run to retry.
+// Sends one templated email about an order and notes it on the order.
+// The recipient is the customer unless `to` says otherwise. Never
+// throws: a mail failure is logged and the order is left for the next
+// run to retry.
 export const sendForOrder = async (stores, order, key, message, {
   mail = sendMail,
   env = process.env,
   now = new Date(),
+  to = order.customer.email,
 } = {}) => {
   try {
     const sent = await mail({
-      to: order.customer.email,
+      to,
       idempotencyKey: `${order.id}-${key}`,
       ...message,
     }, { env });
 
+    // Re-read before merging: two sends about one order in a row
+    // would otherwise write the second note over the first.
+    const current = await getOrder(stores, order.id) || order;
+
     return amendOrder(stores, order.id, {
       emails: {
-        ...(order.emails || {}),
+        ...(current.emails || {}),
         [key]: { at: now.toISOString(), ...sent },
       },
     }, `mail.${key}`, now);
@@ -39,6 +47,22 @@ export const sendForOrder = async (stores, order, key, message, {
   }
 };
 
+// The farm's own notice about an order, to ADMIN_EMAILS. Silent when
+// nobody is listed, and recorded on the order like any other send, so
+// a retry of the webhook or the poll never sends it twice.
+export const notifyFarm = async (stores, order, key, message, {
+  mail = sendMail,
+  env = process.env,
+  now = new Date(),
+} = {}) => {
+  const to = adminEmails(env);
+
+  if (!to.length) return order;
+  if (order.emails && order.emails[key]) return order;
+
+  return sendForOrder(stores, order, key, message, { mail, env, now, to });
+};
+
 // -> the order, now paid; or null if unknown. A second call is a
 // no-op, so the webhook and the poll can both report the same payment.
 export const markPaid = async (stores, id, {
@@ -47,13 +71,20 @@ export const markPaid = async (stores, id, {
   now = new Date(),
   source = "square",
 } = {}) => {
-  const order = await setStatus(stores, id, "paid", now, { source });
+  const paid = await setStatus(stores, id, "paid", now, { source });
 
-  if (!order) return null;
-  if (order.emails && order.emails.orderConfirmed) return order;
+  if (!paid) return null;
 
-  return sendForOrder(stores, order, "orderConfirmed", orderConfirmed(order, {
-    accountUrl: accountUrlFor(env),
+  let order = paid;
+
+  if (!(order.emails && order.emails.orderConfirmed)) {
+    order = await sendForOrder(stores, order, "orderConfirmed",
+      orderConfirmed(order, { accountUrl: accountUrlFor(env) }),
+      { mail, env, now });
+  }
+
+  return notifyFarm(stores, order, "farmOrderPaid", farmOrderPaid(order, {
+    squareUrl: dashboardUrl(order.square, env),
   }), { mail, env, now });
 };
 

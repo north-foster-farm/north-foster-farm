@@ -142,6 +142,41 @@ describe("POST /api/orders", () => {
         undefined);
     });
 
+  it("tells the farm a new order came in, once", async () => {
+    const stores = testStores();
+    const sent = [];
+    const mail = async (message) => {
+      sent.push(message);
+
+      return { id: `m${sent.length}`, driver: "test" };
+    };
+    const env = {
+      ADMIN_EMAILS: "farm@x.com", SQUARE_ENV: "production",
+    };
+
+    await handle(post(body()), { square: ok, stores, mail, env, now,
+      ...quiet });
+
+    const farm = sent.filter((m) => Array.isArray(m.to));
+
+    assert.equal(farm.length, 1);
+    assert.deepEqual(farm[0].to, ["farm@x.com"]);
+    assert.match(farm[0].subject, /^New order NFF-.* — \$55, on-farm pickup$/);
+    assert.match(farm[0].text,
+      /pat@example.com · 401-555-0100, prefers a call/);
+    assert.match(farm[0].text,
+      /app\.squareup\.com\/dashboard\/orders\/overview\/SQO/);
+
+    const saved = await getOrder(stores, orderId(KEY, now));
+
+    assert.equal(saved.emails.farmOrderPlaced.id, `m${sent.length}`);
+
+    // The same submission again is the same record and no second notice.
+    await handle(post(body()), { square: ok, stores, mail, env, now,
+      ...quiet });
+    assert.equal(sent.filter((m) => Array.isArray(m.to)).length, 1);
+  });
+
   it("applies a signed-in customer's discount group from the record",
     async () => {
       const stores = testStores();
