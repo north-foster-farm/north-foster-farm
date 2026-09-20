@@ -77,11 +77,18 @@
 
   // The tagline, a paragraph inside the hgroup, styled exactly as the
   // h1 it used to be. The h1 is the smaller line beneath it.
+  // Phones: everything centred, the block narrow, buttons stacked and
+  // full width. From md up the block sits against the right edge,
+  // clear of the hen in the left third.
+  .home-hero-text {
+    text-align: center;
+  }
+
   .home-hero-title {
     margin-bottom: 0;
     font-family: $headings-font-family;
     font-weight: normal;
-    font-size: clamp(2.125rem, 9.2vw, 4.5rem);
+    font-size: clamp(2rem, 8.6vw, 4.5rem);
     line-height: 1.05;
     letter-spacing: -0.08rem;
   }
@@ -96,19 +103,27 @@
     letter-spacing: -0.12rem;
   }
 
-  // The h1, light and one size at every width.
+  // The h1, light. One size from md up; a step smaller and narrower
+  // on phones, where the sentence would otherwise run four lines.
   .home-hero-sub {
-    margin: 2.5rem auto 1.5rem;
-    font-size: 1.375rem;
+    max-width: 26ch;
+    margin: 1.5rem auto 1.25rem;
+    font-size: 1.125rem;
     font-weight: 300;
     letter-spacing: -0.3px;
+    line-height: 1.35;
   }
 
   .home-hero-actions {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    justify-content: flex-end;
+    flex-direction: column;
+    gap: 0.625rem;
+    max-width: 20rem;
+    margin-inline: auto;
+
+    .btn {
+      --bs-btn-font-size: 1.125rem;
+    }
   }
 
   // White with dark green type: the hero's one solid button.
@@ -229,6 +244,19 @@
     }
   }
 
+  @media (min-width: 576px) {
+    .home-hero-actions {
+      flex-flow: row wrap;
+      justify-content: center;
+      gap: 0.75rem;
+      max-width: none;
+
+      .btn {
+        --bs-btn-font-size: 1.375rem;
+      }
+    }
+  }
+
   @media (min-width: 768px) {
     .home-hero {
       min-height: calc(100vh - 4.25rem);
@@ -237,6 +265,20 @@
 
     .home-hero-body {
       padding-bottom: calc(3rem + 4.25rem);
+    }
+
+    .home-hero-text {
+      text-align: end;
+    }
+
+    .home-hero-sub {
+      max-width: none;
+      margin: 2.5rem 0 1.5rem auto;
+      font-size: 1.375rem;
+    }
+
+    .home-hero-actions {
+      justify-content: flex-end;
     }
   }
 
