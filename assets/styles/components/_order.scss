@@ -235,6 +235,14 @@
     }
   }
 
+  // A detail beside the label, such as the count in a pack.
+  .order-item-note {
+    margin-left: 0.25rem;
+    color: var(--bs-secondary-color);
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+
   .order-item-price {
     grid-area: price;
     color: var(--bs-secondary-color);
@@ -364,6 +372,11 @@
       font-size: 0.9375rem;
       font-weight: bold;
       font-variant-numeric: tabular-nums;
+
+      // iOS Safari zooms the page into any focused field under 16px.
+      @media (hover: none) and (pointer: coarse) {
+        font-size: 1rem;
+      }
 
       &:focus {
         box-shadow: none;

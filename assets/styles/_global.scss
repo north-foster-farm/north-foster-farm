@@ -77,6 +77,22 @@ svg {
   text-shadow: 2px 2px 6px $black, -2px -2px 6px $black;
 }
 
+// Links inside running text get a hairline underline. The green alone
+// sits just under the 3:1 contrast against body text that WCAG asks
+// of an undecorated link; the underline is the second cue. Buttons,
+// navigation and headings are untouched.
+main :is(p, li, dd, td, figcaption) a:not(.btn) {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  text-decoration-color: color-mix(in srgb, currentcolor 55%, transparent);
+
+  &:hover,
+  &:focus-visible {
+    text-decoration-color: currentcolor;
+  }
+}
+
 h1,
 h2,
 h3,
