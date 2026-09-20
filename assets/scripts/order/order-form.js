@@ -183,6 +183,20 @@ export class OrderForm {
       e.currentTarget.setAttribute("aria-expanded", String(open));
     });
 
+    // The × on a cart line takes every unit of that product out.
+    this.cart.addEventListener("click", (e) => {
+      const button = e.target.closest("[data-remove]");
+
+      if (!button) return;
+
+      const sku = CSS.escape(button.dataset.remove);
+      const input = qs(this.form, `[data-qty="${sku}"]`);
+
+      if (!input) return;
+      this.setQty(input, 0);
+      this.changed();
+    });
+
     // A tap on a badge explains it; the next tap, or a tap elsewhere,
     // closes it.
     const tips = all(this.cart, "[data-badge]").map((badge) => new Tooltip(
@@ -446,6 +460,7 @@ export class OrderForm {
     qs(c, "[data-cart-toggle]").setAttribute(
       "aria-label", `${s.countText}, total ${s.total}. Show or hide the cart.`
     );
+    qs(c, "[data-cart-count]").textContent = s.countText;
     qs(c, "[data-checkout]").disabled = count === 0;
 
     // A badge that just turned on sends its chicks; the first render
@@ -491,9 +506,17 @@ export class OrderForm {
       for (const item of group.items) {
         const row = make("li", "order-cart-item");
 
+        const remove = make("button", "order-cart-remove", "×");
+
+        remove.type = "button";
+        remove.dataset.remove = item.sku;
+        remove.setAttribute(
+          "aria-label", `Remove ${group.label}, ${item.label} from the cart`
+        );
         row.appendChild(make("span", "order-cart-item-name", item.label));
         row.appendChild(make("span", "order-cart-item-qty", item.qtyText));
         row.appendChild(make("span", "order-cart-item-sub", item.subtotal));
+        row.appendChild(remove);
         items.appendChild(row);
       }
       li.appendChild(items);

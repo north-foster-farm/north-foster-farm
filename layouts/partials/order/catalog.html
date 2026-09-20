@@ -25,10 +25,10 @@
           {{ $id := printf "qty-%s" (.sku | lower) }}
           <li class="order-item" data-sku="{{ .sku }}" tabindex="-1">
             <span class="order-item-name">
-              <label for="{{ $id }}">{{ .label }}</label>{{ with .note }} <span class="order-item-note">{{ . }}</span>{{ end }}
+              <label for="{{ $id }}">{{ .label }}</label>
             </span>
             <span class="order-item-price">
-              ${{ .price }}{{ with .unit }} <span class="order-item-unit">{{ . }}</span>{{ end }}
+              ${{ .price }}{{ with .unit }} <span class="order-item-unit">{{ . }}</span>{{ end }}{{ with .note }} <span class="order-item-note">&middot; {{ . }}</span>{{ end }}
             </span>
             <span class="order-item-stock" data-stock-note aria-live="polite"></span>
             <div class="order-qty" data-qty-state="empty">
