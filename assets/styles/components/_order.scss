@@ -416,7 +416,10 @@
     z-index: 30;
     display: flex;
     flex-direction: column;
-    max-height: 50dvh;
+
+    // Small viewport units: the cap does not move as the phone's
+    // browser bars slide in and out while the list scrolls.
+    max-height: 50svh;
     margin-top: 1.25rem;
     padding: 1rem var(--order-gutter);
     border: 1px solid var(--bs-border-color-translucent);
@@ -462,10 +465,33 @@
       right: 0;
       left: 0;
       z-index: 1;
-      height: 1.75rem;
+      height: 2.5rem;
       opacity: 0;
       pointer-events: none;
       transition: opacity var(--order-fast) ease;
+    }
+
+    // "3 more ↓", centred on the bottom fade; a tap scrolls a screen.
+    .order-cart-more {
+      position: absolute;
+      bottom: 0.5rem;
+      left: 50%;
+      z-index: 2;
+      translate: -50% 0;
+      padding: 0.2rem 0.625rem;
+      border: 1px solid var(--bs-border-color);
+      border-radius: 999px;
+      background-color: var(--bs-body-bg);
+      box-shadow: var(--order-shadow);
+      font-size: 0.75rem;
+      font-weight: bold;
+      line-height: 1.2;
+      white-space: nowrap;
+      color: var(--bs-primary);
+
+      &[hidden] {
+        display: none;
+      }
     }
 
     &::before {
@@ -505,7 +531,7 @@
 
     li + li::before {
       content: "·";
-      padding: 0 0.2rem;
+      padding: 0 0.325rem;
       color: var(--bs-breadcrumb-divider-color);
     }
   }
@@ -592,7 +618,15 @@
     }
   }
 
+  .order-cart-item-name {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
   .order-cart-item-qty {
+    white-space: nowrap;
     color: var(--bs-secondary-color);
     font-variant-numeric: tabular-nums;
   }
@@ -622,13 +656,18 @@
       display: contents;
     }
 
+    // One line each, whatever the width.
     dt {
+      overflow: hidden;
       font-weight: normal;
+      white-space: nowrap;
+      text-overflow: ellipsis;
     }
 
     dd {
       margin: 0;
       text-align: right;
+      white-space: nowrap;
       font-variant-numeric: tabular-nums;
     }
   }
@@ -1204,7 +1243,7 @@
       position: sticky;
       top: 1rem;
       bottom: auto;
-      max-height: calc(100dvh - 2rem);
+      max-height: calc(100svh - 2rem);
       margin-top: 0;
       box-shadow: var(--order-shadow);
     }

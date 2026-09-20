@@ -189,6 +189,11 @@ export class OrderForm {
     qs(this.cart, ".order-cart-body").addEventListener(
       "transitionend", () => this.syncScroll()
     );
+    qs(this.cart, "[data-cart-more]").addEventListener("click", () => {
+      const list = qs(this.cart, "[data-cart-items]");
+
+      list.scrollBy({ top: list.clientHeight * 0.8, behavior: "smooth" });
+    });
     window.addEventListener("resize", () => this.syncScroll());
 
     // The × on a cart line takes every unit of that product out.
@@ -335,10 +340,17 @@ export class OrderForm {
   syncScroll() {
     const list = qs(this.cart, "[data-cart-items]");
     const wrap = list.parentElement;
-    const more = list.scrollTop + list.clientHeight < list.scrollHeight - 1;
+    const seen = list.scrollTop + list.clientHeight;
+    const more = seen < list.scrollHeight - 1;
+    const below = all(list, ".order-cart-item").filter(
+      (li) => li.offsetTop + li.offsetHeight > seen + 1
+    ).length;
+    const button = qs(wrap, "[data-cart-more]");
 
     wrap.toggleAttribute("data-top", list.scrollTop > 0);
     wrap.toggleAttribute("data-more", more);
+    button.hidden = !more || below === 0;
+    button.textContent = `${below} more ↓`;
   }
 
   // Quantity controls.

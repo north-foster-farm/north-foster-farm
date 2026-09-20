@@ -6,7 +6,7 @@
   <div class="order-cart-body" id="order-cart-body">
     <div class="order-cart-inner">
       <ul class="order-badges list-unstyled" aria-label="What this order qualifies for">
-        <li><button type="button" class="order-badge" data-badge="delivery" data-tip="{{ $deliveryTip }}">Local delivery</button></li>
+        <li><button type="button" class="order-badge" data-badge="delivery" data-tip="{{ $deliveryTip }}">Delivery</button></li>
         <li><button type="button" class="order-badge" data-badge="free-delivery" data-tip="{{ $freeTip }}">Free delivery</button></li>
         {{ range $money.bulkTiers }}
           <li><button type="button" class="order-badge" data-badge="tier-{{ .threshold }}" data-tip="${{ .off }} off orders of ${{ .threshold }} or more.">${{ .threshold }}+</button></li>
@@ -17,6 +17,7 @@
         <ul class="order-cart-items list-unstyled" data-cart-items>
           <li class="order-cart-none">0 items</li>
         </ul>
+        <button type="button" class="order-cart-more" data-cart-more hidden></button>
       </div>
 
       <dl class="order-cart-lines">
