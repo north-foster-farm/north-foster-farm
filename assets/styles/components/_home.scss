@@ -80,10 +80,10 @@
   .home-hero-title {
     margin-bottom: 0;
     font-family: $headings-font-family;
-    font-weight: $headings-font-weight;
+    font-weight: normal;
     font-size: clamp(2.125rem, 9.2vw, 4.5rem);
-    line-height: 1.1;
-    letter-spacing: -0.01rem;
+    line-height: 1.05;
+    letter-spacing: -0.08rem;
   }
 
   .home-hero-line {
@@ -92,29 +92,23 @@
 
   .home-hero-accent {
     color: tint-color($green, 55%);
+    font-weight: bold;
     letter-spacing: -0.12rem;
   }
 
-  .home-hero-where {
-    margin: 0.75rem 0 0;
-    font-size: clamp(1.0625rem, 3.2vw, 1.5rem);
-    font-weight: 500;
-    letter-spacing: 0.01em;
-    line-height: 1.3;
-  }
-
+  // The h1, light and one size at every width.
   .home-hero-sub {
-    max-width: 44ch;
-    margin: 1.25rem auto 2rem;
-    padding-inline: 1.5rem;
-    font-size: 1.125rem;
+    margin: 2.5rem auto 1.5rem;
+    font-size: 1.375rem;
+    font-weight: 300;
+    letter-spacing: -0.3px;
   }
 
   .home-hero-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem;
-    justify-content: center;
+    justify-content: flex-end;
   }
 
   // White with dark green type: the hero's one solid button.
@@ -247,10 +241,6 @@
   }
 
   @media (min-width: 992px) {
-    .home-hero-sub {
-      font-size: 1.375rem;
-    }
-
     .how-steps {
       grid-template-columns: repeat(4, 1fr);
       max-width: none;
