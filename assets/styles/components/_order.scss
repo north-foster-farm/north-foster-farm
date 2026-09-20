@@ -212,7 +212,8 @@
       border-color: var(--bs-border-color);
     }
 
-    &:focus-within {
+    // The ring for keyboard focus only; a tap on a row must not box it.
+    &:has(:focus-visible) {
       outline: 2px solid var(--bs-primary);
       outline-offset: -2px;
     }
@@ -326,12 +327,14 @@
     display: grid;
     width: 7.5rem;
 
+    // The two cross-fade in place: the one arriving is visible at
+    // once, the one leaving stays visible until its fade is done.
     > * {
       grid-area: 1 / 1;
       transition:
         opacity var(--order-fast) ease,
         transform var(--order-base) var(--order-ease),
-        visibility 0s linear var(--order-fast);
+        visibility 0s linear 0s;
     }
   }
 
@@ -388,6 +391,10 @@
     visibility: hidden;
     opacity: 0;
     transform: scale(0.94);
+    transition:
+      opacity var(--order-fast) ease,
+      transform var(--order-base) var(--order-ease),
+      visibility 0s linear var(--order-fast);
   }
 
   .order-qty-tick {
@@ -407,6 +414,9 @@
     position: sticky;
     bottom: 0.75rem;
     z-index: 30;
+    display: flex;
+    flex-direction: column;
+    max-height: 50dvh;
     margin-top: 1.25rem;
     padding: 1rem var(--order-gutter);
     border: 1px solid var(--bs-border-color-translucent);
@@ -421,11 +431,56 @@
   .order-cart-body {
     display: grid;
     grid-template-rows: 1fr;
+    flex: 1 1 auto;
+    min-height: 0;
     transition: grid-template-rows var(--order-base) var(--order-ease);
 
     > .order-cart-inner {
+      display: flex;
+      flex-direction: column;
       min-height: 0;
       overflow: hidden;
+    }
+  }
+
+  // Never taller than half the screen: past that, the lines scroll
+  // inside this wrapper while the badges and the sums stay put. A
+  // fade at an edge says there is more beyond it.
+  .order-cart-scroll {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    margin: 0 0 0.75rem;
+    border-bottom: 1px solid var(--bs-border-color);
+
+    &::before,
+    &::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      left: 0;
+      z-index: 1;
+      height: 1.75rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--order-fast) ease;
+    }
+
+    &::before {
+      top: 0;
+      background: linear-gradient(var(--bs-body-bg), transparent);
+    }
+
+    &::after {
+      bottom: 0;
+      background: linear-gradient(transparent, var(--bs-body-bg));
+    }
+
+    &[data-top]::before,
+    &[data-more]::after {
+      opacity: 1;
     }
   }
 
@@ -482,9 +537,13 @@
   .order-cart-items {
     display: grid;
     gap: 0.75rem;
-    margin: 0 0 0.75rem;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0;
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--bs-border-color);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
     font-size: 0.875rem;
   }
 
@@ -1145,6 +1204,7 @@
       position: sticky;
       top: 1rem;
       bottom: auto;
+      max-height: calc(100dvh - 2rem);
       margin-top: 0;
       box-shadow: var(--order-shadow);
     }

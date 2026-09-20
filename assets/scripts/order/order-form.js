@@ -70,6 +70,7 @@ export class OrderForm {
     this.submitButton = document.getElementById("order-submit");
     this.retryTimer = null;
     this.lastTotal = null;
+    this.lastCount = 0;
     this.busy = false;
     // Which badges were lit at the last render, so a badge that turns
     // on can celebrate. Null until the first render, which never does.
@@ -176,12 +177,19 @@ export class OrderForm {
     });
 
     // Below xl the cart folds down to the total and the Next button.
-    qs(this.cart, "[data-cart-toggle]").addEventListener("click", (e) => {
-      const open = this.cart.dataset.open !== "true";
-
-      this.cart.dataset.open = String(open);
-      e.currentTarget.setAttribute("aria-expanded", String(open));
+    qs(this.cart, "[data-cart-toggle]").addEventListener("click", () => {
+      this.setOpen(this.cart.dataset.open !== "true");
     });
+
+    // The list of lines scrolls once the cart would take half the
+    // screen; the fades at its edges say there is more.
+    qs(this.cart, "[data-cart-items]").addEventListener(
+      "scroll", () => this.syncScroll(), { passive: true }
+    );
+    qs(this.cart, ".order-cart-body").addEventListener(
+      "transitionend", () => this.syncScroll()
+    );
+    window.addEventListener("resize", () => this.syncScroll());
 
     // The × on a cart line takes every unit of that product out.
     this.cart.addEventListener("click", (e) => {
@@ -311,6 +319,26 @@ export class OrderForm {
     this.stockNotice.hidden = false;
     this.stockNotice.scrollIntoView({ block: "nearest", behavior: "smooth" });
     this.changed();
+  }
+
+  // Folds or opens the cart (below xl; the column ignores it).
+  setOpen(open) {
+    this.cart.dataset.open = String(open);
+    qs(this.cart, "[data-cart-toggle]").setAttribute(
+      "aria-expanded", String(open)
+    );
+    if (open) this.syncScroll();
+  }
+
+  // Marks the scroller's wrapper with which edges have more beyond
+  // them, so the CSS can fade those edges.
+  syncScroll() {
+    const list = qs(this.cart, "[data-cart-items]");
+    const wrap = list.parentElement;
+    const more = list.scrollTop + list.clientHeight < list.scrollHeight - 1;
+
+    wrap.toggleAttribute("data-top", list.scrollTop > 0);
+    wrap.toggleAttribute("data-more", more);
   }
 
   // Quantity controls.
@@ -463,6 +491,15 @@ export class OrderForm {
     qs(c, "[data-cart-count]").textContent = s.countText;
     qs(c, "[data-checkout]").disabled = count === 0;
 
+    // Empty, the cart folds away; the first item opens it. A fold the
+    // customer chose stays until the cart empties again.
+    if (count === 0) {
+      this.setOpen(false);
+    } else if (this.lastCount === 0) {
+      this.setOpen(true);
+    }
+    this.lastCount = count;
+
     // A badge that just turned on sends its chicks; the first render
     // (a restored draft) only sets the baseline.
     const lit = {};
@@ -524,6 +561,7 @@ export class OrderForm {
     }
 
     qs(list, ".order-cart-none").hidden = s.groups.length > 0;
+    this.syncScroll();
   }
 
   renderZipNote() {
