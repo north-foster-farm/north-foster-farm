@@ -119,6 +119,83 @@ describe("applyInvoiceEvent", () => {
   });
 });
 
+describe("a pending bank transfer", () => {
+  const event = (type, status, id = "INV-1") => ({
+    type, data: { object: { invoice: { id, status } } },
+  });
+  const pending = event("invoice.updated", "PAYMENT_PENDING");
+
+  it("holds the order until Square says paid", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const opts = { mail, env: {}, now };
+
+    await saveOrder(stores, order("NFF-1"), now);
+    const r = await applyInvoiceEvent(stores, pending, opts);
+    const held = await getOrder(stores, "NFF-1");
+
+    assert.deepEqual(r, { handled: true, id: "NFF-1", status: "held" });
+    assert.equal(held.status, "submitted");
+    assert.equal(held.paymentPending.at, now.toISOString());
+    assert.equal(sent.length, 0, "Square tells the customer, not us");
+
+    await applyInvoiceEvent(stores, pending, opts);
+    const holds = (await getOrder(stores, "NFF-1")).history
+      .filter((h) => h.event === "payment.pending");
+
+    assert.equal(holds.length, 1, "held once");
+
+    await applyInvoiceEvent(
+      stores, event("invoice.payment_made", "PAID"), opts
+    );
+    assert.equal((await getOrder(stores, "NFF-1")).status, "paid");
+    assert.equal(sent.length, 1);
+  });
+
+  it("does not take a payment event for a payment", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await saveOrder(stores, order("NFF-1"), now);
+    const r = await applyInvoiceEvent(
+      stores, event("invoice.payment_made", "PAYMENT_PENDING"),
+      { mail, env: {}, now }
+    );
+
+    assert.equal(r.status, "held");
+    assert.equal(sent.length, 0);
+  });
+
+  it("lifts the hold when the transfer fails", async () => {
+    const stores = testStores();
+    const opts = { env: {}, now };
+
+    await saveOrder(stores, order("NFF-1"), now);
+    await applyInvoiceEvent(stores, pending, opts);
+    const r = await applyInvoiceEvent(
+      stores, event("invoice.updated", "UNPAID"), opts
+    );
+    const back = await getOrder(stores, "NFF-1");
+
+    assert.equal(r.status, "submitted");
+    assert.equal(back.paymentPending, null);
+    assert.equal(back.history.at(-1).event, "payment.failed");
+  });
+
+  it("is held by the poll too", async () => {
+    const stores = testStores();
+    const invoice = async (id) => ({ id, status: "PAYMENT_PENDING" });
+
+    await saveOrder(stores, order("NFF-1"), now);
+    const paid = await pollUnpaid(stores, await openOrders(stores), {
+      invoice, env: {}, now,
+    });
+
+    assert.deepEqual(paid, []);
+    assert.ok((await getOrder(stores, "NFF-1")).paymentPending);
+  });
+});
+
 describe("pollUnpaid", () => {
   it("asks Square about each unpaid order and pays the paid ones", async () => {
     const stores = testStores();

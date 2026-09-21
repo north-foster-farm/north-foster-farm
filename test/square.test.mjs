@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  SquareError, buildInvoice, buildOrder, createOrderAndInvoice, e164,
-  settings,
+  SquareError, buildInvoice, buildOrder, closeBankTransfer,
+  createOrderAndInvoice, e164, settings,
 } from "../netlify/functions/lib/square.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 
@@ -54,7 +54,12 @@ const fakeFetch = (answers) => {
   const impl = async (url, init) => {
     const path = new URL(url).pathname;
 
-    calls.push({ path, body: JSON.parse(init.body), headers: init.headers });
+    calls.push({
+      path,
+      method: init.method,
+      body: init.body ? JSON.parse(init.body) : null,
+      headers: init.headers,
+    });
     const answer = answers[path];
 
     if (typeof answer === "function") return answer(calls.length);
@@ -198,9 +203,74 @@ describe("buildInvoice", () => {
 
     assert.equal(inv.payment_requests[0].due_date, "2026-10-14");
   });
+
+  it("offers bank transfer only when it can clear in time", () => {
+    // `now` is Tuesday 6 October. Business days after it: the 7th is
+    // one, Monday the 12th is four, Tuesday the 13th is five.
+    const offered = (date) => {
+      const o = order();
+
+      o.fulfilment.date = date;
+
+      return buildInvoice(o, "SQO", "CUST", cfg, now)
+        .accepted_payment_methods.bank_account;
+    };
+
+    assert.equal(offered("2026-10-07"), false);
+    assert.equal(offered("2026-10-12"), false);
+    assert.equal(offered("2026-10-13"), true);
+  });
+});
+
+describe("closeBankTransfer", () => {
+  const answers = (status) => ({
+    "/v2/invoices/INV": (n) => new Response(JSON.stringify(n === 1
+      ? { invoice: { id: "INV", status, version: 3 } }
+      : { invoice: { id: "INV", status, version: 4 } })),
+  });
+
+  it("reads the version, then edits the methods to card only", async () => {
+    const { impl, calls } = fakeFetch(answers("UNPAID"));
+    const out = await closeBankTransfer("INV", { env, fetchImpl: impl });
+
+    assert.deepEqual(out, { id: "INV", status: "UNPAID", closed: true });
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].method, "GET");
+    assert.equal(calls[1].method, "PUT");
+    assert.equal(calls[1].body.invoice.version, 3);
+    assert.equal(calls[1].body.invoice.accepted_payment_methods.card, true);
+    assert.equal(
+      calls[1].body.invoice.accepted_payment_methods.bank_account, false
+    );
+  });
+
+  it("leaves an invoice that is no longer unpaid alone", async () => {
+    const { impl, calls } = fakeFetch(answers("PAYMENT_PENDING"));
+    const out = await closeBankTransfer("INV", { env, fetchImpl: impl });
+
+    assert.equal(out.closed, false);
+    assert.equal(calls.length, 1);
+  });
 });
 
 describe("createOrderAndInvoice", () => {
+  it("says whether the invoice offered bank transfer", async () => {
+    const { impl } = fakeFetch({
+      "/v2/customers/search": { customers: [{ id: "CUST" }] },
+      "/v2/orders": { order: { id: "SQO" } },
+      "/v2/invoices": { invoice: { id: "INV", version: 1 } },
+      "/v2/invoices/INV/publish": { invoice: { id: "INV" } },
+    });
+    const farOut = order();
+
+    farOut.fulfilment.date = "2026-10-13";
+    const out = await createOrderAndInvoice(farOut, "key-1234567890123", {
+      env, fetchImpl: impl, now,
+    });
+
+    assert.equal(out.bankTransfer, true);
+  });
+
   it("searches, creates, drafts and publishes with derived keys", async () => {
     const { impl, calls } = fakeFetch({
       "/v2/customers/search": { customers: [] },
@@ -220,6 +290,7 @@ describe("createOrderAndInvoice", () => {
       invoiceId: "INV",
       invoiceNumber: "000123",
       invoiceUrl: "https://pay",
+      bankTransfer: false,
     });
     assert.deepEqual(calls.map((c) => c.path), [
       "/v2/customers/search", "/v2/customers", "/v2/orders", "/v2/invoices",

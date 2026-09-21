@@ -39,10 +39,12 @@ const order = (id, method = "delivery", invoiceId = `INV-${id}`) => ({
 const harness = (invoiceStatus = "UNPAID") => {
   const sent = [];
   const cancelled = [];
+  const bankClosed = [];
 
   return {
     sent,
     cancelled,
+    bankClosed,
     opts: {
       env: {},
       mail: async (m) => {
@@ -55,6 +57,11 @@ const harness = (invoiceStatus = "UNPAID") => {
         cancelled.push(id);
 
         return { id, cancelled: true };
+      },
+      close: async (id) => {
+        bankClosed.push(id);
+
+        return { id, status: "UNPAID", closed: true };
       },
     },
   };
@@ -148,6 +155,74 @@ describe("runJobs", () => {
     assert.equal(sent.length, 1);
     assert.match(sent[0].subject, /confirmed/);
   });
+
+  it("holds a pending bank transfer: no reminders, no abandoning",
+    async () => {
+      const stores = testStores();
+      const { sent, cancelled, opts } = harness("PAYMENT_PENDING");
+
+      await saveOrder(stores, order("A"), placed);
+      const nagTime = await runJobs(stores, {
+        ...opts, now: at("2026-10-05", 9, 31),
+      });
+      const cutoff = await runJobs(stores, {
+        ...opts, now: at("2026-10-07", 12, 1),
+      });
+
+      assert.deepEqual(nagTime.reminded, []);
+      assert.deepEqual(cutoff.abandoned, []);
+      assert.deepEqual(cancelled, []);
+      assert.equal(sent.length, 0);
+      assert.equal((await getOrder(stores, "A")).status, "submitted");
+
+      const cleared = harness("PAID");
+      const r = await runJobs(stores, {
+        ...cleared.opts, now: at("2026-10-07", 13),
+      });
+
+      assert.deepEqual(r.paid, ["A"]);
+    });
+
+  it("takes bank transfer off an invoice once the date is too close",
+    async () => {
+      const stores = testStores();
+      const { bankClosed, opts } = harness();
+      // Placed Monday the 5th for Thursday the 15th: eight business
+      // days out, so the invoice offered bank transfer. Five business
+      // days remain on Thursday the 8th; four on Friday the 9th.
+      const farOut = order("A");
+
+      farOut.fulfilment.date = "2026-10-15";
+      farOut.square.bankTransfer = true;
+      await saveOrder(stores, farOut, placed);
+
+      const still = await runJobs(stores, {
+        ...opts, now: at("2026-10-08", 9),
+      });
+      const closed = await runJobs(stores, {
+        ...opts, now: at("2026-10-09", 9),
+      });
+      const again = await runJobs(stores, {
+        ...opts, now: at("2026-10-09", 9, 15),
+      });
+
+      assert.deepEqual(still.bankTransferClosed, []);
+      assert.deepEqual(closed.bankTransferClosed, ["A"]);
+      assert.deepEqual(again.bankTransferClosed, []);
+      assert.deepEqual(bankClosed, ["INV-A"]);
+      assert.ok((await getOrder(stores, "A")).square.bankTransferClosedAt);
+    });
+
+  it("never closes an invoice that did not offer bank transfer",
+    async () => {
+      const stores = testStores();
+      const { bankClosed, opts } = harness();
+
+      await saveOrder(stores, order("A"), placed);
+      await runJobs(stores, { ...opts, now: at("2026-10-06", 9) });
+
+      assert.deepEqual(bankClosed, []);
+    });
 
   it("reminds paid deliveries the evening before, once, then closes",
     async () => {

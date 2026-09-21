@@ -242,7 +242,7 @@ export const orderCancelled = (order, { refund = false } = {}) => {
 
   if (refund) {
     blocks.push(strong("Your refund is on its way."));
-    blocks.push(p("We refund through Square to the card you paid with; " +
+    blocks.push(p("We refund through Square to the way you paid; " +
       "it usually shows within a few business days."));
   } else {
     blocks.push(p("The invoice is closed and nothing was charged."));

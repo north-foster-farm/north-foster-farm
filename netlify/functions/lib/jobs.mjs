@@ -9,6 +9,10 @@
 //               delivery), still unpaid: last call
 //   abandon     unpaid at the cutoff: the delivery cutoff, or midnight
 //               before a pickup; the invoice is cancelled
+//   held        a bank transfer in flight gets no reminder and is not
+//               abandoned; Square will say PAID or UNPAID
+//   bank        an unpaid invoice that offered bank transfer loses the
+//               option once its date is too close to clear
 //   delivery    18:00 the day before a paid delivery: cooler reminder
 //   close       a paid order the day after fulfilment is fulfilled
 
@@ -19,9 +23,11 @@ import {
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { sendMail } from "./mail.mjs";
 import { pollUnpaid, sendForOrder } from "./payments.mjs";
-import { openOrders, setStatus } from "./records.mjs";
+import { amendOrder, openOrders, setStatus } from "./records.mjs";
 import { accountUrlFor } from "./site.mjs";
-import { cancelInvoice, getInvoice } from "./square.mjs";
+import {
+  bankTransferOffered, cancelInvoice, closeBankTransfer, getInvoice,
+} from "./square.mjs";
 import { adjust } from "./stock.mjs";
 import { deliveryReminder, paymentReminder } from "./templates.mjs";
 
@@ -74,10 +80,11 @@ export const runJobs = async (stores, {
   mail = sendMail,
   invoice = getInvoice,
   cancel = cancelInvoice,
+  close = closeBankTransfer,
 } = {}) => {
   const report = {
     at: now.toISOString(), paid: [], reminded: [], abandoned: [],
-    deliveryReminded: [], closed: [],
+    deliveryReminded: [], closed: [], bankTransferClosed: [],
   };
   const opts = { env, mail, now };
 
@@ -88,6 +95,8 @@ export const runJobs = async (stores, {
   // Re-read: the poll may have paid some.
   for (const order of await openOrders(stores)) {
     if (order.status === "submitted") {
+      if (order.paymentPending) continue;
+
       if (now.getTime() >= abandonAt(order).getTime()) {
         await setStatus(stores, order.id, "abandoned", now, {
           source: "jobs",
@@ -105,6 +114,27 @@ export const runJobs = async (stores, {
           }
         }
         continue;
+      }
+
+      // Once, per invoice that offered it. A Square failure is left
+      // for the next run; a "no longer unpaid" answer is not, since
+      // the invoice can no longer be edited either way.
+      const sq = order.square || {};
+
+      if (sq.bankTransfer && !sq.bankTransferClosedAt
+        && !bankTransferOffered(order.fulfilment.date, now)) {
+        try {
+          await close(sq.invoiceId, { env });
+          await amendOrder(stores, order.id, {
+            square: { ...sq, bankTransferClosedAt: now.toISOString() },
+          }, "bankTransfer.closed", now);
+          report.bankTransferClosed.push(order.id);
+        } catch (error) {
+          console.error(JSON.stringify({
+            event: "bank_transfer.close_failed", id: order.id,
+            error: String(error.message),
+          }));
+        }
       }
 
       const stage = reminderDue(order, now);

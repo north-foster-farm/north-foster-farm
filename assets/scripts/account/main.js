@@ -359,7 +359,7 @@ class Account {
       note.hidden = false;
     } else if (order.cancelRequested) {
       note.textContent = "We're refunding this order. Your money goes back " +
-        "to the card you paid with.";
+        "to the way you paid.";
       note.hidden = false;
     } else if (order.status === "abandoned") {
       note.textContent = "This order wasn't paid by the cutoff, so it was " +

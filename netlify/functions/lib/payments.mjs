@@ -57,6 +57,53 @@ export const markPaid = async (stores, id, {
   }), { mail, env, now });
 };
 
+// A bank transfer sits PAYMENT_PENDING for days while it clears. The
+// order is held meanwhile: no reminders, no abandoning at the cutoff,
+// no confirmation until Square says PAID. Square itself tells the
+// customer when a transfer starts and when one fails, so the site
+// sends nothing. A failed transfer puts the invoice back to UNPAID,
+// which lifts the hold, and the reminders resume.
+const hold = (stores, order, now, source) => (order.paymentPending
+  ? order
+  : amendOrder(stores, order.id, {
+    paymentPending: { at: now.toISOString(), source },
+  }, "payment.pending", now));
+
+const release = (stores, order, now) => (order.paymentPending
+  ? amendOrder(stores, order.id, {
+    paymentPending: null,
+  }, "payment.failed", now)
+  : order);
+
+// Applies Square's word on an invoice to a submitted order, whoever
+// carried it. -> paid, cancelled, held, or submitted. The status is
+// the whole story: an invoice.payment_made event whose invoice is
+// still PAYMENT_PENDING is a transfer that has started, not money.
+const applyStatus = async (stores, order, status, options, source) => {
+  const now = options.now || new Date();
+
+  if (order.status !== "submitted") return order.status;
+
+  if (status === "PAID") {
+    await markPaid(stores, order.id, { ...options, source });
+
+    return "paid";
+  }
+  if (status === "CANCELED") {
+    await setStatus(stores, order.id, "cancelled", now, { source: "square" });
+
+    return "cancelled";
+  }
+  if (status === "PAYMENT_PENDING") {
+    await hold(stores, order, now, source);
+
+    return "held";
+  }
+  if (status === "UNPAID") await release(stores, order, now);
+
+  return "submitted";
+};
+
 // A Square invoice event names the invoice; the by-invoice index
 // names the order.
 export const applyInvoiceEvent = async (stores, event, options = {}) => {
@@ -69,24 +116,11 @@ export const applyInvoiceEvent = async (stores, event, options = {}) => {
 
   if (!order) return { handled: false, reason: "unknown invoice" };
 
-  const paid = invoice.status === "PAID"
-    || event.type === "invoice.payment_made";
+  const status = await applyStatus(
+    stores, order, invoice.status, options, "webhook"
+  );
 
-  if (paid && order.status === "submitted") {
-    await markPaid(stores, order.id, { ...options, source: "webhook" });
-
-    return { handled: true, id: order.id, status: "paid" };
-  }
-
-  if (invoice.status === "CANCELED" && order.status === "submitted") {
-    await setStatus(stores, order.id, "cancelled", options.now, {
-      source: "square",
-    });
-
-    return { handled: true, id: order.id, status: "cancelled" };
-  }
-
-  return { handled: true, id: order.id, status: order.status };
+  return { handled: true, id: order.id, status };
 };
 
 // The fallback for a missed webhook: ask Square about every unpaid
@@ -112,14 +146,9 @@ export const pollUnpaid = async (stores, orders, {
       continue;
     }
 
-    if (status === "PAID") {
-      await markPaid(stores, order.id, { ...options, source: "poll" });
-      paid.push(order.id);
-    } else if (status === "CANCELED") {
-      await setStatus(stores, order.id, "cancelled", options.now, {
-        source: "square",
-      });
-    }
+    const result = await applyStatus(stores, order, status, options, "poll");
+
+    if (result === "paid") paid.push(order.id);
   }
 
   return paid;

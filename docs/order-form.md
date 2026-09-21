@@ -132,10 +132,11 @@ Environment variables, set in Netlify, never in the repo:
 Per order: search the customer by email or create one; create the
 order with a `PICKUP` or `DELIVERY` fulfilment scheduled for the chosen
 day, an order-scope discount and a delivery-fee service charge; create
-the invoice with the customer as recipient, card payment, due the day
-before fulfilment; publish it. The paid order then appears in the
-Square dashboard with its fulfilment, which answers the open question in
-the spec about what happens after payment.
+the invoice with the customer as recipient, due the day before
+fulfilment, payable by card and, when the date is at least five
+business days out, by bank transfer; publish it. The paid order then
+appears in the Square dashboard with its fulfilment, which answers the
+open question in the spec about what happens after payment.
 
 Not yet exercised against a real account: the sandbox has not been
 credentialed from this environment. The unit tests mock `fetch` and
@@ -172,9 +173,15 @@ with `SQUARE_WEBHOOK_SIGNATURE_KEY` against the registered URL
 Square developer dashboard, subscribe the app to `invoice.payment_made`
 and `invoice.updated` at that URL and copy the signature key. A paid
 invoice moves the order to `paid` and sends the confirmation once;
-a cancelled invoice cancels the order. `lib/payments.mjs` owns this
-and the poll that asks Square about unpaid orders when a webhook was
-missed.
+a cancelled invoice cancels the order. A bank transfer leaves the
+invoice `PAYMENT_PENDING` for days; the order is held meanwhile (no
+reminders, not abandoned at the cutoff, not confirmed) until Square
+reports `PAID`, or `UNPAID` again when the transfer failed. The jobs
+also take the bank option off an unpaid invoice once its date comes
+within five business days (`bankTransferClosedAt` on the order's
+`square` record), so a slow payer cannot pick it at the last minute.
+`lib/payments.mjs` owns this and the poll that asks Square about
+unpaid orders when a webhook was missed.
 
 ## Schedule
 

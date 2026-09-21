@@ -9,9 +9,27 @@
 
 import terms from "../../../data/delivery.json" with { type: "json" };
 import {
-  addDays, instant, today,
+  addDays, instant, today, weekday,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { describe } from "./describe.mjs";
+
+// A bank transfer takes Square two or three business days to clear,
+// longer by some sellers' accounts, and a cleared payment is what
+// reserves the order. So the invoice offers it only when the date is
+// far enough out for a prompt payer to clear in time.
+export const BANK_TRANSFER_LEAD_DAYS = 5;
+
+export const bankTransferOffered = (date, now) => {
+  let d = today(now, terms.timeZone);
+  let businessDays = 0;
+
+  while (d < date) {
+    d = addDays(d, 1);
+    if (weekday(d) >= 1 && weekday(d) <= 5) businessDays += 1;
+  }
+
+  return businessDays >= BANK_TRANSFER_LEAD_DAYS;
+};
 
 const HOSTS = {
   production: "https://connect.squareup.com",
@@ -216,6 +234,14 @@ export const buildOrder = (order, customerId, cfg) => {
   return out;
 };
 
+const acceptedMethods = (bankTransfer) => ({
+  card: true,
+  square_gift_card: false,
+  bank_account: bankTransfer,
+  buy_now_pay_later: false,
+  cash_app_pay: false,
+});
+
 export const buildInvoice = (
   order, squareOrderId, customerId, cfg, now, { emailInvoice = true } = {}
 ) => {
@@ -233,13 +259,7 @@ export const buildInvoice = (
       due_date: dayBefore > current ? dayBefore : current,
       automatic_payment_source: "NONE",
     }],
-    accepted_payment_methods: {
-      card: true,
-      square_gift_card: false,
-      bank_account: false,
-      buy_now_pay_later: false,
-      cash_app_pay: false,
-    },
+    accepted_payment_methods: acceptedMethods(bankTransferOffered(date, now)),
     title: `North Foster Farm order ${order.id}`,
     description: `${describe(order)} Chicken arrives frozen. Once this ` +
       "invoice is paid, your order is reserved.",
@@ -270,7 +290,9 @@ const findOrCreateCustomer = async (cfg, customer, key, fetchImpl) => {
   return created.customer.id;
 };
 
-// -> { squareOrderId, invoiceId, invoiceNumber, invoiceUrl }
+// -> { squareOrderId, invoiceId, invoiceNumber, invoiceUrl,
+//      bankTransfer } — the last says whether the invoice offered it,
+//      so the jobs know which ones to close later.
 // throws SquareError { retryable, detail }
 export const createOrderAndInvoice = async (order, key, {
   env = process.env,
@@ -287,11 +309,12 @@ export const createOrderAndInvoice = async (order, key, {
     order: buildOrder(order, customerId, cfg),
   }, fetchImpl);
   const squareOrderId = created.order.id;
+  const invoice = buildInvoice(
+    order, squareOrderId, customerId, cfg, now, { emailInvoice }
+  );
   const drafted = await call(cfg, "/v2/invoices", {
     idempotency_key: `${key}-invoice`,
-    invoice: buildInvoice(
-      order, squareOrderId, customerId, cfg, now, { emailInvoice }
-    ),
+    invoice,
   }, fetchImpl);
   const { id, version } = drafted.invoice;
   const published = await call(cfg, `/v2/invoices/${id}/publish`, {
@@ -304,6 +327,7 @@ export const createOrderAndInvoice = async (order, key, {
     invoiceId: id,
     invoiceNumber: published.invoice.invoice_number || null,
     invoiceUrl: published.invoice.public_url || null,
+    bankTransfer: invoice.accepted_payment_methods.bank_account,
   };
 };
 
@@ -355,6 +379,31 @@ export const cancelInvoice = async (invoiceId, {
     status: (data.invoice && data.invoice.status) || "CANCELED",
     cancelled: true,
   };
+};
+
+// Takes the bank option off an unpaid invoice once its date is too
+// close for a transfer to clear, so a slow payer cannot pick it on
+// the due date and turn up with money in flight. Square wants the
+// current version. An invoice no longer unpaid is left alone.
+export const closeBankTransfer = async (invoiceId, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  const cfg = settings(env);
+  const current = await getInvoice(invoiceId, { env, fetchImpl });
+
+  if (!["UNPAID", "SCHEDULED", "DRAFT"].includes(current.status)) {
+    return { id: invoiceId, status: current.status, closed: false };
+  }
+
+  await call(cfg, `/v2/invoices/${invoiceId}`, {
+    invoice: {
+      version: current.version,
+      accepted_payment_methods: acceptedMethods(false),
+    },
+  }, fetchImpl, "PUT");
+
+  return { id: invoiceId, status: current.status, closed: true };
 };
 
 // Square's copy of the fulfilment is what the farm packs from, so a
