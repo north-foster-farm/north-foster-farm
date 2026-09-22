@@ -3,10 +3,11 @@ import { describe, it } from "node:test";
 
 import terms from "../data/delivery.json" with { type: "json" };
 import {
-  cancelOrder, decideAddress, fulfilOrder, listOrders, payOrder,
-  removeCustomer, removeOrder, resolveReturn, setCustomer, showCustomer,
-  stockList, stockSet,
+  cancelOrder, confirmPickup, decideAddress, denyPickup, fulfilOrder,
+  listOrders, payOrder, removeCustomer, removeOrder, resolveReturn,
+  setCustomer, showCustomer, stockList, stockSet,
 } from "../netlify/functions/lib/admin.mjs";
+import { verifyToken } from "../netlify/functions/lib/auth.mjs";
 import { requestReturn } from "../netlify/functions/lib/account.mjs";
 import { markPaid } from "../netlify/functions/lib/payments.mjs";
 import {
@@ -185,6 +186,106 @@ describe("orders from the CLI", () => {
     sent.length = 0;
     await cancelOrder(stores, "A", opts);
     assert.match(sent[0].text, /refund is on its way/);
+  });
+});
+
+describe("an on-farm pickup window from the CLI", () => {
+  const requested = (id, status = "submitted") => {
+    const o = order(id, status);
+
+    o.fulfilment.state = "requested";
+
+    return o;
+  };
+
+  it("confirm: agreed, and confirmed by whichever of paid and agreed " +
+    "comes second", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+
+    // Agreed first: nothing to say until the money arrives.
+    await saveOrder(stores, requested("A"), now);
+    const agreed = await confirmPickup(stores, "A", opts);
+
+    assert.equal(agreed.fulfilment.state, "agreed");
+    assert.equal(agreed.fulfilment.agreedAt, now.toISOString());
+    assert.equal(sent.length, 0);
+    await payOrder(stores, "A", opts);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].subject, "Your order is confirmed");
+    assert.match(sent[0].text, /your pickup time is set/);
+
+    // Paid first: "Payment received", then confirmed on agreement.
+    await saveOrder(stores, requested("B"), now);
+    await payOrder(stores, "B", opts);
+    assert.equal(sent.length, 2);
+    assert.equal(sent[1].subject, "Payment received");
+    const b = await confirmPickup(stores, "B", opts);
+
+    assert.equal(sent.length, 3);
+    assert.equal(sent[2].subject, "Your order is confirmed");
+    assert.equal(b.emails.orderConfirmed.id, "m3");
+
+    // Again is a no-op; a delivery has nothing to confirm.
+    await confirmPickup(stores, "B", opts);
+    assert.equal(sent.length, 3);
+    await saveOrder(stores, {
+      ...order("C"), fulfilment: { method: "delivery", date: "2026-10-08" },
+    }, now);
+    await assert.rejects(confirmPickup(stores, "C", opts), /Only an on-farm/);
+  });
+
+  it("deny: opens a question, pauses nothing else, and mails a week-long " +
+    "link to the order page", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const env = { ACCOUNTS_ENABLED: "true", URL: "https://x" };
+
+    await saveOrder(stores, requested("A"), now);
+    const denied = await denyPickup(stores, "A", {
+      ...opts, env, reason: "  We're at the market that morning.  ",
+    });
+
+    assert.equal(denied.fulfilment.state, "requested");
+    assert.equal(denied.question.kind, "window");
+    assert.equal(denied.question.reason, "We're at the market that morning.");
+    assert.equal(denied.question.answeredAt, null);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].subject, "One more step: pick a new pickup time");
+    assert.match(sent[0].text, /_\*\*We're at the market that morning\.\*\*_/);
+
+    const link = sent[0].text.match(/Pick a new time: (\S+)/)[1];
+    const token = new URL(link).searchParams.get("token");
+    const week = new Date(now.getTime() + 6 * 24 * 60 * 60_000);
+    const v = await verifyToken(stores, token, { now: week });
+
+    assert.equal(v.ok, true, "still good six days on");
+    assert.equal(v.email, "pat@example.com");
+    assert.equal(v.next, "/account/orders/A/");
+
+    // Confirming after all closes the question, as the farm's answer.
+    const agreed = await confirmPickup(stores, "A", { ...opts, env });
+
+    assert.equal(agreed.fulfilment.state, "agreed");
+    assert.equal(agreed.question.answer, "confirmed");
+    assert.equal(agreed.question.by, "farm");
+  });
+
+  it("deny without accounts asks for a reply, and each deny is its own " +
+    "email", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+
+    await saveOrder(stores, requested("A"), now);
+    await denyPickup(stores, "A", opts);
+    assert.doesNotMatch(sent[0].text, /Pick a new time:/);
+    assert.match(sent[0].text, /Reply to this email/);
+
+    const later = new Date(now.getTime() + 60_000);
+
+    await denyPickup(stores, "A", { ...opts, now: later, reason: "Rain." });
+    assert.equal(sent.length, 2);
+    assert.match(sent[1].text, /_\*\*Rain\.\*\*_/);
   });
 });
 

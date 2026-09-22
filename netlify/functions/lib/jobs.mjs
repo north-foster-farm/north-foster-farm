@@ -15,23 +15,31 @@
 //               option once its date is too close to clear
 //   delivery    18:00 the day before a paid delivery: cooler reminder
 //   close       a paid order the day after fulfilment is fulfilled
+//   question    an order with an open question from the farm (a denied
+//               pickup window) is left alone: no reminders, not
+//               abandoned, not closed, until the customer answers
+//   pickups     8:00 daily, the on-farm orders within two days still
+//               waiting on the farm or the customer, to ADMIN_EMAILS
 
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { cutoffFor } from "../../../assets/scripts/order/lib/dates.mjs";
 import {
-  addDays, instant, today,
+  addDays, instant, parts, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
-import { sendMail } from "./mail.mjs";
+import { adminEmails, sendMail } from "./mail.mjs";
 import { pollUnpaid, sendForOrder } from "./payments.mjs";
 import {
-  amendOrder, getCustomer, openOrders, reminderPrefs, setStatus,
+  amendOrder, getCustomer, needsAgreement, openOrders, questionOpen,
+  reminderPrefs, setStatus,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
 import {
   bankTransferOffered, cancelInvoice, closeBankTransfer, getInvoice,
 } from "./square.mjs";
 import { adjust } from "./stock.mjs";
-import { deliveryReminder, paymentReminder } from "./templates.mjs";
+import {
+  deliveryReminder, farmPickupsToConfirm, paymentReminder,
+} from "./templates.mjs";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -40,6 +48,8 @@ export const SOON_AFTER = HOUR;
 export const NEXT_DAY_AFTER = 24 * HOUR;
 export const FINAL_HOUR = 8;
 export const DELIVERY_REMINDER_HOUR = 18;
+export const PICKUPS_REPORT_HOUR = 8;
+export const PICKUPS_REPORT_DAYS = 2;
 
 const tz = terms.timeZone;
 
@@ -87,6 +97,7 @@ export const runJobs = async (stores, {
   const report = {
     at: now.toISOString(), paid: [], reminded: [], abandoned: [],
     deliveryReminded: [], closed: [], bankTransferClosed: [], muted: [],
+    pickupsToConfirm: [],
   };
   const opts = { env, mail, now };
 
@@ -113,6 +124,8 @@ export const runJobs = async (stores, {
 
   // Re-read: the poll may have paid some.
   for (const order of await openOrders(stores)) {
+    if (questionOpen(order)) continue;
+
     if (order.status === "submitted") {
       if (order.paymentPending) continue;
 
@@ -192,5 +205,49 @@ export const runJobs = async (stores, {
     }
   }
 
+  report.pickupsToConfirm = await pickupsReport(stores, { env, mail, now });
+
   return report;
+};
+
+// The on-farm orders within PICKUPS_REPORT_DAYS of their date that
+// still wait on someone: the farm to confirm, or the customer to pick
+// again after a deny. Once a day from PICKUPS_REPORT_HOUR, recorded in
+// the jobs store so a run every quarter hour sends it once, and only
+// when the list is not empty. -> the ids reported this run.
+export const pickupsDue = (orders, day) => orders.filter((o) =>
+  o.fulfilment.method === "onfarm"
+  && (needsAgreement(o) || questionOpen(o))
+  && o.fulfilment.date <= addDays(day, PICKUPS_REPORT_DAYS));
+
+const pickupsReport = async (stores, { env, mail, now }) => {
+  const day = today(now, tz);
+  const key = `report/pickups/${day}`;
+  const to = adminEmails(env);
+
+  if (parts(now, tz).hour < PICKUPS_REPORT_HOUR || !to.length) return [];
+  if (await stores.jobs.get(key)) return [];
+
+  const due = pickupsDue(await openOrders(stores), day);
+  const ids = due.map((o) => o.id);
+
+  if (due.length) {
+    try {
+      await mail({
+        to,
+        idempotencyKey: `pickups-${day}`,
+        ...farmPickupsToConfirm(due, { date: day, links: mailLinks(env) }),
+      }, { env });
+    } catch (error) {
+      console.error(JSON.stringify({
+        event: "mail.failed", template: "farmPickupsToConfirm",
+        error: String(error.message),
+      }));
+
+      return [];
+    }
+  }
+  await stores.jobs.set(key, { at: now.toISOString(), ids });
+
+  return ids;
 };

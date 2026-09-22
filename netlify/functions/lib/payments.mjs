@@ -4,11 +4,13 @@
 
 import { adminEmails, sendMail } from "./mail.mjs";
 import {
-  amendOrder, getOrder, orderByInvoice, setStatus,
+  amendOrder, getOrder, needsAgreement, orderByInvoice, setStatus,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import { dashboardUrl, getInvoice } from "./square.mjs";
-import { farmOrderPaid, orderConfirmed } from "./templates.mjs";
+import {
+  farmOrderPaid, orderConfirmed, paymentReceived,
+} from "./templates.mjs";
 
 // Sends one templated email about an order and notes it on the order.
 // The recipient is the customer unless `to` says otherwise. Never
@@ -63,8 +65,32 @@ export const notifyFarm = async (stores, order, key, message, {
   return sendForOrder(stores, order, key, message, { mail, env, now, to });
 };
 
+// "Your order is confirmed", once, when the order is paid and its
+// window agreed. `again` is for the farm confirming a window the
+// customer re-picked after an earlier confirmation, which the
+// `emails` table would otherwise keep to the first.
+export const confirmOrder = async (stores, order, {
+  mail = sendMail,
+  env = process.env,
+  now = new Date(),
+  again = false,
+} = {}) => {
+  const done = !!(order.emails && order.emails.orderConfirmed);
+
+  if (done && !again) return order;
+
+  const key = done ? `orderConfirmed-${now.getTime()}` : "orderConfirmed";
+
+  return sendForOrder(stores, order, key, orderConfirmed(order, {
+    orderUrl: orderUrlFor(env, order.id), links: mailLinks(env),
+  }), { mail, env, now });
+};
+
 // -> the order, now paid; or null if unknown. A second call is a
 // no-op, so the webhook and the poll can both report the same payment.
+// An on-farm pickup the farm has not agreed to yet is not confirmed
+// by paying: that customer hears "Payment received" now and
+// "confirmed" when the farm agrees.
 export const markPaid = async (stores, id, {
   mail = sendMail,
   env = process.env,
@@ -77,9 +103,11 @@ export const markPaid = async (stores, id, {
 
   let order = paid;
 
-  if (!(order.emails && order.emails.orderConfirmed)) {
-    order = await sendForOrder(stores, order, "orderConfirmed",
-      orderConfirmed(order, {
+  if (!needsAgreement(order)) {
+    order = await confirmOrder(stores, order, { mail, env, now });
+  } else if (!(order.emails && order.emails.paymentReceived)) {
+    order = await sendForOrder(stores, order, "paymentReceived",
+      paymentReceived(order, {
         orderUrl: orderUrlFor(env, order.id), links: mailLinks(env),
       }),
       { mail, env, now });

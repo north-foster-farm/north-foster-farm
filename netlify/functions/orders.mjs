@@ -108,11 +108,18 @@ export const handle = async (req, {
     return json(422, { errors: stock.errors, stock: stock.items });
   }
 
+  // Only an on-farm window waits for the farm's agreement; the other
+  // methods are born agreed (see records.mjs).
+  const method = result.order.fulfilment.method;
   const order = {
     id: orderId(key, now),
     submittedAt: now.toISOString(),
     status: "submitted",
     ...result.order,
+    fulfilment: {
+      ...result.order.fulfilment,
+      state: method === "onfarm" ? "requested" : "agreed",
+    },
     meta: {
       formVersion: catalog.version,
       userAgent: String(req.headers.get("user-agent") || "").slice(0, 200),

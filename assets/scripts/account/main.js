@@ -386,6 +386,24 @@ class Account {
       ? "Cancellation requested"
       : (STATUS[order.status] || order.status));
 
+    // The farm's side of a pickup: a denied window asks them to pick
+    // again; a requested one is waiting on the farm.
+    const pickup = qs(node, "[data-out='pickup']");
+    const q = order.question;
+
+    if (q && !q.answeredAt && q.kind === "window") {
+      pickup.textContent = "We can't do that pickup time" +
+        `${q.reason ? `: ${q.reason}` : "."} Please choose another day or ` +
+        "window with Change, or cancel the order.";
+      pickup.hidden = false;
+    } else if (order.fulfilment.method === "onfarm"
+      && order.fulfilment.state === "requested"
+      && ["submitted", "paid"].includes(order.status)) {
+      pickup.textContent = "Pickup time requested. We'll confirm it by " +
+        "email.";
+      pickup.hidden = false;
+    }
+
     const note = qs(node, "[data-out='note']");
 
     if (order.status === "submitted" && order.invoice && order.invoice.url) {

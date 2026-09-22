@@ -18,6 +18,9 @@ import { magicLink } from "./templates.mjs";
 const MINUTE = 60_000;
 
 export const LINK_TTL = 15 * MINUTE;
+// A link the farm puts in an email the customer may not open for
+// days, such as "Pick a new time" after a denied pickup window.
+export const LONG_LINK_TTL = 7 * 24 * 60 * MINUTE;
 export const SESSION_TTL = 30 * 24 * 60 * MINUTE;
 export const LINKS_PER_WINDOW = 3;
 export const LINK_WINDOW = 15 * MINUTE;
@@ -62,31 +65,38 @@ export const ensureCustomer = async (stores, email, now) => {
 
 // -> { ok: true, url } after mailing, or { ok: false, reason }. The
 // URL is returned for the CLI; the API never shows it to the browser.
+// The rate limit is for the public request form; a link the farm
+// mints itself (`limit: false`) counts against nobody and may live
+// longer (`ttl`).
 export const requestLink = async (stores, { email, next }, {
   now = new Date(),
   env = process.env,
   mail = sendMail,
   send = true,
+  limit = true,
+  ttl = LINK_TTL,
 } = {}) => {
   const address = normalizeEmail(email);
 
   if (!validEmail(address)) return { ok: false, reason: "invalid" };
 
-  const rateKey = `rate/${address}`;
-  const rate = (await stores.auth.get(rateKey)) || { times: [] };
-  const recent = rate.times.filter((t) => now.getTime() - t < LINK_WINDOW);
+  if (limit) {
+    const rateKey = `rate/${address}`;
+    const rate = (await stores.auth.get(rateKey)) || { times: [] };
+    const recent = rate.times.filter((t) => now.getTime() - t < LINK_WINDOW);
 
-  if (recent.length >= LINKS_PER_WINDOW) {
-    return { ok: false, reason: "rate" };
+    if (recent.length >= LINKS_PER_WINDOW) {
+      return { ok: false, reason: "rate" };
+    }
+    await stores.auth.set(rateKey, { times: [...recent, now.getTime()] });
   }
-  await stores.auth.set(rateKey, { times: [...recent, now.getTime()] });
 
   const token = secret();
 
   await stores.auth.set(`token/${hash(token)}`, {
     email: address,
     next: safeNext(next),
-    expires: now.getTime() + LINK_TTL,
+    expires: now.getTime() + ttl,
     createdAt: now.toISOString(),
   });
 
@@ -97,7 +107,7 @@ export const requestLink = async (stores, { email, next }, {
       to: address,
       idempotencyKey: `link-${hash(token).slice(0, 16)}`,
       ...magicLink(address, url, {
-        minutes: LINK_TTL / MINUTE, links: mailLinks(env),
+        minutes: ttl / MINUTE, links: mailLinks(env),
       }),
     }, { env });
   }

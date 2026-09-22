@@ -189,6 +189,86 @@ describe("changeOrder", () => {
     assert.ok(bad.errors["delivery.cooler"]);
   });
 
+  it("makes a moved pickup a new request, answers a denied window, and " +
+    "tells the farm", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const o = order("A", "onfarm");
+
+    o.fulfilment.state = "agreed";
+    o.fulfilment.agreedAt = "2026-10-05T12:00:00Z";
+    o.question = {
+      kind: "window", reason: "Rain.", openedAt: "2026-10-05T12:30:00Z",
+      answeredAt: null, answer: null, by: null,
+    };
+    await saveOrder(stores, o, now);
+
+    // Only the notes: still agreed, question still open.
+    const same = await changeOrder(stores, customerOf(), "A", {
+      notes: "Back door", onfarm: { window: "morning" },
+    }, opts);
+
+    assert.equal(same.order.fulfilment.state, "agreed");
+    assert.equal(same.order.question.answeredAt, null);
+    assert.equal(sent.filter((m) => Array.isArray(m.to)).length, 0);
+
+    const moved = await changeOrder(stores, customerOf(), "A", {
+      onfarm: { window: "afternoon" },
+    }, opts);
+
+    assert.equal(moved.ok, true, JSON.stringify(moved));
+    assert.equal(moved.order.fulfilment.state, "requested");
+    assert.equal(moved.order.fulfilment.agreedAt, null);
+    assert.equal(moved.order.question.answer, "reschedule");
+    assert.ok(moved.order.question.answeredAt);
+
+    const customer = sent.filter((m) => !Array.isArray(m.to));
+    const farm = sent.filter((m) => Array.isArray(m.to));
+
+    assert.match(customer.at(-1).subject, /updated/);
+    assert.match(customer.at(-1).text,
+      /- Requested: Wednesday, October 7, afternoon/);
+    assert.equal(farm.length, 1);
+    assert.match(farm[0].subject, /^Pickup time to confirm: A/);
+    assert.match(farm[0].text, /bin\/nff orders confirm A/);
+  });
+
+  it("keeps a denied order open to change or cancel past the cutoff",
+    async () => {
+      const stores = testStores();
+      const { sent, opts } = harness();
+      const o = order("A", "onfarm");
+
+      o.question = {
+        kind: "window", reason: "", openedAt: now.toISOString(),
+        answeredAt: null, answer: null, by: null,
+      };
+      await saveOrder(stores, o, now);
+
+      // Midnight before the pickup has passed.
+      const late = instant("2026-10-07", 9, 0, TZ);
+      const listed = await listOrders(stores, customerOf(), { now: late });
+
+      assert.equal(listed.orders[0].canChange, true);
+      assert.equal(listed.orders[0].canCancel, true);
+      assert.equal(listed.orders[0].question.kind, "window");
+
+      const r = await cancelOrder(stores, customerOf(), "A", {
+        ...opts, now: late,
+      });
+
+      assert.equal(r.ok, true);
+      assert.equal(r.order.status, "cancelled");
+      assert.equal(r.order.question.answer, "cancel");
+      assert.match(sent[0].subject, /cancelled/);
+
+      // Without a question the cutoff still closes the doors.
+      await saveOrder(stores, order("B", "onfarm"), now);
+      const b = await listOrders(stores, customerOf(), { now: late });
+
+      assert.equal(b.orders.find((x) => x.id === "B").canChange, false);
+    });
+
   it("flags the order and tells the farm when Square cannot follow",
     async () => {
       const stores = testStores();

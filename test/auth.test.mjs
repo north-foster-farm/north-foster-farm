@@ -71,6 +71,40 @@ describe("requestLink", () => {
   });
 });
 
+describe("a link the farm mints", () => {
+  it("counts against no one and lives as long as asked", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const farm = { now, env, mail, send: false, limit: false, ttl: 3 * 60_000 };
+    const links = [];
+
+    for (let i = 0; i < 4; i += 1) {
+      const r = await requestLink(stores, {
+        email: "pat@example.com", next: "/account/orders/A/",
+      }, farm);
+
+      assert.equal(r.ok, true, `link ${i + 1}`);
+      links.push(r.url);
+    }
+    assert.equal(sent.length, 0);
+
+    // The public form still has its three.
+    const pub = await requestLink(stores, { email: "pat@example.com" }, {
+      now, env, mail,
+    });
+
+    assert.equal(pub.ok, true);
+
+    const token = tokenIn(links[0]);
+    const late = new Date(now.getTime() + 4 * 60_000);
+
+    assert.equal((await verifyToken(stores, token, { now: late })).ok, false);
+    assert.equal((await verifyToken(stores, tokenIn(links[1]), {
+      now: new Date(now.getTime() + 2 * 60_000),
+    })).next, "/account/orders/A/");
+  });
+});
+
 describe("verifyToken", () => {
   it("works once, within the window", async () => {
     const stores = testStores();

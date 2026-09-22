@@ -16,6 +16,26 @@
 
 export const OPEN = ["submitted", "paid"];
 
+// The farm's side of a pickup, beside `status`. Only an on-farm window
+// needs the farm's agreement: `fulfilment.state` is `requested` until
+// `bin/nff orders confirm` makes it `agreed`. Delivery and the
+// Scituate drop are born agreed, and so is any record from before the
+// state existed.
+export const needsAgreement = (order) =>
+  order.fulfilment.method === "onfarm"
+  && order.fulfilment.state === "requested";
+
+// A question the farm put to the customer (today only `window`: the
+// pickup time was denied, pick another). While one is open the clocks
+// on the order pause; answering it, by the customer rescheduling or
+// cancelling or by the farm confirming after all, closes it.
+export const questionOpen = (order) =>
+  !!(order.question && !order.question.answeredAt);
+
+export const answerQuestion = (order, answer, by, now) => (questionOpen(order)
+  ? { ...order.question, answeredAt: now.toISOString(), answer, by }
+  : order.question || null);
+
 const emailKey = (email) => String(email || "").trim().toLowerCase();
 
 export const orderKey = (id) => `order/${id}`;

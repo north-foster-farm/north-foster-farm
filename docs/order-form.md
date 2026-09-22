@@ -152,6 +152,25 @@ the Square ids, and a customer record is created or touched by email.
 watch (submitted, paid). Statuses: submitted, paid, fulfilled,
 cancelled, abandoned. Square stays the system of record for money.
 
+Beside `status`, an order carries the farm's side of its pickup in
+`fulfilment.state`: `requested` or `agreed`. Only an on-farm window
+needs the farm's agreement, so only an on-farm order is born
+`requested`; delivery, the Scituate drop, and every record from
+before the state existed, are `agreed` (`needsAgreement(order)` in
+`lib/records.mjs`). `bin/nff orders confirm <id>` sets `agreed`; the
+farm never moves a time itself. `bin/nff orders deny <id> --reason
+"..."` opens a **question** on the order (`order.question = { kind:
+"window", reason, openedAt, answeredAt, answer, by }`) and emails the
+customer to pick again. While a question is open the jobs run leaves
+the order alone (no reminders, no abandoning, no closing), and the
+customer can change or cancel it even past the cutoff. Moving the date
+or window from the account page answers the question (`reschedule`),
+makes the order `requested` again and tells the farm; cancelling
+answers it (`cancel`); confirming after all answers it (`confirmed`,
+by the farm). The "Pick a new time" button is a sign-in link to the
+order page that lives a week (`LONG_LINK_TTL`, minted with
+`limit: false`); while accounts are off the email asks for a reply.
+
 A customer record (`customer/<email>`) keeps the name, phone, avatar,
 pricing group, delivery address and `reminders`, the two reminder
 emails as `{ payment, delivery }` booleans; a key that is missing
@@ -164,10 +183,17 @@ did. `reminderPrefs(customer)` in `lib/records.mjs` is the one reading.
 `RESEND_API_KEY` and `MAIL_FROM` are set, otherwise to the function
 log. `MAIL_REPLY_TO` and `ADMIN_EMAILS` (comma-separated) are
 optional. `lib/templates.mjs` holds every message as a pure function
-with tests: complete your order, order confirmed, payment reminders
-(soon, nextDay, final), delivery reminder, order changed, order
-cancelled, address decision, sign-in link, and to the farm: address
-review, order placed, order paid. The reminders carry a "Turn off
+with tests: complete your order, order confirmed, payment received
+(an on-farm order paid before its window is agreed), pick a new time
+(a denied window), payment reminders (soon, nextDay, final), delivery
+reminder, order changed, order cancelled, address decision, sign-in
+link, and to the farm: address review, order placed (with the confirm
+and deny commands for an on-farm window), order paid, pickup time
+changed, and the morning "Pickups to confirm" report. For an on-farm
+order "Your order is confirmed" goes out when the second of paid and
+agreed arrives, whichever it is (`confirmOrder` in
+`lib/payments.mjs`); the Order details block reads "Requested:"
+instead of "When:" until then. The reminders carry a "Turn off
 ... reminders" link to the account page's settings tab; the jobs run
 reads the customer's `reminders` before each one and skips, and
 reports as `muted`, any the customer turned off. Abandonment and
@@ -228,9 +254,15 @@ function) and calls `lib/jobs.mjs`, which decides in
 | delivery cutoff (Wed noon) or midnight before a pickup, unpaid | `abandoned`, invoice cancelled |
 | 18:00 the day before a paid delivery   | cooler reminder           |
 | the day after fulfilment, paid         | `fulfilled`               |
+| 8:00 daily                             | "Pickups to confirm" report |
 
 Sends are noted on the order under `emails`, so a repeat run sends
-nothing twice and a late run sends only the most urgent reminder.
+nothing twice and a late run sends only the most urgent reminder. An
+order with an open question is skipped by every row but the last. The
+morning report lists the on-farm orders within two days of their date
+that are still `requested` or on an open question, goes to
+`ADMIN_EMAILS` only when that list is not empty, and is recorded in
+the `jobs` store as `report/pickups/<date>`.
 
 ## Sign-in
 
@@ -290,9 +322,11 @@ Blobs stores, plus the Square and mail variables for anything that
 talks to them; without the Netlify pair it runs against memory and
 says so. `bin/nff` with no arguments prints the commands: customers
 (list, show, set, delete), address (approve, deny), orders (list,
-show, paid, cancel, fulfil, delete), returns resolve, stock (list,
-set), login and masquerade (a single-use sign-in link, opened for
-you), jobs run. `lib/admin.mjs` holds the rules with tests.
+show, paid, confirm, deny, cancel, fulfil, delete), returns resolve,
+stock (list, set), login and masquerade (a single-use sign-in link,
+opened for you), jobs run. Flags that take a value accept both
+`--reason "..."` and `--reason=...`. `lib/admin.mjs` holds the rules
+with tests.
 
 ## Decisions
 

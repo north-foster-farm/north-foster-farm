@@ -27,9 +27,12 @@ export const settingsUrlFor = (env) =>
     ? `${siteUrl(env)}/account/#settings`
     : null);
 
+export const orderPathFor = (id) =>
+  `/account/orders/${encodeURIComponent(id)}/`;
+
 export const orderUrlFor = (env, id) =>
   (env.ACCOUNTS_ENABLED === "true"
-    ? `${siteUrl(env)}/account/orders/${encodeURIComponent(id)}/`
+    ? `${siteUrl(env)}${orderPathFor(id)}`
     : null);
 
 // The links every email ends on. `orders` is null until accounts are

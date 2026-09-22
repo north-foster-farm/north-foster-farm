@@ -82,6 +82,8 @@ describe("POST /api/orders", () => {
     const saved = await getOrder(stores, id);
 
     assert.equal(saved.status, "submitted");
+    assert.equal(saved.fulfilment.state, "requested", "an on-farm window " +
+      "waits for the farm");
     assert.equal(saved.square.invoiceId, "INV");
     assert.equal(saved.customer.email, "pat@example.com");
     assert.equal(saved.history[0].event, "submitted");
@@ -169,6 +171,10 @@ describe("POST /api/orders", () => {
       /- pat@example.com\n- 401-555-0100, prefers a call/);
     assert.match(farm[0].text,
       /app\.squareup\.com\/dashboard\/orders\/overview\/SQO/);
+    assert.match(farm[0].text, /Pickup time: \*\*Requested, not yet/);
+    assert.match(farm[0].text, /bin\/nff orders confirm NFF-/);
+    assert.match(sent[0].text, /- Requested: Wednesday, October 7, morning/,
+      "the customer's pay link says the window is requested");
 
     const saved = await getOrder(stores, orderId(KEY, now));
 

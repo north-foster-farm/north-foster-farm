@@ -20,6 +20,8 @@ const USAGE = `Usage:
   bin/nff orders list [--open] [--status=paid] [--email=x]
   bin/nff orders show <id>
   bin/nff orders paid <id>            mark paid by hand (cash, check)
+  bin/nff orders confirm <id>         agree to an on-farm pickup window
+  bin/nff orders deny <id> --reason "..."   have them pick another
   bin/nff orders cancel <id> [--refund]
   bin/nff orders fulfil <id>
   bin/nff orders delete <id>
@@ -54,13 +56,23 @@ const stores = makeStores();
 const flags = {};
 const words = [];
 
-for (const a of process.argv.slice(2)) {
-  const m = a.match(/^--([a-z-]+)(?:=(.*))?$/);
+// Flags that take a value: `--reason "..."` as well as `--reason=...`.
+const VALUED = ["reason", "via", "note"];
+const args = process.argv.slice(2);
 
-  if (m) {
-    flags[m[1]] = m[2] === undefined ? true : m[2];
+for (let i = 0; i < args.length; i += 1) {
+  const m = args[i].match(/^--([a-z-]+)(?:=(.*))?$/);
+
+  if (!m) {
+    words.push(args[i]);
+  } else if (m[2] !== undefined) {
+    flags[m[1]] = m[2];
+  } else if (VALUED.includes(m[1]) && i + 1 < args.length
+    && !args[i + 1].startsWith("--")) {
+    flags[m[1]] = args[i + 1];
+    i += 1;
   } else {
-    words.push(a);
+    flags[m[1]] = true;
   }
 }
 
@@ -137,6 +149,14 @@ const run = async () => {
     return out(await admin.showOrder(stores, rest[0]));
   case "orders paid":
     return out(summaryLine(await admin.payOrder(stores, rest[0])));
+  case "orders confirm":
+    return out(summaryLine(await admin.confirmPickup(stores, rest[0])));
+  case "orders deny":
+    if (flags.reason === true) flags.reason = "";
+
+    return out(summaryLine(await admin.denyPickup(stores, rest[0], {
+      reason: flags.reason || "",
+    })));
   case "orders cancel":
     return out(summaryLine(await admin.cancelOrder(stores, rest[0], {
       refund: !!flags.refund,

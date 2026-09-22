@@ -4,16 +4,18 @@
 // farm's authority. bin/nff is the thin front.
 
 import { adjust, getCounts, setCount } from "./stock.mjs";
+import { LONG_LINK_TTL, requestLink } from "./auth.mjs";
 import { sendMail } from "./mail.mjs";
-import { markPaid, sendForOrder } from "./payments.mjs";
+import { confirmOrder, markPaid, sendForOrder } from "./payments.mjs";
 import {
-  allCustomers, allOrders, amendOrder, deleteCustomer, deleteOrder,
-  getCustomer, getOrder, ordersFor, saveCustomer, setStatus,
+  OPEN, allCustomers, allOrders, amendOrder, answerQuestion, deleteCustomer,
+  deleteOrder, getCustomer, getOrder, needsAgreement, ordersFor,
+  questionOpen, saveCustomer, setStatus,
 } from "./records.mjs";
-import { mailLinks } from "./site.mjs";
+import { mailLinks, orderPathFor, orderUrlFor } from "./site.mjs";
 import { cancelFulfilment, cancelInvoice } from "./square.mjs";
 import {
-  addressDecision, orderCancelled,
+  addressDecision, orderCancelled, pickNewTime,
 } from "./templates.mjs";
 
 const need = (thing, what) => {
@@ -149,6 +151,83 @@ export const cancelOrder = async (stores, id, {
   }
 
   return getOrder(stores, id);
+};
+
+// The farm's side of an on-farm pickup: agree to the window as asked,
+// or deny it and have the customer pick again. The farm never moves a
+// time itself (James, 2026-09-21).
+
+const openPickup = async (stores, id) => {
+  const order = need(await getOrder(stores, id), "order");
+
+  if (order.fulfilment.method !== "onfarm") {
+    throw new Error("Only an on-farm pickup needs confirming.");
+  }
+  if (!OPEN.includes(order.status)) {
+    throw new Error(`This order is ${order.status}.`);
+  }
+
+  return order;
+};
+
+// -> the order, agreed. Sends "confirmed" if it is already paid; the
+// second of paid and agreed sends it, whichever that is. Confirming
+// after a deny closes the question: the time works after all.
+export const confirmPickup = async (stores, id, {
+  now = new Date(), env = process.env, mail = sendMail,
+} = {}) => {
+  const order = await openPickup(stores, id);
+
+  if (!needsAgreement(order) && !questionOpen(order)) return order;
+
+  const agreed = await amendOrder(stores, id, {
+    fulfilment: {
+      ...order.fulfilment, state: "agreed", agreedAt: now.toISOString(),
+    },
+    question: answerQuestion(order, "confirmed", "farm", now),
+  }, "pickup.agreed", now);
+
+  if (agreed.status !== "paid") return agreed;
+
+  return confirmOrder(stores, agreed, { mail, env, now, again: true });
+};
+
+// -> the order, with a `window` question open and the customer told
+// to pick again. The email's button is a sign-in link straight to the
+// order page, good for a week; while the account pages are off it has
+// no button and asks for a reply instead.
+export const denyPickup = async (stores, id, {
+  reason = "", now = new Date(), env = process.env, mail = sendMail,
+  link = requestLink,
+} = {}) => {
+  const order = await openPickup(stores, id);
+  const question = {
+    kind: "window",
+    reason: String(reason || "").trim(),
+    openedAt: now.toISOString(),
+    answeredAt: null,
+    answer: null,
+    by: null,
+  };
+  const denied = await amendOrder(stores, id, {
+    fulfilment: { ...order.fulfilment, state: "requested", agreedAt: null },
+    question,
+  }, "pickup.denied", now);
+
+  let pickUrl = null;
+
+  if (orderUrlFor(env, id)) {
+    const r = await link(stores, {
+      email: order.customer.email, next: orderPathFor(id),
+    }, { now, env, send: false, limit: false, ttl: LONG_LINK_TTL });
+
+    pickUrl = r.ok ? r.url : orderUrlFor(env, id);
+  }
+
+  return sendForOrder(stores, denied, `pickNewTime-${now.getTime()}`,
+    pickNewTime(denied, {
+      reason: question.reason, pickUrl, links: mailLinks(env),
+    }), { mail, env, now });
 };
 
 export const fulfilOrder = async (stores, id, { now = new Date() } = {}) =>

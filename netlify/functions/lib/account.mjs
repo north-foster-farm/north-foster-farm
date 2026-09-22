@@ -14,17 +14,19 @@ import {
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { abandonAt } from "./jobs.mjs";
 import { adminEmails, sendMail } from "./mail.mjs";
-import { sendForOrder } from "./payments.mjs";
+import { notifyFarm, sendForOrder } from "./payments.mjs";
 import {
-  REMINDERS, amendOrder, getOrder, ordersFor, reminderPrefs, saveCustomer,
-  setStatus,
+  REMINDERS, amendOrder, answerQuestion, getOrder, ordersFor, questionOpen,
+  reminderPrefs, saveCustomer, setStatus,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor, siteUrl } from "./site.mjs";
 import {
   cancelInvoice, cancelFulfilment, updateFulfilment,
 } from "./square.mjs";
 import { adjust } from "./stock.mjs";
-import { addressReview, orderCancelled, orderChanged } from "./templates.mjs";
+import {
+  addressReview, farmPickupChanged, orderCancelled, orderChanged,
+} from "./templates.mjs";
 
 export const AVATARS = avatars.map((a) => a.key);
 
@@ -71,21 +73,29 @@ export const publicOrder = (order, now = new Date()) => ({
     url: order.square.invoiceUrl || null,
   } : null,
   returns: order.returns || [],
+  question: order.question ? {
+    kind: order.question.kind,
+    reason: order.question.reason || "",
+    openedAt: order.question.openedAt,
+    answeredAt: order.question.answeredAt || null,
+    answer: order.question.answer || null,
+  } : null,
   canCancel: canCancel(order, now),
   canChange: canChange(order, now),
 });
 
 // An order can be cancelled by the customer until the cutoff, while
-// it is unpaid or paid. Paid cancellations need a refund by hand.
-export const canCancel = (order, now) =>
+// it is unpaid or paid. Paid cancellations need a refund by hand. An
+// open question from the farm (a denied pickup window) keeps both
+// doors open past the cutoff: the customer was asked to choose.
+const actionable = (order, now) =>
   ["submitted", "paid"].includes(order.status)
   && !order.cancelRequested
-  && now.getTime() < abandonAt(order).getTime();
+  && (now.getTime() < abandonAt(order).getTime() || questionOpen(order));
 
-export const canChange = (order, now) =>
-  ["submitted", "paid"].includes(order.status)
-  && !order.cancelRequested
-  && now.getTime() < abandonAt(order).getTime();
+export const canCancel = actionable;
+
+export const canChange = actionable;
 
 export const listOrders = async (stores, customer, { now = new Date() } = {}) =>
   ({
@@ -109,6 +119,13 @@ export const cancelOrder = async (stores, customer, id, {
   if (!order) return fail(404, { order: "We can't find that order." });
   if (!canCancel(order, now)) {
     return fail(409, { order: "This order can't be cancelled any more." });
+  }
+
+  // Cancelling answers whatever the farm asked.
+  if (questionOpen(order)) {
+    await amendOrder(stores, id, {
+      question: answerQuestion(order, "cancel", "customer", now),
+    }, "question.answered", now);
   }
 
   if (order.status === "submitted") {
@@ -226,9 +243,19 @@ export const changeOrder = async (stores, customer, id, changes, {
 
   if (Object.keys(errors).length) return fail(422, errors);
 
-  const changed = await amendOrder(stores, id, {
-    fulfilment: f, notes,
-  }, "customer.changed", now);
+  // A pickup moved to another day or window is a new request: the
+  // farm has to agree again, and a denied window is answered.
+  const moved = method === "onfarm" && (f.date !== order.fulfilment.date
+    || f.onfarm.window !== order.fulfilment.onfarm.window);
+  const patch = { fulfilment: f, notes };
+
+  if (moved) {
+    f.state = "requested";
+    f.agreedAt = null;
+    patch.question = answerQuestion(order, "reschedule", "customer", now);
+  }
+
+  const changed = await amendOrder(stores, id, patch, "customer.changed", now);
 
   // Square carries the fulfilment the farm packs from; keep it in step.
   if (order.square && order.square.squareOrderId) {
@@ -259,6 +286,13 @@ export const changeOrder = async (stores, customer, id, changes, {
       orderUrl: orderUrlFor(env, changed.id), links: mailLinks(env),
     }),
     { mail, env, now });
+
+  if (moved) {
+    await notifyFarm(stores, await getOrder(stores, id),
+      `farmPickupChanged-${now.getTime()}`,
+      farmPickupChanged(changed, { links: mailLinks(env) }),
+      { mail, env, now });
+  }
 
   return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
 };

@@ -324,6 +324,94 @@ describe("runJobs", () => {
     assert.deepEqual(friday.closed, ["A"]);
   });
 
+  it("leaves an order with an open question alone until it is answered",
+    async () => {
+      const stores = testStores();
+      const { sent, cancelled, opts } = harness();
+      const o = order("A", "onfarm");
+
+      o.fulfilment.state = "requested";
+      o.question = {
+        kind: "window", reason: "", openedAt: placed.toISOString(),
+        answeredAt: null, answer: null, by: null,
+      };
+      await saveOrder(stores, o, placed);
+
+      const nag = await runJobs(stores, { ...opts, now: at("2026-10-05", 10) });
+      const cutoff = await runJobs(stores, {
+        ...opts, now: at("2026-10-07", 0, 1),
+      });
+
+      assert.deepEqual(nag.reminded, []);
+      assert.deepEqual(cutoff.abandoned, []);
+      assert.deepEqual(cancelled, []);
+      assert.equal(sent.length, 0);
+
+      // Answered by moving the date: the clocks run on the new one.
+      await saveOrder(stores, {
+        ...(await getOrder(stores, "A")),
+        fulfilment: { ...o.fulfilment, date: "2026-10-14" },
+        question: { ...o.question, answeredAt: "x", answer: "reschedule" },
+      }, placed);
+      const resumed = await runJobs(stores, {
+        ...opts, now: at("2026-10-07", 9),
+      });
+
+      assert.deepEqual(resumed.reminded, [{ id: "A", stage: "nextDay" }]);
+    });
+
+  it("reports the pickups that need a decision, once a morning", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const env = { ADMIN_EMAILS: "farm@x.com" };
+    const waiting = order("A", "onfarm");
+    const far = order("B", "onfarm");
+    const delivery = order("C");
+
+    waiting.fulfilment.state = "requested";
+    far.fulfilment.state = "requested";
+    far.fulfilment.date = "2026-10-14";
+    await saveOrder(stores, waiting, placed);
+    await saveOrder(stores, far, placed);
+    await saveOrder(stores, delivery, placed);
+
+    // Wednesday the 7th is two days from Monday the 5th; before 8:00
+    // nothing, then once, then not again that day.
+    const early = await runJobs(stores, {
+      ...opts, env, now: at("2026-10-05", 7, 59),
+    });
+    const eight = await runJobs(stores, {
+      ...opts, env, now: at("2026-10-05", 8),
+    });
+    const noon = await runJobs(stores, {
+      ...opts, env, now: at("2026-10-05", 12),
+    });
+
+    assert.deepEqual(early.pickupsToConfirm, []);
+    assert.deepEqual(eight.pickupsToConfirm, ["A"]);
+    assert.deepEqual(noon.pickupsToConfirm, []);
+
+    const report = sent.filter((m) => /Pickups to confirm/.test(m.subject));
+
+    assert.equal(report.length, 1);
+    assert.deepEqual(report[0].to, ["farm@x.com"]);
+    assert.equal(report[0].subject, "Pickups to confirm: Monday, October 5");
+    assert.match(report[0].text,
+      /- A, Pat Example, Wednesday, October 7, morning, unpaid: bin\/nff/);
+    assert.doesNotMatch(report[0].text, /- B,|- C,/);
+
+    // Nothing due: no email, and nothing to farm without ADMIN_EMAILS.
+    const quiet = testStores();
+
+    await saveOrder(quiet, far, placed);
+    const none = await runJobs(quiet, {
+      ...opts, env, now: at("2026-10-05", 8),
+    });
+
+    assert.deepEqual(none.pickupsToConfirm, []);
+    assert.equal(sent.filter((m) => /Pickups/.test(m.subject)).length, 1);
+  });
+
   it("does not remind about a delivery the morning of", async () => {
     const stores = testStores();
     const { sent, opts } = harness();

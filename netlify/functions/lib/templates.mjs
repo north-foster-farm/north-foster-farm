@@ -17,9 +17,12 @@
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { cutoffFor } from "../../../assets/scripts/order/lib/dates.mjs";
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
-import { label, today } from "../../../assets/scripts/order/lib/zoned.mjs";
+import {
+  addDays, label, today,
+} from "../../../assets/scripts/order/lib/zoned.mjs";
 import { company } from "./company.mjs";
 import { between, methodName, whenWhere } from "./describe.mjs";
+import { needsAgreement } from "./records.mjs";
 
 const escape = (s) => String(s)
   .replace(/&/g, "&amp;")
@@ -238,7 +241,8 @@ const streetAddress = (a = {}) => [
   [a.state, a.zip].filter(Boolean).join(" "),
 ].filter(Boolean).join(", ");
 
-// "Order type: Delivery" and the two lines under it.
+// "Order type: Delivery" and the two lines under it. An on-farm
+// window the farm has not agreed to yet is "Requested:", not "When:".
 const orderType = (order) => {
   const f = order.fulfilment;
   const when = label(f.date);
@@ -253,12 +257,23 @@ const orderType = (order) => {
         `Where: ${terms.scituate.location}`,
       ]
       : [
-        `When: ${when}, ${f.onfarm.window}`,
+        `${needsAgreement(order) ? "Requested" : "When"}: ${when}, ${
+          f.onfarm.window}`,
         `Where: ${terms.onFarm.address}`,
       ];
 
   return [p(`Order type: **${methodName(f.method)}**`), list(items)];
 };
+
+// The pickup window two ways: "Thursday, October 8, morning" for a
+// labelled line, "the morning of Thursday, October 8" in a sentence.
+const windowPhrase = (order) =>
+  `${label(order.fulfilment.date)}, ${order.fulfilment.onfarm.window}`;
+
+const timeOf = (order) =>
+  `the ${order.fulfilment.onfarm.window} of ${label(order.fulfilment.date)}`;
+
+const capital = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 // The block that names the order, in every customer email about one.
 const orderDetails = (order) => [
@@ -277,50 +292,111 @@ const instructions = (order) => {
   return notes.join(" ");
 };
 
-// An on-farm window is a request, not a booking: the farm has to
-// agree to it. Nothing tells the customer that but the emails, so
-// both of the ones they read before the day say it.
-const pickupIsARequest = (order) => (
-  order.fulfilment.method === "onfarm"
-    ? p(`The ${order.fulfilment.onfarm.window} window is the time you ` +
-      "asked for, not a booking yet. We'll be in touch to settle it " +
-      `before ${label(order.fulfilment.date)}. Nothing else is needed ` +
-      "from you until then.")
-    : null
-);
-
 // Sent the moment the invoice is published. The invoice itemizes and
-// totals the money, so this only names what was ordered.
+// totals the money, so this only names what was ordered. An on-farm
+// window is a request the farm has still to agree to, and paying does
+// not confirm it, so that version says so and promises the
+// confirmation separately.
 export const completeYourOrder = (order, { links } = {}) => {
   const title = "One more step: pay for your order";
+  const total = dollars(order.totals.total);
   const blocks = [
     p(`Hi ${firstName(order.customer)},`),
     strong("Your order isn't final until it's paid."),
-    p(`Here's your invoice for ${dollars(order.totals.total)}. Pay it ` +
-      "to complete your checkout and confirm your order."),
-    button("Pay and confirm your order", payUrl(order)),
-    ...[pickupIsARequest(order)].filter(Boolean),
-    ...orderDetails(order),
-    customerFooter(links),
   ];
+
+  if (needsAgreement(order)) {
+    blocks.push(
+      p(`Here's your invoice for ${total}. Pay it to complete your ` +
+        "checkout."),
+      button("Pay and complete your checkout", payUrl(order)),
+      p(`${capital(timeOf(order))} is a request until we check the ` +
+        "schedule. We'll confirm it in a separate email, and nothing else " +
+        "is needed from you until then.")
+    );
+  } else {
+    blocks.push(
+      p(`Here's your invoice for ${total}. Pay it to complete your ` +
+        "checkout and confirm your order."),
+      button("Pay and confirm your order", payUrl(order))
+    );
+  }
+  blocks.push(...orderDetails(order), customerFooter(links));
 
   return { subject: title, ...render(title, blocks, links) };
 };
 
-// Sent once Square reports the invoice paid. Square sends the receipt,
+// Sent when the order is both paid and, for an on-farm pickup, agreed:
+// by whichever of the two arrives second. Square sends the receipt,
 // so this one does not price anything either.
 export const orderConfirmed = (order, { orderUrl, links } = {}) => {
   const title = "Your order is confirmed";
+  const total = dollars(order.totals.total);
   const blocks = [
-    p(`Thanks, ${firstName(order.customer)}. Your payment of ` +
-      `${dollars(order.totals.total)} came through and your order is ` +
-      "confirmed."),
-    ...[pickupIsARequest(order)].filter(Boolean),
+    order.fulfilment.method === "onfarm"
+      ? p(`Thanks, ${firstName(order.customer)}. Your payment of ${total} ` +
+        "came through and your pickup time is set, so your order is " +
+        "confirmed.")
+      : p(`Thanks, ${firstName(order.customer)}. Your payment of ${total} ` +
+        "came through and your order is confirmed."),
     ...orderDetails(order),
   ];
 
   if (orderUrl) blocks.push(button("View or edit this order", orderUrl));
   blocks.push(customerFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
+// An on-farm order paid before the farm has agreed to the window.
+export const paymentReceived = (order, { orderUrl, links } = {}) => {
+  const title = "Payment received";
+  const blocks = [
+    p(`Thanks, ${firstName(order.customer)}. Your payment of ` +
+      `${dollars(order.totals.total)} came through. We're checking the ` +
+      "schedule for your pickup time and will confirm it by " +
+      `${label(addDays(order.fulfilment.date, -1))}.`),
+    ...orderDetails(order),
+  ];
+
+  if (orderUrl) blocks.push(button("View or edit this order", orderUrl));
+  blocks.push(customerFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
+// The farm denied the requested window. `reason` is the farm's own
+// words from the command line, or empty; `pickUrl` signs the customer
+// in to the order page, and is null while the account pages are off,
+// when the customer answers by replying instead.
+export const pickNewTime = (order, { reason = "", pickUrl, links } = {}) => {
+  const title = "One more step: pick a new pickup time";
+  const paid = order.status === "paid";
+  const refund = paid
+    ? `and we'll refund your ${dollars(order.totals.total)} in full.`
+    : "You won't be charged.";
+  const blocks = [
+    p(`Hi ${firstName(order.customer)},`),
+    strong(`${capital(timeOf(order))} doesn't work for us.`),
+  ];
+
+  if (reason) blocks.push(p(`Here's why: _**${reason}**_`));
+  if (pickUrl) {
+    blocks.push(
+      p("Pick another day or window and we'll confirm it. If nothing " +
+        `works, you can cancel from the same page${paid ? " " : ". "}${
+          refund}`),
+      button("Pick a new time", pickUrl)
+    );
+  } else {
+    blocks.push(p("Reply to this email with another day or window and " +
+      "we'll confirm it. If nothing works, reply to cancel" +
+      `${paid ? " " : ". "}${refund}`));
+  }
+  if (!paid) {
+    blocks.push(p("Payment reminders are paused until you've picked."));
+  }
+  blocks.push(...orderDetails(order), customerFooter(links));
 
   return { subject: title, ...render(title, blocks, links) };
 };
@@ -595,6 +671,16 @@ const farmOrderType = (order) => {
   return [p(`Order type: **${methodName(f.method)}**`), list(items)];
 };
 
+// The two commands that settle a requested pickup window. The farm's
+// "New order" notice is the queue, so it carries them.
+const confirmOrDeny = (order) => [
+  p(`Confirm it: bin/nff orders confirm ${order.id}`),
+  p(`Or deny it and they pick again: bin/nff orders deny ${order.id} ` +
+    "--reason \"...\""),
+];
+
+const paidWord = (order) => (order.status === "paid" ? "paid" : "unpaid");
+
 // The moment an order is placed, paid or not.
 export const farmOrderPlaced = (order, { squareUrl, links } = {}) => {
   const title = `New order ${order.id} — ${dollars(order.totals.total)}, ` +
@@ -610,11 +696,54 @@ export const farmOrderPlaced = (order, { squareUrl, links } = {}) => {
     orderNumber(order),
     lines(order, { prices: true }),
     totalsBlock(order),
-    ...farmOrderType(order),
-    p("Invoice status: **Sent, unpaid**")
+    ...farmOrderType(order)
   );
+  if (needsAgreement(order)) {
+    blocks.push(
+      p("Pickup time: **Requested, not yet confirmed**"),
+      ...confirmOrDeny(order)
+    );
+  }
+  blocks.push(p("Invoice status: **Sent, unpaid**"));
   if (squareUrl) blocks.push(button("View invoice in Square", squareUrl));
   blocks.push(adminFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
+// The customer moved an on-farm order to another day or window from
+// their account page, so the farm has to agree to it again.
+export const farmPickupChanged = (order, { links } = {}) => {
+  const c = order.customer;
+  const title = `Pickup time to confirm: ${order.id}`;
+  const url = orderAdminUrl(links, order.id);
+  const blocks = [
+    p(`${c.name || c.email} moved order ${order.id} to a new pickup ` +
+      "time. It needs confirming again."),
+    p(`Requested: **${windowPhrase(order)}**`),
+    ...confirmOrDeny(order),
+  ];
+
+  if (url) blocks.push(button("View order", url));
+  blocks.push(adminFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
+// The morning report of on-farm orders within two days of their date
+// whose window is still unconfirmed, or denied and not yet re-picked.
+// Sent only when there is at least one.
+export const farmPickupsToConfirm = (orders, { date, links } = {}) => {
+  const title = `Pickups to confirm: ${label(date)}`;
+  const blocks = [
+    p("These on-farm pickups are within two days and not confirmed."),
+    list(orders.map((o) => `${o.id}, ${o.customer.name || o.customer.email}` +
+      `, ${windowPhrase(o)}, ${paidWord(o)}${
+        o.question && !o.question.answeredAt
+          ? ", denied and not re-picked" : ""}: bin/nff orders confirm ${
+        o.id}`)),
+    adminFooter(links),
+  ];
 
   return { subject: title, ...render(title, blocks, links) };
 };

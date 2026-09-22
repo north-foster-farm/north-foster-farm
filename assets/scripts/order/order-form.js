@@ -890,6 +890,13 @@ export class OrderForm {
       // The number printed on the Square invoice, which is what a
       // customer will quote; the order id stands in if it is missing.
       fill("invoiceNumber", data.invoiceNumber || data.orderId);
+      // An on-farm window is a request the farm still has to agree
+      // to, so paying alone does not confirm that order.
+      if (data.fulfilment && data.fulfilment.method === "onfarm") {
+        fill("confirms", "The pickup time you chose is a request; we'll " +
+          "check the schedule and confirm it by email. Once we have your " +
+          "payment and your time is set, your order is confirmed.");
+      }
 
       const link = qs(node, "[data-out='invoiceUrl']");
 

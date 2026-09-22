@@ -3,8 +3,9 @@ import { describe, it } from "node:test";
 
 import {
   addressDecision, addressReview, completeYourOrder, deliveryReminder,
-  farmOrderPaid, farmOrderPlaced, magicLink, orderCancelled, orderChanged,
-  orderConfirmed, paymentReminder, summaryLine,
+  farmOrderPaid, farmOrderPlaced, farmPickupChanged, farmPickupsToConfirm,
+  magicLink, orderCancelled, orderChanged, orderConfirmed, paymentReceived,
+  paymentReminder, pickNewTime, summaryLine,
 } from "../netlify/functions/lib/templates.mjs";
 
 const order = (method = "delivery") => ({
@@ -204,15 +205,148 @@ describe("order confirmed", () => {
     assert.match(m.text, new RegExp(`View or edit this order: ${url}`));
   });
 
-  it("warns a pickup that its window is not a booking", () => {
-    for (const m of [orderConfirmed(order("onfarm")),
-      completeYourOrder(order("onfarm"))]) {
-      assert.match(m.text, /the time you asked for, not a booking yet/);
-      assert.match(m.text, /in touch to settle it before Thursday, October 8/);
-    }
+  it("tells a pickup its time is set, and prices only a delivery", () => {
+    const m = orderConfirmed(order("onfarm"), { links });
 
-    assert.doesNotMatch(orderConfirmed(order()).text, /not a booking/,
-      "a delivery has a window the farm already committed to");
+    has(m.text, "Thanks, Pat. Your payment of $62 came through and your " +
+      "pickup time is set, so your order is confirmed.");
+    assert.match(m.text, /- When: Thursday, October 8, morning/);
+    assert.doesNotMatch(m.text, /not a booking|Requested:/);
+  });
+});
+
+// An on-farm window the farm has not agreed to yet.
+const requested = () => {
+  const o = order("onfarm");
+
+  o.fulfilment.state = "requested";
+
+  return o;
+};
+
+describe("an on-farm pickup awaiting the farm", () => {
+  it("is asked to pay without being told the order is confirmed", () => {
+    const m = completeYourOrder(requested(), { links });
+
+    has(m.text, "**Your order isn't final until it's paid.**");
+    has(m.text, "Here's your invoice for $62. Pay it to complete your " +
+      "checkout.");
+    has(m.text, "Pay and complete your checkout: https://squareup.com/pay/xyz");
+    has(m.text, "The morning of Thursday, October 8 is a request until we " +
+      "check the schedule. We'll confirm it in a separate email, and " +
+      "nothing else is needed from you until then.");
+    assert.ok(m.text.indexOf("Pay and complete")
+      < m.text.indexOf("is a request"), "the request follows the button");
+    assert.doesNotMatch(m.text, /confirm your order/);
+    assert.match(m.text, /- Requested: Thursday, October 8, morning/);
+    assert.doesNotMatch(m.text, /- When:/);
+
+    // A delivery, and an agreed pickup, keep the confirming button.
+    for (const o of [order(), order("onfarm")]) {
+      has(completeYourOrder(o, { links }).text,
+        "Pay and confirm your order: https://squareup.com/pay/xyz");
+    }
+  });
+
+  it("hears that the payment arrived and the window is being checked",
+    () => {
+      const m = paymentReceived(requested(), { orderUrl: url, links });
+
+      assert.equal(m.subject, "Payment received");
+      has(m.text, "Thanks, Pat. Your payment of $62 came through. We're " +
+        "checking the schedule for your pickup time and will confirm it " +
+        "by Wednesday, October 7.");
+      assert.match(m.text, /- Requested: Thursday, October 8, morning/);
+      has(m.text, `View or edit this order: ${url}`);
+    });
+
+  it("is sent back to pick again when the farm says no", () => {
+    const o = requested();
+    const pick = "https://x/api/auth/verify?token=abc";
+    const m = pickNewTime(o, {
+      reason: "We're at the Scituate market that morning.", pickUrl: pick,
+      links,
+    });
+
+    assert.equal(m.subject, "One more step: pick a new pickup time");
+    has(m.text, "Hi Pat,");
+    has(m.text, "**The morning of Thursday, October 8 doesn't work for " +
+      "us.**");
+    has(m.text, "Here's why: _**We're at the Scituate market that " +
+      "morning.**_");
+    assert.match(m.html,
+      /<em><strong>We're at the Scituate market that morning.<\/strong><\/em>/);
+    has(m.text, "Pick another day or window and we'll confirm it. If " +
+      "nothing works, you can cancel from the same page. You won't be " +
+      "charged.");
+    has(m.text, `Pick a new time: ${pick}`);
+    has(m.text, "Payment reminders are paused until you've picked.");
+    assert.match(m.text, /- Requested: Thursday, October 8, morning/);
+    assert.doesNotMatch(m.text, /Please/);
+
+    // No reason typed: no italic line. Paid: a refund, no reminders line.
+    const paid = { ...o, status: "paid" };
+    const bare = pickNewTime(paid, { pickUrl: pick, links });
+
+    assert.doesNotMatch(bare.text, /_\*\*|Here's why|reminders are paused/);
+    has(bare.text, "If nothing works, you can cancel from the same page " +
+      "and we'll refund your $62 in full.");
+
+    // Accounts off: no button, a reply instead.
+    const reply = pickNewTime(o, { links });
+
+    assert.doesNotMatch(reply.text, /Pick a new time:/);
+    has(reply.text, "Reply to this email with another day or window and " +
+      "we'll confirm it. If nothing works, reply to cancel. You won't be " +
+      "charged.");
+    has(pickNewTime(paid, { links }).text, "If nothing works, reply to " +
+      "cancel and we'll refund your $62 in full.");
+  });
+
+  it("gives the farm the confirm and deny commands on the new order", () => {
+    const m = farmOrderPlaced(requested(), { links });
+
+    has(m.text, "Pickup time: **Requested, not yet confirmed**");
+    has(m.text, "Confirm it: bin/nff orders confirm NFF-2610-ABCD");
+    has(m.text, "Or deny it and they pick again: bin/nff orders deny " +
+      "NFF-2610-ABCD --reason \"...\"");
+    assert.ok(m.text.indexOf("Requested: Thursday")
+      < m.text.indexOf("Pickup time:"), "after the order details");
+    assert.ok(m.text.indexOf("Pickup time:")
+      < m.text.indexOf("Invoice status:"), "before the invoice line");
+    assert.doesNotMatch(farmOrderPlaced(order(), { links }).text,
+      /Pickup time:|orders confirm/);
+  });
+
+  it("tells the farm when the customer moves the time", () => {
+    const m = farmPickupChanged(requested(), { links });
+
+    assert.equal(m.subject, "Pickup time to confirm: NFF-2610-ABCD");
+    has(m.text, "Pat Example moved order NFF-2610-ABCD to a new pickup " +
+      "time. It needs confirming again.");
+    has(m.text, "Requested: **Thursday, October 8, morning**");
+    has(m.text, "Confirm it: bin/nff orders confirm NFF-2610-ABCD");
+    has(m.text, "View order: https://admin.example.com/orders/NFF-2610-ABCD");
+    has(m.text, "Admin: https://admin.example.com");
+  });
+
+  it("lists the pickups that need a decision", () => {
+    const waiting = requested();
+    const denied = { ...requested(), id: "NFF-2610-EFGH", status: "paid" };
+
+    denied.question = { kind: "window", openedAt: "x", answeredAt: null };
+    const m = farmPickupsToConfirm([waiting, denied], {
+      date: "2026-10-06", links,
+    });
+
+    assert.equal(m.subject, "Pickups to confirm: Tuesday, October 6");
+    has(m.text, "These on-farm pickups are within two days and not " +
+      "confirmed.");
+    has(m.text, "- NFF-2610-ABCD, Pat Example, Thursday, October 8, " +
+      "morning, unpaid: bin/nff orders confirm NFF-2610-ABCD\n");
+    has(m.text, "- NFF-2610-EFGH, Pat Example, Thursday, October 8, " +
+      "morning, paid, denied and not re-picked: bin/nff orders confirm " +
+      "NFF-2610-EFGH");
   });
 });
 
