@@ -6,7 +6,7 @@ import {
 } from "../netlify/functions/lib/jobs.mjs";
 import { markPaid } from "../netlify/functions/lib/payments.mjs";
 import {
-  getOrder, openOrders, saveOrder,
+  getOrder, openOrders, saveCustomer, saveOrder,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
@@ -274,6 +274,55 @@ describe("runJobs", () => {
       assert.equal((await openOrders(stores)).length, 0);
       assert.equal((await getOrder(stores, "A")).status, "fulfilled");
     });
+
+  it("sends no payment reminders to a customer who turned them off, " +
+    "but still abandons", async () => {
+    const stores = testStores();
+    const { sent, cancelled, opts } = harness();
+
+    await saveCustomer(stores, {
+      email: "pat@example.com", reminders: { payment: false },
+    });
+    await saveOrder(stores, order("A"), placed);
+
+    const soon = await runJobs(stores, { ...opts, now: at("2026-10-05", 10) });
+    const final = await runJobs(stores, { ...opts, now: at("2026-10-07", 8) });
+
+    assert.deepEqual(soon.reminded, []);
+    assert.deepEqual(soon.muted, [{ id: "A", kind: "payment" }]);
+    assert.deepEqual(final.muted, [{ id: "A", kind: "payment" }]);
+    assert.equal(sent.length, 0);
+
+    const r = await runJobs(stores, { ...opts, now: at("2026-10-07", 12, 1) });
+
+    assert.deepEqual(r.abandoned, ["A"]);
+    assert.deepEqual(cancelled, ["INV-A"]);
+  });
+
+  it("skips the delivery reminder when it is turned off and still " +
+    "closes the order", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+
+    await saveCustomer(stores, {
+      email: "pat@example.com", reminders: { delivery: false },
+    });
+    await saveOrder(stores, order("A"), placed);
+    await markPaid(stores, "A", { ...opts, now: placed });
+    sent.length = 0;
+
+    const evening = await runJobs(stores, {
+      ...opts, now: at("2026-10-07", 18, 5),
+    });
+
+    assert.deepEqual(evening.deliveryReminded, []);
+    assert.deepEqual(evening.muted, [{ id: "A", kind: "delivery" }]);
+    assert.equal(sent.length, 0);
+
+    const friday = await runJobs(stores, { ...opts, now: at("2026-10-09", 9) });
+
+    assert.deepEqual(friday.closed, ["A"]);
+  });
 
   it("does not remind about a delivery the morning of", async () => {
     const stores = testStores();

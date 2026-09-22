@@ -253,6 +253,9 @@ class Account {
     for (const radio of all(form, "[data-field='avatar']")) {
       radio.checked = radio.value === c.avatar;
     }
+    for (const box of all(form, "[data-reminder]")) {
+      box.checked = !c.reminders || c.reminders[box.dataset.reminder] !== false;
+    }
 
     const groups = (this.terms.money && this.terms.money.discountGroups) || {};
     const group = c.discountGroup && groups[c.discountGroup];
@@ -303,6 +306,8 @@ class Account {
       name: qs(form, "[data-field='name']").value,
       phone: qs(form, "[data-field='phone']").value,
       avatar: avatar ? avatar.value : null,
+      reminders: Object.fromEntries(all(form, "[data-reminder]")
+        .map((box) => [box.dataset.reminder, box.checked])),
     };
     const { ok, data } = await api("/api/account/profile", {
       method: "PATCH", body,

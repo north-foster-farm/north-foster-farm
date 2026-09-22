@@ -229,6 +229,36 @@ describe("profile and address", () => {
       ["avatar", "name", "phone"]);
   });
 
+  it("turns reminder emails off and on, one at a time", async () => {
+    const stores = testStores();
+    const saved = await saveCustomer(stores, customerOf());
+    const off = await updateProfile(stores, saved, {
+      reminders: { payment: false },
+    });
+
+    assert.deepEqual(off.customer.reminders,
+      { payment: false, delivery: true });
+
+    // A key left out is unchanged; anything truthy is on.
+    const on = await updateProfile(stores, off.customer, {
+      reminders: { delivery: 0 },
+    });
+
+    assert.deepEqual(on.customer.reminders,
+      { payment: false, delivery: false });
+    assert.deepEqual((await getCustomer(stores, "pat@example.com")).reminders,
+      { payment: false, delivery: false });
+
+    const back = await updateProfile(stores, on.customer, {
+      reminders: { payment: true, delivery: true },
+    });
+
+    assert.deepEqual(back.customer.reminders,
+      { payment: true, delivery: true });
+    assert.equal((await updateProfile(stores, saved, { reminders: "no" }))
+      .status, 422);
+  });
+
   it("approves an in-area address at once", async () => {
     const stores = testStores();
     const { sent, opts } = harness();
@@ -346,10 +376,12 @@ describe("the account endpoints", () => {
     assert.equal((await list.json()).orders[0].id, "A");
 
     const profile = await handle(req("/api/account/profile", "PATCH", {
-      name: "Pat", avatar: "chick",
+      name: "Pat", avatar: "chick", reminders: { delivery: false },
     }, session.id), { stores, ...opts });
+    const me = (await profile.json()).customer;
 
-    assert.equal((await profile.json()).customer.avatar, "chick");
+    assert.equal(me.avatar, "chick");
+    assert.deepEqual(me.reminders, { payment: true, delivery: false });
 
     const cancel = await handle(req("/api/account/orders/A/cancel", "POST",
       {}, session.id), { stores, ...opts });

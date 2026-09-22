@@ -16,7 +16,8 @@ import { abandonAt } from "./jobs.mjs";
 import { adminEmails, sendMail } from "./mail.mjs";
 import { sendForOrder } from "./payments.mjs";
 import {
-  amendOrder, getOrder, ordersFor, saveCustomer, setStatus,
+  REMINDERS, amendOrder, getOrder, ordersFor, reminderPrefs, saveCustomer,
+  setStatus,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor, siteUrl } from "./site.mjs";
 import {
@@ -282,6 +283,19 @@ export const updateProfile = async (stores, customer, changes) => {
       errors.avatar = "Pick one of the chickens.";
     } else {
       patch.avatar = c.avatar;
+    }
+  }
+  // The reminder emails, each on or off; a key left out is unchanged.
+  if (c.reminders !== undefined) {
+    if (!c.reminders || typeof c.reminders !== "object") {
+      errors.reminders = "Which reminders?";
+    } else {
+      patch.reminders = reminderPrefs(customer);
+      for (const key of REMINDERS) {
+        if (c.reminders[key] !== undefined) {
+          patch.reminders[key] = !!c.reminders[key];
+        }
+      }
     }
   }
 

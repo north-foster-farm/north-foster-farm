@@ -148,6 +148,18 @@ export const deleteOrder = async (stores, id) => {
 // phone, avatar or address.
 export const customerKey = (email) => `customer/${emailKey(email)}`;
 
+// Which reminder emails a customer takes. Both are on unless the
+// record says otherwise, so a customer who never visited the settings
+// tab, or a record from before the setting existed, keeps getting
+// them; the "Turn off ... reminders" links in those emails lead here.
+export const REMINDERS = ["payment", "delivery"];
+
+export const reminderPrefs = (customer) => {
+  const set = (customer && customer.reminders) || {};
+
+  return Object.fromEntries(REMINDERS.map((k) => [k, set[k] !== false]));
+};
+
 export const getCustomer = (stores, email) =>
   stores.customers.get(customerKey(email));
 

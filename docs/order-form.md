@@ -152,6 +152,12 @@ the Square ids, and a customer record is created or touched by email.
 watch (submitted, paid). Statuses: submitted, paid, fulfilled,
 cancelled, abandoned. Square stays the system of record for money.
 
+A customer record (`customer/<email>`) keeps the name, phone, avatar,
+pricing group, delivery address and `reminders`, the two reminder
+emails as `{ payment, delivery }` booleans; a key that is missing
+means on, so records from before the setting existed behave as they
+did. `reminderPrefs(customer)` in `lib/records.mjs` is the one reading.
+
 ## Mail
 
 `lib/mail.mjs` sends through Resend when `MAIL_DRIVER=resend`,
@@ -161,7 +167,11 @@ optional. `lib/templates.mjs` holds every message as a pure function
 with tests: complete your order, order confirmed, payment reminders
 (soon, nextDay, final), delivery reminder, order changed, order
 cancelled, address decision, sign-in link, and to the farm: address
-review, order placed, order paid. The wording is James's (review of
+review, order placed, order paid. The reminders carry a "Turn off
+... reminders" link to the account page's settings tab; the jobs run
+reads the customer's `reminders` before each one and skips, and
+reports as `muted`, any the customer turned off. Abandonment and
+fulfilment run on their clocks regardless. The wording is James's (review of
 2026-09-22). Every customer message ends on a "Your orders | Contact
 us" row and the farm's on "Admin"; `mailLinks(env)` in `lib/site.mjs`
 supplies those from `ACCOUNTS_ENABLED`, `CONTACT_URL` (else the farm's
@@ -256,6 +266,10 @@ Settings, Help) rendered from `GET /api/me` and
   `order.returns` and emailed to the farm.
 - Support: stored under `support/<email>/<id>` in the customers store
   and emailed to the farm, who replies by email.
+- Settings: name, phone, avatar, and the two reminder emails (payment,
+  delivery) as checkboxes, saved through `PATCH /api/account/profile`
+  as `reminders: { payment, delivery }`. The invoice, confirmations
+  and order changes cannot be turned off.
 - Add again and Reorder: plain links to `/order/?add=SKU:qty,...`.
   The order page merges the quantities into the cart on load, names
   anything no longer sold, saves the draft, scrolls to the summary

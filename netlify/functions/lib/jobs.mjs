@@ -23,7 +23,9 @@ import {
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { sendMail } from "./mail.mjs";
 import { pollUnpaid, sendForOrder } from "./payments.mjs";
-import { amendOrder, openOrders, setStatus } from "./records.mjs";
+import {
+  amendOrder, getCustomer, openOrders, reminderPrefs, setStatus,
+} from "./records.mjs";
 import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
 import {
   bankTransferOffered, cancelInvoice, closeBankTransfer, getInvoice,
@@ -84,13 +86,30 @@ export const runJobs = async (stores, {
 } = {}) => {
   const report = {
     at: now.toISOString(), paid: [], reminded: [], abandoned: [],
-    deliveryReminded: [], closed: [], bankTransferClosed: [],
+    deliveryReminded: [], closed: [], bankTransferClosed: [], muted: [],
   };
   const opts = { env, mail, now };
 
   report.paid = await pollUnpaid(stores, await openOrders(stores), {
     invoice, ...opts,
   });
+
+  // A customer's reminder settings, read once per run however many
+  // orders they have open. A reminder they turned off is skipped and
+  // reported, never sent; the clocks it would have announced
+  // (abandonment, fulfilment) still run.
+  const prefs = new Map();
+  const wants = async (order, kind) => {
+    const email = order.customer.email;
+
+    if (!prefs.has(email)) {
+      prefs.set(email, reminderPrefs(await getCustomer(stores, email)));
+    }
+    if (prefs.get(email)[kind]) return true;
+    report.muted.push({ id: order.id, kind });
+
+    return false;
+  };
 
   // Re-read: the poll may have paid some.
   for (const order of await openOrders(stores)) {
@@ -139,7 +158,7 @@ export const runJobs = async (stores, {
 
       const stage = reminderDue(order, now);
 
-      if (stage) {
+      if (stage && await wants(order, "payment")) {
         await sendForOrder(stores, order, stage, paymentReminder(order, stage, {
           orderUrl: orderUrlFor(env, order.id),
           settingsUrl: settingsUrlFor(env),
@@ -155,7 +174,8 @@ export const runJobs = async (stores, {
 
       if (isDelivery && !sent(order, "deliveryReminder")
         && now.getTime() >= deliveryReminderAt(order).getTime()
-        && today(now, tz) < order.fulfilment.date) {
+        && today(now, tz) < order.fulfilment.date
+        && await wants(order, "delivery")) {
         await sendForOrder(stores, order, "deliveryReminder",
           deliveryReminder(order, {
             orderUrl: orderUrlFor(env, order.id),

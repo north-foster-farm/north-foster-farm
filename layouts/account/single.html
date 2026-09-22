@@ -127,6 +127,18 @@
                   </div>
                   <div class="invalid-feedback d-block" data-error-for="avatar"></div>
                 </fieldset>
+                <fieldset class="col-12">
+                  <legend class="form-label">Email reminders</legend>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="prof-remind-payment" name="remind-payment" data-reminder="payment">
+                    <label class="form-check-label" for="prof-remind-payment">Remind me to pay an unpaid order</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="prof-remind-delivery" name="remind-delivery" data-reminder="delivery">
+                    <label class="form-check-label" for="prof-remind-delivery">Remind me the evening before a delivery</label>
+                  </div>
+                  <div class="form-text">Your invoice, confirmations and changes to an order are always sent.</div>
+                </fieldset>
               </div>
               <button type="submit" class="btn btn-primary mt-3">Save settings</button>
             </form>
