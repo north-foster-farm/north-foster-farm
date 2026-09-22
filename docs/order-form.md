@@ -157,8 +157,13 @@ Beside `status`, an order carries the farm's side of its pickup in
 needs the farm's agreement, so only an on-farm order is born
 `requested`; delivery, the Scituate drop, and every record from
 before the state existed, are `agreed` (`needsAgreement(order)` in
-`lib/records.mjs`). `bin/nff orders confirm <id>` sets `agreed`; the
-farm never moves a time itself. `bin/nff orders deny <id> --reason
+`lib/records.mjs`). `bin/nff orders confirm <id>` sets `agreed` and
+records the hours the farm will be there, `fulfilment.onfarm.confirmed
+= { from, to }`: whole hours inside the requested window's bounds
+(`onFarm.windows` in `data/delivery.json`), at least two hours, the
+first two of the window unless `--at` and `--until` say otherwise. The
+farm never moves a time outside the requested window; a customer who
+reschedules clears the confirmed hours. `bin/nff orders deny <id> --reason
 "..."` opens a **question** on the order (`order.question = { kind:
 "window", reason, openedAt, answeredAt, answer, by }`) and emails the
 customer to pick again. While a question is open the jobs run leaves
@@ -377,9 +382,12 @@ reads `.env` from the repo root and needs `NETLIFY_SITE_ID` and
 Blobs stores, plus the Square and mail variables for anything that
 talks to them; without the Netlify pair it runs against memory and
 says so. `bin/nff` with no arguments prints the commands: customers
-(list, show, set, delete), address (approve, deny), orders (list,
-show, paid `--via venmo|cash|check` which also closes the Square
-invoice, unpaid, confirm, deny, cancel, fulfil, delete), returns resolve,
+(list, show, set, delete), address (approve, deny), orders (list with
+`--open`, `--held`, `--status`, `--email`; show; paid `--via
+venmo|cash|check`, which also closes the Square invoice; unpaid;
+confirm `[<id>] [--at H] [--until H]`, where no id prints how many
+pickups wait and the oldest one; deny; cancel; fulfil; delete), returns
+resolve,
 stock (list, set), login and masquerade (a single-use sign-in link,
 opened for you), jobs run. Flags that take a value accept both
 `--reason "..."` and `--reason=...`. `lib/admin.mjs` holds the rules

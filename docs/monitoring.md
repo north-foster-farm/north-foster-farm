@@ -75,7 +75,8 @@ since. Everything else is information.
 
 Each alert is one email per kind per hour (later ones of the same
 kind are counted, not sent) and one `/fail` ping. The subject is
-`Site alert: <kind>`.
+`Site alert: <kind>`, and the body carries this section's entry for
+the kind, from `lib/alerts-guide.mjs`, with a button to this page.
 
 **`order.create_failed`.** `POST /api/orders` could not create the
 Square order or invoice after retries, or Square rejected it
@@ -131,6 +132,9 @@ the job is not doing its job even though it ran.
   pay-link email.
 - `reminder.overdue`: no reminder that was due more than 30 minutes
   ago is unsent, unless the customer turned reminders off.
+- `venmo.unchecked`: no order has sat in the "I paid by Venmo" hold
+  for more than a day. The morning report lists every hold; this
+  alerts when one is being forgotten.
 - `order.unreadable`: the rules could not even read the record.
 
 ## The jobs heartbeat and partial failures
@@ -150,12 +154,15 @@ variables in `.env`.
 
 ## The daily emails
 
-**Morning report**, 8:00: orders placed, paid (by webhook, by poll,
-by hand), abandoned, cancelled, still unpaid, mail failures, jobs
-runs, errors and violations, over the last 24 hours; then the on-farm
-pickups within two days still waiting. A day when every payment
-arrived by the poll gets a bold line: the Square webhook is probably
-broken. This email also pings the *Alerts* check well.
+**Morning report**, 8:00: the site's vital signs for the last 24
+hours, each with the range a healthy day falls in (orders placed,
+paid by webhook, by poll, by hand, unpaid orders cancelled at the
+cutoff, cancellations, open unpaid, mail failures, jobs runs, errors
+and violations); then every order held on an "I paid by Venmo" claim,
+with how long it has waited; then the on-farm pickups within two days
+still waiting, each with its confirm command. A day when every
+payment arrived by the poll gets a bold line: the Square webhook is
+probably broken. This email also pings the *Alerts* check well.
 
 **Tomorrow**, 18:00: every order due the next day, grouped delivery,
 Scituate drop, on-farm, each with customer, phone, paid or UNPAID,

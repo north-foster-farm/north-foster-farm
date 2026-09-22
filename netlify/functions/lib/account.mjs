@@ -258,6 +258,7 @@ export const changeOrder = async (stores, customer, id, changes, {
   if (moved) {
     f.state = "requested";
     f.agreedAt = null;
+    f.onfarm.confirmed = null;
     patch.question = answerQuestion(order, "reschedule", "customer", now);
   }
 
@@ -444,10 +445,8 @@ export const saveAddress = async (stores, customer, address, {
   const saved = await saveCustomer(stores, { ...customer, address: next });
 
   if (next.status === "pending") {
-    await tellFarm(addressReview(saved, {
-      cliHint: `bin/nff address approve ${saved.email}  (or deny)`,
-      links: mailLinks(env),
-    }), { mail, env });
+    await tellFarm(addressReview(saved, { links: mailLinks(env) }),
+      { mail, env });
   }
 
   return { ok: true, customer: saved };

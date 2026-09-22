@@ -17,11 +17,14 @@ const USAGE = `Usage:
   bin/nff customers set <email> name=.. phone=.. group=friends|none
   bin/nff customers delete <email>
   bin/nff address approve|deny <email>
-  bin/nff orders list [--open] [--status=paid] [--email=x]
+  bin/nff orders list [--open] [--held] [--status=paid] [--email=x]
   bin/nff orders show <id>
   bin/nff orders paid <id> [--via venmo|cash|check]   paid by hand
   bin/nff orders unpaid <id>          nothing arrived: lift the Venmo hold
-  bin/nff orders confirm <id>         agree to an on-farm pickup window
+  bin/nff orders confirm [<id>] [--at 9] [--until 11]
+                                      agree to a pickup: the first two
+                                      hours of the window unless told;
+                                      no id: how many wait, and the next
   bin/nff orders deny <id> --reason "..."   have them pick another
   bin/nff orders cancel <id> [--refund]
   bin/nff orders fulfil <id>
@@ -67,7 +70,7 @@ const flags = {};
 const words = [];
 
 // Flags that take a value: `--reason "..."` as well as `--reason=...`.
-const VALUED = ["reason", "via", "note"];
+const VALUED = ["reason", "via", "note", "at", "until", "n"];
 const args = process.argv.slice(2);
 
 for (let i = 0; i < args.length; i += 1) {
@@ -148,6 +151,7 @@ const run = async () => {
   case "orders list": {
     const list = await admin.listOrders(stores, {
       status: flags.status, email: flags.email, open: !!flags.open,
+      held: !!flags.held,
     });
 
     for (const o of list) out(summaryLine(o));
@@ -163,8 +167,39 @@ const run = async () => {
     })));
   case "orders unpaid":
     return out(summaryLine(await admin.unholdOrder(stores, rest[0])));
-  case "orders confirm":
-    return out(summaryLine(await admin.confirmPickup(stores, rest[0])));
+  case "orders confirm": {
+    if (rest[0]) {
+      return out(summaryLine(await admin.confirmPickup(stores, rest[0], {
+        at: flags.at, until: flags.until,
+      })));
+    }
+
+    const waiting = await admin.pickupsNeedingConfirmation(stores);
+
+    out(`${waiting.length} pickup${waiting.length === 1 ? "" : "s"} ` +
+      "waiting for confirmation.");
+    if (!waiting[0]) return undefined;
+
+    const next = waiting[0];
+    const o = next.fulfilment.onfarm;
+    const w = (terms.onFarm.windows || {})[o.window] || {};
+
+    out("");
+    out(`Next, oldest first: ${summaryLine(next)}`);
+    out(`  ${next.customer.name || next.customer.email}${
+      next.customer.phone ? `, ${next.customer.phone}` : ""}`);
+    out(`  Requested: ${next.fulfilment.date}, ${o.window} (${w.from}:00 ` +
+      `to ${w.to}:00), placed ${next.submittedAt.slice(0, 16)}`);
+    out(`  Lines: ${next.lines.map((l) => `${l.qty} × ${l.label}`)
+      .join("; ")}`);
+    out("");
+    out(`  bin/nff orders confirm ${next.id}            (${w.from}:00 to ${
+      w.from + admin.PICKUP_HOURS}:00)`);
+    out(`  bin/nff orders confirm ${next.id} --at H     (H to H+2)`);
+    out(`  bin/nff orders deny ${next.id} --reason "..."`);
+
+    return undefined;
+  }
   case "orders deny":
     if (flags.reason === true) flags.reason = "";
 

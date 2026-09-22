@@ -20,6 +20,7 @@ import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import {
   addDays, label, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { GUIDE, RUNBOOK_ALERTS } from "./alerts-guide.mjs";
 import { company } from "./company.mjs";
 import { between, methodName, whenWhere } from "./describe.mjs";
 import { needsAgreement } from "./records.mjs";
@@ -52,18 +53,13 @@ const heading = (text) => ({
   text: `\n${text}`,
   html: `<h3 style="margin:24px 0 8px;font-size:16px">${escape(text)}</h3>`,
 });
-const link = (text, url) => ({
-  text: `${text}: ${url}`,
-  html: `<p><a href="${escape(url)}" style="color:${GREEN}">` +
-    `${escape(text)}</a></p>`,
-});
-
 // The site's .btn-primary and .btn-outline-primary, inlined.
 const BTN = "display:inline-block;padding:8px 16px;border-radius:4px;" +
   "font-weight:bold;line-height:1.5;text-decoration:none;";
-const button = (text, url, { outline = false } = {}) => {
+const button = (text, url, { outline = false, tone = "primary" } = {}) => {
+  const color = tone === "secondary" ? MUTED : GREEN;
   const look = outline
-    ? `border:1px solid ${GREEN};color:${GREEN};background:#fff`
+    ? `border:1px solid ${color};color:${color};background:#fff`
     : `border:1px solid ${GREEN};color:#fff;background:${GREEN}`;
 
   return {
@@ -76,27 +72,86 @@ const list = (items) => ({
   text: items.map((i) => `- ${i}`).join("\n"),
   html: `<ul>${items.map((i) => `<li>${inline(i)}</li>`).join("")}</ul>`,
 });
-// A small table: aligned columns in text, a plain <table> in HTML.
-const CELL = "padding:4px 14px 4px 0;vertical-align:top;text-align:left";
-const table = (headers, rows) => {
+const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
+
+// A cell or list item is a string, or { text, html } when it needs
+// its own markup.
+const rich = (c) => (c && typeof c === "object"
+  ? c : { text: String(c), html: inline(String(c)) });
+
+// An identifier the farm will paste somewhere: monospace, selected
+// whole by one click (user-select: all, which Apple Mail honours).
+const mono = (text) => ({
+  text,
+  html: `<span style="font-family:${MONO};font-size:14px;` +
+    `-webkit-user-select:all;user-select:all">${escape(text)}</span>`,
+});
+
+// A figure that wants attention: bold, in the site's danger red.
+const alarm = (text) => ({
+  text: `**${text}**`,
+  html: `<strong style="color:#b02a37">${escape(text)}</strong>`,
+});
+
+// A small table: aligned columns in text, a plain <table> in HTML that
+// scrolls sideways inside the card when its columns need the room.
+// `align` is per column: left (the default), right or center.
+const CELL = "padding:4px 14px 4px 0;vertical-align:top;white-space:nowrap";
+const table = (headers, rows, { align = [] } = {}) => {
+  const cells = rows.map((r) => r.map(rich));
   const widths = headers.map((h, i) => Math.max(
-    h.length, ...rows.map((r) => String(r[i]).length)
+    h.length, ...cells.map((r) => r[i].text.length)
   ));
-  const line = (cells) => cells
-    .map((c, i) => String(c).padEnd(widths[i])).join("  ").trimEnd();
-  const cell = (tag, c, extra = "") =>
-    `<${tag} style="${CELL}${extra}">${escape(c)}</${tag}>`;
+  const pad = (s, i) => (align[i] === "right"
+    ? s.padStart(widths[i]) : s.padEnd(widths[i]));
+  const line = (arr) => arr.map(pad).join("  ").trimEnd();
+  const cell = (tag, html, i, extra = "") =>
+    `<${tag} style="${CELL};text-align:${align[i] || "left"}${extra}">${
+      html}</${tag}>`;
 
   return {
-    text: [line(headers), ...rows.map(line)].join("\n"),
-    html: `<table style="border-collapse:collapse;margin:12px 0;` +
-      `font-size:15px"><thead><tr>${headers.map((h) =>
-        cell("th", h, ";border-bottom:1px solid rgba(0,0,0,.175)"))
-        .join("")}</tr></thead><tbody>${rows.map((r) =>
-        `<tr>${r.map((c) => cell("td", c)).join("")}</tr>`).join("")
-      }</tbody></table>`,
+    text: [line(headers), ...cells.map((r) => line(r.map((c) => c.text)))]
+      .join("\n"),
+    html: `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;` +
+      `margin:12px 0"><table style="border-collapse:collapse;` +
+      `font-size:15px"><thead><tr>${headers.map((h, i) =>
+        cell("th", escape(h), i, ";border-bottom:1px solid rgba(0,0,0,.175)"))
+        .join("")}</tr></thead><tbody>${cells.map((r) =>
+        `<tr>${r.map((c, i) => cell("td", c.html, i)).join("")}</tr>`)
+        .join("")}</tbody></table></div>`,
   };
 };
+// A list whose items may carry markup ({ text, html }) or a child
+// list ({ text, children: [string] }). Child lists sit close under
+// their parent, indented half the usual amount.
+const treeText = (i) => {
+  if (typeof i === "string") return `- ${i}`;
+  if (!i.children) return `- ${i.text}`;
+
+  return [`- ${i.text}`, ...i.children.map((c) => `  - ${c}`)].join("\n");
+};
+const treeHtml = (i) => {
+  if (typeof i === "string") return `<li>${inline(i)}</li>`;
+  if (!i.children) return `<li>${i.html}</li>`;
+
+  return `<li>${inline(i.text)}<ul style="margin:2px 0 4px;` +
+    `padding-left:1.25em">${i.children.map((c) => `<li>${inline(c)}</li>`)
+      .join("")}</ul></li>`;
+};
+const tree = (items) => ({
+  text: items.map(treeText).join("\n"),
+  html: `<ul>${items.map(treeHtml).join("")}</ul>`,
+});
+// A command for the farm to run: monospace, the whole string selected
+// by one click, wrapped rather than clipped. In text it stands on its
+// own indented line.
+const command = (cmd) => ({
+  text: `\n    ${cmd}\n`,
+  html: `<pre style="margin:8px 0 14px;padding:8px 12px;border-radius:4px;` +
+    `background:#f3f5f4;font-family:${MONO};font-size:14px;` +
+    `line-height:1.5;white-space:pre-wrap;word-break:break-all;` +
+    `-webkit-user-select:all;user-select:all">${escape(cmd)}</pre>`,
+});
 // "Your orders | Contact us": the links that end a message. Pairs
 // with a null URL are left out.
 const row = (pairs) => {
@@ -220,9 +275,45 @@ const totalsBlock = (order) => {
 
 const payUrl = (order) => (order.square && order.square.invoiceUrl) || "";
 
-const orderNumber = (order) => p(`Order number: **${order.id}**`);
+// The order number: a plain line by default; `copyable` sets it the
+// way a one-time code is shown, large, spaced, monospace, selected
+// whole by one click, for whoever has to paste it somewhere (the farm
+// into a command, a customer into a Venmo note).
+const orderNumber = (order, {
+  copyable = false, label = "Order number",
+} = {}) => (copyable
+  ? {
+    text: `${label}: **${order.id}**`,
+    html: `<p style="margin:12px 0 4px;font-size:13px;color:${MUTED}">` +
+      `${escape(label)}</p><p style="margin:0 0 12px"><span style="` +
+      `display:inline-block;padding:6px 12px;border:1px solid ` +
+      `rgba(0,0,0,.175);border-radius:4px;background:#f3f5f4;` +
+      `font-family:${MONO};font-size:20px;letter-spacing:.06em;` +
+      `-webkit-user-select:all;user-select:all">${escape(order.id)}</span></p>`,
+  }
+  : p(`${label}: **${order.id}**`));
 
 const clock = (hour) => `${((hour + 11) % 12) + 1} ${hour < 12 ? "AM" : "PM"}`;
+
+// "9 – 11 AM", "11 AM – 1 PM": a confirmed pickup range, on the hour.
+const hoursRange = (from, to) => {
+  const h = (x) => `${((x + 11) % 12) + 1}`;
+  const m = (x) => (x < 12 ? "AM" : "PM");
+
+  return m(from) === m(to)
+    ? `${h(from)} – ${h(to)} ${m(to)}`
+    : `${h(from)} ${m(from)} – ${h(to)} ${m(to)}`;
+};
+
+// "morning" until the farm has confirmed a range inside it, then
+// "9 – 11 AM (morning)".
+const pickupWindow = (order) => {
+  const o = order.fulfilment.onfarm || {};
+
+  return o.confirmed && !needsAgreement(order)
+    ? `${hoursRange(o.confirmed.from, o.confirmed.to)} (${o.window})`
+    : o.window;
+};
 
 const daysApart = (fromIso, toIso) => Math.round(
   (Date.parse(`${toIso}T00:00:00Z`) - Date.parse(`${fromIso}T00:00:00Z`))
@@ -279,7 +370,7 @@ const orderType = (order) => {
       ]
       : [
         `${needsAgreement(order) ? "Requested" : "When"}: ${when}, ${
-          f.onfarm.window}`,
+          pickupWindow(order)}`,
         `Where: ${terms.onFarm.address}`,
       ];
 
@@ -339,12 +430,20 @@ export const completeYourOrder = (order, { orderUrl, links } = {}) => {
     strong("Your order isn't final until it's paid."),
   ];
 
+  // The Venmo paragraph asks for the order number in the note, so the
+  // number follows it, set for copying.
+  const venmo = company.venmo
+    ? [venmoOffer(order, orderUrl), orderNumber(order, {
+      copyable: true, label: "Your order number, for the Venmo note",
+    })]
+    : [];
+
   if (needsAgreement(order)) {
     blocks.push(
       p(`Here's your invoice for ${total}. Pay it to complete your ` +
         "checkout."),
       button("Pay and complete your checkout", payUrl(order)),
-      ...[venmoOffer(order, orderUrl)].filter(Boolean),
+      ...venmo,
       p("We'll check to make sure we can accommodate your requested " +
         "pick-up time, and confirm it in a separate email. Nothing else " +
         "needed from you until then.")
@@ -354,7 +453,7 @@ export const completeYourOrder = (order, { orderUrl, links } = {}) => {
       p(`Here's your invoice for ${total}. Pay it to complete your ` +
         "checkout and confirm your order."),
       button("Pay and confirm your order", payUrl(order)),
-      ...[venmoOffer(order, orderUrl)].filter(Boolean)
+      ...venmo
     );
   }
   blocks.push(...orderDetails(order));
@@ -382,7 +481,12 @@ export const orderConfirmed = (order, { orderUrl, links } = {}) => {
     ...orderDetails(order),
   ];
 
-  if (orderUrl) blocks.push(button("View or edit this order", orderUrl));
+  if (orderUrl) {
+    blocks.push(button("View or edit this order", orderUrl));
+    if (order.fulfilment.method === "onfarm") {
+      blocks.push(button("Reschedule pickup", orderUrl, { outline: true }));
+    }
+  }
   blocks.push(customerFooter(links));
 
   return { subject: title, ...render(title, blocks, links) };
@@ -393,10 +497,10 @@ export const paymentReceived = (order, { orderUrl, links } = {}) => {
   const title = "Payment received";
   const blocks = [
     p(`Thanks, ${firstName(order.customer)}. Your payment of ` +
-      `${dollars(order.totals.total)} came through. We're checking the ` +
-      "schedule to make sure we can accommodate your requested pick-up " +
-      `time, and will confirm it by ${
-        label(addDays(order.fulfilment.date, -1))}.`),
+      `${dollars(order.totals.total)} came through.`),
+    p("We're checking the schedule to make sure we can accommodate your " +
+      "requested pick-up time, and will confirm it by " +
+      `${label(addDays(order.fulfilment.date, -1))}.`),
     ...orderDetails(order),
   ];
 
@@ -412,7 +516,6 @@ export const paymentReceived = (order, { orderUrl, links } = {}) => {
 // when the customer answers by replying instead.
 export const pickNewTime = (order, { reason = "", pickUrl, links } = {}) => {
   const title = "One more step: pick a new pickup time";
-  const paid = order.status === "paid";
   const blocks = [
     p(`Hi ${firstName(order.customer)},`),
     strong(`${capital(timeOf(order))} doesn't work for us.`),
@@ -423,16 +526,13 @@ export const pickNewTime = (order, { reason = "", pickUrl, links } = {}) => {
     blocks.push(
       p("Please pick another day or window, and we'll be in touch to " +
         "confirm. If rescheduling isn't an option, you can cancel your " +
-        "order from the same page."),
+        "order from the same page for a full refund."),
       button("Pick a new time", pickUrl)
     );
   } else {
     blocks.push(p("Please reply with another day or window, and we'll be " +
       "in touch to confirm. If rescheduling isn't an option, reply and " +
-      "we'll cancel your order."));
-  }
-  if (!paid) {
-    blocks.push(p("Payment reminders are paused until you've picked."));
+      "we'll cancel your order for a full refund."));
   }
   blocks.push(...orderDetails(order), customerFooter(links));
 
@@ -497,7 +597,8 @@ export const paymentReminder = (order, stage, {
       { outline: true }));
   }
   if (settingsUrl) {
-    blocks.push(link("Turn off payment reminders", settingsUrl));
+    blocks.push(button("Turn off payment reminders", settingsUrl,
+      { outline: true, tone: "secondary" }));
   }
   blocks.push(customerFooter(links));
 
@@ -528,7 +629,8 @@ export const deliveryReminder = (order, {
   blocks.push(...orderDetails(order));
   if (orderUrl) blocks.push(button("View or edit this order", orderUrl));
   if (settingsUrl) {
-    blocks.push(link("Turn off delivery reminders", settingsUrl));
+    blocks.push(button("Turn off delivery reminders", settingsUrl,
+      { outline: true, tone: "secondary" }));
   }
   blocks.push(customerFooter(links));
 
@@ -647,7 +749,7 @@ const mapsUrl = (a) =>
 
 // To the farm, when a customer sets or changes an address outside the
 // delivery area.
-export const addressReview = (customer, { cliHint, links } = {}) => {
+export const addressReview = (customer, { links } = {}) => {
   const a = customer.address || {};
   const who = customer.name || customer.email;
   const url = customerUrl(links, customer.email);
@@ -657,17 +759,20 @@ export const addressReview = (customer, { cliHint, links } = {}) => {
       ? {
         text: `${who} (${url}) saved an address outside of the ` +
           "published delivery area.",
-        html: `<p><a href="${escape(url)}">${escape(who)}</a> saved an ` +
-          "address outside of the published delivery area.</p>",
+        html: `<p><a href="${escape(url)}" style="color:${GREEN}">${
+          escape(who)}</a> saved an address outside of the published ` +
+          "delivery area.</p>",
       }
       : p(`${who} (${customer.email}) saved an address outside of the ` +
         "published delivery area."),
     p(`Location: **${streetAddress(a)}**`),
     button("View location in Maps", mapsUrl(a)),
+    p("Approve it:"),
+    command(`bin/nff address approve ${customer.email}`),
+    p("Or deny it:"),
+    command(`bin/nff address deny ${customer.email}`),
+    adminFooter(links),
   ];
-
-  if (cliHint) blocks.push(p(`Approve or deny it: ${cliHint}`));
-  blocks.push(adminFooter(links));
 
   return { subject: title, ...render(title, blocks, links) };
 };
@@ -675,11 +780,11 @@ export const addressReview = (customer, { cliHint, links } = {}) => {
 const customerDetails = (order, links) => {
   const c = order.customer;
   const word = CONTACT_WORD[c.contact];
-  const items = [c.name || c.email, c.email];
+  const items = [c.name || c.email, mono(c.email)];
 
   if (c.phone) items.push(`${c.phone}${word ? `, ${word}` : ""}`);
 
-  const blocks = [heading("Customer details"), list(items)];
+  const blocks = [heading("Customer details"), tree(items)];
   const url = customerUrl(links, c.email);
 
   if (url) blocks.push(button("View customer", url));
@@ -711,11 +816,30 @@ const farmOrderType = (order) => {
 
 // The two commands that settle a requested pickup window. The farm's
 // "New order" notice is the queue, so it carries them.
-const confirmOrDeny = (order) => [
-  p(`Confirm it: bin/nff orders confirm ${order.id}`),
-  p(`Or deny it and they pick again: bin/nff orders deny ${order.id} ` +
-    "--reason \"...\""),
-];
+const confirmOrDeny = (order) => {
+  const window = order.fulfilment.onfarm.window;
+  const bounds = (terms.onFarm.windows || {})[window] || {};
+  const h24 = (h) => `${h}:00`;
+  const from = bounds.from;
+  const to = bounds.to;
+  const example = Math.min(from + 1, to - 2);
+
+  return [
+    p(`They asked for the ${window}, which runs ${h24(from)} to ${h24(to)}. ` +
+      "Confirming with no hours tells them you'll be there for the first " +
+      `two hours of it, ${h24(from)} to ${h24(from + 2)}:`),
+    command(`bin/nff orders confirm ${order.id}`),
+    p("To be there at other hours inside that window, give the start on " +
+      "the 24-hour clock with --at (two hours from there), and the end " +
+      `with --until if it is not two hours later. ${h24(example)} to ${
+        h24(example + 2)}, then ${h24(example)} to ${h24(to)}:`),
+    command(`bin/nff orders confirm ${order.id} --at ${example}`),
+    command(`bin/nff orders confirm ${order.id} --at ${example} --until ${to}`),
+    p("Or deny the window and they pick another day or window. What you " +
+      "give as the reason goes to them in that email, in your words:"),
+    command(`bin/nff orders deny ${order.id} --reason "..."`),
+  ];
+};
 
 const paidWord = (order) => (order.status === "paid" ? "paid" : "unpaid");
 
@@ -731,7 +855,7 @@ export const farmOrderPlaced = (order, { squareUrl, links } = {}) => {
 
   if (url) blocks.push(button("View order", url));
   blocks.push(
-    orderNumber(order),
+    orderNumber(order, { copyable: true }),
     lines(order, { prices: true }),
     totalsBlock(order),
     ...farmOrderType(order)
@@ -785,11 +909,14 @@ export const farmVenmoClaimed = (order, { links } = {}) => {
       "number."),
     p("If the payment is there, mark the order paid. That sends the " +
       "customer's confirmation and closes the Square invoice so it can't " +
-      `be paid twice: bin/nff orders paid ${order.id} --via venmo`),
+      "be paid twice:"),
+    command(`bin/nff orders paid ${order.id} --via venmo`),
     p("If it never arrives, lift the hold so the payment reminders and " +
-      `the cutoff run again: bin/nff orders unpaid ${order.id}`),
+      "the cutoff run again:"),
+    command(`bin/nff orders unpaid ${order.id}`),
     p("Until one of those runs, the order waits: no reminders, and not " +
-      "cancelled at the cutoff."),
+      "cancelled at the cutoff. Every order in this state is listed in " +
+      "the morning report, and one older than a day raises an alert."),
   ];
 
   if (url) blocks.push(button("View order", url));
@@ -808,16 +935,23 @@ export const farmVenmoUnmatched = (payments, { date, links } = {}) => {
       "or an amount that isn't the order's total. Market sales will show " +
       "here. Anything else may be an online order whose note left out " +
       "the number."),
-    table(["Amount", "From", "Note", "Order"], payments.map((v) => [
-      dollars(v.cents),
-      v.payer,
-      v.note || "(none)",
-      v.orderId
-        ? `${v.orderId} (${v.orderTotal !== null
-          ? `${dollars(v.orderTotal)} due` : "no such order"})`
-        : "",
-    ])),
-    p("The full record, with Venmo's transaction ids: bin/nff venmo list"),
+    table(["Amount", "Due", "From", "Note", "Order"], payments.map((v) => {
+      const short = v.orderTotal !== null && v.orderTotal > v.cents;
+      const due = v.orderTotal === null ? "" : dollars(v.orderTotal);
+
+      return [
+        short ? alarm(dollars(v.cents)) : dollars(v.cents),
+        short ? alarm(due) : due,
+        v.payer,
+        v.note || "(none)",
+        v.orderId
+          ? (v.orderTotal === null ? `${v.orderId} (no such order)`
+            : mono(v.orderId))
+          : "",
+      ];
+    }), { align: ["right", "right"] }),
+    p("The full record, with Venmo's transaction ids:"),
+    command("bin/nff venmo list"),
     adminFooter(links),
   ];
 
@@ -829,9 +963,11 @@ export const farmVenmoUnmatched = (payments, { date, links } = {}) => {
 const when = (iso) => (iso ? `${iso.replace("T", " ").slice(0, 16)} UTC`
   : "never");
 
-// A failure on the critical path, one per kind per hour.
+// A failure on the critical path, one per kind per hour, with the
+// runbook's entry for it in the body.
 export const farmAlert = (kind, detail = {}, { at, links } = {}) => {
   const title = `Site alert: ${kind}`;
+  const guide = GUIDE[kind];
   const rows = Object.entries(detail)
     .filter(([, v]) => v !== null && v !== undefined && v !== "")
     .map(([k, v]) => [k, typeof v === "string" ? v : JSON.stringify(v)]);
@@ -841,49 +977,121 @@ export const farmAlert = (kind, detail = {}, { at, links } = {}) => {
   ];
 
   if (rows.length) blocks.push(table(["Field", "Value"], rows));
+  if (guide) {
+    blocks.push(
+      heading("What this means"),
+      p(guide.means),
+      heading("What to do"),
+      p(guide.action)
+    );
+  } else {
+    blocks.push(p("This alert has no entry in the runbook yet."));
+  }
   blocks.push(
-    p("What each alert means, and what to do: docs/monitoring.md in " +
-      "the site repository."),
+    button("Open the runbook", RUNBOOK_ALERTS, { outline: true }),
     adminFooter(links)
   );
 
   return { subject: title, ...render(title, blocks, links) };
 };
 
-// Every morning at 8:00: the last day in numbers, then whatever needs
-// a decision. Sent even when nothing does, so its absence is a signal.
-export const farmMorningReport = (stats, pickups, { date, links } = {}) => {
+// Every morning at 8:00: the site's vital signs for the last day, then
+// whatever waits on the farm. Sent even when nothing does, so its
+// absence is a signal.
+// Each vital sign: the figure, and whether a healthy day looks like
+// this. GOOD is within limits, BAD outside them, PLAIN a number with
+// no limits, just worth knowing.
+const GOOD = "🐣";
+const BAD = "🤮";
+const PLAIN = "🫥";
+const within = (ok) => (ok ? GOOD : BAD);
+const VITALS = [
+  ["placed", "Orders placed", () => PLAIN],
+  ["paid", "Paid", () => PLAIN],
+  ["paidByWebhook", "Paid the moment Square said so (webhook)",
+    () => PLAIN],
+  ["paidByPoll", "Paid by the 15-minute poll (webhook missed)",
+    (s) => (s.paidByPoll === 0 ? GOOD
+      : s.paidByWebhook === 0 ? BAD : PLAIN)],
+  ["paidByHand", "Paid by hand or Venmo", () => PLAIN],
+  ["abandoned", "Unpaid orders cancelled at the cutoff",
+    (s) => within(s.abandoned <= 3)],
+  ["cancelled", "Cancelled by a customer or the farm", () => PLAIN],
+  ["openUnpaid", "Open orders still unpaid", () => PLAIN],
+  ["mailFailures", "Emails that could not be sent",
+    (s) => within(s.mailFailures === 0)],
+  ["runs", "Jobs runs (one every 15 minutes is 96)",
+    (s) => within(s.runs >= 90)],
+  ["jobErrors", "Jobs errors", (s) => within(s.jobErrors === 0)],
+  ["invariants", "Invariant violations", (s) => within(s.invariants === 0)],
+];
+
+const age = (iso, now) => {
+  const hours = Math.round((now.getTime() - Date.parse(iso)) / 3_600_000);
+
+  return hours < 1 ? "under an hour" : hours < 48 ? `${hours} h`
+    : `${Math.round(hours / 24)} days`;
+};
+
+export const farmMorningReport = (stats, pickups, {
+  date, links, holds = [], now = new Date(),
+} = {}) => {
   const title = `Morning report: ${label(date)}`;
   const blocks = [
-    heading("The last 24 hours"),
-    table(["", "Count"], [
-      ["Orders placed", stats.placed],
-      ["Paid", stats.paid],
-      ["Paid by webhook", stats.paidByWebhook],
-      ["Paid by poll (webhook missed)", stats.paidByPoll],
-      ["Paid by hand or Venmo", stats.paidByHand],
-      ["Abandoned at the cutoff", stats.abandoned],
-      ["Cancelled", stats.cancelled],
-      ["Still unpaid", stats.openUnpaid],
-      ["Mail failures", stats.mailFailures],
-      ["Jobs runs", stats.runs],
-      ["Jobs errors", stats.jobErrors],
-      ["Invariant violations", stats.invariants],
-    ].map(([k, v]) => [k, String(v)])),
+    heading("Vital signs: the last 24 hours"),
+    p("How the site did since yesterday's report. " +
+      `${GOOD} within healthy limits, ${BAD} outside them, ${PLAIN} a ` +
+      "number with no limits, just worth knowing. Anything marked " +
+      `${BAD} is worth a look, and an alert will usually have said so ` +
+      "already."),
+    table(["", "Last 24 h", ""],
+      VITALS.map(([key, name, judge]) => [name, String(stats[key]),
+        judge(stats)]),
+      { align: ["left", "right", "center"] }),
   ];
 
   if (stats.paidByPoll > 0 && stats.paidByWebhook === 0) {
     blocks.push(p("**Every payment came in by the poll.** Check the Square " +
       "webhook: Square Developer Dashboard, the app's Webhooks page."));
   }
+
+  if (holds.length) {
+    blocks.push(
+      heading("Waiting on a Venmo check"),
+      p("These customers said they paid by Venmo and the site has not " +
+        "seen the payment. Each is held: no reminders, not cancelled at " +
+        "the cutoff. They are at risk of being forgotten, so they stay " +
+        "here until you settle them."),
+      list(holds.map((o) => `${o.id}, ${o.customer.name || o.customer.email}` +
+        `, ${dollars(o.totals.total)}, ${methodName(o.fulfilment.method)} ${
+          label(o.fulfilment.date)}, waiting ${
+          age(o.paymentPending.at, now)}`)),
+      p("In the Venmo app, then mark it paid, or lift the hold:"),
+      command("bin/nff orders paid <id> --via venmo"),
+      command("bin/nff orders unpaid <id>")
+    );
+  }
+
   if (pickups.length) {
     blocks.push(
       heading("Pickups to confirm"),
-      p("These on-farm pickups are within two days and not confirmed."),
-      list(pickups.map((o) => `${o.id}, ${
-        o.customer.name || o.customer.email}, ${windowPhrase(o)}, ${
-        paidWord(o)}${o.question && !o.question.answeredAt
-        ? ", denied and not re-picked" : ""}: bin/nff orders confirm ${o.id}`))
+      p("These on-farm pickups are within two days and not confirmed, " +
+        "oldest order first."),
+      table(["Order", "Customer", "Requested", "Paid", "Waiting", "Status"],
+        pickups.slice().sort((a, b) => (a.submittedAt < b.submittedAt
+          ? -1 : 1)).map((o) => [
+          mono(o.id),
+          o.customer.name || o.customer.email,
+          windowPhrase(o),
+          paidWord(o),
+          age(o.submittedAt, now),
+          o.question && !o.question.answeredAt
+            ? alarm("denied, not re-picked") : "to confirm",
+        ])),
+      p("Confirm one by its order number, or run the command with no " +
+        "number to be shown how many wait and the oldest of them:"),
+      command("bin/nff orders confirm <id>"),
+      command("bin/nff orders confirm")
     );
   } else {
     blocks.push(p("No pickups waiting on a decision."));
@@ -907,8 +1115,16 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
   const blocks = [];
   const who = (o) => `${o.customer.name || o.customer.email}${
     o.customer.phone ? `, ${o.customer.phone}` : ""}`;
-  const packing = (o) => o.lines.map((l) => `${l.qty} × ${l.label}`).join("; ");
-  const state = (o) => (o.status === "paid" ? "paid" : "UNPAID");
+  const pack = (o) => ({
+    text: "Pack:", children: o.lines.map((l) => `${l.qty} × ${l.label}`),
+  });
+  // A delivery is abandoned at the Wednesday cutoff if unpaid, so an
+  // unpaid one on this list means that step did not happen.
+  const state = (o) => (o.status === "paid" ? "paid"
+    : o.fulfilment.method === "delivery"
+      ? "**UNPAID, past the cutoff: it should have been cancelled; " +
+        "check it before loading**"
+      : "UNPAID");
 
   if (!orders.length) {
     blocks.push(p(`Nothing due ${day}.`));
@@ -924,26 +1140,26 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
 
       if (d.gate) items.push(`Gate or door code: ${d.gate}`);
       if (instructions(o)) items.push(`Notes: ${instructions(o)}`);
-      items.push(`Pack: ${packing(o)}`);
-      blocks.push(p(`**${o.id}**, ${who(o)}, ${state(o)}`), list(items));
+      items.push(pack(o));
+      blocks.push(p(`**${o.id}**, ${who(o)}, ${state(o)}`), tree(items));
     }
   }
   if (drops.length) {
     blocks.push(heading(`Scituate drop, ${terms.scituate.window} (${
       drops.length})`));
     for (const o of drops) {
-      blocks.push(p(`**${o.id}**, ${who(o)}, ${state(o)}`),
-        list([`Pack: ${packing(o)}`]));
+      blocks.push(p(`**${o.id}**, ${who(o)}, ${state(o)}`), tree([pack(o)]));
     }
   }
   if (farm.length) {
     blocks.push(heading(`On-farm pickups (${farm.length})`));
     for (const o of farm) {
-      const window = o.fulfilment.onfarm.window;
-      const agreed = needsAgreement(o) ? "NOT CONFIRMED" : "confirmed";
+      const agreed = needsAgreement(o)
+        ? `${o.fulfilment.onfarm.window}, NOT CONFIRMED`
+        : `${pickupWindow(o)}, confirmed`;
 
-      blocks.push(p(`**${o.id}**, ${who(o)}, ${window}, ${agreed}, ${
-        state(o)}`), list([`Pack: ${packing(o)}`]));
+      blocks.push(p(`**${o.id}**, ${who(o)}, ${agreed}, ${state(o)}`),
+        tree([pack(o)]));
     }
   }
   blocks.push(adminFooter(links));

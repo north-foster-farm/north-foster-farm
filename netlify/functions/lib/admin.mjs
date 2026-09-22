@@ -3,6 +3,7 @@
 // same records and rules as the customer-facing functions, with the
 // farm's authority. bin/nff is the thin front.
 
+import terms from "../../../data/delivery.json" with { type: "json" };
 import { adjust, getCounts, setCount } from "./stock.mjs";
 import { LONG_LINK_TTL, requestLink } from "./auth.mjs";
 import { sendMail } from "./mail.mjs";
@@ -11,7 +12,7 @@ import {
 } from "./payments.mjs";
 import {
   OPEN, allCustomers, allOrders, amendOrder, answerQuestion, deleteCustomer,
-  deleteOrder, getCustomer, getOrder, needsAgreement, ordersFor,
+  deleteOrder, getCustomer, getOrder, needsAgreement, openOrders, ordersFor,
   questionOpen, saveCustomer, setStatus,
 } from "./records.mjs";
 import { mailLinks, orderPathFor, orderUrlFor } from "./site.mjs";
@@ -99,13 +100,18 @@ export const decideAddress = async (stores, email, decision, {
 
 // Orders
 
-export const listOrders = async (stores, { status, email, open } = {}) => {
+export const listOrders = async (stores, {
+  status, email, open, held,
+} = {}) => {
   let orders = email ? await ordersFor(stores, email) : await allOrders(stores);
 
   if (status) orders = orders.filter((o) => o.status === status);
   if (open) {
     orders = orders.filter((o) => ["submitted", "paid"].includes(o.status));
   }
+  // Held: a payment claimed (Venmo) or in flight (bank transfer) that
+  // the site has not seen; the reminders and the cutoff wait.
+  if (held) orders = orders.filter((o) => !!o.paymentPending);
 
   return orders;
 };
@@ -204,19 +210,63 @@ const openPickup = async (stores, id) => {
   return order;
 };
 
-// -> the order, agreed. Sends "confirmed" if it is already paid; the
-// second of paid and agreed sends it, whichever that is. Confirming
-// after a deny closes the question: the time works after all.
+// The range the farm confirms inside the customer's window: whole
+// hours, at least PICKUP_HOURS long, inside the window's bounds
+// (data/delivery.json, onFarm.windows). With nothing given, the first
+// two hours of the window. -> { from, to } in 24-hour hours.
+export const PICKUP_HOURS = 2;
+
+export const pickupRange = (windowName, { at, until } = {}) => {
+  const bounds = (terms.onFarm.windows || {})[windowName];
+
+  if (!bounds) throw new Error(`Unknown pickup window "${windowName}".`);
+
+  const from = at === undefined || at === "" ? bounds.from : Number(at);
+  const to = until === undefined || until === ""
+    ? from + PICKUP_HOURS : Number(until);
+
+  if (!Number.isInteger(from) || !Number.isInteger(to)) {
+    throw new Error("Hours are whole numbers on the 24-hour clock: " +
+      "--at 9 --until 11.");
+  }
+  if (from < bounds.from || to > bounds.to) {
+    throw new Error(`The ${windowName} window runs ${bounds.from}:00 to ` +
+      `${bounds.to}:00.`);
+  }
+  if (to - from < PICKUP_HOURS) {
+    throw new Error(`Give them at least ${PICKUP_HOURS} hours.`);
+  }
+
+  return { from, to };
+};
+
+// The on-farm pickups still waiting on the farm, oldest first: what
+// `bin/nff orders confirm` with no order number works through.
+export const pickupsNeedingConfirmation = async (stores) =>
+  (await openOrders(stores))
+    .filter((o) => o.fulfilment.method === "onfarm" && needsAgreement(o)
+      && !questionOpen(o))
+    .sort((a, b) => (a.submittedAt < b.submittedAt ? -1 : 1));
+
+// -> the order, agreed, with the confirmed range on
+// `fulfilment.onfarm.confirmed`. Sends "confirmed" if it is already
+// paid; the second of paid and agreed sends it, whichever that is.
+// Confirming after a deny closes the question: the time works after
+// all.
 export const confirmPickup = async (stores, id, {
-  now = new Date(), env = process.env, mail = sendMail,
+  at, until, now = new Date(), env = process.env, mail = sendMail,
 } = {}) => {
   const order = await openPickup(stores, id);
 
   if (!needsAgreement(order) && !questionOpen(order)) return order;
 
+  const confirmed = pickupRange(order.fulfilment.onfarm.window, { at, until });
   const agreed = await amendOrder(stores, id, {
     fulfilment: {
-      ...order.fulfilment, state: "agreed", agreedAt: now.toISOString(),
+      ...order.fulfilment,
+      state: "agreed",
+      agreedAt: now.toISOString(),
+      onfarm: { ...order.fulfilment.onfarm, confirmed },
     },
     question: answerQuestion(order, "confirmed", "farm", now),
   }, "pickup.agreed", now);

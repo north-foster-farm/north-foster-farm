@@ -300,6 +300,7 @@ export const summarize = (report) => ({
 
 export const INVARIANT_GRACE = 30 * MINUTE;
 export const PAY_LINK_GRACE = 20 * MINUTE;
+export const VENMO_HOLD_GRACE = 24 * HOUR;
 
 export const checkInvariants = (orders, now, prefs = new Map()) => {
   const t = now.getTime();
@@ -330,6 +331,10 @@ export const checkInvariants = (orders, now, prefs = new Map()) => {
       if (o.status === "submitted" && !held && !muted(o)
         && reminderDue(o, new Date(t - INVARIANT_GRACE))) {
         found.push({ rule: "reminder.overdue", id: o.id });
+      }
+      if (o.paymentPending && o.paymentPending.source === "venmo"
+        && t - Date.parse(o.paymentPending.at) > VENMO_HOLD_GRACE) {
+        found.push({ rule: "venmo.unchecked", id: o.id });
       }
     } catch {
       // A record the rules cannot even read is its own violation.
@@ -463,12 +468,18 @@ const morningReport = async (stores, { env, mail, now, fetchImpl }) => {
     key: `report/morning/${day}`,
     hour: PICKUPS_REPORT_HOUR,
     always: true,
-    list: async () => [{
-      stats: await funnel(stores, now),
-      pickups: pickupsDue(await openOrders(stores), day),
-    }],
-    build: ([{ stats, pickups }]) => farmMorningReport(stats, pickups, {
-      date: day, links: mailLinks(env),
+    list: async () => {
+      const open = await openOrders(stores);
+
+      return [{
+        stats: await funnel(stores, now),
+        pickups: pickupsDue(open, day),
+        holds: open.filter((o) => o.paymentPending
+          && o.paymentPending.source === "venmo"),
+      }];
+    },
+    build: ([{ stats, pickups, holds }]) => farmMorningReport(stats, pickups, {
+      date: day, links: mailLinks(env), holds, now,
     }),
     onSent: () => ping(env.HEALTHCHECKS_ALERT_URL, { ok: true, fetchImpl }),
     env, mail, now,

@@ -36,12 +36,19 @@ const el = (tag, className, text) => {
 
 const clone = (id) => document.getElementById(id).content.cloneNode(true);
 
+const hour12 = (h) => `${((h + 11) % 12) + 1} ${h < 12 ? "AM" : "PM"}`;
+
 const when = (order) => {
   const f = order.fulfilment;
   const day = f.date ? label(f.date) : "";
 
   if (f.method === "onfarm" && f.onfarm) {
-    return `${METHOD.onfarm}, ${day}, ${f.onfarm.window}`;
+    // Once the farm has confirmed, the window narrows to the hours it
+    // picked inside the one the customer asked for.
+    const c = f.state === "agreed" && f.onfarm.confirmed;
+    const window = c ? `${hour12(c.from)} – ${hour12(c.to)}` : f.onfarm.window;
+
+    return `${METHOD.onfarm}, ${day}, ${window}`;
   }
 
   return `${METHOD[f.method] || f.method}, ${day}`;

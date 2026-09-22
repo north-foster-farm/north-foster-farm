@@ -402,10 +402,11 @@ describe("runJobs", () => {
     assert.equal(report.length, 1);
     assert.deepEqual(report[0].to, ["farm@x.com"]);
     assert.equal(report[0].subject, "Morning report: Monday, October 5");
-    assert.match(report[0].text, /Orders placed\s+3\n/, "the funnel");
+    assert.match(report[0].text, /Orders placed\s+3\s+🫥\n/, "the funnel");
     assert.match(report[0].text,
-      /- A, Pat Example, Wednesday, October 7, morning, unpaid: bin\/nff/);
-    assert.doesNotMatch(report[0].text, /- B,|- C,/);
+      /\nA\s+Pat Example\s+Wednesday, October 7, morning\s+unpaid\s+/);
+    assert.ok(report[0].text.includes("\n    bin/nff orders confirm <id>\n"));
+    assert.doesNotMatch(report[0].text, /\nB\s+Pat|\nC\s+Pat/);
 
     // Nothing to decide: the report still goes, and says so.
     const quiet = testStores();

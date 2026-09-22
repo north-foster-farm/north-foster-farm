@@ -4,8 +4,9 @@ import { describe, it } from "node:test";
 import terms from "../data/delivery.json" with { type: "json" };
 import {
   cancelOrder, confirmPickup, decideAddress, denyPickup, fulfilOrder,
-  listOrders, payOrder, removeCustomer, removeOrder, resolveReturn,
-  setCustomer, showCustomer, stockList, stockSet, unholdOrder,
+  listOrders, payOrder, pickupRange, pickupsNeedingConfirmation,
+  removeCustomer, removeOrder, resolveReturn, setCustomer, showCustomer,
+  stockList, stockSet, unholdOrder,
 } from "../netlify/functions/lib/admin.mjs";
 import { verifyToken } from "../netlify/functions/lib/auth.mjs";
 import { requestReturn } from "../netlify/functions/lib/account.mjs";
@@ -121,8 +122,13 @@ describe("orders from the CLI", () => {
 
     await saveOrder(stores, order("A"), now);
     await saveOrder(stores, order("B", "fulfilled"), now);
-    assert.equal((await listOrders(stores)).length, 2);
-    assert.equal((await listOrders(stores, { open: true })).length, 1);
+    await saveOrder(stores, {
+      ...order("C"), paymentPending: { at: now.toISOString(), source: "venmo" },
+    }, now);
+    assert.equal((await listOrders(stores)).length, 3);
+    assert.equal((await listOrders(stores, { open: true })).length, 2);
+    assert.deepEqual((await listOrders(stores, { held: true }))
+      .map((o) => o.id), ["C"]);
     assert.equal((await listOrders(stores, { status: "fulfilled" }))[0].id,
       "B");
     assert.equal((await listOrders(stores, { email: "x@y.com" })).length, 0);
@@ -254,6 +260,49 @@ describe("an on-farm pickup window from the CLI", () => {
       ...order("C"), fulfilment: { method: "delivery", date: "2026-10-08" },
     }, now);
     await assert.rejects(confirmPickup(stores, "C", opts), /Only an on-farm/);
+  });
+
+  it("confirm records the hours the farm will be there, inside the " +
+    "window", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+
+    assert.deepEqual(pickupRange("morning"), { from: 8, to: 10 });
+    assert.deepEqual(pickupRange("morning", { at: "9" }), { from: 9, to: 11 });
+    assert.deepEqual(pickupRange("afternoon", { at: 13, until: 17 }),
+      { from: 13, to: 17 });
+    assert.throws(() => pickupRange("morning", { at: 11 }), /8:00 to 12:00/);
+    assert.throws(() => pickupRange("morning", { at: 9, until: 10 }),
+      /at least 2 hours/);
+    assert.throws(() => pickupRange("morning", { at: "9.5" }), /whole/);
+    assert.throws(() => pickupRange("evening"), /Unknown pickup window/);
+
+    await saveOrder(stores, requested("A"), now);
+    await payOrder(stores, "A", opts);
+    const agreed = await confirmPickup(stores, "A", { ...opts, at: 10 });
+
+    assert.deepEqual(agreed.fulfilment.onfarm.confirmed, { from: 10, to: 12 });
+    assert.match(sent.at(-1).text,
+      /- When: Wednesday, October 7, 10 AM – 12 PM \(morning\)/);
+  });
+
+  it("lists the pickups waiting on the farm, oldest first", async () => {
+    const stores = testStores();
+    const { opts } = harness();
+    const older = { ...requested("B"), submittedAt: "2026-10-04T13:00:00Z" };
+    const asked = requested("C");
+
+    asked.question = { kind: "window", openedAt: "x", answeredAt: null };
+    await saveOrder(stores, requested("A"), now);
+    await saveOrder(stores, older, now);
+    await saveOrder(stores, asked, now);
+    await saveOrder(stores, order("D"), now); // Legacy: born agreed.
+
+    assert.deepEqual((await pickupsNeedingConfirmation(stores))
+      .map((o) => o.id), ["B", "A"]);
+    await confirmPickup(stores, "B", opts);
+    assert.deepEqual((await pickupsNeedingConfirmation(stores))
+      .map((o) => o.id), ["A"]);
   });
 
   it("deny: opens a question, pauses nothing else, and mails a week-long " +
