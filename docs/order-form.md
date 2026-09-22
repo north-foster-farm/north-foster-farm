@@ -181,7 +181,12 @@ did. `reminderPrefs(customer)` in `lib/records.mjs` is the one reading.
 
 `lib/mail.mjs` sends through Resend when `MAIL_DRIVER=resend`,
 `RESEND_API_KEY` and `MAIL_FROM` are set, otherwise to the function
-log. `MAIL_REPLY_TO` and `ADMIN_EMAILS` (comma-separated) are
+log. `MAIL_DRIVER=file` writes each message as `.html` and `.txt`
+under `MAIL_OUT` (default `.ignored/outbox`) instead, so a local
+`bin/nff` command, `netlify dev` or a jobs run leaves its emails
+where a browser can open them. `node .ignored/render-all.mjs --open`
+renders every template from the sample order into
+`.ignored/rendered/` with an index page. `MAIL_REPLY_TO` and `ADMIN_EMAILS` (comma-separated) are
 optional. `lib/templates.mjs` holds every message as a pure function
 with tests: complete your order, order confirmed, payment received
 (an on-farm order paid before its window is agreed), pick a new time
