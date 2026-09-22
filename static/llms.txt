@@ -2,7 +2,7 @@
 
 > A small family farm in Foster, Rhode Island, raising chickens on
 > pasture for eggs and meat. Sold at three weekly farmers markets, for
-> pickup at the farm, and by local delivery through online ordering at
+> pickup at the farm, and by delivery through online ordering at
 > https://www.northfosterfarm.com/order.
 
 The birds live outside on grass, move to fresh pasture regularly, and
@@ -16,7 +16,7 @@ by email; nothing is charged at the time of ordering.
 - [Home](https://www.northfosterfarm.com/): what the farm is, how to
   buy, and the latest update
 - [Order](https://www.northfosterfarm.com/order/): current stock and
-  prices, on-farm pickup, market pickup, and local delivery
+  prices, on-farm pickup, market pickup, and delivery
 - [About](https://www.northfosterfarm.com/about/): the farm, the
   family, and the markets with days, hours and addresses
 - [Delivery policy](https://www.northfosterfarm.com/delivery-policy/):

@@ -20,7 +20,7 @@ const STATUS = {
 };
 
 const METHOD = {
-  delivery: "Local delivery",
+  delivery: "Delivery",
   scituate: "Scituate drop site",
   onfarm: "On-farm pickup",
 };
@@ -51,6 +51,15 @@ const placed = (iso) => new Date(iso).toLocaleDateString("en-US", {
   month: "short", day: "numeric", year: "numeric",
 });
 
+// The emails about one order link to /account/orders/<id>/, which
+// netlify.toml rewrites to this page. The session says whose order it
+// is, so the path carries nothing but the id.
+const orderFromPath = () => {
+  const found = /^\/account\/orders\/([^/]+)\/?$/.exec(location.pathname);
+
+  return found ? decodeURIComponent(found[1]) : "";
+};
+
 // The order page takes ?add=SKU:qty,... and puts those in the cart.
 const addUrl = (lines) => `/order/?add=${encodeURIComponent(
   lines.map((l) => `${l.sku}:${l.qty}`).join(",")
@@ -76,7 +85,11 @@ class Account {
     const me = await api("/api/me");
 
     if (!me.ok || !me.data.signedIn) {
-      location.replace(`/login/?next=${encodeURIComponent("/account/")}`);
+      // Come back to where they were headed, not just the account
+      // page, so a link to one order survives signing in.
+      location.replace(`/login/?next=${encodeURIComponent(
+        location.pathname + location.search + location.hash
+      )}`);
 
       return;
     }
@@ -90,6 +103,28 @@ class Account {
     this.loading.hidden = true;
     this.app.hidden = false;
     this.showTab(location.hash.replace("#", "") || "orders");
+    this.openOrder(orderFromPath());
+  }
+
+  // Arrived from an email about one order: show that order rather
+  // than the top of the list.
+  openOrder(id) {
+    if (!id) return;
+
+    const card = document.getElementById(`order-${id}`);
+
+    if (!card) {
+      this.say(`We couldn't find order ${id} on this account. Here's ` +
+        "everything you've ordered.");
+
+      return;
+    }
+
+    this.showTab("orders");
+    card.classList.add("is-linked");
+    card.tabIndex = -1;
+    card.focus({ preventScroll: true });
+    card.scrollIntoView({ block: "center" });
   }
 
   wire() {

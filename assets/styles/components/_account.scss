@@ -112,6 +112,12 @@
 
   // Orders
 
+  // Followed a link from an email about this one order.
+  .account-order.is-linked {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 3px;
+  }
+
   .account-order-head {
     display: flex;
     align-items: start;

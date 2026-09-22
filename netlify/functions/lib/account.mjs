@@ -18,7 +18,7 @@ import { sendForOrder } from "./payments.mjs";
 import {
   amendOrder, getOrder, ordersFor, saveCustomer, setStatus,
 } from "./records.mjs";
-import { siteUrl } from "./site.mjs";
+import { mailLinks, orderUrlFor, siteUrl } from "./site.mjs";
 import {
   cancelInvoice, cancelFulfilment, updateFulfilment,
 } from "./square.mjs";
@@ -130,7 +130,8 @@ export const cancelOrder = async (stores, customer, id, {
       }
     }
     await sendForOrder(stores, cancelled, "orderCancelled",
-      orderCancelled(cancelled, { refund: false }), { mail, env, now });
+      orderCancelled(cancelled, { refund: false, links: mailLinks(env) }),
+      { mail, env, now });
 
     return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
   }
@@ -144,7 +145,8 @@ export const cancelOrder = async (stores, customer, id, {
   await adjust(stores, order.lines, 1);
 
   await sendForOrder(stores, flagged, "orderCancelled",
-    orderCancelled(flagged, { refund: true }), { mail, env, now });
+    orderCancelled(flagged, { refund: true, links: mailLinks(env) }),
+    { mail, env, now });
   await tellFarm({
     subject: `Refund needed: ${id} cancelled by ${customer.email}`,
     text: `${customer.name || customer.email} cancelled paid order ${id} ` +
@@ -252,7 +254,10 @@ export const changeOrder = async (stores, customer, id, changes, {
   }
 
   await sendForOrder(stores, changed, `orderChanged-${now.getTime()}`,
-    orderChanged(changed), { mail, env, now });
+    orderChanged(changed, {
+      orderUrl: orderUrlFor(env, changed.id), links: mailLinks(env),
+    }),
+    { mail, env, now });
 
   return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
 };
@@ -339,6 +344,7 @@ export const saveAddress = async (stores, customer, address, {
   if (next.status === "pending") {
     await tellFarm(addressReview(saved, {
       cliHint: `bin/nff address approve ${saved.email}  (or deny)`,
+      links: mailLinks(env),
     }), { mail, env });
   }
 

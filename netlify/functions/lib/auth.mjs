@@ -12,7 +12,7 @@ import { createHash, randomBytes } from "node:crypto";
 
 import { sendMail } from "./mail.mjs";
 import { getCustomer, saveCustomer } from "./records.mjs";
-import { siteUrl } from "./site.mjs";
+import { mailLinks, siteUrl } from "./site.mjs";
 import { magicLink } from "./templates.mjs";
 
 const MINUTE = 60_000;
@@ -96,7 +96,9 @@ export const requestLink = async (stores, { email, next }, {
     await mail({
       to: address,
       idempotencyKey: `link-${hash(token).slice(0, 16)}`,
-      ...magicLink(address, url, { minutes: LINK_TTL / MINUTE }),
+      ...magicLink(address, url, {
+        minutes: LINK_TTL / MINUTE, links: mailLinks(env),
+      }),
     }, { env });
   }
 

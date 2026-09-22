@@ -29,7 +29,7 @@ we move the coop to a new spot and start again.
 Pasture-raised whole chickens and cuts, chicken sausage, and eggs by
 the dozen. Everything is available at our farmers markets and through
 [the order form](/order) for on-farm pickup, the Scituate drop site,
-or [local delivery](/delivery-policy).
+or [delivery](/delivery-policy).
 
 ## Where to find us
 

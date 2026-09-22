@@ -152,7 +152,7 @@ describe("orders from the CLI", () => {
       assert.equal((await getCounts(stores))["NFF-CHK-EGG-LG"], 5);
       assert.deepEqual(calls, [["invoice", "INV-A"], ["fulfilment", "SQO"]]);
       assert.match(sent[0].subject, /cancelled/);
-      assert.match(sent[0].text, /nothing was charged/);
+      assert.match(sent[0].text, /you were not charged/);
     });
 
   it("close a paid order the customer asked to cancel, without a second " +
@@ -189,7 +189,7 @@ describe("orders from the CLI", () => {
 });
 
 describe("returns and stock from the CLI", () => {
-  it("resolve a return with a note and tell the customer", async () => {
+  it("resolve a return with a note; James tells the customer", async () => {
     const stores = testStores();
     const { sent, opts } = harness();
 
@@ -205,7 +205,7 @@ describe("returns and stock from the CLI", () => {
 
     assert.equal(done.returns[0].status, "resolved");
     assert.equal(done.returns[0].note, "We've credited $7 to your card.");
-    assert.match(sent[0].text, /credited \$7/);
+    assert.equal(sent.length, 0, "no template speaks for the farm here");
     await assert.rejects(resolveReturn(stores, "A", "nope", opts),
       /No such return/);
   });

@@ -91,10 +91,11 @@ describe("the timetable", () => {
   it("picks the reminder stage from the clock and what was sent", () => {
     const o = order("A");
 
-    assert.equal(reminderDue(o, at("2026-10-05", 9, 29)), null);
-    assert.equal(reminderDue(o, at("2026-10-05", 9, 30)), "soon");
+    // Placed at 09:00, so the first reminder is due at 10:00.
+    assert.equal(reminderDue(o, at("2026-10-05", 9, 59)), null);
+    assert.equal(reminderDue(o, at("2026-10-05", 10)), "soon");
     assert.equal(reminderDue({ ...o, emails: { soon: {} } },
-      at("2026-10-05", 9, 30)), null);
+      at("2026-10-05", 10)), null);
     assert.equal(reminderDue({ ...o, emails: { soon: {} } },
       at("2026-10-06", 9)), "nextDay");
     assert.equal(reminderDue({ ...o, emails: { soon: {}, nextDay: {} } },
@@ -119,9 +120,9 @@ describe("runJobs", () => {
       return r.reminded.map((x) => x.stage);
     };
 
-    assert.deepEqual(await stages(at("2026-10-05", 9, 15)), []);
-    assert.deepEqual(await stages(at("2026-10-05", 9, 31)), ["soon"]);
-    assert.deepEqual(await stages(at("2026-10-05", 9, 46)), []);
+    assert.deepEqual(await stages(at("2026-10-05", 9, 45)), []);
+    assert.deepEqual(await stages(at("2026-10-05", 10, 1)), ["soon"]);
+    assert.deepEqual(await stages(at("2026-10-05", 10, 16)), []);
     assert.deepEqual(await stages(at("2026-10-06", 9, 1)), ["nextDay"]);
     assert.deepEqual(await stages(at("2026-10-06", 20)), []);
     assert.deepEqual(await stages(at("2026-10-07", 8, 1)), ["final"]);

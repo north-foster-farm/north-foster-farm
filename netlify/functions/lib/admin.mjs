@@ -10,9 +10,10 @@ import {
   allCustomers, allOrders, amendOrder, deleteCustomer, deleteOrder,
   getCustomer, getOrder, ordersFor, saveCustomer, setStatus,
 } from "./records.mjs";
+import { mailLinks } from "./site.mjs";
 import { cancelFulfilment, cancelInvoice } from "./square.mjs";
 import {
-  addressDecision, orderCancelled, returnResolved,
+  addressDecision, orderCancelled,
 } from "./templates.mjs";
 
 const need = (thing, what) => {
@@ -83,7 +84,7 @@ export const decideAddress = async (stores, email, decision, {
     await mail({
       to: saved.email,
       idempotencyKey: `address-${decision}-${now.getTime()}`,
-      ...addressDecision(saved, decision),
+      ...addressDecision(saved, decision, { links: mailLinks(env) }),
     }, { env });
   } catch (error) {
     console.error(`Mail failed: ${error.message}`);
@@ -142,8 +143,9 @@ export const cancelOrder = async (stores, id, {
   // A customer who already asked was already told.
   if (!order.cancelRequested) {
     await sendForOrder(stores, cancelled, "orderCancelled",
-      orderCancelled(cancelled, { refund: refund || wasPaid }),
-      { mail, env, now });
+      orderCancelled(cancelled, {
+        refund: refund || wasPaid, links: mailLinks(env),
+      }), { mail, env, now });
   }
 
   return getOrder(stores, id);
@@ -162,9 +164,9 @@ export const removeOrder = async (stores, id) => {
 
 // Returns
 
+// No email goes out: James answers a return himself, in his own words.
 export const resolveReturn = async (stores, id, returnId, {
-  now = new Date(), env = process.env, mail = sendMail, note = "",
-  outcome = "resolved",
+  now = new Date(), note = "", outcome = "resolved",
 } = {}) => {
   const order = need(await getOrder(stores, id), "order");
   const entry = (order.returns || []).find((r) => r.id === returnId);
@@ -174,12 +176,8 @@ export const resolveReturn = async (stores, id, returnId, {
   const returns = order.returns.map((r) => (r.id === returnId
     ? { ...r, status: outcome, note, resolvedAt: now.toISOString() }
     : r));
-  const changed = await amendOrder(stores, id, { returns },
-    `return.${outcome}`, now);
 
-  await sendForOrder(stores, changed, `returnResolved-${returnId}`,
-    returnResolved(changed, { ...entry, status: outcome, note }),
-    { mail, env, now });
+  await amendOrder(stores, id, { returns }, `return.${outcome}`, now);
 
   return getOrder(stores, id);
 };

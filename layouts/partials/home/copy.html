@@ -55,8 +55,8 @@
   "innerHTML" $email
   "classes" "text-decorate-none")
 }}
-{{ $deliverySubject := "I'm interested in local delivery" }}
-{{ $deliveryBody := "I'd like to hear more about local delivery from NFF." }}
+{{ $deliverySubject := "I'm interested in delivery" }}
+{{ $deliveryBody := "I'd like to hear more about delivery from NFF." }}
 {{ $deliveryHref := printf "mailto:%s?subject=%s&body=%s" $email $deliverySubject $deliveryBody }}
 {{ $deliveryEmail := partial "link.html" (dict
   "href" $deliveryHref
@@ -158,7 +158,7 @@
             </ul>
             <p>
               We’re also getting close to something a lot of you have asked us
-              about: <strong>local delivery</strong>. If you’re interested,
+              about: <strong>delivery</strong>. If you’re interested,
               please {{ $deliveryEmail }} and we’ll get you more information.
               We’ll publish full details on the website soon.
             </p>

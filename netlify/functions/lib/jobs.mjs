@@ -3,7 +3,7 @@
 // run does nothing twice.
 //
 //   poll        ask Square about every unpaid order (missed webhook)
-//   soon        30 minutes after placing, still unpaid: first reminder
+//   soon        1 hour after placing, still unpaid: first reminder
 //   nextDay     24 hours after placing, still unpaid: second reminder
 //   final       8:00 the day before fulfilment (the Wednesday, for a
 //               delivery), still unpaid: last call
@@ -24,7 +24,7 @@ import {
 import { sendMail } from "./mail.mjs";
 import { pollUnpaid, sendForOrder } from "./payments.mjs";
 import { amendOrder, openOrders, setStatus } from "./records.mjs";
-import { accountUrlFor } from "./site.mjs";
+import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
 import {
   bankTransferOffered, cancelInvoice, closeBankTransfer, getInvoice,
 } from "./square.mjs";
@@ -34,7 +34,7 @@ import { deliveryReminder, paymentReminder } from "./templates.mjs";
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 
-export const SOON_AFTER = 30 * MINUTE;
+export const SOON_AFTER = HOUR;
 export const NEXT_DAY_AFTER = 24 * HOUR;
 export const FINAL_HOUR = 8;
 export const DELIVERY_REMINDER_HOUR = 18;
@@ -141,7 +141,10 @@ export const runJobs = async (stores, {
 
       if (stage) {
         await sendForOrder(stores, order, stage, paymentReminder(order, stage, {
-          accountUrl: accountUrlFor(env),
+          orderUrl: orderUrlFor(env, order.id),
+          settingsUrl: settingsUrlFor(env),
+          links: mailLinks(env),
+          now,
         }), opts);
         report.reminded.push({ id: order.id, stage });
       }
@@ -154,7 +157,11 @@ export const runJobs = async (stores, {
         && now.getTime() >= deliveryReminderAt(order).getTime()
         && today(now, tz) < order.fulfilment.date) {
         await sendForOrder(stores, order, "deliveryReminder",
-          deliveryReminder(order, { accountUrl: accountUrlFor(env) }), opts);
+          deliveryReminder(order, {
+            orderUrl: orderUrlFor(env, order.id),
+            settingsUrl: settingsUrlFor(env),
+            links: mailLinks(env),
+          }), opts);
         report.deliveryReminded.push(order.id);
       }
 

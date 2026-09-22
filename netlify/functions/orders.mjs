@@ -20,7 +20,7 @@ import { notifyFarm } from "./lib/payments.mjs";
 import {
   amendOrder, getOrder, saveOrder, touchCustomer,
 } from "./lib/records.mjs";
-import { accountUrlFor } from "./lib/site.mjs";
+import { mailLinks } from "./lib/site.mjs";
 import { createOrderAndInvoice, dashboardUrl } from "./lib/square.mjs";
 import { adjust, checkLines } from "./lib/stock.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
@@ -169,7 +169,7 @@ export const handle = async (req, {
         const sent = await mail({
           to: order.customer.email,
           idempotencyKey: `${key}-complete`,
-          ...completeYourOrder(saved, { accountUrl: accountUrlFor(env) }),
+          ...completeYourOrder(saved, { links: mailLinks(env) }),
         }, { env });
 
         await amendOrder(stores, order.id, {
@@ -188,7 +188,7 @@ export const handle = async (req, {
 
     // The farm's own notice. It never fails the order either.
     await notifyFarm(stores, saved, "farmOrderPlaced", farmOrderPlaced(saved, {
-      squareUrl: dashboardUrl(square_, env),
+      squareUrl: dashboardUrl(square_, env), links: mailLinks(env),
     }), { mail, env, now });
 
     return json(200, {

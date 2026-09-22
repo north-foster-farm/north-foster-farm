@@ -283,8 +283,9 @@ export const buildInvoice = (
     }],
     accepted_payment_methods: acceptedMethods(bankTransferOffered(date, now)),
     title: `North Foster Farm order ${order.id}`,
-    description: `${describe(order)} Chicken arrives frozen. Once this ` +
-      "invoice is paid, your order is reserved.",
+    // The same words as the emails (James, 2026-09-22).
+    description: `${describe(order)} Your order isn't final until it's ` +
+      "paid.",
     sale_or_service_date: date,
     store_payment_method_enabled: false,
   };

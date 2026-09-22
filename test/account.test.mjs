@@ -115,7 +115,7 @@ describe("cancelOrder", () => {
     ]);
     assert.equal(sent.length, 1);
     assert.match(sent[0].subject, /cancelled/);
-    assert.match(sent[0].text, /nothing was charged/);
+    assert.match(sent[0].text, /you were not charged/);
   });
 
   it("flags a paid order for refund and tells the farm", async () => {
@@ -172,7 +172,7 @@ describe("changeOrder", () => {
     assert.equal(r.order.notes, "Thanks!");
     assert.deepEqual(calls, [["updateFulfilment", "SQO", "2026-10-15"]]);
     assert.match(sent[0].subject, /updated/);
-    assert.match(sent[0].text, /Cooler: Back steps/);
+    assert.match(sent[0].text, /find your cooler\? _\*\*Back steps\*\*_/);
   });
 
   it("rejects a date that is not offered and an empty cooler", async () => {

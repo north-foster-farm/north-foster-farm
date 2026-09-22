@@ -159,8 +159,16 @@ cancelled, abandoned. Square stays the system of record for money.
 log. `MAIL_REPLY_TO` and `ADMIN_EMAILS` (comma-separated) are
 optional. `lib/templates.mjs` holds every message as a pure function
 with tests: complete your order, order confirmed, payment reminders
-(soon, nextDay, final), delivery reminder, address review, sign-in
-link. With the farm's mail configured, the Square invoice is created
+(soon, nextDay, final), delivery reminder, order changed, order
+cancelled, address decision, sign-in link, and to the farm: address
+review, order placed, order paid. The wording is James's (review of
+2026-09-22). Every customer message ends on a "Your orders | Contact
+us" row and the farm's on "Admin"; `mailLinks(env)` in `lib/site.mjs`
+supplies those from `ACCOUNTS_ENABLED`, `CONTACT_URL` (else the farm's
+mailbox) and `ADMIN_URL` (default admin.northfosterfarm.com; the order
+and customer pages it links to arrive with the dashboard's order
+views). A resolved return sends nothing: James answers those himself.
+With the farm's mail configured, the Square invoice is created
 `SHARE_MANUALLY` and our email carries the pay link; without it Square
 emails the invoice. Links point at `SITE_URL`, else Netlify's
 `DEPLOY_PRIME_URL`, else `URL`.
@@ -204,7 +212,7 @@ function) and calls `lib/jobs.mjs`, which decides in
 | When                                   | What                      |
 | -------------------------------------- | ------------------------- |
 | every run                              | poll Square for unpaid    |
-| 30 min after placing, unpaid           | reminder `soon`           |
+| 1 h after placing, unpaid              | reminder `soon`           |
 | 24 h after placing, unpaid             | reminder `nextDay`        |
 | 8:00 the day before fulfilment, unpaid | reminder `final`          |
 | delivery cutoff (Wed noon) or midnight before a pickup, unpaid | `abandoned`, invoice cancelled |

@@ -6,7 +6,7 @@ import { adminEmails, sendMail } from "./mail.mjs";
 import {
   amendOrder, getOrder, orderByInvoice, setStatus,
 } from "./records.mjs";
-import { accountUrlFor } from "./site.mjs";
+import { mailLinks, orderUrlFor } from "./site.mjs";
 import { dashboardUrl, getInvoice } from "./square.mjs";
 import { farmOrderPaid, orderConfirmed } from "./templates.mjs";
 
@@ -79,12 +79,14 @@ export const markPaid = async (stores, id, {
 
   if (!(order.emails && order.emails.orderConfirmed)) {
     order = await sendForOrder(stores, order, "orderConfirmed",
-      orderConfirmed(order, { accountUrl: accountUrlFor(env) }),
+      orderConfirmed(order, {
+        orderUrl: orderUrlFor(env, order.id), links: mailLinks(env),
+      }),
       { mail, env, now });
   }
 
   return notifyFarm(stores, order, "farmOrderPaid", farmOrderPaid(order, {
-    squareUrl: dashboardUrl(order.square, env),
+    squareUrl: dashboardUrl(order.square, env), links: mailLinks(env),
   }), { mail, env, now });
 };
 

@@ -120,8 +120,11 @@ describe("POST /api/orders", () => {
 
       assert.equal(sent.length, 1);
       assert.equal(sent[0].to, "pat@example.com");
-      assert.match(sent[0].subject, /One more step: pay for order/);
-      assert.match(sent[0].text, /https:\/\/northfosterfarm.com\/account\//);
+      assert.match(sent[0].subject, /One more step: pay for your order/);
+      assert.match(sent[0].text, /Order number: \*\*NFF-2610-[A-Z2-9]{4}\*\*/);
+      assert.match(sent[0].text,
+        /Your orders: https:\/\/northfosterfarm.com\/account\//,
+        "the footer links the account page when accounts are on");
       assert.equal(squareOpts.emailInvoice, false, "our mail, not Square's");
 
       const saved = await getOrder(stores, orderId(KEY, now));
@@ -163,7 +166,7 @@ describe("POST /api/orders", () => {
     assert.deepEqual(farm[0].to, ["farm@x.com"]);
     assert.match(farm[0].subject, /^New order NFF-.* — \$55, on-farm pickup$/);
     assert.match(farm[0].text,
-      /pat@example.com · 401-555-0100, prefers a call/);
+      /- pat@example.com\n- 401-555-0100, prefers a call/);
     assert.match(farm[0].text,
       /app\.squareup\.com\/dashboard\/orders\/overview\/SQO/);
 

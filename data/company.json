@@ -4,7 +4,8 @@
     "street": "99 East Killingly Road",
     "city": "Foster",
     "state": "RI",
-    "zip": "02825"
+    "zip": "02825",
+    "short": "99 E Killingly Rd"
   },
   "phone": {
     "display": "(401) 578-3713",

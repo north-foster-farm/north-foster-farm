@@ -28,6 +28,13 @@ port = 8888
 publish = "public"
 framework = "#custom"
 
+# One order, deep-linked from the emails about it. The account page
+# reads the id off the path; the session decides whose order it is.
+[[redirects]]
+  from = "/account/orders/*"
+  to = "/account/"
+  status = 200
+
 [[redirects]]
   from = "/admin"
   to = "https://admin.northfosterfarm.com"
@@ -115,6 +122,8 @@ framework = "#custom"
 
   [headers.values]
     Cache-Control = "public, max-age=604800"
+    # The emails load Aller from here, so mail clients need CORS.
+    Access-Control-Allow-Origin = "*"
 
 [[headers]]
   for = "/images/*"

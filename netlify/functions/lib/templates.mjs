@@ -1,18 +1,37 @@
 // Every email the farm sends, as pure functions of the record they
 // describe. Each returns { subject, text, html }. The text version is
-// the source; the HTML wraps the same lines in a plain, brand-green
-// header so it reads well in any client and prints the same words.
+// the source; the HTML wraps the same lines in the site's look (the
+// wordmark, a card, the green buttons) and prints the same words.
+//
+// The wording is James's, from his review of 2026-09-22 (each email
+// rewritten in full; the replies are kept in
+// .ignored/review-replies-2026-09-22.json). The shape he set: a
+// greeting, the one sentence that matters in bold, the button, an
+// "Order details" block that names the order, the lines without
+// prices, and where and when; then the links; then a footer row.
+//
+// `links` is mailLinks(env) from site.mjs: { orders, contact, admin,
+// order }. Any of them may be null (accounts off, no admin URL) and
+// the row leaves it out.
 
+import terms from "../../../data/delivery.json" with { type: "json" };
+import { cutoffFor } from "../../../assets/scripts/order/lib/dates.mjs";
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
-import { label } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { label, today } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { company } from "./company.mjs";
-import { describe, methodName, whenWhere } from "./describe.mjs";
+import { between, methodName, whenWhere } from "./describe.mjs";
 
 const escape = (s) => String(s)
   .replace(/&/g, "&amp;")
   .replace(/</g, "&lt;")
   .replace(/>/g, "&gt;")
   .replace(/"/g, "&quot;");
+
+// The two marks James writes with: **bold** and _**bold italic**_.
+// The text keeps them; the HTML turns them into tags.
+const inline = (s) => escape(s)
+  .replace(/_\*\*(.+?)\*\*_/g, "<em><strong>$1</strong></em>")
+  .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 
 // Accepts a customer record (firstName preferred) or a bare name.
 const firstName = (who) => {
@@ -23,60 +42,137 @@ const firstName = (who) => {
   return String(who || "").trim().split(/\s+/)[0] || "";
 };
 
-// A paragraph, or a bulleted block, or a link. Text and HTML at once.
-const p = (text) => ({ text, html: `<p>${escape(text)}</p>` });
-const strong = (text) => ({
-  text, html: `<p><strong>${escape(text)}</strong></p>`,
+// Blocks: text and HTML at once.
+const p = (text) => ({ text, html: `<p>${inline(text)}</p>` });
+const strong = (text) => p(`**${text}**`);
+const heading = (text) => ({
+  text: `\n${text}`,
+  html: `<h3 style="margin:24px 0 8px;font-size:16px">${escape(text)}</h3>`,
 });
 const link = (text, url) => ({
   text: `${text}: ${url}`,
-  html: `<p><a href="${escape(url)}">${escape(text)}</a></p>`,
-});
-const button = (text, url) => ({
-  text: `${text}: ${url}`,
-  html: `<p style="margin:24px 0"><a href="${escape(url)}" style="` +
-    "display:inline-block;padding:12px 22px;border-radius:10px;" +
-    "background:#1c75bc;color:#fff;font-weight:bold;" +
-    `text-decoration:none">${escape(text)}</a></p>`,
-});
-const list = (items) => ({
-  text: items.map((i) => `  - ${i}`).join("\n"),
-  html: `<ul>${items.map((i) => `<li>${escape(i)}</li>`).join("")}</ul>`,
+  html: `<p><a href="${escape(url)}" style="color:${GREEN}">` +
+    `${escape(text)}</a></p>`,
 });
 
-const render = (title, blocks) => {
-  const text = [title, "", ...blocks.map((b) => b.text), "", signoff.text]
+// The site's .btn-primary and .btn-outline-primary, inlined.
+const BTN = "display:inline-block;padding:8px 16px;border-radius:4px;" +
+  "font-weight:bold;line-height:1.5;text-decoration:none;";
+const button = (text, url, { outline = false } = {}) => {
+  const look = outline
+    ? `border:1px solid ${GREEN};color:${GREEN};background:#fff`
+    : `border:1px solid ${GREEN};color:#fff;background:${GREEN}`;
+
+  return {
+    text: `${text}: ${url}`,
+    html: `<p style="margin:20px 0"><a href="${escape(url)}" ` +
+      `style="${BTN}${look}">${escape(text)}</a></p>`,
+  };
+};
+const list = (items) => ({
+  text: items.map((i) => `- ${i}`).join("\n"),
+  html: `<ul>${items.map((i) => `<li>${inline(i)}</li>`).join("")}</ul>`,
+});
+// "Your orders | Contact us": the links that end a message. Pairs
+// with a null URL are left out.
+const row = (pairs) => {
+  const kept = pairs.filter(([, url]) => url);
+
+  return {
+    text: `\n${kept.map(([t, u]) => `${t}: ${u}`).join("\n")}`,
+    html: `<p style="margin:24px 0 0">${kept.map(([t, u]) =>
+      `<a href="${escape(u)}" style="color:${GREEN}">${escape(t)}</a>`)
+      .join(" | ")}</p>`,
+  };
+};
+
+// The site's look, inlined: Aller (served from the site, with the
+// system stack behind it), the wordmark in the header's green, cards
+// with the account page's border, radius and shadow. The <style>
+// block does what inline styles cannot: load the font and stop iOS
+// Mail restyling the address and phone in the footer as blue links.
+const GREEN = "#186243"; // $primary: the brand green, shaded 20%.
+const INK = "#161a1e"; // $gray-900, the body text.
+const MUTED = "#5e5e5f"; // $gray-600.
+const FONT = "Aller,system-ui,-apple-system,'Segoe UI',Roboto," +
+  "'Helvetica Neue',Arial,sans-serif";
+
+const styles = (site) => `<style>${site ? `
+@font-face{font-family:Aller;font-weight:normal;font-style:normal;
+src:url("${site}/fonts/aller-regular.woff2") format("woff2")}
+@font-face{font-family:Aller;font-weight:bold;font-style:normal;
+src:url("${site}/fonts/aller-bold.woff2") format("woff2")}
+@font-face{font-family:Aller;font-weight:bold;font-style:italic;
+src:url("${site}/fonts/aller-bold-italic.woff2") format("woff2")}` : ""}
+a[x-apple-data-detectors]{color:inherit!important;
+text-decoration:none!important;font-size:inherit!important;
+font-family:inherit!important;font-weight:inherit!important;
+line-height:inherit!important}
+u+#body a{color:inherit;text-decoration:none}
+</style>`;
+
+const header = (site) => (site
+  ? `<p style="margin:0 0 20px;text-align:center"><img ` +
+    `src="${site}/images/email/logo.png" width="280" ` +
+    `alt="${escape(company.name)}" style="display:block;margin:0 auto;` +
+    `width:280px;max-width:100%;height:auto;border:0"></p>`
+  : `<p style="margin:0 0 20px;font-size:13px;font-weight:bold;` +
+    `letter-spacing:.08em;text-transform:uppercase;color:${GREEN}">` +
+    `${escape(company.name)}</p>`);
+
+// Centred, the four lines James asked for.
+const footerLines = [
+  company.name,
+  `${company.address.short || company.address.street}, ` +
+    `${company.address.city}, ${company.address.state} ` +
+    `${company.address.zip}`,
+  company.email,
+  company.phone && company.phone.display,
+].filter(Boolean);
+const footer = {
+  text: footerLines.join("\n"),
+  html: `<p style="margin:20px 0 0;font-size:13px;line-height:1.6;` +
+    `text-align:center;color:${MUTED}">${
+      footerLines.map(escape).join("<br>")}</p>`,
+};
+
+// The subject is the title; the body does not repeat it.
+const render = (title, blocks, links = {}) => {
+  const text = [title, "", ...blocks.map((b) => b.text), "", footer.text]
     .join("\n");
-  const html = `<!doctype html><html><body style="margin:0;padding:0;` +
-    `background:#f5f5f4;font-family:system-ui,-apple-system,Segoe UI,` +
-    `Roboto,sans-serif;color:#1d1c1b;line-height:1.55">` +
+  const html = `<!doctype html><html><head><meta charset="utf-8">` +
+    `<meta name="viewport" content="width=device-width">` +
+    `<meta name="color-scheme" content="light">` +
+    `<meta name="supported-color-schemes" content="light">` +
+    `<title>${escape(title)}</title>${styles(links.site)}</head>` +
+    `<body id="body" style="margin:0;padding:0;background:#fff;` +
+    `font-family:${FONT};font-size:16px;color:${INK};line-height:1.63">` +
     `<div style="max-width:560px;margin:0 auto;padding:24px 16px">` +
-    `<p style="margin:0 0 16px;font-size:13px;font-weight:bold;` +
-    `letter-spacing:.08em;text-transform:uppercase;color:#1e7b54">` +
-    `${escape(company.name)}</p>` +
-    `<div style="background:#fff;border-radius:16px;padding:24px;` +
-    `box-shadow:0 1px 3px rgba(0,0,0,.12)">` +
-    `<h1 style="margin:0 0 16px;font-size:22px">${escape(title)}</h1>${
+    `${header(links.site)}` +
+    `<div style="background:#fff;border:1px solid rgba(0,0,0,.175);` +
+    `border-radius:5px;padding:20px 24px;` +
+    `box-shadow:0 2px 3px rgba(7,6,6,.2)">${
       blocks.map((b) => b.html).join("")
-    }</div>${signoff.html}</div></body></html>`;
+    }</div>${footer.html}</div></body></html>`;
 
   return { text, html };
 };
 
-const signoff = {
-  text: `North Foster Farm · ${company.email}${
-    company.phone && company.phone.display
-      ? ` · ${company.phone.display}` : ""}`,
-  html: `<p style="margin:16px 0 0;font-size:13px;color:#5e5e5f">` +
-    `North Foster Farm · <a href="mailto:${escape(company.email)}" ` +
-    `style="color:#5e5e5f">${escape(company.email)}</a>${
-      company.phone && company.phone.display
-        ? ` · ${escape(company.phone.display)}` : ""
-    }</p>`,
-};
+const contactUrl = (links) =>
+  (links && links.contact) || `mailto:${company.email}`;
 
-const lines = (order) => list(order.lines.map(
-  (l) => `${l.qty} × ${l.label} (${dollars(l.lineTotal * 100)})`
+// The row every customer email ends on.
+const customerFooter = (links = {}) => row([
+  ["Your orders", links.orders], ["Contact us", contactUrl(links)],
+]);
+
+const adminFooter = (links = {}) => row([["Admin", links.admin]]);
+
+// Money is the invoice's job, so customer messages list what was
+// ordered without pricing it.
+const lines = (order, { prices = false } = {}) => list(order.lines.map(
+  (l) => `${l.qty} × ${l.label}${
+    prices ? ` (${dollars(l.lineTotal * 100)})` : ""}`
 ));
 
 const totalsBlock = (order) => {
@@ -100,288 +196,440 @@ const totalsBlock = (order) => {
 
 const payUrl = (order) => (order.square && order.square.invoiceUrl) || "";
 
-// Sent the moment the invoice is published.
-export const completeYourOrder = (order, { accountUrl } = {}) => {
-  const title = `One more step: pay for order ${order.id}`;
+const orderNumber = (order) => p(`Order number: **${order.id}**`);
+
+const clock = (hour) => `${((hour + 11) % 12) + 1} ${hour < 12 ? "AM" : "PM"}`;
+
+const daysApart = (fromIso, toIso) => Math.round(
+  (Date.parse(`${toIso}T00:00:00Z`) - Date.parse(`${fromIso}T00:00:00Z`))
+  / 86_400_000
+);
+
+// A delivery is kept only by paying before the Wednesday-noon cutoff,
+// so the reminders name it. -> null for a pickup, which has no cutoff
+// worth a sentence. `days` is how many days off that Wednesday is.
+const deliveryCutoff = (order, now) => {
+  if (order.fulfilment.method !== "delivery") return null;
+
+  const at = cutoffFor(order.fulfilment.date, terms);
+  const date = today(at, terms.timeZone);
+
+  return {
+    date,
+    day: label(date).split(",")[0],
+    at: clock(terms.delivery.cutoffHour),
+    days: daysApart(today(now, terms.timeZone), date),
+  };
+};
+
+// "today", "tomorrow", "on Wednesday", or the full date a week or
+// more out.
+const onDay = (days, day, date) => {
+  if (days <= 0) return "today";
+  if (days === 1) return "tomorrow";
+
+  return `on ${days < 7 ? day : label(date)}`;
+};
+
+// "84 Foster Center Rd, Foster, RI 02825", skipping whatever the
+// record lacks.
+const streetAddress = (a = {}) => [
+  a.address1, a.address2, a.town,
+  [a.state, a.zip].filter(Boolean).join(" "),
+].filter(Boolean).join(", ");
+
+// "Order type: Delivery" and the two lines under it.
+const orderType = (order) => {
+  const f = order.fulfilment;
+  const when = label(f.date);
+  const items = f.method === "delivery"
+    ? [
+      `Arrives: ${when}, usually between ${between(terms.delivery.window)}`,
+      `Address: ${streetAddress(f.delivery)}`,
+    ]
+    : f.method === "scituate"
+      ? [
+        `When: ${when}, between ${between(terms.scituate.window)}`,
+        `Where: ${terms.scituate.location}`,
+      ]
+      : [
+        `When: ${when}, ${f.onfarm.window}`,
+        `Where: ${terms.onFarm.address}`,
+      ];
+
+  return [p(`Order type: **${methodName(f.method)}**`), list(items)];
+};
+
+// The block that names the order, in every customer email about one.
+const orderDetails = (order) => [
+  heading("Order details"),
+  orderNumber(order),
+  lines(order),
+  ...orderType(order),
+];
+
+// The customer's own instructions, as one line.
+const instructions = (order) => {
+  const d = order.fulfilment.delivery || {};
+  const notes = [d.notes, order.notes].filter(Boolean)
+    .map((n) => String(n).trim().replace(/[.!?]?$/, "."));
+
+  return notes.join(" ");
+};
+
+// An on-farm window is a request, not a booking: the farm has to
+// agree to it. Nothing tells the customer that but the emails, so
+// both of the ones they read before the day say it.
+const pickupIsARequest = (order) => (
+  order.fulfilment.method === "onfarm"
+    ? p(`The ${order.fulfilment.onfarm.window} window is the time you ` +
+      "asked for, not a booking yet. We'll be in touch to settle it " +
+      `before ${label(order.fulfilment.date)}. Nothing else is needed ` +
+      "from you until then.")
+    : null
+);
+
+// Sent the moment the invoice is published. The invoice itemizes and
+// totals the money, so this only names what was ordered.
+export const completeYourOrder = (order, { links } = {}) => {
+  const title = "One more step: pay for your order";
   const blocks = [
     p(`Hi ${firstName(order.customer)},`),
     strong("Your order isn't final until it's paid."),
     p(`Here's your invoice for ${dollars(order.totals.total)}. Pay it ` +
-      "and your order is confirmed."),
-    button("Pay your invoice", payUrl(order)),
-    p(`${describe(order)}`),
-    p("What you ordered:"),
-    lines(order),
-    totalsBlock(order),
+      "to complete your checkout and confirm your order."),
+    button("Pay and confirm your order", payUrl(order)),
+    ...[pickupIsARequest(order)].filter(Boolean),
+    ...orderDetails(order),
+    customerFooter(links),
   ];
 
-  if (accountUrl) {
-    blocks.push(link("View or change this order", accountUrl));
-  }
-
-  return { subject: title, ...render(title, blocks) };
+  return { subject: title, ...render(title, blocks, links) };
 };
 
-// Sent once Square reports the invoice paid.
-export const orderConfirmed = (order, { accountUrl } = {}) => {
-  const title = `Order ${order.id} is confirmed`;
+// Sent once Square reports the invoice paid. Square sends the receipt,
+// so this one does not price anything either.
+export const orderConfirmed = (order, { orderUrl, links } = {}) => {
+  const title = "Your order is confirmed";
   const blocks = [
     p(`Thanks, ${firstName(order.customer)}. Your payment of ` +
       `${dollars(order.totals.total)} came through and your order is ` +
-      "reserved."),
-    strong(describe(order)),
-    p("What you ordered:"),
-    lines(order),
+      "confirmed."),
+    ...[pickupIsARequest(order)].filter(Boolean),
+    ...orderDetails(order),
   ];
 
-  if (accountUrl) blocks.push(link("Your orders", accountUrl));
+  if (orderUrl) blocks.push(button("View or edit this order", orderUrl));
+  blocks.push(customerFooter(links));
 
-  return { subject: title, ...render(title, blocks) };
+  return { subject: title, ...render(title, blocks, links) };
 };
 
 // Unpaid reminders: soon after placing, the next day, and a final one
 // the Wednesday before delivery.
-export const paymentReminder = (order, stage, { accountUrl } = {}) => {
+export const paymentReminder = (order, stage, {
+  orderUrl, settingsUrl, links, now = new Date(),
+} = {}) => {
   const total = dollars(order.totals.total);
+  const cutoff = deliveryCutoff(order, now);
   const titles = {
-    soon: `Still need to pay for order ${order.id}?`,
-    nextDay: `Your order ${order.id} is waiting for payment`,
-    final: `Last call: order ${order.id} will be cancelled unpaid`,
+    soon: "Still waiting for payment",
+    nextDay: "Your order is waiting for payment",
+    final: "Last call: your unpaid order will be cancelled",
   };
   const title = titles[stage] || titles.soon;
   const blocks = [p(`Hi ${firstName(order.customer)},`)];
 
   if (stage === "final") {
-    blocks.push(strong(`If we don't receive payment, this order will be ` +
-      "cancelled and marked abandoned in your order history."));
-    blocks.push(p(`Your invoice for ${total} is still unpaid, and ` +
-      `${whenWhere(order).toLowerCase()} is coming up. Pay now to keep ` +
-      "your spot."));
+    blocks.push(strong("Your order will be cancelled and marked " +
+      "abandoned in your order history, unless you submit your payment " +
+      "today."));
+    if (cutoff) {
+      const days = daysApart(today(now, terms.timeZone),
+        order.fulfilment.date);
+
+      blocks.push(p(`Your invoice for ${total} is still unpaid. Pay ` +
+        `before ${cutoff.at} ${onDay(cutoff.days, cutoff.day, cutoff.date)} ` +
+        `to receive your delivery ${
+          onDay(days, label(order.fulfilment.date).split(",")[0],
+            order.fulfilment.date)}.`));
+    } else {
+      blocks.push(p(`Your invoice for ${total} is still unpaid, and ` +
+        `${whenWhere(order).charAt(0).toLowerCase()}${
+          whenWhere(order).slice(1)} is coming up. Pay now to keep your ` +
+        "spot."));
+    }
   } else if (stage === "nextDay") {
-    blocks.push(p(`Your order from yesterday hasn't been paid yet. It ` +
-      "isn't final until it is, so it's not reserved."));
-    blocks.push(p(`The invoice is for ${total}.`));
+    blocks.push(p(`Your invoice for ${total} from yesterday hasn't been ` +
+      "paid yet. **Your order isn't final until we receive your " +
+      "payment.**"));
+    if (cutoff) {
+      blocks.push(p(`Confirm your order by ${cutoff.at} ${
+        onDay(cutoff.days, cutoff.day, cutoff.date)} to keep your delivery ` +
+        "appointment."));
+    }
   } else {
-    blocks.push(p(`You placed an order a little while ago, and the ` +
-      `invoice for ${total} is still open. Your order isn't final ` +
-      "until it's paid."));
+    blocks.push(p("You placed an order about an hour ago, and the " +
+      `invoice for ${total} is still open. **Your order isn't final ` +
+      "until it's paid.**"));
   }
 
-  blocks.push(button("Pay your invoice", payUrl(order)));
-  blocks.push(p(`${whenWhere(order)}.`));
-  blocks.push(lines(order));
-  if (accountUrl) blocks.push(link("View or cancel this order", accountUrl));
+  blocks.push(
+    button("Pay and confirm your order", payUrl(order)),
+    ...orderDetails(order)
+  );
+  if (orderUrl) {
+    blocks.push(button("View or cancel this order", orderUrl,
+      { outline: true }));
+  }
+  if (settingsUrl) {
+    blocks.push(link("Turn off payment reminders", settingsUrl));
+  }
+  blocks.push(customerFooter(links));
 
-  return { subject: title, ...render(title, blocks) };
+  return { subject: title, ...render(title, blocks, links) };
 };
 
 // Wednesday night, for every paid delivery going out tomorrow.
-export const deliveryReminder = (order, { accountUrl } = {}) => {
+export const deliveryReminder = (order, {
+  orderUrl, settingsUrl, links,
+} = {}) => {
   const d = order.fulfilment.delivery || {};
-  const title = `Your delivery is tomorrow, ${label(order.fulfilment.date)}`;
+  const title = "Your delivery is tomorrow";
+  const notes = instructions(order);
   const blocks = [
-    p(`Hi ${firstName(order.customer)},`),
-    strong("Please leave a cooler with ice out tomorrow morning."),
-    p(`We'll be by between ${whenWhere(order).split(", ").pop()} with:`),
-    lines(order),
-    p(`Delivering to ${d.address1}${d.address2 ? `, ${d.address2}` : ""}, ` +
-      `${d.town} ${d.zip}.`),
-    p(`Cooler: ${d.cooler || "wherever you told us"}.${
-      d.gate ? ` Gate or keypad: ${d.gate}.` : ""}`),
-    p("Chicken arrives frozen and eggs come cold, so the cooler matters."),
-  ];
-
-  if (accountUrl) blocks.push(link("Your orders", accountUrl));
-
-  return { subject: title, ...render(title, blocks) };
-};
-
-// To the farm, when a customer sets or changes an address outside the
-// delivery area.
-export const addressReview = (customer, { cliHint } = {}) => {
-  const a = customer.address || {};
-  const title = `Address to review: ${customer.name || customer.email}`;
-  const blocks = [
-    p(`${customer.name || "A customer"} (${customer.email}) saved a ` +
-      "delivery address outside the approved area."),
+    p("Tomorrow is delivery day! Your order will arrive between " +
+      `${between(terms.delivery.window)}.`),
+    p("Please remember to:"),
     list([
-      `${a.address1 || ""}${a.address2 ? `, ${a.address2}` : ""}`,
-      `${a.town || ""} ${a.state || ""} ${a.zip || ""}`.trim(),
-      `Status: ${a.status || "pending"}`,
+      "Leave your cooler with ice outside in the morning",
+      "Provide gate or door codes, if needed",
     ]),
-    p("Approve or deny it and the customer's next delivery order will " +
-      "follow your decision."),
+    p(`We'll look for your cooler here: _**${
+      d.cooler || "wherever you told us"}.**_`),
   ];
 
-  if (cliHint) blocks.push(p(cliHint));
-
-  return { subject: title, ...render(title, blocks) };
-};
-
-// The sign-in link.
-export const magicLink = (email, url, { minutes = 15 } = {}) => {
-  const title = "Your North Foster Farm sign-in link";
-  const blocks = [
-    p("Click the button to sign in. The link works once and expires " +
-      `in ${minutes} minutes.`),
-    button("Sign in", url),
-    p(`If you didn't ask for this, ignore it; nothing changes. This ` +
-      `was sent to ${email}.`),
-  ];
-
-  return { subject: title, ...render(title, blocks) };
-};
-
-// After a customer cancels. A paid order is refunded by hand.
-export const orderCancelled = (order, { refund = false } = {}) => {
-  const title = `Order ${order.id} is cancelled`;
-  const blocks = [
-    p(`Hi ${firstName(order.customer)},`),
-    p(`We've cancelled your order for ${whenWhere(order).toLowerCase()}.`),
-  ];
-
-  if (refund) {
-    blocks.push(strong("Your refund is on its way."));
-    blocks.push(p("We refund through Square to the way you paid; " +
-      "it usually shows within a few business days."));
-  } else {
-    blocks.push(p("The invoice is closed and nothing was charged."));
+  if (d.gate) blocks.push(p(`Gate or door code you gave us: _**${d.gate}**_`));
+  if (notes) blocks.push(p(`Your notes and instructions: _**${notes}**_`));
+  blocks.push(...orderDetails(order));
+  if (orderUrl) blocks.push(button("View or edit this order", orderUrl));
+  if (settingsUrl) {
+    blocks.push(link("Turn off delivery reminders", settingsUrl));
   }
-  blocks.push(p("Changed your mind? You can place a new order any time."));
+  blocks.push(customerFooter(links));
 
-  return { subject: title, ...render(title, blocks) };
+  return { subject: title, ...render(title, blocks, links) };
 };
 
 // After a customer changes the date or details of an order.
-export const orderChanged = (order) => {
-  const title = `Order ${order.id} updated`;
+export const orderChanged = (order, { orderUrl, links } = {}) => {
+  const title = "Your order is updated";
   const f = order.fulfilment;
-  const details = [];
-
-  if (f.method === "onfarm" && f.onfarm) {
-    details.push(`Window: ${f.onfarm.window}`);
-  }
-  if (f.method === "delivery" && f.delivery) {
-    details.push(`Cooler: ${f.delivery.cooler}`);
-    if (f.delivery.gate) details.push(`Gate or keypad: ${f.delivery.gate}`);
-    if (f.delivery.notes) details.push(`Notes: ${f.delivery.notes}`);
-  }
-  if (order.notes) details.push(`Order notes: ${order.notes}`);
-
+  const notes = instructions(order);
   const blocks = [
-    p(`Hi ${firstName(order.customer)}, here's your order as it stands.`),
-    strong(`${whenWhere(order)}.`),
+    p(`${firstName(order.customer)}, here's your current order.`),
+    orderNumber(order),
+    lines(order),
+    ...orderType(order),
   ];
 
-  if (details.length) blocks.push(list(details));
-  blocks.push(lines(order));
+  if (f.method === "delivery" && f.delivery) {
+    blocks.push(p(`Where will we find your cooler? _**${
+      f.delivery.cooler || "you haven't said"}**_`));
+    if (f.delivery.gate) {
+      blocks.push(p(`Gate or door code: _**${f.delivery.gate}**_`));
+    }
+  }
+  if (notes) blocks.push(p(`Other notes or instructions: _**${notes}**_`));
+  if (orderUrl) blocks.push(button("View or edit this order", orderUrl));
+  blocks.push(customerFooter(links));
 
-  return { subject: title, ...render(title, blocks) };
+  return { subject: title, ...render(title, blocks, links) };
+};
+
+// After a cancellation, by the customer or the farm.
+export const orderCancelled = (order, {
+  refund = false, links,
+} = {}) => {
+  const title = "Your order is cancelled";
+  const blocks = [p(`Hi ${firstName(order.customer)},`)];
+
+  if (refund) {
+    blocks.push(
+      p(`We cancelled your order for ${
+        methodName(order.fulfilment.method).toLowerCase()} on ${
+        label(order.fulfilment.date)}.`),
+      p("**Your refund is on its way.** Most refunds arrive within a " +
+        "few business days.")
+    );
+  } else {
+    blocks.push(p("We cancelled your order. Your invoice is closed and " +
+      "you were not charged."));
+  }
+  blocks.push(orderNumber(order), customerFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
 };
 
 // The farm decided on an address outside the usual area.
-export const addressDecision = (customer, decision) => {
+export const addressDecision = (customer, decision, { links } = {}) => {
   const a = customer.address || {};
   const where = `${a.address1 || ""}, ${a.town || ""} ${a.zip || ""}`.trim();
   const approved = decision === "approved";
   const title = approved
     ? "We can deliver to your address"
     : "We can't deliver to your address";
-  const blocks = [
-    p(`Hi ${firstName(customer)},`),
-    approved
-      ? p(`Good news: ${where} is on our route. Choose local delivery ` +
-        "next time you order and it will fill itself in.")
-      : p(`We looked at ${where} and it's further than we can drive on a ` +
-        "Thursday. On-farm pickup and the Scituate drop site are open to " +
-        "everyone, with no minimum and no fee."),
-  ];
+  const blocks = [p(`Hi ${firstName(customer)},`)];
 
-  return { subject: title, ...render(title, blocks) };
+  if (approved) {
+    blocks.push(p(`Good news! We can deliver to you at ${where}.`));
+    if (links && links.order) {
+      blocks.push(button("Start a delivery order", links.order));
+    }
+  } else {
+    blocks.push(p(`We looked at ${where} and it's further than we can ` +
+      "drive on a Thursday. On-farm pickup and the Scituate drop site " +
+      "are open to everyone, with no minimum and no fee."));
+  }
+  blocks.push(customerFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
 };
 
-// The farm settled a return request.
-export const returnResolved = (order, request) => {
-  const title = `About your order ${order.id}`;
+// The sign-in link.
+export const magicLink = (email, url, { minutes = 15, links } = {}) => {
+  const title = "Your secure sign-in link to North Foster Farm";
   const blocks = [
-    p(`Hi ${firstName(order.customer)},`),
-    p(`Thanks for telling us about ${order.id}. We've looked into it.`),
+    p("Click the button below to sign in. This link expires in " +
+      `${minutes} minutes.`),
+    button("Sign in", url),
+    p("If you didn't request this email, you can safely ignore it."),
+    row([["Need help? Contact us", contactUrl(links)]]),
   ];
 
-  if (request.note) blocks.push(strong(request.note));
-  blocks.push(p("Reply to this email if there's anything else."));
-
-  return { subject: title, ...render(title, blocks) };
+  return { subject: title, ...render(title, blocks, links) };
 };
 
 // --- To the farm ---------------------------------------------------
 //
 // Square tells the farm nothing about an invoice the farm's own
-// account issued, so these two are the only notice of an order. They
-// go to ADMIN_EMAILS and say everything needed to pack it.
+// account issued, so these are the only notice of an order. They go
+// to ADMIN_EMAILS and link into the admin dashboard; the pages they
+// point at arrive with the dashboard's order views.
 
 const CONTACT_WORD = { text: "prefers a text", call: "prefers a call" };
 
-const reachThem = (c) => {
-  const word = CONTACT_WORD[c.contact];
+const adminUrl = (links, path) =>
+  (links && links.admin ? `${links.admin}/${path}` : null);
 
-  return `${c.name || c.email} · ${c.email}${
-    c.phone ? ` · ${c.phone}${word ? `, ${word}` : ""}` : ""}`;
-};
+const customerUrl = (links, email) =>
+  adminUrl(links, `customers/${encodeURIComponent(email || "")}`);
 
-const dropOff = (order) => {
-  const d = order.fulfilment.delivery || {};
-  const items = [
-    `${d.address1 || ""}${d.address2 ? `, ${d.address2}` : ""}`,
-    `${d.town || ""} ${d.state || ""} ${d.zip || ""}`
-      .replace(/\s+/g, " ").trim(),
-    `Cooler: ${d.cooler || "not given"}`,
+const orderAdminUrl = (links, id) =>
+  adminUrl(links, `orders/${encodeURIComponent(id)}`);
+
+const mapsUrl = (a) =>
+  `https://maps.apple.com/?address=${encodeURIComponent(streetAddress(a))}`;
+
+// To the farm, when a customer sets or changes an address outside the
+// delivery area.
+export const addressReview = (customer, { cliHint, links } = {}) => {
+  const a = customer.address || {};
+  const who = customer.name || customer.email;
+  const url = customerUrl(links, customer.email);
+  const title = `Address to review: ${who}`;
+  const blocks = [
+    url
+      ? {
+        text: `${who} (${url}) saved an address outside of the ` +
+          "published delivery area.",
+        html: `<p><a href="${escape(url)}">${escape(who)}</a> saved an ` +
+          "address outside of the published delivery area.</p>",
+      }
+      : p(`${who} (${customer.email}) saved an address outside of the ` +
+        "published delivery area."),
+    p(`Location: **${streetAddress(a)}**`),
+    button("View location in Maps", mapsUrl(a)),
   ];
 
-  if (d.notes) items.push(`Notes: ${d.notes}`);
+  if (cliHint) blocks.push(p(`Approve or deny it: ${cliHint}`));
+  blocks.push(adminFooter(links));
 
-  return list(items);
+  return { subject: title, ...render(title, blocks, links) };
 };
 
-// Everything the farm acts on, in the order it acts on it.
-const orderSheet = (order, squareUrl) => {
-  const blocks = [strong(whenWhere(order)), p(reachThem(order.customer))];
+const customerDetails = (order, links) => {
+  const c = order.customer;
+  const word = CONTACT_WORD[c.contact];
+  const items = [c.name || c.email, c.email];
 
-  if (order.fulfilment.method === "delivery") {
-    blocks.push(p("Drop-off:"), dropOff(order));
-  }
+  if (c.phone) items.push(`${c.phone}${word ? `, ${word}` : ""}`);
 
-  blocks.push(p("What they ordered:"), lines(order), totalsBlock(order));
+  const blocks = [heading("Customer details"), list(items)];
+  const url = customerUrl(links, c.email);
 
-  if (order.notes) blocks.push(p(`Their note: ${order.notes}`));
-  if (squareUrl) blocks.push(link("Open it in Square", squareUrl));
+  if (url) blocks.push(button("View customer", url));
 
   return blocks;
 };
 
-// The moment an order is placed, paid or not.
-export const farmOrderPlaced = (order, { squareUrl } = {}) => {
-  const title = `New order ${order.id} — ${dollars(order.totals.total)}, ` +
-    `${methodName(order.fulfilment.method).toLowerCase()}`;
-  const blocks = [
-    ...orderSheet(order, squareUrl),
-    p("The invoice is out and unpaid. There's a second notice when it " +
-      "clears."),
+// Where it goes: the address, cooler and notes for a delivery, the
+// when and where for a pickup.
+const farmOrderType = (order) => {
+  const f = order.fulfilment;
+
+  if (f.method !== "delivery") return orderType(order);
+
+  const d = f.delivery || {};
+  const items = [
+    `Address: ${streetAddress(d)}`,
+    `Cooler: ${d.cooler || "not given"}`,
   ];
 
-  return { subject: title, ...render(title, blocks) };
+  if (d.gate) items.push(`Gate or door code: ${d.gate}`);
+
+  const notes = instructions(order);
+
+  if (notes) items.push(`Notes: ${notes}`);
+
+  return [p(`Order type: **${methodName(f.method)}**`), list(items)];
+};
+
+// The moment an order is placed, paid or not.
+export const farmOrderPlaced = (order, { squareUrl, links } = {}) => {
+  const title = `New order ${order.id} — ${dollars(order.totals.total)}, ` +
+    `${methodName(order.fulfilment.method).toLowerCase()}`;
+  const url = orderAdminUrl(links, order.id);
+  const blocks = [
+    ...customerDetails(order, links),
+    heading("Order details"),
+  ];
+
+  if (url) blocks.push(button("View order", url));
+  blocks.push(
+    orderNumber(order),
+    lines(order, { prices: true }),
+    totalsBlock(order),
+    ...farmOrderType(order),
+    p("Invoice status: **Sent, unpaid**")
+  );
+  if (squareUrl) blocks.push(button("View invoice in Square", squareUrl));
+  blocks.push(adminFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
 };
 
 // When the invoice clears, from the webhook or the 15-minute poll.
-export const farmOrderPaid = (order, { squareUrl } = {}) => {
+export const farmOrderPaid = (order, { squareUrl, links } = {}) => {
   const title = `Paid: order ${order.id} — ${dollars(order.totals.total)}`;
-  const blocks = [
-    p(`${order.customer.name || order.customer.email} paid ` +
-      `${dollars(order.totals.total)}. It's reserved.`),
-    ...orderSheet(order, squareUrl),
-  ];
+  const url = orderAdminUrl(links, order.id);
+  const blocks = [p("Payment received.")];
 
-  return { subject: title, ...render(title, blocks) };
+  if (url) blocks.push(button("View order", url));
+  if (squareUrl) blocks.push(button("View invoice in Square", squareUrl));
+  blocks.push(adminFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
 };
 
 // A short line for the CLI and logs.

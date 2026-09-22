@@ -1,7 +1,7 @@
 ---
 description: >
   "Order pasture-raised chicken and eggs from North Foster Farm for on-farm
-  pickup, the Scituate drop site, or local delivery."
+  pickup, the Scituate drop site, or delivery."
 slug: "order"
 title: "Order"
 heading: "All products"

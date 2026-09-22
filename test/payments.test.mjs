@@ -51,7 +51,7 @@ describe("markPaid", () => {
     assert.equal(paid.status, "paid");
     assert.equal(paid.paidAt, now.toISOString());
     assert.equal(sent.length, 1);
-    assert.match(sent[0].subject, /NFF-1 is confirmed/);
+    assert.match(sent[0].subject, /^Your order is confirmed$/);
     assert.equal(paid.emails.orderConfirmed.id, "m1");
 
     await markPaid(stores, "NFF-1", { mail, env: {}, now });

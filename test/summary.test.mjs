@@ -60,7 +60,7 @@ describe("badges", () => {
 
   it("read as labels the customer recognises", () => {
     assert.deepEqual(badges(at(0), money).map((b) => b.label), [
-      "Local delivery", "$50+", "$100+", "$150+", "$200+", "Free delivery",
+      "Delivery", "$50+", "$100+", "$150+", "$200+", "Free delivery",
     ]);
   });
 });

@@ -73,6 +73,8 @@ const plugins = [
         "is-valid",
         "is-active",
         "is-bumped",
+        // The account page marks the order an email linked to.
+        "is-linked",
         "order-busy",
         "order-cart-free",
         "order-cart-group",

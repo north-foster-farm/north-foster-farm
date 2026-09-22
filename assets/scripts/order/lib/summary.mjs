@@ -11,7 +11,7 @@ export const badges = (totals, money) => {
   const list = [
     {
       key: "delivery",
-      label: "Local delivery",
+      label: "Delivery",
       on: meetsMinimum(totals, money),
     },
   ];
