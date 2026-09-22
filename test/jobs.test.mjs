@@ -9,6 +9,9 @@ import {
   getOrder, openOrders, saveCustomer, saveOrder,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
+import {
+  applyPayment, unreportedPayments,
+} from "../netlify/functions/lib/venmo.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 
 const TZ = "America/New_York";
@@ -411,6 +414,53 @@ describe("runJobs", () => {
     assert.deepEqual(none.pickupsToConfirm, []);
     assert.equal(sent.filter((m) => /Pickups/.test(m.subject)).length, 1);
   });
+
+  it("reports the Venmo payments it could not apply, once an evening",
+    async () => {
+      const stores = testStores();
+      const { sent, opts } = harness();
+      const env = { ADMIN_EMAILS: "farm@x.com" };
+      const payment = (transactionId, note, cents = 4500) => ({
+        payer: "Pat Example", cents, note, transactionId,
+      });
+
+      await applyPayment(stores, payment("1", "Test7"), { ...opts, env });
+      await applyPayment(stores, payment("2", "eggs"), { ...opts, env });
+
+      const noon = await runJobs(stores, {
+        ...opts, env, now: at("2026-10-05", 12),
+      });
+      const evening = await runJobs(stores, {
+        ...opts, env, now: at("2026-10-05", 18),
+      });
+      const later = await runJobs(stores, {
+        ...opts, env, now: at("2026-10-05", 18, 15),
+      });
+
+      assert.deepEqual(noon.venmoReported, []);
+      assert.deepEqual([...evening.venmoReported].sort(), ["1", "2"]);
+      assert.deepEqual(later.venmoReported, []);
+
+      const report = sent.filter((m) => /Venmo payments/.test(m.subject));
+
+      assert.equal(report.length, 1);
+      assert.equal(report[0].subject,
+        "Venmo payments with no order: Monday, October 5");
+      assert.match(report[0].text, /\$45\s+Pat Example\s+Test7\n/);
+      assert.deepEqual(await unreportedPayments(stores), []);
+
+      // Tomorrow, only what arrived since.
+      await applyPayment(stores, payment("3", "milk"), {
+        ...opts, env, now: at("2026-10-06", 9),
+      });
+      const next = await runJobs(stores, {
+        ...opts, env, now: at("2026-10-06", 18),
+      });
+
+      assert.deepEqual(next.venmoReported, ["3"]);
+      assert.equal(sent.filter((m) => /Venmo payments/.test(m.subject)).length,
+        2);
+    });
 
   it("does not remind about a delivery the morning of", async () => {
     const stores = testStores();

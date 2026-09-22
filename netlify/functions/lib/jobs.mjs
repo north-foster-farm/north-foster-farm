@@ -20,6 +20,8 @@
 //               abandoned, not closed, until the customer answers
 //   pickups     8:00 daily, the on-farm orders within two days still
 //               waiting on the farm or the customer, to ADMIN_EMAILS
+//   venmo       18:00 daily, the Venmo payments that named no order or
+//               the wrong amount, to ADMIN_EMAILS
 
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { cutoffFor } from "../../../assets/scripts/order/lib/dates.mjs";
@@ -38,8 +40,10 @@ import {
 } from "./square.mjs";
 import { adjust } from "./stock.mjs";
 import {
-  deliveryReminder, farmPickupsToConfirm, paymentReminder,
+  deliveryReminder, farmPickupsToConfirm, farmVenmoUnmatched,
+  paymentReminder,
 } from "./templates.mjs";
+import { markReported, unreportedPayments } from "./venmo.mjs";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -50,6 +54,7 @@ export const FINAL_HOUR = 8;
 export const DELIVERY_REMINDER_HOUR = 18;
 export const PICKUPS_REPORT_HOUR = 8;
 export const PICKUPS_REPORT_DAYS = 2;
+export const VENMO_REPORT_HOUR = 18;
 
 const tz = terms.timeZone;
 
@@ -97,7 +102,7 @@ export const runJobs = async (stores, {
   const report = {
     at: now.toISOString(), paid: [], reminded: [], abandoned: [],
     deliveryReminded: [], closed: [], bankTransferClosed: [], muted: [],
-    pickupsToConfirm: [],
+    pickupsToConfirm: [], venmoReported: [],
   };
   const opts = { env, mail, now };
 
@@ -206,15 +211,46 @@ export const runJobs = async (stores, {
   }
 
   report.pickupsToConfirm = await pickupsReport(stores, { env, mail, now });
+  report.venmoReported = await venmoReport(stores, { env, mail, now });
 
   return report;
 };
 
+// A once-a-day farm email, recorded in the jobs store under `key`
+// once it has gone (or once there was nothing to send). `build`
+// returns the message, or null for nothing. A mail failure leaves no
+// record, so the next run tries again. -> what `list` returned.
+const dailyReport = async (stores, {
+  key, hour, list, build, onSent, env, mail, now,
+}) => {
+  const to = adminEmails(env);
+
+  if (parts(now, tz).hour < hour || !to.length) return [];
+  if (await stores.jobs.get(key)) return [];
+
+  const items = await list();
+
+  if (items.length) {
+    try {
+      await mail({ to, idempotencyKey: key, ...build(items) }, { env });
+    } catch (error) {
+      console.error(JSON.stringify({
+        event: "mail.failed", template: key, error: String(error.message),
+      }));
+
+      return [];
+    }
+    if (onSent) await onSent(items);
+  }
+  await stores.jobs.set(key, { at: now.toISOString(), count: items.length });
+
+  return items;
+};
+
 // The on-farm orders within PICKUPS_REPORT_DAYS of their date that
 // still wait on someone: the farm to confirm, or the customer to pick
-// again after a deny. Once a day from PICKUPS_REPORT_HOUR, recorded in
-// the jobs store so a run every quarter hour sends it once, and only
-// when the list is not empty. -> the ids reported this run.
+// again after a deny. Once a day from PICKUPS_REPORT_HOUR, only when
+// the list is not empty. -> the ids reported this run.
 export const pickupsDue = (orders, day) => orders.filter((o) =>
   o.fulfilment.method === "onfarm"
   && (needsAgreement(o) || questionOpen(o))
@@ -222,32 +258,35 @@ export const pickupsDue = (orders, day) => orders.filter((o) =>
 
 const pickupsReport = async (stores, { env, mail, now }) => {
   const day = today(now, tz);
-  const key = `report/pickups/${day}`;
-  const to = adminEmails(env);
+  const due = await dailyReport(stores, {
+    key: `report/pickups/${day}`,
+    hour: PICKUPS_REPORT_HOUR,
+    list: async () => pickupsDue(await openOrders(stores), day),
+    build: (orders) => farmPickupsToConfirm(orders, {
+      date: day, links: mailLinks(env),
+    }),
+    env, mail, now,
+  });
 
-  if (parts(now, tz).hour < PICKUPS_REPORT_HOUR || !to.length) return [];
-  if (await stores.jobs.get(key)) return [];
-
-  const due = pickupsDue(await openOrders(stores), day);
-  const ids = due.map((o) => o.id);
-
-  if (due.length) {
-    try {
-      await mail({
-        to,
-        idempotencyKey: `pickups-${day}`,
-        ...farmPickupsToConfirm(due, { date: day, links: mailLinks(env) }),
-      }, { env });
-    } catch (error) {
-      console.error(JSON.stringify({
-        event: "mail.failed", template: "farmPickupsToConfirm",
-        error: String(error.message),
-      }));
-
-      return [];
-    }
-  }
-  await stores.jobs.set(key, { at: now.toISOString(), ids });
-
-  return ids;
+  return due.map((o) => o.id);
 };
+
+// The Venmo payments that arrived with no order number, or an amount
+// that is not the order's total, since the last report. Once a day
+// from VENMO_REPORT_HOUR. -> the transaction ids reported this run.
+const venmoReport = async (stores, { env, mail, now }) => {
+  const day = today(now, tz);
+  const due = await dailyReport(stores, {
+    key: `report/venmo/${day}`,
+    hour: VENMO_REPORT_HOUR,
+    list: () => unreportedPayments(stores),
+    build: (payments) => farmVenmoUnmatched(payments, {
+      date: day, links: mailLinks(env),
+    }),
+    onSent: (payments) => markReported(stores, payments, now),
+    env, mail, now,
+  });
+
+  return due.map((v) => v.transactionId);
+};
+

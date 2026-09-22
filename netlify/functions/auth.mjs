@@ -1,13 +1,16 @@
 // Sign-in, sign-out and "who am I":
 //
 //   POST /api/auth/request   { email, next }  -> 200 always (no leaks)
+//                            { email, orderId }  "Find my order": the
+//                            link goes to that order, if the pair match
 //   GET  /api/auth/verify?token=...            -> 302 to next, cookie set
 //   POST /api/auth/signout                     -> 204, cookie cleared
 //   GET  /api/me                               -> { signedIn, customer }
 
 import {
   clearCookieHeader, cookieHeader, createSession, endSession, publicCustomer,
-  requestLink, safeNext, sameSite, sessionFrom, verifyToken,
+  requestLink, requestOrderLink, safeNext, sameSite, sessionFrom,
+  verifyToken,
 } from "./lib/auth.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
@@ -53,7 +56,9 @@ export const handle = async (req, {
       return json(200, { ok: true });
     }
 
-    const result = await requestLink(stores, body, { now, env, mail });
+    const result = body.orderId
+      ? await requestOrderLink(stores, body, { now, env, mail })
+      : await requestLink(stores, body, { now, env, mail });
 
     if (!result.ok && result.reason === "invalid") {
       return json(422, {

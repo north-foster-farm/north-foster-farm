@@ -1,43 +1,96 @@
 {{ define "main" }}
   <section class="{{ .Type }}">
     <div class="page container py-5">
-      <div class="account-narrow">
+      <div class="account-wide">
         {{ partial "page-heading.html" . }}
 
+        <p class="text-body-secondary mb-4">
+          Signed-in customers can see past orders, pay open invoices, change
+          or cancel an order in progress, and keep a delivery address on
+          file.
+        </p>
+
+        {{/* Both forms use the order page's horizontal layout
+             (partials/order/customer.html): a label column, a field
+             column, the same .form-control and .invalid-feedback. */}}
         <form class="account-card" id="login-form" novalidate>
+          <h2 class="h4">Send me a magic link</h2>
           <p class="mb-3">
             Type the email you order with and we'll send you a link that
-            signs you in. No password to remember.
+            signs you in. This site doesn't use passwords.
           </p>
           <div class="alert alert-warning" role="alert" data-login-notice hidden></div>
-          <label class="form-label" for="login-email">Email</label>
-          <input class="form-control form-control-lg" type="email" id="login-email" name="email" autocomplete="email" inputmode="email" required aria-describedby="err-login-email">
-          <div class="invalid-feedback" id="err-login-email" data-error-for="email"></div>
+          <div class="order-hform">
+            <div class="row">
+              <label class="col-sm-3 col-form-label" for="login-email">Email</label>
+              <div class="col-sm-9">
+                <input class="form-control" type="email" id="login-email" name="email" autocomplete="email" inputmode="email" required aria-describedby="err-login-email">
+                <div class="invalid-feedback" id="err-login-email" data-error-for="email"></div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-sm-9 offset-sm-3">
+                <button type="submit" class="btn btn-primary" id="login-submit">Email me a sign-in link</button>
+              </div>
+            </div>
+          </div>
           <div class="order-hp" aria-hidden="true">
             <label for="login-website">Website</label>
             <input type="text" id="login-website" name="website" tabindex="-1" autocomplete="off">
           </div>
-          <button type="submit" class="btn btn-primary btn-lg mt-3 w-100" id="login-submit">Email me a sign-in link</button>
+        </form>
+
+        <form class="account-card mt-4" id="find-form" novalidate>
+          <h2 class="h4">Find my order</h2>
+          <p class="mb-3">
+            Have an order number? We'll email you a link straight to that
+            order. If it hasn't been paid yet, the email carries your invoice
+            again.
+          </p>
+          <div class="order-hform">
+            <div class="row">
+              <label class="col-sm-3 col-form-label" for="find-email">Email</label>
+              <div class="col-sm-9">
+                <input class="form-control" type="email" id="find-email" name="email" autocomplete="email" inputmode="email" aria-describedby="err-find-email">
+                <div class="invalid-feedback" id="err-find-email" data-error-for="email"></div>
+              </div>
+            </div>
+            <div class="row">
+              <label class="col-sm-3 col-form-label" for="find-order">Order number</label>
+              <div class="col-sm-9">
+                <input class="form-control" type="text" id="find-order" name="orderId" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="NFF-2610-K3WM" aria-describedby="err-find-order">
+                <div class="invalid-feedback" id="err-find-order" data-error-for="orderId"></div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-sm-9 offset-sm-3">
+                <button type="submit" class="btn btn-outline-primary" id="find-submit">Email me a link</button>
+              </div>
+            </div>
+          </div>
+          <div class="order-hp" aria-hidden="true">
+            <label for="find-website">Website</label>
+            <input type="text" id="find-website" name="website" tabindex="-1" autocomplete="off">
+          </div>
         </form>
 
         <div class="account-card" id="login-sent" role="status" aria-live="polite" hidden>
           <h2 class="h4">Check your email</h2>
-          <p>
+          <p data-sent-for="login">
             If <strong data-login-email></strong> is an address we know or
             can create an account for, a sign-in link is on its way. It works
             once and expires in 15 minutes.
+          </p>
+          <p data-sent-for="find" hidden>
+            If that order number and <strong data-find-email></strong> match
+            an order, a link to it is on its way. It works once and expires
+            in 15 minutes.
           </p>
           <p class="mb-0 text-body-secondary">
             Nothing after a few minutes? Check spam, or
             <button type="button" class="btn btn-link p-0 align-baseline" id="login-again">try again</button>.
           </p>
         </div>
-
-        <p class="text-body-secondary mt-4 mb-0">
-          Signed-in customers can see past orders, pay open invoices, change
-          or cancel an order in progress, and keep a delivery address on
-          file.
-        </p>
       </div>
     </div>
   </section>

@@ -4,8 +4,9 @@ import { describe, it } from "node:test";
 import {
   addressDecision, addressReview, completeYourOrder, deliveryReminder,
   farmOrderPaid, farmOrderPlaced, farmPickupChanged, farmPickupsToConfirm,
-  magicLink, orderCancelled, orderChanged, orderConfirmed, paymentReceived,
-  paymentReminder, pickNewTime, summaryLine,
+  farmVenmoClaimed, farmVenmoUnmatched, magicLink, orderCancelled,
+  orderChanged, orderConfirmed, paymentReceived, paymentReminder,
+  pickNewTime, summaryLine,
 } from "../netlify/functions/lib/templates.mjs";
 
 const order = (method = "delivery") => ({
@@ -215,6 +216,73 @@ describe("order confirmed", () => {
   });
 });
 
+describe("paying by Venmo", () => {
+  it("is offered under the Square button, pointing at the order page",
+    () => {
+      const m = completeYourOrder(order(), { orderUrl: url, links });
+
+      has(m.text, "To pay by Venmo instead, send $67 to @northfosterfarm " +
+        "with NFF-2610-ABCD in the note. Then click \"I paid by Venmo\" on " +
+        "your order page so we know to look for it.");
+      assert.ok(m.text.indexOf("Pay and confirm your order:")
+        < m.text.indexOf("To pay by Venmo"), "after the button");
+      has(m.text, `View or edit this order: ${url}`);
+      assert.match(m.html, /border:1px solid #186243;color:#186243/,
+        "the order button is the outline one");
+
+      // No account pages: reply instead, and no order button.
+      const plain = completeYourOrder(order(), { links });
+
+      has(plain.text, "Then reply to this email so we know to look for it.");
+      assert.doesNotMatch(plain.text, /View or edit this order/);
+    });
+
+  it("tells the farm what to look for when a customer says they paid",
+    () => {
+      const m = farmVenmoClaimed(order(), { links });
+
+      assert.equal(m.subject, "Venmo to check: order NFF-2610-ABCD — $67");
+      has(m.text, "Pat Example clicked \"I paid by Venmo\" on order " +
+        "NFF-2610-ABCD.");
+      has(m.text, "Open the Venmo app and look in the farm's transactions " +
+        "for **$67 from Pat Example with NFF-2610-ABCD in the note**.");
+      has(m.text, "closes the Square invoice so it can't be paid twice: " +
+        "bin/nff orders paid NFF-2610-ABCD --via venmo");
+      has(m.text, "lift the hold so the payment reminders and the cutoff " +
+        "run again: bin/nff orders unpaid NFF-2610-ABCD");
+      has(m.text, "Until one of those runs, the order waits");
+      has(m.text, "View order: https://admin.example.com/orders/NFF-2610-ABCD");
+      has(m.text, "Admin: https://admin.example.com");
+    });
+
+  it("lists the payments the site could not apply", () => {
+    const m = farmVenmoUnmatched([
+      { cents: 4500, payer: "James Boynton", note: "Test7",
+        transactionId: "4691637974882101462", orderId: null, orderTotal: null },
+      { cents: 2050, payer: "Pat Example", note: "eggs nff2610abcd",
+        transactionId: "4691637974882101999", orderId: "NFF-2610-ABCD",
+        orderTotal: 6200 },
+      { cents: 700, payer: "Sam", note: "NFF-2610-ZZZZ",
+        transactionId: "7", orderId: "NFF-2610-ZZZZ", orderTotal: null },
+    ], { date: "2026-09-22", links });
+
+    assert.equal(m.subject,
+      "Venmo payments with no order: Tuesday, September 22");
+    has(m.text, "Market sales will show here.");
+    has(m.text, "Amount  From           Note              Order\n" +
+      "$45     James Boynton  Test7\n" +
+      "$20.50  Pat Example    eggs nff2610abcd  NFF-2610-ABCD ($62 due)\n" +
+      "$7      Sam            NFF-2610-ZZZZ     NFF-2610-ZZZZ (no such " +
+      "order)");
+    assert.doesNotMatch(m.text, /4691637974882101462/,
+      "the transaction id stays in the record, not the email");
+    assert.match(m.html, /<th [^>]*>Amount<\/th>/);
+    assert.match(m.html, /<td [^>]*>\$20\.50<\/td><td [^>]*>Pat Example/);
+    has(m.text, "bin/nff venmo list");
+    has(m.text, "Admin: https://admin.example.com");
+  });
+});
+
 // An on-farm window the farm has not agreed to yet.
 const requested = () => {
   const o = order("onfarm");
@@ -232,11 +300,11 @@ describe("an on-farm pickup awaiting the farm", () => {
     has(m.text, "Here's your invoice for $62. Pay it to complete your " +
       "checkout.");
     has(m.text, "Pay and complete your checkout: https://squareup.com/pay/xyz");
-    has(m.text, "The morning of Thursday, October 8 is a request until we " +
-      "check the schedule. We'll confirm it in a separate email, and " +
-      "nothing else is needed from you until then.");
+    has(m.text, "We'll check to make sure we can accommodate your " +
+      "requested pick-up time, and confirm it in a separate email. " +
+      "Nothing else needed from you until then.");
     assert.ok(m.text.indexOf("Pay and complete")
-      < m.text.indexOf("is a request"), "the request follows the button");
+      < m.text.indexOf("We'll check"), "the request follows the button");
     assert.doesNotMatch(m.text, /confirm your order/);
     assert.match(m.text, /- Requested: Thursday, October 8, morning/);
     assert.doesNotMatch(m.text, /- When:/);
@@ -254,8 +322,9 @@ describe("an on-farm pickup awaiting the farm", () => {
 
       assert.equal(m.subject, "Payment received");
       has(m.text, "Thanks, Pat. Your payment of $62 came through. We're " +
-        "checking the schedule for your pickup time and will confirm it " +
-        "by Wednesday, October 7.");
+        "checking the schedule to make sure we can accommodate your " +
+        "requested pick-up time, and will confirm it by Wednesday, " +
+        "October 7.");
       assert.match(m.text, /- Requested: Thursday, October 8, morning/);
       has(m.text, `View or edit this order: ${url}`);
     });
@@ -276,31 +345,26 @@ describe("an on-farm pickup awaiting the farm", () => {
       "morning.**_");
     assert.match(m.html,
       /<em><strong>We're at the Scituate market that morning.<\/strong><\/em>/);
-    has(m.text, "Pick another day or window and we'll confirm it. If " +
-      "nothing works, you can cancel from the same page. You won't be " +
-      "charged.");
+    has(m.text, "Please pick another day or window, and we'll be in touch " +
+      "to confirm. If rescheduling isn't an option, you can cancel your " +
+      "order from the same page.");
     has(m.text, `Pick a new time: ${pick}`);
     has(m.text, "Payment reminders are paused until you've picked.");
     assert.match(m.text, /- Requested: Thursday, October 8, morning/);
-    assert.doesNotMatch(m.text, /Please/);
 
-    // No reason typed: no italic line. Paid: a refund, no reminders line.
+    // No reason typed: no italic line. Paid: no reminders line.
     const paid = { ...o, status: "paid" };
     const bare = pickNewTime(paid, { pickUrl: pick, links });
 
     assert.doesNotMatch(bare.text, /_\*\*|Here's why|reminders are paused/);
-    has(bare.text, "If nothing works, you can cancel from the same page " +
-      "and we'll refund your $62 in full.");
 
     // Accounts off: no button, a reply instead.
     const reply = pickNewTime(o, { links });
 
     assert.doesNotMatch(reply.text, /Pick a new time:/);
-    has(reply.text, "Reply to this email with another day or window and " +
-      "we'll confirm it. If nothing works, reply to cancel. You won't be " +
-      "charged.");
-    has(pickNewTime(paid, { links }).text, "If nothing works, reply to " +
-      "cancel and we'll refund your $62 in full.");
+    has(reply.text, "Please reply with another day or window, and we'll " +
+      "be in touch to confirm. If rescheduling isn't an option, reply and " +
+      "we'll cancel your order.");
   });
 
   it("gives the farm the confirm and deny commands on the new order", () => {

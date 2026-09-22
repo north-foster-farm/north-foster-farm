@@ -9,8 +9,12 @@ import {
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import { dashboardUrl, getInvoice } from "./square.mjs";
 import {
-  farmOrderPaid, orderConfirmed, paymentReceived,
+  completeYourOrder, farmOrderPaid, orderConfirmed, paymentReceived,
 } from "./templates.mjs";
+
+// How many times the pay-link email may be sent again for one order,
+// by the customer looking the order up or pressing "Resend".
+export const RESEND_LIMIT = 5;
 
 // Sends one templated email about an order and notes it on the order.
 // The recipient is the customer unless `to` says otherwise. Never
@@ -96,12 +100,21 @@ export const markPaid = async (stores, id, {
   env = process.env,
   now = new Date(),
   source = "square",
+  via = "square",
 } = {}) => {
-  const paid = await setStatus(stores, id, "paid", now, { source });
+  const paid = await setStatus(stores, id, "paid", now, { source, via });
 
   if (!paid) return null;
 
   let order = paid;
+
+  // How the money came: square, venmo, cash, check. Kept once, from
+  // the call that moved the order to paid.
+  if (!order.payment) {
+    order = await amendOrder(stores, id, {
+      payment: { via, at: now.toISOString() },
+    }, "payment.recorded", now);
+  }
 
   if (!needsAgreement(order)) {
     order = await confirmOrder(stores, order, { mail, env, now });
@@ -118,23 +131,45 @@ export const markPaid = async (stores, id, {
   }), { mail, env, now });
 };
 
+// The pay-link email again, for a customer who lost it: by the
+// "Find my order" form (with a sign-in link to the order page as
+// `orderUrl`) or the order page's Resend button. Logged under
+// `emails` as invoiceResent-<n> and capped at RESEND_LIMIT.
+// -> { ok, order } or { ok: false, reason: "limit" }.
+export const resendInvoice = async (stores, order, {
+  orderUrl = null,
+  mail = sendMail,
+  env = process.env,
+  now = new Date(),
+} = {}) => {
+  const count = Object.keys(order.emails || {})
+    .filter((k) => k.startsWith("invoiceResent-")).length;
+
+  if (count >= RESEND_LIMIT) return { ok: false, reason: "limit", order };
+
+  const sent = await sendForOrder(stores, order, `invoiceResent-${count + 1}`,
+    completeYourOrder(order, { orderUrl, links: mailLinks(env) }),
+    { mail, env, now });
+
+  return { ok: true, order: sent };
+};
+
 // A bank transfer sits PAYMENT_PENDING for days while it clears. The
 // order is held meanwhile: no reminders, no abandoning at the cutoff,
 // no confirmation until Square says PAID. Square itself tells the
 // customer when a transfer starts and when one fails, so the site
 // sends nothing. A failed transfer puts the invoice back to UNPAID,
 // which lifts the hold, and the reminders resume.
-const hold = (stores, order, now, source) => (order.paymentPending
+export const hold = (stores, order, now, source) => (order.paymentPending
   ? order
   : amendOrder(stores, order.id, {
     paymentPending: { at: now.toISOString(), source },
   }, "payment.pending", now));
 
-const release = (stores, order, now) => (order.paymentPending
-  ? amendOrder(stores, order.id, {
-    paymentPending: null,
-  }, "payment.failed", now)
-  : order);
+export const release = (stores, order, now, event = "payment.failed") => (
+  order.paymentPending
+    ? amendOrder(stores, order.id, { paymentPending: null }, event, now)
+    : order);
 
 // Applies Square's word on an invoice to a submitted order, whoever
 // carried it. -> paid, cancelled, held, or submitted. The status is
@@ -146,7 +181,7 @@ const applyStatus = async (stores, order, status, options, source) => {
   if (order.status !== "submitted") return order.status;
 
   if (status === "PAID") {
-    await markPaid(stores, order.id, { ...options, source });
+    await markPaid(stores, order.id, { ...options, source, via: "square" });
 
     return "paid";
   }

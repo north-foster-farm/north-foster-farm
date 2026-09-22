@@ -1,5 +1,5 @@
 {{ define "main" }}
-  {{ $data := dict "avatars" hugo.Data.avatars "terms" hugo.Data.delivery }}
+  {{ $data := dict "avatars" hugo.Data.avatars "terms" hugo.Data.delivery "venmo" (hugo.Data.company.venmo | default "") }}
   {{ partial "avatars.html" . }}
   <section class="{{ .Type }}">
     <script type="application/json" id="account-data">{{ $data | jsonify | safeJS }}</script>

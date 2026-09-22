@@ -878,16 +878,10 @@
     margin-top: 2.5rem;
   }
 
-  // Horizontal form layout: label column, field column.
+  // The horizontal form layout itself is shared with the sign-in page
+  // and lives at the end of this file; only the click-to-edit look of
+  // a signed-in customer's details is the order page's.
   .order-hform {
-    .row + .row {
-      margin-top: 0.75rem;
-    }
-
-    .col-form-label {
-      font-size: 0.875rem;
-    }
-
     .form-control-plaintext {
       cursor: pointer;
       border-radius: var(--order-radius);
@@ -1322,5 +1316,18 @@
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+// Horizontal form layout: a label column and a field column, one row
+// per field (partials/order/customer.html). The sign-in page's two
+// forms use it too, so it is not scoped to .order.
+.order-hform {
+  .row + .row {
+    margin-top: 0.75rem;
+  }
+
+  .col-form-label {
+    font-size: 0.875rem;
   }
 }

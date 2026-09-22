@@ -6,7 +6,9 @@
 import { adjust, getCounts, setCount } from "./stock.mjs";
 import { LONG_LINK_TTL, requestLink } from "./auth.mjs";
 import { sendMail } from "./mail.mjs";
-import { confirmOrder, markPaid, sendForOrder } from "./payments.mjs";
+import {
+  confirmOrder, markPaid, release, sendForOrder,
+} from "./payments.mjs";
 import {
   OPEN, allCustomers, allOrders, amendOrder, answerQuestion, deleteCustomer,
   deleteOrder, getCustomer, getOrder, needsAgreement, ordersFor,
@@ -111,8 +113,40 @@ export const listOrders = async (stores, { status, email, open } = {}) => {
 export const showOrder = async (stores, id) =>
   need(await getOrder(stores, id), "order");
 
-export const payOrder = async (stores, id, options = {}) =>
-  need(await markPaid(stores, id, { ...options, source: "farm" }), "order");
+// Paid by hand: Venmo, cash or a check. The Square invoice is closed
+// so the same order cannot be paid twice; a failure there is logged
+// and the order is paid all the same.
+export const payOrder = async (stores, id, {
+  via = "cash", env = process.env, square = { cancelInvoice }, ...options
+} = {}) => {
+  const order = need(await getOrder(stores, id), "order");
+  const paid = await markPaid(stores, id, {
+    ...options, env, source: "farm", via,
+  });
+
+  if (order.status === "submitted" && order.square
+    && order.square.invoiceId) {
+    try {
+      await square.cancelInvoice(order.square.invoiceId, { env });
+    } catch (error) {
+      console.error(`Square cancel failed: ${error.message}`);
+    }
+  }
+
+  return paid;
+};
+
+// The customer said they paid by Venmo and nothing arrived: lift the
+// hold so the reminders and the cutoff run again.
+export const unholdOrder = async (stores, id, { now = new Date() } = {}) => {
+  const order = need(await getOrder(stores, id), "order");
+
+  if (order.status !== "submitted") {
+    throw new Error(`This order is ${order.status}.`);
+  }
+
+  return release(stores, order, now, "payment.unclaimed");
+};
 
 // The farm cancels: any status but fulfilled. Stock goes back, the
 // invoice and fulfilment are cancelled if unpaid, the customer is told.

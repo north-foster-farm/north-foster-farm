@@ -237,7 +237,30 @@ also take the bank option off an unpaid invoice once its date comes
 within five business days (`bankTransferClosedAt` on the order's
 `square` record), so a slow payer cannot pick it at the last minute.
 `lib/payments.mjs` owns this and the poll that asks Square about
-unpaid orders when a webhook was missed.
+unpaid orders when a webhook was missed. Every paid order records how
+the money came, `payment: { via, at }`: square, venmo, cash or check.
+
+**Venmo** is taken by hand, since Square Invoices cannot. Every
+pay-link email offers it under the Square button: send the total to
+`@<company.venmo>` (data/company.json) with the order number in the
+note. Venmo emails the farm's account address, a Fastmail alias that
+also delivers to Resend's receiving address on
+`mail.northfosterfarm.com`; Resend posts `email.received` to
+`POST /api/venmo/inbound` (`netlify/functions/venmo-inbound.mjs`),
+signed the Svix way (`RESEND_WEBHOOK_SECRET`). The webhook carries
+only metadata, so the function fetches the message from
+`GET https://api.resend.com/emails/receiving/<id>` with
+`RESEND_READ_KEY` (the sending key cannot read), and `lib/venmo.mjs`
+parses it: only From `venmo@venmo.com` with a "<payer> paid you
+$<amount>" subject counts; the note is the `transaction-note`
+paragraph, the transaction id the `transaction-value` after
+"Transaction ID". The order id is found in the note in any case with
+or without hyphens. A match on an unpaid order and its exact total
+marks it paid (`via: "venmo"`) and cancels the Square invoice;
+anything else is kept in the `jobs` store (`venmo/<transactionId>`,
+one per payment however often the webhook fires) for the 18:00
+report "Venmo payments with no order". The monthly Venmo statement is
+the reconciliation check.
 
 ## Schedule
 
@@ -255,6 +278,7 @@ function) and calls `lib/jobs.mjs`, which decides in
 | 18:00 the day before a paid delivery   | cooler reminder           |
 | the day after fulfilment, paid         | `fulfilled`               |
 | 8:00 daily                             | "Pickups to confirm" report |
+| 18:00 daily                            | "Venmo payments with no order" |
 
 Sends are noted on the order under `emails`, so a repeat run sends
 nothing twice and a late run sends only the most urgent reminder. An
@@ -262,7 +286,9 @@ order with an open question is skipped by every row but the last. The
 morning report lists the on-farm orders within two days of their date
 that are still `requested` or on an open question, goes to
 `ADMIN_EMAILS` only when that list is not empty, and is recorded in
-the `jobs` store as `report/pickups/<date>`.
+the `jobs` store as `report/pickups/<date>`. The evening report does
+the same for Venmo payments the site could not apply
+(`report/venmo/<date>`), marking each `reportedAt`.
 
 ## Sign-in
 
@@ -276,6 +302,16 @@ the `auth` store. State-changing posts must come from this site
 (`Sec-Fetch-Site` or `Origin`). `lib/auth.mjs` is shared with the
 CLI, which mints links and sessions to sign in as a customer. The
 page is `/login/`.
+
+The same page has **Find my order**: an order number and the email it
+was placed with, posted to `/api/auth/request` as `{ email, orderId }`
+(`requestOrderLink`). A match mails a sign-in link whose `next` is
+that order's page; for an unpaid order the link rides in the pay-link
+email itself, with the Pay button, so looking an order up is also how
+a lost invoice is resent. No match mails nothing, and the answer is
+200 either way. The address's rate limit covers it. A link the farm
+mints (the deny email's "Pick a new time") uses `limit: false` and a
+week-long `ttl`.
 
 ## Account
 
@@ -302,6 +338,16 @@ Settings, Help) rendered from `GET /api/me` and
   delivery) as checkboxes, saved through `PATCH /api/account/profile`
   as `reminders: { payment, delivery }`. The invoice, confirmations
   and order changes cannot be turned off.
+- Resend the invoice: `POST /api/account/orders/:id/resend` sends the
+  pay-link email again, logged under `emails` as `invoiceResent-<n>`
+  and capped at `RESEND_LIMIT` (5) per order, the Find-my-order sends
+  included.
+- I paid by Venmo: `POST /api/account/orders/:id/venmo` puts an unpaid
+  order in the `paymentPending` hold (`source: "venmo"`), so the
+  reminders and the cutoff wait, and emails the farm "Venmo to check".
+  `bin/nff orders paid <id> --via venmo` releases it as paid, or
+  `orders unpaid <id>` lifts the hold. The card shows a pickup note
+  while an on-farm window is requested or denied.
 - Add again and Reorder: plain links to `/order/?add=SKU:qty,...`.
   The order page merges the quantities into the cart on load, names
   anything no longer sold, saves the draft, scrolls to the summary
@@ -322,7 +368,8 @@ Blobs stores, plus the Square and mail variables for anything that
 talks to them; without the Netlify pair it runs against memory and
 says so. `bin/nff` with no arguments prints the commands: customers
 (list, show, set, delete), address (approve, deny), orders (list,
-show, paid, confirm, deny, cancel, fulfil, delete), returns resolve,
+show, paid `--via venmo|cash|check` which also closes the Square
+invoice, unpaid, confirm, deny, cancel, fulfil, delete), returns resolve,
 stock (list, set), login and masquerade (a single-use sign-in link,
 opened for you), jobs run. Flags that take a value accept both
 `--reason "..."` and `--reason=...`. `lib/admin.mjs` holds the rules
@@ -402,7 +449,10 @@ with tests.
   customer's own name and phone go to Square as the recipient.
 - **West Greenwich is ZIP 02817.** The v4 PDF prints 02818, which is
   East Greenwich. Corrected in `data/delivery.json`.
-- **No Venmo on `/order`.** The `/venmo` redirect stays for the PDF.
+- **No Venmo on `/order`.** Venmo is offered once the order exists, in
+  the pay-link email and on the account order page, and reconciled
+  from Venmo's own notification (see Payment). The `/venmo` redirect
+  stays for the PDF.
 - **`/order-form.pdf` stays** until launch day.
 - **HSTS raised to a year** in the same commit that touched the header
   block for `form-action`, as the audit asked.
@@ -419,14 +469,13 @@ answers `502` after validation, which is enough to exercise the form.
 
 ## Shipping scope
 
-Sign-in and the account pages are out of scope for the first launch:
-`params.features.accounts` in `config/_default/hugo.toml` is `false`,
-which drops the Sign in link from the header, and the cascade beside
-it stops `/login/` and `/account/` from being built. The functions
-behind them stay deployed and idle, and emails carry no account link
-until `ACCOUNTS_ENABLED=true` is set on Netlify. Flip the flag, remove
-the cascade and set that variable to bring them back; nothing else
-changes.
+Sign-in and the account pages were out of the first launch and came
+on 2026-09-22, for the self-service a denied pickup window needs:
+`params.features.accounts` in `config/_default/hugo.toml` is `true`
+(the Sign in link in the header, `/login/` and `/account/` in the
+build), and `ACCOUNTS_ENABLED=true` on Netlify lets the emails link to
+them. Set `accounts = false` and unset the variable to take them off
+again; nothing else changes.
 
 What the order flow needs to run in production is Square and nothing
 else. Netlify Blobs is part of Netlify and needs no account. Mail is

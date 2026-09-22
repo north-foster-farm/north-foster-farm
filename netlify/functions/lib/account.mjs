@@ -14,7 +14,9 @@ import {
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { abandonAt } from "./jobs.mjs";
 import { adminEmails, sendMail } from "./mail.mjs";
-import { notifyFarm, sendForOrder } from "./payments.mjs";
+import {
+  hold, notifyFarm, resendInvoice as resendPayLink, sendForOrder,
+} from "./payments.mjs";
 import {
   REMINDERS, amendOrder, answerQuestion, getOrder, ordersFor, questionOpen,
   reminderPrefs, saveCustomer, setStatus,
@@ -25,7 +27,8 @@ import {
 } from "./square.mjs";
 import { adjust } from "./stock.mjs";
 import {
-  addressReview, farmPickupChanged, orderCancelled, orderChanged,
+  addressReview, farmPickupChanged, farmVenmoClaimed, orderCancelled,
+  orderChanged,
 } from "./templates.mjs";
 
 export const AVATARS = avatars.map((a) => a.key);
@@ -73,6 +76,8 @@ export const publicOrder = (order, now = new Date()) => ({
     url: order.square.invoiceUrl || null,
   } : null,
   returns: order.returns || [],
+  paymentPending: order.paymentPending
+    ? { source: order.paymentPending.source || null } : null,
   question: order.question ? {
     kind: order.question.kind,
     reason: order.question.reason || "",
@@ -293,6 +298,54 @@ export const changeOrder = async (stores, customer, id, changes, {
       farmPickupChanged(changed, { links: mailLinks(env) }),
       { mail, env, now });
   }
+
+  return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
+};
+
+// The pay-link email again, from the order page.
+export const resendInvoice = async (stores, customer, id, {
+  now = new Date(), env = process.env, mail = sendMail,
+} = {}) => {
+  const order = await owned(stores, customer, id);
+
+  if (!order) return fail(404, { order: "We can't find that order." });
+  if (order.status !== "submitted") {
+    return fail(409, { order: "This order isn't waiting for payment." });
+  }
+
+  const r = await resendPayLink(stores, order, {
+    orderUrl: orderUrlFor(env, id), mail, env, now,
+  });
+
+  if (!r.ok) {
+    return fail(429, { order: "We've sent that a few times already. " +
+      "Check your spam folder, or write to us." });
+  }
+
+  return { ok: true, order: publicOrder(r.order, now) };
+};
+
+// "I paid by Venmo": the order waits (no reminders, not abandoned)
+// while the farm checks the Venmo app, and the farm is told. Venmo's
+// own notification usually marks the order paid first; this is for
+// when it has not, or the note had no order number.
+export const claimVenmo = async (stores, customer, id, {
+  now = new Date(), env = process.env, mail = sendMail,
+} = {}) => {
+  const order = await owned(stores, customer, id);
+
+  if (!order) return fail(404, { order: "We can't find that order." });
+  if (order.status !== "submitted") {
+    return fail(409, { order: "This order isn't waiting for payment." });
+  }
+  if (order.paymentPending) {
+    return fail(409, { order: "We're already looking for that payment." });
+  }
+
+  const held = await hold(stores, order, now, "venmo");
+
+  await notifyFarm(stores, held, `farmVenmoClaimed-${now.getTime()}`,
+    farmVenmoClaimed(held, { links: mailLinks(env) }), { mail, env, now });
 
   return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
 };

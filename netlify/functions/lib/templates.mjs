@@ -76,6 +76,27 @@ const list = (items) => ({
   text: items.map((i) => `- ${i}`).join("\n"),
   html: `<ul>${items.map((i) => `<li>${inline(i)}</li>`).join("")}</ul>`,
 });
+// A small table: aligned columns in text, a plain <table> in HTML.
+const CELL = "padding:4px 14px 4px 0;vertical-align:top;text-align:left";
+const table = (headers, rows) => {
+  const widths = headers.map((h, i) => Math.max(
+    h.length, ...rows.map((r) => String(r[i]).length)
+  ));
+  const line = (cells) => cells
+    .map((c, i) => String(c).padEnd(widths[i])).join("  ").trimEnd();
+  const cell = (tag, c, extra = "") =>
+    `<${tag} style="${CELL}${extra}">${escape(c)}</${tag}>`;
+
+  return {
+    text: [line(headers), ...rows.map(line)].join("\n"),
+    html: `<table style="border-collapse:collapse;margin:12px 0;` +
+      `font-size:15px"><thead><tr>${headers.map((h) =>
+        cell("th", h, ";border-bottom:1px solid rgba(0,0,0,.175)"))
+        .join("")}</tr></thead><tbody>${rows.map((r) =>
+        `<tr>${r.map((c) => cell("td", c)).join("")}</tr>`).join("")
+      }</tbody></table>`,
+  };
+};
 // "Your orders | Contact us": the links that end a message. Pairs
 // with a null URL are left out.
 const row = (pairs) => {
@@ -292,12 +313,25 @@ const instructions = (order) => {
   return notes.join(" ");
 };
 
-// Sent the moment the invoice is published. The invoice itemizes and
+// The Venmo alternative, under the Square button in every pay link.
+// The customer presses "I paid by Venmo" on the order page, or, while
+// the account pages are off, replies. Nothing when the farm has no
+// Venmo handle in company.json.
+const venmoOffer = (order, orderUrl) => (company.venmo
+  ? p(`To pay by Venmo instead, send ${dollars(order.totals.total)} to ` +
+    `@${company.venmo} with ${order.id} in the note. Then ${orderUrl
+      ? "click \"I paid by Venmo\" on your order page"
+      : "reply to this email"} so we know to look for it.`)
+  : null);
+
+// Sent the moment the invoice is published, and again when the
+// customer asks for it (resendInvoice). The invoice itemizes and
 // totals the money, so this only names what was ordered. An on-farm
 // window is a request the farm has still to agree to, and paying does
 // not confirm it, so that version says so and promises the
-// confirmation separately.
-export const completeYourOrder = (order, { links } = {}) => {
+// confirmation separately. `orderUrl` is the order page (or a sign-in
+// link to it, for a guest who looked the order up).
+export const completeYourOrder = (order, { orderUrl, links } = {}) => {
   const title = "One more step: pay for your order";
   const total = dollars(order.totals.total);
   const blocks = [
@@ -310,18 +344,24 @@ export const completeYourOrder = (order, { links } = {}) => {
       p(`Here's your invoice for ${total}. Pay it to complete your ` +
         "checkout."),
       button("Pay and complete your checkout", payUrl(order)),
-      p(`${capital(timeOf(order))} is a request until we check the ` +
-        "schedule. We'll confirm it in a separate email, and nothing else " +
-        "is needed from you until then.")
+      ...[venmoOffer(order, orderUrl)].filter(Boolean),
+      p("We'll check to make sure we can accommodate your requested " +
+        "pick-up time, and confirm it in a separate email. Nothing else " +
+        "needed from you until then.")
     );
   } else {
     blocks.push(
       p(`Here's your invoice for ${total}. Pay it to complete your ` +
         "checkout and confirm your order."),
-      button("Pay and confirm your order", payUrl(order))
+      button("Pay and confirm your order", payUrl(order)),
+      ...[venmoOffer(order, orderUrl)].filter(Boolean)
     );
   }
-  blocks.push(...orderDetails(order), customerFooter(links));
+  blocks.push(...orderDetails(order));
+  if (orderUrl) {
+    blocks.push(button("View or edit this order", orderUrl, { outline: true }));
+  }
+  blocks.push(customerFooter(links));
 
   return { subject: title, ...render(title, blocks, links) };
 };
@@ -354,8 +394,9 @@ export const paymentReceived = (order, { orderUrl, links } = {}) => {
   const blocks = [
     p(`Thanks, ${firstName(order.customer)}. Your payment of ` +
       `${dollars(order.totals.total)} came through. We're checking the ` +
-      "schedule for your pickup time and will confirm it by " +
-      `${label(addDays(order.fulfilment.date, -1))}.`),
+      "schedule to make sure we can accommodate your requested pick-up " +
+      `time, and will confirm it by ${
+        label(addDays(order.fulfilment.date, -1))}.`),
     ...orderDetails(order),
   ];
 
@@ -372,9 +413,6 @@ export const paymentReceived = (order, { orderUrl, links } = {}) => {
 export const pickNewTime = (order, { reason = "", pickUrl, links } = {}) => {
   const title = "One more step: pick a new pickup time";
   const paid = order.status === "paid";
-  const refund = paid
-    ? `and we'll refund your ${dollars(order.totals.total)} in full.`
-    : "You won't be charged.";
   const blocks = [
     p(`Hi ${firstName(order.customer)},`),
     strong(`${capital(timeOf(order))} doesn't work for us.`),
@@ -383,15 +421,15 @@ export const pickNewTime = (order, { reason = "", pickUrl, links } = {}) => {
   if (reason) blocks.push(p(`Here's why: _**${reason}**_`));
   if (pickUrl) {
     blocks.push(
-      p("Pick another day or window and we'll confirm it. If nothing " +
-        `works, you can cancel from the same page${paid ? " " : ". "}${
-          refund}`),
+      p("Please pick another day or window, and we'll be in touch to " +
+        "confirm. If rescheduling isn't an option, you can cancel your " +
+        "order from the same page."),
       button("Pick a new time", pickUrl)
     );
   } else {
-    blocks.push(p("Reply to this email with another day or window and " +
-      "we'll confirm it. If nothing works, reply to cancel" +
-      `${paid ? " " : ". "}${refund}`));
+    blocks.push(p("Please reply with another day or window, and we'll be " +
+      "in touch to confirm. If rescheduling isn't an option, reply and " +
+      "we'll cancel your order."));
   }
   if (!paid) {
     blocks.push(p("Payment reminders are paused until you've picked."));
@@ -726,6 +764,62 @@ export const farmPickupChanged = (order, { links } = {}) => {
 
   if (url) blocks.push(button("View order", url));
   blocks.push(adminFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
+// The customer pressed "I paid by Venmo" before Venmo's notification
+// reached the site, or the note had no order number in it.
+export const farmVenmoClaimed = (order, { links } = {}) => {
+  const c = order.customer;
+  const total = dollars(order.totals.total);
+  const title = `Venmo to check: order ${order.id} — ${total}`;
+  const url = orderAdminUrl(links, order.id);
+  const who = c.name || c.email;
+  const blocks = [
+    p(`${who} clicked "I paid by Venmo" on order ${order.id}.`),
+    p(`Open the Venmo app and look in the farm's transactions for **${
+      total} from ${who} with ${order.id} in the note**. Venmo's own ` +
+      "email usually reaches the site first and marks the order paid by " +
+      "itself; this notice means it hasn't yet, or the note had no order " +
+      "number."),
+    p("If the payment is there, mark the order paid. That sends the " +
+      "customer's confirmation and closes the Square invoice so it can't " +
+      `be paid twice: bin/nff orders paid ${order.id} --via venmo`),
+    p("If it never arrives, lift the hold so the payment reminders and " +
+      `the cutoff run again: bin/nff orders unpaid ${order.id}`),
+    p("Until one of those runs, the order waits: no reminders, and not " +
+      "cancelled at the cutoff."),
+  ];
+
+  if (url) blocks.push(button("View order", url));
+  blocks.push(adminFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
+// The evening report of Venmo payments the site could not apply: no
+// order number in the note, or an amount that is not the order's
+// total. Sent only when there is at least one.
+export const farmVenmoUnmatched = (payments, { date, links } = {}) => {
+  const title = `Venmo payments with no order: ${label(date)}`;
+  const blocks = [
+    p("These Venmo payments arrived with no order number in the note, " +
+      "or an amount that isn't the order's total. Market sales will show " +
+      "here. Anything else may be an online order whose note left out " +
+      "the number."),
+    table(["Amount", "From", "Note", "Order"], payments.map((v) => [
+      dollars(v.cents),
+      v.payer,
+      v.note || "(none)",
+      v.orderId
+        ? `${v.orderId} (${v.orderTotal !== null
+          ? `${dollars(v.orderTotal)} due` : "no such order"})`
+        : "",
+    ])),
+    p("The full record, with Venmo's transaction ids: bin/nff venmo list"),
+    adminFooter(links),
+  ];
 
   return { subject: title, ...render(title, blocks, links) };
 };

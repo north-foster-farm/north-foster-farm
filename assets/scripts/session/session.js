@@ -1,7 +1,7 @@
 // Who is signed in, for every page. Asks /api/me once per five
 // minutes (cached in sessionStorage) and fills the header slot: a
-// Sign in link, or an Account menu. The /login and /account pages
-// keep the slot empty, and a build without accounts has no slot.
+// Sign in link, or an Account menu. The sign-in page shows the link
+// as the current page; a build without accounts has no slot.
 
 import { api } from "../utils/api.js";
 
@@ -56,6 +56,11 @@ const fill = (slot, who) => {
     signin.hidden = false;
     menu.hidden = true;
     slot.hidden = false;
+    // On the sign-in page the link is the current page, like About
+    // on /about/.
+    if (/^\/login\//.test(location.pathname)) {
+      signin.setAttribute("aria-current", "page");
+    }
 
     return;
   }
@@ -77,7 +82,6 @@ export const Session = {
     const slot = document.querySelector("[data-account]");
 
     if (!slot) return;
-    if (/^\/(login|account)\//.test(location.pathname)) return;
 
     fill(slot, await me());
   },

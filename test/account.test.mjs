@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  cancelOrder, changeOrder, listOrders, requestReturn, saveAddress,
-  sendSupport, updateProfile,
+  cancelOrder, changeOrder, claimVenmo, listOrders, requestReturn,
+  resendInvoice, saveAddress, sendSupport, updateProfile,
 } from "../netlify/functions/lib/account.mjs";
 import { createSession } from "../netlify/functions/lib/auth.mjs";
 import { markPaid } from "../netlify/functions/lib/payments.mjs";
@@ -382,6 +382,62 @@ describe("profile and address", () => {
 
     assert.equal(moved.customer.address.status, "pending");
     assert.equal(sent.length, 2);
+  });
+});
+
+describe("resend the invoice, and Venmo", () => {
+  it("sends the pay link again, five times at most", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const withAccounts = {
+      ...opts, env: { ...env, ACCOUNTS_ENABLED: "true" },
+    };
+
+    await saveOrder(stores, order("A"), now);
+    for (let i = 1; i <= 5; i += 1) {
+      const r = await resendInvoice(stores, customerOf(), "A", withAccounts);
+
+      assert.equal(r.ok, true, `resend ${i}`);
+    }
+    assert.equal(sent.length, 5);
+    assert.equal(sent[0].subject, "One more step: pay for your order");
+    assert.match(sent[0].text, /To pay by Venmo instead, send \$12 to/);
+    assert.match(sent[0].text,
+      /View or edit this order: https:\/\/x\/account\/orders\/A\//);
+    assert.ok((await getOrder(stores, "A")).emails["invoiceResent-5"]);
+
+    const sixth = await resendInvoice(stores, customerOf(), "A", withAccounts);
+
+    assert.equal(sixth.status, 429);
+    assert.equal(sent.length, 5);
+
+    await markPaid(stores, "A", opts);
+    assert.equal((await resendInvoice(stores, customerOf(), "A", opts)).status,
+      409);
+  });
+
+  it("holds an order the customer says they paid by Venmo and tells the " +
+    "farm", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+
+    await saveOrder(stores, order("A"), now);
+    const r = await claimVenmo(stores, customerOf(), "A", opts);
+
+    assert.equal(r.ok, true);
+    assert.deepEqual(r.order.paymentPending, { source: "venmo" });
+    assert.equal(sent.length, 1);
+    assert.deepEqual(sent[0].to, ["farm@example.com"]);
+    assert.equal(sent[0].subject, "Venmo to check: order A — $12");
+    assert.match(sent[0].text,
+      /\*\*\$12 from Pat Example with A in the note\*\*/);
+    assert.match(sent[0].text, /bin\/nff orders paid A --via venmo/);
+    assert.match(sent[0].text, /bin\/nff orders unpaid A/);
+
+    const twice = await claimVenmo(stores, customerOf(), "A", opts);
+
+    assert.equal(twice.status, 409);
+    assert.equal(sent.length, 1);
   });
 });
 

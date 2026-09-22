@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  LINK_TTL, SESSION_TTL, createSession, requestLink, safeNext, sessionFrom,
-  verifyToken,
+  LINK_TTL, SESSION_TTL, createSession, requestLink, requestOrderLink,
+  safeNext, sessionFrom, verifyToken,
 } from "../netlify/functions/lib/auth.mjs";
-import { getCustomer } from "../netlify/functions/lib/records.mjs";
+import {
+  getCustomer, getOrder, saveOrder,
+} from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle } from "../netlify/functions/auth.mjs";
 
@@ -102,6 +104,101 @@ describe("a link the farm mints", () => {
     assert.equal((await verifyToken(stores, tokenIn(links[1]), {
       now: new Date(now.getTime() + 2 * 60_000),
     })).next, "/account/orders/A/");
+  });
+});
+
+describe("find my order", () => {
+  const order = (id, status = "submitted", email = "pat@example.com") => ({
+    id,
+    status,
+    submittedAt: now.toISOString(),
+    customer: { name: "Pat Example", email, phone: "" },
+    lines: [{ sku: "A", label: "Eggs (per dozen), Large", qty: 1,
+      lineTotal: 7 }],
+    totals: { subtotal: 700, discountAmount: 0, deliveryFee: 0, total: 700 },
+    fulfilment: {
+      method: "onfarm", date: "2026-10-08", state: "agreed",
+      onfarm: { window: "morning" },
+    },
+    square: { invoiceId: `INV-${id}`, invoiceUrl: "https://pay/x" },
+  });
+
+  it("resends the invoice, with a link to the order, when the pair match",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+
+      await saveOrder(stores, order("NFF-2610-K3WM"), now);
+      const r = await requestOrderLink(stores, {
+        email: " Pat@Example.com ", orderId: "nff-2610-k3wm",
+      }, { now, env, mail });
+
+      assert.deepEqual(r, { ok: true, matched: true, sent: "invoice" });
+      assert.equal(sent.length, 1);
+      assert.equal(sent[0].subject, "One more step: pay for your order");
+      assert.match(sent[0].text, /Pay and confirm your order: https:\/\/pay/);
+
+      const link = sent[0].text.match(/View or edit this order: (\S+)/)[1];
+      const v = await verifyToken(stores, tokenIn(link), { now });
+
+      assert.equal(v.ok, true);
+      assert.equal(v.next, "/account/orders/NFF-2610-K3WM/");
+      assert.equal((await getOrder(stores, "NFF-2610-K3WM")).emails[
+        "invoiceResent-1"].id, "m1");
+    });
+
+  it("sends a plain sign-in link for a paid order, nothing for a mismatch",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+
+      await saveOrder(stores, order("NFF-2610-K3WM", "paid"), now);
+      const paid = await requestOrderLink(stores, {
+        email: "pat@example.com", orderId: "NFF-2610-K3WM",
+      }, { now, env, mail });
+
+      assert.equal(paid.sent, "link");
+      assert.match(sent[0].subject, /sign-in link/);
+      assert.match(sent[0].text, /Sign in: https:\S+token=/);
+
+      const wrong = await requestOrderLink(stores, {
+        email: "other@example.com", orderId: "NFF-2610-K3WM",
+      }, { now, env, mail });
+      const missing = await requestOrderLink(stores, {
+        email: "pat@example.com", orderId: "NFF-0000-XXXX",
+      }, { now, env, mail });
+
+      assert.deepEqual(wrong, { ok: true, matched: false });
+      assert.deepEqual(missing, { ok: true, matched: false });
+      assert.equal(sent.length, 1);
+      assert.equal((await requestOrderLink(stores, {
+        email: "nope", orderId: "NFF-2610-K3WM",
+      }, { now, env, mail })).ok, false);
+    });
+
+  it("answers the endpoint the same way matched or not", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const post = (body) => new Request("https://x/api/auth/request", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json", "sec-fetch-site": "same-origin",
+      },
+      body: JSON.stringify(body),
+    });
+
+    await saveOrder(stores, order("NFF-2610-K3WM"), now);
+    const hit = await handle(post({
+      email: "pat@example.com", orderId: "NFF-2610-K3WM",
+    }), { stores, env, now, mail });
+    const miss = await handle(post({
+      email: "pat@example.com", orderId: "NFF-2610-ZZZZ",
+    }), { stores, env, now, mail });
+
+    assert.equal(hit.status, 200);
+    assert.equal(miss.status, 200);
+    assert.deepEqual(await hit.json(), await miss.json());
+    assert.equal(sent.length, 1);
   });
 });
 

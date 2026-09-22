@@ -19,13 +19,15 @@ const USAGE = `Usage:
   bin/nff address approve|deny <email>
   bin/nff orders list [--open] [--status=paid] [--email=x]
   bin/nff orders show <id>
-  bin/nff orders paid <id>            mark paid by hand (cash, check)
+  bin/nff orders paid <id> [--via venmo|cash|check]   paid by hand
+  bin/nff orders unpaid <id>          nothing arrived: lift the Venmo hold
   bin/nff orders confirm <id>         agree to an on-farm pickup window
   bin/nff orders deny <id> --reason "..."   have them pick another
   bin/nff orders cancel <id> [--refund]
   bin/nff orders fulfil <id>
   bin/nff orders delete <id>
   bin/nff returns resolve <id> <returnId> [note...]
+  bin/nff venmo list                  every Venmo payment the site saw
   bin/nff stock list
   bin/nff stock set <sku> <count|none>
   bin/nff login <email>               print a sign-in link
@@ -43,6 +45,8 @@ const [
   { runJobs },
   { stores: makeStores },
   { summaryLine },
+  { allPayments },
+  { dollars },
 ] = await Promise.all([
   import("../data/delivery.json", { with: { type: "json" } }),
   import("../netlify/functions/lib/admin.mjs"),
@@ -50,6 +54,8 @@ const [
   import("../netlify/functions/lib/jobs.mjs"),
   import("../netlify/functions/lib/store.mjs"),
   import("../netlify/functions/lib/templates.mjs"),
+  import("../netlify/functions/lib/venmo.mjs"),
+  import("../assets/scripts/order/lib/totals.mjs"),
 ]);
 
 const stores = makeStores();
@@ -148,7 +154,11 @@ const run = async () => {
   case "orders show":
     return out(await admin.showOrder(stores, rest[0]));
   case "orders paid":
-    return out(summaryLine(await admin.payOrder(stores, rest[0])));
+    return out(summaryLine(await admin.payOrder(stores, rest[0], {
+      via: typeof flags.via === "string" ? flags.via : "cash",
+    })));
+  case "orders unpaid":
+    return out(summaryLine(await admin.unholdOrder(stores, rest[0])));
   case "orders confirm":
     return out(summaryLine(await admin.confirmPickup(stores, rest[0])));
   case "orders deny":
@@ -174,6 +184,18 @@ const run = async () => {
         note: rest.slice(2).join(" "),
         outcome: flags.outcome || "resolved",
       })));
+  case "venmo list": {
+    const list = await allPayments(stores);
+
+    for (const v of list) {
+      out(`${v.at.slice(0, 16)}  ${dollars(v.cents).padStart(8)}  ${
+        v.payer}  "${v.note}"  ${v.orderId || "-"}  ${
+        v.matched ? "applied" : "unmatched"}  ${v.transactionId}`);
+    }
+    if (!list.length) out("No Venmo payments seen.");
+
+    return undefined;
+  }
   case "stock list":
     return out(await admin.stockList(stores));
   case "stock set":

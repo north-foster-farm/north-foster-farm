@@ -73,6 +73,7 @@ class Account {
 
     this.avatars = data.avatars;
     this.terms = data.terms;
+    this.venmo = data.venmo || "";
     this.app = document.getElementById("account-app");
     this.loading = document.getElementById("account-loading");
     this.flash = document.getElementById("account-flash");
@@ -405,8 +406,19 @@ class Account {
     }
 
     const note = qs(node, "[data-out='note']");
+    const pending = order.paymentPending;
 
-    if (order.status === "submitted" && order.invoice && order.invoice.url) {
+    if (order.status === "submitted" && pending
+      && pending.source === "venmo") {
+      note.textContent = "Thanks, we're checking Venmo for your payment. " +
+        "We'll confirm the order once it's in.";
+      note.hidden = false;
+    } else if (order.status === "submitted" && pending) {
+      note.textContent = "Your bank transfer is on its way. We'll confirm " +
+        "the order once it clears.";
+      note.hidden = false;
+    } else if (order.status === "submitted" && order.invoice
+      && order.invoice.url) {
       note.textContent = "Not final until it's paid. ";
       const link = el("a", "", "Pay the invoice");
 
@@ -414,6 +426,11 @@ class Account {
       link.target = "_blank";
       link.rel = "noopener";
       note.appendChild(link);
+      if (this.venmo) {
+        note.appendChild(document.createTextNode(`, or send ${
+          dollars(order.totals.total)} to @${this.venmo} on Venmo with ${
+          order.id} in the note and press "I paid by Venmo" below.`));
+      }
       note.hidden = false;
     } else if (order.cancelRequested) {
       note.textContent = "We're refunding this order. Your money goes back " +
@@ -478,6 +495,16 @@ class Account {
       "your cart again");
     actions.appendChild(again);
 
+    if (order.status === "submitted" && !pending) {
+      if (this.venmo) {
+        button("I paid by Venmo", "btn-outline-primary",
+          () => this.post(order, "venmo", "Thanks. We'll check Venmo and " +
+            "confirm your order once the payment is in."));
+      }
+      button("Resend the invoice", "btn-outline-secondary",
+        () => this.post(order, "resend", "Sent. Check your inbox for the " +
+          "invoice."));
+    }
     if (order.canChange) {
       button("Change", "btn-outline-primary",
         () => this.openChange(order, card));
@@ -498,6 +525,23 @@ class Account {
     }
 
     return node;
+  }
+
+  // A one-press action on an order: resend the invoice, claim a Venmo
+  // payment. The answer is the order as it now stands, or an error.
+  async post(order, action, thanks) {
+    const { ok, data } = await api(
+      `/api/account/orders/${order.id}/${action}`, { method: "POST", body: {} }
+    );
+
+    if (!ok) {
+      this.say((data.errors && data.errors.order) || "That didn't work.");
+
+      return;
+    }
+
+    this.replaceOrder(data.order);
+    this.say(thanks);
   }
 
   panel(card) {

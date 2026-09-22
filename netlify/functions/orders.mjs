@@ -20,7 +20,7 @@ import { notifyFarm } from "./lib/payments.mjs";
 import {
   amendOrder, getOrder, saveOrder, touchCustomer,
 } from "./lib/records.mjs";
-import { mailLinks } from "./lib/site.mjs";
+import { mailLinks, orderUrlFor } from "./lib/site.mjs";
 import { createOrderAndInvoice, dashboardUrl } from "./lib/square.mjs";
 import { adjust, checkLines } from "./lib/stock.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
@@ -176,7 +176,9 @@ export const handle = async (req, {
         const sent = await mail({
           to: order.customer.email,
           idempotencyKey: `${key}-complete`,
-          ...completeYourOrder(saved, { links: mailLinks(env) }),
+          ...completeYourOrder(saved, {
+            orderUrl: orderUrlFor(env, order.id), links: mailLinks(env),
+          }),
         }, { env });
 
         await amendOrder(stores, order.id, {

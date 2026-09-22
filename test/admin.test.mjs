@@ -5,7 +5,7 @@ import terms from "../data/delivery.json" with { type: "json" };
 import {
   cancelOrder, confirmPickup, decideAddress, denyPickup, fulfilOrder,
   listOrders, payOrder, removeCustomer, removeOrder, resolveReturn,
-  setCustomer, showCustomer, stockList, stockSet,
+  setCustomer, showCustomer, stockList, stockSet, unholdOrder,
 } from "../netlify/functions/lib/admin.mjs";
 import { verifyToken } from "../netlify/functions/lib/auth.mjs";
 import { requestReturn } from "../netlify/functions/lib/account.mjs";
@@ -130,10 +130,16 @@ describe("orders from the CLI", () => {
 
   it("pay by hand, fulfil, delete", async () => {
     const stores = testStores();
-    const { opts } = harness();
+    const { calls, opts } = harness();
 
     await saveOrder(stores, order("A"), now);
-    assert.equal((await payOrder(stores, "A", opts)).status, "paid");
+    const paid = await payOrder(stores, "A", { ...opts, via: "venmo" });
+
+    assert.equal(paid.status, "paid");
+    assert.equal(paid.payment.via, "venmo");
+    assert.deepEqual(calls, [["invoice", "INV-A"]], "the invoice is closed");
+    assert.equal((await payOrder(stores, "A", opts)).payment.via, "venmo",
+      "paying again changes nothing");
     assert.equal((await fulfilOrder(stores, "A", opts)).status, "fulfilled");
     assert.equal((await openOrders(stores)).length, 0);
     assert.equal(await removeOrder(stores, "A"), true);
@@ -175,6 +181,21 @@ describe("orders from the CLI", () => {
     assert.equal((await getCounts(stores))["NFF-CHK-EGG-LG"], 3);
     assert.deepEqual(calls, [], "a paid invoice is not cancelled");
     assert.equal(sent.length, 0);
+  });
+
+  it("lift the Venmo hold when nothing arrived", async () => {
+    const stores = testStores();
+    const { opts } = harness();
+
+    await saveOrder(stores, {
+      ...order("A"), paymentPending: { at: now.toISOString(), source: "venmo" },
+    }, now);
+    const back = await unholdOrder(stores, "A", opts);
+
+    assert.equal(back.paymentPending, null);
+    assert.equal(back.history.at(-1).event, "payment.unclaimed");
+    await payOrder(stores, "A", opts);
+    await assert.rejects(unholdOrder(stores, "A", opts), /is paid/);
   });
 
   it("cancel a paid order the farm chose to: refund wording", async () => {
@@ -279,7 +300,7 @@ describe("an on-farm pickup window from the CLI", () => {
     await saveOrder(stores, requested("A"), now);
     await denyPickup(stores, "A", opts);
     assert.doesNotMatch(sent[0].text, /Pick a new time:/);
-    assert.match(sent[0].text, /Reply to this email/);
+    assert.match(sent[0].text, /Please reply with another day or window/);
 
     const later = new Date(now.getTime() + 60_000);
 
