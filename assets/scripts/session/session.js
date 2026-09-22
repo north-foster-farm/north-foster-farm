@@ -1,7 +1,7 @@
 // Who is signed in, for every page. Asks /api/me once per five
-// minutes (cached in sessionStorage) and fills the header slot: a
-// Sign in link, or an Account menu. The sign-in page shows the link
-// as the current page; a build without accounts has no slot.
+// minutes (cached in sessionStorage) and settles the header slot: the
+// Sign in link fades in, or the Account menu takes its place. A build
+// without accounts has no slot.
 
 import { api } from "../utils/api.js";
 
@@ -48,6 +48,8 @@ export const me = async () => {
   return result;
 };
 
+// The Sign in link is in the markup from the start, transparent; the
+// slot fades in once the answer is known, so the header never jumps.
 const fill = (slot, who) => {
   const signin = slot.querySelector("[data-account-signin]");
   const menu = slot.querySelector("[data-account-menu]");
@@ -55,19 +57,14 @@ const fill = (slot, who) => {
   if (!who.signedIn) {
     signin.hidden = false;
     menu.hidden = true;
-    slot.hidden = false;
-    // On the sign-in page the link is the current page, like About
-    // on /about/.
-    if (/^\/login\//.test(location.pathname)) {
-      signin.setAttribute("aria-current", "page");
-    }
+    slot.classList.add("is-ready");
 
     return;
   }
 
   signin.hidden = true;
   menu.hidden = false;
-  slot.hidden = false;
+  slot.classList.add("is-ready");
 
   slot.querySelector("[data-account-signout]").addEventListener("click",
     async () => {

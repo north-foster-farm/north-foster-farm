@@ -75,6 +75,8 @@ const plugins = [
         "is-bumped",
         // The account page marks the order an email linked to.
         "is-linked",
+        // Applied by session.js: the header's account slot fades in.
+        "is-ready",
         "order-busy",
         "order-cart-free",
         "order-cart-group",

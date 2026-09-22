@@ -147,12 +147,21 @@ header {
 
 // Account slot: a Sign in link, or the Account button with its menu.
 
+// The slot holds the Sign in link from the first paint, transparent,
+// so the menu never shifts; session.js fades it in, or swaps in the
+// Account menu, once it knows who is here.
 .site-account {
   display: flex;
   align-items: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
 
-  &[hidden] {
-    display: none;
+  &.is-ready {
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 }
 

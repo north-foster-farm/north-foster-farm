@@ -1,16 +1,17 @@
 {{ $onOrder := eq .RelPermalink (relURL "order/") }}
 {{ $onAbout := eq .RelPermalink (relURL "about/") }}
+{{ $onLogin := eq .RelPermalink (relURL "login/") }}
 <div class="container site-header-inner">
   <a class="site-brand" href="{{ .Site.BaseURL }}" aria-label="Home" {{- if .IsHome }} aria-current="page" {{ end }}>
     {{ partial "svg.html" "logo" }}
   </a>
   <nav class="site-actions" aria-label="Main">
-    <a class="site-nav-link" href="{{ relURL "about/" }}" {{- if $onAbout }} aria-current="page" {{ end }}>About</a>
     {{ if .Site.Params.features.accounts }}
-      {{/* Filled by session.js once /api/me answers: a Sign in link, or
-           an Account menu. Nothing shows until then. */}}
-      <div class="site-account dropdown" data-account hidden>
-        <a class="site-nav-link" href="{{ relURL "login/" }}" data-account-signin hidden>Sign in</a>
+      {{/* Settled by session.js once /api/me answers: the Sign in link
+           (already in place, transparent, so nothing shifts) fades in,
+           or is swapped for the Account menu. */}}
+      <div class="site-account dropdown" data-account>
+        <a class="site-nav-link" href="{{ relURL "login/" }}" data-account-signin {{- if $onLogin }} aria-current="page" {{ end }}>Sign in</a>
         <button class="site-nav-link site-account-btn" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" data-account-menu hidden>
           Account
           <span class="site-nav-caret" aria-hidden="true">{{ partial "svg.html" "icons/chevron-down" }}</span>
@@ -44,6 +45,7 @@
         </ul>
       </div>
     {{ end }}
+    <a class="site-nav-link" href="{{ relURL "about/" }}" {{- if $onAbout }} aria-current="page" {{ end }}>About</a>
     {{ if $onOrder }}
       <span class="site-order is-current" aria-current="page">Order</span>
     {{ else }}

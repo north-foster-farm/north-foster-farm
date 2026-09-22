@@ -345,3 +345,8 @@
     }
   }
 }
+
+// The sign-in page reads like a policy page: the same 700px column.
+.login .account-wide {
+  max-width: 700px;
+}
