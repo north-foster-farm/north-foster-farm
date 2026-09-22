@@ -26,3 +26,6 @@ docs/hugo-docs-source/
 
 # Written by the Netlify CLI when it serves functions locally.
 deno.lock
+
+# The originals James keeps beside the photos he exports for the site.
+assets/images/*_original
