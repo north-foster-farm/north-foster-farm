@@ -475,7 +475,8 @@ on 2026-09-22, for the self-service a denied pickup window needs:
 (the Sign in link in the header, `/login/` and `/account/` in the
 build), and `ACCOUNTS_ENABLED=true` on Netlify lets the emails link to
 them. Set `accounts = false` and unset the variable to take them off
-again; nothing else changes.
+again; nothing else changes. The checks to run after that step shipped
+are in `docs/qa-fulfilment-a.md`.
 
 What the order flow needs to run in production is Square and nothing
 else. Netlify Blobs is part of Netlify and needs no account. Mail is
