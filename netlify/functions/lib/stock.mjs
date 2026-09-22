@@ -86,7 +86,7 @@ export const checkLines = async (stores, lines) => {
 
     if (!state || !item) continue;
 
-    const name = `${item.groupLabel}, ${item.label}`;
+    const name = `${item.groupName}, ${item.label}`;
 
     if (!state.inStock) {
       errors[`lines.${line.sku}`] = `${name} just sold out.`;

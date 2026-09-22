@@ -100,7 +100,7 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
       continue;
     }
     if (!item.inStock) {
-      errors[`lines.${sku}`] = `${item.groupLabel}, ${item.label} is sold out.`;
+      errors[`lines.${sku}`] = `${item.groupName}, ${item.label} is sold out.`;
       continue;
     }
 
@@ -208,7 +208,7 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
       },
       lines: lines.map(({ sku, qty, item }) => ({
         sku,
-        label: `${item.groupLabel}, ${item.label}`,
+        label: `${item.groupName}, ${item.label}`,
         name: item.name,
         unitPrice: item.price,
         qty,

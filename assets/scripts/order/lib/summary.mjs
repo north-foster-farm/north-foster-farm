@@ -2,6 +2,7 @@
 // nudge and the delivery status. Pure, so every sentence the customer
 // might read is pinned by a test. Money is integer cents.
 
+import { short } from "./catalog.mjs";
 import { dollars, meetsMinimum, toCents } from "./totals.mjs";
 
 // Badges in the order they are shown. Each is on or off, never a
@@ -90,9 +91,6 @@ export const feeCell = (totals, method) => {
 };
 
 const plural = (n) => `${n} item${n === 1 ? "" : "s"}`;
-
-// A group label without its parenthetical: "Eggs (per dozen)" -> "Eggs".
-const short = (label) => label.replace(/ \(.*\)$/, "");
 
 // The cart's own lines, grouped by category in catalog order: each
 // tier with how many at what price and the line's subtotal. `lines`
