@@ -90,6 +90,15 @@ export const sendMail = async (message, {
     throw new MailError("A message needs a recipient and a subject");
   }
 
+  // Under `node --test` (which sets NODE_TEST_CONTEXT) a real fetch is
+  // a test reaching Resend: on 2026-09-22 the suite, run by the Netlify
+  // build with the production variables, mailed the fixtures' notices
+  // to the farm on every deploy. A test's own fake fetch still goes
+  // through, so the Resend path stays testable.
+  const live = fetchImpl === globalThis.fetch;
+
+  if (process.env.NODE_TEST_CONTEXT && live) return viaLog(message);
+
   return mailConfigured(env)
     ? viaResend(message, env, fetchImpl)
     : viaLog(message);
