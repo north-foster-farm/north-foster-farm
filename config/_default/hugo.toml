@@ -48,18 +48,12 @@ timeZone = "America/New_York"
   slogan = "Pasture-raised chicken and eggs in Foster, Rhode Island"
 
   [params.features]
-    # Sign-in and the account pages are out of the first launch. This
-    # drops the Sign in link from the header; the cascade below keeps
-    # /login/ and /account/ out of the build. Flip both to bring them
-    # back. See docs/order-form.md, "Shipping scope".
-    accounts = false
-
-[[cascade]]
-  [cascade.build]
-    list = "never"
-    render = "never"
-  [cascade._target]
-    path = "{/login,/account}"
+    # Sign-in and the account pages: the Sign in link in the header,
+    # and /login/ and /account/ in the build. On since 2026-09-22, so a
+    # customer can pick a new pickup time or find an order themselves.
+    # The functions also need ACCOUNTS_ENABLED=true on Netlify before
+    # any email links to the pages. See docs/order-form.md, "Account".
+    accounts = true
 
   [params.defaults]
     [params.defaults.featuredImage]
