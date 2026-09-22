@@ -1,0 +1,6 @@
+{{- /* The delivery check inside a Markdown page, such as the delivery
+     policy. The page needs pageScript: "zip-check" in its front
+     matter. */ -}}
+<div class="zip-check-block my-4">
+  {{ partial "zip-check.html" (dict "id" (printf "zip-%s" (.Get 0 | default "page"))) }}
+</div>

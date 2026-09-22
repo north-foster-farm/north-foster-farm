@@ -1,0 +1,25 @@
+// "Do we deliver to you?" on the home page and the delivery policy:
+// a plain field and button; the answer takes the tone the account
+// page uses for an address (ok, wait, no).
+
+.zip-check-result {
+  min-height: 1.5rem;
+
+  &[data-tone="ok"] {
+    color: var(--bs-success-text-emphasis);
+  }
+
+  &[data-tone="wait"] {
+    color: var(--bs-warning-text-emphasis);
+  }
+
+  &[data-tone="no"] {
+    color: var(--bs-danger-text-emphasis);
+  }
+}
+
+// In a policy page the check sits in the prose column, narrower than
+// the text so it reads as a tool, not a paragraph.
+.zip-check-block {
+  max-width: 24rem;
+}
