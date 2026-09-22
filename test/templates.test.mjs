@@ -58,7 +58,7 @@ describe("the order details block", () => {
     assert.doesNotMatch(m.text, /\$60|Subtotal|Bulk discount|Delivery fee/);
     assert.match(m.text, /Order type: \*\*Delivery\*\*/);
     assert.match(m.text,
-      /- Arrives: Thursday, October 8, usually between 10 AM and 4 PM/);
+      /- Arrives: Thursday, October 8, between 10 AM and 4 PM/);
     assert.match(m.text, /- Address: 1 Main St, Foster, RI 02825/);
   });
 

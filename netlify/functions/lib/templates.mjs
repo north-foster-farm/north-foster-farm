@@ -244,7 +244,7 @@ const orderType = (order) => {
   const when = label(f.date);
   const items = f.method === "delivery"
     ? [
-      `Arrives: ${when}, usually between ${between(terms.delivery.window)}`,
+      `Arrives: ${when}, between ${between(terms.delivery.window)}`,
       `Address: ${streetAddress(f.delivery)}`,
     ]
     : f.method === "scituate"

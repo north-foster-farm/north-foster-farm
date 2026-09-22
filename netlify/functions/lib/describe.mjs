@@ -16,7 +16,7 @@ export const whenWhere = (order) => {
   const when = label(f.date);
 
   if (f.method === "delivery") {
-    return `Delivery on ${when}, usually between ${
+    return `Delivery on ${when}, between ${
       between(terms.delivery.window)}`;
   }
   if (f.method === "scituate") {
@@ -32,7 +32,7 @@ export const describe = (order) => {
   const when = label(f.date);
 
   if (f.method === "delivery") {
-    return `Delivery on ${when}, usually between ${
+    return `Delivery on ${when}, between ${
       between(terms.delivery.window)}. Please have a cooler with ice out ` +
       "that morning.";
   }
