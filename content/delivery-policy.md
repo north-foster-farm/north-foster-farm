@@ -9,12 +9,15 @@ slug: "delivery-policy"
 title: "Delivery policy"
 type: "policy"
 layout: "policy/single.html"
+pageScript: "zip-check"
 ---
 
 This policy applies to orders delivered directly to customers at a
 location they choose.
 
 We deliver on Thursdays. Order by Wednesday at noon.
+
+{{< zip-check "policy" >}}
 
 ## How it works
 

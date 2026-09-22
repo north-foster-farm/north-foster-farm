@@ -7,13 +7,37 @@
     background-color: rgb(190 217 187 / 84%);
   }
 
-  // The "We love eggs" band: the flock photograph under a dark tint.
-  .bg-img {
-    @include bg-cover("/images/chickens.jpg");
+  // The market band: the Tilted Barn photograph under a dark tint, the
+  // hero's treatment, with the copy centred over it.
+  .home-band {
+    position: relative;
+    overflow: hidden;
+    background-color: $gray-700;
+    color: $white;
   }
 
-  .bg-overlay {
-    @include bg-opacity($gray-700, 0.65);
+  .home-band-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 60%;
+  }
+
+  .home-band-overlay {
+    position: absolute;
+    inset: 0;
+    background-color: rgb(10 17 12 / 65%);
+  }
+
+  .home-band-body {
+    position: relative;
+  }
+
+  // Where to find us: one market per item, a line each.
+  .home-where li + li {
+    margin-top: 0.75rem;
   }
 
   .apppa-logo {

@@ -1,37 +1,84 @@
+{{/* The foot of the home page: where to find the farm as the market
+     season winds down, and the delivery check. The market dates are
+     the markets' published 2026 seasons. */}}
 {{ $emailAddress := hugo.Data.company.email }}
-{{ $emailSubject := "Add me to the NFF email list!" }}
-{{ $emailBody := "I'd like to get email updates from NFF please!" }}
-{{ $emailHref := printf "mailto:%s?subject=%s&body=%s" $emailAddress $emailSubject $emailBody }}
-{{ $email := partial "link.html" (dict
-  "href" $emailHref
-  "innerHTML" "email"
-  "classes" "text-decorate-none")
+{{ $phone := partial "phone.html" . }}
+{{ $terms := hugo.Data.delivery }}
+{{ $money := $terms.money }}
+{{ $fosterFarmersMarket := partial "link.html" (dict
+  "href" "https://www.fosterfarmersmarketri.com"
+  "innerHTML" "Foster Farmers Market"
+  "newTab" true
+  "title" "Foster Farmers Market website")
+}}
+{{ $scituateFarmersMarket := partial "link.html" (dict
+  "href" "https://www.scituaterotaryfarmersmarket.com"
+  "innerHTML" "Scituate Rotary Farmers Market"
+  "newTab" true
+  "title" "Scituate Rotary Farmers Market website")
+}}
+{{ $tiltedBarnMarket := partial "link.html" (dict
+  "href" "https://www.tiltedbarnbrewery.com/summer-market"
+  "innerHTML" "Summer Market at Tilted Barn"
+  "newTab" true
+  "title" "Summer Market at Tilted Barn")
 }}
 <div class="container">
   <div class="row py-5">
     <div class="col-md-6 col-xl-4 offset-xl-2 py-3">
-      <h3 class="fs-2">Get in touch!</h3>
+      <h3 class="fs-2">Where to find us</h3>
       <p>
-        Send us an {{ $email }} to join our email list, to place an order, or
-        to find out more about our farm and our eggs.
+        Market season is winding down. Here’s where we’ll be this fall.
       </p>
+      <ul class="list-unstyled home-where">
+        <li>
+          <strong>{{ $fosterFarmersMarket }}</strong><br>
+          Sundays, 9:00 AM – 1:00 PM, through October 25.<br>
+          Shady Acres Diner, 164 Danielson Pike, Foster.
+        </li>
+        <li>
+          <strong>{{ $scituateFarmersMarket }}</strong><br>
+          Saturdays, 9:00 AM – 12:00 PM, through
+          <mark>[last Saturday of the season]</mark>.<br>
+          The Village Green, 46 Institute Lane, North Scituate.
+        </li>
+        <li>
+          <strong>{{ $tiltedBarnMarket }}</strong><br>
+          Wrapped up for the year on August 26. See you in June.
+        </li>
+      </ul>
       <p>
-        Visit us at the <strong>Scituate Rotary Farmers Market</strong> (46
-        Institute Lane in North Scituate) from 9:00 AM to 12:00 PM every
-        Saturday.
+        Once the markets close, we’re on the Village Green every Saturday
+        from 10:00 to 11:00 AM with online orders, starting October 17. Or
+        order for Thursday delivery, or pickup at the farm by appointment.
       </p>
-      <p>
-        You can also find us at the <strong>Foster Farmers Market</strong> (164
-        Danielson Pike in Foster) from 9:00 AM to 1:00 PM every Sunday.
-      </p>
-      <p>
-        Finally, come see us at the <strong>Summer Market at Tilted
-        Barn</strong> (One Hemsley Place in Exeter) from 4:00 PM to 7:00 PM
-        every Wednesday evening.
+      <h3 class="fs-4 mt-4">Get in touch</h3>
+      <p class="mb-0">
+        <strong>Email:</strong>
+        <a class="text-decoration-none" href="mailto:{{ $emailAddress }}">{{ $emailAddress }}</a><br>
+        <strong>Call or text:</strong>
+        <a class="text-decoration-none" href="{{ $phone.href }}">{{ $phone.display }}</a>
       </p>
     </div>
     <div class="col-md-6 col-xl-4 py-3 align-self-md-center">
-      {{ partial "contact-card.html" . }}
+      <div class="card bg-success-subtle border border-1 border-success border-opacity-50 rounded-4" id="delivery-check">
+        <div class="card-body">
+          <h3 class="fs-4 card-title">Do we deliver to you?</h3>
+          <p class="card-text">
+            Type your ZIP code and we’ll tell you. Delivery is Thursdays,
+            with a ${{ $money.deliveryMinimum }} minimum and a
+            ${{ $money.deliveryFee }} fee, free on orders of
+            ${{ $money.feeWaivedAt }} or more.
+          </p>
+          {{ partial "zip-check.html" (dict "id" "home-zip") }}
+          <a class="btn btn-primary w-100 mt-3" href="{{ relURL "order/" }}">Order now</a>
+          <div class="d-flex justify-content-center pt-4 pb-1">
+            <div class="apppa-logo">
+              {{ partial "svg.html" "apppa-logo" }}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
