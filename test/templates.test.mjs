@@ -3,10 +3,10 @@ import { describe, it } from "node:test";
 
 import {
   addressDecision, addressReview, completeYourOrder, deliveryReminder,
-  farmOrderPaid, farmOrderPlaced, farmPickupChanged, farmPickupsToConfirm,
-  farmVenmoClaimed, farmVenmoUnmatched, magicLink, orderCancelled,
-  orderChanged, orderConfirmed, paymentReceived, paymentReminder,
-  pickNewTime, summaryLine,
+  farmAlert, farmMorningReport, farmOrderPaid, farmOrderPlaced,
+  farmPickupChanged, farmTomorrow, farmVenmoClaimed, farmVenmoUnmatched,
+  magicLink, orderCancelled, orderChanged, orderConfirmed, paymentReceived,
+  paymentReminder, pickNewTime, summaryLine,
 } from "../netlify/functions/lib/templates.mjs";
 
 const order = (method = "delivery") => ({
@@ -394,24 +394,95 @@ describe("an on-farm pickup awaiting the farm", () => {
     has(m.text, "Admin: https://admin.example.com");
   });
 
-  it("lists the pickups that need a decision", () => {
-    const waiting = requested();
-    const denied = { ...requested(), id: "NFF-2610-EFGH", status: "paid" };
+});
 
-    denied.question = { kind: "window", openedAt: "x", answeredAt: null };
-    const m = farmPickupsToConfirm([waiting, denied], {
-      date: "2026-10-06", links,
+describe("the monitoring emails", () => {
+  const stats = {
+    placed: 4, paid: 3, paidByWebhook: 2, paidByPoll: 1, paidByHand: 0,
+    abandoned: 1, cancelled: 0, openUnpaid: 2, mailFailures: 0, runs: 96,
+    jobErrors: 0, invariants: 0,
+  };
+
+  it("morning report: the day in numbers, then the pickups to decide",
+    () => {
+      const waiting = requested();
+      const denied = { ...requested(), id: "NFF-2610-EFGH", status: "paid" };
+
+      denied.question = { kind: "window", openedAt: "x", answeredAt: null };
+      const m = farmMorningReport(stats, [waiting, denied], {
+        date: "2026-10-06", links,
+      });
+
+      assert.equal(m.subject, "Morning report: Tuesday, October 6");
+      assert.match(m.text, /Orders placed\s+4\n/);
+      assert.match(m.text, /Paid by poll \(webhook missed\)\s+1\n/);
+      assert.match(m.text, /Jobs runs\s+96\n/);
+      assert.doesNotMatch(m.text, /Every payment came in by the poll/);
+      has(m.text, "These on-farm pickups are within two days and not " +
+        "confirmed.");
+      has(m.text, "- NFF-2610-ABCD, Pat Example, Thursday, October 8, " +
+        "morning, unpaid: bin/nff orders confirm NFF-2610-ABCD\n");
+      has(m.text, "- NFF-2610-EFGH, Pat Example, Thursday, October 8, " +
+        "morning, paid, denied and not re-picked: bin/nff orders confirm " +
+        "NFF-2610-EFGH");
+      has(m.text, "Admin: https://admin.example.com");
+
+      const quiet = farmMorningReport({
+        ...stats, paidByWebhook: 0, paidByPoll: 3,
+      }, [], { date: "2026-10-06", links });
+
+      has(quiet.text, "No pickups waiting on a decision.");
+      has(quiet.text, "**Every payment came in by the poll.**");
     });
 
-    assert.equal(m.subject, "Pickups to confirm: Tuesday, October 6");
-    has(m.text, "These on-farm pickups are within two days and not " +
-      "confirmed.");
-    has(m.text, "- NFF-2610-ABCD, Pat Example, Thursday, October 8, " +
-      "morning, unpaid: bin/nff orders confirm NFF-2610-ABCD\n");
-    has(m.text, "- NFF-2610-EFGH, Pat Example, Thursday, October 8, " +
-      "morning, paid, denied and not re-picked: bin/nff orders confirm " +
-      "NFF-2610-EFGH");
+  it("tomorrow: every order due, by method, with what to pack", () => {
+    const delivery = { ...order(), status: "paid" };
+    const drop = { ...order("scituate"), id: "NFF-2610-DROP" };
+    const farm = { ...requested(), id: "NFF-2610-FARM", status: "paid" };
+
+    delivery.fulfilment.delivery.notes = "Dog in the yard";
+    delivery.customer.phone = "401-555-0100";
+    const m = farmTomorrow([delivery, drop, farm], {
+      date: "2026-10-08", links,
+    });
+
+    assert.equal(m.subject, "Tomorrow, Thursday, October 8: 3 orders");
+    has(m.text, "\nDeliveries (1)\n");
+    has(m.text, "**NFF-2610-ABCD**, Pat Example, 401-555-0100, paid");
+    has(m.text, "- Address: 1 Main St, Foster, RI 02825");
+    has(m.text, "- Cooler: Side porch");
+    has(m.text, "- Gate or door code: 1234");
+    has(m.text, "- Notes: Dog in the yard.");
+    has(m.text, "- Pack: 2 × Whole Chicken, 3.5 – 3.9 lbs; 1 × Eggs (per " +
+      "dozen), Large");
+    has(m.text, "\nScituate drop, 10:00 – 11:00 AM (1)\n");
+    has(m.text, "**NFF-2610-DROP**, Pat Example, UNPAID");
+    has(m.text, "\nOn-farm pickups (1)\n");
+    has(m.text, "**NFF-2610-FARM**, Pat Example, morning, NOT CONFIRMED, paid");
+
+    const none = farmTomorrow([], { date: "2026-10-09", links });
+
+    assert.equal(none.subject, "Tomorrow, Friday, October 9: 0 orders");
+    has(none.text, "Nothing due Friday, October 9.");
   });
+
+  it("alert: the kind, the time, the detail as a table, and the runbook",
+    () => {
+      const m = farmAlert("order.create_failed", {
+        id: "NFF-2610-ABCD", retryable: false, error: "Square 400",
+        empty: "", nothing: null,
+      }, { at: new Date("2026-10-06T13:05:00Z"), links });
+
+      assert.equal(m.subject, "Site alert: order.create_failed");
+      has(m.text, "**order.create_failed** at 2026-10-06 13:05 UTC. " +
+        "Further alerts of this kind are held for an hour.");
+      assert.match(m.text, /Field\s+Value\n/);
+      assert.match(m.text, /id\s+NFF-2610-ABCD\n/);
+      assert.match(m.text, /retryable\s+false\n/);
+      assert.doesNotMatch(m.text, /empty|nothing/);
+      has(m.text, "docs/monitoring.md");
+      has(m.text, "Admin: https://admin.example.com");
+    });
 });
 
 describe("payment reminders", () => {

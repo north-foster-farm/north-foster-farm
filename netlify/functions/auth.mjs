@@ -13,6 +13,7 @@ import {
   verifyToken,
 } from "./lib/auth.mjs";
 import { json, readJson } from "./lib/http.mjs";
+import { withLog } from "./lib/log.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
 // Per-instance, best effort, like the order handler's.
@@ -119,8 +120,8 @@ export const handle = async (req, {
   return json(404, { error: "Not found." });
 };
 
-export default async (req, context) =>
-  handle(req, { ip: context && context.ip });
+export default withLog(async (req, context) =>
+  handle(req, { ip: context && context.ip }));
 
 export const config = {
   path: [

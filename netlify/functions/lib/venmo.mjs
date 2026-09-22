@@ -22,6 +22,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { cancelInvoice } from "./square.mjs";
+import { log } from "./log.mjs";
 import { markPaid } from "./payments.mjs";
 import { getOrder } from "./records.mjs";
 
@@ -154,10 +155,10 @@ export const applyPayment = async (stores, payment, {
       try {
         await cancel(order.square.invoiceId, { env });
       } catch (error) {
-        console.error(JSON.stringify({
+        log.error({
           event: "invoice.cancel_failed", id: orderId,
           error: String(error.message),
-        }));
+        });
       }
     }
     record.matched = true;

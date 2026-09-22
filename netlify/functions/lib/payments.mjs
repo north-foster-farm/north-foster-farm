@@ -2,7 +2,9 @@
 // the Square webhook, the scheduled poll, or the CLI. One function
 // moves the order to paid and sends the confirmation, once.
 
+import { alert, mark, noteMail } from "./health.mjs";
 import { adminEmails, sendMail } from "./mail.mjs";
+import { log } from "./log.mjs";
 import {
   amendOrder, getOrder, needsAgreement, orderByInvoice, setStatus,
 } from "./records.mjs";
@@ -36,18 +38,27 @@ export const sendForOrder = async (stores, order, key, message, {
     // Re-read before merging: two sends about one order in a row
     // would otherwise write the second note over the first.
     const current = await getOrder(stores, order.id) || order;
-
-    return amendOrder(stores, order.id, {
+    const noted = await amendOrder(stores, order.id, {
       emails: {
         ...(current.emails || {}),
         [key]: { at: now.toISOString(), ...sent },
       },
     }, `mail.${key}`, now);
+
+    await noteMail(stores, true, now);
+
+    return noted;
   } catch (error) {
-    console.error(JSON.stringify({
+    const message = String(error && error.message);
+
+    log.error({
       event: "mail.failed", template: key, id: order.id,
-      error: String(error && error.message), detail: error && error.detail,
-    }));
+      error: message, detail: error && error.detail,
+    });
+    await noteMail(stores, false, now, { error: message });
+    await alert(stores, "mail.failed", {
+      id: order.id, template: key, error: message,
+    }, { env, mail, now });
 
     return order;
   }
@@ -114,6 +125,7 @@ export const markPaid = async (stores, id, {
     order = await amendOrder(stores, id, {
       payment: { via, at: now.toISOString() },
     }, "payment.recorded", now);
+    await mark(stores, "paid", { id, via, source }, now);
   }
 
   if (!needsAgreement(order)) {
@@ -236,9 +248,13 @@ export const pollUnpaid = async (stores, orders, {
     try {
       status = (await invoice(order.square.invoiceId, options)).status;
     } catch (error) {
-      console.error(JSON.stringify({
+      log.error({
         event: "poll.failed", id: order.id, error: String(error.message),
-      }));
+      });
+      await alert(stores, "poll.failed", {
+        id: order.id, invoice: order.square.invoiceId,
+        error: String(error.message),
+      }, options);
       continue;
     }
 

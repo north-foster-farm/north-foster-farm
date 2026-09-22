@@ -14,6 +14,7 @@ import {
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { abandonAt } from "./jobs.mjs";
 import { adminEmails, sendMail } from "./mail.mjs";
+import { log } from "./log.mjs";
 import {
   hold, notifyFarm, resendInvoice as resendPayLink, sendForOrder,
 } from "./payments.mjs";
@@ -49,9 +50,9 @@ const tellFarm = async (message, { mail = sendMail, env = process.env }) => {
   try {
     return await mail({ to, ...message }, { env });
   } catch (error) {
-    console.error(JSON.stringify({
+    log.error({
       event: "mail.failed", template: "farm", error: String(error.message),
-    }));
+    });
 
     return null;
   }
@@ -147,9 +148,9 @@ export const cancelOrder = async (stores, customer, id, {
           await square.cancelFulfilment(order.square.squareOrderId, { env });
         }
       } catch (error) {
-        console.error(JSON.stringify({
+        log.error({
           event: "square.cancel_failed", id, error: String(error.message),
-        }));
+        });
       }
     }
     await sendForOrder(stores, cancelled, "orderCancelled",
@@ -269,9 +270,9 @@ export const changeOrder = async (stores, customer, id, changes, {
         env,
       });
     } catch (error) {
-      console.error(JSON.stringify({
+      log.error({
         event: "square.update_failed", id, error: String(error.message),
-      }));
+      });
       await amendOrder(stores, id, {
         flags: { ...(changed.flags || {}), squareOutOfSync: true },
       }, "square.out_of_sync", now);

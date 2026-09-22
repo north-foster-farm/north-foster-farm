@@ -277,18 +277,23 @@ function) and calls `lib/jobs.mjs`, which decides in
 | delivery cutoff (Wed noon) or midnight before a pickup, unpaid | `abandoned`, invoice cancelled |
 | 18:00 the day before a paid delivery   | cooler reminder           |
 | the day after fulfilment, paid         | `fulfilled`               |
-| 8:00 daily                             | "Pickups to confirm" report |
+| 8:00 daily, always                     | "Morning report"          |
 | 18:00 daily                            | "Venmo payments with no order" |
+| 18:00 daily, always                    | "Tomorrow", the manifest  |
+| every run                              | invariants, ledger, heartbeat |
 
 Sends are noted on the order under `emails`, so a repeat run sends
 nothing twice and a late run sends only the most urgent reminder. An
-order with an open question is skipped by every row but the last. The
-morning report lists the on-farm orders within two days of their date
-that are still `requested` or on an open question, goes to
-`ADMIN_EMAILS` only when that list is not empty, and is recorded in
-the `jobs` store as `report/pickups/<date>`. The evening report does
-the same for Venmo payments the site could not apply
-(`report/venmo/<date>`), marking each `reportedAt`.
+order with an open question is skipped by the order rows. The daily
+reports are recorded in the `jobs` store (`report/morning/<date>`,
+`report/venmo/<date>`, `report/tomorrow/<date>`); the Venmo one goes
+only when there is something to report and marks each payment
+`reportedAt`. Every order's work in a run is isolated, so one failure
+does not stop the rest; errors and invariant violations go on the
+run's report, into the ledger (`run/<time>`, two days), to the log,
+to an alert and to the heartbeat. `docs/monitoring.md` has the whole
+picture: the health endpoint, the alerts and what to do about each,
+the invariants, the log, and how to set up the two free accounts.
 
 ## Sign-in
 

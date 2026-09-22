@@ -117,8 +117,10 @@ describe("markPaid", () => {
     });
 
     assert.equal(paid.status, "paid");
-    assert.equal(sent.length, 1);
-    assert.match(sent[0].subject, /^Paid: order NFF-1/);
+    // The farm gets its paid notice, and the alert about the failure.
+    assert.equal(sent.length, 2);
+    assert.ok(sent.some((m) => /^Paid: order NFF-1/.test(m.subject)));
+    assert.ok(sent.some((m) => m.subject === "Site alert: mail.failed"));
   });
 });
 

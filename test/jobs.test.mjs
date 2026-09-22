@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  abandonAt, deliveryReminderAt, finalReminderAt, reminderDue, runJobs,
+  abandonAt, checkInvariants, deliveryReminderAt, finalReminderAt,
+  reminderDue, runJobs, runsSince,
 } from "../netlify/functions/lib/jobs.mjs";
+import { readMark } from "../netlify/functions/lib/health.mjs";
 import { markPaid } from "../netlify/functions/lib/payments.mjs";
 import {
   getOrder, openOrders, saveCustomer, saveOrder,
@@ -363,7 +365,8 @@ describe("runJobs", () => {
       assert.deepEqual(resumed.reminded, [{ id: "A", stage: "nextDay" }]);
     });
 
-  it("reports the pickups that need a decision, once a morning", async () => {
+  it("sends the morning report once a morning, with the pickups to " +
+    "decide", async () => {
     const stores = testStores();
     const { sent, opts } = harness();
     const env = { ADMIN_EMAILS: "farm@x.com" };
@@ -394,16 +397,17 @@ describe("runJobs", () => {
     assert.deepEqual(eight.pickupsToConfirm, ["A"]);
     assert.deepEqual(noon.pickupsToConfirm, []);
 
-    const report = sent.filter((m) => /Pickups to confirm/.test(m.subject));
+    const report = sent.filter((m) => /Morning report/.test(m.subject));
 
     assert.equal(report.length, 1);
     assert.deepEqual(report[0].to, ["farm@x.com"]);
-    assert.equal(report[0].subject, "Pickups to confirm: Monday, October 5");
+    assert.equal(report[0].subject, "Morning report: Monday, October 5");
+    assert.match(report[0].text, /Orders placed\s+3\n/, "the funnel");
     assert.match(report[0].text,
       /- A, Pat Example, Wednesday, October 7, morning, unpaid: bin\/nff/);
     assert.doesNotMatch(report[0].text, /- B,|- C,/);
 
-    // Nothing due: no email, and nothing to farm without ADMIN_EMAILS.
+    // Nothing to decide: the report still goes, and says so.
     const quiet = testStores();
 
     await saveOrder(quiet, far, placed);
@@ -412,7 +416,190 @@ describe("runJobs", () => {
     });
 
     assert.deepEqual(none.pickupsToConfirm, []);
-    assert.equal(sent.filter((m) => /Pickups/.test(m.subject)).length, 1);
+    const both = sent.filter((m) => /Morning report/.test(m.subject));
+
+    assert.equal(both.length, 2);
+    assert.match(both[1].text, /No pickups waiting on a decision/);
+  });
+
+  it("sends tomorrow's manifest at 18:00, even when empty", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const env = { ADMIN_EMAILS: "farm@x.com" };
+    const pickup = order("B", "onfarm"); // Wednesday the 7th.
+
+    await saveOrder(stores, order("A"), placed); // Thursday the 8th.
+    await saveOrder(stores, pickup, placed);
+    await markPaid(stores, "A", { ...opts, now: placed });
+    sent.length = 0;
+
+    const before = await runJobs(stores, {
+      ...opts, env, now: at("2026-10-06", 17, 59),
+    });
+    const evening = await runJobs(stores, {
+      ...opts, env, now: at("2026-10-06", 18),
+    });
+    const again = await runJobs(stores, {
+      ...opts, env, now: at("2026-10-06", 18, 30),
+    });
+
+    assert.equal(before.tomorrow, null);
+    assert.equal(evening.tomorrow, 1);
+    assert.equal(again.tomorrow, null);
+
+    const manifest = sent.filter((m) => /^Tomorrow, /.test(m.subject));
+
+    assert.equal(manifest.length, 1);
+    assert.equal(manifest[0].subject,
+      "Tomorrow, Wednesday, October 7: 1 order");
+    assert.match(manifest[0].text, /\*\*B\*\*, Pat Example, morning/);
+    assert.doesNotMatch(manifest[0].text, /\*\*A\*\*/, "A is Thursday");
+
+    const thursdayEve = await runJobs(stores, {
+      ...opts, env, now: at("2026-10-07", 18),
+    });
+
+    assert.equal(thursdayEve.tomorrow, 1);
+    const next = sent.filter((m) => /^Tomorrow, /.test(m.subject));
+
+    assert.match(next[1].subject, /Thursday, October 8: 1 order/);
+    assert.match(next[1].text, /Deliveries \(1\)/);
+    assert.match(next[1].text, /- Address: 1 Main St, Foster/);
+
+    const empty = testStores();
+    const nothing = await runJobs(empty, {
+      ...opts, env, now: at("2026-10-06", 18),
+    });
+
+    assert.equal(nothing.tomorrow, 0);
+    assert.match(sent.at(-1).subject, /Tomorrow, Wednesday, October 7: 0/);
+    assert.match(sent.at(-1).text, /Nothing due Wednesday, October 7/);
+  });
+
+  it("isolates a failing order, records the run, alerts and pings",
+    async () => {
+      const stores = testStores();
+      const { sent, opts } = harness();
+      const pings = [];
+      const fetchImpl = async (url, init = {}) => {
+        pings.push({ url, method: init.method || "GET" });
+
+        return { ok: true };
+      };
+      const env = {
+        ADMIN_EMAILS: "farm@x.com", HEALTHCHECKS_JOBS_URL: "https://hc/jobs",
+      };
+
+      // Order B has no fulfilment, so its cutoff cannot be computed and
+      // its work throws; A must still be abandoned.
+      const broken = { ...order("B"), fulfilment: null };
+
+      await saveOrder(stores, order("A"), placed);
+      await saveOrder(stores, broken, placed);
+      const r = await runJobs(stores, {
+        ...opts, env, fetchImpl, now: at("2026-10-07", 12, 1),
+      });
+
+      assert.deepEqual(r.abandoned, ["A"]);
+      assert.ok(r.errors.some((e) => e.id === "B" && e.step === "order"),
+        JSON.stringify(r.errors));
+      assert.equal((await getOrder(stores, "A")).status, "abandoned");
+
+      const alerts = sent.filter((m) => /Site alert/.test(m.subject));
+
+      assert.ok(alerts.some((m) => m.subject === "Site alert: jobs.errors"));
+      assert.deepEqual(pings.filter((p) => /hc\/jobs/.test(p.url)),
+        [{ url: "https://hc/jobs/fail", method: "POST" }]);
+      assert.ok(r.invariants.some((v) => v.rule === "order.unreadable"
+        && v.id === "B"), "the invariants name it too, and carry on");
+
+      const runs = await runsSince(stores, at("2026-10-07", 0));
+
+      assert.equal(runs.length, 1);
+      assert.equal(runs[0].counts.abandoned, 1);
+      assert.ok(runs[0].errors.some((e) => e.id === "B"));
+      assert.ok((await readMark(stores, "alert/jobs.errors")));
+
+      // A clean run pings well with a GET.
+      const fine = testStores();
+
+      await runJobs(fine, {
+        ...opts, env, fetchImpl, now: at("2026-10-05", 9),
+      });
+      assert.deepEqual(pings.at(-1), { url: "https://hc/jobs", method: "GET" });
+    });
+
+  it("keeps two days of runs in the ledger", async () => {
+    const stores = testStores();
+    const { opts } = harness();
+    const hour = 3_600_000;
+
+    const after = (h) => new Date(placed.getTime() + h * hour);
+
+    for (const h of [0, 12, 24, 36, 47, 49]) {
+      await runJobs(stores, { ...opts, now: after(h) });
+    }
+    const runs = await runsSince(stores, placed);
+
+    assert.equal(runs.length, 5, "the run 49 hours old is pruned");
+    assert.equal(runs[0].at, after(49).toISOString());
+    assert.equal(runs.at(-1).at, after(12).toISOString());
+  });
+
+  const withEmail = (o) => ({ ...o, emails: { completeYourOrder: {} } });
+
+  it("invariants are quiet for a healthy set of orders", () => {
+    const fresh = withEmail(order("A"));
+
+    assert.deepEqual(checkInvariants([fresh], at("2026-10-05", 9, 30)), []);
+    assert.deepEqual(checkInvariants([{ ...fresh, emails: {
+      ...fresh.emails, soon: {},
+    } }], at("2026-10-05", 11)), []);
+  });
+
+  it("invariants name an unpaid order past its cutoff, unless held or " +
+    "asked", () => {
+    // Cutoff is midnight before the 7th; every reminder already went.
+    const o = {
+      ...order("A", "onfarm"),
+      emails: { completeYourOrder: {}, soon: {}, nextDay: {}, final: {} },
+    };
+    const late = at("2026-10-07", 0, 31);
+
+    assert.deepEqual(checkInvariants([o], late),
+      [{ rule: "unpaid.past_cutoff", id: "A" }]);
+    assert.deepEqual(checkInvariants([o], at("2026-10-07", 0, 29)), []);
+    assert.deepEqual(checkInvariants([{
+      ...o, paymentPending: { at: "x", source: "venmo" },
+    }], late), []);
+    assert.deepEqual(checkInvariants([{
+      ...o, question: { kind: "window", openedAt: "x", answeredAt: null },
+    }], late), []);
+  });
+
+  it("invariants name a paid order two days past its date, a missing " +
+    "pay link, and an overdue reminder", () => {
+    const paid = { ...withEmail(order("A", "onfarm")), status: "paid" };
+
+    assert.deepEqual(checkInvariants([paid], at("2026-10-08", 9)), []);
+    assert.deepEqual(checkInvariants([paid], at("2026-10-09", 9)),
+      [{ rule: "paid.not_closed", id: "A" }]);
+
+    const noLink = order("A");
+
+    assert.deepEqual(checkInvariants([noLink], at("2026-10-05", 9, 19)), []);
+    assert.deepEqual(checkInvariants([noLink], at("2026-10-05", 9, 21)),
+      [{ rule: "order.no_pay_link", id: "A" }]);
+
+    const quiet = withEmail(order("A"));
+
+    assert.deepEqual(checkInvariants([quiet], at("2026-10-05", 10, 29)), []);
+    assert.deepEqual(checkInvariants([quiet], at("2026-10-05", 10, 31)),
+      [{ rule: "reminder.overdue", id: "A" }]);
+    const prefs = new Map([["pat@example.com", { payment: false }]]);
+
+    assert.deepEqual(checkInvariants([quiet], at("2026-10-05", 10, 31), prefs),
+      [], "not when the customer turned reminders off");
   });
 
   it("reports the Venmo payments it could not apply, once an evening",

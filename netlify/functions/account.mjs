@@ -18,6 +18,7 @@ import {
 } from "./lib/account.mjs";
 import { publicCustomer, sameSite, sessionFrom } from "./lib/auth.mjs";
 import { json, readJson } from "./lib/http.mjs";
+import { withLog } from "./lib/log.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
 // Ownership is checked by the logic; the route only shapes the id.
@@ -99,7 +100,7 @@ export const handle = async (req, {
   return json(404, { error: "Not found." });
 };
 
-export default async (req) => handle(req);
+export default withLog(async (req) => handle(req));
 
 export const config = {
   path: ["/api/account/orders", "/api/account/orders/*", "/api/account/*"],

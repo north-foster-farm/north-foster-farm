@@ -15,6 +15,8 @@ import { validateOrder } from "../../assets/scripts/order/lib/validate.mjs";
 import { parts } from "../../assets/scripts/order/lib/zoned.mjs";
 import { sessionFrom } from "./lib/auth.mjs";
 import { json, readJson, retry } from "./lib/http.mjs";
+import { alert, mark, noteMail } from "./lib/health.mjs";
+import { log, withLog } from "./lib/log.mjs";
 import { mailConfigured, sendMail } from "./lib/mail.mjs";
 import { notifyFarm } from "./lib/payments.mjs";
 import {
@@ -129,12 +131,12 @@ export const handle = async (req, {
   };
 
   if (order.flags.totalMismatch) {
-    console.warn(JSON.stringify({
+    log.warn({
       event: "order.total_mismatch",
       id: order.id,
       claimed: payload.claimedTotal,
       computed: order.totals.total,
-    }));
+    });
   }
 
   try {
@@ -163,11 +165,12 @@ export const handle = async (req, {
 
     await touchCustomer(stores, order.customer, now);
     await adjust(stores, order.lines, -1);
+    await mark(stores, "order", { id: order.id }, now);
 
-    console.info(JSON.stringify({
+    log.info({
       event: "order.created", order, square: square_,
       persistent: stores.persistent,
-    }));
+    });
 
     // A mail failure never fails the order: the invoice exists and the
     // reminders will pick the order up.
@@ -187,11 +190,18 @@ export const handle = async (req, {
             completeYourOrder: { at: now.toISOString(), ...sent },
           },
         }, "mail.completeYourOrder", now);
+        await noteMail(stores, true, now);
       } catch (error) {
-        console.error(JSON.stringify({
+        const message = String(error && error.message);
+
+        log.error({
           event: "mail.failed", template: "completeYourOrder", id: order.id,
-          error: String(error && error.message), detail: error && error.detail,
-        }));
+          error: message, detail: error && error.detail,
+        });
+        await noteMail(stores, false, now, { error: message });
+        await alert(stores, "mail.failed", {
+          id: order.id, template: "completeYourOrder", error: message,
+        }, { env, mail, now });
       }
     }
 
@@ -216,13 +226,24 @@ export const handle = async (req, {
   } catch (error) {
     const retryable = !!(error && error.retryable);
 
-    console.error(JSON.stringify({
+    log.error({
       event: "order.failed",
       retryable,
       error: String(error && error.message),
       detail: error && error.detail,
       order,
-    }));
+    });
+    // The customer's page retries a retryable failure and shows the
+    // failure card otherwise; either way the farm hears now.
+    await alert(stores, "order.create_failed", {
+      id: order.id,
+      retryable,
+      method: order.fulfilment.method,
+      total: order.totals.total,
+      error: String(error && error.message),
+      detail: error && error.detail ? JSON.stringify(error.detail).slice(0, 500)
+        : null,
+    }, { env, mail, now });
 
     // Outside production the answer carries Square's own error, so a
     // sandbox failure can be read from the response.
@@ -241,8 +262,8 @@ export const handle = async (req, {
   }
 };
 
-export default async (req, context) =>
-  handle(req, { ip: context && context.ip });
+export default withLog(async (req, context) =>
+  handle(req, { ip: context && context.ip }));
 
 export const config = {
   path: "/api/orders",

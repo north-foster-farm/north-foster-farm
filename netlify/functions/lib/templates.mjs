@@ -824,6 +824,133 @@ export const farmVenmoUnmatched = (payments, { date, links } = {}) => {
   return { subject: title, ...render(title, blocks, links) };
 };
 
+// --- Monitoring ----------------------------------------------------
+
+const when = (iso) => (iso ? `${iso.replace("T", " ").slice(0, 16)} UTC`
+  : "never");
+
+// A failure on the critical path, one per kind per hour.
+export const farmAlert = (kind, detail = {}, { at, links } = {}) => {
+  const title = `Site alert: ${kind}`;
+  const rows = Object.entries(detail)
+    .filter(([, v]) => v !== null && v !== undefined && v !== "")
+    .map(([k, v]) => [k, typeof v === "string" ? v : JSON.stringify(v)]);
+  const blocks = [
+    p(`**${kind}** at ${when(at ? at.toISOString() : null)}. Further ` +
+      "alerts of this kind are held for an hour."),
+  ];
+
+  if (rows.length) blocks.push(table(["Field", "Value"], rows));
+  blocks.push(
+    p("What each alert means, and what to do: docs/monitoring.md in " +
+      "the site repository."),
+    adminFooter(links)
+  );
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
+// Every morning at 8:00: the last day in numbers, then whatever needs
+// a decision. Sent even when nothing does, so its absence is a signal.
+export const farmMorningReport = (stats, pickups, { date, links } = {}) => {
+  const title = `Morning report: ${label(date)}`;
+  const blocks = [
+    heading("The last 24 hours"),
+    table(["", "Count"], [
+      ["Orders placed", stats.placed],
+      ["Paid", stats.paid],
+      ["Paid by webhook", stats.paidByWebhook],
+      ["Paid by poll (webhook missed)", stats.paidByPoll],
+      ["Paid by hand or Venmo", stats.paidByHand],
+      ["Abandoned at the cutoff", stats.abandoned],
+      ["Cancelled", stats.cancelled],
+      ["Still unpaid", stats.openUnpaid],
+      ["Mail failures", stats.mailFailures],
+      ["Jobs runs", stats.runs],
+      ["Jobs errors", stats.jobErrors],
+      ["Invariant violations", stats.invariants],
+    ].map(([k, v]) => [k, String(v)])),
+  ];
+
+  if (stats.paidByPoll > 0 && stats.paidByWebhook === 0) {
+    blocks.push(p("**Every payment came in by the poll.** Check the Square " +
+      "webhook: Square Developer Dashboard, the app's Webhooks page."));
+  }
+  if (pickups.length) {
+    blocks.push(
+      heading("Pickups to confirm"),
+      p("These on-farm pickups are within two days and not confirmed."),
+      list(pickups.map((o) => `${o.id}, ${
+        o.customer.name || o.customer.email}, ${windowPhrase(o)}, ${
+        paidWord(o)}${o.question && !o.question.answeredAt
+        ? ", denied and not re-picked" : ""}: bin/nff orders confirm ${o.id}`))
+    );
+  } else {
+    blocks.push(p("No pickups waiting on a decision."));
+  }
+  blocks.push(adminFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
+// Every evening at 6:00: every order due tomorrow, by method, with
+// what the driver or the packer needs. The manifest the farm would
+// otherwise rebuild if anything broke overnight. Sent even when empty.
+export const farmTomorrow = (orders, { date, links } = {}) => {
+  const day = label(date);
+  const title = `Tomorrow, ${day}: ${orders.length} order${
+    orders.length === 1 ? "" : "s"}`;
+  const by = (method) => orders.filter((o) => o.fulfilment.method === method);
+  const deliveries = by("delivery");
+  const drops = by("scituate");
+  const farm = by("onfarm");
+  const blocks = [];
+  const who = (o) => `${o.customer.name || o.customer.email}${
+    o.customer.phone ? `, ${o.customer.phone}` : ""}`;
+  const packing = (o) => o.lines.map((l) => `${l.qty} × ${l.label}`).join("; ");
+  const state = (o) => (o.status === "paid" ? "paid" : "UNPAID");
+
+  if (!orders.length) {
+    blocks.push(p(`Nothing due ${day}.`));
+  }
+  if (deliveries.length) {
+    blocks.push(heading(`Deliveries (${deliveries.length})`));
+    for (const o of deliveries) {
+      const d = o.fulfilment.delivery || {};
+      const items = [
+        `Address: ${streetAddress(d)}`,
+        `Cooler: ${d.cooler || "not given"}`,
+      ];
+
+      if (d.gate) items.push(`Gate or door code: ${d.gate}`);
+      if (instructions(o)) items.push(`Notes: ${instructions(o)}`);
+      items.push(`Pack: ${packing(o)}`);
+      blocks.push(p(`**${o.id}**, ${who(o)}, ${state(o)}`), list(items));
+    }
+  }
+  if (drops.length) {
+    blocks.push(heading(`Scituate drop, ${terms.scituate.window} (${
+      drops.length})`));
+    for (const o of drops) {
+      blocks.push(p(`**${o.id}**, ${who(o)}, ${state(o)}`),
+        list([`Pack: ${packing(o)}`]));
+    }
+  }
+  if (farm.length) {
+    blocks.push(heading(`On-farm pickups (${farm.length})`));
+    for (const o of farm) {
+      const window = o.fulfilment.onfarm.window;
+      const agreed = needsAgreement(o) ? "NOT CONFIRMED" : "confirmed";
+
+      blocks.push(p(`**${o.id}**, ${who(o)}, ${window}, ${agreed}, ${
+        state(o)}`), list([`Pack: ${packing(o)}`]));
+    }
+  }
+  blocks.push(adminFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
 // The morning report of on-farm orders within two days of their date
 // whose window is still unconfirmed, or denied and not yet re-picked.
 // Sent only when there is at least one.

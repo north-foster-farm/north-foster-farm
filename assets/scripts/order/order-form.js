@@ -944,6 +944,26 @@ export class OrderForm {
     });
 
     console.error(JSON.stringify({ event: "order.undeliverable", payload }));
+    // Tell the farm a checkout could not complete. A beacon survives
+    // the page being closed; nothing here can fail the customer.
+    try {
+      const beacon = JSON.stringify({
+        kind: "checkout.failed",
+        message,
+        method: payload.fulfilment && payload.fulfilment.method,
+        page: location.pathname,
+      });
+
+      if (!navigator.sendBeacon || !navigator.sendBeacon("/api/health",
+        new Blob([beacon], { type: "application/json" }))) {
+        fetch("/api/health", {
+          method: "POST", body: beacon, keepalive: true,
+          headers: { "Content-Type": "application/json" },
+        }).catch(() => {});
+      }
+    } catch {
+      // The failure itself is already on screen.
+    }
     this.finish(node);
   }
 }

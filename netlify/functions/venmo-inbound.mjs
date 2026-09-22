@@ -9,7 +9,9 @@
 // do. Anything that is not a Venmo payment answers 200 so Resend does
 // not retry it.
 
+import { alert } from "./lib/health.mjs";
 import { json } from "./lib/http.mjs";
+import { log, withLog } from "./lib/log.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 import {
   applyPayment, parseNotification, verifySignature,
@@ -61,10 +63,13 @@ export const handle = async (req, {
   try {
     message = await fetchReceived(event.data.email_id, { env, fetchImpl });
   } catch (error) {
-    console.error(JSON.stringify({
+    log.error({
       event: "venmo.fetch_failed", id: event.data.email_id,
       error: String(error.message),
-    }));
+    });
+    await alert(stores, "venmo.fetch_failed", {
+      emailId: event.data.email_id, error: String(error.message),
+    }, { env, mail, now });
 
     // Resend retries on a 5xx, so the message is not lost.
     return json(502, { error: "Could not fetch the message." });
@@ -80,12 +85,12 @@ export const handle = async (req, {
 
   const result = await applyPayment(stores, parsed, { env, mail, now, cancel });
 
-  console.info(JSON.stringify({ event: "venmo.received", ...result }));
+  log.info({ event: "venmo.received", ...result });
 
   return json(200, result);
 };
 
-export default async (req) => handle(req);
+export default withLog(async (req) => handle(req));
 
 export const config = {
   path: "/api/venmo/inbound",

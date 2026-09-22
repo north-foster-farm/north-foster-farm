@@ -10,7 +10,9 @@
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { mark } from "./lib/health.mjs";
 import { json } from "./lib/http.mjs";
+import { log, withLog } from "./lib/log.mjs";
 import { applyInvoiceEvent } from "./lib/payments.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
@@ -58,20 +60,23 @@ export const handle = async (req, {
     return json(400, { error: "Expected a Square event." });
   }
 
+  // Any signed event is proof the webhook is alive.
+  await mark(stores, "webhook", { type: event.type }, now);
+
   if (!event.type.startsWith("invoice.")) {
     return json(200, { handled: false, reason: "ignored" });
   }
 
   const result = await applyInvoiceEvent(stores, event, { env, now, mail });
 
-  console.info(JSON.stringify({
+  log.info({
     event: "square.webhook", type: event.type, ...result,
-  }));
+  });
 
   return json(200, result);
 };
 
-export default async (req) => handle(req);
+export default withLog(async (req) => handle(req));
 
 export const config = {
   path: "/api/square/webhook",

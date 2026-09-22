@@ -185,7 +185,40 @@ order afterwards and refund the dollar by hand.
       wrong or missing; a 502 means the read key cannot fetch the
       message (Resend retries those).
 
-## 7. Nothing else changed
+## 7. Monitoring
+
+Needs the healthchecks.io and Axiom variables from `docs/monitoring.md`;
+without them the checks below still run, but nothing outside the
+inbox hears.
+
+- [ ] `GET https://www.northfosterfarm.com/api/health` answers 200
+      with `ok: true`, a `jobs.lastRunAt` within the last 15 minutes,
+      and `log: true`, `heartbeat: true` once the variables are set.
+      `bin/nff health` prints the same.
+- [ ] healthchecks.io shows the *Jobs* check going green every 15
+      minutes and the three HTTP checks up.
+- [ ] Axiom shows a `jobs.run` line every 15 minutes and an
+      `order.created` line for each order placed.
+- [ ] 8:00: "Morning report: <today>" arrives every day, numbers first,
+      then pickups (or "No pickups waiting on a decision"). It pings the
+      *Alerts* check well; that check is green after 8:00.
+- [ ] 18:00: "Tomorrow, <date>: N orders" arrives every day, grouped
+      delivery, Scituate, on-farm, with pack lines; "Nothing due" on an
+      empty day.
+- [ ] Force a checkout failure (kill the network mid-submit, or pick a
+      SKU with `squareVariationId` broken in a preview): the customer
+      sees the failure card and the farm gets "Site alert:
+      order.create_failed" or "Site alert: client.checkout_failed"; the
+      *Alerts* check goes red. A second failure within the hour sends
+      no second email; `bin/nff jobs history` and the log show both.
+- [ ] `bin/nff jobs history` lists the last runs with `ok` and their
+      counts; a run with errors shows them indented.
+- [ ] Take `RESEND_API_KEY` away in a preview and place an order: the
+      order is created, the customer gets no email, and the farm alert
+      `mail.failed` fires; `/api/health` goes 503 after the third such
+      failure in an hour.
+
+## 8. Nothing else changed
 
 - [ ] A delivery order is born `agreed`, pays and confirms exactly as
       before, with the Venmo paragraph as the only new line in its pay

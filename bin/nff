@@ -32,7 +32,9 @@ const USAGE = `Usage:
   bin/nff stock set <sku> <count|none>
   bin/nff login <email>               print a sign-in link
   bin/nff masquerade <email>          open a sign-in link as them
-  bin/nff jobs run`;
+  bin/nff jobs run
+  bin/nff jobs history [--n=20]       the last runs: errors, invariants
+  bin/nff health                      what /api/health would answer`;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -42,11 +44,12 @@ const [
   { default: terms },
   admin,
   { requestLink },
-  { runJobs },
+  { runJobs, runsSince },
   { stores: makeStores },
   { summaryLine },
   { allPayments },
   { dollars },
+  { snapshot },
 ] = await Promise.all([
   import("../data/delivery.json", { with: { type: "json" } }),
   import("../netlify/functions/lib/admin.mjs"),
@@ -56,6 +59,7 @@ const [
   import("../netlify/functions/lib/templates.mjs"),
   import("../netlify/functions/lib/venmo.mjs"),
   import("../assets/scripts/order/lib/totals.mjs"),
+  import("../netlify/functions/health.mjs"),
 ]);
 
 const stores = makeStores();
@@ -202,6 +206,26 @@ const run = async () => {
     return out(await admin.stockSet(stores, rest[0], rest[1]));
   case "jobs run":
     return out(await runJobs(stores));
+  case "jobs history": {
+    const n = Number(flags.n) || 20;
+    const runs = await runsSince(stores, new Date(0));
+
+    for (const r of runs.slice(0, n)) {
+      const bad = (r.errors || []).length + (r.invariants || []).length;
+
+      out(`${r.at.slice(0, 16)}  ${bad ? "FAIL" : "ok  "}  paid ${
+        r.counts.paid}  reminded ${r.counts.reminded}  abandoned ${
+        r.counts.abandoned}  closed ${r.counts.closed}${
+        (r.errors || []).map((e) => `\n    error ${e.id || "-"}: ${e.error}`)
+          .join("")}${(r.invariants || []).map((v) =>
+        `\n    invariant ${v.rule}: ${v.id}`).join("")}`);
+    }
+    if (!runs.length) out("No runs recorded.");
+
+    return undefined;
+  }
+  case "health":
+    return out(await snapshot(stores));
   default:
     console.error(USAGE);
     process.exit(1);
