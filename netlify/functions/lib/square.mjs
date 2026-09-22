@@ -283,9 +283,10 @@ export const buildInvoice = (
     }],
     accepted_payment_methods: acceptedMethods(bankTransferOffered(date, now)),
     title: `North Foster Farm order ${order.id}`,
-    // The same words as the emails (James, 2026-09-22).
-    description: `${describe(order)} Your order isn't final until it's ` +
-      "paid.",
+    // Square shows this on the invoice paid or not, and a paid invoice
+    // cannot be edited, so it says only what stays true: the
+    // fulfilment. The emails carry the "isn't final until paid" line.
+    description: describe(order),
     sale_or_service_date: date,
     store_payment_method_enabled: false,
   };
