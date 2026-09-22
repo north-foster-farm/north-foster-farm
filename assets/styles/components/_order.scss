@@ -1146,6 +1146,7 @@
   }
 
   .order-result-card {
+    max-width: 700px;
     padding: 1.5rem;
     border: 1px solid var(--bs-success-border-subtle);
     border-radius: var(--order-radius);
