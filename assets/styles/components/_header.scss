@@ -55,9 +55,9 @@ header {
 }
 
 // Text links: Sign in, Delivery, News, About, Contact, and the Account
-// menu button. No border, but the same hinge as every button: on hover
-// a wash of their own color, a two-pixel lift and the shadow
-// underneath, as if raised on a pin.
+// menu button. No border, and the same hinge as every button: on hover
+// a two-pixel lift and the shadow underneath, as if raised on a pin.
+// Nothing changes on the face; a wash there read as an inset.
 .site-nav-link {
   display: inline-flex;
   align-items: center;
@@ -83,13 +83,11 @@ header {
   &:hover,
   &[aria-expanded="true"] {
     color: var(--bs-body-color);
-    background-color: color-mix(in srgb, currentcolor 12%, transparent);
     transform: translateY(-2px);
     box-shadow: 0 10px 20px -8px rgba($black, 0.45);
   }
 
   &:active {
-    background-color: color-mix(in srgb, currentcolor 18%, transparent);
     transform: translateY(-1px);
     box-shadow: 0 4px 8px -5px rgba($black, 0.4);
   }
@@ -129,7 +127,6 @@ header {
     transform 0.16s ease-out;
 
   &:hover {
-    background-color: color-mix(in srgb, currentcolor 12%, transparent);
     transform: translateY(-2px);
     box-shadow: 0 10px 20px -8px rgba($black, 0.45);
   }
@@ -256,16 +253,14 @@ header {
     box-shadow 0.16s ease-out,
     transform 0.16s ease-out;
 
-  // The same quiet hover as every .btn: a wash of its own color, a
-  // lift and a shadow, never a fill.
+  // The same quiet hover as the links: a lift and a shadow, never a
+  // fill or a wash.
   &:hover {
-    background-color: color-mix(in srgb, currentcolor 20%, transparent);
     transform: translateY(-2px);
     box-shadow: 0 10px 20px -8px rgba($black, 0.45);
   }
 
   &:active {
-    background-color: color-mix(in srgb, currentcolor 30%, transparent);
     transform: translateY(-1px);
     box-shadow: 0 4px 8px -5px rgba($black, 0.4);
   }

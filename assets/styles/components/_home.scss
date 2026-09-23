@@ -10,10 +10,6 @@
     background-color: #fcfcfc;
   }
 
-  .home-update-cta {
-    margin: 1.25rem 0 1.5rem;
-  }
-
   // Get in touch: a line each.
   .home-touch {
     margin-bottom: 1.5rem;
@@ -80,13 +76,16 @@
     padding-block: 3rem calc(3rem + 3.5rem);
   }
 
-  // The minimum contrast: a dark hairline around the letters, drawn
-  // under the fill so the letterforms keep their weight.
+  // The contrast: a dark line around the letters, drawn under the fill
+  // so the letterforms keep their weight, and a soft shadow behind
+  // them for the bright patches of grass and sky.
   .home-hero-title,
   .home-hero-sub {
-    -webkit-text-stroke: 0.9px rgb(0 0 0 / 55%);
+    -webkit-text-stroke: 1.3px rgb(0 0 0 / 70%);
     paint-order: stroke fill;
-    text-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+    text-shadow:
+      0 1px 3px rgb(0 0 0 / 50%),
+      0 0 18px rgb(0 0 0 / 35%);
   }
 
   .home-hero-arrow {
@@ -168,6 +167,23 @@
     &:hover {
       box-shadow: 0 10px 22px -8px rgb(24 98 67 / 65%);
     }
+  }
+
+  // The outline button, on glass: a white line and white type over a
+  // dark translucent pane, so it reads against grass as well as sky.
+  .btn-hero-outline {
+    --bs-btn-color: #{$white};
+    --bs-btn-border-color: rgb(255 255 255 / 85%);
+    --bs-btn-bg: rgb(0 0 0 / 30%);
+    --bs-btn-hover-color: #{$white};
+    --bs-btn-hover-bg: rgb(0 0 0 / 42%);
+    --bs-btn-hover-border-color: #{$white};
+    --bs-btn-active-color: #{$white};
+    --bs-btn-active-bg: rgb(0 0 0 / 50%);
+    --bs-btn-active-border-color: #{$white};
+
+    backdrop-filter: blur(6px);
+    text-shadow: 0 1px 2px rgb(0 0 0 / 45%);
   }
 
   // The eyebrow, the title and the icon circle: the how-to-buy band's
@@ -302,7 +318,7 @@
   .home-band-overlay {
     position: absolute;
     inset: 0;
-    background-color: rgb(10 17 12 / 72%);
+    background-color: rgb(10 17 12 / 80%);
   }
 
   .home-band-body {
@@ -364,11 +380,14 @@
     font-size: 1.0625rem;
 
     a {
-      text-decoration: none;
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.18em;
+      text-decoration-color: rgb(255 255 255 / 55%);
 
       &:hover,
       &:focus-visible {
-        text-decoration: underline;
+        text-decoration-color: currentcolor;
       }
     }
   }
