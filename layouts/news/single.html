@@ -1,0 +1,31 @@
+{{ define "main" }}
+  <section class="{{ .Type }}">
+    <div class="page container py-5">
+      <div class="row justify-content-center mb-5">
+        <article class="col text-column">
+          {{ partial "page-heading.html" . }}
+          <time class="news-date d-block mb-4" datetime="{{ .Date.Format "2006-01-02" }}">
+            {{ .Date | time.Format "January 2, 2006" }}
+          </time>
+          {{ .Content }}
+          <nav class="news-nav d-flex justify-content-between gap-3 border-top pt-3 mt-5"
+            aria-label="More news">
+            {{/* Newer posts come earlier in the section's order, so
+                 "Newer" is the previous page and "Older" the next. */}}
+            {{ with .PrevInSection }}
+              <a href="{{ .RelPermalink }}" rel="prev">← {{ .Title }}</a>
+            {{ else }}
+              <span></span>
+            {{ end }}
+            {{ with .NextInSection }}
+              <a href="{{ .RelPermalink }}" rel="next" class="text-end">{{ .Title }} →</a>
+            {{ end }}
+          </nav>
+          <p class="mt-4 mb-0">
+            <a href="{{ .Parent.RelPermalink }}">All news</a>
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+{{ end }}
