@@ -138,4 +138,24 @@ describe("customer records", () => {
     assert.equal((await getCustomer(stores, "PAT@example.com")).createdAt,
       now.toISOString());
   });
+
+  it("opt in to farm news from an order, and never out", async () => {
+    const stores = testStores();
+    const who = { name: "Pat Example", email: "pat@example.com", phone: "" };
+    const first = await touchCustomer(stores, who, now);
+
+    assert.equal(first.marketing, false, "off unless ticked");
+    assert.equal(first.marketingAt, null);
+
+    const ticked = await touchCustomer(stores, { ...who, marketing: true },
+      later);
+
+    assert.equal(ticked.marketing, true);
+    assert.equal(ticked.marketingAt, later.toISOString());
+
+    const unticked = await touchCustomer(stores, who, later);
+
+    assert.equal(unticked.marketing, true, "an unticked box changes nothing");
+    assert.equal(unticked.marketingAt, later.toISOString(), "same date");
+  });
 });

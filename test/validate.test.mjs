@@ -79,11 +79,28 @@ describe("the customer's details", () => {
     assert.deepEqual(r.order.customer, {
       firstName: "Mary Ann",
       lastName: "Smith",
+      marketing: false,
       name: "Mary Ann Smith",
       email: "pat@example.com",
       phone: "401-555-0100",
       contact: "call",
     });
+  });
+
+  it("carry the farm-news box only when it is ticked", () => {
+    const withBox = (marketing) => {
+      const p = delivery();
+
+      return validateOrder({
+        ...p, customer: { ...p.customer, marketing },
+      }, ctx).order.customer.marketing;
+    };
+
+    assert.equal(validateOrder(delivery(), ctx).order.customer.marketing,
+      false, "absent is off");
+    assert.equal(withBox(true), true);
+    assert.equal(withBox(false), false);
+    assert.equal(withBox("yes"), false, "only true counts");
   });
 
   it("need a first name and a last name, each on its own", () => {
@@ -320,11 +337,16 @@ describe("delivery rules", () => {
     assert.match(r.errors["delivery.zip"], /only able to deliver eggs/);
   });
 
-  it("warns and flags an unlisted Rhode Island ZIP", () => {
+  it("warns and flags an unlisted Rhode Island ZIP, and charges $3", () => {
     const r = validateOrder(delivery({ zip: "02831" }), ctx);
+    const listed = validateOrder(delivery(), ctx);
 
     assert.ok(r.ok, JSON.stringify(r));
     assert.equal(r.order.flags.zipUnlisted, true);
+    assert.equal(r.order.totals.areaFee, 300);
+    assert.equal(r.order.totals.deliveryFee,
+      listed.order.totals.deliveryFee + 300);
+    assert.equal(r.order.totals.total, listed.order.totals.total + 300);
   });
 
   it("blocks a Massachusetts ZIP", () => {

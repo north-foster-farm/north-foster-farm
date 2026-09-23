@@ -78,6 +78,7 @@ content/           # Markdown content files
   _index.md        # Homepage content
   accessibility.md # Accessibility statement
   privacy.md       # Privacy policy
+  news/            # Past updates, one post each; see layouts/news/
 
 data/              # YAML data files
   company.yaml     # Company info (name, address, phone, email)

@@ -147,10 +147,25 @@ class Account {
         location.href = "/";
       });
 
-    document.getElementById("address-form").addEventListener("submit",
-      (e) => this.saveAddress(e));
-    document.getElementById("profile-form").addEventListener("submit",
-      (e) => this.saveProfile(e));
+    // The address saves once the street, town and ZIP are there; the
+    // settings once both names are.
+    this.autosave(document.getElementById("address-form"),
+      () => this.saveAddress(),
+      (f) => f.address1.trim() && f.town.trim()
+        && f.zip.replace(/\D/g, "").length === 5);
+    this.autosave(document.getElementById("profile-form"),
+      () => this.saveProfile(),
+      (f) => f.firstName.trim() && f.lastName.trim());
+    // The chicken at the top changes the moment one is picked; the
+    // save that follows makes it stick.
+    document.getElementById("profile-form").addEventListener("change",
+      (e) => {
+        if (e.target.dataset.field === "avatar") {
+          qs(document, "#account-avatar use").setAttribute(
+            "href", `#avatar-${e.target.value}`
+          );
+        }
+      });
     document.getElementById("support-form").addEventListener("submit",
       (e) => this.sendSupport(e));
   }
@@ -180,8 +195,52 @@ class Account {
     if (message) this.flash.scrollIntoView({ block: "nearest" });
   }
 
-  // Field errors from the API, next to the fields of one form.
-  showErrors(form, errors) {
+  // A form that saves itself: a checkbox or radio as soon as it
+  // changes, a text field when the customer leaves it, and Enter as
+  // before. Nothing is sent while `ready` says the form is still
+  // being filled in, or when its values are the ones last sent.
+  autosave(form, save, ready) {
+    const status = qs(form, "[data-autosave]");
+    const idle = status.textContent;
+    const snapshot = () => JSON.stringify(all(form, "input, textarea")
+      .map((f) => (f.type === "checkbox" || f.type === "radio"
+        ? [f.name, f.value, f.checked]
+        : [f.name, f.value])));
+    const values = () => Object.fromEntries(all(form, "[data-field]")
+      .filter((f) => f.type !== "checkbox" && f.type !== "radio")
+      .map((f) => [f.dataset.field, f.value]));
+    let last = null;
+    const run = async () => {
+      const now = snapshot();
+
+      if (now === last) return;
+      if (!ready(values())) {
+        status.textContent = idle;
+
+        return;
+      }
+      last = now;
+      status.textContent = "Saving…";
+      status.textContent = (await save())
+        ? "Saved."
+        : "Not saved yet. Check the fields above.";
+    };
+
+    // The values are the saved ones once the page has filled them in,
+    // so the first edit is measured against those.
+    form.addEventListener("focusin", () => {
+      if (last === null) last = snapshot();
+    });
+    form.addEventListener("change", run);
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      run();
+    });
+  }
+
+  // Field errors from the API, next to the fields of one form. A form
+  // that saves itself does not pull the focus back to the error.
+  showErrors(form, errors, { focus = true } = {}) {
     this.clearErrors(form);
     for (const [key, message] of Object.entries(errors || {})) {
       const slot = qs(form, `[data-error-for="${key}"]`);
@@ -195,7 +254,7 @@ class Account {
     }
     const first = qs(form, ".is-invalid");
 
-    if (first) first.focus();
+    if (first && focus) first.focus();
   }
 
   clearErrors(form) {
@@ -255,8 +314,10 @@ class Account {
     const c = this.customer;
     const form = document.getElementById("profile-form");
 
-    qs(form, "[data-field='name']").value = c.name || "";
+    qs(form, "[data-field='firstName']").value = c.firstName || "";
+    qs(form, "[data-field='lastName']").value = c.lastName || "";
     qs(form, "[data-field='phone']").value = c.phone || "";
+    qs(form, "[data-field='marketing']").checked = c.marketing === true;
     document.getElementById("prof-email").value = c.email;
     for (const radio of all(form, "[data-field='avatar']")) {
       radio.checked = radio.value === c.avatar;
@@ -277,10 +338,8 @@ class Account {
     }
   }
 
-  async saveAddress(e) {
-    e.preventDefault();
-
-    const form = e.target;
+  async saveAddress() {
+    const form = document.getElementById("address-form");
     const body = {};
 
     for (const field of all(form, "[data-field]")) {
@@ -292,9 +351,9 @@ class Account {
     });
 
     if (!ok) {
-      this.showErrors(form, data.errors);
+      this.showErrors(form, data.errors, { focus: false });
 
-      return;
+      return false;
     }
 
     this.clearErrors(form);
@@ -303,17 +362,19 @@ class Account {
     this.say(data.customer.address.status === "approved"
       ? "Address saved."
       : "Address saved. We'll check it and email you.");
+
+    return true;
   }
 
-  async saveProfile(e) {
-    e.preventDefault();
-
-    const form = e.target;
+  async saveProfile() {
+    const form = document.getElementById("profile-form");
     const avatar = qs(form, "[data-field='avatar']:checked");
     const body = {
-      name: qs(form, "[data-field='name']").value,
+      firstName: qs(form, "[data-field='firstName']").value,
+      lastName: qs(form, "[data-field='lastName']").value,
       phone: qs(form, "[data-field='phone']").value,
       avatar: avatar ? avatar.value : null,
+      marketing: qs(form, "[data-field='marketing']").checked,
       reminders: Object.fromEntries(all(form, "[data-reminder]")
         .map((box) => [box.dataset.reminder, box.checked])),
     };
@@ -322,16 +383,17 @@ class Account {
     });
 
     if (!ok) {
-      this.showErrors(form, data.errors);
+      this.showErrors(form, data.errors, { focus: false });
 
-      return;
+      return false;
     }
 
     this.clearErrors(form);
     this.customer = data.customer;
     this.renderHead();
     forget();
-    this.say("Settings saved.");
+
+    return true;
   }
 
   async sendSupport(e) {
