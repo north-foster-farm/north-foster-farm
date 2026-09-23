@@ -130,6 +130,15 @@ export class OrderForm {
       any = true;
     }
 
+    // A customer who already said yes to farm news sees the box ticked;
+    // it starts unticked for everyone else.
+    const news = qs(this.form, "[data-field='customer.marketing']");
+
+    if (news && customer.marketing === true && !news.checked) {
+      news.checked = true;
+      any = true;
+    }
+
     if (any) this.draft.save(this.collect());
   }
 
@@ -642,6 +651,7 @@ export class OrderForm {
         email: value("customer.email"),
         phone: value("customer.phone"),
         contact: value("customer.contact"),
+        marketing: value("customer.marketing") === true,
       },
       lines: this.lines(),
       fulfilment: {

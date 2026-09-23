@@ -79,11 +79,28 @@ describe("the customer's details", () => {
     assert.deepEqual(r.order.customer, {
       firstName: "Mary Ann",
       lastName: "Smith",
+      marketing: false,
       name: "Mary Ann Smith",
       email: "pat@example.com",
       phone: "401-555-0100",
       contact: "call",
     });
+  });
+
+  it("carry the farm-news box only when it is ticked", () => {
+    const withBox = (marketing) => {
+      const p = delivery();
+
+      return validateOrder({
+        ...p, customer: { ...p.customer, marketing },
+      }, ctx).order.customer.marketing;
+    };
+
+    assert.equal(validateOrder(delivery(), ctx).order.customer.marketing,
+      false, "absent is off");
+    assert.equal(withBox(true), true);
+    assert.equal(withBox(false), false);
+    assert.equal(withBox("yes"), false, "only true counts");
   });
 
   it("need a first name and a last name, each on its own", () => {
