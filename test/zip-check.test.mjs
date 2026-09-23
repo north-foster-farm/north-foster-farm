@@ -33,7 +33,7 @@ describe("do we deliver to you", () => {
     assert.match(near.text, /confirm before we charge you/);
     assert.equal(far.tone, "no");
     assert.match(far.text, /outside our delivery area/);
-    assert.match(far.text, /Saturday pickup in North Scituate/);
+    assert.match(far.text, /Scituate drop site/);
   });
 
   it("asks for five digits otherwise", () => {

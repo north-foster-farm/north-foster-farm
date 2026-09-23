@@ -44,8 +44,8 @@ export const answerFor = (zip, area) => {
 
   return {
     tone: "no",
-    text: "That's outside our delivery area. Pickup at the farm and " +
-      "Saturday pickup in North Scituate are open to everyone.",
+    text: "That's outside our delivery area. On-farm pickup and the " +
+      "Scituate drop site are open to everyone.",
   };
 };
 

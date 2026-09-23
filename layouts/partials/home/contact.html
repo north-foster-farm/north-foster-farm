@@ -1,84 +1,44 @@
-{{/* The foot of the home page: where to find the farm as the market
-     season winds down, and the delivery check. The market dates are
-     the markets' published 2026 seasons. */}}
+{{/* The foot of the home page: how to reach the farm, beside the
+     delivery check. A newsletter sign-up joins this row when there
+     is one. */}}
 {{ $emailAddress := hugo.Data.company.email }}
 {{ $phone := partial "phone.html" . }}
-{{ $terms := hugo.Data.delivery }}
-{{ $money := $terms.money }}
-{{ $fosterFarmersMarket := partial "link.html" (dict
-  "href" "https://www.fosterfarmersmarketri.com"
-  "innerHTML" "Foster Farmers Market"
-  "newTab" true
-  "title" "Foster Farmers Market website")
-}}
-{{ $scituateFarmersMarket := partial "link.html" (dict
-  "href" "https://www.scituaterotaryfarmersmarket.com"
-  "innerHTML" "Scituate Rotary Farmers Market"
-  "newTab" true
-  "title" "Scituate Rotary Farmers Market website")
-}}
-{{ $tiltedBarnMarket := partial "link.html" (dict
-  "href" "https://www.tiltedbarnbrewery.com/summer-market"
-  "innerHTML" "Summer Market at Tilted Barn"
-  "newTab" true
-  "title" "Summer Market at Tilted Barn")
-}}
+{{ $address := partial "address.html" . }}
 <div class="container">
-  <div class="row py-5">
-    <div class="col-md-6 col-xl-4 offset-xl-2 py-3">
-      <h3 class="fs-2">Where to find us</h3>
+  <div class="row py-5 gy-4 align-items-center justify-content-center">
+    <div class="col-md-6 col-xl-5 offset-xl-1">
+      <h3 class="fs-2">Get in touch</h3>
       <p>
-        Market season is winding down. Here’s where we’ll be this fall.
+        We’re a small farm, and we answer our own email and phone. Ask us
+        about an order, a product or delivery, or come see the farm by
+        appointment.
       </p>
-      <ul class="list-unstyled home-where">
+      <ul class="list-unstyled home-touch">
         <li>
-          <strong>{{ $fosterFarmersMarket }}</strong><br>
-          Sundays, 9:00 AM – 1:00 PM, through October 25.<br>
-          Shady Acres Diner, 164 Danielson Pike, Foster.
+          <strong>Email:</strong>
+          <a class="text-decoration-none" href="mailto:{{ $emailAddress }}">{{ $emailAddress }}</a>
         </li>
         <li>
-          <strong>{{ $scituateFarmersMarket }}</strong><br>
-          Saturdays, 9:00 AM – 12:00 PM, through
-          <mark>[last Saturday of the season]</mark>.<br>
-          The Village Green, 46 Institute Lane, North Scituate.
+          <strong>Call or text:</strong>
+          <a class="text-decoration-none" href="{{ $phone.href }}">{{ $phone.display }}</a>
         </li>
         <li>
-          <strong>{{ $tiltedBarnMarket }}</strong><br>
-          Wrapped up for the year on August 26. See you in June.
+          <strong>The farm:</strong>
+          <a class="text-decoration-none" href="{{ $address.href }}" target="_blank" rel="noopener" title="Directions to the farm">{{ $address.street }}, {{ $address.city }}, {{ $address.state }}</a>
         </li>
       </ul>
-      <p>
-        Once the markets close, we’re on the Village Green every Saturday
-        from 10:00 to 11:00 AM with online orders, starting October 17. Or
-        order for Thursday delivery, or pickup at the farm by appointment.
-      </p>
-      <h3 class="fs-4 mt-4">Get in touch</h3>
-      <p class="mb-0">
-        <strong>Email:</strong>
-        <a class="text-decoration-none" href="mailto:{{ $emailAddress }}">{{ $emailAddress }}</a><br>
-        <strong>Call or text:</strong>
-        <a class="text-decoration-none" href="{{ $phone.href }}">{{ $phone.display }}</a>
-      </p>
+      <a class="btn btn-primary" href="{{ relURL "contact/" }}">Contact us</a>
     </div>
-    <div class="col-md-6 col-xl-4 py-3 align-self-md-center">
-      <div class="card bg-success-subtle border border-1 border-success border-opacity-50 rounded-4" id="delivery-check">
-        <div class="card-body">
-          <h3 class="fs-4 card-title">Do we deliver to you?</h3>
-          <p class="card-text">
-            Type your ZIP code and we’ll tell you. Delivery is Thursdays,
-            with a ${{ $money.deliveryMinimum }} minimum and a
-            ${{ $money.deliveryFee }} fee, free on orders of
-            ${{ $money.feeWaivedAt }} or more.
-          </p>
-          {{ partial "zip-check.html" (dict "id" "home-zip") }}
-          <a class="btn btn-primary w-100 mt-3" href="{{ relURL "order/" }}">Order now</a>
-          <div class="d-flex justify-content-center pt-4 pb-1">
-            <div class="apppa-logo">
-              {{ partial "svg.html" "apppa-logo" }}
-            </div>
-          </div>
-        </div>
-      </div>
+    <div class="col-md-6 col-xl-5">
+      {{ partial "delivery-check.html" (dict "id" "home-zip" "anchor" "delivery-check") }}
+    </div>
+  </div>
+  <div class="row pb-5">
+    <div class="col d-flex justify-content-center">
+      <a class="apppa-logo" href="https://www.apppa.org/" target="_blank" rel="noopener" title="American Pastured Poultry Producers Association">
+        {{ partial "svg.html" "apppa-logo" }}
+        <span class="visually-hidden">Member, American Pastured Poultry Producers Association</span>
+      </a>
     </div>
   </div>
 </div>
