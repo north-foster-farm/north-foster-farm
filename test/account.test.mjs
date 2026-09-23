@@ -5,7 +5,9 @@ import {
   cancelOrder, changeOrder, claimVenmo, listOrders, requestReturn,
   resendInvoice, saveAddress, sendSupport, updateProfile,
 } from "../netlify/functions/lib/account.mjs";
-import { createSession } from "../netlify/functions/lib/auth.mjs";
+import {
+  createSession, publicCustomer,
+} from "../netlify/functions/lib/auth.mjs";
 import { markPaid } from "../netlify/functions/lib/payments.mjs";
 import {
   getCustomer, getOrder, saveCustomer, saveOrder,
@@ -289,24 +291,38 @@ describe("changeOrder", () => {
 });
 
 describe("profile and address", () => {
-  it("updates name, phone and a valid avatar", async () => {
+  it("updates the name in parts, the phone and a valid avatar", async () => {
     const stores = testStores();
     const ok = await updateProfile(stores, customerOf(), {
-      name: " Patricia ", phone: "401-555-0100", avatar: "rooster",
-    });
+      firstName: " Patricia ", lastName: "Example", phone: "401-555-0100",
+      avatar: "rooster", marketing: true,
+    }, { now: new Date("2026-09-23T15:00:00Z") });
 
-    assert.equal(ok.customer.name, "Patricia");
+    assert.equal(ok.customer.firstName, "Patricia");
+    assert.equal(ok.customer.lastName, "Example");
+    assert.equal(ok.customer.name, "Patricia Example");
+    assert.equal(ok.customer.marketing, true);
+    assert.equal(ok.customer.marketingAt, "2026-09-23T15:00:00.000Z");
+
+    const off = await updateProfile(stores, ok.customer, {
+      marketing: false,
+    }, { now: new Date("2026-09-24T15:00:00Z") });
+
+    assert.equal(off.customer.marketing, false);
+    assert.equal(off.customer.marketingAt, "2026-09-24T15:00:00.000Z");
+    assert.equal(publicCustomer(customerOf()).marketing, false,
+      "off unless the customer turned it on");
     assert.equal(ok.customer.avatar, "rooster");
     assert.equal((await getCustomer(stores, "pat@example.com")).avatar,
       "rooster");
 
     const bad = await updateProfile(stores, customerOf(), {
-      name: "", phone: "12", avatar: "dragon",
+      firstName: "", lastName: "", phone: "12", avatar: "dragon",
     });
 
     assert.equal(bad.status, 422);
     assert.deepEqual(Object.keys(bad.errors).sort(),
-      ["avatar", "name", "phone"]);
+      ["avatar", "firstName", "lastName", "phone"]);
   });
 
   it("turns reminder emails off and on, one at a time", async () => {
@@ -512,11 +528,13 @@ describe("the account endpoints", () => {
     assert.equal((await list.json()).orders[0].id, "A");
 
     const profile = await handle(req("/api/account/profile", "PATCH", {
-      name: "Pat", avatar: "chick", reminders: { delivery: false },
+      firstName: "Pat", lastName: "Example", avatar: "chick",
+      reminders: { delivery: false },
     }, session.id), { stores, ...opts });
     const me = (await profile.json()).customer;
 
     assert.equal(me.avatar, "chick");
+    assert.equal(me.name, "Pat Example");
     assert.deepEqual(me.reminders, { payment: true, delivery: false });
 
     const cancel = await handle(req("/api/account/orders/A/cancel", "POST",
