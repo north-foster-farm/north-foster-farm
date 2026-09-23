@@ -37,8 +37,8 @@ export const answerFor = (zip, area) => {
   if (info.status === "unlisted") {
     return {
       tone: "wait",
-      text: "A little outside our usual area. Place your order anyway and " +
-        "we'll confirm before we charge you.",
+      text: "A little outside our usual area: delivery is $3 more, and " +
+        "we'll confirm with you before we charge you.",
     };
   }
 
