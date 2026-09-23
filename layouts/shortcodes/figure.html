@@ -1,0 +1,30 @@
+{{/*
+  A captioned photo from assets/images, in the home page's frame.
+
+  Hugo's built-in figure prints `src` as written, which for a file
+  under assets/ is a path the browser cannot fetch. This one resolves
+  the file as a resource, resizes it to the width the home page uses,
+  and hands it to home/figure.html.
+
+    {{< figure src="images/lily.jpg" alt="…" caption="…" >}}
+
+  A caption that runs long goes inside the pair instead, where it can
+  wrap like prose:
+
+    {{< figure src="images/lily.jpg" alt="…" >}}
+    Caption text.
+    {{< /figure >}}
+*/}}
+{{ $src := .Get "src" }}
+{{ $image := resources.Get $src }}
+{{ if not $image }}
+  {{ errorf "figure: no image at assets/%s (%s)" $src .Position }}
+{{ end }}
+{{ $caption := .Get "caption" }}
+{{ with .Inner }}{{ $caption = . | markdownify }}{{ end }}
+{{ partial "home/figure.html" (dict
+  "image" ($image.Resize "1150x webp q82")
+  "alt" (.Get "alt")
+  "caption" $caption
+  "classes" "my-4")
+}}
