@@ -7,12 +7,16 @@ hand. Production carries none of it.
 
 ## What decides
 
-Netlify sets `CONTEXT` on every build and every function invocation:
-`production`, `deploy-preview`, `branch-deploy` or `dev`. Everything
-here keys on it.
+Two variables, one value each: `production`, `deploy-preview`,
+`branch-deploy` or `dev`. Netlify sets `CONTEXT` at build time, and
+the toolbar partial reads it then. A function sees nothing of it, so
+the functions read `SITE_CONTEXT`, a variable on Netlify with one
+value per context (set 2026-09-23). `lib/store.mjs` exports
+`deployContext`, which reads the first and falls back to the second.
+Unset means production: bare store names, no staging endpoints.
 
 - **Stores.** `lib/store.mjs` prefixes the Blobs store names with the
-  context unless it is production: a preview's orders live in
+  deploy context unless it is production: a preview's orders live in
   `deploy-preview-orders`, the staging branch's in
   `branch-deploy-orders`, production's in `orders`. A test order on a
   preview never lands beside a real one. `bin/nff --staging` and
@@ -35,7 +39,8 @@ here keys on it.
   required as a bearer token or `?token=`; the toolbar asks for it
   once and remembers it in the browser.
 - **Health.** `GET /api/health` reports `context`, so a deploy can be
-  asked which it is.
+  asked which it is. `null` on a non-production deploy means
+  `SITE_CONTEXT` is missing there, and the toolbar says so.
 
 ## The toolbar
 
@@ -81,7 +86,9 @@ stores.
 
 ## Setting it up
 
-On Netlify, for the `deploy-preview`, `branch-deploy` and `dev`
+On Netlify, `SITE_CONTEXT` with one value per context, named after
+the context (set 2026-09-23). Then, for the `deploy-preview`,
+`branch-deploy` and `dev`
 contexts only: `MAIL_DRIVER=outbox`, and `STAGING_TOKEN` if the
 outbox should not be open to anyone with the preview's address
 (magic links are in it). Leave production's `MAIL_DRIVER=resend`

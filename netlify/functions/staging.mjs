@@ -1,7 +1,7 @@
 // The staging toolbar's back end: the outbox of emails written instead
 // of sent (MAIL_DRIVER=outbox), and a trigger for the scheduled jobs,
 // which Netlify runs only on the production deploy. Answers only when
-// the deploy's CONTEXT is set and is not production; in production
+// the deploy's SITE_CONTEXT is set and is not production; in production
 // every path here is a 404, so nothing staging-only is reachable.
 //
 //   GET    /api/staging/info          context, mail driver, Square env
@@ -18,12 +18,15 @@ import { json, readJson } from "./lib/http.mjs";
 import { runJobs } from "./lib/jobs.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { OUTBOX_PREFIX } from "./lib/mail.mjs";
-import { stores as defaultStores } from "./lib/store.mjs";
+import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 import terms from "../../data/delivery.json" with { type: "json" };
 import { today } from "../../assets/scripts/order/lib/zoned.mjs";
 
-export const staging = (env = process.env) =>
-  !!env.CONTEXT && env.CONTEXT !== "production";
+export const staging = (env = process.env) => {
+  const context = deployContext(env);
+
+  return !!context && context !== "production";
+};
 
 const tokenOf = (req) => {
   const auth = req.headers.get("authorization") || "";
@@ -68,7 +71,7 @@ export const handle = async (req, {
 
   if (req.method === "GET" && path === "/api/staging/info") {
     return json(200, {
-      context: env.CONTEXT,
+      context: deployContext(env),
       mailDriver: env.MAIL_DRIVER || "log",
       squareEnv: env.SQUARE_ENV || "sandbox",
       siteUrl: env.SITE_URL || env.URL || null,

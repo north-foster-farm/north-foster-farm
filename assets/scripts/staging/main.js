@@ -158,11 +158,10 @@ const boot = async () => {
   root.hidden = false;
   const info = await api("/api/staging/info");
 
-  if (info.ok) {
-    qs("[data-staging-info]").textContent =
-      `${info.data.context} · mail ${info.data.mailDriver} · Square ${
-        info.data.squareEnv}`;
-  }
+  qs("[data-staging-info]").textContent = info.ok
+    ? `${info.data.context} · mail ${info.data.mailDriver} · Square ${
+      info.data.squareEnv}`
+    : "endpoints refused: SITE_CONTEXT is not set for this deploy";
   show(!!store(localStorage, KEY.open));
 };
 

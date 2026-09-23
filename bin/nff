@@ -70,8 +70,12 @@ const [
 
 // --staging and --preview act on that context's stores (store.mjs),
 // never production's.
-if (process.argv.includes("--staging")) process.env.CONTEXT = "branch-deploy";
-if (process.argv.includes("--preview")) process.env.CONTEXT = "deploy-preview";
+if (process.argv.includes("--staging")) {
+  process.env.SITE_CONTEXT = "branch-deploy";
+}
+if (process.argv.includes("--preview")) {
+  process.env.SITE_CONTEXT = "deploy-preview";
+}
 
 const stores = makeStores();
 const flags = {};
