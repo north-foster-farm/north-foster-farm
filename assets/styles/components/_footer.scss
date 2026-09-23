@@ -18,10 +18,20 @@ footer {
     height: 1.25rem;
   }
 
-  // The APPPA membership mark, above the social icons.
+  // The farm line: the APPPA mark, then name, address, phone and
+  // email on one centred line that wraps on a phone.
+  .footer-farm {
+    font-size: 0.875rem;
+    line-height: 1.8;
+  }
+
+  .footer-dot {
+    margin: 0 0.375rem;
+  }
+
   .apppa-logo {
     display: inline-block;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
 
     svg {
       display: block;
