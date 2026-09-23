@@ -349,7 +349,11 @@ Settings, Help) rendered from `GET /api/me` and
   `order.returns` and emailed to the farm.
 - Support: stored under `support/<email>/<id>` in the customers store
   and emailed to the farm, who replies by email.
-- Settings: name, phone, avatar, and the two reminder emails (payment,
+- Settings: first and last name (kept in parts, as the order form
+  takes them; `name` is rebuilt from them), phone, avatar, the farm
+  news opt-in (`marketing`, off unless the customer ticks it, with
+  `marketingAt` the date it last changed) and the
+  two reminder emails (payment,
   delivery) as checkboxes, saved through `PATCH /api/account/profile`
   as `reminders: { payment, delivery }`. The invoice, confirmations
   and order changes cannot be turned off.
