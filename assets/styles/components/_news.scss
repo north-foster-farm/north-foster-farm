@@ -1,0 +1,46 @@
+.news {
+  .text-column {
+    max-width: 700px;
+  }
+
+  h2 {
+    margin-top: 2.25rem;
+    margin-bottom: 1rem;
+  }
+
+  // The photos keep the home page's tinted frame.
+  .photo-frame {
+    background-color: rgb(190 217 187 / 84%);
+  }
+
+  .news-date {
+    font-size: $font-size-sm;
+    color: var(--bs-secondary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .news-item {
+    padding: 1.25rem 0;
+    border-bottom: 1px solid var(--bs-border-color);
+
+    &:first-child {
+      padding-top: 0;
+    }
+  }
+
+  .news-item-title {
+    margin: 0.25rem 0 0.5rem;
+    font-size: $h4-font-size;
+  }
+
+  .news-item-title a,
+  .news-nav a {
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      text-decoration: underline;
+    }
+  }
+}
