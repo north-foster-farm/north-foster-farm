@@ -1,48 +1,37 @@
 .home {
-  .hero {
-    color: $white;
-  }
-
   .photo-frame {
     background-color: rgb(190 217 187 / 84%);
   }
 
-  // The market band: the Tilted Barn photograph under a dark tint, the
-  // hero's treatment, with the copy centred over it.
-  .home-band {
-    position: relative;
-    overflow: hidden;
-    background-color: $gray-700;
-    color: $white;
+  // The update: the tint is the band, and the card on it is a shade
+  // off white, so the photographs and the delivery check stand on
+  // something quiet.
+  .home-update {
+    background-color: var(--bs-success-bg-subtle);
   }
 
-  .home-band-img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center 60%;
+  .home-update-card {
+    background-color: #fcfcfc;
   }
 
-  .home-band-overlay {
-    position: absolute;
-    inset: 0;
-    background-color: rgb(10 17 12 / 65%);
+  .home-update-cta {
+    margin: 1.25rem 0 1.5rem;
   }
 
-  .home-band-body {
-    position: relative;
-  }
+  // Get in touch: a line each.
+  .home-touch {
+    margin-bottom: 1.5rem;
 
-  // Where to find us: one market per item, a line each.
-  .home-where li + li {
-    margin-top: 0.75rem;
+    li + li {
+      margin-top: 0.5rem;
+    }
   }
 
   .apppa-logo {
+    display: block;
+
     svg {
-      height: 6rem;
+      height: 4.5rem;
       display: block;
     }
 
@@ -185,17 +174,10 @@
     }
   }
 
-  // How to buy: four flat steps. No cards: a faint gradient under the
-  // band and hairlines between the steps give the separation.
+  // The eyebrow, the title and the icon circle: the how-to-buy band's
+  // pieces, shared with the market section below the update.
 
-  .how {
-    padding-block: 3.5rem;
-    background-image: linear-gradient(
-      180deg, tint-color($green, 94%) 0%, var(--bs-body-bg) 70%
-    );
-  }
-
-  .how-eyebrow {
+  .home-eyebrow {
     margin-bottom: 0.375rem;
     text-align: center;
     font-size: 0.8125rem;
@@ -205,11 +187,37 @@
     color: var(--bs-green);
   }
 
-  .how-title {
+  .home-title {
     margin-bottom: 2.5rem;
     text-align: center;
     font-size: clamp(1.5rem, 4vw, 2.25rem);
     letter-spacing: -0.01em;
+  }
+
+  .home-icon {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 3.75rem;
+    height: 3.75rem;
+    border-radius: 50%;
+    background-color: tint-color($green, 88%);
+    color: var(--bs-green);
+
+    svg {
+      width: 1.75rem;
+      height: 1.75rem;
+    }
+  }
+
+  // How to buy: four flat steps. No cards: a faint gradient under the
+  // band and hairlines between the steps give the separation.
+
+  .how {
+    padding-block: 3.5rem;
+    background-image: linear-gradient(
+      180deg, tint-color($green, 94%) 0%, var(--bs-body-bg) 70%
+    );
   }
 
   .how-steps {
@@ -233,21 +241,8 @@
     }
   }
 
-  .how-icon {
-    position: relative;
+  .how-step .home-icon {
     grid-area: icon;
-    display: grid;
-    place-items: center;
-    width: 3.75rem;
-    height: 3.75rem;
-    border-radius: 50%;
-    background-color: tint-color($green, 88%);
-    color: var(--bs-green);
-
-    svg {
-      width: 1.75rem;
-      height: 1.75rem;
-    }
   }
 
   // The step number: a dark circle laid over the icon's corner.
@@ -288,6 +283,82 @@
       width: 100%;
       max-width: 24rem;
     }
+  }
+
+  // Where to find us: the three markets as flat columns, the
+  // how-to-buy shape without the numbers. One column on a phone, the
+  // icon beside the text; three across from lg.
+
+  .markets {
+    padding-block: 3.5rem;
+  }
+
+  .markets-list {
+    display: grid;
+    max-width: 520px;
+    margin: 0 auto 2rem;
+  }
+
+  .market {
+    display: grid;
+    grid-template-columns: 3.75rem 1fr;
+    grid-template-areas:
+      "icon name"
+      "icon when"
+      "icon where"
+      "icon season";
+    column-gap: 1.25rem;
+    align-content: start;
+    padding: 1.25rem 0;
+
+    & + & {
+      border-top: 1px solid var(--bs-border-color);
+    }
+
+    .home-icon {
+      grid-area: icon;
+    }
+  }
+
+  .market-name {
+    grid-area: name;
+    margin: 0.375rem 0 0.25rem;
+    font-size: 1.0625rem;
+
+    a {
+      text-decoration: none;
+
+      &:hover,
+      &:focus-visible {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  .market-when {
+    grid-area: when;
+    margin: 0;
+    font-weight: 600;
+  }
+
+  .market-where {
+    grid-area: where;
+    margin: 0;
+    color: var(--bs-secondary-color);
+  }
+
+  .market-season {
+    grid-area: season;
+    margin: 0.5rem 0 0;
+    color: var(--bs-secondary-color);
+    font-size: 0.9375rem;
+  }
+
+  .markets-note {
+    max-width: 36rem;
+    margin-inline: auto;
+    text-align: center;
+    color: var(--bs-secondary-color);
   }
 
   @media (min-width: 576px) {
@@ -350,7 +421,8 @@
       }
     }
 
-    .how-icon {
+    .how-step .home-icon,
+    .market .home-icon {
       width: 4.5rem;
       height: 4.5rem;
       margin-bottom: 0.75rem;
@@ -359,6 +431,33 @@
         width: 2rem;
         height: 2rem;
       }
+    }
+
+    .markets-list {
+      grid-template-columns: repeat(3, 1fr);
+      max-width: none;
+    }
+
+    .market {
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "icon"
+        "name"
+        "when"
+        "where"
+        "season";
+      justify-items: center;
+      padding: 0.5rem 1.5rem;
+      text-align: center;
+
+      & + & {
+        border-top: 0;
+        border-left: 1px solid var(--bs-border-color);
+      }
+    }
+
+    .market-name {
+      margin-top: 0;
     }
 
     .how-num {

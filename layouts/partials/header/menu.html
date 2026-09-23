@@ -1,8 +1,17 @@
 {{ $onOrder := eq .RelPermalink (relURL "order/") }}
-{{ $onAbout := eq .RelPermalink (relURL "about/") }}
 {{ $onLogin := eq .RelPermalink (relURL "login/") }}
 {{ $ctx := dict "onLogin" $onLogin }}
 {{ $accounts := .Site.Params.features.accounts }}
+{{/* The text links, in row order. Delivery points at the policy page
+     until the delivery page exists; Contact and News arrive in their
+     own pull requests. */}}
+{{ $links := slice
+  (dict "name" "Delivery" "path" "delivery-policy/")
+  (dict "name" "News" "path" "news/")
+  (dict "name" "About" "path" "about/")
+  (dict "name" "Contact" "path" "contact/")
+}}
+{{ $here := .RelPermalink }}
 <div class="container site-header-inner">
   <a class="site-brand" href="{{ .Site.BaseURL }}" aria-label="Home" {{- if .IsHome }} aria-current="page" {{ end }}>
     {{ partial "svg.html" "logo" }}
@@ -10,12 +19,15 @@
   <nav class="site-actions" aria-label="Main">
     {{/* From md up: the text links in the row. On a phone they live in
          the menu below; the row keeps the wordmark, Order and the
-         toggle. */}}
+         toggle. Sign in comes first so its fade-in never moves the
+         other links. */}}
     <div class="site-links">
       {{ if $accounts }}
         {{ partial "header/account-menu.html" (dict "flat" false "ctx" $ctx) }}
       {{ end }}
-      <a class="site-nav-link" href="{{ relURL "about/" }}" {{- if $onAbout }} aria-current="page" {{ end }}>About</a>
+      {{ range $links }}
+        <a class="site-nav-link" href="{{ relURL .path }}" {{- if eq $here (relURL .path) }} aria-current="page" {{ end }}>{{ .name }}</a>
+      {{ end }}
     </div>
     {{ if $onOrder }}
       <span class="site-order is-current" aria-current="page">Order</span>
@@ -36,13 +48,14 @@
     <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
   </div>
   <div class="offcanvas-body site-offcanvas-body">
-    <a class="site-nav-link" href="{{ relURL "about/" }}" {{- if $onAbout }} aria-current="page" {{ end }}>About</a>
     {{ if $onOrder }}
       <span class="site-nav-link is-current" aria-current="page">Order</span>
     {{ else }}
       <a class="site-nav-link" href="{{ relURL "order/" }}">Order</a>
     {{ end }}
-    <a class="site-nav-link" href="{{ relURL "delivery-policy/" }}">Delivery</a>
+    {{ range $links }}
+      <a class="site-nav-link" href="{{ relURL .path }}" {{- if eq $here (relURL .path) }} aria-current="page" {{ end }}>{{ .name }}</a>
+    {{ end }}
     {{ if $accounts }}
       <hr class="site-offcanvas-rule">
       {{ partial "header/account-menu.html" (dict "flat" true "ctx" $ctx) }}
