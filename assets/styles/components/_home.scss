@@ -460,6 +460,7 @@
     .markets-list {
       grid-template-columns: repeat(3, 1fr);
       max-width: none;
+      margin-bottom: 3rem;
     }
 
     .market {
@@ -471,7 +472,7 @@
         "where"
         "season";
       justify-items: center;
-      padding: 0.5rem 1.5rem;
+      padding: 0.75rem 1.5rem 1rem;
       text-align: center;
 
       & + & {
@@ -480,8 +481,20 @@
       }
     }
 
+    .home-band-body {
+      padding-block: 4.5rem;
+    }
+
+    .home-band .home-title {
+      margin-bottom: 3rem;
+    }
+
+    .market-season {
+      margin-top: 0.75rem;
+    }
+
     .market-name {
-      margin-top: 0;
+      margin-top: 0.875rem;
     }
 
     .how-num {
