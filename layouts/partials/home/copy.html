@@ -1,200 +1,115 @@
-{{ $fosterFarmersMarket := partial "link.html" (dict
-  "href" "https://www.fosterfarmersmarketri.com"
-  "innerHTML" "Foster Farmers Market"
-  "newTab" true
-  "title" "Foster Farmers Market website")
+{{/* The September 2026 update: online ordering, the three ways to get
+     an order, where delivery goes, and the delivery check. The towns
+     come from data/delivery.json, the same file the order form
+     checks, so the list here can never disagree with what the form
+     accepts. The three ways carry the order form's names, so a first
+     order reads the same on both pages.
+
+     Below the card, the market section: the three markets the farm
+     sells at during the season. */}}
+{{ $orderPage := partial "link.html" (dict
+  "href" (relURL "order/")
+  "innerHTML" "order page"
+  "title" "Order online from North Foster Farm")
 }}
-{{ $tiltedBarnMarket := partial "link.html" (dict
-  "href" "https://www.tiltedbarnbrewery.com/summer-market"
-  "innerHTML" "Summer Market at Tilted Barn"
-  "newTab" true
-  "title" "Summer Market at Tilted Barn")
+{{ $deliveryPolicy := partial "link.html" (dict
+  "href" (relURL "delivery-policy/")
+  "innerHTML" "delivery policy"
+  "title" "Delivery schedule, minimums, fees and area")
 }}
-{{ $nonGMO := partial "link.html" (dict
-  "href" "https://www.nongmoproject.org/"
-  "innerHTML" "non-GMO"
-  "newTab" true
-  "title" "The Non-GMO Project")
-}}
-{{ $freeOfGMOs := partial "link.html" (dict
-  "href" "https://www.nongmoproject.org/"
-  "innerHTML" "free of GMOs"
-  "newTab" true
-  "title" "The Non-GMO Project")
-}}
-{{ $pastureRaised := partial "link.html" (dict
-  "href" "https://www.getrealchicken.com/why-pasture-raised"
-  "innerHTML" "pasture-raised"
-  "newTab" true
-  "title" "Information about the benefits of pasture-raised farming from APPPA")
-}}
-{{ $moveThemToFreshPastureRegularly := partial "link.html" (dict
-  "href" "https://www.getrealchicken.com/why-pasture-raised"
-  "innerHTML" "move them to fresh pasture regularly"
-  "newTab" true
-  "title" "Information about the benefits of pasture-raised farming from APPPA")
-}}
-{{ $scituateFarmersMarket := partial "link.html" (dict
-  "href" "https://www.scituaterotaryfarmersmarket.com"
-  "innerHTML" "Scituate Rotary Farmers Market"
-  "newTab" true
-  "title" "Scituate Rotary Farmers Market website")
-}}
-{{ $instagram := partial "link.html" (dict
-  "href" "https://www.instagram.com/northfosterfarm"
-  "innerHTML" "@northfosterfarm on Instagram"
-  "newTab" true
-  "title" "North Foster Farm on Instagram")
+{{ $orderOnline := partial "link.html" (dict
+  "href" (relURL "order/")
+  "innerHTML" "order online"
+  "title" "Order online from North Foster Farm")
 }}
 {{ $email := hugo.Data.company.email }}
-{{ $emailSubject := "Add me to the NFF email list!" }}
-{{ $emailBody := "I'd like to get email updates from NFF please!" }}
-{{ $emailHref := printf "mailto:%s?subject=%s&body=%s" $email $emailSubject $emailBody }}
-{{ $emailAddress := partial "link.html" (dict
-  "href" $emailHref
-  "innerHTML" $email
-  "classes" "text-decorate-none")
+{{ $reachOut := partial "link.html" (dict
+  "href" (printf "mailto:%s?subject=Online%%20ordering" $email)
+  "innerHTML" $email)
 }}
-{{ $deliverySubject := "I'm interested in delivery" }}
-{{ $deliveryBody := "I'd like to hear more about delivery from NFF." }}
-{{ $deliveryHref := printf "mailto:%s?subject=%s&body=%s" $email $deliverySubject $deliveryBody }}
-{{ $deliveryEmail := partial "link.html" (dict
-  "href" $deliveryHref
-  "innerHTML" "send us an email"
-  "classes" "text-decorate-none")
-}}
-{{ $lilyImg := resources.Get "images/lily.jpg" }}
-{{ $tiltedMarketImg := resources.Get "images/tilted-market.jpg" }}
-{{ $scituateMarketImg := resources.Get "images/scituate-market.jpg" }}
-<div class="border-bottom border-light hero text-dark">
+
+{{/* The order page on a laptop, a PNG with a transparent background,
+     so it sits straight on the card without a frame. */}}
+{{ $shot := resources.Get "images/online-ordering.png" }}
+{{ $flyers := resources.Get "images/delivery-flyer_16x9.jpg" }}
+
+{{ $money := hugo.Data.delivery.money }}
+
+<div class="home-update border-bottom border-light">
   <div class="container">
     <div class="row py-3 py-md-5">
       <div class="col d-flex flex-column align-items-center py-3">
-        <div class="bg-success-subtle border border-1 border-success border-opacity-50 rounded-4 px-3 px-sm-5 py-3 py-sm-5">
+        <div class="home-update-card border border-1 border-success border-opacity-50 rounded-4 px-3 px-sm-5 py-3 py-sm-5">
           <div class="fmw-575 w-100">
-            <h2 class="text-center mb-4">
+            <h2 class="text-center mb-5">
               <span class="border-bottom">
-                August Update
+                September Update
               </span>
             </h2>
             {{ partial "home/figure.html" (dict
-              "image" ($lilyImg.Resize "1150x webp q82")
-              "alt" "Lily the sheep looking over the pasture fence on a summer afternoon"
-              "caption" "This is Lily. She doesn’t lay eggs, and she isn’t for sale!"
+              "image" ($shot.Resize "1150x webp q82")
+              "alt" "A laptop showing the North Foster Farm order page, with whole chickens and boneless breasts in the cart"
+              "caption" "Introducing: online ordering, on-farm pickup, and delivery."
+              "frame" false
               "lazy" false
               "classes" "mb-4")
             }}
             <p>
-              We can’t believe it’s August already. The summer has gone by so
-              quickly—it feels like we were setting up the brooder a couple of
-              weeks ago, and here we are already past the halfway point of the
-              market season. Things are going great out on the farm.
+              <strong>You can now order from us online.</strong> Visit the
+              {{ $orderPage }} to see our catalog, which includes everything
+              we bring to market, from eggs by the dozen to whole chickens,
+              sausage, and every cut in between.
             </p>
             <p>
-              If we haven’t met yet: we’re <strong>North Foster Farm</strong>,
-              a small family farm in Foster, Rhode Island. We raise chickens on
-              grass, {{ $moveThemToFreshPastureRegularly }}, and feed them
-              grain that’s {{ $freeOfGMOs }}. We think that’s how chickens
-              should be raised—and we think you can taste the difference.
+              <strong>The way it works:</strong> you pick what you want and
+              build your cart, then you pick how you want to receive it.
+              When you send us the order, we create an invoice and email it
+              back to you. Pay it, and your order is placed.
             </p>
             <p>
-              This week we moved another batch of chicks out of the brooder and
-              onto pasture, which is one of our favorite days of the season.
-              They spend their first few weeks indoors under heat lamps, and
-              once they’re fully feathered they graduate to the field. From
-              then on they live in mobile pens that we move onto fresh grass
-              every day.
+              There are three ways to get your order:
             </p>
-            {{ partial "home/figure.html" (dict
-              "image" ($tiltedMarketImg.Resize "1150x webp q82")
-              "alt" "Vendor tents set up in the field at Tilted Barn Brewery"
-              "caption" "Wednesday evening at Tilted Barn in Exeter"
-              "classes" "my-4")
-            }}
-            <p>
-              Our freezers are fully stocked, and right now we have the whole
-              lineup on hand:
-            </p>
+            <p class="fw-bold mb-1">Delivery</p>
             <ul>
-              <li class="pb-1"><strong>Eggs by the dozen</strong></li>
-              <li class="pb-1"><strong>Whole chickens</strong></li>
-              <li class="pb-1"><strong>Cornish hens</strong></li>
-              <li class="pb-1"><strong>Boneless breasts</strong></li>
-              <li class="pb-1"><strong>Bone-in thighs</strong></li>
-              <li class="pb-1"><strong>Tenders</strong></li>
-              <li class="pb-1"><strong>Drumsticks</strong></li>
-              <li class="pb-1"><strong>Wings</strong></li>
-              <li class="pb-1"><strong>Chicken sausage</strong> (maple breakfast
-                and sweet Italian)</li>
-              <li><strong>Livers</strong></li>
+              <li>We deliver every week on Thursday</li>
+              <li>Order as late as the day before</li>
+              <li>As affordable as possible: ${{ $money.deliveryMinimum }}
+                minimum, ${{ $money.deliveryFee }} fee</li>
             </ul>
-            <p>
-              Everything is available at all three of our weekly farmers
-              markets. We’d love for you to stop by, say hello, and see what
-              we’ve got.
-            </p>
-            <ul class="list-unstyled">
-              <li class="pb-2"><strong>{{ $tiltedBarnMarket }}:</strong>
-                <ul>
-                  <li>Wednesdays</li>
-                  <li>4:00 PM - 7:00 PM</li>
-                  <li>Tilted Barn Brewery, One Hemsley Place, Exeter, RI</li>
-                </ul>
-              </li>
-              <li class="pb-2"><strong>{{ $scituateFarmersMarket }}:</strong>
-                <ul>
-                  <li>Saturdays</li>
-                  <li>9:00 AM - 12:00 PM</li>
-                  <li>The Village Green, 46 Institute Lane, North Scituate, RI</li>
-                </ul>
-              </li>
-              <li><strong>{{ $fosterFarmersMarket }}:</strong>
-                <ul>
-                  <li>Sundays</li>
-                  <li>9:00 AM - 1:00 PM</li>
-                  <li>Shady Acres Diner, 164 Danielson Pike, Foster, RI</li>
-                </ul>
-              </li>
+            {{ partial "delivery-check.html" (dict
+              "id" "update-zip"
+              "class" "my-3"
+              "lede" (printf "We deliver to most of central Rhode Island and some communities in eastern Connecticut. Check your ZIP code below. For more details, see our %s." $deliveryPolicy))
+            }}
+            <p class="fw-bold mb-1">On-farm pickup</p>
+            <ul>
+              <li>Pickup on select weekdays, by appointment</li>
+              <li>No fee, no minimum</li>
             </ul>
-            <p>
-              We’re also getting close to something a lot of you have asked us
-              about: <strong>delivery</strong>. If you’re interested,
-              please {{ $deliveryEmail }} and we’ll get you more information.
-              We’ll publish full details on the website soon.
-            </p>
+            <p class="fw-bold mb-1">Scituate drop site</p>
+            <ul>
+              <li>Back on Saturday mornings, starting October 17</li>
+              <li>Pick up your order for free</li>
+            </ul>
             {{ partial "home/figure.html" (dict
-              "image" ($scituateMarketImg.Resize "1150x webp q82")
-              "alt" "Vendor tents lining the Village Green at the Scituate Rotary Farmers Market"
-              "caption" "Saturday morning on the Village Green in North Scituate"
+              "image" ($flyers.Resize "1150x webp q82")
+              "alt" "Five North Foster Farm delivery flyers fanned out on a green checked tablecloth"
               "classes" "my-4")
             }}
             <p>
-              This was our first year selling our own chicken, and honestly, we
-              weren’t sure what to expect. What means the most is how many of
-              you came back to tell us how it tasted—and then bought more. If
-              you’re old enough to remember chicken before it became a
-              “manufactured” product, you probably know what we mean. As we
-              like to say, pasture-raised chicken tastes like <em>chicken</em>.
+              Our freezers are fully stocked, and our hens, although slowing
+              down, will continue to lay for us all year round. We endeavor
+              to keep you fully supplied from here all the way to next market
+              season.
             </p>
             <p>
-              Thank you to everyone who has supported our farm this year. We
-              just can’t say “thank you” enough. We’ve got more good things
-              coming soon!
+              This is the first version of our online ordering system, and we
+              want to hear how it works for you. If anything is confusing, or
+              something you want isn’t there, or you run into any problems,
+              feel free to reach out at {{ $reachOut }}.
             </p>
-            <p class="fs-4 text-body-secondary mt-4">
+            <p class="fs-4 text-body-secondary mt-4 mb-0">
               — The NFF team
-            </p>
-          </div>
-          <div class="fmw-575 w-100">
-            {{ partial "separator.html" "my-1" }}
-          </div>
-          <div class="fmw-575 w-100">
-            <p>
-              Changes to our schedule and periodic updates will be posted on
-              our website. If you’d like to receive these occasional updates in
-              an email, please join our email list. Sign up by sending a
-              message to {{ $emailAddress }} with your email address. You can
-              also follow along with {{ $instagram }}.
             </p>
           </div>
         </div>
@@ -202,40 +117,64 @@
     </div>
   </div>
 </div>
-<div class="border-bottom border-light hero bg-img">
-  <div class="bg-overlay">
-    <div class="container">
-      <div class="row py-5 py-xl-6">
-        <div class="py-0 py-xxl-6">
-          <div class="col d-flex flex-column align-items-center py-3">
-            <div class="fmw-575 w-100 text-center">
-              <h2>We love eggs.</h2>
-              <p>
-                Over the years we’ve purchased all kinds of eggs from the store:
-                inexpensive eggs, eggs called “free-range”, eggs called
-                “cage-free”, and more recently, eggs called “pasture-raised”.
-                Some of these labels sound better than others, but we eventually
-                learned the truth about each of these categories. In fact,
-                pasture-raised eggs stand head and shoulders above the rest.
-              </p>
-              <p>
-                At North Foster Farm, we proudly produce pasture-raised eggs. At
-                night, our hens are kept inside a secure mobile coop. During the
-                day, they spend their time on grass, enjoying fresh air,
-                sunshine, and abundant access to clean water and fresh feed. They
-                roam freely in a safe enclosure and enjoy grasses and
-                insects—just like chickens are supposed to.
-              </p>
-              <p>
-                After about a week, when the “good stuff” begins to dwindle, we
-                move them (coop and all) to a new spot in the pasture to start
-                fresh. As a result, we have happy, healthy hens that lay healthy,
-                delicious eggs.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+
+{{/* Where to find us: the three markets, each with its day, its
+     place and its season, over the Tilted Barn photograph under a
+     dark tint, the hero's treatment. Evergreen: no dates that expire.
+     The drop site is not a market and is not here; the card above and
+     the order page carry it. */}}
+{{ $markets := slice
+  (dict
+    "name" "Scituate Rotary Farmers Market"
+    "href" "https://www.scituaterotaryfarmersmarket.com"
+    "when" "Saturdays, 9:00 AM – 12:00 PM"
+    "where" "The Village Green, 46 Institute Lane, North Scituate"
+    "season" "June through early October")
+  (dict
+    "name" "Foster Farmers Market"
+    "href" "https://www.fosterfarmersmarketri.com"
+    "when" "Sundays, 9:00 AM – 1:00 PM"
+    "where" "Shady Acres Diner, 164 Danielson Pike, Foster"
+    "season" "June through October")
+  (dict
+    "name" "Summer Market at Tilted Barn"
+    "href" "https://www.tiltedbarnbrewery.com/summer-market"
+    "when" "Wednesdays, 4:00 – 7:00 PM"
+    "where" "Tilted Barn Brewery, One Hemsley Place, Exeter"
+    "season" "June through August")
+}}
+{{ $market := resources.Get "images/tilted-market.jpg" }}
+{{ $widths := slice 800 1200 1600 2200 }}
+{{ $srcset := slice }}
+{{ range $widths }}
+  {{ $img := $market.Resize (printf "%dx webp q82" .) }}
+  {{ $srcset = $srcset | append (printf "%s %dw" $img.RelPermalink .) }}
+{{ end }}
+{{ $fallback := $market.Resize "1600x jpg q82" }}
+<div class="markets home-band border-bottom border-light">
+  <img class="home-band-img" src="{{ $fallback.RelPermalink }}" srcset="{{ delimit $srcset ", " }}" sizes="100vw" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="" loading="lazy">
+  <div class="home-band-overlay"></div>
+  <div class="home-band-body container">
+    <p class="home-eyebrow">Where to find us</p>
+    <h2 class="home-title">We’ll see you at the market</h2>
+    <ul class="markets-list list-unstyled">
+      {{ range $markets }}
+        <li class="market">
+          <span class="home-icon" aria-hidden="true">
+            {{ partial "svg.html" "icons/sign" }}
+          </span>
+          <h3 class="market-name">
+            <a href="{{ .href }}" target="_blank" rel="noopener" title="{{ .name }} website">{{ .name }}</a>
+          </h3>
+          <p class="market-when">{{ .when }}</p>
+          <p class="market-where">{{ .where }}</p>
+          <p class="market-season">{{ .season }}</p>
+        </li>
+      {{ end }}
+    </ul>
+    <p class="markets-note mb-0">
+      Between seasons, {{ $orderOnline }} for Thursday delivery, on-farm
+      pickup, or the Saturday drop site on the Village Green.
+    </p>
   </div>
 </div>
