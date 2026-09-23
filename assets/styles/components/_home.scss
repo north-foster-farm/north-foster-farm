@@ -86,10 +86,13 @@
 
   // The contrast: a dark line around the letters, drawn under the fill
   // so the letterforms keep their weight, and a soft shadow behind
-  // them for the bright patches of grass and sky.
+  // them for the bright patches of grass and sky. The line scales
+  // with the type: fixed pixels that suit a 32px title on a phone all
+  // but vanish under a 72px title on a 1x desktop screen. The floor
+  // keeps the phone exactly as it was.
   .home-hero-title,
   .home-hero-sub {
-    -webkit-text-stroke: 1.8px rgb(0 0 0 / 80%);
+    -webkit-text-stroke: max(1.8px, 0.055em) rgb(0 0 0 / 80%);
     paint-order: stroke fill;
     text-shadow:
       0 1px 3px rgb(0 0 0 / 50%),
