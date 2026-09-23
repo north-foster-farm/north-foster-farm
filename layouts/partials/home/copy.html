@@ -35,6 +35,11 @@
   "newTab" true
   "title" "North Foster Farm on Instagram")
 }}
+{{ $newsPage := partial "link.html" (dict
+  "href" (relURL "news/")
+  "innerHTML" "Earlier updates"
+  "title" "Every update we have posted, newest first")
+}}
 {{ $email := hugo.Data.company.email }}
 {{ $emailSubject := "Add me to the NFF email list!" }}
 {{ $emailBody := "I'd like to get email updates from NFF please!" }}
@@ -172,10 +177,11 @@
           <div class="fmw-575 w-100">
             <p>
               Changes to our schedule and periodic updates will be posted on
-              our website. If you’d like to receive these occasional updates in
-              an email, please join our email list. Sign up by sending a
-              message to {{ $emailAddress }} with your email address. You can
-              also follow along with {{ $instagram }}.
+              our website. {{ $newsPage }} are on the news page. If you’d
+              like to receive these occasional updates in an email, please
+              join our email list. Sign up by sending a message to
+              {{ $emailAddress }} with your email address. You can also
+              follow along with {{ $instagram }}.
             </p>
           </div>
         </div>
