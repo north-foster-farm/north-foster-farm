@@ -737,6 +737,26 @@ export const magicLink = (email, url, { minutes = 15, links } = {}) => {
   return { subject: title, ...render(title, blocks, links) };
 };
 
+// Farm news: the one click that puts an address on the list. Sent to
+// anyone who asks on the site, and to the old list when it is asked
+// to opt in again. Nothing else is ever sent before that click.
+export const newsConfirm = (email, url, {
+  firstName = "", days = 7, links,
+} = {}) => {
+  const title = "Confirm your email for farm news";
+  const blocks = [
+    p(`${firstName ? `Hi ${firstName}, t` : "T"}his is the one click that ` +
+      `puts ${email} on the list for news and offers from North Foster ` +
+      "Farm, now and then. Nothing is sent until you do."),
+    button("Yes, sign me up", url),
+    p(`This link works for ${days} days. If you didn't ask for this, ` +
+      "ignore it and nothing happens."),
+    row([["Need help? Contact us", contactUrl(links)]]),
+  ];
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
 // --- To the farm ---------------------------------------------------
 //
 // Square tells the farm nothing about an invoice the farm's own
