@@ -12,6 +12,18 @@ import { getStore } from "@netlify/blobs";
 
 export const STORES = ["orders", "customers", "auth", "stock", "jobs"];
 
+// Netlify sets CONTEXT on every deploy and function: production,
+// deploy-preview, branch-deploy, dev. Only production uses the bare
+// store names. Every other context keeps its own data under a
+// prefixed name, so a preview's test order never lands beside a real
+// one, and the staging branch's data survives its deploys. The CLI
+// reaches a context's stores with --staging or --preview.
+export const storeName = (name, env = process.env) => {
+  const context = env.CONTEXT || "";
+
+  return context && context !== "production" ? `${context}-${name}` : name;
+};
+
 const wrap = (blobs) => ({
   get: (key) => blobs.get(key, { type: "json" }),
   set: (key, value) => blobs.setJSON(key, value),
@@ -59,9 +71,9 @@ export const stores = (env = process.env) => {
       const onNetlify = !!(env.NETLIFY_BLOBS_CONTEXT
         || globalThis.netlifyBlobsContext);
       const options = onNetlify
-        ? { name, consistency: "strong" }
+        ? { name: storeName(name, env), consistency: "strong" }
         : {
-          name,
+          name: storeName(name, env),
           consistency: "strong",
           siteID: env.NETLIFY_SITE_ID,
           token: env.NETLIFY_AUTH_TOKEN,

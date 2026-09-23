@@ -37,7 +37,10 @@ const USAGE = `Usage:
   bin/nff masquerade <email>          open a sign-in link as them
   bin/nff jobs run
   bin/nff jobs history [--n=20]       the last runs: errors, invariants
-  bin/nff health                      what /api/health would answer`;
+  bin/nff health                      what /api/health would answer
+
+  --staging, --preview                act on that deploy context's
+                                      data instead of production's`;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -64,6 +67,11 @@ const [
   import("../assets/scripts/order/lib/totals.mjs"),
   import("../netlify/functions/health.mjs"),
 ]);
+
+// --staging and --preview act on that context's stores (store.mjs),
+// never production's.
+if (process.argv.includes("--staging")) process.env.CONTEXT = "branch-deploy";
+if (process.argv.includes("--preview")) process.env.CONTEXT = "deploy-preview";
 
 const stores = makeStores();
 const flags = {};
