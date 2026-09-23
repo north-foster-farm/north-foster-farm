@@ -2,16 +2,16 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  cancelOrder, changeOrder, claimVenmo, listOrders, requestReturn,
-  resendInvoice, saveAddress, sendSupport, updateProfile,
+  cancelOrder, changeOrder, listOrders, requestReturn, saveAddress,
+  sendSupport, updateProfile,
 } from "../netlify/functions/lib/account.mjs";
 import {
   createSession, publicCustomer,
 } from "../netlify/functions/lib/auth.mjs";
-import { markPaid } from "../netlify/functions/lib/payments.mjs";
 import {
   getCustomer, getOrder, saveCustomer, saveOrder,
 } from "../netlify/functions/lib/records.mjs";
+import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle } from "../netlify/functions/account.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
@@ -21,10 +21,12 @@ const TZ = "America/New_York";
 const now = instant("2026-10-05", 9, 0, TZ);
 const env = { ADMIN_EMAILS: "farm@example.com", URL: "https://x" };
 
+// Born paid, by card through Square.
 const order = (id, method = "delivery", email = "pat@example.com") => ({
   id,
-  status: "submitted",
+  status: "paid",
   submittedAt: now.toISOString(),
+  paidAt: now.toISOString(),
   customer: { name: "Pat Example", email, phone: "" },
   lines: [
     { sku: "A", label: "Eggs (per dozen), Large", qty: 1, unitPrice: 7,
@@ -42,9 +44,11 @@ const order = (id, method = "delivery", email = "pat@example.com") => ({
     } : null,
   },
   notes: "",
-  square: {
-    squareOrderId: "SQO", invoiceId: `INV-${id}`, invoiceUrl: "https://pay",
-    invoiceNumber: "7",
+  square: { squareOrderId: "SQO", customerId: "CUST" },
+  payment: {
+    via: "square", method: "card", at: now.toISOString(),
+    squarePaymentId: `PAY-${id}`, receiptUrl: "https://r/x", brand: "VISA",
+    last4: "4242",
   },
 });
 
@@ -69,10 +73,6 @@ const harness = () => {
         return { id: `m${sent.length}`, driver: "test" };
       },
       square: {
-        cancelInvoice: async (id) => { calls.push(["cancelInvoice", id]); },
-        cancelFulfilment: async (id) => {
-          calls.push(["cancelFulfilment", id]);
-        },
         updateFulfilment: async (id, o) => {
           calls.push(["updateFulfilment", id, o.fulfilment.date]);
         },
@@ -95,49 +95,79 @@ describe("listOrders", () => {
       const { orders } = await listOrders(stores, customerOf(), { now });
 
       assert.deepEqual(orders.map((o) => o.id), ["B", "A"]);
-      assert.equal(orders[0].invoice.url, "https://pay");
+      assert.deepEqual(orders[0].payment, {
+        via: "square", method: "card", brand: "VISA", last4: "4242",
+        receiptUrl: "https://r/x",
+      });
+      assert.equal(orders[0].refund, null);
+      assert.equal(orders[0].invoice, undefined);
+      assert.equal(orders[0].paymentPending, undefined);
       assert.equal(orders[0].canCancel, true);
+      assert.equal(orders[0].canChange, true);
       assert.equal(orders[0].square, undefined);
       assert.equal(orders[0].history, undefined);
     });
+
+  it("shows a refund, and a record with no payment shows none", async () => {
+    const stores = testStores();
+
+    await saveOrder(stores, {
+      ...order("A"),
+      refund: {
+        at: "2026-10-06T00:00:00Z", source: "farm", amount: 1200, total: true,
+        squareRefundId: "SQR-1", paypalRefundId: null, status: "PENDING",
+      },
+    });
+    await saveOrder(stores, { ...order("B"), payment: null });
+
+    const { orders } = await listOrders(stores, customerOf(), { now });
+    const a = orders.find((o) => o.id === "A");
+    const b = orders.find((o) => o.id === "B");
+
+    assert.deepEqual(a.refund, {
+      at: "2026-10-06T00:00:00Z", amount: 1200, total: true,
+    });
+    assert.equal(b.payment, null);
+  });
 });
 
 describe("cancelOrder", () => {
-  it("cancels an unpaid order, closes Square and emails", async () => {
+  it("flags the order for a refund, puts the stock back and tells the " +
+    "farm what to run", async () => {
     const stores = testStores();
     const { sent, calls, opts } = harness();
 
+    await setCount(stores, "A", 3);
     await saveOrder(stores, order("A"), now);
     const r = await cancelOrder(stores, customerOf(), "A", opts);
 
     assert.equal(r.ok, true);
-    assert.equal(r.order.status, "cancelled");
-    assert.deepEqual(calls, [
-      ["cancelInvoice", "INV-A"], ["cancelFulfilment", "SQO"],
-    ]);
-    assert.equal(sent.length, 1);
-    assert.match(sent[0].subject, /cancelled/);
-    assert.match(sent[0].text, /you were not charged/);
-  });
-
-  it("flags a paid order for refund and tells the farm", async () => {
-    const stores = testStores();
-    const { sent, calls, opts } = harness();
-
-    await saveOrder(stores, order("A"), now);
-    await markPaid(stores, "A", { ...opts, now });
-    sent.length = 0;
-    const r = await cancelOrder(stores, customerOf(), "A", opts);
-
-    assert.equal(r.ok, true);
-    assert.equal(r.order.status, "paid");
+    assert.equal(r.order.status, "paid", "closed by the farm, not here");
     assert.equal(r.order.cancelRequested, true);
     assert.equal(r.order.canCancel, false);
-    assert.deepEqual(calls, []);
+    assert.equal(r.order.canChange, false);
+    assert.deepEqual(calls, [], "Square is touched from the CLI");
+    assert.equal((await getCounts(stores)).A, 4);
     assert.equal(sent.length, 2);
+    assert.match(sent[0].subject, /cancelled/);
     assert.match(sent[0].text, /refund is on its way/);
     assert.deepEqual(sent[1].to, ["farm@example.com"]);
-    assert.match(sent[1].subject, /Refund needed/);
+    assert.equal(sent[1].subject,
+      "Refund needed: A cancelled by pat@example.com");
+    assert.match(sent[1].text, /bin\/nff orders cancel A --refund/);
+    assert.match(sent[1].html,
+      /<code>bin\/nff orders cancel A --refund<\/code>/);
+
+    const saved = await getOrder(stores, "A");
+
+    assert.equal(saved.cancelRequestedAt, now.toISOString());
+    assert.equal(saved.history.at(-2).event, "cancel.requested");
+
+    // Asking twice is refused: the first request already stands.
+    const again = await cancelOrder(stores, customerOf(), "A", opts);
+
+    assert.equal(again.status, 409);
+    assert.equal(sent.length, 2);
   });
 
   it("refuses someone else's order, and one past the cutoff", async () => {
@@ -260,9 +290,10 @@ describe("changeOrder", () => {
       });
 
       assert.equal(r.ok, true);
-      assert.equal(r.order.status, "cancelled");
+      assert.equal(r.order.cancelRequested, true, "the farm refunds");
       assert.equal(r.order.question.answer, "cancel");
       assert.match(sent[0].subject, /cancelled/);
+      assert.match(sent[0].text, /refund is on its way/);
 
       // Without a question the cutoff still closes the doors.
       await saveOrder(stores, order("B", "onfarm"), now);
@@ -325,32 +356,30 @@ describe("profile and address", () => {
       ["avatar", "firstName", "lastName", "phone"]);
   });
 
-  it("turns reminder emails off and on, one at a time", async () => {
+  it("turns the delivery reminder off and on", async () => {
     const stores = testStores();
     const saved = await saveCustomer(stores, customerOf());
     const off = await updateProfile(stores, saved, {
-      reminders: { payment: false },
-    });
-
-    assert.deepEqual(off.customer.reminders,
-      { payment: false, delivery: true });
-
-    // A key left out is unchanged; anything truthy is on.
-    const on = await updateProfile(stores, off.customer, {
       reminders: { delivery: 0 },
     });
 
-    assert.deepEqual(on.customer.reminders,
-      { payment: false, delivery: false });
+    assert.deepEqual(off.customer.reminders, { delivery: false });
     assert.deepEqual((await getCustomer(stores, "pat@example.com")).reminders,
-      { payment: false, delivery: false });
+      { delivery: false });
 
-    const back = await updateProfile(stores, on.customer, {
-      reminders: { payment: true, delivery: true },
+    // A key left out is unchanged; one that no longer exists (payment
+    // reminders, from when an order could be unpaid) is ignored.
+    const same = await updateProfile(stores, off.customer, {
+      reminders: { payment: true },
     });
 
-    assert.deepEqual(back.customer.reminders,
-      { payment: true, delivery: true });
+    assert.deepEqual(same.customer.reminders, { delivery: false });
+
+    const back = await updateProfile(stores, same.customer, {
+      reminders: { delivery: 1 },
+    });
+
+    assert.deepEqual(back.customer.reminders, { delivery: true });
     assert.equal((await updateProfile(stores, saved, { reminders: "no" }))
       .status, 422);
   });
@@ -401,74 +430,17 @@ describe("profile and address", () => {
   });
 });
 
-describe("resend the invoice, and Venmo", () => {
-  it("sends the pay link again, five times at most", async () => {
-    const stores = testStores();
-    const { sent, opts } = harness();
-    const withAccounts = {
-      ...opts, env: { ...env, ACCOUNTS_ENABLED: "true" },
-    };
-
-    await saveOrder(stores, order("A"), now);
-    for (let i = 1; i <= 5; i += 1) {
-      const r = await resendInvoice(stores, customerOf(), "A", withAccounts);
-
-      assert.equal(r.ok, true, `resend ${i}`);
-    }
-    assert.equal(sent.length, 5);
-    assert.equal(sent[0].subject, "One more step: pay for your order");
-    assert.match(sent[0].text, /To pay by Venmo instead, send \$12 to/);
-    assert.match(sent[0].text,
-      /View or edit this order: https:\/\/x\/account\/orders\/A\//);
-    assert.ok((await getOrder(stores, "A")).emails["invoiceResent-5"]);
-
-    const sixth = await resendInvoice(stores, customerOf(), "A", withAccounts);
-
-    assert.equal(sixth.status, 429);
-    assert.equal(sent.length, 5);
-
-    await markPaid(stores, "A", opts);
-    assert.equal((await resendInvoice(stores, customerOf(), "A", opts)).status,
-      409);
-  });
-
-  it("holds an order the customer says they paid by Venmo and tells the " +
-    "farm", async () => {
-    const stores = testStores();
-    const { sent, opts } = harness();
-
-    await saveOrder(stores, order("A"), now);
-    const r = await claimVenmo(stores, customerOf(), "A", opts);
-
-    assert.equal(r.ok, true);
-    assert.deepEqual(r.order.paymentPending, { source: "venmo" });
-    assert.equal(sent.length, 1);
-    assert.deepEqual(sent[0].to, ["farm@example.com"]);
-    assert.equal(sent[0].subject, "Venmo to check: order A — $12");
-    assert.match(sent[0].text,
-      /\*\*\$12 from Pat Example with A in the note\*\*/);
-    assert.match(sent[0].text, /bin\/nff orders paid A --via venmo/);
-    assert.match(sent[0].text, /bin\/nff orders unpaid A/);
-
-    const twice = await claimVenmo(stores, customerOf(), "A", opts);
-
-    assert.equal(twice.status, 409);
-    assert.equal(sent.length, 1);
-  });
-});
-
 describe("returns and support", () => {
   it("records a return request on a paid order and tells the farm",
     async () => {
       const stores = testStores();
       const { sent, opts } = harness();
 
-      await saveOrder(stores, order("A"), now);
-      assert.equal((await requestReturn(stores, customerOf(), "A", {
+      await saveOrder(stores, { ...order("Z"), status: "cancelled" }, now);
+      assert.equal((await requestReturn(stores, customerOf(), "Z", {
         reason: "x",
-      }, opts)).status, 409, "unpaid orders have nothing to return");
-
-      await markPaid(stores, "A", { ...opts, now });
+      }, opts)).status, 409, "a cancelled order has nothing to return");
+      await saveOrder(stores, order("A"), now);
       sent.length = 0;
       const r = await requestReturn(stores, customerOf(), "A", {
         reason: "One pack was thawed", skus: ["A", "nope"],
@@ -535,18 +507,26 @@ describe("the account endpoints", () => {
 
     assert.equal(me.avatar, "chick");
     assert.equal(me.name, "Pat Example");
-    assert.deepEqual(me.reminders, { payment: true, delivery: false });
+    assert.deepEqual(me.reminders, { delivery: false });
 
     const cancel = await handle(req("/api/account/orders/A/cancel", "POST",
       {}, session.id), { stores, ...opts });
 
     assert.equal(cancel.status, 200);
-    assert.equal((await cancel.json()).order.status, "cancelled");
+    assert.equal((await cancel.json()).order.cancelRequested, true);
 
     const missing = await handle(req("/api/account/orders/ZZZZZZ/cancel",
       "POST", {}, session.id), { stores, ...opts });
 
     assert.equal(missing.status, 404);
+
+    // The pay-link and Venmo routes went with the invoice.
+    for (const gone of ["resend", "venmo"]) {
+      const r = await handle(req(`/api/account/orders/A/${gone}`, "POST",
+        {}, session.id), { stores, ...opts });
+
+      assert.equal(r.status, 404, gone);
+    }
   });
 
   it("refuses cross-site posts", async () => {

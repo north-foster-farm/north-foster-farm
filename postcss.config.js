@@ -53,6 +53,12 @@ const plugins = [
         "data-on",
         "data-open",
         "readonly",
+        "data-pay-state",
+        "loading",
+        "ready",
+        "venmo-only",
+        "unavailable",
+        "good",
       ];
     },
     safelist: {

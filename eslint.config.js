@@ -82,8 +82,13 @@ module.exports = [
     },
   },
   {
-    // Square's request and response bodies are snake_case.
-    "files": ["netlify/functions/lib/square.mjs", "test/square.test.mjs"],
+    // Square's and PayPal's request and response bodies are snake_case.
+    "files": [
+      "netlify/functions/lib/square.mjs", "test/square.test.mjs",
+      "netlify/functions/lib/paypal.mjs", "test/paypal.test.mjs",
+      "netlify/functions/paypal-webhook.mjs", "test/checkout.test.mjs",
+      "test/payments.test.mjs",
+    ],
     "rules": {
       "camelcase": ["error", { "properties": "never" }],
     },

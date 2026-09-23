@@ -2,10 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  SquareError, buildInvoice, buildOrder, closeBankTransfer,
-  createOrderAndInvoice, dashboardUrl, e164, settings,
+  SquareError, buildOrder, cancelOrder, clientConfig, createOrder,
+  createPayment, dashboardUrl, e164, getPayment, refundPayment, settings,
 } from "../netlify/functions/lib/square.mjs";
-import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 
 const env = {
   SQUARE_ACCESS_TOKEN: "tok",
@@ -13,7 +12,7 @@ const env = {
   SQUARE_ENV: "sandbox",
 };
 const cfg = settings(env);
-const now = instant("2026-10-06", 9, 0, "America/New_York");
+const KEY = "0123456789abcdef0123456789abcdef";
 
 const order = (overrides = {}) => ({
   id: "NFF-2610-ABCD",
@@ -70,6 +69,14 @@ const fakeFetch = (answers) => {
   return { impl, calls };
 };
 
+const completed = (extra = {}) => ({
+  payment: {
+    id: "PAY-1", status: "COMPLETED", receipt_url: "https://sq/receipt",
+    card_details: { card: { card_brand: "VISA", last_4: "4242" } },
+    ...extra,
+  },
+});
+
 describe("settings", () => {
   it("fails fast without credentials", () => {
     assert.throws(() => settings({}), SquareError);
@@ -79,6 +86,32 @@ describe("settings", () => {
     assert.match(cfg.host, /squareupsandbox/);
     assert.match(settings({ ...env, SQUARE_ENV: "production" }).host,
       /connect\.squareup\.com/);
+  });
+});
+
+describe("clientConfig", () => {
+  it("is null until the application id is set", () => {
+    assert.equal(clientConfig(env), null);
+    assert.equal(clientConfig({ SQUARE_APPLICATION_ID: "app" }), null,
+      "the location is needed too");
+  });
+
+  it("names the SDK for the right Square", () => {
+    const sandbox = clientConfig({ ...env, SQUARE_APPLICATION_ID: "sb-app" });
+
+    assert.deepEqual(sandbox, {
+      applicationId: "sb-app",
+      locationId: "LOC",
+      env: "sandbox",
+      sdkUrl: "https://sandbox.web.squarecdn.com/v1/square.js",
+    });
+
+    const live = clientConfig({
+      ...env, SQUARE_ENV: "production", SQUARE_APPLICATION_ID: "sq-app",
+    });
+
+    assert.equal(live.env, "production");
+    assert.equal(live.sdkUrl, "https://web.squarecdn.com/v1/square.js");
   });
 });
 
@@ -135,7 +168,7 @@ describe("buildOrder", () => {
     assert.equal(o.service_charges, undefined);
   });
 
-  it("splits the outside-area fee onto its own invoice line", () => {
+  it("splits the outside-area fee onto its own line", () => {
     const o = buildOrder(order({
       fulfilment: { method: "delivery", date: "2026-10-08", onfarm: null,
         delivery: { address1: "1 Main St", address2: "", town: "Coventry",
@@ -201,137 +234,40 @@ describe("buildOrder", () => {
   });
 });
 
-describe("buildInvoice", () => {
-  it("is due the day before, never earlier than today", () => {
-    const inv = buildInvoice(order(), "SQO", "CUST", cfg, now);
+describe("createOrder", () => {
+  it("searches, creates the customer and the order with derived keys",
+    async () => {
+      const { impl, calls } = fakeFetch({
+        "/v2/customers/search": { customers: [] },
+        "/v2/customers": { customer: { id: "CUST" } },
+        "/v2/orders": { order: { id: "SQO" } },
+      });
+      const out = await createOrder(order(), KEY, { env, fetchImpl: impl });
 
-    assert.equal(inv.order_id, "SQO");
-    assert.equal(inv.payment_requests[0].due_date, "2026-10-06");
-    assert.equal(inv.delivery_method, "EMAIL");
-    assert.equal(inv.accepted_payment_methods.card, true);
-    assert.match(inv.description, /On-farm pickup on Wednesday, October 7/);
-  });
-
-  it("is due the day before a later date", () => {
-    const o = order();
-
-    o.fulfilment.date = "2026-10-15";
-    const inv = buildInvoice(o, "SQO", "CUST", cfg, now);
-
-    assert.equal(inv.payment_requests[0].due_date, "2026-10-14");
-  });
-
-  it("offers bank transfer only when it can clear in time", () => {
-    // `now` is Tuesday 6 October. Business days after it: the 7th is
-    // one, Monday the 12th is four, Tuesday the 13th is five.
-    const offered = (date) => {
-      const o = order();
-
-      o.fulfilment.date = date;
-
-      return buildInvoice(o, "SQO", "CUST", cfg, now)
-        .accepted_payment_methods.bank_account;
-    };
-
-    assert.equal(offered("2026-10-07"), false);
-    assert.equal(offered("2026-10-12"), false);
-    assert.equal(offered("2026-10-13"), true);
-  });
-});
-
-describe("closeBankTransfer", () => {
-  const answers = (status) => ({
-    "/v2/invoices/INV": (n) => new Response(JSON.stringify(n === 1
-      ? { invoice: { id: "INV", status, version: 3 } }
-      : { invoice: { id: "INV", status, version: 4 } })),
-  });
-
-  it("reads the version, then edits the methods to card only", async () => {
-    const { impl, calls } = fakeFetch(answers("UNPAID"));
-    const out = await closeBankTransfer("INV", { env, fetchImpl: impl });
-
-    assert.deepEqual(out, { id: "INV", status: "UNPAID", closed: true });
-    assert.equal(calls.length, 2);
-    assert.equal(calls[0].method, "GET");
-    assert.equal(calls[1].method, "PUT");
-    assert.equal(calls[1].body.invoice.version, 3);
-    assert.equal(calls[1].body.invoice.accepted_payment_methods.card, true);
-    assert.equal(
-      calls[1].body.invoice.accepted_payment_methods.bank_account, false
-    );
-  });
-
-  it("leaves an invoice that is no longer unpaid alone", async () => {
-    const { impl, calls } = fakeFetch(answers("PAYMENT_PENDING"));
-    const out = await closeBankTransfer("INV", { env, fetchImpl: impl });
-
-    assert.equal(out.closed, false);
-    assert.equal(calls.length, 1);
-  });
-});
-
-describe("createOrderAndInvoice", () => {
-  it("says whether the invoice offered bank transfer", async () => {
-    const { impl } = fakeFetch({
-      "/v2/customers/search": { customers: [{ id: "CUST" }] },
-      "/v2/orders": { order: { id: "SQO" } },
-      "/v2/invoices": { invoice: { id: "INV", version: 1 } },
-      "/v2/invoices/INV/publish": { invoice: { id: "INV" } },
+      assert.deepEqual(out, { squareOrderId: "SQO", customerId: "CUST" });
+      assert.deepEqual(calls.map((c) => c.path), [
+        "/v2/customers/search", "/v2/customers", "/v2/orders",
+      ]);
+      assert.deepEqual(calls[0].body.query.filter.email_address,
+        { exact: "pat@example.com" });
+      assert.equal(calls[1].body.idempotency_key, `${KEY}-customer`);
+      assert.equal(calls[1].body.given_name, "Pat");
+      assert.equal(calls[1].body.family_name, "Example");
+      assert.equal(calls[2].body.idempotency_key, `${KEY}-order`);
+      assert.equal(calls[2].body.order.customer_id, "CUST");
+      assert.equal(calls[2].body.order.reference_id, "NFF-2610-ABCD");
+      assert.equal(calls[0].headers["Square-Version"], "2026-09-16");
+      assert.equal(calls[0].headers.Authorization, "Bearer tok");
     });
-    const farOut = order();
-
-    farOut.fulfilment.date = "2026-10-13";
-    const out = await createOrderAndInvoice(farOut, "key-1234567890123", {
-      env, fetchImpl: impl, now,
-    });
-
-    assert.equal(out.bankTransfer, true);
-  });
-
-  it("searches, creates, drafts and publishes with derived keys", async () => {
-    const { impl, calls } = fakeFetch({
-      "/v2/customers/search": { customers: [] },
-      "/v2/customers": { customer: { id: "CUST" } },
-      "/v2/orders": { order: { id: "SQO" } },
-      "/v2/invoices": { invoice: { id: "INV", version: 1 } },
-      "/v2/invoices/INV/publish": {
-        invoice: { id: "INV", invoice_number: "000123", public_url: "https://pay" },
-      },
-    });
-    const out = await createOrderAndInvoice(order(), "key-1234567890123", {
-      env, fetchImpl: impl, now,
-    });
-
-    assert.deepEqual(out, {
-      squareOrderId: "SQO",
-      invoiceId: "INV",
-      invoiceNumber: "000123",
-      invoiceUrl: "https://pay",
-      bankTransfer: false,
-    });
-    assert.deepEqual(calls.map((c) => c.path), [
-      "/v2/customers/search", "/v2/customers", "/v2/orders", "/v2/invoices",
-      "/v2/invoices/INV/publish",
-    ]);
-    assert.equal(calls[1].body.idempotency_key, "key-1234567890123-customer");
-    assert.equal(calls[2].body.idempotency_key, "key-1234567890123-order");
-    assert.equal(calls[3].body.idempotency_key, "key-1234567890123-invoice");
-    assert.equal(calls[4].body.idempotency_key, "key-1234567890123-publish");
-    assert.equal(calls[4].body.version, 1);
-    assert.equal(calls[0].headers["Square-Version"], "2026-09-16");
-  });
 
   it("reuses an existing customer", async () => {
     const { impl, calls } = fakeFetch({
       "/v2/customers/search": { customers: [{ id: "OLD" }] },
       "/v2/orders": { order: { id: "SQO" } },
-      "/v2/invoices": { invoice: { id: "INV", version: 3 } },
-      "/v2/invoices/INV/publish": { invoice: { id: "INV" } },
     });
+    const out = await createOrder(order(), KEY, { env, fetchImpl: impl });
 
-    await createOrderAndInvoice(order(), "key-1234567890123", {
-      env, fetchImpl: impl, now,
-    });
+    assert.equal(out.customerId, "OLD");
     assert.ok(!calls.some((c) => c.path === "/v2/customers"));
     assert.equal(calls[1].body.order.customer_id, "OLD");
   });
@@ -342,8 +278,7 @@ describe("createOrderAndInvoice", () => {
     });
 
     await assert.rejects(
-      createOrderAndInvoice(order(), "key-1234567890123",
-        { env, fetchImpl: boom.impl, now }),
+      createOrder(order(), KEY, { env, fetchImpl: boom.impl }),
       (e) => e instanceof SquareError && e.retryable === true
     );
 
@@ -354,23 +289,232 @@ describe("createOrderAndInvoice", () => {
     });
 
     await assert.rejects(
-      createOrderAndInvoice(order(), "key-1234567890123",
-        { env, fetchImpl: bad.impl, now }),
-      (e) => e.retryable === false && e.detail[0].code === "BAD"
+      createOrder(order(), KEY, { env, fetchImpl: bad.impl }),
+      (e) => e.retryable === false && e.declined === false
+        && e.code === "BAD" && e.detail[0].code === "BAD"
     );
 
     const offline = async () => { throw new TypeError("fetch failed"); };
 
     await assert.rejects(
-      createOrderAndInvoice(order(), "key-1234567890123",
-        { env, fetchImpl: offline, now }),
+      createOrder(order(), KEY, { env, fetchImpl: offline }),
       (e) => e.retryable === true
     );
   });
 });
 
+describe("createPayment", () => {
+  const source = { sourceId: "cnon:card-nonce" };
+  const args = (extra = {}) => ({
+    order: order(), squareOrderId: "SQO", customerId: "CUST", key: KEY,
+    source, ...extra,
+  });
+
+  it("charges the order's total against the order, with a derived key",
+    async () => {
+      const { impl, calls } = fakeFetch({ "/v2/payments": completed() });
+      const out = await createPayment(args(), { env, fetchImpl: impl });
+
+      assert.deepEqual(out, {
+        squarePaymentId: "PAY-1",
+        status: "COMPLETED",
+        receiptUrl: "https://sq/receipt",
+        brand: "VISA",
+        last4: "4242",
+        wallet: null,
+      });
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0].method, "POST");
+      assert.deepEqual(calls[0].body, {
+        idempotency_key: `${KEY}-payment`,
+        amount_money: { amount: 5500, currency: "USD" },
+        order_id: "SQO",
+        location_id: "LOC",
+        customer_id: "CUST",
+        buyer_email_address: "pat@example.com",
+        reference_id: "NFF-2610-ABCD",
+        note: "North Foster Farm order NFF-2610-ABCD",
+        source_id: "cnon:card-nonce",
+      });
+    });
+
+  it("passes the verification token only when given", async () => {
+    const { impl, calls } = fakeFetch({ "/v2/payments": completed() });
+
+    await createPayment(args({
+      source: { ...source, verificationToken: "verf:1" },
+    }), { env, fetchImpl: impl });
+    assert.equal(calls[0].body.verification_token, "verf:1");
+  });
+
+  it("records money that came another way as an external tender",
+    async () => {
+      const { impl, calls } = fakeFetch({
+        "/v2/payments": completed({ card_details: undefined }),
+      });
+      const out = await createPayment(args({
+        source: { external: { source: "Venmo", sourceId: "CAP-1" } },
+      }), { env, fetchImpl: impl });
+
+      assert.equal(calls[0].body.source_id, "EXTERNAL");
+      assert.deepEqual(calls[0].body.external_details, {
+        type: "SOCIAL", source: "Venmo", source_id: "CAP-1",
+      });
+      assert.equal(calls[0].body.verification_token, undefined);
+      assert.equal(out.brand, null);
+      assert.equal(out.last4, null);
+    });
+
+  it("keeps the wallet's name when a wallet paid", async () => {
+    const { impl } = fakeFetch({
+      "/v2/payments": completed({
+        wallet_details: { brand: "CASH_APP", status: "CAPTURED" },
+      }),
+    });
+    const out = await createPayment(args(), { env, fetchImpl: impl });
+
+    assert.equal(out.wallet, "CASH_APP");
+  });
+
+  it("says a declined card was declined, with Square's code", async () => {
+    const { impl } = fakeFetch({
+      "/v2/payments": () => new Response(
+        JSON.stringify({ errors: [{
+          category: "PAYMENT_METHOD_ERROR", code: "CARD_DECLINED",
+        }] }), { status: 402 }
+      ),
+    });
+
+    await assert.rejects(
+      createPayment(args(), { env, fetchImpl: impl }),
+      (e) => e instanceof SquareError && e.declined === true
+        && e.code === "CARD_DECLINED" && e.retryable === false
+        && e.status === 402
+    );
+  });
+
+  it("is retryable on a temporary error, not declined", async () => {
+    const { impl } = fakeFetch({
+      "/v2/payments": () => new Response(
+        JSON.stringify({ errors: [{ code: "TEMPORARY_ERROR" }] }),
+        { status: 400 }
+      ),
+    });
+
+    await assert.rejects(
+      createPayment(args(), { env, fetchImpl: impl }),
+      (e) => e.retryable === true && e.declined === false
+        && e.code === "TEMPORARY_ERROR"
+    );
+  });
+
+  it("treats a payment that did not complete as declined", async () => {
+    const { impl } = fakeFetch({
+      "/v2/payments": completed({ status: "FAILED" }),
+    });
+
+    await assert.rejects(
+      createPayment(args(), { env, fetchImpl: impl }),
+      (e) => e.declined === true && e.code === "FAILED"
+    );
+
+    const empty = fakeFetch({ "/v2/payments": {} });
+
+    await assert.rejects(
+      createPayment(args(), { env, fetchImpl: empty.impl }),
+      (e) => e.declined === true && e.code === "UNKNOWN"
+    );
+  });
+
+  it("takes an approved payment as good", async () => {
+    const { impl } = fakeFetch({
+      "/v2/payments": completed({ status: "APPROVED" }),
+    });
+    const out = await createPayment(args(), { env, fetchImpl: impl });
+
+    assert.equal(out.status, "APPROVED");
+  });
+});
+
+describe("cancelOrder", () => {
+  const answers = (state) => ({
+    "/v2/orders/SQO": (n) => new Response(JSON.stringify(n === 1
+      ? { order: { id: "SQO", state, version: 3 } }
+      : { order: { id: "SQO", state: "CANCELED", version: 4 } })),
+  });
+
+  it("reads the version, then cancels", async () => {
+    const { impl, calls } = fakeFetch(answers("OPEN"));
+    const out = await cancelOrder("SQO", { env, fetchImpl: impl });
+
+    assert.deepEqual(out, { id: "SQO", cancelled: true });
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].method, "GET");
+    assert.equal(calls[1].method, "PUT");
+    assert.deepEqual(calls[1].body, {
+      order: { location_id: "LOC", version: 3, state: "CANCELED" },
+    });
+  });
+
+  it("leaves an order that is no longer open alone", async () => {
+    const { impl, calls } = fakeFetch(answers("COMPLETED"));
+    const out = await cancelOrder("SQO", { env, fetchImpl: impl });
+
+    assert.equal(out.cancelled, false);
+    assert.equal(calls.length, 1);
+  });
+});
+
+describe("refundPayment", () => {
+  it("posts the refund with a derived key and a trimmed reason",
+    async () => {
+      const { impl, calls } = fakeFetch({
+        "/v2/refunds": { refund: {
+          id: "REF-1", status: "PENDING",
+          amount_money: { amount: 1200, currency: "USD" },
+        } },
+      });
+      const out = await refundPayment({
+        squarePaymentId: "PAY-1", amount: 1200, key: "refund-x",
+        reason: "x".repeat(200),
+      }, { env, fetchImpl: impl });
+
+      assert.deepEqual(out, {
+        squareRefundId: "REF-1", status: "PENDING", amount: 1200,
+      });
+      assert.equal(calls[0].path, "/v2/refunds");
+      assert.equal(calls[0].body.idempotency_key, "refund-x-refund");
+      assert.equal(calls[0].body.payment_id, "PAY-1");
+      assert.deepEqual(calls[0].body.amount_money,
+        { amount: 1200, currency: "USD" });
+      assert.equal(calls[0].body.reason.length, 192);
+    });
+
+  it("sends no reason when there is none", async () => {
+    const { impl, calls } = fakeFetch({ "/v2/refunds": { refund: {} } });
+    const out = await refundPayment({
+      squarePaymentId: "PAY-1", amount: 500, key: "k",
+    }, { env, fetchImpl: impl });
+
+    assert.equal(calls[0].body.reason, undefined);
+    assert.equal(out.amount, 500, "the asked amount when Square is quiet");
+  });
+});
+
+describe("getPayment", () => {
+  it("reads one payment back in the record's shape", async () => {
+    const { impl, calls } = fakeFetch({ "/v2/payments/PAY-1": completed() });
+    const out = await getPayment("PAY-1", { env, fetchImpl: impl });
+
+    assert.equal(calls[0].method, "GET");
+    assert.equal(calls[0].body, null);
+    assert.equal(out.squarePaymentId, "PAY-1");
+    assert.equal(out.last4, "4242");
+  });
+});
+
 describe("dashboardUrl", () => {
-  const square = { squareOrderId: "SO-1", invoiceId: "INV-1" };
+  const square = { squareOrderId: "SO-1", customerId: "CUST" };
 
   it("points at the order, in the right Square", () => {
     assert.equal(
@@ -385,12 +529,10 @@ describe("dashboardUrl", () => {
       "anything but production is the sandbox");
   });
 
-  it("falls back to the invoice, then to nothing", () => {
-    assert.equal(
-      dashboardUrl({ invoiceId: "INV-1" }, env),
-      "https://app.squareupsandbox.com/dashboard/invoices/INV-1"
-    );
+  it("is nothing without a Square order", () => {
     assert.equal(dashboardUrl({}, env), "");
+    assert.equal(dashboardUrl({ invoiceId: "INV-1" }, env), "",
+      "an invoice-era record without an order id links nowhere");
     assert.equal(dashboardUrl(null, env), "");
   });
 });

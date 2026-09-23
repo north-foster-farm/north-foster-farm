@@ -12,11 +12,29 @@ const qs = (root, selector) => root.querySelector(selector);
 const all = (root, selector) => Array.from(root.querySelectorAll(selector));
 
 const STATUS = {
-  submitted: "Awaiting payment",
   paid: "Paid",
   fulfilled: "Delivered",
   cancelled: "Cancelled",
+  // From before the checkout moved onto the page.
+  submitted: "Awaiting payment",
   abandoned: "Not paid",
+};
+
+// "Visa ending 4242", "Apple Pay", "Venmo".
+const paidWith = (payment) => {
+  const p = payment || {};
+  const wallets = {
+    applepay: "Apple Pay", googlepay: "Google Pay", cashapp: "Cash App Pay",
+    venmo: "Venmo",
+  };
+
+  if (wallets[p.method]) return wallets[p.method];
+
+  const brand = String(p.brand || "card").toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+
+  return p.last4 ? `${brand} ending ${p.last4}` : brand;
 };
 
 const METHOD = {
@@ -80,7 +98,6 @@ class Account {
 
     this.avatars = data.avatars;
     this.terms = data.terms;
-    this.venmo = data.venmo || "";
     this.app = document.getElementById("account-app");
     this.loading = document.getElementById("account-loading");
     this.flash = document.getElementById("account-flash");
@@ -421,14 +438,14 @@ class Account {
     this.say("Sent. We'll answer by email.");
   }
 
-  // Orders and invoices
+  // Orders and receipts
 
   async loadOrders() {
     const { ok, data } = await api("/api/account/orders");
 
     this.orders = ok ? data.orders : [];
     this.renderOrders();
-    this.renderInvoices();
+    this.renderReceipts();
     this.renderSupportOrders();
   }
 
@@ -468,42 +485,25 @@ class Account {
       pickup.hidden = false;
     } else if (order.fulfilment.method === "onfarm"
       && order.fulfilment.state === "requested"
-      && ["submitted", "paid"].includes(order.status)) {
+      && order.status === "paid") {
       pickup.textContent = "Pickup time requested. We'll confirm it by " +
         "email.";
       pickup.hidden = false;
     }
 
     const note = qs(node, "[data-out='note']");
-    const pending = order.paymentPending;
 
-    if (order.status === "submitted" && pending
-      && pending.source === "venmo") {
-      note.textContent = "Thanks, we're checking Venmo for your payment. " +
-        "We'll confirm the order once it's in.";
-      note.hidden = false;
-    } else if (order.status === "submitted" && pending) {
-      note.textContent = "Your bank transfer is on its way. We'll confirm " +
-        "the order once it clears.";
-      note.hidden = false;
-    } else if (order.status === "submitted" && order.invoice
-      && order.invoice.url) {
-      note.textContent = "Not final until it's paid. ";
-      const link = el("a", "", "Pay the invoice");
-
-      link.href = order.invoice.url;
-      link.target = "_blank";
-      link.rel = "noopener";
-      note.appendChild(link);
-      if (this.venmo) {
-        note.appendChild(document.createTextNode(`, or send ${
-          dollars(order.totals.total)} to @${this.venmo} on Venmo with ${
-          order.id} in the note and press "I paid by Venmo" below.`));
-      }
-      note.hidden = false;
-    } else if (order.cancelRequested) {
+    if (order.cancelRequested) {
       note.textContent = "We're refunding this order. Your money goes back " +
         "to the way you paid.";
+      note.hidden = false;
+    } else if (order.refund) {
+      const what = order.refund.total
+        ? "Refunded"
+        : `Refunded ${dollars(order.refund.amount)}`;
+
+      note.textContent = `${what} on ${placed(order.refund.at)}, back to ` +
+        "the way you paid.";
       note.hidden = false;
     } else if (order.status === "abandoned") {
       note.textContent = "This order wasn't paid by the cutoff, so it was " +
@@ -546,6 +546,7 @@ class Account {
         t.deliveryFee ? `+${dollars(t.deliveryFee)}` : "Free");
     }
     row("Total", dollars(t.total), "account-totals-total");
+    if (order.payment) row("Paid with", paidWith(order.payment));
 
     const actions = qs(node, "[data-out='actions']");
     const button = (text, className, onClick) => {
@@ -564,16 +565,6 @@ class Account {
       "your cart again");
     actions.appendChild(again);
 
-    if (order.status === "submitted" && !pending) {
-      if (this.venmo) {
-        button("I paid by Venmo", "btn-outline-primary",
-          () => this.post(order, "venmo", "Thanks. We'll check Venmo and " +
-            "confirm your order once the payment is in."));
-      }
-      button("Resend the invoice", "btn-outline-secondary",
-        () => this.post(order, "resend", "Sent. Check your inbox for the " +
-          "invoice."));
-    }
     if (order.canChange) {
       button("Change", "btn-outline-primary",
         () => this.openChange(order, card));
@@ -596,8 +587,8 @@ class Account {
     return node;
   }
 
-  // A one-press action on an order: resend the invoice, claim a Venmo
-  // payment. The answer is the order as it now stands, or an error.
+  // A one-press action on an order. The answer is the order as it now
+  // stands, or an error.
   async post(order, action, thanks) {
     const { ok, data } = await api(
       `/api/account/orders/${order.id}/${action}`, { method: "POST", body: {} }
@@ -808,38 +799,39 @@ class Account {
   replaceOrder(order) {
     this.orders = this.orders.map((o) => (o.id === order.id ? order : o));
     this.renderOrders();
-    this.renderInvoices();
+    this.renderReceipts();
     const card = document.getElementById(`order-${order.id}`);
 
     if (card) card.scrollIntoView({ block: "nearest" });
   }
 
-  renderInvoices() {
-    const body = document.getElementById("invoices-body");
-    const withInvoice = this.orders.filter((o) => o.invoice);
+  renderReceipts() {
+    const body = document.getElementById("receipts-body");
+    const paid = this.orders.filter((o) => o.payment);
 
     body.textContent = "";
-    document.getElementById("invoices-empty").hidden = withInvoice.length > 0;
-    document.getElementById("invoices-table").hidden = withInvoice.length === 0;
+    document.getElementById("receipts-empty").hidden = paid.length > 0;
+    document.getElementById("receipts-table").hidden = paid.length === 0;
 
-    for (const order of withInvoice) {
+    for (const order of paid) {
       const tr = el("tr");
       const cell = (text) => tr.appendChild(el("td", "", text));
 
       cell(order.id);
-      cell(order.invoice.number ? `#${order.invoice.number}` : "—");
+      cell(order.paidAt ? placed(order.paidAt) : "");
       cell(dollars(order.totals.total));
-      cell(order.status === "submitted"
-        ? "Open"
+      cell(paidWith(order.payment));
+      cell(order.refund
+        ? (order.refund.total ? "Refunded" : `Refunded ${
+          dollars(order.refund.amount)}`)
         : (STATUS[order.status] || ""));
 
       const td = el("td");
 
-      if (order.invoice.url && ["submitted", "paid", "fulfilled"]
-        .includes(order.status)) {
-        const a = el("a", "", order.status === "submitted" ? "Pay" : "Receipt");
+      if (order.payment.receiptUrl) {
+        const a = el("a", "", "Receipt");
 
-        a.href = order.invoice.url;
+        a.href = order.payment.receiptUrl;
         a.target = "_blank";
         a.rel = "noopener";
         td.appendChild(a);

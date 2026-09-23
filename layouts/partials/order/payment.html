@@ -1,0 +1,32 @@
+{{/* The card form and the wallet buttons are the SDKs' own, mounted
+     into these containers by scripts/order/pay.js once the section
+     is near the screen. Which buttons appear depends on the browser
+     (Apple Pay in Safari, Google Pay in Chrome) and on what this
+     deploy is configured for (/api/checkout/config). */}}
+<fieldset class="order-section mb-5" id="payment">
+  <legend class="h2" tabindex="-1">Payment</legend>
+  <p class="order-section-hint">Your card is charged when you press the button below. Nothing is saved until the payment goes through.</p>
+  <div class="order-pay" data-pay data-pay-state="loading">
+    <div class="order-pay-card">
+      <p class="order-pay-label" id="pay-card-label">Card</p>
+      <div class="order-card-fields" data-card aria-labelledby="pay-card-label"></div>
+      <p class="order-pay-loading" aria-hidden="true">Loading the card form…</p>
+    </div>
+    <div class="order-pay-wallets" data-wallets hidden>
+      <p class="order-pay-or">Or pay with</p>
+      <div class="order-pay-buttons">
+        <button type="button" class="order-apple-pay" data-apple-pay lang="en" aria-label="Apple Pay" hidden></button>
+        <div class="order-pay-button" data-google-pay hidden></div>
+        <div class="order-pay-button" data-cash-app-pay hidden></div>
+        <div class="order-pay-button" data-venmo hidden></div>
+      </div>
+      <p class="order-pay-wallet-note">A wallet button pays the whole order in one step.</p>
+    </div>
+    <p class="order-pay-unavailable" role="alert">
+      Online payment isn't available right now. Email
+      <a href="mailto:{{ hugo.Data.company.email }}">{{ hugo.Data.company.email }}</a>
+      with what you'd like and we'll take your order by hand.
+    </p>
+    <p class="invalid-feedback d-block order-pay-error" role="alert" data-error-for="payment" hidden></p>
+  </div>
+</fieldset>
