@@ -20,8 +20,9 @@
     margin-top: 0;
   }
 
-  // Markdown tables in the body copy.
+  // Markdown tables in the body copy fill the column.
   table {
+    width: 100%;
     margin-bottom: 1.5rem;
     border-collapse: collapse;
 

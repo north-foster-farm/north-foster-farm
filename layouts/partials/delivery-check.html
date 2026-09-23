@@ -8,11 +8,12 @@
     id      Prefix for the field's id, unique on the page
     anchor  An id for the card itself, for links (optional)
     class   Extra classes on the card (optional)
+    lede    The line under the question, HTML allowed (optional)
 */}}
 <div class="card delivery-check bg-success-subtle border border-1 border-success border-opacity-50 rounded-4{{ with .class }} {{ . }}{{ end }}" {{- with .anchor }} id="{{ . }}" {{- end }}>
   <div class="card-body">
     <h3 class="fs-4 card-title">Do we deliver to you?</h3>
-    <p class="card-text">Type in your ZIP code and we’ll tell you.</p>
+    <p class="card-text">{{ .lede | default "Type in your ZIP code and we’ll tell you." | safeHTML }}</p>
     {{ partial "zip-check.html" (dict "id" .id "horizontal" true) }}
   </div>
 </div>
