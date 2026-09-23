@@ -108,10 +108,11 @@ describe("a link the farm mints", () => {
 });
 
 describe("find my order", () => {
-  const order = (id, status = "submitted", email = "pat@example.com") => ({
+  const order = (id, email = "pat@example.com") => ({
     id,
-    status,
+    status: "paid",
     submittedAt: now.toISOString(),
+    paidAt: now.toISOString(),
     customer: { name: "Pat Example", email, phone: "" },
     lines: [{ sku: "A", label: "Eggs (per dozen), Large", qty: 1,
       lineTotal: 7 }],
@@ -120,44 +121,53 @@ describe("find my order", () => {
       method: "onfarm", date: "2026-10-08", state: "agreed",
       onfarm: { window: "morning" },
     },
-    square: { invoiceId: `INV-${id}`, invoiceUrl: "https://pay/x" },
+    square: { squareOrderId: "SQO", customerId: "CUST" },
+    payment: {
+      via: "square", method: "card", at: now.toISOString(),
+      squarePaymentId: `PAY-${id}`, receiptUrl: "https://r/x", brand: "VISA",
+      last4: "4242",
+    },
   });
 
-  it("resends the invoice, with a link to the order, when the pair match",
+  it("mails a sign-in link straight to the order when the pair match, " +
+    "however the pair is typed", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await saveOrder(stores, order("NFF-2610-K3WM"), now);
+    const r = await requestOrderLink(stores, {
+      email: " Pat@Example.com ", orderId: "nff-2610-k3wm",
+    }, { now, env, mail });
+
+    assert.deepEqual(r, { ok: true, matched: true, sent: "link" });
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].to, "pat@example.com");
+    assert.match(sent[0].subject, /sign-in link/);
+    assert.doesNotMatch(sent[0].text, /invoice|Pay and confirm/i);
+
+    const link = sent[0].text.match(/Sign in: (\S+)/)[1];
+    const v = await verifyToken(stores, tokenIn(link), { now });
+
+    assert.equal(v.ok, true);
+    assert.equal(v.email, "pat@example.com");
+    assert.equal(v.next, "/account/orders/NFF-2610-K3WM/");
+    assert.equal((await getOrder(stores, "NFF-2610-K3WM")).emails,
+      undefined, "nothing is noted on the order");
+  });
+
+  it("sends the same link for a fulfilled order, nothing for a mismatch",
     async () => {
       const stores = testStores();
       const { sent, mail } = mailbox();
 
-      await saveOrder(stores, order("NFF-2610-K3WM"), now);
-      const r = await requestOrderLink(stores, {
-        email: " Pat@Example.com ", orderId: "nff-2610-k3wm",
-      }, { now, env, mail });
-
-      assert.deepEqual(r, { ok: true, matched: true, sent: "invoice" });
-      assert.equal(sent.length, 1);
-      assert.equal(sent[0].subject, "One more step: pay for your order");
-      assert.match(sent[0].text, /Pay and confirm your order: https:\/\/pay/);
-
-      const link = sent[0].text.match(/View or edit this order: (\S+)/)[1];
-      const v = await verifyToken(stores, tokenIn(link), { now });
-
-      assert.equal(v.ok, true);
-      assert.equal(v.next, "/account/orders/NFF-2610-K3WM/");
-      assert.equal((await getOrder(stores, "NFF-2610-K3WM")).emails[
-        "invoiceResent-1"].id, "m1");
-    });
-
-  it("sends a plain sign-in link for a paid order, nothing for a mismatch",
-    async () => {
-      const stores = testStores();
-      const { sent, mail } = mailbox();
-
-      await saveOrder(stores, order("NFF-2610-K3WM", "paid"), now);
-      const paid = await requestOrderLink(stores, {
+      await saveOrder(stores, {
+        ...order("NFF-2610-K3WM"), status: "fulfilled",
+      }, now);
+      const done = await requestOrderLink(stores, {
         email: "pat@example.com", orderId: "NFF-2610-K3WM",
       }, { now, env, mail });
 
-      assert.equal(paid.sent, "link");
+      assert.equal(done.sent, "link");
       assert.match(sent[0].subject, /sign-in link/);
       assert.match(sent[0].text, /Sign in: https:\S+token=/);
 

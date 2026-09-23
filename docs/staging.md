@@ -24,8 +24,9 @@ Unset means production: bare store names, no staging endpoints.
 - **Mail.** `MAIL_DRIVER=outbox` on the non-production contexts:
   every message is written to the `jobs` store under `outbox/` and
   nothing is sent. The last 200 are kept.
-- **Square.** `SQUARE_ENV=sandbox` and the sandbox token and location
-  on the non-production contexts, as already set.
+- **Square and PayPal.** `SQUARE_ENV=sandbox` with the sandbox token,
+  location and application id, and `PAYPAL_ENV=sandbox` with the
+  sandbox client id and secret, on the non-production contexts.
 - **The toolbar.** `layouts/partials/staging-toolbar.html` renders
   only when the build-time `CONTEXT` is set and is not production.
   Its stylesheet and script are built by Hugo only then, so the
@@ -79,15 +80,24 @@ one changes, so the whole set can be exercised in one deployment.
 Its pull request is never merged. With branch deploys allowed for it
 on Netlify, it has the stable address
 `staging--north-foster-farm.netlify.app` (the `branch-deploy`
-context), which the Square sandbox webhook can be pointed at. Pull
-request previews stay for review; they share the `deploy-preview`
-stores.
+context), which the Square and PayPal sandbox webhooks can be pointed
+at. Pull request previews stay for review; they share the
+`deploy-preview` stores.
+
+## Payments on staging
+
+The Square sandbox takes the card and wallet payments with Square's
+test cards, and its webhook at the staging address reports refunds
+made in the sandbox dashboard (`refund.updated`). Venmo needs a PayPal
+sandbox business account with Venmo enabled, its client id and secret
+on the non-production contexts, and a sandbox webhook for
+`PAYMENT.CAPTURE.COMPLETED` and `PAYMENT.CAPTURE.REFUNDED` at the
+staging address, whose id is `PAYPAL_WEBHOOK_ID` there. The page adds
+`buyer-country=US` to the PayPal SDK in the sandbox, which is what
+makes the Venmo button show. `docs/qa-fulfilment-a.md` has the steps.
 
 ## What staging cannot do
 
-- **Receive mail.** Venmo's notifications reach production's inbound
-  address only. On staging, `bin/nff venmo simulate` (to come) posts
-  a signed `email.received` payload to the staging endpoint.
 - **Run on a schedule.** Netlify runs scheduled functions on the
   production deploy only; the toolbar's Jobs buttons stand in.
 
@@ -101,4 +111,10 @@ outbox should not be open to anyone with the preview's address
 (magic links are in it). Leave production's `MAIL_DRIVER=resend`
 alone. Allow branch deploys for `staging` under Site configuration →
 Build & deploy → Branch deploys. Subscribe the Square sandbox
-webhook to `https://staging--north-foster-farm.netlify.app/api/square/webhook`.
+webhook (`refund.updated`) to
+`https://staging--north-foster-farm.netlify.app/api/square/webhook`
+and the PayPal sandbox webhook (`PAYMENT.CAPTURE.COMPLETED`,
+`PAYMENT.CAPTURE.REFUNDED`) to
+`https://staging--north-foster-farm.netlify.app/api/paypal/webhook`,
+with that subscription's id as `PAYPAL_WEBHOOK_ID` on the same
+contexts.

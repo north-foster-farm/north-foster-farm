@@ -18,20 +18,24 @@ const USAGE = `Usage:
   bin/nff customers set <email> name=.. phone=.. group=friends|none
   bin/nff customers delete <email>
   bin/nff address approve|deny <email>
-  bin/nff orders list [--open] [--held] [--status=paid] [--email=x]
+  bin/nff orders list [--open] [--status=paid] [--email=x]
   bin/nff orders show <id>
-  bin/nff orders paid <id> [--via venmo|cash|check]   paid by hand
-  bin/nff orders unpaid <id>          nothing arrived: lift the Venmo hold
   bin/nff orders confirm [<id>] [--at 9] [--until 11]
                                       agree to a pickup: the first two
                                       hours of the window unless told;
                                       no id: how many wait, and the next
   bin/nff orders deny <id> --reason "..."   have them pick another
-  bin/nff orders cancel <id> [--refund]
+  bin/nff orders cancel <id> [--refund] [--amount 12.34] [--reason "..."]
+                                      stock back, fulfilment closed in
+                                      Square; --refund sends the money
+                                      back first, all of it unless told
+  bin/nff orders refund <id> [--amount 12.34] [--reason "..."]
+                                      money back without cancelling:
+                                      card and wallets through Square,
+                                      Venmo through PayPal
   bin/nff orders fulfil <id>
   bin/nff orders delete <id>
   bin/nff returns resolve <id> <returnId> [note...]
-  bin/nff venmo list                  every Venmo payment the site saw
   bin/nff stock list
   bin/nff stock set <sku> <count|none>
   bin/nff login <email>               print a sign-in link
@@ -57,10 +61,9 @@ const [
   { requestLink },
   { runJobs, runsSince },
   { stores: makeStores },
-  { summaryLine },
-  { allPayments },
+  { paymentPhrase, summaryLine },
   { inviteSubscribers, parseCsv, syncAudience },
-  { dollars },
+  { dollars, toCents },
   { snapshot },
 ] = await Promise.all([
   import("../data/delivery.json", { with: { type: "json" } }),
@@ -69,7 +72,6 @@ const [
   import("../netlify/functions/lib/jobs.mjs"),
   import("../netlify/functions/lib/store.mjs"),
   import("../netlify/functions/lib/templates.mjs"),
-  import("../netlify/functions/lib/venmo.mjs"),
   import("../netlify/functions/lib/news.mjs"),
   import("../assets/scripts/order/lib/totals.mjs"),
   import("../netlify/functions/health.mjs"),
@@ -89,7 +91,7 @@ const flags = {};
 const words = [];
 
 // Flags that take a value: `--reason "..."` as well as `--reason=...`.
-const VALUED = ["reason", "via", "note", "at", "until", "n"];
+const VALUED = ["reason", "amount", "note", "at", "until", "n"];
 const args = process.argv.slice(2);
 
 for (let i = 0; i < args.length; i += 1) {
@@ -170,7 +172,6 @@ const run = async () => {
   case "orders list": {
     const list = await admin.listOrders(stores, {
       status: flags.status, email: flags.email, open: !!flags.open,
-      held: !!flags.held,
     });
 
     for (const o of list) out(summaryLine(o));
@@ -180,12 +181,6 @@ const run = async () => {
   }
   case "orders show":
     return out(await admin.showOrder(stores, rest[0]));
-  case "orders paid":
-    return out(summaryLine(await admin.payOrder(stores, rest[0], {
-      via: typeof flags.via === "string" ? flags.via : "cash",
-    })));
-  case "orders unpaid":
-    return out(summaryLine(await admin.unholdOrder(stores, rest[0])));
   case "orders confirm": {
     if (rest[0]) {
       return out(summaryLine(await admin.confirmPickup(stores, rest[0], {
@@ -228,7 +223,22 @@ const run = async () => {
   case "orders cancel":
     return out(summaryLine(await admin.cancelOrder(stores, rest[0], {
       refund: !!flags.refund,
+      amount: typeof flags.amount === "string" ? toCents(flags.amount)
+        : undefined,
+      reason: typeof flags.reason === "string" ? flags.reason : "",
     })));
+  case "orders refund": {
+    const refunded = await admin.refundOrder(stores, rest[0], {
+      amount: typeof flags.amount === "string" ? toCents(flags.amount)
+        : undefined,
+      reason: typeof flags.reason === "string" ? flags.reason : "",
+    });
+
+    out(summaryLine(refunded));
+
+    return out(`Refunded ${dollars(refunded.refund.amount)} of ${
+      paymentPhrase(refunded)}.`);
+  }
   case "orders fulfil":
   case "orders fulfill":
     return out(summaryLine(await admin.fulfilOrder(stores, rest[0])));
@@ -242,18 +252,6 @@ const run = async () => {
         note: rest.slice(2).join(" "),
         outcome: flags.outcome || "resolved",
       })));
-  case "venmo list": {
-    const list = await allPayments(stores);
-
-    for (const v of list) {
-      out(`${v.at.slice(0, 16)}  ${dollars(v.cents).padStart(8)}  ${
-        v.payer}  "${v.note}"  ${v.orderId || "-"}  ${
-        v.matched ? "applied" : "unmatched"}  ${v.transactionId}`);
-    }
-    if (!list.length) out("No Venmo payments seen.");
-
-    return undefined;
-  }
   case "stock list":
     return out(await admin.stockList(stores));
   case "stock set":

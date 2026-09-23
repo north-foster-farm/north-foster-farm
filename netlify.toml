@@ -78,19 +78,56 @@ framework = "#custom"
       must-revalidate
     '''
     X-Content-Type-Options = "nosniff"
+    # The payment SDKs on the order page need their vendors' hosts:
+    # Square's Web Payments SDK (sandbox and production; the card
+    # fields are an iframe, and Square wants 'unsafe-inline' styles),
+    # Google Pay and Cash App Pay through it, and PayPal's SDK for the
+    # Venmo button. Netlify does not say how two header rules for one
+    # path merge, so one policy covers every page.
     Content-Security-Policy = '''
       default-src 'none';
       base-uri 'self';
-      connect-src 'self';
-      font-src 'self';
+      connect-src 'self'
+        https://web.squarecdn.com https://sandbox.web.squarecdn.com
+        https://pci-connect.squareup.com
+        https://pci-connect.squareupsandbox.com
+        https://o160250.ingest.sentry.io
+        https://google.com/pay https://pay.google.com
+        https://api.cash.app https://sandbox.api.cash.app
+        https://*.paypal.com https://*.paypalobjects.com
+        https://*.venmo.com;
+      font-src 'self' data:
+        https://square-fonts-production-f.squarecdn.com
+        https://d1g145x70srn7h.cloudfront.net
+        https://cash-f.squarecdn.com https://fonts.gstatic.com;
       form-action 'self';
       frame-ancestors 'none';
-      frame-src https://www.youtube-nocookie.com;
-      img-src 'self' data:;
+      frame-src https://www.youtube-nocookie.com
+        https://web.squarecdn.com https://sandbox.web.squarecdn.com
+        https://pay.google.com
+        https://kit.cash.app https://sandbox.kit.cash.app
+        https://*.paypal.com https://*.paypalobjects.com
+        https://*.venmo.com;
+      img-src 'self' data:
+        https://api.cash.app https://sandbox.api.cash.app
+        https://franklin-assets.s3.amazonaws.com
+        https://*.paypal.com https://*.paypalobjects.com
+        https://*.venmo.com;
       manifest-src 'self';
-      script-src 'self';
-      style-src 'self';
+      script-src 'self'
+        https://web.squarecdn.com https://sandbox.web.squarecdn.com
+        https://pay.google.com
+        https://kit.cash.app https://sandbox.kit.cash.app
+        https://*.paypal.com https://*.paypalobjects.com
+        https://*.venmo.com;
+      style-src 'self' 'unsafe-inline'
+        https://web.squarecdn.com https://sandbox.web.squarecdn.com
+        https://kit.cash.app https://sandbox.kit.cash.app
+        https://fonts.googleapis.com
+        https://*.paypal.com https://*.paypalobjects.com;
     '''
+    # Google Pay opens a popup; the stricter value breaks it on iOS.
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
     Referrer-Policy = "same-origin"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"
 

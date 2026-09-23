@@ -12,24 +12,19 @@ import { datesFor } from "../../../assets/scripts/order/lib/dates.mjs";
 import {
   phoneOk, zipInfo,
 } from "../../../assets/scripts/order/lib/validate.mjs";
-import { abandonAt } from "./jobs.mjs";
+import { cutoffAt } from "./jobs.mjs";
 import { adminEmails, sendMail } from "./mail.mjs";
 import { log } from "./log.mjs";
-import {
-  hold, notifyFarm, resendInvoice as resendPayLink, sendForOrder,
-} from "./payments.mjs";
+import { notifyFarm, sendForOrder } from "./payments.mjs";
 import {
   REMINDERS, amendOrder, answerQuestion, getOrder, ordersFor, questionOpen,
-  reminderPrefs, saveCustomer, setStatus,
+  reminderPrefs, saveCustomer,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor, siteUrl } from "./site.mjs";
-import {
-  cancelInvoice, cancelFulfilment, updateFulfilment,
-} from "./square.mjs";
+import { updateFulfilment } from "./square.mjs";
 import { adjust } from "./stock.mjs";
 import {
-  addressReview, farmPickupChanged, farmVenmoClaimed, orderCancelled,
-  orderChanged,
+  addressReview, farmPickupChanged, orderCancelled, orderChanged,
 } from "./templates.mjs";
 
 export const AVATARS = avatars.map((a) => a.key);
@@ -72,13 +67,18 @@ export const publicOrder = (order, now = new Date()) => ({
   totals: order.totals,
   fulfilment: order.fulfilment,
   notes: order.notes || "",
-  invoice: order.square ? {
-    number: order.square.invoiceNumber || null,
-    url: order.square.invoiceUrl || null,
+  payment: order.payment ? {
+    via: order.payment.via || null,
+    method: order.payment.method || null,
+    brand: order.payment.brand || null,
+    last4: order.payment.last4 || null,
+    receiptUrl: order.payment.receiptUrl || null,
+  } : null,
+  refund: order.refund ? {
+    at: order.refund.at, amount: order.refund.amount,
+    total: !!order.refund.total,
   } : null,
   returns: order.returns || [],
-  paymentPending: order.paymentPending
-    ? { source: order.paymentPending.source || null } : null,
   question: order.question ? {
     kind: order.question.kind,
     reason: order.question.reason || "",
@@ -90,14 +90,14 @@ export const publicOrder = (order, now = new Date()) => ({
   canChange: canChange(order, now),
 });
 
-// An order can be cancelled by the customer until the cutoff, while
-// it is unpaid or paid. Paid cancellations need a refund by hand. An
+// An order can be cancelled or changed by the customer until the
+// cutoff. A cancellation is a refund the farm makes from the CLI. An
 // open question from the farm (a denied pickup window) keeps both
 // doors open past the cutoff: the customer was asked to choose.
 const actionable = (order, now) =>
-  ["submitted", "paid"].includes(order.status)
+  order.status === "paid"
   && !order.cancelRequested
-  && (now.getTime() < abandonAt(order).getTime() || questionOpen(order));
+  && (now.getTime() < cutoffAt(order).getTime() || questionOpen(order));
 
 export const canCancel = actionable;
 
@@ -118,7 +118,6 @@ const owned = async (stores, customer, id) => {
 
 export const cancelOrder = async (stores, customer, id, {
   now = new Date(), env = process.env, mail = sendMail,
-  square = { cancelInvoice, cancelFulfilment },
 } = {}) => {
   const order = await owned(stores, customer, id);
 
@@ -134,33 +133,7 @@ export const cancelOrder = async (stores, customer, id, {
     }, "question.answered", now);
   }
 
-  if (order.status === "submitted") {
-    const cancelled = await setStatus(stores, id, "cancelled", now, {
-      source: "customer",
-    });
-
-    await adjust(stores, order.lines, 1);
-
-    if (order.square && order.square.invoiceId) {
-      try {
-        await square.cancelInvoice(order.square.invoiceId, { env });
-        if (order.square.squareOrderId) {
-          await square.cancelFulfilment(order.square.squareOrderId, { env });
-        }
-      } catch (error) {
-        log.error({
-          event: "square.cancel_failed", id, error: String(error.message),
-        });
-      }
-    }
-    await sendForOrder(stores, cancelled, "orderCancelled",
-      orderCancelled(cancelled, { refund: false, links: mailLinks(env) }),
-      { mail, env, now });
-
-    return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
-  }
-
-  // Paid: the farm refunds through Square, then closes it in the CLI.
+  // The farm refunds and closes it from the CLI.
   const flagged = await amendOrder(stores, id, {
     cancelRequested: true, cancelRequestedAt: now.toISOString(),
   }, "cancel.requested", now);
@@ -174,11 +147,11 @@ export const cancelOrder = async (stores, customer, id, {
   await tellFarm({
     subject: `Refund needed: ${id} cancelled by ${customer.email}`,
     text: `${customer.name || customer.email} cancelled paid order ${id} ` +
-      `(${order.fulfilment.method} ${order.fulfilment.date}). Refund it ` +
-      `in Square, then: bin/nff order cancel ${id}`,
+      `(${order.fulfilment.method} ${order.fulfilment.date}). Refund and ` +
+      `close it: bin/nff orders cancel ${id} --refund`,
     html: `<p>${customer.name || customer.email} cancelled paid order ` +
       `${id} (${order.fulfilment.method} ${order.fulfilment.date}). Refund ` +
-      `it in Square, then run <code>bin/nff order cancel ${id}</code>.</p>`,
+      `and close it: <code>bin/nff orders cancel ${id} --refund</code>.</p>`,
   }, { mail, env });
 
   return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
@@ -300,54 +273,6 @@ export const changeOrder = async (stores, customer, id, changes, {
       farmPickupChanged(changed, { links: mailLinks(env) }),
       { mail, env, now });
   }
-
-  return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
-};
-
-// The pay-link email again, from the order page.
-export const resendInvoice = async (stores, customer, id, {
-  now = new Date(), env = process.env, mail = sendMail,
-} = {}) => {
-  const order = await owned(stores, customer, id);
-
-  if (!order) return fail(404, { order: "We can't find that order." });
-  if (order.status !== "submitted") {
-    return fail(409, { order: "This order isn't waiting for payment." });
-  }
-
-  const r = await resendPayLink(stores, order, {
-    orderUrl: orderUrlFor(env, id), mail, env, now,
-  });
-
-  if (!r.ok) {
-    return fail(429, { order: "We've sent that a few times already. " +
-      "Check your spam folder, or write to us." });
-  }
-
-  return { ok: true, order: publicOrder(r.order, now) };
-};
-
-// "I paid by Venmo": the order waits (no reminders, not abandoned)
-// while the farm checks the Venmo app, and the farm is told. Venmo's
-// own notification usually marks the order paid first; this is for
-// when it has not, or the note had no order number.
-export const claimVenmo = async (stores, customer, id, {
-  now = new Date(), env = process.env, mail = sendMail,
-} = {}) => {
-  const order = await owned(stores, customer, id);
-
-  if (!order) return fail(404, { order: "We can't find that order." });
-  if (order.status !== "submitted") {
-    return fail(409, { order: "This order isn't waiting for payment." });
-  }
-  if (order.paymentPending) {
-    return fail(409, { order: "We're already looking for that payment." });
-  }
-
-  const held = await hold(stores, order, now, "venmo");
-
-  await notifyFarm(stores, held, `farmVenmoClaimed-${now.getTime()}`,
-    farmVenmoClaimed(held, { links: mailLinks(env) }), { mail, env, now });
 
   return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
 };

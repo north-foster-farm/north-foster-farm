@@ -6,13 +6,14 @@ import {
   computeTotals, dollars, meetsMinimum, toCents,
 } from "./lib/totals.mjs";
 import {
-  disallowedFor, validateOrder, zipInfo,
+  disallowedFor, normalizeCode, validateOrder, zipInfo,
 } from "./lib/validate.mjs";
 import { label } from "./lib/zoned.mjs";
 import { celebrate } from "./celebrate.js";
 import { DateLists } from "./date-lists.js";
 import { Draft } from "./draft.js";
 import { Errors } from "./errors.js";
+import { Payment } from "./pay.js";
 import { Pending } from "./pending.js";
 import { Stock } from "./stock.js";
 import { Submitter } from "./submit.js";
@@ -21,6 +22,20 @@ import { me } from "../session/session.js";
 const RETRY_DELAYS = [5000, 15000, 45000, 120000, 300000];
 const AGREE_SEEN = "nff-delivery-policy-seen";
 const MAX_ATTEMPTS = 6;
+
+// The code that is a joke: the cart shows a discount growing by this
+// much a minute for as long as the page is open, and nothing else
+// changes. The server has never heard of it.
+const JOKE_CODE = "EGGBOI";
+const JOKE_PER_MINUTE = 4000;
+
+const sha256 = async (text) => {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+
+  return Array.from(new Uint8Array(digest),
+    (b) => b.toString(16).padStart(2, "0")).join("");
+};
 
 const qs = (root, selector) => root.querySelector(selector);
 const all = (root, selector) => Array.from(root.querySelectorAll(selector));
@@ -49,6 +64,10 @@ export class OrderForm {
     this.catalog = data.catalog;
     this.terms = data.terms;
     this.contact = data.contact;
+    // Discount codes, by hash; the plain codes stay on the server.
+    this.codes = data.codes || [];
+    this.code = null;
+    this.joke = null;
     this.index = indexCatalog(this.catalog);
     this.money = this.terms.money;
     this.errors = new Errors(form);
@@ -68,6 +87,7 @@ export class OrderForm {
       onCancel: () => this.cancelRetries(),
     });
     this.submitButton = document.getElementById("order-submit");
+    this.payment = new Payment(document.getElementById("payment"), this);
     this.retryTimer = null;
     this.lastTotal = null;
     this.lastCount = 0;
@@ -97,8 +117,10 @@ export class OrderForm {
 
     this.addFromQuery();
     this.dates.load();
+    this.applyCode({ quiet: true });
     this.refresh();
     this.stock.start();
+    this.payment.start();
 
     // A signed-in customer sees their discount group as they shop, and
     // their details arrive already filled in.
@@ -236,6 +258,17 @@ export class OrderForm {
       }
     });
 
+    // The discount code: Apply, or Enter in the field.
+    qs(this.cart, "[data-code-apply]").addEventListener("click", () => {
+      this.applyCode();
+    });
+    qs(this.cart, "[data-field='code']").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        this.applyCode();
+      }
+    });
+
     qs(this.cart, "[data-checkout]").addEventListener("click", () => {
       const target = document.getElementById("details");
 
@@ -270,6 +303,9 @@ export class OrderForm {
   changed() {
     this.refresh();
     this.draft.save(this.collect());
+    // A change after a payment attempt began means the next attempt
+    // must not reuse that attempt's keys (the order may differ).
+    this.draft.touch();
   }
 
   // /order/?add=SKU:qty,SKU:qty puts those items in the cart: the
@@ -426,8 +462,85 @@ export class OrderForm {
       index: this.index,
       money: this.money,
       group: this.group,
+      code: this.code,
       zipStatus: this.zipStatus(),
     });
+  }
+
+  // Looks the typed code up by its hash. A known one becomes
+  // `this.code` and shows in the totals; the joke starts its clock;
+  // anything else is ignored by the server, and the note says so.
+  async applyCode({ quiet = false } = {}) {
+    const input = qs(this.cart, "[data-field='code']");
+    const note = qs(this.cart, "[data-code-note]");
+    const typed = normalizeCode(input.value);
+    const say = (text, tone) => {
+      note.textContent = text;
+      note.hidden = !text;
+      if (tone) {
+        note.dataset.tone = tone;
+      } else {
+        delete note.dataset.tone;
+      }
+    };
+
+    input.value = typed;
+    this.stopJoke();
+    this.code = null;
+
+    if (!typed) {
+      say("");
+      this.refresh();
+
+      return;
+    }
+    if (typed === JOKE_CODE) {
+      this.startJoke();
+      say("Code applied.", "good");
+      this.refresh();
+
+      return;
+    }
+
+    const hash = await sha256(typed);
+    const found = this.codes.find((c) => c.hash === hash);
+
+    if (found) {
+      this.code = { code: typed, label: found.label, off: found.off };
+      say(`Code applied: $${found.off} off.`, "good");
+    } else if (!quiet) {
+      say("We don't know that code. Your order goes through without one.");
+    }
+    this.refresh();
+  }
+
+  startJoke() {
+    const row = document.createElement("div");
+    const dt = document.createElement("dt");
+    const dd = document.createElement("dd");
+    const since = Date.now();
+
+    row.className = "order-cart-row order-cart-credit order-cart-joke";
+    dt.textContent = `Discount (${JOKE_CODE})`;
+    row.appendChild(dt);
+    row.appendChild(dd);
+    qs(this.cart, "[data-total-row='fee']").before(row);
+
+    const tick = () => {
+      const minutes = (Date.now() - since) / 60_000;
+
+      dd.textContent = `−${dollars(Math.floor(minutes * JOKE_PER_MINUTE))}`;
+    };
+
+    tick();
+    this.joke = { row, timer: setInterval(tick, 1000) };
+  }
+
+  stopJoke() {
+    if (!this.joke) return;
+    clearInterval(this.joke.timer);
+    this.joke.row.remove();
+    this.joke = null;
   }
 
   // The delivery ZIP's status, for the outside-area fee. Null unless
@@ -516,6 +629,9 @@ export class OrderForm {
     }
     total.textContent = s.total;
     this.lastTotal = s.total;
+    this.total = totals.total;
+    this.payment.setAmount(totals.total);
+    this.submitLabel();
 
     qs(c, "[data-cart-toggle]").setAttribute(
       "aria-label", `${s.countText}, total ${s.total}. Show or hide the cart.`
@@ -669,6 +785,7 @@ export class OrderForm {
           notes: value("delivery.notes"),
         },
       },
+      code: normalizeCode(qs(this.form, "[data-field='code']").value),
       claimedTotal: this.totals().total,
       website: qs(this.form, "[name='website']").value,
     };
@@ -702,6 +819,7 @@ export class OrderForm {
     set("customer.email", c.email);
     set("customer.phone", c.phone);
     set("customer.contact", c.contact);
+    set("code", payload.code);
 
     for (const line of payload.lines || []) {
       const input = qs(this.form, `[data-qty="${line.sku}"]`);
@@ -727,17 +845,48 @@ export class OrderForm {
     }
   }
 
-  // Submission and recovery.
+  // What the payment section asks of the form (pay.js).
 
-  async submit(e) {
-    e.preventDefault();
+  amount() {
+    return this.total || 0;
+  }
 
-    if (this.busy) return;
+  referenceId() {
+    return this.draft.key();
+  }
+
+  paymentReady() {
+    this.submitButton.disabled = false;
+    this.submitLabel();
+  }
+
+  // The customer's details for the card's verification, and the
+  // delivery address when there is one.
+  billing(payload) {
+    const c = payload.customer;
+    const d = payload.fulfilment.method === "delivery"
+      ? payload.fulfilment.delivery
+      : {};
+
+    return {
+      firstName: c.firstName, lastName: c.lastName, email: c.email,
+      phone: c.phone,
+      address1: d.address1 || "", address2: d.address2 || "",
+      town: d.town || "", zip: d.zip || "",
+      state: d.zip ? (zipInfo(d.zip, this.terms.area).state || {}).code : "",
+    };
+  }
+
+  // Validates now and returns the payload the server expects, with
+  // its key and attempt, or null after showing the errors. Nothing
+  // asynchronous: a wallet must tokenise inside its click.
+  prepare() {
+    if (this.busy) return null;
 
     const payload = this.collect();
     const check = validateOrder(payload, {
       index: this.index, terms: this.terms, now: this.dates.now(),
-      group: this.group,
+      group: this.group, code: this.code,
     });
 
     if (!check.ok) {
@@ -746,25 +895,95 @@ export class OrderForm {
       }
       this.errors.show(check.errors);
 
-      return;
+      return null;
     }
 
-    // One last look at stock. If the cart had to change, the customer
-    // sees why and decides again; nothing is sent.
+    this.errors.clear();
+    this.payment.clearError();
+    payload.idempotencyKey = this.draft.key();
+    payload.attempt = this.draft.attempt();
+    this.draft.save(payload);
+
+    return payload;
+  }
+
+  // The same with one last look at stock. If the cart had to change,
+  // the customer sees why and decides again; nothing is sent.
+  async prepareAsync() {
+    const payload = this.prepare();
+
+    if (!payload) return null;
+
     this.moved = false;
     await this.stock.refresh();
-    if (this.moved) return;
+    if (this.moved) return null;
 
-    this.errors.clear();
-    payload.idempotencyKey = this.draft.key();
-    this.draft.save(payload);
-    await this.deliver(payload, 0);
+    return payload;
+  }
+
+  // A wallet's token, or the card's: send it.
+  pay(payload, source) {
+    return this.deliver({ ...payload, payment: source }, 0);
+  }
+
+  // Venmo's two steps. The first answers with the PayPal order the
+  // button pays; the second captures it and records the order.
+  async venmoCreate(payload) {
+    this.setBusy(true);
+    this.pending.sending(1);
+
+    const outcome = await this.submitter.send({
+      ...payload, payment: { method: "venmo", stage: "create" },
+    });
+
+    this.setBusy(false);
+    this.pending.hide();
+    if (outcome.kind === "ok" && outcome.data && outcome.data.paypalOrderId) {
+      this.draft.markAttempted();
+
+      return outcome.data.paypalOrderId;
+    }
+
+    this.settle(outcome, payload);
+    throw new Error(outcome.message || "Couldn't start the Venmo payment.");
+  }
+
+  venmoCapture(payload, paypalOrderId) {
+    return this.deliver({
+      ...payload, payment: { method: "venmo", stage: "capture", paypalOrderId },
+    }, 0);
+  }
+
+  // Submission and recovery.
+
+  // The main button: the card form.
+  async submit(e) {
+    e.preventDefault();
+
+    const payload = await this.prepareAsync();
+
+    if (!payload) return;
+
+    let source;
+
+    this.setBusy(true);
+    try {
+      source = await this.payment.tokenizeCard(payload);
+    } catch (error) {
+      this.setBusy(false);
+      this.payment.fail(error.message);
+
+      return;
+    }
+    this.setBusy(false);
+    await this.pay(payload, source);
   }
 
   // `attempts` is how many have already failed.
   async deliver(payload, attempts) {
     this.setBusy(true);
     this.pending.sending(attempts + 1);
+    this.draft.markAttempted();
 
     const outcome = await this.submitter.send(payload);
 
@@ -776,29 +995,47 @@ export class OrderForm {
       this.draft.clear();
       this.succeed(outcome.data, payload);
       break;
+    case "retry":
+      this.defer(payload, attempts + 1);
+      break;
+    default:
+      this.settle(outcome, payload);
+    }
+  }
+
+  // Every answer but success and retry: the customer decides again.
+  settle(outcome, payload) {
+    this.draft.clearPending();
+    this.pending.hide();
+    switch (outcome.kind) {
     case "invalid":
-      this.draft.clearPending();
-      this.pending.hide();
       if (outcome.stock) {
         this.stock.items = outcome.stock;
         this.stock.apply();
       }
+      if (outcome.errors.total) {
+        this.refresh();
+        this.payment.fail(outcome.errors.total);
+      }
       this.errors.show(outcome.errors);
       break;
     case "stale":
-      this.draft.clearPending();
-      this.pending.hide();
       this.dates.replace(payload.fulfilment.method, outcome.dates);
       this.errors.show({
         "fulfilment.date": "That date just closed. Pick another from the " +
             "updated list and try again.",
       });
       break;
-    case "retry":
-      this.defer(payload, attempts + 1);
+    case "declined":
+      // The next try is a new attempt: fresh keys for the processor.
+      this.draft.nextAttempt();
+      this.payment.fail(outcome.message);
+      break;
+    case "checkout":
+      this.draft.nextAttempt();
+      this.payment.fail(outcome.message);
       break;
     default:
-      this.draft.clearPending();
       this.fail(payload, outcome.message);
     }
   }
@@ -846,10 +1083,17 @@ export class OrderForm {
   setBusy(busy) {
     this.busy = busy;
     this.form.classList.toggle("order-busy", busy);
-    this.submitButton.disabled = busy;
+    this.submitButton.disabled = busy || !this.payment.ready;
+    this.submitLabel(busy);
+  }
+
+  // "Pay $55 and place your order", with the total as it stands.
+  submitLabel(busy = this.busy) {
+    const total = this.total ? `${dollars(this.total)} ` : "";
+
     this.submitButton.textContent = busy
-      ? "Placing your order…"
-      : "Place your order";
+      ? "Taking your payment…"
+      : `Pay ${total}and place your order`;
   }
 
   // One line saying when and where, the sentence people screenshot.
@@ -909,23 +1153,22 @@ export class OrderForm {
       fill("name", data.customer.firstName || data.customer.name);
       fill("email", data.customer.email);
       fill("total", dollars(data.totals.total));
-      // The number printed on the Square invoice, which is what a
-      // customer will quote; the order id stands in if it is missing.
-      fill("invoiceNumber", data.invoiceNumber || data.orderId);
+      fill("orderId", data.orderId);
+      fill("how", this.paidWith(data.payment));
+      fill("when", this.when(data.fulfilment));
       // An on-farm window is a request the farm still has to agree
       // to, so paying alone does not confirm that order.
       if (data.fulfilment && data.fulfilment.method === "onfarm") {
         fill("confirms", "The pickup time you chose is a request; we'll " +
-          "check the schedule and confirm it by email. Once we have your " +
-          "payment and your time is set, your order is confirmed.");
+          "check the schedule and confirm it by email.");
       }
 
-      const link = qs(node, "[data-out='invoiceUrl']");
+      const receipt = qs(node, "[data-out='receiptUrl']");
 
-      if (data.invoiceUrl) {
-        link.href = data.invoiceUrl;
+      if (data.payment && data.payment.receiptUrl) {
+        receipt.href = data.payment.receiptUrl;
       } else {
-        link.parentElement.hidden = true;
+        receipt.parentElement.hidden = true;
       }
     } else {
       // Dropped silently by the server: show nothing that could be
@@ -936,6 +1179,23 @@ export class OrderForm {
 
     this.form.hidden = true;
     this.finish(node);
+  }
+
+  // "Visa ending 4242", "Apple Pay", "Venmo".
+  paidWith(payment) {
+    const p = payment || {};
+    const wallets = {
+      applepay: "Apple Pay", googlepay: "Google Pay", cashapp: "Cash App Pay",
+      venmo: "Venmo",
+    };
+
+    if (wallets[p.method]) return wallets[p.method];
+
+    const brand = String(p.brand || "card").toLowerCase()
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (ch) => ch.toUpperCase());
+
+    return p.last4 ? `${brand} ending ${p.last4}` : brand;
   }
 
   fail(payload, message) {

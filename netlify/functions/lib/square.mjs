@@ -1,35 +1,16 @@
-// The Square seam: one order in, one published invoice out. Square
-// issues the receipt; it emails the invoice too unless the farm's own
-// mail is configured, in which case our "complete your order" email
-// carries the pay link and Square stays quiet.
+// The Square seam. One order in, one paid Square order out: the
+// customer, the order with its fulfilment, and the payment against
+// it, whether a card token from the Web Payments SDK or the record
+// of money that came through Venmo. Square stays the system of record
+// for money; the dashboard shows every order with its fulfilment.
 //
-// Every mutation carries an idempotency key derived from the order's
-// key, so a retry of any step, or of the whole function, returns the
-// object already created instead of a duplicate.
+// Every mutation carries an idempotency key derived from the
+// submission's key and attempt, so a retry of any step, or of the
+// whole function, returns the object already created instead of a
+// duplicate.
 
 import terms from "../../../data/delivery.json" with { type: "json" };
-import {
-  addDays, instant, today, weekday,
-} from "../../../assets/scripts/order/lib/zoned.mjs";
-import { describe } from "./describe.mjs";
-
-// A bank transfer takes Square two or three business days to clear,
-// longer by some sellers' accounts, and a cleared payment is what
-// reserves the order. So the invoice offers it only when the date is
-// far enough out for a prompt payer to clear in time.
-export const BANK_TRANSFER_LEAD_DAYS = 5;
-
-export const bankTransferOffered = (date, now) => {
-  let d = today(now, terms.timeZone);
-  let businessDays = 0;
-
-  while (d < date) {
-    d = addDays(d, 1);
-    if (weekday(d) >= 1 && weekday(d) <= 5) businessDays += 1;
-  }
-
-  return businessDays >= BANK_TRANSFER_LEAD_DAYS;
-};
+import { instant } from "../../../assets/scripts/order/lib/zoned.mjs";
 
 const HOSTS = {
   production: "https://connect.squareup.com",
@@ -41,30 +22,40 @@ const DASHBOARDS = {
   sandbox: "https://app.squareupsandbox.com/dashboard",
 };
 
-// Where the farm opens an order in Square, for the links in its own
-// notices. Falls back to the invoice when a record predates the
-// squareOrderId, and to nothing at all when it has neither.
-export const dashboardUrl = (square, env = process.env) => {
-  const base = DASHBOARDS[
-    env.SQUARE_ENV === "production" ? "production" : "sandbox"
-  ];
-
-  if (!square) return "";
-  if (square.squareOrderId) {
-    return `${base}/orders/overview/${square.squareOrderId}`;
-  }
-  if (square.invoiceId) return `${base}/invoices/${square.invoiceId}`;
-
-  return "";
+// Where the Web Payments SDK is loaded from, for the page.
+export const SDK_URLS = {
+  production: "https://web.squarecdn.com/v1/square.js",
+  sandbox: "https://sandbox.web.squarecdn.com/v1/square.js",
 };
 
+export const squareEnv = (env = process.env) =>
+  (env.SQUARE_ENV === "production" ? "production" : "sandbox");
+
+// Where the farm opens an order in Square, for the links in its own
+// notices. Nothing when the record has no Square order (a Venmo
+// payment whose Square copy could not be made).
+export const dashboardUrl = (square, env = process.env) => {
+  const base = DASHBOARDS[squareEnv(env)];
+
+  if (!square || !square.squareOrderId) return "";
+
+  return `${base}/orders/overview/${square.squareOrderId}`;
+};
+
+// A payment that Square would not take: the customer can try another
+// card. `code` is Square's; `message` is for the customer.
 export class SquareError extends Error {
-  constructor(message, { retryable = false, status = 0, detail = null } = {}) {
+  constructor(message, {
+    retryable = false, status = 0, detail = null, declined = false,
+    code = null,
+  } = {}) {
     super(message);
     this.name = "SquareError";
     this.retryable = retryable;
     this.status = status;
     this.detail = detail;
+    this.declined = declined;
+    this.code = code;
   }
 }
 
@@ -78,7 +69,7 @@ export const settings = (env = process.env) => {
     });
   }
 
-  const production = env.SQUARE_ENV === "production";
+  const production = squareEnv(env) === "production";
 
   return {
     token: env.SQUARE_ACCESS_TOKEN,
@@ -89,6 +80,53 @@ export const settings = (env = process.env) => {
     // library; the sandbox has its own, so there lines go ad hoc.
     catalog: production,
   };
+};
+
+// What the page needs to load the SDK: public, per deploy context.
+// Null until the application id is set.
+export const clientConfig = (env = process.env) => (env.SQUARE_APPLICATION_ID
+  && env.SQUARE_LOCATION_ID
+  ? {
+    applicationId: env.SQUARE_APPLICATION_ID,
+    locationId: env.SQUARE_LOCATION_ID,
+    env: squareEnv(env),
+    sdkUrl: SDK_URLS[squareEnv(env)],
+  }
+  : null);
+
+// Square's reasons a card payment fails, and what the customer reads.
+// Anything else from CreatePayment is our problem, not theirs.
+export const DECLINE_MESSAGES = {
+  CARD_DECLINED: "Your card was declined. Try another card.",
+  GENERIC_DECLINE: "Your card was declined. Try another card.",
+  INSUFFICIENT_FUNDS: "Your card was declined for insufficient funds.",
+  CVV_FAILURE: "The security code doesn't match the card.",
+  VERIFY_CVV_FAILURE: "The security code doesn't match the card.",
+  ADDRESS_VERIFICATION_FAILURE: "The ZIP code doesn't match the card.",
+  VERIFY_AVS_FAILURE: "The ZIP code doesn't match the card.",
+  INVALID_POSTAL_CODE: "The ZIP code doesn't match the card.",
+  INVALID_CARD: "That card number doesn't look right.",
+  INVALID_CARD_DATA: "That card number doesn't look right.",
+  PAN_FAILURE: "That card number doesn't look right.",
+  CARD_EXPIRED: "That card has expired.",
+  INVALID_EXPIRATION: "That expiration date doesn't look right.",
+  EXPIRATION_FAILURE: "That expiration date doesn't look right.",
+  UNSUPPORTED_CARD_BRAND: "We can't take that kind of card.",
+  CARD_NOT_SUPPORTED: "We can't take that kind of card.",
+  TRANSACTION_LIMIT: "That's over your card's limit for one payment.",
+  PAYMENT_LIMIT_EXCEEDED: "That's over the limit for one payment.",
+  CARD_TOKEN_EXPIRED: "That card entry timed out. Enter it again.",
+  CARD_TOKEN_USED: "That card entry was already used. Enter it again.",
+  CARD_PROCESSING_NOT_ENABLED: "Card payments are switched off right now.",
+  VOICE_FAILURE: "Your bank declined the payment.",
+  CHIP_INSERTION_REQUIRED: "Your bank declined the payment.",
+  ALLOWABLE_PIN_TRIES_EXCEEDED: "Your bank declined the payment.",
+  RESERVATION_DECLINED: "Your bank declined the payment.",
+  CUSTOMER_CANCELED: "The payment was cancelled before it completed.",
+  BAD_EXPIRATION: "That expiration date doesn't look right.",
+  INVALID_ACCOUNT: "Your bank declined the payment.",
+  GIFT_CARD_AVAILABLE_AMOUNT: "That card doesn't have enough on it.",
+  AMOUNT_TOO_HIGH: "That's over the limit for one payment.",
 };
 
 const call = async (cfg, path, body, fetchImpl, method = "POST") => {
@@ -113,10 +151,18 @@ const call = async (cfg, path, body, fetchImpl, method = "POST") => {
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
+    const errors = Array.isArray(data.errors) ? data.errors : [];
+    const first = errors[0] || {};
+    const code = first.code || null;
+    const declined = !!(code && DECLINE_MESSAGES[code]);
+
     throw new SquareError(`Square ${res.status} on ${path}`, {
-      retryable: res.status === 429 || res.status >= 500,
+      retryable: res.status === 429 || res.status >= 500
+        || code === "TEMPORARY_ERROR",
       status: res.status,
-      detail: data.errors || data,
+      detail: errors.length ? errors : data,
+      declined,
+      code,
     });
   }
 
@@ -156,7 +202,6 @@ const staffNote = (order) => {
   }
   if (order.notes) bits.push(`notes: ${order.notes}`);
   if (order.source) bits.push(`heard via ${order.source}`);
-  if (order.flags.totalMismatch) bits.push("client total differed; recomputed");
 
   return bits.join(" · ").slice(0, 500);
 };
@@ -245,7 +290,7 @@ export const buildOrder = (order, customerId, cfg) => {
     }];
   }
   // Two lines when the address is outside the published towns, so
-  // the invoice explains the extra $3 on its own.
+  // the receipt explains the extra $3 on its own.
   const charges = [
     ["Delivery fee", t.deliveryFee - (t.areaFee || 0)],
     ["Outside-area fee", t.areaFee || 0],
@@ -261,42 +306,6 @@ export const buildOrder = (order, customerId, cfg) => {
   }
 
   return out;
-};
-
-const acceptedMethods = (bankTransfer) => ({
-  card: true,
-  square_gift_card: false,
-  bank_account: bankTransfer,
-  buy_now_pay_later: false,
-  cash_app_pay: false,
-});
-
-export const buildInvoice = (
-  order, squareOrderId, customerId, cfg, now, { emailInvoice = true } = {}
-) => {
-  const date = order.fulfilment.date;
-  const current = today(now, terms.timeZone);
-  const dayBefore = addDays(date, -1);
-
-  return {
-    location_id: cfg.locationId,
-    order_id: squareOrderId,
-    primary_recipient: { customer_id: customerId },
-    delivery_method: emailInvoice ? "EMAIL" : "SHARE_MANUALLY",
-    payment_requests: [{
-      request_type: "BALANCE",
-      due_date: dayBefore > current ? dayBefore : current,
-      automatic_payment_source: "NONE",
-    }],
-    accepted_payment_methods: acceptedMethods(bankTransferOffered(date, now)),
-    title: `North Foster Farm order ${order.id}`,
-    // Square shows this on the invoice paid or not, and a paid invoice
-    // cannot be edited, so it says only what stays true: the
-    // fulfilment. The emails carry the "isn't final until paid" line.
-    description: describe(order),
-    sale_or_service_date: date,
-    store_payment_method_enabled: false,
-  };
 };
 
 const findOrCreateCustomer = async (cfg, customer, key, fetchImpl) => {
@@ -321,15 +330,12 @@ const findOrCreateCustomer = async (cfg, customer, key, fetchImpl) => {
   return created.customer.id;
 };
 
-// -> { squareOrderId, invoiceId, invoiceNumber, invoiceUrl,
-//      bankTransfer } — the last says whether the invoice offered it,
-//      so the jobs know which ones to close later.
+// The customer and the order with its fulfilment, before any money.
+// -> { squareOrderId, customerId }
 // throws SquareError { retryable, detail }
-export const createOrderAndInvoice = async (order, key, {
+export const createOrder = async (order, key, {
   env = process.env,
   fetchImpl = globalThis.fetch,
-  now = new Date(),
-  emailInvoice = true,
 } = {}) => {
   const cfg = settings(env);
   const customerId = await findOrCreateCustomer(
@@ -339,102 +345,76 @@ export const createOrderAndInvoice = async (order, key, {
     idempotency_key: `${key}-order`,
     order: buildOrder(order, customerId, cfg),
   }, fetchImpl);
-  const squareOrderId = created.order.id;
-  const invoice = buildInvoice(
-    order, squareOrderId, customerId, cfg, now, { emailInvoice }
-  );
-  const drafted = await call(cfg, "/v2/invoices", {
-    idempotency_key: `${key}-invoice`,
-    invoice,
-  }, fetchImpl);
-  const { id, version } = drafted.invoice;
-  const published = await call(cfg, `/v2/invoices/${id}/publish`, {
-    idempotency_key: `${key}-publish`,
-    version,
-  }, fetchImpl);
+
+  return { squareOrderId: created.order.id, customerId };
+};
+
+// What the record keeps of a Square payment.
+const paymentRecord = (payment) => {
+  const card = payment.card_details && payment.card_details.card;
+  const wallet = payment.wallet_details || null;
 
   return {
-    squareOrderId,
-    invoiceId: id,
-    invoiceNumber: published.invoice.invoice_number || null,
-    invoiceUrl: published.invoice.public_url || null,
-    bankTransfer: invoice.accepted_payment_methods.bank_account,
+    squarePaymentId: payment.id,
+    status: payment.status,
+    receiptUrl: payment.receipt_url || null,
+    brand: card ? card.card_brand || null : null,
+    last4: card ? card.last_4 || null : null,
+    wallet: wallet ? wallet.brand || null : null,
   };
 };
 
-// -> { id, status, paidAt } for one invoice; status is Square's
-// (DRAFT, UNPAID, SCHEDULED, PARTIALLY_PAID, PAID, CANCELED, FAILED,
-// PAYMENT_PENDING, REFUNDED, PARTIALLY_REFUNDED).
-export const getInvoice = async (invoiceId, {
+// Takes the money for an order. `source` is the SDK's token for a
+// card or wallet, or { external: { source, sourceId } } for money
+// that came another way (Venmo through PayPal), which Square records
+// on the order as an external tender so the dashboard, the reports
+// and the refunds keep one shape.
+//
+// -> { squarePaymentId, status, receiptUrl, brand, last4, wallet }
+// throws SquareError { declined, code } when Square would not take
+// the card, { retryable } when Square could not be reached.
+export const createPayment = async ({
+  order, squareOrderId, customerId, key, source,
+}, {
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) => {
   const cfg = settings(env);
-  const data = await call(
-    cfg, `/v2/invoices/${invoiceId}`, null, fetchImpl, "GET"
-  );
-  const invoice = data.invoice || {};
-  const request = (invoice.payment_requests || [])[0] || {};
-
-  return {
-    id: invoice.id,
-    status: invoice.status,
-    version: invoice.version,
-    paidAt: request.total_completed_amount_money
-      && request.total_completed_amount_money.amount > 0
-      ? invoice.updated_at || null
-      : null,
+  const body = {
+    idempotency_key: `${key}-payment`,
+    amount_money: money(order.totals.total),
+    order_id: squareOrderId,
+    location_id: cfg.locationId,
+    customer_id: customerId,
+    buyer_email_address: order.customer.email,
+    reference_id: order.id,
+    note: `North Foster Farm order ${order.id}`,
   };
-};
 
-// Cancels an unpaid invoice so the pay link stops working. Square
-// needs the current version; a fresh read supplies it. An invoice
-// that is already paid or cancelled is left alone.
-export const cancelInvoice = async (invoiceId, {
-  env = process.env,
-  fetchImpl = globalThis.fetch,
-} = {}) => {
-  const cfg = settings(env);
-  const current = await getInvoice(invoiceId, { env, fetchImpl });
-
-  if (!["UNPAID", "SCHEDULED", "DRAFT"].includes(current.status)) {
-    return { id: invoiceId, status: current.status, cancelled: false };
+  if (source.external) {
+    body.source_id = "EXTERNAL";
+    body.external_details = {
+      type: "SOCIAL",
+      source: source.external.source,
+      source_id: source.external.sourceId || undefined,
+    };
+  } else {
+    body.source_id = source.sourceId;
+    if (source.verificationToken) {
+      body.verification_token = source.verificationToken;
+    }
   }
 
-  const data = await call(cfg, `/v2/invoices/${invoiceId}/cancel`, {
-    version: current.version,
-  }, fetchImpl);
+  const data = await call(cfg, "/v2/payments", body, fetchImpl);
+  const payment = data.payment || {};
 
-  return {
-    id: invoiceId,
-    status: (data.invoice && data.invoice.status) || "CANCELED",
-    cancelled: true,
-  };
-};
-
-// Takes the bank option off an unpaid invoice once its date is too
-// close for a transfer to clear, so a slow payer cannot pick it on
-// the due date and turn up with money in flight. Square wants the
-// current version. An invoice no longer unpaid is left alone.
-export const closeBankTransfer = async (invoiceId, {
-  env = process.env,
-  fetchImpl = globalThis.fetch,
-} = {}) => {
-  const cfg = settings(env);
-  const current = await getInvoice(invoiceId, { env, fetchImpl });
-
-  if (!["UNPAID", "SCHEDULED", "DRAFT"].includes(current.status)) {
-    return { id: invoiceId, status: current.status, closed: false };
+  if (payment.status !== "COMPLETED" && payment.status !== "APPROVED") {
+    throw new SquareError(`Payment ${payment.status || "missing"}`, {
+      declined: true, code: payment.status || "UNKNOWN", detail: payment,
+    });
   }
 
-  await call(cfg, `/v2/invoices/${invoiceId}`, {
-    invoice: {
-      version: current.version,
-      accepted_payment_methods: acceptedMethods(false),
-    },
-  }, fetchImpl, "PUT");
-
-  return { id: invoiceId, status: current.status, closed: true };
+  return paymentRecord(payment);
 };
 
 // Square's copy of the fulfilment is what the farm packs from, so a
@@ -494,4 +474,69 @@ export const cancelFulfilment = async (squareOrderId, {
   }, fetchImpl, "PUT");
 
   return { id: squareOrderId, cancelled: true };
+};
+
+// An order whose payment was declined is cancelled so it does not sit
+// in the dashboard as an open, unpaid order. Best effort: the next
+// attempt makes a fresh order under its own key.
+export const cancelOrder = async (squareOrderId, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  const cfg = settings(env);
+  const current = await currentOrder(cfg, squareOrderId, fetchImpl);
+
+  if (current.state && current.state !== "OPEN") {
+    return { id: squareOrderId, cancelled: false };
+  }
+
+  await call(cfg, `/v2/orders/${squareOrderId}`, {
+    order: {
+      location_id: cfg.locationId,
+      version: current.version,
+      state: "CANCELED",
+    },
+  }, fetchImpl, "PUT");
+
+  return { id: squareOrderId, cancelled: true };
+};
+
+// Money back on a Square payment, whole or part. Square sends the
+// customer its own refund receipt. A Venmo payment recorded as an
+// external tender is refunded in PayPal instead (paypal.mjs); Square
+// is only told so its books agree.
+// -> { squareRefundId, status, amount }
+export const refundPayment = async ({
+  squarePaymentId, amount, key, reason,
+}, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  const cfg = settings(env);
+  const data = await call(cfg, "/v2/refunds", {
+    idempotency_key: `${key}-refund`,
+    payment_id: squarePaymentId,
+    amount_money: money(amount),
+    reason: reason ? String(reason).slice(0, 192) : undefined,
+  }, fetchImpl);
+  const refund = data.refund || {};
+
+  return {
+    squareRefundId: refund.id,
+    status: refund.status,
+    amount: refund.amount_money ? refund.amount_money.amount : amount,
+  };
+};
+
+// One payment, by id, for reconciling a webhook.
+export const getPayment = async (squarePaymentId, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  const cfg = settings(env);
+  const data = await call(
+    cfg, `/v2/payments/${squarePaymentId}`, null, fetchImpl, "GET"
+  );
+
+  return paymentRecord(data.payment || {});
 };

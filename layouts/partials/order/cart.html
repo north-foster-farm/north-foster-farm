@@ -34,6 +34,16 @@
           <dd data-total="fee">+$0</dd>
         </div>
       </dl>
+
+      {{/* A discount code. Known codes are checked on the server; the
+           page carries only their hashes, so it can say "applied" or
+           "unknown" without listing them. */}}
+      <div class="order-cart-code">
+        <label class="visually-hidden" for="order-code">Discount code</label>
+        <input class="form-control form-control-sm order-cart-code-input" type="text" id="order-code" name="code" placeholder="Discount code" autocomplete="off" autocapitalize="characters" spellcheck="false" data-field="code" aria-describedby="order-code-note">
+        <button type="button" class="btn btn-sm btn-outline-primary" data-code-apply>Apply</button>
+        <p class="order-cart-code-note" id="order-code-note" data-code-note aria-live="polite" hidden></p>
+      </div>
     </div>
   </div>
 

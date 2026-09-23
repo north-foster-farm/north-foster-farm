@@ -11,7 +11,6 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { sendMail } from "./mail.mjs";
-import { resendInvoice } from "./payments.mjs";
 import {
   getCustomer, getOrder, reminderPrefs, saveCustomer,
 } from "./records.mjs";
@@ -119,11 +118,9 @@ export const requestLink = async (stores, { email, next }, {
 };
 
 // "Find my order": an order number and the email it was placed with.
-// A match mails a sign-in link straight to that order's page; for an
-// unpaid order the link rides in the pay-link email itself, so
-// looking the order up is also how the invoice is resent. No match
-// mails nothing, and the caller answers the same either way. The
-// usual rate limit applies to the address.
+// A match mails a sign-in link straight to that order's page. No
+// match mails nothing, and the caller answers the same either way.
+// The usual rate limit applies to the address.
 // -> { ok: true, matched } or { ok: false, reason }.
 export const requestOrderLink = async (stores, { email, orderId }, {
   now = new Date(),
@@ -148,14 +145,6 @@ export const requestOrderLink = async (stores, { email, orderId }, {
   }, { now, env, send: false });
 
   if (!link.ok) return link;
-
-  if (order.status === "submitted") {
-    const r = await resendInvoice(stores, order, {
-      orderUrl: link.url, mail, env, now,
-    });
-
-    return { ok: true, matched: true, sent: r.ok ? "invoice" : null };
-  }
 
   await mail({
     to: address,

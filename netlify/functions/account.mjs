@@ -5,16 +5,14 @@
 //   POST  /api/account/orders/:id/cancel
 //   POST  /api/account/orders/:id/change      { date, onfarm, delivery, notes }
 //   POST  /api/account/orders/:id/return      { reason, skus }
-//   POST  /api/account/orders/:id/resend      the pay-link email again
-//   POST  /api/account/orders/:id/venmo       "I paid by Venmo"
 //   PATCH /api/account/profile                { firstName, lastName, phone,
 //                                               avatar, reminders, marketing }
 //   PUT   /api/account/address                { address1, ..., zip, cooler }
 //   POST  /api/account/support                { subject, message, orderId }
 
 import {
-  cancelOrder, changeOrder, claimVenmo, listOrders, requestReturn,
-  resendInvoice, saveAddress, sendSupport, updateProfile,
+  cancelOrder, changeOrder, listOrders, requestReturn, saveAddress,
+  sendSupport, updateProfile,
 } from "./lib/account.mjs";
 import { publicCustomer, sameSite, sessionFrom } from "./lib/auth.mjs";
 import { json, readJson } from "./lib/http.mjs";
@@ -23,7 +21,7 @@ import { stores as defaultStores } from "./lib/store.mjs";
 
 // Ownership is checked by the logic; the route only shapes the id.
 const ORDER = new RegExp("^/api/account/orders/([A-Za-z0-9-]{1,32})/" +
-  "(cancel|change|return|resend|venmo)$");
+  "(cancel|change|return)$");
 
 const answer = (result) => (result.ok
   ? json(200, result)
@@ -66,12 +64,6 @@ export const handle = async (req, {
     }
     if (action === "change") {
       return answer(await changeOrder(stores, customer, id, body, opts));
-    }
-    if (action === "resend") {
-      return answer(await resendInvoice(stores, customer, id, opts));
-    }
-    if (action === "venmo") {
-      return answer(await claimVenmo(stores, customer, id, opts));
     }
 
     return answer(await requestReturn(stores, customer, id, body, opts));
