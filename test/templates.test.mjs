@@ -404,13 +404,13 @@ describe("an on-farm pickup awaiting the farm", () => {
     const m = farmOrderPlaced(requested(), { links });
 
     has(m.text, "Pickup time: **Requested, not yet confirmed**");
-    has(m.text, "They asked for the morning, which runs 8:00 to 12:00. " +
+    has(m.text, "They asked for the morning, which runs 9:00 to 12:00. " +
       "Confirming with no hours tells them you'll be there for the first " +
-      "two hours of it, 8:00 to 10:00:\n\n    bin/nff orders confirm " +
+      "two hours of it, 9:00 to 11:00:\n\n    bin/nff orders confirm " +
       "NFF-2610-ABCD\n");
-    has(m.text, "9:00 to 11:00, then 9:00 to 12:00:\n\n    bin/nff orders " +
-      "confirm NFF-2610-ABCD --at 9\n\n\n    bin/nff orders confirm " +
-      "NFF-2610-ABCD --at 9 --until 12\n");
+    has(m.text, "10:00 to 12:00, then 10:00 to 12:00:\n\n    bin/nff orders " +
+      "confirm NFF-2610-ABCD --at 10\n\n\n    bin/nff orders confirm " +
+      "NFF-2610-ABCD --at 10 --until 12\n");
     has(m.text, "in your words:\n\n    bin/nff orders deny NFF-2610-ABCD " +
       "--reason \"...\"\n");
     assert.ok(m.text.indexOf("Requested: Thursday")

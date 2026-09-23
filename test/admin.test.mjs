@@ -267,11 +267,11 @@ describe("an on-farm pickup window from the CLI", () => {
     const stores = testStores();
     const { sent, opts } = harness();
 
-    assert.deepEqual(pickupRange("morning"), { from: 8, to: 10 });
+    assert.deepEqual(pickupRange("morning"), { from: 9, to: 11 });
     assert.deepEqual(pickupRange("morning", { at: "9" }), { from: 9, to: 11 });
     assert.deepEqual(pickupRange("afternoon", { at: 13, until: 17 }),
       { from: 13, to: 17 });
-    assert.throws(() => pickupRange("morning", { at: 11 }), /8:00 to 12:00/);
+    assert.throws(() => pickupRange("morning", { at: 11 }), /9:00 to 12:00/);
     assert.throws(() => pickupRange("morning", { at: 9, until: 10 }),
       /at least 2 hours/);
     assert.throws(() => pickupRange("morning", { at: "9.5" }), /whole/);
