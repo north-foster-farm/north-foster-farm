@@ -100,6 +100,7 @@ export const snapshot = async (stores, {
       lastCreatedAt: order ? order.at : null,
       lastPaidAt: paid ? paid.at : null,
     },
+    context: env.CONTEXT || null,
     log: !!(env.AXIOM_TOKEN && env.AXIOM_DATASET),
     heartbeat: !!env.HEALTHCHECKS_JOBS_URL,
   };
