@@ -1,8 +1,9 @@
 {{/*
   "Do we deliver to you?": a ZIP code and an answer, from the same
   delivery area the order form checks (data/delivery.json), with no
-  request to the server. scripts/zip-check/main.js wires every form
-  on the page; a page that uses this sets pageScript: "zip-check".
+  request to the server. The answer appears as soon as five digits
+  are typed; Enter works too. scripts/zip-check/main.js wires every
+  form on the page; a page that uses this sets pageScript: "zip-check".
 
   Params:
     id          Prefix for the field's id, unique on the page
@@ -16,18 +17,12 @@
     <div class="row g-2">
       <label class="col-sm-4 col-form-label" for="{{ $id }}-input">Your ZIP code</label>
       <div class="col-sm-8">
-        <div class="input-group">
-          <input class="form-control" type="text" id="{{ $id }}-input" name="zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="02825" aria-describedby="{{ $id }}-result">
-          <button class="btn btn-outline-primary" type="submit">Check</button>
-        </div>
+        <input class="form-control" type="text" id="{{ $id }}-input" name="zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="02825" aria-describedby="{{ $id }}-result">
       </div>
     </div>
   {{ else }}
     <label class="form-label" for="{{ $id }}-input">Your ZIP code</label>
-    <div class="input-group">
-      <input class="form-control" type="text" id="{{ $id }}-input" name="zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="02825" aria-describedby="{{ $id }}-result">
-      <button class="btn btn-outline-primary" type="submit">Check</button>
-    </div>
+    <input class="form-control" type="text" id="{{ $id }}-input" name="zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="02825" aria-describedby="{{ $id }}-result">
   {{ end }}
   <p class="zip-check-result mt-2 mb-0" id="{{ $id }}-result" data-zip-result role="status" aria-live="polite"></p>
 </form>
