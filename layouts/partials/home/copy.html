@@ -142,44 +142,56 @@
 </div>
 
 {{/* Where to find us: the three markets, each with its day, its
-     place and its season. The drop site is not a market and is not
-     here; the card above and the order page carry it. */}}
+     place and its season, over the Tilted Barn photograph under a
+     dark tint, the hero's treatment. Evergreen: no dates that expire.
+     The drop site is not a market and is not here; the card above and
+     the order page carry it. */}}
 {{ $markets := slice
   (dict
     "name" "Foster Farmers Market"
     "href" "https://www.fosterfarmersmarketri.com"
     "when" "Sundays, 9:00 AM – 1:00 PM"
     "where" "Shady Acres Diner, 164 Danielson Pike, Foster"
-    "season" "Early June to late October. The 2026 season ends October 25.")
+    "season" "June through October")
   (dict
     "name" "Scituate Rotary Farmers Market"
     "href" "https://www.scituaterotaryfarmersmarket.com"
     "when" "Saturdays, 9:00 AM – 12:00 PM"
     "where" "The Village Green, 46 Institute Lane, North Scituate"
-    "season" "Late May to October. The 2026 season ends <mark>[last Saturday of the season]</mark>.")
+    "season" "June through early October")
   (dict
     "name" "Summer Market at Tilted Barn"
     "href" "https://www.tiltedbarnbrewery.com/summer-market"
     "when" "Wednesdays, 4:00 – 7:00 PM"
     "where" "Tilted Barn Brewery, One Hemsley Place, Exeter"
-    "season" "June through August. Back in June 2027.")
+    "season" "June through August")
 }}
-<div class="markets border-bottom border-light">
-  <div class="container">
+{{ $market := resources.Get "images/tilted-market.jpg" }}
+{{ $widths := slice 800 1200 1600 2200 }}
+{{ $srcset := slice }}
+{{ range $widths }}
+  {{ $img := $market.Resize (printf "%dx webp q82" .) }}
+  {{ $srcset = $srcset | append (printf "%s %dw" $img.RelPermalink .) }}
+{{ end }}
+{{ $fallback := $market.Resize "1600x jpg q82" }}
+<div class="markets home-band border-bottom border-light">
+  <img class="home-band-img" src="{{ $fallback.RelPermalink }}" srcset="{{ delimit $srcset ", " }}" sizes="100vw" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="" loading="lazy">
+  <div class="home-band-overlay"></div>
+  <div class="home-band-body container">
     <p class="home-eyebrow">Where to find us</p>
     <h2 class="home-title">We’ll see you at the market</h2>
     <ul class="markets-list list-unstyled">
       {{ range $markets }}
         <li class="market">
           <span class="home-icon" aria-hidden="true">
-            {{ partial "svg.html" "icons/tent" }}
+            {{ partial "svg.html" "icons/sign" }}
           </span>
           <h3 class="market-name">
             <a href="{{ .href }}" target="_blank" rel="noopener" title="{{ .name }} website">{{ .name }}</a>
           </h3>
           <p class="market-when">{{ .when }}</p>
           <p class="market-where">{{ .where }}</p>
-          <p class="market-season">{{ .season | safeHTML }}</p>
+          <p class="market-season">{{ .season }}</p>
         </li>
       {{ end }}
     </ul>
