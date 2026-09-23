@@ -958,6 +958,37 @@ export const farmVenmoUnmatched = (payments, { date, links } = {}) => {
   return { subject: title, ...render(title, blocks, links) };
 };
 
+// A message from the contact page. Reply-to is the writer, so the
+// farm answers by replying.
+export const farmContactMessage = (message, { at, links } = {}) => {
+  const title = `Message from ${message.name}${
+    message.orderId ? ` about ${message.orderId}` : ""}`;
+  const blocks = [
+    p(`${message.name} wrote from the contact page${
+      at ? ` at ${when(at.toISOString())}` : ""}. Reply to this email ` +
+      "to answer them."),
+    tree([mono(message.email), ...(message.orderId
+      ? [{ text: `Order ${message.orderId}`, html: `Order ${
+        mono(message.orderId).html}` }] : [])]),
+    {
+      text: `\n${message.message}\n`,
+      html: `<blockquote style="margin:16px 0;padding:8px 16px;` +
+        `border-left:3px solid ${GREEN};white-space:pre-wrap">${
+          escape(message.message)}</blockquote>`,
+    },
+  ];
+
+  if (message.orderId && links && links.admin) {
+    blocks.push(button("View order", orderAdminUrl(links, message.orderId)));
+  }
+  blocks.push(adminFooter(links));
+
+  return {
+    subject: title,
+    ...render(title, blocks, links, { tag: "Message from the website" }),
+  };
+};
+
 // --- Monitoring ----------------------------------------------------
 
 const when = (iso) => (iso ? `${iso.replace("T", " ").slice(0, 16)} UTC`

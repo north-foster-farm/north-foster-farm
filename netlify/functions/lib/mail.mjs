@@ -50,7 +50,7 @@ const viaResend = async (message, env, fetchImpl) => {
       body: JSON.stringify({
         from: env.MAIL_FROM,
         to: Array.isArray(message.to) ? message.to : [message.to],
-        "reply_to": env.MAIL_REPLY_TO || undefined,
+        "reply_to": message.replyTo || env.MAIL_REPLY_TO || undefined,
         subject: message.subject,
         text: message.text,
         html: message.html,
@@ -112,7 +112,9 @@ export const viaFile = async (message, env, now = new Date()) => {
   return { id: base, driver: "file" };
 };
 
-// The message is { to, subject, text, html, idempotencyKey? }.
+// The message is { to, subject, text, html, idempotencyKey?, replyTo? };
+// `replyTo` overrides MAIL_REPLY_TO for one message (the contact form
+// sets it to the writer).
 export const sendMail = async (message, {
   env = process.env,
   fetchImpl = globalThis.fetch,

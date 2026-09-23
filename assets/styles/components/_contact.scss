@@ -1,0 +1,20 @@
+// The contact page's list of ways to reach the farm: a label line,
+// then the way, one under the other. The cards and the form take the
+// account pages' styles (_account.scss lists .contact with them).
+
+.contact-ways {
+  dt {
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    font-weight: bold;
+    color: var(--bs-secondary-color);
+  }
+
+  dt:first-child {
+    margin-top: 0;
+  }
+
+  dd {
+    margin-bottom: 0;
+  }
+}

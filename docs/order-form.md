@@ -186,7 +186,12 @@ did. `reminderPrefs(customer)` in `lib/records.mjs` is the one reading.
 
 `lib/mail.mjs` sends through Resend when `MAIL_DRIVER=resend`,
 `RESEND_API_KEY` and `MAIL_FROM` are set, otherwise to the function
-log. `MAIL_DRIVER=file` writes each message as `.html` and `.txt`
+log. A message may carry its own `replyTo`; the contact page's
+messages (`POST /api/contact`, `netlify/functions/contact.mjs`) set it
+to the writer, so the farm answers by replying. That form stores
+nothing: honeypot and a per-address limit, then one farm email,
+`farmContactMessage`. Every customer email's "Contact us" now points
+at `/contact/` (or `CONTACT_URL`). `MAIL_DRIVER=file` writes each message as `.html` and `.txt`
 under `MAIL_OUT` (default `.ignored/outbox`) instead, so a local
 `bin/nff` command, `netlify dev` or a jobs run leaves its emails
 where a browser can open them. `node .ignored/render-all.mjs --open`

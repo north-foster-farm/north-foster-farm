@@ -2,6 +2,7 @@
 // shadow and radius as the order page.
 
 .login,
+.contact,
 .account {
   .account-narrow {
     max-width: 480px;
@@ -346,7 +347,9 @@
   }
 }
 
-// The sign-in page reads like a policy page: the same 700px column.
-.login .account-wide {
+// The sign-in and contact pages read like a policy page: the same
+// 700px column.
+.login .account-wide,
+.contact .account-wide {
   max-width: 700px;
 }

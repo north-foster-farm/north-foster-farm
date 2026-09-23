@@ -82,6 +82,12 @@ describe("sendMail", () => {
     assert.equal(seen.init.from, live.MAIL_FROM);
     assert.deepEqual(seen.init.to, ["pat@example.com"]);
     assert.equal(seen.init.reply_to, "sales@example.com");
+
+    // A message may name its own reply-to (the contact form does).
+    await sendMail({ ...message, replyTo: "pat@example.com" }, {
+      env: live, fetchImpl,
+    });
+    assert.equal(seen.init.reply_to, "pat@example.com");
     assert.equal(seen.init.headers["X-Entity-Ref-ID"], "k-1");
   });
 
