@@ -548,6 +548,35 @@ describe("the monitoring emails", () => {
     has(none.text, "Nothing due Friday, October 9.");
   });
 
+  it("every farm email opens with a small capital line naming it; a " +
+    "customer's does not", () => {
+    const tagged = [
+      [farmMorningReport(stats, [], { date: "2026-10-06", links }),
+        "MORNING REPORT"],
+      [farmTomorrow([], { date: "2026-10-08", links }), "TOMORROW"],
+      [farmAlert("mail.failed", {}, { links }), "SITE ALERT"],
+      [farmOrderPlaced(order(), { links }), "NEW ORDER"],
+      [farmOrderPaid(order(), { links }), "PAYMENT RECEIVED"],
+      [farmVenmoClaimed(order(), { links }), "VENMO TO CHECK"],
+      [farmVenmoUnmatched([], { date: "2026-09-22", links }), "VENMO REPORT"],
+    ];
+
+    for (const [m, tag] of tagged) {
+      assert.equal(m.text.split("\n")[2], tag, m.subject);
+      assert.match(m.html, new RegExp("text-transform:uppercase;" +
+        `color:#5e5e5f">${tag.charAt(0)}${tag.slice(1).toLowerCase()}</p>`),
+      m.subject);
+    }
+    for (const m of [completeYourOrder(order(), { links }),
+      orderConfirmed(order(), { links })]) {
+      assert.doesNotMatch(m.html,
+        /letter-spacing:\.12em;text-transform:uppercase;color:#5e5e5f/,
+        m.subject);
+      assert.notEqual(m.text.split("\n")[2], m.text.split("\n")[2]
+        .toUpperCase(), "no capital line under the title");
+    }
+  });
+
   it("alert: the kind, the time, the detail as a table, and the runbook",
     () => {
       const m = farmAlert("order.create_failed", {

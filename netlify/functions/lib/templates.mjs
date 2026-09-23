@@ -114,7 +114,7 @@ const table = (headers, rows, { align = [] } = {}) => {
       .join("\n"),
     html: `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;` +
       `margin:12px 0"><table style="border-collapse:collapse;` +
-      `font-size:15px"><thead><tr>${headers.map((h, i) =>
+      `font-size:16px"><thead><tr>${headers.map((h, i) =>
         cell("th", escape(h), i, ";border-bottom:1px solid rgba(0,0,0,.175)"))
         .join("")}</tr></thead><tbody>${cells.map((r) =>
         `<tr>${r.map((c, i) => cell("td", c.html, i)).join("")}</tr>`)
@@ -215,9 +215,19 @@ const footer = {
       footerLines.map(escape).join("<br>")}</p>`,
 };
 
-// The subject is the title; the body does not repeat it.
-const render = (title, blocks, links = {}) => {
-  const text = [title, "", ...blocks.map((b) => b.text), "", footer.text]
+// The subject is the title; the body does not repeat it. A farm email
+// carries a `tag`, a small gray capital line at the top of the card
+// naming the kind of message, so the inbox reads at a glance.
+const render = (title, blocks, links = {}, { tag = null } = {}) => {
+  const tagged = tag
+    ? [{
+      text: tag.toUpperCase(),
+      html: `<p style="margin:0 0 12px;font-size:12px;font-weight:bold;` +
+        `letter-spacing:.12em;text-transform:uppercase;color:${MUTED}">${
+          escape(tag)}</p>`,
+    }, ...blocks]
+    : blocks;
+  const text = [title, "", ...tagged.map((b) => b.text), "", footer.text]
     .join("\n");
   const html = `<!doctype html><html><head><meta charset="utf-8">` +
     `<meta name="viewport" content="width=device-width">` +
@@ -231,7 +241,7 @@ const render = (title, blocks, links = {}) => {
     `<div style="background:#fff;border:1px solid rgba(0,0,0,.175);` +
     `border-radius:5px;padding:20px 24px;` +
     `box-shadow:0 2px 3px rgba(7,6,6,.2)">${
-      blocks.map((b) => b.html).join("")
+      tagged.map((b) => b.html).join("")
     }</div>${footer.html}</div></body></html>`;
 
   return { text, html };
@@ -774,7 +784,9 @@ export const addressReview = (customer, { links } = {}) => {
     adminFooter(links),
   ];
 
-  return { subject: title, ...render(title, blocks, links) };
+  return {
+    subject: title, ...render(title, blocks, links, { tag: "Address review" }),
+  };
 };
 
 const customerDetails = (order, links) => {
@@ -870,7 +882,9 @@ export const farmOrderPlaced = (order, { squareUrl, links } = {}) => {
   if (squareUrl) blocks.push(button("View invoice in Square", squareUrl));
   blocks.push(adminFooter(links));
 
-  return { subject: title, ...render(title, blocks, links) };
+  return {
+    subject: title, ...render(title, blocks, links, { tag: "New order" }),
+  };
 };
 
 // The customer moved an on-farm order to another day or window from
@@ -889,7 +903,10 @@ export const farmPickupChanged = (order, { links } = {}) => {
   if (url) blocks.push(button("View order", url));
   blocks.push(adminFooter(links));
 
-  return { subject: title, ...render(title, blocks, links) };
+  return {
+    subject: title,
+    ...render(title, blocks, links, { tag: "Pickup time to confirm" }),
+  };
 };
 
 // The customer pressed "I paid by Venmo" before Venmo's notification
@@ -922,7 +939,9 @@ export const farmVenmoClaimed = (order, { links } = {}) => {
   if (url) blocks.push(button("View order", url));
   blocks.push(adminFooter(links));
 
-  return { subject: title, ...render(title, blocks, links) };
+  return {
+    subject: title, ...render(title, blocks, links, { tag: "Venmo to check" }),
+  };
 };
 
 // The evening report of Venmo payments the site could not apply: no
@@ -955,7 +974,9 @@ export const farmVenmoUnmatched = (payments, { date, links } = {}) => {
     adminFooter(links),
   ];
 
-  return { subject: title, ...render(title, blocks, links) };
+  return {
+    subject: title, ...render(title, blocks, links, { tag: "Venmo report" }),
+  };
 };
 
 // --- Monitoring ----------------------------------------------------
@@ -992,7 +1013,9 @@ export const farmAlert = (kind, detail = {}, { at, links } = {}) => {
     adminFooter(links)
   );
 
-  return { subject: title, ...render(title, blocks, links) };
+  return {
+    subject: title, ...render(title, blocks, links, { tag: "Site alert" }),
+  };
 };
 
 // Every morning at 8:00: the site's vital signs for the last day, then
@@ -1098,7 +1121,9 @@ export const farmMorningReport = (stats, pickups, {
   }
   blocks.push(adminFooter(links));
 
-  return { subject: title, ...render(title, blocks, links) };
+  return {
+    subject: title, ...render(title, blocks, links, { tag: "Morning report" }),
+  };
 };
 
 // Every evening at 6:00: every order due tomorrow, by method, with
@@ -1164,25 +1189,9 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
   }
   blocks.push(adminFooter(links));
 
-  return { subject: title, ...render(title, blocks, links) };
-};
-
-// The morning report of on-farm orders within two days of their date
-// whose window is still unconfirmed, or denied and not yet re-picked.
-// Sent only when there is at least one.
-export const farmPickupsToConfirm = (orders, { date, links } = {}) => {
-  const title = `Pickups to confirm: ${label(date)}`;
-  const blocks = [
-    p("These on-farm pickups are within two days and not confirmed."),
-    list(orders.map((o) => `${o.id}, ${o.customer.name || o.customer.email}` +
-      `, ${windowPhrase(o)}, ${paidWord(o)}${
-        o.question && !o.question.answeredAt
-          ? ", denied and not re-picked" : ""}: bin/nff orders confirm ${
-        o.id}`)),
-    adminFooter(links),
-  ];
-
-  return { subject: title, ...render(title, blocks, links) };
+  return {
+    subject: title, ...render(title, blocks, links, { tag: "Tomorrow" }),
+  };
 };
 
 // When the invoice clears, from the webhook or the 15-minute poll.
@@ -1195,7 +1204,10 @@ export const farmOrderPaid = (order, { squareUrl, links } = {}) => {
   if (squareUrl) blocks.push(button("View invoice in Square", squareUrl));
   blocks.push(adminFooter(links));
 
-  return { subject: title, ...render(title, blocks, links) };
+  return {
+    subject: title,
+    ...render(title, blocks, links, { tag: "Payment received" }),
+  };
 };
 
 // A short line for the CLI and logs.
