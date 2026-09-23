@@ -41,7 +41,7 @@
       <div class="col d-flex flex-column align-items-center py-3">
         <div class="home-update-card border border-1 border-success border-opacity-50 rounded-4 px-3 px-sm-5 py-3 py-sm-5">
           <div class="fmw-575 w-100">
-            <h2 class="text-center mb-4">
+            <h2 class="text-center mb-5">
               <span class="border-bottom">
                 September Update
               </span>
@@ -79,7 +79,7 @@
             {{ partial "delivery-check.html" (dict
               "id" "update-zip"
               "class" "my-3"
-              "lede" (printf "We deliver to most of central Rhode Island and parts of eastern Connecticut; our %s lists every town. Type in your ZIP code and we’ll tell you." $deliveryPolicy))
+              "lede" (printf "We deliver to most of central Rhode Island and some communities in eastern Connecticut. Check your ZIP code below. For more details, see our %s." $deliveryPolicy))
             }}
             <p class="fw-bold mb-1">On-farm pickup</p>
             <ul>
@@ -94,7 +94,6 @@
             {{ partial "home/figure.html" (dict
               "image" ($flyers.Resize "1150x webp q82")
               "alt" "Five North Foster Farm delivery flyers fanned out on a green checked tablecloth"
-              "caption" "Fresh from the printer. Look for one on our table at the market."
               "classes" "my-4")
             }}
             <p>
