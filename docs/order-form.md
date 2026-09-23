@@ -64,7 +64,9 @@ subtotal    = Σ qty × unitPrice
 bulk        = highest tier where subtotal >= threshold   (never stacked)
 group       = customer's discountGroup percent × subtotal (signed in)
 discount    = max(bulk, group)                            (never both)
-deliveryFee = delivery && subtotal < 150.00 ? 5.00 : 0    (pre-discount)
+baseFee     = delivery && subtotal < 150.00 ? 5.00 : 0    (pre-discount)
+areaFee     = delivery && ZIP unlisted (other RI) ? 3.00 : 0 (never waived)
+deliveryFee = baseFee + areaFee
 total       = subtotal - discount + deliveryFee
 minimum     = delivery only: subtotal - discount >= 40.00
 ```
