@@ -32,6 +32,11 @@ describe("stores by context", () => {
     assert.equal(storeName("jobs", { CONTEXT: "branch-deploy" }),
       "branch-deploy-jobs");
     assert.equal(storeName("auth", { CONTEXT: "dev" }), "dev-auth");
+    assert.equal(storeName("auth", { SITE_CONTEXT: "branch-deploy" }),
+      "branch-deploy-auth", "the runtime variable");
+    assert.equal(storeName("auth", {
+      SITE_CONTEXT: "production", CONTEXT: "deploy-preview",
+    }), "auth", "SITE_CONTEXT wins");
   });
 });
 
@@ -75,6 +80,8 @@ describe("the staging endpoints", () => {
     assert.equal(staging({}), false);
     assert.equal(staging({ CONTEXT: "production" }), false);
     assert.equal(staging({ CONTEXT: "branch-deploy" }), true);
+    assert.equal(staging({ SITE_CONTEXT: "deploy-preview" }), true);
+    assert.equal(staging({ SITE_CONTEXT: "production" }), false);
 
     for (const e of [{}, { CONTEXT: "production" }]) {
       const res = await handle(req("/api/staging/info"), {

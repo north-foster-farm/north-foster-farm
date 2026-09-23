@@ -12,7 +12,7 @@ import { json, readJson } from "./lib/http.mjs";
 import { alert, readMark } from "./lib/health.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { openOrders } from "./lib/records.mjs";
-import { stores as defaultStores } from "./lib/store.mjs";
+import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 
 const MINUTE = 60_000;
 
@@ -100,7 +100,7 @@ export const snapshot = async (stores, {
       lastCreatedAt: order ? order.at : null,
       lastPaidAt: paid ? paid.at : null,
     },
-    context: env.CONTEXT || null,
+    context: deployContext(env) || null,
     log: !!(env.AXIOM_TOKEN && env.AXIOM_DATASET),
     heartbeat: !!env.HEALTHCHECKS_JOBS_URL,
   };
