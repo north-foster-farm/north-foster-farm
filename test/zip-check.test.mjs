@@ -30,7 +30,8 @@ describe("do we deliver to you", () => {
     const far = answerFor("01234", area);
 
     assert.equal(near.tone, "wait");
-    assert.match(near.text, /confirm before we charge you/);
+    assert.match(near.text,
+      /\$3 more, and we.ll confirm with you before we charge you/);
     assert.equal(far.tone, "no");
     assert.match(far.text, /outside our delivery area/);
     assert.match(far.text, /Scituate drop site/);

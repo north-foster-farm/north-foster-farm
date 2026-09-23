@@ -41,6 +41,10 @@ discounts. The delivery fee is $5, waived on orders of $150 or more.
 
 The highest tier you reach applies, automatically.
 
+A Rhode Island address outside our delivery area (below) costs $3
+more, on every order. The order form shows it as soon as you enter
+your ZIP code.
+
 ## How you pay
 
 Orders are prepaid. When you place an order we email you a Square
@@ -54,10 +58,9 @@ find. The order form asks where.
 
 ## Delivery area
 
-These are the towns we deliver to. They are our stated area, not a
-hard line: we are willing to consider deliveries outside these ZIP
-codes on a case-by-case basis. The form takes any Rhode Island ZIP and
-we will confirm with you before anything is charged. For anywhere else,
+These are the towns we deliver to at the fees above. The form also
+takes any other Rhode Island ZIP code, for $3 more, and we confirm
+with you before anything is charged. For anywhere else,
 [email us](mailto:sales@northfosterfarm.com) before you order.
 
 {{< delivery-area >}}
