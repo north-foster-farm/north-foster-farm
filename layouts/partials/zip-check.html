@@ -5,15 +5,29 @@
   on the page; a page that uses this sets pageScript: "zip-check".
 
   Params:
-    id  Prefix for the field's id, unique on the page
+    id          Prefix for the field's id, unique on the page
+    horizontal  Label beside the field, the order form's pattern, when
+                the row is wide enough; stacked below sm (optional)
 */}}
 {{ $id := .id | default "zip" }}
 <form class="zip-check" data-zip-check novalidate>
   <script type="application/json" data-zip-area>{{ hugo.Data.delivery.area | jsonify | safeJS }}</script>
-  <label class="form-label" for="{{ $id }}-input">Your ZIP code</label>
-  <div class="input-group">
-    <input class="form-control" type="text" id="{{ $id }}-input" name="zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="02825" aria-describedby="{{ $id }}-result">
-    <button class="btn btn-outline-primary" type="submit">Check</button>
-  </div>
+  {{ if .horizontal }}
+    <div class="row g-2">
+      <label class="col-sm-4 col-form-label" for="{{ $id }}-input">Your ZIP code</label>
+      <div class="col-sm-8">
+        <div class="input-group">
+          <input class="form-control" type="text" id="{{ $id }}-input" name="zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="02825" aria-describedby="{{ $id }}-result">
+          <button class="btn btn-outline-primary" type="submit">Check</button>
+        </div>
+      </div>
+    </div>
+  {{ else }}
+    <label class="form-label" for="{{ $id }}-input">Your ZIP code</label>
+    <div class="input-group">
+      <input class="form-control" type="text" id="{{ $id }}-input" name="zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="02825" aria-describedby="{{ $id }}-result">
+      <button class="btn btn-outline-primary" type="submit">Check</button>
+    </div>
+  {{ end }}
   <p class="zip-check-result mt-2 mb-0" id="{{ $id }}-result" data-zip-result role="status" aria-live="polite"></p>
 </form>

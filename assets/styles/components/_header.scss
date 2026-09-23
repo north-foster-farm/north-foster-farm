@@ -54,10 +54,10 @@ header {
   gap: 0.5rem;
 }
 
-// Text links: About, Sign in, and the Account menu button. No border,
-// but the same hinge as every button: on hover a wash of their own
-// color, a two-pixel lift and the shadow underneath, as if raised on
-// a pin.
+// Text links: Sign in, Delivery, News, About, Contact, and the Account
+// menu button. No border, but the same hinge as every button: on hover
+// a wash of their own color, a two-pixel lift and the shadow
+// underneath, as if raised on a pin.
 .site-nav-link {
   display: inline-flex;
   align-items: center;
@@ -332,7 +332,7 @@ header {
 
 @media (min-width: 768px) {
   .site-header-inner {
-    min-height: 3.325rem;
+    min-height: 3.375rem;
   }
 
   .site-brand svg {

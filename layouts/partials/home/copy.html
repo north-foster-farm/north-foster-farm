@@ -1,10 +1,15 @@
 {{/* The September 2026 update: online ordering, the three ways to get
-     an order, and where delivery goes. The towns come from
-     data/delivery.json, the same file the order form checks, so the
-     list here can never disagree with what the form accepts. */}}
+     an order, where delivery goes, and the delivery check. The towns
+     come from data/delivery.json, the same file the order form
+     checks, so the list here can never disagree with what the form
+     accepts. The three ways carry the order form's names, so a first
+     order reads the same on both pages.
+
+     Below the card, the market section: the three markets the farm
+     sells at during the season. */}}
 {{ $orderPage := partial "link.html" (dict
   "href" (relURL "order/")
-  "innerHTML" "northfosterfarm.com/order"
+  "innerHTML" "order page"
   "title" "Order online from North Foster Farm")
 }}
 {{ $deliveryPolicy := partial "link.html" (dict
@@ -12,49 +17,10 @@
   "innerHTML" "delivery policy"
   "title" "Delivery schedule, minimums, fees and area")
 }}
-{{ $checkZip := partial "link.html" (dict
-  "href" "#delivery-check"
-  "innerHTML" "Check your ZIP code"
-  "title" "Find out whether we deliver to your address")
-}}
-{{ $freeOfGMOs := partial "link.html" (dict
-  "href" "https://www.nongmoproject.org/"
-  "innerHTML" "free of GMOs"
-  "newTab" true
-  "title" "The Non-GMO Project")
-}}
-{{ $moveThemToFreshPastureRegularly := partial "link.html" (dict
-  "href" "https://www.getrealchicken.com/why-pasture-raised"
-  "innerHTML" "move them to fresh pasture regularly"
-  "newTab" true
-  "title" "Information about the benefits of pasture-raised farming from APPPA")
-}}
-{{ $instagram := partial "link.html" (dict
-  "href" "https://www.instagram.com/northfosterfarm"
-  "innerHTML" "@northfosterfarm on Instagram"
-  "newTab" true
-  "title" "North Foster Farm on Instagram")
-}}
-{{ $newsPage := partial "link.html" (dict
-  "href" (relURL "news/")
-  "innerHTML" "Earlier updates"
-  "title" "Every update we have posted, newest first")
-}}
-{{ $email := hugo.Data.company.email }}
-{{ $emailSubject := "Add me to the NFF email list!" }}
-{{ $emailBody := "I'd like to get email updates from NFF please!" }}
-{{ $emailHref := printf "mailto:%s?subject=%s&body=%s" $email $emailSubject $emailBody }}
-{{ $emailAddress := partial "link.html" (dict
-  "href" $emailHref
-  "innerHTML" $email
-  "classes" "text-decorate-none")
-}}
-{{ $feedbackSubject := "Online ordering" }}
-{{ $feedbackHref := printf "mailto:%s?subject=%s" $email $feedbackSubject }}
-{{ $feedbackEmail := partial "link.html" (dict
-  "href" $feedbackHref
-  "innerHTML" "send us an email"
-  "classes" "text-decorate-none")
+{{ $orderOnline := partial "link.html" (dict
+  "href" (relURL "order/")
+  "innerHTML" "order online"
+  "title" "Order online from North Foster Farm")
 }}
 
 {{/* The order page on a laptop, a PNG with a transparent background,
@@ -74,11 +40,11 @@
 {{ $firstTier := index $tiers 0 }}
 {{ $lastTier := index $tiers (sub (len $tiers) 1) }}
 
-<div class="border-bottom border-light hero text-dark">
+<div class="home-update border-bottom border-light">
   <div class="container">
     <div class="row py-3 py-md-5">
       <div class="col d-flex flex-column align-items-center py-3">
-        <div class="bg-success-subtle border border-1 border-success border-opacity-50 rounded-4 px-3 px-sm-5 py-3 py-sm-5">
+        <div class="home-update-card border border-1 border-success border-opacity-50 rounded-4 px-3 px-sm-5 py-3 py-sm-5">
           <div class="fmw-575 w-100">
             <h2 class="text-center mb-4">
               <span class="border-bottom">
@@ -94,15 +60,16 @@
               "classes" "mb-4")
             }}
             <p>
-              You asked, and it’s here: <strong>you can now order from us
-              online</strong> at {{ $orderPage }}. Everything we bring to
-              market is on it, from eggs by the dozen to whole chickens,
-              sausage and every cut in between.
+              <strong>You can now order from us online.</strong> Visit the
+              {{ $orderPage }} to see our catalog, which includes everything
+              we bring to market, from eggs by the dozen to whole chickens,
+              sausage, and every cut in between.
             </p>
             <p>
-              Pick what you want and choose how you’d like to get it. We’ll
-              email you an invoice, and you pay it online from your inbox.
-              Nothing is charged when you place the order.
+              <strong>The way it works:</strong> you pick what you want and
+              build your cart, then you pick how you want to receive it.
+              When you send us the order, we create an invoice and email it
+              back to you. Pay it, and your order is placed.
             </p>
             <p>
               There are three ways to get your order:
@@ -110,25 +77,22 @@
             <ul class="list-unstyled">
               <li class="pb-2"><strong>Delivery</strong>
                 <ul>
-                  <li>Thursdays, roughly 10:00 AM to 4:00 PM</li>
-                  <li>Order by noon on Wednesday</li>
-                  <li>${{ $money.deliveryMinimum }} minimum,
-                    ${{ $money.deliveryFee }} delivery fee, free delivery on
-                    orders of ${{ $money.feeWaivedAt }} or more</li>
-                  <li>Leave a cooler out and we’ll fill it</li>
+                  <li>We deliver every week on Thursday</li>
+                  <li>Order as late as the day before</li>
+                  <li>As affordable as possible: ${{ $money.deliveryMinimum }}
+                    minimum, ${{ $money.deliveryFee }} fee</li>
                 </ul>
               </li>
-              <li class="pb-2"><strong>Pickup at the farm</strong>
+              <li class="pb-2"><strong>On-farm pickup</strong>
                 <ul>
-                  <li>Weekdays, by appointment</li>
-                  <li>99 East Killingly Road, Foster, RI</li>
+                  <li>Pickup on select weekdays, by appointment</li>
+                  <li>No fee, no minimum</li>
                 </ul>
               </li>
-              <li><strong>Saturday pickup in North Scituate</strong>
+              <li><strong>Scituate drop site</strong>
                 <ul>
-                  <li>Saturdays, 10:00 to 11:00 AM, starting October 17</li>
-                  <li>The Village Green, in the same corner where our market
-                    tent stands</li>
+                  <li>Back on Saturday mornings, starting October 17</li>
+                  <li>Pick up your order for free</li>
                 </ul>
               </li>
             </ul>
@@ -137,12 +101,13 @@
               {{ len $riTowns }} towns in Rhode Island:
               {{ delimit $riTowns ", " ", and " }}. Just over the line in
               Connecticut, in {{ delimit $ctTowns ", " " and " }}, we can
-              deliver eggs for now. Not sure about your address?
-              {{ $checkZip }} below. Our {{ $deliveryPolicy }} has the fine
-              print and the bulk discounts: ${{ $firstTier.off }} off orders
-              of ${{ $firstTier.threshold }}, up to ${{ $lastTier.off }} off
+              deliver eggs for now. Not sure about your address? Check your
+              ZIP code below. Our {{ $deliveryPolicy }} has the fine print
+              and the bulk discounts: ${{ $firstTier.off }} off orders of
+              ${{ $firstTier.threshold }}, up to ${{ $lastTier.off }} off
               orders of ${{ $lastTier.threshold }}.
             </p>
+            {{ partial "delivery-check.html" (dict "id" "update-zip" "class" "my-4") }}
             {{ partial "home/figure.html" (dict
               "image" ($flyers.Resize "1150x webp q82")
               "alt" "Five North Foster Farm delivery flyers fanned out on a green checked tablecloth"
@@ -150,38 +115,24 @@
               "classes" "my-4")
             }}
             <p>
-              The markets wind down as the weather turns, and this is how we
-              keep eggs and chicken coming to you through the winter. If we
-              haven’t met yet: we’re <strong>North Foster Farm</strong>, a
-              small family farm in Foster, Rhode Island. We raise chickens on
-              grass, {{ $moveThemToFreshPastureRegularly }}, and feed them
-              grain that’s {{ $freeOfGMOs }}.
+              Our freezers are fully stocked, and our hens, although slowing
+              down, will continue to lay for us all year round. We endeavor
+              to keep you fully supplied from here all the way to next market
+              season.
             </p>
             <p>
-              This is the first version of the order page, and we want to hear
-              how it works for you. If anything is confusing, or something you
-              want isn’t there, please {{ $feedbackEmail }}.
+              This is the first version of our online ordering system, and we
+              want to hear how it works for you. If anything is confusing, or
+              something you want isn’t there, let us know.
+            </p>
+            <p class="home-update-cta">
+              <a class="btn btn-primary" href="{{ relURL "contact/" }}">Contact us</a>
             </p>
             <p>
-              Thank you for making our first season selling chicken such a
-              good one. We’ll see you at the market, on the Green, or on your
-              doorstep.
+              Thank you for being here.
             </p>
-            <p class="fs-4 text-body-secondary mt-4">
-              The NFF team
-            </p>
-          </div>
-          <div class="fmw-575 w-100">
-            {{ partial "separator.html" "my-1" }}
-          </div>
-          <div class="fmw-575 w-100">
-            <p>
-              Changes to our schedule and periodic updates will be posted on
-              our website. {{ $newsPage }} are on the news page. If you’d
-              like to receive these occasional updates in an email, please
-              join our email list. Sign up by sending a message to
-              {{ $emailAddress }} with your email address. You can also
-              follow along with {{ $instagram }}.
+            <p class="fs-4 text-body-secondary mt-4 mb-0">
+              — The NFF team
             </p>
           </div>
         </div>
@@ -190,42 +141,51 @@
   </div>
 </div>
 
-{{/* The market band: the Wednesday market at Tilted Barn under a dark
-     tint, the hero's treatment. */}}
-{{ $market := resources.Get "images/tilted-market.jpg" }}
-{{ $widths := slice 800 1200 1600 2200 }}
-{{ $srcset := slice }}
-{{ range $widths }}
-  {{ $img := $market.Resize (printf "%dx webp q82" .) }}
-  {{ $srcset = $srcset | append (printf "%s %dw" $img.RelPermalink .) }}
-{{ end }}
-{{ $fallback := $market.Resize "1600x jpg q82" }}
-<div class="home-band border-bottom border-light">
-  <img class="home-band-img" src="{{ $fallback.RelPermalink }}" srcset="{{ delimit $srcset ", " }}" sizes="100vw" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="" loading="lazy">
-  <div class="home-band-overlay"></div>
-  <div class="home-band-body container">
-    <div class="row py-5 py-xl-6">
-      <div class="py-0 py-xxl-6">
-        <div class="col d-flex flex-column align-items-center py-3">
-          <div class="fmw-575 w-100 text-center">
-            <h2>See you at the market.</h2>
-            <p>
-              Our first season selling chicken started under a tent:
-              Wednesday evenings in the field at Tilted Barn, Saturday
-              mornings on the Village Green in North Scituate, Sundays at
-              Shady Acres in Foster. That’s where most of you met us, tasted
-              the difference, and came back for more.
-            </p>
-            <p>
-              The market season ends in October. The farm doesn’t. The hens
-              keep laying through the winter, the freezers stay full, and we
-              keep coming to you: Thursday delivery, pickup at the farm, and
-              Saturday mornings on the Green, in the same corner where the
-              tent stood. We’ll be back under it in June.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+{{/* Where to find us: the three markets, each with its day, its
+     place and its season. The drop site is not a market and is not
+     here; the card above and the order page carry it. */}}
+{{ $markets := slice
+  (dict
+    "name" "Foster Farmers Market"
+    "href" "https://www.fosterfarmersmarketri.com"
+    "when" "Sundays, 9:00 AM – 1:00 PM"
+    "where" "Shady Acres Diner, 164 Danielson Pike, Foster"
+    "season" "Early June to late October. The 2026 season ends October 25.")
+  (dict
+    "name" "Scituate Rotary Farmers Market"
+    "href" "https://www.scituaterotaryfarmersmarket.com"
+    "when" "Saturdays, 9:00 AM – 12:00 PM"
+    "where" "The Village Green, 46 Institute Lane, North Scituate"
+    "season" "Late May to October. The 2026 season ends <mark>[last Saturday of the season]</mark>.")
+  (dict
+    "name" "Summer Market at Tilted Barn"
+    "href" "https://www.tiltedbarnbrewery.com/summer-market"
+    "when" "Wednesdays, 4:00 – 7:00 PM"
+    "where" "Tilted Barn Brewery, One Hemsley Place, Exeter"
+    "season" "June through August. Back in June 2027.")
+}}
+<div class="markets border-bottom border-light">
+  <div class="container">
+    <p class="home-eyebrow">Where to find us</p>
+    <h2 class="home-title">We’ll see you at the market</h2>
+    <ul class="markets-list list-unstyled">
+      {{ range $markets }}
+        <li class="market">
+          <span class="home-icon" aria-hidden="true">
+            {{ partial "svg.html" "icons/tent" }}
+          </span>
+          <h3 class="market-name">
+            <a href="{{ .href }}" target="_blank" rel="noopener" title="{{ .name }} website">{{ .name }}</a>
+          </h3>
+          <p class="market-when">{{ .when }}</p>
+          <p class="market-where">{{ .where }}</p>
+          <p class="market-season">{{ .season | safeHTML }}</p>
+        </li>
+      {{ end }}
+    </ul>
+    <p class="markets-note mb-0">
+      Between seasons, {{ $orderOnline }} for Thursday delivery, on-farm
+      pickup, or the Saturday drop site on the Village Green.
+    </p>
   </div>
 </div>
