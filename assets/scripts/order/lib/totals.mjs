@@ -60,7 +60,10 @@ export const groupDiscountFor = (subtotal, group, money) => {
 // `lines` is [{ sku, qty }]; `index` is indexCatalog(catalog); `group`
 // is the customer's discount group key, if any. The bulk tier and the
 // group discount never stack: the customer gets the larger one.
-export const computeTotals = ({ lines, method, index, money, group }) => {
+// `zipStatus` is the delivery ZIP's status from zipInfo, when known.
+export const computeTotals = ({
+  lines, method, index, money, group, zipStatus,
+}) => {
   let subtotal = 0;
 
   for (const { sku, qty } of lines) {
@@ -73,9 +76,15 @@ export const computeTotals = ({ lines, method, index, money, group }) => {
   const byGroup = groupDiscountFor(subtotal, group, money);
   const useGroup = !!byGroup && byGroup.amount > bulk.amount;
   const isDelivery = method === "delivery";
-  const deliveryFee = isDelivery && subtotal < toCents(money.feeWaivedAt)
+  const baseFee = isDelivery && subtotal < toCents(money.feeWaivedAt)
     ? toCents(money.deliveryFee)
     : 0;
+  // A Rhode Island address outside the published towns pays a flat
+  // charge on top, never waived: it covers the extra miles.
+  const areaFee = isDelivery && zipStatus === "unlisted"
+    ? toCents(money.outsideAreaFee || 0)
+    : 0;
+  const deliveryFee = baseFee + areaFee;
 
   return {
     subtotal,
@@ -86,6 +95,7 @@ export const computeTotals = ({ lines, method, index, money, group }) => {
       : (bulk.tier ? `Bulk discount ($${bulk.tier}+)` : null),
     discountAmount: useGroup ? byGroup.amount : bulk.amount,
     deliveryFee,
+    areaFee,
     total: subtotal - (useGroup ? byGroup.amount : bulk.amount) + deliveryFee,
   };
 };

@@ -18,6 +18,32 @@ const totalsAt = (price, method = "onfarm") => computeTotals({
   lines: [{ sku: "X", qty: 1 }], method, index: priced(price), money,
 });
 
+describe("the outside-area fee", () => {
+  const at = (price, zipStatus, method = "delivery") => computeTotals({
+    lines: [{ sku: "X", qty: 1 }], method, index: priced(price), money,
+    zipStatus,
+  });
+
+  it("adds $3 for an unlisted Rhode Island ZIP, on top of the fee", () => {
+    assert.equal(at(60, "approved").deliveryFee, 500);
+    assert.equal(at(60, "approved").areaFee, 0);
+    assert.equal(at(60, "unlisted").deliveryFee, 800);
+    assert.equal(at(60, "unlisted").areaFee, 300);
+    assert.equal(at(60, "unlisted").total, 6000 - 500 + 800);
+  });
+
+  it("is never waived", () => {
+    assert.equal(at(200, "approved").deliveryFee, 0);
+    assert.equal(at(200, "unlisted").deliveryFee, 300);
+    assert.equal(at(200, "unlisted").areaFee, 300);
+  });
+
+  it("applies to delivery only", () => {
+    assert.equal(at(60, "unlisted", "onfarm").deliveryFee, 0);
+    assert.equal(at(60, "unlisted", "onfarm").areaFee, 0);
+  });
+});
+
 describe("bulk discount tiers", () => {
   it("apply at exactly the threshold and never stack", () => {
     assert.equal(discountFor(4900, money).amount, 0);

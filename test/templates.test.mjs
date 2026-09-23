@@ -893,6 +893,16 @@ describe("the farm's own notices", () => {
     assert.doesNotMatch(farmOrderPlaced(order("onfarm")).text, /Delivery fee/);
   });
 
+  it("names the outside-area fee on its own line", () => {
+    const o = order("delivery");
+
+    o.totals = {
+      ...o.totals, deliveryFee: 800, areaFee: 300, total: o.totals.total + 300,
+    };
+    has(farmOrderPlaced(o).text,
+      "- Delivery fee +$5\n- Outside-area fee +$3\n- Total $70");
+  });
+
   it("sets the order number for copying, farm side only", () => {
     const m = farmOrderPlaced(reachable("delivery"), { links });
 
