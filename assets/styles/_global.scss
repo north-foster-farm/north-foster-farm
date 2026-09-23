@@ -118,8 +118,8 @@ svg {
 // Links inside running text get a hairline underline. The green alone
 // sits just under the 3:1 contrast against body text that WCAG asks
 // of an undecorated link; the underline is the second cue. Buttons,
-// navigation and headings are untouched.
-main :is(p, li, dd, td, figcaption) a:not(.btn) {
+// navigation, breadcrumbs and headings are untouched.
+main :is(p, li:not(.breadcrumb-item), dd, td, figcaption) a:not(.btn) {
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.18em;

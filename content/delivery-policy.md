@@ -12,22 +12,19 @@ layout: "policy/single.html"
 pageScript: "zip-check"
 ---
 
-This policy applies to orders delivered directly to customers at a
-location they choose.
-
-We deliver on Thursdays. Order by Wednesday at noon.
+This policy applies to orders delivered to an address the customer
+chooses. On-farm pickup and the Scituate drop site are not delivery:
+they have no minimum and no fee, and [the order page](/order) covers
+them.
 
 {{< zip-check "policy" >}}
 
-## How it works
+## When we deliver
 
-- Deliveries run Thursdays, roughly between 10:00 AM and 4:00 PM. The
-  window is approximate.
-- Orders are prepaid. We email you a Square invoice, and nothing is
-  charged when you submit the form.
-- Leave a cooler with ice outside on Thursday morning, somewhere easy to
-  find. The form asks where.
-- On-farm pickup and the Scituate drop site have no minimum and no fee.
+- Deliveries run on Thursdays, roughly between 10:00 AM and 4:00 PM.
+  The window is approximate.
+- Order by Wednesday at noon for that week's delivery. Orders placed
+  after the cutoff go out the following Thursday.
 
 ## What it costs
 
@@ -43,6 +40,17 @@ discounts. The delivery fee is $5, waived on orders of $150 or more.
 | $200 or more | $20 off  | free         |
 
 The highest tier you reach applies, automatically.
+
+## How you pay
+
+Orders are prepaid. When you place an order we email you a Square
+invoice, and nothing is charged until you pay it. Your order is
+confirmed when the payment arrives.
+
+## On delivery day
+
+Leave a cooler with ice outside on Thursday morning, somewhere easy to
+find. The order form asks where.
 
 ## Delivery area
 

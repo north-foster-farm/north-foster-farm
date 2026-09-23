@@ -1,6 +1,7 @@
-{{- /* The delivery check inside a Markdown page, such as the delivery
-     policy. The page needs pageScript: "zip-check" in its front
-     matter. */ -}}
-<div class="zip-check-block my-4">
-  {{ partial "zip-check.html" (dict "id" (printf "zip-%s" (.Get 0 | default "page"))) }}
+{{/* "Do we deliver to you?" in a content page, such as the delivery
+     policy: the home page's card, with its heading and instruction.
+     The page needs pageScript: "zip-check" in its front matter. The
+     one argument is a name that keeps the field's id unique. */}}
+<div class="zip-check-block">
+  {{ partial "delivery-check.html" (dict "id" (printf "zip-%s" (.Get 0 | default "page"))) }}
 </div>
