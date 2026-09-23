@@ -22,23 +22,18 @@
   "innerHTML" "order online"
   "title" "Order online from North Foster Farm")
 }}
+{{ $email := hugo.Data.company.email }}
+{{ $reachOut := partial "link.html" (dict
+  "href" (printf "mailto:%s?subject=Online%%20ordering" $email)
+  "innerHTML" $email)
+}}
 
 {{/* The order page on a laptop, a PNG with a transparent background,
      so it sits straight on the card without a frame. */}}
 {{ $shot := resources.Get "images/online-ordering.png" }}
 {{ $flyers := resources.Get "images/delivery-flyer_16x9.jpg" }}
 
-{{ $terms := hugo.Data.delivery }}
-{{ $money := $terms.money }}
-{{ $ri := index (where $terms.area.states "code" "RI") 0 }}
-{{ $ct := index (where $terms.area.states "code" "CT") 0 }}
-{{ $riTowns := slice }}
-{{ range $ri.towns }}{{ $riTowns = $riTowns | append .town }}{{ end }}
-{{ $ctTowns := slice }}
-{{ range $ct.towns }}{{ $ctTowns = $ctTowns | append .town }}{{ end }}
-{{ $tiers := $money.bulkTiers }}
-{{ $firstTier := index $tiers 0 }}
-{{ $lastTier := index $tiers (sub (len $tiers) 1) }}
+{{ $money := hugo.Data.delivery.money }}
 
 <div class="home-update border-bottom border-light">
   <div class="container">
@@ -74,40 +69,30 @@
             <p>
               There are three ways to get your order:
             </p>
-            <ul class="list-unstyled">
-              <li class="pb-2"><strong>Delivery</strong>
-                <ul>
-                  <li>We deliver every week on Thursday</li>
-                  <li>Order as late as the day before</li>
-                  <li>As affordable as possible: ${{ $money.deliveryMinimum }}
-                    minimum, ${{ $money.deliveryFee }} fee</li>
-                </ul>
-              </li>
-              <li class="pb-2"><strong>On-farm pickup</strong>
-                <ul>
-                  <li>Pickup on select weekdays, by appointment</li>
-                  <li>No fee, no minimum</li>
-                </ul>
-              </li>
-              <li><strong>Scituate drop site</strong>
-                <ul>
-                  <li>Back on Saturday mornings, starting October 17</li>
-                  <li>Pick up your order for free</li>
-                </ul>
-              </li>
+            <p class="fw-bold mb-1">Delivery</p>
+            <ul>
+              <li>We deliver every week on Thursday</li>
+              <li>Order as late as the day before</li>
+              <li>As affordable as possible: ${{ $money.deliveryMinimum }}
+                minimum, ${{ $money.deliveryFee }} fee</li>
+            </ul>
+            {{ partial "delivery-check.html" (dict "id" "update-zip" "class" "my-3") }}
+            <p class="fw-bold mb-1">On-farm pickup</p>
+            <ul>
+              <li>Pickup on select weekdays, by appointment</li>
+              <li>No fee, no minimum</li>
+            </ul>
+            <p class="fw-bold mb-1">Scituate drop site</p>
+            <ul>
+              <li>Back on Saturday mornings, starting October 17</li>
+              <li>Pick up your order for free</li>
             </ul>
             <p>
-              <strong>Where we deliver.</strong> Thursday delivery covers
-              {{ len $riTowns }} towns in Rhode Island:
-              {{ delimit $riTowns ", " ", and " }}. Just over the line in
-              Connecticut, in {{ delimit $ctTowns ", " " and " }}, we can
-              deliver eggs for now. Not sure about your address? Check your
-              ZIP code below. Our {{ $deliveryPolicy }} has the fine print
-              and the bulk discounts: ${{ $firstTier.off }} off orders of
-              ${{ $firstTier.threshold }}, up to ${{ $lastTier.off }} off
-              orders of ${{ $lastTier.threshold }}.
+              <strong>Where we deliver.</strong> Most of central Rhode
+              Island and parts of eastern Connecticut. Our
+              {{ $deliveryPolicy }} lists every town, and the check above
+              will tell you whether your address is in the zone.
             </p>
-            {{ partial "delivery-check.html" (dict "id" "update-zip" "class" "my-4") }}
             {{ partial "home/figure.html" (dict
               "image" ($flyers.Resize "1150x webp q82")
               "alt" "Five North Foster Farm delivery flyers fanned out on a green checked tablecloth"
@@ -123,13 +108,8 @@
             <p>
               This is the first version of our online ordering system, and we
               want to hear how it works for you. If anything is confusing, or
-              something you want isn’t there, let us know.
-            </p>
-            <p class="home-update-cta">
-              <a class="btn btn-primary" href="{{ relURL "contact/" }}">Contact us</a>
-            </p>
-            <p>
-              Thank you for being here.
+              something you want isn’t there, or you run into any problems,
+              feel free to reach out at {{ $reachOut }}.
             </p>
             <p class="fs-4 text-body-secondary mt-4 mb-0">
               — The NFF team
