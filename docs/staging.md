@@ -38,6 +38,13 @@ Unset means production: bare store names, no staging endpoints.
   and runs the jobs. `STAGING_TOKEN`, when set on those contexts, is
   required as a bearer token or `?token=`; the toolbar asks for it
   once and remembers it in the browser.
+- **Links in mail.** A function cannot see its own deploy address
+  either (`DEPLOY_PRIME_URL` is build-only), so off production the
+  links in emails fall back to `URL`, which is production. `SITE_URL`
+  on the branch-deploy context is therefore the staging address, and
+  a sign-in link from the staging deploy comes back to it. A pull
+  request preview has no fixed address, so its sign-in links point at
+  production: sign in on staging, review pages on previews.
 - **Health.** `GET /api/health` reports `context`, so a deploy can be
   asked which it is. `null` on a non-production deploy means
   `SITE_CONTEXT` is missing there, and the toolbar says so.
