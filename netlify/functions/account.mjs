@@ -7,8 +7,8 @@
 //   POST  /api/account/orders/:id/return      { reason, skus }
 //   POST  /api/account/orders/:id/resend      the pay-link email again
 //   POST  /api/account/orders/:id/venmo       "I paid by Venmo"
-//   PATCH /api/account/profile                { name, phone, avatar,
-//                                               reminders }
+//   PATCH /api/account/profile                { firstName, lastName, phone,
+//                                               avatar, reminders, marketing }
 //   PUT   /api/account/address                { address1, ..., zip, cooler }
 //   POST  /api/account/support                { subject, message, orderId }
 

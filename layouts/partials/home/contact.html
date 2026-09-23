@@ -1,37 +1,19 @@
-{{ $emailAddress := hugo.Data.company.email }}
-{{ $emailSubject := "Add me to the NFF email list!" }}
-{{ $emailBody := "I'd like to get email updates from NFF please!" }}
-{{ $emailHref := printf "mailto:%s?subject=%s&body=%s" $emailAddress $emailSubject $emailBody }}
-{{ $email := partial "link.html" (dict
-  "href" $emailHref
-  "innerHTML" "email"
-  "classes" "text-decorate-none")
-}}
-<div class="container">
-  <div class="row py-5">
-    <div class="col-md-6 col-xl-4 offset-xl-2 py-3">
-      <h3 class="fs-2">Get in touch!</h3>
-      <p>
-        Send us an {{ $email }} to join our email list, to place an order, or
-        to find out more about our farm and our eggs.
-      </p>
-      <p>
-        Visit us at the <strong>Scituate Rotary Farmers Market</strong> (46
-        Institute Lane in North Scituate) from 9:00 AM to 12:00 PM every
-        Saturday.
-      </p>
-      <p>
-        You can also find us at the <strong>Foster Farmers Market</strong> (164
-        Danielson Pike in Foster) from 9:00 AM to 1:00 PM every Sunday.
-      </p>
-      <p>
-        Finally, come see us at the <strong>Summer Market at Tilted
-        Barn</strong> (One Hemsley Place in Exeter) from 4:00 PM to 7:00 PM
-        every Wednesday evening.
-      </p>
-    </div>
-    <div class="col-md-6 col-xl-4 py-3 align-self-md-center">
-      {{ partial "contact-card.html" . }}
+{{/* Get in touch: one centred statement on the tint above the footer,
+     with the two ways to reach the farm as buttons. The address and
+     the rest live in the footer's farm line. The contact page is not
+     live yet, so Email us opens the farm's mailbox. The band's styles
+     are the shared .touch set (_touch.scss), which the footer's Shop
+     now band uses on every other page. */}}
+{{ $email := hugo.Data.company.email }}
+{{ $phone := partial "phone.html" . }}
+<div class="touch border-top border-light">
+  <div class="container">
+    <p class="touch-eyebrow">Get in touch</p>
+    <h2 class="touch-title">Questions about an order, or want to talk chicken?</h2>
+    <p class="touch-lead">Call, text, or email us anytime.</p>
+    <div class="touch-actions">
+      <a class="btn btn-primary btn-lg" href="mailto:{{ $email }}">Email us</a>
+      <a class="btn btn-outline-primary btn-lg" href="{{ $phone.href }}">Call or text {{ $phone.display }}</a>
     </div>
   </div>
 </div>

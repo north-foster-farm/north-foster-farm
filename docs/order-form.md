@@ -64,7 +64,9 @@ subtotal    = Σ qty × unitPrice
 bulk        = highest tier where subtotal >= threshold   (never stacked)
 group       = customer's discountGroup percent × subtotal (signed in)
 discount    = max(bulk, group)                            (never both)
-deliveryFee = delivery && subtotal < 150.00 ? 5.00 : 0    (pre-discount)
+baseFee     = delivery && subtotal < 150.00 ? 5.00 : 0    (pre-discount)
+areaFee     = delivery && ZIP unlisted (other RI) ? 3.00 : 0 (never waived)
+deliveryFee = baseFee + areaFee
 total       = subtotal - discount + deliveryFee
 minimum     = delivery only: subtotal - discount >= 40.00
 ```
@@ -349,7 +351,13 @@ Settings, Help) rendered from `GET /api/me` and
   `order.returns` and emailed to the farm.
 - Support: stored under `support/<email>/<id>` in the customers store
   and emailed to the farm, who replies by email.
-- Settings: name, phone, avatar, and the two reminder emails (payment,
+- Settings: first and last name (kept in parts, as the order form
+  takes them; `name` is rebuilt from them), phone, avatar, the farm
+  news opt-in (`marketing`, off unless the customer ticks it, with
+  `marketingAt` the date it last changed; the checkout has the same
+  box as `customer.marketing` on the payload, and only a ticked box
+  changes the record) and the
+  two reminder emails (payment,
   delivery) as checkboxes, saved through `PATCH /api/account/profile`
   as `reminders: { payment, delivery }`. The invoice, confirmations
   and order changes cannot be turned off.

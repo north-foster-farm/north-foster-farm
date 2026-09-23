@@ -3,6 +3,7 @@
   "money": {
     "deliveryMinimum": 40,
     "deliveryFee": 5,
+    "outsideAreaFee": 3,
     "feeWaivedAt": 150,
     "bulkTiers": [
       { "threshold": 50, "off": 5 },
@@ -19,7 +20,7 @@
     "address": "99 East Killingly Road, Foster, RI 02825",
     "note": "By appointment only.",
     "windows": {
-      "morning": { "from": 8, "to": 12 },
+      "morning": { "from": 9, "to": 12 },
       "afternoon": { "from": 13, "to": 17 }
     }
   },
