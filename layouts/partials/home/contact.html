@@ -1,44 +1,33 @@
-{{/* The foot of the home page: how to reach the farm, beside the
-     delivery check. A newsletter sign-up joins this row when there
-     is one. */}}
-{{ $emailAddress := hugo.Data.company.email }}
+{{/* Get in touch: the band above the footer. The contact page is not
+     live yet, so the button opens the farm's mailbox for now. */}}
+{{ $email := hugo.Data.company.email }}
 {{ $phone := partial "phone.html" . }}
 {{ $address := partial "address.html" . }}
-<div class="container">
-  <div class="row py-5 gy-4 align-items-center justify-content-center">
-    <div class="col-md-6 col-xl-5 offset-xl-1">
-      <h3 class="fs-2">Get in touch</h3>
-      <p>
-        We’re a small farm, and we answer our own email and phone. Ask us
-        about an order, a product or delivery, or come see the farm by
-        appointment.
-      </p>
-      <ul class="list-unstyled home-touch">
-        <li>
-          <strong>Email:</strong>
-          <a class="text-decoration-none" href="mailto:{{ $emailAddress }}">{{ $emailAddress }}</a>
-        </li>
-        <li>
-          <strong>Call or text:</strong>
-          <a class="text-decoration-none" href="{{ $phone.href }}">{{ $phone.display }}</a>
-        </li>
-        <li>
-          <strong>The farm:</strong>
-          <a class="text-decoration-none" href="{{ $address.href }}" target="_blank" rel="noopener" title="Directions to the farm">{{ $address.street }}, {{ $address.city }}, {{ $address.state }}</a>
-        </li>
-      </ul>
-      <a class="btn btn-primary" href="{{ relURL "contact/" }}">Contact us</a>
-    </div>
-    <div class="col-md-6 col-xl-5">
-      {{ partial "delivery-check.html" (dict "id" "home-zip" "anchor" "delivery-check") }}
-    </div>
-  </div>
-  <div class="row pb-5">
-    <div class="col d-flex justify-content-center">
-      <a class="apppa-logo" href="https://www.apppa.org/" target="_blank" rel="noopener" title="American Pastured Poultry Producers Association">
-        {{ partial "svg.html" "apppa-logo" }}
-        <span class="visually-hidden">Member, American Pastured Poultry Producers Association</span>
-      </a>
+{{ $street := replace $address.street "Road" "Rd" }}
+<div class="home-touch border-top border-light">
+  <div class="container">
+    <h2 class="home-title mb-4">Get in touch</h2>
+    <div class="row gy-4 justify-content-center">
+      <div class="col-md-6 col-lg-5 col-xl-4 offset-xl-1">
+        <p class="home-touch-lead">Call, text, or email us anytime.</p>
+        <a class="btn btn-primary" href="mailto:{{ $email }}">Contact us</a>
+      </div>
+      <div class="col-md-6 col-lg-5 col-xl-4 offset-xl-1">
+        <ul class="list-unstyled home-touch-list">
+          <li>
+            <strong>Address:</strong>
+            <a class="text-decoration-none" href="{{ $address.href }}" target="_blank" rel="noopener" title="Directions to the farm">{{ $street }}, {{ $address.city }}, {{ $address.state }}</a>
+          </li>
+          <li>
+            <strong>Phone:</strong>
+            <a class="text-decoration-none" href="{{ $phone.href }}">{{ $phone.display }}</a>
+          </li>
+          <li>
+            <strong>Email:</strong>
+            <a class="text-decoration-none" href="mailto:{{ $email }}">{{ $email }}</a>
+          </li>
+        </ul>
+      </div>
     </div>
   </div>
 </div>

@@ -3,13 +3,12 @@
 {{ $ctx := dict "onLogin" $onLogin }}
 {{ $accounts := .Site.Params.features.accounts }}
 {{/* The text links, in row order. Delivery points at the policy page
-     until the delivery page exists; Contact and News arrive in their
-     own pull requests. */}}
+     until the delivery page exists; News arrives in its own pull
+     request, landed first. Contact joins when its page ships. */}}
 {{ $links := slice
   (dict "name" "Delivery" "path" "delivery-policy/")
   (dict "name" "News" "path" "news/")
   (dict "name" "About" "path" "about/")
-  (dict "name" "Contact" "path" "contact/")
 }}
 {{ $here := .RelPermalink }}
 <div class="container site-header-inner">

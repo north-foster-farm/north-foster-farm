@@ -10,37 +10,23 @@
     background-color: #fcfcfc;
   }
 
-  // Get in touch: a line each.
+  // Get in touch: the band above the footer. The heading across the
+  // top, the invitation and its button on the left, the three ways to
+  // reach the farm on the right.
   .home-touch {
-    margin-bottom: 1.5rem;
+    padding-block: 3rem;
+    background-color: var(--bs-success-bg-subtle);
+  }
+
+  .home-touch-lead {
+    font-size: 1.25rem;
+  }
+
+  .home-touch-list {
+    margin: 0;
 
     li + li {
       margin-top: 0.5rem;
-    }
-  }
-
-  .apppa-logo {
-    display: block;
-
-    svg {
-      height: 4.5rem;
-      display: block;
-    }
-
-    .apppa-black {
-      fill: #010101;
-    }
-
-    .apppa-white {
-      fill: #fff;
-    }
-
-    .apppa-brown {
-      fill: #6d412a;
-    }
-
-    .apppa-green {
-      fill: #32620e;
     }
   }
 
@@ -81,7 +67,7 @@
   // them for the bright patches of grass and sky.
   .home-hero-title,
   .home-hero-sub {
-    -webkit-text-stroke: 1.3px rgb(0 0 0 / 70%);
+    -webkit-text-stroke: 1.8px rgb(0 0 0 / 80%);
     paint-order: stroke fill;
     text-shadow:
       0 1px 3px rgb(0 0 0 / 50%),
@@ -332,9 +318,10 @@
 
   .markets {
     padding-block: 3.5rem;
+    color: $white;
 
     .home-eyebrow {
-      color: tint-color($green, 55%);
+      color: $white;
     }
 
     .home-icon {
@@ -401,13 +388,11 @@
   .market-where {
     grid-area: where;
     margin: 0;
-    color: rgb(255 255 255 / 78%);
   }
 
   .market-season {
     grid-area: season;
     margin: 0.5rem 0 0;
-    color: rgb(255 255 255 / 78%);
     font-size: 0.9375rem;
   }
 
@@ -415,7 +400,6 @@
     max-width: 36rem;
     margin-inline: auto;
     text-align: center;
-    color: rgb(255 255 255 / 85%);
   }
 
   @media (min-width: 576px) {

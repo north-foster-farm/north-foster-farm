@@ -32,8 +32,7 @@ we move the coop to a new spot and start again.
 
 {{< figure src="images/mc-1.jpg"
   alt="The mobile coop in the pasture, the hens gathered underneath" >}}
-The mobile coop. The hens sleep upstairs and spend the day underneath
-and around it, until we hitch it up and move it to fresh grass.
+One of our mobile coops
 {{< /figure >}}
 
 ## What we sell
