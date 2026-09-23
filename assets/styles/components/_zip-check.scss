@@ -3,7 +3,9 @@
 // page uses for an address (ok, wait, no).
 
 .zip-check-result {
-  min-height: 1.5rem;
+  &:empty {
+    display: none;
+  }
 
   &[data-tone="ok"] {
     color: var(--bs-success-text-emphasis);
