@@ -1,6 +1,14 @@
+{{/* Discount codes go to the page hashed: it can tell a known code
+     from an unknown one and show the discount, without listing the
+     codes in the source. The server checks the real thing. */}}
+{{ $codes := slice }}
+{{ range (hugo.Data.discountCodes.codes | default slice) }}
+  {{ $codes = $codes | append (dict "hash" (crypto.SHA256 (upper .code)) "label" .label "off" .off) }}
+{{ end }}
 {{ $data := dict
   "catalog" hugo.Data.catalog
   "terms" hugo.Data.delivery
+  "codes" $codes
   "contact" (dict "email" hugo.Data.company.email "phone" hugo.Data.company.phone)
 }}
 <script type="application/json" id="order-data">{{ $data | jsonify | safeJS }}</script>
@@ -18,6 +26,7 @@
   <div class="order-rest">
     {{ partial "order/customer.html" . }}
     {{ partial "order/fulfilment.html" . }}
+    {{ partial "order/payment.html" . }}
     {{ partial "order/wrap.html" . }}
   </div>
 </form>
@@ -32,23 +41,22 @@
           <path d="M6 14.5 11.5 20 22 8.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <h2 class="h3 mb-0">One more step, <span data-out="name"></span>.</h2>
+      <h2 class="h3 mb-0">Thank you, <span data-out="name"></span>. Your order is placed.</h2>
     </div>
     <div data-out="details">
-      <p><strong>Your order isn't final until it's paid.</strong></p>
       <p>
-        We emailed a payment link for <strong data-out="total"></strong> to
-        <strong data-out="email"></strong>. Pay with the link in your inbox
-        or with the button below.
-        <span data-out="confirms">Once we receive your payment, your order
-        is confirmed.</span>
+        <strong data-out="total"></strong> paid with
+        <strong data-out="how"></strong>.
+        A confirmation is on its way to <strong data-out="email"></strong>.
+        <span data-out="confirms"></span>
       </p>
+      <p data-out="when"></p>
       <p>
-        <a class="btn btn-primary btn-lg" data-out="invoiceUrl" href="#" target="_blank" rel="noopener">Pay now</a>
-      </p>
-      <p>
-        Your invoice number is <strong data-out="invoiceNumber"></strong>.
+        Your order number is <strong data-out="orderId"></strong>.
         Have it handy if you need to ask us about this order.
+      </p>
+      <p>
+        <a data-out="receiptUrl" href="#" target="_blank" rel="noopener">View your receipt</a>
       </p>
     </div>
     <p>

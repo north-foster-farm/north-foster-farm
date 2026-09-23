@@ -5,7 +5,7 @@ import catalog from "../data/catalog.json" with { type: "json" };
 import terms from "../data/delivery.json" with { type: "json" };
 import { indexCatalog } from "../assets/scripts/order/lib/catalog.mjs";
 import {
-  validateOrder, zipStatus,
+  findCode, normalizeCode, validateOrder, zipStatus,
 } from "../assets/scripts/order/lib/validate.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 
@@ -364,5 +364,49 @@ describe("zipStatus", () => {
     assert.equal(zipStatus("02831", terms.area), "unlisted");
     assert.equal(zipStatus("01527", terms.area), "outside");
     assert.equal(zipStatus("0282", terms.area), "invalid");
+  });
+});
+
+describe("discount codes", () => {
+  const codes = [{ code: "fall5", label: "Fall special", off: 5 }];
+
+  it("are normalised and looked up without regard to case", () => {
+    assert.equal(normalizeCode("  fall-5 ! "), "FALL-5");
+    assert.equal(findCode(" Fall5 ", codes).label, "Fall special");
+    assert.equal(findCode("nope", codes), null);
+    assert.equal(findCode("", codes), null);
+    assert.equal(findCode("x", undefined), null);
+  });
+
+  it("apply on the server from the list, and an unknown one is " +
+    "harmless", () => {
+    const known = validateOrder({ ...base(), code: "FALL5", claimedTotal:
+      5500 }, { ...ctx, codes });
+
+    assert.ok(known.ok, JSON.stringify(known));
+    // $60 subtotal: the $5 tier and the $5 code tie, the code wins
+    // nothing extra; the total is the same and the label is the code's.
+    assert.equal(known.order.totals.discountAmount, 500);
+    assert.equal(known.order.code, "FALL5");
+    assert.equal(known.order.totals.total, 5500);
+
+    const unknown = validateOrder({ ...base(), code: "EGGBOI" },
+      { ...ctx, codes });
+
+    assert.ok(unknown.ok, JSON.stringify(unknown));
+    assert.equal(unknown.order.code, null);
+    assert.equal(unknown.order.totals.total, 5500);
+    assert.equal(unknown.order.flags.totalMismatch, false,
+      "the joke changes nothing the server sees");
+  });
+
+  it("take the page's resolved entry when there is no list", () => {
+    const r = validateOrder({ ...base(), code: "BIG", claimedTotal: 3000 },
+      { ...ctx, code: { code: "BIG", label: "Big", off: 30 } });
+
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.equal(r.order.totals.discountAmount, 3000);
+    assert.equal(r.order.code, "BIG");
+    assert.equal(r.order.flags.totalMismatch, false);
   });
 });

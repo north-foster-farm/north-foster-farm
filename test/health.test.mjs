@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  alert, mark, noteMail, ping, readMark,
+  alert, count, mark, noteMail, ping, readCount, readMark,
 } from "../netlify/functions/lib/health.mjs";
 import { recordRun } from "../netlify/functions/lib/jobs.mjs";
 import {
@@ -39,11 +39,12 @@ const fakeFetch = (status = 200) => {
   return { calls, fetchImpl };
 };
 
+// A report as runJobs builds one (lib/jobs.mjs); recordRun summarises
+// it into the ledger.
 const run = (at, errors = [], invariants = []) => ({
-  at: at.toISOString(), paid: [], reminded: [], abandoned: [],
-  deliveryReminded: [], closed: [], bankTransferClosed: [], muted: [],
-  pickupsToConfirm: [], venmoReported: [], tomorrow: null, errors,
-  invariants,
+  at: at.toISOString(), deliveryReminded: [], closed: [], squareSynced: [],
+  muted: [], checkoutsSwept: 0, pickupsToConfirm: [], tomorrow: null,
+  errors, invariants,
 });
 
 describe("the log seam", () => {
@@ -96,9 +97,9 @@ describe("marks and heartbeats", () => {
     async () => {
       const stores = testStores();
 
-      await mark(stores, "webhook", { invoice: "INV-1" }, now);
+      await mark(stores, "webhook", { type: "refund.updated" }, now);
       assert.deepEqual(await readMark(stores, "webhook"),
-        { at: now.toISOString(), invoice: "INV-1" });
+        { at: now.toISOString(), type: "refund.updated" });
 
       const broken = { jobs: { set: async () => { throw new Error("no"); },
         get: async () => { throw new Error("no"); } } };
@@ -106,6 +107,28 @@ describe("marks and heartbeats", () => {
       assert.ok(await mark(broken, "x", {}, now));
       assert.equal(await readMark(broken, "x"), null);
     });
+
+  it("tallies a thing per day and reads the tally back", async () => {
+    const stores = testStores();
+    const monday = new Date("2026-10-05T23:30:00Z"); // 19:30 Sunday, ET.
+
+    assert.equal(await readCount(stores, "declined", "2026-10-06"), 0);
+    await count(stores, "declined", now);
+    await count(stores, "declined", later(30));
+    await count(stores, "declined", monday);
+    assert.equal(await readCount(stores, "declined", "2026-10-06"), 2);
+    assert.equal(await readCount(stores, "declined", "2026-10-05"), 1,
+      "the day is New York's, not UTC's");
+    assert.equal(await readCount(stores, "other", "2026-10-06"), 0);
+    assert.equal((await stores.jobs.get("health/declined/2026-10-06")).at,
+      later(30).toISOString());
+
+    const broken = { jobs: { set: async () => { throw new Error("no"); },
+      get: async () => { throw new Error("no"); } } };
+
+    await count(broken, "declined", now);
+    assert.equal(await readCount(broken, "declined", "2026-10-06"), 0);
+  });
 
   it("keeps a rolling hour of mail failures beside the last success",
     async () => {
@@ -176,7 +199,7 @@ describe("alerts", () => {
       assert.equal(sent.length, 1, "held for an hour");
       assert.equal((await readMark(stores, "alert/mail.failed")).muted, 1);
 
-      assert.equal(await alert(stores, "poll.failed", {}, {
+      assert.equal(await alert(stores, "jobs.errors", {}, {
         env, mail, now: later(30), fetchImpl,
       }), "sent", "another kind is its own clock");
       assert.equal(await alert(stores, "mail.failed", {}, {
@@ -219,6 +242,8 @@ describe("GET /api/health", () => {
       assert.deepEqual(s.problems, []);
       assert.equal(s.jobs.minutesAgo, 10);
       assert.equal(s.jobs.runsLastDay, 1);
+      assert.equal(s.jobs.errorsLastRun, 0);
+      assert.equal(s.jobs.invariantsLastRun, 0);
       assert.equal(s.mail.driver, "resend");
       assert.equal(s.mail.failuresLastHour, 0);
       assert.equal(s.webhook.lastAt, later(-5).toISOString());
