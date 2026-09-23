@@ -3,6 +3,7 @@
 {{ $address := partial "address.html" . }}
 {{ $street := replace $address.street "Road" "Rd" }}
 <div class="flex-grow-1"></div>
+{{ partial "footer/shop.html" . }}
 <footer class="border-top border-white bg-light">
   <div class="container">
     <div class="row py-3">
