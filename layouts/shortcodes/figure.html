@@ -6,7 +6,7 @@
   the file as a resource, resizes it to the width the home page uses,
   and hands it to home/figure.html.
 
-    {{< figure src="images/lily.jpg" alt="…" caption="…" >}}
+    {{< figure src="images/lily.jpg" alt="…" caption="…" />}}
 
   A caption that runs long goes inside the pair instead, where it can
   wrap like prose:
@@ -14,6 +14,9 @@
     {{< figure src="images/lily.jpg" alt="…" >}}
     Caption text.
     {{< /figure >}}
+
+  Optional: shape="egg" clips a portrait photo to the egg and sets it
+  beside the text; class adds classes to the figure.
 */}}
 {{ $src := .Get "src" }}
 {{ $image := resources.Get $src }}
@@ -22,9 +25,12 @@
 {{ end }}
 {{ $caption := .Get "caption" }}
 {{ with .Inner }}{{ $caption = . | markdownify }}{{ end }}
+{{ $shape := .Get "shape" | default "" }}
+{{ $width := cond (eq $shape "egg") "600x" "1150x" }}
 {{ partial "home/figure.html" (dict
-  "image" ($image.Resize "1150x webp q82")
+  "image" ($image.Resize (printf "%s webp q82" $width))
   "alt" (.Get "alt")
   "caption" $caption
-  "classes" "my-4")
+  "shape" $shape
+  "classes" (printf "my-4 %s" (.Get "class" | default "") | strings.TrimSpace))
 }}
