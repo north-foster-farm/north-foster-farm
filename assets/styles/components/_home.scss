@@ -10,23 +10,45 @@
     background-color: #fcfcfc;
   }
 
-  // Get in touch: the band above the footer. The heading across the
-  // top, the invitation and its button on the left, the three ways to
-  // reach the farm on the right.
+  // Get in touch: the band above the footer, one centred statement
+  // and two buttons. When the newsletter comes, its form takes the
+  // right half and this moves left.
   .home-touch {
-    padding-block: 3rem;
+    padding-block: 3.5rem;
     background-color: var(--bs-success-bg-subtle);
+    text-align: center;
+  }
+
+  .home-touch-title {
+    max-width: 24ch;
+    margin: 0 auto 0.75rem;
   }
 
   .home-touch-lead {
+    max-width: 36rem;
+    margin: 0 auto 1.75rem;
     font-size: 1.25rem;
+    color: var(--bs-secondary-color);
   }
 
-  .home-touch-list {
-    margin: 0;
+  .home-touch-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
 
-    li + li {
-      margin-top: 0.5rem;
+    .btn {
+      width: 100%;
+      max-width: 20rem;
+    }
+
+    @media (min-width: 576px) {
+      flex-direction: row;
+      justify-content: center;
+
+      .btn {
+        width: auto;
+      }
     }
   }
 

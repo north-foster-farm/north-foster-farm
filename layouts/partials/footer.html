@@ -1,12 +1,26 @@
+{{ $company := hugo.Data.company }}
+{{ $phone := partial "phone.html" . }}
+{{ $address := partial "address.html" . }}
+{{ $street := replace $address.street "Road" "Rd" }}
 <div class="flex-grow-1"></div>
 <footer class="border-top border-white bg-light">
   <div class="container">
     <div class="row py-3">
       <div class="col text-center">
+        {{/* The farm line: the APPPA mark, then who and where. */}}
         <a class="apppa-logo" href="https://www.apppa.org/" target="_blank" rel="noopener" title="American Pastured Poultry Producers Association">
           {{ partial "svg.html" "apppa-logo" }}
           <span class="visually-hidden">Member, American Pastured Poultry Producers Association</span>
         </a>
+        <p class="footer-farm mb-3">
+          <span class="text-nowrap">{{ $company.name }}</span>
+          <span class="footer-dot" aria-hidden="true">·</span>
+          <a class="text-nowrap" href="{{ $address.href }}" target="_blank" rel="noopener" title="Directions to the farm">{{ $street }}, {{ $address.city }}, {{ $address.state }}</a>
+          <span class="footer-dot" aria-hidden="true">·</span>
+          <a class="text-nowrap" href="{{ $phone.href }}">{{ $phone.display }}</a>
+          <span class="footer-dot" aria-hidden="true">·</span>
+          <a class="text-nowrap" href="mailto:{{ $company.email }}">{{ $company.email }}</a>
+        </p>
         {{ partial "social-media.html" . }}
         {{ partial "footer/menu.html" . }}
         {{ partial "footer/copyright.html" . }}
