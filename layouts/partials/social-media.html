@@ -4,7 +4,7 @@
       {{ if (not .hide) }}
         {{ $icon := partial "svg.html" (printf `icons/%s` .type) }}
         <li class="breadcrumb-item">
-          <a href="{{ .url }}" target="_blank">{{ $icon }}</a>
+          <a href="{{ .url }}" target="_blank" aria-label="{{ .label }}">{{ $icon }}</a>
         </li>
       {{ end }}
     {{ end }}
