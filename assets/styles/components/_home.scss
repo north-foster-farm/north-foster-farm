@@ -63,9 +63,11 @@
     }
   }
 
-  // Hero: the photograph fills the viewport below the header under a
-  // dark, neutral tint. The body is centred on the viewport, not on
-  // the hero, by reserving the header's height below it.
+  // Hero: the photograph fills the viewport below the header, at its
+  // own brightness; the type gets the little contrast it needs from a
+  // hairline stroke, not a tint over the picture. The body is centred
+  // on the viewport, not on the hero, by reserving the header's height
+  // below it.
 
   .home-hero {
     position: relative;
@@ -86,17 +88,31 @@
     object-position: 30% 45%; // The hen sits in the left third.
   }
 
-  .home-hero-overlay {
-    position: absolute;
-    inset: 0;
-    background-color: rgb(10 17 12 / 68%);
-  }
-
   // Block padding only: the container keeps its side gutters, so the
   // subtitle never runs to the edge of a phone.
   .home-hero-body {
     position: relative;
     padding-block: 3rem calc(3rem + 3.5rem);
+  }
+
+  // The minimum contrast: a dark hairline around the letters, drawn
+  // under the fill so the letterforms keep their weight.
+  .home-hero-title,
+  .home-hero-sub {
+    -webkit-text-stroke: 0.9px rgb(0 0 0 / 55%);
+    paint-order: stroke fill;
+    text-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+  }
+
+  .home-hero-arrow {
+    display: inline-flex;
+    vertical-align: -0.15em;
+    margin-left: 0.15em;
+
+    svg {
+      width: 1.1em;
+      height: 1.1em;
+    }
   }
 
   // The tagline, a paragraph inside the hgroup, styled exactly as the
@@ -150,17 +166,23 @@
     }
   }
 
-  // White with dark green type: the hero's one solid button.
+  // White with dark green type: the hero's one solid button. On hover
+  // it brightens rather than dims: a fresh green wash and a green
+  // glow, so it reads as more inviting, never darker.
   .btn-hero {
     --bs-btn-color: #{shade-color($green, 20%)};
     --bs-btn-bg: #{$white};
     --bs-btn-border-color: #{$white};
-    --bs-btn-hover-color: #{shade-color($green, 40%)};
-    --bs-btn-hover-bg: #{$gray-100};
-    --bs-btn-hover-border-color: #{$gray-100};
-    --bs-btn-active-color: #{shade-color($green, 40%)};
-    --bs-btn-active-bg: #{$gray-200};
-    --bs-btn-active-border-color: #{$gray-200};
+    --bs-btn-hover-color: #{shade-color($green, 30%)};
+    --bs-btn-hover-bg: #{tint-color($green, 82%)};
+    --bs-btn-hover-border-color: #{tint-color($green, 70%)};
+    --bs-btn-active-color: #{shade-color($green, 30%)};
+    --bs-btn-active-bg: #{tint-color($green, 72%)};
+    --bs-btn-active-border-color: #{tint-color($green, 60%)};
+
+    &:hover {
+      box-shadow: 0 10px 22px -8px rgb(24 98 67 / 65%);
+    }
   }
 
   // How to buy: four flat steps. No cards: a faint gradient under the
