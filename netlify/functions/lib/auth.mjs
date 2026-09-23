@@ -287,4 +287,5 @@ export const publicCustomer = (customer) => ({
   discountGroup: customer.discountGroup || null,
   address: customer.address || null,
   reminders: reminderPrefs(customer),
+  marketing: customer.marketing === true,
 });
