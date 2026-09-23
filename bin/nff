@@ -6,6 +6,7 @@
 // the banner says.
 
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -35,6 +36,10 @@ const USAGE = `Usage:
   bin/nff stock set <sku> <count|none>
   bin/nff login <email>               print a sign-in link
   bin/nff masquerade <email>          open a sign-in link as them
+  bin/nff audience invite <csv> [--dry-run]   the confirmation email,
+                                      once, to each address not yet in
+  bin/nff audience sync [--dry-run]   the Resend audience and the
+                                      records, made to agree
   bin/nff jobs run
   bin/nff jobs history [--n=20]       the last runs: errors, invariants
   bin/nff health                      what /api/health would answer
@@ -54,6 +59,7 @@ const [
   { stores: makeStores },
   { summaryLine },
   { allPayments },
+  { inviteSubscribers, parseCsv, syncAudience },
   { dollars },
   { snapshot },
 ] = await Promise.all([
@@ -64,6 +70,7 @@ const [
   import("../netlify/functions/lib/store.mjs"),
   import("../netlify/functions/lib/templates.mjs"),
   import("../netlify/functions/lib/venmo.mjs"),
+  import("../netlify/functions/lib/news.mjs"),
   import("../assets/scripts/order/lib/totals.mjs"),
   import("../netlify/functions/health.mjs"),
 ]);
@@ -251,6 +258,17 @@ const run = async () => {
     return out(await admin.stockList(stores));
   case "stock set":
     return out(await admin.stockSet(stores, rest[0], rest[1]));
+  case "audience invite": {
+    if (!rest[0]) throw new Error("Which CSV? bin/nff audience invite <csv>");
+
+    const rows = parseCsv(readFileSync(rest[0], "utf8"));
+
+    return out(await inviteSubscribers(stores, rows, {
+      dryRun: !!flags["dry-run"],
+    }));
+  }
+  case "audience sync":
+    return out(await syncAudience(stores, { dryRun: !!flags["dry-run"] }));
   case "jobs run":
     return out(await runJobs(stores));
   case "jobs history": {

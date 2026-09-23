@@ -5,10 +5,14 @@ import "bootstrap/js/dist/offcanvas.js";
 
 import { Extensions } from "./extensions/extensions.js";
 import { Copyright } from "./copyright/copyright.js";
+import { wireNewsSignup } from "./news/signup.js";
 import { Session } from "./session/session.js";
 import { Touchable } from "./touchable/touchable.js";
 
 Extensions.apply();
 Copyright.setYear();
 Touchable.addTouchedListener();
-document.addEventListener("DOMContentLoaded", () => Session.show());
+document.addEventListener("DOMContentLoaded", () => {
+  Session.show();
+  wireNewsSignup();
+});

@@ -8,6 +8,7 @@
   <div class="container">
     <div class="row py-3">
       <div class="col text-center">
+        {{ partial "news-signup.html" (dict "id" "news-footer") }}
         {{/* The farm line: the APPPA mark, then who and where. */}}
         <a class="apppa-logo" href="https://www.apppa.org/" target="_blank" rel="noopener" title="American Pastured Poultry Producers Association">
           {{ partial "svg.html" "apppa-logo" }}
