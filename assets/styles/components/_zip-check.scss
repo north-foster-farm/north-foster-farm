@@ -18,8 +18,8 @@
   }
 }
 
-// In a policy page the check sits in the prose column, narrower than
-// the text so it reads as a tool, not a paragraph.
+// In a policy page the card sits in the prose column with room above
+// and below, so it reads as a tool set into the text.
 .zip-check-block {
-  max-width: 24rem;
+  margin: 1.5rem 0 2rem;
 }

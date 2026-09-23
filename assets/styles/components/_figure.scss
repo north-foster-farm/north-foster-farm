@@ -1,0 +1,27 @@
+// Photographs in running text (home/figure.html and the figure
+// shortcode): the tinted frame, and the egg.
+
+.photo-frame {
+  background-color: rgb(190 217 187 / 84%);
+}
+
+// The egg: the redesign's one proprietary shape, for story imagery
+// only. A portrait photograph clipped to it, beside the text from md
+// up and centred above it on a phone.
+.figure-egg {
+  max-width: 16rem;
+  margin: 0 auto 1.5rem;
+
+  .figure-egg-img {
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%;
+    box-shadow: var(--bs-box-shadow-sm);
+  }
+
+  @media (min-width: 768px) {
+    float: right;
+    width: 40%;
+    margin: 0.25rem 0 1rem 2rem;
+  }
+}
