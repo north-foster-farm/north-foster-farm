@@ -15,8 +15,15 @@
   .figure-egg-img {
     aspect-ratio: 3 / 4;
     object-fit: cover;
+    object-position: 62% 50%;
     border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%;
     box-shadow: var(--bs-box-shadow-sm);
+  }
+
+  // The egg narrows at the foot, so the caption comes up to meet it.
+  .figure-caption {
+    margin-top: -0.75rem;
+    padding-top: 0;
   }
 
   @media (min-width: 768px) {
