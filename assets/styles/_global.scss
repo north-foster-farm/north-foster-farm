@@ -198,6 +198,15 @@ h6 {
   border: 0;
 }
 
+// iOS Safari zooms the page into any focused field under 16px, so on
+// a touch screen every field is at least that.
+@media (hover: none) and (pointer: coarse) {
+  .form-control,
+  .form-select {
+    font-size: 1rem;
+  }
+}
+
 // Chrome paints an autofilled field pale blue. The inset shadow covers
 // the tint and the fill colour keeps the text ours.
 .form-control:-webkit-autofill,

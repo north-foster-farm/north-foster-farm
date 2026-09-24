@@ -445,10 +445,14 @@
     min-height: 0;
     transition: grid-template-rows var(--order-base) var(--order-ease);
 
+    // Wider than its content by a focus ring on each side, so the
+    // discount field's ring is not clipped by the fold's overflow.
     > .order-cart-inner {
       display: flex;
       flex-direction: column;
       min-height: 0;
+      margin: 0 -0.3rem;
+      padding: 0 0.3rem;
       overflow: hidden;
     }
   }
@@ -620,7 +624,6 @@
 
     &:hover,
     &:focus-visible {
-      background-color: var(--bs-tertiary-bg);
       color: var(--bs-danger);
     }
   }
@@ -701,6 +704,11 @@
     margin: 0;
     font-size: 0.8125rem;
     color: var(--bs-secondary-color);
+    transition: opacity 0.6s ease;
+
+    &.is-fading {
+      opacity: 0;
+    }
 
     &[data-tone="good"] {
       color: var(--bs-success-text-emphasis);
@@ -927,18 +935,25 @@
   // and lives at the end of this file; only the click-to-edit look of
   // a signed-in customer's details is the order page's.
   .order-hform {
-    // The same box as the field it turns into, so nothing moves.
+    // A click slides the text in from the edge as the field appears
+    // around it; leaving slides it back. Same height either way.
+    [data-prefill] {
+      transition:
+        padding var(--order-base) var(--order-ease),
+        border-color 0.075s ease-in-out,
+        box-shadow 0.075s ease-in-out;
+    }
+
     .form-control-plaintext {
       cursor: pointer;
-      padding: 0.4rem 0.75rem;
+      padding: 0.4rem 0;
       border-width: 1px;
       border-radius: var(--order-radius);
-      transition: background-color var(--order-hover) ease;
-
-      &:hover {
-        background-color: var(--bs-tertiary-bg);
-      }
     }
+  }
+
+  .order-details .form-control {
+    max-width: 24rem;
   }
 
   // "Prefer text or call?" is hidden until there is a phone number,
@@ -1523,7 +1538,7 @@
 // forms use it too, so it is not scoped to .order.
 .order-hform {
   .row + .row {
-    margin-top: 0.75rem;
+    margin-top: 0.375rem;
   }
 
   .col-form-label {
