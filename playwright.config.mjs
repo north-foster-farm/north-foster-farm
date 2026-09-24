@@ -27,6 +27,7 @@ const desktopOnly = [
   "**/account.spec.mjs",
   "**/news.spec.mjs",
   "**/staging-toolbar.spec.mjs",
+  "**/wording.spec.mjs",
 ];
 
 export default defineConfig({
