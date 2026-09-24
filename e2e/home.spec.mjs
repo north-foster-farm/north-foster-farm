@@ -145,6 +145,176 @@ test.describe("home", () => {
     expect(m.wordmark).toBe(rgb);
   });
 
+  // #133: the coop clip plays behind the hero over its photograph, and
+  // a pause offers to stop every video on the site playing by itself.
+  test.describe("hero video (#133)", () => {
+    const hero = (page) => {
+      const root = page.locator("[data-hero-video]");
+
+      return {
+        root,
+        img: root.locator(".home-hero-img"),
+        video: root.locator("video"),
+        toggle: root.locator("[data-hero-toggle]"),
+        note: root.locator("[data-hero-note]"),
+      };
+    };
+
+    // Every request for the hero's clip, with when it was made.
+    const clipRequests = (page) => {
+      const seen = [];
+
+      page.on("request", (req) => {
+        if (req.url().includes("/videos/opening-the-coop")) {
+          seen.push({ url: req.url(), at: Date.now() });
+        }
+      });
+
+      return seen;
+    };
+
+    const playing = (video) => video.evaluate(
+      (v) => !v.paused && v.currentTime > 0
+    );
+
+    test("the photograph paints first, then the light clip plays over it",
+      async ({ page }) => {
+        const clips = clipRequests(page);
+        let posterAt = 0;
+
+        page.on("response", (res) => {
+          if (/opening-the-coop.*\.(webp|jpg)/.test(res.url()) && !posterAt) {
+            posterAt = Date.now();
+          }
+        });
+        await page.goto("/");
+
+        const h = hero(page);
+
+        for (const attr of ["muted", "loop", "playsinline"]) {
+          expect(await h.video.evaluate((v, a) => v.hasAttribute(a), attr),
+            attr).toBe(true);
+        }
+        await expect.poll(() => playing(h.video)).toBe(true);
+        await expect(h.root).toHaveClass(/\bis-ready\b/);
+        await expect(h.root).toHaveAttribute("data-playing", "true");
+        await expect(h.img).toBeVisible();
+
+        expect(posterAt, "the photograph was fetched").toBeGreaterThan(0);
+        expect(clips.length, "the clip was fetched").toBeGreaterThan(0);
+        expect(clips[0].at, "no clip before the photograph")
+          .toBeGreaterThanOrEqual(posterAt);
+
+        const src = await h.video.evaluate((v) => v.currentSrc);
+        const size = Number((await page.request.head(src))
+          .headers()["content-length"]);
+
+        expect(size, `${src} under 1.5 MB`).toBeLessThan(1.5 * 1024 * 1024);
+      });
+
+    test("a pause offers to stop autoplay, and the choice holds site-wide",
+      async ({ page, isMobile }) => {
+        await page.goto("/");
+
+        const h = hero(page);
+
+        await expect.poll(() => playing(h.video)).toBe(true);
+        if (!isMobile) {
+          await h.root.hover();
+          await page.waitForTimeout(400);
+          await expect(h.toggle).toHaveCSS("opacity", "1");
+        }
+        await expect(h.toggle).toHaveAttribute("aria-label", "Pause video");
+        await h.toggle.click();
+        await expect(h.root).toHaveAttribute("data-playing", "false");
+        await expect(h.toggle).toHaveAttribute("aria-label", "Play video");
+        const offer = h.note.locator("[data-hero-offer]");
+        const done = h.note.locator("[data-hero-done]");
+
+        await expect(h.note).toBeVisible();
+        await expect(offer).toBeVisible();
+        await expect(offer).toHaveText(
+          "Stop videos playing on their own? Turn off autoplay"
+        );
+        await expect(done).toBeHidden();
+
+        await offer.getByRole("button", { name: "Turn off autoplay" })
+          .click();
+        await expect(offer).toBeHidden();
+        await expect(done).toBeVisible();
+        await expect(done).toHaveText(
+          "Videos here will wait for you to press play."
+        );
+        expect(await page.evaluate(() => localStorage.getItem("nff:autoplay")))
+          .toBe("off");
+
+        // After a reload the photograph stays and nothing is fetched.
+        const clips = clipRequests(page);
+
+        await page.reload();
+        await page.waitForTimeout(2_000);
+        expect(clips, "no clip fetched with autoplay off").toHaveLength(0);
+        await expect(h.root).not.toHaveClass(/\bis-ready\b/);
+        await expect(h.img).toBeVisible();
+        await expect(h.toggle).toBeVisible();
+        await expect(h.toggle).toHaveCSS("opacity", "1");
+
+        // A pause now offers nothing: there is nothing left to turn off.
+        await h.toggle.click();
+        await expect.poll(() => playing(h.video)).toBe(true);
+        await h.toggle.click();
+        await expect(h.note).toBeHidden();
+
+        // The about page's clip follows the same choice.
+        await page.goto("/about/");
+
+        const clip = page.locator("[data-video]").first();
+
+        await clip.evaluate((el) => el.scrollIntoView({ block: "center" }));
+        await page.waitForTimeout(1_500);
+        expect(await clip.locator("video").evaluate((v) => v.paused))
+          .toBe(true);
+      });
+
+    test("the play button can be reached by keyboard", async ({ page }) => {
+      test.skip(!!test.info().project.use.isMobile, "no keyboard");
+      await page.goto("/");
+
+      const h = hero(page);
+
+      await expect.poll(() => playing(h.video)).toBe(true);
+      await h.toggle.focus();
+      await page.keyboard.press("Shift+Tab");
+      await page.keyboard.press("Tab");
+      await expect(h.toggle).toBeFocused();
+      await expect(h.toggle).toHaveCSS("opacity", "1");
+      await page.keyboard.press("Enter");
+      await expect(h.root).toHaveAttribute("data-playing", "false");
+    });
+
+    test("with reduced motion the photograph stays until play",
+      async ({ page }) => {
+        const clips = clipRequests(page);
+
+        await page.emulateMedia({ reducedMotion: "reduce" });
+        await page.goto("/");
+
+        const h = hero(page);
+
+        await page.waitForTimeout(2_000);
+        expect(clips).toHaveLength(0);
+        await expect(h.root).toHaveAttribute("data-playing", "false");
+        await expect(h.toggle).toBeVisible();
+        await expect(h.toggle).toHaveAttribute("aria-label", "Play video");
+
+        await h.toggle.click();
+        await expect.poll(() => playing(h.video)).toBe(true);
+        // Nothing to offer where videos already wait to be played.
+        await h.toggle.click();
+        await expect(h.note).toBeHidden();
+      });
+  });
+
   // The hero reserves the header's height below it so that together
   // they fill the window, up to 80rem, and nothing peeks in under the
   // fold. Production: 69px header from md up, 4.25rem reserved.
