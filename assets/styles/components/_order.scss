@@ -415,6 +415,18 @@
     visibility: hidden;
   }
 
+  // The heading, folded away until the pane settles (see .order-cart).
+  .order-cart-heading {
+    height: 0;
+    margin: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition:
+      height var(--order-base) var(--order-ease),
+      margin var(--order-base) var(--order-ease),
+      opacity var(--order-base) ease;
+  }
+
   // The cart. Below xl it floats above the list while it scrolls and
   // settles into the flow after the last row; a caret folds it down
   // to the total and the Next button. From xl it is a column beside
@@ -584,18 +596,6 @@
     &[data-more]::after {
       opacity: 1;
     }
-  }
-
-  // The heading, folded away until the pane settles (see .order-cart).
-  .order-cart-heading {
-    height: 0;
-    margin: 0;
-    overflow: hidden;
-    opacity: 0;
-    transition:
-      height var(--order-base) var(--order-ease),
-      margin var(--order-base) var(--order-ease),
-      opacity var(--order-base) ease;
   }
 
   // Badges: one tight line of small text, delimited by dots like the
