@@ -1794,16 +1794,26 @@ Pending.
 
 ### AR-14 The pop-up banner (#139)
 
-Pending.
+Automated: `top-bar.spec.mjs`, every test (both projects). The build
+side of retiring (the next build skips an ended event) needs a build
+after October 18 and is not tested. The wording is a draft for James;
+there is no dismissal.
 
-- **Scenario:** A thin site-wide banner for the October 18 pop-up that
+- **Scenario:** A thin site-wide bar for the October 18 pop-up that
   retires itself.
-- **Setup:** Any page before and after 2026-10-18 (preview clock).
+- **Setup:** The home page and six others; the browser's clock set
+  either side of 2:00 PM on 2026-10-18.
 - **Test:**
-  1. Read the top of the page; follow the banner.
-- **Assert:** One line above the header naming The Village Family
-  Fitness, Sunday, October 18, 10 AM to 2 PM; it links to the pop-up;
-  gone after the day; dismissal remembered if James wants one.
+  1. Read the bar at 1500, 990, 576, 575, 390 and 320.
+  2. Open `/order/`, `/about/`, `/contact/`, `/news/`,
+     `/delivery-policy/`, `/login/`.
+  3. Load the home page at 1:59 PM and 2:01 PM that day.
+- **Assert:** From 576 up "Pop-up at The Village Family Fitness in
+  Warwick, Sunday, October 18, 10:00 AM – 2:00 PM"; below, "Pop-up at
+  The Village Family Fitness, Sun, Oct 18"; always one 30px line, with
+  no ellipsis from 390 up, the header right under it, and a link to
+  the host's Instagram in a new tab. On every page. At 1:59 the bar
+  shows; at 2:01 it is gone and the hero reserves no room for it.
 - **Teardown:** None.
 
 ### AR-15a The contact page (#140)
@@ -1924,41 +1934,65 @@ at any width" (both projects). "More room above" is by eye: checked at
 
 ### AR-20 The search palette opens and closes (#142)
 
-Pending.
+Automated: `search.spec.mjs`, "cmd/ctrl K opens it, arrows move,
+Escape closes to the button", "the button opens it; a click outside,
+or Esc, closes it", "it reopens right after it closes" and "words
+people use find the products, and nonsense says so". The reopen test
+fails today: a line in #159.
 
 - **Scenario:** Command or Control K, from any page.
-- **Setup:** Desktop.
+- **Setup:** Home page.
 - **Test:**
-  1. Press Control K; type "wing"; arrow down; Escape.
-- **Assert:** The palette animates in with focus in the field; the
-  search icon swaps to close; matches on the left, the selected
-  product's card on the right; Escape closes and focus returns to the
-  search button; focus is trapped while open.
+  1. Press Control K; type "wing"; arrow down; Tab twelve times;
+     Escape.
+  2. Open with the search button; click outside (on a phone, press
+     Esc).
+  3. Open, Escape, and press Control K again 250 ms later.
+  4. Search "egg", "breast", "drumstick", "whole", then "zzz".
+- **Assert:** Focus in the combobox; the button's `aria-expanded` is
+  true; the first match is selected and named by
+  `aria-activedescendant`, and its card shows its group and price; the
+  arrow moves both. Tab never reaches the page behind (a modal dialog
+  hands focus to the browser's own controls after its last field,
+  which is acceptable). Escape or a click outside closes it and focus
+  returns to the button. It reopens at once. Each word finds its
+  group; "zzz" says "Nothing matches “zzz”. Try eggs, whole, breast or
+  wings." with no card.
 - **Teardown:** None.
 
 ### AR-21 Add to cart from the palette (#142)
 
-Pending.
+Automated: `search.spec.mjs`, "add from any page, and the order page
+has it", "on the order page it fills the row and the cart at once" and
+"stock arriving late keeps the quantity chosen". The last fails today:
+#162.
 
 - **Scenario:** A product added from search lands in the order page's
   cart.
-- **Setup:** Empty cart.
+- **Setup:** A fresh browser.
 - **Test:**
-  1. Search "eggs"; set 2; press Enter; open `/order/`.
-- **Assert:** The button confirms with the cart count; the order page
-  shows 2 × Large; stock is shown as the order page shows it.
+  1. On `/about/`, search "eggs"; press One more; Add to cart; open
+     `/order/`.
+  2. On `/order/?add=` 1 wing, search "wings"; Enter; Escape.
+  3. With `/api/stock` held, search "eggs", press One more, then let
+     the stock answer.
+- **Assert:** "Large", "In stock"; "Added 2 × Eggs, Large. 2 items in
+  your cart." and the button reads "Added · 2 in cart"; the order page
+  shows 2 eggs, "2 items", $14. On the order page the wings row reads
+  2, "2 items", $20. The late stock answer leaves the quantity at 2.
 - **Teardown:** None.
 
 ### AR-22 The palette on a phone (#142)
 
-Pending.
+Automated: `search.spec.mjs`, "on a phone it is a full-screen sheet"
+(both projects); the combobox attributes are checked in AR-20.
 
 - **Scenario:** A full-screen sheet with the combobox pattern.
 - **Setup:** 390 by 664.
 - **Test:**
-  1. Open search from the nav.
-- **Assert:** Full screen; `role="combobox"` with `aria-expanded` and an
-  active descendant as the selection moves.
+  1. Open search from the nav; search "egg".
+- **Assert:** The dialog covers the screen; the card and its Add
+  button are on screen.
 - **Teardown:** None.
 
 ### AR-23 The news page (#143)
