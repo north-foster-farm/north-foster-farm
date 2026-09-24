@@ -1602,7 +1602,10 @@ Pending.
 
 ### AR-03 Reduced motion and the account setting (#133)
 
-Pending.
+Partial: the about page's clip (AR-24) already obeys reduced motion and
+a stored `nff:autoplay` of `off`, in `about.spec.mjs`, "with reduced
+motion the clip waits for play" and "with autoplay turned off the clip
+waits for play". The hero and the account setting wait for #133.
 
 - **Scenario:** `prefers-reduced-motion` and Save-Data count as autoplay
   off; a signed-in customer's choice follows them.
@@ -1618,16 +1621,36 @@ Pending.
 
 ### AR-04 Hero size, type and tint (#134)
 
-Pending; partly visual.
+Automated: `home.spec.mjs`, "the hero's height, tint and type (#134)"
+(both projects). Checked by eye at 390 and 1500 on 2026-09-24. The
+wordmark is the header's logo.
 
 - **Scenario:** James's hero adjustments.
-- **Setup:** Home page at 2560 by 1600, 1500 by 900 and 390 by 664.
+- **Setup:** Home page at 320, 390, 575, 576, 768, 990, 1500 and 2560
+  wide.
 - **Test:**
-  1. Measure the hero and its two lines.
-- **Assert:** Height at most 1300px at 2560; on the phone the big line
-  breaks over about three lines and is clearly larger than the small
-  one; a black tint over the image; the wordmark in primary green (once
-  James says which wordmark).
+  1. Measure the hero, the title and the h1 at each width.
+- **Assert:** The title runs three lines below 576 and two from 576 up,
+  and its words stay inside the window and their column at every width
+  (it never wraps on its own); height at most 1300px; below 576 the big
+  line at least 1.8 times the h1; from 768 up the h1's stroke at least
+  2.5px; the picture under `brightness(0.82)`; the header's wordmark in
+  `--bs-primary`.
+- **Teardown:** None.
+
+### AR-04b The hero and header fill the window
+
+Automated: `home.spec.mjs`, "the hero and header fill the window
+exactly" (both projects). Fails today from 768 up: a line in #159.
+
+- **Scenario:** The hero reserves the header's height so the two fill
+  the first screen and nothing of the next section peeks in.
+- **Setup:** Home page at 390, 767, 768, 1199 and 1500 wide, 900 tall,
+  and 1500 by 1300.
+- **Test:**
+  1. Read the hero's bottom edge.
+- **Assert:** Within 1px of the window's bottom. Today it stops 13px
+  short from 768 up (header 55px, 4.25rem reserved).
 - **Teardown:** None.
 
 ### AR-05 Hero buttons on hover (#135)
@@ -1909,16 +1932,26 @@ Pending.
 
 ### AR-24 The about page (#144)
 
-Pending.
+Automated: `about.spec.mjs`, every test (both projects). The
+paragraph's wording is James's to approve.
 
 - **Scenario:** The rule under "How we raise them" clears Linus's
   photo; a new paragraph; the tight-quarters video.
-- **Setup:** `/about/` at 1500 and 390.
+- **Setup:** `/about/` at 1500, 990, 575 and 390.
 - **Test:**
-  1. Measure the heading's rule against the floated figure.
-  2. Play the video.
-- **Assert:** The rule does not pass behind the figure; the video has a
-  poster and obeys the autoplay preference (AR-03).
+  1. Measure the heading against the floated figure.
+  2. Read what follows "What we sell".
+  3. Fetch the poster and both encodes.
+  4. Scroll the clip on screen; pause it; scroll away and back.
+  5. Again with reduced motion, then with `nff:autoplay` set to `off`.
+- **Assert:** The heading's box, and so its rule, never overlaps the
+  figure. "What we sell" opens with the pasture paragraph, then the
+  clip captioned "Morning chores in one of the mobile pens". The clip
+  is muted, looping, inline, `preload="none"`, labeled; poster, MP4
+  and WebM answer 200 with their types. On screen it plays and its
+  button reads "Pause video"; once paused it stays paused, with the
+  button showing. With reduced motion or autoplay off it waits, button
+  showing, until play is pressed.
 - **Teardown:** None.
 
 ### AR-25 The favicon (#145)
