@@ -1497,7 +1497,8 @@ the field".
 - **Setup:** Home page.
 - **Test:**
   1. Type `not-an-email`; press Sign me up.
-- **Assert:** "Please enter your email address."
+- **Assert:** "Enter a valid email address, like you@example.com." (the
+  wording since #141); no request sent.
 - **Teardown:** None.
 
 ### FN-03 The news page has the sign-up
@@ -1810,30 +1811,46 @@ Pending.
 
 ### AR-18 The footer sign-up (#141)
 
-Pending.
+Automated: `footer.spec.mjs`, "a bad address is marked at the field,
+and fixing it clears it" and "while it sends, the button shows the egg
+and keeps its width" (both projects). The request is stubbed and held,
+so nothing is mailed; FN-01 covers the real sign-up.
 
 - **Scenario:** An input group with a floating label and an egg
   spinner.
-- **Setup:** Any page; a unique address.
+- **Setup:** Home page.
 - **Test:**
-  1. Submit `nope`; then a valid address, with the network slowed.
-- **Assert:** An invalid message for `nope`; while waiting the button
-  reads "Submitting" and fades in an egg spinner without changing width
-  abruptly; no text under the input except the answer.
-- **Teardown:** Delete the customer; clear the outbox.
+  1. Press Sign me up empty; submit `nope` and `you@farm`; type a
+     valid address.
+  2. Submit a valid address while the answer is held; press again.
+- **Assert:** Nothing under the field at rest. "Enter your email
+  address." when empty; "Enter a valid email address, like
+  you@example.com." with the field marked invalid and focused for both
+  bad addresses; the mark clears once the address is valid. While
+  held: `data-state="busy"`, "Submitting" and the egg spinner faded in,
+  "Sign me up" faded out, the button's width unchanged, the line under
+  the field empty, and the second press sends nothing. Then the
+  "Check … for an email from us" answer at the same width.
+- **Teardown:** None.
 
 ### AR-19 The footer layout (#141)
 
-Pending; partly visual.
+Automated: `footer.spec.mjs`, "the links, then how to reach the farm,
+then the copyright" and "no row of the dotted lines opens with a dot,
+at any width" (both projects). "More room above" is by eye: checked at
+1500 and 390 on 2026-09-24.
 
 - **Scenario:** More room above; links on one line with dots that never
   start a wrapped line.
-- **Setup:** 1500 and 390.
+- **Setup:** Home page.
 - **Test:**
-  1. Read the link row at each width.
-- **Assert:** At 390 no line begins with a separator dot; the order
-  About, Account, News, Accessibility, Privacy, Delivery, Contact,
-  Order, llms.txt; then contact details and the copyright line.
+  1. Read the footer's lines.
+  2. At 1500, 990, 575, 390 and 320, group each line's items by row.
+- **Assert:** Links in the order About, Account, News, Accessibility,
+  Privacy, Delivery, Contact (once `/contact/` exists, #140), Order,
+  llms.txt; then the phone, the email and @northfosterfarm, linked;
+  then the copyright with this year. Every row opens without a dot and
+  every other item has one; at least one line wraps.
 - **Teardown:** None.
 
 ### AR-20 The search palette opens and closes (#142)
