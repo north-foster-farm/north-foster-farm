@@ -315,6 +315,74 @@ test.describe("home", () => {
       });
   });
 
+  // #137: outside market season (May 15 to September 15, decided at
+  // build time) the market band gives way to the three ways to buy,
+  // every fact from data/delivery.json.
+  test.describe("off-season band (#137)", () => {
+    const WAYS = [
+      {
+        method: "onfarm", name: "On-farm pickup",
+        when: "Select weekdays, by appointment",
+        where: "99 East Killingly Road, Foster, RI 02825",
+        cost: "No minimum, no fee", cta: "Shop for pickup",
+      },
+      {
+        method: "scituate", name: "Scituate drop site",
+        when: /^Saturdays, 10:00 – 11:00 AM(, starting October 17)?$/,
+        where: "Village Green, 46 Institute Lane, North Scituate, RI 02857",
+        cost: "No minimum, no fee", cta: "Shop for the drop site",
+      },
+      {
+        method: "delivery", name: "Delivery",
+        when: "Every Thursday, 10:00 AM – 4:00 PM",
+        where: "Most of central Rhode Island and parts of eastern " +
+          "Connecticut",
+        cost: "$40 minimum, $5 fee", cta: "Shop for delivery",
+      },
+    ];
+
+    test("three ways to buy, in the market band's place",
+      async ({ page }) => {
+        await page.goto("/");
+
+        const band = page.locator(".ways");
+        const places = band.locator(".place");
+
+        await expect(band.locator(".home-eyebrow")).toHaveText(
+          "No off-season"
+        );
+        await expect(band.locator(".home-title")).toHaveText(
+          "Three ways to get your order, all winter"
+        );
+        await expect(places).toHaveCount(3);
+        for (const [i, way] of WAYS.entries()) {
+          const place = places.nth(i);
+
+          await expect(place.locator(".place-name")).toHaveText(way.name);
+          await expect(place.locator(".home-icon svg")).toBeVisible();
+          await expect(place.locator(".place-when")).toHaveText(way.when);
+          await expect(place.locator(".place-where")).toHaveText(way.where);
+          await expect(place.locator(".place-note")).toHaveText(way.cost);
+          await expect(place.getByRole("link")).toHaveText(way.cta);
+        }
+        await expect(band.locator(".places-note"))
+          .toHaveText("The farmers markets return in June.");
+      });
+
+    for (const way of WAYS) {
+      test(`"${way.cta}" opens the order page with ${way.name} chosen`,
+        async ({ page }) => {
+          await page.goto("/");
+          await page.locator(".ways .place").getByRole("link", {
+            name: way.cta,
+          }).click();
+          await expect(page).toHaveURL(/\/order\//);
+          await expect(page.locator("#onfarm-date")).toBeEnabled();
+          await expect(page.locator(`#method-${way.method}`)).toBeChecked();
+        });
+    }
+  });
+
   // The hero reserves the header's height below it so that together
   // they fill the window, up to 80rem, and nothing peeks in under the
   // fold. Production: 69px header from md up, 4.25rem reserved.
