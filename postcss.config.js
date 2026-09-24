@@ -67,6 +67,10 @@ const plugins = [
         "data-busy",
         "data-row-start",
         "data-playing",
+        "role",
+        "option",
+        "aria-selected",
+        "data-search-stock",
         "aria-pressed",
       ];
     },
@@ -92,6 +96,9 @@ const plugins = [
         "is-fading",
         // The account page marks the order an email linked to.
         "is-linked",
+        // The search palette's JavaScript: open, and a real photo.
+        "is-open",
+        "is-photo",
         // Applied by session.js: the header's account slot fades in.
         "is-ready",
         "order-busy",

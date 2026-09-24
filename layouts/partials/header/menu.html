@@ -28,6 +28,12 @@
         <a class="site-nav-link" href="{{ relURL .path }}" {{- if eq $here (relURL .path) }} aria-current="page" {{ end }}>{{ .name }}</a>
       {{ end }}
     </div>
+    {{/* Product search: the icon turns into its closed twin while
+         the palette is open. */}}
+    <button class="site-search" type="button" aria-controls="search-palette" aria-expanded="false" aria-keyshortcuts="Meta+K Control+K" aria-label="Search products" data-search-open>
+      <span class="site-search-icon site-search-open" aria-hidden="true">{{ partial "svg.html" "icons/search" }}</span>
+      <span class="site-search-icon site-search-shut" aria-hidden="true">{{ partial "svg.html" "icons/search-close" }}</span>
+    </button>
     {{ if $onOrder }}
       <span class="site-order is-current" aria-current="page">Order</span>
     {{ else }}
