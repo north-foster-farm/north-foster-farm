@@ -73,16 +73,18 @@ header {
 }
 
 // Text links: Sign in, Delivery, News, About, Contact, and the Account
-// menu button. No border, and the same hinge as every button: on hover
-// a two-pixel lift and the shadow underneath, as if raised on a pin.
-// Nothing changes on the face; a wash there read as an inset.
+// menu button. The same hinge as every button: on hover a two-pixel
+// lift and the shadow underneath, as if raised on a pin, and a light
+// gray border. The border is there at rest, transparent, so the link
+// never changes size; the padding gives back its pixel. Nothing
+// changes on the face; a wash there read as an inset.
 .site-nav-link {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
   height: 2rem;
-  padding: 0 0.625rem;
-  border: 0;
+  padding: 0 calc(0.625rem - 1px);
+  border: 1px solid transparent;
   border-radius: var(--bs-border-radius);
   background: none;
   font-size: 0.8125rem;
@@ -95,19 +97,21 @@ header {
   transition:
     color 0.16s ease-out,
     background-color 0.16s ease-out,
+    border-color 0.16s ease-out,
     box-shadow 0.16s ease-out,
     transform 0.16s ease-out;
 
   &:hover,
   &[aria-expanded="true"] {
     color: var(--bs-body-color);
+    border-color: $gray-100;
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px -8px rgba($black, 0.45);
+    box-shadow: $btn-lift-shadow;
   }
 
   &:active {
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px -5px rgba($black, 0.4);
+    box-shadow: $btn-press-shadow;
   }
 
   &[aria-current="page"] {
@@ -135,18 +139,21 @@ header {
   width: 2.25rem;
   height: 2.25rem;
   padding: 0;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: var(--bs-border-radius);
   background: none;
   color: var(--bs-body-color);
   transition:
     background-color 0.16s ease-out,
+    border-color 0.16s ease-out,
     box-shadow 0.16s ease-out,
     transform 0.16s ease-out;
 
+  // The links' hover; the fixed size keeps the border from moving it.
   &:hover {
+    border-color: $gray-100;
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px -8px rgba($black, 0.45);
+    box-shadow: $btn-lift-shadow;
   }
 }
 
@@ -206,7 +213,7 @@ header {
 
   .site-nav-link {
     height: 2.75rem;
-    padding: 0 0.875rem;
+    padding: 0 calc(0.875rem - 1px);
     font-size: 1rem;
     gap: 0.625rem;
   }
@@ -275,12 +282,12 @@ header {
   // fill or a wash.
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px -8px rgba($black, 0.45);
+    box-shadow: $btn-lift-shadow;
   }
 
   &:active {
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px -5px rgba($black, 0.4);
+    box-shadow: $btn-press-shadow;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -347,14 +354,14 @@ header {
       background: none;
       color: var(--bs-body-color);
       transform: translateY(-2px);
-      box-shadow: 0 10px 20px -8px rgba($black, 0.45);
+      box-shadow: $btn-lift-shadow;
     }
 
     &:active {
       background: none;
       color: var(--bs-body-color);
       transform: translateY(-1px);
-      box-shadow: 0 4px 8px -5px rgba($black, 0.4);
+      box-shadow: $btn-press-shadow;
     }
 
     @media (prefers-reduced-motion: reduce) {

@@ -40,13 +40,13 @@ svg {
 .btn:not(.btn-link) {
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px -8px rgba($black, 0.45);
+    box-shadow: $btn-lift-shadow;
   }
 
   &:active,
   &.active {
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px -5px rgba($black, 0.4);
+    box-shadow: $btn-press-shadow;
   }
 }
 

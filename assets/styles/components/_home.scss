@@ -119,22 +119,22 @@
     }
   }
 
-  // White with dark green type: the hero's one solid button. On hover
-  // it brightens rather than dims: a fresh green wash and a green
-  // glow, so it reads as more inviting, never darker.
+  // White with dark green type: the hero's one solid button. Hover is
+  // its strongest moment, so the face stays pure white, as the header's
+  // Order button does, and only the lift and a green glow are added.
   .btn-hero {
     --bs-btn-color: #{shade-color($green, 20%)};
     --bs-btn-bg: #{$white};
     --bs-btn-border-color: #{$white};
-    --bs-btn-hover-color: #{shade-color($green, 30%)};
-    --bs-btn-hover-bg: #{tint-color($green, 82%)};
-    --bs-btn-hover-border-color: #{tint-color($green, 70%)};
-    --bs-btn-active-color: #{shade-color($green, 30%)};
-    --bs-btn-active-bg: #{tint-color($green, 72%)};
-    --bs-btn-active-border-color: #{tint-color($green, 60%)};
+    --bs-btn-hover-color: var(--bs-btn-color);
+    --bs-btn-hover-bg: #{$white};
+    --bs-btn-hover-border-color: #{$white};
+    --bs-btn-active-color: var(--bs-btn-color);
+    --bs-btn-active-bg: #{$white};
+    --bs-btn-active-border-color: #{$white};
 
     &:hover {
-      box-shadow: 0 10px 22px -8px rgb(24 98 67 / 65%);
+      box-shadow: 0 8px 20px -8px rgb(24 98 67 / 58%);
     }
   }
 
@@ -256,6 +256,8 @@
     color: var(--bs-secondary-color);
   }
 
+  // Full width on a phone only; from sm up the button keeps the hero
+  // buttons' padding.
   .how-cta {
     display: flex;
     justify-content: center;
@@ -263,6 +265,10 @@
     .btn {
       width: 100%;
       max-width: 24rem;
+
+      @media (min-width: 576px) {
+        width: auto;
+      }
     }
   }
 
