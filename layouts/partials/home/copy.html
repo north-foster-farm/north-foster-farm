@@ -1,111 +1,33 @@
-{{/* The September 2026 update: online ordering, the three ways to get
-     an order, where delivery goes, and the delivery check. The towns
-     come from data/delivery.json, the same file the order form
-     checks, so the list here can never disagree with what the form
-     accepts. The three ways carry the order form's names, so a first
-     order reads the same on both pages. */}}
-{{ $orderPage := partial "link.html" (dict
-  "href" (relURL "order/")
-  "innerHTML" "order page"
-  "title" "Order online from North Foster Farm")
-}}
-{{ $deliveryPolicy := partial "link.html" (dict
-  "href" (relURL "delivery-policy/")
-  "innerHTML" "delivery policy"
-  "title" "Delivery schedule, minimums, fees and area")
-}}
-{{ $email := hugo.Data.company.email }}
-{{ $reachOut := partial "link.html" (dict
-  "href" (printf "mailto:%s?subject=Online%%20ordering" $email)
-  "innerHTML" $email)
-}}
+{{/* News and updates: the post marked home: true, or else the newest,
+     published here in full. The post's own page under /news/ stays
+     its canonical home, and the title links to it. Draft wording for
+     James (#136). */}}
+{{ $news := where site.RegularPages "Section" "news" }}
+{{ $post := index (where $news "Params.home" true).ByDate.Reverse 0 }}
+{{ with $post }}{{ else }}{{ $post = index $news.ByDate.Reverse 0 }}{{ end }}
 
-{{/* The order page on a laptop, a PNG with a transparent background,
-     so it sits straight on the card without a frame. */}}
-{{ $shot := resources.Get "images/online-ordering.png" }}
-{{ $flyers := resources.Get "images/delivery-flyer_16x9.jpg" }}
-
-{{ $money := hugo.Data.delivery.money }}
-
-<div class="home-update border-bottom border-light">
-  <div class="container">
-    <div class="row py-3 py-md-5">
-      <div class="col d-flex flex-column align-items-center py-3">
-        <div class="home-update-card border border-1 border-success border-opacity-50 rounded-4 px-3 px-sm-5 py-3 py-sm-5">
-          <div class="fmw-575 w-100">
-            <h2 class="text-center mb-5">
-              <span class="border-bottom">
-                September Update
-              </span>
-            </h2>
-            {{ partial "home/figure.html" (dict
-              "image" ($shot.Resize "1150x webp q82")
-              "alt" "A laptop showing the North Foster Farm order page, with whole chickens and boneless breasts in the cart"
-              "caption" "Introducing: online ordering, on-farm pickup, and delivery."
-              "frame" false
-              "lazy" false
-              "classes" "mb-4")
-            }}
-            <p>
-              <strong>You can now order from us online.</strong> Visit the
-              {{ $orderPage }} to see our catalog, which includes everything
-              we bring to market, from eggs by the dozen to whole chickens,
-              sausage, and every cut in between.
-            </p>
-            <p>
-              <strong>The way it works:</strong> you pick what you want and
-              build your cart, then you pick how you want to receive it.
-              When you send us the order, we create an invoice and email it
-              back to you. Pay it, and your order is placed.
-            </p>
-            <p>
-              There are three ways to get your order:
-            </p>
-            <p class="fw-bold mb-1">Delivery</p>
-            <ul>
-              <li>We deliver every week on Thursday</li>
-              <li>Order as late as the day before</li>
-              <li>As affordable as possible: ${{ $money.deliveryMinimum }}
-                minimum, ${{ $money.deliveryFee }} fee</li>
-            </ul>
-            {{ partial "delivery-check.html" (dict
-              "id" "update-zip"
-              "class" "my-3"
-              "lede" (printf "We deliver to most of central Rhode Island and some communities in eastern Connecticut. Check your ZIP code below. For more details, see our %s." $deliveryPolicy))
-            }}
-            <p class="fw-bold mb-1">On-farm pickup</p>
-            <ul>
-              <li>Pickup on select weekdays, by appointment</li>
-              <li>No fee, no minimum</li>
-            </ul>
-            <p class="fw-bold mb-1">Scituate drop site</p>
-            <ul>
-              <li>Back on Saturday mornings, starting October 17</li>
-              <li>Pick up your order for free</li>
-            </ul>
-            {{ partial "home/figure.html" (dict
-              "image" ($flyers.Resize "1150x webp q82")
-              "alt" "Five North Foster Farm delivery flyers fanned out on a green checked tablecloth"
-              "classes" "my-4")
-            }}
-            <p>
-              Our freezers are fully stocked, and our hens, although slowing
-              down, will continue to lay for us all year round. We endeavor
-              to keep you fully supplied from here all the way to next market
-              season.
-            </p>
-            <p>
-              This is the first version of our online ordering system, and we
-              want to hear how it works for you. If anything is confusing, or
-              something you want isn’t there, or you run into any problems,
-              feel free to reach out at {{ $reachOut }}.
-            </p>
-            <p class="fs-4 text-body-secondary mt-4 mb-0">
-              — The NFF team
-            </p>
-          </div>
+{{ with $post }}
+  <div class="home-update border-bottom border-light">
+    <div class="container">
+      <div class="row py-3 py-md-5">
+        <div class="col d-flex flex-column align-items-center py-3">
+          <article class="home-update-card border border-1 border-success border-opacity-50 rounded-4 px-3 px-sm-5 py-3 py-sm-5">
+            <div class="fmw-600 w-100">
+              <p class="home-eyebrow">News and updates</p>
+              <h2 class="home-update-title">
+                <a class="home-update-link" href="{{ .RelPermalink }}">{{ .Title }}</a>
+              </h2>
+              <time class="news-date home-update-date" datetime="{{ .Date.Format "2006-01-02" }}">
+                {{ .Date | time.Format "January 2, 2006" }}
+              </time>
+              {{ .Content }}
+              <p class="text-center mt-5 mb-0">
+                <a class="btn btn-outline-primary" href="{{ relURL "news/" }}">More news and updates</a>
+              </p>
+            </div>
+          </article>
         </div>
       </div>
     </div>
   </div>
-</div>
+{{ end }}
