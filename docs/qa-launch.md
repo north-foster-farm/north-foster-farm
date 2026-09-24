@@ -1682,7 +1682,8 @@ wordmark is the header's logo.
 ### AR-04b The hero and header fill the window
 
 Automated: `home.spec.mjs`, "the hero and header fill the window
-exactly" (both projects). Fails today from 768 up: a line in #159.
+exactly" (both projects). Failed from 768 up until 97adf24; passes
+since.
 
 - **Scenario:** The hero reserves the header's height so the two fill
   the first screen and nothing of the next section peeks in.
@@ -1775,53 +1776,74 @@ needs a build in season and is not tested; the switch is in
 
 ### AR-10 The map's areas (#138)
 
-Pending.
+Automated: `map.spec.mjs`, "the ZIPs we deliver to, and nothing from
+elsewhere" (both projects). The build uses two fills, as James's words
+asked, not the issue's three; Connecticut's eggs-only rule is not on
+the map (raised on #138).
 
-- **Scenario:** Delivery ZIPs in one color, the rest of Rhode Island in
-  another, Connecticut in a third, from the same data as the form.
+- **Scenario:** Delivery ZIPs in one color and the rest in another,
+  from the same data as the form.
 - **Setup:** Home page map row.
 - **Test:**
-  1. Read the fill of `02857`, `02830` and `06239`.
-- **Assert:** Three different fills matching the legend; no third-party
-  requests.
+  1. Compare every ZIP on the map with the delivery area the page's
+     ZIP check carries.
+- **Assert:** A ZIP is filled as ours exactly when the area lists it;
+  two fills in all; the SVG is titled; no request leaves the site.
 - **Teardown:** None.
 
 ### AR-11 The ZIP check drops a pin (#138)
 
-Pending.
+Automated: `map.spec.mjs`, "a ZIP drops a pin on its middle, colored by
+the answer", "the other ZIP check on the page drops the pin too" and
+"with reduced motion the pin appears without falling" (both projects).
 
 - **Scenario:** Typing a ZIP drops a pin at its center with the answer.
 - **Setup:** Map row.
 - **Test:**
-  1. Type `02857`, then `10001`.
-- **Assert:** A pin falls and lands in 02857 labeled as delivered to; the
-  second is refused; with reduced motion the pin appears without the
-  fall; the ZIP box has `autocomplete="off"`.
+  1. Type `02857`, `02802`, `10001`; type `02857` and clear the field.
+  2. Type `02857` into the page's other ZIP check.
+  3. Again with reduced motion.
+- **Assert:** `autocomplete="off"` on both fields. 02857: "We deliver
+  here", green, its outline drawn, the pin at its middle. 02802: "A
+  little outside our area", amber, likewise. 10001, off the map, and a
+  cleared field: no pin, and the words still answer. The other check
+  moves the same pin. Under reduced motion the pin shows without the
+  fall animation.
 - **Teardown:** None.
 
 ### AR-12 The map on the delivery policy (#138)
 
-Pending.
+Automated: `map.spec.mjs`, "the delivery policy carries the same map"
+(both projects).
 
 - **Scenario:** The same map on `/delivery-policy/`.
 - **Setup:** Delivery policy page.
 - **Test:**
-  1. Load it; type a ZIP.
-- **Assert:** The map renders and the pin drops as on the home page.
+  1. Load it; type `02857` in its ZIP check.
+- **Assert:** The map renders with our ZIPs filled; the field has
+  `autocomplete="off"`; the pin drops as on the home page.
 - **Teardown:** None.
 
 ### AR-13 Markets and pop-ups on the map (#138)
 
-Pending.
+Partial: `map.spec.mjs`, "numbered pins match the key, markets out of
+season" and "no pin hides another" (both projects). The second fails
+today: pin 3 covers pin 2 (#159). Dropping 2026's pop-ups needs a
+build after New Year and stays manual.
 
 - **Scenario:** Markets shown out of season with inline Instagram
   icons; 2026 pop-ups disappear when 2027 starts.
-- **Setup:** A build with the clock set to 2027-01-01 (preview).
+- **Setup:** Home page; for the rollover, a build with the clock set to
+  2027-01-01 (preview).
 - **Test:**
-  1. Read the pins before and after.
-- **Assert:** Before: the farm, the drop site, markets marked out of
-  season with Instagram icons, the Warwick pop-ups. After: no 2026
-  pop-ups.
+  1. Read the pins and the key.
+  2. Compare every pair of pins' boxes.
+  3. By hand: build on or after 2027-01-01 and read the pins.
+- **Assert:** As many pins as key numbers, both numbered in order;
+  "Our farm" first; "out of season" beside the markets, whose three
+  pins are hollow; each market's Instagram link is an icon with an
+  "on Instagram" label. No two pins share more than a quarter of
+  their box. After New Year: no 2026 pop-ups.
 - **Teardown:** None.
 
 ### AR-14 The pop-up banner (#139)
