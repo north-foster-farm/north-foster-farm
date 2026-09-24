@@ -8,6 +8,7 @@ import { Copyright } from "./copyright/copyright.js";
 import { wireDotLists } from "./dot-list/dot-list.js";
 import { wireHeroVideo } from "./hero/hero.js";
 import { wireNewsSignup } from "./news/signup.js";
+import { wireSearch } from "./search/palette.js";
 import { wireVideos } from "./video/video.js";
 import { Session } from "./session/session.js";
 import { retireTopBar } from "./top-bar/top-bar.js";
@@ -57,5 +58,6 @@ document.addEventListener("DOMContentLoaded", () => {
   wireDotLists();
   wireVideos();
   wireHeroVideo();
+  wireSearch();
   hoverMenus();
 });
