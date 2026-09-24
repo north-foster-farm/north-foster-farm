@@ -1,0 +1,20 @@
+{
+  "events": [
+    {
+      "id": "village-fitness-2026-10-18",
+      "kind": "pop-up",
+      "name": "Pop-up at The Village Family Fitness",
+      "host": "The Village Family Fitness",
+      "href": "https://www.instagram.com/thevillagefitnessri/",
+      "date": "2026-10-18",
+      "start": "10:00",
+      "end": "14:00",
+      "address": {
+        "street": "53 Venturi Ave",
+        "city": "Warwick",
+        "state": "RI",
+        "zip": "02888"
+      }
+    }
+  ]
+}

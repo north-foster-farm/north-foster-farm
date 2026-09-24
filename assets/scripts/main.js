@@ -10,10 +10,12 @@ import { wireHeroVideo } from "./hero/hero.js";
 import { wireNewsSignup } from "./news/signup.js";
 import { wireVideos } from "./video/video.js";
 import { Session } from "./session/session.js";
+import { retireTopBar } from "./top-bar/top-bar.js";
 import { Touchable } from "./touchable/touchable.js";
 
 Extensions.apply();
 Copyright.setYear();
+retireTopBar();
 Touchable.addTouchedListener();
 // The account menu opens on hover where there is a pointer to hover
 // with, and stays open under it; a tap still toggles it.
