@@ -5,12 +5,12 @@
      deploy is configured for (/api/checkout/config). */}}
 <fieldset class="order-section mb-5" id="payment">
   <legend class="h2" tabindex="-1">Payment</legend>
-  <div class="order-pay" data-pay data-pay-state="loading" data-card-open="true">
+  <div class="order-pay" data-pay data-pay-state="loading">
     {{/* Every way to pay, one grid: Card opens the fields below it;
          a wallet pays the whole order in one step. */}}
     <div class="order-pay-buttons" data-wallets>
-      <button type="button" class="btn btn-outline-primary order-pay-method active" data-card-choose aria-pressed="true" aria-controls="pay-card-panel" hidden>
-        <span class="order-pay-method-icon" aria-hidden="true">{{ partial "svg.html" "icons/payment" }}</span>
+      <button type="button" class="btn btn-outline-primary order-pay-method" data-card-choose aria-pressed="true" aria-controls="pay-card-panel" hidden>
+        <span class="order-pay-method-icon" aria-hidden="true">{{ partial "svg.html" "icons/credit-card" }}</span>
         Card
       </button>
       <button type="button" class="order-apple-pay" data-apple-pay lang="en" aria-label="Apple Pay" hidden></button>

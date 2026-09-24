@@ -17,6 +17,7 @@ import { Payment } from "./pay.js";
 import { Pending } from "./pending.js";
 import { Stock } from "./stock.js";
 import { Submitter } from "./submit.js";
+import ScrollSpy from "bootstrap/js/dist/scrollspy.js";
 import { me } from "../session/session.js";
 import { api } from "../utils/api.js";
 
@@ -297,7 +298,7 @@ export class OrderForm {
       this.setOpen(this.cart.dataset.open !== "true");
     });
     qs(this.cart, ".order-cart-foot").addEventListener("click", (e) => {
-      if (e.target.closest("[data-cart-toggle], [data-checkout]")) return;
+      if (e.target.closest("[data-cart-toggle]")) return;
       this.setOpen(this.cart.dataset.open !== "true");
     });
 
@@ -358,23 +359,25 @@ export class OrderForm {
       }
     });
 
-    qs(this.cart, "[data-checkout]").addEventListener("click", () => {
-      const target = document.getElementById("details");
-
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-      qs(target, "legend").focus({ preventScroll: true });
-    });
-
-    // Keep the active category link in view as the list scrolls, and
-    // mark the category itself so its heading can show the chevron.
+    // The sidebar is an outline of the whole page, so the spy watches
+    // the page. Keep the active link in view, mark the category so its
+    // heading can show the chevron, and below lg put the current name
+    // in the sticky bar, where the heading lives on a phone.
     const catalog = document.getElementById("order-catalog");
+    const topbar = document.querySelector("[data-topbar-title]");
 
-    catalog.addEventListener("activate.bs.scrollspy", (e) => {
+    ScrollSpy.getOrCreateInstance(document.body, {
+      target: "#order-nav", rootMargin: "-20% 0px -65%", smoothScroll: true,
+    });
+    document.body.addEventListener("activate.bs.scrollspy", (e) => {
       const link = e.relatedTarget;
 
       link.scrollIntoView({ block: "nearest", behavior: "smooth" });
       for (const cat of all(catalog, ".order-cat")) {
         cat.classList.toggle("is-active", `#${cat.id}` === link.hash);
+      }
+      if (topbar) {
+        topbar.textContent = link.dataset.heading || link.textContent.trim();
       }
     });
     qs(catalog, ".order-cat").classList.add("is-active");
@@ -748,8 +751,6 @@ export class OrderForm {
       "aria-label", `${s.countText}, total ${s.total}. Show or hide the cart.`
     );
     qs(c, "[data-cart-count]").textContent = s.countText;
-    qs(c, "[data-checkout]").disabled = count === 0
-      || (method === "delivery" && !s.eligible);
 
     // Empty, the cart folds away; the first item opens it. A fold the
     // customer chose stays until the cart empties again.
