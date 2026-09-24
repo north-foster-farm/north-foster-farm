@@ -133,3 +133,14 @@ export class Draft {
     write(PENDING, null);
   }
 }
+
+// Signing out takes the customer's details out of the draft and
+// leaves the cart, so the next person at this browser starts clean.
+export const forgetCustomer = () => {
+  const current = read(DRAFT);
+
+  if (!current || !current.payload) return;
+  write(DRAFT, {
+    ...current, payload: { ...current.payload, customer: {} },
+  });
+};

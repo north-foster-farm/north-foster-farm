@@ -68,7 +68,8 @@ describe("badges", () => {
 describe("the nudge", () => {
   it("says nothing on an empty cart", () => {
     assert.equal(nudge(at(0), "", money), "");
-    assert.equal(nudge(at(0, "delivery"), "delivery", money), "");
+    assert.equal(nudge(at(0, "delivery"), "delivery", money),
+      "Delivery orders need a $40 minimum.");
   });
 
   it("names the next discount and the exact gap", () => {
