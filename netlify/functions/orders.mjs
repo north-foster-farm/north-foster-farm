@@ -16,7 +16,7 @@
 //   409 stale date, with a fresh list
 //   422 validation errors, or a total that no longer matches
 //   503 transient failure, safe to retry     502 permanent
-//   204 dropped silently (honeypot, rate limit)
+//   429 too many tries from one address      204 dropped (honeypot)
 
 import { createHash } from "node:crypto";
 
@@ -114,8 +114,20 @@ export const handle = async (req, {
   if (!payload || typeof payload !== "object") {
     return json(400, { errors: { body: "Expected a JSON body." } });
   }
-  if (payload.website || rateLimited(ip, now.getTime())) {
-    return new Response(null, { status: 204 });
+  if (payload.website) return new Response(null, { status: 204 });
+  // A customer can reach the limit through a run of declines, so it is
+  // said plainly: a silent answer here read as a placed order.
+  if (rateLimited(ip, now.getTime())) {
+    return new Response(JSON.stringify({
+      message: "There have been too many tries from here. Wait a few " +
+        "minutes and try again; your order is saved on this page.",
+    }), {
+      status: 429,
+      headers: {
+        "Content-Type": "application/json",
+        "Retry-After": String(RATE.windowMs / 1000),
+      },
+    });
   }
 
   const key = String(payload.idempotencyKey || "");

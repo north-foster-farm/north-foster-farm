@@ -538,12 +538,14 @@ describe("POST /api/orders, the gate", () => {
     assert.equal(calls, 1);
   });
 
-  it("rate limits a single address", async () => {
+  it("rate limits a single address, and says so", async () => {
     let last;
 
     for (let i = 0; i < 13; i++) {
       last = await run(body(), { ip: "203.0.113.9" });
     }
-    assert.equal(last.status, 204);
+    assert.equal(last.status, 429);
+    assert.equal(last.headers.get("Retry-After"), "600");
+    assert.match((await last.json()).message, /too many tries/);
   });
 });
