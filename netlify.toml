@@ -116,6 +116,7 @@ framework = "#custom"
         https://*.paypal.com https://*.paypalobjects.com
         https://*.venmo.com;
       manifest-src 'self';
+      media-src 'self';
       script-src 'self'
         https://web.squarecdn.com https://sandbox.web.squarecdn.com
         https://pay.google.com
@@ -167,6 +168,12 @@ framework = "#custom"
 
 [[headers]]
   for = "/images/*"
+
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/videos/*"
 
   [headers.values]
     Cache-Control = "public, max-age=604800"

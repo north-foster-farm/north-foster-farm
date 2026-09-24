@@ -1,0 +1,74 @@
+// The video shortcode: a clip in the figure's frame, with a play/pause
+// button in its corner. The button shows whenever the clip is paused,
+// so a poster never passes for a photograph; while it plays, the
+// button comes up on hover and on keyboard focus, and stays faintly
+// visible where there is no pointer to hover with.
+
+.video-frame {
+  position: relative;
+
+  video {
+    height: auto;
+  }
+}
+
+.video-toggle {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  padding: 0;
+  color: #fff;
+  background: rgb(0 0 0 / 55%);
+  border: 0;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  svg {
+    grid-area: 1 / 1;
+    width: 1.25rem;
+    height: 1.25rem;
+    fill: currentcolor;
+  }
+
+  &:focus-visible {
+    opacity: 1;
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+}
+
+.video-toggle-pause {
+  display: none;
+}
+
+.video-frame[data-playing="true"] {
+  .video-toggle-play {
+    display: none;
+  }
+
+  .video-toggle-pause {
+    display: block;
+  }
+}
+
+.video-frame[data-playing="false"] .video-toggle,
+.video-frame:hover .video-toggle {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .video-frame[data-playing="true"] .video-toggle {
+    opacity: 0.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .video-toggle {
+    transition: none;
+  }
+}
