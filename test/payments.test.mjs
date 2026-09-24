@@ -249,6 +249,32 @@ describe("refunds", () => {
         .filter((h) => h.event === "refund.recorded").length, 1);
     });
 
+  it("applyRefundEvent completes a refund the farm made from the CLI",
+    async () => {
+      const stores = testStores();
+
+      await saveOrder(stores, order("NFF-1"), now);
+      await recordRefund(stores, await getOrder(stores, "NFF-1"), {
+        amount: 700, squareRefundId: "REF-9", status: "PENDING",
+      }, "farm", now);
+
+      const r = await applyRefundEvent(stores, event({
+        id: "REF-9", payment_id: "PAY-NFF-1", status: "COMPLETED",
+        amount_money: { amount: 700, currency: "USD" },
+      }), { now });
+
+      assert.deepEqual(r, { handled: true, id: "NFF-1", repeat: true });
+
+      const noted = await getOrder(stores, "NFF-1");
+
+      assert.equal(noted.refund.status, "COMPLETED");
+      assert.equal(noted.refund.source, "farm");
+      assert.equal(noted.history
+        .filter((h) => h.event === "refund.completed").length, 1);
+      assert.equal(noted.history
+        .filter((h) => h.event === "refund.recorded").length, 1);
+    });
+
   it("applyRefundEvent leaves unknown payments and pending refunds alone",
     async () => {
       const stores = testStores();
