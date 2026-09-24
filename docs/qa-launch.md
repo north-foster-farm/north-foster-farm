@@ -1631,38 +1631,44 @@ Pending; partly visual.
 
 ### AR-05 Hero buttons on hover (#135)
 
-Pending.
+Automated: `home.spec.mjs`, "Order now stays pure white on hover and
+lifts" (desktop). Whether the softer shadow looks right is by eye.
 
 - **Scenario:** The white CTA stays pure white on hover.
 - **Setup:** Home page, desktop.
 - **Test:**
   1. Hover "Order now".
-- **Assert:** Background `rgb(255, 255, 255)` on hover; the shadow a
-  little softer than today.
+- **Assert:** Background and border `rgb(255, 255, 255)` on hover, the
+  text color unchanged, a shadow that it lacks at rest.
 - **Teardown:** None.
 
 ### AR-06 Header button border on hover (#135)
 
-Pending.
+Automated: `home.spec.mjs`, "header links ease in a gray border without
+changing size" (desktop, at 1500 and 390). Checked by eye 2026-09-24:
+light but visible.
 
 - **Scenario:** A light gray border eases in without moving anything.
-- **Setup:** Desktop.
+- **Setup:** A header text link at 1500; the menu toggle at 390.
 - **Test:**
-  1. Measure the header Order button; hover; measure again.
-- **Assert:** Same width and height; a gray border or ring visible on
-  hover, eased.
+  1. Measure the link; hover; measure again.
+- **Assert:** Transparent border at rest, a colored one of the same
+  width on hover, `border-color` in the transition; same width and
+  height; the same lift shadow as every other button.
 - **Teardown:** None.
 
 ### AR-07 Wide buttons on phones only (#135)
 
-Pending.
+Automated: `home.spec.mjs`, "Shop all products is wide on phones only"
+(desktop, at 1500 and 390).
 
 - **Scenario:** "Shop all products" matches the hero buttons' padding
   above phone width.
 - **Setup:** 1500 and 390.
 - **Test:**
   1. Compare its horizontal padding with the hero buttons'.
-- **Assert:** Equal at 1500; wide at 390.
+- **Assert:** Equal padding and narrower than 24rem at 1500; the full
+  container width at 390.
 - **Teardown:** None.
 
 ### AR-08 The home news section (#136)
