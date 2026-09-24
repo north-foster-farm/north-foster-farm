@@ -82,6 +82,20 @@ export const nudge = (totals, method, money) => {
   return `Next discount: add ${gap} for ${off} off.`;
 };
 
+// The Delivery card's own warning, in red while delivery is chosen
+// and the cart is short of the minimum after discounts, so the
+// customer learns it at the choice and not at the last step.
+export const deliveryShort = (totals, money) => {
+  if (meetsMinimum(totals, money)) return "";
+
+  const minimum = toCents(money.deliveryMinimum);
+  const need = `You need ${dollars(minimum)} or more in your cart to use ` +
+    "this option.";
+  const gap = minimum - (totals.subtotal - totals.discountAmount);
+
+  return totals.subtotal === 0 ? need : `${need} Add ${dollars(gap)} more.`;
+};
+
 // The fee cell: nothing outside delivery, the fee, or "Free".
 export const feeCell = (totals, method) => {
   if (method !== "delivery") return { show: false };
@@ -145,4 +159,5 @@ export const summarize = ({ totals, method, money, count, lines, index }) => ({
   // A delivery short of the minimum is a warning, not a nudge.
   nudgeTone: method === "delivery" && !meetsMinimum(totals, money)
     ? "warn" : "",
+  deliveryShort: method === "delivery" ? deliveryShort(totals, money) : "",
 });

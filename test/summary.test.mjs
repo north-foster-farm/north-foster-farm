@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import terms from "../data/delivery.json" with { type: "json" };
 import {
-  badges, feeCell, itemGroups, nudge, summarize,
+  badges, deliveryShort, feeCell, itemGroups, nudge, summarize,
 } from "../assets/scripts/order/lib/summary.mjs";
 import { computeTotals } from "../assets/scripts/order/lib/totals.mjs";
 
@@ -62,6 +62,36 @@ describe("badges", () => {
     assert.deepEqual(badges(at(0), money).map((b) => b.label), [
       "Delivery", "$50+", "$100+", "$150+", "$200+", "Free delivery",
     ]);
+  });
+});
+
+describe("the Delivery card's warning", () => {
+  const need = "You need $40 or more in your cart to use this option.";
+
+  it("names the minimum on an empty cart", () => {
+    assert.equal(deliveryShort(at(0, "delivery"), money), need);
+  });
+
+  it("adds the gap once something is in the cart", () => {
+    assert.equal(deliveryShort(at(28, "delivery"), money),
+      `${need} Add $12 more.`);
+    assert.equal(deliveryShort(at(39.5, "delivery"), money),
+      `${need} Add $0.50 more.`);
+  });
+
+  it("says nothing from the minimum up", () => {
+    assert.equal(deliveryShort(at(40, "delivery"), money), "");
+    assert.equal(deliveryShort(at(120, "delivery"), money), "");
+  });
+
+  it("is only there while delivery is chosen", () => {
+    const summary = (method) => summarize({
+      totals: at(10, method), method, money, count: 1,
+    }).deliveryShort;
+
+    assert.equal(summary("delivery"), `${need} Add $30 more.`);
+    assert.equal(summary("onfarm"), "");
+    assert.equal(summary("scituate"), "");
   });
 });
 

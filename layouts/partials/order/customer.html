@@ -27,9 +27,10 @@
       </div>
     </div>
     <div class="row">
-      <label class="col-sm-3 col-form-label" for="customer-phone">Phone</label>
+      {{/* Required for delivery only (order-form.js toggles it). */}}
+      <label class="col-sm-3 col-form-label" for="customer-phone">Phone <span class="text-body-secondary" data-phone-optional hidden>(optional)</span></label>
       <div class="col-sm-9">
-        <input class="form-control" type="tel" id="customer-phone" name="customer.phone" autocomplete="tel" inputmode="tel" required data-field="customer.phone" data-prefill="phone" aria-describedby="err-customer-phone">
+        <input class="form-control" type="tel" id="customer-phone" name="customer.phone" autocomplete="tel" inputmode="tel" data-field="customer.phone" data-prefill="phone" aria-describedby="err-customer-phone">
         <div class="invalid-feedback" id="err-customer-phone" data-error-for="customer.phone"></div>
       </div>
     </div>

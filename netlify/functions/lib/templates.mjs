@@ -228,6 +228,11 @@ const render = (title, blocks, links = {}, { tag = null } = {}) => {
     .join("\n");
   const html = `<!doctype html><html><head><meta charset="utf-8">` +
     `<meta name="viewport" content="width=device-width">` +
+    // Safari, and the staging outbox in it, would link the footer's
+    // phone number and paint it blue; iOS Mail is held off by the
+    // x-apple-data-detectors rule in the <style> block.
+    `<meta name="format-detection" ` +
+    `content="telephone=no, date=no, address=no, email=no">` +
     `<meta name="color-scheme" content="light">` +
     `<meta name="supported-color-schemes" content="light">` +
     `<title>${escape(title)}</title>${styles(links.site)}</head>` +
@@ -573,18 +578,16 @@ export const magicLink = (email, url, { minutes = 15, links } = {}) => {
 
 // Farm news: the one click that puts an address on the list. Sent to
 // anyone who asks on the site, and to the old list when it is asked
-// to opt in again. Nothing else is ever sent before that click.
-export const newsConfirm = (email, url, {
-  firstName = "", days = 7, links,
-} = {}) => {
-  const title = "Confirm your email for farm news";
+// to opt in again. Nothing else is ever sent before that click. The
+// wording is James's, on the pattern of the sign-in email.
+export const newsConfirm = (email, url, { days = 7, links } = {}) => {
+  const title = "Confirm your email for North Foster Farm news and updates";
   const blocks = [
-    p(`${firstName ? `Hi ${firstName}, t` : "T"}his is the one click that ` +
-      `puts ${email} on the list for news and offers from North Foster ` +
-      "Farm, now and then. Nothing is sent until you do."),
-    button("Yes, sign me up", url),
-    p(`This link works for ${days} days. If you didn't ask for this, ` +
-      "ignore it and nothing happens."),
+    p("Click the button below to receive news and updates from North " +
+      "Foster Farm."),
+    button("Sign up", url),
+    p(`This link expires in ${days} days. If you didn't request this ` +
+      "email, you can safely ignore it."),
     row([["Need help? Contact us", contactUrl(links)]]),
   ];
 

@@ -207,8 +207,8 @@ export class OrderForm {
     });
 
     if (ok) {
-      note.textContent = `Check ${address} for an email from us. One click ` +
-        "there and you're on the list.";
+      note.textContent =
+        "Click the link in the email you receive to join the list.";
       note.hidden = false;
     } else {
       this.newsAsked.delete(address);
@@ -239,9 +239,13 @@ export class OrderForm {
   }
 
   wire() {
-    this.form.addEventListener("input", () => this.changed());
+    this.form.addEventListener("input", () => {
+      this.changed();
+      this.revalidate();
+    });
     this.form.addEventListener("change", (e) => {
       this.changed();
+      this.revalidate();
       if (e.target.name === "method") this.revealMethod();
     });
     this.form.addEventListener("submit", (e) => this.submit(e));
@@ -256,6 +260,7 @@ export class OrderForm {
       if (e.target.matches("[data-prefill]") && e.target.value.trim()) {
         this.plain(e.target, true);
       }
+      this.revalidate(e.target);
     });
 
     // A click on a plain-text detail makes it a field again.
@@ -293,12 +298,14 @@ export class OrderForm {
       agree.hidden = true;
     });
 
-    // Below xl the cart folds down to the total and the Next button.
+    // Below xl the cart folds down to the total row and the foot: the
+    // toggle, the way on and the nudge. A click on the total row folds
+    // it too.
     qs(this.cart, "[data-cart-toggle]").addEventListener("click", () => {
       this.setOpen(this.cart.dataset.open !== "true");
     });
-    qs(this.cart, ".order-cart-foot").addEventListener("click", (e) => {
-      if (e.target.closest("[data-cart-toggle], [data-checkout]")) return;
+    qs(this.cart, "[data-cart-total-row]").addEventListener("click", () => {
+      if (!matchMedia("(max-width: 1199.98px)").matches) return;
       this.setOpen(this.cart.dataset.open !== "true");
     });
     qs(this.cart, "[data-checkout]").addEventListener("click", () => {
@@ -735,6 +742,12 @@ export class OrderForm {
       body.toggleAttribute("inert", body.dataset.methodBody !== method);
     }
 
+    // Delivery needs a phone for the driver; the rest can do without.
+    const phone = qs(this.form, "[data-field='customer.phone']");
+
+    phone.required = method === "delivery";
+    qs(this.form, "[data-phone-optional]").hidden = method === "delivery";
+
     this.renderCart(totals, method);
     this.renderZipNote();
   }
@@ -794,8 +807,19 @@ export class OrderForm {
       "aria-label", `${s.countText}, total ${s.total}. Show or hide the cart.`
     );
     qs(c, "[data-cart-count]").textContent = s.countText;
-    qs(this.form, "[data-total-bar-count]").textContent = s.countText;
-    qs(this.form, "[data-total-bar-total]").textContent = s.total;
+    for (const el of all(this.form, "[data-total-bar-count]")) {
+      el.textContent = s.countText;
+    }
+    for (const el of all(this.form, "[data-total-bar-total]")) {
+      el.textContent = s.total;
+    }
+
+    const short = qs(this.form, "[data-delivery-short]");
+
+    if (short.textContent !== s.deliveryShort) {
+      short.textContent = s.deliveryShort;
+    }
+    short.hidden = !s.deliveryShort;
     qs(c, "[data-checkout]").disabled = count === 0
       || (method === "delivery" && !s.eligible);
 
@@ -1045,20 +1069,37 @@ export class OrderForm {
   // Validates now and returns the payload the server expects, with
   // its key and attempt, or null after showing the errors. Nothing
   // asynchronous: a wallet must tokenise inside its click.
+  check(payload) {
+    return validateOrder(payload, {
+      index: this.index, terms: this.terms, now: this.dates.now(),
+      group: this.group, code: this.code,
+    });
+  }
+
+  // Once errors are showing, each change clears the ones it fixes and
+  // rewords the ones it changes; leaving a field shows its own. Before
+  // the first attempt nothing is said while the customer fills in.
+  revalidate(left = null) {
+    if (this.busy || !this.errors.showing()) return;
+
+    const check = this.check(this.collect());
+
+    this.errors.update(check.ok ? {} : check.errors, left);
+    this.refresh();
+  }
+
   prepare() {
     if (this.busy) return null;
 
     const payload = this.collect();
-    const check = validateOrder(payload, {
-      index: this.index, terms: this.terms, now: this.dates.now(),
-      group: this.group, code: this.code,
-    });
+    const check = this.check(payload);
 
     if (!check.ok) {
       if (check.dates) {
         this.dates.replace(payload.fulfilment.method, check.dates);
       }
       this.errors.show(check.errors);
+      this.refresh();
 
       return null;
     }
