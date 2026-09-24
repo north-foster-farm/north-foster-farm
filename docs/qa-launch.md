@@ -1739,17 +1739,26 @@ Automated: `home.spec.mjs`, "Shop all products is wide on phones only"
 
 ### AR-08 The home news section (#136)
 
-Pending.
+Automated: `home.spec.mjs`, "the post in full, linked to its own page"
+and "the post's page is canonical, and the home page is its own" (both
+projects); `map.spec.mjs`, "the news post's ZIP button leads to the
+map's check", which fails on the phone project today (#159). The
+invoice wording on `/` is AO-13's.
 
 - **Scenario:** The September post lives at `/news/<slug>/` and is shown
   in full on the home page.
-- **Setup:** Home page; the post page.
+- **Setup:** Home page; the post page; the news list.
 - **Test:**
-  1. Read the home section; open the post.
-- **Assert:** A "News and updates" eyebrow and a date line; a row "Do
-  we deliver to you?" with "Check your zip code" that scrolls to the
-  map; width up to 600px; an outline button to `/news/`; the post page
-  keeps its canonical URL; no invoice wording.
+  1. Read the home section; press Check your ZIP code.
+  2. Open the post; open the news list.
+- **Assert:** "News and updates"; "September Update" linking to
+  `/news/2026-09-22-september-update/`; "September 22, 2026" dated
+  `2026-09-22`; the "Do we deliver to you?" row with "Check your ZIP
+  code" and no ZIP check in the card; an outline button to `/news/`;
+  the text no wider than 600px and, from 992 up, 52px of padding each
+  side. The button lands on the map with its ZIP field on screen. The
+  post's canonical URL is its own, the home page's is `/`, its ZIP
+  button points at `/#map`, and the news list links to it.
 - **Teardown:** None.
 
 ### AR-09 The off-season band (#137)

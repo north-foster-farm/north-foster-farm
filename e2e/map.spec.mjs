@@ -175,19 +175,14 @@ test.describe("map (#138)", () => {
       expect((await drop(page)).hidden).toBe(true);
     });
 
-  test("the other ZIP check on the page drops the pin too",
+  // Since #136 the home page's only ZIP check is the map's; the news
+  // post's "Check your ZIP code" button leads to it.
+  test("the news post's ZIP button leads to the map's check",
     async ({ page }) => {
       await page.goto(HOME.path);
-
-      const other = page.locator(
-        "[data-zip-check] input:not(#home-map-zip-input)"
-      ).first();
-
-      await expect(other).toHaveAttribute("autocomplete", "off");
-      await other.fill("02857");
-      await other.press("Enter");
-      await page.waitForTimeout(200);
-      expect((await drop(page)).label).toBe("02857: We deliver here");
+      await page.locator(".delivery-cta a").click();
+      await expect(page).toHaveURL(/#map$/);
+      await expect(page.locator(HOME.input)).toBeInViewport();
     });
 
   test("with reduced motion the pin appears without falling",
