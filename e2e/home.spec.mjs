@@ -315,6 +315,72 @@ test.describe("home", () => {
       });
   });
 
+  // #136: the September update lives at /news/<slug>/ and the home
+  // page publishes it in full under a news eyebrow.
+  test.describe("home news section (#136)", () => {
+    const POST = "/news/2026-09-22-september-update/";
+
+    test("the post in full, linked to its own page", async ({ page }) => {
+      await page.goto("/");
+
+      const card = page.locator(".home-update-card");
+
+      await expect(card.locator(".home-eyebrow"))
+        .toHaveText("News and updates");
+      await expect(card.locator(".home-update-link"))
+        .toHaveText("September Update");
+      await expect(card.locator(".home-update-link"))
+        .toHaveAttribute("href", new RegExp(`${POST}$`));
+      await expect(card.locator("time.home-update-date"))
+        .toHaveAttribute("datetime", "2026-09-22");
+      await expect(card.locator("time.home-update-date"))
+        .toHaveText("September 22, 2026");
+
+      const cta = card.locator(".delivery-cta");
+
+      await expect(cta.locator(".delivery-cta-question"))
+        .toHaveText("Do we deliver to you?");
+      await expect(cta.getByRole("link")).toHaveText("Check your ZIP code");
+      await expect(card.locator("[data-zip-check]")).toHaveCount(0);
+
+      const news = card.getByRole("link", { name: /news/i }).last();
+
+      await expect(news).toHaveClass(/btn-outline/);
+      await expect(news).toHaveAttribute("href", /\/news\/$/);
+
+      // Up to 600px of text; 3.25rem of padding on a large screen.
+      const text = await card.locator(".fmw-600").boundingBox();
+
+      expect(text.width).toBeLessThanOrEqual(600);
+
+      const pad = await card.evaluate((el) => [
+        getComputedStyle(el).paddingLeft, getComputedStyle(el).paddingRight,
+      ]);
+
+      if (page.viewportSize().width >= 992) {
+        expect(pad).toEqual(["52px", "52px"]);
+      }
+    });
+
+    test("the post's page is canonical, and the home page is its own",
+      async ({ page }) => {
+        await page.goto(POST);
+        await expect(page.locator("link[rel='canonical']"))
+          .toHaveAttribute("href", new RegExp(`${POST}$`));
+        await expect(page.locator("h1")).toHaveText("September Update");
+        await expect(page.locator(".delivery-cta a"))
+          .toHaveAttribute("href", /\/#map$/);
+
+        await page.goto("/");
+        await expect(page.locator("link[rel='canonical']"))
+          .toHaveAttribute("href", /\/$/);
+
+        await page.goto("/news/");
+        await expect(page.locator(`a[href$='${POST}']`).first())
+          .toBeAttached();
+      });
+  });
+
   // #137: outside market season (May 15 to September 15, decided at
   // build time) the market band gives way to the three ways to buy,
   // every fact from data/delivery.json.
