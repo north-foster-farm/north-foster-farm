@@ -37,6 +37,18 @@ One of our mobile coops
 
 ## What we sell
 
+We raise a premium chicken, and we think it's worth it. Our birds
+live on pasture, and we take pride in that. Moving them to fresh grass
+every day takes time, and so does keeping feed running out to the far
+corners of the field. We do it anyway, because we think it's right,
+because it makes our chicken better, and because it's the most
+respectful way we know to raise animals.
+
+{{< video src="videos/tight-quarters" poster="images/tight-quarters.jpg"
+  label="A farmer inside a mobile pen on a misty morning, tending the chickens" >}}
+Morning chores in one of the mobile pens
+{{< /video >}}
+
 Pasture-raised whole chickens and cuts, chicken sausage, and eggs by
 the dozen. Everything is available at our farmers markets and through
 [the order page](/order) for on-farm pickup, the Scituate drop site,
