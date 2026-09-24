@@ -1,22 +1,19 @@
 {{ $money := hugo.Data.delivery.money }}
 {{ $deliveryTip := printf "Orders of $%v or more after discounts can be delivered on Thursdays. $%v fee, waived at $%v." $money.deliveryMinimum $money.deliveryFee $money.feeWaivedAt }}
 {{ $freeTip := printf "No delivery fee on orders of $%v or more." $money.feeWaivedAt }}
-{{/* Badges: the delivery pair, then the tiers, on one dotted line. */}}
 {{/* The heading sits in the flow where the pane settles, so it
      appears as the pane arrives; at xl the pane is a column with no
      heading. */}}
 <h2 class="order-cart-heading h4" id="order-cart-heading">Cart</h2>
+{{/* One column, top to bottom: the lines, a rule, the sums, a rule,
+     the total row, a darker rule, the badges, the code, a rule, the
+     way on, the nudge. The two parts either side of the total row fold
+     away together; the total row is what stays. From md to xl the
+     lines take the left column and the rest the right (order-form.js
+     and _order.scss). */}}
 <aside class="order-cart" id="order-cart" aria-labelledby="order-cart-heading" data-open="true">
-  <div class="order-cart-body" id="order-cart-body">
+  <div class="order-cart-fold" id="order-cart-body">
     <div class="order-cart-inner">
-      <ul class="order-badges list-unstyled" aria-label="What this order qualifies for">
-        <li><button type="button" class="order-badge" data-badge="delivery" data-tip="{{ $deliveryTip }}">Delivery</button></li>
-        <li><button type="button" class="order-badge" data-badge="free-delivery" data-tip="{{ $freeTip }}">Free delivery</button></li>
-        {{ range $money.bulkTiers }}
-          <li><button type="button" class="order-badge" data-badge="tier-{{ .threshold }}" data-tip="${{ .off }} off orders of ${{ .threshold }} or more.">${{ .threshold }}+</button></li>
-        {{ end }}
-      </ul>
-
       <div class="order-cart-scroll">
         <button type="button" class="order-cart-more order-cart-more-top" data-cart-more-top hidden></button>
         <ul class="order-cart-items list-unstyled" data-cart-items>
@@ -24,7 +21,7 @@
         </ul>
         <button type="button" class="order-cart-more" data-cart-more hidden></button>
       </div>
-
+      <hr class="order-cart-rule order-cart-rule-items">
       <dl class="order-cart-lines">
         <div class="order-cart-row">
           <dt>Subtotal</dt>
@@ -39,7 +36,35 @@
           <dd data-total="fee">+$0</dd>
         </div>
       </dl>
+      <hr class="order-cart-rule">
+    </div>
+  </div>
 
+  <div class="order-cart-foot">
+    <button class="order-cart-toggle" type="button" aria-expanded="true" aria-controls="order-cart-body" aria-label="Show or hide the cart details" data-cart-toggle>
+      <span data-cart-word>Hide</span>
+      <svg class="order-cart-caret" width="14" height="14" viewBox="0 0 12 12" aria-hidden="true">
+        <path d="M2 4.5 6 8.5 10 4.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <span class="order-cart-sum">
+      <span class="order-cart-count" data-cart-count>0 items</span>
+      <span class="order-cart-sum-label">Total</span>
+      <span class="order-cart-total" data-total="total">$0</span>
+    </span>
+  </div>
+
+  <div class="order-cart-fold order-cart-after">
+    <div class="order-cart-inner">
+      <hr class="order-cart-rule order-cart-rule-dark">
+      {{/* Badges: the delivery pair, then the tiers, on one dotted line. */}}
+      <ul class="order-badges list-unstyled" aria-label="What this order qualifies for">
+        <li><button type="button" class="order-badge" data-badge="delivery" data-tip="{{ $deliveryTip }}">Delivery</button></li>
+        <li><button type="button" class="order-badge" data-badge="free-delivery" data-tip="{{ $freeTip }}">Free delivery</button></li>
+        {{ range $money.bulkTiers }}
+          <li><button type="button" class="order-badge" data-badge="tier-{{ .threshold }}" data-tip="${{ .off }} off orders of ${{ .threshold }} or more.">${{ .threshold }}+</button></li>
+        {{ end }}
+      </ul>
       {{/* A discount code. Known codes are checked on the server; the
            page carries only their hashes, so it can say "applied" or
            "unknown" without listing them. */}}
@@ -49,24 +74,9 @@
         <button type="button" class="btn btn-sm btn-outline-primary" data-code-apply>Apply</button>
         <p class="order-cart-code-note" id="order-code-note" data-code-note aria-live="polite" hidden></p>
       </div>
+      <hr class="order-cart-rule">
+      <button type="button" class="btn btn-primary order-cart-next" data-checkout disabled>Continue to checkout</button>
+      <p class="order-cart-nudge" data-nudge aria-live="polite" hidden></p>
     </div>
   </div>
-
-  <div class="order-cart-foot">
-    <button class="order-cart-toggle" type="button" aria-expanded="true" aria-controls="order-cart-body" aria-label="Show or hide the cart details" data-cart-toggle>
-      <span data-cart-count>0 items</span>
-      <span class="order-cart-toggle-word" data-cart-word>Hide</span>
-      <svg class="order-cart-caret" width="14" height="14" viewBox="0 0 12 12" aria-hidden="true">
-        <path d="M2 4.5 6 8.5 10 4.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </button>
-    <span class="order-cart-sum">
-      <span class="order-cart-sum-label">Total</span>
-      <span class="order-cart-total" data-total="total">$0</span>
-    </span>
-    {{/* From xl only, where the cart is a column beside the catalog. */}}
-    <button type="button" class="btn btn-primary order-cart-next" data-checkout disabled>Continue to checkout</button>
-  </div>
-
-  <p class="order-cart-nudge" data-nudge aria-live="polite" hidden></p>
 </aside>

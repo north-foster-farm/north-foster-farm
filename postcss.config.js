@@ -63,6 +63,7 @@ const plugins = [
         "data-shown",
         "data-stuck",
         "data-card-open",
+        "data-cart-passed",
         "aria-pressed",
       ];
     },

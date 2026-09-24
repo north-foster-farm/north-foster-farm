@@ -318,10 +318,12 @@ export class OrderForm {
       stuckTick = null;
 
       const r = this.cart.getBoundingClientRect();
-      const floating = matchMedia("(max-width: 1199.98px)").matches
-        && r.bottom > window.innerHeight - 13;
+      const below = matchMedia("(max-width: 1199.98px)").matches;
+      const floating = below && r.bottom > window.innerHeight - 13;
 
       this.cart.dataset.stuck = String(floating);
+      // Scrolled past: the total bar takes over.
+      this.form.dataset.cartPassed = String(below && r.bottom < 60);
     };
     const onScroll = () => {
       if (stuckTick === null) stuckTick = requestAnimationFrame(stuckWatch);
@@ -336,7 +338,7 @@ export class OrderForm {
     qs(this.cart, "[data-cart-items]").addEventListener(
       "scroll", () => this.syncScroll(), { passive: true }
     );
-    qs(this.cart, ".order-cart-body").addEventListener(
+    qs(this.cart, ".order-cart-fold").addEventListener(
       "transitionend", () => this.syncScroll()
     );
     qs(this.cart, "[data-cart-more]").addEventListener("click", () => {
@@ -503,7 +505,7 @@ export class OrderForm {
     qs(this.cart, "[data-cart-toggle]").setAttribute(
       "aria-expanded", String(open)
     );
-    qs(this.cart, "[data-cart-word]").textContent = open ? "Hide" : "Show";
+    qs(this.cart, "[data-cart-word]").textContent = open ? "Hide" : "Expand";
     if (open) this.syncScroll();
   }
 
@@ -792,6 +794,8 @@ export class OrderForm {
       "aria-label", `${s.countText}, total ${s.total}. Show or hide the cart.`
     );
     qs(c, "[data-cart-count]").textContent = s.countText;
+    qs(this.form, "[data-total-bar-count]").textContent = s.countText;
+    qs(this.form, "[data-total-bar-total]").textContent = s.total;
     qs(c, "[data-checkout]").disabled = count === 0
       || (method === "delivery" && !s.eligible);
 

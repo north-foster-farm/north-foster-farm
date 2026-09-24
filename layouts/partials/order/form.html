@@ -24,6 +24,14 @@
   </div>
   {{ partial "order/cart.html" . }}
   <div class="order-rest">
+    {{/* Below xl the pane scrolls away; this bar keeps the total in
+         view from then on (order-form.js marks the form once the pane
+         is passed). */}}
+    <div class="order-total-bar d-xl-none" aria-hidden="true">
+      <span data-total-bar-count>0 items</span>
+      <span class="order-cart-sum-label">Total</span>
+      <span class="order-total-bar-total" data-total-bar-total>$0</span>
+    </div>
     {{ partial "order/customer.html" . }}
     {{ partial "order/fulfilment.html" . }}
     {{ partial "order/payment.html" . }}
