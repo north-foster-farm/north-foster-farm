@@ -298,8 +298,14 @@ export class OrderForm {
       this.setOpen(this.cart.dataset.open !== "true");
     });
     qs(this.cart, ".order-cart-foot").addEventListener("click", (e) => {
-      if (e.target.closest("[data-cart-toggle]")) return;
+      if (e.target.closest("[data-cart-toggle], [data-checkout]")) return;
       this.setOpen(this.cart.dataset.open !== "true");
+    });
+    qs(this.cart, "[data-checkout]").addEventListener("click", () => {
+      const target = document.getElementById("details");
+
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      qs(target, "legend").focus({ preventScroll: true });
     });
 
     // Below xl the pane floats at the foot of the screen while its
@@ -337,6 +343,11 @@ export class OrderForm {
       const list = qs(this.cart, "[data-cart-items]");
 
       list.scrollBy({ top: list.clientHeight * 0.8, behavior: "smooth" });
+    });
+    qs(this.cart, "[data-cart-more-top]").addEventListener("click", () => {
+      const list = qs(this.cart, "[data-cart-items]");
+
+      list.scrollBy({ top: -list.clientHeight * 0.8, behavior: "smooth" });
     });
     window.addEventListener("resize", () => this.syncScroll());
 
@@ -390,7 +401,7 @@ export class OrderForm {
     const topbar = document.querySelector("[data-topbar-title]");
 
     ScrollSpy.getOrCreateInstance(document.body, {
-      target: "#order-nav", rootMargin: "-20% 0px -65%", smoothScroll: true,
+      target: "#order-nav", rootMargin: "-10% 0px -80%", smoothScroll: true,
     });
     document.body.addEventListener("activate.bs.scrollspy", (e) => {
       const link = e.relatedTarget;
@@ -503,15 +514,22 @@ export class OrderForm {
     const wrap = list.parentElement;
     const seen = list.scrollTop + list.clientHeight;
     const more = seen < list.scrollHeight - 1;
-    const below = all(list, ".order-cart-item").filter(
+    const items = all(list, ".order-cart-item");
+    const below = items.filter(
       (li) => li.offsetTop + li.offsetHeight > seen + 1
     ).length;
+    const above = items.filter(
+      (li) => li.offsetTop + li.offsetHeight <= list.scrollTop + 1
+    ).length;
     const button = qs(wrap, "[data-cart-more]");
+    const top = qs(wrap, "[data-cart-more-top]");
 
     wrap.toggleAttribute("data-top", list.scrollTop > 0);
     wrap.toggleAttribute("data-more", more);
     button.hidden = !more || below === 0;
     button.textContent = `${below} more ↓`;
+    top.hidden = list.scrollTop <= 0 || above === 0;
+    top.textContent = `${above} more ↑`;
   }
 
   // Quantity controls.
@@ -774,6 +792,8 @@ export class OrderForm {
       "aria-label", `${s.countText}, total ${s.total}. Show or hide the cart.`
     );
     qs(c, "[data-cart-count]").textContent = s.countText;
+    qs(c, "[data-checkout]").disabled = count === 0
+      || (method === "delivery" && !s.eligible);
 
     // Empty, the cart folds away; the first item opens it. A fold the
     // customer chose stays until the cart empties again.
@@ -1228,13 +1248,11 @@ export class OrderForm {
     this.submitLabel(busy);
   }
 
-  // "Pay $55 and place your order", with the total as it stands.
+  // The cart says the total; the button says what it does.
   submitLabel(busy = this.busy) {
-    const total = this.total ? `${dollars(this.total)} ` : "";
-
     this.submitButton.textContent = busy
       ? "Taking your payment…"
-      : `Pay ${total}and place your order`;
+      : "Place your order";
   }
 
   // One line saying when and where, the sentence people screenshot.
