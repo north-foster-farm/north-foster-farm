@@ -68,14 +68,20 @@ test.describe("recovery", () => {
 
   test("a permanent failure shows the order to send by hand",
     async ({ page }) => {
-      await page.route("**/api/orders", (route) => route.fulfill({
-        status: 502,
-        contentType: "application/json",
-        body: JSON.stringify({
-          retryable: false,
-          message: "Something went wrong taking your payment.",
-        }),
-      }));
+      let calls = 0;
+
+      await page.route("**/api/orders", (route) => {
+        calls += 1;
+
+        return route.fulfill({
+          status: 502,
+          contentType: "application/json",
+          body: JSON.stringify({
+            retryable: false,
+            message: "Something went wrong taking your payment.",
+          }),
+        });
+      });
 
       const order = await ready(page);
       const failed = page.locator(".order-result-failed");
@@ -84,6 +90,7 @@ test.describe("recovery", () => {
       // A permanent failure is not worth retrying: the card should
       // show at once, not after the retry schedule (about 8 minutes).
       await expect(failed).toBeVisible({ timeout: 20_000 });
+      expect(calls, "a 502 is sent once, not retried (#156)").toBe(1);
       await expect(failed.locator("h2")).toHaveText(
         "Send this to us and we'll finish it by hand"
       );
@@ -99,5 +106,50 @@ test.describe("recovery", () => {
       await expect(failed.locator("[data-out='phone']")).toHaveAttribute(
         "href", /^tel:/
       );
+    });
+
+  // #154: past the rate limit the endpoint once answered 204, and the
+  // page said the order was placed. The live lockout is PY-18 in
+  // rate-limit.spec.mjs; this stub checks the page alone.
+  test("too many tries says so by the Pay button and keeps the order",
+    async ({ page }) => {
+      const message = "There have been too many tries from here. Wait a " +
+        "few minutes and try again; your order is saved on this page.";
+
+      await page.route("**/api/orders", (route) => route.fulfill({
+        status: 429,
+        contentType: "application/json",
+        headers: { "Retry-After": "600" },
+        body: JSON.stringify({ message }),
+      }));
+
+      const order = await ready(page);
+
+      await order.submit.click();
+      await expect(order.payError).toHaveText(message);
+      await expect(order.result).not.toContainText("Your order is placed");
+      await expect(page.locator(".order-result-failed")).toHaveCount(0);
+      await expect(page.locator("#order-pending")).toBeHidden();
+      await expect(order.submit).toBeEnabled();
+      await expect(order.qty("eggs")).toHaveValue("1");
+
+      const draft = await page.evaluate(
+        () => JSON.parse(localStorage.getItem("nff-order-draft") || "null")
+      );
+
+      expect(JSON.stringify(draft)).toContain("Retry");
+    });
+
+  test("an empty 204 is never taken for a placed order",
+    async ({ page }) => {
+      await page.route("**/api/orders", (route) => route.fulfill({
+        status: 204,
+      }));
+
+      const order = await ready(page);
+
+      await order.submit.click();
+      await expect(page.locator(".order-result-failed")).toBeVisible();
+      await expect(order.result).not.toContainText("Your order is placed");
     });
 });

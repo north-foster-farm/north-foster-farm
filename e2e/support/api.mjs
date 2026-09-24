@@ -44,21 +44,20 @@ export const eggOrder = async (request, {
   ...extra,
 });
 
-// The order endpoint drops a request silently (204) for the honeypot
-// and past its rate limit: 12 requests per 10 minutes per address,
-// per function instance. A whole run of the suite sends about ten.
-export const RATE_LIMITED = "Dropped with 204 without the honeypot: the " +
-  "order endpoint's rate limit (12 per 10 minutes per IP) was hit. " +
-  "Wait ten minutes and run again.";
+// The order endpoint answers 429 past its rate limit: 12 requests per
+// 10 minutes per address, per function instance, counted before
+// anything else is checked. A whole run of the suite sends about ten.
+// Only the honeypot is dropped silently (204).
+export const RATE_LIMITED = "Answered 429: the order endpoint's rate " +
+  "limit (12 per 10 minutes per IP) was hit. Wait ten minutes and run " +
+  "again.";
 
-// -> { status, body }
-export const postOrder = async (request, payload) => {
+// -> { status, body }. `limited` lets the rate-limit spec see its 429.
+export const postOrder = async (request, payload, { limited = false } = {}) => {
   const res = await request.post("/api/orders", { data: payload });
   const text = await res.text();
 
-  if (res.status() === 204 && !payload.website) {
-    throw new Error(RATE_LIMITED);
-  }
+  if (res.status() === 429 && !limited) throw new Error(RATE_LIMITED);
 
   return { status: res.status(), body: text ? JSON.parse(text) : null };
 };

@@ -23,6 +23,7 @@ const desktopOnly = [
   "**/payment.spec.mjs",
   "**/recovery.spec.mjs",
   "**/orders-api.spec.mjs",
+  "**/rate-limit.spec.mjs",
   "**/account.spec.mjs",
   "**/news.spec.mjs",
   "**/staging-toolbar.spec.mjs",
