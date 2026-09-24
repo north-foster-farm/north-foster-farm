@@ -50,10 +50,14 @@ const nextTierAbove = (subtotal, money) => {
 // row that will appear, not an increment. Nothing at the top tier.
 export const nudge = (totals, method, money) => {
   const s = totals.subtotal;
-
-  if (s === 0) return "";
-
   const isDelivery = method === "delivery";
+
+  if (s === 0) {
+    return isDelivery
+      ? `Delivery orders need a ${
+        dollars(toCents(money.deliveryMinimum))} minimum.`
+      : "";
+  }
 
   if (isDelivery && !meetsMinimum(totals, money)) {
     const gap = toCents(money.deliveryMinimum) - (s - totals.discountAmount);
@@ -138,4 +142,7 @@ export const summarize = ({ totals, method, money, count, lines, index }) => ({
   eligible: meetsMinimum(totals, money),
   badges: badges(totals, money),
   nudge: nudge(totals, method, money),
+  // A delivery short of the minimum is a warning, not a nudge.
+  nudgeTone: method === "delivery" && !meetsMinimum(totals, money)
+    ? "warn" : "",
 });

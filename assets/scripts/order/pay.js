@@ -79,7 +79,19 @@ export class Payment {
     this.starting = null;
     this.error = qs(root, "[data-error-for='payment']");
     this.state = qs(root, "[data-pay]");
+    this.cardButton = qs(root, "[data-card-choose]");
     this.busy = false;
+  }
+
+  // The Card button in the grid opens and closes the card fields; the
+  // form's own Pay button belongs to the card and goes with them.
+  setCardOpen(open) {
+    const submit = document.getElementById("order-submit");
+
+    this.state.dataset.cardOpen = String(open);
+    this.cardButton.setAttribute("aria-pressed", String(open));
+    this.cardButton.classList.toggle("active", open);
+    if (submit) submit.hidden = !open;
   }
 
   // Loads once the section is near the screen, or the first time
@@ -175,9 +187,15 @@ export class Payment {
         },
       });
       await this.card.attach(qs(this.root, "[data-card]"));
+      this.cardButton.hidden = false;
+      this.cardButton.addEventListener("click", () => {
+        this.setCardOpen(this.state.dataset.cardOpen !== "true");
+      });
+      this.setCardOpen(true);
     } catch (error) {
       console.error(error);
       this.card = null;
+      this.setCardOpen(false);
     }
 
     this.request = this.payments.paymentRequest({
@@ -193,7 +211,8 @@ export class Payment {
   }
 
   showWallets() {
-    const any = Object.keys(this.wallets).length > 0 || !!this.venmo;
+    const any = !!this.card || Object.keys(this.wallets).length > 0
+      || !!this.venmo;
 
     qs(this.root, "[data-wallets]").hidden = !any;
   }

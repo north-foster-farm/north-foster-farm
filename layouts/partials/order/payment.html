@@ -5,22 +5,22 @@
      deploy is configured for (/api/checkout/config). */}}
 <fieldset class="order-section mb-5" id="payment">
   <legend class="h2" tabindex="-1">Payment</legend>
-  <p class="order-section-hint">Your card is charged when you press the button below. Nothing is saved until the payment goes through.</p>
-  <div class="order-pay" data-pay data-pay-state="loading">
-    <div class="order-pay-card">
-      <p class="order-pay-label" id="pay-card-label">Card</p>
-      <div class="order-card-fields" data-card aria-labelledby="pay-card-label"></div>
-      <p class="order-pay-loading" aria-hidden="true">Loading the card form…</p>
+  <div class="order-pay" data-pay data-pay-state="loading" data-card-open="true">
+    {{/* Every way to pay, one grid: Card opens the fields below it;
+         a wallet pays the whole order in one step. */}}
+    <div class="order-pay-buttons" data-wallets>
+      <button type="button" class="btn btn-outline-primary order-pay-method active" data-card-choose aria-pressed="true" aria-controls="pay-card-panel" hidden>
+        <span class="order-pay-method-icon" aria-hidden="true">{{ partial "svg.html" "icons/payment" }}</span>
+        Card
+      </button>
+      <button type="button" class="order-apple-pay" data-apple-pay lang="en" aria-label="Apple Pay" hidden></button>
+      <div class="order-pay-button" data-google-pay hidden></div>
+      <div class="order-pay-button" data-cash-app-pay hidden></div>
+      <div class="order-pay-button" data-venmo hidden></div>
     </div>
-    <div class="order-pay-wallets" data-wallets hidden>
-      <p class="order-pay-or">Or pay with</p>
-      <div class="order-pay-buttons">
-        <button type="button" class="order-apple-pay" data-apple-pay lang="en" aria-label="Apple Pay" hidden></button>
-        <div class="order-pay-button" data-google-pay hidden></div>
-        <div class="order-pay-button" data-cash-app-pay hidden></div>
-        <div class="order-pay-button" data-venmo hidden></div>
-      </div>
-      <p class="order-pay-wallet-note">A wallet button pays the whole order in one step.</p>
+    <div class="order-pay-card" id="pay-card-panel">
+      <div class="order-card-fields" data-card aria-label="Card details"></div>
+      <p class="order-pay-loading" aria-hidden="true">Loading the card form…</p>
     </div>
     <p class="order-pay-unavailable" role="alert">
       Online payment isn't available right now. Email
