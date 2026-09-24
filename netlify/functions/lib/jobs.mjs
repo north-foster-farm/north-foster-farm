@@ -10,6 +10,9 @@
 //   question    an order with an open question from the farm (a denied
 //               pickup window) is left alone: not closed, until the
 //               customer answers
+//   rescue      a Venmo checkout the customer approved but whose page
+//               never finished it (the tab closed) is captured and
+//               recorded, once the page has had ten minutes
 //   checkouts   a Venmo checkout nobody finished is dropped after a day
 //   morning     8:00 daily, always: the day in numbers and the on-farm
 //               orders within two days still waiting on someone
@@ -25,15 +28,16 @@ import { cutoffFor } from "../../../assets/scripts/order/lib/dates.mjs";
 import {
   addDays, instant, parts, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
-import { syncSquare } from "./checkout.mjs";
+import { rescueCheckout, syncSquare } from "./checkout.mjs";
 import { alert, ping, readCount, readMark } from "./health.mjs";
 import { log } from "./log.mjs";
 import { adminEmails, sendMail } from "./mail.mjs";
 import { audienceConfigured, syncAudience } from "./news.mjs";
 import { sendForOrder } from "./payments.mjs";
+import * as paypalApi from "./paypal.mjs";
 import {
-  allOrders, getCustomer, needsAgreement, openOrders, questionOpen,
-  reminderPrefs, setStatus, sweepCheckouts,
+  allOrders, getCustomer, listCheckouts, needsAgreement, openOrders,
+  questionOpen, reminderPrefs, setStatus, sweepCheckouts,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
 import {
@@ -76,12 +80,14 @@ export const runJobs = async (stores, {
   env = process.env,
   mail = sendMail,
   square,
+  // Null when PayPal is not configured: no checkout can be rescued.
+  paypal = paypalApi.configured(env) ? paypalApi : null,
   fetchImpl = globalThis.fetch,
 } = {}) => {
   const report = {
     at: now.toISOString(), deliveryReminded: [], closed: [], squareSynced: [],
-    muted: [], checkoutsSwept: 0, pickupsToConfirm: [], tomorrow: null,
-    errors: [], invariants: [],
+    muted: [], checkoutsRescued: [], checkoutsSwept: 0, pickupsToConfirm: [],
+    tomorrow: null, errors: [], invariants: [],
   };
   const opts = { env, mail, now };
   const fail = (id, step, error) => {
@@ -154,6 +160,19 @@ export const runJobs = async (stores, {
     await attempt(order.id, "order", () => workOrder(order));
   }
 
+  // Before the sweep, so an approved payment is never dropped unpaid.
+  if (paypal) {
+    for (const checkout of (await attempt(null, "checkouts",
+      () => listCheckouts(stores))) || []) {
+      const saved = await attempt(checkout.order && checkout.order.id,
+        "rescue", () => rescueCheckout(stores, checkout, {
+          ...opts, paypal, square, fetchImpl,
+        }));
+
+      if (saved) report.checkoutsRescued.push(saved.id);
+    }
+  }
+
   report.checkoutsSwept = (await attempt(null, "checkouts",
     () => sweepCheckouts(stores, now))) || 0;
   report.pickupsToConfirm = (await attempt(null, "morningReport",
@@ -222,7 +241,8 @@ const audienceSyncDaily = async (stores, { env, now, fetchImpl }) => {
 export const summarize = (report) => ({
   at: report.at,
   counts: Object.fromEntries([
-    "deliveryReminded", "closed", "squareSynced", "muted", "pickupsToConfirm",
+    "deliveryReminded", "closed", "squareSynced", "muted", "checkoutsRescued",
+    "pickupsToConfirm",
   ].map((k) => [k, (report[k] || []).length])),
   checkoutsSwept: report.checkoutsSwept || 0,
   tomorrow: report.tomorrow,

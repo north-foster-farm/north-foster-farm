@@ -237,7 +237,11 @@ export const getOrder = async (paypalOrderId, {
     { fetchImpl, now, method: "GET" }
   );
 
-  return { status: data.status, capture: captureOf(data) };
+  return {
+    status: data.status,
+    updatedAt: data.update_time || data.create_time || null,
+    capture: captureOf(data),
+  };
 };
 
 // Takes the money the customer approved. An order already captured

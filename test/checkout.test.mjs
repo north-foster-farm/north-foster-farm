@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  CheckoutError, attemptKey, completeOrder, finishVenmo, payWithSquare,
-  recordOnSquare, startVenmo, syncSquare,
+  CheckoutError, PAGE_GRACE, attemptKey, completeOrder, finishVenmo,
+  payWithSquare, recordOnSquare, rescueCheckout, startVenmo, syncSquare,
 } from "../netlify/functions/lib/checkout.mjs";
 import { readMark } from "../netlify/functions/lib/health.mjs";
 import { PayPalError } from "../netlify/functions/lib/paypal.mjs";
 import {
-  getCheckout, getOrder, openOrders, saveCheckout, saveOrder,
+  CHECKOUT_TTL, getCheckout, getOrder, openOrders, saveOrder,
 } from "../netlify/functions/lib/records.mjs";
 import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
@@ -85,9 +85,14 @@ const capture = (amount = 6000) => ({
   amount, payer: { email: "pat@venmo", name: "Pat" },
 });
 
-const fakePaypal = ({ cap } = {}) => {
+const fakePaypal = ({ cap, status = "APPROVED", updatedAt = null } = {}) => {
   const calls = [];
   const paypal = {
+    getOrder: async (id) => {
+      calls.push(["get", id]);
+
+      return { status, updatedAt, capture: null };
+    },
     createOrder: async (o, key) => {
       calls.push(["create", key]);
 
@@ -323,6 +328,28 @@ describe("startVenmo and finishVenmo", () => {
         m.subject === "Site alert: venmo.amount_mismatch"));
     });
 
+  it("answers a repeat with the record once the checkout is gone",
+    async () => {
+      const stores = testStores();
+      const { paypal, calls } = fakePaypal();
+      const options = { paypal, square: fakeSquare().square, ...quiet };
+
+      await startVenmo(stores, order(), { key: KEY }, options);
+      await finishVenmo(stores, order(), {
+        key: KEY, paypalOrderId: "PPO",
+      }, options);
+
+      const again = await finishVenmo(stores, order(), {
+        key: KEY, paypalOrderId: "PPO",
+      }, options);
+
+      assert.equal(again.status, "paid");
+      assert.equal(calls.filter((c) => c[0] === "capture").length, 1);
+      await assert.rejects(finishVenmo(stores, order(), {
+        key: KEY, paypalOrderId: "OTHER",
+      }, options), (e) => e.code === "checkout.unknown");
+    });
+
   it("passes a decline from PayPal up", async () => {
     const stores = testStores();
     const { paypal } = fakePaypal({
@@ -339,6 +366,76 @@ describe("startVenmo and finishVenmo", () => {
       key: KEY, paypalOrderId: "PPO",
     }, options), (e) => e.declined && e.code === "INSTRUMENT_DECLINED");
     assert.ok(await getCheckout(stores, KEY), "the checkout stays");
+  });
+});
+
+describe("rescueCheckout", () => {
+  const later = (ms) => new Date(now.getTime() + ms);
+  const kept = async (stores, paypal) => {
+    await startVenmo(stores, order(), { key: KEY }, { paypal, ...quiet });
+
+    return getCheckout(stores, KEY);
+  };
+
+  it("finishes an approved checkout once the page has had its time",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+      const { paypal, calls } = fakePaypal({
+        updatedAt: later(60_000).toISOString(),
+      });
+      const checkout = await kept(stores, paypal);
+      const options = {
+        paypal, square: fakeSquare().square, mail, sleep: quiet.sleep,
+        env: { ADMIN_EMAILS: "farm@x.com" },
+      };
+
+      assert.equal(await rescueCheckout(stores, checkout, {
+        ...options, now: later(60_000 + PAGE_GRACE - 1),
+      }), null, "the page may still be at work");
+      assert.ok(!calls.some((c) => c[0] === "capture"));
+
+      const saved = await rescueCheckout(stores, checkout, {
+        ...options, now: later(60_000 + PAGE_GRACE),
+      });
+
+      assert.equal(saved.status, "paid");
+      assert.equal(saved.payment.paypalCaptureId, "CAP");
+      assert.deepEqual(calls.find((c) => c[0] === "capture"),
+        ["capture", attemptKey(KEY, 1), "PPO"]);
+      assert.equal(await getCheckout(stores, KEY), null);
+      assert.ok(sent.some((m) => m.to === "pat@example.com"),
+        "the customer hears, late");
+    });
+
+  it("leaves an unapproved payment for the sweep", async () => {
+    const stores = testStores();
+    const { paypal, calls } = fakePaypal({ status: "PAYER_ACTION_REQUIRED" });
+    const checkout = await kept(stores, paypal);
+
+    assert.equal(await rescueCheckout(stores, checkout, {
+      paypal, ...quiet, now: later(CHECKOUT_TTL),
+    }), null);
+    assert.ok(!calls.some((c) => c[0] === "capture"));
+    assert.ok(await getCheckout(stores, KEY));
+  });
+
+  it("goes by the checkout's age when PayPal gives no time, and skips " +
+    "a checkout that is not Venmo's", async () => {
+    const stores = testStores();
+    const { paypal, calls } = fakePaypal();
+    const checkout = await kept(stores, paypal);
+    const options = { paypal, square: fakeSquare().square, ...quiet };
+
+    assert.equal(await rescueCheckout(stores, { ...checkout,
+      paypalOrderId: null }, { ...options, now: later(PAGE_GRACE) }), null);
+    assert.equal(calls.filter((c) => c[0] === "get").length, 0);
+    assert.equal(await rescueCheckout(stores, checkout, {
+      ...options, now: later(PAGE_GRACE - 1),
+    }), null);
+    assert.equal((await rescueCheckout(stores, checkout, {
+      ...options, now: later(PAGE_GRACE),
+    })).status, "paid");
   });
 });
 
@@ -451,39 +548,40 @@ describe("POST /api/paypal/webhook", () => {
     assert.equal(odd.status, 400);
   });
 
-  it("finishes a checkout the browser never came back for", async () => {
-    const stores = testStores();
-    const { paypal } = fakePaypal();
-    const { square } = fakeSquare();
+  it("leaves a capture the page is still finishing to the page",
+    async () => {
+      const stores = testStores();
+      const { paypal, calls } = fakePaypal();
+      const { square } = fakeSquare();
+      const options = { paypal, square, ...quiet };
 
-    await startVenmo(stores, order(), { key: KEY }, { paypal, ...quiet });
+      await startVenmo(stores, order(), { key: KEY }, options);
 
-    const res = await webhook(post(completed()), {
-      stores, verify: yes, paypal, square, now, sleep: quiet.sleep, env: {},
-    });
-    const data = await res.json();
+      const res = await webhook(post(completed()), {
+        stores, verify: yes, now, env: {},
+      });
 
-    assert.equal(res.status, 200);
-    assert.deepEqual(data, {
-      handled: true, id: "NFF-2610-ABCD", recovered: true,
-    });
-    assert.equal((await getOrder(stores, "NFF-2610-ABCD")).status, "paid");
-    assert.equal((await readMark(stores, "webhook")).type,
-      "PAYMENT.CAPTURE.COMPLETED");
+      assert.equal(res.status, 200);
+      assert.deepEqual(await res.json(), {
+        handled: false, id: "NFF-2610-ABCD", reason: "pending",
+      });
+      assert.equal(await getOrder(stores, "NFF-2610-ABCD"), null);
+      assert.ok(!calls.some((c) => c[0] === "capture"), "nothing captured");
+      assert.equal((await readMark(stores, "webhook")).type,
+        "PAYMENT.CAPTURE.COMPLETED");
 
-    // Delivered again: the checkout is gone but the order is known.
-    await saveCheckout(stores, {
-      key: KEY, attempt: 1, at: now.toISOString(), order: order(),
-      paypalOrderId: "PPO",
-    });
-    const again = await webhook(post(completed()), {
-      stores, verify: yes, paypal, square, now, sleep: quiet.sleep, env: {},
-    });
+      // The page finishes; delivered again, the order is known.
+      await finishVenmo(stores, order(), {
+        key: KEY, paypalOrderId: "PPO",
+      }, options);
+      const again = await webhook(post(completed()), {
+        stores, verify: yes, now, env: {},
+      });
 
-    assert.deepEqual(await again.json(), {
-      handled: true, id: "NFF-2610-ABCD", repeat: true,
+      assert.deepEqual(await again.json(), {
+        handled: true, id: "NFF-2610-ABCD", repeat: true,
+      });
     });
-  });
 
   it("ignores a capture it knows nothing of, and other events", async () => {
     const stores = testStores();

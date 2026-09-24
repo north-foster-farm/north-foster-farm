@@ -272,11 +272,17 @@ describe("captureOrder", () => {
   it("reads one order", async () => {
     const { impl } = fakeFetch({
       "/v1/oauth2/token": token,
-      "/v2/checkout/orders/PPO": { id: "PPO", status: "APPROVED" },
+      "/v2/checkout/orders/PPO": {
+        id: "PPO", status: "APPROVED",
+        create_time: "2026-10-06T12:50:00Z",
+        update_time: "2026-10-06T12:52:00Z",
+      },
     });
     const out = await getOrder("PPO", opts(impl));
 
-    assert.deepEqual(out, { status: "APPROVED", capture: null });
+    assert.deepEqual(out, {
+      status: "APPROVED", updatedAt: "2026-10-06T12:52:00Z", capture: null,
+    });
   });
 });
 
