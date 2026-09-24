@@ -439,6 +439,18 @@
     box-shadow:
       var(--order-shadow),
       0 0.75rem 2rem rgb(0 0 0 / 12%);
+    transition: box-shadow var(--order-slow) ease;
+
+    // Settled into the flow: flat, with its heading.
+    &[data-stuck="false"] {
+      box-shadow: 0 0 0 rgb(0 0 0 / 0%);
+
+      .order-cart-heading {
+        height: 1.75rem;
+        margin-bottom: 0.5rem;
+        opacity: 1;
+      }
+    }
 
     // Off to the right, no wider than the column it becomes at xl;
     // a phone still gets the full width, and less padding.
@@ -482,6 +494,7 @@
       column-gap: 1.5rem;
     }
 
+    .order-cart-heading,
     .order-badges {
       grid-column: 1 / -1;
     }
@@ -571,6 +584,18 @@
     &[data-more]::after {
       opacity: 1;
     }
+  }
+
+  // The heading, folded away until the pane settles (see .order-cart).
+  .order-cart-heading {
+    height: 0;
+    margin: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition:
+      height var(--order-base) var(--order-ease),
+      margin var(--order-base) var(--order-ease),
+      opacity var(--order-base) ease;
   }
 
   // Badges: one tight line of small text, delimited by dots like the
@@ -1538,6 +1563,17 @@
       max-height: calc(100svh - 2rem);
       margin: 0;
       box-shadow: var(--order-shadow);
+
+      // A column beside the catalog: no settling, no heading.
+      &[data-stuck="false"] {
+        box-shadow: var(--order-shadow);
+
+        .order-cart-heading {
+          height: 0;
+          margin: 0;
+          opacity: 0;
+        }
+      }
     }
 
     .order-cart-toggle {
