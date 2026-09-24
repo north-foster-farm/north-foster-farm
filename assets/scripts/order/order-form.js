@@ -866,6 +866,18 @@ export class OrderForm {
       return el;
     };
 
+    // Rebuilt only when the lines change: a render that follows a
+    // field's change event would otherwise replace the × under the
+    // pointer between press and release, and the click would be lost.
+    const key = JSON.stringify(s.groups);
+
+    if (key === this.itemsKey) {
+      this.syncScroll();
+
+      return;
+    }
+    this.itemsKey = key;
+
     for (const row of all(list, ".order-cart-group")) row.remove();
 
     for (const group of s.groups) {
@@ -1239,6 +1251,9 @@ export class OrderForm {
       break;
     case "checkout":
       this.draft.nextAttempt();
+      this.payment.fail(outcome.message);
+      break;
+    case "busy":
       this.payment.fail(outcome.message);
       break;
     default:
