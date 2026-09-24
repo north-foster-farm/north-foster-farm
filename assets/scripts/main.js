@@ -6,6 +6,7 @@ import "bootstrap/js/dist/offcanvas.js";
 import { Extensions } from "./extensions/extensions.js";
 import { Copyright } from "./copyright/copyright.js";
 import { wireDotLists } from "./dot-list/dot-list.js";
+import { wireHeroVideo } from "./hero/hero.js";
 import { wireNewsSignup } from "./news/signup.js";
 import { wireVideos } from "./video/video.js";
 import { Session } from "./session/session.js";
@@ -53,5 +54,6 @@ document.addEventListener("DOMContentLoaded", () => {
   wireNewsSignup();
   wireDotLists();
   wireVideos();
+  wireHeroVideo();
   hoverMenus();
 });
