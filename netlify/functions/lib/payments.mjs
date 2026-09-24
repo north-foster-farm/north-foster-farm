@@ -163,6 +163,14 @@ export const applyRefundEvent = async (stores, event, { now = new Date() }
 
   if (!order) return { handled: false, reason: "unknown payment" };
   if (order.refund && order.refund.squareRefundId === refund.id) {
+    // A refund the CLI made is recorded PENDING; Square's word that
+    // it completed is the one change worth noting.
+    if (order.refund.status !== refund.status) {
+      await amendOrder(stores, order.id, {
+        refund: { ...order.refund, status: refund.status },
+      }, "refund.completed", now);
+    }
+
     return { handled: true, id: order.id, repeat: true };
   }
 
