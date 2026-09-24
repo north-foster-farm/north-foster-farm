@@ -1109,19 +1109,38 @@ Manual: PayPal's window.
 - **Assert:** No order, no message; the form as it was.
 - **Teardown:** None.
 
-### PY-16 Venmo finished by the webhook
+### PY-16 Venmo finished by the jobs
 
-Manual: needs the network cut between approval and capture.
+Manual: needs the network cut between approval and capture. Rewritten
+for 384e37c: the capture webhook no longer finishes orders; the jobs
+do, once PayPal has left the checkout alone for ten minutes.
 
-- **Scenario:** The browser closes after approval;
-  `PAYMENT.CAPTURE.COMPLETED` finishes the order.
+- **Scenario:** The browser closes after approval, before the page
+  sends its capture; the jobs capture and record the order.
 - **Setup:** As PY-14, DevTools open.
 - **Test:**
   1. Approve; set the network offline before the capture request.
-  2. Wait a minute; go back online.
-- **Assert:** The order exists as paid; the function log's
-  `paypal.webhook` line says `recovered: true`; the page, back online,
-  finds the same order.
+  2. Wait ten minutes; run the jobs (`bin/nff --staging jobs run`, or
+     wait for the schedule).
+  3. Go back online and let the page retry its capture.
+- **Assert:** One order, paid, with `paypalCaptureId` set; stock taken
+  once; one "Payment received" and one farm notice in the outbox. The
+  page's retry answers with the same record rather than asking the
+  customer to start again. No `paypal.webhook` line finishes the
+  order; it only notes the delivery.
+- **Teardown:** As PY-14.
+
+### PY-16b A Venmo capture the page finishes is written once
+
+Manual: PayPal's window.
+
+- **Scenario:** Before 384e37c the capture webhook and the page both
+  finished the order, writing it twice.
+- **Setup:** As PY-14.
+- **Test:**
+  1. Pay by Venmo normally; wait a minute for the webhook.
+- **Assert:** One record for the PayPal order; stock taken once; one
+  "Payment received" and one farm notice.
 - **Teardown:** As PY-14.
 
 ### PY-17 Venmo when Square is down
@@ -1727,18 +1746,24 @@ Pending.
 
 ### AR-09 The off-season band (#137)
 
-Pending.
+Automated: `home.spec.mjs`, "three ways to buy, in the market band's
+place" and one test per button (both projects). The pickup and drop
+site buttons fail today: #163. That the market band returns on May 15
+needs a build in season and is not tested; the switch is in
+`layouts/index.html`.
 
 - **Scenario:** Three ways to buy, each with a button that preselects
   it on the order page.
-- **Setup:** Home page.
+- **Setup:** Home page, out of season.
 - **Test:**
   1. Read the three columns; press each button.
-- **Assert:** Barn, lot-location and delivery icons; frequency, fee and
-  minimum match `data/delivery.json` ($5 fee, $40 minimum, Thursdays;
-  Saturdays from October 17; by appointment); each button lands on
-  `/order/` with that method checked. The market band is still in the
-  source behind the season switch.
+- **Assert:** "No off-season" and "Three ways to get your order, all
+  winter"; each column's icon, name, when, where and cost as
+  `data/delivery.json` has them (by appointment at the farm's
+  address; Saturdays 10:00 – 11:00 AM at the Village Green, "starting
+  October 17" until then; every Thursday 10:00 AM – 4:00 PM, $40
+  minimum, $5 fee); "The farmers markets return in June."; each
+  button lands on `/order/` with that method checked.
 - **Teardown:** None.
 
 ### AR-10 The map's areas (#138)
