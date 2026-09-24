@@ -79,6 +79,8 @@ const plugins = [
         "is-valid",
         "is-active",
         "is-bumped",
+        "is-entering",
+        "is-fading",
         // The account page marks the order an email linked to.
         "is-linked",
         // Applied by session.js: the header's account slot fades in.
@@ -92,6 +94,7 @@ const plugins = [
         "order-cart-item-name",
         "order-cart-item-qty",
         "order-cart-item-sub",
+        "order-cart-remove",
         "order-chicks",
         "order-qty-tick",
         "form-control-plaintext",
