@@ -44,9 +44,9 @@ header {
     max-width: 100%;
     height: auto;
 
-    // The wordmark: the brand green, deepened but still green.
+    // The wordmark: the primary green.
     .black {
-      fill: #{shade-color($green, 40%)};
+      fill: var(--bs-primary);
       transition: opacity 0.07s ease;
     }
   }
