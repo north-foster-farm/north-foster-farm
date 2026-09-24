@@ -952,8 +952,9 @@
     }
   }
 
-  .order-details .form-control {
-    max-width: 24rem;
+  // Narrower than the column, name and email alike.
+  .order-details .col-sm-9 {
+    max-width: 26rem;
   }
 
   // "Prefer text or call?" is hidden until there is a phone number,
