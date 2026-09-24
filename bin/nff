@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // The farm's command line for orders, customers, stock and sign-in.
-// Reads .env from the repo root. Off Netlify the records live in the
-// site's Blobs stores only when NETLIFY_SITE_ID and NETLIFY_AUTH_TOKEN
-// are set; otherwise everything is in memory and lost on exit, which
-// the banner says.
+// Reads .env from the repo root, after .env.staging or .env.preview
+// when that flag is given. Off Netlify the records live in the site's
+// Blobs stores only when NETLIFY_SITE_ID and NETLIFY_AUTH_TOKEN are
+// set; otherwise everything is in memory and lost on exit, which the
+// banner says.
 
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -53,6 +54,14 @@ const USAGE = `Usage:
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
+// --staging and --preview act on that deploy's data and processors,
+// never production's: `.env.staging` or `.env.preview` (the sandbox
+// token and its location, MAIL_DRIVER=outbox, that deploy's SITE_URL)
+// is read first, and `.env` fills in what it leaves out.
+const context = process.argv.includes("--staging") ? "staging"
+  : process.argv.includes("--preview") ? "preview" : null;
+
+if (context) loadEnv(join(root, `.env.${context}`));
 loadEnv(join(root, ".env"));
 
 const [
@@ -77,13 +86,15 @@ const [
   import("../netlify/functions/health.mjs"),
 ]);
 
-// --staging and --preview act on that context's stores (store.mjs),
-// never production's.
-if (process.argv.includes("--staging")) {
-  process.env.SITE_CONTEXT = "branch-deploy";
-}
-if (process.argv.includes("--preview")) {
-  process.env.SITE_CONTEXT = "deploy-preview";
+if (context === "staging") process.env.SITE_CONTEXT = "branch-deploy";
+if (context === "preview") process.env.SITE_CONTEXT = "deploy-preview";
+
+// Emails from here go by MAIL_DRIVER, as on Netlify. Unset, every
+// message is logged to this terminal and nobody receives it, which
+// is worth hearing before a confirm or a deny.
+if (!["resend", "outbox", "file"].includes(process.env.MAIL_DRIVER || "")) {
+  console.error("Mail: MAIL_DRIVER is not set, so emails are logged here"
+    + " and not sent. Set it in .env (resend) or .env.staging (outbox).");
 }
 
 const stores = makeStores();
@@ -276,9 +287,12 @@ const run = async () => {
     for (const r of runs.slice(0, n)) {
       const bad = (r.errors || []).length + (r.invariants || []).length;
 
-      out(`${r.at.slice(0, 16)}  ${bad ? "FAIL" : "ok  "}  paid ${
-        r.counts.paid}  reminded ${r.counts.reminded}  abandoned ${
-        r.counts.abandoned}  closed ${r.counts.closed}${
+      const c = r.counts || {};
+
+      out(`${r.at.slice(0, 16)}  ${bad ? "FAIL" : "ok  "}  reminded ${
+        c.deliveryReminded ?? 0}  closed ${c.closed ?? 0}  synced ${
+        c.squareSynced ?? 0}  pickups ${c.pickupsToConfirm ?? 0}  swept ${
+        r.checkoutsSwept ?? 0}${
         (r.errors || []).map((e) => `\n    error ${e.id || "-"}: ${e.error}`)
           .join("")}${(r.invariants || []).map((v) =>
         `\n    invariant ${v.rule}: ${v.id}`).join("")}`);

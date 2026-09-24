@@ -2,6 +2,7 @@
 # -----
 *.bak
 *.env
+.env.*
 *.log
 .hugo_build.lock
 hugo_stats.json
