@@ -296,6 +296,10 @@ export class OrderForm {
     qs(this.cart, "[data-cart-toggle]").addEventListener("click", () => {
       this.setOpen(this.cart.dataset.open !== "true");
     });
+    qs(this.cart, ".order-cart-foot").addEventListener("click", (e) => {
+      if (e.target.closest("[data-cart-toggle], [data-checkout]")) return;
+      this.setOpen(this.cart.dataset.open !== "true");
+    });
 
     // The list of lines scrolls once the cart would take half the
     // screen; the fades at its edges say there is more.
@@ -462,6 +466,7 @@ export class OrderForm {
     qs(this.cart, "[data-cart-toggle]").setAttribute(
       "aria-expanded", String(open)
     );
+    qs(this.cart, "[data-cart-word]").textContent = open ? "Hide" : "Show";
     if (open) this.syncScroll();
   }
 
@@ -743,7 +748,8 @@ export class OrderForm {
       "aria-label", `${s.countText}, total ${s.total}. Show or hide the cart.`
     );
     qs(c, "[data-cart-count]").textContent = s.countText;
-    qs(c, "[data-checkout]").disabled = count === 0;
+    qs(c, "[data-checkout]").disabled = count === 0
+      || (method === "delivery" && !s.eligible);
 
     // Empty, the cart folds away; the first item opens it. A fold the
     // customer chose stays until the cart empties again.
@@ -772,6 +778,7 @@ export class OrderForm {
 
     if (nudge.textContent !== s.nudge) nudge.textContent = s.nudge;
     nudge.hidden = !s.nudge;
+    nudge.dataset.tone = s.nudgeTone || "";
   }
 
   // The cart's lines: each category, with its tiers indented beneath,
@@ -804,10 +811,10 @@ export class OrderForm {
         remove.setAttribute(
           "aria-label", `Remove ${group.label}, ${item.label} from the cart`
         );
+        row.appendChild(remove);
         row.appendChild(make("span", "order-cart-item-name", item.label));
         row.appendChild(make("span", "order-cart-item-qty", item.qtyText));
         row.appendChild(make("span", "order-cart-item-sub", item.subtotal));
-        row.appendChild(remove);
         items.appendChild(row);
       }
       li.appendChild(items);

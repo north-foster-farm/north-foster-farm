@@ -95,6 +95,7 @@ const plugins = [
         "order-cart-item-qty",
         "order-cart-item-sub",
         "order-cart-remove",
+        "order-cart-toggle-word",
         "order-chicks",
         "order-qty-tick",
         "form-control-plaintext",
