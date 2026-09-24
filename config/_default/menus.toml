@@ -32,6 +32,11 @@ pageRef = "/delivery-policy"
 weight = 60
 
 [[footer]]
+name = "Contact"
+pageRef = "/contact"
+weight = 70
+
+[[footer]]
 name = "Order"
 pageRef = "/order"
 weight = 80
