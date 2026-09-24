@@ -27,6 +27,48 @@ export class Errors {
     }
   }
 
+  // Whether an attempt has put field errors on the page (not the
+  // payment's own, and not the Delivery card's warning, which shows
+  // before any attempt).
+  showing() {
+    return Array.from(this.form.querySelectorAll("[data-error-for]"))
+      .some((el) => el.dataset.errorFor !== "payment"
+        && el.style.display === "block");
+  }
+
+  // Brings the errors on the page up to date with a fresh check: a
+  // fixed one goes, a changed one is reworded. A field just left shows
+  // its own error even if it had none before; others are not added.
+  update(errors, left = null) {
+    const leftKey = left && left.dataset ? left.dataset.field : null;
+
+    for (const slot of this.form.querySelectorAll("[data-error-for]")) {
+      const key = slot.dataset.errorFor;
+
+      if (key === "payment" || !slot.textContent) continue;
+      if (errors[key]) {
+        slot.textContent = errors[key];
+      } else {
+        slot.textContent = "";
+        slot.style.display = "";
+      }
+    }
+    for (const field of this.form.querySelectorAll(".is-invalid")) {
+      if (!errors[field.dataset.field]) field.classList.remove("is-invalid");
+    }
+
+    if (leftKey && errors[leftKey]) {
+      const slot = this.find("data-error-for", leftKey);
+      const field = this.find("data-field", leftKey);
+
+      if (slot) {
+        slot.textContent = errors[leftKey];
+        slot.style.display = "block";
+      }
+      if (field) field.classList.add("is-invalid");
+    }
+  }
+
   show(errors) {
     this.clear();
 

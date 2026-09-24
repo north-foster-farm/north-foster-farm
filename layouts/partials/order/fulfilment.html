@@ -7,79 +7,7 @@
   <div class="order-methods" role="radiogroup" aria-label="How to get your order">
 
     <div class="order-method">
-      <input class="form-check-input" type="radio" name="method" id="method-onfarm" value="onfarm" data-field="fulfilment.method" checked>
-      <label class="order-method-label" for="method-onfarm">
-        <span class="order-method-title">On-farm pickup</span>
-        <dl class="order-method-facts">
-          <dt>When</dt>
-          <dd>By appointment only</dd>
-          <dt>Where</dt>
-          <dd>{{ $terms.onFarm.address }}</dd>
-          <dt>Cost</dt>
-          <dd>No minimum, no fee</dd>
-        </dl>
-      </label>
-      <div class="order-method-reveal" data-method-body="onfarm" inert>
-        <div class="order-method-body order-hform">
-          <div class="row">
-            <label class="col-sm-4 col-form-label" for="onfarm-date">Requested pick-up day</label>
-            <div class="col-sm-8">
-              <select class="form-select" id="onfarm-date" name="onfarm.date" data-dates="onfarm" data-field="fulfilment.date" disabled aria-describedby="err-onfarm-date">
-                <option value="">Loading dates&hellip;</option>
-              </select>
-              <div class="invalid-feedback" id="err-onfarm-date" data-error-for="fulfilment.date"></div>
-            </div>
-          </div>
-          <div class="row">
-            <span class="col-sm-4 col-form-label" id="onfarm-window-label">Preferred window</span>
-            <div class="col-sm-8">
-              <div class="order-radios" role="radiogroup" aria-labelledby="onfarm-window-label" data-field="onfarm.window">
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="radio" name="onfarm.window" id="onfarm-morning" value="morning" checked>
-                  <label class="form-check-label" for="onfarm-morning">Morning</label>
-                </div>
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="radio" name="onfarm.window" id="onfarm-afternoon" value="afternoon">
-                  <label class="form-check-label" for="onfarm-afternoon">Afternoon</label>
-                </div>
-              </div>
-              <div class="invalid-feedback" data-error-for="onfarm.window"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="order-method">
-      <input class="form-check-input" type="radio" name="method" id="method-scituate" value="scituate" data-field="fulfilment.method">
-      <label class="order-method-label" for="method-scituate">
-        <span class="order-method-title">Scituate drop site</span>
-        <dl class="order-method-facts">
-          <dt>When</dt>
-          <dd>Saturdays, {{ $terms.scituate.window }}, starting {{ dateFormat "January 2" $terms.scituate.start }}</dd>
-          <dt>Where</dt>
-          <dd>{{ $terms.scituate.location }}</dd>
-          <dt>Cost</dt>
-          <dd>No minimum, no fee</dd>
-        </dl>
-      </label>
-      <div class="order-method-reveal" data-method-body="scituate" inert>
-        <div class="order-method-body order-hform">
-          <div class="row">
-            <label class="col-sm-4 col-form-label" for="scituate-date">Choose a pick-up day</label>
-            <div class="col-sm-8">
-              <select class="form-select" id="scituate-date" name="scituate.date" data-dates="scituate" data-field="fulfilment.date" disabled aria-describedby="err-scituate-date">
-                <option value="">Loading dates&hellip;</option>
-              </select>
-              <div class="invalid-feedback" id="err-scituate-date" data-error-for="fulfilment.date"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="order-method">
-      <input class="form-check-input" type="radio" name="method" id="method-delivery" value="delivery" data-field="fulfilment.method">
+      <input class="form-check-input" type="radio" name="method" id="method-delivery" value="delivery" data-field="fulfilment.method" checked>
       <label class="order-method-label" for="method-delivery">
         <span class="order-method-title">Delivery</span>
         <dl class="order-method-facts">
@@ -91,6 +19,7 @@
           <dd>${{ $money.deliveryMinimum }} minimum, ${{ $money.deliveryFee }} delivery fee</dd>
         </dl>
       </label>
+      <p class="order-method-warn" data-delivery-short data-error-for="delivery.minimum" role="status" hidden></p>
       <div class="order-method-reveal" data-method-body="delivery" inert>
         <div class="order-method-body order-hform">
           <p class="zip-note order-countdown" data-countdown aria-live="off">
@@ -100,7 +29,6 @@
             <span>By placing a delivery order you agree to our <a href="{{ $policy }}" target="_blank" rel="noopener">delivery policy</a>.</span>
             <button type="button" class="btn-close order-agree-dismiss" aria-label="Dismiss" data-agree-dismiss></button>
           </p>
-          <div class="invalid-feedback d-block mb-2" data-error-for="delivery.minimum"></div>
           <div class="row">
             <label class="col-sm-4 col-form-label" for="delivery-date">Delivery date</label>
             <div class="col-sm-8 col-lg-6">
@@ -149,6 +77,78 @@
             <label class="col-sm-4 col-form-label" for="delivery-notes">Other notes or instructions <span class="text-body-secondary">(optional)</span></label>
             <div class="col-sm-8">
               <textarea class="form-control" id="delivery-notes" name="delivery.notes" rows="2" data-field="delivery.notes"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="order-method">
+      <input class="form-check-input" type="radio" name="method" id="method-scituate" value="scituate" data-field="fulfilment.method">
+      <label class="order-method-label" for="method-scituate">
+        <span class="order-method-title">Scituate drop site</span>
+        <dl class="order-method-facts">
+          <dt>When</dt>
+          <dd>Saturdays, {{ $terms.scituate.window }}, starting {{ dateFormat "January 2" $terms.scituate.start }}</dd>
+          <dt>Where</dt>
+          <dd>{{ $terms.scituate.location }}</dd>
+          <dt>Cost</dt>
+          <dd>No minimum, no fee</dd>
+        </dl>
+      </label>
+      <div class="order-method-reveal" data-method-body="scituate" inert>
+        <div class="order-method-body order-hform">
+          <div class="row">
+            <label class="col-sm-4 col-form-label" for="scituate-date">Choose a pick-up day</label>
+            <div class="col-sm-8">
+              <select class="form-select" id="scituate-date" name="scituate.date" data-dates="scituate" data-field="fulfilment.date" disabled aria-describedby="err-scituate-date">
+                <option value="">Loading dates&hellip;</option>
+              </select>
+              <div class="invalid-feedback" id="err-scituate-date" data-error-for="fulfilment.date"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="order-method">
+      <input class="form-check-input" type="radio" name="method" id="method-onfarm" value="onfarm" data-field="fulfilment.method">
+      <label class="order-method-label" for="method-onfarm">
+        <span class="order-method-title">On-farm pickup</span>
+        <dl class="order-method-facts">
+          <dt>When</dt>
+          <dd>By appointment only</dd>
+          <dt>Where</dt>
+          <dd>{{ $terms.onFarm.address }}</dd>
+          <dt>Cost</dt>
+          <dd>No minimum, no fee</dd>
+        </dl>
+      </label>
+      <div class="order-method-reveal" data-method-body="onfarm" inert>
+        <div class="order-method-body order-hform">
+          <div class="row">
+            <label class="col-sm-4 col-form-label" for="onfarm-date">Requested pick-up day</label>
+            <div class="col-sm-8">
+              <select class="form-select" id="onfarm-date" name="onfarm.date" data-dates="onfarm" data-field="fulfilment.date" disabled aria-describedby="err-onfarm-date">
+                <option value="">Loading dates&hellip;</option>
+              </select>
+              <div class="invalid-feedback" id="err-onfarm-date" data-error-for="fulfilment.date"></div>
+            </div>
+          </div>
+          <div class="row">
+            <span class="col-sm-4 col-form-label" id="onfarm-window-label">Preferred window</span>
+            <div class="col-sm-8">
+              <div class="order-radios" role="radiogroup" aria-labelledby="onfarm-window-label" data-field="onfarm.window">
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="onfarm.window" id="onfarm-morning" value="morning" checked>
+                  <label class="form-check-label" for="onfarm-morning">Morning</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="onfarm.window" id="onfarm-afternoon" value="afternoon">
+                  <label class="form-check-label" for="onfarm-afternoon">Afternoon</label>
+                </div>
+              </div>
+              <div class="invalid-feedback" data-error-for="onfarm.window"></div>
             </div>
           </div>
         </div>

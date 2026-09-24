@@ -21,8 +21,14 @@
     margin-bottom: 1rem;
   }
 
+  // A hint sits tight under its heading. The legend floats and the
+  // hint clears it, so the gap is the legend's margin alone.
+  .order-section legend:has(+ .order-section-hint) {
+    margin-bottom: 0.375rem;
+  }
+
   .order-section-hint {
-    margin: -0.5rem 0 1rem;
+    margin: 0 0 1rem;
     font-size: 0.875rem;
     color: var(--bs-secondary-color);
 
@@ -110,14 +116,17 @@
     margin-top: 0.375rem;
   }
 
-  // Phone-only bar with the drawer toggle, stuck to the top.
+  // Phone-only bar with the drawer toggle, stuck to the top, over
+  // the cart as the cart scrolls under it.
 
   .order-topbar {
     position: sticky;
     top: 0;
-    z-index: 20;
+    z-index: 35;
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
     min-height: var(--order-topbar-h);
     margin: 0 calc(-1 * var(--order-gutter)) 0.75rem;
     padding: 0.375rem var(--order-gutter);
@@ -129,9 +138,23 @@
   // while the bar is stuck; the heading above the list is then read
   // by screen readers only.
   .order-topbar-title {
+    min-width: 0;
+    overflow: hidden;
     font-size: 1.25rem;
     font-weight: bold;
     line-height: 1.2;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .order-topbar-total {
+    display: inline-flex;
+    flex: none;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    opacity: 0;
+    transition: opacity var(--order-base) ease;
   }
 
   @media (max-width: 991.98px) {
@@ -438,13 +461,19 @@
     visibility: hidden;
   }
 
-  // The heading stands in the flow where the pane settles.
-  .order-cart-heading {
-    margin: 2.5rem 0 0.625rem;
+  // The heading stands in the flow where the pane settles, a
+  // category's distance below the catalog and a legend's above the
+  // pane.
+  h2.order-cart-heading {
+    margin: 2.75rem 0 1rem;
   }
 
-  .order-check {
-    padding-top: 0.45rem;
+  // Beside its label, the box lines up with the label's text; stacked
+  // under it, it follows at once.
+  @media (min-width: 576px) {
+    .order-check {
+      padding-top: 0.45rem;
+    }
   }
 
   // The cart. Below xl it floats above the list while it scrolls and
@@ -461,9 +490,9 @@
     flex-direction: column;
 
     // Small viewport units: the cap does not move as the phone's
-    // browser bars slide in and out while the list scrolls.
+    // browser bars slide in and out while the list scrolls. Only the
+    // lines give way to it; the parts after them keep their height.
     max-height: 50svh;
-    margin-top: 1.25rem;
     padding: 1rem var(--order-gutter);
     border: 1px solid var(--bs-border-color-translucent);
     border-radius: var(--order-radius);
@@ -493,14 +522,29 @@
 
     // Wider than its content by a focus ring on each side, so the
     // discount field's ring is not clipped by the fold's overflow.
+    // The room under it is a spacer, not padding: padding would keep
+    // a strip of the fold open when it closes.
     > .order-cart-inner {
       display: flex;
       flex-direction: column;
       min-height: 0;
       margin: 0 -0.3rem;
-      padding: 0 0.3rem 0.75rem;
+      padding: 0 0.3rem;
       overflow: hidden;
+
+      &::after {
+        content: "";
+        flex: 0 0 0.3rem;
+      }
     }
+  }
+
+  // Items 2 and 20: only the lines give way when the cart is capped;
+  // the code, the way on and the nudge keep their height.
+  .order-cart-after,
+  .order-cart-rule-end,
+  .order-cart-end {
+    flex: 0 0 auto;
   }
 
   // Past 500px the pane is two columns: the items on the left, the
@@ -791,13 +835,26 @@
     color: var(--bs-success-text-emphasis);
   }
 
-  // The foot: caret, Total, the amount under the line, and Next.
-  .order-cart-foot {
+  // The total row: the count on the left, the total under the column
+  // of line prices.
+  .order-cart-total-row {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     justify-content: space-between;
     gap: 0.75rem;
     cursor: pointer;
+  }
+
+  // The foot: Hide or Expand on the left, the way on at the right,
+  // the nudge under it. The button fills the room beside the toggle
+  // until that would make it wider than about 370px; from there it
+  // is as wide as its words.
+  .order-cart-end {
+    container: cart-end / inline-size;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 0.75rem;
   }
 
   // The rules between the parts: hairlines, and one darker under the
@@ -814,7 +871,6 @@
   }
 
   .order-cart-count {
-    margin-right: 0.375rem;
     font-size: 0.875rem;
     color: var(--bs-secondary-color);
   }
@@ -860,11 +916,17 @@
     font-weight: bold;
   }
 
-  // From xl only: the cart is a column, and this is the way on.
   .order-cart-next {
     display: inline-flex;
+    flex: 1 1 auto;
     justify-content: center;
-    width: 100%;
+    margin-left: auto;
+  }
+
+  @container cart-end (min-width: 30rem) {
+    .order-cart-next {
+      flex: 0 0 auto;
+    }
   }
 
   .order-cart-total {
@@ -880,9 +942,10 @@
 
 
   .order-cart-nudge {
-    margin: 0.75rem 0 0;
+    flex: 1 0 100%;
+    margin: 0.5rem 0 0;
     font-size: 0.8125rem;
-    text-align: center;
+    text-align: right;
     color: var(--bs-secondary-color);
 
     &[data-tone="warn"] {
@@ -996,12 +1059,12 @@
     }
 
     .order-cart {
-      margin-top: 1.5rem;
       border-color: var(--bs-border-color);
       border-top: 3px solid var(--bs-primary);
-      box-shadow:
-        0 -0.25rem 1.5rem rgb(0 0 0 / 10%),
-        0 0.75rem 2rem rgb(0 0 0 / 16%);
+    }
+
+    h2.order-cart-heading {
+      margin-top: 3rem;
     }
   }
 
@@ -1141,6 +1204,17 @@
     cursor: pointer;
   }
 
+  .order-method-warn {
+    margin: 0.5rem 0 0;
+    font-size: 0.875rem;
+    font-weight: bold;
+    color: var(--bs-danger);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
   .order-method-title {
     display: block;
     margin-bottom: 0.375rem;
@@ -1230,8 +1304,14 @@
     margin-top: 1rem;
   }
 
+  // Unchosen, the card form is laid out but unseen: under display:
+  // none the SDK measures no width, takes the narrow two-row height,
+  // and keeps it once the fields show.
   .order-pay[data-card-open="false"] .order-pay-card {
-    display: none;
+    height: 0;
+    margin-top: 0;
+    overflow: hidden;
+    visibility: hidden;
   }
 
   .order-pay-method-icon {
@@ -1587,12 +1667,30 @@
     }
 
     .order-cart-toggle,
-    .order-cart-heading {
+    h2.order-cart-heading {
       display: none;
     }
 
-    .order-cart-foot {
+    .order-cart-total-row {
       cursor: default;
+    }
+
+    .order-cart-next {
+      flex: 1 1 auto;
+    }
+
+    .order-cart-nudge {
+      text-align: center;
+    }
+
+    @container cart-end (min-width: 23.125rem) {
+      .order-cart-next {
+        flex: 0 0 auto;
+      }
+
+      .order-cart-nudge {
+        text-align: right;
+      }
     }
 
     // Never folded in the column.
@@ -1601,17 +1699,11 @@
     }
   }
 
-  // From md to xl the pane is two columns: the lines on the left, the
-  // sums, the total row and everything after it on the right. The
-  // fold wrappers dissolve into the grid, so a fold simply hides the
-  // parts. Floating, the pane stands in from the sides with a shadow
-  // off its left; settled, it eases flush and loses its border.
-  @media (min-width: 768px) and (max-width: 1199.98px) {
+  // Below xl the pane floats in from the sides with a shadow off its
+  // back edge; settled, it eases flush and loses its border, so it
+  // fades into the page.
+  @media (max-width: 1199.98px) {
     .order-cart {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      grid-template-rows: repeat(9, auto);
-      column-gap: 1.5rem;
       margin-inline: 1rem;
       box-shadow:
         var(--order-shadow),
@@ -1626,6 +1718,33 @@
         border-color: transparent;
         box-shadow: 0 0 0 rgb(0 0 0 / 0%);
       }
+
+      // On a phone the parts under the lines take most of half the
+      // screen, so the cap is higher and the lines keep three rows.
+      @media (max-width: 767.98px) {
+        max-height: 65svh;
+        margin-inline: 0.625rem;
+      }
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .order-cart-items {
+      min-height: 5.5rem;
+    }
+  }
+
+  // From md to xl the pane is two columns: the lines on the left, the
+  // sums to the code on the right, the foot across both. The fold
+  // wrappers dissolve into the grid, so a fold simply hides the parts.
+  // The lines add nothing to the height (contain: size): the right
+  // column sets it, and the lines scroll in what it leaves them.
+  @media (min-width: 768px) and (max-width: 1199.98px) {
+    .order-cart {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      column-gap: 1.5rem;
+      max-height: none;
     }
 
     .order-cart-fold,
@@ -1633,11 +1752,16 @@
       display: contents;
     }
 
+    .order-cart-fold > .order-cart-inner::after {
+      display: none;
+    }
+
     .order-cart-scroll {
       grid-column: 1;
-      grid-row: 1 / 10;
+      grid-row: 1 / 7;
       padding-right: 1.5rem;
       border-right: 1px solid var(--bs-border-color-translucent);
+      contain: size;
     }
 
     .order-cart-rule-items {
@@ -1646,50 +1770,48 @@
 
     .order-cart-lines,
     .order-cart-rule,
-    .order-cart-foot,
+    .order-cart-total-row,
     .order-badges,
-    .order-cart-code,
-    .order-cart-next,
-    .order-cart-nudge {
+    .order-cart-code {
       grid-column: 2;
     }
 
-    .order-cart-lines,
-    .order-badges {
-      align-self: end;
+    .order-cart-rule-end,
+    .order-cart-end {
+      grid-column: 1 / -1;
     }
 
     .order-cart[data-open="false"] {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
 
       .order-cart-scroll,
       .order-cart-lines,
-      .order-cart-rule,
+      .order-cart-rule:not(.order-cart-rule-end),
       .order-badges,
-      .order-cart-code,
-      .order-cart-next,
-      .order-cart-nudge {
+      .order-cart-code {
         display: none;
       }
 
-      .order-cart-foot {
+      .order-cart-total-row {
         grid-column: 1;
       }
     }
   }
 
-  // Below xl, once the pane has scrolled away, the total rides along
-  // at the top of the sections that follow.
+  // From lg to xl, once the pane has scrolled away, the total rides
+  // along at the top of the sections that follow, over the pane.
   .order-total-bar {
     position: sticky;
     top: 0;
-    z-index: 25;
+    z-index: 35;
     display: flex;
+    flex-wrap: wrap;
+    place-content: center flex-end;
     align-items: baseline;
-    justify-content: flex-end;
     gap: 0.5rem;
-    margin: 0 calc(-1 * var(--order-gutter)) 1rem;
-    padding: 0.5rem var(--order-gutter);
+    height: 2.75rem;
+    margin: 0 calc(-1 * var(--order-gutter)) -2.75rem;
+    padding: 0 var(--order-gutter);
     border-bottom: 1px solid var(--bs-border-color-translucent);
     background-color: var(--bs-body-bg);
     box-shadow: var(--order-shadow);
@@ -1697,13 +1819,10 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity var(--order-base) ease;
-
-    @media (max-width: 991.98px) {
-      top: var(--order-topbar-h);
-    }
   }
 
-  .order-form[data-cart-passed="true"] .order-total-bar {
+  .order-form[data-cart-passed="true"] .order-total-bar,
+  .order-form[data-cart-passed="true"] .order-topbar-total {
     opacity: 1;
   }
 
@@ -1778,5 +1897,19 @@
 
   .col-form-label {
     font-size: 0.875rem;
+  }
+
+  // Stacked on a phone, a label belongs to the field under it: less
+  // room between the two than between one pair and the next.
+  @media (max-width: 575.98px) {
+    .row + .row {
+      margin-top: 1rem;
+    }
+
+    .col-form-label {
+      padding-top: 0;
+      padding-bottom: 0.25rem;
+      line-height: 1.3;
+    }
   }
 }

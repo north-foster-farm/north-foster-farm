@@ -49,8 +49,9 @@ describe("the confirmation request", () => {
     assert.match(r.url,
       /^https:\/\/northfosterfarm.com\/api\/news\/confirm\?token=/);
     assert.equal(sent[0].to, "pat@example.com");
-    assert.equal(sent[0].subject, "Confirm your email for farm news");
-    assert.match(sent[0].text, /Hi Pat, this is the one click/);
+    assert.equal(sent[0].subject,
+      "Confirm your email for North Foster Farm news and updates");
+    assert.match(sent[0].text, /^Click the button below/m);
     assert.match(sent[0].text, /7 days/);
     assert.match(sent[0].text, new RegExp(tokenIn(r.url)));
     assert.equal(await getCustomer(stores, "pat@example.com"), null,
@@ -181,7 +182,7 @@ describe("the invitation of an old list", () => {
       });
       assert.equal(sent.length, 1);
       assert.equal(sent[0].to, "new@example.com");
-      assert.match(sent[0].text, /Hi Sam/);
+      assert.match(sent[0].text, /news and updates from North Foster/);
 
       const dry = await inviteSubscribers(stores, [{ email: "x@y.co" }],
         { now, env, mail, dryRun: true });
@@ -385,15 +386,17 @@ describe("the endpoints", () => {
 });
 
 describe("the confirmation email", () => {
-  it("names the address and needs no first name", () => {
+  it("reads as James wrote it", () => {
     const m = newsConfirm("a@b.co", "https://x/confirm?token=t", {
       days: 7, links: { site: "https://x" },
     });
 
-    assert.equal(m.subject, "Confirm your email for farm news");
-    assert.match(m.text,
-      /^This is the one click that puts a@b.co on the list/m);
-    assert.match(m.html, /Yes, sign me up/);
+    assert.equal(m.subject,
+      "Confirm your email for North Foster Farm news and updates");
+    assert.match(m.text, /^Click the button below to receive news and /m);
+    assert.match(m.text, /^This link expires in 7 days\. If you didn't /m);
+    assert.match(m.html, />Sign up</);
     assert.match(m.html, /https:\/\/x\/confirm\?token=t/);
+    assert.match(m.html, /name="format-detection"/);
   });
 });

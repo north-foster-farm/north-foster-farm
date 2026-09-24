@@ -1,10 +1,4 @@
 {{ $groups := partial "order/groups.html" . }}
-{{/* Below lg the heading lives in this sticky bar and follows the
-     scroll: the current section or category (order-form.js). */}}
-<div class="order-topbar d-lg-none">
-  <span class="order-topbar-title" data-topbar-title aria-hidden="true">{{ .Params.heading | default .Title }}</span>
-</div>
-
 <h2 class="visually-hidden">Choose your items</h2>
 <div class="invalid-feedback d-block mb-2" data-error-for="lines"></div>
 
