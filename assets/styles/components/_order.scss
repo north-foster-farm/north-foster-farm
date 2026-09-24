@@ -78,6 +78,15 @@
     }
   }
 
+  .order-side-nav .order-side-sub {
+    padding-left: 0.75rem;
+
+    .nav-link {
+      padding: 0.3rem 0.75rem;
+      font-size: 0.9375rem;
+    }
+  }
+
   // Phone-only bar with the drawer toggle, stuck to the top.
 
   .order-topbar {
@@ -97,7 +106,6 @@
   // while the bar is stuck; the heading above the list is then read
   // by screen readers only.
   .order-topbar-title {
-    margin-left: 0.875rem;
     font-size: 1.25rem;
     font-weight: bold;
     line-height: 1.2;
@@ -346,6 +354,8 @@
   .order-qty-step {
     display: grid;
     grid-template-columns: 2.25rem 1fr 2.25rem;
+    width: 100%;
+    min-width: 0;
     overflow: hidden;
     border: 1px solid var(--bs-border-color);
     border-radius: var(--order-radius);
@@ -457,14 +467,14 @@
       flex-direction: column;
       min-height: 0;
       margin: 0 -0.3rem;
-      padding: 0 0.3rem;
+      padding: 0 0.3rem 0.3rem;
       overflow: hidden;
     }
   }
 
   // Past 500px the pane is two columns: the items on the left, the
   // sums and the code on the right, the badges across the top.
-  @container cart (min-width: 500px) {
+  @container cart (min-width: 640px) {
     .order-cart-body > .order-cart-inner {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -576,11 +586,6 @@
     font-weight: bold;
     line-height: 1.4;
     color: var(--bs-tertiary-color);
-
-    // Not on a phone: the pane is dense enough.
-    @media (max-width: 575.98px) {
-      display: none;
-    }
 
     li {
       display: inline-flex;
@@ -788,6 +793,7 @@
   .order-cart-foot {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.75rem;
     padding-top: 0.75rem;
     border-top: 2px solid var(--bs-body-color);
@@ -828,6 +834,12 @@
     transition: transform var(--order-base) var(--order-ease);
   }
 
+  .order-cart-sum {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.625rem;
+  }
+
   .order-cart-sum-label {
     font-weight: bold;
   }
@@ -843,10 +855,6 @@
     }
   }
 
-  .order-cart-next {
-    margin-left: auto;
-    padding-inline: 1.5rem;
-  }
 
   .order-cart-nudge {
     margin: 0.5rem 0 0;
@@ -1200,16 +1208,11 @@
     margin-top: 1rem;
   }
 
-  .order-pay[data-card-open="false"] .order-pay-card {
-    display: none;
-  }
-
   .order-pay-method {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    min-height: 2.75rem;
     font-weight: bold;
 
     svg {
@@ -1237,32 +1240,43 @@
 
 
 
-  // Whichever wallets the browser and this deploy offer, two to a
-  // row, the odd one stretching across.
+  // Every way to pay in one grid of equal cells: as many across as
+  // fit at 11rem, one column on a phone. The vendors' buttons fill
+  // their cells.
   .order-pay-buttons {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
     gap: 0.75rem;
     max-width: 40rem;
+
+    @media (max-width: 575.98px) {
+      grid-template-columns: 1fr;
+    }
+
+    &[hidden] {
+      display: none;
+    }
   }
 
   .order-pay-button,
   .order-apple-pay,
   .order-pay-method {
-    flex: 1 1 12rem;
+    height: 2.75rem;
     min-width: 0;
-
-    @media (max-width: 575.98px) {
-      flex-basis: 100%;
-    }
-  }
-
-  .order-pay-buttons[hidden] {
-    display: none;
   }
 
   .order-pay-button {
-    min-height: 2.75rem;
+    display: grid;
+    align-items: stretch;
+    overflow: hidden;
+    border-radius: 4px;
+
+    // The vendor's element, whatever it is.
+    // stylelint-disable-next-line no-descending-specificity
+    > * {
+      width: 100%;
+      height: 100%;
+    }
 
     &[hidden] {
       display: none;

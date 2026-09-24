@@ -59,6 +59,9 @@ const plugins = [
         "venmo-only",
         "unavailable",
         "good",
+        "warn",
+        "data-shown",
+        "aria-pressed",
       ];
     },
     safelist: {
