@@ -300,10 +300,23 @@ export const rescueCheckout = async (stores, checkout, {
   const now = options.now || new Date();
 
   if (!checkout.paypalOrderId) return null;
+  // Approved no earlier than it was made, so a young checkout's
+  // payment is younger still: no need to ask.
+  if (now.getTime() - Date.parse(checkout.at) < PAGE_GRACE) return null;
 
-  const current = await paypal.getOrder(checkout.paypalOrderId, {
-    env, fetchImpl: options.fetchImpl, now,
-  });
+  let current;
+
+  try {
+    current = await paypal.getOrder(checkout.paypalOrderId, {
+      env, fetchImpl: options.fetchImpl, now,
+    });
+  } catch (error) {
+    // PayPal forgets an order nobody approved within hours: nothing
+    // was paid, and the sweep drops the checkout.
+    if (error && error.status === 404) return null;
+    throw error;
+  }
+
   const since = Date.parse(current.updatedAt || checkout.at);
 
   if (!["APPROVED", "COMPLETED"].includes(current.status)) return null;
