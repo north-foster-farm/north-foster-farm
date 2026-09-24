@@ -3,10 +3,7 @@
      come from data/delivery.json, the same file the order form
      checks, so the list here can never disagree with what the form
      accepts. The three ways carry the order form's names, so a first
-     order reads the same on both pages.
-
-     Below the card, the market section: the three markets the farm
-     sells at during the season. */}}
+     order reads the same on both pages. */}}
 {{ $orderPage := partial "link.html" (dict
   "href" (relURL "order/")
   "innerHTML" "order page"
@@ -16,11 +13,6 @@
   "href" (relURL "delivery-policy/")
   "innerHTML" "delivery policy"
   "title" "Delivery schedule, minimums, fees and area")
-}}
-{{ $orderOnline := partial "link.html" (dict
-  "href" (relURL "order/")
-  "innerHTML" "order online"
-  "title" "Order online from North Foster Farm")
 }}
 {{ $email := hugo.Data.company.email }}
 {{ $reachOut := partial "link.html" (dict
@@ -115,66 +107,5 @@
         </div>
       </div>
     </div>
-  </div>
-</div>
-
-{{/* Where to find us: the three markets, each with its day, its
-     place and its season, over the Tilted Barn photograph under a
-     dark tint, the hero's treatment. Evergreen: no dates that expire.
-     The drop site is not a market and is not here; the card above and
-     the order page carry it. */}}
-{{ $markets := slice
-  (dict
-    "name" "Scituate Rotary Farmers Market"
-    "href" "https://www.scituaterotaryfarmersmarket.com"
-    "when" "Saturdays, 9:00 AM – 12:00 PM"
-    "where" "The Village Green, 46 Institute Lane, North Scituate"
-    "season" "June through early October")
-  (dict
-    "name" "Foster Farmers Market"
-    "href" "https://www.fosterfarmersmarketri.com"
-    "when" "Sundays, 9:00 AM – 1:00 PM"
-    "where" "Shady Acres Diner, 164 Danielson Pike, Foster"
-    "season" "June through October")
-  (dict
-    "name" "Summer Market at Tilted Barn"
-    "href" "https://www.tiltedbarnbrewery.com/summer-market"
-    "when" "Wednesdays, 4:00 – 7:00 PM"
-    "where" "Tilted Barn Brewery, One Hemsley Place, Exeter"
-    "season" "June through August")
-}}
-{{ $market := resources.Get "images/tilted-market.jpg" }}
-{{ $widths := slice 800 1200 1600 2200 }}
-{{ $srcset := slice }}
-{{ range $widths }}
-  {{ $img := $market.Resize (printf "%dx webp q82" .) }}
-  {{ $srcset = $srcset | append (printf "%s %dw" $img.RelPermalink .) }}
-{{ end }}
-{{ $fallback := $market.Resize "1600x jpg q82" }}
-<div class="markets home-band border-bottom border-light">
-  <img class="home-band-img" src="{{ $fallback.RelPermalink }}" srcset="{{ delimit $srcset ", " }}" sizes="100vw" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="" loading="lazy">
-  <div class="home-band-overlay"></div>
-  <div class="home-band-body container">
-    <p class="home-eyebrow">Where to find us</p>
-    <h2 class="home-title">We’ll see you at the market</h2>
-    <ul class="markets-list list-unstyled">
-      {{ range $markets }}
-        <li class="market">
-          <span class="home-icon" aria-hidden="true">
-            {{ partial "svg.html" "icons/sign" }}
-          </span>
-          <h3 class="market-name">
-            <a href="{{ .href }}" target="_blank" rel="noopener" title="{{ .name }} website">{{ .name }}</a>
-          </h3>
-          <p class="market-when">{{ .when }}</p>
-          <p class="market-where">{{ .where }}</p>
-          <p class="market-season">{{ .season }}</p>
-        </li>
-      {{ end }}
-    </ul>
-    <p class="markets-note mb-0">
-      Between seasons, {{ $orderOnline }} for Thursday delivery, on-farm
-      pickup, or the Saturday drop site on the Village Green.
-    </p>
   </div>
 </div>
