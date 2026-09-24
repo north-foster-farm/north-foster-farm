@@ -1,0 +1,11 @@
+{{/* The map row: where we deliver and where to find us, with a ZIP
+     check that drops a pin on the map. The top bar links here (#map)
+     for an event with no page of its own. Draft wording for James
+     (#138). */}}
+<div class="home-map border-bottom border-light" id="map">
+  <div class="container">
+    <p class="home-eyebrow">On the map</p>
+    <h2 class="home-title">Where we deliver, and where to find us</h2>
+    {{ partial "map.html" (dict "id" "home-map" "check" true) }}
+  </div>
+</div>

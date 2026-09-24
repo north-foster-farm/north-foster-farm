@@ -1,8 +1,11 @@
 // "Do we deliver to you?" A ZIP code in, an answer out, from the same
 // delivery area and the same rule the order form uses (validate.mjs),
 // so the home page can never promise what the form refuses. The area
-// rides in the page as JSON; nothing is fetched.
+// rides in the page as JSON; nothing is fetched. Each answer is
+// announced as an nff:zip event, and the delivery map on the page
+// drops a pin on that ZIP.
 
+import { wireMaps } from "../map/map.js";
 import { zipInfo } from "../order/lib/validate.mjs";
 
 const digitsOf = (value) => String(value || "").replace(/\D/g, "").slice(0, 5);
@@ -53,11 +56,17 @@ const wire = (form) => {
   const area = JSON.parse(form.querySelector("[data-zip-area]").textContent);
   const input = form.querySelector("[name='zip']");
   const result = form.querySelector("[data-zip-result]");
+  const announce = (zip, tone) => {
+    document.dispatchEvent(new CustomEvent("nff:zip", {
+      detail: { zip, tone },
+    }));
+  };
   const show = () => {
     const a = answerFor(input.value, area);
 
     result.textContent = a.text;
     result.dataset.tone = a.tone;
+    announce(digitsOf(input.value), a.tone);
   };
 
   form.addEventListener("submit", (e) => {
@@ -73,6 +82,7 @@ const wire = (form) => {
     } else if (!z.length) {
       result.textContent = "";
       result.dataset.tone = "";
+      announce("", "");
     }
   });
 };
@@ -83,5 +93,6 @@ if (typeof document !== "undefined") {
     for (const form of document.querySelectorAll("[data-zip-check]")) {
       wire(form);
     }
+    wireMaps();
   });
 }

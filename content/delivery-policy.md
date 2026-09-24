@@ -62,6 +62,8 @@ with you before anything is charged. For anywhere else,
 
 {{< delivery-area >}}
 
+{{< delivery-map "policy" >}}
+
 ## Your consent
 
 By placing a delivery order, you agree to this delivery policy.

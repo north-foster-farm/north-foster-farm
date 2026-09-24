@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Rebuild data/map.json, the delivery map's shapes, from the Census
+# 2020 cartographic boundary files: every Rhode Island ZIP code area
+# (ZCTA), the Connecticut ones in data/delivery.json, and the land of
+# the three states around them, clipped to the frame. Run it from the
+# repository root when the delivery area or the frame changes:
+#
+#   bin/map/build
+#
+# Needs curl, unzip and Node; mapshaper comes through npx.
+set -euo pipefail
+
+# The frame: Rhode Island's mainland and the Connecticut border towns.
+# Block Island falls outside it.
+west=-72.02 south=41.30 east=-71.10 north=42.03
+bbox="$west,$south,$east,$north"
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+base=https://www2.census.gov/geo/tiger/GENZ2020/shp
+for name in cb_2020_us_zcta520_500k cb_2020_us_state_500k; do
+  curl -fsSL -o "$work/$name.zip" "$base/$name.zip"
+  unzip -q -o "$work/$name.zip" -d "$work/$name"
+done
+
+# The Connecticut ZIPs we deliver to, as a JSON array for mapshaper.
+ct=$(node -e '
+  const d = require("./data/delivery.json");
+  const ct = d.area.states.find((s) => s.code === "CT");
+  console.log(JSON.stringify(ct.towns.flatMap((t) => t.zips)));
+')
+
+mapshaper=(npx -y mapshaper@0.7)
+
+"${mapshaper[@]}" \
+  -i "$work/cb_2020_us_state_500k/cb_2020_us_state_500k.shp" \
+  -filter '["RI", "CT", "MA"].includes(STUSPS)' \
+  -clip bbox="$bbox" \
+  -simplify 15% keep-shapes \
+  -each 'state = STUSPS' \
+  -filter-fields state \
+  -o "$work/land.json" format=geojson precision=0.0001
+
+"${mapshaper[@]}" \
+  -i "$work/cb_2020_us_zcta520_500k/cb_2020_us_zcta520_500k.shp" \
+  -filter "/^02[89]/.test(ZCTA5CE20) || $ct.includes(ZCTA5CE20)" \
+  -clip bbox="$bbox" \
+  -simplify 15% keep-shapes \
+  -each 'zip = ZCTA5CE20' \
+  -filter-fields zip \
+  -o "$work/zips.json" format=geojson precision=0.0001 \
+  -points inner \
+  -o "$work/centres.json" format=geojson precision=0.0001
+
+node bin/map/project.mjs "$west" "$south" "$east" "$north" \
+  "$work/land.json" "$work/zips.json" "$work/centres.json" \
+  > data/map.json
+echo "data/map.json: $(wc -c data/map.json | awk '{print $1}') bytes"

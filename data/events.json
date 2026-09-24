@@ -1,11 +1,114 @@
 {
   "events": [
     {
+      "id": "city-hall-2026-07-10",
+      "kind": "pop-up",
+      "name": "Summer Celebration",
+      "place": "Warwick City Hall Plaza",
+      "date": "2026-07-10",
+      "start": "18:00",
+      "end": "20:00",
+      "address": {
+        "street": "3275 Post Road",
+        "city": "Warwick",
+        "state": "RI",
+        "zip": "02886"
+      },
+      "lat": 41.69891,
+      "lng": -71.45881
+    },
+    {
+      "id": "rocky-point-2026-07-18",
+      "kind": "pop-up",
+      "name": "Summer Concert",
+      "place": "Rocky Point Park",
+      "date": "2026-07-18",
+      "start": "11:00",
+      "end": "15:00",
+      "address": {
+        "street": "1 Rocky Point Avenue",
+        "city": "Warwick",
+        "state": "RI",
+        "zip": "02889"
+      },
+      "lat": 41.68946,
+      "lng": -71.37131
+    },
+    {
+      "id": "city-hall-2026-07-22",
+      "kind": "pop-up",
+      "name": "Summer Concert",
+      "place": "Warwick City Hall Plaza",
+      "date": "2026-07-22",
+      "start": "18:00",
+      "end": "20:30",
+      "address": {
+        "street": "3275 Post Road",
+        "city": "Warwick",
+        "state": "RI",
+        "zip": "02886"
+      },
+      "lat": 41.69891,
+      "lng": -71.45881
+    },
+    {
+      "id": "rocky-point-2026-08-08",
+      "kind": "pop-up",
+      "name": "Summer Concert",
+      "place": "Rocky Point Park",
+      "date": "2026-08-08",
+      "start": "11:00",
+      "end": "15:00",
+      "address": {
+        "street": "1 Rocky Point Avenue",
+        "city": "Warwick",
+        "state": "RI",
+        "zip": "02889"
+      },
+      "lat": 41.68946,
+      "lng": -71.37131
+    },
+    {
+      "id": "city-hall-2026-08-26",
+      "kind": "pop-up",
+      "name": "Summer Concert",
+      "place": "Warwick City Hall Plaza",
+      "date": "2026-08-26",
+      "start": "17:00",
+      "end": "20:00",
+      "address": {
+        "street": "3275 Post Road",
+        "city": "Warwick",
+        "state": "RI",
+        "zip": "02886"
+      },
+      "lat": 41.69891,
+      "lng": -71.45881
+    },
+    {
+      "id": "city-hall-2026-09-19",
+      "kind": "pop-up",
+      "name": "Apple Fest",
+      "place": "Warwick City Hall Plaza",
+      "date": "2026-09-19",
+      "start": "12:00",
+      "end": "15:00",
+      "address": {
+        "street": "3275 Post Road",
+        "city": "Warwick",
+        "state": "RI",
+        "zip": "02886"
+      },
+      "lat": 41.69891,
+      "lng": -71.45881
+    },
+    {
       "id": "village-fitness-2026-10-18",
       "kind": "pop-up",
       "name": "Pop-up at The Village Family Fitness",
-      "host": "The Village Family Fitness",
+      "place": "The Village Family Fitness",
       "href": "https://www.instagram.com/thevillagefitnessri/",
+      "instagram": "thevillagefitnessri",
       "date": "2026-10-18",
       "start": "10:00",
       "end": "14:00",
@@ -14,7 +117,9 @@
         "city": "Warwick",
         "state": "RI",
         "zip": "02888"
-      }
+      },
+      "lat": 41.76519,
+      "lng": -71.39709
     }
   ]
 }
