@@ -4,15 +4,13 @@
     {{ partial "home/how.html" . }}
     {{ partial "home/copy.html" . }}
     {{/* The markets in their season, the three ways to buy the rest of
-         the year. Month and day, so the switch comes back each spring
-         without an edit; it takes effect at the next build. */}}
-    {{ $season := hugo.Data.markets.season }}
-    {{ $today := now.Format "01-02" }}
-    {{ if and (ge $today $season.from) (le $today $season.until) }}
+         the year. */}}
+    {{ if partial "market-season.html" . }}
       {{ partial "home/markets.html" . }}
     {{ else }}
       {{ partial "home/ways.html" . }}
     {{ end }}
+    {{ partial "home/map.html" . }}
     {{ partial "home/contact.html" . }}
   </section>
 {{ end }}

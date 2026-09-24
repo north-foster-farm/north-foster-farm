@@ -1,0 +1,274 @@
+// The delivery map (partials/map.html): water behind, the land of the
+// three states in a quiet sand, Rhode Island's ZIPs over it, the ones
+// we deliver to in green. Pins take the colour of their kind, here and
+// on the numbers in the key; a market out of season is hollow.
+
+$map-water: tint-color($teal, 84%);
+$map-land: #f3f1ea;
+$map-zip: #e9dfc8;
+$map-ours: tint-color($green, 58%);
+$map-pins: (
+  "farm": $primary,
+  "dropsite": $green,
+  "market": $orange,
+  "popup": $teal,
+);
+
+.map {
+  display: grid;
+  gap: 2rem;
+  align-items: start;
+
+  @media (min-width: 992px) {
+    grid-template-columns: 7fr 5fr;
+    gap: 3rem;
+  }
+}
+
+.map-frame {
+  overflow: hidden;
+  border: 1px solid var(--bs-border-color-translucent);
+  border-radius: var(--bs-border-radius-lg);
+  background-color: $map-water;
+}
+
+.map-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: Aller, sans-serif;
+}
+
+.map-land path {
+  fill: $map-land;
+  stroke: shade-color($map-land, 22%);
+  stroke-width: 1;
+}
+
+.map-zip {
+  fill: $map-zip;
+  stroke: $white;
+  stroke-width: 0.8;
+
+  &.is-ours {
+    fill: $map-ours;
+  }
+}
+
+// A pin: the drop shape with its number in the head, outlined in white
+// so it stands off the fills.
+.map-pin {
+  path {
+    stroke: $white;
+    stroke-width: 2;
+  }
+
+  text {
+    font-size: 17px;
+    font-weight: bold;
+    text-anchor: middle;
+    fill: $white;
+  }
+}
+
+@each $kind, $colour in $map-pins {
+  .map-pin-#{$kind} path {
+    fill: $colour;
+  }
+
+  .map-key-n.map-pin-#{$kind} {
+    background-color: $colour;
+  }
+}
+
+.map-pin-market.is-out {
+  path {
+    fill: $white;
+    stroke: $orange;
+    stroke-dasharray: 4 3;
+  }
+
+  text {
+    fill: shade-color($orange, 30%);
+  }
+}
+
+// The dropped pin: the ZIP typed into a check, outlined, and a pin
+// that falls onto its middle from above the map with a small bounce.
+// Its colour says whether we deliver there.
+.map-pick {
+  fill: none;
+  stroke: $gray-800;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.map-drop-pin {
+  fill: $gray-600;
+  stroke: $white;
+  stroke-width: 2;
+}
+
+.map-drop-dot {
+  fill: $white;
+}
+
+.map-drop-label {
+  font-size: 20px;
+  font-weight: bold;
+  text-anchor: middle;
+  fill: $gray-800;
+  stroke: $white;
+  stroke-width: 5px;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+}
+
+.map-drop[data-tone="ok"] .map-drop-pin {
+  fill: shade-color($green, 10%);
+}
+
+.map-drop[data-tone="wait"] .map-drop-pin {
+  fill: $orange;
+}
+
+.map-drop-fall {
+  animation: map-drop 0.75s cubic-bezier(0.3, 0, 0.6, 1) both;
+}
+
+@keyframes map-drop {
+  0% {
+    transform: translateY(-1100px);
+  }
+
+  70% {
+    transform: translateY(0);
+  }
+
+  84% {
+    transform: translateY(-14px);
+  }
+
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-drop-fall {
+    animation: none;
+  }
+}
+
+// The key: the two fills, then the numbered places in groups.
+
+.map-key {
+  font-size: 0.9375rem;
+}
+
+.map-key-areas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 1.25rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+}
+
+.map-swatch {
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 1px solid shade-color($map-zip, 15%);
+  border-radius: 0.25rem;
+  background-color: $map-zip;
+
+  &.is-ours {
+    border-color: shade-color($map-ours, 15%);
+    background-color: $map-ours;
+  }
+}
+
+.map-key-head {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+
+.map-key-aside {
+  margin-left: 0.25rem;
+  font-weight: normal;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.map-key-list {
+  margin: 0;
+}
+
+.map-key-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+
+  & + & {
+    margin-top: 0.625rem;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+.map-key-n {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 50%;
+  font-size: 0.8125rem;
+  font-weight: bold;
+  color: $white;
+
+  &.is-out {
+    border: 1.5px dashed $orange;
+    background-color: $white;
+    color: shade-color($orange, 30%);
+  }
+}
+
+.map-key-name {
+  font-weight: 600;
+}
+
+.map-key-text {
+  color: var(--bs-secondary-color);
+}
+
+.map-ig {
+  display: inline-flex;
+  margin-left: 0.25rem;
+  vertical-align: -0.125em;
+  color: inherit;
+
+  svg {
+    width: 1em;
+    height: 1em;
+  }
+}
+
+// On the home page the row sits on white between the bands.
+.home-map {
+  padding-block: 3.5rem;
+
+  @media (min-width: 992px) {
+    padding-block: 4.5rem;
+  }
+}

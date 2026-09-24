@@ -1,0 +1,11 @@
+{{/* A latitude and longitude as a point on the map, by the projection
+     bin/map/build recorded in data/map.json. An optional nudge, [dx,
+     dy] in map units, parts two pins that would sit on each other. */}}
+{{ $f := hugo.Data.map.frame }}
+{{ $x := mul (mul (sub .lng $f.west) $f.cos) $f.scale }}
+{{ $y := mul (sub $f.north .lat) $f.scale }}
+{{ with .nudge }}
+  {{ $x = add $x (index . 0) }}
+  {{ $y = add $y (index . 1) }}
+{{ end }}
+{{ return dict "x" (printf "%.1f" $x) "y" (printf "%.1f" $y) }}

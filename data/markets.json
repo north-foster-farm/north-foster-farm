@@ -4,23 +4,33 @@
     {
       "name": "Scituate Rotary Farmers Market",
       "href": "https://www.scituaterotaryfarmersmarket.com",
+      "instagram": "northscituatefarmersmarket",
       "when": "Saturdays, 9:00 AM – 12:00 PM",
       "where": "The Village Green, 46 Institute Lane, North Scituate",
-      "season": "June through early October"
+      "season": "June through early October",
+      "lat": 41.8339,
+      "lng": -71.58346,
+      "nudge": [-16, 0]
     },
     {
       "name": "Foster Farmers Market",
       "href": "https://www.fosterfarmersmarketri.com",
+      "instagram": "fosterfarmersmarketri",
       "when": "Sundays, 9:00 AM – 1:00 PM",
       "where": "Shady Acres Diner, 164 Danielson Pike, Foster",
-      "season": "June through October"
+      "season": "June through October",
+      "lat": 41.80426,
+      "lng": -71.77252
     },
     {
       "name": "Summer Market at Tilted Barn",
       "href": "https://www.tiltedbarnbrewery.com/summer-market",
+      "instagram": "tiltedbarnbrewery",
       "when": "Wednesdays, 4:00 – 7:00 PM",
       "where": "Tilted Barn Brewery, One Hemsley Place, Exeter",
-      "season": "June through August"
+      "season": "June through August",
+      "lat": 41.56961,
+      "lng": -71.52379
     }
   ]
 }
