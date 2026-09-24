@@ -1,8 +1,5 @@
 ---
 description: "An accessibility statement from North Foster Farm."
-menu:
-  footer:
-    weight: 2
 slug: "accessibility"
 title: "Accessibility"
 type: "policy"

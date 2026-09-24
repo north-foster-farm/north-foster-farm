@@ -1,8 +1,5 @@
 ---
 description: "The North Foster Farm website privacy policy."
-menu:
-  footer:
-    weight: 3
 slug: "privacy"
 title: "Privacy policy"
 type: "policy"

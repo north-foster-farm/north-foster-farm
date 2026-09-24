@@ -2,9 +2,6 @@
 description: >
   "How North Foster Farm delivery works: schedule, minimums, fees,
   discounts, and delivery area."
-menu:
-  footer:
-    weight: 4
 slug: "delivery-policy"
 title: "Delivery policy"
 type: "policy"

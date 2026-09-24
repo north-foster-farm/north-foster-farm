@@ -5,6 +5,7 @@ import "bootstrap/js/dist/offcanvas.js";
 
 import { Extensions } from "./extensions/extensions.js";
 import { Copyright } from "./copyright/copyright.js";
+import { wireDotLists } from "./dot-list/dot-list.js";
 import { wireNewsSignup } from "./news/signup.js";
 import { Session } from "./session/session.js";
 import { Touchable } from "./touchable/touchable.js";
@@ -49,5 +50,6 @@ const hoverMenus = () => {
 document.addEventListener("DOMContentLoaded", () => {
   Session.show();
   wireNewsSignup();
+  wireDotLists();
   hoverMenus();
 });

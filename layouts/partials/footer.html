@@ -1,33 +1,23 @@
 {{ $company := hugo.Data.company }}
 {{ $phone := partial "phone.html" . }}
-{{ $address := partial "address.html" . }}
-{{ $street := replace $address.street "Road" "Rd" }}
+{{ $instagram := hugo.Data.socialMedia.instagram.url }}
 <div class="flex-grow-1"></div>
 {{ partial "footer/shop.html" . }}
-<footer class="border-top border-white bg-light">
-  <div class="container">
-    <div class="row py-3">
-      <div class="col text-center">
-        {{ partial "news-signup.html" (dict "id" "news-footer") }}
-        {{/* The farm line: the APPPA mark, then who and where. */}}
-        <a class="apppa-logo" href="https://www.apppa.org/" target="_blank" rel="noopener" title="American Pastured Poultry Producers Association">
-          {{ partial "svg.html" "apppa-logo" }}
-          <span class="visually-hidden">Member, American Pastured Poultry Producers Association</span>
-        </a>
-        <p class="footer-farm mb-3">
-          <span class="text-nowrap">{{ $company.name }}</span>
-          <span class="footer-dot" aria-hidden="true">·</span>
-          <a class="text-nowrap" href="{{ $address.href }}" target="_blank" rel="noopener" title="Directions to the farm">{{ $street }}, {{ $address.city }}, {{ $address.state }}</a>
-          <span class="footer-dot" aria-hidden="true">·</span>
-          <a class="text-nowrap" href="{{ $phone.href }}">{{ $phone.display }}</a>
-          <span class="footer-dot" aria-hidden="true">·</span>
-          <a class="text-nowrap" href="mailto:{{ $company.email }}">{{ $company.email }}</a>
-        </p>
-        {{ partial "social-media.html" . }}
-        {{ partial "footer/menu.html" . }}
-        {{ partial "footer/copyright.html" . }}
-        {{ partial "footer/scripts.html" . }}
-      </div>
-    </div>
+<footer class="site-footer border-top border-white bg-light">
+  <div class="container text-center">
+    {{ partial "news-signup.html" (dict "id" "news-footer") }}
+    <a class="apppa-logo" href="https://www.apppa.org/" target="_blank" rel="noopener" title="American Pastured Poultry Producers Association">
+      {{ partial "svg.html" "apppa-logo" }}
+      <span class="visually-hidden">Member, American Pastured Poultry Producers Association</span>
+    </a>
+    {{ partial "footer/menu.html" . }}
+    {{/* How to reach the farm, on one dotted line like the links. */}}
+    <ul class="dot-list footer-contact" data-dot-list>
+      <li><a href="{{ $phone.href }}">{{ $phone.display }}</a></li>
+      <li><a href="mailto:{{ $company.email }}">{{ $company.email }}</a></li>
+      <li><a href="{{ $instagram }}" target="_blank" rel="noopener" title="North Foster Farm on Instagram">@{{ path.Base $instagram }}</a></li>
+    </ul>
+    {{ partial "footer/copyright.html" . }}
+    {{ partial "footer/scripts.html" . }}
   </div>
 </footer>

@@ -64,6 +64,9 @@ const plugins = [
         "data-stuck",
         "data-card-open",
         "data-cart-passed",
+        "data-state",
+        "busy",
+        "data-row-start",
         "aria-pressed",
       ];
     },
