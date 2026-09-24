@@ -18,6 +18,7 @@ import { Pending } from "./pending.js";
 import { Stock } from "./stock.js";
 import { Submitter } from "./submit.js";
 import { me } from "../session/session.js";
+import { api } from "../utils/api.js";
 
 const RETRY_DELAYS = [5000, 15000, 45000, 120000, 300000];
 const AGREE_SEEN = "nff-delivery-policy-seen";
@@ -90,7 +91,7 @@ export class OrderForm {
     this.payment = new Payment(document.getElementById("payment"), this);
     this.retryTimer = null;
     this.lastTotal = null;
-    this.lastCount = 0;
+    this.lastCount = null;
     this.busy = false;
     // Which badges were lit at the last render, so a badge that turns
     // on can celebrate. Null until the first render, which never does.
@@ -151,6 +152,7 @@ export class OrderForm {
       this.plain(input, true);
       any = true;
     }
+    this.formatPhone();
 
     // A customer who already said yes to farm news sees the box ticked;
     // it starts unticked for everyone else.
@@ -163,6 +165,53 @@ export class OrderForm {
 
     this.showContact();
     if (any) this.draft.save(this.collect());
+  }
+
+  // The phone number as "(xxx) xxx-xxxx" while it is typed. A
+  // deletion that lands on a bracket or a dash takes the digit before
+  // it too, so backspace never fights the mask. A leading 1 is dropped.
+  formatPhone(deleting = false) {
+    const input = qs(this.form, "[data-field='customer.phone']");
+    const raw = input.value;
+    let digits = raw.replace(/\D/g, "");
+
+    if (digits.length === 11 && digits.startsWith("1")) {
+      digits = digits.slice(1);
+    }
+    if (deleting && /\D$/.test(raw)) digits = digits.slice(0, -1);
+    digits = digits.slice(0, 10);
+
+    const out = digits.length <= 3 ? (digits ? `(${digits}` : "")
+      : digits.length <= 6 ? `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+        : `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+
+    if (out !== raw) input.value = out;
+  }
+
+  // The farm-news request, once per address: the confirmation email
+  // goes out now, and one click there adds them, so nobody is added
+  // on the strength of a typo or a tick on someone else's behalf.
+  async askNews() {
+    const news = qs(this.form, "[data-field='customer.marketing']");
+    const email = qs(this.form, "[data-field='customer.email']");
+    const note = qs(this.form, "[data-news-note]");
+    const address = email.value.trim().toLowerCase();
+
+    if (!news.checked || !address || !email.checkValidity()) return;
+    if (this.newsAsked.has(address)) return;
+    this.newsAsked.add(address);
+
+    const { ok } = await api("/api/news/subscribe", {
+      method: "POST", body: { email: address },
+    });
+
+    if (ok) {
+      note.textContent = `Check ${address} for an email from us. One click ` +
+        "there and you're on the list.";
+      note.hidden = false;
+    } else {
+      this.newsAsked.delete(address);
+    }
   }
 
   // "Prefer text or call?" shows once the phone number is one we could
@@ -216,9 +265,23 @@ export class OrderForm {
       }
     });
 
-    qs(this.form, "[data-field='customer.phone']")
-      .addEventListener("input", () => this.showContact());
+    const phone = qs(this.form, "[data-field='customer.phone']");
+
+    phone.addEventListener("input", (e) => {
+      this.formatPhone((e.inputType || "").startsWith("delete"));
+      this.showContact();
+    });
+    this.formatPhone();
     this.showContact();
+
+    // Ticking the farm-news box asks for the confirmation email at
+    // once, with the address in the form, rather than at the order.
+    const news = qs(this.form, "[data-field='customer.marketing']");
+    const email = qs(this.form, "[data-field='customer.email']");
+
+    this.newsAsked = new Set();
+    news.addEventListener("change", () => this.askNews());
+    email.addEventListener("focusout", () => this.askNews());
 
     // The delivery-policy note can be dismissed, and stays dismissed.
     const agree = qs(this.form, "[data-agree]");
@@ -507,22 +570,36 @@ export class OrderForm {
     };
 
     input.value = typed;
-    this.stopJoke();
-    this.code = null;
+    clearTimeout(this.noteTimer);
+    note.classList.remove("is-fading");
 
+    // Apply with the field empty takes the code off again.
     if (!typed) {
+      this.stopJoke();
+      this.code = null;
       say("");
       this.refresh();
 
       return;
     }
     // An accepted code leaves the field empty for the next one; the
-    // discount line and the note say it is on. Apply with the field
-    // empty takes it off again.
-    if (typed === JOKE_CODE) {
-      this.startJoke();
+    // discount line says it is on, and the note says so for a while.
+    const accepted = (text) => {
       input.value = "";
-      say("Code applied.", "good");
+      say(text, "good");
+      this.noteTimer = setTimeout(() => {
+        note.classList.add("is-fading");
+        this.noteTimer = setTimeout(() => {
+          say("");
+          note.classList.remove("is-fading");
+        }, 700);
+      }, 15_000);
+    };
+
+    if (typed === JOKE_CODE) {
+      this.code = null;
+      this.startJoke();
+      accepted("Code applied.");
       this.refresh();
 
       return;
@@ -532,11 +609,12 @@ export class OrderForm {
     const found = this.codes.find((c) => c.hash === hash);
 
     if (found) {
+      this.stopJoke();
       this.code = { code: typed, label: found.label, off: found.off };
-      input.value = "";
-      say(`Code applied: $${found.off} off.`, "good");
+      accepted(`Code applied: $${found.off} off.`);
     } else if (!quiet) {
-      say("We don't know that code. Your order goes through without one.");
+      // The code that was on stays on.
+      say("Not a valid discount code.");
     }
     this.refresh();
   }
@@ -669,9 +747,9 @@ export class OrderForm {
 
     // Empty, the cart folds away; the first item opens it. A fold the
     // customer chose stays until the cart empties again.
-    if (count === 0) {
+    if (count === 0 && this.lastCount !== 0) {
       this.setOpen(false);
-    } else if (this.lastCount === 0) {
+    } else if (count > 0 && !this.lastCount) {
       this.setOpen(true);
     }
     this.lastCount = count;
@@ -848,6 +926,7 @@ export class OrderForm {
     set("customer.lastName", c.lastName);
     set("customer.email", c.email);
     set("customer.phone", c.phone);
+    this.formatPhone();
     set("customer.contact", c.contact);
     set("code", payload.code);
 

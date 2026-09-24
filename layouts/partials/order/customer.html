@@ -1,9 +1,9 @@
 {{/* Horizontal layout: label column, field column. A signed-in
      customer's name, email and phone arrive as plain text; a click
      turns one into a field, and leaving it turns it back. */}}
-<fieldset class="order-section mb-5" id="details">
+<fieldset class="order-section order-details mb-5" id="details">
   <legend class="h2" tabindex="-1">Your details</legend>
-  <p class="order-section-hint">Click to edit</p>
+  <p class="order-section-hint">Click on a field to edit it.</p>
   <div class="order-hform">
     <div class="row">
       <label class="col-sm-3 col-form-label" for="customer-first-name">First name</label>
@@ -23,7 +23,7 @@
       <label class="col-sm-3 col-form-label" for="customer-email">Email</label>
       <div class="col-sm-9">
         <input class="form-control" type="email" id="customer-email" name="customer.email" autocomplete="email" inputmode="email" required data-field="customer.email" data-prefill="email" aria-describedby="help-customer-email err-customer-email">
-        <div class="form-text" id="help-customer-email">Your confirmation and receipt go to this address.</div>
+        <div class="form-text" id="help-customer-email">Your order confirmation and receipt are sent here.</div>
         <div class="invalid-feedback" id="err-customer-email" data-error-for="customer.email"></div>
       </div>
     </div>
@@ -59,8 +59,9 @@
       <div class="col-sm-9 offset-sm-3">
         <div class="form-check">
           <input class="form-check-input" type="checkbox" id="customer-marketing" name="customer.marketing" data-field="customer.marketing">
-          <label class="form-check-label" for="customer-marketing">Receive occasional email from North Foster Farm</label>
+          <label class="form-check-label" for="customer-marketing">Receive occasional email from North Foster Farm.</label>
         </div>
+        <div class="form-text" data-news-note hidden></div>
       </div>
     </div>
   </div>
