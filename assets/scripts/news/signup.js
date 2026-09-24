@@ -3,6 +3,8 @@
 // back on /news/ with ?news=, which the line under the field explains.
 
 import { api } from "../utils/api.js";
+import { looksLikeEmail } from "../utils/email.js";
+import { isBusy, whileBusy } from "../utils/busy-button.js";
 
 const LANDED = {
   confirmed: "You're on the list. Thanks!",
@@ -12,13 +14,6 @@ const LANDED = {
     "we'll send a fresh one.",
 };
 
-// Stricter than type="email", which lets "you@farm" through.
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
-// The spinner stays up at least this long, so a quick answer doesn't
-// flash it.
-const MIN_BUSY_MS = 700;
-
 const say = (note, text, tone) => {
   note.textContent = text;
   note.dataset.tone = tone || "";
@@ -27,16 +22,7 @@ const say = (note, text, tone) => {
 const wire = (form) => {
   const input = form.querySelector("input[type='email']");
   const note = form.querySelector("[data-news-note]");
-  const idle = form.querySelector(".news-signup-idle");
-  const busy = form.querySelector(".news-signup-busy");
-  let sending = false;
-
-  const setBusy = (on) => {
-    sending = on;
-    form.dataset.state = on ? "busy" : "";
-    idle.setAttribute("aria-hidden", String(on));
-    busy.setAttribute("aria-hidden", String(!on));
-  };
+  const button = form.querySelector("button");
 
   const setInvalid = (on) => {
     input.classList.toggle("is-invalid", on);
@@ -45,18 +31,18 @@ const wire = (form) => {
 
   input.addEventListener("input", () => {
     if (!input.classList.contains("is-invalid")) return;
-    if (!EMAIL.test(input.value.trim())) return;
+    if (!looksLikeEmail(input.value.trim())) return;
     setInvalid(false);
     say(note, "");
   });
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (sending) return;
+    if (isBusy(button)) return;
 
     const email = input.value.trim();
 
-    if (!EMAIL.test(email)) {
+    if (!looksLikeEmail(email)) {
       setInvalid(true);
       say(note, email
         ? "Enter a valid email address, like you@example.com."
@@ -68,15 +54,11 @@ const wire = (form) => {
 
     setInvalid(false);
     say(note, "");
-    setBusy(true);
 
-    const [{ ok, data }] = await Promise.all([
+    const { ok, data } = await whileBusy(button,
       api("/api/news/subscribe", { method: "POST", body: { email } })
-        .catch(() => ({ ok: false })),
-      new Promise((resolve) => setTimeout(resolve, MIN_BUSY_MS)),
-    ]);
+        .catch(() => ({ ok: false })));
 
-    setBusy(false);
     if (ok) {
       say(note, `Check ${email} for an email from us. One click there and ` +
         "you're on the list.", "ok");
