@@ -34,12 +34,14 @@
         <div class="invalid-feedback" id="err-customer-phone" data-error-for="customer.phone"></div>
       </div>
     </div>
-    <div class="row">
+    {{/* Shown once the phone number is one we could use
+         (order-form.js showContact), fading in when it appears. */}}
+    <div class="row order-contact-row" data-contact-row data-shown="false">
       <span class="col-sm-3 col-form-label" id="customer-contact-label">Prefer text or call?</span>
       <div class="col-sm-9">
         <div class="order-radios" role="radiogroup" aria-labelledby="customer-contact-label" data-field="customer.contact">
           <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="customer.contact" id="contact-text" value="text">
+            <input class="form-check-input" type="radio" name="customer.contact" id="contact-text" value="text" checked>
             <label class="form-check-label" for="contact-text">Text</label>
           </div>
           <div class="form-check form-check-inline">
@@ -57,7 +59,7 @@
       <div class="col-sm-9 offset-sm-3">
         <div class="form-check">
           <input class="form-check-input" type="checkbox" id="customer-marketing" name="customer.marketing" data-field="customer.marketing">
-          <label class="form-check-label" for="customer-marketing">Email me farm news and offers now and then</label>
+          <label class="form-check-label" for="customer-marketing">Receive occasional email from North Foster Farm</label>
         </div>
       </div>
     </div>

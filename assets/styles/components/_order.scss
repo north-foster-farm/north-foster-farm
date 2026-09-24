@@ -920,14 +920,34 @@
   // and lives at the end of this file; only the click-to-edit look of
   // a signed-in customer's details is the order page's.
   .order-hform {
+    // The same box as the field it turns into, so nothing moves.
     .form-control-plaintext {
       cursor: pointer;
+      padding: 0.4rem 0.75rem;
+      border-width: 1px;
       border-radius: var(--order-radius);
       transition: background-color var(--order-hover) ease;
 
       &:hover {
         background-color: var(--bs-tertiary-bg);
       }
+    }
+  }
+
+  // "Prefer text or call?" is hidden until there is a phone number,
+  // and fades in when it appears (order-form.js showContact).
+  .order-contact-row {
+    transition:
+      opacity var(--order-base) ease,
+      transform var(--order-base) var(--order-ease);
+
+    &[data-shown="false"] {
+      display: none;
+    }
+
+    &.is-entering {
+      opacity: 0;
+      transform: translateY(-0.25rem);
     }
   }
 
@@ -1131,11 +1151,18 @@
     font-weight: bold;
   }
 
+  // Whichever wallets the browser and this deploy offer, two to a
+  // row, the odd one stretching across.
   .order-pay-buttons {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 0.75rem;
     max-width: 40rem;
+  }
+
+  .order-pay-button,
+  .order-apple-pay {
+    flex: 1 1 12rem;
   }
 
   .order-pay-button {
