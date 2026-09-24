@@ -506,11 +506,18 @@ bundle) asks `/api/me` once per five minutes, cached in
 ## CLI
 
 `bin/nff` is the farm's admin surface; there are no admin pages. It
-reads `.env` from the repo root and needs `NETLIFY_SITE_ID` and
+reads `.env` from the repo root: `NETLIFY_SITE_ID` and
 `NETLIFY_AUTH_TOKEN` (a personal access token) to reach the site's
-Blobs stores, plus the Square, PayPal and mail variables for anything
-that talks to them; without the Netlify pair it runs against memory
-and says so. `bin/nff` with no arguments prints the commands:
+Blobs stores, the production Square token and location, the mail
+variables (`MAIL_DRIVER=resend`, `RESEND_API_KEY`, `MAIL_FROM`,
+`MAIL_REPLY_TO`), `ACCOUNTS_ENABLED=true` and `SITE_URL`, so a
+confirm or a deny sent from here reads as one sent from the site.
+Without the Netlify pair it runs against memory and says so; without
+a mail driver it logs every email to the terminal instead of sending
+it, and says that too. `--staging` and `--preview` read
+`.env.staging` or `.env.preview` first (the sandbox token and its
+location, `MAIL_DRIVER=outbox`, that deploy's `SITE_URL`), then
+`.env` for the rest. `bin/nff` with no arguments prints the commands:
 customers (list, show, set, delete), address (approve, deny), orders
 (list with `--open`, `--status`, `--email`; show; confirm `[<id>]
 [--at H] [--until H]`, where no id prints how many pickups wait and
