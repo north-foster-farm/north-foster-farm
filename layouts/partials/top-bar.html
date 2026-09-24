@@ -1,0 +1,23 @@
+{{/* The top bar: one quiet line above the header on every page, naming
+     the next event in data/events.json and linking to it. Each build
+     picks the next event that has not ended, so there is nothing to
+     edit to retire one; since no build runs on the day, top-bar.js
+     also drops a bar whose end has passed. Draft wording for James
+     (#139). */}}
+{{ $zone := "America/New_York" }}
+{{ $next := false }}
+{{ range sort hugo.Data.events.events "date" }}
+  {{ $ends := time.AsTime (printf "%sT%s:00" .date .end) $zone }}
+  {{ if and (not $next) (gt $ends.Unix now.Unix) }}
+    {{ $next = merge . (dict "ends" $ends) }}
+  {{ end }}
+{{ end }}
+{{ with $next }}
+  {{ $starts := time.AsTime (printf "%sT%s:00" .date .start) $zone }}
+  <div class="top-bar" data-top-bar data-until="{{ .ends.Format "2006-01-02T15:04:05-07:00" }}">
+    <a class="top-bar-link" href="{{ .href }}" target="_blank" rel="noopener">
+      <span class="d-sm-none">{{ .name }}, {{ $starts.Format "Mon, Jan 2" }}</span>
+      <span class="d-none d-sm-inline">{{ .name }} in {{ .address.city }}, {{ $starts.Format "Monday, January 2" }}, {{ $starts.Format "3:04 PM" }} – {{ .ends.Format "3:04 PM" }}</span>
+    </a>
+  </div>
+{{ end }}

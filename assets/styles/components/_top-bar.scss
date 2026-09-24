@@ -1,0 +1,36 @@
+// The top bar: one line of small centred text on a light gray band
+// above the header, linking to the next event. A phone gets the short
+// line; anything longer than the screen ends in an ellipsis rather
+// than wrapping, so the bar is always one fixed height.
+
+$top-bar-height: 1.875rem;
+
+// The hero reserves the bar's height, as it does the header's, while
+// there is a bar.
+:root:has(.top-bar) {
+  --top-bar-height: #{$top-bar-height};
+}
+
+.top-bar {
+  font-family: Aller, sans-serif;
+  font-size: 0.8125rem;
+  text-align: center;
+  background-color: $gray-100;
+}
+
+.top-bar-link {
+  display: block;
+  padding: 0 1rem;
+  overflow: hidden;
+  line-height: $top-bar-height;
+  color: var(--bs-body-color);
+  white-space: nowrap;
+  text-decoration: none;
+  text-overflow: ellipsis;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+  }
+}
