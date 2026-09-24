@@ -1363,8 +1363,9 @@ Pending: #114.
 ### AO-13 No invoice or payment-link copy remains
 
 Partial: `wording.spec.mjs` (desktop) reads ten pages and `llms.txt`.
-Fails today on `/`, `/login/`, `/account/`, `/delivery-policy/`,
-`/privacy/` and `llms.txt`, as #150 lists; it passes as #150 lands.
+Fails today on `/login/`, `/account/`, `/delivery-policy/`, `/privacy/`
+and `llms.txt`, as #150 lists (`/` passes since 73b8e2e); it passes as
+#150 lands.
 The cancel dialog needs a signed-in customer with an order and stays
 manual. The account menu is settled: "Your orders" has its own icon,
 and the invoice icon marks "Receipts".
