@@ -71,12 +71,17 @@ test.describe("farm news", () => {
   test("an address that is not one is refused at the field",
     async ({ page }) => {
       const form = page.locator("footer [data-news-signup]");
+      let sent = 0;
 
+      page.on("request", (req) => {
+        if (req.url().includes("/api/news/subscribe")) sent += 1;
+      });
       await page.goto("/");
       await form.locator("input[type='email']").fill("not-an-email");
       await form.getByRole("button").click();
       await expect(form.locator("[data-news-note]"))
-        .toHaveText("Please enter your email address.");
+        .toHaveText("Enter a valid email address, like you@example.com.");
+      expect(sent, "no request for a malformed address").toBe(0);
     });
 
   test("the news page carries the same sign-up", async ({ page }) => {
