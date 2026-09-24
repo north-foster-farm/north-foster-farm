@@ -62,6 +62,7 @@ const plugins = [
         "warn",
         "data-shown",
         "data-stuck",
+        "data-card-open",
         "aria-pressed",
       ];
     },
