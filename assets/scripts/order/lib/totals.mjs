@@ -94,7 +94,9 @@ export const computeTotals = ({
   );
   const useCode = !!byCode && byCode.amount === best && byCode.amount > 0;
   const useGroup = !useCode && !!byGroup && byGroup.amount > bulk.amount;
-  const isDelivery = method === "delivery";
+  // An empty cart owes nothing, whatever method is chosen: Delivery
+  // is the starting choice, and a fee on nothing read as a $5 order.
+  const isDelivery = method === "delivery" && subtotal > 0;
   const baseFee = isDelivery && subtotal < toCents(money.feeWaivedAt)
     ? toCents(money.deliveryFee)
     : 0;
