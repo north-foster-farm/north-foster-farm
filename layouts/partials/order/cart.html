@@ -2,12 +2,13 @@
 {{ $deliveryTip := printf "Orders of $%v or more after discounts can be delivered on Thursdays. $%v fee, waived at $%v." $money.deliveryMinimum $money.deliveryFee $money.feeWaivedAt }}
 {{ $freeTip := printf "No delivery fee on orders of $%v or more." $money.feeWaivedAt }}
 {{/* Badges: the delivery pair, then the tiers, on one dotted line. */}}
-<aside class="order-cart" id="order-cart" aria-label="Your cart" data-open="true">
+{{/* The heading sits in the flow where the pane settles, so it
+     appears as the pane arrives; at xl the pane is a column with no
+     heading. */}}
+<h2 class="order-cart-heading h4" id="order-cart-heading">Cart</h2>
+<aside class="order-cart" id="order-cart" aria-labelledby="order-cart-heading" data-open="true">
   <div class="order-cart-body" id="order-cart-body">
     <div class="order-cart-inner">
-      {{/* Shown once the pane has settled into the flow (order-form.js
-           sets data-stuck); floating, the pane needs no title. */}}
-      <h2 class="order-cart-heading h4" aria-hidden="true">Cart</h2>
       <ul class="order-badges list-unstyled" aria-label="What this order qualifies for">
         <li><button type="button" class="order-badge" data-badge="delivery" data-tip="{{ $deliveryTip }}">Delivery</button></li>
         <li><button type="button" class="order-badge" data-badge="free-delivery" data-tip="{{ $freeTip }}">Free delivery</button></li>
@@ -17,6 +18,7 @@
       </ul>
 
       <div class="order-cart-scroll">
+        <button type="button" class="order-cart-more order-cart-more-top" data-cart-more-top hidden></button>
         <ul class="order-cart-items list-unstyled" data-cart-items>
           <li class="order-cart-none">0 items</li>
         </ul>
@@ -62,6 +64,8 @@
       <span class="order-cart-sum-label">Total</span>
       <span class="order-cart-total" data-total="total">$0</span>
     </span>
+    {{/* From xl only, where the cart is a column beside the catalog. */}}
+    <button type="button" class="btn btn-primary order-cart-next" data-checkout disabled>Continue to checkout</button>
   </div>
 
   <p class="order-cart-nudge" data-nudge aria-live="polite" hidden></p>

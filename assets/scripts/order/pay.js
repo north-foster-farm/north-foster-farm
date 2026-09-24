@@ -83,13 +83,19 @@ export class Payment {
     this.busy = false;
   }
 
-  // The form's own Pay button belongs to the card fields and goes
-  // when they cannot be had.
+  // Card is one way among the buttons: chosen, its fields and the
+  // form's own Pay button appear under the grid.
   setCardAvailable(on) {
+    this.cardButton.hidden = !on;
+    if (!on) this.setCardOpen(false);
+  }
+
+  setCardOpen(open) {
     const submit = document.getElementById("order-submit");
 
-    this.cardButton.hidden = !on;
-    if (submit) submit.hidden = !on;
+    this.state.dataset.cardOpen = String(open);
+    this.cardButton.setAttribute("aria-pressed", String(open));
+    if (submit) submit.hidden = !open;
   }
 
   // Loads once the section is near the screen, or the first time
@@ -186,9 +192,9 @@ export class Payment {
       });
       await this.card.attach(qs(this.root, "[data-card]"));
       this.setCardAvailable(true);
-      // Card is the way that is already open: the button puts the
-      // cursor in the number field.
+      this.setCardOpen(false);
       this.cardButton.addEventListener("click", () => {
+        this.setCardOpen(true);
         this.card.focus("cardNumber").catch(() => {});
       });
     } catch (error) {
