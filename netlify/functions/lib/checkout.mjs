@@ -183,10 +183,19 @@ export const finishVenmo = async (stores, order, {
   sleep,
   ...options
 } = {}) => {
-  const checkout = await getCheckout(stores, key);
   const env = options.env || process.env;
   const now = options.now || new Date();
   const fetchImpl = options.fetchImpl;
+  // Finished already, by this request's lost first try or by the
+  // jobs: the checkout is gone, and the record is the answer.
+  const existing = await getOrder(stores, order.id);
+
+  if (existing && existing.payment
+    && existing.payment.paypalOrderId === paypalOrderId) {
+    return existing;
+  }
+
+  const checkout = await getCheckout(stores, key);
 
   if (!checkout || checkout.paypalOrderId !== paypalOrderId) {
     throw new CheckoutError("That payment doesn't match this order. " +
@@ -273,6 +282,41 @@ export const recordOnSquare = async (stores, order, k, capture, {
 
     return { square: null, squarePaymentId: null };
   }
+};
+
+// For the jobs: a Venmo checkout the page never finished, because the
+// tab closed after the customer approved. PayPal is asked about each
+// one it has left alone for PAGE_GRACE, so a page still at work is
+// never raced: an approved payment is captured and recorded, a
+// captured one recorded, and the customer's confirmation goes out
+// late. Anything else is left for the sweep. -> the record, or null.
+export const PAGE_GRACE = 10 * 60_000;
+
+export const rescueCheckout = async (stores, checkout, {
+  paypal = paypalApi,
+  ...options
+} = {}) => {
+  const env = options.env || process.env;
+  const now = options.now || new Date();
+
+  if (!checkout.paypalOrderId) return null;
+
+  const current = await paypal.getOrder(checkout.paypalOrderId, {
+    env, fetchImpl: options.fetchImpl, now,
+  });
+  const since = Date.parse(current.updatedAt || checkout.at);
+
+  if (!["APPROVED", "COMPLETED"].includes(current.status)) return null;
+  if (now.getTime() - since < PAGE_GRACE) return null;
+
+  const saved = await finishVenmo(stores, checkout.order, {
+    key: checkout.key, attempt: checkout.attempt,
+    paypalOrderId: checkout.paypalOrderId,
+  }, { paypal, ...options });
+
+  log.warn({ event: "venmo.rescued", id: saved.id, status: current.status });
+
+  return saved;
 };
 
 // For the jobs: a Venmo order whose Square copy failed gets another

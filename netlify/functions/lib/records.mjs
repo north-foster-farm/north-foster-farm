@@ -222,6 +222,18 @@ export const deleteCheckout = async (stores, key) => {
 };
 
 // Every checkout older than the TTL is dropped. -> how many.
+export const listCheckouts = async (stores) => {
+  const found = [];
+
+  for (const { key } of await stores.orders.list("checkout/")) {
+    const checkout = await stores.orders.get(key);
+
+    if (checkout) found.push(checkout);
+  }
+
+  return found;
+};
+
 export const sweepCheckouts = async (stores, now = new Date()) => {
   const cutoff = now.getTime() - CHECKOUT_TTL;
   let swept = 0;
