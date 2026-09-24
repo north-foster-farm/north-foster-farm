@@ -420,6 +420,26 @@ describe("rescueCheckout", () => {
     assert.ok(await getCheckout(stores, KEY));
   });
 
+  it("leaves a payment PayPal has forgotten, and passes other failures up",
+    async () => {
+      const stores = testStores();
+      const { paypal } = fakePaypal();
+      const checkout = await kept(stores, paypal);
+      const failing = (status) => ({
+        ...paypal,
+        getOrder: async () => {
+          throw new PayPalError(`PayPal ${status}`, { status });
+        },
+      });
+
+      assert.equal(await rescueCheckout(stores, checkout, {
+        paypal: failing(404), ...quiet, now: later(PAGE_GRACE),
+      }), null);
+      await assert.rejects(rescueCheckout(stores, checkout, {
+        paypal: failing(500), ...quiet, now: later(PAGE_GRACE),
+      }), (e) => e.status === 500);
+    });
+
   it("goes by the checkout's age when PayPal gives no time, and skips " +
     "a checkout that is not Venmo's", async () => {
     const stores = testStores();
