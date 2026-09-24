@@ -1,0 +1,8 @@
+{{/* "Do we deliver to you?" as one row in a post: the question on the
+     left, a button on the right to the ZIP check in the home page's
+     map row, which drops a pin on the map. It wraps to two lines on a
+     phone. Draft wording for James (#136). */}}
+<div class="delivery-cta bg-success-subtle border border-success border-opacity-50 rounded-4">
+  <p class="delivery-cta-question">Do we deliver to you?</p>
+  <a class="btn btn-primary" href="{{ relURL "" }}#map">Check your ZIP code <span class="delivery-cta-arrow" aria-hidden="true">{{ partial "svg.html" "icons/arrow-down" }}</span></a>
+</div>

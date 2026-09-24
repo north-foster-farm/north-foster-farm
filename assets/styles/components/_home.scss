@@ -6,8 +6,38 @@
     background-color: var(--bs-success-bg-subtle);
   }
 
+  // The post: eyebrow, title and date centred above it, the title a
+  // link to the post's own page. A little more side padding on large
+  // screens.
   .home-update-card {
     background-color: #fcfcfc;
+
+    @media (min-width: 992px) {
+      padding-inline: 3.25rem !important;
+    }
+  }
+
+  .home-update-title {
+    margin-bottom: 0.5rem;
+    text-align: center;
+  }
+
+  .home-update-link {
+    color: inherit;
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.18em;
+    }
+  }
+
+  .home-update-date {
+    display: block;
+    margin-bottom: 2rem;
+    text-align: center;
   }
 
   // Hero: the coop video fills the viewport below the header, up to
