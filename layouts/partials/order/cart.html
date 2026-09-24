@@ -5,6 +5,9 @@
 <aside class="order-cart" id="order-cart" aria-label="Your cart" data-open="true">
   <div class="order-cart-body" id="order-cart-body">
     <div class="order-cart-inner">
+      {{/* Shown once the pane has settled into the flow (order-form.js
+           sets data-stuck); floating, the pane needs no title. */}}
+      <h2 class="order-cart-heading h4" aria-hidden="true">Cart</h2>
       <ul class="order-badges list-unstyled" aria-label="What this order qualifies for">
         <li><button type="button" class="order-badge" data-badge="delivery" data-tip="{{ $deliveryTip }}">Delivery</button></li>
         <li><button type="button" class="order-badge" data-badge="free-delivery" data-tip="{{ $freeTip }}">Free delivery</button></li>
