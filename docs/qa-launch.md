@@ -1574,38 +1574,53 @@ then.
 
 ### AR-01 Hero video (#133)
 
-Pending.
+Automated: `home.spec.mjs`, "the photograph paints first, then the
+light clip plays over it" (both projects). The absence of a flash was
+judged by eye on 2026-09-24.
 
 - **Scenario:** The hero plays the coop video, muted and looping, over
   its poster.
-- **Setup:** Home page, 1500 by 900.
+- **Setup:** Home page.
 - **Test:**
   1. Load the page; watch the network and the hero.
-- **Assert:** The poster paints first; the video (`muted`, `playsinline`,
-  `loop`, `preload="metadata"`) loads after it, under 1.5 MB; no flash.
+- **Assert:** The video is `muted`, `playsinline` and `loop`; it has no
+  sources until the photograph has painted (better than the issue's
+  `preload="metadata"`), and the first request for the clip comes
+  after the photograph's; it plays, the hero gains `is-ready`, and
+  the encode chosen is under 1.5 MB.
 - **Teardown:** None.
 
 ### AR-02 Pausing offers to stop autoplay (#133)
 
-Pending.
+Automated: `home.spec.mjs`, "a pause offers to stop autoplay, and the
+choice holds site-wide" (both projects; hover on desktop) and "the
+play button can be reached by keyboard" (desktop). Wording is a draft
+for James.
 
 - **Scenario:** A visitor who pauses is offered to stop videos playing
   on their own.
 - **Setup:** Home page.
 - **Test:**
-  1. Hover the hero; press pause; accept the offer; reload.
-  2. Tab to the control with the keyboard.
-- **Assert:** The control fades in on hover and on focus; the note
-  appears beside it; after the reload the poster shows and nothing
-  plays; the choice is in `localStorage`.
-- **Teardown:** Clear site data.
+  1. Hover the hero; press pause; press Turn off autoplay; reload.
+  2. Play and pause again; open the about page's clip.
+  3. Tab to the control with the keyboard; press Enter.
+- **Assert:** The control shows on hover and on focus. After a pause
+  it reads "Play video" and the note offers "Stop videos playing on
+  their own? Turn off autoplay"; after the click it reads "Videos here
+  will wait for you to press play." and `nff:autoplay` is `off`. After
+  the reload no clip is fetched and the photograph and the button
+  show; a second pause offers nothing; the about page's clip waits
+  too. Enter on the focused control pauses.
+- **Teardown:** None (a fresh browser per test).
 
 ### AR-03 Reduced motion and the account setting (#133)
 
-Partial: the about page's clip (AR-24) already obeys reduced motion and
-a stored `nff:autoplay` of `off`, in `about.spec.mjs`, "with reduced
-motion the clip waits for play" and "with autoplay turned off the clip
-waits for play". The hero and the account setting wait for #133.
+Partial: with reduced motion the hero fetches no clip and waits for
+play, and a pause then offers nothing, in `home.spec.mjs`, "with
+reduced motion the photograph stays until play"; the about page's clip
+obeys reduced motion and a stored `off` (AR-24). Save-Data and the
+account setting are still to come: the account half of #133 has not
+landed.
 
 - **Scenario:** `prefers-reduced-motion` and Save-Data count as autoplay
   off; a signed-in customer's choice follows them.
@@ -1791,9 +1806,40 @@ Pending.
   gone after the day; dismissal remembered if James wants one.
 - **Teardown:** None.
 
+### AR-15a The contact page (#140)
+
+Automated: `contact.spec.mjs`, every test (both projects), with
+`/api/contact` stubbed: the function is the checkout lane's and answers
+404 on staging today, so a real message fails with "We couldn't send
+that just now." until it lands.
+
+- **Scenario:** The page and its form, before the function.
+- **Setup:** `/contact/`.
+- **Test:**
+  1. Read the heading, the lead and the ways to reach the farm; follow
+     "contact form".
+  2. At 390, compare the ways and the form.
+  3. Send empty; send with `you@farm`, then add `.com`.
+  4. Send a good message and an order number while the answer is held;
+     press again; release.
+  5. Send with a 422 for the order number, then with a 500.
+- **Assert:** "Don't be a chicken. Talk to us." and James's lead; call
+  or text, email, Instagram and the farm, with "by appointment"; the
+  link lands on the form; the honeypot is hidden and out of the tab
+  order. On a phone the form sits under the ways. Empty: "Tell us your
+  name.", "Enter your email address, so we can answer.", "Write us a
+  message first.", Name focused, nothing sent. A bad address is named
+  and its error clears once put right. The post carries name, order
+  number, message and an empty `website`; the button shows the egg and
+  "Sending" at its width; one request only; then "Thanks, we have it"
+  with the address. A 422 lands under its field; a 500 shows the alert
+  and keeps the message.
+- **Teardown:** None.
+
 ### AR-15 The contact form (#140)
 
-Pending.
+Pending: the function, the home band's new heading and the prefill of
+a signed-in customer's order number have not landed.
 
 - **Scenario:** A visitor writes to the farm from `/contact/`.
 - **Setup:** A unique address.

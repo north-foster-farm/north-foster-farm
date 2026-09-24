@@ -4,6 +4,7 @@
 // stubbed here; farm news end to end is news.spec.mjs.
 // docs/qa-launch.md, "The autumn refresh".
 
+import { expectBusy, expectIdle, holdRequests } from "./support/busy.mjs";
 import { expect, test } from "./support/order.mjs";
 
 const LINKS = [
@@ -131,21 +132,9 @@ test.describe("footer (#141)", () => {
   test("while it sends, the button shows the egg and keeps its width",
     async ({ page }) => {
       const form = page.locator("footer [data-news-signup]");
-      const button = form.locator(".news-signup-button");
-      const busy = form.locator(".news-signup-busy");
-      let calls = 0;
-      let release;
-      const held = new Promise((resolve) => {
-        release = resolve;
-      });
+      const button = form.locator(".busy-button");
+      const hold = await holdRequests(page, "**/api/news/subscribe");
 
-      await page.route("**/api/news/subscribe", async (route) => {
-        calls += 1;
-        await held;
-        await route.fulfill({
-          status: 200, contentType: "application/json", body: "{}",
-        });
-      });
       await page.goto("/");
 
       const email = "qa-e2e-footer@example.com";
@@ -153,27 +142,19 @@ test.describe("footer (#141)", () => {
 
       await form.locator("input[type='email']").fill(email);
       await button.click();
-      await expect(form).toHaveAttribute("data-state", "busy");
-      await page.waitForTimeout(400);
-      await expect(busy).toHaveText("Submitting");
-      await expect(busy).toHaveCSS("opacity", "1");
-      await expect(busy).toHaveAttribute("aria-hidden", "false");
-      await expect(busy.locator("svg.egg-spinner")).toBeVisible();
-      await expect(form.locator(".news-signup-idle"))
-        .toHaveCSS("opacity", "0");
-      expect((await button.boundingBox()).width).toBe(width);
+      await expectBusy(page, button, { busyWord: "Submitting", width });
       await expect(form.locator("[data-news-note]")).toHaveText("");
 
-      // A second press while it sends sends nothing more.
-      await button.click();
-      release();
+      // A second press while it sends sends nothing more. The button is
+      // only aria-disabled, so a person can still press it.
+      await button.click({ force: true });
+      hold.release();
 
       await expect(form.locator("[data-news-note]")).toHaveText(
         `Check ${email} for an email from us. One click there and you're ` +
         "on the list."
       );
-      await expect(form).not.toHaveAttribute("data-state", "busy");
-      expect((await button.boundingBox()).width).toBe(width);
-      expect(calls).toBe(1);
+      await expectIdle(button, { width });
+      expect(hold.calls()).toBe(1);
     });
 });
