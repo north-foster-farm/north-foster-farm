@@ -428,6 +428,13 @@
     box-shadow:
       var(--order-shadow),
       0 0.75rem 2rem rgb(0 0 0 / 12%);
+
+    // Off to the right, no wider than the column it becomes at xl;
+    // a phone still gets the full width.
+    @media (min-width: 768px) {
+      width: min(100%, 27rem);
+      margin-left: auto;
+    }
   }
 
   // Folds with the one height transition that works on auto.
@@ -1429,8 +1436,9 @@
       position: sticky;
       top: 1rem;
       bottom: auto;
+      width: auto;
       max-height: calc(100svh - 2rem);
-      margin-top: 0;
+      margin: 0;
       box-shadow: var(--order-shadow);
     }
 

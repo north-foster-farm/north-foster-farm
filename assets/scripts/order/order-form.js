@@ -516,8 +516,12 @@ export class OrderForm {
 
       return;
     }
+    // An accepted code leaves the field empty for the next one; the
+    // discount line and the note say it is on. Apply with the field
+    // empty takes it off again.
     if (typed === JOKE_CODE) {
       this.startJoke();
+      input.value = "";
       say("Code applied.", "good");
       this.refresh();
 
@@ -529,6 +533,7 @@ export class OrderForm {
 
     if (found) {
       this.code = { code: typed, label: found.label, off: found.off };
+      input.value = "";
       say(`Code applied: $${found.off} off.`, "good");
     } else if (!quiet) {
       say("We don't know that code. Your order goes through without one.");
@@ -543,7 +548,8 @@ export class OrderForm {
     const since = Date.now();
 
     row.className = "order-cart-row order-cart-credit order-cart-joke";
-    dt.textContent = `Discount (${JOKE_CODE})`;
+    dt.textContent = `Discount (${JOKE_CODE}, ${
+      dollars(JOKE_PER_MINUTE)}/min)`;
     row.appendChild(dt);
     row.appendChild(dd);
     qs(this.cart, "[data-total-row='fee']").before(row);
@@ -807,7 +813,9 @@ export class OrderForm {
           notes: value("delivery.notes"),
         },
       },
-      code: normalizeCode(qs(this.form, "[data-field='code']").value),
+      code: this.code
+        ? this.code.code
+        : normalizeCode(qs(this.form, "[data-field='code']").value),
       claimedTotal: this.totals().total,
       website: qs(this.form, "[name='website']").value,
     };
