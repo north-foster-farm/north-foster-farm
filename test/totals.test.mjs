@@ -77,6 +77,13 @@ describe("delivery fee", () => {
     assert.equal(totalsAt(150, "delivery").deliveryFee, 0);
   });
 
+  it("is not charged on an empty cart", () => {
+    const t = totalsAt(0, "delivery");
+
+    assert.equal(t.deliveryFee, 0);
+    assert.equal(t.total, 0);
+  });
+
   it("is never charged for pickup or drop sites", () => {
     assert.equal(totalsAt(20, "onfarm").deliveryFee, 0);
     assert.equal(totalsAt(20, "scituate").deliveryFee, 0);

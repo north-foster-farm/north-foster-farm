@@ -182,6 +182,11 @@ describe("the fee cell", () => {
     assert.deepEqual(feeCell(at(60), "onfarm", money), { show: false });
   });
 
+  it("is absent on an empty cart", () => {
+    assert.deepEqual(feeCell(at(0, "delivery"), "delivery", money),
+      { show: false });
+  });
+
   it("charges under $150 and says Free at $150 or more", () => {
     assert.deepEqual(feeCell(at(149.99, "delivery"), "delivery", money), {
       show: true, waived: false, text: "+$5",
