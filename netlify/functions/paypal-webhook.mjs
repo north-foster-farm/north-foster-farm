@@ -2,27 +2,25 @@
 // Each delivery is verified with PayPal (PAYPAL_WEBHOOK_ID names the
 // subscription) before anything is read from it.
 //
-//   PAYMENT.CAPTURE.COMPLETED   money arrived. Normally the page's own
-//                               capture request recorded the order
-//                               already and this is a no-op; if the
-//                               browser closed between approving and
-//                               capturing, the checkout kept under the
-//                               PayPal order is finished from here.
+//   PAYMENT.CAPTURE.COMPLETED   money arrived. The page's own capture
+//                               request records the order, and this
+//                               arrives while it is still at work, so
+//                               finishing here would race it and write
+//                               the order twice. It is only noted: a
+//                               checkout the page never finished is
+//                               the jobs' (rescueCheckout).
 //   PAYMENT.CAPTURE.REFUNDED    a refund made in PayPal rather than
 //                               the CLI, noted on the order.
 //
 // PayPal retries on anything but a 2xx, so an event about a payment
 // this site knows nothing of answers 200.
 
-import { finishVenmo } from "./lib/checkout.mjs";
 import { mark } from "./lib/health.mjs";
 import { json } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { verifyWebhook } from "./lib/paypal.mjs";
 import { recordRefund } from "./lib/payments.mjs";
-import {
-  checkoutByPayPal, getOrder, orderByPayment,
-} from "./lib/records.mjs";
+import { checkoutByPayPal, orderByPayment } from "./lib/records.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
 const cents = (amount) => (amount && amount.value
@@ -42,19 +40,15 @@ export const applyEvent = async (stores, event, options = {}) => {
 
     const checkout = await checkoutByPayPal(stores, paypalOrderId);
 
-    if (!checkout) return { handled: false, reason: "unknown checkout" };
-
-    const existing = await getOrder(stores, checkout.order.id);
-
-    if (existing && existing.status === "paid") {
-      return { handled: true, id: existing.id, repeat: true };
+    if (checkout) {
+      return { handled: false, id: checkout.order.id, reason: "pending" };
     }
 
-    const saved = await finishVenmo(stores, checkout.order, {
-      key: checkout.key, attempt: checkout.attempt, paypalOrderId,
-    }, { ...options, now });
+    const order = await orderByPayment(stores, resource.id);
 
-    return { handled: true, id: saved.id, recovered: true };
+    return order
+      ? { handled: true, id: order.id, repeat: true }
+      : { handled: false, reason: "unknown checkout" };
   }
 
   if (event.event_type === "PAYMENT.CAPTURE.REFUNDED") {

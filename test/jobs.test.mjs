@@ -309,6 +309,52 @@ describe("runJobs", () => {
     assert.equal(await stores.orders.get("by-paypal/PPO-1"), null);
   });
 
+  it("rescues an approved Venmo checkout before the sweep", async () => {
+    const stores = testStores();
+    const { opts } = harness();
+    const calls = [];
+    const paypal = {
+      getOrder: async (id) => ({
+        status: id === "PPO-1" ? "APPROVED" : "CREATED",
+        updatedAt: placed.toISOString(), capture: null,
+      }),
+      captureOrder: async (id) => {
+        calls.push(id);
+
+        return {
+          paypalOrderId: id, paypalCaptureId: "CAP-1", status: "COMPLETED",
+          amount: 1200, payer: { email: null, name: null },
+        };
+      },
+    };
+    const square = {
+      createOrder: async () => ({ squareOrderId: "SQO", customerId: "C" }),
+      createPayment: async () => ({ squarePaymentId: "PAY" }),
+    };
+
+    await saveCheckout(stores, {
+      key: "k-approved", attempt: 1, at: placed.toISOString(),
+      order: { ...order("A"), status: undefined }, paypalOrderId: "PPO-1",
+    });
+    await saveCheckout(stores, {
+      key: "k-abandoned", attempt: 1, at: placed.toISOString(),
+      order: { ...order("B"), status: undefined }, paypalOrderId: "PPO-2",
+    });
+
+    const r = await runJobs(stores, {
+      ...opts, paypal, square,
+      now: new Date(placed.getTime() + CHECKOUT_TTL + 60_000),
+    });
+
+    assert.deepEqual(r.checkoutsRescued, ["A"]);
+    assert.deepEqual(calls, ["PPO-1"]);
+    assert.equal(r.checkoutsSwept, 1);
+    assert.equal((await getOrder(stores, "A")).payment.paypalCaptureId,
+      "CAP-1");
+    assert.equal(await getOrder(stores, "B"), null);
+    assert.deepEqual(r.errors, []);
+  });
+
   it("sends the morning report once a morning, with the pickups to " +
     "decide", async () => {
     const stores = testStores();
