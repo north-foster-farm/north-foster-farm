@@ -10,22 +10,24 @@
     background-color: #fcfcfc;
   }
 
-  // Hero: the photograph fills the viewport below the header, at its
-  // own brightness; the type gets the little contrast it needs from a
-  // hairline stroke, not a tint over the picture. The body is centred
-  // on the viewport, not on the hero, by reserving the header's height
-  // below it.
+  // Hero: the photograph fills the viewport below the header, up to
+  // 80rem on a tall screen, under a slight black tint; the type gets
+  // the rest of the contrast it needs from a hairline stroke. The body
+  // is centred on the viewport, not on the hero, by reserving the
+  // header's height below it.
 
   .home-hero {
     position: relative;
     display: grid;
     align-items: center;
-    min-height: calc(100vh - 3.5rem);
-    min-height: calc(100svh - 3.5rem);
+    min-height: min(calc(100vh - 3.5rem), 80rem);
+    min-height: min(calc(100svh - 3.5rem), 80rem);
     overflow: hidden;
     background-color: $gray-700;
   }
 
+  // The tint: darkening the picture by a fifth is the same as a black
+  // layer at 18% over it, without the extra layer.
   .home-hero-img {
     position: absolute;
     inset: 0;
@@ -33,6 +35,7 @@
     height: 100%;
     object-fit: cover;
     object-position: 30% 45%; // The hen sits in the left third.
+    filter: brightness(0.82);
   }
 
   // Block padding only: the container keeps its side gutters, so the
@@ -77,17 +80,24 @@
     text-align: center;
   }
 
+  // Nothing wraps; the title breaks only after its marked spans: three
+  // lines on a phone, so it can stand well above the h1, and two from
+  // sm up. The breaks are generated rather than <br>s because the
+  // minifier strips the spaces beside a <br>, and those spaces join
+  // the words wherever that break is off.
   .home-hero-title {
     margin-bottom: 0;
     font-family: $headings-font-family;
     font-weight: normal;
-    font-size: clamp(2rem, 8.6vw, 4.5rem);
+    font-size: clamp(2.25rem, 12vw, 3.5rem);
     line-height: 1.05;
     letter-spacing: -0.08rem;
+    white-space: nowrap;
   }
 
-  .home-hero-line {
-    white-space: nowrap;
+  .home-hero-br-xs::after {
+    content: "\A";
+    white-space: pre;
   }
 
   .home-hero-accent {
@@ -96,12 +106,12 @@
     letter-spacing: -0.12rem;
   }
 
-  // The h1, light. One size from md up; a step smaller and narrower
-  // on phones, where the sentence would otherwise run four lines.
+  // The h1, light. It steps up at md and again at lg; on phones it is
+  // narrower, where the sentence would otherwise run four lines.
   .home-hero-sub {
     max-width: 26ch;
     margin: 1.5rem auto 1.25rem;
-    font-size: 1.125rem;
+    font-size: 1.1875rem;
     font-weight: 300;
     letter-spacing: -0.3px;
     line-height: 1.35;
@@ -392,6 +402,19 @@
   }
 
   @media (min-width: 576px) {
+    .home-hero-title {
+      font-size: clamp(2rem, 8.6vw, 4.5rem);
+    }
+
+    .home-hero-br-xs::after {
+      content: none;
+    }
+
+    .home-hero-br-sm::after {
+      content: "\A";
+      white-space: pre;
+    }
+
     .home-hero-actions {
       flex-flow: row wrap;
       justify-content: center;
@@ -406,8 +429,8 @@
 
   @media (min-width: 768px) {
     .home-hero {
-      min-height: calc(100vh - 4.25rem);
-      min-height: calc(100svh - 4.25rem);
+      min-height: min(calc(100vh - 4.25rem), 80rem);
+      min-height: min(calc(100svh - 4.25rem), 80rem);
     }
 
     .home-hero-body {
@@ -418,10 +441,13 @@
       text-align: end;
     }
 
+    // Light type over a photograph on a large screen wants a heavier
+    // line than the phone's.
     .home-hero-sub {
       max-width: none;
       margin: 2.5rem 0 1.5rem auto;
-      font-size: 1.375rem;
+      font-size: 1.4375rem;
+      -webkit-text-stroke-width: max(2.5px, 0.11em);
     }
 
     .home-hero-actions {
@@ -430,6 +456,10 @@
   }
 
   @media (min-width: 992px) {
+    .home-hero-sub {
+      font-size: 1.5625rem;
+    }
+
     .how-steps {
       grid-template-columns: repeat(4, 1fr);
       max-width: none;
