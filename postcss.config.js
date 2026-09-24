@@ -67,6 +67,7 @@ const plugins = [
         "data-state",
         "busy",
         "data-row-start",
+        "data-playing",
         "aria-pressed",
       ];
     },

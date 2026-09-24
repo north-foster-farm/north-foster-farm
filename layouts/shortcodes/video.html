@@ -1,0 +1,60 @@
+{{/*
+  A short, silent clip from static/videos, in the figure's frame. It
+  plays muted and on a loop, like a photograph that moves, once it is
+  on screen and only where scripts/video/ says autoplay is allowed;
+  otherwise the poster stands in until the viewer presses play.
+
+    {{< video src="videos/tight-quarters" poster="images/tight-quarters.jpg"
+      label="…" >}}
+    Caption text.
+    {{< /video >}}
+
+  src      Path under static/ without the extension. Every encode
+           there (.mp4, .webm) becomes a source, smallest first.
+  poster   Image under assets/, resized like the figure's.
+  label    What the clip shows, for screen readers.
+  captions A WebVTT file under static/ (optional).
+*/}}
+{{ $src := .Get "src" }}
+{{ $sources := slice }}
+{{ range $ext := slice "mp4" "webm" }}
+  {{ $file := printf "static/%s.%s" $src $ext }}
+  {{ if fileExists $file }}
+    {{ $sources = $sources | append (dict
+      "url" (printf "/%s.%s" $src $ext | relURL)
+      "type" (printf "video/%s" $ext)
+      "size" (os.Stat $file).Size) }}
+  {{ end }}
+{{ end }}
+{{ if not $sources }}
+  {{ errorf "video: no encode at static/%s.{mp4,webm} (%s)" $src .Position }}
+{{ end }}
+{{ $poster := resources.Get (.Get "poster") }}
+{{ if not $poster }}
+  {{ errorf "video: no poster at assets/%s (%s)" (.Get "poster") .Position }}
+{{ end }}
+{{ $poster = $poster.Resize "1150x webp q82" }}
+<figure class="figure d-block mx-auto my-4 photo-frame rounded-3 shadow-sm overflow-hidden video-figure">
+  <div class="video-frame" data-video data-playing="false">
+    <video class="d-block w-100" muted loop playsinline preload="none"
+      poster="{{ $poster.RelPermalink }}"
+      width="{{ $poster.Width }}" height="{{ $poster.Height }}"
+      aria-label="{{ .Get "label" }}">
+      {{ range sort $sources "size" }}
+        <source src="{{ .url }}" type="{{ .type }}">
+      {{ end }}
+      {{ with .Get "captions" }}
+        <track kind="captions" src="{{ printf "/%s" . | relURL }}" srclang="en" label="English">
+      {{ end }}
+    </video>
+    <button class="video-toggle" type="button" data-video-toggle aria-label="Play video">
+      <svg class="video-toggle-play" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5Z"/></svg>
+      <svg class="video-toggle-pause" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 5h3.5v14H7Zm6.5 0H17v14h-3.5Z"/></svg>
+    </button>
+  </div>
+  {{ with .Inner }}
+    <figcaption class="figure-caption text-center fst-italic px-3 py-2">
+      {{ . | markdownify }}
+    </figcaption>
+  {{ end }}
+</figure>
