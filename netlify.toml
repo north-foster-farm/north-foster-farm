@@ -110,6 +110,7 @@ framework = "#custom"
         https://*.venmo.com;
       img-src 'self' data:
         https://api.cash.app https://sandbox.api.cash.app
+        https://www.gstatic.com
         https://franklin-assets.s3.amazonaws.com
         https://*.paypal.com https://*.paypalobjects.com
         https://*.venmo.com;

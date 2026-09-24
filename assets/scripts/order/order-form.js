@@ -6,7 +6,7 @@ import {
   computeTotals, dollars, meetsMinimum, toCents,
 } from "./lib/totals.mjs";
 import {
-  disallowedFor, normalizeCode, validateOrder, zipInfo,
+  disallowedFor, normalizeCode, phoneOk, validateOrder, zipInfo,
 } from "./lib/validate.mjs";
 import { label } from "./lib/zoned.mjs";
 import { celebrate } from "./celebrate.js";
@@ -161,7 +161,25 @@ export class OrderForm {
       any = true;
     }
 
+    this.showContact();
     if (any) this.draft.save(this.collect());
+  }
+
+  // "Prefer text or call?" shows once the phone number is one we could
+  // use, and fades in when it appears.
+  showContact() {
+    const row = qs(this.form, "[data-contact-row]");
+    const phone = qs(this.form, "[data-field='customer.phone']");
+    const on = phoneOk(phone.value.trim());
+
+    if (row.dataset.shown === String(on)) return;
+    row.dataset.shown = String(on);
+    if (on) {
+      row.classList.add("is-entering");
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        row.classList.remove("is-entering");
+      }));
+    }
   }
 
   plain(input, on) {
@@ -197,6 +215,10 @@ export class OrderForm {
         e.target.focus();
       }
     });
+
+    qs(this.form, "[data-field='customer.phone']")
+      .addEventListener("input", () => this.showContact());
+    this.showContact();
 
     // The delivery-policy note can be dismissed, and stays dismissed.
     const agree = qs(this.form, "[data-agree]");
@@ -843,6 +865,7 @@ export class OrderForm {
       // date is still valid.
       if (select) select.value = f.date;
     }
+    this.showContact();
   }
 
   // What the payment section asks of the form (pay.js).

@@ -159,10 +159,19 @@ export class Payment {
     }
 
     try {
+      // The iframe cannot see our stylesheet, so the field is told
+      // our colours by value (_variables.scss).
       this.card = await this.payments.card({
         style: {
-          input: { fontSize: "16px" },
-          ".input-container": { borderRadius: "4px" },
+          input: { fontSize: "16px", color: "#212529" },
+          "input::placeholder": { color: "#8a8a8b" },
+          ".input-container": { borderColor: "#e7e7e7", borderRadius: "6px" },
+          ".input-container.is-focus": { borderColor: "#1e7b54" },
+          ".input-container.is-error": { borderColor: "#dc3545" },
+          ".message-text": { color: "#5e5e5f" },
+          ".message-icon": { color: "#5e5e5f" },
+          ".message-text.is-error": { color: "#dc3545" },
+          ".message-icon.is-error": { color: "#dc3545" },
         },
       });
       await this.card.attach(qs(this.root, "[data-card]"));
