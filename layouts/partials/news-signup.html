@@ -16,18 +16,7 @@
       <input class="form-control" type="email" id="{{ $id }}-email" name="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required aria-describedby="{{ $id }}-note">
       <label for="{{ $id }}-email">Farm news by email</label>
     </div>
-    {{/* Both faces share one grid cell, so the button keeps the
-      width of the wider one and only fades between them. */}}
-    <button class="btn btn-primary news-signup-button" type="submit">
-      <span class="news-signup-idle">Sign me up</span>
-      <span class="news-signup-busy" aria-hidden="true">
-        <svg class="egg-spinner" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path class="egg-spinner-track" pathLength="100" d="M12 2.5C8.1 2.5 4.75 8.9 4.75 13.75a7.25 7.25 0 0 0 14.5 0C19.25 8.9 15.9 2.5 12 2.5Z"/>
-          <path class="egg-spinner-run" pathLength="100" d="M12 2.5C8.1 2.5 4.75 8.9 4.75 13.75a7.25 7.25 0 0 0 14.5 0C19.25 8.9 15.9 2.5 12 2.5Z"/>
-        </svg>
-        Submitting
-      </span>
-    </button>
+    {{ partial "busy-button.html" (dict "label" "Sign me up" "busy" "Submitting" "class" "btn-primary") }}
   </div>
   <p class="news-signup-note" id="{{ $id }}-note" data-news-note role="status" aria-live="polite"></p>
 </form>
