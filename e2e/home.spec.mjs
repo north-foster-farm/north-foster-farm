@@ -58,6 +58,114 @@ test.describe("home", () => {
       await expect(page).toHaveURL(/\/order\/$/);
     });
 
+  // #134: the hero stops growing on a tall screen, sits under a black
+  // tint, and on a phone its big line runs three lines, well above the
+  // h1. The title never wraps on its own, so it must fit every width.
+  test("the hero's height, tint and type (#134)", async ({ page }) => {
+    const measure = () => page.evaluate(() => {
+      const hero = document.querySelector(".home-hero");
+      const title = document.querySelector(".home-hero-title");
+      const sub = document.querySelector(".home-hero-sub");
+      const text = document.querySelector(".home-hero-text");
+      const t = getComputedStyle(title);
+      const box = title.getBoundingClientRect();
+      // Its words' extent, not the block's.
+      const range = document.createRange();
+
+      range.selectNodeContents(title);
+
+      const words = range.getBoundingClientRect();
+
+      return {
+        hero: hero.getBoundingClientRect().height,
+        header: document.querySelector("header").getBoundingClientRect()
+          .height,
+        lines: Math.round(box.height / parseFloat(t.lineHeight)),
+        title: parseFloat(t.fontSize),
+        sub: parseFloat(getComputedStyle(sub).fontSize),
+        stroke: parseFloat(getComputedStyle(sub).webkitTextStrokeWidth),
+        left: words.left,
+        right: words.right,
+        room: text.getBoundingClientRect(),
+        filter: getComputedStyle(document.querySelector(".home-hero-img"))
+          .filter,
+        wordmark: getComputedStyle(document.querySelector("header .black"))
+          .fill,
+        primary: getComputedStyle(document.body)
+          .getPropertyValue("--bs-primary").trim(),
+      };
+    });
+
+    await page.goto("/");
+
+    for (const [width, height, lines] of [
+      [320, 568, 3], [390, 664, 3], [575, 800, 3], [576, 800, 2],
+      [768, 900, 2], [990, 900, 2], [1500, 900, 2], [2560, 1600, 2],
+    ]) {
+      await page.setViewportSize({ width, height });
+      await page.waitForTimeout(150);
+
+      const m = await measure();
+      const at = `${width}px`;
+
+      expect(m.lines, `${at} title lines`).toBe(lines);
+      expect(m.left, `${at} title inside the window`)
+        .toBeGreaterThanOrEqual(0);
+      expect(m.right, `${at} title inside the window`)
+        .toBeLessThanOrEqual(width);
+      expect(m.right, `${at} title inside its column`)
+        .toBeLessThanOrEqual(m.room.right + 1);
+      expect(m.hero, `${at} hero height`).toBeLessThanOrEqual(1300);
+      if (width < 576) {
+        expect(m.title / m.sub, `${at} big line over the h1`)
+          .toBeGreaterThanOrEqual(1.8);
+      }
+      if (width >= 768) {
+        expect(m.stroke, `${at} h1 stroke`).toBeGreaterThanOrEqual(2.5);
+      }
+      expect(m.filter).toBe("brightness(0.82)");
+    }
+
+    const m = await measure();
+
+    // The wordmark in the primary green, however the browser spells it.
+    const rgb = await page.evaluate((c) => {
+      const el = document.createElement("i");
+
+      el.style.color = c;
+      document.body.append(el);
+
+      const out = getComputedStyle(el).color;
+
+      el.remove();
+
+      return out;
+    }, m.primary);
+
+    expect(m.wordmark).toBe(rgb);
+  });
+
+  // The hero reserves the header's height below it so that together
+  // they fill the window, up to 80rem, and nothing peeks in under the
+  // fold. Production: 69px header from md up, 4.25rem reserved.
+  test("the hero and header fill the window exactly", async ({ page }) => {
+    await page.goto("/");
+
+    for (const [width, height] of [
+      [390, 664], [767, 900], [768, 900], [1199, 900], [1500, 900],
+      [1500, 1300],
+    ]) {
+      await page.setViewportSize({ width, height });
+      await page.waitForTimeout(150);
+
+      const bottom = await page.locator(".home-hero")
+        .evaluate((el) => el.getBoundingClientRect().bottom);
+
+      expect(Math.abs(bottom - height), `${width}x${height}: the hero ` +
+        "ends at the window's bottom edge").toBeLessThanOrEqual(1);
+    }
+  });
+
   // #135: hover is a button's strongest moment, the shadows are a
   // little softer, and only phones get the wide button. Hover needs a
   // mouse, so these run in the desktop project and set their widths.
