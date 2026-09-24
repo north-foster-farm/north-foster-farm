@@ -1,0 +1,129 @@
+// Accounts: sign-in by emailed link, Find my order, and a paid order
+// on the account page's Orders and Receipts tabs. The order is placed
+// through the API with Square's approved sandbox nonce, then
+// cancelled, refunded and deleted. docs/qa-launch.md, "After the
+// order".
+
+import { NONCE, eggOrder, postOrder } from "./support/api.mjs";
+import { expect, test, uniqueEmail } from "./support/order.mjs";
+import {
+  BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, deleteCustomer,
+  linkIn, mailTo, teardown, waitForMail,
+} from "./support/staging.mjs";
+
+const SIGN_IN = "Your secure sign-in link to North Foster Farm";
+
+test.describe.configure({ mode: "serial" });
+
+test.describe("accounts", () => {
+  test.skip(!backOffice().cli, BACK_OFFICE_MISSING);
+
+  const email = uniqueEmail("account");
+  let orderId;
+  let since;
+
+  test.beforeAll(async ({ request }) => {
+    since = new Date();
+
+    const { status, body } = await postOrder(request, await eggOrder(
+      request, { email, nonce: NONCE.ok }
+    ));
+
+    expect(status, JSON.stringify(body)).toBe(200);
+    orderId = body.orderId;
+  });
+
+  test.afterAll(() => teardown([
+    () => (orderId ? closeOrder(orderId) : null),
+    () => deleteCustomer(email),
+    () => clearMail({ to: email, since }),
+  ]));
+
+  test("a link by email signs in, once", { tag: "@regression" },
+    async ({ page }) => {
+      const asked = new Date();
+
+      await page.goto("/login/");
+      await page.locator("#login-email").fill(email);
+      await page.locator("#login-submit").click();
+      await expect(page.locator("#login-sent")).toBeVisible();
+      await expect(page.locator("[data-login-email]")).toHaveText(email);
+
+      const mail = await waitForMail({ to: email, subject: SIGN_IN,
+        since: asked });
+      const link = linkIn(mail, /\/api\/auth\/verify\?token=/);
+
+      expect(link, "sign-in link in the email").toBeTruthy();
+      expect(new URL(link).host).toBe(new URL(page.url()).host);
+
+      await page.goto(link);
+      await expect(page).toHaveURL(/\/account\/?/);
+      await expect(page.locator("#account-email")).toHaveText(email);
+
+      // The same link a second time explains itself on /login/.
+      await page.context().clearCookies();
+      await page.goto(link);
+      await expect(page).toHaveURL(/\/login\//);
+      await expect(page.locator("[data-login-notice]")).toContainText(
+        "already used"
+      );
+    });
+
+  test("the account page lists the order and its receipt",
+    async ({ page }) => {
+      const asked = new Date();
+
+      await page.goto("/login/");
+      await page.locator("#login-email").fill(email);
+      await page.locator("#login-submit").click();
+
+      const mail = await waitForMail({ to: email, subject: SIGN_IN,
+        since: asked });
+
+      await page.goto(linkIn(mail, /\/api\/auth\/verify\?token=/));
+      await expect(page).toHaveURL(/\/account\/?/);
+      await expect(page.locator("#orders-list")).toContainText(orderId);
+      await expect(page.locator("#orders-list")).toContainText(
+        "Pickup time requested. We'll confirm it by email."
+      );
+      await page.locator("[data-tab='receipts']").click();
+      await expect(page.locator("#receipts-body")).toContainText(orderId);
+      // The sandbox's approved nonce is a Visa ending 5858.
+      await expect(page.locator("#receipts-body")).toContainText(
+        /Visa ending \d{4}/
+      );
+      await expect(page.locator("#receipts-body")).toContainText("$7");
+      await expect(page.locator("body")).not.toContainText("Pay now");
+      await expect(page.locator("body")).not.toContainText(
+        "I paid by Venmo"
+      );
+    });
+
+  test("Find my order mails a link to that order; a wrong pair mails " +
+    "nothing", async ({ page }) => {
+    const asked = new Date();
+    const stranger = uniqueEmail("stranger");
+
+    await page.goto("/login/");
+    await page.locator("#find-email").fill(email);
+    await page.locator("#find-order").fill(orderId.toLowerCase());
+    await page.locator("#find-submit").click();
+    await expect(page.locator("#login-sent")).toBeVisible();
+
+    const mail = await waitForMail({ to: email, subject: SIGN_IN,
+      since: asked });
+    const link = linkIn(mail, /\/api\/auth\/verify\?token=/);
+
+    await page.goto(link);
+    await expect(page).toHaveURL(new RegExp(orderId));
+
+    await page.context().clearCookies();
+    await page.goto("/login/");
+    await page.locator("#find-email").fill(stranger);
+    await page.locator("#find-order").fill(orderId);
+    await page.locator("#find-submit").click();
+    await expect(page.locator("#login-sent")).toBeVisible();
+    await page.waitForTimeout(8_000);
+    expect(await mailTo(stranger, asked)).toEqual([]);
+  });
+});
