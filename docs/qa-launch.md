@@ -25,9 +25,11 @@ after itself: paid orders are cancelled with `--refund` and deleted,
 test customers are deleted, and their messages are removed from the
 outbox. The outbox is read from the jobs store with the CLI's Netlify
 credentials, or over `/api/staging/outbox` when `STAGING_TOKEN` is set.
-`POST /api/orders` drops a caller silently after 12 requests in 10
-minutes; one full run sends about ten, so leave ten minutes between runs
-that include the payment, API and account specs.
+`POST /api/orders` answers 429 after 12 requests in 10 minutes; one full
+run sends about ten, so leave ten minutes between runs that include the
+payment, API and account specs. `rate-limit.spec.mjs` (PY-18) reaches
+the limit on purpose and runs only with `E2E_LOCKOUT=1`: run it alone,
+last in a pass.
 
 Two projects: `desktop` (Chromium, 1500 by 900) runs every spec;
 `phone` (Chromium, 390 by 664, touch) runs the order page and the forms.
@@ -121,8 +123,7 @@ out" (both projects).
 ### OP-06 The × works right after typing
 
 Automated: `order-page.spec.mjs`, "the × works on the first click right
-after typing in a field" (both projects). Fails today: finding D1 in the
-report.
+after typing in a field" (both projects). Finding D1, fixed by #155.
 
 - **Scenario:** A customer types a ZIP (or any field), then removes a
   cart line; leaving the field re-renders the cart, and the first click
@@ -1012,7 +1013,7 @@ panel, and Stop trying hands the form back".
 ### PY-09 A permanent failure goes to the by-hand card
 
 Automated: `recovery.spec.mjs`, "a permanent failure shows the order to
-send by hand". Fails today: finding D3.
+send by hand". Finding D3, fixed by #156.
 
 - **Scenario:** A 502 from the server is permanent (`docs/order-form.md`)
   and should not be retried for eight minutes.
@@ -1022,7 +1023,7 @@ send by hand". Fails today: finding D3.
 - **Assert:** Within 20 seconds, "Send this to us and we'll finish it by
   hand" with a summary containing "1 × Eggs" and "Total $7", a
   `mailto:` whose subject is "Order from the website", and a `tel:`
-  link.
+  link. The endpoint was called once.
 - **Teardown:** None.
 
 ### PY-10 The card box
@@ -1139,19 +1140,27 @@ Manual: needs a preview with a broken Square token.
 
 ### PY-18 A rate-limited order must not say it is placed
 
-Manual: reproducing it locks the tester's address out of `/api/orders`
-for ten minutes. Finding D4.
+Automated: `rate-limit.spec.mjs`, both tests, with `E2E_LOCKOUT=1`
+only, since it locks this address out of `/api/orders` for ten minutes;
+the page alone, stubbed, in `recovery.spec.mjs`, "too many tries says
+so by the Pay button and keeps the order" and "an empty 204 is never
+taken for a placed order". Finding D4, fixed by #154; passed on staging
+2026-09-24.
 
 - **Scenario:** After 12 requests from one address in 10 minutes the
-  endpoint answers 204, and the page shows "Your order is placed" for
-  an order that was never charged or recorded.
-- **Setup:** A spare network (a phone hotspot), 1 egg, pickup, details.
+  endpoint once answered 204, and the page showed "Your order is placed"
+  for an order that was never charged or recorded.
+- **Setup:** None; the spec sends cheap requests (no submission key,
+  refused with 422 after they are counted) until the limit answers.
 - **Test:**
-  1. Send twelve declined attempts (card `4000 0000 0000 0002`).
-  2. Pay with the approved card.
-- **Assert:** The page must not show "Thank you ... Your order is
-  placed." without an order number; today it does. Screenshot:
-  `.ignored/qa/2026-09-24-launch/rate-limited-thank-you.png`.
+  1. Post until the endpoint answers 429; post the honeypot.
+  2. On the page: 1 egg, pickup, details, the approved card; press
+     Place your order.
+- **Assert:** 429 with `Retry-After: 600` and the message "There have
+  been too many tries from here. Wait a few minutes and try again; your
+  order is saved on this page."; the honeypot still gets 204. The page
+  shows that message by the Pay button, no "Your order is placed", the
+  button enabled, the cart kept; `orders list` finds nothing.
 - **Teardown:** None (nothing is recorded).
 
 ## After the order
@@ -1932,6 +1941,22 @@ Pending.
 - **Assert:** B shows 3 wings and the code; the newer draft wins; the
   guest cart becomes the account's.
 - **Teardown:** Delete the customer.
+
+### AR-28 How to buy (#150)
+
+Automated: `home.spec.mjs`, "How to buy walks four steps without the
+invoice era" (both projects).
+
+- **Scenario:** James's wording for paying on the page replaces the
+  emailed payment link.
+- **Setup:** Home page.
+- **Test:**
+  1. Read `#how-to-buy`; press Shop all products.
+- **Assert:** "From our pasture to your table"; steps "Shop one page",
+  "Choose your day", "Make a change", "Pick up or delivery", each with
+  its icon; no "invoice", "payment link" or "Pay to confirm"; the
+  button lands on `/order/`.
+- **Teardown:** None.
 
 ## Staging
 

@@ -203,7 +203,8 @@ export class OrderPage {
   }
 
   // Presses Pay and waits for the server's answer to /api/orders.
-  async pay() {
+  // `limited` lets the rate-limit spec see its 429.
+  async pay({ limited = false } = {}) {
     const answer = this.page.waitForResponse(
       (r) => r.url().includes("/api/orders") && r.request().method() === "POST",
       { timeout: 60_000 }
@@ -213,8 +214,8 @@ export class OrderPage {
 
     const res = await answer;
 
-    if (res.status() === 204) {
-      throw new Error("Dropped with 204: the order endpoint's rate limit " +
+    if (res.status() === 429 && !limited) {
+      throw new Error("Answered 429: the order endpoint's rate limit " +
         "(12 per 10 minutes per IP) was hit. Wait ten minutes and run " +
         "again.");
     }
