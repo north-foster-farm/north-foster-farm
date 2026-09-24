@@ -99,8 +99,12 @@ export const validateOrder = (payload, {
   if (!EMAIL.test(email)) {
     errors["customer.email"] = "That email address doesn't look right.";
   }
+  // Delivery needs a phone for the driver; pickup and the drop site
+  // can do without. A number given must be one we could use.
   if (!phone) {
-    errors["customer.phone"] = "Please enter a phone number.";
+    if (fulfilment.method === "delivery") {
+      errors["customer.phone"] = "Please enter a phone number.";
+    }
   } else if (!phoneOk(phone)) {
     errors["customer.phone"] = "That phone number doesn't look right.";
   }

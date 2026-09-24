@@ -138,7 +138,7 @@ export const requestSubscribe = async (stores, {
       to: address,
       idempotencyKey: `news-${hash(token).slice(0, 16)}`,
       ...newsConfirm(address, url, {
-        firstName: first, days: Math.round(ttl / DAY), links: mailLinks(env),
+        days: Math.round(ttl / DAY), links: mailLinks(env),
       }),
     }, { env });
   }

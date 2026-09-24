@@ -132,13 +132,15 @@ describe("the customer's details", () => {
     }
   });
 
-  it("need a phone number, and a plausible one", () => {
-    const missing = validateOrder(withCustomer({ phone: "" }), ctx);
+  it("need a phone number for delivery, and a plausible one", () => {
+    const missing = delivery();
 
-    assert.equal(missing.status, 422);
-    assert.equal(
-      missing.errors["customer.phone"], "Please enter a phone number."
-    );
+    missing.customer.phone = "";
+
+    const r = validateOrder(missing, ctx);
+
+    assert.equal(r.status, 422);
+    assert.equal(r.errors["customer.phone"], "Please enter a phone number.");
 
     for (const phone of ["12345", "401-555-010", "+44 20 7946 0958"]) {
       const r = validateOrder(withCustomer({ phone }), ctx);
@@ -150,6 +152,13 @@ describe("the customer's details", () => {
     for (const phone of ["4015550100", "(401) 555-0100", "1-401-555-0100"]) {
       assert.ok(validateOrder(withCustomer({ phone }), ctx).ok, phone);
     }
+  });
+
+  it("need no phone for pickup or the drop site", () => {
+    const r = validateOrder(withCustomer({ phone: "" }), ctx);
+
+    assert.ok(r.ok);
+    assert.equal(r.order.customer.phone, "");
   });
 
   it("need to say text or call", () => {
@@ -169,7 +178,7 @@ describe("the customer's details", () => {
     assert.equal(r.status, 422);
     assert.deepEqual(Object.keys(r.errors).sort(), [
       "customer.contact", "customer.email", "customer.firstName",
-      "customer.lastName", "customer.phone", "fulfilment.method", "lines",
+      "customer.lastName", "fulfilment.method", "lines",
     ]);
   });
 });
