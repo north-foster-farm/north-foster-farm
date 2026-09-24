@@ -1,5 +1,8 @@
 .policy {
+  // flow-root keeps the heading, and so its rule, out from under a
+  // floated figure such as the about page's egg.
   h2 {
+    display: flow-root;
     margin-top: 2.25rem;
     margin-bottom: 1rem;
     padding-bottom: 0.25rem;
