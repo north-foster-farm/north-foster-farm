@@ -302,6 +302,29 @@ export class OrderForm {
       this.setOpen(this.cart.dataset.open !== "true");
     });
 
+    // Below xl the pane floats at the foot of the screen while its
+    // place in the page is further down, and settles into the flow
+    // after the last row. Floating it casts a shadow; settled it is
+    // flat and carries its heading. Sticky gives no event for this,
+    // so the rect says which.
+    let stuckTick = null;
+    const stuckWatch = () => {
+      stuckTick = null;
+
+      const r = this.cart.getBoundingClientRect();
+      const floating = matchMedia("(max-width: 1199.98px)").matches
+        && r.bottom > window.innerHeight - 13;
+
+      this.cart.dataset.stuck = String(floating);
+    };
+    const onScroll = () => {
+      if (stuckTick === null) stuckTick = requestAnimationFrame(stuckWatch);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    stuckWatch();
+
     // The list of lines scrolls once the cart would take half the
     // screen; the fades at its edges say there is more.
     qs(this.cart, "[data-cart-items]").addEventListener(

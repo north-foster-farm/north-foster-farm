@@ -61,6 +61,7 @@ const plugins = [
         "good",
         "warn",
         "data-shown",
+        "data-stuck",
         "aria-pressed",
       ];
     },
