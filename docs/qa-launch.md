@@ -1955,54 +1955,75 @@ there is no dismissal.
   shows; at 2:01 it is gone and the hero reserves no room for it.
 - **Teardown:** None.
 
-### AR-15a The contact page (#140)
+### AR-15a The contact page (#140, #176)
 
 Automated: `contact.spec.mjs`, every test (both projects), with
-`/api/contact` stubbed so the busy state and the failures can be held.
-The real function (c47e66d) is AR-15 and AR-16.
+`/api/contact` stubbed so the busy state and the failures can be held,
+and `/api/me` and `/api/account/orders` stubbed for the order row's
+three cases. The real function (c47e66d) is AR-15 and AR-16.
 
-- **Scenario:** The page and its form.
+- **Scenario:** The page and its form; the order row as #176 made it,
+  a choice of the customer's own orders.
 - **Setup:** `/contact/`.
 - **Test:**
   1. Read the heading, the lead and the ways to reach the farm; follow
      "contact form".
   2. At 390, compare the ways and the form.
   3. Send empty; send with `you@farm`, then add `.com`.
-  4. Send a good message and an order number while the answer is held;
-     press again; release.
-  5. Send with a 422 for the order number, then with a 500.
+  4. Send a good message while the answer is held; press again;
+     release.
+  5. Send with a 422 for the email, then with a 500.
+  6. Signed out; signed in with no orders; signed in with two orders,
+     picking the older; signed in with seven, picking one, then typing
+     `QA5`, then `Sep`, then Enter in the filter.
 - **Assert:** "Don't be a chicken. Talk to us." and James's lead; call
   or text, email, Instagram and the farm, with "by appointment"; the
   link lands on the form; the honeypot is hidden and out of the tab
   order. On a phone the form sits under the ways. Empty: "Tell us your
   name.", "Enter your email address, so we can answer.", "Write us a
   message first.", Name focused, nothing sent. A bad address is named
-  and its error clears once put right. The post carries name, order
-  number, message and an empty `website`; the button shows the egg and
-  "Sending" at its width; one request only; then "Thanks, we have it"
-  with the address. A 422 lands under its field; a 500 shows the alert
-  and keeps the message.
+  and its error clears once put right. The post carries name, message,
+  an empty `orderId` and an empty `website`; the button shows the egg
+  and "Sending" at its width; one request only; then "Thanks, we have
+  it" with the address. A 422 lands under its field; a 500 shows the
+  alert and keeps the message. Signed out, or signed in with no
+  orders, no order row and `orderId` ""; signed in, name and email
+  filled. With orders, a native select labelled "Order (optional)":
+  "No particular order", then "NFF-…, Sep 2, 2026, $21" newest first,
+  no filter, and the pick is posted. With seven, a filter labelled
+  "Find an order" that narrows the list, keeps the chosen order listed,
+  says "1 order matches" and "7 orders match", and never sends on
+  Enter.
 - **Teardown:** None.
 
-### AR-15 The contact form (#140)
+### AR-15 The contact form (#140, #176)
 
-Automated: `contact-send.spec.mjs`, "a message reaches the farm,
-answered by a plain reply" (desktop). Passed on staging 2026-09-25.
+Automated: `contact-send.spec.mjs` (desktop), its first three tests.
 The acknowledgement to the writer that #140 proposed is optional and
-waits on #167; the page does not prefill a signed-in customer's order
-number (a line in #159).
+waits on #167. The page and the API share a limit of five posts per IP
+in ten minutes, answered with a quiet 200: leave ten minutes between
+runs, and after any hand test from the same machine.
 
-- **Scenario:** A visitor writes to the farm from `/contact/`.
-- **Setup:** A unique address and name.
+- **Scenario:** A visitor, and a signed-in customer, write to the farm.
+- **Setup:** A unique address and name; for the last step, a paid
+  order for that address placed at the API with `cnon:card-nonce-ok`.
 - **Test:**
-  1. Send a message with an order number that is not the writer's.
-- **Assert:** "Thanks, we have it", with no word about the order; the
-  farm's "Message from <name> about <number>" in the outbox with
-  reply-to set to the writer, the message, and "no order by that
-  number with this email"; one `messages/<id>` record, open, with
-  `order: false`; nothing to the writer.
-- **Teardown:** The record deleted from the customers store (no CLI
-  command until #167); the outbox cleared.
+  1. Signed out, send a message from `/contact/`.
+  2. At the API, send one with an order number that is not the
+     writer's.
+  3. Sign in by the emailed link, opened in a new tab as from a mail
+     app; on `/contact/`, pick the order and send.
+- **Assert:** Signed out: no order row; "Thanks, we have it"; the
+  farm's "Message from <name>" with reply-to set to the writer and the
+  message; one `messages/<id>` record, open, `orderId` "" and `order`
+  null; nothing to the writer. Someone else's number: 200 `{ ok: true
+  }`, and only the farm is told "no order by that number with this
+  email" (`order: false`). Signed in: the row lists the order ending
+  "$7"; the farm's "Message from <name> about <id>" says "placed with
+  this email"; the record has `order: true`.
+- **Teardown:** The order cancelled with `--refund` and deleted; the
+  records deleted from the customers store (no CLI command until
+  #167); the customer deleted; the outbox cleared.
 
 ### AR-16 The contact form refuses abuse (#140)
 

@@ -14,7 +14,10 @@ const LEAD = "Call, text, email, message us on Instagram, or use our " +
 const fields = (page) => ({
   name: page.locator("#contact-name"),
   email: page.locator("#contact-email"),
+  orders: page.locator("#contact-form [data-contact-orders]"),
   order: page.locator("#contact-order"),
+  filter: page.locator("#contact-order-filter"),
+  filterStatus: page.locator("#contact-form [data-contact-filter-status]"),
   message: page.locator("#contact-message"),
   submit: page.locator("#contact-submit"),
   alert: page.locator("#contact-form [data-contact-error]"),
@@ -33,6 +36,28 @@ const fill = async (f, {
   await f.email.fill(email);
   await f.message.fill(message);
 };
+
+// Who the page thinks is signed in, and their orders (#176), answered
+// in the browser: `orders` null means signed out.
+const signIn = async (page, orders) => {
+  const customer = { email: "qa-e2e-contact@example.com", name: "Ada Hen" };
+
+  await page.route("**/api/me", (route) => route.fulfill({
+    json: orders ? { signedIn: true, customer } : { signedIn: false },
+  }));
+  await page.route("**/api/account/orders", (route) => route.fulfill(
+    orders
+      ? { json: { orders } }
+      : { status: 401, json: { error: "Please sign in." } }
+  ));
+};
+
+// Orders as /api/account/orders gives them, oldest first here.
+const ordersOf = (n) => Array.from({ length: n }, (_, i) => ({
+  id: `NFF-26${String(10 + i).padStart(2, "0")}-QA${i}X`,
+  submittedAt: new Date(Date.UTC(2026, 8, 1 + i, 15)).toISOString(),
+  totals: { total: (20 + i) * 100 },
+}));
 
 // Counts what reaches /api/contact without answering for it.
 const countPosts = (page) => {
@@ -143,7 +168,6 @@ test.describe("contact (#140)", () => {
       const width = (await f.submit.boundingBox()).width;
 
       await fill(f, { email: " qa-e2e-contact@example.com " });
-      await f.order.fill("NFF-2610-K3WM");
 
       const posted = page.waitForRequest("**/api/contact");
 
@@ -152,7 +176,7 @@ test.describe("contact (#140)", () => {
       const body = (await posted).postDataJSON();
 
       expect(body).toMatchObject({
-        name: "QA Contact", orderId: "NFF-2610-K3WM",
+        name: "QA Contact", orderId: "",
         message: "Do you have wings this week?", website: "",
       });
       await expectBusy(page, f.submit, { busyWord: "Sending", width });
@@ -173,9 +197,12 @@ test.describe("contact (#140)", () => {
 
   test("the function's field errors land under their fields",
     async ({ page }) => {
+      // An address the page lets through and the function refuses.
+      const refused = "Enter a valid email address, like you@example.com.";
+
       await holdRequests(page, "**/api/contact", {
         status: 422,
-        body: { errors: { orderId: "We can't find that order." } },
+        body: { errors: { email: refused } },
       }).then((hold) => hold.release());
       await page.goto("/contact/");
 
@@ -183,12 +210,10 @@ test.describe("contact (#140)", () => {
       const width = (await f.submit.boundingBox()).width;
 
       await fill(f);
-      await f.order.fill("NFF-0000-XXXX");
       await f.submit.click();
-      await expect(errorFor(page, "orderId"))
-        .toHaveText("We can't find that order.");
-      await expect(f.order).toHaveAttribute("aria-invalid", "true");
-      await expect(f.order).toBeFocused();
+      await expect(errorFor(page, "email")).toHaveText(refused);
+      await expect(f.email).toHaveAttribute("aria-invalid", "true");
+      await expect(f.email).toBeFocused();
       await expect(f.alert).toBeHidden();
       await expectIdle(f.submit, { width });
     });
@@ -208,4 +233,104 @@ test.describe("contact (#140)", () => {
     await expect(f.message).toHaveValue("Do you have wings this week?");
     await expect(f.sent).toBeHidden();
   });
+});
+
+// #176: the order row is a choice of the customer's own orders, shown
+// only to a signed-in customer who has some.
+test.describe("contact: the order row (#176)", () => {
+  test("signed out, there is no order row and no order is sent",
+    async ({ page }) => {
+      await signIn(page, null);
+      await holdRequests(page, "**/api/contact")
+        .then((hold) => hold.release());
+      await page.goto("/contact/");
+
+      const f = fields(page);
+
+      await fill(f);
+      await expect(f.orders).toBeHidden();
+
+      const posted = page.waitForRequest("**/api/contact");
+
+      await f.submit.click();
+      expect((await posted).postDataJSON().orderId).toBe("");
+    });
+
+  test("signed in with no orders, the details fill and the row stays " +
+    "hidden", async ({ page }) => {
+    await signIn(page, []);
+    await page.goto("/contact/");
+
+    const f = fields(page);
+
+    await expect(f.name).toHaveValue("Ada Hen");
+    await expect(f.email).toHaveValue("qa-e2e-contact@example.com");
+    await expect(f.orders).toBeHidden();
+  });
+
+  test("signed in with orders, a labelled list, newest first, sends the " +
+    "one picked", async ({ page }) => {
+    await signIn(page, ordersOf(2));
+    await holdRequests(page, "**/api/contact")
+      .then((hold) => hold.release());
+    await page.goto("/contact/");
+
+    const f = fields(page);
+
+    await expect(f.orders).toBeVisible();
+    await expect(page.getByLabel("Order (optional)")).toHaveJSProperty(
+      "tagName", "SELECT"
+    );
+    await expect(f.order.locator("option")).toHaveText([
+      "No particular order",
+      "NFF-2611-QA1X, Sep 2, 2026, $21",
+      "NFF-2610-QA0X, Sep 1, 2026, $20",
+    ]);
+    await expect(f.order).toHaveValue("");
+    await expect(f.filter).toBeHidden();
+
+    await f.message.fill("Can I add a dozen eggs?");
+    await f.order.selectOption("NFF-2610-QA0X");
+
+    const posted = page.waitForRequest("**/api/contact");
+
+    await f.submit.click();
+    expect((await posted).postDataJSON()).toMatchObject({
+      name: "Ada Hen", email: "qa-e2e-contact@example.com",
+      orderId: "NFF-2610-QA0X",
+    });
+  });
+
+  test("six orders or more bring a filter that narrows the list",
+    async ({ page }) => {
+      const sent = countPosts(page);
+
+      await signIn(page, ordersOf(7));
+      await page.goto("/contact/");
+
+      const f = fields(page);
+
+      await expect(f.filter).toBeVisible();
+      await expect(f.filter).toHaveAttribute("aria-label", "Find an order");
+      await expect(f.order.locator("option")).toHaveCount(8);
+
+      // The chosen order stays listed whatever the filter says.
+      await f.order.selectOption("NFF-2612-QA2X");
+      await f.filter.fill("QA5");
+      await expect(f.order.locator("option")).toHaveText([
+        "No particular order",
+        "NFF-2615-QA5X, Sep 6, 2026, $25",
+        "NFF-2612-QA2X, Sep 3, 2026, $22",
+      ]);
+      await expect(f.order).toHaveValue("NFF-2612-QA2X");
+      await expect(f.filterStatus).toHaveText("1 order matches");
+
+      await f.filter.fill("Sep");
+      await expect(f.filterStatus).toHaveText("7 orders match");
+
+      // Enter narrows; it never sends the form.
+      await f.filter.press("Enter");
+      await page.waitForTimeout(500);
+      expect(sent).toHaveLength(0);
+    });
 });
