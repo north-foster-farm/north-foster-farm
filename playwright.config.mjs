@@ -30,6 +30,7 @@ const desktopOnly = [
   "**/wording.spec.mjs",
   "**/favicon.spec.mjs",
   "**/contact-send.spec.mjs",
+  "**/policies.spec.mjs",
 ];
 
 export default defineConfig({

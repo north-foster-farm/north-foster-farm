@@ -2199,7 +2199,10 @@ tab, which stays by eye. Passed on staging 2026-09-25 (1adb47f,
 
 ### AR-26 The privacy policy (#146)
 
-Pending.
+Partial: `policies.spec.mjs` (desktop) checks the topics and facts
+below, not the wording, which is a draft for James (4d58b76); the
+storage periods are read by hand. Passed on staging 2026-09-25. The
+same spec checks `lang="en-US"` on the three policy pages (99e4717).
 
 - **Scenario:** The policy covers farm news, accounts, payments and
   storage.
