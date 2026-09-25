@@ -1700,10 +1700,11 @@ picture (3:1 or better, per 859d95b) is judged by eye.
   and its words stay inside the window and their column at every width
   (it never wraps on its own); height at most 1300px; below 576 the big
   line at least 1.8 times the h1; no text stroke at any width; the
-  picture under `blur(4px) brightness(0.82)`; a wash of `--bs-primary`
-  at 0.7 to 0.85; from 992 the words in the right part of the hero
-  and its lower part, below 992 centred; the header's wordmark in
-  `--bs-primary`.
+  picture under `blur(4px) brightness(0.82)`; from 992 a wash of
+  `--bs-primary` from the right at 0.75 and the words in the lower
+  right, below 992 a black veil at 0.6 and the words centred (James,
+  2026-09-25, 6e9a992: the green was too heavy centred); the
+  header's wordmark in `--bs-primary`.
 - **Teardown:** None.
 
 ### AR-04b The hero and header fill the window
@@ -1750,18 +1751,20 @@ light but visible.
   height; the same lift shadow as every other button.
 - **Teardown:** None.
 
-### AR-07 Wide buttons on phones only (#135)
+### AR-07 Only the hero's buttons run wide on a phone (#135)
 
-Automated: `home.spec.mjs`, "Shop all products is wide on phones only"
-(desktop, at 1500 and 390).
+Automated: `home.spec.mjs`, "only the hero's buttons are wide on a
+phone" (desktop, at 1500 and 390). James, 2026-09-25 (8269aef): every
+other button is as wide as its words.
 
-- **Scenario:** "Shop all products" matches the hero buttons' padding
-  above phone width.
+- **Scenario:** "Shop all products" matches the hero buttons' padding,
+  and only the hero's buttons fill a phone's width.
 - **Setup:** 1500 and 390.
 - **Test:**
   1. Compare its horizontal padding with the hero buttons'.
-- **Assert:** Equal padding and narrower than 24rem at 1500; the full
-  container width at 390.
+- **Assert:** Equal padding and narrower than 24rem at 1500; at 390,
+  "Shop all products" and the touch actions under 300px, the hero's
+  Order now 300px or more.
 - **Teardown:** None.
 
 ### AR-08 The home news section (#136)
