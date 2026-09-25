@@ -1473,8 +1473,9 @@ capture"; it now takes the capture from the refund's "up" link.
      on a second order, once in part.
   2. Read the function log's `paypal.webhook` line and the record.
 - **Assert:** No "unknown capture" in the log; `refund.source` paypal
-  on the record, with the amount PayPal refunded; a partial refund
-  leaves the order paid with the rest.
+  on the record, `refund.amount` what PayPal refunded, and
+  `refund.total` true for the full refund and false for the partial
+  one, as RF-01 records a partial card refund.
 - **Teardown:** Cancel; delete.
 
 ### RF-07 Confirm and deny guard themselves
