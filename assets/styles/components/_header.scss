@@ -1,5 +1,22 @@
-// One compact row: wordmark left, links right, everything on one
-// centre line. Plain media queries; colours from the theme.
+// One compact row: logo left, links right, everything on one centre
+// line, over a stripe of the brand green. Plain media queries; colours
+// from the theme.
+
+// The row's height and the whole header's, row and stripe, which the
+// home page's hero reserves above it.
+:root {
+  --header-row: 3.5rem;
+  --header-stripe: #{$top-bar-height};
+  --header-height: calc(var(--header-row) + var(--header-stripe));
+
+  @media (min-width: 768px) {
+    --header-row: 3.75rem;
+  }
+
+  @media (min-width: 992px) {
+    --header-row: 4rem;
+  }
+}
 
 header {
   font-family: Aller, sans-serif;
@@ -11,7 +28,7 @@ header {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  min-height: 3.5rem;
+  min-height: var(--header-row);
   padding-inline: 1rem;
 
   // The side padding steps down with the screen.
@@ -32,19 +49,22 @@ header {
   }
 }
 
+// The hen in its arc, and beside it the wordmark once there is room
+// for it at a size that reads. A phone shows the hen alone; the link's
+// name says the farm's.
 .site-brand {
   display: flex;
   align-items: center;
   flex: 0 1 auto;
+  gap: 0.625rem;
   min-width: 0;
 
   svg {
     display: block;
-    width: 10rem;
-    max-width: 100%;
-    height: auto;
+    flex: none;
+    width: auto;
 
-    // The hen and the wordmark: the primary green.
+    // The primary green.
     .black {
       fill: var(--bs-primary);
       transition: opacity 0.07s ease;
@@ -54,6 +74,41 @@ header {
   &:hover svg .black {
     opacity: 0.75;
   }
+
+  @media (min-width: 992px) {
+    gap: 0.75rem;
+  }
+}
+
+.site-mark svg {
+  height: 2.5rem;
+
+  @media (min-width: 992px) {
+    height: 3rem;
+  }
+}
+
+.site-wordmark {
+  display: none;
+
+  @media (min-width: 576px) {
+    display: block;
+  }
+
+  svg {
+    height: 1rem;
+
+    @media (min-width: 992px) {
+      height: 1.25rem;
+    }
+  }
+}
+
+// The header's bottom edge: a band of the brand green, as tall as the
+// top bar. Decoration only; it says nothing.
+.site-stripe {
+  height: var(--header-stripe);
+  background-color: var(--bs-primary);
 }
 
 .site-actions {
@@ -64,7 +119,7 @@ header {
 }
 
 // The text links live in the row from md up; on a phone the row keeps
-// only the wordmark, Order and the toggle, and the links move into the
+// only the logo, Order and the toggle, and the links move into the
 // offcanvas menu.
 .site-links {
   display: none;
@@ -415,14 +470,6 @@ header {
 }
 
 @media (min-width: 768px) {
-  .site-header-inner {
-    min-height: 3.75rem;
-  }
-
-  .site-brand svg {
-    width: 12.5rem;
-  }
-
   .site-actions {
     gap: 0.875rem;
   }
@@ -433,16 +480,5 @@ header {
 
   .site-toggle {
     display: none;
-  }
-}
-
-// Wide screens have room for the logo at a size the eye finds first.
-@media (min-width: 992px) {
-  .site-header-inner {
-    min-height: 4rem;
-  }
-
-  .site-brand svg {
-    width: 14rem;
   }
 }

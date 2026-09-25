@@ -12,10 +12,11 @@
 }}
 {{ $here := .RelPermalink }}
 <div class="container-fluid site-header-inner">
-  {{/* The hen and the wordmark, so a page reached from a link still
-       says whose it is. */}}
+  {{/* The hen, and the wordmark beside it from sm up, so a page
+       reached from a link still says whose it is. */}}
   <a class="site-brand" href="{{ .Site.BaseURL }}" aria-label="North Foster Farm, home" {{- if .IsHome }} aria-current="page" {{ end }}>
-    {{ partial "svg.html" "logo-header" }}
+    <span class="site-mark">{{ partial "svg.html" "logo-mark" }}</span>
+    <span class="site-wordmark">{{ partial "svg.html" "logo" }}</span>
   </a>
   <nav class="site-actions" aria-label="Main">
     {{/* From md up: the text links in the row. On a phone they live in

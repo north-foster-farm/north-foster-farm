@@ -3,8 +3,6 @@
 // line; anything longer than the screen ends in an ellipsis rather
 // than wrapping, so the bar is always one fixed height.
 
-$top-bar-height: 1.875rem;
-
 // The hero reserves the bar's height, as it does the header's, while
 // there is a bar.
 :root:has(.top-bar) {

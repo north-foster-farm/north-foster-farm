@@ -45,11 +45,10 @@
   // the rest of the contrast it needs from a hairline stroke. The
   // photograph beneath is the video's poster. The body is centred on
   // the viewport, not on the hero, by reserving the height above it,
-  // the header's (its row and its 1px border) and the top bar's,
-  // below it.
+  // the header's (its row and its stripe) and the top bar's, below it.
 
   .home-hero {
-    --hero-above: calc(3.5rem + 1px + var(--top-bar-height, 0rem));
+    --hero-above: calc(var(--header-height) + var(--top-bar-height, 0rem));
 
     position: relative;
     display: grid;
@@ -134,9 +133,18 @@
 
   // Block padding only: the container keeps its side gutters, so the
   // subtitle never runs to the edge of a phone.
+  // A phone gets half the padding, taken equally from both ends so the
+  // words stay put; a short phone's hero then still ends at the fold
+  // under the header's stripe.
   .home-hero-body {
+    --hero-pad: 1.5rem;
+
     position: relative;
-    padding-block: 3rem calc(3rem + var(--hero-above));
+    padding-block: var(--hero-pad) calc(var(--hero-pad) + var(--hero-above));
+
+    @media (min-width: 576px) {
+      --hero-pad: 3rem;
+    }
   }
 
   // The contrast: a dark line around the letters, drawn under the fill
@@ -536,10 +544,6 @@
   }
 
   @media (min-width: 768px) {
-    .home-hero {
-      --hero-above: calc(3.375rem + 1px + var(--top-bar-height, 0rem));
-    }
-
     .home-hero-text {
       text-align: end;
     }
