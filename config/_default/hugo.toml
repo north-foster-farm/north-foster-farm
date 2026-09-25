@@ -13,6 +13,19 @@ timeZone = "America/New_York"
   [build.buildStats]
     enable = true
 
+  # PurgeCSS keeps only the classes in hugo_stats.json, which Hugo
+  # writes after each build. Without the first entry, `hugo server`
+  # reuses the cached stylesheet when the stats change, so a class new
+  # to a template has no CSS until the server restarts. The second is
+  # Hugo's one default, restated because a configured list replaces it.
+  [[build.cachebusters]]
+    source = 'assets/watching/hugo_stats\.json'
+    target = '(css|styles|scss|sass)'
+
+  [[build.cachebusters]]
+    source = '(postcss|tailwind)\.config\.(js|mjs|cjs)'
+    target = '(css|styles|scss|sass)'
+
 [imaging]
   [imaging.avif]
     quality = 85
