@@ -75,14 +75,15 @@
     transform: scale(1.04);
   }
 
-  // The wash: over the whole picture while the words are centred,
-  // deepest at the foot where the buttons are; from lg, from the
+  // The wash: while the words are centred, a plain black veil over the
+  // whole picture, deepest at the foot where the buttons are, so the
+  // video keeps its own colours; from lg, the brand green from the
   // right, where the words then sit, fading out before the coop.
   .home-hero-shade {
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, rgba($primary, 0.85),
-      rgba($primary, 0.7));
+    background: linear-gradient(to top, rgba($black, 0.6),
+      rgba($black, 0.4));
 
     @media (min-width: 992px) {
       background: linear-gradient(to left, rgba($primary, 0.75) 40%,

@@ -61,8 +61,9 @@ test.describe("home", () => {
   // #134: the hero stops growing on a tall screen, and on a phone its
   // big line runs three lines, well above the h1. The title never
   // wraps on its own, so it must fit every width. #173: the picture is
-  // blurred under a wash of the primary green, and from lg the words
-  // sit in the bottom right corner; below lg they are centred.
+  // blurred under a wash, and from lg the words sit in the bottom
+  // right corner over the primary green; below lg they are centred
+  // over a black veil (James, 2026-09-25: the green was too heavy).
   test("the hero's height, wash and type (#134, #173)", async ({ page }) => {
     const measure = () => page.evaluate(() => {
       const hero = document.querySelector(".home-hero");
@@ -139,13 +140,14 @@ test.describe("home", () => {
         expect(m.title / m.sub, `${at} big line over the h1`)
           .toBeGreaterThanOrEqual(1.8);
       }
-      // #173: no outlined type; a green wash over a blurred picture
+      // #173: no outlined type; the wash over a blurred picture
       // carries the contrast.
       expect(m.stroke, `${at} no outline`).toBe(0);
       expect(m.filter).toBe("blur(4px) brightness(0.82)");
-      expect(m.wash, `${at} wash`).toMatch(new RegExp(
-        `^linear-gradient\\(.*rgba\\(${green.join(", ")}, 0\\.[78]`
-      ));
+      expect(m.wash, `${at} wash`).toMatch(width >= 992
+        ? new RegExp(
+          `^linear-gradient\\(to left, rgba\\(${green.join(", ")}, 0\\.75`)
+        : /^linear-gradient\(to top, rgba\(7, 6, 6, 0\.6\)/);
 
       const middle = (m.room.left + m.room.right) / 2;
 
