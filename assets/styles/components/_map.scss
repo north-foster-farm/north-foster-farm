@@ -2,15 +2,16 @@
 // it, the ones we deliver to in green, the rest of Rhode Island in
 // sand and the neighbouring states as plain land. Pins take the
 // colour of their kind, here and on the numbers in the key and the
-// cards; a market out of season is hollow. Everything drawn keeps its
-// line weight and the pins their size as the map zooms.
+// cards; the farm has its own marker. What is on now is solid, with
+// a shadow; what is not is smaller, hollow and quiet. Everything
+// drawn keeps its line weight and the pins their size as the map
+// zooms.
 
 $map-water: tint-color($teal, 84%);
 $map-land: #f3f1ea;
 $map-away: #e9dfc8;
 $map-ours: tint-color($green, 58%);
 $map-pins: (
-  "farm": $primary,
   "dropsite": $green,
   "market": $orange,
   "popup": $teal,
@@ -43,9 +44,16 @@ $map-pins: (
   touch-action: pan-y;
   user-select: none;
 
-  path {
-    vector-effect: non-scaling-stroke;
-  }
+}
+
+// The farm marker's own strokes scale with it; everything else
+// keeps its weight.
+.map-zip,
+.map-borders,
+.map-pick,
+.map-pin-body > path,
+.map-drop-pin {
+  vector-effect: non-scaling-stroke;
 }
 
 .map-zip {
@@ -93,13 +101,21 @@ $map-pins: (
 }
 
 // A pin: the drop shape with its number in the head, outlined in white
-// so it stands off the fills. It rises a little under the pointer and
-// darkens its outline while its card is open.
+// so it stands off the fills, or the farm's marker. It rises a little
+// under the pointer and darkens its outline while its card is open.
 .map-pin {
   cursor: pointer;
   outline: none;
 
-  path {
+  &.is-on {
+    filter: drop-shadow(0 2px 2px rgba($black, 0.35));
+  }
+
+  &.is-off {
+    opacity: 0.8;
+  }
+
+  .map-pin-body > path {
     stroke: $white;
     stroke-width: 2;
     transition: stroke 0.12s ease-out;
@@ -113,11 +129,18 @@ $map-pins: (
     fill: $white;
   }
 
-  &[aria-pressed="true"] path,
-  &:focus-visible path {
+  &[aria-pressed="true"] .map-pin-body > path,
+  &:focus-visible .map-pin-body > path {
     stroke: $gray-800;
     stroke-width: 3;
   }
+}
+
+// The farm's marker marks its focus and open card with a ring of
+// shadow, having no outline of ours to darken.
+.map-pin-farm[aria-pressed="true"],
+.map-pin-farm:focus-visible {
+  filter: drop-shadow(0 0 3px rgba($black, 0.8));
 }
 
 .map-pin-body {
@@ -130,24 +153,30 @@ $map-pins: (
 }
 
 @each $kind, $colour in $map-pins {
-  .map-pin-#{$kind} path {
+  .map-pin-#{$kind} .map-pin-body > path {
     fill: $colour;
+  }
+
+  .map-pin-#{$kind}.is-off {
+    .map-pin-body > path {
+      fill: $white;
+      stroke: $colour;
+      stroke-dasharray: 4 3;
+    }
+
+    text {
+      fill: shade-color($colour, 30%);
+    }
   }
 
   .map-key-n.map-pin-#{$kind} {
     background-color: $colour;
-  }
-}
 
-.map-pin-market.is-out {
-  path {
-    fill: $white;
-    stroke: $orange;
-    stroke-dasharray: 4 3;
-  }
-
-  text {
-    fill: shade-color($orange, 30%);
+    &.is-off {
+      border: 1.5px dashed $colour;
+      background-color: $white;
+      color: shade-color($colour, 30%);
+    }
   }
 }
 
@@ -379,13 +408,20 @@ $map-pins: (
   }
 }
 
+// What is on now heads the key in green; what is not follows, smaller
+// and grey.
 .map-key-head {
   margin: 1.25rem 0 0.5rem;
   font-size: 0.8125rem;
   font-weight: bold;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--bs-secondary-color);
+  color: var(--bs-green);
+
+  &.is-off {
+    margin-top: 1.75rem;
+    color: var(--bs-secondary-color);
+  }
 }
 
 .map-key-list {
@@ -400,10 +436,19 @@ $map-pins: (
   & + & {
     margin-top: 0.375rem;
   }
+
+  &.is-off {
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+  }
 }
 
 .map-key-name {
   font-weight: 600;
+
+  .is-off & {
+    font-weight: normal;
+  }
 }
 
 .map-key-show {
@@ -433,11 +478,20 @@ $map-pins: (
   font-size: 0.8125rem;
   font-weight: bold;
   color: $white;
+}
 
-  &.is-out {
-    border: 1.5px dashed $orange;
-    background-color: $white;
-    color: shade-color($orange, 30%);
+// The farm's marker, at the numbers' height, in the key and on its
+// card.
+.map-key-marker {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.625rem;
+  height: 1.625rem;
+
+  .map-farm-marker {
+    width: auto;
+    height: 1.75rem;
   }
 }
 
