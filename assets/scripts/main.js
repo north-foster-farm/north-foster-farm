@@ -35,26 +35,34 @@ const hoverMenus = () => {
     let byHover = false;
 
     if (!button) continue;
+    const open = () => button.getAttribute("aria-expanded") === "true";
+
     slot.addEventListener("mouseenter", () => {
       clearTimeout(timer);
-      if (button.hidden) return;
+      // Open already, by hover or a click: leave it as it is.
+      if (button.hidden || open()) return;
       byHover = true;
       Dropdown.getOrCreateInstance(button).show();
     });
     slot.addEventListener("mouseleave", () => {
       timer = setTimeout(() => {
+        // A menu a click opened or kept stays until clicked away.
+        if (!byHover) return;
         byHover = false;
         Dropdown.getOrCreateInstance(button).hide();
       }, 160);
     });
     // A click on the button while the hover holds it open would close
-    // it; keep it open instead.
-    button.addEventListener("click", (e) => {
-      if (byHover && button.getAttribute("aria-expanded") === "true") {
-        e.stopPropagation();
-        e.preventDefault();
-      }
-    });
+    // it; keep it open instead, now for good, until a click closes it.
+    // Bootstrap toggles from the document in the capture phase, before
+    // the button hears the click, so this listens on the window, which
+    // that phase reaches first.
+    window.addEventListener("click", (e) => {
+      if (!byHover || !open() || !button.contains(e.target)) return;
+      e.stopPropagation();
+      e.preventDefault();
+      byHover = false;
+    }, true);
   }
 };
 
