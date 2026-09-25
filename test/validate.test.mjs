@@ -347,7 +347,7 @@ describe("delivery rules", () => {
   });
 
   it("warns and flags an unlisted Rhode Island ZIP, and charges $3", () => {
-    const r = validateOrder(delivery({ zip: "02831" }), ctx);
+    const r = validateOrder(delivery({ zip: "02879" }), ctx);
     const listed = validateOrder(delivery(), ctx);
 
     assert.ok(r.ok, JSON.stringify(r));
@@ -370,7 +370,7 @@ describe("zipStatus", () => {
   it("classifies approved, unlisted, outside and invalid", () => {
     assert.equal(zipStatus("02825", terms.area), "approved");
     assert.equal(zipStatus("06239", terms.area), "approved");
-    assert.equal(zipStatus("02831", terms.area), "unlisted");
+    assert.equal(zipStatus("02879", terms.area), "unlisted");
     assert.equal(zipStatus("01527", terms.area), "outside");
     assert.equal(zipStatus("0282", terms.area), "invalid");
   });
