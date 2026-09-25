@@ -2,12 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  LINK_TTL, SESSION_TTL, createSession, requestLink, requestOrderLink,
-  safeNext, sessionFrom, verifyToken,
+  LINK_TTL, SESSION_TTL, createSession, requestLink, safeNext,
+  sessionFrom, verifyToken,
 } from "../netlify/functions/lib/auth.mjs";
-import {
-  getCustomer, getOrder, saveOrder,
-} from "../netlify/functions/lib/records.mjs";
+import { getCustomer } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle } from "../netlify/functions/auth.mjs";
 
@@ -107,108 +105,29 @@ describe("a link the farm mints", () => {
   });
 });
 
-describe("find my order", () => {
-  const order = (id, email = "pat@example.com") => ({
-    id,
-    status: "paid",
-    submittedAt: now.toISOString(),
-    paidAt: now.toISOString(),
-    customer: { name: "Pat Example", email, phone: "" },
-    lines: [{ sku: "A", label: "Eggs (per dozen), Large", qty: 1,
-      lineTotal: 7 }],
-    totals: { subtotal: 700, discountAmount: 0, deliveryFee: 0, total: 700 },
-    fulfilment: {
-      method: "onfarm", date: "2026-10-08", state: "agreed",
-      onfarm: { window: "morning" },
-    },
-    square: { squareOrderId: "SQO", customerId: "CUST" },
-    payment: {
-      via: "square", method: "card", at: now.toISOString(),
-      squarePaymentId: `PAY-${id}`, receiptUrl: "https://r/x", brand: "VISA",
-      last4: "4242",
-    },
-  });
-
-  it("mails a sign-in link straight to the order when the pair match, " +
-    "however the pair is typed", async () => {
+describe("an order number in the request", () => {
+  it("is ignored: the link is the plain sign-in link", async () => {
+    // "Find my order" is gone (#150), but a page cached before the
+    // deploy can still send one.
     const stores = testStores();
     const { sent, mail } = mailbox();
-
-    await saveOrder(stores, order("NFF-2610-K3WM"), now);
-    const r = await requestOrderLink(stores, {
-      email: " Pat@Example.com ", orderId: "nff-2610-k3wm",
-    }, { now, env, mail });
-
-    assert.deepEqual(r, { ok: true, matched: true, sent: "link" });
-    assert.equal(sent.length, 1);
-    assert.equal(sent[0].to, "pat@example.com");
-    assert.match(sent[0].subject, /sign-in link/);
-    assert.doesNotMatch(sent[0].text, /invoice|Pay and confirm/i);
-
-    const link = sent[0].text.match(/Sign in: (\S+)/)[1];
-    const v = await verifyToken(stores, tokenIn(link), { now });
-
-    assert.equal(v.ok, true);
-    assert.equal(v.email, "pat@example.com");
-    assert.equal(v.next, "/account/orders/NFF-2610-K3WM/");
-    assert.equal((await getOrder(stores, "NFF-2610-K3WM")).emails,
-      undefined, "nothing is noted on the order");
-  });
-
-  it("sends the same link for a fulfilled order, nothing for a mismatch",
-    async () => {
-      const stores = testStores();
-      const { sent, mail } = mailbox();
-
-      await saveOrder(stores, {
-        ...order("NFF-2610-K3WM"), status: "fulfilled",
-      }, now);
-      const done = await requestOrderLink(stores, {
-        email: "pat@example.com", orderId: "NFF-2610-K3WM",
-      }, { now, env, mail });
-
-      assert.equal(done.sent, "link");
-      assert.match(sent[0].subject, /sign-in link/);
-      assert.match(sent[0].text, /Sign in: https:\S+token=/);
-
-      const wrong = await requestOrderLink(stores, {
-        email: "other@example.com", orderId: "NFF-2610-K3WM",
-      }, { now, env, mail });
-      const missing = await requestOrderLink(stores, {
-        email: "pat@example.com", orderId: "NFF-0000-XXXX",
-      }, { now, env, mail });
-
-      assert.deepEqual(wrong, { ok: true, matched: false });
-      assert.deepEqual(missing, { ok: true, matched: false });
-      assert.equal(sent.length, 1);
-      assert.equal((await requestOrderLink(stores, {
-        email: "nope", orderId: "NFF-2610-K3WM",
-      }, { now, env, mail })).ok, false);
-    });
-
-  it("answers the endpoint the same way matched or not", async () => {
-    const stores = testStores();
-    const { sent, mail } = mailbox();
-    const post = (body) => new Request("https://x/api/auth/request", {
+    const res = await handle(new Request("https://x/api/auth/request", {
       method: "POST",
       headers: {
         "Content-Type": "application/json", "sec-fetch-site": "same-origin",
       },
-      body: JSON.stringify(body),
-    });
-
-    await saveOrder(stores, order("NFF-2610-K3WM"), now);
-    const hit = await handle(post({
-      email: "pat@example.com", orderId: "NFF-2610-K3WM",
-    }), { stores, env, now, mail });
-    const miss = await handle(post({
-      email: "pat@example.com", orderId: "NFF-2610-ZZZZ",
+      body: JSON.stringify({
+        email: "pat@example.com", orderId: "NFF-2610-K3WM",
+      }),
     }), { stores, env, now, mail });
 
-    assert.equal(hit.status, 200);
-    assert.equal(miss.status, 200);
-    assert.deepEqual(await hit.json(), await miss.json());
+    assert.equal(res.status, 200);
     assert.equal(sent.length, 1);
+
+    const link = sent[0].text.match(/Sign in: (\S+)/)[1];
+    const found = await verifyToken(stores, tokenIn(link), { now });
+
+    assert.equal(found.next, "/account/");
   });
 });
 

@@ -1221,20 +1221,10 @@ receipt".
   digits, $7. No "Pay now" and no "I paid by Venmo" anywhere.
 - **Teardown:** As AO-01.
 
-### AO-03 Find my order
+### AO-03 Find my order (removed)
 
-Automated: `account.spec.mjs`, "Find my order mails a link to that
-order; a wrong pair mails nothing".
-
-- **Scenario:** A guest reaches an order with its number and email.
-- **Setup:** As AO-01.
-- **Test:**
-  1. Find my order with the address and the number in lower case.
-  2. Open the link.
-  3. Repeat with a stranger's address; wait eight seconds.
-- **Assert:** "Check your email" both times; the first link lands on a
-  URL naming the order; nothing is sent to the stranger.
-- **Teardown:** As AO-01.
+The feature was removed on 2026-09-25 (#150); a customer reaches an
+order by signing in. The number stays so later cases keep theirs.
 
 ### AO-04 Sign-in links are rate limited
 

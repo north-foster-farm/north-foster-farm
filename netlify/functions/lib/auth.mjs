@@ -12,9 +12,9 @@ import { createHash, randomBytes } from "node:crypto";
 
 import { sendMail } from "./mail.mjs";
 import {
-  getCustomer, getOrder, reminderPrefs, saveCustomer,
+  getCustomer, reminderPrefs, saveCustomer,
 } from "./records.mjs";
-import { mailLinks, orderPathFor, siteUrl } from "./site.mjs";
+import { mailLinks, siteUrl } from "./site.mjs";
 import { magicLink } from "./templates.mjs";
 
 const MINUTE = 60_000;
@@ -115,46 +115,6 @@ export const requestLink = async (stores, { email, next }, {
   }
 
   return { ok: true, url, email: address };
-};
-
-// "Find my order": an order number and the email it was placed with.
-// A match mails a sign-in link straight to that order's page. No
-// match mails nothing, and the caller answers the same either way.
-// The usual rate limit applies to the address.
-// -> { ok: true, matched } or { ok: false, reason }.
-export const requestOrderLink = async (stores, { email, orderId }, {
-  now = new Date(),
-  env = process.env,
-  mail = sendMail,
-} = {}) => {
-  const address = normalizeEmail(email);
-
-  if (!validEmail(address)) return { ok: false, reason: "invalid" };
-
-  const id = String(orderId || "").trim().toUpperCase();
-  const order = /^[A-Z0-9-]{1,32}$/.test(id)
-    ? await getOrder(stores, id)
-    : null;
-
-  if (!order || normalizeEmail(order.customer.email) !== address) {
-    return { ok: true, matched: false };
-  }
-
-  const link = await requestLink(stores, {
-    email: address, next: orderPathFor(id),
-  }, { now, env, send: false });
-
-  if (!link.ok) return link;
-
-  await mail({
-    to: address,
-    idempotencyKey: `link-${hash(link.url).slice(0, 16)}`,
-    ...magicLink(address, link.url, {
-      minutes: LINK_TTL / MINUTE, links: mailLinks(env),
-    }),
-  }, { env });
-
-  return { ok: true, matched: true, sent: "link" };
 };
 
 // Consumes a token. -> { ok: true, email, next } or { ok: false, reason }.

@@ -32,9 +32,9 @@ keyed by template, so "did it send" is a lookup, not a guess;
 
 - [ ] Home page, signed out: the header shows **Sign in** between
       About and Order.
-- [ ] `/login/`: the intro paragraph sits above two cards, "Send me a
-      magic link" and "Find my order". Each is a label column and a
-      field column, plain inputs, one button under the field column.
+- [ ] `/login/`: the intro paragraph sits above one card, "Send me a
+      magic link": a label column and a field column, a plain input,
+      one button under the field column.
       The header still shows Sign in, marked as the current page.
 - [ ] Submit an empty email: red field and a message under it, button
       stays in place.
@@ -155,15 +155,8 @@ The morning report:
       <today>" to ADMIN_EMAILS, the vital signs first, then one line
       per pickup with the confirm command, once that day.
 
-## 4. Find my order and the receipts
+## 4. The receipts
 
-- [ ] Signed out, `/login/`, Find my order with the right email and
-      an order's number: "Check your email" naming the address. The
-      email is a sign-in link whose link lands on that order's card.
-- [ ] Wrong email for the order, or a made-up number: the same
-      "Check your email" card, and nothing arrives.
-- [ ] Type the number in lower case or with the hyphens missing: still
-      matches.
 - [ ] `/account/#receipts`: one row per payment with the order, the
       day paid, the total, "Visa ending 1111" (or "Venmo"), the status
       and a Receipt link for a card payment. No Pay, Resend or "I paid

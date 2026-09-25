@@ -1,4 +1,4 @@
-// Accounts: sign-in by emailed link, Find my order, and a paid order
+// Accounts: sign-in by emailed link, and a paid order
 // on the account page's Orders and Receipts tabs. The order is placed
 // through the API with Square's approved sandbox nonce, then
 // cancelled, refunded and deleted. docs/qa-launch.md, "After the
@@ -8,7 +8,7 @@ import { NONCE, eggOrder, postOrder } from "./support/api.mjs";
 import { expect, test, uniqueEmail } from "./support/order.mjs";
 import {
   BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, deleteCustomer,
-  linkIn, mailTo, teardown, waitForMail,
+  linkIn, teardown, waitForMail,
 } from "./support/staging.mjs";
 
 const SIGN_IN = "Your secure sign-in link to North Foster Farm";
@@ -98,32 +98,4 @@ test.describe("accounts", () => {
         "I paid by Venmo"
       );
     });
-
-  test("Find my order mails a link to that order; a wrong pair mails " +
-    "nothing", async ({ page }) => {
-    const asked = new Date();
-    const stranger = uniqueEmail("stranger");
-
-    await page.goto("/login/");
-    await page.locator("#find-email").fill(email);
-    await page.locator("#find-order").fill(orderId.toLowerCase());
-    await page.locator("#find-submit").click();
-    await expect(page.locator("#login-sent")).toBeVisible();
-
-    const mail = await waitForMail({ to: email, subject: SIGN_IN,
-      since: asked });
-    const link = linkIn(mail, /\/api\/auth\/verify\?token=/);
-
-    await page.goto(link);
-    await expect(page).toHaveURL(new RegExp(orderId));
-
-    await page.context().clearCookies();
-    await page.goto("/login/");
-    await page.locator("#find-email").fill(stranger);
-    await page.locator("#find-order").fill(orderId);
-    await page.locator("#find-submit").click();
-    await expect(page.locator("#login-sent")).toBeVisible();
-    await page.waitForTimeout(8_000);
-    expect(await mailTo(stranger, asked)).toEqual([]);
-  });
 });

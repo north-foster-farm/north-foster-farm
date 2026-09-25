@@ -448,13 +448,11 @@ the `auth` store. State-changing posts must come from this site
 CLI, which mints links and sessions to sign in as a customer. The
 page is `/login/`.
 
-The same page has **Find my order**: an order number and the email it
-was placed with, posted to `/api/auth/request` as `{ email, orderId }`
-(`requestOrderLink`). A match mails a sign-in link whose `next` is
-that order's page. No match mails nothing, and the answer is 200
-either way. The address's rate limit covers it. A link the farm mints
-(the deny email's "Pick a new time") uses `limit: false` and a
-week-long `ttl`.
+A link the farm mints (the deny email's "Pick a new time") uses
+`limit: false` and a week-long `ttl`. The page's second form, **Find
+my order** (an order number and its email, sent as `{ email, orderId }`),
+was removed on 2026-09-25 (#150): a customer signs in with the email
+instead. An `orderId` in a request is ignored.
 
 ## Account
 
