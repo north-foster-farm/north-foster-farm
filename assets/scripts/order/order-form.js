@@ -96,6 +96,8 @@ export class OrderForm {
     this.lastTotal = null;
     this.lastCount = null;
     this.busy = false;
+    // The quantity box with focus, which refresh() keeps open.
+    this.typing = null;
     // Which badges were lit at the last render, so a badge that turns
     // on can celebrate. Null until the first render, which never does.
     this.lit = null;
@@ -256,9 +258,14 @@ export class OrderForm {
 
     // Blur normalises whatever was typed into a quantity box, and
     // turns an edited detail back into plain text.
+    this.form.addEventListener("focusin", (e) => {
+      if (e.target.matches("[data-qty]")) this.typing = e.target;
+    });
     this.form.addEventListener("focusout", (e) => {
       if (e.target.matches("[data-qty]")) {
+        this.typing = null;
         this.setQty(e.target, this.qty(e.target));
+        this.refresh();
       }
       if (e.target.matches("[data-prefill]") && e.target.value.trim()) {
         this.plain(e.target, true);
@@ -756,7 +763,10 @@ export class OrderForm {
     for (const input of all(this.form, "[data-qty]")) {
       const qty = this.qty(input);
       const box = input.closest(".order-qty");
-      const state = qty > 0 ? "active" : "empty";
+      // A box being typed in stays open at 0 or blank: an empty box
+      // hides its stepper, which would blur the box and lose what the
+      // customer types after clearing it. Leaving it settles the state.
+      const state = qty > 0 || input === this.typing ? "active" : "empty";
 
       if (box.dataset.qtyState !== state) box.dataset.qtyState = state;
       qs(box, "[data-step='-1']").setAttribute(
