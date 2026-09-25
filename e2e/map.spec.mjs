@@ -65,8 +65,12 @@ test.describe("map (#138)", () => {
         }
       });
       await page.goto(HOME.path);
-      await expect(map(page).locator("svg[role='img'] title"))
-        .toContainText("where we deliver");
+      // An aria-label since 0660a0d: a <title> showed as the browser's
+      // own tooltip over the map's.
+      await expect(map(page).locator("svg[role='img']"))
+        .toHaveAttribute("aria-label", /where we deliver/);
+      await expect(map(page).locator("svg[role='img'] > title"))
+        .toHaveCount(0);
 
       const ours = new Set(await areaZips(page));
       const shown = await map(page).locator("[data-zip]").evaluateAll(
@@ -125,24 +129,54 @@ test.describe("map (#138)", () => {
     }
   });
 
-  test("numbered pins match the key, markets out of season",
+  // Since 0660a0d what is on now comes first and is drawn over what is
+  // not; the farm wears the hen and no number, so the rest count from 1.
+  test("the key matches the pins, what is on now first",
     async ({ page }) => {
       await page.goto(HOME.path);
 
       const pins = map(page).locator("[data-map-pin]");
       const key = map(page).locator("[data-map-show]");
+      const rows = await key.evaluateAll((els) => els.map((el) => ({
+        n: el.dataset.mapShow,
+        shown: el.querySelector(".map-key-n")?.textContent.trim() || "",
+        name: el.querySelector(".map-key-name").textContent.trim(),
+        off: !!el.closest(".map-key-list")?.previousElementSibling
+          ?.classList.contains("is-off"),
+      })));
+      const drawn = await pins.evaluateAll((els) => els.map((el) => ({
+        n: el.dataset.mapPin,
+        shown: el.querySelector("text")?.textContent.trim() || "",
+        label: el.getAttribute("aria-label"),
+        off: el.classList.contains("is-off"),
+      })));
 
-      await expect(pins).toHaveCount(await key.count());
-      for (let i = 0; i < await pins.count(); i += 1) {
-        await expect(pins.nth(i).locator("text")).toHaveText(String(i + 1));
-        await expect(key.nth(i).locator(".map-key-n"))
-          .toHaveText(String(i + 1));
+      expect(drawn).toHaveLength(rows.length);
+      expect(rows[0]).toMatchObject({ n: "1", name: "Our farm", shown: "" });
+      await expect(map(page).locator("[data-map-pin='1']"))
+        .toHaveAttribute("aria-label", "Our farm");
+      for (const [i, row] of rows.entries()) {
+        const pin = drawn.find((d) => d.n === row.n);
+
+        expect(pin, `a pin for ${row.name}`).toBeTruthy();
+        expect(pin.shown, row.name).toBe(row.shown);
+        expect(pin.label, row.name).toContain(row.name);
+        expect(pin.off, `${row.name} on or off alike`).toBe(row.off);
+        if (i > 0) expect(row.shown, row.name).toBe(String(i));
       }
-      await expect(key.first()).toContainText("Our farm");
-      await expect(map(page).locator(".map-key-head"))
-        .toContainText(["Pick up from us",
-          "Farmers markets, out of season", /^Pop-ups in \d{4}$/]);
-      await expect(map(page).locator(".map-pin.map-pin-market.is-out"))
+
+      // On before off in the key; off drawn first, so on sits on top.
+      const offAt = rows.findIndex((r) => r.off);
+
+      expect(rows.slice(offAt).every((r) => r.off)).toBe(true);
+      expect(drawn.findIndex((d) => !d.off))
+        .toBeGreaterThan(drawn.findLastIndex((d) => d.off));
+
+      await expect(map(page).locator(".map-key-head")).toContainText([
+        "Pick up from us", "Upcoming pop-ups", /^Earlier pop-ups in \d{4}$/,
+        "Farmers markets, out of season",
+      ]);
+      await expect(map(page).locator(".map-pin.map-pin-market.is-off"))
         .toHaveCount(3);
       for (const ig of await map(page).locator(".map-key .map-ig").all()) {
         await expect(ig).toHaveAttribute(
@@ -313,9 +347,15 @@ test.describe("map (#138)", () => {
 
   test("a line in the key opens the same card", async ({ page }) => {
     await page.goto(HOME.path);
-    await map(page).locator("[data-map-show='3']").click();
 
-    const card = map(page).locator("[data-map-card='3']");
+    const line = map(page).locator("[data-map-show]", {
+      hasText: "Foster Farmers Market",
+    });
+    const n = await line.getAttribute("data-map-show");
+
+    await line.click();
+
+    const card = map(page).locator(`[data-map-card='${n}']`);
 
     await expect(card).toBeVisible();
     await expect(card).toContainText("Out of season");

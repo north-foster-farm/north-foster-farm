@@ -1893,24 +1893,32 @@ Automated: `map.spec.mjs`, "the delivery policy carries the same map"
 
 ### AR-13 Markets and pop-ups on the map (#138)
 
-Partial: `map.spec.mjs`, "numbered pins match the key, markets out of
-season" and "no pin hides another" (both projects). The second failed
-until 17b929e stood crowded pins apart. Dropping 2026's pop-ups needs
-a build after New Year and stays manual.
+Partial: `map.spec.mjs`, "the key matches the pins, what is on now
+first" and "no pin hides another" (both projects). The second failed
+until 17b929e stood crowded pins apart. Rewritten for 0660a0d, which
+puts what is on now first and gives the farm its hen. Dropping 2026's
+pop-ups needs a build after New Year and stays manual.
 
-- **Scenario:** Markets shown out of season with inline Instagram
-  icons; 2026 pop-ups disappear when 2027 starts.
+- **Scenario:** What is on now (the farm, the drop site, upcoming
+  pop-ups, markets in season) is solid and listed first; the rest
+  (earlier pop-ups, markets out of season) is hollow and listed last,
+  with inline Instagram icons; 2026 pop-ups disappear when 2027
+  starts.
 - **Setup:** Home page; for the rollover, a build with the clock set to
   2027-01-01 (preview).
 - **Test:**
   1. Read the pins and the key.
   2. Compare every pair of pins' boxes.
   3. By hand: build on or after 2027-01-01 and read the pins.
-- **Assert:** As many pins as key numbers, both numbered in order;
-  "Our farm" first; "out of season" beside the markets, whose three
-  pins are hollow; each market's Instagram link is an icon with an
-  "on Instagram" label. No two pins share more than a quarter of
-  their box. After New Year: no 2026 pop-ups.
+- **Assert:** One pin per key line, alike in number, name and on or
+  off. "Our farm" first, with no number (the hen) and labeled "Our
+  farm"; the rest numbered 1 on in key order. Every "on" line before
+  every "off" line; "off" pins drawn first, so "on" pins sit over
+  them. Headings "Pick up from us", "Upcoming pop-ups", "Earlier
+  pop-ups in 2026", "Farmers markets, out of season"; the three
+  market pins off. Each Instagram link is an icon labeled "on
+  Instagram". No two pins share more than a quarter of their box.
+  After New Year: no 2026 pop-ups.
 - **Teardown:** None.
 
 ### AR-14 The pop-up banner (#139)
