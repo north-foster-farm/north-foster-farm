@@ -1393,28 +1393,32 @@ Pending: #114.
   are on.
 - **Teardown:** Cancel and delete.
 
-### AO-13 No invoice or payment-link copy remains
+### AO-13 No retired copy remains
 
-Partial: `wording.spec.mjs` (desktop) reads ten pages, as served and
-as shown once their scripts settle (a signed-out `/account/` moves on
-to `/login/`, so its served HTML is what covers it), and `llms.txt`,
-and follows the retired paper form. Passed on staging 2026-09-25, since
-ff8afe7 and 704412f. The cancel dialog needs a signed-in customer with
-an order and stays manual. The account menu is settled: "Your orders"
+Partial: `wording.spec.mjs` (desktop) reads eleven pages, as served
+and as shown once their scripts settle (a signed-out `/account/` moves
+on to `/login/`, so its served HTML is what covers it), and
+`llms.txt`, and follows the retired paper form. Passed on staging
+2026-09-25, since ff8afe7 and 704412f, and with "Scituate drop site"
+since 540c9e1. The cancel dialog needs a signed-in customer with an
+order and stays manual. The account menu is settled: "Your orders"
 has its own icon, and the invoice icon marks "Receipts".
 
-- **Scenario:** The invoice era's words are gone.
+- **Scenario:** The invoice era's words are gone, and "the Scituate
+  drop site" is "the drop site" (James, 2026-09-25; `scituate` stays
+  as the method's identifier, and Scituate as the place).
 - **Setup:** Staging.
 - **Test:**
   1. Open `/`, `/order/`, `/login/`, `/account/`, `/delivery-policy/`,
-     `/privacy/`, `/about/`, `/contact/`, `/news/`, `/accessibility/`;
-     fetch `/llms.txt`.
+     `/privacy/`, `/about/`, `/contact/`, `/news/`, `/accessibility/`
+     and the September post; fetch `/llms.txt`.
   2. Request `/order-form.pdf` without following redirects.
   3. By hand: open the cancel dialog on an order.
-- **Assert:** No "invoice", "invoices", "payment link" or "Pay to
-  confirm" in any page's text, meta description or share
-  description, in `llms.txt`, or in the dialog; no "market pickup" in
-  `llms.txt`; the paper form answers 301 to `/order/`.
+- **Assert:** No "invoice", "invoices", "payment link", "Pay to
+  confirm" or "Scituate drop site" in any page's text, meta
+  description or share description, in `llms.txt`, or in the dialog;
+  no "market pickup" in `llms.txt`; the paper form answers 301 to
+  `/order/`.
 - **Teardown:** None.
 
 ## Refunds and the CLI
