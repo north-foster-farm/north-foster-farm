@@ -528,7 +528,8 @@ export const refundPayment = async ({
   };
 };
 
-// One payment, by id, for reconciling a webhook.
+// One payment, by id, for reconciling a webhook, with what has been
+// refunded of it so far (cents).
 export const getPayment = async (squarePaymentId, {
   env = process.env,
   fetchImpl = globalThis.fetch,
@@ -537,6 +538,10 @@ export const getPayment = async (squarePaymentId, {
   const data = await call(
     cfg, `/v2/payments/${squarePaymentId}`, null, fetchImpl, "GET"
   );
+  const payment = data.payment || {};
 
-  return paymentRecord(data.payment || {});
+  return {
+    ...paymentRecord(payment),
+    refunded: payment.refunded_money ? payment.refunded_money.amount : 0,
+  };
 };

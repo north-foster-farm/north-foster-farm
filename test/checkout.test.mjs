@@ -617,23 +617,20 @@ describe("POST /api/paypal/webhook", () => {
     )), { now }), { handled: false, reason: "ignored" });
   });
 
-  it("notes a refund made in PayPal on the order", async () => {
-    const stores = testStores();
-
-    await saveOrder(stores, order({
-      status: "paid",
-      payment: { via: "venmo", paypalCaptureId: "CAP", squarePaymentId: "PAY" },
-    }), now);
-
-    // As the sandbox sent it on 2026-09-24: the refund, with its
-    // capture in the "up" link.
-    const refunded = event("PAYMENT.CAPTURE.REFUNDED", {
-      id: "REF", status: "COMPLETED",
-      amount: { currency_code: "USD", value: "60.00" },
+  // As the sandbox sent it on 2026-09-24: the refund, with its capture
+  // in the "up" link and the capture's running total in the breakdown.
+  const refundEvent = ({ id = "REF", value = "60.00", total = value } = {}) =>
+    event("PAYMENT.CAPTURE.REFUNDED", {
+      id, status: "COMPLETED",
+      amount: { currency_code: "USD", value },
       custom_id: "NFF-2610-ABCD",
+      seller_payable_breakdown: {
+        gross_amount: { currency_code: "USD", value },
+        total_refunded_amount: { currency_code: "USD", value: total },
+      },
       links: [
         {
-          href: "https://api.sandbox.paypal.com/v2/payments/refunds/REF",
+          href: `https://api.sandbox.paypal.com/v2/payments/refunds/${id}`,
           rel: "self", method: "GET",
         },
         {
@@ -642,7 +639,41 @@ describe("POST /api/paypal/webhook", () => {
         },
       ],
     });
-    const res = await webhook(post(refunded), { stores, verify: yes, now });
+  const venmoPaid = (stores) => saveOrder(stores, order({
+    status: "paid",
+    payment: { via: "venmo", paypalCaptureId: "CAP", squarePaymentId: "PAY" },
+  }), now);
+  // Square's copy of the payment, with `refunded` cents already back.
+  const squareCopy = ({ refunded = 0, fail = false } = {}) => {
+    const calls = [];
+
+    return {
+      calls,
+      square: {
+        getPayment: async (id) => {
+          calls.push(["get", id]);
+
+          return { squarePaymentId: id, status: "COMPLETED", refunded };
+        },
+        refundPayment: async (args) => {
+          calls.push(["refund", args.squarePaymentId, args.amount, args.key]);
+          if (fail) throw new Error("Square is down");
+
+          return { squareRefundId: "SQREF", status: "PENDING" };
+        },
+      },
+    };
+  };
+
+  it("notes a refund made in PayPal and repeats it on Square", async () => {
+    const stores = testStores();
+    const { square, calls } = squareCopy();
+
+    await venmoPaid(stores);
+
+    const res = await webhook(post(refundEvent()), {
+      stores, verify: yes, now, square, env: {},
+    });
 
     assert.deepEqual(await res.json(), { handled: true, id: "NFF-2610-ABCD" });
 
@@ -652,19 +683,70 @@ describe("POST /api/paypal/webhook", () => {
     assert.equal(saved.refund.total, true);
     assert.equal(saved.refund.source, "paypal");
     assert.equal(saved.refund.paypalRefundId, "REF");
+    assert.equal(saved.refund.squareRefundId, "SQREF");
     assert.equal(saved.history.at(-1).event, "refund.recorded");
+    assert.deepEqual(calls, [
+      ["get", "PAY"], ["refund", "PAY", 6000, "paypal-REF"],
+    ]);
 
-    const again = await webhook(post(refunded), { stores, verify: yes, now });
+    const again = await webhook(post(refundEvent()), {
+      stores, verify: yes, now, square, env: {},
+    });
 
     assert.deepEqual(await again.json(), {
       handled: true, id: "NFF-2610-ABCD", repeat: true,
     });
+    assert.equal(calls.length, 2, "a redelivery touches nothing");
 
     const unknown = await applyEvent(stores, JSON.parse(event(
       "PAYMENT.CAPTURE.REFUNDED", { id: "NOPE" }
     )), { now });
 
     assert.deepEqual(unknown, { handled: false, reason: "unknown capture" });
+  });
+
+  it("refunds Square only what it is short of PayPal's total", async () => {
+    // $20 back from the CLI (Square has it), then $15 in PayPal.
+    const stores = testStores();
+    const { square, calls } = squareCopy({ refunded: 2000 });
+
+    await venmoPaid(stores);
+    await applyEvent(stores, JSON.parse(refundEvent({
+      id: "REF-2", value: "15.00", total: "35.00",
+    })), { now, square, env: {} });
+
+    assert.deepEqual(calls.at(-1), ["refund", "PAY", 1500, "paypal-REF-2"]);
+
+    // The CLI's own refund, heard back from PayPal before it was
+    // recorded: Square already matches, so nothing more goes back.
+    const matched = squareCopy({ refunded: 3500 });
+
+    await applyEvent(stores, JSON.parse(refundEvent({
+      id: "REF-3", value: "15.00", total: "35.00",
+    })), { now, square: matched.square, env: {} });
+
+    assert.deepEqual(matched.calls, [["get", "PAY"]]);
+    assert.equal((await getOrder(stores, "NFF-2610-ABCD")).refund
+      .squareRefundId, null);
+  });
+
+  it("records the PayPal refund and alerts when Square refuses", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const { square } = squareCopy({ fail: true });
+
+    await venmoPaid(stores);
+
+    const out = await applyEvent(stores, JSON.parse(refundEvent()), {
+      now, square, mail, env: { ADMIN_EMAILS: "farm@x.com" },
+    });
+    const saved = await getOrder(stores, "NFF-2610-ABCD");
+
+    assert.deepEqual(out, { handled: true, id: "NFF-2610-ABCD" });
+    assert.equal(saved.refund.paypalRefundId, "REF");
+    assert.equal(saved.refund.squareRefundId, null);
+    assert.ok(sent.some((m) =>
+      m.subject === "Site alert: square.refund_failed"));
   });
 });
 
