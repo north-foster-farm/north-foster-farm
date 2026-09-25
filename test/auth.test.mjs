@@ -238,6 +238,15 @@ describe("the auth endpoints", () => {
       /^nff_session=[A-Za-z0-9_-]+; Path=\/; HttpOnly; Secure; SameSite=Lax/
     );
 
+    // Beside it, a stamp scripts can read, so pages drop a cached
+    // "signed out" at once.
+    const stamp = verified.headers.getSetCookie()
+      .find((c) => c.startsWith("nff_signed_in="));
+
+    assert.match(stamp,
+      /^nff_signed_in=[a-z0-9]+; Path=\/; Secure; SameSite=Lax; Max-Age=/);
+    assert.doesNotMatch(stamp, /HttpOnly/);
+
     const id = cookie.match(/nff_session=([^;]+)/)[1];
     const me = await handle(new Request("https://x/api/me", {
       headers: { cookie: `nff_session=${id}` },
@@ -253,6 +262,9 @@ describe("the auth endpoints", () => {
 
     assert.equal(out.status, 204);
     assert.match(out.headers.get("set-cookie"), /Max-Age=0/);
+    assert.deepEqual(out.headers.getSetCookie().map((c) => c.split("=")[0]),
+      ["nff_session", "nff_signed_in"]);
+    assert.ok(out.headers.getSetCookie().every((c) => /Max-Age=0$/.test(c)));
 
     const gone = await (await handle(new Request("https://x/api/me", {
       headers: { cookie: `nff_session=${id}` },

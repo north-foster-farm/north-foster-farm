@@ -6,9 +6,9 @@
 //   GET  /api/me                               -> { signedIn, customer }
 
 import {
-  clearCookieHeader, cookieHeader, createSession, endSession, publicCustomer,
-  requestLink, safeNext, sameSite, sessionFrom,
-  verifyToken,
+  clearCookieHeader, clearStampHeader, cookieHeader, createSession,
+  endSession, publicCustomer, requestLink, safeNext, sameSite, sessionFrom,
+  stampHeader, verifyToken,
 } from "./lib/auth.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
@@ -29,8 +29,9 @@ const rateLimited = (ip, now) => {
   return recent.length > RATE.max;
 };
 
-const redirect = (location, headers = {}) => new Response(null, {
-  status: 302, headers: { Location: location, ...headers },
+// Headers as [name, value] pairs, so Set-Cookie can repeat.
+const redirect = (location, headers = []) => new Response(null, {
+  status: 302, headers: [["Location", location], ...headers],
 });
 
 export const handle = async (req, {
@@ -80,10 +81,11 @@ export const handle = async (req, {
       now, via: "link", userAgent: req.headers.get("user-agent"),
     });
 
-    return redirect(safeNext(result.next), {
-      "Set-Cookie": cookieHeader(session.id),
-      "Cache-Control": "no-store",
-    });
+    return redirect(safeNext(result.next), [
+      ["Set-Cookie", cookieHeader(session.id)],
+      ["Set-Cookie", stampHeader(now)],
+      ["Cache-Control", "no-store"],
+    ]);
   }
 
   if (path === "/api/auth/signout" && req.method === "POST") {
@@ -95,9 +97,11 @@ export const handle = async (req, {
 
     return new Response(null, {
       status: 204,
-      headers: {
-        "Set-Cookie": clearCookieHeader(), "Cache-Control": "no-store",
-      },
+      headers: [
+        ["Set-Cookie", clearCookieHeader()],
+        ["Set-Cookie", clearStampHeader()],
+        ["Cache-Control", "no-store"],
+      ],
     });
   }
 

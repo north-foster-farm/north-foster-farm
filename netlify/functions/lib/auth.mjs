@@ -162,6 +162,19 @@ export const cookieHeader = (id, { maxAge = SESSION_TTL / 1000 } = {}) =>
 export const clearCookieHeader = () =>
   `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 
+// A stamp beside the session cookie that scripts can read, with no
+// secret in it: a new one at each sign-in, none after signing out.
+// Pages cache /api/me against it (scripts/session/), so a sign-in or
+// sign-out shows at once on every page, in every tab.
+export const STAMP = "nff_signed_in";
+
+export const stampHeader = (now, { maxAge = SESSION_TTL / 1000 } = {}) =>
+  `${STAMP}=${now.getTime().toString(36)}; Path=/; Secure; ` +
+  `SameSite=Lax; Max-Age=${maxAge}`;
+
+export const clearStampHeader = () =>
+  `${STAMP}=; Path=/; Secure; SameSite=Lax; Max-Age=0`;
+
 export const cookieFrom = (req) => {
   const raw = req.headers.get("cookie") || "";
   const match = raw.match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]+)`));
