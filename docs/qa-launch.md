@@ -1357,13 +1357,11 @@ Pending: #114.
 
 ### AO-13 No invoice or payment-link copy remains
 
-Partial: `wording.spec.mjs` (desktop) reads ten pages and `llms.txt`.
-Fails today on `/login/`, `/account/`, `/delivery-policy/`, `/privacy/`
-and `llms.txt`, as #150 lists (`/` passes since 73b8e2e); it passes as
-#150 lands.
-The cancel dialog needs a signed-in customer with an order and stays
-manual. The account menu is settled: "Your orders" has its own icon,
-and the invoice icon marks "Receipts".
+Partial: `wording.spec.mjs` (desktop) reads ten pages and `llms.txt`,
+and follows the retired paper form. Passed on staging 2026-09-25, since
+ff8afe7 and 704412f. The cancel dialog needs a signed-in customer with
+an order and stays manual. The account menu is settled: "Your orders"
+has its own icon, and the invoice icon marks "Receipts".
 
 - **Scenario:** The invoice era's words are gone.
 - **Setup:** Staging.
@@ -1371,10 +1369,12 @@ and the invoice icon marks "Receipts".
   1. Open `/`, `/order/`, `/login/`, `/account/`, `/delivery-policy/`,
      `/privacy/`, `/about/`, `/contact/`, `/news/`, `/accessibility/`;
      fetch `/llms.txt`.
-  2. By hand: open the cancel dialog on an order.
+  2. Request `/order-form.pdf` without following redirects.
+  3. By hand: open the cancel dialog on an order.
 - **Assert:** No "invoice", "invoices", "payment link" or "Pay to
   confirm" in any page's text, meta description or share
-  description, in `llms.txt`, or in the dialog.
+  description, in `llms.txt`, or in the dialog; no "market pickup" in
+  `llms.txt`; the paper form answers 301 to `/order/`.
 - **Teardown:** None.
 
 ## Refunds and the CLI

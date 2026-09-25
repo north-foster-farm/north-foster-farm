@@ -46,4 +46,20 @@ test.describe("no invoice-era words (#150)", () => {
 
     expect(hit && hit[0]).toBeNull();
   });
+
+  test("llms.txt offers no market pickup", async ({ request }) => {
+    const text = await (await request.get("/llms.txt")).text();
+
+    expect(text).not.toMatch(/market pickup/i);
+  });
+
+  test("the paper order form leads to the order page", async ({
+    request,
+  }) => {
+    const res = await request.get("/order-form.pdf", { maxRedirects: 0 });
+
+    expect(res.status()).toBe(301);
+    expect(new URL(res.headers().location, res.url()).pathname)
+      .toBe("/order/");
+  });
 });
