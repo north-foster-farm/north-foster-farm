@@ -2,5 +2,5 @@
      breadcrumb use: set `heading` in front matter. */}}
 <div class="page-heading border-bottom border-light d-flex align-items-baseline mb-4">
   <h1 class="me-auto mb-0">{{ .Params.heading | default .Title }}</h1>
-  {{ partial "breadcrumbs.html" . }}
+  {{ if not .Params.hideBreadcrumbs }}{{ partial "breadcrumbs.html" . }}{{ end }}
 </div>

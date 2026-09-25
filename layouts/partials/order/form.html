@@ -1,6 +1,14 @@
+{{/* Discount codes go to the page hashed: it can tell a known code
+     from an unknown one and show the discount, without listing the
+     codes in the source. The server checks the real thing. */}}
+{{ $codes := slice }}
+{{ range (hugo.Data.discountCodes.codes | default slice) }}
+  {{ $codes = $codes | append (dict "hash" (crypto.SHA256 (upper .code)) "label" .label "off" .off) }}
+{{ end }}
 {{ $data := dict
   "catalog" hugo.Data.catalog
   "terms" hugo.Data.delivery
+  "codes" $codes
   "contact" (dict "email" hugo.Data.company.email "phone" hugo.Data.company.phone)
 }}
 <script type="application/json" id="order-data">{{ $data | jsonify | safeJS }}</script>
@@ -9,6 +17,18 @@
      are grid columns of .order-main: the catalog, the cart beside it,
      and the sections that follow under the catalog. */}}
 <form id="order-form" class="order-form" novalidate data-version="{{ hugo.Data.catalog.version }}">
+  {{/* Below lg the heading lives in this sticky bar and follows the
+       scroll: the current section or category (order-form.js). It
+       spans the whole form, so it stays to the end; once the cart has
+       scrolled away the total joins it on the right. */}}
+  <div class="order-topbar d-lg-none">
+    <span class="order-topbar-title" data-topbar-title aria-hidden="true">{{ .Params.heading | default .Title }}</span>
+    <span class="order-topbar-total" aria-hidden="true">
+      <span data-total-bar-count>0 items</span>
+      <span class="order-cart-sum-label">Total</span>
+      <span class="order-total-bar-total" data-total-bar-total>$0</span>
+    </span>
+  </div>
   <div class="order-catalog-col">
     <div id="order-stock" class="alert alert-warning" role="status" aria-live="polite" hidden></div>
     <div id="order-added" class="alert alert-success" role="status" aria-live="polite" hidden></div>
@@ -16,8 +36,17 @@
   </div>
   {{ partial "order/cart.html" . }}
   <div class="order-rest">
+    {{/* From lg to xl the pane scrolls away; this bar keeps the
+         total in view from then on (order-form.js marks the form once
+         the pane is passed). Below lg the topbar carries the total. */}}
+    <div class="order-total-bar d-none d-lg-flex d-xl-none" aria-hidden="true">
+      <span data-total-bar-count>0 items</span>
+      <span class="order-cart-sum-label">Total</span>
+      <span class="order-total-bar-total" data-total-bar-total>$0</span>
+    </div>
     {{ partial "order/customer.html" . }}
     {{ partial "order/fulfilment.html" . }}
+    {{ partial "order/payment.html" . }}
     {{ partial "order/wrap.html" . }}
   </div>
 </form>
@@ -32,23 +61,22 @@
           <path d="M6 14.5 11.5 20 22 8.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <h2 class="h3 mb-0">One more step, <span data-out="name"></span>.</h2>
+      <h2 class="h3 mb-0">Thank you, <span data-out="name"></span>. Your order is placed.</h2>
     </div>
     <div data-out="details">
-      <p><strong>Your order isn't final until it's paid.</strong></p>
       <p>
-        We emailed a payment link for <strong data-out="total"></strong> to
-        <strong data-out="email"></strong>. Pay with the link in your inbox
-        or with the button below.
-        <span data-out="confirms">Once we receive your payment, your order
-        is confirmed.</span>
+        <strong data-out="total"></strong> paid with
+        <strong data-out="how"></strong>.
+        A confirmation is on its way to <strong data-out="email"></strong>.
+        <span data-out="confirms"></span>
       </p>
+      <p data-out="when"></p>
       <p>
-        <a class="btn btn-primary btn-lg" data-out="invoiceUrl" href="#" target="_blank" rel="noopener">Pay now</a>
-      </p>
-      <p>
-        Your invoice number is <strong data-out="invoiceNumber"></strong>.
+        Your order number is <strong data-out="orderId"></strong>.
         Have it handy if you need to ask us about this order.
+      </p>
+      <p>
+        <a data-out="receiptUrl" href="#" target="_blank" rel="noopener">View your receipt</a>
       </p>
     </div>
     <p>

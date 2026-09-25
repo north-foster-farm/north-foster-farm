@@ -4,6 +4,7 @@
 // without accounts has no slot.
 
 import { api } from "../utils/api.js";
+import { forgetCustomer } from "../order/draft.js";
 
 const KEY = "nff-me";
 const TTL = 5 * 60_000;
@@ -70,6 +71,7 @@ const fill = (slot, who) => {
     async () => {
       await api("/api/auth/signout", { method: "POST", body: {} });
       forget();
+      forgetCustomer();
       location.href = "/";
     }, { once: true });
 };

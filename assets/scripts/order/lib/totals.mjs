@@ -57,12 +57,26 @@ export const groupDiscountFor = (subtotal, group, money) => {
   };
 };
 
+// A discount code from data/discount-codes.json, already looked up:
+// { code, label, off } with `off` in whole dollars. -> { key, label,
+// amount } or null. A code never takes more than the subtotal.
+export const codeDiscountFor = (subtotal, code) => {
+  if (!code || !(code.off > 0) || subtotal <= 0) return null;
+
+  return {
+    key: code.code,
+    label: code.label || code.code,
+    amount: Math.min(subtotal, toCents(code.off)),
+  };
+};
+
 // `lines` is [{ sku, qty }]; `index` is indexCatalog(catalog); `group`
-// is the customer's discount group key, if any. The bulk tier and the
-// group discount never stack: the customer gets the larger one.
+// is the customer's discount group key, if any; `code` is a discount
+// code entry, if a known one was typed. The bulk tier, the group
+// discount and the code never stack: the customer gets the largest.
 // `zipStatus` is the delivery ZIP's status from zipInfo, when known.
 export const computeTotals = ({
-  lines, method, index, money, group, zipStatus,
+  lines, method, index, money, group, code, zipStatus,
 }) => {
   let subtotal = 0;
 
@@ -74,8 +88,15 @@ export const computeTotals = ({
 
   const bulk = discountFor(subtotal, money);
   const byGroup = groupDiscountFor(subtotal, group, money);
-  const useGroup = !!byGroup && byGroup.amount > bulk.amount;
-  const isDelivery = method === "delivery";
+  const byCode = codeDiscountFor(subtotal, code);
+  const best = Math.max(
+    bulk.amount, byGroup ? byGroup.amount : 0, byCode ? byCode.amount : 0
+  );
+  const useCode = !!byCode && byCode.amount === best && byCode.amount > 0;
+  const useGroup = !useCode && !!byGroup && byGroup.amount > bulk.amount;
+  // An empty cart owes nothing, whatever method is chosen: Delivery
+  // is the starting choice, and a fee on nothing read as a $5 order.
+  const isDelivery = method === "delivery" && subtotal > 0;
   const baseFee = isDelivery && subtotal < toCents(money.feeWaivedAt)
     ? toCents(money.deliveryFee)
     : 0;
@@ -86,17 +107,25 @@ export const computeTotals = ({
     : 0;
   const deliveryFee = baseFee + areaFee;
 
+  const discountAmount = useCode
+    ? byCode.amount
+    : (useGroup ? byGroup.amount : bulk.amount);
+  const discountLabel = useCode
+    ? byCode.label
+    : (useGroup
+      ? `${byGroup.label} (${byGroup.percent}%)`
+      : (bulk.tier ? `Bulk discount ($${bulk.tier}+)` : null));
+
   return {
     subtotal,
-    discountTier: useGroup ? null : bulk.tier,
+    discountTier: useCode || useGroup ? null : bulk.tier,
     discountGroup: useGroup ? byGroup.key : null,
-    discountLabel: useGroup
-      ? `${byGroup.label} (${byGroup.percent}%)`
-      : (bulk.tier ? `Bulk discount ($${bulk.tier}+)` : null),
-    discountAmount: useGroup ? byGroup.amount : bulk.amount,
+    discountCode: useCode ? byCode.key : null,
+    discountLabel,
+    discountAmount,
     deliveryFee,
     areaFee,
-    total: subtotal - (useGroup ? byGroup.amount : bulk.amount) + deliveryFee,
+    total: subtotal - discountAmount + deliveryFee,
   };
 };
 

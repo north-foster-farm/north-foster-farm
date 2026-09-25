@@ -10,12 +10,14 @@ export const RUNBOOK_ALERTS = `${RUNBOOK_URL}#the-alerts-and-what-to-do`;
 export const GUIDE = {
   "order.create_failed": {
     means: "POST /api/orders could not create the Square order or " +
-      "invoice after retries, or Square rejected it outright. The " +
-      "customer saw the failure card with your email and phone.",
-    action: "Check Square status and the log (event order.failed; the " +
-      "detail is Square's answer). A retryable failure is Square or the " +
-      "network; a permanent one is usually an item not available at the " +
-      "web location, or a bad token.",
+      "take the payment after retries, or a processor rejected it " +
+      "outright. A declined card is not this: the customer just sees " +
+      "the decline. The customer saw the failure card with your email " +
+      "and phone.",
+    action: "Check Square or PayPal status and the log (event " +
+      "order.failed; the detail is the processor's answer). A retryable " +
+      "failure is the processor or the network; a permanent one is " +
+      "usually a bad token or application id.",
   },
   "client.checkout_failed": {
     means: "The order page itself gave up: retries exhausted or a " +
@@ -33,17 +35,19 @@ export const GUIDE = {
       "order id; resend with bin/nff or from the order page once mail " +
       "works.",
   },
-  "poll.failed": {
-    means: "Asking Square about an unpaid invoice threw. The next run " +
-      "retries.",
-    action: "Act only if it repeats for an hour: check " +
+  "square.record_failed": {
+    means: "A Venmo payment was captured but its Square order and " +
+      "external tender could not be made. The order is recorded and " +
+      "the customer is fine; the Square dashboard does not show it yet.",
+    action: "The jobs try again every run (squareSynced in the report). " +
+      "If square.missing shows up in the invariants a day later, check " +
       "SQUARE_ACCESS_TOKEN and Square status.",
   },
-  "venmo.fetch_failed": {
-    means: "Resend's inbound webhook arrived but the message could not " +
-      "be read. Resend retries the webhook.",
-    action: "Check that RESEND_READ_KEY is set and can read received " +
-      "mail.",
+  "venmo.amount_mismatch": {
+    means: "PayPal captured a different amount than the order's total. " +
+      "The order is recorded as paid all the same.",
+    action: "bin/nff orders show <id>, compare with the capture in " +
+      "PayPal, and refund or charge the difference by hand.",
   },
   "jobs.errors": {
     means: "An order's work in the 15-minute run threw. The rest of the " +

@@ -49,12 +49,33 @@ export const disallowedFor = (lines, state) => {
   return lines.filter((line) => !state.onlyGroups.includes(line.groupKey));
 };
 
+// The typed code, normalised: upper case, letters and digits only.
+export const normalizeCode = (value) =>
+  text(value, 40).toUpperCase().replace(/[^A-Z0-9-]/g, "");
+
+// The entry for a typed code, or null. Unknown codes are harmless:
+// the order goes through without one, and the page says so.
+export const findCode = (value, codes) => {
+  const wanted = normalizeCode(value);
+
+  if (!wanted) return null;
+
+  const found = (codes || []).find((c) => normalizeCode(c.code) === wanted);
+
+  return found ? { ...found, code: wanted } : null;
+};
+
 // Returns { ok: true, order } or { ok: false, status, errors, dates? }.
 // `group` is the signed-in customer's discount group, never the
-// payload's: the server decides who gets it.
-export const validateOrder = (payload, { index, terms, now, group }) => {
+// payload's: the server decides who gets it. `codes` is the list of
+// discount codes, on the server; the page, which has no list, passes
+// the entry it resolved as `code`.
+export const validateOrder = (payload, {
+  index, terms, now, group, codes, code,
+}) => {
   const errors = {};
   const p = payload && typeof payload === "object" ? payload : {};
+  const discountCode = codes ? findCode(p.code, codes) : code || null;
   const customer = p.customer || {};
   const fulfilment = p.fulfilment || {};
   const money = terms.money;
@@ -78,8 +99,12 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
   if (!EMAIL.test(email)) {
     errors["customer.email"] = "That email address doesn't look right.";
   }
+  // Delivery needs a phone for the driver; pickup and the drop site
+  // can do without. A number given must be one we could use.
   if (!phone) {
-    errors["customer.phone"] = "Please enter a phone number.";
+    if (fulfilment.method === "delivery") {
+      errors["customer.phone"] = "Please enter a phone number.";
+    }
   } else if (!phoneOk(phone)) {
     errors["customer.phone"] = "That phone number doesn't look right.";
   }
@@ -128,7 +153,7 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
     ? zipInfo((fulfilment.delivery || {}).zip, terms.area).status
     : null;
   const totals = computeTotals({
-    lines, method, index, money, group, zipStatus,
+    lines, method, index, money, group, code: discountCode, zipStatus,
   });
   const out = {
     customer: {
@@ -229,6 +254,7 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
         squareVariationId: item.squareVariationId || null,
       })),
       totals,
+      code: totals.discountCode,
       notes: text(p.notes, 2000),
       source: text(p.source, 100),
       flags: {

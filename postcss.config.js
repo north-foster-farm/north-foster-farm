@@ -53,6 +53,18 @@ const plugins = [
         "data-on",
         "data-open",
         "readonly",
+        "data-pay-state",
+        "loading",
+        "ready",
+        "venmo-only",
+        "unavailable",
+        "good",
+        "warn",
+        "data-shown",
+        "data-stuck",
+        "data-card-open",
+        "data-cart-passed",
+        "aria-pressed",
       ];
     },
     safelist: {
@@ -73,6 +85,8 @@ const plugins = [
         "is-valid",
         "is-active",
         "is-bumped",
+        "is-entering",
+        "is-fading",
         // The account page marks the order an email linked to.
         "is-linked",
         // Applied by session.js: the header's account slot fades in.
@@ -86,6 +100,8 @@ const plugins = [
         "order-cart-item-name",
         "order-cart-item-qty",
         "order-cart-item-sub",
+        "order-cart-remove",
+        "order-cart-toggle-word",
         "order-chicks",
         "order-qty-tick",
         "form-control-plaintext",

@@ -5,7 +5,8 @@ import catalog from "../data/catalog.json" with { type: "json" };
 import terms from "../data/delivery.json" with { type: "json" };
 import { indexCatalog } from "../assets/scripts/order/lib/catalog.mjs";
 import {
-  computeTotals, discountFor, dollars, meetsMinimum, nextTier,
+  codeDiscountFor, computeTotals, discountFor, dollars, meetsMinimum,
+  nextTier,
 } from "../assets/scripts/order/lib/totals.mjs";
 
 const index = indexCatalog(catalog);
@@ -74,6 +75,13 @@ describe("delivery fee", () => {
   it("is $5 on delivery under $150 and waived at $150", () => {
     assert.equal(totalsAt(149, "delivery").deliveryFee, 500);
     assert.equal(totalsAt(150, "delivery").deliveryFee, 0);
+  });
+
+  it("is not charged on an empty cart", () => {
+    const t = totalsAt(0, "delivery");
+
+    assert.equal(t.deliveryFee, 0);
+    assert.equal(t.total, 0);
   });
 
   it("is never charged for pickup or drop sites", () => {
@@ -174,5 +182,55 @@ describe("dollars", () => {
     assert.equal(dollars(500), "$5");
     assert.equal(dollars(8950), "$89.50");
     assert.equal(dollars(-1000), "-$10");
+  });
+});
+
+describe("discount codes", () => {
+  const code = { code: "FALL5", label: "Fall special", off: 5 };
+  const withCode = (price, entry = code, method = "onfarm") => computeTotals({
+    lines: [{ sku: "X", qty: 1 }], method, index: priced(price), money,
+    code: entry,
+  });
+
+  it("take whole dollars off, never more than the subtotal", () => {
+    assert.deepEqual(codeDiscountFor(4000, code),
+      { key: "FALL5", label: "Fall special", amount: 500 });
+    assert.equal(codeDiscountFor(300, code).amount, 300);
+    assert.equal(codeDiscountFor(0, code), null);
+    assert.equal(codeDiscountFor(4000, null), null);
+    assert.equal(codeDiscountFor(4000, { code: "X", off: 0 }), null);
+  });
+
+  it("never stack with the tier: the customer gets the larger", () => {
+    const small = withCode(40);
+
+    assert.equal(small.discountAmount, 500);
+    assert.equal(small.discountCode, "FALL5");
+    assert.equal(small.discountLabel, "Fall special");
+    assert.equal(small.discountTier, null);
+    assert.equal(small.total, 3500);
+
+    // At $100 the tier gives $10; the code's $5 loses.
+    const large = withCode(100);
+
+    assert.equal(large.discountAmount, 1000);
+    assert.equal(large.discountCode, null);
+    assert.equal(large.discountTier, 100);
+    assert.equal(large.discountLabel, "Bulk discount ($100+)");
+  });
+
+  it("lose to a larger group discount too", () => {
+    const t = computeTotals({
+      lines: [{ sku: "X", qty: 1 }], method: "onfarm", index: priced(100),
+      money, group: "wholesale", code,
+    });
+
+    assert.equal(t.discountAmount, 2000);
+    assert.equal(t.discountGroup, "wholesale");
+    assert.equal(t.discountCode, null);
+  });
+
+  it("are absent from the totals when none was given", () => {
+    assert.equal(totalsAt(40).discountCode, null);
   });
 });

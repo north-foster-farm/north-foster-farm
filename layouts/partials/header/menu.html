@@ -11,7 +11,7 @@
   (dict "name" "About" "path" "about/")
 }}
 {{ $here := .RelPermalink }}
-<div class="container site-header-inner">
+<div class="container-fluid site-header-inner">
   <a class="site-brand" href="{{ .Site.BaseURL }}" aria-label="Home" {{- if .IsHome }} aria-current="page" {{ end }}>
     {{ partial "svg.html" "logo" }}
   </a>

@@ -1,18 +1,8 @@
 {{ $groups := partial "order/groups.html" . }}
-<div class="order-topbar d-lg-none">
-  <button type="button" class="btn btn-outline-secondary btn-sm order-topbar-btn" data-bs-toggle="offcanvas" data-bs-target="#order-side" aria-controls="order-side">
-    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-      <path d="M2 4h12M2 8h12M2 12h12" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
-    </svg>
-    Jump to&hellip;
-  </button>
-  <span class="order-topbar-title" aria-hidden="true">{{ .Params.heading | default .Title }}</span>
-</div>
-
 <h2 class="visually-hidden">Choose your items</h2>
 <div class="invalid-feedback d-block mb-2" data-error-for="lines"></div>
 
-<div class="order-catalog" id="order-catalog" data-bs-spy="scroll" data-bs-target="#order-cats" data-bs-root-margin="-20% 0px -65%" data-bs-smooth-scroll="true" tabindex="0">
+<div class="order-catalog" id="order-catalog" tabindex="0">
   {{ range $groups }}
     <section class="order-cat" id="cat-{{ .key }}" aria-labelledby="cat-{{ .key }}-h">
       <h3 class="order-cat-title" id="cat-{{ .key }}-h">

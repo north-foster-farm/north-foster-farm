@@ -1,22 +1,32 @@
 # QA guide: fulfilment step A
 
-What to try after PR #106 ships, what should happen, and where to look
-when it does not. Work through it with a real card or a $1 test item
-and cancel or refund at the end. Every check names the command or
-page that shows the truth; the emails are the second witness.
+What to try once the on-page checkout is on staging, what should
+happen, and where to look when it does not. Work through it on the
+staging deploy against the Square and PayPal sandboxes
+(`docs/staging.md`), with `bin/nff --staging` for the records; a
+final pass on production uses a real $7 egg order refunded at the
+end. Every check names the command or page that shows the truth; the
+emails are the second witness.
 
-Before starting, on Netlify: `ACCOUNTS_ENABLED=true`,
-`RESEND_WEBHOOK_SECRET` (the Svix secret of the Resend webhook),
-`RESEND_READ_KEY` (a key that can read received mail). In Resend: a
-webhook for `email.received` pointed at
-`https://www.northfosterfarm.com/api/venmo/inbound`. Without the
-first, emails carry no links to the account pages and the deny email
-asks for a reply; without the other two, Venmo notifications are
-ignored (the endpoint answers 401) and only the manual path works.
+Before starting, on the staging context: `ACCOUNTS_ENABLED=true`,
+`SQUARE_APPLICATION_ID`, the sandbox `SQUARE_ACCESS_TOKEN` and
+`SQUARE_LOCATION_ID`, `SQUARE_WEBHOOK_SIGNATURE_KEY` for the sandbox
+webhook, and for Venmo `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`,
+`PAYPAL_ENV=sandbox` and `PAYPAL_WEBHOOK_ID`. Without the first,
+emails carry no links to the account pages and the deny email asks
+for a reply; without the PayPal pair the Venmo button does not
+appear; without either processor the payment section says online
+payment is unavailable. On this machine, `.env.staging` beside
+`.env` with the same sandbox token and location, `MAIL_DRIVER=outbox`,
+`ACCOUNTS_ENABLED=true` and `SITE_URL` set to the staging address, so
+`bin/nff --staging` meets the same sandbox and its emails land in the
+toolbar's inbox; a production location id there makes every Square
+update from the CLI fail with "Immutable field cannot be changed".
 
-Read a record at any point with `bin/nff orders show <id>`. The
-`history` list is the order's diary; `emails` is every send, keyed by
-template, so "did it send" is a lookup, not a guess.
+Read a record at any point with `bin/nff --staging orders show <id>`.
+The `history` list is the order's diary; `emails` is every send,
+keyed by template, so "did it send" is a lookup, not a guess;
+`payment` says how the money came.
 
 ## 1. Sign in and the header
 
@@ -33,69 +43,90 @@ template, so "did it send" is a lookup, not a guess.
       North Foster Farm"; the link signs you in and lands on
       `/account/`. Following it a second time lands on `/login/` with
       "already used" explained.
-- [ ] Signed in, the header shows **Account** with Orders, Invoices,
-      Settings, Sign out. On `/account/` too.
+- [ ] Signed in, the header shows **Account** with its menu. On
+      `/account/` too.
 - [ ] Four link requests within 15 minutes: the fourth answers the
       same "Check your email" but sends nothing (rate limit; the
       earlier link still works).
 
-## 2. Settings: reminder preferences
+## 2. Paying on the page
 
-- [ ] `/account/#settings` has "Email reminders" with two checked
-      boxes. Untick payment, Save. Reload: still unticked.
-- [ ] `bin/nff customers show <email>` shows
-      `reminders: { payment: false, delivery: true }`.
-- [ ] Place an unpaid order as that customer and wait an hour past
-      placing (or run `bin/nff jobs run` after the hour): the report
-      lists `muted: [{ id, kind: "payment" }]` and no reminder is sent.
-      The order still abandons at its cutoff.
-- [ ] Tick it back on; the next due reminder sends.
+Fill a cart and the details, choose on-farm pickup for a date a few
+days out, and scroll to Payment.
+
+- [ ] The Payment section shows Square's card fields. In Chrome a
+      Google Pay button and, with PayPal configured, a Venmo button
+      sit under "Or pay with"; in Safari an Apple Pay button appears
+      once the domain is verified. The submit button reads "Pay $X
+      and place your order" with the cart's total, and changes as the
+      cart does.
+- [ ] Press the button with an empty required field: the field is
+      marked and nothing is charged (no `order.paid` in the log).
+- [ ] Square's test card `4111 1111 1111 1111`, any future expiry, CVV
+      `111`, ZIP `94103`: the button reads "Taking your payment…",
+      then the form is replaced by "Thank you, <name>. Your order is
+      placed." with "$X paid with Visa ending 1111", the email the
+      confirmation goes to, the order number and a "View your
+      receipt" link to Square's receipt.
+- [ ] `bin/nff --staging orders show <id>`: `status` is `paid`,
+      `payment.via` is `square`, `payment.method` `card`, `last4`
+      `1111`, `square.squareOrderId` set, `history[0].event` is
+      `paid`, stock moved down.
+- [ ] The Square sandbox dashboard shows the order with its fulfilment
+      and the payment against it.
+- [ ] The customer email is "Payment received" (on-farm, window
+      requested) and the farm's "New order ... on-farm pickup" carries
+      "Paid: **$X by Visa ending 1111**", "Pickup time: **Requested,
+      not yet confirmed**" and the confirm and deny commands.
+- [ ] Reload the page: the cart is empty, the draft gone.
+
+Declined:
+
+- [ ] New cart, card `4000 0000 0000 0002`: no success card. Under the
+      card fields, "Your card was declined. Try another card." in
+      red; the form stays as it was. `bin/nff --staging orders list`
+      shows no new order; the Square sandbox shows the order for it
+      as Canceled, not open. The log has `payment.declined` and the
+      next morning report counts one decline.
+- [ ] Enter the good card and pay: it goes through as a fresh
+      attempt (`meta.attempt` is `2`).
+
+The total moved under them:
+
+- [ ] Change the cart after pressing Pay once (say a decline first),
+      then pay again: the charge is the new total, never the old one.
+
+A wallet:
+
+- [ ] Google Pay in Chrome with a test card in the sandbox wallet:
+      the sheet shows the cart's total; approving it places the order
+      with "paid with Google Pay", `payment.method` `googlepay`.
 
 ## 3. On-farm pickup: the farm's agreement
 
-Place an on-farm order for a date a few days out.
+Using the on-farm order above (`fulfilment.state` is `requested`):
 
-- [ ] Success card says the pickup time is a request and the order is
-      confirmed once paid and the time is set.
-- [ ] Customer email "One more step: pay for your order" has the
-      button "Pay and complete your checkout", the Venmo paragraph,
-      the "We'll check to make sure..." paragraph, and "Requested:"
-      (not "When:") in Order details, plus an outline "View or edit
-      this order" button.
-- [ ] Farm email "New order ... on-farm pickup" carries "Pickup time:
-      **Requested, not yet confirmed**" and the confirm and deny
-      command lines.
-- [ ] `bin/nff orders show <id>`: `fulfilment.state` is `requested`.
 - [ ] `/account/#orders`: the card says "Pickup time requested. We'll
-      confirm it by email."
-
-Paid first:
-
-- [ ] Pay the invoice. Customer gets "Payment received" naming the
-      day before the pickup; no "confirmed" email yet. Farm gets
-      "Paid: order ...".
-- [ ] `bin/nff orders confirm <id>`: customer gets "Your order is
-      confirmed" with "Your payment of $X came through and your pickup
-      time is set" and "When:" in Order details. `fulfilment.state` is
-      `agreed`, `agreedAt` set.
+      confirm it by email." and "Paid with: Visa ending 1111" under
+      the totals.
+- [ ] `bin/nff --staging orders confirm <id>`: customer gets "Your
+      order is confirmed" with "Your payment of $X came through and
+      your pickup time is set" and "When:" in Order details.
+      `fulfilment.state` is `agreed`, `agreedAt` set.
 - [ ] Run confirm again: nothing sent, nothing changed.
-
-Agreed first:
-
-- [ ] New on-farm order, `bin/nff orders confirm <id>` while unpaid:
-      no email. Then pay: "Your order is confirmed" arrives once.
 
 Denied:
 
-- [ ] New on-farm order. `bin/nff orders deny <id> --reason "We're at
-      the market that morning."`: customer gets "One more step: pick a
-      new pickup time" with the bold "The morning of ... doesn't work
-      for us.", "Here's why:" in bold italic, your paragraph, a "Pick
-      a new time" button, and (unpaid) the paused-reminders line.
-- [ ] `bin/nff orders show <id>`: `question.kind` is `window`,
-      `answeredAt` null.
-- [ ] `bin/nff jobs run` after the reminder hour: no reminder, no
-      abandon for that order while the question is open.
+- [ ] New on-farm order, paid. `bin/nff --staging orders deny <id>
+      --reason "We're at the market that morning."`: customer gets
+      "One more step: pick a new pickup time" with the bold "The
+      morning of ... doesn't work for us.", "Here's why:" in bold
+      italic, your paragraph, a "Pick a new time" button and the line
+      that cancelling from the same page is a full refund.
+- [ ] `bin/nff --staging orders show <id>`: `question.kind` is
+      `window`, `answeredAt` null.
+- [ ] `bin/nff --staging jobs run` the day after its date: not closed
+      while the question is open.
 - [ ] Click "Pick a new time" (works for a week): lands signed in on
       that order's card, which says "We can't do that pickup time: ...
       Please choose another day or window with Change, or cancel the
@@ -103,87 +134,88 @@ Denied:
 - [ ] Change the window or date and save: "Order updated" email shows
       "Requested:"; farm gets "Pickup time to confirm: <id>";
       `question.answer` is `reschedule`; `fulfilment.state` back to
-      `requested`. Reminders and the cutoff run again on the new date.
+      `requested`.
 - [ ] Alternatively cancel from the card: `question.answer` is
-      `cancel`; the cancellation email arrives.
-- [ ] Alternatively `bin/nff orders confirm <id>` after a deny: the
-      time works after all; `question.answer` is `confirmed`,
-      `by: farm`.
-- [ ] `bin/nff orders deny <id>` on a delivery order: refused with
-      "Only an on-farm pickup needs confirming."
+      `cancel`; the card says "We're refunding this order"; the
+      cancellation email says the refund is on its way; the farm gets
+      "Refund needed" naming `bin/nff orders cancel <id> --refund`.
+      `cancelRequested` is true and the order is still `paid` until
+      the CLI runs.
+- [ ] Alternatively `bin/nff --staging orders confirm <id>` after a
+      deny: the time works after all; `question.answer` is
+      `confirmed`, `by: farm`.
+- [ ] `bin/nff --staging orders deny <id>` on a delivery order:
+      refused with "Only an on-farm pickup needs confirming."
 
 The morning report:
 
 - [ ] With an on-farm order still `requested` (or denied and not
       re-picked) within two days of its date, the first jobs run after
-      8:00 sends "Pickups to confirm: <today>" to ADMIN_EMAILS, one
-      line per order with the confirm command, once that day. Nothing
-      is sent on a day with no such order.
+      8:00 (the toolbar's "As 8:00 today") sends "Morning report:
+      <today>" to ADMIN_EMAILS, the vital signs first, then one line
+      per pickup with the confirm command, once that day.
 
-## 4. Find my order and resending the invoice
+## 4. Find my order and the receipts
 
 - [ ] Signed out, `/login/`, Find my order with the right email and
-      an unpaid order's number: "Check your email" naming the address.
-      The email is the pay-link email again, with the Pay button and
-      a "View or edit this order" button that signs you in and lands
-      on that order's card.
-- [ ] Same with a paid order: a plain sign-in email whose link lands
-      on that order's card.
+      an order's number: "Check your email" naming the address. The
+      email is a sign-in link whose link lands on that order's card.
 - [ ] Wrong email for the order, or a made-up number: the same
       "Check your email" card, and nothing arrives.
 - [ ] Type the number in lower case or with the hyphens missing: still
       matches.
-- [ ] Signed in, an unpaid order's card has **Resend the invoice**:
-      pressing it sends the pay-link email again. The sixth press on
-      one order (counting Find my order sends) says "We've sent that a
-      few times already." `bin/nff orders show <id>` lists
-      `invoiceResent-1` ... `invoiceResent-5` under `emails`.
+- [ ] `/account/#receipts`: one row per payment with the order, the
+      day paid, the total, "Visa ending 1111" (or "Venmo"), the status
+      and a Receipt link for a card payment. No Pay, Resend or "I paid
+      by Venmo" anywhere on the account page.
 
-## 5. Venmo by hand
+## 5. Venmo
 
-- [ ] An unpaid order's card says "Not final until it's paid. Pay the
-      invoice, or send $X to @northfosterfarm on Venmo with <id> in the
-      note and press "I paid by Venmo" below." and has that button.
-- [ ] Press it: the card says "Thanks, we're checking Venmo for your
-      payment." Farm gets "Venmo to check: order <id> — $X" with where
-      to look and the two commands. `paymentPending.source` is `venmo`.
-- [ ] `bin/nff jobs run` past the reminder hour: no reminder, no
-      abandon while held.
-- [ ] Press again: "We're already looking for that payment."
-- [ ] `bin/nff orders unpaid <id>`: hold lifted, `history` ends
-      `payment.unclaimed`, reminders resume.
-- [ ] Press again, then `bin/nff orders paid <id> --via venmo`: order
-      `paid`, `payment.via` is `venmo`, the customer's confirmation (or
-      "Payment received" for a requested on-farm window) arrives, and
-      the Square invoice shows Canceled in the Square dashboard.
-- [ ] `bin/nff orders paid <id>` with no flag records `via: cash` and
-      also cancels the invoice.
+Needs the PayPal sandbox with Venmo enabled and the SDK's
+`buyer-country=US`, which the page adds in the sandbox on its own.
+Use a PayPal sandbox personal account as the buyer.
 
-## 6. Venmo by notification
+- [ ] The Venmo button opens PayPal's sandbox approval. Approve it:
+      the success card says "paid with Venmo"; `payment.via` is
+      `venmo`, `paypalOrderId` and `paypalCaptureId` set,
+      `square.squareOrderId` set, `payment.squarePaymentId` set.
+- [ ] The Square sandbox shows the order with an external "Venmo"
+      tender for the total.
+- [ ] Close the window during approval (Cancel): no order, no
+      message; the form stays.
+- [ ] Interrupt the second step: approve, then kill the network
+      before the page's capture request lands. Within a minute the
+      PayPal webhook's `PAYMENT.CAPTURE.COMPLETED` finishes it: the
+      order exists with `paid`, the log's `paypal.webhook` line says
+      `recovered: true`. The page, once back online, retries and finds
+      the same order.
+- [ ] `bin/nff --staging orders show <id>` a day later, with the
+      checkout key gone from the store (the jobs sweep it;
+      `checkoutsSwept` in the run report).
 
-Needs the webhook and the two Resend variables. Use a real $1 payment
-to @northfosterfarm with a test order's number in the note; cancel the
-order afterwards and refund the dollar by hand.
+## 6. Refunds
 
-- [ ] Within a minute or two of the Venmo email arriving, the order is
-      `paid` with `payment.via: venmo` and `history` shows
-      `source: venmo`; the customer's email arrives; the Square invoice
-      is cancelled. Netlify function log for `venmo-inbound` shows
-      `venmo.received ... matched: true`.
-- [ ] `bin/nff venmo list` shows the payment as `applied` with its
-      19-digit transaction id.
-- [ ] Pay $1 with a note that names no order (a market-style payment):
-      nothing happens to any order; `bin/nff venmo list` shows it
-      `unmatched`; the first jobs run after 18:00 sends "Venmo payments
-      with no order: <today>" as a table, once, and the record gains
-      `reportedAt`.
-- [ ] Pay the wrong amount for a real order number: not applied,
-      reported that evening with "names <id> ($X due)".
-- [ ] A Venmo email that is not a payment (a verification, a profile
-      change) does nothing; the function log says `not a payment`.
-- [ ] Netlify function log after a webhook: a 401 means the secret is
-      wrong or missing; a 502 means the read key cannot fetch the
-      message (Resend retries those).
+- [ ] `bin/nff --staging orders refund <id> --amount 5 --reason
+      "Short one dozen"` on a card order: prints "Refunded $5 of $X by
+      Visa ending 1111"; `refund.amount` is 500, `total` false; the
+      Square sandbox shows the refund; the customer gets Square's
+      refund receipt. The account card says "Refunded $5 on <date>".
+- [ ] Run it again: refused, "Already refunded $5 on <date>".
+- [ ] `bin/nff --staging orders cancel <id> --refund` on a paid Venmo
+      order: PayPal refunds the capture and the Square tender is noted
+      as refunded; `status` is `cancelled`, `refund.total` true, stock
+      back, the fulfilment Canceled in Square, the customer emailed
+      "Your refund is on its way".
+- [ ] `bin/nff --staging orders cancel <id>` without `--refund`: the
+      email says "Nothing more will be charged"; `refund` stays
+      unset.
+- [ ] Refund a card payment in the Square sandbox dashboard instead:
+      the `refund.updated` webhook writes `order.refund` with
+      `source: square`; `bin/nff --staging orders show <id>` shows it
+      within a minute.
+- [ ] Refund a Venmo capture in the PayPal sandbox: the
+      `PAYMENT.CAPTURE.REFUNDED` webhook writes `order.refund` with
+      `source: paypal`.
 
 ## 7. Monitoring
 
@@ -198,31 +230,33 @@ inbox hears.
 - [ ] healthchecks.io shows the *Jobs* check going green every 15
       minutes and the three HTTP checks up.
 - [ ] Axiom shows a `jobs.run` line every 15 minutes and an
-      `order.created` line for each order placed.
-- [ ] 8:00: "Morning report: <today>" arrives every day, numbers first,
-      then pickups (or "No pickups waiting on a decision"). It pings the
-      *Alerts* check well; that check is green after 8:00.
+      `order.paid` line for each order placed.
+- [ ] 8:00: "Morning report: <today>" arrives every day, numbers first
+      (placed, by card, by Venmo, declined, cancelled, refunded, open,
+      mail failures, runs, errors, violations), then pickups (or "No
+      pickups waiting on a decision"). It pings the *Alerts* check
+      well; that check is green after 8:00.
 - [ ] 18:00: "Tomorrow, <date>: N orders" arrives every day, grouped
       delivery, Scituate, on-farm, with pack lines; "Nothing due" on an
       empty day.
-- [ ] Force a checkout failure (kill the network mid-submit, or pick a
-      SKU with `squareVariationId` broken in a preview): the customer
-      sees the failure card and the farm gets "Site alert:
-      order.create_failed" or "Site alert: client.checkout_failed"; the
-      *Alerts* check goes red. A second failure within the hour sends
-      no second email; `bin/nff jobs history` and the log show both.
+- [ ] Force a checkout failure (a wrong `SQUARE_ACCESS_TOKEN` on a
+      preview): the customer sees the failure card and the farm gets
+      "Site alert: order.create_failed" or "Site alert:
+      client.checkout_failed"; the *Alerts* check goes red. A second
+      failure within the hour sends no second email; `bin/nff jobs
+      history` and the log show both.
 - [ ] `bin/nff jobs history` lists the last runs with `ok` and their
       counts; a run with errors shows them indented.
 - [ ] Take `RESEND_API_KEY` away in a preview and place an order: the
-      order is created, the customer gets no email, and the farm alert
-      `mail.failed` fires; `/api/health` goes 503 after the third such
-      failure in an hour.
+      order is paid and recorded, the customer gets no email but
+      Square's receipt, and the farm alert `mail.failed` fires;
+      `/api/health` goes 503 after the third such failure in an hour.
 
 ## 8. Nothing else changed
 
-- [ ] A delivery order is born `agreed`, pays and confirms exactly as
-      before, with the Venmo paragraph as the only new line in its pay
-      link, and gets the cooler reminder the evening before.
+- [ ] A delivery order pays and is confirmed at once ("Your order is
+      confirmed" with "When:"), and gets the cooler reminder the
+      evening before (the toolbar's "As 18:00 today" the day before).
 - [ ] A Scituate order likewise.
 - [ ] The About page says "the orders page".
 
@@ -231,8 +265,8 @@ inbox hears.
 - Take the account pages off: `accounts = false` in
   `config/_default/hugo.toml` and unset `ACCOUNTS_ENABLED`. Emails
   drop their account links; the deny email asks for a reply.
-- Stop Venmo notifications: delete the Resend webhook, or unset
-  `RESEND_WEBHOOK_SECRET` (the endpoint then refuses everything).
-- Close a test order: `bin/nff orders cancel <id> --refund` after
-  refunding in Square by hand, or `bin/nff orders delete <id>` to
-  remove the record entirely.
+- Take Venmo off: unset `PAYPAL_CLIENT_ID`; the button disappears and
+  nothing else changes.
+- Close a test order: `bin/nff orders cancel <id> --refund`, or
+  `bin/nff orders delete <id>` to remove the record entirely (the
+  money stays where it is).
