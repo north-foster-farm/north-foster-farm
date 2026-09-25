@@ -43,10 +43,10 @@ test.describe("home", () => {
       await expect(how.locator(".home-title"))
         .toHaveText("From our pasture to your table");
       await expect(how.locator(".how-step-title")).toHaveText([
-        "Step 1: Shop one page",
-        "Step 2: Choose your day",
-        "Step 3: Make a change",
-        "Step 4: Pick up or delivery",
+        "Step 1: Shop what’s fresh",
+        "Step 2: Pick your day",
+        "Step 3: Change of plans?",
+        "Step 4: Taste the difference",
       ]);
       await expect(steps).toHaveCount(4);
       for (const step of await steps.all()) {
