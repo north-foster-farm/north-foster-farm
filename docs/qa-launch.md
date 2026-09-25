@@ -1172,7 +1172,8 @@ only, since it locks this address out of `/api/orders` for ten minutes;
 the page alone, stubbed, in `recovery.spec.mjs`, "too many tries says
 so by the Pay button and keeps the order" and "an empty 204 is never
 taken for a placed order". Finding D4, fixed by #154; passed on staging
-2026-09-24.
+2026-09-24 and again on 2026-09-25 at 7426b9a, after 19f8f60 changed
+the order handler.
 
 - **Scenario:** After 12 requests from one address in 10 minutes the
   endpoint once answered 204, and the page showed "Your order is placed"
