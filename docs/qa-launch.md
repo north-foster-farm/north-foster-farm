@@ -139,7 +139,9 @@ after typing in a field" (both projects). Finding D1, fixed by #155.
 ### OP-07 Quantities keep to two digits
 
 Automated: `order-page.spec.mjs`, "a typed quantity keeps to two digits"
-(both projects).
+(both projects). Fails today on desktop (#168): an emptied box folds
+back to Add and drops the item before the new number is typed. The
+phone passes only because the fold is slower than the test.
 
 - **Scenario:** Typed quantities cannot exceed 99 or hold letters.
 - **Setup:** 1 egg in the cart.
@@ -558,7 +560,8 @@ never waived".
 ### PR-08 The outside-area note on the order page
 
 Automated: `pricing.spec.mjs`, "the unlisted-ZIP note states the fee in
-dollars and charges now". Fails today: finding D2.
+dollars and charges now". Fails today on the dollar sign alone (finding
+D2, a line in #159); the wording was settled in ff8afe7.
 
 - **Scenario:** The note under the ZIP must state the fee as money and
   must not promise a check before charging, since the card is charged on
@@ -572,7 +575,7 @@ dollars and charges now". Fails today: finding D2.
 ### PR-09 The delivery policy's ZIP check
 
 Automated: `pricing.spec.mjs`, "the delivery policy's ZIP check hedges
-the same way". Fails today: finding D2.
+the same way". Passed on staging 2026-09-25, since ff8afe7.
 
 - **Scenario:** The "Do we deliver to you?" widget says the same as the
   order page.
