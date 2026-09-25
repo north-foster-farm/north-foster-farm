@@ -11,14 +11,16 @@
   (dict "name" "About" "path" "about/")
 }}
 {{ $here := .RelPermalink }}
-<div class="container site-header-inner">
+{{/* The whole row is the main navigation, so Home, the logo, is its
+     first item at every width. */}}
+<nav class="container site-header-inner" aria-label="Main">
   {{/* The hen, and the wordmark beside it from sm up, so a page
        reached from a link still says whose it is. */}}
   <a class="site-brand" href="{{ .Site.BaseURL }}" aria-label="North Foster Farm, home" {{- if .IsHome }} aria-current="page" {{ end }}>
-    <span class="site-mark">{{ partial "svg.html" "logo-mark" }}</span>
-    <span class="site-wordmark">{{ partial "svg.html" "logo" }}</span>
+    <span class="site-mark" aria-hidden="true">{{ partial "svg.html" "logo-mark" }}</span>
+    <span class="site-wordmark" aria-hidden="true">{{ partial "svg.html" "logo" }}</span>
   </a>
-  <nav class="site-actions" aria-label="Main">
+  <div class="site-actions">
     {{/* From md up: the text links in the row. On a phone they live in
          the menu below; the row keeps the wordmark, Order and the
          toggle. Sign in comes first so its fade-in never moves the
@@ -50,8 +52,8 @@
     <button class="site-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#site-menu" aria-controls="site-menu" aria-expanded="false" aria-label="Menu">
       <span class="site-toggle-bars" aria-hidden="true"><span></span><span></span><span></span></span>
     </button>
-  </nav>
-</div>
+  </div>
+</nav>
 
 {{/* The phone menu: the same links, one per line, sliding in from
      the right. */}}
@@ -61,6 +63,7 @@
     <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
   </div>
   <div class="offcanvas-body site-offcanvas-body">
+    <a class="site-nav-link" href="{{ .Site.BaseURL }}" {{- if .IsHome }} aria-current="page" {{ end }}>Home</a>
     {{ if $onOrder }}
       <span class="site-nav-link is-current" aria-current="page">Order{{ partial "header/cart-badge.html" }}</span>
     {{ else }}
