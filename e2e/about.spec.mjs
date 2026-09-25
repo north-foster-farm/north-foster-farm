@@ -65,7 +65,8 @@ test.describe("about (#144)", () => {
     expect(after.p).toMatch(/^We raise a premium chicken/);
     expect(after.p).toContain("pasture");
     expect(after.figure).toBe(true);
-    expect(after.caption).toBe("Morning chores in one of the mobile pens");
+    expect(after.caption)
+      .toBe("We work closely with Mother Nature; sometimes we don’t agree.");
   });
 
   test("the clip has a poster, a label and both encodes",
@@ -74,7 +75,11 @@ test.describe("about (#144)", () => {
 
       const { video, toggle } = clip(page);
 
-      await expect(video).toHaveAttribute("aria-label", /mobile pen/);
+      // The scene names the figure, so it is read before the caption
+      // and its joke; the video itself is hidden, its button is not.
+      await expect(video.locator("xpath=ancestor::figure[1]"))
+        .toHaveAttribute("aria-label", /^Rain falls .*low chicken pen/);
+      await expect(video).toHaveAttribute("aria-hidden", "true");
       for (const attr of ["muted", "loop", "playsinline"]) {
         expect(await video.evaluate((v, a) => v.hasAttribute(a), attr))
           .toBe(true);

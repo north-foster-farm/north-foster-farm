@@ -12,7 +12,13 @@
   src      Path under static/ without the extension. Every encode
            there (.mp4, .webm) becomes a source, smallest first.
   poster   Image under assets/, resized like the figure's.
-  label    What the clip shows, for screen readers.
+  label    What the clip shows, for screen readers. It names the
+           figure, so it is read on the way in and the caption only
+           after it: a caption with a punchline keeps it. (A figure
+           otherwise takes its caption as its name, and a screen
+           reader announces that first.) The video itself, which has
+           no controls of its own, is hidden from them; its button
+           is not.
   captions A WebVTT file under static/ (optional).
 */}}
 {{ $src := .Get "src" }}
@@ -34,12 +40,12 @@
   {{ errorf "video: no poster at assets/%s (%s)" (.Get "poster") .Position }}
 {{ end }}
 {{ $poster = $poster.Resize "1150x webp q82" }}
-<figure class="figure d-block mx-auto my-4 video-figure">
+<figure class="figure d-block mx-auto my-4 video-figure" aria-label="{{ .Get "label" }}">
   <div class="video-frame rounded-3 shadow-sm overflow-hidden" data-video data-playing="false">
     <video class="d-block w-100" muted loop playsinline preload="none"
       poster="{{ $poster.RelPermalink }}"
       width="{{ $poster.Width }}" height="{{ $poster.Height }}"
-      aria-label="{{ .Get "label" }}">
+      aria-hidden="true">
       {{ range sort $sources "size" }}
         <source src="{{ .url }}" type="{{ .type }}">
       {{ end }}

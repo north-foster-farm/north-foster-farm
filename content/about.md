@@ -45,8 +45,8 @@ because it makes our chicken better, and because it's the most
 respectful way we know to raise animals.
 
 {{< video src="videos/tight-quarters" poster="images/tight-quarters.jpg"
-  label="A farmer inside a mobile pen on a misty morning, tending the chickens" >}}
-Morning chores in one of the mobile pens
+  label="Rain falls on the pasture while a farmer, hunched in a low chicken pen, tends the birds" >}}
+We work closely with Mother Nature; sometimes we don't agree.
 {{< /video >}}
 
 Pasture-raised whole chickens and cuts, chicken sausage, and eggs by
