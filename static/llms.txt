@@ -21,7 +21,8 @@ placed once it is paid.
 - [About](https://www.northfosterfarm.com/about/): the farm, the
   family, and the markets with days, hours and addresses
 - [Delivery policy](https://www.northfosterfarm.com/delivery-policy/):
-  delivery area, minimums, fees and bulk discounts
+  delivery area, days, cutoffs, minimums, fees and bulk discounts;
+  pickup, changes, cancellations and refunds
 
 ## Optional
 
