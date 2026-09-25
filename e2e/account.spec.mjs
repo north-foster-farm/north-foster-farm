@@ -8,7 +8,7 @@ import { NONCE, eggOrder, postOrder } from "./support/api.mjs";
 import { expect, test, uniqueEmail } from "./support/order.mjs";
 import {
   BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, deleteCustomer,
-  linkIn, teardown, waitForMail,
+  linkIn, mailTo, teardown, waitForMail,
 } from "./support/staging.mjs";
 
 const SIGN_IN = "Your secure sign-in link to North Foster Farm";
@@ -97,5 +97,52 @@ test.describe("accounts", () => {
       await expect(page.locator("body")).not.toContainText(
         "I paid by Venmo"
       );
+    });
+});
+
+// AO-04: three links per address per 15 minutes. The fourth request is
+// answered like the others, and the links already sent still work.
+test.describe("sign-in links are rate limited", () => {
+  test.skip(!backOffice().cli, BACK_OFFICE_MISSING);
+
+  const email = uniqueEmail("links");
+  let since;
+
+  test.afterAll(() => teardown([
+    () => deleteCustomer(email),
+    () => clearMail({ to: email, since }),
+  ]));
+
+  test("a fourth link is refused quietly, the first three kept",
+    async ({ page }) => {
+      since = new Date();
+
+      for (let i = 1; i <= 4; i += 1) {
+        await page.goto("/login/");
+        await page.locator("#login-email").fill(email);
+        await page.locator("#login-submit").click();
+        await expect(page.locator("#login-sent"), `request ${i}`)
+          .toBeVisible();
+        await expect(page.locator("[data-login-email]")).toHaveText(email);
+      }
+
+      const links = async () => (await mailTo(email, since))
+        .filter((m) => m.subject.includes(SIGN_IN));
+
+      await expect.poll(async () => (await links()).length,
+        { timeout: 45_000 }).toBeGreaterThanOrEqual(3);
+      // Give a fourth message time to land, then count again.
+      await page.waitForTimeout(10_000);
+
+      const sent = await links();
+
+      expect(sent).toHaveLength(3);
+
+      for (const message of [sent[0], sent[2]]) {
+        await page.context().clearCookies();
+        await page.goto(linkIn(message, /\/api\/auth\/verify\?token=/));
+        await expect(page).toHaveURL(/\/account\/?/);
+        await expect(page.locator("#account-email")).toHaveText(email);
+      }
     });
 });

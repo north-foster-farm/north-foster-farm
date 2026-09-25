@@ -1228,14 +1228,15 @@ order by signing in. The number stays so later cases keep theirs.
 
 ### AO-04 Sign-in links are rate limited
 
-Manual: automatable; not yet written.
+Automated: `account.spec.mjs`, "a fourth link is refused quietly, the
+first three kept". Passed on staging 2026-09-25.
 
 - **Scenario:** Three links per address per 15 minutes.
 - **Setup:** A unique address.
 - **Test:**
-  1. Request four links.
+  1. Request four links from `/login/`.
 - **Assert:** The same "Check your email" each time; three messages in
-  the outbox; the earlier links still work.
+  the outbox; the first and third links still sign in.
 - **Teardown:** Delete the customer; clear its messages.
 
 ### AO-05 The farm confirms a pickup
