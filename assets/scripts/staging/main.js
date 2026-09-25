@@ -27,6 +27,11 @@ const store = (bag, key, value) => {
 
 const token = () => store(localStorage, KEY.token) || "";
 
+// A 401 asks for the token once until the next click in the toolbar;
+// otherwise a wrong answer is asked again by the retry and by every
+// poll, in a loop. A token the server refuses is forgotten.
+let asked = false;
+
 const api = async (path, { method = "GET", body } = {}) => {
   const res = await fetch(path, {
     method,
@@ -37,7 +42,10 @@ const api = async (path, { method = "GET", body } = {}) => {
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  if (res.status === 401) {
+  if (res.status === 401 && !asked) {
+    asked = true;
+    store(localStorage, KEY.token, null);
+
     const given = prompt("Staging token:");
 
     if (given) {
@@ -70,6 +78,7 @@ const tab = qs("[data-staging-open]");
 const list = qs("[data-staging-list]");
 const empty = qs("[data-staging-empty]");
 const out = qs("[data-staging-out]");
+const NO_TOKEN = "No token, or a wrong one. Refresh asks again.";
 let seen = "";
 let timer = null;
 
@@ -119,10 +128,15 @@ const renderInbox = (messages) => {
 const poll = async () => {
   clearTimeout(timer);
 
-  const { ok, data } = await api("/api/staging/outbox");
+  const { ok, status, data } = await api("/api/staging/outbox");
 
   if (ok) renderInbox(data.messages || []);
-  if (!panel.hidden) timer = setTimeout(poll, 5000);
+  if (ok && out.textContent === NO_TOKEN) say("");
+  if (status === 401) {
+    say(NO_TOKEN);
+  } else if (!panel.hidden) {
+    timer = setTimeout(poll, 5000);
+  }
 };
 
 const say = (text) => {
@@ -158,13 +172,20 @@ const boot = async () => {
   root.hidden = false;
   const info = await api("/api/staging/info");
 
-  qs("[data-staging-info]").textContent = info.ok
-    ? `${info.data.context} · mail ${info.data.mailDriver} · Square ${
-      info.data.squareEnv}`
-    : "endpoints refused: SITE_CONTEXT is not set for this deploy";
+  let text = "endpoints refused: SITE_CONTEXT is not set for this deploy";
+
+  if (info.ok) {
+    text = `${info.data.context} · mail ${info.data.mailDriver} · Square ${
+      info.data.squareEnv}`;
+  } else if (info.status === 401) {
+    text = "no token";
+  }
+  qs("[data-staging-info]").textContent = text;
   show(!!store(localStorage, KEY.open));
 };
 
+// Capture, so a click lets the handler under it ask for the token.
+root.addEventListener("click", () => { asked = false; }, true);
 tab.addEventListener("click", () => show(true));
 qs("[data-staging-collapse]").addEventListener("click", () => show(false));
 qs("[data-staging-hide]").addEventListener("click", () => {
