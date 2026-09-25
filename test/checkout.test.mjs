@@ -730,6 +730,38 @@ describe("POST /api/paypal/webhook", () => {
       .squareRefundId, null);
   });
 
+  it("goes by the event's amount when PayPal gives no running total, " +
+    "and leaves Square alone when it has no copy", async () => {
+    const stores = testStores();
+    const { square, calls } = squareCopy();
+    const bare = JSON.parse(refundEvent({ value: "12.00" }));
+
+    delete bare.resource.seller_payable_breakdown;
+    await venmoPaid(stores);
+    await applyEvent(stores, bare, { now, square, env: {} });
+
+    assert.deepEqual(calls.at(-1), ["refund", "PAY", 1200, "paypal-REF"]);
+
+    // Square was down when the order was paid and the jobs have not
+    // made its copy yet: the refund is PayPal's alone.
+    const early = testStores();
+    const none = squareCopy();
+
+    await saveOrder(early, order({
+      status: "paid",
+      payment: { via: "venmo", paypalCaptureId: "CAP", squarePaymentId: null },
+    }), now);
+
+    const out = await applyEvent(early, JSON.parse(refundEvent()), {
+      now, square: none.square, env: {},
+    });
+
+    assert.deepEqual(out, { handled: true, id: "NFF-2610-ABCD" });
+    assert.deepEqual(none.calls, []);
+    assert.equal((await getOrder(early, "NFF-2610-ABCD")).refund
+      .paypalRefundId, "REF");
+  });
+
   it("records the PayPal refund and alerts when Square refuses", async () => {
     const stores = testStores();
     const { sent, mail } = mailbox();
