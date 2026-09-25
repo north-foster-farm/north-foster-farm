@@ -12,8 +12,10 @@
 }}
 {{ $here := .RelPermalink }}
 <div class="container-fluid site-header-inner">
-  <a class="site-brand" href="{{ .Site.BaseURL }}" aria-label="Home" {{- if .IsHome }} aria-current="page" {{ end }}>
-    {{ partial "svg.html" "logo" }}
+  {{/* The hen and the wordmark, so a page reached from a link still
+       says whose it is. */}}
+  <a class="site-brand" href="{{ .Site.BaseURL }}" aria-label="North Foster Farm, home" {{- if .IsHome }} aria-current="page" {{ end }}>
+    {{ partial "svg.html" "logo-header" }}
   </a>
   <nav class="site-actions" aria-label="Main">
     {{/* From md up: the text links in the row. On a phone they live in

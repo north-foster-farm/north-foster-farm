@@ -40,11 +40,11 @@ header {
 
   svg {
     display: block;
-    width: 11rem;
+    width: 10rem;
     max-width: 100%;
     height: auto;
 
-    // The wordmark: the primary green.
+    // The hen and the wordmark: the primary green.
     .black {
       fill: var(--bs-primary);
       transition: opacity 0.07s ease;
@@ -416,11 +416,11 @@ header {
 
 @media (min-width: 768px) {
   .site-header-inner {
-    min-height: 3.375rem;
+    min-height: 3.75rem;
   }
 
   .site-brand svg {
-    width: 15rem;
+    width: 12.5rem;
   }
 
   .site-actions {
@@ -433,5 +433,16 @@ header {
 
   .site-toggle {
     display: none;
+  }
+}
+
+// Wide screens have room for the logo at a size the eye finds first.
+@media (min-width: 992px) {
+  .site-header-inner {
+    min-height: 4rem;
+  }
+
+  .site-brand svg {
+    width: 14rem;
   }
 }
