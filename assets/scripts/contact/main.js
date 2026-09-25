@@ -1,8 +1,10 @@
 // The contact page: one form, one request to POST /api/contact, then
 // "Thanks, we have it". The fields are checked here first; errors the
 // function returns land under their fields the same way. A signed-in
-// customer finds their name and email filled in.
+// customer finds their name and email filled in, and may pick one of
+// their orders, as on the account page's help form.
 
+import { dollars } from "../order/lib/totals.mjs";
 import { api } from "../utils/api.js";
 import { looksLikeEmail } from "../utils/email.js";
 import { isBusy, whileBusy } from "../utils/busy-button.js";
@@ -25,6 +27,70 @@ const check = (body) => {
   return errors;
 };
 
+// With this many orders or more, a filter box sits above the list.
+const FILTER_FROM = 6;
+
+const placed = (iso) => new Date(iso).toLocaleDateString("en-US", {
+  month: "short", day: "numeric", year: "numeric",
+});
+
+// "NFF-2610-K3WM, Oct 6, 2026, $42"
+const orderText = (order) => [
+  order.id,
+  order.submittedAt ? placed(order.submittedAt) : "",
+  order.totals ? dollars(order.totals.total) : "",
+].filter(Boolean).join(", ");
+
+// The customer's own orders, newest first. Signed out, or with none,
+// the order row stays hidden and orderId goes as "".
+const offerOrders = async (form) => {
+  const { ok, data } = await api("/api/account/orders")
+    .catch(() => ({ ok: false }));
+  const orders = ok && data && Array.isArray(data.orders)
+    ? [...data.orders].sort((a, b) =>
+      String(b.submittedAt).localeCompare(String(a.submittedAt)))
+    : [];
+
+  if (!orders.length) return;
+
+  const row = qs(form, "[data-contact-orders]");
+  const select = qs(row, "select");
+  const filter = qs(row, "[data-contact-filter]");
+  const status = qs(row, "[data-contact-filter-status]");
+  const none = select.options[0];
+
+  // The chosen order stays in the list whatever the filter says.
+  const show = (term) => {
+    const t = term.trim().toLowerCase();
+    const chosen = select.value;
+    const matches = orders.filter(
+      (o) => !t || orderText(o).toLowerCase().includes(t)
+    );
+    const shown = orders.filter(
+      (o) => o.id === chosen || matches.includes(o)
+    );
+
+    select.replaceChildren(none,
+      ...shown.map((o) => new Option(orderText(o), o.id)));
+    select.value = chosen;
+    status.textContent = t
+      ? `${matches.length} ${matches.length === 1
+        ? "order matches" : "orders match"}`
+      : "";
+  };
+
+  show("");
+  if (orders.length >= FILTER_FROM) {
+    filter.hidden = false;
+    filter.addEventListener("input", () => show(filter.value));
+    // Enter in the filter narrows the list; it never sends the form.
+    filter.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") e.preventDefault();
+    });
+  }
+  row.hidden = false;
+};
+
 const prefill = async (form) => {
   const who = await me().catch(() => null);
 
@@ -37,6 +103,8 @@ const prefill = async (form) => {
 
     if (field && !field.value && value) field.value = value;
   }
+
+  await offerOrders(form);
 };
 
 const start = () => {

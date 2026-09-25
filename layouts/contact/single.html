@@ -58,10 +58,17 @@
                   <div class="invalid-feedback" id="err-contact-email" data-error-for="email"></div>
                 </div>
               </div>
-              <div class="row">
+              {{/* Shown only to a signed-in customer with orders, as
+                   the account page's help form offers them (sup-order);
+                   the filter appears when the list is long. */}}
+              <div class="row" data-contact-orders hidden>
                 <label class="col-sm-3 col-form-label" for="contact-order">Order <span class="text-body-secondary">(optional)</span></label>
                 <div class="col-sm-9">
-                  <input class="form-control" type="text" id="contact-order" name="orderId" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="NFF-2610-K3WM" data-field="orderId" aria-describedby="err-contact-order">
+                  <input class="form-control mb-2" type="search" id="contact-order-filter" placeholder="Find an order" aria-label="Find an order" aria-controls="contact-order" autocomplete="off" data-contact-filter hidden>
+                  <select class="form-select" id="contact-order" name="orderId" data-field="orderId" aria-describedby="err-contact-order">
+                    <option value="">No particular order</option>
+                  </select>
+                  <div class="visually-hidden" role="status" data-contact-filter-status></div>
                   <div class="invalid-feedback" id="err-contact-order" data-error-for="orderId"></div>
                 </div>
               </div>
