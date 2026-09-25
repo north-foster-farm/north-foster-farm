@@ -114,6 +114,7 @@ const start = () => {
 
   const sent = document.getElementById("contact-sent");
   const error = qs(form, "[data-contact-error]");
+  const limit = qs(form, "[data-contact-limit]");
   const submit = document.getElementById("contact-submit");
 
   const clearErrors = () => {
@@ -123,6 +124,7 @@ const start = () => {
       field.removeAttribute("aria-invalid");
     }
     error.hidden = true;
+    limit.hidden = true;
   };
   const showErrors = (errors) => {
     clearErrors();
@@ -183,6 +185,12 @@ const start = () => {
     if (!ok) {
       if (status === 422 && data && data.errors) {
         showErrors(data.errors);
+      } else if (status === 429) {
+        // Too many from here: said by the button, the message kept.
+        limit.textContent = (data && data.message) || "There have been " +
+          "too many messages from here. Wait a few minutes and send it " +
+          "again; what you wrote is still here.";
+        limit.hidden = false;
       } else {
         error.textContent = "We couldn't send that just now. Please try " +
           "again, or email us directly.";

@@ -1,16 +1,17 @@
 // POST /api/contact: a message from the contact page, to the farm.
 //
 //   { name, email, message, orderId?, website? }
-//   -> 200 { ok }   422 { errors }   403 cross-site   500 { error }
+//   -> 200 { ok }   422 { errors }   429 { message } too many from one
+//      address, with Retry-After   403 cross-site   500 { error }
 //
 // The message is kept under messages/<id> in the customers store (as
 // the account page's help form keeps support/...), then mailed to
 // ADMIN_EMAILS with reply-to set to the writer, so answering is a
 // plain reply. An order number is checked against the writer's email
 // for the farm's benefit only; the writer is never told, so the form
-// cannot be used to learn whose an order is. The honeypot and a
-// per-address limit blunt the obvious abuse, and anything caught
-// answers 200 so a script learns nothing.
+// cannot be used to learn whose an order is. A filled honeypot
+// answers 200 so a bot learns nothing; more than five messages from
+// one address in ten minutes answer 429, so a person is told.
 
 import { randomBytes } from "node:crypto";
 
@@ -30,15 +31,18 @@ export const MESSAGE_PREFIX = "messages/";
 const RATE = { windowMs: 10 * 60_000, max: 5 };
 const hits = new Map();
 
+// -> 0, or the seconds until this address may send again.
 const rateLimited = (ip, now) => {
-  if (!ip) return false;
+  if (!ip) return 0;
 
   const recent = (hits.get(ip) || []).filter((t) => now - t < RATE.windowMs);
 
   recent.push(now);
   hits.set(ip, recent);
 
-  return recent.length > RATE.max;
+  return recent.length > RATE.max
+    ? Math.max(1, Math.ceil((recent[0] + RATE.windowMs - now) / 1000))
+    : 0;
 };
 
 const text = (value, max) =>
@@ -93,8 +97,17 @@ export const handle = async (req, {
   if (!body || typeof body !== "object") {
     return json(400, { errors: { body: "Expected a JSON body." } });
   }
-  if (body.website || rateLimited(ip, now.getTime())) {
-    return json(200, { ok: true });
+  if (body.website) return json(200, { ok: true });
+
+  // Said plainly: a quiet 200 here thanked a real writer for a message
+  // that was then dropped.
+  const wait = rateLimited(ip, now.getTime());
+
+  if (wait) {
+    return json(429, {
+      message: "There have been too many messages from here. Wait a few " +
+        "minutes and send it again; what you wrote is still here.",
+    }, { "Retry-After": String(wait) });
   }
 
   const result = validate(body);

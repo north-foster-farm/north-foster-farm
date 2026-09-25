@@ -136,28 +136,43 @@ describe("POST /api/contact", () => {
       [false, false, true]);
   });
 
-  it("drops the honeypot and a flood from one address quietly",
+  it("drops the honeypot quietly", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const bot = await handle(req({ ...good, website: "http://spam" }), {
+      stores, env, now, ip: ip(), mail,
+    });
+
+    assert.equal(bot.status, 200);
+    assert.equal(sent.length, 0);
+    assert.equal((await messages(stores)).length, 0);
+  });
+
+  it("says so when one address sends too many, never a false thanks",
     async () => {
       const stores = testStores();
       const { sent, mail } = mailbox();
-      const bot = await handle(req({ ...good, website: "http://spam" }), {
-        stores, env, now, ip: ip(), mail,
-      });
-
-      assert.equal(bot.status, 200);
-      assert.equal(sent.length, 0);
-
       const one = ip();
-      const statuses = [];
+      const answers = [];
 
       for (let i = 0; i < 7; i += 1) {
-        statuses.push((await handle(req(good), {
-          stores, env, now, ip: one, mail,
-        })).status);
+        answers.push(await handle(req(good), {
+          stores, env, now: new Date(now.getTime() + i * 60_000), ip: one,
+          mail,
+        }));
       }
-      assert.deepEqual(statuses, [200, 200, 200, 200, 200, 200, 200]);
-      assert.equal(sent.length, 5, "five in ten minutes, then silence");
-      assert.equal((await messages(stores)).length, 5);
+      assert.deepEqual(answers.map((r) => r.status),
+        [200, 200, 200, 200, 200, 429, 429]);
+      assert.equal(sent.length, 5, "five in ten minutes");
+      assert.equal((await messages(stores)).length, 5,
+        "a refused message is not kept");
+
+      const [, , , , , sixth, seventh] = answers;
+
+      assert.equal(sixth.headers.get("Retry-After"), "300",
+        "until the first of the five is ten minutes old");
+      assert.equal(seventh.headers.get("Retry-After"), "240");
+      assert.match((await sixth.json()).message, /too many messages/);
     });
 
   it("refuses a cross-site post and a body that is not JSON", async () => {

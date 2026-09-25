@@ -82,6 +82,7 @@
               <div class="row">
                 <div class="col-sm-9 offset-sm-3">
                   {{ partial "busy-button.html" (dict "label" "Send" "busy" "Sending" "class" "btn-primary" "id" "contact-submit") }}
+                  <p class="form-text text-danger mt-2 mb-0" role="alert" data-contact-limit hidden></p>
                 </div>
               </div>
             </div>
