@@ -1238,8 +1238,10 @@ Automated: `account.spec.mjs`, "a link by email signs in, once". Tagged
   3. Clear cookies; open it again.
 - **Assert:** "Check your email" naming the address; the outbox has
   "Your secure sign-in link to North Foster Farm" with a link to the
-  staging host; it lands on `/account/` showing the address; the second
-  use lands on `/login/` with "already used".
+  staging host; it lands on `/account/` showing the address, and
+  `/about/` then shows the account menu at once, though `/login/`
+  cached "signed out" in that tab (16122c2); the second use lands on
+  `/login/` with "already used".
 - **Teardown:** The order cancelled with `--refund` and deleted; the
   customer deleted; the outbox cleared.
 

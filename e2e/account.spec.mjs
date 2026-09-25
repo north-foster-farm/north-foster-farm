@@ -60,6 +60,14 @@ test.describe("accounts", () => {
       await expect(page).toHaveURL(/\/account\/?/);
       await expect(page.locator("#account-email")).toHaveText(email);
 
+      // Every other page knows at once, though /login/ cached "signed
+      // out" in this tab (16122c2, #159).
+      await page.goto("/about/");
+      await expect(page.locator("[data-account-menu]").first())
+        .toBeVisible();
+      await expect(page.locator("[data-account-signin]").first())
+        .toBeHidden();
+
       // The same link a second time explains itself on /login/.
       await page.context().clearCookies();
       await page.goto(link);
