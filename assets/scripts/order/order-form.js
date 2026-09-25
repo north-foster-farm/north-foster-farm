@@ -466,7 +466,7 @@ export class OrderForm {
       if (!input) {
         const item = this.index.get(sku);
 
-        missing.push(item ? `${item.groupLabel}, ${item.label}` : sku);
+        missing.push(item ? `${item.groupName}, ${item.label}` : sku);
         continue;
       }
       this.setQty(input, Math.min(99, this.qty(input) + qty));
