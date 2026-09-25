@@ -1457,7 +1457,10 @@ Manual: needs a Venmo order (PY-14).
   1. `bin/nff --staging orders refund <id1> --amount 2`
   2. `bin/nff --staging orders cancel <id2> --refund`
 - **Assert:** PayPal refunds each capture; the Square tender is noted as
-  refunded; <id2> cancelled with stock back and the refund email.
+  refunded; <id2> cancelled with stock back and the refund email. The
+  refund webhook PayPal sends afterwards adds nothing: Square's
+  refunded amount for each order equals the CLI's, not twice it
+  (7743382 brings Square up to PayPal's running total).
 - **Teardown:** Delete both.
 
 ### RF-06 A refund made in PayPal
@@ -1471,11 +1474,17 @@ capture"; it now takes the capture from the refund's "up" link.
 - **Test:**
   1. Refund the capture in the PayPal sandbox; do it once in full and,
      on a second order, once in part.
-  2. Read the function log's `paypal.webhook` line and the record.
+  2. Read the function log's `paypal.webhook` line, the record and
+     the order in the Square sandbox.
+  3. Resend the webhook from PayPal's dashboard.
 - **Assert:** No "unknown capture" in the log; `refund.source` paypal
   on the record, `refund.amount` what PayPal refunded, and
   `refund.total` true for the full refund and false for the partial
-  one, as RF-01 records a partial card refund.
+  one, as RF-01 records a partial card refund. Since 7743382 Square's
+  external payment shows the same refunded amount as PayPal; the
+  resent webhook refunds nothing more. If Square refuses, the PayPal
+  refund is still recorded and the outbox has a
+  `square.refund_failed` alert.
 - **Teardown:** Cancel; delete.
 
 ### RF-07 Confirm and deny guard themselves
