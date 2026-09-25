@@ -2,8 +2,8 @@
 title: "September Update"
 date: 2026-09-22
 description: >-
-  You can now order online and pay on the page, with delivery, on-farm
-  pickup and the Scituate drop site.
+  You can now order online, with delivery, on-farm pickup and the
+  Scituate drop site.
 home: true
 ---
 
@@ -15,17 +15,16 @@ home: true
 to see our catalog, which includes everything we bring to market, from
 eggs by the dozen to whole chickens, sausage, and every cut in between.
 
-**The way it works:** you build your cart, pick how you want to
-receive it, and pay on the page: by card, Apple Pay, Google Pay, Cash
-App Pay or Venmo. Order placed and confirmation in your inbox in no
-time.
+**The way it works:** choose what you’d like, pick how you want to
+receive it, and pay by card, Apple Pay, Google Pay, Cash App Pay or
+Venmo. Order placed and confirmation in your inbox in no time.
 
 There are three ways to get your order:
 
 **Delivery**
 
 - We deliver every week on Thursday
-- Order as late as the day before
+- Order by noon on Wednesday
 - As affordable as possible: $40 minimum, $5 fee
 
 {{< delivery-cta >}}
@@ -40,12 +39,12 @@ There are three ways to get your order:
 - Back on Saturday mornings, starting October 17
 - Pick up your order for free
 
-{{< figure src="images/delivery-flyer_16x9.jpg"
-  alt="Five North Foster Farm delivery flyers fanned out on a green checked tablecloth" />}}
+{{< figure src="images/chickens.jpg"
+  alt="Our red hens out on the pasture in front of their coop" />}}
 
 Our freezers are fully stocked, and our hens, although slowing down,
-will continue to lay for us all year round. We endeavor to keep you
-fully supplied from here all the way to next market season.
+will continue to lay for us all year round. We aim to keep you fully
+supplied from here all the way to next market season.
 
 This is the first version of our online ordering system, and we want
 to hear how it works for you. If anything is confusing, or something
