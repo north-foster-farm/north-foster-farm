@@ -198,6 +198,15 @@ h6 {
   border: 0;
 }
 
+// The skip link (baseof.html): out of sight until a keyboard reaches
+// it, then a button over the page's top left corner.
+.skip-link:focus {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: $zindex-fixed + 1;
+}
+
 // iOS Safari zooms the page into any focused field under 16px, so on
 // a touch screen every field is at least that.
 @media (hover: none) and (pointer: coarse) {
