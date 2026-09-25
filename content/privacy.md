@@ -15,11 +15,11 @@ We collect personal information you provide to us.
 
 The order form at [/order](/order) collects your name, email address, phone
 number and your order, plus a delivery address if you choose delivery. We
-send that to Square, which creates your invoice and processes the payment.
-We never see your card details.
+send that to Square, which records your order and takes card and wallet
+payments. Venmo payments go through PayPal. We never see your card details.
 
 While you fill out the form, a draft is kept in your browser until you
-submit or discard it. It never leaves your device.
+place your order or discard it. It never leaves your device.
 
 If you contact us using one of the email or phone links on the site, we
 receive whatever you choose to send us.
@@ -35,8 +35,16 @@ We use the following hosting and service providers, which also have access to
 basic technical information passing through their services, and data stored
 using their resources:
 
-- [Netlify](https://www.netlify.com/) ([Privacy policy](https://www.netlify.com/privacy/))
-- [Square](https://squareup.com/) ([Privacy policy](https://squareup.com/us/en/legal/general/privacy))
+- [Netlify](https://www.netlify.com/), which hosts the site ([Privacy policy](https://www.netlify.com/privacy/))
+- [Square](https://squareup.com/), which records orders and takes card, Apple Pay, Google Pay and Cash App Pay payments ([Privacy policy](https://squareup.com/us/en/legal/general/privacy))
+- [PayPal](https://www.paypal.com/), which takes Venmo payments ([Privacy statement](https://www.paypal.com/us/legalhub/paypal/privacy-full)), and [Venmo](https://venmo.com/) ([Privacy notice](https://venmo.com/legal/us-privacy-policy/))
+- [Resend](https://resend.com/), which delivers our email ([Privacy policy](https://resend.com/legal/privacy-policy))
+
+If you pay with a wallet or watch a video on the site, that company's
+own policy covers what it collects: [Apple](https://www.apple.com/legal/privacy/)
+for Apple Pay, [Google](https://policies.google.com/privacy) for Google
+Pay and YouTube, and [Cash App](https://cash.app/legal/us/en-us/privacy)
+for Cash App Pay.
 
 ### Ads and analytics
 

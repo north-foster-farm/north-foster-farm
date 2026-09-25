@@ -722,10 +722,8 @@ class Account {
     const node = clone("tpl-cancel");
     const form = qs(node, "form");
 
-    qs(form, "[data-out='explain']").textContent = order.status === "paid"
-      ? "You've paid, so we'll refund you through Square to the card you " +
-        "used. It usually shows within a few business days."
-      : "Nothing has been charged. The invoice will be closed.";
+    qs(form, "[data-out='explain']").textContent = "We'll refund you the " +
+      "way you paid. It usually shows within a few business days.";
     qs(form, "[data-close]").addEventListener("click",
       () => this.closePanel(card));
     form.addEventListener("submit", async (e) => {
@@ -742,9 +740,7 @@ class Account {
       }
 
       this.replaceOrder(data.order);
-      this.say(order.status === "paid"
-        ? "Cancelled. Your refund is on its way."
-        : "Cancelled. Nothing was charged.");
+      this.say("Cancelled. Your refund is on its way.");
     });
 
     this.panel(card).appendChild(node);

@@ -15,9 +15,10 @@ home: true
 to see our catalog, which includes everything we bring to market, from
 eggs by the dozen to whole chickens, sausage, and every cut in between.
 
-**The way it works:** you pick what you want and build your cart, then
-you pick how you want to receive it. Pay right on the page, by card or
-Venmo, and your order is placed.
+**The way it works:** you build your cart, pick how you want to
+receive it, and pay on the page: by card, Apple Pay, Google Pay, Cash
+App Pay or Venmo. Order placed and confirmation in your inbox in no
+time.
 
 There are three ways to get your order:
 

@@ -44,9 +44,8 @@ your ZIP code.
 
 ## How you pay
 
-Orders are prepaid. When you place an order we email you a Square
-invoice, and nothing is charged until you pay it. Your order is
-confirmed when the payment arrives.
+Orders are prepaid on the order page when you check out. Payment can
+be made by credit card, Apple Pay, Google Pay, Cash App Pay or Venmo.
 
 ## On delivery day
 
@@ -55,9 +54,12 @@ find. The order form asks where.
 
 ## Delivery area
 
-These are the towns we deliver to at the fees above. The form also
-takes any other Rhode Island ZIP code, for $3 more, and we confirm
-with you before anything is charged. For anywhere else,
+These are the towns we deliver to at the fees above. You may provide
+any other Rhode Island ZIP code that is *not* in our delivery area for
+$3 more. If we can't get to your address, we'll call, text, or email
+you. If we aren't able to get your order to you, we will hold your
+order for up to 7 days. You may also request a refund for the order in
+full. For anywhere else,
 [email us](mailto:sales@northfosterfarm.com) before you order.
 
 {{< delivery-area >}}

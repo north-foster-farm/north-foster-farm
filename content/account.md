@@ -1,6 +1,6 @@
 ---
 description: >
-  "Your North Foster Farm account: orders, invoices, delivery address
+  "Your North Foster Farm account: orders, receipts, delivery address
   and settings."
 slug: "account"
 title: "Your account"

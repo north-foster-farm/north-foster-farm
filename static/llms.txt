@@ -8,15 +8,16 @@
 The birds live outside on grass, move to fresh pasture regularly, and
 eat feed free of GMOs. Products: pasture-raised eggs by the dozen,
 whole chickens by weight, chicken parts, ground chicken, chicken
-sausage, and seasonal pork. Orders are paid by a Square invoice sent
-by email; nothing is charged at the time of ordering.
+sausage, and seasonal pork. Orders are paid on the order page by
+card, Apple Pay, Google Pay, Cash App Pay or Venmo, and an order is
+placed once it is paid.
 
 ## Pages
 
 - [Home](https://www.northfosterfarm.com/): what the farm is, how to
   buy, and the latest update
 - [Order](https://www.northfosterfarm.com/order/): current stock and
-  prices, on-farm pickup, market pickup, and delivery
+  prices, on-farm pickup, the Scituate drop site, and delivery
 - [About](https://www.northfosterfarm.com/about/): the farm, the
   family, and the markets with days, hours and addresses
 - [Delivery policy](https://www.northfosterfarm.com/delivery-policy/):

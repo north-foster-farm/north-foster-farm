@@ -923,8 +923,8 @@ export class OrderForm {
       note.classList.add("text-danger-emphasis");
     } else if (info.status === "unlisted") {
       note.textContent = "A little outside our usual area: delivery is " +
-        `${this.money.outsideAreaFee} more, and we'll confirm with you ` +
-        "before we charge you.";
+        `${this.money.outsideAreaFee} more. If we can't get to your ` +
+        "address, we'll call, text, or email you.";
     } else if (bad.length) {
       note.textContent = "We can only deliver eggs to Connecticut for now. " +
         "Remove the chicken, or choose pickup.";
