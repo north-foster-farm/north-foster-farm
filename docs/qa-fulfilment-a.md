@@ -57,9 +57,8 @@ days out, and scroll to Payment.
 - [ ] The Payment section shows Square's card fields. In Chrome a
       Google Pay button and, with PayPal configured, a Venmo button
       sit under "Or pay with"; in Safari an Apple Pay button appears
-      once the domain is verified. The submit button reads "Pay $X
-      and place your order" with the cart's total, and changes as the
-      cart does.
+      once the domain is verified. The submit button reads "Place
+      your order"; the total is in the cart.
 - [ ] Press the button with an empty required field: the field is
       marked and nothing is charged (no `order.paid` in the log).
 - [ ] Square's test card `4111 1111 1111 1111`, any future expiry, CVV

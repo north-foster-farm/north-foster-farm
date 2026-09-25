@@ -188,7 +188,8 @@ synchronous, because Apple Pay must tokenise inside the click), and
 checks stock too where it can wait (`prepareAsync()`). The card is
 tokenised with the customer's details for the bank's verification
 (`card.tokenize(verificationDetails)`; Square's own step, no separate
-`verifyBuyer`). The submit button reads "Pay $X and place your order".
+`verifyBuyer`). The submit button reads "Place your order"; the cart
+says the total.
 A wallet button pays the whole order in one step. The success card
 says what was paid with what, links the receipt, and for an on-farm
 pickup says the time is a request.
