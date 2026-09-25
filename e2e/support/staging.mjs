@@ -253,3 +253,23 @@ export const teardown = async (steps) => {
 
 export const deleteCustomer = (email) =>
   nff(["customers", "delete", email], { allowFail: true });
+
+// The contact page's messages (messages/<id> in the customers store)
+// from one address. The CLI has no messages command yet (#167), so
+// they are read and removed with its credentials, like the outbox.
+export const contactMessages = async (email) => {
+  const wanted = String(email).toLowerCase();
+  const customers = stores(env).customers;
+  const keys = (await customers.list("messages/")).map((k) => k.key);
+  const found = await Promise.all(keys.map(async (key) => ({
+    key, ...(await customers.get(key)),
+  })));
+
+  return found.filter((m) => m.email === wanted);
+};
+
+export const deleteContactMessages = async (email) => {
+  const customers = stores(env).customers;
+
+  for (const m of await contactMessages(email)) await customers.delete(m.key);
+};

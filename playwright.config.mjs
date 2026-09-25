@@ -29,6 +29,7 @@ const desktopOnly = [
   "**/staging-toolbar.spec.mjs",
   "**/wording.spec.mjs",
   "**/favicon.spec.mjs",
+  "**/contact-send.spec.mjs",
 ];
 
 export default defineConfig({

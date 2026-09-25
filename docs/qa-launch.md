@@ -1943,11 +1943,10 @@ there is no dismissal.
 ### AR-15a The contact page (#140)
 
 Automated: `contact.spec.mjs`, every test (both projects), with
-`/api/contact` stubbed: the function is the checkout lane's and answers
-404 on staging today, so a real message fails with "We couldn't send
-that just now." until it lands.
+`/api/contact` stubbed so the busy state and the failures can be held.
+The real function (c47e66d) is AR-15 and AR-16.
 
-- **Scenario:** The page and its form, before the function.
+- **Scenario:** The page and its form.
 - **Setup:** `/contact/`.
 - **Test:**
   1. Read the heading, the lead and the ways to reach the farm; follow
@@ -1972,35 +1971,44 @@ that just now." until it lands.
 
 ### AR-15 The contact form (#140)
 
-Pending: the function, the home band's new heading and the prefill of
-a signed-in customer's order number have not landed.
+Automated: `contact-send.spec.mjs`, "a message reaches the farm,
+answered by a plain reply" (desktop). Passed on staging 2026-09-25.
+The acknowledgement to the writer that #140 proposed is optional and
+waits on #167; the page does not prefill a signed-in customer's order
+number (a line in #159).
 
 - **Scenario:** A visitor writes to the farm from `/contact/`.
-- **Setup:** A unique address.
+- **Setup:** A unique address and name.
 - **Test:**
-  1. Home band: check the heading "Don't be a chicken. Talk to us." and
-     the lead; follow "contact form".
-  2. Send a message.
-- **Assert:** The farm's email in the outbox with reply-to set to the
-  writer; an acknowledgement to the writer; a `messages/<id>` record.
-- **Teardown:** `bin/nff --staging messages done <id>`; clear the
-  outbox.
+  1. Send a message with an order number that is not the writer's.
+- **Assert:** "Thanks, we have it", with no word about the order; the
+  farm's "Message from <name> about <number>" in the outbox with
+  reply-to set to the writer, the message, and "no order by that
+  number with this email"; one `messages/<id>` record, open, with
+  `order: false`; nothing to the writer.
+- **Teardown:** The record deleted from the customers store (no CLI
+  command until #167); the outbox cleared.
 
 ### AR-16 The contact form refuses abuse (#140)
 
-Pending.
+Partial: `contact-send.spec.mjs`, "the honeypot and bad fields are
+refused at the API" (desktop). Passed on staging 2026-09-25. The limit
+of five posts per IP in ten minutes is per function instance, so a
+staging run cannot prove it; `test/contact.test.mjs` covers it.
 
-- **Scenario:** Validation, honeypot, five per address per ten minutes.
-- **Setup:** `/contact/`.
+- **Scenario:** Validation, the honeypot and a cross-site post.
+- **Setup:** A unique address.
 - **Test:**
-  1. Send empty; send with the honeypot; send six in a row.
-- **Assert:** Field errors; the honeypot silently dropped; the sixth
-  refused or dropped.
-- **Teardown:** Mark them done; clear the outbox.
+  1. Post with `website` filled; post a blank name, `you@farm` and no
+     message; post with a foreign `Origin`.
+- **Assert:** The honeypot gets 200 `{ ok: true }`; the bad fields get
+  422 with the page's three messages; the foreign post gets 403. No
+  record and no email from any of them.
+- **Teardown:** As AR-15.
 
 ### AR-17 Unanswered messages are chased (#140)
 
-Pending.
+Pending: #167 (after launch). `bin/nff messages` does not exist yet.
 
 - **Scenario:** The farm is reminded daily until every message is
   answered.
