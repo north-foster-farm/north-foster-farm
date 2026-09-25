@@ -510,6 +510,19 @@ describe("getPayment", () => {
     assert.equal(calls[0].body, null);
     assert.equal(out.squarePaymentId, "PAY-1");
     assert.equal(out.last4, "4242");
+    assert.equal(out.refunded, 0, "nothing back yet");
+  });
+
+  it("says how much has been refunded", async () => {
+    // As the sandbox answered for a $7 Venmo copy with $2 back.
+    const { impl } = fakeFetch({
+      "/v2/payments/PAY-1": completed({
+        refunded_money: { amount: 200, currency: "USD" },
+      }),
+    });
+
+    assert.equal((await getPayment("PAY-1", { env, fetchImpl: impl }))
+      .refunded, 200);
   });
 });
 
