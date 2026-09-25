@@ -139,9 +139,9 @@ after typing in a field" (both projects). Finding D1, fixed by #155.
 ### OP-07 Quantities keep to two digits
 
 Automated: `order-page.spec.mjs`, "a typed quantity keeps to two digits"
-(both projects). Fails today on desktop (#168): an emptied box folds
-back to Add and drops the item before the new number is typed. The
-phone passes only because the fold is slower than the test.
+(both projects). Passed on staging 2026-09-25, since 68ed426 (#168:
+an emptied box once folded back to Add and dropped the item before
+the new number was typed).
 
 - **Scenario:** Typed quantities cannot exceed 99 or hold letters.
 - **Setup:** 1 egg in the cart.
@@ -560,8 +560,8 @@ never waived".
 ### PR-08 The outside-area note on the order page
 
 Automated: `pricing.spec.mjs`, "the unlisted-ZIP note states the fee in
-dollars and charges now". Fails today on the dollar sign alone (finding
-D2, a line in #159); the wording was settled in ff8afe7.
+dollars and charges now". Passed on staging 2026-09-25, since ff8afe7
+(the wording) and 0f23b38 (the dollar sign); finding D2.
 
 - **Scenario:** The note under the ZIP must state the fee as money and
   must not promise a check before charging, since the card is charged on
@@ -1782,8 +1782,8 @@ invoice wording on `/` is AO-13's.
 ### AR-09 The off-season band (#137)
 
 Automated: `home.spec.mjs`, "three ways to buy, in the market band's
-place" and one test per button (both projects). The pickup and drop
-site buttons fail today: #163. That the market band returns on May 15
+place" and one test per button (both projects). Passed on staging
+2026-09-25, since 89e8896 (#163). That the market band returns on May 15
 needs a build in season and is not tested; the switch is in
 `layouts/index.html`.
 
@@ -1867,8 +1867,8 @@ drag-to-pan are by hand on a phone and a laptop.
   3. Press Zoom in, then Show the whole map.
 - **Assert:** Pin 1's card opens with focus on "Our farm", the pin
   `aria-pressed`, a Google Maps "Directions" link and "Shop for pickup"
-  to `/order/?method=onfarm` (which lands on Delivery until #163 is
-  fixed), inside the map's frame; Escape closes it and returns focus to
+  to `/order/?method=onfarm`, which lands on On-farm pickup (#163),
+  inside the map's frame; Escape closes it and returns focus to
   the pin. The key opens pin 3's card, on screen, reading "Out of
   season". Zoom in halves the view, enables Zoom out and shows the
   reset, and pins stay the same size on screen; the reset restores the
@@ -2071,8 +2071,8 @@ at any width" (both projects). "More room above" is by eye: checked at
 Automated: `search.spec.mjs`, "cmd/ctrl K opens it, arrows move,
 Escape closes to the button", "the button opens it; a click outside,
 or Esc, closes it", "it reopens right after it closes" and "words
-people use find the products, and nonsense says so". The reopen test
-fails today: a line in #159.
+people use find the products, and nonsense says so". Passed on
+staging 2026-09-25; the reopen, since bec5681.
 
 - **Scenario:** Command or Control K, from any page.
 - **Setup:** Home page.
@@ -2098,8 +2098,8 @@ fails today: a line in #159.
 
 Automated: `search.spec.mjs`, "add from any page, and the order page
 has it", "on the order page it fills the row and the cart at once" and
-"stock arriving late keeps the quantity chosen". The last fails today:
-#162.
+"stock arriving late keeps the quantity chosen". Passed on staging
+2026-09-25; the last, since 6745a35 (#162).
 
 - **Scenario:** A product added from search lands in the order page's
   cart.
@@ -2292,7 +2292,7 @@ and the endpoints want a token".
 ### ST-02 A wrong token is asked for once
 
 Automated: `staging-toolbar.spec.mjs`, "a wrong token is asked for once,
-not in a loop". Fails today: finding D5.
+not in a loop". Passed on staging 2026-09-25, since b139b44 (finding D5).
 
 - **Scenario:** A reviewer who types the wrong token can still use the
   page.
