@@ -161,9 +161,13 @@ $search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 }
 
+// The row is held to the body's height, so the list and the card
+// scroll inside it; sized to its content, the row outgrew the body,
+// and arrowing down scrolled the whole panel, key hints and all.
 .search-palette-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   min-height: 22rem;
   max-height: min(28rem, 60vh);
 }
