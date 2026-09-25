@@ -57,6 +57,10 @@ const wire = (map) => {
   const zoomOut = map.querySelector("[data-map-zoom='out']");
   const reset = map.querySelector("[data-map-zoom='reset']");
   const pins = [...map.querySelectorAll("[data-map-pin]")];
+  // A pin by its number in the key; the markup draws them in
+  // reverse, so what is on now lies on top.
+  const pinOf = (n) => map.querySelector(`[data-map-pin="${n}"]`);
+  const pick = map.querySelector("[data-map-pick]");
   const form = map.querySelector("[data-zip-check]");
   const full = svg.viewBox.baseVal;
   const W = full.width;
@@ -94,7 +98,7 @@ const wire = (map) => {
   const place = () => {
     if (!open) return;
 
-    const pin = pins[Number(open.dataset.mapCard) - 1];
+    const pin = pinOf(open.dataset.mapCard);
     const box = frame.getBoundingClientRect();
     const x = (pin.dataset.x - view.x) / view.w * box.width;
     const y = (pin.dataset.y - view.y) / view.h * box.height;
@@ -113,12 +117,15 @@ const wire = (map) => {
     const left = Math.min(box.width - half - 8, Math.max(half + 8, x));
     // Above the pin where there is room, else below it, and never off
     // the bottom of the map.
-    const above = y - PIN_PX - 4 - open.offsetHeight > 8;
+    // The farm marker stands 62 units to the others' 45.
+    const tall = (pin.classList.contains("map-pin-farm") ? 62 / 45 : 1)
+      * PIN_PX + 4;
+    const above = y - tall - open.offsetHeight > 8;
     const below = Math.max(8,
       Math.min(y + 10, box.height - open.offsetHeight - 8));
 
     open.style.left = `${left}px`;
-    open.style.top = `${above ? y - PIN_PX - 4 : below}px`;
+    open.style.top = `${above ? y - tall : below}px`;
     open.style.transform = above
       ? "translate(-50%, -100%)"
       : "translate(-50%, 0)";
@@ -236,14 +243,14 @@ const wire = (map) => {
   const close = () => {
     if (!open) return;
     open.hidden = true;
-    pins[Number(open.dataset.mapCard) - 1]
+    pinOf(open.dataset.mapCard)
       .setAttribute("aria-pressed", "false");
     open = null;
   };
 
   const show = (n, { focus = false, centreOn = false } = {}) => {
     const card = map.querySelector(`[data-map-card="${n}"]`);
-    const pin = pins[n - 1];
+    const pin = pinOf(n);
 
     if (open === card) {
       close();
@@ -289,7 +296,7 @@ const wire = (map) => {
       const n = open && open.dataset.mapCard;
 
       close();
-      if (n) pins[n - 1].focus();
+      if (n) pinOf(n).focus();
     });
   }
 
@@ -299,7 +306,7 @@ const wire = (map) => {
     const n = open.dataset.mapCard;
 
     close();
-    pins[n - 1].focus();
+    pinOf(n).focus();
   });
 
   // The tip: a ZIP's town and answer, beside the pointer.
@@ -438,8 +445,10 @@ const wire = (map) => {
     const area = zip && LABELS[tone]
       && svg.querySelector(`[data-zip="z${CSS.escape(zip)}"]`);
 
+    // SVG elements have no hidden property, so the attribute it is.
     if (!area) {
       drop.setAttribute("hidden", "");
+      pick.setAttribute("hidden", "");
       return;
     }
 
@@ -455,15 +464,14 @@ const wire = (map) => {
 
     label.textContent = `${zip}${town}: ${LABELS[tone]}`;
 
-    map.querySelector("[data-map-pick]")
-      .setAttribute("d", area.getAttribute("d"));
+    pick.setAttribute("d", area.getAttribute("d"));
+    pick.removeAttribute("hidden");
     dropAt.dataset.x = x;
     dropAt.dataset.y = y;
     drop.dataset.tone = tone;
     apply();
 
     // Hidden and shown again, with a layout between, the pin falls anew.
-    // SVG elements have no hidden property, so the attribute it is.
     drop.setAttribute("hidden", "");
     drop.getBoundingClientRect();
     drop.removeAttribute("hidden");
