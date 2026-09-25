@@ -1,0 +1,28 @@
+{{/*
+  One post in the news list: its featured image on the left, or a card
+  of the same shape with a faint leaf in it, then the date, title and
+  description. The leaf is picked by a hash of the post's file name,
+  so a post keeps its leaf from build to build.
+*/}}
+{{ $featured := partial "news/featured.html" . }}
+{{ $leaves := slice "1a" "1b" "2a" "2b" "3a" "3b" "4a" "4b" "5a" "5b" }}
+<li class="news-item">
+  <a class="news-thumb" href="{{ .RelPermalink }}" tabindex="-1" aria-hidden="true">
+    {{ with $featured }}
+      {{ $thumb := .Fill "480x360 webp q80 Smart" }}
+      <img src="{{ $thumb.RelPermalink }}" width="{{ $thumb.Width }}" height="{{ $thumb.Height }}" alt="" loading="lazy" decoding="async">
+    {{ else }}
+      {{ $leaf := index $leaves (mod (hash.FNV32a .File.ContentBaseName) (len $leaves)) }}
+      <span class="news-leaf">{{ partial "svg.html" (printf "icons/leaves/leaf-%s" $leaf) }}</span>
+    {{ end }}
+  </a>
+  <div class="news-item-body">
+    <time class="news-date" datetime="{{ .Date.Format "2006-01-02" }}">
+      {{ .Date | time.Format "January 2, 2006" }}
+    </time>
+    <h3 class="news-item-title">
+      <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+    </h3>
+    <p class="mb-0">{{ .Description }}</p>
+  </div>
+</li>
