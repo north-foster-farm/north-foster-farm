@@ -2165,15 +2165,23 @@ paragraph's wording is James's to approve.
 
 ### AR-25 The favicon (#145)
 
-Pending.
+Partial: `favicon.spec.mjs` (desktop), all but the look at 16px in a
+tab, which stays by eye. Passed on staging 2026-09-25 (1adb47f,
+1908b57).
 
-- **Scenario:** The chicken head replaces the NF monogram.
-- **Setup:** Any page.
+- **Scenario:** The gingham egg replaces the NF monogram.
+- **Setup:** `/` and `/order/` (the hrefs are relative).
 - **Test:**
-  1. Read the icon links and the manifest; fetch each file.
-- **Assert:** Every size in `static/favicons/` answers 200 with the new
-  art; a maskable Android icon and a monochrome Safari pinned-tab SVG;
-  judged by eye at 16px in a tab.
+  1. Read the icon links, the manifest and `browserconfig.xml`; fetch
+     each file, and `/favicon.ico` and `/apple-touch-icon.png` at the
+     root.
+- **Assert:** Every file in `static/favicons/` answers 200 with its
+  type and the bytes built by `bin/favicons/build`; each linked PNG is
+  the size its `sizes` names; the manifest is
+  `application/manifest+json` and lists one maskable icon; the pinned
+  tab SVG is one color and the tile color is `#1e7b54`; the root paths
+  answer with the set. The Windows tiles are drawn at 1.8 times
+  (`mstile-150x150.png` is 270px), as before.
 - **Teardown:** None.
 
 ### AR-26 The privacy policy (#146)

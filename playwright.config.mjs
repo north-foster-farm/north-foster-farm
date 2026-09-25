@@ -28,6 +28,7 @@ const desktopOnly = [
   "**/news.spec.mjs",
   "**/staging-toolbar.spec.mjs",
   "**/wording.spec.mjs",
+  "**/favicon.spec.mjs",
 ];
 
 export default defineConfig({
