@@ -53,6 +53,14 @@ framework = "#custom"
   status = 301
   force = false
 
+# The paper order form, retired when ordering moved onto the site. Its
+# URL was handed out directly, so it leads to the order page.
+[[redirects]]
+  from = "/order-form.pdf"
+  to = "/order/"
+  status = 301
+  force = false
+
 [[redirects]]
   from = "/privacy-policy"
   to = "/privacy"

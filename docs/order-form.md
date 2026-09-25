@@ -613,7 +613,8 @@ Flags that take a value accept both `--reason "..."` and
 - **West Greenwich is ZIP 02817.** The v4 PDF prints 02818, which is
   East Greenwich. Corrected in `data/delivery.json`.
 - **The `/venmo` redirect stays** for the PDF and the market signs.
-- **`/order-form.pdf` stays** until launch day.
+- **`/order-form.pdf` is retired** with the launch (#150); the URL
+  redirects to `/order/`.
 - **HSTS raised to a year** in the same commit that touched the header
   block for `form-action`, as the audit asked.
 - **Order ids** are `NFF-YYMM-XXXX` with the tail derived from the
