@@ -795,6 +795,44 @@ export const farmPickupChanged = (order, { links } = {}) => {
   };
 };
 
+// A message from the contact page. Reply-to is the writer, so the
+// farm answers by replying. `order` says whether the order number
+// given belongs to the writer's email: true, false, or null for none.
+export const farmContactMessage = (message, { order = null, links } = {}) => {
+  const title = `Message from ${message.name}${
+    message.orderId ? ` about ${message.orderId}` : ""}`;
+  const about = message.orderId
+    ? [{
+      text: `Order ${message.orderId}${order
+        ? ", placed with this email"
+        : ": no order by that number with this email"}`,
+      html: `Order ${mono(message.orderId).html}${order
+        ? ", placed with this email"
+        : ": no order by that number with this email"}`,
+    }]
+    : [];
+  const blocks = [
+    p(`${message.name} wrote from the contact page. Reply to this ` +
+      "email to answer them."),
+    tree([mono(message.email), ...about]),
+    {
+      text: `\n${message.message}\n`,
+      html: `<blockquote style="margin:16px 0;padding:8px 16px;` +
+        `border-left:3px solid ${GREEN};white-space:pre-wrap">${
+          escape(message.message)}</blockquote>`,
+    },
+  ];
+  const url = order ? orderAdminUrl(links, message.orderId) : null;
+
+  if (url) blocks.push(button("View order", url));
+  blocks.push(adminFooter(links));
+
+  return {
+    subject: title,
+    ...render(title, blocks, links, { tag: "Message from the website" }),
+  };
+};
+
 // --- Monitoring ----------------------------------------------------
 
 const when = (iso) => (iso ? `${iso.replace("T", " ").slice(0, 16)} UTC`
