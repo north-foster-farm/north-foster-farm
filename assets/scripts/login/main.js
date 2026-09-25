@@ -74,7 +74,7 @@ const start = () => {
   });
 
   // "Find my order": the same request with an order number, so the
-  // link lands on that order (and, unpaid, carries the invoice again).
+  // link lands on that order.
   const find = document.getElementById("find-form");
   const findOrder = find.querySelector("#find-order");
   const findEmail = find.querySelector("#find-email");
