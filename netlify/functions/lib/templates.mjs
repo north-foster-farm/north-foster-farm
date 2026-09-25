@@ -259,8 +259,8 @@ const customerFooter = (links = {}) => row([
 
 const adminFooter = (links = {}) => row([["Admin", links.admin]]);
 
-// Money is the invoice's job, so customer messages list what was
-// ordered without pricing it.
+// The payment's own receipt (Square's, or Venmo's) carries the money,
+// so customer messages list what was ordered without pricing it.
 const lines = (order, { prices = false } = {}) => list(order.lines.map(
   (l) => `${l.qty} × ${l.label}${
     prices ? ` (${dollars(l.lineTotal * 100)})` : ""}`
@@ -596,10 +596,9 @@ export const newsConfirm = (email, url, { days = 7, links } = {}) => {
 
 // --- To the farm ---------------------------------------------------
 //
-// Square tells the farm nothing about an invoice the farm's own
-// account issued, so these are the only notice of an order. They go
-// to ADMIN_EMAILS and link into the admin dashboard; the pages they
-// point at arrive with the dashboard's order views.
+// These are the farm's notice of an order. They go to ADMIN_EMAILS
+// and link into the admin dashboard; the pages they point at arrive
+// with the dashboard's order views.
 
 const CONTACT_WORD = { text: "prefers a text", call: "prefers a call" };
 
