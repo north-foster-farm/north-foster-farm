@@ -2072,17 +2072,27 @@ Automated: `search.spec.mjs`, "on a phone it is a full-screen sheet"
 
 ### AR-23 The news page (#143)
 
-Pending.
+Automated: `news-page.spec.mjs`, every test (both projects). Checked by
+eye at 390 on 2026-09-25.
 
 - **Scenario:** Posts grouped by year, each with a featured image or a
   leaf card, loading ten at a time.
 - **Setup:** `/news/`.
 - **Test:**
-  1. Scroll to the end; reload; compare leaves.
-- **Assert:** A year heading wherever the year changes; the same leaf on
-  the same post across reloads; the next ten appended on scroll, and the
-  pager links work without script; captions without the green
-  background site-wide.
+  1. With scripts off, follow "Older posts" to the end.
+  2. With scripts on, scroll to the end.
+  3. Again with page 2 answering 500.
+  4. Reload and compare each post's picture or leaf; load the
+     pictures.
+  5. Read the captions on `/about/` and the September post.
+- **Assert:** The pager walks every post once, at most ten a page. The
+  pager is hidden and scrolling appends exactly the same posts in the
+  same order; one heading per year, newest first, each post under its
+  own year; one "older posts loaded" announcement; no request fails.
+  A failed fetch shows the pager again, "Older posts" pointing at page
+  2, with the first ten kept. Every post has a picture or a leaf, some
+  of each, and the same one after a reload; pictures load at 4:3.
+  Captions have no background.
 - **Teardown:** None.
 
 ### AR-24 The about page (#144)
