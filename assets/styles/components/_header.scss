@@ -6,7 +6,7 @@
 // home page's hero reserves above it.
 :root {
   --header-row: 3.5rem;
-  --header-stripe: #{$top-bar-height};
+  --header-stripe: 6px;
   --header-height: calc(var(--header-row) + var(--header-stripe));
 
   @media (min-width: 768px) {
@@ -104,8 +104,8 @@ header {
   }
 }
 
-// The header's bottom edge: a band of the brand green, as tall as the
-// top bar. Decoration only; it says nothing.
+// The header's bottom edge: a thin band of the brand green.
+// Decoration only; it says nothing.
 .site-stripe {
   height: var(--header-stripe);
   background-color: var(--bs-primary);
