@@ -1361,7 +1361,9 @@ Pending: #114.
 
 ### AO-13 No invoice or payment-link copy remains
 
-Partial: `wording.spec.mjs` (desktop) reads ten pages and `llms.txt`,
+Partial: `wording.spec.mjs` (desktop) reads ten pages, as served and
+as shown once their scripts settle (a signed-out `/account/` moves on
+to `/login/`, so its served HTML is what covers it), and `llms.txt`,
 and follows the retired paper form. Passed on staging 2026-09-25, since
 ff8afe7 and 704412f. The cancel dialog needs a signed-in customer with
 an order and stays manual. The account menu is settled: "Your orders"

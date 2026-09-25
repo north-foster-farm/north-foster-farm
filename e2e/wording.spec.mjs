@@ -1,6 +1,7 @@
 // AO-13 (#150): the invoice era's words are gone from what a customer
-// or a search engine reads: each page's text, its description and its
-// share card, and llms.txt. docs/qa-launch.md, "After the order".
+// or a search engine reads: each page's text as served and as shown,
+// its description and its share card, and llms.txt.
+// docs/qa-launch.md, "After the order".
 
 import { expect, test } from "./support/order.mjs";
 
@@ -13,22 +14,30 @@ const PAGES = [
 
 test.describe("no invoice-era words (#150)", () => {
   for (const path of PAGES) {
-    test(`${path} reads without them`, async ({ page }) => {
+    test(`${path} reads without them`, async ({ page, request }) => {
+      // The served page, every panel of it: /account/ sends a visitor
+      // who is signed out on to /login/ before much can be read.
+      const html = await (await request.get(path)).text();
+      const meta = (attr, value) => {
+        const tag = html.match(new RegExp(
+          `<meta[^>]*${attr}=["']?${value}["']?[^>]*>`, "i"
+        ));
+        const content = tag && tag[0].match(/content="([^"]*)"/);
+
+        return content ? content[1] : "";
+      };
+      const said = {
+        served: html
+          .replace(/<(script|style|svg)\b[\s\S]*?<\/\1>/gi, " ")
+          .replace(/<[^>]+>/g, " "),
+        description: meta("name", "description"),
+        share: meta("property", "og:description"),
+      };
+
+      // And what the page says once its scripts have run.
       await page.goto(path);
-
-      const said = await page.evaluate(() => {
-        const meta = (sel) => {
-          const el = document.querySelector(sel);
-
-          return el ? el.getAttribute("content") : "";
-        };
-
-        return {
-          text: document.body.innerText,
-          description: meta("meta[name='description']"),
-          share: meta("meta[property='og:description']"),
-        };
-      });
+      await page.waitForLoadState("networkidle");
+      said.text = await page.locator("body").innerText();
 
       for (const [where, text] of Object.entries(said)) {
         const hit = text.match(new RegExp(`.{0,50}${INVOICE_ERA.source}.{0,30}`,
