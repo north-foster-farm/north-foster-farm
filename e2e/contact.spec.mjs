@@ -10,6 +10,8 @@ import { expect, test } from "./support/order.mjs";
 const HEADING = "Don't be a chicken. Talk to us.";
 const LEAD = "Call, text, email, message us on Instagram, or use our " +
   "contact form.";
+const LIMITED = "There have been too many messages from here. Wait a " +
+  "few minutes and send it again; what you wrote is still here.";
 
 const fields = (page) => ({
   name: page.locator("#contact-name"),
@@ -233,6 +235,28 @@ test.describe("contact (#140)", () => {
     await expect(f.message).toHaveValue("Do you have wings this week?");
     await expect(f.sent).toBeHidden();
   });
+
+  // #178: past the limit the writer is told, not thanked.
+  test("too many messages says so by Send and keeps the message",
+    async ({ page }) => {
+      await holdRequests(page, "**/api/contact", {
+        status: 429, body: { message: LIMITED },
+      }).then((hold) => hold.release());
+      await page.goto("/contact/");
+
+      const f = fields(page);
+      const note = page.locator("#contact-form [data-contact-limit]");
+
+      await fill(f);
+      await f.submit.click();
+      await expect(note).toBeVisible();
+      await expect(note).toHaveText(LIMITED);
+      await expect(note).toHaveAttribute("role", "alert");
+      await expect(f.sent).toBeHidden();
+      await expect(f.alert).toBeHidden();
+      await expect(f.message).toHaveValue("Do you have wings this week?");
+      await expect(f.submit).toBeEnabled();
+    });
 });
 
 // #176: the order row is a choice of the customer's own orders, shown

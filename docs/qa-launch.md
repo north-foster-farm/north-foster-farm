@@ -1195,6 +1195,33 @@ the order handler.
   button enabled, the cart kept; `orders list` finds nothing.
 - **Teardown:** None (nothing is recorded).
 
+### PY-18b A rate-limited contact message must not be thanked
+
+Automated: `rate-limit.spec.mjs`, "contact rate limit", both tests,
+with `E2E_LOCKOUT=1` only, since it locks this address out of
+`/api/contact` for ten minutes; the page alone, stubbed, in
+`contact.spec.mjs`, "too many messages says so by Send and keeps the
+message". Fixed by #178 (c2ce825): past the limit the endpoint once
+answered the honeypot's quiet 200, and the page said "Thanks, we have
+it" for a message it dropped. The limit is kept per function
+instance, so more than six posts may be needed to reach it.
+
+- **Scenario:** A writer past five messages in ten minutes from one
+  address is told so, and keeps what they wrote.
+- **Setup:** None; the spec posts blank fields (counted, then refused
+  with 422, so nothing is kept or mailed) until the limit answers.
+- **Test:**
+  1. Post until the endpoint answers 429; post the honeypot.
+  2. On `/contact/`: name, email, message; press Send.
+- **Assert:** 429 with a `Retry-After` of 1 to 600 seconds and the
+  message "There have been too many messages from here. Wait a few
+  minutes and send it again; what you wrote is still here."; the
+  honeypot still gets 200 `{ ok: true }`. The page shows that message
+  under Send (`role="alert"`), no thanks card, the message kept; no
+  `messages/<id>` record for the address.
+- **Teardown:** Any record or farm email for the address removed
+  (none is expected).
+
 ## After the order
 
 ### AO-01 A sign-in link, used once
@@ -2001,8 +2028,8 @@ three cases. The real function (c47e66d) is AR-15 and AR-16.
 Automated: `contact-send.spec.mjs` (desktop), its first three tests.
 The acknowledgement to the writer that #140 proposed is optional and
 waits on #167. The page and the API share a limit of five posts per IP
-in ten minutes, answered with a quiet 200: leave ten minutes between
-runs, and after any hand test from the same machine.
+in ten minutes; past it they answer 429 (PY-18b), so leave ten
+minutes between runs, and after any hand test from the same machine.
 
 - **Scenario:** A visitor, and a signed-in customer, write to the farm.
 - **Setup:** A unique address and name; for the last step, a paid
@@ -2029,8 +2056,7 @@ runs, and after any hand test from the same machine.
 
 Partial: `contact-send.spec.mjs`, "the honeypot and bad fields are
 refused at the API" (desktop). Passed on staging 2026-09-25. The limit
-of five posts per IP in ten minutes is per function instance, so a
-staging run cannot prove it; `test/contact.test.mjs` covers it.
+of five posts per IP in ten minutes is PY-18b.
 
 - **Scenario:** Validation, the honeypot and a cross-site post.
 - **Setup:** A unique address.
