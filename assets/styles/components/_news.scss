@@ -8,11 +8,6 @@
     margin-bottom: 1rem;
   }
 
-  // The photos keep the home page's tinted frame.
-  .photo-frame {
-    background-color: rgb(190 217 187 / 84%);
-  }
-
   .news-date {
     font-size: $font-size-sm;
     color: var(--bs-secondary-color);
