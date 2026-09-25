@@ -625,9 +625,22 @@ describe("POST /api/paypal/webhook", () => {
       payment: { via: "venmo", paypalCaptureId: "CAP", squarePaymentId: "PAY" },
     }), now);
 
+    // As the sandbox sent it on 2026-09-24: the refund, with its
+    // capture in the "up" link.
     const refunded = event("PAYMENT.CAPTURE.REFUNDED", {
-      id: "CAP", status: "REFUNDED", amount: { value: "60.00" },
-      refund: { id: "REF" },
+      id: "REF", status: "COMPLETED",
+      amount: { currency_code: "USD", value: "60.00" },
+      custom_id: "NFF-2610-ABCD",
+      links: [
+        {
+          href: "https://api.sandbox.paypal.com/v2/payments/refunds/REF",
+          rel: "self", method: "GET",
+        },
+        {
+          href: "https://api.sandbox.paypal.com/v2/payments/captures/CAP",
+          rel: "up", method: "GET",
+        },
+      ],
     });
     const res = await webhook(post(refunded), { stores, verify: yes, now });
 

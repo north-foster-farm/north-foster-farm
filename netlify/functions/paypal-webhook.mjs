@@ -27,6 +27,13 @@ const cents = (amount) => (amount && amount.value
   ? Math.round(Number(amount.value) * 100)
   : 0);
 
+const capturedBy = (refund) => {
+  const up = (refund.links || []).find((link) => link.rel === "up");
+  const match = up && String(up.href).match(/\/captures\/([^/?]+)/);
+
+  return match ? match[1] : null;
+};
+
 export const applyEvent = async (stores, event, options = {}) => {
   const now = options.now || new Date();
   const resource = event.resource || {};
@@ -52,12 +59,13 @@ export const applyEvent = async (stores, event, options = {}) => {
   }
 
   if (event.event_type === "PAYMENT.CAPTURE.REFUNDED") {
-    const captureId = resource.id;
+    // The resource is the refund; the capture it came out of is only
+    // named in its "up" link.
+    const refundId = resource.id || null;
+    const captureId = capturedBy(resource);
     const order = captureId ? await orderByPayment(stores, captureId) : null;
 
     if (!order) return { handled: false, reason: "unknown capture" };
-
-    const refundId = (resource.refund && resource.refund.id) || null;
 
     if (order.refund && refundId && order.refund.paypalRefundId === refundId) {
       return { handled: true, id: order.id, repeat: true };
