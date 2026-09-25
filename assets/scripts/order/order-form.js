@@ -1,6 +1,7 @@
 import Tooltip from "bootstrap/js/dist/tooltip.js";
 
 import { indexCatalog } from "./lib/catalog.mjs";
+import { linkedMethod, withoutParam } from "./lib/query.mjs";
 import { summarize } from "./lib/summary.mjs";
 import {
   computeTotals, dollars, meetsMinimum, toCents,
@@ -118,6 +119,7 @@ export class OrderForm {
       if (draft && draft.payload) this.restore(draft.payload);
     }
 
+    this.methodFromQuery();
     this.addFromQuery();
     this.dates.load();
     this.applyCode({ quiet: true });
@@ -444,6 +446,31 @@ export class OrderForm {
     this.draft.touch();
   }
 
+  // /order/?method=onfarm (or scituate, delivery) chooses that way, as
+  // a click on its card would: the home page's off-season band and the
+  // map's pin cards. The link wins over a restored draft's way, but
+  // not over an order already being paid for. An unknown value is
+  // ignored. The query is cleared, as ?add= is.
+  methodFromQuery() {
+    const radios = all(this.form, "[name='method']");
+    const method = linkedMethod(
+      location.search, radios.map((radio) => radio.value)
+    );
+
+    this.clearQuery("method");
+    if (!method || method === this.method() || this.draft.pending()) return;
+
+    radios.find((radio) => radio.value === method).checked = true;
+    this.draft.save(this.collect());
+  }
+
+  clearQuery(name) {
+    if (!new URLSearchParams(location.search).has(name)) return;
+
+    history.replaceState(null, "", `${location.pathname}${
+      withoutParam(location.search, name)}${location.hash}`);
+  }
+
   // /order/?add=SKU:qty,SKU:qty puts those items in the cart: the
   // "Add again" links on the account page, and anything else that
   // wants to. Unknown or sold-out SKUs are named, not added; a live
@@ -485,9 +512,7 @@ export class OrderForm {
     notice.classList.toggle("alert-warning", !added.length);
     notice.classList.toggle("alert-success", added.length > 0);
 
-    params.delete("add");
-    history.replaceState(null, "", `${location.pathname}${
-      params.toString() ? `?${params}` : ""}${location.hash}`);
+    this.clearQuery("add");
 
     if (added.length) {
       this.draft.save(this.collect());
