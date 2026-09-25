@@ -180,8 +180,8 @@ describe("POST /api/orders with a card", () => {
       assert.deepEqual(saved.square, {
         squareOrderId: "SQO", customerId: "CUST",
       });
-      assert.equal(saved.payment.via, "square");
-      assert.equal(saved.payment.squarePaymentId, "PAY");
+      assert.equal(saved.payments[0].via, "square");
+      assert.equal(saved.payments[0].squarePaymentId, "PAY");
       assert.equal(saved.meta.attempt, 1);
       assert.equal(saved.meta.idempotencyKey, KEY);
       assert.equal(saved.history[0].event, "paid");
@@ -380,8 +380,8 @@ describe("POST /api/orders with Venmo", () => {
       const saved = await getOrder(stores, id);
 
       assert.equal(saved.status, "paid");
-      assert.equal(saved.payment.paypalCaptureId, "CAP");
-      assert.equal(saved.payment.squarePaymentId, "PAY");
+      assert.equal(saved.payments[0].paypalCaptureId, "CAP");
+      assert.equal(saved.payments[0].squarePaymentId, "PAY");
       assert.deepEqual(saved.square, {
         squareOrderId: "SQO", customerId: "CUST",
       });
@@ -442,8 +442,8 @@ describe("POST /api/orders with Venmo", () => {
 
       assert.equal(saved.status, "paid");
       assert.equal(saved.square, null);
-      assert.equal(saved.payment.squarePaymentId, null);
-      assert.equal(saved.payment.paypalCaptureId, "CAP");
+      assert.equal(saved.payments[0].squarePaymentId, null);
+      assert.equal(saved.payments[0].paypalCaptureId, "CAP");
       assert.ok(sent.some((m) =>
         m.subject === "Site alert: square.record_failed"));
     });

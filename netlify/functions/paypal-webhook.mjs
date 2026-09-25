@@ -21,7 +21,9 @@ import { json } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { verifyWebhook } from "./lib/paypal.mjs";
 import { recordRefund } from "./lib/payments.mjs";
-import { checkoutByPayPal, orderByPayment } from "./lib/records.mjs";
+import {
+  checkoutByPayPal, orderByPayment, paymentsOf, refundsOf,
+} from "./lib/records.mjs";
 import * as squareApi from "./lib/square.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
@@ -44,10 +46,9 @@ const capturedBy = (refund) => {
 // redelivery never refunds twice. A failure is the farm's to finish
 // by hand; the PayPal refund is recorded either way.
 // -> the Square refund's id, or null.
-const refundOnSquare = async (stores, order, refund, {
+const refundOnSquare = async (stores, order, p, refund, {
   square = squareApi, env = process.env, fetchImpl, mail, now,
 }) => {
-  const p = order.payment || {};
   const breakdown = refund.seller_payable_breakdown || {};
   const target = cents(breakdown.total_refunded_amount)
     || cents(refund.amount);
@@ -113,16 +114,21 @@ export const applyEvent = async (stores, event, options = {}) => {
 
     if (!order) return { handled: false, reason: "unknown capture" };
 
-    if (order.refund && refundId && order.refund.paypalRefundId === refundId) {
+    if (refundId
+      && refundsOf(order).some((r) => r.paypalRefundId === refundId)) {
       return { handled: true, id: order.id, repeat: true };
     }
 
-    const squareRefundId = await refundOnSquare(stores, order, resource, {
-      ...options, now,
-    });
+    // The payment the refund came out of: an order changed after paying
+    // can have several.
+    const paid = paymentsOf(order)
+      .find((x) => x.paypalCaptureId === captureId) || {};
+    const squareRefundId = await refundOnSquare(stores, order, paid,
+      resource, { ...options, now });
 
     await recordRefund(stores, order, {
-      amount: cents(resource.amount) || order.totals.total,
+      amount: cents(resource.amount) || paid.amount || order.totals.total,
+      payment: captureId,
       paypalRefundId: refundId,
       squareRefundId,
       status: "COMPLETED",

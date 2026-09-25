@@ -245,7 +245,7 @@ describe("runJobs", () => {
     assert.deepEqual(synced.square, {
       squareOrderId: "SQO-2", customerId: "CUST-2",
     });
-    assert.equal(synced.payment.squarePaymentId, "PAY-X");
+    assert.equal(synced.payments[0].squarePaymentId, "PAY-X");
     assert.equal(synced.history.at(-1).event, "square.recorded");
 
     const again = await runJobs(stores, {
@@ -349,7 +349,7 @@ describe("runJobs", () => {
     assert.deepEqual(r.checkoutsRescued, ["A"]);
     assert.deepEqual(calls, ["PPO-1"]);
     assert.equal(r.checkoutsSwept, 1);
-    assert.equal((await getOrder(stores, "A")).payment.paypalCaptureId,
+    assert.equal((await getOrder(stores, "A")).payments[0].paypalCaptureId,
       "CAP-1");
     assert.equal(await getOrder(stores, "B"), null);
     assert.deepEqual(r.errors, []);

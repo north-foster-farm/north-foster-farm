@@ -37,6 +37,7 @@ import { alert, count } from "./lib/health.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./lib/paypal.mjs";
+import { paymentsOf } from "./lib/records.mjs";
 import { DECLINE_MESSAGES as SQUARE_DECLINES } from "./lib/square.mjs";
 import { checkLines } from "./lib/stock.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
@@ -76,27 +77,31 @@ export const orderId = (key, now) => {
   return `NFF-${yymm}-${tail}`;
 };
 
-// What the page shows once the order is paid.
-const paidResponse = (order) => json(200, {
-  orderId: order.id,
-  status: order.status,
-  totals: order.totals,
-  fulfilment: order.fulfilment,
-  lines: order.lines,
-  customer: {
-    firstName: order.customer.firstName || "",
-    name: order.customer.name,
-    email: order.customer.email,
-  },
-  payment: {
-    via: order.payment.via,
-    method: order.payment.method,
-    brand: order.payment.brand || null,
-    last4: order.payment.last4 || null,
-    wallet: order.payment.wallet || null,
-    receiptUrl: order.payment.receiptUrl || null,
-  },
-});
+// What the page shows once the order is paid: the payment just taken.
+const paidResponse = (order) => {
+  const p = paymentsOf(order).at(-1) || {};
+
+  return json(200, {
+    orderId: order.id,
+    status: order.status,
+    totals: order.totals,
+    fulfilment: order.fulfilment,
+    lines: order.lines,
+    customer: {
+      firstName: order.customer.firstName || "",
+      name: order.customer.name,
+      email: order.customer.email,
+    },
+    payment: {
+      via: p.via,
+      method: p.method,
+      brand: p.brand || null,
+      last4: p.last4 || null,
+      wallet: p.wallet || null,
+      receiptUrl: p.receiptUrl || null,
+    },
+  });
+};
 
 export const handle = async (req, {
   stores = defaultStores(),

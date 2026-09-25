@@ -95,11 +95,12 @@ describe("listOrders", () => {
       const { orders } = await listOrders(stores, customerOf(), { now });
 
       assert.deepEqual(orders.map((o) => o.id), ["B", "A"]);
-      assert.deepEqual(orders[0].payment, {
-        via: "square", method: "card", brand: "VISA", last4: "4242",
+      assert.deepEqual(orders[0].payments, [{
+        at: orders[0].paidAt, amount: orders[0].totals.total, via: "square",
+        method: "card", brand: "VISA", last4: "4242",
         receiptUrl: "https://r/x",
-      });
-      assert.equal(orders[0].refund, null);
+      }]);
+      assert.deepEqual(orders[0].refunds, []);
       assert.equal(orders[0].invoice, undefined);
       assert.equal(orders[0].paymentPending, undefined);
       assert.equal(orders[0].canCancel, true);
@@ -124,10 +125,10 @@ describe("listOrders", () => {
     const a = orders.find((o) => o.id === "A");
     const b = orders.find((o) => o.id === "B");
 
-    assert.deepEqual(a.refund, {
-      at: "2026-10-06T00:00:00Z", amount: 1200, total: true,
-    });
-    assert.equal(b.payment, null);
+    assert.deepEqual(a.refunds, [{
+      at: "2026-10-06T00:00:00Z", amount: 1200, payment: 0,
+    }]);
+    assert.deepEqual(b.payments, []);
   });
 });
 

@@ -13,7 +13,8 @@ import * as paypalApi from "./paypal.mjs";
 import {
   OPEN, allCustomers, allOrders, amendOrder, answerQuestion, deleteCustomer,
   deleteOrder, getCustomer, getOrder, needsAgreement, openOrders, ordersFor,
-  questionOpen, saveCustomer, setStatus,
+  paidTotal, paymentRef, paymentsOf, questionOpen, refundedTotal, refundsOf,
+  saveCustomer, setStatus,
 } from "./records.mjs";
 import { mailLinks, orderPathFor, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
@@ -117,57 +118,86 @@ export const showOrder = async (stores, id) =>
 // Money back, whole or part, through whichever processor took it: a
 // card or wallet payment through Square, a Venmo payment through
 // PayPal (and noted on the Square copy so the books agree, best
-// effort). Once per order; a second call is refused. -> the order.
+// effort). Anything not yet refunded can go back, in as many calls as
+// the farm likes; an order changed after paying has several payments,
+// and a refund comes out of the newest first. -> the order.
 export const refundOrder = async (stores, id, {
   now = new Date(), env = process.env, amount, reason = "",
   square = squareApi, paypal = paypalApi, fetchImpl,
 } = {}) => {
   const order = need(await getOrder(stores, id), "order");
-  const p = order.payment || {};
 
-  if (order.refund) {
-    throw new Error(`Already refunded ${dollars(order.refund.amount)} on ${
-      order.refund.at.slice(0, 10)}.`);
-  }
   if (!["paid", "cancelled", "fulfilled"].includes(order.status)) {
     throw new Error(`This order is ${order.status}.`);
   }
 
-  const cents = amount === undefined ? order.totals.total : amount;
+  const payments = paymentsOf(order);
+  const left = paidTotal(order) - refundedTotal(order);
 
-  if (!Number.isInteger(cents) || cents <= 0 || cents > order.totals.total) {
-    throw new Error(`The refund must be between $0.01 and ${
-      dollars(order.totals.total)}.`);
+  if (!payments.length) throw new Error("This order has no payment to refund.");
+  if (left <= 0) {
+    throw new Error(`Already refunded in full (${
+      dollars(refundedTotal(order))}).`);
   }
 
-  const key = `refund-${id}-${now.getTime()}`;
-  let refund;
+  const cents = amount === undefined ? left : amount;
 
-  if (p.via === "venmo" && p.paypalCaptureId) {
-    refund = await paypal.refundCapture({
-      paypalCaptureId: p.paypalCaptureId, amount: cents, key,
-      note: reason || `North Foster Farm order ${id}`,
-    }, { env, fetchImpl, now });
-    if (p.squarePaymentId) {
-      try {
-        const copy = await square.refundPayment({
-          squarePaymentId: p.squarePaymentId, amount: cents, key, reason,
-        }, { env, fetchImpl });
+  if (!Number.isInteger(cents) || cents <= 0 || cents > left) {
+    throw new Error(`The refund must be between $0.01 and ${dollars(left)}.`);
+  }
 
-        refund.squareRefundId = copy.squareRefundId;
-      } catch (error) {
-        console.error(`Square could not note the refund: ${error.message}`);
+  // What each payment still holds: its amount less the refunds out of
+  // it. A refund from before refunds named their payment came out of
+  // the first.
+  const refunds = refundsOf(order);
+  const outOf = (r) => r.payment || paymentRef(payments[0]);
+  const holds = (p) => p.amount - refunds
+    .filter((r) => outOf(r) === paymentRef(p))
+    .reduce((s, r) => s + (r.amount || 0), 0);
+  const stamp = now.getTime();
+  let owed = cents;
+  let saved = order;
+
+  for (let i = payments.length - 1; i >= 0 && owed > 0; i -= 1) {
+    const p = payments[i];
+    const take = Math.min(owed, holds(p));
+
+    if (take <= 0) continue;
+
+    const key = `refund-${id}-${stamp}-${i}`;
+    let refund;
+
+    if (p.via === "venmo" && p.paypalCaptureId) {
+      refund = await paypal.refundCapture({
+        paypalCaptureId: p.paypalCaptureId, amount: take, key,
+        note: reason || `North Foster Farm order ${id}`,
+      }, { env, fetchImpl, now });
+      if (p.squarePaymentId) {
+        try {
+          const copy = await square.refundPayment({
+            squarePaymentId: p.squarePaymentId, amount: take, key, reason,
+          }, { env, fetchImpl });
+
+          refund.squareRefundId = copy.squareRefundId;
+        } catch (error) {
+          console.error(`Square could not note the refund: ${error.message}`);
+        }
       }
+    } else if (p.squarePaymentId) {
+      refund = await square.refundPayment({
+        squarePaymentId: p.squarePaymentId, amount: take, key, reason,
+      }, { env, fetchImpl });
+    } else {
+      continue;
     }
-  } else if (p.squarePaymentId) {
-    refund = await square.refundPayment({
-      squarePaymentId: p.squarePaymentId, amount: cents, key, reason,
-    }, { env, fetchImpl });
-  } else {
-    throw new Error("This order has no payment to refund.");
+
+    saved = await recordRefund(stores, order, {
+      ...refund, amount: take, payment: paymentRef(p),
+    }, "farm", now);
+    owed -= take;
   }
 
-  return recordRefund(stores, order, refund, "farm", now);
+  return saved;
 };
 
 // The farm cancels: any status but fulfilled. Stock goes back, the
@@ -182,7 +212,11 @@ export const cancelOrder = async (stores, id, {
 
   if (["cancelled", "abandoned"].includes(order.status)) return order;
 
-  if (refund && !order.refund) {
+  // Whatever has not gone back yet, when asked; a refund made earlier
+  // stays as it was.
+  const refundNow = refund && paidTotal(order) > refundedTotal(order);
+
+  if (refundNow) {
     await refundOrder(stores, id, {
       now, env, amount, reason, square, paypal, fetchImpl,
     });
@@ -206,11 +240,9 @@ export const cancelOrder = async (stores, id, {
 
   // A customer who already asked was already told.
   if (!order.cancelRequested) {
-    const refunded = !!(await getOrder(stores, id)).refund;
-
     await sendForOrder(stores, cancelled, "orderCancelled",
       orderCancelled(cancelled, {
-        refund: refunded, links: mailLinks(env),
+        refund: refundNow, links: mailLinks(env),
       }), { mail, env, now });
   }
 

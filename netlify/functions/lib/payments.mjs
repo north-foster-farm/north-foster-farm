@@ -6,7 +6,8 @@ import { alert, mark, noteMail } from "./health.mjs";
 import { adminEmails, sendMail } from "./mail.mjs";
 import { log } from "./log.mjs";
 import {
-  amendOrder, getOrder, needsAgreement, orderByPayment,
+  amendOrder, getOrder, moneyPatch, needsAgreement, orderByPayment,
+  paidTotal, paymentRef, paymentsOf, refundedTotal, refundsOf,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import { dashboardUrl } from "./square.mjs";
@@ -111,9 +112,9 @@ export const announcePaid = async (stores, id, {
 
   if (!order) return null;
 
-  await mark(stores, "paid", {
-    id, via: order.payment && order.payment.via,
-  }, now);
+  const first = paymentsOf(order)[0];
+
+  await mark(stores, "paid", { id, via: first && first.via }, now);
 
   if (!needsAgreement(order)) {
     order = await confirmOrder(stores, order, { mail, env, now });
@@ -130,20 +131,27 @@ export const announcePaid = async (stores, id, {
   }), { mail, env, now });
 };
 
-// A refund, noted on the order: who did it, how much, and the
-// processor's id. `total` says whether the whole payment went back.
-export const recordRefund = (stores, order, refund, source, now) =>
-  amendOrder(stores, order.id, {
-    refund: {
-      at: now.toISOString(),
-      source,
-      amount: refund.amount,
-      total: refund.amount >= order.totals.total,
-      squareRefundId: refund.squareRefundId || null,
-      paypalRefundId: refund.paypalRefundId || null,
-      status: refund.status || null,
-    },
-  }, "refund.recorded", now);
+// A refund, added to the order's list: who did it, how much, which
+// payment it came out of (`payment`, see paymentRef), and the
+// processors' ids. `total` says whether, with it, everything paid has
+// gone back. Built on the record as it is now, so a refund recorded
+// meanwhile (a webhook, the CLI) is kept.
+export const recordRefund = async (stores, order, refund, source, now) => {
+  const current = (await getOrder(stores, order.id)) || order;
+  const refunds = [...refundsOf(current), {
+    at: now.toISOString(),
+    source,
+    amount: refund.amount,
+    payment: refund.payment || paymentRef(paymentsOf(current)[0]),
+    total: refundedTotal(current) + refund.amount >= paidTotal(current),
+    squareRefundId: refund.squareRefundId || null,
+    paypalRefundId: refund.paypalRefundId || null,
+    status: refund.status || null,
+  }];
+
+  return amendOrder(stores, order.id, moneyPatch(current, { refunds }),
+    "refund.recorded", now);
+};
 
 // A refund made in the Square dashboard rather than the CLI reaches
 // the record through the webhook. -> { handled, id }.
@@ -162,20 +170,30 @@ export const applyRefundEvent = async (stores, event, { now = new Date() }
   const order = await orderByPayment(stores, refund.payment_id);
 
   if (!order) return { handled: false, reason: "unknown payment" };
-  if (order.refund && order.refund.squareRefundId === refund.id) {
+
+  const refunds = refundsOf(order);
+  const known = refunds.findIndex((r) => r.squareRefundId === refund.id);
+
+  if (known >= 0) {
     // A refund the CLI made is recorded PENDING; Square's word that
     // it completed is the one change worth noting.
-    if (order.refund.status !== refund.status) {
-      await amendOrder(stores, order.id, {
-        refund: { ...order.refund, status: refund.status },
-      }, "refund.completed", now);
+    if (refunds[known].status !== refund.status) {
+      await amendOrder(stores, order.id, moneyPatch(order, {
+        refunds: refunds.map((r, i) => (i === known
+          ? { ...r, status: refund.status }
+          : r)),
+      }), "refund.completed", now);
     }
 
     return { handled: true, id: order.id, repeat: true };
   }
 
+  const from = paymentsOf(order)
+    .find((x) => x.squarePaymentId === refund.payment_id);
+
   await recordRefund(stores, order, {
     amount: refund.amount_money ? refund.amount_money.amount : 0,
+    payment: paymentRef(from),
     squareRefundId: refund.id,
     status: refund.status,
   }, "square", now);

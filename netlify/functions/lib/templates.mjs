@@ -20,7 +20,7 @@ import { addDays, label } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { GUIDE, RUNBOOK_ALERTS } from "./alerts-guide.mjs";
 import { company } from "./company.mjs";
 import { between, methodName } from "./describe.mjs";
-import { needsAgreement } from "./records.mjs";
+import { needsAgreement, paymentsOf } from "./records.mjs";
 
 const escape = (s) => String(s)
   .replace(/&/g, "&amp;")
@@ -713,22 +713,32 @@ const confirmOrDeny = (order) => {
 // How the money came, for the farm: "$55 by Visa ending 4242", "$55
 // by Venmo", "$55 by Apple Pay". Cash or a check, from the CLI, name
 // themselves.
-export const paymentPhrase = (order) => {
-  const p = order.payment || {};
-  const total = dollars(order.totals.total);
-  const wallets = {
-    applepay: "Apple Pay", googlepay: "Google Pay", cashapp: "Cash App Pay",
-  };
+const WALLETS = {
+  applepay: "Apple Pay", googlepay: "Google Pay", cashapp: "Cash App Pay",
+};
+
+const onePayment = (p) => {
+  const total = dollars(p.amount);
   const brand = (p.brand || "card").toLowerCase()
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
   if (p.via === "venmo") return `${total} by Venmo`;
-  if (wallets[p.method]) return `${total} by ${wallets[p.method]}`;
+  if (WALLETS[p.method]) return `${total} by ${WALLETS[p.method]}`;
   if (p.last4) return `${total} by ${brand} ending ${p.last4}`;
   if (p.via && p.via !== "square") return `${total} by ${p.via}`;
 
   return `${total} by card`;
+};
+
+// "$42 by Visa ending 1111"; an order changed after paying names each
+// payment: "$42 by Visa ending 1111, then $12 by Venmo".
+export const paymentPhrase = (order) => {
+  const payments = paymentsOf(order);
+
+  return payments.length
+    ? payments.map(onePayment).join(", then ")
+    : onePayment({ amount: order.totals.total });
 };
 
 // The moment an order is placed, which is the moment it is paid.

@@ -17,8 +17,8 @@ import { adminEmails, sendMail } from "./mail.mjs";
 import { log } from "./log.mjs";
 import { notifyFarm, sendForOrder } from "./payments.mjs";
 import {
-  REMINDERS, amendOrder, answerQuestion, getOrder, ordersFor, questionOpen,
-  reminderPrefs, saveCustomer,
+  REMINDERS, amendOrder, answerQuestion, getOrder, ordersFor, paymentRef,
+  paymentsOf, questionOpen, refundsOf, reminderPrefs, saveCustomer,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor, siteUrl } from "./site.mjs";
 import { updateFulfilment } from "./square.mjs";
@@ -67,17 +67,23 @@ export const publicOrder = (order, now = new Date()) => ({
   totals: order.totals,
   fulfilment: order.fulfilment,
   notes: order.notes || "",
-  payment: order.payment ? {
-    via: order.payment.via || null,
-    method: order.payment.method || null,
-    brand: order.payment.brand || null,
-    last4: order.payment.last4 || null,
-    receiptUrl: order.payment.receiptUrl || null,
-  } : null,
-  refund: order.refund ? {
-    at: order.refund.at, amount: order.refund.amount,
-    total: !!order.refund.total,
-  } : null,
+  payments: paymentsOf(order).map((p) => ({
+    at: p.at || order.paidAt || null,
+    amount: p.amount,
+    via: p.via || null,
+    method: p.method || null,
+    brand: p.brand || null,
+    last4: p.last4 || null,
+    receiptUrl: p.receiptUrl || null,
+  })),
+  // Which payment each refund came out of, by its place in `payments`
+  // (a refund that names none came out of the first).
+  refunds: refundsOf(order).map((r) => ({
+    at: r.at,
+    amount: r.amount,
+    payment: Math.max(0, paymentsOf(order)
+      .findIndex((p) => paymentRef(p) === r.payment)),
+  })),
   returns: order.returns || [],
   question: order.question ? {
     kind: order.question.kind,

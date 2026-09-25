@@ -80,8 +80,9 @@ test.describe("payments", () => {
     const record = await orderRecord(body.orderId);
 
     expect(record.status).toBe("paid");
-    expect(record.payment).toMatchObject({
-      via: "square", method: "card", last4: "1111",
+    expect(record.payments).toHaveLength(1);
+    expect(record.payments[0]).toMatchObject({
+      via: "square", method: "card", last4: "1111", amount: 700,
     });
     expect(record.square && record.square.squareOrderId).toBeTruthy();
     expect(record.fulfilment).toMatchObject({

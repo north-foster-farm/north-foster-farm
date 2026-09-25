@@ -4,7 +4,8 @@ import { describe, it } from "node:test";
 import {
   CHECKOUT_TTL, OPEN, allOrders, amendOrder, byPaymentKey, checkoutByPayPal,
   deleteCheckout, deleteOrder, getCheckout, getCustomer, getOrder,
-  openOrders, orderByPayment, ordersFor, saveCheckout, saveOrder, setStatus,
+  moneyPatch, openOrders, orderByPayment, ordersFor, paidTotal, paymentRef,
+  paymentsOf, refundedTotal, refundsOf, saveCheckout, saveOrder, setStatus,
   sweepCheckouts, touchCustomer,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
@@ -156,6 +157,55 @@ describe("order records", () => {
     assert.equal((await openOrders(stores)).length, 0);
     assert.equal(await orderByPayment(stores, "PAY-NFF-1"), null);
     assert.equal(await deleteOrder(stores, "NFF-1"), false);
+  });
+});
+
+describe("the money on an order", () => {
+  const old = {
+    id: "NFF-OLD", status: "paid", submittedAt: "2026-09-20T12:00:00Z",
+    customer: { email: "pat@example.com" }, totals: { total: 1400 },
+    payment: { via: "square", squarePaymentId: "PAY-1" },
+    refund: { amount: 400, squareRefundId: "R-1" },
+  };
+
+  it("reads an old record's single payment and refund as lists", () => {
+    assert.deepEqual(paymentsOf(old),
+      [{ amount: 1400, via: "square", squarePaymentId: "PAY-1" }]);
+    assert.deepEqual(refundsOf(old), [old.refund]);
+    assert.equal(paidTotal(old), 1400);
+    assert.equal(refundedTotal(old), 400);
+    assert.deepEqual(paymentsOf({ ...old, payment: null }), []);
+    assert.deepEqual(refundsOf({ ...old, refund: undefined }), []);
+    assert.deepEqual(paymentsOf(null), []);
+  });
+
+  it("names a payment by its processor's id", () => {
+    assert.equal(paymentRef({ squarePaymentId: "PAY-1" }), "PAY-1");
+    assert.equal(paymentRef({ squarePaymentId: "PAY-2",
+      paypalCaptureId: "CAP-2" }), "CAP-2", "Venmo goes by the capture");
+    assert.equal(paymentRef(null), null);
+  });
+
+  it("rewrites an old record in the list shape when its money changes, " +
+    "and indexes every payment", async () => {
+    const stores = testStores();
+
+    await saveOrder(stores, old);
+    const saved = await amendOrder(stores, "NFF-OLD", moneyPatch(old, {
+      payments: [...paymentsOf(old), {
+        amount: 600, via: "venmo", paypalCaptureId: "CAP-2",
+      }],
+    }), "test");
+
+    assert.equal(saved.payment, undefined);
+    assert.equal(saved.refund, undefined);
+    assert.equal(saved.payments.length, 2);
+    assert.deepEqual(saved.refunds, [old.refund]);
+    assert.equal((await orderByPayment(stores, "PAY-1")).id, "NFF-OLD");
+    assert.equal((await orderByPayment(stores, "CAP-2")).id, "NFF-OLD");
+
+    await deleteOrder(stores, "NFF-OLD");
+    assert.equal(await stores.orders.get(byPaymentKey("CAP-2")), null);
   });
 });
 

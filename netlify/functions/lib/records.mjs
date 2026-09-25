@@ -82,11 +82,50 @@ export const saveOrder = async (stores, order, now = new Date()) => {
 
 export const getOrder = (stores, id) => stores.orders.get(orderKey(id));
 
-const paymentIds = (order) => {
-  const p = order.payment || {};
+// The money on an order: every payment and every refund, oldest first.
+// A record from before an order could be changed after paying
+// (2026-09-25) holds one `payment` and at most one `refund` instead;
+// these read both shapes. A payment carries its `amount` (cents); the
+// old single one paid the whole total.
+export const paymentsOf = (order) => {
+  if (!order) return [];
+  if (Array.isArray(order.payments)) return order.payments;
 
-  return [p.squarePaymentId, p.paypalCaptureId].filter(Boolean);
+  return order.payment
+    ? [{ amount: order.totals.total, ...order.payment }]
+    : [];
 };
+
+export const refundsOf = (order) => {
+  if (!order) return [];
+  if (Array.isArray(order.refunds)) return order.refunds;
+
+  return order.refund ? [order.refund] : [];
+};
+
+const sum = (items) => items.reduce((s, x) => s + (x.amount || 0), 0);
+
+export const paidTotal = (order) => sum(paymentsOf(order));
+export const refundedTotal = (order) => sum(refundsOf(order));
+
+// What a payment is known by at its processor: the Square payment, or
+// for Venmo the PayPal capture.
+export const paymentRef = (payment) =>
+  (payment && (payment.paypalCaptureId || payment.squarePaymentId)) || null;
+
+// The fields that hold money, in the list shape, for an amendOrder
+// patch: an old record is rewritten the new way the first time its
+// money changes, so no record holds both shapes.
+export const moneyPatch = (order, { payments, refunds } = {}) => ({
+  payments: payments || paymentsOf(order),
+  refunds: refunds || refundsOf(order),
+  payment: undefined,
+  refund: undefined,
+});
+
+const paymentIds = (order) => paymentsOf(order)
+  .flatMap((p) => [p.squarePaymentId, p.paypalCaptureId])
+  .filter(Boolean);
 
 export const orderByPayment = async (stores, paymentId) => {
   const ref = await stores.orders.get(byPaymentKey(paymentId));

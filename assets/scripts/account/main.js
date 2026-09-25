@@ -37,6 +37,9 @@ const paidWith = (payment) => {
   return p.last4 ? `${brand} ending ${p.last4}` : brand;
 };
 
+const total = (items) => (items || [])
+  .reduce((s, x) => s + (x.amount || 0), 0);
+
 const METHOD = {
   delivery: "Delivery",
   scituate: "Scituate drop site",
@@ -497,13 +500,14 @@ class Account {
       note.textContent = "We're refunding this order. Your money goes back " +
         "to the way you paid.";
       note.hidden = false;
-    } else if (order.refund) {
-      const what = order.refund.total
+    } else if (order.refunds.length) {
+      const back = total(order.refunds);
+      const what = back >= total(order.payments)
         ? "Refunded"
-        : `Refunded ${dollars(order.refund.amount)}`;
+        : `Refunded ${dollars(back)}`;
 
-      note.textContent = `${what} on ${placed(order.refund.at)}, back to ` +
-        "the way you paid.";
+      note.textContent = `${what} on ${
+        placed(order.refunds.at(-1).at)}, back to the way you paid.`;
       note.hidden = false;
     } else if (order.status === "abandoned") {
       note.textContent = "This order wasn't paid by the cutoff, so it was " +
@@ -546,7 +550,9 @@ class Account {
         t.deliveryFee ? `+${dollars(t.deliveryFee)}` : "Free");
     }
     row("Total", dollars(t.total), "account-totals-total");
-    if (order.payment) row("Paid with", paidWith(order.payment));
+    if (order.payments.length) {
+      row("Paid with", order.payments.map(paidWith).join(", then "));
+    }
 
     const actions = qs(node, "[data-out='actions']");
     const button = (text, className, onClick) => {
@@ -803,31 +809,36 @@ class Account {
 
   renderReceipts() {
     const body = document.getElementById("receipts-body");
-    const paid = this.orders.filter((o) => o.payment);
+    // One row per payment: an order changed after paying has several.
+    const rows = this.orders.flatMap((order) => order.payments
+      .map((payment, i) => ({ order, payment, i })));
 
     body.textContent = "";
-    document.getElementById("receipts-empty").hidden = paid.length > 0;
-    document.getElementById("receipts-table").hidden = paid.length === 0;
+    document.getElementById("receipts-empty").hidden = rows.length > 0;
+    document.getElementById("receipts-table").hidden = rows.length === 0;
 
-    for (const order of paid) {
+    for (const { order, payment, i } of rows) {
       const tr = el("tr");
       const cell = (text) => tr.appendChild(el("td", "", text));
+      const back = total(order.refunds.filter((r) => r.payment === i));
 
       cell(order.id);
-      cell(order.paidAt ? placed(order.paidAt) : "");
-      cell(dollars(order.totals.total));
-      cell(paidWith(order.payment));
-      cell(order.refund
-        ? (order.refund.total ? "Refunded" : `Refunded ${
-          dollars(order.refund.amount)}`)
-        : (STATUS[order.status] || ""));
+      cell(payment.at ? placed(payment.at) : "");
+      cell(dollars(payment.amount));
+      cell(paidWith(payment));
+      if (back) {
+        cell(back >= payment.amount ? "Refunded" : `Refunded ${
+          dollars(back)}`);
+      } else {
+        cell(STATUS[order.status] || "");
+      }
 
       const td = el("td");
 
-      if (order.payment.receiptUrl) {
+      if (payment.receiptUrl) {
         const a = el("a", "", "Receipt");
 
-        a.href = order.payment.receiptUrl;
+        a.href = payment.receiptUrl;
         a.target = "_blank";
         a.rel = "noopener";
         td.appendChild(a);

@@ -293,16 +293,24 @@ page may still say `submitted` or `abandoned`; nothing makes those any
 more and the jobs flag any `submitted` one they find
 (`legacy.unpaid`). Square stays the system of record for money.
 
-Every order carries `payment`: `{ via, method, at, squarePaymentId,
-receiptUrl, brand, last4, wallet }`, and for Venmo `paypalOrderId`,
-`paypalCaptureId` and `payer`. `via` is `square` or `venmo` (a record
-made by hand may say `cash` or `check`); `method` is `card`,
-`applepay`, `googlepay`, `cashapp` or `venmo`. `paymentPhrase(order)`
-in `lib/templates.mjs` turns it into "$55 by Visa ending 4242". A
-refund adds `refund`: `{ at, source, amount, total, squareRefundId,
-paypalRefundId, status }`, once per order. `meta` keeps the submission
-key and the attempt, which the jobs need to retry a missing Square
-copy.
+Every order carries `payments`, a list, oldest first: `{ at, amount,
+via, method, squarePaymentId, receiptUrl, brand, last4, wallet }`, and
+for Venmo `paypalOrderId`, `paypalCaptureId` and `payer`. An order has
+one payment until it is changed after paying (#160), which can add
+more. `via` is `square` or `venmo` (a record made by hand may say
+`cash` or `check`); `method` is `card`, `applepay`, `googlepay`,
+`cashapp` or `venmo`. `paymentPhrase(order)` in `lib/templates.mjs`
+turns them into "$55 by Visa ending 4242", or "$55 by Visa ending
+4242, then $6 by Venmo". Each refund is added to `refunds`: `{ at,
+source, amount, payment, total, squareRefundId, paypalRefundId,
+status }`, where `payment` names the payment it came out of (its
+Square payment id, or for Venmo its PayPal capture id) and `total`
+says whether everything paid has now gone back. A record from before
+2026-09-25 holds one `payment` and at most one `refund` instead;
+`paymentsOf` and `refundsOf` in `lib/records.mjs` read both shapes,
+and the first change to its money rewrites it as lists. `meta` keeps
+the submission key and the attempt, which the jobs need to retry a
+missing Square copy.
 
 Beside `status`, an order carries the farm's side of its pickup in
 `fulfilment.state`: `requested` or `agreed`. Only an on-farm window
@@ -385,16 +393,17 @@ twice; with `ADMIN_EMAILS` unset it is skipped.
 ## Refunds
 
 Money goes back from the CLI. `bin/nff orders refund <id> [--amount
-12.34] [--reason "..."]` refunds the whole payment unless told the
-amount: a card or wallet through Square (`POST /v2/refunds`, Square
+12.34] [--reason "..."]` refunds whatever has not gone back yet
+unless told the amount, out of the newest payment first: a card or wallet through Square (`POST /v2/refunds`, Square
 sends its refund receipt), Venmo through PayPal (`POST
 /v2/payments/captures/<id>/refund`, Venmo tells the customer), and
 for Venmo the Square copy is noted as refunded too, best effort, so
-the books agree. Once per order; a second call is refused. `bin/nff
-orders cancel <id> --refund` does the same first, then cancels: stock
-back, the fulfilment closed in Square, the customer emailed "Your
-refund is on its way". Without `--refund` the cancellation email says
-nothing more will be charged.
+the books agree. It can be called again for the rest, until
+everything is back. `bin/nff orders cancel <id> --refund` refunds what
+is left first, then cancels: stock back, the fulfilment closed in
+Square, the customer emailed "Your refund is on its way" (said only
+when money went back just then). Without `--refund` the cancellation
+email says nothing more will be charged.
 
 A customer who cancels from the account page is flagged
 `cancelRequested`, their stock is released, and the farm is emailed
@@ -403,8 +412,8 @@ CLI refunds and closes it. A refund made in the Square dashboard
 (`refund.updated`, `POST /api/square/webhook`, signed with
 `SQUARE_WEBHOOK_SIGNATURE_KEY`) or in PayPal
 (`PAYMENT.CAPTURE.REFUNDED`) reaches the record through the webhooks,
-by the `by-payment` index, so `order.refund` is right however the
-money went back.
+by the `by-payment` index, which holds every payment of an order,
+so `refunds` is right however the money went back.
 
 ## Schedule
 
@@ -485,10 +494,12 @@ Settings, Help) rendered from `GET /api/me` and
   through `PATCH /api/account/profile` as `reminders: { delivery }`.
   The confirmation, the receipt and order changes cannot be turned
   off.
-- Receipts: every payment with what it was paid with, its status
-  (paid, delivered, refunded) and Square's receipt link; a Venmo
-  payment's receipt is in the Venmo app. The order card shows "Paid
-  with" under the totals and, after a refund, when and how much.
+- Receipts: one row per payment, with its amount, what it was paid
+  with, its status (paid, delivered, or what of it was refunded) and
+  Square's receipt link; a Venmo payment's receipt is in the Venmo
+  app. The order card shows "Paid with" under the totals (each
+  payment, for an order changed after paying) and, after a refund,
+  when and how much in all.
 - Add again and Reorder: plain links to `/order/?add=SKU:qty,...`.
   The order page merges the quantities into the cart on load, names
   anything no longer sold, saves the draft, scrolls to the summary

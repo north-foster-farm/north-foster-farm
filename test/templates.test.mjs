@@ -765,6 +765,12 @@ describe("the farm's own notices", () => {
       "$67 by card", "a record from before payments were kept");
     has(farmOrderPlaced({ ...order(), payment: { via: "venmo",
       method: "venmo" } }).text, "Paid: **$67 by Venmo**");
+    // Changed after paying: each payment, in order.
+    assert.equal(paymentPhrase({ ...order(), payments: [
+      { amount: 6200, via: "square", method: "card", brand: "VISA",
+        last4: "4242" },
+      { amount: 500, via: "venmo", method: "venmo" },
+    ] }), "$62 by Visa ending 4242, then $5 by Venmo");
   });
 
   it("leaves out the links it has no address for", () => {

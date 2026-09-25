@@ -37,7 +37,8 @@ import { sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
   allOrders, getCustomer, listCheckouts, needsAgreement, openOrders,
-  questionOpen, reminderPrefs, setStatus, sweepCheckouts,
+  paymentsOf, questionOpen, refundsOf, reminderPrefs, setStatus,
+  sweepCheckouts,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
 import {
@@ -125,7 +126,9 @@ export const runJobs = async (stores, {
   const workOrder = async (order) => {
     if (order.status !== "paid") return;
 
-    if (!order.square && order.payment && order.payment.via === "venmo") {
+    const first = paymentsOf(order)[0];
+
+    if (!order.square && first && first.via === "venmo") {
       const synced = await syncSquare(stores, order, {
         ...opts, square, fetchImpl,
       });
@@ -334,7 +337,7 @@ export const funnel = async (stores, now, { since } = {}) => {
   const iso = from.toISOString();
   const orders = await allOrders(stores);
   const within = (at) => !!at && at >= iso;
-  const via = (o) => (o.payment && o.payment.via) || "";
+  const via = (o) => (paymentsOf(o)[0] || {}).via || "";
   const paid = orders.filter((o) => within(o.paidAt));
   const runs = await runsSince(stores, from);
   const mail = await readMark(stores, "mail");
@@ -349,7 +352,8 @@ export const funnel = async (stores, now, { since } = {}) => {
     declined: (await readCount(stores, "declined", day))
       + (await readCount(stores, "declined", yesterday)),
     cancelled: orders.filter((o) => within(o.cancelledAt)).length,
-    refunded: orders.filter((o) => o.refund && within(o.refund.at)).length,
+    refunded: orders
+      .filter((o) => refundsOf(o).some((r) => within(r.at))).length,
     open: orders.filter((o) => o.status === "paid").length,
     mailFailures: (days[day] || 0) + (days[yesterday] || 0),
     runs: runs.length,

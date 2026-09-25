@@ -192,26 +192,33 @@ describe("orders from the CLI", () => {
     });
 
     assert.deepEqual(calls, [["square.refund", "PAY-A", 700]]);
-    assert.equal(part.refund.amount, 700);
-    assert.equal(part.refund.total, false);
-    assert.equal(part.refund.source, "farm");
-    assert.equal(part.refund.squareRefundId, "SQR-1");
-    assert.equal(part.refund.paypalRefundId, null);
-    assert.equal(part.refund.status, "PENDING");
-    assert.equal(part.refund.at, now.toISOString());
+    assert.equal(part.refunds.at(-1).amount, 700);
+    assert.equal(part.refunds.at(-1).total, false);
+    assert.equal(part.refunds.at(-1).source, "farm");
+    assert.equal(part.refunds.at(-1).squareRefundId, "SQR-1");
+    assert.equal(part.refunds.at(-1).paypalRefundId, null);
+    assert.equal(part.refunds.at(-1).status, "PENDING");
+    assert.equal(part.refunds.at(-1).at, now.toISOString());
+    assert.equal(part.refunds.at(-1).payment, "PAY-A");
     assert.equal(part.history.at(-1).event, "refund.recorded");
     assert.equal(part.status, "paid", "a refund alone does not cancel");
 
+    // The rest can follow; then there is nothing left to send back.
+    const rest = await refundOrder(stores, "A", opts);
+
+    assert.deepEqual(calls.at(-1), ["square.refund", "PAY-A", 700]);
+    assert.equal(rest.refunds.length, 2);
+    assert.equal(rest.refunds.at(-1).total, true);
     await assert.rejects(refundOrder(stores, "A", opts),
-      /Already refunded \$7 on 2026-10-05/);
-    assert.equal(calls.length, 1);
+      /Already refunded in full \(\$14\)/);
+    assert.equal(calls.length, 2);
 
     // The whole total by default, marked as such.
     await saveOrder(stores, order("B"), now);
     const whole = await refundOrder(stores, "B", opts);
 
     assert.deepEqual(calls.at(-1), ["square.refund", "PAY-B", 1400]);
-    assert.equal(whole.refund.total, true);
+    assert.equal(whole.refunds.at(-1).total, true);
   });
 
   it("refund a Venmo order through PayPal and note it on the Square copy",
@@ -225,9 +232,9 @@ describe("orders from the CLI", () => {
       assert.deepEqual(calls, [
         ["paypal.refund", "CAP-A", 1400], ["square.refund", "PAY-A", 1400],
       ]);
-      assert.equal(r.refund.paypalRefundId, "PPR-1");
-      assert.equal(r.refund.squareRefundId, "SQR-1");
-      assert.equal(r.refund.status, "COMPLETED");
+      assert.equal(r.refunds.at(-1).paypalRefundId, "PPR-1");
+      assert.equal(r.refunds.at(-1).squareRefundId, "SQR-1");
+      assert.equal(r.refunds.at(-1).status, "COMPLETED");
 
       // Square refusing to note it does not undo the refund.
       await saveOrder(stores, order("B", "paid", "venmo"), now);
@@ -239,9 +246,9 @@ describe("orders from the CLI", () => {
         },
       });
 
-      assert.equal(noted.refund.paypalRefundId, "PPR-1");
-      assert.equal(noted.refund.squareRefundId, null);
-      assert.equal(noted.refund.total, true);
+      assert.equal(noted.refunds.at(-1).paypalRefundId, "PPR-1");
+      assert.equal(noted.refunds.at(-1).squareRefundId, null);
+      assert.equal(noted.refunds.at(-1).total, true);
 
       // A Venmo order that never got its Square copy still refunds.
       const bare = order("C", "paid", "venmo");
@@ -251,7 +258,7 @@ describe("orders from the CLI", () => {
       await saveOrder(stores, bare, now);
       const c = await refundOrder(stores, "C", opts);
 
-      assert.equal(c.refund.paypalRefundId, "PPR-1");
+      assert.equal(c.refunds.at(-1).paypalRefundId, "PPR-1");
       assert.deepEqual(calls.at(-1), ["paypal.refund", "CAP-C", 1400]);
     });
 
@@ -310,8 +317,8 @@ describe("orders from the CLI", () => {
     const c = await cancelOrder(stores, "A", { ...opts, refund: true });
 
     assert.equal(c.status, "cancelled");
-    assert.equal(c.refund.amount, 1400);
-    assert.equal(c.refund.total, true);
+    assert.equal(c.refunds.at(-1).amount, 1400);
+    assert.equal(c.refunds.at(-1).total, true);
     assert.deepEqual(calls, [
       ["square.refund", "PAY-A", 1400], ["fulfilment", "SQO"],
     ]);
@@ -326,8 +333,8 @@ describe("orders from the CLI", () => {
       ...opts, refund: true, amount: 700, reason: "Half the order",
     });
 
-    assert.equal(b.refund.amount, 700);
-    assert.equal(b.refund.total, false);
+    assert.equal(b.refunds.at(-1).amount, 700);
+    assert.equal(b.refunds.at(-1).total, false);
     assert.deepEqual(calls.slice(2), [
       ["paypal.refund", "CAP-B", 700], ["square.refund", "PAY-B", 700],
       ["fulfilment", "SQO"],
@@ -358,7 +365,7 @@ describe("orders from the CLI", () => {
     const c = await cancelOrder(stores, "A", { ...opts, refund: true });
 
     assert.equal(c.status, "cancelled");
-    assert.equal(c.refund.total, true);
+    assert.equal(c.refunds.at(-1).total, true);
     assert.equal((await getCounts(stores))["NFF-CHK-EGG-LG"], 3);
     assert.deepEqual(calls, [
       ["square.refund", "PAY-A", 1400], ["fulfilment", "SQO"],
@@ -538,5 +545,78 @@ describe("returns and stock from the CLI", () => {
     assert.deepEqual(await stockList(stores), { "NFF-CHK-EGG-LG": 12 });
     await stockSet(stores, "NFF-CHK-EGG-LG", "none");
     assert.deepEqual(await stockList(stores), {});
+  });
+});
+
+describe("refunds over several payments", () => {
+  // An order changed after paying: $14 by card, then $6 more by Venmo.
+  const changed = (id) => {
+    const base = order(id);
+
+    return {
+      ...base,
+      payment: undefined,
+      totals: { ...base.totals, subtotal: 2000, total: 2000 },
+      payments: [
+        { ...base.payment, amount: 1400 },
+        {
+          via: "venmo", method: "venmo", at: now.toISOString(), amount: 600,
+          squarePaymentId: `PAY-${id}-2`, receiptUrl: null,
+          paypalOrderId: `PPO-${id}-2`, paypalCaptureId: `CAP-${id}-2`,
+        },
+      ],
+      refunds: [],
+    };
+  };
+
+  it("takes a refund out of the newest payment first", async () => {
+    const stores = testStores();
+    const { calls, opts } = harness();
+
+    await saveOrder(stores, changed("A"), now);
+
+    const part = await refundOrder(stores, "A", { ...opts, amount: 1000 });
+
+    assert.deepEqual(calls, [
+      ["paypal.refund", "CAP-A-2", 600], ["square.refund", "PAY-A-2", 600],
+      ["square.refund", "PAY-A", 400],
+    ]);
+    assert.deepEqual(part.refunds.map((r) => [r.payment, r.amount]),
+      [["CAP-A-2", 600], ["PAY-A", 400]]);
+    assert.equal(part.refunds.at(-1).total, false);
+
+    const rest = await refundOrder(stores, "A", opts);
+
+    assert.deepEqual(calls.at(-1), ["square.refund", "PAY-A", 1000]);
+    assert.equal(rest.refunds.at(-1).total, true);
+    await assert.rejects(refundOrder(stores, "A", opts),
+      /Already refunded in full \(\$20\)/);
+  });
+
+  it("cancel with --refund after a partial refund sends back the rest, " +
+    "and says so", async () => {
+    const stores = testStores();
+    const { sent, calls, opts } = harness();
+
+    await saveOrder(stores, order("A"), now);
+    await refundOrder(stores, "A", { ...opts, amount: 400 });
+
+    const c = await cancelOrder(stores, "A", { ...opts, refund: true });
+
+    assert.deepEqual(calls, [
+      ["square.refund", "PAY-A", 400], ["square.refund", "PAY-A", 1000],
+      ["fulfilment", "SQO"],
+    ]);
+    assert.deepEqual(c.refunds.map((r) => r.amount), [400, 1000]);
+    assert.match(sent.at(-1).text, /refund is on its way/);
+
+    // Refunded in full already: nothing more goes back, and the email
+    // does not promise it.
+    await saveOrder(stores, order("B"), now);
+    await refundOrder(stores, "B", opts);
+    await cancelOrder(stores, "B", { ...opts, refund: true });
+
+    assert.deepEqual(calls.at(-1), ["fulfilment", "SQO"]);
+    assert.doesNotMatch(sent.at(-1).text, /refund is on its way/);
   });
 });

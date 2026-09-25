@@ -210,16 +210,25 @@ export const customerRecord = async (email) => {
 // Cancels a paid test order, refunds it in the sandbox (stock goes
 // back with it) and deletes the record, so the next run starts clean.
 // E2E_KEEP=1 keeps the cancelled record for inspection. Safe to call
-// again on an order half closed: a refund already made is not asked
-// for twice.
+// again on an order half closed: `--refund` sends back only what has
+// not gone back yet. Reads both record shapes: `payments`/`refunds`
+// lists since 2026-09-25, one `payment`/`refund` before.
 export const closeOrder = async (id) => {
   const record = await orderRecord(id).catch(() => null);
 
   if (!record) return;
+
+  const list = (many, one) => many || (one ? [one] : []);
+  const sum = (items) => items.reduce((s, x) => s + (x.amount || 0), 0);
+  const payments = list(record.payments, record.payment);
+  const paid = record.payments ? sum(payments) : record.totals.total;
+  const owed = payments.length
+    ? paid - sum(list(record.refunds, record.refund))
+    : 0;
+
   if (record.status === "paid") {
-    await nff(["orders", "cancel", id,
-      ...(record.refund ? [] : ["--refund"]), "--reason=QA e2e"]);
-  } else if (record.payment && !record.refund) {
+    await nff(["orders", "cancel", id, "--refund", "--reason=QA e2e"]);
+  } else if (owed > 0) {
     await nff(["orders", "refund", id, "--reason=QA e2e"]);
   }
   if (!process.env.E2E_KEEP) await nff(["orders", "delete", id]);

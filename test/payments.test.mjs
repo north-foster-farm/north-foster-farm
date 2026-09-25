@@ -201,19 +201,20 @@ describe("refunds", () => {
         amount: 300, squareRefundId: "REF-1", status: "PENDING",
       }, "farm", now);
 
-      assert.deepEqual(part.refund, {
-        at: now.toISOString(), source: "farm", amount: 300, total: false,
-        squareRefundId: "REF-1", paypalRefundId: null, status: "PENDING",
-      });
+      assert.deepEqual(part.refunds, [{
+        at: now.toISOString(), source: "farm", amount: 300,
+        payment: "PAY-NFF-1", total: false, squareRefundId: "REF-1",
+        paypalRefundId: null, status: "PENDING",
+      }]);
       assert.equal(part.history.at(-1).event, "refund.recorded");
 
       const whole = await recordRefund(stores, part, {
         amount: 700, paypalRefundId: "PPR-1",
       }, "paypal", now);
 
-      assert.equal(whole.refund.total, true);
-      assert.equal(whole.refund.paypalRefundId, "PPR-1");
-      assert.equal(whole.refund.squareRefundId, null);
+      assert.equal(whole.refunds.at(-1).total, true);
+      assert.equal(whole.refunds.at(-1).paypalRefundId, "PPR-1");
+      assert.equal(whole.refunds.at(-1).squareRefundId, null);
     });
 
   const event = (refund) => ({
@@ -232,7 +233,7 @@ describe("refunds", () => {
 
       assert.deepEqual(r, { handled: true, id: "NFF-1" });
 
-      const noted = (await getOrder(stores, "NFF-1")).refund;
+      const noted = (await getOrder(stores, "NFF-1")).refunds.at(-1);
 
       assert.equal(noted.squareRefundId, "REF-9");
       assert.equal(noted.amount, 700);
@@ -267,8 +268,8 @@ describe("refunds", () => {
 
       const noted = await getOrder(stores, "NFF-1");
 
-      assert.equal(noted.refund.status, "COMPLETED");
-      assert.equal(noted.refund.source, "farm");
+      assert.equal(noted.refunds.at(-1).status, "COMPLETED");
+      assert.equal(noted.refunds.at(-1).source, "farm");
       assert.equal(noted.history
         .filter((h) => h.event === "refund.completed").length, 1);
       assert.equal(noted.history
@@ -339,8 +340,8 @@ describe("POST /api/square/webhook", () => {
 
       assert.equal(res.status, 200);
       assert.deepEqual(data, { handled: true, id: "NFF-1" });
-      assert.equal((await getOrder(stores, "NFF-1")).refund.squareRefundId,
-        "REF-1");
+      assert.equal((await getOrder(stores, "NFF-1")).refunds.at(-1)
+        .squareRefundId, "REF-1");
       assert.deepEqual(await readMark(stores, "webhook"),
         { at: now.toISOString(), type: "refund.updated" });
     });

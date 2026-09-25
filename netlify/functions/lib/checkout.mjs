@@ -28,8 +28,8 @@ import { sendMail } from "./mail.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { announcePaid } from "./payments.mjs";
 import {
-  amendOrder, deleteCheckout, getCheckout, getOrder, saveCheckout,
-  saveOrder, touchCustomer,
+  amendOrder, deleteCheckout, getCheckout, getOrder, moneyPatch,
+  paymentsOf, saveCheckout, saveOrder, touchCustomer,
 } from "./records.mjs";
 import * as squareApi from "./square.mjs";
 import { adjust } from "./stock.mjs";
@@ -72,7 +72,8 @@ export const completeOrder = async (stores, order, { square, payment }, {
     status: "paid",
     paidAt: at,
     square,
-    payment: { at, ...payment },
+    payments: [{ at, amount: order.totals.total, ...payment }],
+    refunds: [],
   }, now);
 
   await touchCustomer(stores, order.customer, now);
@@ -190,8 +191,7 @@ export const finishVenmo = async (stores, order, {
   // jobs: the checkout is gone, and the record is the answer.
   const existing = await getOrder(stores, order.id);
 
-  if (existing && existing.payment
-    && existing.payment.paypalOrderId === paypalOrderId) {
+  if (paymentsOf(existing).some((x) => x.paypalOrderId === paypalOrderId)) {
     return existing;
   }
 
@@ -338,7 +338,8 @@ export const syncSquare = async (stores, order, {
   square = squareApi, env = process.env, fetchImpl, mail = sendMail,
   now = new Date(), sleep,
 } = {}) => {
-  const p = order.payment || {};
+  const payments = paymentsOf(order);
+  const p = payments[0] || {};
 
   if (order.square || p.via !== "venmo" || !p.paypalCaptureId) return order;
 
@@ -355,7 +356,11 @@ export const syncSquare = async (stores, order, {
 
   return amendOrder(stores, order.id, {
     square: copy.square,
-    payment: { ...p, squarePaymentId: copy.squarePaymentId },
+    ...moneyPatch(order, {
+      payments: [
+        { ...p, squarePaymentId: copy.squarePaymentId }, ...payments.slice(1),
+      ],
+    }),
   }, "square.recorded", now);
 };
 

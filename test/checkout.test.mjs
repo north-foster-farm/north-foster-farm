@@ -150,8 +150,8 @@ describe("completeOrder", () => {
 
       assert.equal(first.status, "paid");
       assert.equal(first.paidAt, now.toISOString());
-      assert.equal(first.payment.at, now.toISOString());
-      assert.equal(first.payment.last4, "4242");
+      assert.equal(first.payments[0].at, now.toISOString());
+      assert.equal(first.payments[0].last4, "4242");
       assert.deepEqual((await openOrders(stores)).map((o) => o.id),
         ["NFF-2610-ABCD"]);
       assert.equal((await getCounts(stores))["NFF-CHK-WHL-0350-0400"], 2);
@@ -165,7 +165,7 @@ describe("completeOrder", () => {
         square: null, payment: { via: "square" },
       }, { mail, env, now });
 
-      assert.equal(again.payment.last4, "4242", "the first record stands");
+      assert.equal(again.payments[0].last4, "4242", "the first record stands");
       assert.equal((await getCounts(stores))["NFF-CHK-WHL-0350-0400"], 2);
       assert.equal(sent.length, 2);
     });
@@ -187,9 +187,9 @@ describe("payWithSquare", () => {
         ["payment", k, { sourceId: "tok", verificationToken: "ver" }],
       ]);
       assert.equal(saved.status, "paid");
-      assert.equal(saved.payment.method, "googlepay");
-      assert.equal(saved.payment.via, "square");
-      assert.equal(saved.payment.squarePaymentId, "PAY");
+      assert.equal(saved.payments[0].method, "googlepay");
+      assert.equal(saved.payments[0].via, "square");
+      assert.equal(saved.payments[0].squarePaymentId, "PAY");
       assert.deepEqual(saved.square, {
         squareOrderId: "SQO", customerId: "CUST",
       });
@@ -200,7 +200,7 @@ describe("payWithSquare", () => {
       key: KEY, method: "sock", sourceId: "tok",
     }, { square: fakeSquare().square, ...quiet });
 
-    assert.equal(saved.payment.method, "card");
+    assert.equal(saved.payments[0].method, "card");
   });
 
   it("closes the Square order on a decline and rethrows", async () => {
@@ -273,11 +273,12 @@ describe("startVenmo and finishVenmo", () => {
       ["payment", k, { external: { source: "Venmo", sourceId: "CAP" } }],
     ]);
     assert.equal(saved.status, "paid");
-    assert.equal(saved.payment.via, "venmo");
-    assert.equal(saved.payment.paypalOrderId, "PPO");
-    assert.equal(saved.payment.paypalCaptureId, "CAP");
-    assert.deepEqual(saved.payment.payer, { email: "pat@venmo", name: "Pat" });
-    assert.equal(saved.payment.receiptUrl, null);
+    assert.equal(saved.payments[0].via, "venmo");
+    assert.equal(saved.payments[0].paypalOrderId, "PPO");
+    assert.equal(saved.payments[0].paypalCaptureId, "CAP");
+    assert.deepEqual(saved.payments[0].payer,
+      { email: "pat@venmo", name: "Pat" });
+    assert.equal(saved.payments[0].receiptUrl, null);
     assert.equal(await getCheckout(stores, KEY), null);
   });
 
@@ -400,7 +401,7 @@ describe("rescueCheckout", () => {
       });
 
       assert.equal(saved.status, "paid");
-      assert.equal(saved.payment.paypalCaptureId, "CAP");
+      assert.equal(saved.payments[0].paypalCaptureId, "CAP");
       assert.deepEqual(calls.find((c) => c[0] === "capture"),
         ["capture", attemptKey(KEY, 1), "PPO"]);
       assert.equal(await getCheckout(stores, KEY), null);
@@ -501,7 +502,7 @@ describe("recordOnSquare and syncSquare", () => {
       assert.deepEqual(synced.square, {
         squareOrderId: "SQO", customerId: "CUST",
       });
-      assert.equal(synced.payment.squarePaymentId, "PAY");
+      assert.equal(synced.payments[0].squarePaymentId, "PAY");
       assert.equal(synced.history.at(-1).event, "square.recorded");
 
       // Already there, or nothing to go on: untouched.
@@ -679,11 +680,11 @@ describe("POST /api/paypal/webhook", () => {
 
     const saved = await getOrder(stores, "NFF-2610-ABCD");
 
-    assert.equal(saved.refund.amount, 6000);
-    assert.equal(saved.refund.total, true);
-    assert.equal(saved.refund.source, "paypal");
-    assert.equal(saved.refund.paypalRefundId, "REF");
-    assert.equal(saved.refund.squareRefundId, "SQREF");
+    assert.equal(saved.refunds.at(-1).amount, 6000);
+    assert.equal(saved.refunds.at(-1).total, true);
+    assert.equal(saved.refunds.at(-1).source, "paypal");
+    assert.equal(saved.refunds.at(-1).paypalRefundId, "REF");
+    assert.equal(saved.refunds.at(-1).squareRefundId, "SQREF");
     assert.equal(saved.history.at(-1).event, "refund.recorded");
     assert.deepEqual(calls, [
       ["get", "PAY"], ["refund", "PAY", 6000, "paypal-REF"],
@@ -726,7 +727,7 @@ describe("POST /api/paypal/webhook", () => {
     })), { now, square: matched.square, env: {} });
 
     assert.deepEqual(matched.calls, [["get", "PAY"]]);
-    assert.equal((await getOrder(stores, "NFF-2610-ABCD")).refund
+    assert.equal((await getOrder(stores, "NFF-2610-ABCD")).refunds.at(-1)
       .squareRefundId, null);
   });
 
@@ -758,7 +759,7 @@ describe("POST /api/paypal/webhook", () => {
 
     assert.deepEqual(out, { handled: true, id: "NFF-2610-ABCD" });
     assert.deepEqual(none.calls, []);
-    assert.equal((await getOrder(early, "NFF-2610-ABCD")).refund
+    assert.equal((await getOrder(early, "NFF-2610-ABCD")).refunds.at(-1)
       .paypalRefundId, "REF");
   });
 
@@ -775,8 +776,8 @@ describe("POST /api/paypal/webhook", () => {
     const saved = await getOrder(stores, "NFF-2610-ABCD");
 
     assert.deepEqual(out, { handled: true, id: "NFF-2610-ABCD" });
-    assert.equal(saved.refund.paypalRefundId, "REF");
-    assert.equal(saved.refund.squareRefundId, null);
+    assert.equal(saved.refunds.at(-1).paypalRefundId, "REF");
+    assert.equal(saved.refunds.at(-1).squareRefundId, null);
     assert.ok(sent.some((m) =>
       m.subject === "Site alert: square.refund_failed"));
   });
