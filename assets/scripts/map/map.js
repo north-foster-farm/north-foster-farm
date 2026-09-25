@@ -63,6 +63,8 @@ const wire = (map) => {
   const zoomOut = map.querySelector("[data-map-zoom='out']");
   const reset = map.querySelector("[data-map-zoom='reset']");
   const pins = [...map.querySelectorAll("[data-map-pin]")];
+  // Pins that lean away from a crowded neighbour, about their tips.
+  const leans = [...map.querySelectorAll("[data-map-lean]")];
   // A pin by its number in the key; the markup draws them in
   // reverse, so what is on now lies on top.
   const pinOf = (n) => map.querySelector(`[data-map-pin="${n}"]`);
@@ -146,6 +148,15 @@ const wire = (map) => {
     for (const pin of pins) {
       pin.setAttribute("transform",
         `translate(${pin.dataset.x} ${pin.dataset.y}) scale(${s})`);
+    }
+    // Zoomed in, neighbours stand further apart on screen, so a lean
+    // eases in step and the pin all but straightens at full zoom.
+    for (const g of leans) {
+      const a = (g.dataset.mapLean / k).toFixed(1);
+      const label = g.querySelector("text");
+
+      g.setAttribute("transform", `rotate(${a})`);
+      if (label) label.setAttribute("transform", `rotate(${-a} 0 -30)`);
     }
     if (dropAt.dataset.x) {
       dropAt.setAttribute("transform",

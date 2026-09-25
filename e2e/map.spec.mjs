@@ -187,26 +187,80 @@ test.describe("map (#138)", () => {
       }
     });
 
+  // What hides a pin is another pin over its head, where its number
+  // is. Pins that share a place lean apart about their shared tip, so
+  // their boxes always meet there; their heads must not. The drop
+  // shape's head is a circle of 15 units at (0, -30); the farm
+  // marker's, of 22 at (0, -37).
   test("no pin hides another", async ({ page }) => {
     await page.goto(HOME.path);
 
-    const boxes = await map(page).locator("[data-map-pin] .map-pin-body")
+    const heads = await map(page).locator("[data-map-pin] .map-pin-body")
       .evaluateAll((els) => els.map((el) => {
-        const r = el.getBoundingClientRect();
+        const farm = !!el.querySelector(".map-farm-marker");
+        const m = el.getScreenCTM();
+        const c = new DOMPoint(0, farm ? -37 : -30).matrixTransform(m);
 
-        return { n: el.textContent.trim(), x: r.x, y: r.y, w: r.width,
-          h: r.height };
+        return { n: el.textContent.trim() || "farm", x: c.x, y: c.y,
+          r: (farm ? 22 : 15) * Math.hypot(m.a, m.b) };
       }));
+    // The share of the smaller circle that the other covers.
+    const covered = (a, b) => {
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      const [r, s] = a.r < b.r ? [a.r, b.r] : [b.r, a.r];
 
-    for (const a of boxes) {
-      for (const b of boxes) {
-        if (Number(a.n) >= Number(b.n)) continue;
+      if (d >= r + s) return 0;
+      if (d <= s - r) return 1;
 
-        const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
-        const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
-        const shared = Math.max(0, w) * Math.max(0, h) / (a.w * a.h);
+      const lens = r * r * Math.acos((d * d + r * r - s * s) / (2 * d * r))
+        + s * s * Math.acos((d * d + s * s - r * r) / (2 * d * s))
+        - 0.5 * Math.sqrt((-d + r + s) * (d + r - s) * (d - r + s)
+          * (d + r + s));
 
-        expect(shared, `pins ${a.n} and ${b.n} overlap`).toBeLessThan(0.25);
+      return lens / (Math.PI * r * r);
+    };
+
+    for (const [i, a] of heads.entries()) {
+      for (const b of heads.slice(i + 1)) {
+        expect(covered(a, b), `pins ${a.n} and ${b.n} overlap`)
+          .toBeLessThan(0.25);
+      }
+    }
+  });
+
+  // A crowded pin leans rather than moves, so its tip stays on its
+  // place at every zoom: the Foster market's tip once fell in
+  // Connecticut on a phone.
+  test("every pin's tip is on its place", async ({ page }) => {
+    await page.goto(HOME.path);
+
+    const svg = map(page).locator("[data-map-svg]");
+    const width = () => svg.evaluate(
+      (el) => Number(el.getAttribute("viewBox").split(" ")[2])
+    );
+    const tips = () => svg.evaluate((el) => [
+      ...el.querySelectorAll("[data-map-pin]"),
+    ].map((g) => {
+      const place = new DOMPoint(Number(g.dataset.x), Number(g.dataset.y))
+        .matrixTransform(el.getScreenCTM());
+      const tip = new DOMPoint(0, 0).matrixTransform(
+        g.querySelector(".map-pin-body").getScreenCTM());
+
+      return { n: g.getAttribute("aria-label"),
+        off: Math.hypot(tip.x - place.x, tip.y - place.y) };
+    }));
+
+    await svg.scrollIntoViewIfNeeded();
+    const full = await width();
+
+    for (const zoomed of [false, true]) {
+      if (zoomed) {
+        await map(page).locator("[data-map-zoom='in']").click();
+        await expect.poll(width).toBeCloseTo(full / 2, 0);
+      }
+      for (const t of await tips()) {
+        expect(t.off, `${t.n}${zoomed ? ", zoomed" : ""}`)
+          .toBeLessThanOrEqual(1);
       }
     }
   });

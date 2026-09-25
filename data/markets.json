@@ -10,7 +10,7 @@
       "season": "June through early October",
       "lat": 41.8339,
       "lng": -71.58346,
-      "nudge": [-30, 0]
+      "lean": -55
     },
     {
       "name": "Foster Farmers Market",
@@ -21,7 +21,7 @@
       "season": "June through October",
       "lat": 41.80426,
       "lng": -71.77252,
-      "nudge": [-16, 14]
+      "lean": 50
     },
     {
       "name": "Summer Market at Tilted Barn",

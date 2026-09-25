@@ -115,7 +115,7 @@
     "address" .where
     "href" .href
     "instagram" .instagram
-    "nudge" .nudge)) }}
+    "lean" .lean)) }}
 {{ end }}
 
 {{/* On now first, the rest after; the farm has its marker, the others
@@ -173,20 +173,22 @@
           {{ range $i, $p := $pins | collections.Reverse }}
             {{ $at := sub (len $pins) $i }}
             <g class="map-pin map-pin-{{ $p.kind }} {{ cond $p.on "is-on" "is-off" }}" data-map-pin="{{ $at }}" data-x="{{ $p.x }}" data-y="{{ $p.y }}" transform="translate({{ $p.x }} {{ $p.y }})" tabindex="0" role="button" aria-pressed="false" aria-label="{{ with $p.label }}{{ . }}: {{ end }}{{ $p.name }}">
-              {{/* A pin crowded by a neighbour stands a little aside,
-                   by its nudge in pin units; one not on now is
-                   smaller. */}}
-              {{ $move := "" }}
-              {{ with $p.nudge }}{{ $move = printf "translate(%v %v)" (index . 0) (index . 1) }}{{ end }}
-              {{ if not $p.on }}{{ $move = printf "%s scale(0.78)" $move }}{{ end }}
-              <g {{- with $move }} transform="{{ . }}"{{ end }}>
-                <g class="map-pin-body">
-                  {{ if eq $p.kind "farm" }}
-                    <g class="map-farm-marker" transform="translate(-22.1 -59.1) scale(0.1181)">{{ $markerShapes }}</g>
-                  {{ else }}
-                    <path d="{{ $pin }}"/>
-                    <text y="-24">{{ $p.label }}</text>
-                  {{ end }}
+              {{/* A pin crowded by a neighbour leans away from it,
+                   by its lean in degrees, about its tip, so the tip
+                   stays on its place; map.js eases the lean as the
+                   map zooms in and the crowd thins. Its number stays
+                   upright. One not on now is smaller. */}}
+              {{ $lean := $p.lean | default 0 }}
+              <g {{- if $lean }} data-map-lean="{{ $lean }}" transform="rotate({{ $lean }})"{{ end }}>
+                <g {{- if not $p.on }} transform="scale(0.78)"{{ end }}>
+                  <g class="map-pin-body">
+                    {{ if eq $p.kind "farm" }}
+                      <g class="map-farm-marker" transform="translate(-22.1 -59.1) scale(0.1181)">{{ $markerShapes }}</g>
+                    {{ else }}
+                      <path d="{{ $pin }}"/>
+                      <text y="-24" {{- if $lean }} transform="rotate({{ mul -1 $lean }} 0 -30)"{{ end }}>{{ $p.label }}</text>
+                    {{ end }}
+                  </g>
                 </g>
               </g>
             </g>
