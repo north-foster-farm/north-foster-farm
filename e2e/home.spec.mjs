@@ -544,27 +544,26 @@ test.describe("home", () => {
         }
       });
 
-    test("Shop all products is wide on phones only", async ({ page }) => {
+    // James, 2026-09-25: only the hero's buttons run full width on a
+    // phone; every other button is as wide as its words.
+    test("only the hero's buttons are wide on a phone", async ({ page }) => {
       const shop = page.locator("#how-to-buy .how-cta .btn");
       const hero = page.locator(".btn-hero").first();
 
       await page.goto("/");
       expect((await look(shop)).padding).toEqual((await look(hero)).padding);
-      // As wide as its words, not the phone style's 24rem.
       expect((await look(shop)).width).toBeLessThan(384);
 
       await page.setViewportSize({ width: 390, height: 664 });
 
-      const container = await page.locator("#how-to-buy .container")
-        .evaluate((el) => {
-          const s = getComputedStyle(el);
-
-          return el.clientWidth - parseFloat(s.paddingLeft) -
-            parseFloat(s.paddingRight);
-        });
-
-      expect(Math.abs((await look(shop)).width - container))
-        .toBeLessThanOrEqual(1);
+      expect((await look(shop)).width, "Shop all products")
+        .toBeLessThan(300);
+      for (const btn of await page.locator(".touch-actions .btn").all()) {
+        expect((await look(btn)).width, await btn.innerText())
+          .toBeLessThan(300);
+      }
+      expect((await look(hero)).width, "the hero's Order now")
+        .toBeGreaterThanOrEqual(300);
     });
   });
 });

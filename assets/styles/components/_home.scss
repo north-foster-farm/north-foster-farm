@@ -372,20 +372,10 @@
     color: var(--bs-secondary-color);
   }
 
-  // Full width on a phone only; from sm up the button keeps the hero
-  // buttons' padding.
+  // As wide as its words, like every button outside the hero.
   .how-cta {
     display: flex;
     justify-content: center;
-
-    .btn {
-      width: 100%;
-      max-width: 24rem;
-
-      @media (min-width: 576px) {
-        width: auto;
-      }
-    }
   }
 
   // A band: a photograph under a dark tint with white copy over it,
