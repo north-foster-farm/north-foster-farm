@@ -26,7 +26,7 @@
             <dd>
               {{ $address.street }}<br>
               {{ $address.city }}, {{ $address.state }} {{ $address.zip }}<br>
-              {{ partial "directions.html" $address.full }}
+              {{ partial "directions.html" $address.directions }}
               <p class="contact-note">
                 Visits and pickup are by appointment. Choose on-farm
                 pickup on the <a href="{{ relURL "order/" }}">order page</a>,

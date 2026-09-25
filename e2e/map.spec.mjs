@@ -381,12 +381,16 @@ test.describe("map (#138)", () => {
       await expect(pin).toHaveAttribute("aria-pressed", "true");
       await expect(card.locator(".map-card-name")).toBeFocused();
       await expect(card.locator(".map-card-name")).toContainText("Our farm");
+      // To the farm's listing by name, and Apple's by its place ID.
+      const farm = "destination=North\\+Foster\\+Farm%2C\\+99\\+East";
+
       await expect(card.getByRole("link",
         { name: "Directions in Google Maps" })).toHaveAttribute("href",
-        /^https:\/\/www\.google\.com\/maps\/dir\/\?api=1&destination=/);
+        new RegExp(`^https://www\\.google\\.com/maps/dir/\\?api=1&${farm}`));
       await expect(card.getByRole("link",
         { name: "Directions in Apple Maps" })).toHaveAttribute("href",
-        /^https:\/\/maps\.apple\.com\/\?/);
+        new RegExp(`^https://maps\\.apple\\.com/directions\\?${farm}` +
+          ".*&destination-place-id=ICF8119F668A349F8$"));
       await expect(card.locator(".map-card-shop")).toHaveAttribute(
         "href", /\/order\/\?method=onfarm$/
       );

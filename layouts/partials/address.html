@@ -3,8 +3,17 @@
 {{ $state := hugo.Data.company.address.state }}
 {{ $zip := hugo.Data.company.address.zip }}
 
-{{/* The one-line form is what partials/directions.html takes. */}}
 {{ $full := printf `%s, %s, %s %s` $street $city $state $zip }}
+
+{{/* What partials/directions.html takes for the farm: its name before
+     the address, so each maps app lands on the farm's listing, and
+     the listing's place ID from company.json (placeIds) where there
+     is one. An empty ID leaves the name and address to find it. */}}
+{{ $directions := dict
+  "to" (printf "%s, %s" hugo.Data.company.name $full)
+  "google" hugo.Data.company.placeIds.google
+  "apple" hugo.Data.company.placeIds.apple
+}}
 
 {{ return dict
   "street" $street
@@ -12,4 +21,5 @@
   "state" $state
   "zip" $zip
   "full" $full
+  "directions" $directions
 }}

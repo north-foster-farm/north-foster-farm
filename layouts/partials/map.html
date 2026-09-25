@@ -74,6 +74,7 @@
     "name" "Our farm"
     "lines" (slice "On-farm pickup, select weekdays, by appointment" $terms.onFarm.address)
     "address" $terms.onFarm.address
+    "directions" (partial "address.html" .).directions
     "shop" (dict "label" "Shop for pickup" "href" (printf "%s?method=onfarm" $order))))
   (merge (partial "map/xy.html" hugo.Data.places.dropsite) (dict
     "kind" "dropsite" "section" "pickup" "on" true
@@ -217,7 +218,7 @@
           {{ range $p.lines }}
             <p class="map-card-line">{{ . }}</p>
           {{ end }}
-          <p class="map-card-directions">{{ partial "directions.html" $p.address }}</p>
+          <p class="map-card-directions">{{ partial "directions.html" ($p.directions | default (dict "to" $p.address)) }}</p>
           {{ if or $p.href $p.instagram }}
             <p class="map-card-links">
               {{ with $p.href }}<a href="{{ . }}" target="_blank" rel="noopener">Website</a>{{ end }}
