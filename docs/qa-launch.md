@@ -897,7 +897,8 @@ the farm is asked to confirm". Tagged `@regression`.
 - **Assert:** `/api/orders` answers 200. "Thank you, Card. Your order is
   placed."; "$7" paid with "Visa ending 1111"; the email; an order
   number like `NFF-2609-AB2C`; "The pickup time you chose is a request";
-  a receipt link to Square. `bin/nff --staging orders show <id>`:
+  a receipt link to Square; no cart count on the header's Order link
+  (AR-29). `bin/nff --staging orders show <id>`:
   `status` paid, `payment.via` square, `method` card, `last4` 1111,
   `square.squareOrderId` set, `fulfilment.state` requested, `total`
   700. Outbox: "Payment received" to the customer with "Your payment of
@@ -2233,6 +2234,32 @@ invoice era" (both projects).
   "Choose your day", "Make a change", "Pick up or delivery", each with
   its icon; no "invoice", "payment link" or "Pay to confirm"; the
   button lands on `/order/`.
+- **Teardown:** None.
+
+### AR-29 The cart count on the Order link (#166)
+
+Automated: `cart-badge.spec.mjs`, every test (both projects), and
+PY-01 for the placed order. Passed on staging 2026-09-25 (fd8201d).
+
+- **Scenario:** The header's Order link, in the row and in the phone
+  menu, shows how many items the cart holds.
+- **Setup:** A fresh browser.
+- **Test:**
+  1. Open `/`.
+  2. `/order/?add=` 3 eggs and 2 wings; open `/about/`; on a phone,
+     open the menu; clear storage and reload.
+  3. On `/about/`, add 2 eggs from search.
+  4. With 1 egg on `/order/`, open `/about/` in a second tab; press
+     One more in the first.
+  5. Block `localStorage`; open `/about/`.
+  6. Place an order (PY-01).
+- **Assert:** Empty, no badge and no `aria-label`. Then "5" on the
+  order page and on `/about/`, where the link reads "Order, 5 items in
+  your cart" and the disc is `aria-hidden`; "5" in the phone menu;
+  the button keeps its width when the badge goes. Search's add shows
+  "2" at once; the second tab goes from "1" to "2" with no reload;
+  blocked storage shows no badge and no page error; a placed order
+  leaves no badge.
 - **Teardown:** None.
 
 ## Staging
