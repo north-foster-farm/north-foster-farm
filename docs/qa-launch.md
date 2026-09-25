@@ -1010,8 +1010,10 @@ panel, and Stop trying hands the form back".
 - **Test:**
   1. Press Place your order.
   2. Press Stop trying.
-- **Assert:** The panel shows with Try now and a countdown; the submit
-  button is disabled; `nff-order-pending` is in `localStorage`. After
+- **Assert:** The panel shows with Try now and a countdown, which is
+  `aria-live="off"` and changes about once a second, not every tick
+  (594f5da); the submit button is disabled; `nff-order-pending` is in
+  `localStorage`. After
   Stop trying: the panel is gone, the button enabled, the pending entry
   removed.
 - **Teardown:** None.
@@ -1763,8 +1765,9 @@ Automated: `home.spec.mjs`, "Shop all products is wide on phones only"
 Automated: `home.spec.mjs`, "the post in full, linked to its own page"
 and "the post's page is canonical, and the home page is its own" (both
 projects); `map.spec.mjs`, "the news post's ZIP button leads to the
-map's check", which fails on the phone project today (#159). The
-invoice wording on `/` is AO-13's.
+map's check", which passes on the phone since 7e757ac put the check
+above the map when stacked (#159). The invoice wording on `/` is
+AO-13's.
 
 - **Scenario:** The September post lives at `/news/<slug>/` and is shown
   in full on the home page.

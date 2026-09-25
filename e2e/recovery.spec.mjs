@@ -48,6 +48,21 @@ test.describe("recovery", () => {
       .toBeVisible();
     await expect(pending.locator("[data-pending-countdown]"))
       .not.toBeEmpty();
+    // A screen reader hears the notice, not every tick (594f5da): the
+    // countdown is out of the live region and changes once a second.
+    await expect(pending.locator("[data-pending-countdown]"))
+      .toHaveAttribute("aria-live", "off");
+    const changes = await pending.locator("[data-pending-countdown]")
+      .evaluate((el) => new Promise((resolve) => {
+        let n = 0;
+        const seen = new MutationObserver((list) => { n += list.length; });
+
+        seen.observe(el, { childList: true, characterData: true,
+          subtree: true });
+        setTimeout(() => { seen.disconnect(); resolve(n); }, 2_500);
+      }));
+
+    expect(changes).toBeLessThanOrEqual(4);
     await expect(order.submit).toBeDisabled();
 
     // The draft keeps the pending order for the next visit.
