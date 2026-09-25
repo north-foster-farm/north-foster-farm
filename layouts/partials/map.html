@@ -19,8 +19,10 @@
 
   Params:
     id     Prefix for ids, unique on the page
-    check  Put the "Do we deliver to you?" card above the key
-           (optional); the page then needs pageScript: "zip-check"
+    check  Put the "Do we deliver to you?" card above the key, or
+           above the map once the columns stack, so a link to the
+           row finds the field (optional); the page then needs
+           pageScript: "zip-check"
 */}}
 {{ $id := .id | default "map" }}
 {{ $map := hugo.Data.map }}
@@ -142,7 +144,12 @@
 {{ $ig := partial "svg.html" "icons/instagram" }}
 
 <div class="map" id="{{ $id }}" data-map>
-  <div>
+  {{ if .check }}
+    <div class="map-check">
+      {{ partial "delivery-check.html" (dict "id" (printf "%s-zip" $id)) }}
+    </div>
+  {{ end }}
+  <div class="map-view">
     <div class="map-frame" data-map-frame>
       {{/* A label, not a title: a title shows as the browser's own
            tooltip and competes with the map's. */}}
@@ -232,9 +239,6 @@
   </div>
 
   <div class="map-key">
-    {{ if .check }}
-      {{ partial "delivery-check.html" (dict "id" (printf "%s-zip" $id) "class" "mb-4") }}
-    {{ end }}
     <ul class="map-key-areas list-unstyled">
       <li><span class="map-swatch is-ours" aria-hidden="true"></span>We deliver here</li>
       <li><span class="map-swatch is-away" aria-hidden="true"></span>A little outside our area</li>

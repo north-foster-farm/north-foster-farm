@@ -23,8 +23,25 @@ $map-pins: (
   align-items: start;
 
   @media (min-width: 992px) {
+    grid-template-rows: auto 1fr;
     grid-template-columns: 7fr 5fr;
-    gap: 3rem;
+    gap: 1.5rem 3rem;
+  }
+}
+
+// Stacked, the ZIP check comes first, then the map, then the key; side
+// by side, the map fills the left and the check sits over the key.
+.map-view {
+  @media (min-width: 992px) {
+    grid-row: 1 / span 2;
+    grid-column: 1;
+  }
+}
+
+.map-check,
+.map-key {
+  @media (min-width: 992px) {
+    grid-column: 2;
   }
 }
 
