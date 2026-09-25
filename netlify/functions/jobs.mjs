@@ -1,9 +1,10 @@
-// Every 15 minutes: poll unpaid invoices, send the reminders that are
-// due, abandon what is unpaid at the cutoff, remind tomorrow's
-// deliveries, close fulfilled orders, send the daily reports. All
-// decisions come from the records and the wall clock in
-// America/New_York, so the schedule's UTC minute does not matter and a
-// repeat run sends nothing twice.
+// Every 15 minutes: remind tomorrow's deliveries, close fulfilled
+// orders, retry a Venmo order's Square copy, finish a Venmo payment
+// the page never did, drop unfinished Venmo checkouts, send the daily
+// reports. Every order is paid when it is recorded, so nothing here
+// chases money. All decisions come from the records and the wall clock
+// in America/New_York, so the schedule's UTC minute does not matter
+// and a repeat run sends nothing twice.
 //
 // The run reports on itself (lib/jobs.mjs: errors, invariants, the
 // ledger, the heartbeat). A run that throws before it can is the one
