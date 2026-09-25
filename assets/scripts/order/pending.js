@@ -46,8 +46,15 @@ export class Pending {
   waiting(attempt, delayMs) {
     const next = attempt + 1;
     const due = Date.now() + delayMs;
+    // The countdown sits inside the notice's live region but is marked
+    // aria-live="off", and only changes once a second, so a screen
+    // reader hears the notice and not every tick.
     const tick = () => {
-      this.countdown.textContent = `Next try in ${seconds(due - Date.now())}`;
+      const text = `Next try in ${seconds(due - Date.now())}`;
+
+      if (this.countdown.textContent !== text) {
+        this.countdown.textContent = text;
+      }
     };
 
     this.el.hidden = false;
