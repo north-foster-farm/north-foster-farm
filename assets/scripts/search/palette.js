@@ -34,6 +34,12 @@ export const wireSearch = () => {
   const addForm = q("[data-search-add]");
   const addButton = q("[data-search-button]");
   const added = q("[data-search-added]");
+  const checkout = q("[data-search-checkout]");
+  // Off the order page, the way on to checkout once there is a cart.
+  const showCheckout = () => {
+    checkout.hidden = !!document.getElementById("order-form")
+      || cartCount() === 0;
+  };
   const products = JSON.parse(q("[data-search-products]").textContent);
   const indexed = index(products);
 
@@ -183,6 +189,7 @@ export const wireSearch = () => {
     added.textContent = `Added ${n} × ${title(p)}. ` +
       `${count} ${count === 1 ? "item" : "items"} in your cart.`;
     addButton.textContent = `Added · ${count} in cart`;
+    showCheckout();
     clearTimeout(addedTimer);
     addedTimer = setTimeout(() => {
       addButton.textContent = "Add to cart";
@@ -219,6 +226,7 @@ export const wireSearch = () => {
     opener.setAttribute("aria-expanded", "true");
     input.value = "";
     render("");
+    showCheckout();
     input.focus();
     loadStock();
   };

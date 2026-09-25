@@ -1,12 +1,19 @@
-// AR-29 (#166): the header's Order link carries the cart's count, in
-// the row and in the phone menu, hidden when the cart is empty. The
-// count is the order page's own, read from the saved draft elsewhere,
-// and it follows search's Add to cart and other tabs at once.
+// AR-29 (#166): the header carries the cart's count, in the row and
+// in the phone menu, hidden when the cart is empty. The count is the
+// order page's own, read from the saved draft elsewhere, and it
+// follows search's Add to cart and other tabs at once.
 // docs/qa-launch.md, "The autumn refresh".
+//
+// #173: off the order page the row's count sits on the cart half of
+// the Order button, which shows only while the cart holds something
+// and opens a mini cart with the way to checkout; on the order page
+// it stays on Order.
 
 import { OrderPage, expect, test } from "./support/order.mjs";
 
-const rowBadge = (page) => page.locator(".site-order [data-cart-badge]");
+const rowBadge = (page) => page
+  .locator("header .site-actions [data-cart-badge]");
+const cartHalf = (page) => page.locator("[data-cart-toggle]");
 const menuBadge = (page) => page
   .locator("#site-menu .site-nav-link [data-cart-badge]");
 
@@ -33,8 +40,8 @@ test.describe("cart count on the Order link (#166)", () => {
       await page.goto("/about/");
       await expect(rowBadge(page)).toHaveText("5");
       await expect(rowBadge(page)).toHaveAttribute("aria-hidden", "true");
-      await expect(page.locator("a.site-order")).toHaveAttribute(
-        "aria-label", "Order, 5 items in your cart"
+      await expect(cartHalf(page)).toHaveAttribute(
+        "aria-label", "Your cart, 5 items"
       );
 
       if (isMobile) {
@@ -51,6 +58,7 @@ test.describe("cart count on the Order link (#166)", () => {
       await page.evaluate(() => localStorage.clear());
       await page.reload();
       await expect(rowBadge(page)).toBeHidden();
+      await expect(cartHalf(page)).toBeHidden();
       expect(await page.locator(".site-order").evaluate(
         (el) => el.getBoundingClientRect().width
       )).toBeCloseTo(width, 0);
@@ -93,6 +101,28 @@ test.describe("cart count on the Order link (#166)", () => {
     await expect(order.qty("eggs")).toHaveValue("2");
     await expect(rowBadge(other)).toHaveText("2");
   });
+
+  test("the cart half lists the cart and goes on to checkout",
+    async ({ page }) => {
+      const order = new OrderPage(page);
+
+      await order.open({ eggs: 2 });
+      await page.goto("/about/");
+      await cartHalf(page).click();
+
+      const mini = page.locator(".site-mini-cart");
+
+      await expect(mini).toBeVisible();
+      await expect(mini.locator(".site-mini-cart-line")).toHaveCount(1);
+      await expect(mini.locator(".site-mini-cart-line"))
+        .toContainText("× 2");
+      await expect(mini.locator("[data-mini-cart-subtotal]"))
+        .toHaveText(/^\$\d/);
+      await mini.getByRole("link", { name: "Check out" }).click();
+      await expect(page).toHaveURL(/\/order\/#details$/);
+      await expect(order.count).toHaveText("2 items");
+      await expect(page.locator("#details")).toBeInViewport();
+    });
 
   test("blocked storage reads as an empty cart", async ({ page }) => {
     const errors = [];

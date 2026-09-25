@@ -64,6 +64,9 @@
           <button class="btn btn-primary search-palette-button" type="submit" data-search-button>Add to cart</button>
         </form>
         <p class="search-palette-added" role="status" data-search-added></p>
+        {{/* The way on to checkout, once the cart holds something; the
+             order page has its own. Draft wording for James (#173). */}}
+        <a class="search-palette-checkout" href="{{ relURL "order/" }}#details" data-search-checkout hidden>Check out <span aria-hidden="true">&rarr;</span></a>
       </section>
     </div>
     <p class="search-palette-keys" aria-hidden="true">

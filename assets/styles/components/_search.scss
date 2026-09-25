@@ -357,6 +357,19 @@ $search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   font-size: 0.875rem;
 }
 
+.search-palette-checkout {
+  display: inline-block;
+  margin-top: 0.25rem;
+  color: $search-accent;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  text-underline-offset: 0.18em;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
 .search-palette-keys {
   display: flex;
   flex-wrap: wrap;

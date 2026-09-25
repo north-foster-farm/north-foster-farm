@@ -40,7 +40,12 @@
     {{ if $onOrder }}
       <span class="site-order is-current" aria-current="page">Order{{ partial "header/cart-badge.html" }}</span>
     {{ else }}
-      <a class="site-order" href="{{ relURL "order/" }}">Order{{ partial "header/cart-badge.html" }}</a>
+      {{/* Order, and once the cart holds something, the cart beside
+           it with its count. */}}
+      <div class="site-order-group">
+        <a class="site-order" href="{{ relURL "order/" }}">Order</a>
+        {{ partial "header/mini-cart.html" . }}
+      </div>
     {{ end }}
     <button class="site-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#site-menu" aria-controls="site-menu" aria-expanded="false" aria-label="Menu">
       <span class="site-toggle-bars" aria-hidden="true"><span></span><span></span><span></span></span>

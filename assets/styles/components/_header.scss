@@ -387,6 +387,151 @@ header {
   }
 }
 
+// Order, and once the cart holds something, the cart half joined to its
+// right: one outline button in two parts. The pair lifts as one under
+// the pointer.
+.site-order-group {
+  display: flex;
+  border-radius: var(--bs-border-radius);
+  transition:
+    box-shadow 0.16s ease-out,
+    transform 0.16s ease-out;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $btn-lift-shadow;
+  }
+
+  &:active {
+    transform: translateY(-1px);
+    box-shadow: $btn-press-shadow;
+  }
+
+  .site-order:hover,
+  .site-order:active {
+    transform: none;
+    box-shadow: none;
+  }
+
+  &:has(.site-cart-menu:not([hidden])) .site-order {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &:hover,
+    &:active {
+      transform: none;
+    }
+  }
+}
+
+.site-cart-menu {
+  display: flex;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+// The cart half: the cart icon, sharing Order's right edge, with the
+// count's disc on its corner.
+.site-cart-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2rem;
+  margin-left: -1.5px;
+  padding: 0;
+  border: 1.5px solid var(--bs-primary);
+  border-radius: 0 var(--bs-border-radius) var(--bs-border-radius) 0;
+  background: none;
+  color: var(--bs-primary);
+
+  .site-cart-icon svg {
+    display: block;
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  &[aria-expanded="true"] {
+    background-color: var(--bs-primary-bg-subtle);
+  }
+}
+
+// What the cart half opens: the lines, the subtotal, and the way to
+// checkout.
+.site-mini-cart {
+  width: min(20rem, calc(100vw - 2rem));
+  margin-top: 0.5rem;
+  padding: 1rem;
+  border-color: var(--bs-border-color-translucent);
+  box-shadow: var(--bs-box-shadow-sm);
+  font-size: 0.9375rem;
+}
+
+.site-mini-cart-title {
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+
+.site-mini-cart-lines {
+  max-height: 16rem;
+  margin: 0;
+  overflow-y: auto;
+}
+
+.site-mini-cart-line {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding-block: 0.375rem;
+
+  & + & {
+    border-top: 1px solid var(--bs-border-color);
+  }
+}
+
+.site-mini-cart-qty,
+.site-mini-cart-price {
+  color: var(--bs-secondary-color);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.site-mini-cart-price {
+  color: var(--bs-body-color);
+}
+
+.site-mini-cart-subtotal {
+  display: flex;
+  justify-content: space-between;
+  margin: 0.5rem 0 0.25rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--bs-border-color);
+  font-weight: 700;
+}
+
+.site-mini-cart-note {
+  margin-bottom: 0.875rem;
+  color: var(--bs-secondary-color);
+  font-size: 0.8125rem;
+}
+
+.site-mini-cart-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.site-mini-cart-edit {
+  font-size: 0.875rem;
+}
+
 // Account slot: a Sign in link, or the Account button with its menu.
 
 // The slot holds the Sign in link from the first paint, transparent,
@@ -462,15 +607,28 @@ header {
 }
 
 @media (min-width: 768px) {
-  .site-actions {
-    gap: 0.875rem;
-  }
-
   .site-links {
     display: flex;
   }
 
+  // md is the tightest row: the logo, four links, search, and Order
+  // with its cart half, in a 720px container. The links sit closer
+  // there; lg gives them back their room.
+  .site-links .site-nav-link {
+    padding-inline: calc(0.5rem - 1px);
+  }
+
   .site-toggle {
     display: none;
+  }
+}
+
+@media (min-width: 992px) {
+  .site-actions {
+    gap: 0.875rem;
+  }
+
+  .site-links .site-nav-link {
+    padding-inline: calc(0.625rem - 1px);
   }
 }
