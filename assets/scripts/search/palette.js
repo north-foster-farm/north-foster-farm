@@ -192,7 +192,27 @@ export const wireSearch = () => {
 
   const isOpen = () => dialog.open;
 
+  // A close under way: its transitionend listener and the fallback
+  // timer, both dropped once it finishes or the palette reopens, so
+  // neither can shut a palette opened after it.
+  let closing = null;
+
+  const settle = () => {
+    if (!closing) return;
+    clearTimeout(closing.timer);
+    dialog.removeEventListener("transitionend", closing.done);
+    closing = null;
+  };
+
   const open = () => {
+    // Asked for again while fading out: fade back in instead.
+    if (closing) {
+      settle();
+      dialog.classList.add("is-open");
+      opener.setAttribute("aria-expanded", "true");
+      input.focus();
+      return;
+    }
     if (isOpen()) return;
     dialog.showModal();
     requestAnimationFrame(() => dialog.classList.add("is-open"));
@@ -209,6 +229,7 @@ export const wireSearch = () => {
     opener.setAttribute("aria-expanded", "false");
 
     const done = () => {
+      settle();
       dialog.close();
       opener.focus();
     };
@@ -218,20 +239,20 @@ export const wireSearch = () => {
     } else {
       dialog.addEventListener("transitionend", done, { once: true });
       // In case the transition never ends (a hidden tab).
-      setTimeout(() => {
-        if (dialog.open) done();
-      }, 400);
+      closing = { done, timer: setTimeout(done, 400) };
     }
   };
 
-  opener.addEventListener("click", () => (isOpen() ? close() : open()));
+  // Open, or close; a palette fading out counts as closed.
+  const toggle = () => (isOpen() && !closing ? close() : open());
+
+  opener.addEventListener("click", toggle);
   q("[data-search-close]").addEventListener("click", close);
 
   document.addEventListener("keydown", (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
       e.preventDefault();
-      if (isOpen()) close();
-      else open();
+      toggle();
     }
   });
 
