@@ -1106,7 +1106,11 @@ Manual: PayPal's window.
 - **Setup:** As PY-14.
 - **Test:**
   1. Press Venmo; close the window.
-- **Assert:** No order, no message; the form as it was.
+  2. Next day, after PayPal has deleted the unapproved order: run the
+     jobs (`bin/nff --staging jobs run`) and read the outbox.
+- **Assert:** No order, no message; the form as it was. The jobs raise
+  no alert for the abandoned checkout (a PayPal 404 means nothing to
+  rescue, since 1c740aa), and the sweep drops it after a day.
 - **Teardown:** None.
 
 ### PY-16 Venmo finished by the jobs
