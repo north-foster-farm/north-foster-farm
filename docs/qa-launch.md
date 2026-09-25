@@ -2284,13 +2284,16 @@ pending James (8855002); the test pins them so a change shows.
   "payment link" or "Pay to confirm"; the button lands on `/order/`.
 - **Teardown:** None.
 
-### AR-29 The cart count on the Order link (#166)
+### AR-29 The cart count and the mini cart (#166, #173)
 
 Automated: `cart-badge.spec.mjs`, every test (both projects), and
-PY-01 for the placed order. Passed on staging 2026-09-25 (fd8201d).
+PY-01 for the placed order. Passed on staging 2026-09-25 at 810174c,
+with the split Order button of a8e6e52.
 
-- **Scenario:** The header's Order link, in the row and in the phone
-  menu, shows how many items the cart holds.
+- **Scenario:** The header shows how many items the cart holds: off
+  the order page on the cart half of a split Order button, which opens
+  a mini cart with the way to checkout; on the order page on Order
+  itself; and in the phone menu.
 - **Setup:** A fresh browser.
 - **Test:**
   1. Open `/`.
@@ -2299,14 +2302,18 @@ PY-01 for the placed order. Passed on staging 2026-09-25 (fd8201d).
   3. On `/about/`, add 2 eggs from search.
   4. With 1 egg on `/order/`, open `/about/` in a second tab; press
      One more in the first.
-  5. Block `localStorage`; open `/about/`.
-  6. Place an order (PY-01).
-- **Assert:** Empty, no badge and no `aria-label`. Then "5" on the
-  order page and on `/about/`, where the link reads "Order, 5 items in
-  your cart" and the disc is `aria-hidden`; "5" in the phone menu;
-  the button keeps its width when the badge goes. Search's add shows
-  "2" at once; the second tab goes from "1" to "2" with no reload;
-  blocked storage shows no badge and no page error; a placed order
+  5. With 2 eggs, open `/about/`; press the cart half; press Check
+     out.
+  6. Block `localStorage`; open `/about/`.
+  7. Place an order (PY-01).
+- **Assert:** Empty, no badge and no cart half. Then "5" on the order
+  page and on `/about/`, where the cart half reads "Your cart, 5
+  items" and the disc is `aria-hidden`; "5" in the phone menu; Order
+  keeps its width when the cart empties and the cart half goes.
+  Search's add shows "2" at once; the second tab goes from "1" to "2"
+  with no reload. The mini cart lists one line "× 2" and a subtotal;
+  Check out lands on `/order/#details`, in view, with "2 items".
+  Blocked storage shows no badge and no page error; a placed order
   leaves no badge.
 - **Teardown:** None.
 
