@@ -5,7 +5,9 @@
 
 {{ $full := printf `%s, %s, %s %s` $street $city $state $zip }}
 {{ $query := querify (slice "api" "1" "destination" $full) }}
-{{ $googleMaps := printf "https://www.google.com/maps/dir?%s" $query }}
+{{/* Google's documented form; without the slash before the query,
+     maps/dir answers 404. */}}
+{{ $googleMaps := printf "https://www.google.com/maps/dir/?%s" $query }}
 
 {{ return dict
   "street" $street
