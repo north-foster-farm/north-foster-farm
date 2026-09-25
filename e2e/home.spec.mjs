@@ -120,10 +120,10 @@ test.describe("home", () => {
         expect(m.title / m.sub, `${at} big line over the h1`)
           .toBeGreaterThanOrEqual(1.8);
       }
-      if (width >= 768) {
-        expect(m.stroke, `${at} h1 stroke`).toBeGreaterThanOrEqual(2.5);
-      }
-      expect(m.filter).toBe("brightness(0.82)");
+      // #173: no outlined type; a green wash over a blurred picture
+      // carries the contrast.
+      expect(m.stroke, `${at} no outline`).toBe(0);
+      expect(m.filter).toBe("blur(4px) brightness(0.82)");
     }
 
     const m = await measure();

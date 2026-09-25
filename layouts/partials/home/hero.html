@@ -16,15 +16,18 @@
     <source data-src="{{ relURL "videos/opening-the-coop-loop.webm" }}" type='video/webm; codecs="av01.0.05M.08"'>
     <source data-src="{{ relURL "videos/opening-the-coop-loop.mp4" }}" type='video/mp4; codecs="avc1.640028"'>
   </video>
+  <div class="home-hero-shade" aria-hidden="true"></div>
   <div class="home-hero-body container">
-    <div class="home-hero-text text-white">
-      <hgroup>
-        <p class="home-hero-title"><span class="home-hero-br-xs">Chicken that</span> <span class="home-hero-br-sm">tastes</span> <span class="home-hero-br-xs">like</span> <span class="home-hero-accent">chicken</span>.</p>
-        <h1 class="home-hero-sub">Pasture-raised chicken and eggs, proudly raised in Foster, <span class="text-nowrap">Rhode Island</span>.</h1>
-      </hgroup>
-      <div class="home-hero-actions">
-        <a class="btn btn-hero btn-lg" href="{{ relURL "order/" }}">Order now</a>
-        <a class="btn btn-hero-outline btn-lg" href="#how-to-buy">How to buy <span class="home-hero-arrow" aria-hidden="true">{{ partial "svg.html" "icons/arrow-down" }}</span></a>
+    <div class="row">
+      <div class="home-hero-text col-12 col-lg-auto ms-lg-auto text-white">
+        <hgroup>
+          <p class="home-hero-title"><span class="home-hero-br-xs">Chicken that</span> <span class="home-hero-br-sm">tastes</span> <span class="home-hero-br-xs">like</span> <span class="home-hero-accent">chicken</span>.</p>
+          <h1 class="home-hero-sub">Pasture-raised chicken and eggs, proudly raised in Foster, <span class="text-nowrap">Rhode Island</span>.</h1>
+        </hgroup>
+        <div class="home-hero-actions">
+          <a class="btn btn-hero btn-lg" href="{{ relURL "order/" }}">Order now</a>
+          <a class="btn btn-hero-outline btn-lg" href="#how-to-buy">How to buy <span class="home-hero-arrow" aria-hidden="true">{{ partial "svg.html" "icons/arrow-down" }}</span></a>
+        </div>
       </div>
     </div>
   </div>

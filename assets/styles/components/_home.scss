@@ -41,11 +41,12 @@
   }
 
   // Hero: the coop video fills the viewport below the header, up to
-  // 80rem on a tall screen, under a slight black tint; the type gets
-  // the rest of the contrast it needs from a hairline stroke. The
-  // photograph beneath is the video's poster. The body is centred on
+  // 80rem on a tall screen, softly blurred under a wash of the dark
+  // brand green that is deepest where the words are. The photograph
+  // beneath is the video's poster. Below lg the body is centred on
   // the viewport, not on the hero, by reserving the height above it,
-  // the header's (its row and its stripe) and the top bar's, below it.
+  // the header's (its row and its stripe) and the top bar's, below
+  // it; from lg it sits in the bottom right corner.
 
   .home-hero {
     --hero-above: calc(var(--header-height) + var(--top-bar-height, 0rem));
@@ -59,8 +60,9 @@
     background-color: $gray-700;
   }
 
-  // The tint: darkening the picture by a fifth is the same as a black
-  // layer at 18% over it, without the extra layer.
+  // A little darker and out of focus, so the picture sets the scene
+  // and the words stay in front. Scaled up a touch, or the blur would
+  // fade the edges into the gray behind.
   .home-hero-img,
   .home-hero-video {
     position: absolute;
@@ -69,7 +71,23 @@
     height: 100%;
     object-fit: cover;
     object-position: 25% 50%; // The coop sits in the left third.
-    filter: brightness(0.82);
+    filter: blur(4px) brightness(0.82);
+    transform: scale(1.04);
+  }
+
+  // The wash: over the whole picture while the words are centred,
+  // deepest at the foot where the buttons are; from lg, from the
+  // right, where the words then sit, fading out before the coop.
+  .home-hero-shade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba($primary, 0.85),
+      rgba($primary, 0.7));
+
+    @media (min-width: 992px) {
+      background: linear-gradient(to left, rgba($primary, 0.75) 40%,
+        rgba($primary, 0));
+    }
   }
 
   // The video fades in over its poster once frames are coming, and
@@ -147,21 +165,6 @@
     }
   }
 
-  // The contrast: a dark line around the letters, drawn under the fill
-  // so the letterforms keep their weight, and a soft shadow behind
-  // them for the bright patches of grass and sky. The line scales
-  // with the type: fixed pixels that suit a 32px title on a phone all
-  // but vanish under a 72px title on a 1x desktop screen. The floor
-  // keeps the phone exactly as it was.
-  .home-hero-title,
-  .home-hero-sub {
-    -webkit-text-stroke: max(1.8px, 0.055em) rgb(0 0 0 / 80%);
-    paint-order: stroke fill;
-    text-shadow:
-      0 1px 3px rgb(0 0 0 / 50%),
-      0 0 18px rgb(0 0 0 / 35%);
-  }
-
   .home-hero-arrow {
     display: inline-flex;
     vertical-align: -0.15em;
@@ -176,7 +179,7 @@
   // The tagline, a paragraph inside the hgroup, styled exactly as the
   // h1 it used to be. The h1 is the smaller line beneath it.
   // Phones: everything centred, the block narrow, buttons stacked and
-  // full width. From md up the block sits against the right edge,
+  // full width. From lg the block sits in the bottom right corner,
   // clear of the hen in the left third.
   .home-hero-text {
     text-align: center;
@@ -203,7 +206,7 @@
   }
 
   .home-hero-accent {
-    color: tint-color($green, 55%);
+    color: tint-color($green, 70%);
     font-weight: bold;
     letter-spacing: -0.12rem;
   }
@@ -544,27 +547,33 @@
   }
 
   @media (min-width: 768px) {
-    .home-hero-text {
-      text-align: end;
-    }
-
-    // Light type over a photograph on a large screen wants a heavier
-    // line than the phone's.
     .home-hero-sub {
       max-width: none;
-      margin: 2.5rem 0 1.5rem auto;
+      margin: 2.5rem auto 1.5rem;
       font-size: 1.4375rem;
-      -webkit-text-stroke-width: max(2.5px, 0.11em);
-    }
-
-    .home-hero-actions {
-      justify-content: flex-end;
     }
   }
 
   @media (min-width: 992px) {
+    .home-hero {
+      align-items: end;
+    }
+
+    .home-hero-body {
+      padding-block: 3rem 4rem;
+    }
+
+    .home-hero-text {
+      text-align: end;
+    }
+
     .home-hero-sub {
+      margin-right: 0;
       font-size: 1.5625rem;
+    }
+
+    .home-hero-actions {
+      justify-content: flex-end;
     }
 
     .how-steps {
