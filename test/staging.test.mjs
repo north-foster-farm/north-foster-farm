@@ -58,6 +58,19 @@ describe("the outbox driver", () => {
     assert.equal(saved.subject, message.subject);
     assert.equal(saved.html, message.html);
     assert.equal(saved.to, message.to);
+    assert.equal(saved.replyTo, null);
+  });
+
+  it("keeps a message's own reply-to, so staging can show it", async () => {
+    const stores = testStores();
+
+    await sendMail({ ...message, replyTo: "pat@example.com" }, {
+      env: { MAIL_DRIVER: "outbox" }, stores,
+    });
+
+    const [{ key }] = await stores.jobs.list(OUTBOX_PREFIX);
+
+    assert.equal((await stores.jobs.get(key)).replyTo, "pat@example.com");
   });
 
   it("keeps only the last OUTBOX_KEEP", async () => {

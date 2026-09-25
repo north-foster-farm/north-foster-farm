@@ -464,8 +464,15 @@ describe("returns and support", () => {
     assert.equal(r.ok, true);
     assert.match(sent[0].subject, /Support: Eggs/);
     assert.match(sent[0].text, /duck eggs/);
+    assert.equal(sent[0].replyTo, "pat@example.com",
+      "the farm answers by replying");
     assert.equal((await stores.customers.list("support/pat@example.com/"))
       .length, 1);
+    sent.length = 0;
+    await sendSupport(stores, customerOf(), {
+      message: "<b>bold</b> & more",
+    }, opts);
+    assert.match(sent[0].html, /&lt;b&gt;bold&lt;\/b&gt; &amp; more/);
     assert.equal((await sendSupport(stores, customerOf(), {}, opts)).status,
       422);
   });

@@ -62,7 +62,7 @@ const viaResend = async (message, env, fetchImpl) => {
       body: JSON.stringify({
         from: env.MAIL_FROM,
         to: Array.isArray(message.to) ? message.to : [message.to],
-        "reply_to": env.MAIL_REPLY_TO || undefined,
+        "reply_to": message.replyTo || env.MAIL_REPLY_TO || undefined,
         subject: message.subject,
         text: message.text,
         html: message.html,
@@ -115,7 +115,8 @@ export const viaFile = async (message, env, now = new Date()) => {
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, `${base}.html`), message.html || "");
   writeFileSync(join(dir, `${base}.txt`),
-    `To: ${to}\nSubject: ${message.subject}\n\n${message.text}\n`);
+    `To: ${to}\n${message.replyTo ? `Reply-To: ${message.replyTo}\n` : ""}` +
+    `Subject: ${message.subject}\n\n${message.text}\n`);
   console.info(JSON.stringify({
     event: "mail.filed", to: message.to, subject: message.subject,
     file: join(dir, `${base}.html`),
@@ -137,6 +138,7 @@ export const viaOutbox = async (message, env, stores, now = new Date()) => {
     id,
     at: now.toISOString(),
     to: message.to,
+    replyTo: message.replyTo || null,
     subject: message.subject,
     text: message.text || "",
     html: message.html || "",
@@ -154,7 +156,9 @@ export const viaOutbox = async (message, env, stores, now = new Date()) => {
   return { id, driver: "outbox" };
 };
 
-// The message is { to, subject, text, html, idempotencyKey? }.
+// The message is { to, subject, text, html, idempotencyKey?, replyTo? }.
+// `replyTo` overrides MAIL_REPLY_TO for one message, so the farm
+// answers a customer's note by replying to it.
 export const sendMail = async (message, {
   env = process.env,
   fetchImpl = globalThis.fetch,

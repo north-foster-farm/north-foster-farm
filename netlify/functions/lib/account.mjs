@@ -32,6 +32,13 @@ export const AVATARS = avatars.map((a) => a.key);
 const text = (value, max = 200) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";
 
+// What a customer typed, made safe for the farm's HTML mail.
+const escape = (s) => String(s)
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;");
+
 const fail = (status, errors) => ({ ok: false, status, errors });
 
 const shortId = () => randomBytes(6).toString("base64url");
@@ -434,8 +441,9 @@ export const requestReturn = async (stores, customer, id, request, {
     text: `${customer.name || customer.email} asked about a return on ` +
       `${id}.\n\n${reason}\n\nItems: ${skus.join(", ") || "not specified"}` +
       `\n\nSettle it with: bin/nff return resolve ${id} ${entry.id}`,
-    html: `<p>${customer.name || customer.email} asked about a return on ` +
-      `${id}.</p><blockquote>${reason}</blockquote><p>Items: ` +
+    html: `<p>${escape(customer.name || customer.email)} asked about a ` +
+      `return on ${id}.</p><blockquote>${escape(reason)}</blockquote>` +
+      "<p>Items: " +
       `${skus.join(", ") || "not specified"}</p><p>Settle it with ` +
       `<code>bin/nff return resolve ${id} ${entry.id}</code>.</p>`,
   }, { mail, env });
@@ -460,16 +468,17 @@ export const sendSupport = async (stores, customer, request, {
     id, at: now.toISOString(), subject, message, orderId, status: "open",
   });
   await tellFarm({
+    replyTo: customer.email,
     subject: `Support: ${subject || "(no subject)"} from ${customer.email}`,
     text: `${customer.name || customer.email} <${customer.email}>` +
       `${customer.phone ? ` · ${customer.phone}` : ""}` +
       `${orderId ? `\nOrder ${orderId}` : ""}\n\n${message}\n\n` +
       `Reply to this email to answer. Account: ${siteUrl(env)}/account/`,
-    html: `<p><strong>${customer.name || customer.email}</strong> ` +
-      `&lt;${customer.email}&gt;${customer.phone
-        ? ` · ${customer.phone}` : ""}</p>` +
-      `${orderId ? `<p>Order ${orderId}</p>` : ""}` +
-      `<blockquote>${message.replace(/\n/g, "<br>")}</blockquote>` +
+    html: `<p><strong>${escape(customer.name || customer.email)}</strong> ` +
+      `&lt;${escape(customer.email)}&gt;${customer.phone
+        ? ` · ${escape(customer.phone)}` : ""}</p>` +
+      `${orderId ? `<p>Order ${escape(orderId)}</p>` : ""}` +
+      `<blockquote>${escape(message).replace(/\n/g, "<br>")}</blockquote>` +
       "<p>Reply to this email to answer.</p>",
   }, { mail, env });
 
