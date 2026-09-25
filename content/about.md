@@ -51,8 +51,8 @@ We work closely with Mother Nature; sometimes we don't agree.
 
 Pasture-raised whole chickens and cuts, chicken sausage, and eggs by
 the dozen. Everything is available at our farmers markets and through
-[the order page](/order) for on-farm pickup, the Scituate drop site,
-or [delivery](/delivery-policy).
+[the order page](/order) for on-farm pickup, our drop site in
+Scituate, or [delivery](/delivery-policy).
 
 ## Where to find us
 
@@ -67,7 +67,7 @@ or [delivery](/delivery-policy).
   [Tilted Barn Brewery, One Hemsley Place, Exeter, RI][map-tilted].
 
 Between seasons, [order online](/order) for delivery, on-farm pickup
-or the Scituate drop site.
+or our drop site in Scituate.
 
 [map-tilted]: https://www.google.com/maps/search/?api=1&query=Tilted+Barn+Brewery%2C+One+Hemsley+Place%2C+Exeter%2C+RI
 [map-scituate]: https://www.google.com/maps/search/?api=1&query=46+Institute+Lane%2C+North+Scituate%2C+RI

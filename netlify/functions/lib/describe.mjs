@@ -8,6 +8,6 @@ export const between = (window) =>
 
 export const methodName = (method) => ({
   delivery: "Delivery",
-  scituate: "Scituate drop site",
+  scituate: "Drop site",
   onfarm: "On-farm pickup",
 }[method] || method);

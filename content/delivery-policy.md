@@ -97,7 +97,7 @@ it against the farm's schedule and email you to confirm it by the day
 before. If the time doesn't work for us, we'll email you to choose
 another day or window, or to cancel for a full refund.
 
-**The Scituate drop site** runs on Saturdays from 10:00 to 11:00 AM,
+**The drop site** in Scituate runs on Saturdays from 10:00 to 11:00 AM,
 starting October 17, on the Village Green, 46 Institute Lane, North
 Scituate: the same corner of the lot where our tent sits in market
 season. You can order for a Saturday until the drop site opens that

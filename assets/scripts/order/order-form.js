@@ -957,7 +957,7 @@ export class OrderForm {
 
     if (info.status === "outside") {
       note.textContent = "That's outside our delivery area. On-farm pickup " +
-        "and the Scituate drop site are open to everyone.";
+        "and the drop site are open to everyone.";
       note.classList.add("text-danger-emphasis");
     } else if (info.status === "unlisted") {
       note.textContent = "A little outside our usual area: delivery is " +
@@ -1363,7 +1363,7 @@ export class OrderForm {
       return `${day}, delivered to ${f.delivery.address1}.`;
     }
     if (f.method === "scituate") {
-      return `${day}, Scituate drop site, ${this.terms.scituate.window}.`;
+      return `${day}, ${this.terms.scituate.window}, at the drop site.`;
     }
     if (f.method === "onfarm" && f.onfarm) {
       return `${day}, ${f.onfarm.window}, at the farm.`;

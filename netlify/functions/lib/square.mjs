@@ -243,7 +243,7 @@ const fulfillment = (order) => {
     ? terms.scituate.opensHour
     : (f.onfarm.window === "afternoon" ? 13 : 9);
   const where = f.method === "scituate"
-    ? `Scituate drop site, ${terms.scituate.location}`
+    ? `Drop site, ${terms.scituate.location}`
     : "On-farm pickup";
 
   return {

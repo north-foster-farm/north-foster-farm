@@ -414,7 +414,7 @@ test.describe("home", () => {
         cost: "No minimum, no fee", cta: "Shop for pickup",
       },
       {
-        method: "scituate", name: "Scituate drop site",
+        method: "scituate", name: "Drop site",
         when: /^Saturdays, 10:00 – 11:00 AM(, starting October 17)?$/,
         where: "Village Green, 46 Institute Lane, North Scituate, RI 02857",
         cost: "No minimum, no fee", cta: "Shop for the drop site",

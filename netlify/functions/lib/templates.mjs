@@ -554,8 +554,8 @@ export const addressDecision = (customer, decision, { links } = {}) => {
     }
   } else {
     blocks.push(p(`We looked at ${where} and it's further than we can ` +
-      "drive on a Thursday. On-farm pickup and the Scituate drop site " +
-      "are open to everyone, with no minimum and no fee."));
+      "drive on a Thursday. On-farm pickup and the drop site are " +
+      "open to everyone, with no minimum and no fee."));
   }
   blocks.push(customerFooter(links));
 
@@ -996,7 +996,7 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
     }
   }
   if (drops.length) {
-    blocks.push(heading(`Scituate drop, ${terms.scituate.window} (${
+    blocks.push(heading(`Drop site, ${terms.scituate.window} (${
       drops.length})`));
     for (const o of drops) {
       blocks.push(p(`**${o.id}**, ${who(o)}, ${state(o)}`), tree([pack(o)]));

@@ -42,7 +42,7 @@ const total = (items) => (items || [])
 
 const METHOD = {
   delivery: "Delivery",
-  scituate: "Scituate drop site",
+  scituate: "Drop site",
   onfarm: "On-farm pickup",
 };
 
@@ -322,7 +322,7 @@ class Account {
       tone = "wait";
     } else if (a && a.status === "denied") {
       text = "We can't deliver to this address. On-farm pickup and the " +
-        "Scituate drop site are open to everyone.";
+        "drop site are open to everyone.";
       tone = "no";
     }
     status.textContent = text;

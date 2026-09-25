@@ -99,7 +99,7 @@ export const confirmOrder = async (stores, order, {
 };
 
 // The emails a freshly paid order sends, each once however many times
-// this runs. Delivery and the Scituate drop are confirmed by paying;
+// this runs. Delivery and the drop site are confirmed by paying;
 // an on-farm pickup the farm has not agreed to yet is not, so that
 // customer hears "Payment received" now and "confirmed" when the farm
 // agrees. The farm hears once either way.

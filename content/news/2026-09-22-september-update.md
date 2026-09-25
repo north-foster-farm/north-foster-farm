@@ -2,8 +2,8 @@
 title: "September Update"
 date: 2026-09-22
 description: >-
-  You can now order online, with delivery, on-farm pickup and the
-  Scituate drop site.
+  You can now order online, with delivery, on-farm pickup and our drop
+  site in Scituate.
 home: true
 ---
 
@@ -34,9 +34,9 @@ There are three ways to get your order:
 - Pickup on select weekdays, by appointment
 - No fee, no minimum
 
-**Scituate drop site**
+**Drop site**
 
-- Back on Saturday mornings, starting October 17
+- Back on Saturday mornings in Scituate, starting October 17
 - Pick up your order for free
 
 {{< figure src="images/chickens.jpg"

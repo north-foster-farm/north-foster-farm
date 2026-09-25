@@ -34,7 +34,7 @@ describe("do we deliver to you", () => {
       /\$3 more\. If we can.t get to your address, we.ll call/);
     assert.equal(far.tone, "no");
     assert.match(far.text, /outside our delivery area/);
-    assert.match(far.text, /Scituate drop site/);
+    assert.match(far.text, /the drop site are open/);
   });
 
   it("asks for five digits otherwise", () => {

@@ -176,7 +176,7 @@ projects).
   they left it.
 - **Setup:** 5 wings.
 - **Test:**
-  1. Choose Scituate drop site; type "Draft" as the first name.
+  1. Choose Drop site; type "Draft" as the first name.
   2. Reload.
 - **Assert:** Wings 5, Scituate checked, first name "Draft", Total $45.
 - **Teardown:** None (the browser context is discarded).
@@ -482,7 +482,7 @@ Automated: `pricing.spec.mjs`, "pickup and the drop site carry no fee".
 - **Scenario:** Only delivery is charged for.
 - **Setup:** 7 eggs ($49).
 - **Test:**
-  1. Choose On-farm pickup, then Scituate drop site.
+  1. Choose On-farm pickup, then Drop site.
 - **Assert:** No fee row either way; Total $49.
 - **Teardown:** None.
 
@@ -535,7 +535,7 @@ takes it". Tagged `@regression`.
 - **Setup:** 5 eggs ($35).
 - **Test:**
   1. Read the nudge and the Delivery card.
-  2. Choose Scituate drop site.
+  2. Choose Drop site.
 - **Assert:** "Add $5 to reach the $40 delivery minimum."; "You need $40
   or more in your cart to use this option. Add $5 more."; Continue
   disabled. After step 2: no warning, Continue enabled, Total $35.
@@ -596,7 +596,7 @@ field".
 - **Test:**
   1. ZIP `10001`.
 - **Assert:** "That's outside our delivery area. On-farm pickup and the
-  Scituate drop site are open to everyone."
+  drop site are open to everyone."
 - **Teardown:** None.
 
 ### PR-11 Connecticut takes eggs only

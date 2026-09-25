@@ -29,7 +29,7 @@ test.describe("order page", () => {
 
     await order.open();
     await expect(page.locator(".order-method-title")).toHaveText([
-      "Delivery", "Scituate drop site", "On-farm pickup",
+      "Delivery", "Drop site", "On-farm pickup",
     ]);
   });
 

@@ -178,7 +178,7 @@ export const validateOrder = (payload, {
     if (!meetsMinimum(totals, money)) {
       errors["delivery.minimum"] =
         `Delivery orders are $${money.deliveryMinimum} or more after ` +
-        "discounts. On-farm pickup and the Scituate drop site have no " +
+        "discounts. On-farm pickup and the drop site have no " +
         "minimum.";
     }
 

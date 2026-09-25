@@ -17,7 +17,7 @@ placed once it is paid.
 - [Home](https://www.northfosterfarm.com/): what the farm is, how to
   buy, and the latest update
 - [Order](https://www.northfosterfarm.com/order/): current stock and
-  prices, on-farm pickup, the Scituate drop site, and delivery
+  prices, on-farm pickup, our drop site in Scituate, and delivery
 - [About](https://www.northfosterfarm.com/about/): the farm, the
   family, and the markets with days, hours and addresses
 - [Delivery policy](https://www.northfosterfarm.com/delivery-policy/):

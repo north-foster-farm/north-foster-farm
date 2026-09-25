@@ -109,7 +109,7 @@ describe("delivery Thursdays and the Wednesday-noon cutoff", () => {
   });
 });
 
-describe("Scituate drop Saturdays", () => {
+describe("drop site Saturdays", () => {
   it("before the start date offers 17 and 24 Oct", () => {
     const got = dates(scituateDates(ny("2026-09-20"), terms));
 

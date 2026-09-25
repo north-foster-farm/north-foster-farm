@@ -326,7 +326,7 @@ describe("delivery rules", () => {
     const r = validateOrder(small, ctx);
 
     assert.equal(r.status, 422);
-    assert.match(r.errors["delivery.minimum"], /Scituate/);
+    assert.match(r.errors["delivery.minimum"], /the drop site/);
   });
 
   it("records the state and takes eggs to Connecticut", () => {

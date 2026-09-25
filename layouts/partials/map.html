@@ -78,7 +78,7 @@
     "shop" (dict "label" "Shop for pickup" "href" (printf "%s?method=onfarm" $order))))
   (merge (partial "map/xy.html" hugo.Data.places.dropsite) (dict
     "kind" "dropsite" "section" "pickup" "on" true
-    "name" "Scituate drop site"
+    "name" "Drop site"
     "lines" (slice $dropWhen $terms.scituate.location)
     "address" $terms.scituate.location
     "shop" (dict "label" "Shop for the drop site" "href" (printf "%s?method=scituate" $order))))
@@ -153,7 +153,7 @@
     <div class="map-frame" data-map-frame>
       {{/* A label, not a title: a title shows as the browser's own
            tooltip and competes with the map's. */}}
-      <svg class="map-svg" viewBox="0 0 {{ $map.frame.width }} {{ $map.frame.height }}" role="group" aria-label="Map of Rhode Island and its Connecticut border, showing where we deliver, our farm, the Scituate drop site, the farmers markets and this year’s pop-ups" data-map-svg>
+      <svg class="map-svg" viewBox="0 0 {{ $map.frame.width }} {{ $map.frame.height }}" role="group" aria-label="Map of Rhode Island and its Connecticut border, showing where we deliver, our farm, the drop site, the farmers markets and this year’s pop-ups" data-map-svg>
         {{/* The ZIP goes after a "z": the minifier reads a bare 02825
              in SVG as a number and drops the leading zero. */}}
         <g class="map-zips">

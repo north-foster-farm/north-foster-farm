@@ -316,7 +316,7 @@ missing Square copy.
 Beside `status`, an order carries the farm's side of its pickup in
 `fulfilment.state`: `requested` or `agreed`. Only an on-farm window
 needs the farm's agreement, so only an on-farm order is born
-`requested`; delivery, the Scituate drop, and every record from
+`requested`; delivery, the drop site, and every record from
 before the state existed, are `agreed` (`needsAgreement(order)` in
 `lib/records.mjs`). `bin/nff orders confirm <id>` sets `agreed` and
 records the hours the farm will be there, `fulfilment.onfarm.confirmed

@@ -83,7 +83,7 @@ describe("the order details block", () => {
     o.fulfilment.date = "2026-10-17";
     const drop = orderConfirmed(o, { links });
 
-    assert.match(drop.text, /Order type: \*\*Scituate drop site\*\*/);
+    assert.match(drop.text, /Order type: \*\*Drop site\*\*/);
     assert.match(drop.text,
       /- When: Saturday, October 17, between 10 and 11 AM/);
     assert.match(drop.text, /- Where: Village Green/);
@@ -412,7 +412,7 @@ describe("the monitoring emails", () => {
       "(per dozen), Large", "the pack list is nested");
     assert.match(m.html,
       /<li>Pack:<ul style="[^"]*padding-left:1.25em"><li>2 × Whole Chicken/);
-    has(m.text, "\nScituate drop, 10:00 – 11:00 AM (1)\n");
+    has(m.text, "\nDrop site, 10:00 – 11:00 AM (1)\n");
     has(m.text, "**NFF-2610-DROP**, Pat Example, paid");
     has(m.text, "\nOn-farm pickups (1)\n");
     has(m.text, "**NFF-2610-FARM**, Pat Example, morning, NOT CONFIRMED, paid");

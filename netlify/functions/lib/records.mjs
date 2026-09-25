@@ -26,7 +26,7 @@ export const OPEN = ["paid"];
 // The farm's side of a pickup, beside `status`. Only an on-farm window
 // needs the farm's agreement: `fulfilment.state` is `requested` until
 // `bin/nff orders confirm` makes it `agreed`. Delivery and the
-// Scituate drop are born agreed, and so is any record from before the
+// drop site are born agreed, and so is any record from before the
 // state existed.
 export const needsAgreement = (order) =>
   order.fulfilment.method === "onfarm"

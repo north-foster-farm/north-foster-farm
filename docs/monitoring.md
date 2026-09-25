@@ -166,7 +166,7 @@ within two days still waiting, each with its confirm command. This
 email also pings the *Alerts* check well.
 
 **Tomorrow**, 18:00: every order due the next day, grouped delivery,
-Scituate drop, on-farm, each with customer and phone, and for a
+drop site, on-farm, each with customer and phone, and for a
 delivery the address, cooler, gate code and notes, and for every
 order what to pack. Sent even when empty ("Nothing due"). If it has
 not arrived by 18:15, something is wrong; the heartbeat will already
