@@ -4,7 +4,7 @@
 // photograph once frames are coming. A pause offers, once, to stop
 // every video on the site playing on its own.
 
-import { Autoplay } from "../video/video.js";
+import { Autoplay, autoplayOffer } from "../video/video.js";
 
 // Two frames on, the poster is on screen, not only decoded.
 const afterPaint = (img) => img.decode()
@@ -20,9 +20,7 @@ export const wireHeroVideo = () => {
 
   const video = hero.querySelector("video");
   const toggle = hero.querySelector("[data-hero-toggle]");
-  const note = hero.querySelector("[data-hero-note]");
-  const offer = note.querySelector("[data-hero-offer]");
-  const done = note.querySelector("[data-hero-done]");
+  const note = autoplayOffer(hero.querySelector("[data-autoplay-note]"));
 
   // The visitor paused it: it stays paused. The visitor started it:
   // it plays again when back on screen, whatever the preference.
@@ -46,7 +44,7 @@ export const wireHeroVideo = () => {
 
     hero.dataset.playing = playing ? "true" : "false";
     toggle.setAttribute("aria-label", playing ? "Pause video" : "Play video");
-    if (playing) note.hidden = true;
+    if (playing) note.hide();
   };
 
   video.addEventListener("play", show);
@@ -65,18 +63,7 @@ export const wireHeroVideo = () => {
     held = true;
     started = false;
     video.pause();
-    // Nothing to offer where videos already wait to be played.
-    if (Autoplay.allowed()) {
-      offer.hidden = false;
-      done.hidden = true;
-      note.hidden = false;
-    }
-  });
-
-  note.querySelector("[data-hero-off]").addEventListener("click", () => {
-    Autoplay.set(false);
-    offer.hidden = true;
-    done.hidden = false;
+    note.show();
   });
 
   document.addEventListener("nff:autoplay", (e) => {

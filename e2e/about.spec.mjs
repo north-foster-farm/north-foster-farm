@@ -124,6 +124,32 @@ test.describe("about (#144)", () => {
     expect(await video.evaluate((v) => v.paused)).toBe(true);
   });
 
+  // James, 2026-09-25: every video offers what the hero does after a
+  // pause, and the choice holds for the whole site.
+  test("a pause offers to stop autoplay site-wide", async ({ page }) => {
+    await page.goto("/about/");
+
+    const { frame, video, toggle } = clip(page);
+    const note = frame.locator("[data-autoplay-note]");
+
+    await onScreen(page, frame);
+    await expect.poll(() => playing(video)).toBe(true);
+    await expect(note).toBeHidden();
+    await toggle.click();
+    await expect(note).toBeVisible();
+    await expect(note.locator("[data-autoplay-offer]")).toHaveText(
+      "Stop videos playing on their own? Turn off autoplay"
+    );
+    await note.getByRole("button", { name: "Turn off autoplay" }).click();
+    await expect(note.locator("[data-autoplay-done]")).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem("nff:autoplay")))
+      .toBe("off");
+
+    // Playing again takes the note away.
+    await toggle.click();
+    await expect(note).toBeHidden();
+  });
+
   for (const [how, setup] of [
     ["reduced motion", (page) => page.emulateMedia({
       reducedMotion: "reduce",

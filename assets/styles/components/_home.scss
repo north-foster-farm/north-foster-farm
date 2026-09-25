@@ -124,26 +124,6 @@
     }
   }
 
-  .home-hero-note {
-    margin: 0;
-    padding: 0.375rem 0.75rem;
-    border-radius: var(--bs-border-radius);
-    background: rgb(0 0 0 / 55%);
-    color: $white;
-    font-size: 0.875rem;
-    line-height: 1.35;
-  }
-
-  .home-hero-note-btn {
-    padding: 0;
-    border: 0;
-    background: none;
-    color: inherit;
-    font-weight: bold;
-    text-decoration: underline;
-    text-underline-offset: 0.18em;
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .home-hero-video {
       transition: none;

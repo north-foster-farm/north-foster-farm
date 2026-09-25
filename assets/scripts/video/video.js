@@ -1,7 +1,7 @@
 // The site's own videos: short, silent clips that play on a loop once
 // they are on screen, with a play/pause button over each. Whether they
 // may start by themselves is one preference for the whole site, which
-// the hero's "stop videos playing on their own" offer (#133) sets.
+// the offer after a pause sets, on any of them and the hero (#133).
 
 const KEY = "nff:autoplay";
 
@@ -44,15 +44,43 @@ export const Autoplay = {
   },
 };
 
+// The offer beside a video's button: after a pause, to stop every
+// video on the site playing on its own; then its answer. Nothing to
+// offer where videos already wait to be played.
+export const autoplayOffer = (note) => {
+  const offer = note.querySelector("[data-autoplay-offer]");
+  const done = note.querySelector("[data-autoplay-done]");
+
+  note.querySelector("[data-autoplay-off]").addEventListener("click", () => {
+    Autoplay.set(false);
+    offer.hidden = true;
+    done.hidden = false;
+  });
+
+  return {
+    show() {
+      if (!Autoplay.allowed()) return;
+      offer.hidden = false;
+      done.hidden = true;
+      note.hidden = false;
+    },
+    hide() {
+      note.hidden = true;
+    },
+  };
+};
+
 const wire = (frame, observer) => {
   const video = frame.querySelector("video");
   const toggle = frame.querySelector("[data-video-toggle]");
+  const note = autoplayOffer(frame.querySelector("[data-autoplay-note]"));
 
   const show = () => {
     const playing = !video.paused;
 
     frame.dataset.playing = playing ? "true" : "false";
     toggle.setAttribute("aria-label", playing ? "Pause video" : "Play video");
+    if (playing) note.hide();
   };
 
   video.addEventListener("play", show);
@@ -66,6 +94,7 @@ const wire = (frame, observer) => {
       held.add(frame);
       started.delete(frame);
       video.pause();
+      note.show();
     }
   });
   show();

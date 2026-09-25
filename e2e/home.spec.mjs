@@ -177,7 +177,7 @@ test.describe("home", () => {
         img: root.locator(".home-hero-img"),
         video: root.locator("video"),
         toggle: root.locator("[data-hero-toggle]"),
-        note: root.locator("[data-hero-note]"),
+        note: root.locator("[data-autoplay-note]"),
       };
     };
 
@@ -249,8 +249,8 @@ test.describe("home", () => {
         await h.toggle.click();
         await expect(h.root).toHaveAttribute("data-playing", "false");
         await expect(h.toggle).toHaveAttribute("aria-label", "Play video");
-        const offer = h.note.locator("[data-hero-offer]");
-        const done = h.note.locator("[data-hero-done]");
+        const offer = h.note.locator("[data-autoplay-offer]");
+        const done = h.note.locator("[data-autoplay-done]");
 
         await expect(h.note).toBeVisible();
         await expect(offer).toBeVisible();

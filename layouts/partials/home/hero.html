@@ -37,9 +37,6 @@
       <svg class="video-toggle-play" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5Z"/></svg>
       <svg class="video-toggle-pause" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 5h3.5v14H7Zm6.5 0H17v14h-3.5Z"/></svg>
     </button>
-    <p class="home-hero-note" data-hero-note role="status" hidden>
-      <span data-hero-offer>Stop videos playing on their own? <button class="home-hero-note-btn" type="button" data-hero-off>Turn off autoplay</button></span>
-      <span data-hero-done hidden>Videos here will wait for you to press play.</span>
-    </p>
+    {{ partial "video/autoplay-note.html" }}
   </div>
 </div>
