@@ -29,12 +29,23 @@
 {{ $inSeason := partial "market-season.html" . }}
 {{ $directions := "https://www.google.com/maps/search/?api=1&query=" }}
 {{ $order := relURL "order/" }}
+{{/* The drop site's first Saturday, until it has passed, as the
+     off-season band gives it (home/ways.html). */}}
+{{ $dropStart := time.AsTime $terms.scituate.start $terms.timeZone }}
+{{ $dropWhen := printf "Saturdays, %s" $terms.scituate.window }}
+{{ if gt $dropStart.Unix now.Unix }}
+  {{ $dropWhen = printf "%s, starting %s" $dropWhen ($dropStart.Format "January 2") }}
+{{ end }}
 
-{{/* Every ZIP we deliver to, in either state. */}}
+{{/* Every ZIP we deliver to, in either state, and those in a state
+     that takes only some groups (Connecticut, eggs). */}}
 {{ $ours := slice }}
+{{ $eggs := slice }}
 {{ range $terms.area.states }}
+  {{ $only := .onlyGroups }}
   {{ range .towns }}
     {{ $ours = $ours | append .zips }}
+    {{ if $only }}{{ $eggs = $eggs | append .zips }}{{ end }}
   {{ end }}
 {{ end }}
 
@@ -66,7 +77,7 @@
   (merge (partial "map/xy.html" hugo.Data.places.dropsite) (dict
     "kind" "dropsite" "section" "pickup" "on" true
     "name" "Scituate drop site"
-    "lines" (slice (printf "Saturdays, %s" $terms.scituate.window) $terms.scituate.location)
+    "lines" (slice $dropWhen $terms.scituate.location)
     "address" $terms.scituate.location
     "shop" (dict "label" "Shop for the drop site" "href" (printf "%s?method=scituate" $order))))
 }}
@@ -142,6 +153,7 @@
           {{ range $map.zips }}
             {{ $class := "is-land" }}
             {{ if in $ours .zip }}{{ $class = "is-ours" }}{{ else if eq .state "RI" }}{{ $class = "is-away" }}{{ end }}
+            {{ if in $eggs .zip }}{{ $class = "is-ours is-eggs" }}{{ end }}
             <path class="map-zip {{ $class }}" data-zip="z{{ .zip }}" data-town="{{ .town }}" data-x="{{ .x }}" data-y="{{ .y }}" d="{{ .d }}"/>
           {{ end }}
         </g>
@@ -226,6 +238,7 @@
     <ul class="map-key-areas list-unstyled">
       <li><span class="map-swatch is-ours" aria-hidden="true"></span>We deliver here</li>
       <li><span class="map-swatch is-away" aria-hidden="true"></span>A little outside our area</li>
+      <li class="text-body-secondary">In Connecticut, eggs only</li>
     </ul>
 
     {{ $heads := dict

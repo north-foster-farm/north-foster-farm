@@ -18,6 +18,9 @@ const LABELS = {
   no: "Outside our area",
 };
 
+// Where we deliver eggs only (Connecticut).
+const EGGS_ONLY = "We deliver eggs here";
+
 const TONE_OF = { "is-ours": "ok", "is-away": "wait", "is-land": "no" };
 
 const MAX_ZOOM = 5;
@@ -44,6 +47,9 @@ const toneOf = (area) => {
   }
   return "no";
 };
+
+const labelOf = (area, tone) => (tone === "ok"
+  && area.classList.contains("is-eggs") ? EGGS_ONLY : LABELS[tone]);
 
 const easeOut = (t) => 1 - (1 - t) ** 3;
 
@@ -326,7 +332,7 @@ const wire = (map) => {
     const box = frame.getBoundingClientRect();
     const town = area.dataset.town ? `${area.dataset.town}, ` : "";
 
-    tip.textContent = `${town}${zipOf(area)}: ${LABELS[toneOf(area)]}`;
+    tip.textContent = `${town}${zipOf(area)}: ${labelOf(area, toneOf(area))}`;
     tip.hidden = false;
     tip.style.left = `${e.clientX - box.left}px`;
     tip.style.top = `${e.clientY - box.top}px`;
@@ -462,7 +468,7 @@ const wire = (map) => {
     label.setAttribute("x", { start: -15, middle: 0, end: 15 }[anchor]);
     const town = area.dataset.town ? ` ${area.dataset.town}` : "";
 
-    label.textContent = `${zip}${town}: ${LABELS[tone]}`;
+    label.textContent = `${zip}${town}: ${labelOf(area, tone)}`;
 
     pick.setAttribute("d", area.getAttribute("d"));
     pick.removeAttribute("hidden");
