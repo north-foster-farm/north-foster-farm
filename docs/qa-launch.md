@@ -1462,13 +1462,19 @@ Manual: needs a Venmo order (PY-14).
 
 ### RF-06 A refund made in PayPal
 
-Manual: PayPal's sandbox dashboard.
+Manual: PayPal's sandbox dashboard. Before 7d86478 this failed: the
+webhook looked the order up by the refund's id and answered "unknown
+capture"; it now takes the capture from the refund's "up" link.
 
 - **Scenario:** `PAYMENT.CAPTURE.REFUNDED` reaches the record.
 - **Setup:** A paid Venmo order.
 - **Test:**
-  1. Refund the capture in the PayPal sandbox.
-- **Assert:** `refund.source` paypal on the record.
+  1. Refund the capture in the PayPal sandbox; do it once in full and,
+     on a second order, once in part.
+  2. Read the function log's `paypal.webhook` line and the record.
+- **Assert:** No "unknown capture" in the log; `refund.source` paypal
+  on the record, with the amount PayPal refunded; a partial refund
+  leaves the order paid with the rest.
 - **Teardown:** Cancel; delete.
 
 ### RF-07 Confirm and deny guard themselves
