@@ -316,11 +316,15 @@ $map-pins: (
   color: var(--bs-secondary-color);
 }
 
+.map-card-directions {
+  margin-top: 0.5rem !important;
+}
+
 .map-card-links {
   display: flex;
   gap: 1rem;
   align-items: center;
-  margin-top: 0.5rem !important;
+  margin-top: 0.375rem !important;
 }
 
 .map-card-shop {

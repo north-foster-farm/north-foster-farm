@@ -1,0 +1,17 @@
+{{/*
+  Directions to an address in Google Maps and in Apple Maps, each
+  with its mark, both in a new tab. The context is the address on one
+  line: "street, town, state ZIP".
+
+  The URLs are the documented forms. Google's is maps/dir/?api=1 with
+  a destination; without the slash before the query, maps/dir answers
+  404. Apple's (Map Links) is maps.apple.com/?daddr=, from wherever
+  the visitor is.
+*/}}
+{{ $google := printf "https://www.google.com/maps/dir/?%s" (querify "api" "1" "destination" .) }}
+{{ $apple := printf "https://maps.apple.com/?%s" (querify "daddr" .) }}
+<span class="directions">
+  <span class="directions-label">Directions</span>
+  <a class="directions-link" href="{{ $google }}" target="_blank" rel="noopener" aria-label="Directions in Google Maps">{{ partial "svg.html" "icons/google-maps" }}Google</a>
+  <a class="directions-link" href="{{ $apple }}" target="_blank" rel="noopener" aria-label="Directions in Apple Maps">{{ partial "svg.html" "icons/apple" }}Apple</a>
+</span>

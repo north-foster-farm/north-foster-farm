@@ -29,7 +29,6 @@
 {{ $terms := hugo.Data.delivery }}
 {{ $zone := "America/New_York" }}
 {{ $inSeason := partial "market-season.html" . }}
-{{ $directions := "https://www.google.com/maps/search/?api=1&query=" }}
 {{ $order := relURL "order/" }}
 {{/* The drop site's first Saturday, until it has passed, as the
      off-season band gives it (home/ways.html). */}}
@@ -218,11 +217,13 @@
           {{ range $p.lines }}
             <p class="map-card-line">{{ . }}</p>
           {{ end }}
-          <p class="map-card-links">
-            <a href="{{ $directions }}{{ $p.address | urlquery }}" target="_blank" rel="noopener">Directions</a>
-            {{ with $p.href }}<a href="{{ . }}" target="_blank" rel="noopener">Website</a>{{ end }}
-            {{ with $p.instagram }}<a class="map-ig" href="https://www.instagram.com/{{ . }}/" target="_blank" rel="noopener" aria-label="{{ $p.name }} on Instagram">{{ $ig }}</a>{{ end }}
-          </p>
+          <p class="map-card-directions">{{ partial "directions.html" $p.address }}</p>
+          {{ if or $p.href $p.instagram }}
+            <p class="map-card-links">
+              {{ with $p.href }}<a href="{{ . }}" target="_blank" rel="noopener">Website</a>{{ end }}
+              {{ with $p.instagram }}<a class="map-ig" href="https://www.instagram.com/{{ . }}/" target="_blank" rel="noopener" aria-label="{{ $p.name }} on Instagram">{{ $ig }}</a>{{ end }}
+            </p>
+          {{ end }}
           {{ with $p.shop }}
             <a class="btn btn-primary btn-sm map-card-shop" href="{{ .href }}">{{ .label }}</a>
           {{ end }}

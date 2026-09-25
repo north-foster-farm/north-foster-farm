@@ -3,11 +3,8 @@
 {{ $state := hugo.Data.company.address.state }}
 {{ $zip := hugo.Data.company.address.zip }}
 
+{{/* The one-line form is what partials/directions.html takes. */}}
 {{ $full := printf `%s, %s, %s %s` $street $city $state $zip }}
-{{ $query := querify (slice "api" "1" "destination" $full) }}
-{{/* Google's documented form; without the slash before the query,
-     maps/dir answers 404. */}}
-{{ $googleMaps := printf "https://www.google.com/maps/dir/?%s" $query }}
 
 {{ return dict
   "street" $street
@@ -15,5 +12,4 @@
   "state" $state
   "zip" $zip
   "full" $full
-  "href" $googleMaps
 }}
