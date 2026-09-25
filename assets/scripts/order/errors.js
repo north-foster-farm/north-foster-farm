@@ -4,6 +4,14 @@
 
 const visible = (el) => !el.closest("[hidden], [inert]");
 
+// Marked for the eye (Bootstrap's red border) and for a screen
+// reader alike.
+const mark = (field, invalid) => {
+  field.classList.toggle("is-invalid", invalid);
+  if (invalid) field.setAttribute("aria-invalid", "true");
+  else field.removeAttribute("aria-invalid");
+};
+
 export class Errors {
   constructor(form) {
     this.form = form;
@@ -23,7 +31,7 @@ export class Errors {
       el.style.display = "";
     }
     for (const el of this.form.querySelectorAll(".is-invalid")) {
-      el.classList.remove("is-invalid");
+      mark(el, false);
     }
   }
 
@@ -54,7 +62,7 @@ export class Errors {
       }
     }
     for (const field of this.form.querySelectorAll(".is-invalid")) {
-      if (!errors[field.dataset.field]) field.classList.remove("is-invalid");
+      if (!errors[field.dataset.field]) mark(field, false);
     }
 
     if (leftKey && errors[leftKey]) {
@@ -65,7 +73,7 @@ export class Errors {
         slot.textContent = errors[leftKey];
         slot.style.display = "block";
       }
-      if (field) field.classList.add("is-invalid");
+      if (field) mark(field, true);
     }
   }
 
@@ -82,7 +90,7 @@ export class Errors {
         slot.textContent = message;
         slot.style.display = "block";
       }
-      if (field) field.classList.add("is-invalid");
+      if (field) mark(field, true);
 
       first = first || field || slot;
     }
