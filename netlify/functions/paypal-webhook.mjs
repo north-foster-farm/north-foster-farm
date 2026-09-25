@@ -10,17 +10,19 @@
 //                               checkout the page never finished is
 //                               the jobs' (rescueCheckout).
 //   PAYMENT.CAPTURE.REFUNDED    a refund made in PayPal rather than
-//                               the CLI, noted on the order.
+//                               the CLI, noted on the order and
+//                               repeated on Square's copy.
 //
 // PayPal retries on anything but a 2xx, so an event about a payment
 // this site knows nothing of answers 200.
 
-import { mark } from "./lib/health.mjs";
+import { alert, mark } from "./lib/health.mjs";
 import { json } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { verifyWebhook } from "./lib/paypal.mjs";
 import { recordRefund } from "./lib/payments.mjs";
 import { checkoutByPayPal, orderByPayment } from "./lib/records.mjs";
+import * as squareApi from "./lib/square.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
 const cents = (amount) => (amount && amount.value
@@ -32,6 +34,50 @@ const capturedBy = (refund) => {
   const match = up && String(up.href).match(/\/captures\/([^/?]+)/);
 
   return match ? match[1] : null;
+};
+
+// A refund made in PayPal, repeated on the Square copy of the payment
+// so Square's books agree, as the CLI's refunds do. Square is brought
+// up to PayPal's running total for the capture rather than refunded
+// this event's amount: after a CLI refund, which did Square itself,
+// the difference is nothing. Keyed by the PayPal refund, so a
+// redelivery never refunds twice. A failure is the farm's to finish
+// by hand; the PayPal refund is recorded either way.
+// -> the Square refund's id, or null.
+const refundOnSquare = async (stores, order, refund, {
+  square = squareApi, env = process.env, fetchImpl, mail, now,
+}) => {
+  const p = order.payment || {};
+  const breakdown = refund.seller_payable_breakdown || {};
+  const target = cents(breakdown.total_refunded_amount)
+    || cents(refund.amount);
+
+  if (!p.squarePaymentId || !target) return null;
+
+  try {
+    const payment = await square.getPayment(p.squarePaymentId, {
+      env, fetchImpl,
+    });
+    const owed = target - (payment.refunded || 0);
+
+    if (owed <= 0) return null;
+
+    const copy = await square.refundPayment({
+      squarePaymentId: p.squarePaymentId,
+      amount: owed,
+      key: `paypal-${refund.id}`,
+      reason: "Refunded in PayPal",
+    }, { env, fetchImpl });
+
+    return copy.squareRefundId || null;
+  } catch (error) {
+    await alert(stores, "square.refund_failed", {
+      id: order.id, paypalRefundId: refund.id,
+      error: String(error && error.message),
+    }, { env, mail, now, fetchImpl });
+
+    return null;
+  }
 };
 
 export const applyEvent = async (stores, event, options = {}) => {
@@ -71,9 +117,14 @@ export const applyEvent = async (stores, event, options = {}) => {
       return { handled: true, id: order.id, repeat: true };
     }
 
+    const squareRefundId = await refundOnSquare(stores, order, resource, {
+      ...options, now,
+    });
+
     await recordRefund(stores, order, {
       amount: cents(resource.amount) || order.totals.total,
       paypalRefundId: refundId,
+      squareRefundId,
       status: "COMPLETED",
     }, "paypal", now);
 
