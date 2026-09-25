@@ -4,6 +4,7 @@ import Dropdown from "bootstrap/js/dist/dropdown.js";
 import "bootstrap/js/dist/offcanvas.js";
 
 import { Extensions } from "./extensions/extensions.js";
+import { wireCartBadge } from "./cart-badge/cart-badge.js";
 import { Copyright } from "./copyright/copyright.js";
 import { wireDotLists } from "./dot-list/dot-list.js";
 import { wireHeroVideo } from "./hero/hero.js";
@@ -17,6 +18,9 @@ import { Touchable } from "./touchable/touchable.js";
 Extensions.apply();
 Copyright.setYear();
 retireTopBar();
+// Now, not on DOMContentLoaded: the order page's own bundle runs after
+// this one and announces its first count before that event.
+wireCartBadge();
 Touchable.addTouchedListener();
 // The account menu opens on hover where there is a pointer to hover
 // with, and stays open under it; a tap still toggles it.

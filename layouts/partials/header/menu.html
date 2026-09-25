@@ -35,9 +35,9 @@
       <span class="site-search-icon site-search-shut" aria-hidden="true">{{ partial "svg.html" "icons/search-close" }}</span>
     </button>
     {{ if $onOrder }}
-      <span class="site-order is-current" aria-current="page">Order</span>
+      <span class="site-order is-current" aria-current="page">Order{{ partial "header/cart-badge.html" }}</span>
     {{ else }}
-      <a class="site-order" href="{{ relURL "order/" }}">Order</a>
+      <a class="site-order" href="{{ relURL "order/" }}">Order{{ partial "header/cart-badge.html" }}</a>
     {{ end }}
     <button class="site-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#site-menu" aria-controls="site-menu" aria-expanded="false" aria-label="Menu">
       <span class="site-toggle-bars" aria-hidden="true"><span></span><span></span><span></span></span>
@@ -54,9 +54,9 @@
   </div>
   <div class="offcanvas-body site-offcanvas-body">
     {{ if $onOrder }}
-      <span class="site-nav-link is-current" aria-current="page">Order</span>
+      <span class="site-nav-link is-current" aria-current="page">Order{{ partial "header/cart-badge.html" }}</span>
     {{ else }}
-      <a class="site-nav-link" href="{{ relURL "order/" }}">Order</a>
+      <a class="site-nav-link" href="{{ relURL "order/" }}">Order{{ partial "header/cart-badge.html" }}</a>
     {{ end }}
     {{ range $links }}
       <a class="site-nav-link" href="{{ relURL .path }}" {{- if eq $here (relURL .path) }} aria-current="page" {{ end }}>{{ .name }}</a>

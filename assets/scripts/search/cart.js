@@ -3,6 +3,7 @@
 // box and fires the input event the page already listens for. Anywhere
 // else it writes the same saved draft the order page restores on load.
 
+import { announceCart } from "../cart-badge/announce.js";
 import { Draft } from "../order/draft.js";
 
 const MAX = 99;
@@ -71,6 +72,7 @@ export const addToCart = (sku, qty) => {
   payload.lines = lines;
   draft.save(payload);
   draft.touch();
+  announceCart(cartCount());
 
   return (line || lines[lines.length - 1]).qty;
 };

@@ -18,6 +18,7 @@ import { Pending } from "./pending.js";
 import { Stock } from "./stock.js";
 import { Submitter } from "./submit.js";
 import ScrollSpy from "bootstrap/js/dist/scrollspy.js";
+import { announceCart } from "../cart-badge/announce.js";
 import { me } from "../session/session.js";
 import { api } from "../utils/api.js";
 
@@ -813,6 +814,8 @@ export class OrderForm {
     for (const el of all(this.form, "[data-total-bar-total]")) {
       el.textContent = s.total;
     }
+    // The header's Order link shows the same count.
+    announceCart(count);
 
     const short = qs(this.form, "[data-delivery-short]");
 
@@ -1211,6 +1214,7 @@ export class OrderForm {
     case "ok":
       this.draft.clearPending();
       this.draft.clear();
+      announceCart(0);
       this.succeed(outcome.data, payload);
       break;
     case "retry":

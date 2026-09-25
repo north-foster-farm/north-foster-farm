@@ -261,6 +261,7 @@ header {
 // The Order link: a tight outline button in the dark green, last in
 // the row.
 .site-order {
+  position: relative;
   display: inline-flex;
   align-items: center;
   height: 2rem;
@@ -300,6 +301,42 @@ header {
   &.is-current {
     border-color: var(--bs-border-color);
     color: var(--bs-secondary-color);
+  }
+}
+
+// The cart count: a green disc pinned over the Order button's top
+// right corner, so the row never moves when it shows. In the phone
+// menu it sits after the word instead.
+.site-cart {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.3125rem;
+  border-radius: 50rem;
+  background-color: var(--bs-primary);
+  box-shadow: 0 0 0 2px var(--bs-body-bg);
+  color: $white;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  pointer-events: none;
+  transform: translate(50%, -50%);
+
+  &[hidden] {
+    display: none;
+  }
+
+  .site-offcanvas-body & {
+    position: static;
+    box-shadow: none;
+    transform: none;
   }
 }
 
