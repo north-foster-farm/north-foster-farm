@@ -1101,9 +1101,10 @@
     }
   }
 
-  // Narrower than the column, name and email alike.
-  .order-details .col-sm-9 {
-    max-width: 26rem;
+  // Narrower than the column, name and email alike. The cap is on what
+  // the column holds, not the column: the grid owns a column's width.
+  .order-details .col-sm-9 > * {
+    max-width: 24rem;
   }
 
   // "Prefer text or call?" is hidden until there is a phone number,
@@ -1147,6 +1148,7 @@
     grid-template-rows: 0fr;
     transition: grid-template-rows var(--order-base) var(--order-ease);
 
+    // stylelint-disable-next-line no-descending-specificity
     > * {
       overflow: hidden;
       opacity: 0;
