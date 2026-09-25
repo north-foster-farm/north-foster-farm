@@ -1806,39 +1806,76 @@ needs a build in season and is not tested; the switch is in
 
 ### AR-10 The map's areas (#138)
 
-Automated: `map.spec.mjs`, "the ZIPs we deliver to, and nothing from
-elsewhere" (both projects). The build uses two fills, as James's words
-asked, not the issue's three; Connecticut's eggs-only rule is not on
-the map (raised on #138).
+Automated: `map.spec.mjs`, "three fills: ours, the rest of Rhode
+Island, the neighbours" and "the key's swatches match the map's fills"
+(both projects). Rewritten for 17b929e, which gave Rhode Island's
+other ZIPs their own fill. Connecticut's eggs-only rule is still not
+on the map (raised on #138).
 
-- **Scenario:** Delivery ZIPs in one color and the rest in another,
-  from the same data as the form.
+- **Scenario:** Delivery ZIPs, the rest of Rhode Island and the
+  neighbours each in their own fill, from the same data as the form.
 - **Setup:** Home page map row.
 - **Test:**
   1. Compare every ZIP on the map with the delivery area the page's
-     ZIP check carries.
-- **Assert:** A ZIP is filled as ours exactly when the area lists it;
-  two fills in all; the SVG is titled; no request leaves the site.
+     ZIP check carries; read each fill and the key's swatches.
+- **Assert:** Every ZIP is five digits (the minifier once dropped the
+  leading zero); each has exactly one of `is-ours`, `is-away`,
+  `is-land`, and `is-ours` exactly when the area lists it; Rhode
+  Island's (028, 029) are never plain land; one fill per class, three
+  in all; the swatches "We deliver here" and "A little outside our
+  area" match their fills; the SVG is titled; no request leaves the
+  site.
 - **Teardown:** None.
 
 ### AR-11 The ZIP check drops a pin (#138)
 
-Automated: `map.spec.mjs`, "a ZIP drops a pin on its middle, colored by
-the answer", "the other ZIP check on the page drops the pin too" and
-"with reduced motion the pin appears without falling" (both projects).
+Automated: `map.spec.mjs`, "a ZIP typed in drops a visible pin on its
+middle", "a tap on a town runs the check and drops the pin", "a town
+names itself under the pointer" (desktop) and "with reduced motion the
+pin appears without falling" (both projects).
 
-- **Scenario:** Typing a ZIP drops a pin at its center with the answer.
+Until 17b929e the dropped pin never showed: the script set a `hidden`
+property that SVG groups do not have. The earlier test read that same
+property and passed; it now asks whether the pin renders.
+
+- **Scenario:** Typing or tapping a ZIP drops a pin at its center with
+  the answer.
 - **Setup:** Map row.
 - **Test:**
   1. Type `02857`, `02802`, `10001`; type `02857` and clear the field.
-  2. Type `02857` into the page's other ZIP check.
-  3. Again with reduced motion.
-- **Assert:** `autocomplete="off"` on both fields. 02857: "We deliver
-  here", green, its outline drawn, the pin at its middle. 02802: "A
-  little outside our area", amber, likewise. 10001, off the map, and a
-  cleared field: no pin, and the words still answer. The other check
-  moves the same pin. Under reduced motion the pin shows without the
-  fall animation.
+  2. Tap North Scituate on the map.
+  3. Hover a town.
+  4. Again with reduced motion.
+- **Assert:** `autocomplete="off"`. No pin at first. 02857: a visible
+  pin, "02857 <town>: We deliver here", its outline drawn, the pin at
+  its middle. 02802: "… A little outside our area", amber, likewise.
+  10001, off the map, and a cleared field: no pin, and the words still
+  answer. A tap fills the field with 02857, the check answers "We
+  deliver to …", and the pin shows. Hovering names the town and our
+  answer. Under reduced motion the pin shows without the fall.
+- **Teardown:** None.
+
+### AR-11b Pin cards and zoom (#138)
+
+Automated: `map.spec.mjs`, "a pin opens its card; Escape closes it to
+the pin", "a line in the key opens the same card" and "zoom in and
+out; pins keep their size" (both projects). Pinch, trackpad pinch and
+drag-to-pan are by hand on a phone and a laptop.
+
+- **Scenario:** 17b929e made the map interactive.
+- **Setup:** Map row.
+- **Test:**
+  1. Focus pin 1; press Enter; press Escape.
+  2. Press the key's line for pin 3; press its Close.
+  3. Press Zoom in, then Show the whole map.
+- **Assert:** Pin 1's card opens with focus on "Our farm", the pin
+  `aria-pressed`, a Google Maps "Directions" link and "Shop for pickup"
+  to `/order/?method=onfarm` (which lands on Delivery until #163 is
+  fixed), inside the map's frame; Escape closes it and returns focus to
+  the pin. The key opens pin 3's card, on screen, reading "Out of
+  season". Zoom in halves the view, enables Zoom out and shows the
+  reset, and pins stay the same size on screen; the reset restores the
+  whole map.
 - **Teardown:** None.
 
 ### AR-12 The map on the delivery policy (#138)
@@ -1857,9 +1894,9 @@ Automated: `map.spec.mjs`, "the delivery policy carries the same map"
 ### AR-13 Markets and pop-ups on the map (#138)
 
 Partial: `map.spec.mjs`, "numbered pins match the key, markets out of
-season" and "no pin hides another" (both projects). The second fails
-today: pin 3 covers pin 2 (#159). Dropping 2026's pop-ups needs a
-build after New Year and stays manual.
+season" and "no pin hides another" (both projects). The second failed
+until 17b929e stood crowded pins apart. Dropping 2026's pop-ups needs
+a build after New Year and stays manual.
 
 - **Scenario:** Markets shown out of season with inline Instagram
   icons; 2026 pop-ups disappear when 2027 starts.
