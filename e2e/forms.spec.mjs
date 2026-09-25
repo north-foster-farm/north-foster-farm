@@ -70,6 +70,14 @@ test.describe("contact and pickup forms", () => {
       /is-invalid/
     );
     await expect(page.locator("#customer-first-name")).toBeFocused();
+    // A screen reader hears it too: every field marked red is
+    // aria-invalid (f27ed0e).
+    const marked = await page.locator("#order-form .is-invalid").evaluateAll(
+      (els) => els.map((el) => `${el.id}:${el.getAttribute("aria-invalid")}`)
+    );
+
+    expect(marked.length).toBeGreaterThanOrEqual(8);
+    expect(marked.filter((m) => !m.endsWith(":true"))).toEqual([]);
     expect(posted).toBe(0);
   });
 
@@ -109,6 +117,9 @@ test.describe("contact and pickup forms", () => {
       await expect(order.errorFor("customer.firstName")).toHaveCount(0);
       await expect(page.locator("#customer-first-name")).not.toHaveClass(
         /is-invalid/
+      );
+      await expect(page.locator("#customer-first-name")).not.toHaveAttribute(
+        "aria-invalid", /./
       );
 
       // A value set the way autofill sets it, with no focus at all.

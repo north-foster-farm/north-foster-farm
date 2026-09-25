@@ -710,8 +710,9 @@ missing field and sends nothing" (both projects). Tagged `@regression`.
   name.", "That email address doesn't look right.", "Please enter a
   phone number.", "Please enter your street address.", "Please enter
   your town.", "Please enter a five-digit ZIP code.", "Tell us where the
-  cooler will be."; first name marked invalid and focused; no request
-  to `/api/orders`.
+  cooler will be."; first name marked invalid and focused; every field
+  marked red is `aria-invalid="true"` (f27ed0e); no request to
+  `/api/orders`.
 - **Teardown:** None.
 
 ### FM-03 Pickup without a phone, and a bad phone
@@ -742,8 +743,9 @@ without refocusing" (both projects). Tagged `@regression`.
   2. Set the last name as autofill does (value, `input`, `change`, no
      focus).
   3. Type `ada@`, leave; click it, type `ada@example.com`, leave.
-- **Assert:** Each error disappears as its field becomes valid; "That
-  email address doesn't look right." shows while it is wrong.
+- **Assert:** Each error disappears as its field becomes valid, and
+  with it the red border and `aria-invalid`; "That email address
+  doesn't look right." shows while it is wrong.
 - **Teardown:** None.
 
 ### FM-05 A field emptied later shows its error on leaving
@@ -2274,6 +2276,21 @@ PY-01 for the placed order. Passed on staging 2026-09-25 (fd8201d).
   "2" at once; the second tab goes from "1" to "2" with no reload;
   blocked storage shows no badge and no page error; a placed order
   leaves no badge.
+- **Teardown:** None.
+
+### AR-30 The skip link (#159)
+
+Automated: `skip-link.spec.mjs` (desktop: it needs a keyboard). Passed
+on staging 2026-09-25 (c1b1ff6). The wording is a draft for James.
+
+- **Scenario:** A keyboard reaches the content without walking the top
+  bar and the header (WCAG 2.4.1).
+- **Setup:** `/`, `/order/`, `/about/`, `/news/`.
+- **Test:**
+  1. Press Tab; press Enter; press Tab.
+- **Assert:** "Skip to main content" is off screen until the first
+  Tab, then focused and in view; Enter moves to `#main`; the next Tab
+  lands inside `<main>`.
 - **Teardown:** None.
 
 ## Staging
