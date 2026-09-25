@@ -10,7 +10,7 @@
       "season": "June through early October",
       "lat": 41.8339,
       "lng": -71.58346,
-      "nudge": [-16, 0]
+      "nudge": [-30, 0]
     },
     {
       "name": "Foster Farmers Market",
@@ -20,7 +20,8 @@
       "where": "Shady Acres Diner, 164 Danielson Pike, Foster",
       "season": "June through October",
       "lat": 41.80426,
-      "lng": -71.77252
+      "lng": -71.77252,
+      "nudge": [-16, 14]
     },
     {
       "name": "Summer Market at Tilted Barn",
