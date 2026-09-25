@@ -1,7 +1,7 @@
 ---
 description: >
-  "How ordering from North Foster Farm works: delivery days, cutoffs,
-  minimums, fees and area, pickup, changes, cancellations and refunds."
+  How ordering from North Foster Farm works: delivery days, cutoffs,
+  minimums, fees and area, pickup, changes, cancellations and refunds.
 slug: "delivery-policy"
 title: "Delivery policy"
 type: "policy"

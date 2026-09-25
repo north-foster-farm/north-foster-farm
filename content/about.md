@@ -1,7 +1,7 @@
 ---
 description: >
-  "North Foster Farm is a small family farm in Foster, Rhode Island,
-  raising chicken and eggs on pasture."
+  North Foster Farm is a small family farm in Foster, Rhode Island,
+  raising chicken and eggs on pasture.
 slug: "about"
 title: "About"
 type: "policy"
