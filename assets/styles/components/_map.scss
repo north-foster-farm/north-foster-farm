@@ -1,11 +1,13 @@
-// The delivery map (partials/map.html): water behind, the land of the
-// three states in a quiet sand, Rhode Island's ZIPs over it, the ones
-// we deliver to in green. Pins take the colour of their kind, here and
-// on the numbers in the key; a market out of season is hollow.
+// The delivery map (partials/map.html): water behind, the ZIPs over
+// it, the ones we deliver to in green, the rest of Rhode Island in
+// sand and the neighbouring states as plain land. Pins take the
+// colour of their kind, here and on the numbers in the key and the
+// cards; a market out of season is hollow. Everything drawn keeps its
+// line weight and the pins their size as the map zooms.
 
 $map-water: tint-color($teal, 84%);
 $map-land: #f3f1ea;
-$map-zip: #e9dfc8;
+$map-away: #e9dfc8;
 $map-ours: tint-color($green, 58%);
 $map-pins: (
   "farm": $primary,
@@ -26,6 +28,7 @@ $map-pins: (
 }
 
 .map-frame {
+  position: relative;
   overflow: hidden;
   border: 1px solid var(--bs-border-color-translucent);
   border-radius: var(--bs-border-radius-lg);
@@ -37,38 +40,93 @@ $map-pins: (
   width: 100%;
   height: auto;
   font-family: Aller, sans-serif;
-}
+  touch-action: pan-y;
+  user-select: none;
 
-.map-land path {
-  fill: $map-land;
-  stroke: shade-color($map-land, 22%);
-  stroke-width: 1;
-}
-
-.map-zip {
-  fill: $map-zip;
-  stroke: $white;
-  stroke-width: 0.8;
-
-  &.is-ours {
-    fill: $map-ours;
+  path {
+    vector-effect: non-scaling-stroke;
   }
 }
 
+.map-zip {
+  cursor: pointer;
+  stroke: $white;
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+  transition: fill 0.12s ease-out;
+
+  &.is-ours {
+    fill: $map-ours;
+
+    &:hover {
+      fill: shade-color($map-ours, 12%);
+    }
+  }
+
+  &.is-away {
+    fill: $map-away;
+
+    &:hover {
+      fill: shade-color($map-away, 8%);
+    }
+  }
+
+  // The neighbours: one plain land, its ZIP lines drawn in its own
+  // colour so they disappear.
+  &.is-land {
+    fill: $map-land;
+    stroke: $map-land;
+
+    &:hover {
+      fill: shade-color($map-land, 4%);
+      stroke: shade-color($map-land, 4%);
+    }
+  }
+}
+
+.map-borders {
+  fill: none;
+  stroke: shade-color($map-land, 38%);
+  stroke-width: 1.2;
+  stroke-dasharray: 5 3;
+  pointer-events: none;
+}
+
 // A pin: the drop shape with its number in the head, outlined in white
-// so it stands off the fills.
+// so it stands off the fills. It rises a little under the pointer and
+// darkens its outline while its card is open.
 .map-pin {
+  cursor: pointer;
+  outline: none;
+
   path {
     stroke: $white;
     stroke-width: 2;
+    transition: stroke 0.12s ease-out;
   }
 
   text {
     font-size: 17px;
     font-weight: bold;
     text-anchor: middle;
+    pointer-events: none;
     fill: $white;
   }
+
+  &[aria-pressed="true"] path,
+  &:focus-visible path {
+    stroke: $gray-800;
+    stroke-width: 3;
+  }
+}
+
+.map-pin-body {
+  transition: transform 0.16s ease-out;
+}
+
+.map-pin:hover .map-pin-body,
+.map-pin[aria-pressed="true"] .map-pin-body {
+  transform: translateY(-4px) scale(1.12);
 }
 
 @each $kind, $colour in $map-pins {
@@ -93,9 +151,13 @@ $map-pins: (
   }
 }
 
-// The dropped pin: the ZIP typed into a check, outlined, and a pin
-// that falls onto its middle from above the map with a small bounce.
-// Its colour says whether we deliver there.
+// The dropped pin: the ZIP typed or tapped, outlined, and a pin that
+// falls onto its middle from above the map with a small bounce. Its
+// colour says whether we deliver there.
+.map-drop {
+  pointer-events: none;
+}
+
 .map-pick {
   fill: none;
   stroke: $gray-800;
@@ -114,12 +176,12 @@ $map-pins: (
 }
 
 .map-drop-label {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: bold;
   text-anchor: middle;
   fill: $gray-800;
   stroke: $white;
-  stroke-width: 5px;
+  stroke-width: 4px;
   stroke-linejoin: round;
   paint-order: stroke fill;
 }
@@ -154,13 +216,135 @@ $map-pins: (
   }
 }
 
+// The tip beside the pointer, and the card over a pin.
+
+.map-tip {
+  position: absolute;
+  z-index: 2;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--bs-border-radius);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  color: $white;
+  background-color: rgba($gray-800, 0.9);
+}
+
+.map-card {
+  position: absolute;
+  z-index: 3;
+  width: min(17rem, calc(100% - 1rem));
+  padding: 0.875rem 1rem 1rem;
+  border: 1px solid var(--bs-border-color-translucent);
+  border-radius: var(--bs-border-radius-lg);
+  font-size: 0.875rem;
+  background-color: $white;
+  box-shadow: $btn-lift-shadow;
+
+  p {
+    margin: 0;
+  }
+}
+
+.map-card-close {
+  position: absolute;
+  top: 0.625rem;
+  right: 0.625rem;
+  width: 0.5rem;
+  height: 0.5rem;
+}
+
+.map-card-name {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding-right: 1.5rem;
+  margin-bottom: 0.375rem !important;
+  font-size: 1rem;
+  font-weight: bold;
+  outline: none;
+}
+
+.map-card-line {
+  color: var(--bs-secondary-color);
+}
+
+.map-card-links {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 0.5rem !important;
+}
+
+.map-card-shop {
+  margin-top: 0.75rem;
+}
+
+.map-ig {
+  display: inline-flex;
+  color: inherit;
+
+  svg {
+    width: 1.125em;
+    height: 1.125em;
+  }
+}
+
+// Zoom: in, out and back to the whole map, in the top right corner.
+.map-zoom {
+  position: absolute;
+  top: 0.625rem;
+  right: 0.625rem;
+  display: grid;
+  gap: 0.375rem;
+
+  button {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: 1px solid var(--bs-border-color-translucent);
+    border-radius: var(--bs-border-radius);
+    font-size: 1.25rem;
+    font-weight: bold;
+    line-height: 1;
+    color: var(--bs-body-color);
+    background-color: $white;
+    box-shadow: var(--bs-box-shadow-sm);
+
+    &:disabled {
+      color: var(--bs-secondary-color);
+      opacity: 0.6;
+    }
+
+    svg {
+      width: 1.125rem;
+      height: 1.125rem;
+    }
+  }
+}
+
+.map-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--bs-secondary-color);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .map-drop-fall {
     animation: none;
   }
+
+  .map-pin-body,
+  .map-zip {
+    transition: none;
+  }
 }
 
-// The key: the two fills, then the numbered places in groups.
+// The key: the two fills, then the numbered places in groups, each a
+// button that opens its pin's card.
 
 .map-key {
   font-size: 0.9375rem;
@@ -182,13 +366,16 @@ $map-pins: (
 .map-swatch {
   width: 1.125rem;
   height: 1.125rem;
-  border: 1px solid shade-color($map-zip, 15%);
   border-radius: 0.25rem;
-  background-color: $map-zip;
 
   &.is-ours {
-    border-color: shade-color($map-ours, 15%);
+    border: 1px solid shade-color($map-ours, 15%);
     background-color: $map-ours;
+  }
+
+  &.is-away {
+    border: 1px solid shade-color($map-away, 15%);
+    background-color: $map-away;
   }
 }
 
@@ -201,28 +388,38 @@ $map-pins: (
   color: var(--bs-secondary-color);
 }
 
-.map-key-aside {
-  margin-left: 0.25rem;
-  font-weight: normal;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
 .map-key-list {
   margin: 0;
 }
 
 .map-key-item {
   display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
+  gap: 0.5rem;
+  align-items: center;
 
   & + & {
-    margin-top: 0.625rem;
+    margin-top: 0.375rem;
   }
+}
 
-  p {
-    margin: 0;
+.map-key-name {
+  font-weight: 600;
+}
+
+.map-key-show {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.125rem 0;
+  border: 0;
+  text-align: left;
+  color: inherit;
+  background: none;
+
+  &:hover .map-key-name,
+  &:focus-visible .map-key-name {
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
   }
 }
 
@@ -241,26 +438,6 @@ $map-pins: (
     border: 1.5px dashed $orange;
     background-color: $white;
     color: shade-color($orange, 30%);
-  }
-}
-
-.map-key-name {
-  font-weight: 600;
-}
-
-.map-key-text {
-  color: var(--bs-secondary-color);
-}
-
-.map-ig {
-  display: inline-flex;
-  margin-left: 0.25rem;
-  vertical-align: -0.125em;
-  color: inherit;
-
-  svg {
-    width: 1em;
-    height: 1em;
   }
 }
 
