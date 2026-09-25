@@ -66,10 +66,11 @@ test.describe("map (#138)", () => {
       });
       await page.goto(HOME.path);
       // An aria-label since 0660a0d: a <title> showed as the browser's
-      // own tooltip over the map's.
-      await expect(map(page).locator("svg[role='img']"))
+      // own tooltip over the map's. A group, not an img, so the pin
+      // buttons inside stay reachable.
+      await expect(map(page).locator("svg[role='group']"))
         .toHaveAttribute("aria-label", /where we deliver/);
-      await expect(map(page).locator("svg[role='img'] > title"))
+      await expect(map(page).locator("svg[role='group'] > title"))
         .toHaveCount(0);
 
       const ours = new Set(await areaZips(page));
