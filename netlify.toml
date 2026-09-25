@@ -35,6 +35,23 @@ framework = "#custom"
   to = "/account/"
   status = 200
 
+# Browsers, feed readers and link previews ask for these at the root
+# whatever the page says; the set lives in /favicons/.
+[[redirects]]
+  from = "/favicon.ico"
+  to = "/favicons/favicon.ico"
+  status = 200
+
+[[redirects]]
+  from = "/apple-touch-icon.png"
+  to = "/favicons/apple-touch-icon.png"
+  status = 200
+
+[[redirects]]
+  from = "/apple-touch-icon-precomposed.png"
+  to = "/favicons/apple-touch-icon.png"
+  status = 200
+
 [[redirects]]
   from = "/admin"
   to = "https://admin.northfosterfarm.com"
