@@ -6,10 +6,12 @@
 
 import { index, search } from "./match.js";
 import { addToCart, cartCount, inCart } from "./cart.js";
+import {
+  MAX, fitQty, room as roomFor, soldOut as isSoldOut, stockText,
+} from "./stock.js";
 
 const STOCK_TTL = 60_000;
 const ADDED_MS = 1800;
-const MAX = 99;
 
 const money = (n) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
@@ -50,33 +52,16 @@ export const wireSearch = () => {
       if (!res.ok) return;
       stock = (await res.json()).items || {};
       stockAt = Date.now();
-      render(input.value, matches[active] && matches[active].sku);
+      refreshStock();
     } catch {
       // The build's stock stands in.
     }
   };
 
-  const soldOut = (p) => !!(stock && stock[p.sku]
-    && stock[p.sku].inStock === false);
+  const soldOut = (p) => isSoldOut(stock, p.sku);
 
   // How many more of this product can go in the cart.
-  const room = (p) => {
-    if (soldOut(p)) return 0;
-
-    const left = stock && stock[p.sku] ? stock[p.sku].available : null;
-    const cap = typeof left === "number" ? left : MAX;
-
-    return Math.max(0, Math.min(MAX, cap) - inCart(p.sku));
-  };
-
-  const stockText = (p) => {
-    if (soldOut(p)) return "Sold out";
-
-    const left = stock && stock[p.sku] ? stock[p.sku].available : null;
-
-    return typeof left === "number" && left <= 10
-      ? `Only ${left} left` : "In stock";
-  };
+  const room = (p) => roomFor(stock, p.sku, inCart(p.sku));
 
   const qty = () => {
     const n = parseInt(qtyBox.value.replace(/\D/g, ""), 10);
@@ -86,9 +71,8 @@ export const wireSearch = () => {
 
   const setQty = (n) => {
     const p = matches[active];
-    const most = p ? Math.max(1, room(p)) : MAX;
 
-    qtyBox.value = String(Math.min(most, Math.max(1, n)));
+    qtyBox.value = String(fitQty(n, p ? room(p) : MAX));
   };
 
   const showCard = (p) => {
@@ -106,7 +90,7 @@ export const wireSearch = () => {
     q("[data-search-price]").textContent =
       `${money(p.price)}${p.unit ? ` ${p.unit}` : ""}` +
       `${p.note ? ` · ${p.note}` : ""}`;
-    q("[data-search-stock]").textContent = stockText(p);
+    q("[data-search-stock]").textContent = stockText(stock, p.sku);
     card.dataset.stock = soldOut(p) ? "out" : "in";
     addButton.disabled = room(p) === 0;
     setQty(qty());
@@ -133,7 +117,15 @@ export const wireSearch = () => {
     showCard(matches[active]);
   };
 
-  const render = (query, keep) => {
+  // A row's sold-out mark and its price, or "Sold out" in its place.
+  const markRow = (row, p) => {
+    if (soldOut(p)) row.dataset.stock = "out";
+    else delete row.dataset.stock;
+    row.querySelector(".search-palette-row-price").textContent =
+      soldOut(p) ? "Sold out" : money(p.price);
+  };
+
+  const render = (query) => {
     matches = search(indexed, query);
     list.replaceChildren(...matches.map((p, i) => {
       const row = document.createElement("li");
@@ -144,13 +136,12 @@ export const wireSearch = () => {
       row.id = `search-option-${i}`;
       row.setAttribute("role", "option");
       row.dataset.sku = p.sku;
-      if (soldOut(p)) row.dataset.stock = "out";
       name.className = "search-palette-row-name";
       group.textContent = p.group;
       name.append(group, ` ${p.label}`);
       price.className = "search-palette-row-price";
-      price.textContent = soldOut(p) ? "Sold out" : money(p.price);
       row.append(name, price);
+      markRow(row, p);
 
       return row;
     }));
@@ -161,10 +152,15 @@ export const wireSearch = () => {
     empty.textContent = `Nothing matches “${trimmed}”. Try eggs, whole, ` +
       "breast or wings.";
     list.hidden = !matches.length;
+    select(0, { scroll: false });
+  };
 
-    const kept = keep ? matches.findIndex((p) => p.sku === keep) : -1;
-
-    select(kept === -1 ? 0 : kept, { scroll: kept !== -1 });
+  // Stock has come in: mark the rows and the card where they stand. The
+  // customer may have chosen a quantity or added already, so the
+  // quantity stays, lowered only to what is left, and so does "Added".
+  const refreshStock = () => {
+    [...list.children].forEach((row, i) => markRow(row, matches[i]));
+    if (matches[active]) showCard(matches[active]);
   };
 
   const add = () => {
