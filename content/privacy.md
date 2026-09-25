@@ -112,7 +112,7 @@ using their resources:
 - [Square](https://squareup.com/), which records orders and takes card, Apple Pay, Google Pay and Cash App Pay payments ([Privacy policy](https://squareup.com/us/en/legal/general/privacy))
 - [PayPal](https://www.paypal.com/), which takes Venmo payments ([Privacy statement](https://www.paypal.com/us/legalhub/paypal/privacy-full)), and [Venmo](https://venmo.com/) ([Privacy notice](https://venmo.com/legal/us-privacy-policy/))
 - [Resend](https://resend.com/), which delivers our email ([Privacy policy](https://resend.com/legal/privacy-policy))
-- [Axiom](https://axiom.co/), which stores the site's logs ([Privacy policy](https://axiom.co/privacy))
+- [Axiom](https://axiom.co/), which stores the site's logs ([Privacy policy](https://axiom.co/docs/legal/privacy))
 
 If you pay with a wallet or watch a video on the site, that company's
 own policy covers what it collects: [Apple](https://www.apple.com/legal/privacy/)
