@@ -1,23 +1,39 @@
 {{ define "main" }}
+  {{/* Ten posts a page, grouped under their year. scripts/news/
+       fetches the next page as the reader nears the end and appends
+       its posts, joining a year that runs across the page break; the
+       pager links stay for anyone without the script. */}}
+  {{ $pager := .Paginate .Pages }}
   <section class="{{ .Type }}">
     <div class="page container py-5">
       <div class="row justify-content-center mb-5">
         <div class="col text-column">
           {{ partial "page-heading.html" . }}
-          {{ .Content }}
-          <ol class="list-unstyled news-list">
-            {{ range .Pages }}
-              <li class="news-item">
-                <time class="news-date" datetime="{{ .Date.Format "2006-01-02" }}">
-                  {{ .Date | time.Format "January 2, 2006" }}
-                </time>
-                <h2 class="news-item-title">
-                  <a href="{{ .RelPermalink }}">{{ .Title }}</a>
-                </h2>
-                <p class="mb-0">{{ .Description }}</p>
-              </li>
+          {{ if eq $pager.PageNumber 1 }}{{ .Content }}{{ end }}
+          <div class="news-years" data-news-years>
+            {{ range $pager.Pages.GroupByDate "2006" }}
+              <section class="news-year" data-year="{{ .Key }}" aria-labelledby="news-year-{{ .Key }}">
+                <h2 class="news-year-title" id="news-year-{{ .Key }}">{{ .Key }}</h2>
+                <ol class="list-unstyled news-list">
+                  {{ range .Pages }}
+                    {{ partial "news/row.html" . }}
+                  {{ end }}
+                </ol>
+              </section>
             {{ end }}
-          </ol>
+          </div>
+          {{ if gt $pager.TotalPages 1 }}
+            <nav class="news-pager d-flex justify-content-between gap-3" aria-label="More news" data-news-pager>
+              {{ with $pager.Prev }}
+                <a href="{{ .URL }}" rel="prev">&larr; Newer posts</a>
+              {{ else }}
+                <span></span>
+              {{ end }}
+              {{ with $pager.Next }}
+                <a href="{{ .URL }}" rel="next" data-news-next>Older posts &rarr;</a>
+              {{ end }}
+            </nav>
+          {{ end }}
           {{ partial "news-signup.html" (dict "id" "news-page") }}
         </div>
       </div>
