@@ -11,7 +11,7 @@
   (dict "name" "About" "path" "about/")
 }}
 {{ $here := .RelPermalink }}
-<div class="site-header-inner">
+<div class="container site-header-inner">
   {{/* The hen, and the wordmark beside it from sm up, so a page
        reached from a link still says whose it is. */}}
   <a class="site-brand" href="{{ .Site.BaseURL }}" aria-label="North Foster Farm, home" {{- if .IsHome }} aria-current="page" {{ end }}>
