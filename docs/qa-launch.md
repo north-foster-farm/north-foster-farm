@@ -1421,6 +1421,24 @@ has its own icon, and the invoice icon marks "Receipts".
   `/order/`.
 - **Teardown:** None.
 
+### AO-14 The Account menu on a desktop (#159)
+
+Automated: `account.spec.mjs`, "the Account menu on a desktop", four
+tests (desktop: they need a mouse), with `/api/me` answered in the
+browser. Passed on staging 2026-09-25 (6100be0).
+
+- **Scenario:** The header's Account menu opens on hover; a click on a
+  hover-opened menu once closed it.
+- **Setup:** Signed in; `/about/` at 1500.
+- **Test:**
+  1. Hover Account; move away.
+  2. Hover; click Account; move away; wait; click Account.
+  3. Hover; click; move away; click elsewhere. Again, with Escape.
+- **Assert:** A hover opens it and leaving closes it. After a click it
+  stays open once the pointer leaves, and the second click closes it.
+  A kept menu closes on a click elsewhere and on Escape.
+- **Teardown:** None.
+
 ## Refunds and the CLI
 
 Every command here runs from the checkout root with `.env.staging`

@@ -154,3 +154,74 @@ test.describe("sign-in links are rate limited", () => {
       }
     });
 });
+
+// #159, 6100be0: on a desktop the Account menu opens on hover. A click
+// on a hover-opened menu keeps it open, even once the pointer leaves;
+// a second click, a click away or Escape closes it. A menu only
+// hovered closes as the pointer leaves. Who is signed in is answered
+// in the browser: the menu is all the page's own.
+test.describe("the Account menu on a desktop", () => {
+  const open = async (page) => {
+    await page.route("**/api/me", (route) => route.fulfill({ json: {
+      signedIn: true,
+      customer: { email: "qa-e2e-menu@example.com", name: "Ada Hen" },
+    } }));
+    await page.goto("/about/");
+
+    const slot = page.locator("header .site-account.dropdown");
+    const button = slot.locator("[data-bs-toggle='dropdown']");
+
+    await expect(button).toBeVisible();
+
+    return { button, menu: slot.locator(".dropdown-menu") };
+  };
+  // Somewhere well away from the header.
+  const away = (page) => page.mouse.move(700, 700);
+
+  test("a hover opens it and leaving closes it", async ({ page }) => {
+    const { button, menu } = await open(page);
+
+    await button.hover();
+    await expect(button).toHaveAttribute("aria-expanded", "true");
+    await expect(menu).toBeVisible();
+    await away(page);
+    await expect(button).toHaveAttribute("aria-expanded", "false");
+    await expect(menu).toBeHidden();
+  });
+
+  test("a click on a hover-opened menu keeps it open until clicked again",
+    async ({ page }) => {
+      const { button, menu } = await open(page);
+
+      await button.hover();
+      await expect(menu).toBeVisible();
+      await button.click();
+      await expect(button).toHaveAttribute("aria-expanded", "true");
+      await away(page);
+      // Past the 160 ms a hover-only menu waits before closing.
+      await page.waitForTimeout(500);
+      await expect(menu).toBeVisible();
+
+      await button.click();
+      await expect(button).toHaveAttribute("aria-expanded", "false");
+      await expect(menu).toBeHidden();
+    });
+
+  for (const [how, close] of [
+    ["a click away", (page) => page.mouse.click(700, 700)],
+    ["Escape", (page) => page.keyboard.press("Escape")],
+  ]) {
+    test(`a kept menu closes on ${how}`, async ({ page }) => {
+      const { button, menu } = await open(page);
+
+      await button.hover();
+      await button.click();
+      await away(page);
+      await page.waitForTimeout(500);
+      await expect(menu).toBeVisible();
+      await close(page);
+      await expect(button).toHaveAttribute("aria-expanded", "false");
+      await expect(menu).toBeHidden();
+    });
+  }
+});
