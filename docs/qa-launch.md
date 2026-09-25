@@ -1683,13 +1683,15 @@ landed.
   video obeys it too.
 - **Teardown:** Delete the customer.
 
-### AR-04 Hero size, type and tint (#134)
+### AR-04 Hero size, type and wash (#134, #173)
 
-Automated: `home.spec.mjs`, "the hero's height, tint and type (#134)"
-(both projects). Checked by eye at 390 and 1500 on 2026-09-24. The
-wordmark is the header's logo.
+Automated: `home.spec.mjs`, "the hero's height, wash and type (#134,
+#173)" (both projects). Passed on staging 2026-09-25 (859d95b). The
+wordmark is the header's logo. The accent word's contrast over the
+picture (3:1 or better, per 859d95b) is judged by eye.
 
-- **Scenario:** James's hero adjustments.
+- **Scenario:** James's hero adjustments, and #173's blurred picture
+  under a green wash in place of outlined type.
 - **Setup:** Home page at 320, 390, 575, 576, 768, 990, 1500 and 2560
   wide.
 - **Test:**
@@ -1697,8 +1699,10 @@ wordmark is the header's logo.
 - **Assert:** The title runs three lines below 576 and two from 576 up,
   and its words stay inside the window and their column at every width
   (it never wraps on its own); height at most 1300px; below 576 the big
-  line at least 1.8 times the h1; from 768 up the h1's stroke at least
-  2.5px; the picture under `brightness(0.82)`; the header's wordmark in
+  line at least 1.8 times the h1; no text stroke at any width; the
+  picture under `blur(4px) brightness(0.82)`; a wash of `--bs-primary`
+  at 0.7 to 0.85; from 992 the words in the right part of the hero
+  and its lower part, below 992 centred; the header's wordmark in
   `--bs-primary`.
 - **Teardown:** None.
 
@@ -2242,17 +2246,18 @@ Pending.
 ### AR-28 How to buy (#150)
 
 Automated: `home.spec.mjs`, "How to buy walks four steps without the
-invoice era" (both projects).
+invoice era" (both projects). The step titles are #173's draft,
+pending James (8855002); the test pins them so a change shows.
 
 - **Scenario:** James's wording for paying on the page replaces the
   emailed payment link.
 - **Setup:** Home page.
 - **Test:**
   1. Read `#how-to-buy`; press Shop all products.
-- **Assert:** "From our pasture to your table"; steps "Shop one page",
-  "Choose your day", "Make a change", "Pick up or delivery", each with
-  its icon; no "invoice", "payment link" or "Pay to confirm"; the
-  button lands on `/order/`.
+- **Assert:** "From our pasture to your table"; steps "Step 1: Shop
+  what’s fresh", "Step 2: Pick your day", "Step 3: Change of plans?",
+  "Step 4: Taste the difference", each with its icon; no "invoice",
+  "payment link" or "Pay to confirm"; the button lands on `/order/`.
 - **Teardown:** None.
 
 ### AR-29 The cart count on the Order link (#166)

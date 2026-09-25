@@ -58,10 +58,12 @@ test.describe("home", () => {
       await expect(page).toHaveURL(/\/order\/$/);
     });
 
-  // #134: the hero stops growing on a tall screen, sits under a black
-  // tint, and on a phone its big line runs three lines, well above the
-  // h1. The title never wraps on its own, so it must fit every width.
-  test("the hero's height, tint and type (#134)", async ({ page }) => {
+  // #134: the hero stops growing on a tall screen, and on a phone its
+  // big line runs three lines, well above the h1. The title never
+  // wraps on its own, so it must fit every width. #173: the picture is
+  // blurred under a wash of the primary green, and from lg the words
+  // sit in the bottom right corner; below lg they are centred.
+  test("the hero's height, wash and type (#134, #173)", async ({ page }) => {
     const measure = () => page.evaluate(() => {
       const hero = document.querySelector(".home-hero");
       const title = document.querySelector(".home-hero-title");
@@ -87,8 +89,11 @@ test.describe("home", () => {
         left: words.left,
         right: words.right,
         room: text.getBoundingClientRect(),
+        box: hero.getBoundingClientRect(),
         filter: getComputedStyle(document.querySelector(".home-hero-img"))
           .filter,
+        wash: getComputedStyle(document.querySelector(".home-hero-shade"))
+          .backgroundImage,
         wordmark: getComputedStyle(document.querySelector("header .black"))
           .fill,
         primary: getComputedStyle(document.body)
@@ -97,6 +102,20 @@ test.describe("home", () => {
     });
 
     await page.goto("/");
+
+    // The primary green as r, g, b, however the browser spells it.
+    const green = await page.evaluate((c) => {
+      const el = document.createElement("i");
+
+      el.style.color = c;
+      document.body.append(el);
+
+      const out = getComputedStyle(el).color;
+
+      el.remove();
+
+      return out.match(/\d+/g).slice(0, 3);
+    }, (await measure()).primary);
 
     for (const [width, height, lines] of [
       [320, 568, 3], [390, 664, 3], [575, 800, 3], [576, 800, 2],
@@ -124,25 +143,25 @@ test.describe("home", () => {
       // carries the contrast.
       expect(m.stroke, `${at} no outline`).toBe(0);
       expect(m.filter).toBe("blur(4px) brightness(0.82)");
+      expect(m.wash, `${at} wash`).toMatch(new RegExp(
+        `^linear-gradient\\(.*rgba\\(${green.join(", ")}, 0\\.[78]`
+      ));
+
+      const middle = (m.room.left + m.room.right) / 2;
+
+      if (width >= 992) {
+        expect(middle, `${at} words to the right`)
+          .toBeGreaterThan(width * 0.6);
+        expect(m.room.bottom, `${at} words at the foot`)
+          .toBeGreaterThan(m.box.top + m.box.height * 0.6);
+      } else {
+        expect(Math.abs(middle - width / 2), `${at} words centred`)
+          .toBeLessThanOrEqual(2);
+      }
     }
 
-    const m = await measure();
-
-    // The wordmark in the primary green, however the browser spells it.
-    const rgb = await page.evaluate((c) => {
-      const el = document.createElement("i");
-
-      el.style.color = c;
-      document.body.append(el);
-
-      const out = getComputedStyle(el).color;
-
-      el.remove();
-
-      return out;
-    }, m.primary);
-
-    expect(m.wordmark).toBe(rgb);
+    // The wordmark in the primary green.
+    expect((await measure()).wordmark).toBe(`rgb(${green.join(", ")})`);
   });
 
   // #133: the coop clip plays behind the hero over its photograph, and
