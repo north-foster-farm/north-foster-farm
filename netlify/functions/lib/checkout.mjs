@@ -322,10 +322,18 @@ export const rescueCheckout = async (stores, checkout, {
   if (!["APPROVED", "COMPLETED"].includes(current.status)) return null;
   if (now.getTime() - since < PAGE_GRACE) return null;
 
-  const saved = await finishVenmo(stores, checkout.order, {
-    key: checkout.key, attempt: checkout.attempt,
-    paypalOrderId: checkout.paypalOrderId,
-  }, { paypal, ...options });
+  // A change to a paid order (lib/edit.mjs) finishes as a change; the
+  // jobs hand in its finish, since edit.mjs builds on this file.
+  const { finishEdit, ...rest } = options;
+  const saved = checkout.edit
+    ? await finishEdit(stores, {
+      id: checkout.edit.id, key: checkout.key, attempt: checkout.attempt,
+      paypalOrderId: checkout.paypalOrderId,
+    }, { paypal, ...rest })
+    : await finishVenmo(stores, checkout.order, {
+      key: checkout.key, attempt: checkout.attempt,
+      paypalOrderId: checkout.paypalOrderId,
+    }, { paypal, ...rest });
 
   log.warn({ event: "venmo.rescued", id: saved.id, status: current.status });
 

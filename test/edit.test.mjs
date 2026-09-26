@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { handle as placeOrder } from "../netlify/functions/orders.mjs";
-import { diffLines, editOrder } from "../netlify/functions/lib/edit.mjs";
-import { getOrder } from "../netlify/functions/lib/records.mjs";
+import { rescueCheckout } from "../netlify/functions/lib/checkout.mjs";
+import {
+  diffLines, editOrder, finishEditVenmo,
+} from "../netlify/functions/lib/edit.mjs";
+import { getCheckout, getOrder } from "../netlify/functions/lib/records.mjs";
 import { buildChangeOrder } from "../netlify/functions/lib/square.mjs";
 import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
@@ -58,6 +61,30 @@ const fakeSquare = ({ pay } = {}) => {
   };
 
   return { square, calls };
+};
+
+const fakePaypal = () => {
+  const calls = [];
+  let n = 0;
+  const paypal = {
+    createOrder: async (order) => {
+      calls.push(["create", order.totals.total]);
+
+      return { paypalOrderId: `PPO-${++n}` };
+    },
+    captureOrder: async (paypalOrderId) => {
+      calls.push(["capture", paypalOrderId]);
+
+      return {
+        paypalOrderId, paypalCaptureId: `CAP-${paypalOrderId}`,
+        status: "COMPLETED", amount: null,
+        payer: { email: "pat@venmo", name: "Pat" },
+      };
+    },
+    getOrder: async () => ({ status: "APPROVED", updatedAt: null }),
+  };
+
+  return { paypal, calls };
 };
 
 const newOrder = {
@@ -305,6 +332,94 @@ describe("editOrder", () => {
       assert.equal((await getOrder(stores, id)).square.fulfilmentOrderId,
         "SQC1");
     });
+
+  it("takes the difference by Venmo in two steps", async () => {
+    const { stores, id } = await placed();
+    const { square, calls } = fakeSquare();
+    const paypal = fakePaypal();
+    const key = editKey();
+    const body = { idempotencyKey: key, lines: [{ sku: SKU, qty: 3 }] };
+    const started = await edit(stores, id, {
+      ...body, payment: { method: "venmo", stage: "create" },
+    }, square, { paypal: paypal.paypal });
+
+    assert.equal(started.ok, true, JSON.stringify(started.errors));
+    assert.equal(started.paypalOrderId, "PPO-1");
+    assert.equal(paypal.calls[0][1], started.difference);
+    // Nothing changes until the money is in.
+    assert.equal((await getOrder(stores, id)).lines[0].qty, 2);
+
+    const opts = { now, env, square, paypal: paypal.paypal, ...quiet };
+    const capture = { ...body, payment: {
+      method: "venmo", stage: "capture", paypalOrderId: "PPO-1",
+    } };
+    const finished = await editOrder(stores, customer, id, capture, opts);
+
+    assert.equal(finished.ok, true, JSON.stringify(finished.errors));
+
+    const saved = await getOrder(stores, id);
+    const p = saved.payments[1];
+
+    assert.equal(saved.lines[0].qty, 3);
+    assert.deepEqual([p.via, p.amount, p.paypalCaptureId, p.edit],
+      ["venmo", started.difference, "CAP-PPO-1", key]);
+    assert.equal(p.squarePaymentId, "PAY-SQC1");
+    assert.deepEqual(calls.find((c) => c[0] === "payment").slice(2),
+      [started.difference, "SQC1"]);
+
+    // The page's retry after a lost answer finds the record.
+    assert.equal((await editOrder(stores, customer, id, capture, opts)).ok,
+      true);
+    assert.equal(paypal.calls.filter((c) => c[0] === "capture").length, 1);
+  });
+
+  it("refuses a Venmo capture once the order has moved on", async () => {
+    const { stores, id } = await placed();
+    const { square } = fakeSquare();
+    const paypal = fakePaypal();
+    const key = editKey();
+
+    await edit(stores, id, {
+      idempotencyKey: key, lines: [{ sku: SKU, qty: 3 }],
+      payment: { method: "venmo", stage: "create" },
+    }, square, { paypal: paypal.paypal });
+    // Meanwhile another change refunds part of the order.
+    await edit(stores, id, {
+      idempotencyKey: editKey(), lines: [{ sku: SKU, qty: 1 }],
+    }, square);
+
+    const late = await editOrder(stores, customer, id, {
+      idempotencyKey: key, payment: {
+        method: "venmo", stage: "capture", paypalOrderId: "PPO-1",
+      },
+    }, { now, env, square, paypal: paypal.paypal, ...quiet });
+
+    assert.equal(late.status, 409);
+    assert.ok(!paypal.calls.some((c) => c[0] === "capture"));
+  });
+
+  it("is finished by the jobs when the page never came back", async () => {
+    const { stores, id } = await placed();
+    const { square } = fakeSquare();
+    const paypal = fakePaypal();
+    const key = editKey();
+
+    await edit(stores, id, {
+      idempotencyKey: key, lines: [{ sku: SKU, qty: 3 }],
+      payment: { method: "venmo", stage: "create" },
+    }, square, { paypal: paypal.paypal });
+
+    const checkout = await getCheckout(stores, key);
+    const later = new Date(now.getTime() + 20 * 60_000);
+    const saved = await rescueCheckout(stores, checkout, {
+      paypal: paypal.paypal, square, env, now: later, ...quiet,
+      mail: async () => ({}), finishEdit: finishEditVenmo,
+    });
+
+    assert.equal(saved.lines[0].qty, 3);
+    assert.equal(saved.payments[1].paypalOrderId, "PPO-1");
+    assert.equal(await getCheckout(stores, key), null);
+  });
 
   it("refuses someone else's order and an order past its cutoff",
     async () => {

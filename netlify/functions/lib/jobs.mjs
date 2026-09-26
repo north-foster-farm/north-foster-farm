@@ -29,6 +29,7 @@ import {
   addDays, instant, parts, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { rescueCheckout, syncSquare } from "./checkout.mjs";
+import { finishEditVenmo } from "./edit.mjs";
 import { alert, ping, readCount, readMark } from "./health.mjs";
 import { log } from "./log.mjs";
 import { adminEmails, sendMail } from "./mail.mjs";
@@ -169,7 +170,7 @@ export const runJobs = async (stores, {
       () => listCheckouts(stores))) || []) {
       const saved = await attempt(checkout.order && checkout.order.id,
         "rescue", () => rescueCheckout(stores, checkout, {
-          ...opts, paypal, square, fetchImpl,
+          ...opts, paypal, square, fetchImpl, finishEdit: finishEditVenmo,
         }));
 
       if (saved) report.checkoutsRescued.push(saved.id);

@@ -32,14 +32,16 @@ import {
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { canChange, publicOrder } from "./account.mjs";
 import { refundOrder } from "./admin.mjs";
-import { attemptKey, METHODS } from "./checkout.mjs";
+import { attemptKey, CheckoutError, METHODS } from "./checkout.mjs";
 import { alert } from "./health.mjs";
 import { retry } from "./http.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
+import * as paypalApi from "./paypal.mjs";
+import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./paypal.mjs";
 import {
-  amendOrder, getOrder, moneyPatch, paidTotal, paymentsOf, refundedTotal,
-  refundsOf,
+  amendOrder, deleteCheckout, getCheckout, getOrder, moneyPatch, paidTotal,
+  paymentRef, paymentsOf, refundedTotal, refundsOf, saveCheckout,
 } from "./records.mjs";
 import * as squareApi from "./square.mjs";
 import { DECLINE_MESSAGES as SQUARE_DECLINES } from "./square.mjs";
@@ -294,11 +296,14 @@ const syncFulfilment = async (stores, saved, change, { changeOrderId, k,
 // -> the saved record.
 // throws SquareError { declined, code } or { retryable }, like the
 // order endpoint's payments; a refund failure throws as the CLI's does.
-export const applyEdit = async (stores, plan, { key, attempt = 1, payment },
-  {
-    square = squareApi, paypal, env = process.env, fetchImpl, sleep,
-    mail = sendMail, now = new Date(),
-  } = {}) => {
+// `charge` takes the difference; by default the card or wallet in
+// `payment`, and for Venmo the capture (finishEditVenmo).
+export const applyEdit = async (stores, plan, {
+  key, attempt = 1, payment, charge = chargeSquare,
+}, {
+  square = squareApi, paypal, env = process.env, fetchImpl, sleep,
+  mail = sendMail, now = new Date(),
+} = {}) => {
   const { next, change } = plan;
   const id = plan.order.id;
   const k = attemptKey(key, attempt);
@@ -313,8 +318,8 @@ export const applyEdit = async (stores, plan, { key, attempt = 1, payment },
 
   if (change.difference > 0) {
     // The money first: a declined card leaves the order as it was.
-    const charged = await chargeSquare(after, change, k, payment, {
-      square, env, fetchImpl, sleep,
+    const charged = await charge(after, change, k, payment, {
+      square, paypal, env, fetchImpl, sleep, mail, now, stores,
     });
     const payments = paymentsOf(order);
 
@@ -322,16 +327,18 @@ export const applyEdit = async (stores, plan, { key, attempt = 1, payment },
     order = await amendOrder(stores, id, {
       ...patch,
       ...moneyPatch(order, {
-        payments: payments.some((p) => p.squarePaymentId
-          === charged.payment.squarePaymentId)
+        payments: payments.some((p) => paymentRef(p)
+          === paymentRef(charged.payment))
           ? payments
           : [...payments, {
             at: now.toISOString(), amount: change.difference, edit: key,
             ...charged.payment,
           }],
       }),
-      square: order.square ? { ...order.square, changes: [
-        ...(order.square.changes || []),
+      // A Square copy that failed has no change order to list.
+      square: order.square && changeOrderId ? { ...order.square, changes: [
+        ...(order.square.changes || [])
+          .filter((c) => c.squareOrderId !== changeOrderId),
         { squareOrderId: changeOrderId, at: now.toISOString(),
           amount: change.difference },
       ] } : order.square,
@@ -366,6 +373,132 @@ export const applyEdit = async (stores, plan, { key, attempt = 1, payment },
   });
 };
 
+// The difference by Venmo, in the new order's two steps. The first
+// keeps the plan as a checkout (records.mjs) with the PayPal order for
+// the difference; the second, from the page or from the jobs when the
+// page never came back (rescueCheckout), captures it and applies the
+// plan it kept, provided the record has not changed since.
+export const startEditVenmo = async (stores, plan, { key, attempt = 1 }, {
+  paypal = paypalApi, env = process.env, fetchImpl, sleep, now = new Date(),
+} = {}) => {
+  const k = attemptKey(key, attempt);
+  const after = { ...plan.order, totals: { ...plan.order.totals,
+    total: plan.change.difference } };
+  const { paypalOrderId } = await retry(
+    () => paypal.createOrder(after, k, { env, fetchImpl, now }), { sleep }
+  );
+
+  await saveCheckout(stores, {
+    key, attempt, at: now.toISOString(), paypalOrderId,
+    order: after,
+    edit: {
+      id: plan.order.id, next: plan.next, change: plan.change,
+      held: heldOn(plan.order),
+    },
+  });
+
+  return { paypalOrderId };
+};
+
+// Captures the approved payment and notes it on a Square change order
+// as an external tender, as a new Venmo order's Square copy is. A
+// Square failure never loses the money: the payment is recorded
+// without its copy and the farm is told.
+const captureVenmo = (paypalOrderId) => async (after, change, k, _payment, {
+  square, paypal = paypalApi, env, fetchImpl, sleep, mail, now, stores,
+}) => {
+  const capture = await retry(
+    () => paypal.captureOrder(paypalOrderId, k, { env, fetchImpl, now }),
+    { sleep }
+  );
+
+  if (capture.amount !== null && capture.amount !== change.difference) {
+    log.error({
+      event: "venmo.amount_mismatch", id: after.id, paypalOrderId,
+      captured: capture.amount, total: change.difference,
+    });
+    await alert(stores, "venmo.amount_mismatch", {
+      id: after.id, paypalOrderId, captured: capture.amount,
+      total: change.difference,
+    }, { env, mail, now });
+  }
+
+  let squareOrderId = null;
+  let squarePaymentId = null;
+
+  try {
+    const created = await retry(() => square.createChangeOrder(
+      after, change, k, { env, fetchImpl }
+    ), { sleep });
+    const paid = await retry(() => square.createPayment({
+      order: { ...after, totals: { ...after.totals,
+        total: change.difference } },
+      squareOrderId: created.squareOrderId,
+      customerId: created.customerId,
+      key: k,
+      source: {
+        external: { source: "Venmo", sourceId: capture.paypalCaptureId },
+      },
+    }, { env, fetchImpl }), { sleep });
+
+    squareOrderId = created.squareOrderId;
+    squarePaymentId = paid.squarePaymentId;
+  } catch (error) {
+    log.error({
+      event: "square.record_failed", id: after.id,
+      error: String(error && error.message), detail: error && error.detail,
+    });
+    await alert(stores, "square.record_failed", {
+      id: after.id, error: String(error && error.message),
+    }, { env, mail, now });
+  }
+
+  return {
+    squareOrderId,
+    payment: {
+      via: "venmo", method: "venmo", squarePaymentId, receiptUrl: null,
+      paypalOrderId, paypalCaptureId: capture.paypalCaptureId,
+      payer: capture.payer,
+    },
+  };
+};
+
+// -> the saved record. throws PayPalError, or a CheckoutError when
+// the checkout is unknown or the record moved on since it began.
+export const finishEditVenmo = async (stores, {
+  id, key, attempt = 1, paypalOrderId,
+}, options = {}) => {
+  const order = await getOrder(stores, id);
+  const checkout = await getCheckout(stores, key);
+
+  // Finished already, by a lost first try or by the jobs.
+  if (paymentsOf(order).some((p) => p.paypalOrderId === paypalOrderId)) {
+    if (checkout) await deleteCheckout(stores, key);
+
+    return order;
+  }
+  if (!checkout || !checkout.edit || checkout.edit.id !== id
+    || checkout.paypalOrderId !== paypalOrderId) {
+    throw new CheckoutError("That payment doesn't match this change. " +
+      "Start again.", { code: "checkout.unknown" });
+  }
+  if (heldOn(order) !== checkout.edit.held) {
+    throw new CheckoutError("The order changed after the Venmo payment " +
+      "started. Start the payment again.", { code: "checkout.changed" });
+  }
+
+  const saved = await applyEdit(stores, {
+    order, next: checkout.edit.next, change: checkout.edit.change,
+  }, {
+    key, attempt: checkout.attempt || attempt,
+    charge: captureVenmo(paypalOrderId),
+  }, options);
+
+  await deleteCheckout(stores, key);
+
+  return saved;
+};
+
 // POST /api/account/orders/:id/edit, for the signed-in owner, until
 // the cutoff. The body is the order as it should now be (any part of
 // it; the rest comes from the record), plus `claimedTotal`,
@@ -394,6 +527,27 @@ export const editOrder = async (stores, customer, id, body, {
     return { ok: true, order: publicOrder(order, now) };
   }
 
+  const payment = b.payment && typeof b.payment === "object" ? b.payment : {};
+  const attempt = Number.isInteger(b.attempt) && b.attempt >= 1
+    && b.attempt <= 50 ? b.attempt : 1;
+  const opts = { now, ...options };
+  const done = (saved, difference) => {
+    log.info({ event: "order.edited", id, difference });
+
+    return { ok: true, order: publicOrder(saved, now), difference };
+  };
+
+  // Venmo's second step applies the plan its first step kept.
+  if (payment.method === "venmo" && payment.stage === "capture") {
+    return guarded(stores, id, opts, async () => {
+      const saved = await finishEditVenmo(stores, {
+        id, key, attempt, paypalOrderId: String(payment.paypalOrderId || ""),
+      }, opts);
+
+      return done(saved, (paymentsOf(saved).at(-1) || {}).amount || 0);
+    });
+  }
+
   const plan = await planEdit(stores, order, b, {
     now, index, terms, codes: discountCodes.codes, group,
     validate: validateOrder,
@@ -401,25 +555,29 @@ export const editOrder = async (stores, customer, id, body, {
 
   if (!plan.ok) return plan;
 
-  const payment = b.payment && typeof b.payment === "object" ? b.payment : {};
+  const { difference } = plan.change;
 
-  if (plan.change.difference > 0) {
+  if (difference > 0) {
     if (!METHODS[payment.method]) {
       return fail(422, { payment: "Choose how to pay." });
     }
     if (payment.method === "venmo") {
-      return fail(422, { payment: "Pay the difference by card for now." });
+      if (payment.stage !== "create") {
+        return fail(422, { payment: "Which Venmo step?" });
+      }
+
+      return guarded(stores, id, opts, async () => ({
+        ok: true, difference,
+        ...(await startEditVenmo(stores, plan, { key, attempt }, opts)),
+      }));
     }
     if (!payment.sourceId) {
       return fail(422, { payment: "Enter your card details." });
     }
   }
 
-  const attempt = Number.isInteger(b.attempt) && b.attempt >= 1
-    && b.attempt <= 50 ? b.attempt : 1;
-
-  try {
-    const saved = await applyEdit(stores, plan, {
+  return guarded(stores, id, opts, async () => done(
+    await applyEdit(stores, plan, {
       key, attempt,
       payment: {
         method: String(payment.method || ""),
@@ -428,24 +586,26 @@ export const editOrder = async (stores, customer, id, body, {
           ? String(payment.verificationToken)
           : undefined,
       },
-    }, { now, ...options });
+    }, opts),
+    difference,
+  ));
+};
 
-    log.info({
-      event: "order.edited", id, difference: plan.change.difference,
-      switched: plan.change.switched,
-    });
-
-    return {
-      ok: true,
-      order: publicOrder(saved, now),
-      difference: plan.change.difference,
-    };
+// A processor's failure as the page reads it, as the order endpoint
+// answers: 402 a decline, 409 a checkout that no longer fits, 503 try
+// again, 502 not.
+const guarded = async (stores, id, { env, mail, now }, run) => {
+  try {
+    return await run();
   } catch (error) {
     if (error && error.declined) {
       return fail(402, {
-        payment: SQUARE_DECLINES[error.code]
+        payment: SQUARE_DECLINES[error.code] || PAYPAL_DECLINES[error.code]
           || "The payment didn't go through. Try another way to pay.",
       }, { declined: true, code: error.code || null });
+    }
+    if (error && error.name === "CheckoutError") {
+      return fail(409, { payment: error.message }, { code: error.code });
     }
 
     log.error({
@@ -453,13 +613,12 @@ export const editOrder = async (stores, customer, id, body, {
       detail: error && error.detail,
     });
     await alert(stores, "order.edit_failed", {
-      id, difference: plan.change.difference,
-      error: String(error && error.message),
-    }, { env: options.env, mail: options.mail, now });
+      id, error: String(error && error.message),
+    }, { env, mail, now });
 
     return fail(error && error.retryable ? 503 : 502, {
-      order: "We couldn't make that change. Nothing was charged; try " +
-        "again in a minute.",
+      order: "We couldn't make that change. Try again in a minute.",
     }, { retryable: !!(error && error.retryable) });
   }
 };
+
