@@ -291,7 +291,11 @@ header {
   }
 }
 
+// The caret centres on the x-height, not the cap height: the label is
+// mostly lower case, and centred on the capitals it read as high.
 .site-nav-caret {
+  position: relative;
+  top: 0.085em;
   display: inline-flex;
 
   svg {

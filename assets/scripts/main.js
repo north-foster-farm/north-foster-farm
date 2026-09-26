@@ -42,7 +42,18 @@ const hoverMenus = () => {
       // Open already, by hover or a click: leave it as it is.
       if (button.hidden || open()) return;
       byHover = true;
+      // Bootstrap focuses the button as it opens the menu. From a
+      // script, that focus shows the keyboard ring, and it stays after
+      // the menu closes; a hover moves no focus, so give it back.
+      const before = document.activeElement;
+
       Dropdown.getOrCreateInstance(button).show();
+      if (before === button) return;
+      if (before && before !== document.body) {
+        before.focus({ preventScroll: true });
+      } else {
+        button.blur();
+      }
     });
     slot.addEventListener("mouseleave", () => {
       timer = setTimeout(() => {
