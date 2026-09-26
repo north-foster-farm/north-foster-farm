@@ -11,13 +11,20 @@
 //   POST   /api/staging/jobs/run      { at?, reset? } run the jobs now,
 //                                     or as of `at`; `reset` lets the
 //                                     day's reports send again
+//   GET    /api/staging/emails        the email library (lib/library.mjs):
+//                                     every email, built from sample data,
+//                                     with its tags, approval and text
+//   GET    /api/staging/emails/:id    one as HTML (?format=text); nothing
+//                                     is sent
 //
 // STAGING_TOKEN, when set, is required as a bearer or ?token=.
 
 import { json, readJson } from "./lib/http.mjs";
 import { runJobs } from "./lib/jobs.mjs";
+import { entry, library } from "./lib/library.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { OUTBOX_PREFIX } from "./lib/mail.mjs";
+import { mailLinks } from "./lib/site.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 import terms from "../../data/delivery.json" with { type: "json" };
 import { today } from "../../assets/scripts/order/lib/zoned.mjs";
@@ -53,6 +60,15 @@ const page = (m) => {
   return html.includes("<body")
     ? html.replace(/<body([^>]*)>/i, `<body$1>${bar}`)
     : `${bar}${html}`;
+};
+
+// A message sets its own policy: the emails carry their styles inline,
+// and the site's stylesheet policy would strip them. It may load the
+// site's fonts.
+const MESSAGE_HEADERS = {
+  "Content-Security-Policy": "default-src 'none'; img-src https: data:; " +
+    "style-src 'unsafe-inline'; font-src https:",
+  "Cache-Control": "no-store",
 };
 
 export const handle = async (req, {
@@ -103,13 +119,7 @@ export const handle = async (req, {
 
     if (!m) return json(404, { error: "No such message." });
 
-    // This response sets its own policy: the emails carry their styles
-    // inline, and the site's stylesheet policy would strip them.
-    const headers = {
-      "Content-Security-Policy": "default-src 'none'; img-src https: data:; " +
-        "style-src 'unsafe-inline'",
-      "Cache-Control": "no-store",
-    };
+    const headers = MESSAGE_HEADERS;
 
     if (url.searchParams.get("format") === "text") {
       const to = Array.isArray(m.to) ? m.to.join(", ") : m.to;
@@ -123,6 +133,53 @@ export const handle = async (req, {
     return new Response(page({ ...m, token: tokenOf(req) }), {
       status: 200,
       headers: { ...headers, "Content-Type": "text/html; charset=utf-8" },
+    });
+  }
+
+  if (req.method === "GET" && path === "/api/staging/emails") {
+    const links = mailLinks(env);
+
+    return json(200, {
+      emails: library.map((e) => {
+        const base = {
+          id: e.id, name: e.name, when: e.when, audience: e.audience,
+          tags: e.tags, approval: e.approval, note: e.note,
+        };
+
+        try {
+          const m = e.build(links);
+
+          return { ...base, subject: m.subject, text: m.text };
+        } catch (error) {
+          return { ...base, subject: e.name, error: String(error.message) };
+        }
+      }),
+    });
+  }
+
+  if (req.method === "GET" && path.startsWith("/api/staging/emails/")) {
+    const e = entry(decodeURIComponent(
+      path.slice("/api/staging/emails/".length)
+    ));
+
+    if (!e) return json(404, { error: "No such email." });
+
+    const m = e.build(mailLinks(env));
+
+    if (url.searchParams.get("format") === "text") {
+      return new Response(`Subject: ${m.subject}\n\n${m.text}\n`, {
+        status: 200,
+        headers: {
+          ...MESSAGE_HEADERS, "Content-Type": "text/plain; charset=utf-8",
+        },
+      });
+    }
+
+    return new Response(m.html, {
+      status: 200,
+      headers: {
+        ...MESSAGE_HEADERS, "Content-Type": "text/html; charset=utf-8",
+      },
     });
   }
 

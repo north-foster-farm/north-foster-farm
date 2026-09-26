@@ -59,6 +59,16 @@ Unset means production: bare store names, no staging endpoints.
 A yellow "Staging" tab in the bottom right corner of every page. It
 opens to a panel with:
 
+- **Emails.** The email library: every email the site sends, and the
+  Farm news drafts, each built from sample data by
+  `netlify/functions/lib/library.mjs` and listed in a sidebar by who
+  receives it. Search matches names, tags, subjects and body text; a
+  tag narrows the list to itself; the filter shows what waits on
+  James's approval. The open email shows as HTML or text, with what
+  he has not yet seen of it. Nothing is sent. `#email=<id>` on any
+  page opens the library at that email (Copy link gives it), and
+  `#emails` opens it at the top. A new template gets an entry in
+  `library.mjs`, "to approve" until James says otherwise.
 - **Inbox.** The outbox, newest first, refreshed every five seconds
   while open. A message opens in a new window as the HTML the
   customer would have received, with a bar above it saying who it was

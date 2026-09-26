@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   OUTBOX_KEEP, OUTBOX_PREFIX, sendMail,
 } from "../netlify/functions/lib/mail.mjs";
+import { library } from "../netlify/functions/lib/library.mjs";
 import { storeName, testStores } from "../netlify/functions/lib/store.mjs";
 import { handle, staging } from "../netlify/functions/staging.mjs";
 
@@ -206,4 +207,56 @@ describe("the staging endpoints", () => {
 
       assert.equal(bad.status, 400);
     });
+});
+
+describe("the email library", () => {
+  const env = { CONTEXT: "branch-deploy", SITE_URL: "https://staging.test" };
+
+  it("is a 404 in production, like every staging path", async () => {
+    for (const path of ["/api/staging/emails",
+      "/api/staging/emails/sign-in-link"]) {
+      const res = await handle(req(path), {
+        stores: testStores(), env: { CONTEXT: "production" },
+      });
+
+      assert.equal(res.status, 404);
+    }
+  });
+
+  it("lists every email, built, tagged and marked for approval",
+    async () => {
+      const res = await handle(req("/api/staging/emails"), {
+        stores: testStores(), env,
+      });
+      const { emails } = await res.json();
+
+      assert.equal(res.status, 200);
+      assert.equal(emails.length, library.length);
+      assert.equal(new Set(emails.map((e) => e.id)).size, emails.length);
+      for (const e of emails) {
+        assert.equal(e.error, undefined, e.id);
+        assert.ok(e.subject && e.text, e.id);
+        assert.ok(e.tags.length, e.id);
+        assert.ok(["customer", "farm", "list"].includes(e.audience), e.id);
+        assert.ok(["approved", "to approve"].includes(e.approval), e.id);
+      }
+    });
+
+  it("shows one as HTML or text, with links to the deploy", async () => {
+    const stores = testStores();
+    const html = await handle(req("/api/staging/emails/sign-in-link"),
+      { stores, env });
+    const text = await handle(
+      req("/api/staging/emails/sign-in-link?format=text"), { stores, env });
+    const none = await handle(req("/api/staging/emails/nope"),
+      { stores, env });
+
+    assert.equal(html.status, 200);
+    assert.match(html.headers.get("content-type"), /text\/html/);
+    assert.match(await html.text(), /https:\/\/staging\.test\/account\//);
+    assert.match(await text.text(), /^Subject: Your secure sign-in link/);
+    assert.equal(none.status, 404);
+    assert.deepEqual(await stores.jobs.list(OUTBOX_PREFIX), [],
+      "nothing reaches the outbox");
+  });
 });

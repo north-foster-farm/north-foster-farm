@@ -7,7 +7,10 @@
 //
 // States: open, collapsed to a tab (remembered per browser), or hidden
 // until the next load (per tab), so a review of the page itself is
-// not disturbed.
+// not disturbed. The email library (library.js) opens from the panel
+// or from a #email=<id> link, even when the toolbar is hidden.
+
+import { mountLibrary } from "./library.js";
 
 const root = document.getElementById("staging");
 const qs = (sel) => root.querySelector(sel);
@@ -166,7 +169,17 @@ const runJobs = async (at) => {
   poll();
 };
 
+const library = mountLibrary({
+  root,
+  api,
+  onOpen: () => {
+    store(sessionStorage, HIDDEN, null);
+    root.hidden = false;
+  },
+});
+
 const boot = async () => {
+  library.fromHash();
   if (store(sessionStorage, HIDDEN)) return;
 
   root.hidden = false;
@@ -182,6 +195,7 @@ const boot = async () => {
   }
   qs("[data-staging-info]").textContent = text;
   show(!!store(localStorage, KEY.open));
+  if (info.ok) library.counted();
 };
 
 // Capture, so a click lets the handler under it ask for the token.

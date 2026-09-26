@@ -23,6 +23,11 @@
         <button type="button" data-staging-hide title="Hide until the next page load" aria-label="Hide">×</button>
       </header>
       <div class="staging-body">
+        <h2>Emails</h2>
+        <p>
+          <button type="button" class="staging-action" data-staging-library-open>Email library</button>
+          <span class="staging-muted" data-staging-library-count></span>
+        </p>
         <h2>Inbox</h2>
         <p class="staging-muted" data-staging-empty>Nothing yet. Every email the site would send lands here instead.</p>
         <ol class="staging-list" data-staging-list></ol>
@@ -40,6 +45,59 @@
         <pre class="staging-out" data-staging-out hidden></pre>
       </div>
     </section>
+    {{/* The email library: every email the site sends, built from sample
+      data by /api/staging/emails, in a sidebar with the open one beside
+      it. #email=<id> on any page opens it there. */}}
+    <div class="staging-library" data-staging-library hidden>
+      <aside class="staging-shelf" aria-label="Email library">
+        <header class="staging-shelf-head">
+          <strong>Emails</strong>
+          <span class="staging-muted" data-staging-library-summary></span>
+          <button type="button" class="staging-icon" data-staging-library-close title="Close the library" aria-label="Close">×</button>
+        </header>
+        <div class="staging-shelf-tools">
+          <input type="search" class="staging-search" data-staging-search placeholder="Search names, tags, subjects, text" aria-label="Search emails" autocomplete="off">
+          <div class="staging-filters" role="group" aria-label="Show">
+            <button type="button" class="staging-filter" data-staging-filter="" aria-pressed="true">All</button>
+            <button type="button" class="staging-filter" data-staging-filter="to approve" aria-pressed="false">To approve</button>
+            <button type="button" class="staging-filter" data-staging-filter="approved" aria-pressed="false">Approved</button>
+          </div>
+        </div>
+        <div class="staging-shelf-list" data-staging-shelf>
+          <p class="staging-muted staging-pad" data-staging-shelf-empty hidden>No email matches.</p>
+        </div>
+      </aside>
+      <section class="staging-reader" data-staging-reader aria-label="Email" hidden>
+        <header class="staging-reader-head">
+          <button type="button" class="staging-icon staging-back" data-staging-reader-back title="Back to the library" aria-label="Back to the library">‹</button>
+          <div class="staging-reader-title">
+            <strong data-staging-reader-name></strong>
+            <span class="staging-muted" data-staging-reader-when></span>
+          </div>
+          <div class="staging-views" role="group" aria-label="View">
+            <button type="button" class="staging-filter" data-staging-view="html" aria-pressed="true">HTML</button>
+            <button type="button" class="staging-filter" data-staging-view="text" aria-pressed="false">Text</button>
+          </div>
+          <button type="button" class="staging-action" data-staging-copy-link>Copy link</button>
+        </header>
+        <p class="staging-reader-meta">
+          <span class="staging-badge" data-staging-reader-approval></span>
+          <span data-staging-reader-subject></span>
+        </p>
+        <p class="staging-reader-note staging-muted" data-staging-reader-note hidden></p>
+        <iframe class="staging-frame" data-staging-frame title="The email as it renders" sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
+        <pre class="staging-text" data-staging-text hidden></pre>
+      </section>
+    </div>
+    <template data-staging-item>
+      <li>
+        <a class="staging-item" href="#">
+          <span class="staging-item-name"></span>
+          <span class="staging-item-subject"></span>
+          <span class="staging-item-tags"><span class="staging-badge"></span></span>
+        </a>
+      </li>
+    </template>
   </div>
   <script src="{{ $script.RelPermalink }}" type="module" integrity="{{ $script.Data.Integrity }}" defer></script>
 {{ end }}
