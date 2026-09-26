@@ -1721,10 +1721,12 @@
         box-shadow: 0 0 0 rgb(0 0 0 / 0%);
       }
 
-      // On a phone the parts under the lines take most of half the
-      // screen, so the cap is higher and the lines keep three rows.
+      // On a phone the parts under the lines take about 330px, so the
+      // cap is all of the screen under the top bar but a strip of the
+      // list, and the lines get what the parts under them leave: six
+      // or so rows on an iPhone with its toolbars showing (#180).
       @media (max-width: 767.98px) {
-        max-height: 65svh;
+        max-height: calc(100svh - var(--order-topbar-h) - 3rem);
         margin-inline: 0.625rem;
       }
     }
