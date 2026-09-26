@@ -30,7 +30,7 @@ test.describe("policies", () => {
     // Payments: Square and PayPal, and no card details on the site.
     expect(text).toMatch(/Square/);
     expect(text).toMatch(/Venmo payments go through PayPal/);
-    expect(text).toMatch(/We never see your card details/);
+    expect(text).toMatch(/We never see your card number/);
     expect(text).not.toMatch(/invoice/i);
 
     const updated = text.match(/Last updated (\w+ \d{1,2}, \d{4})/);

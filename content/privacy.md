@@ -16,7 +16,7 @@ We collect personal information you provide to us.
 The order form at [/order](/order) collects your name, email address, phone
 number and your order, plus a delivery address if you choose delivery. We
 send that to Square, which records your order and takes card and wallet
-payments. Venmo payments go through PayPal. We never see your card details.
+payments. Venmo payments go through PayPal. We never see your card number.
 
 While you fill out the form, a draft is kept in your browser until you
 place your order or discard it. It never leaves your device.
@@ -64,8 +64,8 @@ An order holds your name, email address, phone number, what you ordered, how
 and when you'll get it, any delivery address and notes, and what you paid and
 any refund. For a card, Square tells us the card's brand and its last four
 digits. For Venmo, PayPal tells us the name and email address on the Venmo
-account. An order also records which browser you used and the page you came
-from.
+account. We keep no other payment details. An order also records which
+browser you used and the page you came from.
 
 Square keeps its own copy of your order, your payment, and your name, email
 address, phone number and delivery details.
@@ -162,4 +162,4 @@ By using our website, you consent to our privacy policy.
 If you have questions regarding this privacy policy, you may email
 info@northfosterfarm.com.
 
-Last updated September 25, 2026.
+Last updated September 26, 2026.
