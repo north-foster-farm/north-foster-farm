@@ -25,8 +25,8 @@ const qs = (root, selector) => root.querySelector(selector);
 
 const VENMO = "nff-venmo";
 
-// Whether this browser sees the Venmo button (lib/venmo.mjs).
-const venmoShown = (hidden) => {
+// Whether the Venmo button works in this browser (lib/venmo.mjs).
+const venmoEnabled = (hidden) => {
   let remembered = false;
 
   try {
@@ -35,7 +35,9 @@ const venmoShown = (hidden) => {
     // Storage blocked: ?venmo still works for this page view.
   }
 
-  const { show, remember } = venmoGate(hidden, location.search, remembered);
+  const { enabled, remember } = venmoGate(
+    hidden, location.search, remembered
+  );
 
   try {
     if (remember) {
@@ -47,7 +49,7 @@ const venmoShown = (hidden) => {
     // As above.
   }
 
-  return show;
+  return enabled;
 };
 
 const loaded = new Map();
@@ -407,9 +409,13 @@ export class Payment {
   // --- Venmo --------------------------------------------------------
 
   async initVenmo(cfg) {
-    const container = qs(this.root, "[data-venmo]");
+    const cell = qs(this.root, "[data-venmo-cell]");
+    const container = qs(cell, "[data-venmo]");
+    // Held back: PayPal's button, inert and greyed, over "Coming soon".
+    // It never counts as a way to pay, and never opens anything.
+    const locked = !venmoEnabled(cfg.hidden);
 
-    if (!venmoShown(cfg.hidden)) return;
+    container.inert = locked;
 
     try {
       await loadScript(cfg.sdkUrl);
@@ -426,8 +432,13 @@ export class Payment {
     const button = paypal.Buttons({
       fundingSource: paypal.FUNDING.VENMO,
       style: { shape: "rect", height: 44, label: "pay" },
+      onInit: (data, actions) => {
+        if (locked) actions.disable();
+      },
       onClick: (data, actions) => {
-        if (this.busy || !this.form.prepare()) return actions.reject();
+        if (locked || this.busy || !this.form.prepare()) {
+          return actions.reject();
+        }
 
         return actions.resolve();
       },
@@ -461,19 +472,20 @@ export class Payment {
     });
 
     if (!button.isEligible()) {
-      container.hidden = true;
+      cell.hidden = true;
 
       return;
     }
 
     try {
       await button.render(container);
-      this.venmo = button;
-      container.hidden = false;
+      if (!locked) this.venmo = button;
+      qs(cell, "[data-venmo-soon]").hidden = !locked;
+      cell.hidden = false;
       this.showWallets();
     } catch (error) {
       console.error(error);
-      container.hidden = true;
+      cell.hidden = true;
     }
   }
 

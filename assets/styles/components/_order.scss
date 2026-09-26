@@ -1406,6 +1406,35 @@
     }
   }
 
+  // Venmo's cell: the button, and under it "Coming soon" while Venmo
+  // is held back, when the button is inert and greyed.
+  .order-pay-venmo {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 0;
+
+    &[hidden] {
+      display: none;
+    }
+
+    // stylelint-disable-next-line no-descending-specificity
+    .order-pay-button[inert] {
+      opacity: 0.45;
+      filter: grayscale(1);
+    }
+  }
+
+  .order-pay-soon {
+    margin: 0;
+    font-size: 0.8125rem;
+    text-align: center;
+    color: var(--bs-secondary-color);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
   // Apple's own button, drawn by Safari.
   .order-apple-pay {
     display: block;
