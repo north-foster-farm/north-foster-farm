@@ -1627,7 +1627,7 @@ confirms, the click opts in". Tagged `@regression`.
   North Foster Farm news and updates"; it reads "Click the button below
   to receive news and updates from North Foster Farm.", has a "Sign up"
   button, "This link expires in 7 days. You're receiving this message
-  because you previously joined our mailing list." and "Need help?
+  because you asked to join our mailing list." and "Need help?
   Contact us", and
   says neither "now and then" nor "Nothing is sent until you do". Before
   the click the record is absent or not consenting. The link, to the

@@ -102,6 +102,7 @@ export const requestSubscribe = async (stores, {
   mail = sendMail,
   send = true,
   limit = true,
+  invited = false,
   ttl = CONFIRM_TTL,
 } = {}) => {
   const address = normalizeEmail(email);
@@ -138,7 +139,7 @@ export const requestSubscribe = async (stores, {
       to: address,
       idempotencyKey: `news-${hash(token).slice(0, 16)}`,
       ...newsConfirm(address, url, {
-        days: Math.round(ttl / DAY), links: mailLinks(env),
+        days: Math.round(ttl / DAY), invited, links: mailLinks(env),
       }),
     }, { env });
   }
@@ -199,7 +200,7 @@ export const inviteSubscribers = async (stores, rows, {
     if (!dryRun) {
       await requestSubscribe(stores, {
         email: address, firstName: row.firstName, lastName: row.lastName,
-      }, { now, env, mail, limit: false });
+      }, { now, env, mail, limit: false, invited: true });
     }
     report.invited.push(address);
   }

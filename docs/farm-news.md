@@ -34,8 +34,9 @@ bin/nff --production audience invite contacts.csv [--dry-run]
 
 The CSV has a header naming email, first and last (any order, any
 case), or no header and the email first. Each address not already
-consenting gets the same confirmation email, once, with no rate
-limit; those already in are skipped and bad addresses reported.
+consenting gets the confirmation email, once, with no rate limit; its
+last line says they previously joined, where a sign-up's says they
+asked to. Those already in are skipped and bad addresses reported.
 Nothing else happens until they click. This is the Fastmail list's
 way in.
 

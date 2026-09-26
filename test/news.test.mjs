@@ -183,6 +183,8 @@ describe("the invitation of an old list", () => {
       assert.equal(sent.length, 1);
       assert.equal(sent[0].to, "new@example.com");
       assert.match(sent[0].text, /news and updates from North Foster/);
+      assert.match(sent[0].text,
+        /because you previously joined our mailing list\.$/m);
 
       const dry = await inviteSubscribers(stores, [{ email: "x@y.co" }],
         { now, env, mail, dryRun: true });
@@ -395,7 +397,7 @@ describe("the confirmation email", () => {
       "Confirm your email for North Foster Farm news and updates");
     assert.match(m.text, /^Click the button below to receive news and /m);
     assert.match(m.text, /^This link expires in 7 days\. You're receiving /m);
-    assert.match(m.text, /you previously joined our mailing list\.$/m);
+    assert.match(m.text, /because you asked to join our mailing list\.$/m);
     assert.match(m.html, />Sign up</);
     assert.match(m.html, /https:\/\/x\/confirm\?token=t/);
     assert.match(m.html, /name="format-detection"/);
