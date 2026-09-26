@@ -394,7 +394,8 @@ describe("the confirmation email", () => {
     assert.equal(m.subject,
       "Confirm your email for North Foster Farm news and updates");
     assert.match(m.text, /^Click the button below to receive news and /m);
-    assert.match(m.text, /^This link expires in 7 days\. If you didn't /m);
+    assert.match(m.text, /^This link expires in 7 days\. You're receiving /m);
+    assert.match(m.text, /you previously joined our mailing list\.$/m);
     assert.match(m.html, />Sign up</);
     assert.match(m.html, /https:\/\/x\/confirm\?token=t/);
     assert.match(m.html, /name="format-detection"/);

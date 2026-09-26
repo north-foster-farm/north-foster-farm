@@ -613,8 +613,8 @@ export const newsConfirm = (email, url, { days = 7, links } = {}) => {
     p("Click the button below to receive news and updates from North " +
       "Foster Farm."),
     button("Sign up", url),
-    p(`This link expires in ${days} days. If you didn't request this ` +
-      "email, you can safely ignore it."),
+    p(`This link expires in ${days} days. You're receiving this ` +
+      "message because you previously joined our mailing list."),
     row([["Need help? Contact us", contactUrl(links)]]),
   ];
 

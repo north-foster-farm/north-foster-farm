@@ -411,7 +411,7 @@ export const library = [
   {
     id: "news-launch-email", name: "Farm news: we're online",
     when: "Sent by James from Fastmail at launch, to the old list",
-    audience: "list", tags: ["list", "farm news", "draft"],
+    audience: "list", tags: ["list", "farm news", "launch", "draft"],
     build: () => plain(launch.subject,
       `Preview text: ${launch.preview}\n\n---\n\n${launch.body}`),
   },
@@ -437,9 +437,6 @@ const APPROVED = {
     "delivery. Not yet seen: the drop-site and on-farm wording.",
   "address-approved": "James\x27s rewrite of 2026-09-22, verbatim.",
   "sign-in-link": "James\x27s rewrite of 2026-09-22, verbatim.",
-  "news-confirm": "James\x27s dictation of 2026-09-24, verbatim. Open: " +
-    "\"farm news\" or \"news and updates\" (W14), and \"didn\x27t request\" " +
-    "for invited addresses (W19).",
   "farm-order-placed-delivery": LIBRARY,
   "farm-order-placed-dropsite": LIBRARY,
   "farm-order-changed": LIBRARY,
@@ -476,8 +473,13 @@ const WAITING = {
   "farm-square-out-of-sync": CARD,
   "farm-morning-report": `${LANDED}: the key under the table, and 🙈 ` +
     "for outside limits.",
-  "news-launch-email": "Subject and preview text are his (2026-09-26); " +
-    "the body is the email lane\x27s draft, which he agreed to publish.",
+  "news-confirm": "His dictation of 2026-09-24, with his line of " +
+    "2026-09-26 (W19) landed in place of \"If you didn\x27t request this " +
+    "email, you can safely ignore it.\" Open: \"farm news\" or \"news " +
+    "and updates\" (W14).",
+  "news-launch-email": "Subject and preview text are his (2026-09-26). " +
+    "The whole body is the email lane\x27s draft and waits on him (W18), " +
+    "with \"much of Rhode Island\" (Q5).",
 };
 
 for (const e of library) {

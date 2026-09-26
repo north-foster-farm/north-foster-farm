@@ -33,8 +33,9 @@ test.describe("farm news", () => {
         expect(mail.text).toContain("Click the button below to receive news " +
           "and updates from North Foster Farm.");
         expect(mail.text).toContain("Sign up");
-        expect(mail.text).toContain("This link expires in 7 days. If you " +
-          "didn't request this email, you can safely ignore it.");
+        expect(mail.text).toContain("This link expires in 7 days. You're " +
+          "receiving this message because you previously joined our " +
+          "mailing list.");
         expect(mail.text).toContain("Need help? Contact us");
         expect(mail.text.toLowerCase()).not.toContain("now and then");
         expect(mail.text).not.toContain("Nothing is sent until you do");
