@@ -100,10 +100,24 @@ staging address, whose id is `PAYPAL_WEBHOOK_ID` there. The page adds
 `buyer-country=US` to the PayPal SDK in the sandbox, which is what
 makes the Venmo button show. `docs/qa-fulfilment-a.md` has the steps.
 
-## What staging cannot do
+## The jobs, on a schedule
 
-- **Run on a schedule.** Netlify runs scheduled functions on the
-  production deploy only; the toolbar's Jobs buttons stand in.
+Netlify runs scheduled functions on the production deploy only. The
+`Staging jobs` workflow (`.github/workflows/staging-jobs.yml`) calls
+`/api/staging/jobs/run` every fifteen minutes instead, so staging's
+jobs run on Netlify, with its own environment, on production's clock.
+GitHub schedules it only from `main` and may start a run a few minutes
+late; the jobs are safe to run late or twice. It needs the repository
+secret `STAGING_TOKEN`, the same value as on Netlify. The toolbar's
+Jobs buttons still run them on demand.
+
+## The order limit
+
+`/api/orders` allows 12 posts per 10 minutes from one address. Off
+production, a request with the header `X-Staging-Token: <STAGING_TOKEN>`
+skips it, so the QA suite sends the header and leaves the limit to a
+person testing by hand on the same machine. A request without it meets
+the limit as production does, which is how the limit itself is tested.
 
 ## Setting it up
 
