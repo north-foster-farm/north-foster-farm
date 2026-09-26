@@ -998,24 +998,21 @@ Automated: `orders-api.spec.mjs`, "the honeypot is dropped silently".
 - **Assert:** 204, empty body.
 - **Teardown:** None.
 
-### PY-08 A transient failure is retried
+### PY-08 A transient failure is retried once
 
-Automated: `recovery.spec.mjs`, "a transient failure shows the retry
-panel, and Stop trying hands the form back".
+Automated: `recovery.spec.mjs`, "a transient failure is tried once
+more, then stops".
 
-- **Scenario:** A 503 leaves the order pending in the browser with a
-  countdown, Try now and Stop trying.
+- **Scenario:** A 503 is sent once more a few seconds later while the
+  button spins, then stops (#154).
 - **Setup:** `/api/orders` stubbed in the browser to answer 503; a
   pickup order and the approved card (tokenized, never charged).
 - **Test:**
   1. Press Place your order.
-  2. Press Stop trying.
-- **Assert:** The panel shows with Try now and a countdown, which is
-  `aria-live="off"` and changes about once a second, not every tick
-  (594f5da); the submit button is disabled; `nff-order-pending` is in
-  `localStorage`. After
-  Stop trying: the panel is gone, the button enabled, the pending entry
-  removed.
+- **Assert:** The button shows the egg spinner; no retry panel shows;
+  exactly two posts reach `/api/orders`; the by-hand card then shows
+  "We couldn't reach our payment system."; nothing is left under
+  `nff-order-pending` in `localStorage`.
 - **Teardown:** None.
 
 ### PY-09 A permanent failure goes to the by-hand card

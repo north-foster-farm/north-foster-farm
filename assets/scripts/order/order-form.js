@@ -22,10 +22,12 @@ import ScrollSpy from "bootstrap/js/dist/scrollspy.js";
 import { announceCart } from "../cart-badge/announce.js";
 import { me } from "../session/session.js";
 import { api } from "../utils/api.js";
+import { setBusy as spin } from "../utils/busy-button.js";
 
-const RETRY_DELAYS = [5000, 15000, 45000, 120000, 300000];
+// A send that can't get through is tried once more this soon, while
+// the page still shows it being placed, and then not again (#154).
+const RETRY_DELAY = 3000;
 const AGREE_SEEN = "nff-delivery-policy-seen";
-const MAX_ATTEMPTS = 6;
 
 // The code that is a joke: the cart shows a discount growing by this
 // much a minute for as long as the page is open, and nothing else
@@ -95,14 +97,9 @@ export class OrderForm {
     this.stockNotice = document.getElementById("order-stock");
     this.cart = document.getElementById("order-cart");
     this.result = document.getElementById("order-result");
-    this.pending = new Pending(document.getElementById("order-pending"), {
-      max: MAX_ATTEMPTS,
-      onRetry: () => this.resume(this.draft.pending()),
-      onCancel: () => this.cancelRetries(),
-    });
+    this.pending = new Pending(document.getElementById("order-pending"));
     this.submitButton = document.getElementById("order-submit");
     this.payment = new Payment(document.getElementById("payment"), this);
-    this.retryTimer = null;
     this.lastTotal = null;
     this.lastCount = null;
     this.busy = false;
@@ -125,17 +122,13 @@ export class OrderForm {
 
     this.wire();
 
-    const pending = this.draft.pending();
+    // Nothing is retried in the background any more (#154); an order
+    // an older page left to retry is forgotten, its draft kept.
+    this.draft.clearPending();
 
-    if (pending) {
-      this.restore(pending.payload);
-      this.resume(pending);
-      this.pending.focus();
-    } else {
-      const draft = this.draft.load();
+    const draft = this.draft.load();
 
-      if (draft && draft.payload) this.restore(draft.payload);
-    }
+    if (draft && draft.payload) this.restore(draft.payload);
 
     this.methodFromQuery();
     this.addFromQuery();
@@ -555,15 +548,6 @@ export class OrderForm {
       }
     });
     qs(catalog, ".order-cat").classList.add("is-active");
-
-    const retryNow = () => {
-      if (this.draft.pending() && !this.busy) this.resume(this.draft.pending());
-    };
-
-    window.addEventListener("online", retryNow);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") retryNow();
-    });
   }
 
   changed() {
@@ -576,9 +560,8 @@ export class OrderForm {
 
   // /order/?method=onfarm (or scituate, delivery) chooses that way, as
   // a click on its card would: the home page's off-season band and the
-  // map's pin cards. The link wins over a restored draft's way, but
-  // not over an order already being paid for. An unknown value is
-  // ignored. The query is cleared, as ?add= is.
+  // map's pin cards. The link wins over a restored draft's way. An
+  // unknown value is ignored. The query is cleared, as ?add= is.
   methodFromQuery() {
     const radios = all(this.form, "[name='method']");
     const method = linkedMethod(
@@ -586,7 +569,7 @@ export class OrderForm {
     );
 
     this.clearQuery("method");
-    if (!method || method === this.method() || this.draft.pending()) return;
+    if (!method || method === this.method()) return;
 
     radios.find((radio) => radio.value === method).checked = true;
     this.draft.save(this.collect());
@@ -1304,21 +1287,19 @@ export class OrderForm {
 
   // A wallet's token, or the card's: send it.
   pay(payload, source) {
-    return this.deliver({ ...payload, payment: source }, 0);
+    return this.deliver({ ...payload, payment: source });
   }
 
   // Venmo's two steps. The first answers with the PayPal order the
   // button pays; the second captures it and records the order.
   async venmoCreate(payload) {
     this.setBusy(true);
-    this.pending.sending(1);
 
     const outcome = await this.submitter.send({
       ...payload, payment: { method: "venmo", stage: "create" },
     });
 
     this.setBusy(false);
-    this.pending.hide();
     if (outcome.kind === "ok" && outcome.data && outcome.data.paypalOrderId) {
       this.draft.markAttempted();
 
@@ -1332,7 +1313,7 @@ export class OrderForm {
   venmoCapture(payload, paypalOrderId) {
     return this.deliver({
       ...payload, payment: { method: "venmo", stage: "capture", paypalOrderId },
-    }, 0);
+    });
   }
 
   // Submission and recovery.
@@ -1346,13 +1327,14 @@ export class OrderForm {
     if (!payload) return;
     // A change with nothing more to pay: no payment at all.
     if (this.editing && this.amount() <= 0) {
-      await this.deliver(payload, 0);
+      await this.deliver(payload);
 
       return;
     }
 
     let source;
 
+    // Busy from here to the answer, so the spinner runs unbroken.
     this.setBusy(true);
     try {
       source = await this.payment.tokenizeCard(payload);
@@ -1362,17 +1344,21 @@ export class OrderForm {
 
       return;
     }
-    this.setBusy(false);
     await this.pay(payload, source);
   }
 
-  // `attempts` is how many have already failed.
-  async deliver(payload, attempts) {
+  // A send that can't get through goes once more, under the same keys,
+  // so it can't pay twice. If that one can't either, it stops.
+  async deliver(payload) {
     this.setBusy(true);
-    this.pending.sending(attempts + 1);
     this.draft.markAttempted();
 
-    const outcome = await this.submitter.send(payload);
+    let outcome = await this.submitter.send(payload);
+
+    if (outcome.kind === "retry") {
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+      outcome = await this.submitter.send(payload);
+    }
 
     this.setBusy(false);
 
@@ -1388,7 +1374,8 @@ export class OrderForm {
       this.succeed(outcome.data, payload);
       break;
     case "retry":
-      this.defer(payload, attempts + 1);
+      // Draft wording.
+      this.fail(payload, "We couldn't reach our payment system.");
       break;
     default:
       this.settle(outcome, payload);
@@ -1397,8 +1384,6 @@ export class OrderForm {
 
   // Every answer but success and retry: the customer decides again.
   settle(outcome, payload) {
-    this.draft.clearPending();
-    this.pending.hide();
     switch (outcome.kind) {
     case "invalid":
       if (outcome.stock) {
@@ -1435,62 +1420,33 @@ export class OrderForm {
     }
   }
 
-  defer(payload, attempts) {
-    if (attempts >= MAX_ATTEMPTS) {
-      this.draft.clearPending();
-      this.fail(payload,
-        "We couldn't reach our payment system after several tries.");
-
-      return;
-    }
-
-    const delay = RETRY_DELAYS[Math.min(attempts - 1, RETRY_DELAYS.length - 1)];
-
-    this.draft.savePending(payload, attempts);
-    this.pending.waiting(attempts, delay);
-    // One submission at a time: the notice owns the next attempt.
-    this.submitButton.disabled = true;
-
-    clearTimeout(this.retryTimer);
-    this.retryTimer = setTimeout(
-      () => this.resume(this.draft.pending()), delay
-    );
-  }
-
-  resume(pending) {
-    if (!pending || this.busy) return;
-
-    clearTimeout(this.retryTimer);
-    this.deliver(pending.payload, pending.attempts);
-  }
-
-  // The customer stops the background retries. The form keeps their
-  // order and stays editable; the draft key is kept, so a later
-  // submission cannot duplicate anything an earlier try created.
-  cancelRetries() {
-    clearTimeout(this.retryTimer);
-    this.draft.clearPending();
-    this.pending.hide();
-    this.submitButton.disabled = false;
-    this.submitButton.focus();
-  }
-
+  // While an order is sent, the button that sent it spins its egg. A
+  // wallet or Venmo has no button of ours on show, so the notice says
+  // it instead. The busy flag and the form's pointer-events stop a
+  // second press; the button is not disabled, which would dim it.
   setBusy(busy) {
+    const shown = [this.submitButton, this.saveButton]
+      .find((button) => !button.hidden);
+
     this.busy = busy;
     this.form.classList.toggle("order-busy", busy);
-    this.submitButton.disabled = busy || !this.payment.ready;
-    this.saveButton.disabled = busy;
-    this.submitLabel(busy);
+    this.submitButton.disabled = !busy && !this.payment.ready;
+    for (const button of [this.submitButton, this.saveButton]) {
+      spin(button, busy && button === shown);
+    }
+    if (busy && !shown) {
+      this.pending.sending();
+    } else {
+      this.pending.hide();
+    }
   }
 
   // The cart says the total; the button says what it does.
-  submitLabel(busy = this.busy) {
-    this.submitButton.textContent = busy
-      ? "Taking your payment…"
-      : (this.editing
-        // Draft wording.
-        ? `Pay ${dollars(this.amount())} and save`
-        : "Place your order");
+  submitLabel() {
+    qs(this.submitButton, ".busy-button-idle").textContent = this.editing
+      // Draft wording.
+      ? `Pay ${dollars(this.amount())} and save`
+      : "Place your order";
   }
 
   // One line saying when and where, the sentence people screenshot.

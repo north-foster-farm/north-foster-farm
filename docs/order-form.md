@@ -155,16 +155,15 @@ refused rather than charged.
    processor was asked, bumps the attempt: fresh keys, a fresh Square
    order.
 3. The function retries 429, 5xx and network errors three times.
-4. A `503` leaves a pending record in the browser, which retries on
-   backoff, on `online`, on `visibilitychange` and on the next load.
-   A panel under the submit button shows the attempt count, a live
-   countdown to the next try, a Try now and a Stop trying button; the
-   submit button is disabled while a retry is scheduled. A card token
-   stays valid across those retries.
-5. After six attempts the customer sees the order as selectable text, a
-   prefilled `mailto:` and the phone number. Every terminal failure is
-   one structured `console.error` in the function log, with the whole
-   order, so nothing is lost.
+4. A `503` or a lost connection is sent once more, three seconds
+   later, under the same keys, while the button still spins its egg
+   (a wallet or Venmo shows a "Placing your order" notice instead).
+   Nothing retries in the background or on the next visit (#154).
+5. If that second send fails too, or on any permanent failure, the
+   customer sees the order as selectable text, a prefilled `mailto:`
+   and the phone number. Every terminal failure is one structured
+   `console.error` in the function log, with the whole order, so
+   nothing is lost.
 6. A declined card is not a failure: the message shows under the card
    form and the customer tries another card or Venmo. The Square order
    made for the declined attempt is cancelled so the dashboard never

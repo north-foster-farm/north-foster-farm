@@ -50,7 +50,8 @@ test.describe("payments", () => {
     const date = await order.firstDate("onfarm");
 
     await order.openCard();
-    await expect(order.submit).toHaveText("Place your order");
+    // The busy face (the egg spinner) is hidden from the name (#154).
+    await expect(order.submit).toHaveAccessibleName("Place your order");
     await order.card();
 
     const { status, body } = await order.pay();

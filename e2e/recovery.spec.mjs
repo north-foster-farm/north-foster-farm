@@ -1,6 +1,6 @@
-// What the page does when the order endpoint cannot answer: the retry
-// panel for a transient failure and the failure card for a permanent
-// one. The endpoint is stubbed in the browser, so nothing reaches the
+// What the page does when the order endpoint cannot answer: one more
+// try for a transient failure, then the failure card, as for a
+// permanent one. The endpoint is stubbed in the browser, so nothing reaches the
 // server or Square beyond tokenising the sandbox card.
 // docs/qa-launch.md, "Payments".
 
@@ -22,64 +22,40 @@ const ready = async (page) => {
 };
 
 test.describe("recovery", () => {
-  test("a transient failure shows the retry panel, and Stop trying " +
-    "hands the form back", async ({ page }) => {
-    let calls = 0;
+  // #154: one more try a few seconds later while the button spins,
+  // then the failure card; nothing retries in the background.
+  test("a transient failure is tried once more, then stops",
+    async ({ page }) => {
+      let calls = 0;
 
-    await page.route("**/api/orders", (route) => {
-      calls += 1;
+      await page.route("**/api/orders", (route) => {
+        calls += 1;
 
-      return route.fulfill({
-        status: 503,
-        contentType: "application/json",
-        body: JSON.stringify({
-          retryable: true,
-          message: "We couldn't reach our payment provider.",
-        }),
+        return route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({
+            retryable: true,
+            message: "We couldn't reach our payment provider.",
+          }),
+        });
       });
+
+      const order = await ready(page);
+      const failed = page.locator(".order-result-failed");
+
+      await order.submit.click();
+      await expect(order.submit).toHaveAttribute("data-busy", "true");
+      await expect(page.locator("#order-pending")).toBeHidden();
+      await expect(failed).toBeVisible({ timeout: 20_000 });
+      expect(calls, "one send and one more, no more (#154)").toBe(2);
+      await expect(failed.locator("[data-out='message']")).toHaveText(
+        "We couldn't reach our payment system."
+      );
+      expect(await page.evaluate(
+        () => localStorage.getItem("nff-order-pending")
+      )).toBeNull();
     });
-
-    const order = await ready(page);
-    const pending = page.locator("#order-pending");
-
-    await order.submit.click();
-    await expect(pending).toBeVisible({ timeout: 60_000 });
-    await expect(pending.getByRole("button", { name: "Try now" }))
-      .toBeVisible();
-    await expect(pending.locator("[data-pending-countdown]"))
-      .not.toBeEmpty();
-    // A screen reader hears the notice, not every tick (594f5da): the
-    // countdown is out of the live region and changes once a second.
-    await expect(pending.locator("[data-pending-countdown]"))
-      .toHaveAttribute("aria-live", "off");
-    const changes = await pending.locator("[data-pending-countdown]")
-      .evaluate((el) => new Promise((resolve) => {
-        let n = 0;
-        const seen = new MutationObserver((list) => { n += list.length; });
-
-        seen.observe(el, { childList: true, characterData: true,
-          subtree: true });
-        setTimeout(() => { seen.disconnect(); resolve(n); }, 2_500);
-      }));
-
-    expect(changes).toBeLessThanOrEqual(4);
-    await expect(order.submit).toBeDisabled();
-
-    // The draft keeps the pending order for the next visit.
-    const stored = await page.evaluate(
-      () => localStorage.getItem("nff-order-pending")
-    );
-
-    expect(stored).toBeTruthy();
-    expect(calls).toBeGreaterThanOrEqual(1);
-
-    await pending.getByRole("button", { name: "Stop trying" }).click();
-    await expect(pending).toBeHidden();
-    await expect(order.submit).toBeEnabled();
-    expect(await page.evaluate(
-      () => localStorage.getItem("nff-order-pending")
-    )).toBeNull();
-  });
 
   test("a permanent failure shows the order to send by hand",
     async ({ page }) => {
@@ -103,7 +79,7 @@ test.describe("recovery", () => {
 
       await order.submit.click();
       // A permanent failure is not worth retrying: the card should
-      // show at once, not after the retry schedule (about 8 minutes).
+      // show at once, without the second try.
       await expect(failed).toBeVisible({ timeout: 20_000 });
       expect(calls, "a 502 is sent once, not retried (#156)").toBe(1);
       await expect(failed.locator("h2")).toHaveText(

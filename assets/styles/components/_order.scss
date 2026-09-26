@@ -1498,9 +1498,14 @@
 
   // Notices, submit and results
 
+  // The spinning button and the notice stay at full strength.
   .order-busy {
-    opacity: 0.6;
     pointer-events: none;
+
+    > :not(.order-rest),
+    .order-rest > :not(.order-submit) {
+      opacity: 0.6;
+    }
   }
 
   .order-hp {
@@ -1529,7 +1534,7 @@
     }
   }
 
-  // Background retries: attempt count, live countdown, a way to stop.
+  // An order on its way when no button of ours shows it.
   .order-pending {
     margin-top: 1rem;
     padding: 1rem 1.125rem;
@@ -1558,33 +1563,8 @@
   }
 
   .order-pending-text {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0;
     font-size: 0.9375rem;
-  }
-
-  .order-pending-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 1rem;
-    margin-bottom: 0.75rem;
-    font-size: 0.875rem;
-    color: var(--bs-secondary-color);
-  }
-
-  .order-pending-countdown {
-    font-weight: bold;
-    font-variant-numeric: tabular-nums;
-    color: var(--bs-body-color);
-
-    &:empty {
-      display: none;
-    }
-  }
-
-  .order-pending-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
   }
 
   .order-result-card {

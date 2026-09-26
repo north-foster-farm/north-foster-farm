@@ -5,12 +5,15 @@
   scripts/utils/busy-button.js turns it on and off.
 
   Params:
-    label  The idle text
-    busy   The text beside the spinner
-    class  Extra classes, such as btn-primary (optional)
-    id     The button's id (optional)
+    label     The idle text
+    busy      The text beside the spinner
+    class     Extra classes, such as btn-primary (optional)
+    id        The button's id (optional)
+    type      The button's type (optional; submit if not given)
+    disabled  true to start disabled (optional)
+    hidden    true to start hidden (optional)
 */}}
-<button class="btn busy-button{{ with .class }} {{ . }}{{ end }}" type="submit"{{ with .id }} id="{{ . }}"{{ end }}>
+<button class="btn busy-button{{ with .class }} {{ . }}{{ end }}" type="{{ .type | default "submit" }}"{{ with .id }} id="{{ . }}"{{ end }}{{ if .disabled }} disabled{{ end }}{{ if .hidden }} hidden{{ end }}>
   <span class="busy-button-idle">{{ .label }}</span>
   <span class="busy-button-busy" aria-hidden="true">
     <svg class="egg-spinner" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
