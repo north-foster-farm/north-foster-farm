@@ -553,7 +553,7 @@ export const addressDecision = (customer, decision, { links } = {}) => {
       blocks.push(button("Start a delivery order", links.order));
     }
   } else {
-    blocks.push(p(`We looked at ${where} and it's further than we can ` +
+    blocks.push(p(`We looked at ${where} and it's farther than we can ` +
       "drive on a Thursday. On-farm pickup and the drop site are " +
       "open to everyone, with no minimum and no fee."));
   }
