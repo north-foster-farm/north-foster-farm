@@ -71,9 +71,11 @@ for a full refund.
 
 You don't need to be home. If there's no cooler where you told us,
 we'll try to reach you: we'll call or text and ring the doorbell. If
-we can't reach you, we won't leave your order. [Draft: what happens
-to that order next is waiting on James.] Once it's delivered, it's in
-your care.
+we can't reach you, we won't leave your order. You can choose to have
+it delivered the following Thursday, pick it up at the farm or drop
+site, or cancel your order for a refund. Once we've attempted the
+delivery, the delivery fee isn't refundable. Once it's delivered, it's
+in your care.
 
 ## Delivery area
 
