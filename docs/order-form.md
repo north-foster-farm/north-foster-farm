@@ -104,8 +104,10 @@ skipped rather than shifted:
 
 - On-farm: every non-holiday weekday from tomorrow through the Friday
   of next week.
-- Scituate: the next two Saturdays on or after 17 October 2026. The
-  current Saturday stays offered until its 10:00 window opens.
+- Scituate: the next two Saturdays on or after 17 October 2026 whose
+  cutoff has not passed: the end of Friday (`scituate.cutoffWeekday`
+  and `cutoffHour`, 24 being midnight). Customers can change or cancel
+  until then too.
 - Delivery: the next two non-holiday Thursdays whose Wednesday-noon
   cutoff has not passed. The cutoff is inclusive.
 

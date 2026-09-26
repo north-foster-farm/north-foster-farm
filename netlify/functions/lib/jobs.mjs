@@ -24,7 +24,9 @@
 //               alerts for what went wrong, and a heartbeat ping
 
 import terms from "../../../data/delivery.json" with { type: "json" };
-import { cutoffFor } from "../../../assets/scripts/order/lib/dates.mjs";
+import {
+  cutoffFor, dropCutoffFor,
+} from "../../../assets/scripts/order/lib/dates.mjs";
 import {
   addDays, instant, parts, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
@@ -59,13 +61,15 @@ const tz = terms.timeZone;
 const sent = (order, key) => !!(order.emails && order.emails[key]);
 
 // When a customer can no longer change or cancel an order themselves:
-// the delivery cutoff, or midnight before a pickup.
+// the delivery or drop-site cutoff, or midnight before an on-farm
+// pickup.
 export const cutoffAt = (order) => {
-  const date = order.fulfilment.date;
+  const { date, method } = order.fulfilment;
 
-  return order.fulfilment.method === "delivery"
-    ? cutoffFor(date, terms)
-    : instant(date, 0, 0, tz);
+  if (method === "delivery") return cutoffFor(date, terms);
+  if (method === "scituate") return dropCutoffFor(date, terms);
+
+  return instant(date, 0, 0, tz);
 };
 
 export const deliveryReminderAt = (order) =>

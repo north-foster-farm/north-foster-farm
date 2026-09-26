@@ -82,6 +82,15 @@ describe("the timetable", () => {
       at("2026-10-07", 0).toISOString());
   });
 
+  it("closes changes to a drop-site order at the end of Friday", () => {
+    const drop = order("A", "onfarm");
+
+    drop.fulfilment = { ...drop.fulfilment, method: "scituate",
+      date: "2026-10-17", onfarm: null };
+    assert.equal(cutoffAt(drop).toISOString(),
+      at("2026-10-17", 0).toISOString());
+  });
+
   it("reminds about a delivery at 18:00 the evening before", () => {
     assert.equal(deliveryReminderAt(order("A")).toISOString(),
       at("2026-10-07", 18).toISOString());

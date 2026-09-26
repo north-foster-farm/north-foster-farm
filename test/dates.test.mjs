@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import terms from "../data/delivery.json" with { type: "json" };
 import {
-  cutoffFor, deliveryDates, onFarmDates, scituateDates,
+  cutoffFor, deliveryDates, dropCutoffFor, onFarmDates, scituateDates,
 } from "../assets/scripts/order/lib/dates.mjs";
 import { instant, label } from "../assets/scripts/order/lib/zoned.mjs";
 
@@ -116,16 +116,34 @@ describe("drop site Saturdays", () => {
     assert.deepEqual(got, ["2026-10-17", "2026-10-24"]);
   });
 
-  it("on the start day at 08:00 still offers 17 Oct", () => {
-    const got = dates(scituateDates(ny("2026-10-17", 8), terms));
+  it("late on the Friday before still offers 17 Oct", () => {
+    const got = scituateDates(ny("2026-10-16", 23, 59), terms);
+
+    assert.deepEqual(dates(got), ["2026-10-17", "2026-10-24"]);
+    assert.equal(got[0].cutoff, "2026-10-17T04:00:00.000Z");
+  });
+
+  it("takes an order at exactly midnight, the end of Friday", () => {
+    const got = dates(scituateDates(ny("2026-10-17", 0), terms));
 
     assert.deepEqual(got, ["2026-10-17", "2026-10-24"]);
   });
 
-  it("on the start day after the window rolls forward", () => {
-    const got = dates(scituateDates(ny("2026-10-17", 11), terms));
+  it("after midnight rolls forward, before the window opens", () => {
+    for (const hour of [0, 8]) {
+      const got = dates(scituateDates(
+        ny("2026-10-17", hour, hour ? 0 : 1), terms
+      ));
 
-    assert.deepEqual(got, ["2026-10-24", "2026-10-31"]);
+      assert.deepEqual(got, ["2026-10-24", "2026-10-31"], `${hour}`);
+    }
+  });
+
+  it("puts the cutoff at the end of Friday across the DST change", () => {
+    assert.equal(dropCutoffFor("2026-10-31", terms).toISOString(),
+      "2026-10-31T04:00:00.000Z");
+    assert.equal(dropCutoffFor("2026-11-07", terms).toISOString(),
+      "2026-11-07T05:00:00.000Z");
   });
 
   it("only ever emits Saturdays", () => {
