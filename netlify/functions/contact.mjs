@@ -19,7 +19,7 @@ import { normalizeEmail, sameSite, validEmail } from "./lib/auth.mjs";
 import { alert, noteMail } from "./lib/health.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
-import { adminEmails, sendMail } from "./lib/mail.mjs";
+import { adminEmails, mailbox, sendMail } from "./lib/mail.mjs";
 import { getOrder } from "./lib/records.mjs";
 import { mailLinks } from "./lib/site.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
@@ -135,7 +135,7 @@ export const handle = async (req, {
   try {
     await mail({
       to,
-      replyTo: message.email,
+      replyTo: mailbox(message.name, message.email),
       idempotencyKey: `contact-${id}`,
       ...farmContactMessage(message, { order, links: mailLinks(env) }),
     }, { env, stores });

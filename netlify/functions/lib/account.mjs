@@ -13,7 +13,7 @@ import {
   phoneOk, zipInfo,
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { cutoffAt } from "./jobs.mjs";
-import { adminEmails, sendMail } from "./mail.mjs";
+import { adminEmails, mailbox, sendMail } from "./mail.mjs";
 import { log } from "./log.mjs";
 import { notifyFarm, sendForOrder } from "./payments.mjs";
 import {
@@ -476,7 +476,7 @@ export const sendSupport = async (stores, customer, request, {
     id, at: now.toISOString(), subject, message, orderId, status: "open",
   });
   await tellFarm({
-    replyTo: customer.email,
+    replyTo: mailbox(customer.name, customer.email),
     subject: `Support: ${subject || "(no subject)"} from ${customer.email}`,
     text: `${customer.name || customer.email} <${customer.email}>` +
       `${customer.phone ? ` · ${customer.phone}` : ""}` +

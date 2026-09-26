@@ -464,8 +464,8 @@ describe("returns and support", () => {
     assert.equal(r.ok, true);
     assert.match(sent[0].subject, /Support: Eggs/);
     assert.match(sent[0].text, /duck eggs/);
-    assert.equal(sent[0].replyTo, "pat@example.com",
-      "the farm answers by replying");
+    assert.equal(sent[0].replyTo, "\"Pat Example\" <pat@example.com>",
+      "the farm answers by replying, to the customer by name");
     assert.equal((await stores.customers.list("support/pat@example.com/"))
       .length, 1);
     sent.length = 0;

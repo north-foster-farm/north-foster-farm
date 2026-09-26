@@ -49,6 +49,50 @@ export const adminEmails = (env = process.env) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
+export const NAME_MAX = 64;
+
+// Up to 45 bytes a word keeps each encoded word within RFC 2047's 75.
+const encodedWords = (name) => {
+  const words = [];
+  let chunk = "";
+
+  for (const ch of name) {
+    if (Buffer.byteLength(chunk + ch) > 45) {
+      words.push(chunk);
+      chunk = "";
+    }
+    chunk += ch;
+  }
+  words.push(chunk);
+
+  return words.map((w) =>
+    `=?UTF-8?B?${Buffer.from(w).toString("base64")}?=`).join(" ");
+};
+
+// "Name <email>" for a header, from a name a customer typed: control
+// characters and line breaks go (no header injection), whitespace
+// collapses, and the name is capped. ASCII becomes an RFC 5322 quoted
+// string with " and \ escaped; anything else RFC 2047 encoded words,
+// so no driver or provider has to encode it. No name, the bare address.
+export const mailbox = (name, email) => {
+  const clean = [...String(name || "")
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()]
+    .slice(0, NAME_MAX)
+    .join("")
+    .trim();
+
+  if (!clean) return email;
+
+  const display = /^[\x20-\x7e]*$/.test(clean)
+    ? `"${clean.replace(/[\\"]/g, "\\$&")}"`
+    : encodedWords(clean);
+
+  return `${display} <${email}>`;
+};
+
 const viaResend = async (message, env, fetchImpl) => {
   let res;
 
@@ -94,6 +138,7 @@ const viaLog = async (message) => {
   console.info(JSON.stringify({
     event: "mail.logged",
     to: message.to,
+    replyTo: message.replyTo,
     subject: message.subject,
     text: message.text,
   }));

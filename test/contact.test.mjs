@@ -87,7 +87,7 @@ describe("POST /api/contact", () => {
     assert.equal(saved.at, now.toISOString());
     assert.equal(sent.length, 1);
     assert.deepEqual(sent[0].to, ["farm@example.com"]);
-    assert.equal(sent[0].replyTo, "pat@example.com");
+    assert.equal(sent[0].replyTo, "\"Pat Example\" <pat@example.com>");
     assert.match(sent[0].subject, /^Message from Pat Example$/);
     assert.match(sent[0].text, /duck eggs/);
   });
