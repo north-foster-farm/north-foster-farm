@@ -394,8 +394,12 @@ header {
 
 // Order, and once the cart holds something, the cart half joined to its
 // right: one outline button in two parts. The pair lifts as one under
-// the pointer.
+// the pointer. The lift's transform makes the pair a stacking context,
+// which would hold the mini cart under the home page's hero; a layer
+// of its own at the dropdowns' level keeps the mini cart in front.
 .site-order-group {
+  position: relative;
+  z-index: $zindex-dropdown;
   display: flex;
   border-radius: var(--bs-border-radius);
   transition:
