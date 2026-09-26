@@ -19,7 +19,7 @@ every order.
 
 - Deliveries run on Thursdays, roughly between 10:00 AM and 4:00 PM.
   The window is approximate.
-- Order by Wednesday at noon for that Thursday's delivery. After the
+- Order by {{< cutoff "delivery" >}} for that Thursday's delivery. After the
   cutoff, the order page offers the Thursday after.
 - We don't deliver on a holiday. When one falls on a Thursday, such as
   Thanksgiving, the order page skips that week.
@@ -100,8 +100,7 @@ another day or window, or to cancel for a full refund.
 **The drop site** in Scituate runs on Saturdays from 10:00 to 11:00 AM,
 starting October 17, on the Village Green, 46 Institute Lane, North
 Scituate: the same corner of the lot where our tent sits in market
-season. You can order for a Saturday until the drop site opens that
-morning.
+season. Order by {{< cutoff "scituate" >}} for that Saturday.
 
 ## Changing or cancelling an order
 

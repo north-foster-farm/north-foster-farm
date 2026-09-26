@@ -27,6 +27,8 @@
   "scituate": {
     "start": "2026-10-17",
     "weekday": 6,
+    "cutoffWeekday": 5,
+    "cutoffHour": 24,
     "opensHour": 10,
     "window": "10:00 – 11:00 AM",
     "location": "Village Green, 46 Institute Lane, North Scituate, RI 02857",
