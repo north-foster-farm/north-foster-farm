@@ -138,6 +138,14 @@ export const announcePaid = async (stores, id, {
 // meanwhile (a webhook, the CLI) is kept.
 export const recordRefund = async (stores, order, refund, source, now) => {
   const current = (await getOrder(stores, order.id)) || order;
+  // An edit retried by its key meets the same refund at the processor,
+  // and records it once.
+  const same = (r, field) => !!refund[field] && r[field] === refund[field];
+  const seen = !!refund.edit && refundsOf(current)
+    .some((r) => same(r, "squareRefundId") || same(r, "paypalRefundId"));
+
+  if (seen) return current;
+
   const refunds = [...refundsOf(current), {
     at: now.toISOString(),
     source,
@@ -147,6 +155,7 @@ export const recordRefund = async (stores, order, refund, source, now) => {
     squareRefundId: refund.squareRefundId || null,
     paypalRefundId: refund.paypalRefundId || null,
     status: refund.status || null,
+    ...(refund.edit ? { edit: refund.edit } : {}),
   }];
 
   return amendOrder(stores, order.id, moneyPatch(current, { refunds }),

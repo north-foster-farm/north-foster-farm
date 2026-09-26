@@ -200,6 +200,12 @@ const staffNote = (order) => {
     if (f.delivery.notes) bits.push(f.delivery.notes);
     if (order.flags.zipUnlisted) bits.push("ZIP not on the approved list");
   }
+  // A changed order's items are spread over several Square orders, so
+  // the fulfilment the farm packs from lists them whole.
+  if ((order.edits || []).length) {
+    bits.unshift(`changed; pack ${order.lines
+      .map((l) => `${l.qty} × ${l.label || l.name}`).join(", ")}`);
+  }
   if (order.notes) bits.push(`notes: ${order.notes}`);
   if (order.source) bits.push(`heard via ${order.source}`);
 
@@ -347,6 +353,90 @@ export const createOrder = async (order, key, {
   }, fetchImpl);
 
   return { squareOrderId: created.order.id, customerId };
+};
+
+// A change to a paid order (lib/edit.mjs) as a Square order of its
+// own, under the same reference_id: what was added, at today's price,
+// and one discount for whatever the change took off, so its total is
+// the difference to pay (never below zero). A charge the added items
+// do not cover (a discount lost) is a line of its own. With `carries`
+// it takes the order's fulfilment too, for a switch between delivery
+// and pickup, which Square cannot make on the first order's.
+export const buildChangeOrder = (order, change, customerId, cfg) => {
+  const lines = change.added.map((line) => (
+    cfg.catalog && line.squareVariationId
+      ? {
+        catalog_object_id: line.squareVariationId,
+        quantity: String(line.qty),
+      }
+      : {
+        name: line.name,
+        quantity: String(line.qty),
+        base_price_money: money(line.unitPrice * 100),
+      }));
+  const added = change.added
+    .reduce((s, line) => s + line.unitPrice * 100 * line.qty, 0);
+  const charge = Math.max(0, change.difference) - added;
+
+  if (charge > 0 || !lines.length) {
+    lines.push({
+      name: `Changes to order ${order.id}`,
+      quantity: "1",
+      base_price_money: money(Math.max(0, charge)),
+    });
+  }
+
+  const out = {
+    location_id: cfg.locationId,
+    reference_id: order.id,
+    customer_id: customerId,
+    line_items: lines,
+  };
+  const off = added + Math.max(0, charge) - Math.max(0, change.difference);
+
+  if (off > 0) {
+    out.discounts = [{
+      name: `Taken off order ${order.id}`,
+      amount_money: money(off),
+      scope: "ORDER",
+    }];
+  }
+  if (change.carries) out.fulfillments = [fulfillment(order)];
+
+  return out;
+};
+
+// -> { squareOrderId, customerId }
+export const createChangeOrder = async (order, change, key, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  const cfg = settings(env);
+  const customerId = await findOrCreateCustomer(
+    cfg, order.customer, key, fetchImpl
+  );
+  const created = await call(cfg, "/v2/orders", {
+    idempotency_key: `${key}-order`,
+    order: buildChangeOrder(order, change, customerId, cfg),
+  }, fetchImpl);
+
+  return { squareOrderId: created.order.id, customerId };
+};
+
+// A change order with nothing to pay is completed with no payment, so
+// it does not sit in the dashboard as unpaid.
+export const payZeroOrder = async (squareOrderId, key, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  const cfg = settings(env);
+
+  await call(cfg, `/v2/orders/${squareOrderId}/pay`, {
+    idempotency_key: `${key}-pay`,
+    payment_ids: [],
+  }, fetchImpl);
+
+  return { squareOrderId };
 };
 
 // What the record keeps of a Square payment.

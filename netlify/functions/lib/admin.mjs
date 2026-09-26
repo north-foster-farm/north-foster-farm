@@ -124,6 +124,9 @@ export const showOrder = async (stores, id) =>
 export const refundOrder = async (stores, id, {
   now = new Date(), env = process.env, amount, reason = "",
   square = squareApi, paypal = paypalApi, fetchImpl,
+  // An edit's refund carries the edit's key, so a retry refunds once,
+  // and is recorded as the edit's (`edit`).
+  key: base, source = "farm", edit,
 } = {}) => {
   const order = need(await getOrder(stores, id), "order");
 
@@ -164,7 +167,7 @@ export const refundOrder = async (stores, id, {
 
     if (take <= 0) continue;
 
-    const key = `refund-${id}-${stamp}-${i}`;
+    const key = `${base || `refund-${id}-${stamp}`}-${i}`;
     let refund;
 
     if (p.via === "venmo" && p.paypalCaptureId) {
@@ -192,8 +195,8 @@ export const refundOrder = async (stores, id, {
     }
 
     saved = await recordRefund(stores, order, {
-      ...refund, amount: take, payment: paymentRef(p),
-    }, "farm", now);
+      ...refund, amount: take, payment: paymentRef(p), edit,
+    }, source, now);
     owed -= take;
   }
 
