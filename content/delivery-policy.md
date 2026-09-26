@@ -70,8 +70,10 @@ to pick up your order at the farm or drop site, or cancel your order
 for a full refund.
 
 You don't need to be home. If there's no cooler where you told us,
-we'll call or text you before we leave your order. Once it's
-delivered, it's in your care.
+we'll try to reach you: we'll call or text and ring the doorbell. If
+we can't reach you, we won't leave your order. [Draft: what happens
+to that order next is waiting on James.] Once it's delivered, it's in
+your care.
 
 ## Delivery area
 
