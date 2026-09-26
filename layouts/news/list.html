@@ -1,17 +1,23 @@
 {{ define "main" }}
-  {{/* Ten posts a page, grouped under their year. scripts/news/
-       fetches the next page as the reader nears the end and appends
-       its posts, joining a year that runs across the page break; the
+  {{/* The newest post large at the top of the first page, then the
+       rest ten a page, grouped under their year, with the Farm news
+       sign-up after each page's ten. scripts/news/ fetches the next
+       page as the reader nears the end and appends its posts and
+       sign-up, joining a year that runs across the page break; the
        pager links stay for anyone without the script. */}}
-  {{ $pager := .Paginate .Pages }}
+  {{ $pager := .Paginate (after 1 .Pages) }}
+  {{ $groups := $pager.Pages.GroupByDate "2006" }}
+  {{ $last := sub (len $groups) 1 }}
   <section class="{{ .Type }}">
     <div class="page container py-5">
       <div class="row justify-content-center mb-5">
         <div class="col text-column">
           {{ partial "page-heading.html" . }}
-          {{ if eq $pager.PageNumber 1 }}{{ .Content }}{{ end }}
+          {{ if eq $pager.PageNumber 1 }}
+            {{ with index .Pages 0 }}{{ partial "news/lead.html" . }}{{ end }}
+          {{ end }}
           <div class="news-years" data-news-years>
-            {{ range $pager.Pages.GroupByDate "2006" }}
+            {{ range $i, $group := $groups }}
               <section class="news-year" data-year="{{ .Key }}" aria-labelledby="news-year-{{ .Key }}">
                 <h2 class="news-year-title" id="news-year-{{ .Key }}">{{ .Key }}</h2>
                 <ol class="list-unstyled news-list">
@@ -19,6 +25,12 @@
                     {{ partial "news/row.html" . }}
                   {{ end }}
                 </ol>
+                {{ if eq $i $last }}
+                  <aside class="news-inline-signup" aria-labelledby="news-signup-{{ $pager.PageNumber }}">
+                    <h3 class="news-inline-signup-title" id="news-signup-{{ $pager.PageNumber }}">Farm news and updates, wrote good by a real farmer</h3>
+                    {{ partial "news-signup.html" (dict "id" (printf "news-page-%d" $pager.PageNumber)) }}
+                  </aside>
+                {{ end }}
               </section>
             {{ end }}
           </div>
@@ -34,7 +46,6 @@
               {{ end }}
             </nav>
           {{ end }}
-          {{ partial "news-signup.html" (dict "id" "news-page") }}
         </div>
       </div>
     </div>

@@ -1,0 +1,23 @@
+{{/*
+  The newest post, large at the top of the news list: its featured
+  image across the column, or a wide card with a faint leaf in it,
+  then the date, title and description.
+*/}}
+{{ $featured := partial "news/featured.html" . }}
+<article class="news-lead">
+  <a class="news-lead-image" href="{{ .RelPermalink }}" tabindex="-1" aria-hidden="true">
+    {{ with $featured }}
+      {{ $image := .Fill "1400x1050 webp q82 Center" }}
+      <img src="{{ $image.RelPermalink }}" width="{{ $image.Width }}" height="{{ $image.Height }}" alt="" fetchpriority="high" decoding="async">
+    {{ else }}
+      <span class="news-leaf">{{ partial "svg.html" "icons/leaves/leaf-1a" }}</span>
+    {{ end }}
+  </a>
+  <time class="news-date d-block mt-3" datetime="{{ .Date.Format "2006-01-02" }}">
+    {{ .Date | time.Format "January 2, 2006" }}
+  </time>
+  <h2 class="news-lead-title">
+    <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+  </h2>
+  <p class="lead mb-0">{{ .Description }}</p>
+</article>

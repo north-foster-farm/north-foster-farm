@@ -5,6 +5,7 @@ description: >-
   You can now order online, with delivery, on-farm pickup and our drop
   site in Scituate.
 home: true
+featured: "images/linus-featured.jpg"
 ---
 
 {{< figure src="images/online-ordering.png" frame="false"
@@ -39,8 +40,8 @@ There are three ways to get your order:
 - Back on Saturday mornings in Scituate, starting October 17
 - Pick up your order for free
 
-{{< figure src="images/chickens.jpg"
-  alt="Our red hens out on the pasture in front of their coop" />}}
+{{< figure src="images/sunset.jpg"
+  alt="Streaks of orange cloud at sunset over the tree line" />}}
 
 Our freezers are fully stocked, and our hens, although slowing down,
 will continue to lay for us all year round. We aim to keep you fully

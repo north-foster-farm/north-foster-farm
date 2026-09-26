@@ -1,9 +1,12 @@
 // The news list loads older posts as the reader nears its end. Each
 // page of the list is ordinary HTML with a link to the next; this
 // fetches that page, takes its year sections and appends them, joining
-// a year that runs across the page break. The pager stays hidden while
-// this works and comes back if a fetch fails, so the links are always
-// a way on.
+// a year that runs across the page break, and the Farm news sign-up
+// that follows each page's posts. The pager stays hidden while this
+// works and comes back if a fetch fails, so the links are always a way
+// on.
+
+import { wire } from "./signup.js";
 
 // How far ahead of the end, in pixels, the next page starts loading.
 const AHEAD = 800;
@@ -40,8 +43,12 @@ export const wireMore = () => {
       const items = section.querySelectorAll(".news-item");
 
       added += items.length;
+      section.querySelectorAll("[data-news-signup]").forEach(wire);
       if (last && last.dataset.year === section.dataset.year) {
-        last.querySelector(".news-list").append(...items);
+        // The year goes on under its heading: this page's list and
+        // sign-up follow the last page's.
+        last.append(...section.querySelectorAll(
+          ":scope > .news-list, :scope > .news-inline-signup"));
       } else {
         years.append(section);
       }

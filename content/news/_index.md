@@ -5,6 +5,3 @@ description: >-
   our chicken and eggs.
 pageScript: "news"
 ---
-
-Every update we have posted, newest first. The current one is on the
-[home page](/).

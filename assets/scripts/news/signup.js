@@ -20,7 +20,7 @@ const say = (note, text, tone) => {
   note.dataset.tone = tone || "";
 };
 
-const wire = (form) => {
+export const wire = (form) => {
   const input = form.querySelector("input[type='email']");
   const note = form.querySelector("[data-news-note]");
   const button = form.querySelector("button");
