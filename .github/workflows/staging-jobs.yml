@@ -1,0 +1,31 @@
+name: Staging jobs
+
+# Netlify runs scheduled functions only on the production deploy, so
+# staging's jobs would never run on their own. This runs them on the
+# same fifteen-minute clock through /api/staging/jobs/run, which is
+# runJobs on Netlify with the staging deploy's own environment (404 in
+# production). GitHub starts scheduled runs only from the default
+# branch and may start one a few minutes late; the jobs decide from
+# the records and the clock, so a late or doubled run sends nothing
+# twice. STAGING_TOKEN is the same token Netlify holds for staging.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run staging's jobs
+        env:
+          STAGING_TOKEN: ${{ secrets.STAGING_TOKEN }}
+        run: |
+          curl --silent --show-error --fail-with-body --max-time 120 \
+            -X POST -H "Authorization: Bearer $STAGING_TOKEN" \
+            -H "Content-Type: application/json" -d '{}' \
+            https://staging--north-foster-farm.netlify.app/api/staging/jobs/run
