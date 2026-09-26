@@ -40,12 +40,13 @@ messages you have sent us from it.
 
 ### Farm news
 
-We send farm news only to people who ask for it. You can sign up on the site
-and follow the link in the email we send to confirm; that link works for 7
-days. You can also tick "I want to get email from North Foster Farm" when you
-place an order, or turn farm news on in your account. The box starts
-unticked. We add an address only when its owner asks, and we record when and
-how you signed up.
+We send farm news only to people who ask for it. You can sign up on the site,
+tick "I want to get email from North Foster Farm" when you place an order, or
+turn farm news on in your account. The box starts unticked. Signing up adds
+you to the list at once, and we send no email to confirm it. If you were on
+our old mailing list, we email you an invitation instead, and you join only
+if you follow its link within 7 days. We add an address only when its owner
+asks, and we record when and how you signed up.
 
 Resend keeps the list and sends the emails. Every farm news email has an
 unsubscribe link that takes you off the list in one click. You can also turn
