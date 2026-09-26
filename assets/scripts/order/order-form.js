@@ -413,6 +413,12 @@ export class OrderForm {
         "--cart-bar", `${Math.max(0, Math.round(barBottom))}px`
       );
       this.cart.dataset.stuck = String(floating);
+      // Settled, the cart is always open and its toggle fades. It
+      // stays open when it floats again: folding it then would shorten
+      // it, settle it and open it again, over and over.
+      if (below && !floating && this.cart.dataset.open === "false") {
+        this.setOpen(true);
+      }
       // Scrolled past: the total bar takes over.
       this.form.dataset.cartPassed = String(below && r.bottom < 60);
     };
