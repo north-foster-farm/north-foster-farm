@@ -53,6 +53,18 @@ timeZone = "America/New_York"
     source = "hugo_stats.json"
     target = "assets/watching/hugo_stats.json"
 
+# /llms.txt is the home page in a second format; see
+# layouts/index.llms.txt.
+[outputFormats]
+  [outputFormats.llms]
+    baseName = "llms"
+    isPlainText = true
+    mediaType = "text/plain"
+    notAlternative = true
+
+[outputs]
+  home = ["html", "llms"]
+
 [pagination]
   pagerSize = 10
 

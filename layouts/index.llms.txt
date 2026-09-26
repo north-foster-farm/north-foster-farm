@@ -1,0 +1,112 @@
+{{- /*
+  /llms.txt, after the convention at https://llmstxt.org: what the farm
+  is and how to buy from it, for language models answering questions
+  about it. Built from the same data as the pages (data/company.json,
+  data/catalog.json, data/delivery.json, data/markets.json,
+  data/events.json and each page's description), so a price, a cutoff
+  or a market changes here when it changes there. The prose is plain
+  text; keep it to what the delivery policy and the order page say.
+*/ -}}
+{{- $company := hugo.Data.company -}}
+{{- $social := hugo.Data.socialMedia -}}
+{{- $terms := hugo.Data.delivery -}}
+{{- $days := slice "Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday" -}}
+{{- $order := site.GetPage "/order" -}}
+{{- $policy := site.GetPage "/delivery-policy" -}}
+{{- $about := site.GetPage "/about" -}}
+{{- $contact := site.GetPage "/contact" -}}
+{{- $news := site.GetPage "/news" -}}
+{{- $login := site.GetPage "/login" -}}
+{{- $a := $company.address -}}
+{{- $farm := print $a.street ", " $a.city ", " $a.state " " $a.zip -}}
+{{- $money := $terms.money -}}
+{{- $hours := slice -}}
+{{- range $key := slice "morning" "afternoon" -}}
+  {{- $w := index $terms.onFarm.windows $key -}}
+  {{- $ends := slice -}}
+  {{- range $h := slice $w.from $w.to -}}
+    {{- $h = int $h -}}
+    {{- if eq $h 12 }}{{ $ends = $ends | append "12 PM" }}
+    {{- else if gt $h 12 }}{{ $ends = $ends | append (print (sub $h 12) " PM") }}
+    {{- else }}{{ $ends = $ends | append (print $h " AM") }}
+    {{- end -}}
+  {{- end -}}
+  {{- $hours = $hours | append (print $key " (" (delimit $ends " – ") ")") -}}
+{{- end -}}
+{{- $dropStart := time.AsTime $terms.scituate.start -}}
+# {{ $company.name }}
+
+> A small family farm in Foster, Rhode Island, raising chickens on pasture for meat and eggs. Order online at {{ $order.Permalink }} for delivery, on-farm pickup or the drop site in North Scituate, and find us at farmers markets in season.
+
+Our meat chickens live in mobile pens that we move onto fresh grass every day. Our laying hens sleep in a mobile coop and spend their days on pasture. Their feed is free of GMOs.
+
+The order page is the live source for prices, stock and dates. The prices below come from the same catalog, as of {{ now.Format "January 2, 2006" }}; stock changes from day to day.
+
+## Ordering
+
+- Pay on the order page by credit card, Apple Pay, Google Pay, Cash App Pay or Venmo. An order is placed once its payment goes through, and we email a confirmation.
+- Delivery: {{ index $days (int $terms.delivery.weekday) }}s, roughly {{ $terms.delivery.window }}, to the towns listed below. Order by {{ partial "cutoff.html" "delivery" }} for that week. Delivery needs an order of ${{ $money.deliveryMinimum }} or more after discounts; the fee is ${{ $money.deliveryFee }}, waived at ${{ $money.feeWaivedAt }} or more. Any other Rhode Island ZIP code costs ${{ $money.outsideAreaFee }} more. Leave a cooler with ice outside; no one needs to be home. No deliveries on holidays.
+- On-farm pickup: {{ $farm }}, by appointment. Choose a weekday and a {{ delimit $hours " or " }}; we confirm by email by the day before. No minimum and no fee.
+- The drop site: {{ index $days (int $terms.scituate.weekday) }}s, {{ $terms.scituate.window }}{{ if $dropStart.After now }}, starting {{ $dropStart.Format "January 2, 2006" }}{{ end }}, at the {{ $terms.scituate.location }}. Order by {{ partial "cutoff.html" "scituate" }} for that {{ index $days (int $terms.scituate.weekday) }}. No minimum and no fee.
+- Bulk discounts on every order: {{ range $i, $t := $money.bulkTiers }}{{ if $i }}, {{ end }}${{ $t.off }} off at ${{ $t.threshold }}{{ end }}. The highest tier reached applies. A discount code applies instead when it saves more; the two never combine.
+- Full terms: {{ $policy.Permalink }}
+
+## Delivery area
+{{ range $terms.area.states }}
+- {{ .name }}{{ with .onlyGroups }} ({{ delimit . ", " }} only){{ end }}: {{ range $i, $t := .towns }}{{ if $i }}, {{ end }}{{ $t.town }}{{ end }}
+{{- end }}
+
+## Products and prices
+
+Prices in US dollars. Chicken is sold by the piece or the pack in weight ranges; items marked "sold out" are not on offer right now.
+{{ range hugo.Data.catalog.groups }}
+- {{ .label }}{{ if and .unit (not (in .label .unit)) }}, {{ .unit }}{{ end }}: {{ range $i, $item := .items }}{{ if $i }}; {{ end }}{{ $item.label }} ${{ $item.price }}{{ if not $item.inStock }} (sold out){{ end }}{{ end }}
+{{- end }}
+
+## Your account
+
+Sign in at {{ $login.Permalink }} with the email address you ordered with. We email a link to sign in; there is no password. The account page shows your orders and receipts. Until the cutoff it lets you change the day, your pickup window, where we'll find your cooler and your notes, or cancel the order for a full refund, the way you paid. To change what's in an order, cancel it and place a new one.
+
+## Farmers markets
+
+{{ range hugo.Data.markets.markets -}}
+- {{ .name }}: {{ .when }}, {{ .season }}. {{ .where }}. {{ .href }}
+{{ end }}
+{{- $upcoming := where hugo.Data.events.events "date" "ge" (now.Format "2006-01-02") -}}
+{{- with $upcoming }}
+Coming up:
+
+{{ range . -}}
+- {{ (time.AsTime .date).Format "Monday, January 2" }}, {{ (time.AsTime (print .date "T" .start ":00")).Format "3:04 PM" }} – {{ (time.AsTime (print .date "T" .end ":00")).Format "3:04 PM" }}: {{ .name }}{{ if not (in .name .place) }}, {{ .place }}{{ end }}, {{ .address.street }}, {{ .address.city }}, {{ .address.state }}
+{{ end }}
+{{- end }}
+## Contact
+
+- Call or text {{ $company.phone.display }}
+- Email {{ $company.email }}
+- Instagram {{ $social.instagram.url }}
+- Message form: {{ $contact.Permalink }}
+- The farm: {{ $farm }} (visits by appointment)
+
+## Pages
+
+- [{{ $order.Title }}]({{ $order.Permalink }}): {{ chomp $order.Description }}
+- [{{ $policy.Title }}]({{ $policy.Permalink }}): {{ chomp $policy.Description }}
+- [{{ $about.Title }}]({{ $about.Permalink }}): {{ chomp $about.Description }}
+- [{{ $contact.Title }}]({{ $contact.Permalink }}): {{ chomp $contact.Description }}
+- [{{ $news.Title }}]({{ $news.Permalink }}): {{ chomp $news.Description }}
+
+## News
+{{ range first 5 $news.RegularPages }}
+- [{{ .Title }}]({{ .Permalink }}) ({{ .Date.Format "January 2, 2006" }}): {{ chomp .Description }}
+{{- end }}
+
+## Optional
+{{ range slice "/accessibility" "/privacy" }}
+{{- with site.GetPage . }}
+- [{{ .Title }}]({{ .Permalink }}): {{ chomp .Description }}
+{{- end }}
+{{- end }}
+{{- range after 5 $news.RegularPages }}
+- [{{ .Title }}]({{ .Permalink }}) ({{ .Date.Format "January 2, 2006" }})
+{{- end }}

@@ -1,16 +1,3 @@
 {{- /* The order cutoff for a fulfilment in data/delivery.json, as words:
-  {{< cutoff "delivery" >}} gives "Wednesday at noon". An hour of 24 is
-  the end of that day. */ -}}
-{{- $terms := index hugo.Data.delivery (.Get 0) -}}
-{{- $days := slice "Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday" -}}
-{{- $day := index $days (int $terms.cutoffWeekday) -}}
-{{- $hour := int $terms.cutoffHour -}}
-{{- if eq $hour 24 -}}
-the end of {{ $day }}
-{{- else if eq $hour 12 -}}
-{{ $day }} at noon
-{{- else if gt $hour 12 -}}
-{{ $day }} at {{ sub $hour 12 }} PM
-{{- else -}}
-{{ $day }} at {{ $hour }} AM
-{{- end -}}
+  {{< cutoff "delivery" >}} gives "Wednesday at noon". */ -}}
+{{- partial "cutoff.html" (.Get 0) -}}
