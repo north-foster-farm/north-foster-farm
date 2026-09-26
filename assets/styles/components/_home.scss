@@ -41,8 +41,8 @@
   }
 
   // Hero: the coop video fills the viewport below the header, up to
-  // 80rem on a tall screen, softly blurred under a wash of the dark
-  // brand green that is deepest where the words are. The photograph
+  // 80rem on a tall screen, softly blurred under a wash of dark green
+  // that is deepest where the words are. The photograph
   // beneath is the video's poster. Below lg the body is centred on
   // the viewport, not on the hero, by reserving the height above it,
   // the header's (its row and its stripe) and the top bar's, below
@@ -60,34 +60,39 @@
     background-color: $gray-700;
   }
 
-  // A little darker and out of focus, so the picture sets the scene
-  // and the words stay in front. Scaled up a touch, or the blur would
-  // fade the edges into the gray behind.
+  // Out of focus, so the picture sets the scene and the words stay in
+  // front. It runs three blur radii past every edge, where the hero
+  // clips it, or the blur would fade the edges into the gray behind.
   .home-hero-img,
   .home-hero-video {
+    --hero-blur: 9px;
+    --hero-bleed: calc(-3 * var(--hero-blur));
+
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+    inset: var(--hero-bleed);
+    width: calc(100% - 2 * var(--hero-bleed));
+    height: calc(100% - 2 * var(--hero-bleed));
     object-fit: cover;
     object-position: 25% 50%; // The coop sits in the left third.
-    filter: blur(4px) brightness(0.82);
-    transform: scale(1.04);
+    filter: blur(var(--hero-blur));
   }
 
   // The wash: while the words are centred, a plain black veil over the
   // whole picture, deepest at the foot where the buttons are, so the
   // video keeps its own colours; from lg, the brand green from the
-  // right, where the words then sit, fading out before the coop.
+  // right, where the words then sit, fading out before the coop, in a
+  // green darker than the dark brand green.
   .home-hero-shade {
+    $wash: shade-color($green, 45%);
+
     position: absolute;
     inset: 0;
     background: linear-gradient(to top, rgba($black, 0.6),
       rgba($black, 0.4));
 
     @media (min-width: 992px) {
-      background: linear-gradient(to left, rgba($primary, 0.75) 40%,
-        rgba($primary, 0));
+      background: linear-gradient(to left, rgba($wash, 0.75) 40%,
+        rgba($wash, 0));
     }
   }
 
@@ -187,7 +192,7 @@
   }
 
   .home-hero-accent {
-    color: tint-color($green, 70%);
+    color: tint-color($green, 50%);
     font-weight: bold;
     letter-spacing: -0.12rem;
   }
