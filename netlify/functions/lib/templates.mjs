@@ -894,6 +894,76 @@ export const farmContactMessage = (message, { order = null, links } = {}) => {
   };
 };
 
+// The account page's notices to the farm: plain, without the card, as
+// they were first written inline in account.mjs.
+
+// A customer cancelled a paid order; the farm refunds it by hand.
+export const farmRefundNeeded = (order, customer) => {
+  const who = customer.name || customer.email;
+  const f = order.fulfilment;
+
+  return {
+    subject: `Refund needed: ${order.id} cancelled by ${customer.email}`,
+    text: `${who} cancelled paid order ${order.id} (${f.method} ${f.date}). ` +
+      `Refund and close it: bin/nff orders cancel ${order.id} --refund`,
+    html: `<p>${who} cancelled paid order ${order.id} (${f.method} ` +
+      `${f.date}). Refund and close it: <code>bin/nff orders cancel ` +
+      `${order.id} --refund</code>.</p>`,
+  };
+};
+
+// A customer's change saved here but not in Square.
+export const farmSquareOutOfSync = (order, customer) => {
+  const f = order.fulfilment;
+
+  return {
+    subject: `Square out of sync: ${order.id}`,
+    text: `${customer.email} changed order ${order.id} but Square could not ` +
+      `be updated. Check the fulfilment in Square: ${f.method} ${f.date}.`,
+    html: `<p>${customer.email} changed order ${order.id} but Square could ` +
+      `not be updated. Check the fulfilment in Square: ${f.method} ` +
+      `${f.date}.</p>`,
+  };
+};
+
+// A return or problem report; `entry` is the request as recorded.
+export const farmReturnRequest = (order, customer, entry) => {
+  const who = customer.name || customer.email;
+  const skus = entry.skus.join(", ") || "not specified";
+
+  return {
+    subject: `Return request: ${order.id} from ${customer.email}`,
+    text: `${who} asked about a return on ${order.id}.\n\n${entry.reason}` +
+      `\n\nItems: ${skus}\n\nSettle it with: bin/nff returns resolve ` +
+      `${order.id} ${entry.id}`,
+    html: `<p>${escape(who)} asked about a return on ${order.id}.</p>` +
+      `<blockquote>${escape(entry.reason)}</blockquote><p>Items: ${skus}` +
+      `</p><p>Settle it with <code>bin/nff returns resolve ${order.id} ` +
+      `${entry.id}</code>.</p>`,
+  };
+};
+
+// A message from the account page, with the customer's details.
+export const farmSupport = (customer, { subject, message, orderId }, {
+  accountUrl,
+} = {}) => {
+  const who = customer.name || customer.email;
+
+  return {
+    subject: `Support: ${subject || "(no subject)"} from ${customer.email}`,
+    text: `${who} <${customer.email}>` +
+      `${customer.phone ? ` · ${customer.phone}` : ""}` +
+      `${orderId ? `\nOrder ${orderId}` : ""}\n\n${message}\n\n` +
+      `Reply to this email to answer. Account: ${accountUrl}`,
+    html: `<p><strong>${escape(who)}</strong> ` +
+      `&lt;${escape(customer.email)}&gt;${customer.phone
+        ? ` · ${escape(customer.phone)}` : ""}</p>` +
+      `${orderId ? `<p>Order ${escape(orderId)}</p>` : ""}` +
+      `<blockquote>${escape(message).replace(/\n/g, "<br>")}</blockquote>` +
+      "<p>Reply to this email to answer.</p>",
+  };
+};
+
 // --- Monitoring ----------------------------------------------------
 
 const when = (iso) => (iso ? `${iso.replace("T", " ").slice(0, 16)} UTC`

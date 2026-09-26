@@ -24,20 +24,14 @@ import { mailLinks, orderUrlFor, siteUrl } from "./site.mjs";
 import { updateFulfilment } from "./square.mjs";
 import { adjust } from "./stock.mjs";
 import {
-  addressReview, farmPickupChanged, orderCancelled, orderChanged,
+  addressReview, farmPickupChanged, farmRefundNeeded, farmReturnRequest,
+  farmSquareOutOfSync, farmSupport, orderCancelled, orderChanged,
 } from "./templates.mjs";
 
 export const AVATARS = avatars.map((a) => a.key);
 
 const text = (value, max = 200) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";
-
-// What a customer typed, made safe for the farm's HTML mail.
-const escape = (s) => String(s)
-  .replace(/&/g, "&amp;")
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/"/g, "&quot;");
 
 const fail = (status, errors) => ({ ok: false, status, errors });
 
@@ -165,15 +159,7 @@ export const cancelOrder = async (stores, customer, id, {
   await sendForOrder(stores, flagged, "orderCancelled",
     orderCancelled(flagged, { refund: true, links: mailLinks(env) }),
     { mail, env, now });
-  await tellFarm({
-    subject: `Refund needed: ${id} cancelled by ${customer.email}`,
-    text: `${customer.name || customer.email} cancelled paid order ${id} ` +
-      `(${order.fulfilment.method} ${order.fulfilment.date}). Refund and ` +
-      `close it: bin/nff orders cancel ${id} --refund`,
-    html: `<p>${customer.name || customer.email} cancelled paid order ` +
-      `${id} (${order.fulfilment.method} ${order.fulfilment.date}). Refund ` +
-      `and close it: <code>bin/nff orders cancel ${id} --refund</code>.</p>`,
-  }, { mail, env });
+  await tellFarm(farmRefundNeeded(order, customer), { mail, env });
 
   return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
 };
@@ -271,14 +257,8 @@ export const changeOrder = async (stores, customer, id, changes, {
       await amendOrder(stores, id, {
         flags: { ...(changed.flags || {}), squareOutOfSync: true },
       }, "square.out_of_sync", now);
-      await tellFarm({
-        subject: `Square out of sync: ${id}`,
-        text: `${customer.email} changed order ${id} but Square could not ` +
-          `be updated. Check the fulfilment in Square: ${f.method} ${f.date}.`,
-        html: `<p>${customer.email} changed order ${id} but Square could ` +
-          `not be updated. Check the fulfilment in Square: ${f.method} ` +
-          `${f.date}.</p>`,
-      }, { mail, env });
+      await tellFarm(farmSquareOutOfSync({ id, fulfilment: f }, customer),
+        { mail, env });
     }
   }
 
@@ -444,17 +424,7 @@ export const requestReturn = async (stores, customer, id, request, {
     returns: [...(order.returns || []), entry],
   }, "return.requested", now);
 
-  await tellFarm({
-    subject: `Return request: ${id} from ${customer.email}`,
-    text: `${customer.name || customer.email} asked about a return on ` +
-      `${id}.\n\n${reason}\n\nItems: ${skus.join(", ") || "not specified"}` +
-      `\n\nSettle it with: bin/nff return resolve ${id} ${entry.id}`,
-    html: `<p>${escape(customer.name || customer.email)} asked about a ` +
-      `return on ${id}.</p><blockquote>${escape(reason)}</blockquote>` +
-      "<p>Items: " +
-      `${skus.join(", ") || "not specified"}</p><p>Settle it with ` +
-      `<code>bin/nff return resolve ${id} ${entry.id}</code>.</p>`,
-  }, { mail, env });
+  await tellFarm(farmReturnRequest(order, customer, entry), { mail, env });
 
   return { ok: true, order: publicOrder(changed, now), request: entry };
 };
@@ -477,17 +447,9 @@ export const sendSupport = async (stores, customer, request, {
   });
   await tellFarm({
     replyTo: mailbox(customer.name, customer.email),
-    subject: `Support: ${subject || "(no subject)"} from ${customer.email}`,
-    text: `${customer.name || customer.email} <${customer.email}>` +
-      `${customer.phone ? ` · ${customer.phone}` : ""}` +
-      `${orderId ? `\nOrder ${orderId}` : ""}\n\n${message}\n\n` +
-      `Reply to this email to answer. Account: ${siteUrl(env)}/account/`,
-    html: `<p><strong>${escape(customer.name || customer.email)}</strong> ` +
-      `&lt;${escape(customer.email)}&gt;${customer.phone
-        ? ` · ${escape(customer.phone)}` : ""}</p>` +
-      `${orderId ? `<p>Order ${escape(orderId)}</p>` : ""}` +
-      `<blockquote>${escape(message).replace(/\n/g, "<br>")}</blockquote>` +
-      "<p>Reply to this email to answer.</p>",
+    ...farmSupport(customer, { subject, message, orderId }, {
+      accountUrl: `${siteUrl(env)}/account/`,
+    }),
   }, { mail, env });
 
   return { ok: true, id };
