@@ -50,6 +50,18 @@
       <span class="order-cart-total" data-total="total">$0</span>
     </span>
   </div>
+  {{/* Changing a paid order: what is paid, and the difference to pay
+       or to get back. */}}
+  <dl class="order-cart-lines" data-edit-money hidden>
+    <div class="order-cart-row">
+      <dt>Paid</dt>
+      <dd data-total="paid">$0</dd>
+    </div>
+    <div class="order-cart-row">
+      <dt data-total="due-label">To pay</dt>
+      <dd data-total="due">$0</dd>
+    </div>
+  </dl>
 
   <div class="order-cart-fold order-cart-after">
     <div class="order-cart-inner">

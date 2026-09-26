@@ -72,6 +72,14 @@ export const publicOrder = (order, now = new Date()) => ({
     lineTotal: l.lineTotal,
   })),
   totals: order.totals,
+  // What the order page needs to open the order for a change (#160).
+  code: order.code || null,
+  customer: {
+    firstName: order.customer.firstName || "",
+    lastName: order.customer.lastName || "",
+    phone: order.customer.phone || "",
+    contact: order.customer.contact || "",
+  },
   fulfilment: order.fulfilment,
   notes: order.notes || "",
   payments: paymentsOf(order).map((p) => ({

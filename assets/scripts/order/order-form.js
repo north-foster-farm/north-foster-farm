@@ -75,9 +75,19 @@ export class OrderForm {
     this.index = indexCatalog(this.catalog);
     this.money = this.terms.money;
     this.errors = new Errors(form);
-    this.draft = new Draft();
+    // /order/?edit=<id> changes a paid order (startEdit): its own draft,
+    // so the cart the header reads is left alone, and its own endpoint.
+    const edit = new URLSearchParams(location.search).get("edit") || "";
+
+    this.editId = /^[A-Za-z0-9-]{1,32}$/.test(edit) ? edit : null;
+    this.editing = null;
+    this.draft = new Draft(this.editId ? { name: `nff-edit-${this.editId}` }
+      : {});
     this.dates = new DateLists(form, () => this.refresh());
-    this.submitter = new Submitter();
+    this.submitter = new Submitter(this.editId
+      ? { url: `/api/account/orders/${this.editId}/edit` }
+      : {});
+    this.saveButton = document.getElementById("order-save");
     this.stock = new Stock(form, {
       onChange: (notice) => this.stockMoved(notice),
       setQty: (input, n) => this.setQty(input, n),
@@ -107,6 +117,12 @@ export class OrderForm {
   }
 
   start() {
+    if (this.editId) {
+      this.startEdit();
+
+      return;
+    }
+
     this.wire();
 
     const pending = this.draft.pending();
@@ -142,6 +158,91 @@ export class OrderForm {
       }
       this.prefill(who.customer);
     }).catch(() => {});
+  }
+
+  // /order/?edit=<id>: the page opens one of the customer's paid orders
+  // for a change (#160), priced by the same code as a new order. What
+  // is paid shows under the total with the difference, which is all
+  // the payment section takes; with nothing to pay, Save changes sends
+  // it. An order that cannot be changed goes back to the account page.
+  async startEdit() {
+    this.wire();
+
+    const { ok, status, data } = await api("/api/account/orders");
+
+    if (status === 401) {
+      location.replace(`/login/?next=${encodeURIComponent(
+        location.pathname + location.search
+      )}`);
+
+      return;
+    }
+
+    const order = ok
+      ? (data.orders || []).find((o) => o.id === this.editId)
+      : null;
+
+    if (!order || !order.canChange) {
+      location.replace("/account/#orders");
+
+      return;
+    }
+
+    const sum = (list) => (list || []).reduce((s, x) => s + (x.amount || 0),
+      0);
+
+    this.editing = {
+      id: order.id, held: sum(order.payments) - sum(order.refunds),
+    };
+    for (const line of order.lines) this.stock.held[line.sku] = line.qty;
+
+    const who = await me().catch(() => ({}));
+    const customer = (who && who.customer) || {};
+
+    this.group = customer.discountGroup || null;
+
+    const saved = this.draft.load();
+
+    this.restore(saved ? saved.payload : {
+      customer: { ...order.customer, email: customer.email },
+      lines: order.lines.map(({ sku, qty }) => ({ sku, qty })),
+      fulfilment: order.fulfilment,
+      code: order.code,
+    });
+
+    const banner = document.getElementById("order-editing");
+
+    // Draft wording.
+    banner.textContent = `You're changing order ${order.id}. You pay ` +
+      "only the difference, or we refund it.";
+    banner.hidden = false;
+    this.saveButton.addEventListener("click", (e) => this.submit(e));
+
+    this.dates.load();
+    this.applyCode({ quiet: true });
+    this.refresh();
+    this.stock.start();
+    this.payment.start();
+  }
+
+  // Under the total while changing a paid order: what is paid and the
+  // difference. With nothing to pay, Save changes stands in for the
+  // payment section.
+  renderEdit(total) {
+    if (!this.editing) return;
+
+    const box = qs(this.cart, "[data-edit-money]");
+    const diff = total - this.editing.held;
+
+    box.hidden = false;
+    qs(box, "[data-total='paid']").textContent = dollars(this.editing.held);
+    // Draft wording.
+    qs(box, "[data-total='due-label']").textContent = diff < 0
+      ? "To refund"
+      : "To pay";
+    qs(box, "[data-total='due']").textContent = dollars(Math.abs(diff));
+    this.payment.root.hidden = diff <= 0;
+    this.saveButton.hidden = diff > 0;
   }
 
   // Name, email and phone from the customer's record, shown as plain
@@ -848,8 +949,9 @@ export class OrderForm {
     total.textContent = s.total;
     this.lastTotal = s.total;
     this.total = totals.total;
-    this.payment.setAmount(totals.total);
+    this.payment.setAmount(this.amount());
     this.submitLabel();
+    this.renderEdit(totals.total);
 
     qs(c, "[data-cart-toggle]").setAttribute(
       "aria-label", `${s.countText}, total ${s.total}. Show or hide the cart.`
@@ -861,8 +963,9 @@ export class OrderForm {
     for (const el of all(this.form, "[data-total-bar-total]")) {
       el.textContent = s.total;
     }
-    // The header's Order link shows the same count.
-    announceCart(count);
+    // The header's Order link shows the same count; a change to a paid
+    // order is not the cart.
+    if (!this.editing) announceCart(count);
 
     const short = qs(this.form, "[data-delivery-short]");
 
@@ -1099,7 +1202,9 @@ export class OrderForm {
   // What the payment section asks of the form (pay.js).
 
   amount() {
-    return this.total || 0;
+    return this.editing
+      ? Math.max(0, (this.total || 0) - this.editing.held)
+      : this.total || 0;
   }
 
   referenceId() {
@@ -1231,6 +1336,12 @@ export class OrderForm {
     const payload = await this.prepareAsync();
 
     if (!payload) return;
+    // A change with nothing more to pay: no payment at all.
+    if (this.editing && this.amount() <= 0) {
+      await this.deliver(payload, 0);
+
+      return;
+    }
 
     let source;
 
@@ -1261,6 +1372,10 @@ export class OrderForm {
     case "ok":
       this.draft.clearPending();
       this.draft.clear();
+      if (this.editing) {
+        location.assign("/account/#orders");
+        break;
+      }
       announceCart(0);
       this.succeed(outcome.data, payload);
       break;
@@ -1356,6 +1471,7 @@ export class OrderForm {
     this.busy = busy;
     this.form.classList.toggle("order-busy", busy);
     this.submitButton.disabled = busy || !this.payment.ready;
+    this.saveButton.disabled = busy;
     this.submitLabel(busy);
   }
 
@@ -1363,7 +1479,10 @@ export class OrderForm {
   submitLabel(busy = this.busy) {
     this.submitButton.textContent = busy
       ? "Taking your payment…"
-      : "Place your order";
+      : (this.editing
+        // Draft wording.
+        ? `Pay ${dollars(this.amount())} and save`
+        : "Place your order");
   }
 
   // One line saying when and where, the sentence people screenshot.

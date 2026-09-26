@@ -574,6 +574,13 @@ class Account {
     if (order.canChange) {
       button("Change", "btn-outline-primary",
         () => this.openChange(order, card));
+
+      // What is in it and how it comes are changed on the order page,
+      // which prices the change (#160). Draft wording.
+      const items = el("a", "btn btn-sm btn-outline-primary", "Change items");
+
+      items.href = `/order/?edit=${encodeURIComponent(order.id)}`;
+      actions.appendChild(items);
     }
     if (order.canCancel) {
       button("Cancel order", "btn-outline-secondary",

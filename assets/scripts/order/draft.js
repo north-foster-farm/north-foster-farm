@@ -46,18 +46,23 @@ const uuid = () => {
 };
 
 export class Draft {
-  constructor() {
+  // `name` keeps a draft of its own under another key, in the same
+  // format: a change to a paid order (?edit=) never touches the cart
+  // the header reads.
+  constructor({ name = DRAFT } = {}) {
+    this.name = name;
+    this.pendingName = name === DRAFT ? PENDING : `${name}-pending`;
     // Storage may be blocked; then the draft lives here for the page.
     this.memory = null;
   }
 
   current() {
-    return read(DRAFT) || this.memory || {};
+    return read(this.name) || this.memory || {};
   }
 
   put(record) {
     this.memory = record;
-    write(DRAFT, record);
+    write(this.name, record);
   }
 
   load() {
@@ -72,7 +77,7 @@ export class Draft {
 
   clear() {
     this.memory = null;
-    write(DRAFT, null);
+    write(this.name, null);
   }
 
   // One key per submission, kept across retries and attempts.
@@ -122,15 +127,15 @@ export class Draft {
   }
 
   pending() {
-    return read(PENDING);
+    return read(this.pendingName);
   }
 
   savePending(payload, attempts) {
-    write(PENDING, { payload, attempts, savedAt: Date.now() });
+    write(this.pendingName, { payload, attempts, savedAt: Date.now() });
   }
 
   clearPending() {
-    write(PENDING, null);
+    write(this.pendingName, null);
   }
 }
 

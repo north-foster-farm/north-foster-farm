@@ -19,12 +19,19 @@
 // it is never taken for success.
 
 export class Submitter {
+  // A change to a paid order posts to its own endpoint (?edit=), which
+  // answers in the same shapes.
+  constructor({ url = "/api/orders" } = {}) {
+    this.url = url;
+  }
+
   async send(payload) {
     let res;
 
     try {
-      res = await fetch("/api/orders", {
+      res = await fetch(this.url, {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -45,8 +52,13 @@ export class Submitter {
       return {
         kind: "declined",
         code: data.code || null,
-        message: data.message || "The payment didn't go through.",
+        message: data.message || (data.errors && data.errors.payment)
+          || "The payment didn't go through.",
       };
+    }
+    // An order that can no longer be changed, or is not theirs.
+    if ([404, 409].includes(res.status) && data.errors && data.errors.order) {
+      return { kind: "failed", message: data.errors.order };
     }
     if (res.status === 409 && data.errors && data.errors.payment) {
       return { kind: "checkout", message: data.errors.payment };
@@ -70,7 +82,8 @@ export class Submitter {
 
     return {
       kind: "failed",
-      message: data.message || "Something went wrong placing your order.",
+      message: data.message || data.error
+        || "Something went wrong placing your order.",
     };
   }
 }

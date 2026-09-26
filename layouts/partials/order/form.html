@@ -30,6 +30,9 @@
     </span>
   </div>
   <div class="order-catalog-col">
+    {{/* Changing a paid order (/order/?edit=<id>, order-form.js): which
+         order, filled in by the script. */}}
+    <div id="order-editing" class="alert alert-info" role="status" hidden></div>
     <div id="order-stock" class="alert alert-warning" role="status" aria-live="polite" hidden></div>
     <div id="order-added" class="alert alert-success" role="status" aria-live="polite" hidden></div>
     {{ partial "order/catalog.html" . }}
