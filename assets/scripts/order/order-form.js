@@ -216,6 +216,11 @@ export class OrderForm {
     banner.textContent = `You're changing order ${order.id}. You pay ` +
       "only the difference, or we refund it.";
     banner.hidden = false;
+    for (const heading of document.querySelectorAll(
+      ".page-heading h1, [data-topbar-title]"
+    )) {
+      heading.textContent = "Change your order";
+    }
     this.saveButton.addEventListener("click", (e) => this.submit(e));
 
     this.dates.load();
@@ -243,6 +248,9 @@ export class OrderForm {
     qs(box, "[data-total='due']").textContent = dollars(Math.abs(diff));
     this.payment.root.hidden = diff <= 0;
     this.saveButton.hidden = diff > 0;
+    // The card's own Pay button shows only with the card chosen.
+    this.submitButton.hidden = diff <= 0
+      || this.payment.state.dataset.cardOpen !== "true";
   }
 
   // Name, email and phone from the customer's record, shown as plain
