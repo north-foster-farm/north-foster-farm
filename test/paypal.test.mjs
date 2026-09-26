@@ -95,6 +95,18 @@ describe("settings", () => {
     assert.equal(live.searchParams.get("buyer-country"), null);
   });
 
+  it("hides Venmo only while VENMO_HIDDEN is set", () => {
+    assert.equal(clientConfig(env).hidden, false);
+    for (const value of ["", "0", "false", " "]) {
+      assert.equal(clientConfig({ ...env, VENMO_HIDDEN: value }).hidden,
+        false, JSON.stringify(value));
+    }
+    for (const value of ["1", "true", "yes"]) {
+      assert.equal(clientConfig({ ...env, VENMO_HIDDEN: value }).hidden,
+        true, value);
+    }
+  });
+
   it("has a customer sentence for each decline", () => {
     for (const [code, text] of Object.entries(DECLINE_MESSAGES)) {
       assert.ok(text.length > 10, code);

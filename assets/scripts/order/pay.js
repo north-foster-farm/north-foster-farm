@@ -19,7 +19,36 @@
 //   venmoCreate(payload) -> the PayPal order id from our server
 //   venmoCapture(payload, paypalOrderId)
 
+import { venmoGate } from "./lib/venmo.mjs";
+
 const qs = (root, selector) => root.querySelector(selector);
+
+const VENMO = "nff-venmo";
+
+// Whether this browser sees the Venmo button (lib/venmo.mjs).
+const venmoShown = (hidden) => {
+  let remembered = false;
+
+  try {
+    remembered = window.localStorage.getItem(VENMO) === "1";
+  } catch {
+    // Storage blocked: ?venmo still works for this page view.
+  }
+
+  const { show, remember } = venmoGate(hidden, location.search, remembered);
+
+  try {
+    if (remember) {
+      window.localStorage.setItem(VENMO, "1");
+    } else {
+      window.localStorage.removeItem(VENMO);
+    }
+  } catch {
+    // As above.
+  }
+
+  return show;
+};
 
 const loaded = new Map();
 
@@ -379,6 +408,8 @@ export class Payment {
 
   async initVenmo(cfg) {
     const container = qs(this.root, "[data-venmo]");
+
+    if (!venmoShown(cfg.hidden)) return;
 
     try {
       await loadScript(cfg.sdkUrl);

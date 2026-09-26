@@ -50,12 +50,19 @@ export const settings = (env = process.env) => {
   };
 };
 
+// VENMO_HIDDEN set (to anything but "0" or "false") keeps the button
+// from customers until a live payment proves it: only a browser that
+// opened /order/?venmo sees it (assets/scripts/order/lib/venmo.mjs).
+export const venmoHidden = (env = process.env) =>
+  !["", "0", "false"].includes((env.VENMO_HIDDEN || "").trim());
+
 // What the page needs to load the SDK: public. Null until the client
 // id is set, and then the Venmo button simply does not appear.
 export const clientConfig = (env = process.env) => (env.PAYPAL_CLIENT_ID
   ? {
     clientId: env.PAYPAL_CLIENT_ID,
     env: paypalEnv(env),
+    hidden: venmoHidden(env),
     sdkUrl: `${SDK_URL}?${new URLSearchParams({
       "client-id": env.PAYPAL_CLIENT_ID,
       currency: "USD",

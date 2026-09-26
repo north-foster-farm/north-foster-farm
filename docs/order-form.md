@@ -253,6 +253,10 @@ Venmo online is PayPal's. Environment variables, per context:
 - `PAYPAL_ENV`: `sandbox` (the default) or `live`.
 - `PAYPAL_WEBHOOK_ID`: the id of the webhook subscription, which the
   signature check needs.
+- `VENMO_HIDDEN`: unset normally. Set to `1`, the button shows only
+  in a browser that has opened `/order/?venmo` (it remembers until
+  `/order/?venmo=0`), so a live payment can prove Venmo before
+  customers see it. Remove it and redeploy to show the button to all.
 
 Without the client id the Venmo button is not rendered. With it, a
 Venmo payment is two requests (`startVenmo` and `finishVenmo` in
