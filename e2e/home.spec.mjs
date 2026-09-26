@@ -62,7 +62,7 @@ test.describe("home", () => {
   // big line runs three lines, well above the h1. The title never
   // wraps on its own, so it must fit every width. #173: the picture is
   // blurred under a wash, and from lg the words sit in the bottom
-  // right corner over the primary green; below lg they are centred
+  // right corner over a dark green wash; below lg they are centred
   // over a black veil (James, 2026-09-25: the green was too heavy).
   test("the hero's height, wash and type (#134, #173)", async ({ page }) => {
     const measure = () => page.evaluate(() => {
@@ -117,6 +117,7 @@ test.describe("home", () => {
 
       return out.match(/\d+/g).slice(0, 3);
     }, (await measure()).primary);
+    const titles = {};
 
     for (const [width, height, lines] of [
       [320, 568, 3], [390, 664, 3], [575, 800, 3], [576, 800, 2],
@@ -127,6 +128,8 @@ test.describe("home", () => {
 
       const m = await measure();
       const at = `${width}px`;
+
+      titles[width] = m.title;
 
       expect(m.lines, `${at} title lines`).toBe(lines);
       expect(m.left, `${at} title inside the window`)
@@ -143,17 +146,24 @@ test.describe("home", () => {
       // #173: no outlined type; the wash over a blurred picture
       // carries the contrast.
       expect(m.stroke, `${at} no outline`).toBe(0);
-      expect(m.filter).toBe("blur(4px) brightness(0.82)");
+      expect(m.filter).toBe("blur(9px)");
       expect(m.wash, `${at} wash`).toMatch(width >= 992
-        ? new RegExp(
-          `^linear-gradient\\(to left, rgba\\(${green.join(", ")}, 0\\.75`)
+        // The brand green shaded 45% (James, 2026-09-26).
+        ? /^linear-gradient\(to left, rgba\(17, 68, 46, 0\.75\) 40%/
         : /^linear-gradient\(to top, rgba\(7, 6, 6, 0\.6\)/);
 
       const middle = (m.room.left + m.room.right) / 2;
 
-      if (width >= 992) {
+      // From 1600px the words grow with the screen and reach further
+      // left, but stay clear of the hen in the left third.
+      if (width >= 1600) {
+        expect(m.room.left, `${at} words clear of the left third`)
+          .toBeGreaterThan(width / 3);
+      } else if (width >= 992) {
         expect(middle, `${at} words to the right`)
           .toBeGreaterThan(width * 0.6);
+      }
+      if (width >= 992) {
         expect(m.room.bottom, `${at} words at the foot`)
           .toBeGreaterThan(m.box.top + m.box.height * 0.6);
       } else {
@@ -161,6 +171,10 @@ test.describe("home", () => {
           .toBeLessThanOrEqual(2);
       }
     }
+
+    // A very wide screen gets bigger words.
+    expect(titles[2560], "title bigger at 2560px than at 1500px")
+      .toBeGreaterThan(titles[1500] * 1.3);
 
     // The wordmark in the primary green.
     expect((await measure()).wordmark).toBe(`rgb(${green.join(", ")})`);
