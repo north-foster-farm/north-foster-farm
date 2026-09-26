@@ -1,7 +1,7 @@
 {{/*
-  Farm news by email: one field with a floating label and the button
-  fixed to it. The line under them stays empty until there is an
-  answer to give. Opt-in only: the request mails a confirmation, and
+  Farm news by email: a label over one field with the button fixed to
+  it, the field and button the contact form's. The line under them
+  stays empty until there is an answer to give. Opt-in only: the request mails a confirmation, and
   only its link adds the address. scripts/news/signup.js wires every
   form on the page.
 
@@ -11,11 +11,9 @@
 */}}
 {{ $id := .id | default "news" }}
 <form class="news-signup{{ with .class }} {{ . }}{{ end }}" data-news-signup novalidate>
+  <label class="form-label" for="{{ $id }}-email">Farm news by email</label>
   <div class="input-group">
-    <div class="form-floating">
-      <input class="form-control" type="email" id="{{ $id }}-email" name="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required aria-describedby="{{ $id }}-note">
-      <label for="{{ $id }}-email">Farm news by email</label>
-    </div>
+    <input class="form-control" type="email" id="{{ $id }}-email" name="email" autocomplete="email" inputmode="email" required aria-describedby="{{ $id }}-note">
     {{ partial "busy-button.html" (dict "label" "Sign me up" "busy" "Submitting" "class" "btn-primary") }}
   </div>
   <p class="news-signup-note" id="{{ $id }}-note" data-news-note role="status" aria-live="polite"></p>
