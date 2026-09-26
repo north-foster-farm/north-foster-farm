@@ -48,8 +48,9 @@ it as soon as you enter your ZIP code.
 
 ## How you pay
 
-Orders are prepaid on the order page when you check out. Payment can
-be made by credit card, Apple Pay, Google Pay, Cash App Pay or Venmo.
+Orders are prepaid on the order page when you place your order.
+Payment can be made by credit card, Apple Pay, Google Pay, Cash App
+Pay or Venmo.
 
 Your order is placed once your payment goes through, and not before.
 We email you as soon as it is.
