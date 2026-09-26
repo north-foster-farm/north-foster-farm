@@ -63,10 +63,11 @@ we'll need one.
 
 We email you a reminder the evening before.
 
-If something on our side, like weather or a breakdown, stops us
-delivering on your Thursday, we'll call, text or email you. We'll
-bring your order the next Thursday, or refund it in full if you'd
-rather.
+If we can't make it due to unforeseen circumstances, such as
+inclement weather, we'll notify you via email and postpone your
+delivery until the following Thursday. Alternatively, you can choose
+to pick up your order at the farm or drop site, or cancel your order
+for a full refund.
 
 You don't need to be home. If there's no cooler where you told us,
 we'll call or text you before we leave your order. Once it's
