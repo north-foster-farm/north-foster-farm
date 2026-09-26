@@ -5,7 +5,6 @@
 import {
   OrderPage, expect, test, uniqueEmail,
 } from "./support/order.mjs";
-import { clearMail, waitForMail } from "./support/staging.mjs";
 
 // Presses Pay with the card form open and nothing typed into it. The
 // form validates first, so no request reaches /api/orders.
@@ -232,26 +231,20 @@ test.describe("contact and pickup forms", () => {
       );
     });
 
-  test("ticking the farm-news box sends the confirmation at once",
-    async ({ page }) => {
-      const order = new OrderPage(page);
-      const email = uniqueEmail("optin");
-      const since = new Date();
+  test("ticking the farm-news box sends no email", async ({ page }) => {
+    const order = new OrderPage(page);
+    let asked = 0;
 
-      await order.open({ eggs: 1 });
-      await page.locator("#customer-email").fill(email);
-      await page.locator("label[for='customer-marketing']").click();
-      await expect(page.locator("#details [data-news-note]")).toHaveText(
-        "Click the link in the email you receive to join the list."
-      );
-
-      const mail = await waitForMail({
-        to: email, since,
-        subject: "Confirm your email for North Foster Farm news and updates",
-      });
-
-      expect(mail.text).toContain("Sign up");
-      expect(posted).toBe(0);
-      await clearMail({ to: email, since });
+    page.on("request", (r) => {
+      if (r.url().includes("/api/news/")) asked += 1;
     });
+    await order.open({ eggs: 1 });
+    await page.locator("#customer-email").fill(uniqueEmail("optin"));
+    await page.locator("label[for='customer-marketing']").click();
+    await page.locator("#customer-phone").focus();
+    await expect(page.locator("#customer-marketing")).toBeChecked();
+    await expect(page.locator("#details [data-news-note]")).toHaveCount(0);
+    expect(asked, "the box joins with the order, not before").toBe(0);
+    expect(posted).toBe(0);
+  });
 });

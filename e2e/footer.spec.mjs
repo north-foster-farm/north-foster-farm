@@ -150,10 +150,8 @@ test.describe("footer (#141)", () => {
       await button.click({ force: true });
       hold.release();
 
-      await expect(form.locator("[data-news-note]")).toHaveText(
-        `Check ${email} for an email from us. One click there and you're ` +
-        "on the list."
-      );
+      await expect(form.locator("[data-news-note]"))
+        .toHaveText("You're on the list. Thanks!");
       await expectIdle(button, { width });
       expect(hold.calls()).toBe(1);
     });

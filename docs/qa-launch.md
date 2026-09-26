@@ -815,18 +815,18 @@ delivery day" (both projects).
 
 ### FM-10 The farm-news box at checkout
 
-Automated: `forms.spec.mjs`, "ticking the farm-news box sends the
-confirmation at once" (both projects).
+Automated: `forms.spec.mjs`, "ticking the farm-news box sends no
+email" (both projects).
 
-- **Scenario:** Ticking the box mails the double opt-in at once;
-  finding 15 set the note's wording.
+- **Scenario:** No double opt-in on the site (W1): the ticked box joins
+  the list when the order is placed, and ticking it asks for nothing.
 - **Setup:** 1 egg; a unique email.
 - **Test:**
-  1. Type the email; tick "I want to get email from North Foster Farm."
-- **Assert:** The note reads "Click the link in the email you receive to
-  join the list."; the outbox has "Confirm your email for North Foster
-  Farm news and updates" to that address; no order is sent.
-- **Teardown:** The message is removed from the outbox.
+  1. Type the email; tick "I want to get email from North Foster Farm.";
+     move to the phone field.
+- **Assert:** The box is ticked; no note under it; no request to
+  `/api/news/`; no order is sent.
+- **Teardown:** None.
 
 ### FM-11 Autofill on an iPhone
 
@@ -1611,30 +1611,20 @@ Manual: James only; it reads production.
 
 ## Farm news
 
-### FN-01 Sign up, confirm, opted in
+### FN-01 Sign up, opted in at once
 
-Automated: `news.spec.mjs`, "the footer sign-up asks, the email
-confirms, the click opts in". Tagged `@regression`.
+Automated: `news.spec.mjs`, "the footer sign-up joins at once, with no
+email". Tagged `@regression`.
 
-- **Scenario:** Double opt-in from the footer, in James's wording
-  (finding 18).
+- **Scenario:** Single opt-in from the footer (W1, 2026-09-26).
 - **Setup:** A unique address.
 - **Test:**
   1. Home page footer: type the address; press Sign me up.
-  2. Read the outbox; check the record; open the link; open it again.
-- **Assert:** The note says "Check <address> for an email from us." and
-  the field empties. The email's subject is "Confirm your email for
-  North Foster Farm news and updates"; it reads "Click the button below
-  to receive news and updates from North Foster Farm.", has a "Sign up"
-  button, "This link expires in 7 days. You're receiving this message
-  because you asked to join our mailing list." and "Need help?
-  Contact us", and
-  says neither "now and then" nor "Nothing is sent until you do". Before
-  the click the record is absent or not consenting. The link, to the
-  staging host, lands on `/news/` with "You're on the list. Thanks!";
-  the record has `marketing` true and a `marketingAt`. The second click
-  says "That link isn't valid any more."
-- **Teardown:** `customers delete`; the message removed.
+  2. Check the record and the outbox.
+- **Assert:** The note says "You're on the list. Thanks!" and the field
+  empties. The record has `marketing` true, a `marketingAt` and
+  `marketingSource` signup. Nothing in the outbox to that address.
+- **Teardown:** `customers delete`.
 
 ### FN-02 A bad address
 
@@ -1664,27 +1654,40 @@ Automated: `news.spec.mjs`, "the news page carries the same sign-up".
 
 Manual: automatable; not yet written.
 
-- **Scenario:** The confirmation cannot be used to flood an inbox, and
-  the answer never reveals who is on the list.
+- **Scenario:** The sign-up cannot be hammered, and the answer never
+  reveals who is on the list.
 - **Setup:** A unique address.
 - **Test:**
   1. Sign up four times in a minute.
-- **Assert:** The same answer each time; no more messages than the
-  sign-in limit allows.
-- **Teardown:** Delete the customer; clear the messages.
+- **Assert:** "You're on the list. Thanks!" each time; the fourth
+  request is refused quietly (`news.subscribed` logged with reason
+  rate).
+- **Teardown:** Delete the customer.
 
-### FN-05 An expired confirmation
+### FN-05 An old-list invitation, clicked and expired
 
 Manual: the link lives seven days.
 
-- **Scenario:** A week-old link.
-- **Setup:** A confirmation requested eight days ago, or a preview with
-  a shortened lifetime.
+- **Scenario:** The confirmation that only the old list receives
+  (`bin/nff audience invite`).
+- **Setup:** A one-line CSV with a unique address;
+  `bin/nff --staging audience invite <csv>`. For the expired case, a
+  preview with a shortened lifetime.
 - **Test:**
-  1. Open the link.
-- **Assert:** `/news/` says "That link had expired. Enter your email
-  again and we'll send a fresh one."
-- **Teardown:** Delete the customer.
+  1. Read the outbox; open the link; open it again.
+  2. Open an expired link.
+- **Assert:** The email's subject is "Confirm your email for North
+  Foster Farm news and updates"; it reads "Click the button below to
+  receive news and updates from North Foster Farm.", has a "Sign up"
+  button, "This link expires in 7 days. You're receiving this message
+  because you previously joined our mailing list." and "Need help?
+  Contact us". Before the click the record is absent or not
+  consenting. The link, to the staging host, lands on `/news/` with
+  "You're on the list. Thanks!"; the record has `marketing` true and
+  `marketingSource` confirm. The second click says "That link isn't
+  valid any more. Enter your email here to join." An expired link
+  says "That link had expired. Enter your email here to join."
+- **Teardown:** Delete the customer; the message removed.
 
 ### FN-06 The settings box
 
@@ -1696,7 +1699,7 @@ Manual: automatable with a sign-in; not yet written.
 - **Test:**
   1. Tick the box; untick it.
 - **Assert:** `marketing` true, then false, each with a new
-  `marketingAt`.
+  `marketingAt`, and `marketingSource` account.
 - **Teardown:** Delete the customer.
 
 ### FN-07 The audience sync
@@ -2159,7 +2162,7 @@ Pending: #167 (after launch). `bin/nff messages` does not exist yet.
 Automated: `footer.spec.mjs`, "a bad address is marked at the field,
 and fixing it clears it" and "while it sends, the button shows the egg
 and keeps its width" (both projects). The request is stubbed and held,
-so nothing is mailed; FN-01 covers the real sign-up.
+so nobody is added; FN-01 covers the real sign-up.
 
 - **Scenario:** An input group with a floating label and an egg
   spinner.
@@ -2175,7 +2178,7 @@ so nothing is mailed; FN-01 covers the real sign-up.
   held: `data-state="busy"`, "Submitting" and the egg spinner faded in,
   "Sign me up" faded out, the button's width unchanged, the line under
   the field empty, and the second press sends nothing. Then the
-  "Check … for an email from us" answer at the same width.
+  "You're on the list. Thanks!" answer at the same width.
 - **Teardown:** None.
 
 ### AR-19 The footer layout (#141)
@@ -2483,5 +2486,5 @@ wired.
 7. FM-04 Errors clear as fields are fixed
 8. OP-13 Continue to checkout can always be reached
 9. AO-01 A sign-in link, used once
-10. FN-01 Sign up, confirm, opted in
+10. FN-01 Sign up, opted in at once
 11. AO-15 Fewer items in a paid order: the difference goes back

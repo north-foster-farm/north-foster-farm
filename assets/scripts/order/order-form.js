@@ -296,32 +296,6 @@ export class OrderForm {
     if (out !== raw) input.value = out;
   }
 
-  // The farm-news request, once per address: the confirmation email
-  // goes out now, and one click there adds them, so nobody is added
-  // on the strength of a typo or a tick on someone else's behalf.
-  async askNews() {
-    const news = qs(this.form, "[data-field='customer.marketing']");
-    const email = qs(this.form, "[data-field='customer.email']");
-    const note = qs(this.form, "[data-news-note]");
-    const address = email.value.trim().toLowerCase();
-
-    if (!news.checked || !address || !email.checkValidity()) return;
-    if (this.newsAsked.has(address)) return;
-    this.newsAsked.add(address);
-
-    const { ok } = await api("/api/news/subscribe", {
-      method: "POST", body: { email: address },
-    });
-
-    if (ok) {
-      note.textContent =
-        "Click the link in the email you receive to join the list.";
-      note.hidden = false;
-    } else {
-      this.newsAsked.delete(address);
-    }
-  }
-
   // "Prefer text or call?" shows once the phone number is one we could
   // use, and fades in when it appears.
   showContact() {
@@ -391,15 +365,6 @@ export class OrderForm {
     });
     this.formatPhone();
     this.showContact();
-
-    // Ticking the farm-news box asks for the confirmation email at
-    // once, with the address in the form, rather than at the order.
-    const news = qs(this.form, "[data-field='customer.marketing']");
-    const email = qs(this.form, "[data-field='customer.email']");
-
-    this.newsAsked = new Set();
-    news.addEventListener("change", () => this.askNews());
-    email.addEventListener("focusout", () => this.askNews());
 
     // The delivery-policy note can be dismissed, and stays dismissed.
     const agree = qs(this.form, "[data-agree]");

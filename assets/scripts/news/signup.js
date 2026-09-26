@@ -1,17 +1,18 @@
 // Farm news by email: the field in the footer and on the news page.
-// One request, then "check your email"; the confirmation link lands
-// back on /news/ with ?news=, which the line under the field explains.
+// One request puts the address on the list (W1). The old list's
+// confirmation link lands back on /news/ with ?news=, which the line
+// under the field explains.
 
 import { api } from "../utils/api.js";
 import { looksLikeEmail } from "../utils/email.js";
 import { isBusy, whileBusy } from "../utils/busy-button.js";
 
+const JOINED = "You're on the list. Thanks!";
+
 const LANDED = {
-  confirmed: "You're on the list. Thanks!",
-  expired: "That link had expired. Enter your email again and we'll send " +
-    "a fresh one.",
-  invalid: "That link isn't valid any more. Enter your email again and " +
-    "we'll send a fresh one.",
+  confirmed: JOINED,
+  expired: "That link had expired. Enter your email here to join.",
+  invalid: "That link isn't valid any more. Enter your email here to join.",
 };
 
 const say = (note, text, tone) => {
@@ -60,8 +61,7 @@ const wire = (form) => {
         .catch(() => ({ ok: false })));
 
     if (ok) {
-      say(note, `Check ${email} for an email from us. One click there and ` +
-        "you're on the list.", "ok");
+      say(note, JOINED, "ok");
       input.value = "";
     } else if (data && data.errors && data.errors.email) {
       setInvalid(true);

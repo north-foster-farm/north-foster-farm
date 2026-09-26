@@ -298,6 +298,7 @@ describe("customer records", () => {
 
     assert.equal(ticked.marketing, true);
     assert.equal(ticked.marketingAt, later.toISOString());
+    assert.equal(ticked.marketingSource, "order");
 
     const unticked = await touchCustomer(stores, who, later);
 

@@ -335,6 +335,7 @@ describe("profile and address", () => {
     assert.equal(ok.customer.name, "Patricia Example");
     assert.equal(ok.customer.marketing, true);
     assert.equal(ok.customer.marketingAt, "2026-09-23T15:00:00.000Z");
+    assert.equal(ok.customer.marketingSource, "account");
 
     const off = await updateProfile(stores, ok.customer, {
       marketing: false,

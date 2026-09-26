@@ -344,7 +344,7 @@ export const touchCustomer = async (
       phone: existing.phone || phone || "",
       lastOrderAt: at,
       ...(optIn && existing.marketing !== true
-        ? { marketing: true, marketingAt: at }
+        ? { marketing: true, marketingAt: at, marketingSource: "order" }
         : {}),
     });
   }
@@ -360,6 +360,7 @@ export const touchCustomer = async (
     address: null,
     marketing: optIn,
     marketingAt: optIn ? at : null,
+    ...(optIn ? { marketingSource: "order" } : {}),
     createdAt: at,
     lastOrderAt: at,
   });

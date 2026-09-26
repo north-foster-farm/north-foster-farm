@@ -1,16 +1,17 @@
 // Farm news by email.
 //
-//   POST /api/news/subscribe   { email, firstName? }  mails the one-click
-//                              confirmation; answers { ok: true } for
-//                              any address that looks like one, so the
+//   POST /api/news/subscribe   { email, firstName? }  on the list at
+//                              once; answers { ok: true } for any
+//                              address that looks like one, so the
 //                              list cannot be probed from here
-//   GET  /api/news/confirm     ?token=  the click; lands on /news/ with
+//   GET  /api/news/confirm     ?token=  the old list's click (bin/nff
+//                              audience invite); lands on /news/ with
 //                              ?news=confirmed, expired or invalid
 
 import { sameSite } from "./lib/auth.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
-import { confirmSubscribe, requestSubscribe } from "./lib/news.mjs";
+import { confirmSubscribe, subscribe } from "./lib/news.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
@@ -18,7 +19,6 @@ export const handle = async (req, {
   stores = defaultStores(),
   env = process.env,
   now = new Date(),
-  mail,
 } = {}) => {
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/+$/, "");
@@ -30,16 +30,16 @@ export const handle = async (req, {
 
     if (!body) return json(400, { errors: { body: "Expected JSON." } });
 
-    const r = await requestSubscribe(stores, body, { now, env, mail });
+    const r = await subscribe(stores, body, { now });
 
     if (!r.ok && r.reason === "invalid") {
       return json(422, {
         errors: { email: "That email address doesn't look right." },
       });
     }
-    // A rate-limited address gets the same answer as any other: the
-    // email it already has is the one to open.
-    log.info({ event: "news.requested", ok: r.ok, reason: r.reason || null });
+    // A rate-limited address gets the same answer as any other: it
+    // is on the list already.
+    log.info({ event: "news.subscribed", ok: r.ok, reason: r.reason || null });
 
     return json(200, { ok: true });
   }

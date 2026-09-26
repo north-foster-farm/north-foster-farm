@@ -603,24 +603,18 @@ export const magicLink = (email, url, { minutes = 15, links } = {}) => {
   return { subject: title, ...render(title, blocks, links) };
 };
 
-// Farm news: the one click that puts an address on the list. Sent to
-// anyone who asks on the site, and to the old list when it is asked
-// to opt in again. Nothing else is ever sent before that click. The
-// wording is James's, on the pattern of the sign-in email; the last
-// line differs for the old list (`invited`) and a sign-up (Q20).
-export const newsConfirm = (email, url, {
-  days = 7, invited = false, links,
-} = {}) => {
+// Farm news: the one click that puts an address from the old list on
+// the new one, when it is asked to opt in again. A sign-up on the site
+// needs no click (W1). The wording is James's, on the pattern of the
+// sign-in email, ending on his line for the old list (W19).
+export const newsConfirm = (email, url, { days = 7, links } = {}) => {
   const title = "Confirm your email for North Foster Farm news and updates";
-  const why = invited
-    ? "you previously joined our mailing list"
-    : "you asked to join our mailing list";
   const blocks = [
     p("Click the button below to receive news and updates from North " +
       "Foster Farm."),
     button("Sign up", url),
     p(`This link expires in ${days} days. You're receiving this ` +
-      `message because ${why}.`),
+      "message because you previously joined our mailing list."),
     row([["Need help? Contact us", contactUrl(links)]]),
   ];
 

@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import {
   CONFIRM_TTL, REQUESTS_PER_WINDOW, SYNC_KEY, confirmSubscribe,
   inviteSubscribers, optIn, optOut, parseCsv, requestSubscribe,
-  syncAudience,
+  subscribe, syncAudience,
 } from "../netlify/functions/lib/news.mjs";
 import {
   getCustomer, saveCustomer,
@@ -36,6 +36,39 @@ const customer = (email, extra = {}) => ({
   createdAt: "2026-09-01T00:00:00.000Z", lastOrderAt: null, ...extra,
 });
 
+describe("a sign-up on the site", () => {
+  it("opts a normalised address in at once, dated, with no email",
+    async () => {
+      const stores = testStores();
+      const r = await subscribe(stores, {
+        email: " Pat@Example.COM ", firstName: "Pat",
+      }, { now });
+
+      assert.deepEqual(r, { ok: true, email: "pat@example.com" });
+
+      const saved = await getCustomer(stores, "pat@example.com");
+
+      assert.equal(saved.marketing, true);
+      assert.equal(saved.marketingAt, now.toISOString());
+      assert.equal(saved.marketingSource, "signup");
+      assert.equal(saved.firstName, "Pat");
+      assert.equal(saved.lastOrderAt, null, "never ordered");
+    });
+
+  it("refuses a bad address and rate-limits an eager one", async () => {
+    const stores = testStores();
+
+    assert.equal((await subscribe(stores, { email: "nope" }, { now }))
+      .reason, "invalid");
+    for (let i = 0; i < REQUESTS_PER_WINDOW; i += 1) {
+      assert.equal((await subscribe(stores, { email: "a@b.co" }, { now }))
+        .ok, true, `request ${i + 1}`);
+    }
+    assert.equal((await subscribe(stores, { email: "a@b.co" }, { now }))
+      .reason, "rate");
+  });
+});
+
 describe("the confirmation request", () => {
   it("mails a single-use link to a normalised address", async () => {
     const stores = testStores();
@@ -56,20 +89,6 @@ describe("the confirmation request", () => {
     assert.match(sent[0].text, new RegExp(tokenIn(r.url)));
     assert.equal(await getCustomer(stores, "pat@example.com"), null,
       "nothing on the record until the click");
-  });
-
-  it("refuses a bad address and rate-limits an eager one", async () => {
-    const stores = testStores();
-    const { mail } = mailbox();
-
-    assert.equal((await requestSubscribe(stores, { email: "nope" },
-      { now, env, mail })).reason, "invalid");
-    for (let i = 0; i < REQUESTS_PER_WINDOW; i += 1) {
-      assert.equal((await requestSubscribe(stores, { email: "a@b.co" },
-        { now, env, mail })).ok, true, `request ${i + 1}`);
-    }
-    assert.equal((await requestSubscribe(stores, { email: "a@b.co" },
-      { now, env, mail })).reason, "rate");
   });
 });
 
@@ -340,50 +359,59 @@ describe("the endpoints", () => {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
 
-  it("take a request and land the click on the news page", async () => {
-    const stores = testStores();
-    const { sent, mail } = mailbox();
-    const ok = await handle(req("/api/news/subscribe", "POST",
-      { email: "Pat@Example.com" }), { stores, env, now, mail });
+  it("take a sign-up at once and land the click on the news page",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+      const ok = await handle(req("/api/news/subscribe", "POST",
+        { email: "Pat@Example.com" }), { stores, env, now });
 
-    assert.equal(ok.status, 200);
-    assert.deepEqual(await ok.json(), { ok: true });
-    assert.equal(sent.length, 1);
+      assert.equal(ok.status, 200);
+      assert.deepEqual(await ok.json(), { ok: true });
+      assert.equal((await getCustomer(stores, "pat@example.com")).marketing,
+        true);
 
-    const url = sent[0].text.match(/https:\S+confirm\?token=\S+/)[0];
-    const landed = await handle(req(`/api/news/confirm?token=${tokenIn(url)}`),
-      { stores, env, now: later });
+      const r = await requestSubscribe(stores, { email: "old@example.com" },
+        { now, env, mail });
+      const url = sent[0].text.match(/https:\S+confirm\?token=\S+/)[0];
+      const landed = await handle(
+        req(`/api/news/confirm?token=${tokenIn(url)}`),
+        { stores, env, now: later }
+      );
 
-    assert.equal(landed.status, 303);
-    assert.equal(landed.headers.get("location"),
-      "https://northfosterfarm.com/news/?news=confirmed");
-    assert.equal((await getCustomer(stores, "pat@example.com")).marketing,
-      true);
+      assert.equal(r.ok, true);
+      assert.equal(landed.status, 303);
+      assert.equal(landed.headers.get("location"),
+        "https://northfosterfarm.com/news/?news=confirmed");
+      assert.equal((await getCustomer(stores, "old@example.com")).marketing,
+        true);
 
-    const again = await handle(req(`/api/news/confirm?token=${tokenIn(url)}`),
-      { stores, env, now: later });
+      const again = await handle(
+        req(`/api/news/confirm?token=${tokenIn(url)}`),
+        { stores, env, now: later }
+      );
 
-    assert.equal(again.headers.get("location"),
-      "https://northfosterfarm.com/news/?news=invalid");
-  });
+      assert.equal(again.headers.get("location"),
+        "https://northfosterfarm.com/news/?news=invalid");
+    });
 
   it("refuse a bad address, a cross-site post, and say nothing about " +
     "a rate limit", async () => {
     const stores = testStores();
-    const { sent, mail } = mailbox();
 
     assert.equal((await handle(req("/api/news/subscribe", "POST",
-      { email: "nope" }), { stores, env, now, mail })).status, 422);
+      { email: "nope" }), { stores, env, now })).status, 422);
     assert.equal((await handle(req("/api/news/subscribe", "POST",
       { email: "a@b.co" }, { "sec-fetch-site": "cross-site" }),
-    { stores, env, now, mail })).status, 403);
+    { stores, env, now })).status, 403);
+    assert.equal(await getCustomer(stores, "a@b.co"), null,
+      "a cross-site post adds nobody");
     for (let i = 0; i < REQUESTS_PER_WINDOW + 1; i += 1) {
       const res = await handle(req("/api/news/subscribe", "POST",
-        { email: "a@b.co" }), { stores, env, now, mail });
+        { email: "a@b.co" }), { stores, env, now });
 
       assert.equal(res.status, 200);
     }
-    assert.equal(sent.length, REQUESTS_PER_WINDOW);
   });
 });
 
@@ -397,7 +425,8 @@ describe("the confirmation email", () => {
       "Confirm your email for North Foster Farm news and updates");
     assert.match(m.text, /^Click the button below to receive news and /m);
     assert.match(m.text, /^This link expires in 7 days\. You're receiving /m);
-    assert.match(m.text, /because you asked to join our mailing list\.$/m);
+    assert.match(m.text,
+      /because you previously joined our mailing list\.$/m);
     assert.match(m.html, />Sign up</);
     assert.match(m.html, /https:\/\/x\/confirm\?token=t/);
     assert.match(m.html, /name="format-detection"/);

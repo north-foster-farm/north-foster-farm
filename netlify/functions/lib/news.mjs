@@ -1,8 +1,10 @@
 // Farm news by email: opt-in only, ever. Consent is `marketing` and
-// `marketingAt` on the customer record, set by the checkout box, the
-// settings box, or the confirmation link this file sends. Anyone with
-// an email address may opt in; a record is made for an address that
-// has never ordered.
+// `marketingAt` on the customer record, set by the sign-up field, the
+// checkout box, the settings box, or the confirmation link this file
+// mails to the old list. A sign-up on the site joins at once; only
+// the old list is asked to confirm (James, W1, 2026-09-26). Anyone
+// with an email address may opt in; a record is made for an address
+// that has never ordered.
 //
 // The list itself lives in Resend (an audience), so broadcasts go out
 // with Resend's unsubscribe link. syncAudience keeps the two in step:
@@ -89,10 +91,44 @@ export const optOut = async (stores, email, { source = "site" } = {},
   });
 };
 
+// Per address, like sign-in. -> true when this request may go on.
+const withinRate = async (stores, address, now) => {
+  const rateKey = `rate/news/${address}`;
+  const rate = (await stores.auth.get(rateKey)) || { times: [] };
+  const recent = rate.times.filter((t) => now.getTime() - t < REQUEST_WINDOW);
+
+  if (recent.length >= REQUESTS_PER_WINDOW) return false;
+  await stores.auth.set(rateKey, { times: [...recent, now.getTime()] });
+
+  return true;
+};
+
+// --- Signing up on the site ----------------------------------------
+
+// The footer and news-page field: on the list at once, no email.
+// -> { ok: true, email } or { ok: false, reason }.
+export const subscribe = async (stores, { email, firstName, lastName }, {
+  now = new Date(),
+  limit = true,
+} = {}) => {
+  const address = normalizeEmail(email);
+
+  if (!validEmail(address)) return { ok: false, reason: "invalid" };
+  if (limit && !(await withinRate(stores, address, now))) {
+    return { ok: false, reason: "rate" };
+  }
+
+  await optIn(stores, address, {
+    firstName: text(firstName), lastName: text(lastName), source: "signup",
+  }, now);
+
+  return { ok: true, email: address };
+};
+
 // --- The confirmation link -----------------------------------------
 
-// Mails the one-click confirmation. The address is only ever added
-// when that link is followed. Rate-limited per address like sign-in.
+// Mails the old list's one-click confirmation. The address is only
+// added when that link is followed.
 // -> { ok: true, url, email } or { ok: false, reason }.
 export const requestSubscribe = async (stores, {
   email, firstName, lastName,
@@ -102,22 +138,13 @@ export const requestSubscribe = async (stores, {
   mail = sendMail,
   send = true,
   limit = true,
-  invited = false,
   ttl = CONFIRM_TTL,
 } = {}) => {
   const address = normalizeEmail(email);
 
   if (!validEmail(address)) return { ok: false, reason: "invalid" };
-
-  if (limit) {
-    const rateKey = `rate/news/${address}`;
-    const rate = (await stores.auth.get(rateKey)) || { times: [] };
-    const recent = rate.times.filter((t) => now.getTime() - t < REQUEST_WINDOW);
-
-    if (recent.length >= REQUESTS_PER_WINDOW) {
-      return { ok: false, reason: "rate" };
-    }
-    await stores.auth.set(rateKey, { times: [...recent, now.getTime()] });
+  if (limit && !(await withinRate(stores, address, now))) {
+    return { ok: false, reason: "rate" };
   }
 
   const token = secret();
@@ -139,7 +166,7 @@ export const requestSubscribe = async (stores, {
       to: address,
       idempotencyKey: `news-${hash(token).slice(0, 16)}`,
       ...newsConfirm(address, url, {
-        days: Math.round(ttl / DAY), invited, links: mailLinks(env),
+        days: Math.round(ttl / DAY), links: mailLinks(env),
       }),
     }, { env });
   }
@@ -172,8 +199,8 @@ export const confirmSubscribe = async (stores, token, {
   return { ok: true, email: customer.email };
 };
 
-// The re-opt-in of an existing list: the same confirmation email to
-// each address, once. Addresses already consenting are skipped, bad
+// The re-opt-in of an existing list: the confirmation email to each
+// address, once. Addresses already consenting are skipped, bad
 // ones reported. -> { invited, skipped, invalid }.
 export const inviteSubscribers = async (stores, rows, {
   now = new Date(),
@@ -200,7 +227,7 @@ export const inviteSubscribers = async (stores, rows, {
     if (!dryRun) {
       await requestSubscribe(stores, {
         email: address, firstName: row.firstName, lastName: row.lastName,
-      }, { now, env, mail, limit: false, invited: true });
+      }, { now, env, mail, limit: false });
     }
     report.invited.push(address);
   }

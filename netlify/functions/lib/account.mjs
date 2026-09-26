@@ -316,6 +316,7 @@ export const updateProfile = async (stores, customer, changes, {
     patch.marketing = c.marketing === true;
     if (patch.marketing !== (customer.marketing === true)) {
       patch.marketingAt = now.toISOString();
+      patch.marketingSource = "account";
     }
   }
   // The reminder emails, each on or off; a key left out is unchanged.

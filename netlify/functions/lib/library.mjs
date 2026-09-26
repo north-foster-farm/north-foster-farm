@@ -280,19 +280,11 @@ export const library = [
       `${links.site}/account/?token=abc123`, { links }),
   },
   {
-    id: "news-confirm", name: "Confirm Farm news",
-    when: "Someone signs up for Farm news on the site",
-    audience: C, tags: ["list", "sign-up"],
-    build: (links) => t.newsConfirm(customer.email,
-      `${links.site}/api/news/confirm?token=abc123`, { links }),
-  },
-  {
     id: "news-invite", name: "Farm news invitation",
     when: "The old list is invited to opt in again",
     audience: C, tags: ["list", "sign-up", "launch"],
     build: (links) => t.newsConfirm(customer.email,
-      `${links.site}/api/news/confirm?token=abc123`,
-      { invited: true, links }),
+      `${links.site}/api/news/confirm?token=abc123`, { links }),
   },
 
   // To the farm
@@ -481,13 +473,11 @@ const WAITING = {
   "farm-square-out-of-sync": CARD,
   "farm-morning-report": `${LANDED}: the key under the table, and 🙈 ` +
     "for outside limits.",
-  "news-confirm": "His dictation of 2026-09-24, ending on his line " +
-    "for site sign-ups (Q20, 2026-09-26). Open: \"farm news\" or \"news " +
-    "and updates\" (W14).",
-  "news-invite": "The sign-up confirmation, ending on his line for " +
+  "news-invite": "His dictation of 2026-09-24, ending on his line for " +
     "the old list (W19, 2026-09-26) in place of \"If you didn\x27t " +
-    "request this email, you can safely ignore it.\" Open: \"farm " +
-    "news\" or \"news and updates\" (W14).",
+    "request this email, you can safely ignore it.\" Site sign-ups get " +
+    "no email since W1. Open: \"farm news\" or \"news and updates\" " +
+    "(W14).",
   "news-launch-email": "Subject and preview text are his (2026-09-26). " +
     "The whole body is the email lane\x27s draft and waits on him (W18), " +
     "with \"much of Rhode Island\" (Q5). Draft: \"In the next few days " +
