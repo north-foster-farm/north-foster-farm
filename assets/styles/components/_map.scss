@@ -68,7 +68,8 @@ $map-pins: (
 .map-zip,
 .map-borders,
 .map-pick,
-.map-pin-body > path,
+.map-pin-head > path,
+.map-pin-stem,
 .map-drop-pin {
   vector-effect: non-scaling-stroke;
 }
@@ -132,7 +133,7 @@ $map-pins: (
     opacity: 0.8;
   }
 
-  .map-pin-body > path {
+  .map-pin-head > path {
     stroke: $white;
     stroke-width: 2;
     transition: stroke 0.12s ease-out;
@@ -146,8 +147,8 @@ $map-pins: (
     fill: $white;
   }
 
-  &[aria-pressed="true"] .map-pin-body > path,
-  &:focus-visible .map-pin-body > path {
+  &[aria-pressed="true"] .map-pin-head > path,
+  &:focus-visible .map-pin-head > path {
     stroke: $gray-800;
     stroke-width: 3;
   }
@@ -170,12 +171,18 @@ $map-pins: (
 }
 
 @each $kind, $colour in $map-pins {
-  .map-pin-#{$kind} .map-pin-body > path {
+  .map-pin-#{$kind} .map-pin-head > path {
     fill: $colour;
   }
 
+  // A raised pin's stem, a line of its colour down to its place.
+  .map-pin-#{$kind} .map-pin-stem {
+    stroke: $colour;
+    stroke-width: 2;
+  }
+
   .map-pin-#{$kind}.is-off {
-    .map-pin-body > path {
+    .map-pin-head > path {
       fill: $white;
       stroke: $colour;
       stroke-dasharray: 4 3;
@@ -376,12 +383,6 @@ $map-pins: (
   }
 }
 
-.map-hint {
-  margin: 0.5rem 0 0;
-  font-size: 0.875rem;
-  color: var(--bs-secondary-color);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .map-drop-fall {
     animation: none;
@@ -510,9 +511,11 @@ $map-pins: (
   width: 1.625rem;
   height: 1.625rem;
 
+  // Taller than the numbers beside it, as the marker stands over the
+  // pins on the map; the box keeps their width, so the names line up.
   .map-farm-marker {
     width: auto;
-    height: 1.75rem;
+    height: 2.375rem;
   }
 }
 

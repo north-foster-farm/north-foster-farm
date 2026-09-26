@@ -188,17 +188,17 @@ test.describe("map (#138)", () => {
     });
 
   // What hides a pin is another pin over its head, where its number
-  // is. Pins that share a place lean apart about their shared tip, so
-  // their boxes always meet there; their heads must not. The drop
-  // shape's head is a circle of 15 units at (0, -30); the farm
-  // marker's, of 22 at (0, -37).
+  // is. Pins that share a place meet at their shared tip, and a
+  // crowded one stands taller on a stem; their heads must not meet.
+  // The drop shape's head is a circle of 15 units at (0, -30) in its
+  // head group; the farm marker's, of 22 at (0, -37).
   test("no pin hides another", async ({ page }) => {
     await page.goto(HOME.path);
 
     const heads = await map(page).locator("[data-map-pin] .map-pin-body")
       .evaluateAll((els) => els.map((el) => {
         const farm = !!el.querySelector(".map-farm-marker");
-        const m = el.getScreenCTM();
+        const m = (el.querySelector(".map-pin-head") ?? el).getScreenCTM();
         const c = new DOMPoint(0, farm ? -37 : -30).matrixTransform(m);
 
         return { n: el.textContent.trim() || "farm", x: c.x, y: c.y,
@@ -228,8 +228,8 @@ test.describe("map (#138)", () => {
     }
   });
 
-  // A crowded pin leans rather than moves, so its tip stays on its
-  // place at every zoom: the Foster market's tip once fell in
+  // A crowded pin stands taller rather than moves, so its tip stays
+  // on its place at every zoom: the Foster market's tip once fell in
   // Connecticut on a phone.
   test("every pin's tip is on its place", async ({ page }) => {
     await page.goto(HOME.path);

@@ -115,7 +115,7 @@
     "address" .where
     "href" .href
     "instagram" .instagram
-    "lean" .lean)) }}
+    "offset" .offset)) }}
 {{ end }}
 
 {{/* On now first, the rest after; the farm has its marker, the others
@@ -145,8 +145,11 @@
 
 <div class="map" id="{{ $id }}" data-map>
   {{ if .check }}
-    <div class="map-check">
-      {{ partial "delivery-check.html" (dict "id" (printf "%s-zip" $id)) }}
+    {{/* Narrower than its cell: a ZIP needs little room. */}}
+    <div class="map-check row">
+      <div class="col-md-9 col-lg-12 col-xl-10 col-xxl-9">
+        {{ partial "delivery-check.html" (dict "id" (printf "%s-zip" $id)) }}
+      </div>
     </div>
   {{ end }}
   <div class="map-view">
@@ -173,22 +176,24 @@
           {{ range $i, $p := $pins | collections.Reverse }}
             {{ $at := sub (len $pins) $i }}
             <g class="map-pin map-pin-{{ $p.kind }} {{ cond $p.on "is-on" "is-off" }}" data-map-pin="{{ $at }}" data-x="{{ $p.x }}" data-y="{{ $p.y }}" transform="translate({{ $p.x }} {{ $p.y }})" tabindex="0" role="button" aria-pressed="false" aria-label="{{ with $p.label }}{{ . }}: {{ end }}{{ $p.name }}">
-              {{/* A pin crowded by a neighbour leans away from it,
-                   by its lean in degrees, about its tip, so the tip
-                   stays on its place; map.js eases the lean as the
-                   map zooms in and the crowd thins. Its number stays
-                   upright. One not on now is smaller. */}}
-              {{ $lean := $p.lean | default 0 }}
-              <g {{- if $lean }} data-map-lean="{{ $lean }}" transform="rotate({{ $lean }})"{{ end }}>
-                <g {{- if not $p.on }} transform="scale(0.78)"{{ end }}>
-                  <g class="map-pin-body">
-                    {{ if eq $p.kind "farm" }}
-                      <g class="map-farm-marker" transform="translate(-22.1 -59.1) scale(0.1181)">{{ $markerShapes }}</g>
-                    {{ else }}
+              {{/* A pin crowded by a neighbour stands aside, upright,
+                   its head moved by its offset [x, y] in pin units,
+                   and a stem runs from the head's tip to its place,
+                   so what it marks stays exact. One not on now is
+                   smaller. */}}
+              {{ $at := $p.offset | default (slice 0 0) }}
+              {{ $moved := or (index $at 0) (index $at 1) }}
+              <g {{- if not $p.on }} transform="scale(0.78)"{{ end }}>
+                <g class="map-pin-body">
+                  {{ if eq $p.kind "farm" }}
+                    <g class="map-farm-marker" transform="translate(-22.1 -59.1) scale(0.1181)">{{ $markerShapes }}</g>
+                  {{ else }}
+                    {{ if $moved }}<path class="map-pin-stem" d="M0 0L{{ index $at 0 }} {{ index $at 1 }}"/>{{ end }}
+                    <g class="map-pin-head" {{- if $moved }} transform="translate({{ index $at 0 }} {{ index $at 1 }})"{{ end }}>
                       <path d="{{ $pin }}"/>
-                      <text y="-24" {{- if $lean }} transform="rotate({{ mul -1 $lean }} 0 -30)"{{ end }}>{{ $p.label }}</text>
-                    {{ end }}
-                  </g>
+                      <text y="-24">{{ $p.label }}</text>
+                    </g>
+                  {{ end }}
                 </g>
               </g>
             </g>
@@ -239,7 +244,6 @@
         </button>
       </div>
     </div>
-    <p class="map-hint">Tap a town to see if we deliver, or a pin for details.</p>
   </div>
 
   <div class="map-key">
