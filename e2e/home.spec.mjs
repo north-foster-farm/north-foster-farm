@@ -270,7 +270,7 @@ test.describe("home", () => {
         await expect(h.note).toBeVisible();
         await expect(offer).toBeVisible();
         await expect(offer).toHaveText(
-          "Stop videos playing on their own? Turn off autoplay"
+          "Turn off autoplay"
         );
         await expect(done).toBeHidden();
 

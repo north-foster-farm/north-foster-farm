@@ -4,7 +4,7 @@
 // photograph once frames are coming. A pause offers, once, to stop
 // every video on the site playing on its own.
 
-import { Autoplay, autoplayOffer } from "../video/video.js";
+import { Autoplay, autoplayOffer, fadeWhenIdle } from "../video/video.js";
 
 // Two frames on, the poster is on screen, not only decoded.
 const afterPaint = (img) => img.decode()
@@ -75,12 +75,17 @@ export const wireHeroVideo = () => {
   hero.querySelector("[data-hero-controls]").hidden = false;
   show();
 
+  const wake = fadeWhenIdle(hero);
+
   afterPaint(hero.querySelector(".home-hero-img")).then(() => {
     // Play while on screen, pause once scrolled away.
     new IntersectionObserver(([{ isIntersecting }]) => {
       if (!isIntersecting) {
         video.pause();
-      } else if (started || (!held && Autoplay.allowed())) {
+        return;
+      }
+      wake();
+      if (started || (!held && Autoplay.allowed())) {
         play();
       }
     }).observe(hero);

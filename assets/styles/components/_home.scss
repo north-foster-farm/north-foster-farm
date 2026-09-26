@@ -107,28 +107,6 @@
     opacity: 1;
   }
 
-  // The play/pause button in the corner, from the video shortcode, and
-  // beside it the offer that follows a pause.
-  .home-hero-controls {
-    position: absolute;
-    right: 0.75rem;
-    bottom: 0.75rem;
-    left: 0.75rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    pointer-events: none;
-
-    > * {
-      pointer-events: auto;
-    }
-
-    .video-toggle {
-      position: static;
-      flex: none;
-    }
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .home-hero-video {
       transition: none;

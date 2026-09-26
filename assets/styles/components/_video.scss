@@ -1,8 +1,8 @@
 // The video shortcode: a clip in the figure's frame, with a play/pause
-// button in its corner. The button shows whenever the clip is paused,
-// so a poster never passes for a photograph; while it plays, the
-// button comes up on hover and on keyboard focus, and stays faintly
-// visible where there is no pointer to hover with.
+// button in its corner, as the home page's hero has. The button shows
+// on arrival; five seconds without a touch or the mouse on the video,
+// it fades almost away, and either brings it back (scripts/video/).
+// Keyboard focus keeps it up.
 
 .video-frame {
   position: relative;
@@ -25,8 +25,6 @@
   background: rgb(0 0 0 / 55%);
   border: 0;
   border-radius: 50%;
-  opacity: 0;
-  transition: opacity 0.2s ease;
 
   svg {
     grid-area: 1 / 1;
@@ -36,7 +34,6 @@
   }
 
   &:focus-visible {
-    opacity: 1;
     outline: 2px solid #fff;
     outline-offset: 2px;
   }
@@ -47,15 +44,18 @@
 }
 
 // In the corner: the button, and beside it the offer after a pause.
+// Both sit on the bottom line, so the button never moves when the
+// offer's answer runs to two lines on a phone.
 .video-controls {
   position: absolute;
   right: 0.75rem;
   bottom: 0.75rem;
   left: 0.75rem;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 0.5rem;
   pointer-events: none;
+  transition: opacity 0.6s ease;
 
   > * {
     pointer-events: auto;
@@ -67,11 +67,18 @@
   }
 }
 
+.video-frame[data-idle="true"] .video-controls:not(:focus-within) {
+  opacity: 0.12;
+}
+
 // The offer to stop videos playing on their own, on every video and
-// the home page's hero.
+// the home page's hero: a pill as tall as the button, the whole of it
+// the offer's button.
 .video-note {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
   margin: 0;
-  padding: 0.375rem 0.75rem;
   border-radius: var(--bs-border-radius);
   background: rgb(0 0 0 / 55%);
   color: $white;
@@ -80,13 +87,23 @@
 }
 
 .video-note-btn {
-  padding: 0;
+  min-height: 2.75rem;
+  padding: 0 0.875rem;
   border: 0;
   background: none;
   color: inherit;
   font-weight: bold;
   text-decoration: underline;
   text-underline-offset: 0.18em;
+
+  &:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: -4px;
+  }
+}
+
+.video-note-done {
+  padding: 0.375rem 0.875rem;
 }
 
 .video-frame[data-playing="true"] {
@@ -99,19 +116,8 @@
   }
 }
 
-.video-frame[data-playing="false"] .video-toggle,
-.video-frame:hover .video-toggle {
-  opacity: 1;
-}
-
-@media (hover: none) {
-  .video-frame[data-playing="true"] .video-toggle {
-    opacity: 0.6;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .video-toggle {
+  .video-controls {
     transition: none;
   }
 }

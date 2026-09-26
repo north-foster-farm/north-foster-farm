@@ -70,10 +70,38 @@ export const autoplayOffer = (note) => {
   };
 };
 
+const IDLE_MS = 5000;
+
+// The controls fade almost away five seconds after the last touch,
+// tap or mouse movement on the video, and come back with the next.
+// Returns the wake, for when the video comes back on screen.
+export const fadeWhenIdle = (frame) => {
+  let timer;
+
+  const wake = () => {
+    frame.dataset.idle = "false";
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      frame.dataset.idle = "true";
+    }, IDLE_MS);
+  };
+
+  for (const type of ["pointermove", "pointerdown", "focusin"]) {
+    frame.addEventListener(type, wake, { passive: true });
+  }
+  wake();
+
+  return wake;
+};
+
+const wakes = new WeakMap();
+
 const wire = (frame, observer) => {
   const video = frame.querySelector("video");
   const toggle = frame.querySelector("[data-video-toggle]");
   const note = autoplayOffer(frame.querySelector("[data-autoplay-note]"));
+
+  wakes.set(frame, fadeWhenIdle(frame));
 
   const show = () => {
     const playing = !video.paused;
@@ -113,7 +141,10 @@ export const wireVideos = () => {
 
       if (!isIntersecting) {
         video.pause();
-      } else if (started.has(target)
+        continue;
+      }
+      wakes.get(target)();
+      if (started.has(target)
         || (!held.has(target) && Autoplay.allowed())) {
         video.play().catch(() => {});
       }

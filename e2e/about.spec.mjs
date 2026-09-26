@@ -138,7 +138,7 @@ test.describe("about (#144)", () => {
     await toggle.click();
     await expect(note).toBeVisible();
     await expect(note.locator("[data-autoplay-offer]")).toHaveText(
-      "Stop videos playing on their own? Turn off autoplay"
+      "Turn off autoplay"
     );
     await note.getByRole("button", { name: "Turn off autoplay" }).click();
     await expect(note.locator("[data-autoplay-done]")).toBeVisible();

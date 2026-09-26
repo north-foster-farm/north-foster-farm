@@ -67,6 +67,7 @@ const plugins = [
         "data-busy",
         "data-row-start",
         "data-playing",
+        "data-idle",
         "role",
         "option",
         "aria-selected",
