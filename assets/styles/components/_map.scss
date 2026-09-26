@@ -69,7 +69,6 @@ $map-pins: (
 .map-borders,
 .map-pick,
 .map-pin-head > path,
-.map-pin-stem,
 .map-drop-pin {
   vector-effect: non-scaling-stroke;
 }
@@ -165,6 +164,12 @@ $map-pins: (
   transition: transform 0.16s ease-out;
 }
 
+// Pins that share a ZIP: stacked, each a step up and to the right of
+// the one before, and spread in a row on hover, focus or a first tap.
+.map-pin-shift {
+  transition: transform 0.2s ease-out;
+}
+
 .map-pin:hover .map-pin-body,
 .map-pin[aria-pressed="true"] .map-pin-body {
   transform: translateY(-4px) scale(1.12);
@@ -173,12 +178,6 @@ $map-pins: (
 @each $kind, $colour in $map-pins {
   .map-pin-#{$kind} .map-pin-head > path {
     fill: $colour;
-  }
-
-  // A raised pin's stem, a line of its colour down to its place.
-  .map-pin-#{$kind} .map-pin-stem {
-    stroke: $colour;
-    stroke-width: 2;
   }
 
   .map-pin-#{$kind}.is-off {
@@ -389,6 +388,7 @@ $map-pins: (
   }
 
   .map-pin-body,
+  .map-pin-shift,
   .map-zip {
     transition: none;
   }

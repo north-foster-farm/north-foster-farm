@@ -187,68 +187,122 @@ test.describe("map (#138)", () => {
       }
     });
 
-  // What hides a pin is another pin over its head, where its number
-  // is. Pins that share a place meet at their shared tip, and a
-  // crowded one stands taller on a stem; their heads must not meet.
-  // The drop shape's head is a circle of 15 units at (0, -30) in its
-  // head group; the farm marker's, of 22 at (0, -37).
-  test("no pin hides another", async ({ page }) => {
-    await page.goto(HOME.path);
+  // Pins that share a ZIP stand in a stack at the place of the first
+  // in the key, each a step up and to the right of the one before, and
+  // spread into a row to be picked: under the mouse, or at a first tap
+  // on a touch screen (James, 2026-09-26). What hides a pin is another
+  // pin over its head, where its number is. The drop shape's head is
+  // a circle of 15 units at (0, -30) in its head group; the farm
+  // marker's, of 22 at (0, -37).
+  const heads = (page, stack) => map(page)
+    .locator(`[data-stack='${stack}'] .map-pin-body`)
+    .evaluateAll((els) => els.map((el) => {
+      const key = Number(el.closest("[data-map-pin]").dataset.mapPin);
+      const farm = !!el.querySelector(".map-farm-marker");
+      const m = (el.querySelector(".map-pin-head") ?? el).getScreenCTM();
+      const c = new DOMPoint(0, farm ? -37 : -30).matrixTransform(m);
 
-    const heads = await map(page).locator("[data-map-pin] .map-pin-body")
-      .evaluateAll((els) => els.map((el) => {
-        const farm = !!el.querySelector(".map-farm-marker");
-        const m = (el.querySelector(".map-pin-head") ?? el).getScreenCTM();
-        const c = new DOMPoint(0, farm ? -37 : -30).matrixTransform(m);
+      return { key, n: el.textContent.trim() || "farm", x: c.x, y: c.y,
+        r: (farm ? 22 : 15) * Math.hypot(m.a, m.b) };
+    }).sort((a, b) => a.key - b.key));
 
-        return { n: el.textContent.trim() || "farm", x: c.x, y: c.y,
-          r: (farm ? 22 : 15) * Math.hypot(m.a, m.b) };
-      }));
-    // The share of the smaller circle that the other covers.
-    const covered = (a, b) => {
-      const d = Math.hypot(a.x - b.x, a.y - b.y);
-      const [r, s] = a.r < b.r ? [a.r, b.r] : [b.r, a.r];
+  // The share of the smaller circle that the other covers.
+  const covered = (a, b) => {
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    const [r, s] = a.r < b.r ? [a.r, b.r] : [b.r, a.r];
 
-      if (d >= r + s) return 0;
-      if (d <= s - r) return 1;
+    if (d >= r + s) return 0;
+    if (d <= s - r) return 1;
 
-      const lens = r * r * Math.acos((d * d + r * r - s * s) / (2 * d * r))
-        + s * s * Math.acos((d * d + s * s - r * r) / (2 * d * s))
-        - 0.5 * Math.sqrt((-d + r + s) * (d + r - s) * (d - r + s)
-          * (d + r + s));
+    const lens = r * r * Math.acos((d * d + r * r - s * s) / (2 * d * r))
+      + s * s * Math.acos((d * d + s * s - r * r) / (2 * d * s))
+      - 0.5 * Math.sqrt((-d + r + s) * (d + r - s) * (d - r + s)
+        * (d + r + s));
 
-      return lens / (Math.PI * r * r);
-    };
+    return lens / (Math.PI * r * r);
+  };
 
-    for (const [i, a] of heads.entries()) {
-      for (const b of heads.slice(i + 1)) {
+  const stacks = (page) => map(page).locator("[data-stack]").evaluateAll(
+    (els) => [...new Set(els.map((el) => el.dataset.stack))]
+  );
+
+  const apart = async (page, stack) => {
+    const all = await heads(page, stack);
+
+    for (const [i, a] of all.entries()) {
+      for (const b of all.slice(i + 1)) {
         expect(covered(a, b), `pins ${a.n} and ${b.n} overlap`)
           .toBeLessThan(0.25);
       }
     }
+  };
+
+  test("pins that share a ZIP stack there", async ({ page }) => {
+    await page.goto(HOME.path);
+
+    // The farm and the Foster market; the drop site and the Scituate
+    // market.
+    expect((await stacks(page)).sort()).toEqual(["z02825", "z02857"]);
+    for (const stack of await stacks(page)) {
+      const all = await heads(page, stack);
+
+      for (const [i, b] of all.slice(1).entries()) {
+        const a = all[i];
+
+        expect(b.x - a.x, `${b.n} right of ${a.n}`).toBeGreaterThan(2);
+        expect(a.y - b.y, `${b.n} above ${a.n}`).toBeGreaterThan(2);
+      }
+    }
   });
 
-  // A crowded pin stands taller rather than moves, so its tip stays
-  // on its place at every zoom: the Foster market's tip once fell in
-  // Connecticut on a phone.
-  test("every pin's tip is on its place", async ({ page }) => {
+  test("the mouse over a stack spreads it; no pin hides another",
+    async ({ page }) => {
+      await page.goto(HOME.path);
+      await map(page).locator("[data-map-svg]").scrollIntoViewIfNeeded();
+
+      for (const stack of await stacks(page)) {
+        await map(page).locator(`[data-stack='${stack}'] .map-pin-body`)
+          .last().hover();
+        await page.waitForTimeout(400);
+        await apart(page, stack);
+      }
+      await page.mouse.move(0, 0);
+      await page.waitForTimeout(1000);
+      for (const stack of await stacks(page)) {
+        const all = await heads(page, stack);
+
+        expect(covered(all[0], all[1]), `${stack} stacked again`)
+          .toBeGreaterThan(0.25);
+      }
+    });
+
+  // The first pin of every stack, and every pin alone, stands with its
+  // tip on its place at every zoom: the Foster market's tip once fell
+  // in Connecticut on a phone.
+  test("every stack's tip is on its place", async ({ page }) => {
     await page.goto(HOME.path);
 
     const svg = map(page).locator("[data-map-svg]");
     const width = () => svg.evaluate(
       (el) => Number(el.getAttribute("viewBox").split(" ")[2])
     );
-    const tips = () => svg.evaluate((el) => [
-      ...el.querySelectorAll("[data-map-pin]"),
-    ].map((g) => {
-      const place = new DOMPoint(Number(g.dataset.x), Number(g.dataset.y))
-        .matrixTransform(el.getScreenCTM());
-      const tip = new DOMPoint(0, 0).matrixTransform(
-        g.querySelector(".map-pin-body").getScreenCTM());
+    const tips = () => svg.evaluate((el) => {
+      const seen = new Set();
 
-      return { n: g.getAttribute("aria-label"),
-        off: Math.hypot(tip.x - place.x, tip.y - place.y) };
-    }));
+      return [...el.querySelectorAll("[data-map-pin]")]
+        .sort((a, b) => a.dataset.mapPin - b.dataset.mapPin)
+        .filter((g) => !g.dataset.stack || !seen.has(g.dataset.stack)
+          && seen.add(g.dataset.stack))
+        .map((g) => {
+          const place = new DOMPoint(Number(g.dataset.x), Number(g.dataset.y))
+            .matrixTransform(el.getScreenCTM());
+          const tip = new DOMPoint(0, 0).matrixTransform(
+            g.querySelector(".map-pin-body").getScreenCTM());
+
+          return { n: g.getAttribute("aria-label"),
+            off: Math.hypot(tip.x - place.x, tip.y - place.y) };
+        });
+    });
 
     await svg.scrollIntoViewIfNeeded();
     const full = await width();
@@ -263,6 +317,31 @@ test.describe("map (#138)", () => {
           .toBeLessThanOrEqual(1);
       }
     }
+  });
+
+  test.describe("on a touch screen", () => {
+    test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+    test("a first tap spreads a stack, the next opens a card",
+      async ({ page }) => {
+        await page.goto(HOME.path);
+        await map(page).locator("[data-map-svg]").scrollIntoViewIfNeeded();
+
+        const [stack] = await stacks(page);
+        const pins = map(page).locator(`[data-stack='${stack}']`);
+        const back = pins.first();
+        const n = await back.getAttribute("data-map-pin");
+
+        await pins.last().locator(".map-pin-body").tap();
+        await page.waitForTimeout(400);
+        await expect(map(page).locator("[data-map-card]:not([hidden])"))
+          .toHaveCount(0);
+        await apart(page, stack);
+
+        await back.locator(".map-pin-body").tap();
+        await expect(map(page).locator(`[data-map-card='${n}']`))
+          .toBeVisible();
+      });
   });
 
   test("a ZIP typed in drops a visible pin on its middle",

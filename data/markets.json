@@ -9,8 +9,7 @@
       "where": "The Village Green, 46 Institute Lane, North Scituate",
       "season": "June through early October",
       "lat": 41.8339,
-      "lng": -71.58346,
-      "offset": [0, -40]
+      "lng": -71.58346
     },
     {
       "name": "Foster Farmers Market",
@@ -20,8 +19,7 @@
       "where": "Shady Acres Diner, 164 Danielson Pike, Foster",
       "season": "June through October",
       "lat": 41.80426,
-      "lng": -71.77252,
-      "offset": [36, -12]
+      "lng": -71.77252
     },
     {
       "name": "Summer Market at Tilted Barn",

@@ -6,6 +6,7 @@
 // - On nff:zip, from any check on the page, the map outlines that ZIP
 //   and drops a pin onto its middle, coloured by the answer.
 // - A pin, or its line in the key, opens a card with the details.
+//   Pins that share a ZIP stack there and spread to be picked.
 // - It zooms with its buttons, a pinch (a trackpad's too), a double
 //   click or ctrl and the wheel, and pans with a drag once zoomed. At
 //   full size a swipe still scrolls the page.
@@ -29,6 +30,15 @@ const MAX_ZOOM = 5;
 // is drawn 45 units tall.
 const PIN_PX = 38;
 const PIN_UNITS = 45;
+
+// Pins in a stack step this far up and right of the one before, in
+// pin units; spread in a row, this far apart.
+const STEP = 8;
+const GAP = 5;
+
+// A stack spread by the pointer or focus closes this long after both
+// have left it.
+const LINGER = 400;
 
 // A pointer that moves further than this is dragging, not tapping.
 const SLOP = 6;
@@ -84,6 +94,114 @@ const wire = (map) => {
   let startPoint = null;
   let startSpread = 0;
 
+  // Stacks: the pins that stand in one ZIP, all at the place of the
+  // first in the key, each a step up and to the right of the one
+  // before. A stack spreads into a row on hover, on focus, while one
+  // of its cards is open and, on a touch screen, at its first tap, so
+  // every pin in it can be reached. A pin alone is a stack of one.
+
+  const areas = [...svg.querySelectorAll("[data-zip]")];
+  const stackOf = new Map();
+  const atOf = new Map();
+  const shiftOf = new Map();
+  const wideStacks = new Set();
+  const lingering = new Map();
+  // The stack a tap spread, until a tap elsewhere.
+  let tapped = null;
+
+  {
+    const byZip = new Map();
+    const inOrder = [...pins].sort(
+      (a, b) => a.dataset.mapPin - b.dataset.mapPin
+    );
+
+    for (const pin of inOrder) {
+      const point = new DOMPoint(Number(pin.dataset.x), Number(pin.dataset.y));
+      const area = areas.find((a) => a.isPointInFill(point));
+      const key = area ? area.dataset.zip : `pin${pin.dataset.mapPin}`;
+
+      if (!byZip.has(key)) byZip.set(key, []);
+      byZip.get(key).push(pin);
+    }
+    for (const [key, stack] of byZip) {
+      const [first] = stack;
+
+      for (const pin of stack) {
+        stackOf.set(pin, stack);
+        atOf.set(pin, { x: first.dataset.x, y: first.dataset.y });
+        shiftOf.set(pin, { x: 0, y: 0 });
+        if (stack.length > 1) pin.dataset.stack = key;
+      }
+    }
+  }
+
+  // Half a pin's width and its height above its tip, in pin units.
+  const size = (pin) => {
+    const k = pin.classList.contains("is-off") ? 0.78 : 1;
+
+    return pin.classList.contains("map-pin-farm")
+      ? { half: 22 * k, tall: 59 * k }
+      : { half: 15 * k, tall: 45 * k };
+  };
+
+  // Stacked, each pin's top right corner a step beyond the one before
+  // it, whatever their sizes; or spread in a row, tips on one line,
+  // from the first pin's place rightward.
+  const lay = (stack, wide) => {
+    const front = size(stack[0]);
+    let x = 0;
+
+    for (const [i, pin] of stack.entries()) {
+      const own = size(pin);
+
+      if (i > 0 && wide) x += size(stack[i - 1]).half + GAP + own.half;
+
+      const shift = wide ? { x, y: 0 } : {
+        x: front.half - own.half + STEP * i,
+        y: own.tall - front.tall - STEP * i,
+      };
+
+      shiftOf.set(pin, shift);
+      pin.querySelector(".map-pin-shift").style.transform =
+        `translate(${shift.x}px, ${shift.y}px)`;
+    }
+    if (wide) wideStacks.add(stack);
+    else wideStacks.delete(stack);
+  };
+
+  const unfold = (stack) => {
+    clearTimeout(lingering.get(stack));
+    if (stack.length > 1 && !wideStacks.has(stack)) lay(stack, true);
+  };
+
+  // What keeps a stack spread: the pointer or focus on it, its card,
+  // or the tap that spread it.
+  const held = (stack) => stack === tapped || stack.some((pin) =>
+    pin.matches(":hover") || pin === document.activeElement
+    || (open && open.dataset.mapCard === pin.dataset.mapPin));
+
+  const settle = (stack) => {
+    if (stack.length < 2) return;
+    clearTimeout(lingering.get(stack));
+    lingering.set(stack, setTimeout(() => {
+      if (!held(stack)) lay(stack, false);
+      place();
+    }, LINGER));
+  };
+
+  // Stacked from the start, without sliding there.
+  for (const stack of new Set(stackOf.values())) {
+    if (stack.length < 2) continue;
+    for (const pin of stack) {
+      pin.querySelector(".map-pin-shift").style.transition = "none";
+    }
+    lay(stack, false);
+    svg.getBoundingClientRect();
+    for (const pin of stack) {
+      pin.querySelector(".map-pin-shift").style.transition = "";
+    }
+  }
+
   // The view: the viewBox, and everything that must keep its size on
   // screen whatever the zoom (pins, the dropped pin, the open card).
 
@@ -106,8 +224,12 @@ const wire = (map) => {
 
     const pin = pinOf(open.dataset.mapCard);
     const box = frame.getBoundingClientRect();
-    const x = (pin.dataset.x - view.x) / view.w * box.width;
-    const y = (pin.dataset.y - view.y) / view.h * box.height;
+    const at = atOf.get(pin);
+    const shift = shiftOf.get(pin);
+    const x = (at.x - view.x) / view.w * box.width
+      + shift.x * PIN_PX / PIN_UNITS;
+    const y = (at.y - view.y) / view.h * box.height
+      + shift.y * PIN_PX / PIN_UNITS;
 
     // A pin panned out of view takes its card with it, once the
     // view has come to rest.
@@ -144,8 +266,10 @@ const wire = (map) => {
 
     svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
     for (const pin of pins) {
+      const at = atOf.get(pin);
+
       pin.setAttribute("transform",
-        `translate(${pin.dataset.x} ${pin.dataset.y}) scale(${s})`);
+        `translate(${at.x} ${at.y}) scale(${s})`);
     }
     if (dropAt.dataset.x) {
       dropAt.setAttribute("transform",
@@ -248,10 +372,13 @@ const wire = (map) => {
 
   const close = () => {
     if (!open) return;
+
+    const pin = pinOf(open.dataset.mapCard);
+
     open.hidden = true;
-    pinOf(open.dataset.mapCard)
-      .setAttribute("aria-pressed", "false");
+    pin.setAttribute("aria-pressed", "false");
     open = null;
+    settle(stackOf.get(pin));
   };
 
   const show = (n, { focus = false, centreOn = false } = {}) => {
@@ -266,11 +393,14 @@ const wire = (map) => {
     open = card;
     card.hidden = false;
     pin.setAttribute("aria-pressed", "true");
+    unfold(stackOf.get(pin));
     if (centreOn && zoom() > 1.01) {
+      const at = atOf.get(pin);
+
       go({
         ...view,
-        x: pin.dataset.x - view.w / 2,
-        y: pin.dataset.y - view.h / 2,
+        x: at.x - view.w / 2,
+        y: at.y - view.h / 2,
       });
     }
     place();
@@ -278,6 +408,13 @@ const wire = (map) => {
   };
 
   for (const pin of pins) {
+    const stack = stackOf.get(pin);
+
+    pin.addEventListener("focusin", () => {
+      unfold(stack);
+      place();
+    });
+    pin.addEventListener("focusout", () => settle(stack));
     pin.addEventListener("keydown", (e) => {
       if (e.key !== "Enter" && e.key !== " ") return;
       e.preventDefault();
@@ -342,12 +479,47 @@ const wire = (map) => {
   });
   svg.addEventListener("pointerleave", hideTip);
 
-  // A tap on a ZIP runs the check; a tap on a pin opens its card; a
-  // tap on anything else closes the card.
-  const tap = (target) => {
-    const pin = target.closest("[data-map-pin]");
+  // A mouse or pen over a stack spreads it; it closes a moment after
+  // the pointer leaves, so the pointer can cross the gaps.
+  svg.addEventListener("pointerover", (e) => {
+    const pin = e.pointerType !== "touch"
+      && e.target.closest("[data-map-pin]");
 
+    if (pin) unfold(stackOf.get(pin));
+  });
+  svg.addEventListener("pointerout", (e) => {
+    const pin = e.target.closest("[data-map-pin]");
+    const to = e.relatedTarget && e.relatedTarget.closest
+      && e.relatedTarget.closest("[data-map-pin]");
+
+    if (!pin) return;
+
+    const stack = stackOf.get(pin);
+
+    if (!stack.includes(to)) settle(stack);
+  });
+
+  // A tap on a ZIP runs the check; a tap on a pin opens its card, or on
+  // a touch screen first spreads its stack; a tap on anything else
+  // closes the card and any stack a tap spread.
+  const tap = (target, touch) => {
+    const pin = target.closest("[data-map-pin]");
+    const stack = pin && stackOf.get(pin);
+
+    if (tapped && tapped !== stack) {
+      const was = tapped;
+
+      tapped = null;
+      settle(was);
+    }
     if (pin) {
+      if (touch && stack.length > 1) {
+        const first = !wideStacks.has(stack);
+
+        tapped = stack;
+        unfold(stack);
+        if (first) return;
+      }
       show(Number(pin.dataset.mapPin));
       return;
     }
@@ -427,7 +599,7 @@ const wire = (map) => {
     if (!pointers.has(e.pointerId)) return;
     pointers.delete(e.pointerId);
     if (e.type === "pointerup" && !dragging && pointers.size === 0) {
-      tap(e.target);
+      tap(e.target, e.pointerType === "touch");
     }
     if (pointers.size === 0) {
       setTimeout(() => {
