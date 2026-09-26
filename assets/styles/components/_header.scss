@@ -6,11 +6,12 @@
 // home page's hero reserves above it.
 :root {
   --header-row: 3.5rem;
-  --header-stripe: 6px;
+  --header-stripe: 4px;
   --header-height: calc(var(--header-row) + var(--header-stripe));
 
   @media (min-width: 768px) {
     --header-row: 3.75rem;
+    --header-stripe: 6px;
   }
 
   @media (min-width: 992px) {
