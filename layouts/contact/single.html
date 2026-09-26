@@ -1,0 +1,107 @@
+{{ define "main" }}
+  {{ $address := partial "address.html" . }}
+  {{ $phone := partial "phone.html" . }}
+  {{ $email := hugo.Data.company.email }}
+  {{ $instagram := hugo.Data.socialMedia.instagram.url }}
+  <section class="contact">
+    <div class="page container py-5">
+      {{ partial "page-heading.html" . }}
+      <p class="lead mb-4">
+        Call, text, email, message us on Instagram, or use our
+        <a href="#contact-form">contact form</a>.
+      </p>
+
+      <div class="row g-4 g-lg-5">
+        {{/* The ways to reach the farm; on a phone they come first,
+             the form under them. */}}
+        <div class="col-lg-5">
+          <dl class="contact-ways mb-0">
+            <dt>Call or text</dt>
+            <dd><a href="{{ $phone.href }}">{{ $phone.display }}</a></dd>
+            <dt>Email</dt>
+            <dd><a href="mailto:{{ $email }}">{{ $email }}</a></dd>
+            <dt>Instagram</dt>
+            <dd><a href="{{ $instagram }}" target="_blank" rel="noopener">@{{ path.Base $instagram }}</a></dd>
+            <dt>The farm</dt>
+            <dd>
+              {{ $address.street }}<br>
+              {{ $address.city }}, {{ $address.state }} {{ $address.zip }}<br>
+              {{ partial "directions.html" $address.directions }}
+              <p class="contact-note">
+                Visits and pickup are by appointment. Choose on-farm
+                pickup on the <a href="{{ relURL "order/" }}">order page</a>,
+                or ask us here.
+              </p>
+            </dd>
+          </dl>
+        </div>
+
+        <div class="col-lg-7">
+          {{/* The form follows the order page's horizontal layout
+               (partials/order/customer.html): a label column, a field
+               column, the same .form-control and .invalid-feedback. */}}
+          <form class="contact-card" id="contact-form" novalidate>
+            <h2 class="h4">Send us a message</h2>
+            <div class="alert alert-danger" role="alert" data-contact-error hidden></div>
+            <div class="order-hform">
+              <div class="row">
+                <label class="col-sm-3 col-form-label" for="contact-name">Name</label>
+                <div class="col-sm-9">
+                  <input class="form-control" type="text" id="contact-name" name="name" autocomplete="name" data-field="name" aria-describedby="err-contact-name">
+                  <div class="invalid-feedback" id="err-contact-name" data-error-for="name"></div>
+                </div>
+              </div>
+              <div class="row">
+                <label class="col-sm-3 col-form-label" for="contact-email">Email</label>
+                <div class="col-sm-9">
+                  <input class="form-control" type="email" id="contact-email" name="email" autocomplete="email" inputmode="email" data-field="email" aria-describedby="err-contact-email">
+                  <div class="invalid-feedback" id="err-contact-email" data-error-for="email"></div>
+                </div>
+              </div>
+              {{/* Shown only to a signed-in customer with orders, as
+                   the account page's help form offers them (sup-order);
+                   the filter appears when the list is long. */}}
+              <div class="row" data-contact-orders hidden>
+                <label class="col-sm-3 col-form-label" for="contact-order">Order <span class="text-body-secondary">(optional)</span></label>
+                <div class="col-sm-9">
+                  <input class="form-control mb-2" type="search" id="contact-order-filter" placeholder="Find an order" aria-label="Find an order" aria-controls="contact-order" autocomplete="off" data-contact-filter hidden>
+                  <select class="form-select" id="contact-order" name="orderId" data-field="orderId" aria-describedby="err-contact-order">
+                    <option value="">No particular order</option>
+                  </select>
+                  <div class="visually-hidden" role="status" data-contact-filter-status></div>
+                  <div class="invalid-feedback" id="err-contact-order" data-error-for="orderId"></div>
+                </div>
+              </div>
+              <div class="row">
+                <label class="col-sm-3 col-form-label" for="contact-message">Message</label>
+                <div class="col-sm-9">
+                  <textarea class="form-control" id="contact-message" name="message" rows="6" data-field="message" aria-describedby="err-contact-message"></textarea>
+                  <div class="invalid-feedback" id="err-contact-message" data-error-for="message"></div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-sm-9 offset-sm-3">
+                  {{ partial "busy-button.html" (dict "label" "Send" "busy" "Sending" "class" "btn-primary" "id" "contact-submit") }}
+                  <p class="form-text text-danger mt-2 mb-0" role="alert" data-contact-limit hidden></p>
+                </div>
+              </div>
+            </div>
+            {{/* A field only a bot fills in. */}}
+            <div class="visually-hidden" aria-hidden="true">
+              <label for="contact-website">Website</label>
+              <input type="text" id="contact-website" name="website" tabindex="-1" autocomplete="off">
+            </div>
+          </form>
+
+          <div class="contact-card" id="contact-sent" role="status" aria-live="polite" hidden>
+            <h2 class="h4">Thanks, we have it</h2>
+            <p class="mb-0">
+              Your message is on its way to the farm. We'll answer by
+              email to <strong data-contact-email></strong>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+{{ end }}

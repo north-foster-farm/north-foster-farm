@@ -1,0 +1,131 @@
+{{/*
+  The staging toolbar: the outbox of emails the site wrote instead of
+  sending, and a trigger for the scheduled jobs. Rendered only when
+  Netlify's build-time CONTEXT is set and is not "production", so the
+  production HTML, CSS and JS carry no trace of it: the stylesheet and
+  the script below are built by Hugo only when this partial renders.
+  (hugo.Environment cannot decide this; previews build with the
+  production environment too.) The endpoints it calls refuse in
+  production as well. See docs/staging.md.
+*/}}
+{{ $context := getenv "CONTEXT" }}
+{{ if and $context (ne $context "production") }}
+  {{ $style := resources.Get "styles/staging.css" | fingerprint "sha512" }}
+  {{ $script := resources.Get "scripts/staging/main.js" | js.Build (dict "minify" true) | fingerprint "sha512" }}
+  <link rel="stylesheet" href="{{ $style.RelPermalink }}" integrity="{{ $style.Data.Integrity }}">
+  <div class="staging" id="staging" data-context="{{ $context }}" hidden>
+    <button class="staging-tab" type="button" data-staging-open aria-expanded="false">Staging</button>
+    <section class="staging-panel" data-staging-panel aria-label="Staging tools" hidden>
+      <header class="staging-head">
+        <strong>Staging</strong>
+        <span data-staging-info>{{ $context }}</span>
+        <button type="button" data-staging-collapse title="Collapse to a tab" aria-label="Collapse">–</button>
+        <button type="button" data-staging-hide title="Hide until the next page load" aria-label="Hide">×</button>
+      </header>
+      <div class="staging-body">
+        <h2>Emails</h2>
+        <p>
+          <button type="button" class="staging-action" data-staging-library-open>Email library</button>
+          <span class="staging-muted" data-staging-library-count></span>
+        </p>
+        <h2>Inbox</h2>
+        <p class="staging-muted" data-staging-empty>Nothing yet. Every email the site would send lands here instead.</p>
+        <ol class="staging-list" data-staging-list></ol>
+        <p>
+          <button type="button" class="staging-action" data-staging-refresh>Refresh</button>
+          <button type="button" class="staging-action" data-staging-clear>Clear</button>
+        </p>
+        <h2>Jobs</h2>
+        <p>
+          <button type="button" class="staging-action" data-staging-run="">Run now</button>
+          <button type="button" class="staging-action" data-staging-run="08:00">As 8:00 today</button>
+          <button type="button" class="staging-action" data-staging-run="18:00">As 18:00 today</button>
+        </p>
+        <label><input type="checkbox" data-staging-reset> Send today's reports again</label>
+        <pre class="staging-out" data-staging-out hidden></pre>
+      </div>
+    </section>
+    {{/* The email library: every email the site sends, built from sample
+      data by /api/staging/emails, in a sidebar with the open one beside
+      it. #email=<id> on any page opens it there. */}}
+    <div class="staging-library" data-staging-library hidden>
+      <aside class="staging-shelf" aria-label="Email library">
+        <header class="staging-shelf-head">
+          <strong>Emails</strong>
+          <span class="staging-muted" data-staging-library-summary></span>
+          <button type="button" class="staging-icon" data-staging-library-close title="Close the library" aria-label="Close">×</button>
+        </header>
+        <div class="staging-shelf-tools">
+          <input type="search" class="staging-search" data-staging-search placeholder="Search names, tags, subjects, text" aria-label="Search emails" autocomplete="off">
+          <div class="staging-filters" role="group" aria-label="Show">
+            <button type="button" class="staging-filter" data-staging-filter="" aria-pressed="true">All</button>
+            <button type="button" class="staging-filter" data-staging-filter="to approve" aria-pressed="false">To approve</button>
+            <button type="button" class="staging-filter" data-staging-filter="approved" aria-pressed="false">Approved</button>
+            <button type="button" class="staging-filter" data-staging-filter="rewritten" aria-pressed="false">Rewritten</button>
+          </div>
+        </div>
+        <div class="staging-shelf-list" data-staging-shelf>
+          <p class="staging-muted staging-pad" data-staging-shelf-empty hidden>No email matches.</p>
+        </div>
+      </aside>
+      <section class="staging-reader" data-staging-reader aria-label="Email" hidden>
+        <header class="staging-reader-head">
+          <button type="button" class="staging-icon staging-back" data-staging-reader-back title="Back to the library" aria-label="Back to the library">‹</button>
+          <div class="staging-reader-title">
+            <strong data-staging-reader-name></strong>
+            <span class="staging-muted" data-staging-reader-when></span>
+          </div>
+          <div class="staging-views" role="group" aria-label="View">
+            <button type="button" class="staging-filter" data-staging-view="html" aria-pressed="true">HTML</button>
+            <button type="button" class="staging-filter" data-staging-view="text" aria-pressed="false">Text</button>
+            <button type="button" class="staging-filter" data-staging-view="rewrite" aria-pressed="false" hidden>Rewritten</button>
+          </div>
+          <button type="button" class="staging-action" data-staging-copy-link>Copy link</button>
+        </header>
+        <p class="staging-reader-meta">
+          <span class="staging-badge" data-staging-reader-approval></span>
+          <span data-staging-reader-subject></span>
+        </p>
+        <p class="staging-reader-note staging-muted" data-staging-reader-note hidden></p>
+        {{/* James's review: approve it, or rewrite it until he would.
+          Saved on this deploy only; an agent ports it into the code.
+          See lib/review.mjs. */}}
+        <div class="staging-review" data-staging-review hidden>
+          <span class="staging-review-status" data-staging-review-status></span>
+          <button type="button" class="staging-action staging-primary" data-staging-approve>Approve</button>
+          <button type="button" class="staging-action" data-staging-rewrite>Rewrite</button>
+          <button type="button" class="staging-action" data-staging-withdraw>Withdraw approval</button>
+          <button type="button" class="staging-action" data-staging-revert>Revert to the current wording</button>
+          <span class="staging-error" data-staging-review-error hidden></span>
+        </div>
+        <iframe class="staging-frame" data-staging-frame title="The email as it renders" sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
+        <pre class="staging-text" data-staging-text hidden></pre>
+        <pre class="staging-text" data-staging-rewritten hidden></pre>
+        <form class="staging-editor" data-staging-editor hidden>
+          <p class="staging-muted">Shaded words are sample values: the name, order, dates, amounts and links that change with each email. They can't be edited, only moved or deleted.</p>
+          <span class="staging-edit-label" id="staging-edit-subject">Subject</span>
+          <div class="staging-edit staging-edit-subject" data-staging-edit-subject role="textbox" aria-labelledby="staging-edit-subject"></div>
+          <span class="staging-edit-label" id="staging-edit-text">Body</span>
+          <div class="staging-edit" data-staging-edit-text role="textbox" aria-multiline="true" aria-labelledby="staging-edit-text"></div>
+          <p class="staging-muted" data-staging-edit-dropped hidden></p>
+          <p class="staging-error" data-staging-edit-error hidden></p>
+          <p class="staging-edit-actions">
+            <button type="submit" class="staging-action staging-primary">Save rewrite</button>
+            <button type="button" class="staging-action" data-staging-edit-cancel>Cancel</button>
+          </p>
+        </form>
+      </section>
+    </div>
+    <template data-staging-item>
+      <li>
+        <a class="staging-item" href="#">
+          <span class="staging-item-name"></span>
+          <span class="staging-item-subject"></span>
+          <span class="staging-item-tags"><span class="staging-badge"></span></span>
+        </a>
+      </li>
+    </template>
+    <template data-staging-token><span class="staging-token" contenteditable="false"></span></template>
+  </div>
+  <script src="{{ $script.RelPermalink }}" type="module" integrity="{{ $script.Data.Integrity }}" defer></script>
+{{ end }}

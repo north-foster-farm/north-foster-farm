@@ -1,0 +1,26 @@
+{{/* The cart half of the Order button, off the order page: hidden
+     until the cart holds something, then a cart with its count that
+     opens what is in it, a subtotal, and the way to checkout.
+     mini-cart.js fills the list each time it opens. Draft wording for
+     James (#173). */}}
+<div class="site-cart-menu dropdown" data-cart-menu hidden>
+  <button class="site-cart-toggle" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" aria-label="Your cart" data-cart-toggle>
+    <span class="site-cart-icon" aria-hidden="true">{{ partial "svg.html" "icons/cart" }}</span>
+    {{- partial "header/cart-badge.html" -}}
+  </button>
+  <div class="dropdown-menu dropdown-menu-end site-mini-cart">
+    <p class="site-mini-cart-title">Your cart</p>
+    <ul class="site-mini-cart-lines list-unstyled" data-mini-cart-lines></ul>
+    {{/* One line, which mini-cart.js copies for each; here, not in
+         the script, so the build keeps its classes. */}}
+    <template data-mini-cart-line>
+      <li class="site-mini-cart-line"><span class="site-mini-cart-name"><b data-mini-cart-group></b> <span data-mini-cart-label></span></span><span class="site-mini-cart-qty" data-mini-cart-qty></span><span class="site-mini-cart-price" data-mini-cart-price></span></li>
+    </template>
+    <p class="site-mini-cart-subtotal"><span>Subtotal</span> <span data-mini-cart-subtotal></span></p>
+    <p class="site-mini-cart-note">Delivery and any discounts are worked out at checkout.</p>
+    <div class="site-mini-cart-actions">
+      <a class="btn btn-primary" href="{{ relURL "order/" }}#details">Check out</a>
+      <a class="site-mini-cart-edit" href="{{ relURL "order/" }}">Change your order</a>
+    </div>
+  </div>
+</div>

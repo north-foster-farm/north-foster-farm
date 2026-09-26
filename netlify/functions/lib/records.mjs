@@ -4,22 +4,29 @@
 // cannot drift from the documents.
 //
 // Order statuses:
-//   submitted   invoice published, unpaid
-//   paid        Square reported payment
-//   fulfilled   delivered or picked up (set by the CLI)
-//   cancelled   by the customer, before payment, or by the farm
-//   abandoned   never paid by the final reminder
+//   paid        born paid: the record exists once the money is taken
+//   fulfilled   delivered or picked up (set by the jobs or the CLI)
+//   cancelled   by the customer or the farm; `refund` says what went
+//               back
 //
-// "Open" means the job runner still has something to do: submitted
-// orders wait for payment or abandonment; paid orders wait for their
-// delivery reminder and fulfilment.
+// Records from before the checkout moved onto the page may still say
+// `submitted` (invoice out, unpaid) or `abandoned`; nothing makes
+// those any more and the jobs flag any `submitted` one they find.
+//
+// "Open" means the job runner still has something to do: a paid
+// order waits for its delivery reminder and fulfilment.
+//
+// Beside the orders sit the checkouts: a Venmo payment is approved
+// in the Venmo app and captured afterwards, so the validated order
+// waits under `checkout/<key>` between the two, and a PayPal webhook
+// can finish it if the browser never came back.
 
-export const OPEN = ["submitted", "paid"];
+export const OPEN = ["paid"];
 
 // The farm's side of a pickup, beside `status`. Only an on-farm window
 // needs the farm's agreement: `fulfilment.state` is `requested` until
 // `bin/nff orders confirm` makes it `agreed`. Delivery and the
-// Scituate drop are born agreed, and so is any record from before the
+// drop site are born agreed, and so is any record from before the
 // state existed.
 export const needsAgreement = (order) =>
   order.fulfilment.method === "onfarm"
@@ -41,7 +48,7 @@ const emailKey = (email) => String(email || "").trim().toLowerCase();
 export const orderKey = (id) => `order/${id}`;
 export const openKey = (id) => `open/${id}`;
 export const byEmailKey = (email, id) => `by-email/${emailKey(email)}/${id}`;
-export const byInvoiceKey = (invoiceId) => `by-invoice/${invoiceId}`;
+export const byPaymentKey = (paymentId) => `by-payment/${paymentId}`;
 
 const stamp = (order, event, now, extra = {}) => ({
   ...order,
@@ -59,10 +66,10 @@ export const saveOrder = async (stores, order, now = new Date()) => {
   await stores.orders.set(byEmailKey(record.customer.email, record.id), {
     id: record.id, at: record.submittedAt,
   });
-  if (record.square && record.square.invoiceId) {
-    await stores.orders.set(byInvoiceKey(record.square.invoiceId), {
-      id: record.id,
-    });
+  // A Square payment and a PayPal capture each name the order, for
+  // the webhooks that speak of a refund.
+  for (const paymentId of paymentIds(record)) {
+    await stores.orders.set(byPaymentKey(paymentId), { id: record.id });
   }
   if (OPEN.includes(record.status)) {
     await stores.orders.set(openKey(record.id), { id: record.id });
@@ -75,8 +82,60 @@ export const saveOrder = async (stores, order, now = new Date()) => {
 
 export const getOrder = (stores, id) => stores.orders.get(orderKey(id));
 
-export const orderByInvoice = async (stores, invoiceId) => {
-  const ref = await stores.orders.get(byInvoiceKey(invoiceId));
+// The money on an order: every payment and every refund, oldest first.
+// A record from before an order could be changed after paying
+// (2026-09-25) holds one `payment` and at most one `refund` instead;
+// these read both shapes. A payment carries its `amount` (cents); the
+// old single one paid the whole total.
+export const paymentsOf = (order) => {
+  if (!order) return [];
+  if (Array.isArray(order.payments)) return order.payments;
+
+  return order.payment
+    ? [{ amount: order.totals.total, ...order.payment }]
+    : [];
+};
+
+export const refundsOf = (order) => {
+  if (!order) return [];
+  if (Array.isArray(order.refunds)) return order.refunds;
+
+  return order.refund ? [order.refund] : [];
+};
+
+const sum = (items) => items.reduce((s, x) => s + (x.amount || 0), 0);
+
+export const paidTotal = (order) => sum(paymentsOf(order));
+export const refundedTotal = (order) => sum(refundsOf(order));
+
+// The delivery fee an attempted delivery keeps: "the delivery fee is
+// not refundable once we attempt the delivery" (James, F1). The farm
+// marks the attempt (`bin/nff orders attempted`), which records the
+// fee as it stood, so a later switch to pickup cannot take it off.
+export const keptFee = (order) =>
+  (order && order.attempted && order.attempted.fee) || 0;
+
+// What a payment is known by at its processor: the Square payment, or
+// for Venmo the PayPal capture.
+export const paymentRef = (payment) =>
+  (payment && (payment.paypalCaptureId || payment.squarePaymentId)) || null;
+
+// The fields that hold money, in the list shape, for an amendOrder
+// patch: an old record is rewritten the new way the first time its
+// money changes, so no record holds both shapes.
+export const moneyPatch = (order, { payments, refunds } = {}) => ({
+  payments: payments || paymentsOf(order),
+  refunds: refunds || refundsOf(order),
+  payment: undefined,
+  refund: undefined,
+});
+
+const paymentIds = (order) => paymentsOf(order)
+  .flatMap((p) => [p.squarePaymentId, p.paypalCaptureId])
+  .filter(Boolean);
+
+export const orderByPayment = async (stores, paymentId) => {
+  const ref = await stores.orders.get(byPaymentKey(paymentId));
 
   return ref ? getOrder(stores, ref.id) : null;
 };
@@ -156,11 +215,85 @@ export const deleteOrder = async (stores, id) => {
   await stores.orders.delete(orderKey(id));
   await stores.orders.delete(openKey(id));
   await stores.orders.delete(byEmailKey(order.customer.email, id));
-  if (order.square && order.square.invoiceId) {
-    await stores.orders.delete(byInvoiceKey(order.square.invoiceId));
+  for (const paymentId of paymentIds(order)) {
+    await stores.orders.delete(byPaymentKey(paymentId));
   }
 
   return true;
+};
+
+// --- Checkouts -------------------------------------------------------
+//
+// A validated order waiting for its Venmo payment to be captured,
+// keyed by the submission key. `paypalOrderId` is indexed so a
+// PAYMENT.CAPTURE.COMPLETED webhook can find it. Deleted once the
+// order is recorded; swept by the jobs after CHECKOUT_TTL.
+
+export const CHECKOUT_TTL = 24 * 60 * 60_000;
+
+export const checkoutKey = (key) => `checkout/${key}`;
+export const byPayPalKey = (paypalOrderId) => `by-paypal/${paypalOrderId}`;
+
+export const saveCheckout = async (stores, checkout) => {
+  await stores.orders.set(checkoutKey(checkout.key), checkout);
+  if (checkout.paypalOrderId) {
+    await stores.orders.set(byPayPalKey(checkout.paypalOrderId), {
+      key: checkout.key,
+    });
+  }
+
+  return checkout;
+};
+
+export const getCheckout = (stores, key) =>
+  stores.orders.get(checkoutKey(key));
+
+export const checkoutByPayPal = async (stores, paypalOrderId) => {
+  const ref = await stores.orders.get(byPayPalKey(paypalOrderId));
+
+  return ref ? getCheckout(stores, ref.key) : null;
+};
+
+export const deleteCheckout = async (stores, key) => {
+  const checkout = await getCheckout(stores, key);
+
+  if (!checkout) return false;
+
+  await stores.orders.delete(checkoutKey(key));
+  if (checkout.paypalOrderId) {
+    await stores.orders.delete(byPayPalKey(checkout.paypalOrderId));
+  }
+
+  return true;
+};
+
+// Every checkout older than the TTL is dropped. -> how many.
+export const listCheckouts = async (stores) => {
+  const found = [];
+
+  for (const { key } of await stores.orders.list("checkout/")) {
+    const checkout = await stores.orders.get(key);
+
+    if (checkout) found.push(checkout);
+  }
+
+  return found;
+};
+
+export const sweepCheckouts = async (stores, now = new Date()) => {
+  const cutoff = now.getTime() - CHECKOUT_TTL;
+  let swept = 0;
+
+  for (const { key } of await stores.orders.list("checkout/")) {
+    const checkout = await stores.orders.get(key);
+
+    if (!checkout || Date.parse(checkout.at) < cutoff) {
+      await deleteCheckout(stores, key.slice("checkout/".length));
+      swept += 1;
+    }
+  }
+
+  return swept;
 };
 
 // Customers are keyed by lowercased email. Creating from an order
@@ -168,11 +301,13 @@ export const deleteOrder = async (stores, id) => {
 // phone, avatar or address.
 export const customerKey = (email) => `customer/${emailKey(email)}`;
 
-// Which reminder emails a customer takes. Both are on unless the
-// record says otherwise, so a customer who never visited the settings
-// tab, or a record from before the setting existed, keeps getting
-// them; the "Turn off ... reminders" links in those emails lead here.
-export const REMINDERS = ["payment", "delivery"];
+// Which reminder emails a customer takes. On unless the record says
+// otherwise, so a customer who never visited the settings tab, or a
+// record from before the setting existed, keeps getting them; the
+// "Turn off ... reminders" link in the email leads here. (`payment`
+// was a second kind while orders could be unpaid; a record may still
+// carry it, and nothing reads it.)
+export const REMINDERS = ["delivery"];
 
 export const reminderPrefs = (customer) => {
   const set = (customer && customer.reminders) || {};
@@ -191,11 +326,14 @@ export const saveCustomer = async (stores, customer) => {
   return record;
 };
 
+// `marketing` true on an order opts the customer in to farm news and
+// dates it; false or absent never opts anyone out.
 export const touchCustomer = async (
-  stores, { firstName, lastName, name, email, phone }, now
+  stores, { firstName, lastName, name, email, phone, marketing }, now
 ) => {
   const existing = await getCustomer(stores, email);
   const at = now.toISOString();
+  const optIn = marketing === true;
 
   if (existing) {
     return saveCustomer(stores, {
@@ -205,6 +343,9 @@ export const touchCustomer = async (
       lastName: existing.lastName || lastName || "",
       phone: existing.phone || phone || "",
       lastOrderAt: at,
+      ...(optIn && existing.marketing !== true
+        ? { marketing: true, marketingAt: at, marketingSource: "order" }
+        : {}),
     });
   }
 
@@ -217,6 +358,9 @@ export const touchCustomer = async (
     avatar: null,
     discountGroup: null,
     address: null,
+    marketing: optIn,
+    marketingAt: optIn ? at : null,
+    ...(optIn ? { marketingSource: "order" } : {}),
     createdAt: at,
     lastOrderAt: at,
   });

@@ -1,6 +1,6 @@
 [build]
 publish = "public"
-command = "npm run deploy && hugo --gc"
+command = "npm run deploy && hugo --gc && npm run check:grid"
 
 [build.environment]
 HUGO_VERSION = "0.164.0"
@@ -9,10 +9,10 @@ HUGO_ENV = "production"
 HUGO_ENABLEGITINFO = "true"
 
 [context.deploy-preview]
-command = "npm run deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL"
+command = "npm run deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL && npm run check:grid"
 
 [context.branch-deploy]
-command = "npm run deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL"
+command = "npm run deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL && npm run check:grid"
 
 # The order form's API. Each function declares its own /api/* path.
 [functions]
@@ -35,6 +35,23 @@ framework = "#custom"
   to = "/account/"
   status = 200
 
+# Browsers, feed readers and link previews ask for these at the root
+# whatever the page says; the set lives in /favicons/.
+[[redirects]]
+  from = "/favicon.ico"
+  to = "/favicons/favicon.ico"
+  status = 200
+
+[[redirects]]
+  from = "/apple-touch-icon.png"
+  to = "/favicons/apple-touch-icon.png"
+  status = 200
+
+[[redirects]]
+  from = "/apple-touch-icon-precomposed.png"
+  to = "/favicons/apple-touch-icon.png"
+  status = 200
+
 [[redirects]]
   from = "/admin"
   to = "https://admin.northfosterfarm.com"
@@ -50,6 +67,14 @@ framework = "#custom"
 [[redirects]]
   from = "/venmo"
   to = "https://venmo.com/u/northfosterfarm"
+  status = 301
+  force = false
+
+# The paper order form, retired when ordering moved onto the site. Its
+# URL was handed out directly, so it leads to the order page.
+[[redirects]]
+  from = "/order-form.pdf"
+  to = "/order/"
   status = 301
   force = false
 
@@ -78,18 +103,59 @@ framework = "#custom"
       must-revalidate
     '''
     X-Content-Type-Options = "nosniff"
+    # The payment SDKs on the order page need their vendors' hosts:
+    # Square's Web Payments SDK (sandbox and production; the card
+    # fields are an iframe, and Square wants 'unsafe-inline' styles),
+    # Google Pay and Cash App Pay through it, and PayPal's SDK for the
+    # Venmo button. Netlify does not say how two header rules for one
+    # path merge, so one policy covers every page.
     Content-Security-Policy = '''
       default-src 'none';
       base-uri 'self';
-      connect-src 'self';
-      font-src 'self';
+      connect-src 'self'
+        https://web.squarecdn.com https://sandbox.web.squarecdn.com
+        https://pci-connect.squareup.com
+        https://pci-connect.squareupsandbox.com
+        https://o160250.ingest.sentry.io
+        https://google.com/pay https://pay.google.com
+        https://api.cash.app https://sandbox.api.cash.app
+        https://*.paypal.com https://*.paypalobjects.com
+        https://*.venmo.com;
+      font-src 'self' data:
+        https://square-fonts-production-f.squarecdn.com
+        https://d1g145x70srn7h.cloudfront.net
+        https://cash-f.squarecdn.com https://fonts.gstatic.com;
       form-action 'self';
       frame-ancestors 'none';
-      img-src 'self' data:;
+      frame-src https://www.youtube-nocookie.com
+        https://web.squarecdn.com https://sandbox.web.squarecdn.com
+        https://pay.google.com
+        https://kit.cash.app https://sandbox.kit.cash.app
+        https://*.paypal.com https://*.paypalobjects.com
+        https://*.venmo.com;
+      img-src 'self' data:
+        https://web.squarecdn.com https://sandbox.web.squarecdn.com
+        https://api.cash.app https://sandbox.api.cash.app
+        https://www.gstatic.com
+        https://franklin-assets.s3.amazonaws.com
+        https://*.paypal.com https://*.paypalobjects.com
+        https://*.venmo.com;
       manifest-src 'self';
-      script-src 'self';
-      style-src 'self';
+      media-src 'self';
+      script-src 'self'
+        https://web.squarecdn.com https://sandbox.web.squarecdn.com
+        https://pay.google.com
+        https://kit.cash.app https://sandbox.kit.cash.app
+        https://*.paypal.com https://*.paypalobjects.com
+        https://*.venmo.com;
+      style-src 'self' 'unsafe-inline'
+        https://web.squarecdn.com https://sandbox.web.squarecdn.com
+        https://kit.cash.app https://sandbox.kit.cash.app
+        https://fonts.googleapis.com
+        https://*.paypal.com https://*.paypalobjects.com;
     '''
+    # Google Pay opens a popup; the stricter value breaks it on iOS.
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
     Referrer-Policy = "same-origin"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"
 
@@ -132,7 +198,20 @@ framework = "#custom"
     Cache-Control = "public, max-age=604800"
 
 [[headers]]
+  for = "/videos/*"
+
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
   for = "/favicons/*"
 
   [headers.values]
     Cache-Control = "public, max-age=604800"
+
+# Netlify serves .webmanifest as application/octet-stream by default.
+[[headers]]
+  for = "/favicons/site.webmanifest"
+
+  [headers.values]
+    Content-Type = "application/manifest+json"

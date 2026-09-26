@@ -1,0 +1,37 @@
+{{/* The card form and the wallet buttons are the SDKs' own, mounted
+     into these containers by scripts/order/pay.js once the section
+     is near the screen. Which buttons appear depends on the browser
+     (Apple Pay in Safari, Google Pay in Chrome) and on what this
+     deploy is configured for (/api/checkout/config). */}}
+<fieldset class="order-section mb-5" id="payment">
+  <legend class="h2" tabindex="-1">Payment</legend>
+  <div class="order-pay" data-pay data-pay-state="loading" data-card-open="false">
+    {{/* Every way to pay, one grid: Card opens the fields below it;
+         a wallet pays the whole order in one step. */}}
+    <div class="order-pay-buttons" data-wallets>
+      <button type="button" class="btn btn-outline-primary order-pay-method" data-card-choose aria-pressed="true" aria-controls="pay-card-panel" hidden>
+        <span class="order-pay-method-icon" aria-hidden="true">{{ partial "svg.html" "icons/credit-card" }}</span>
+        Card
+      </button>
+      <button type="button" class="order-apple-pay" data-apple-pay lang="en" aria-label="Apple Pay" hidden></button>
+      <div class="order-pay-button" data-google-pay hidden></div>
+      <div class="order-pay-button" data-cash-app-pay hidden></div>
+      {{/* Venmo held back (VENMO_HIDDEN): the button shows, disabled,
+           over the label; pay.js decides. */}}
+      <div class="order-pay-venmo" data-venmo-cell hidden>
+        <div class="order-pay-button" data-venmo></div>
+        <p class="order-pay-soon" data-venmo-soon hidden><span class="visually-hidden">Venmo: </span>Coming soon</p>
+      </div>
+    </div>
+    <div class="order-pay-card" id="pay-card-panel">
+      <div class="order-card-fields" data-card aria-label="Card details"></div>
+      <p class="order-pay-loading" aria-hidden="true">Loading the card form…</p>
+    </div>
+    <p class="order-pay-unavailable" role="alert">
+      Online payment isn't available right now. Email
+      <a href="mailto:{{ hugo.Data.company.email }}">{{ hugo.Data.company.email }}</a>
+      with what you'd like and we'll take your order by hand.
+    </p>
+    <p class="invalid-feedback d-block order-pay-error" role="alert" data-error-for="payment" hidden></p>
+  </div>
+</fieldset>

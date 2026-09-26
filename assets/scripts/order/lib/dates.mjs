@@ -30,13 +30,22 @@ export const onFarmDates = (now, terms) => {
   return out;
 };
 
-// The Wednesday-noon cutoff that governs a delivery Thursday.
-export const cutoffFor = (iso, terms) => {
-  const { cutoffHour, weekday: deliveryDay, cutoffWeekday } = terms.delivery;
-  const back = (deliveryDay - cutoffWeekday + 7) % 7;
+// The last moment to order for a day: its `cutoffHour` on the
+// `cutoffWeekday` at or before it. Hour 24 is the end of that day.
+const cutoffOf = (iso, rules, timeZone) => {
+  const { cutoffHour, weekday: day, cutoffWeekday } = rules;
+  const back = (day - cutoffWeekday + 7) % 7;
 
-  return instant(addDays(iso, -back), cutoffHour, 0, terms.timeZone);
+  return instant(addDays(iso, -back), cutoffHour, 0, timeZone);
 };
+
+// The Wednesday-noon cutoff that governs a delivery Thursday.
+export const cutoffFor = (iso, terms) =>
+  cutoffOf(iso, terms.delivery, terms.timeZone);
+
+// The drop site's cutoff for its Saturday: the end of Friday.
+export const dropCutoffFor = (iso, terms) =>
+  cutoffOf(iso, terms.scituate, terms.timeZone);
 
 // The next delivery Thursdays whose cutoff has not passed. The cutoff
 // itself is inclusive: an order at exactly 12:00:00 still makes it.
@@ -60,8 +69,8 @@ export const deliveryDates = (now, terms, count) => {
   return out;
 };
 
-// The next Scituate Saturdays on or after the published start. The
-// current Saturday is still offered until its window opens.
+// The next Scituate Saturdays on or after the published start whose
+// cutoff has not passed (inclusive, as for delivery).
 export const scituateDates = (now, terms, count) => {
   const wanted = count || terms.scituate.datesToOffer;
   const { start, weekday: dropDay } = terms.scituate;
@@ -71,9 +80,11 @@ export const scituateDates = (now, terms, count) => {
 
   for (let i = 0; out.length < wanted && i < 120; i++) {
     if (weekday(d) === dropDay && !isHoliday(d, terms)) {
-      const opens = instant(d, terms.scituate.opensHour, 0, terms.timeZone);
+      const cutoff = dropCutoffFor(d, terms);
 
-      if (d > current || now.getTime() < opens.getTime()) out.push(entry(d));
+      if (now.getTime() <= cutoff.getTime()) {
+        out.push(entry(d, { cutoff: cutoff.toISOString() }));
+      }
     }
 
     d = addDays(d, 1);

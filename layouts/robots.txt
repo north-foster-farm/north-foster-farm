@@ -1,5 +1,8 @@
+{{- /* Staging and deploy previews build as production too; Netlify's
+  CONTEXT is what tells them apart (see staging-toolbar.html). */ -}}
+{{- $context := getenv "CONTEXT" -}}
 User-agent: *
-{{- if hugo.IsProduction | or (eq .Site.Params.env "production") }}
+{{- if and hugo.IsProduction (or (not $context) (eq $context "production")) }}
 Disallow:
 {{- else }}
 Disallow: /

@@ -1,7 +1,9 @@
 const Autoprefixer = require("autoprefixer");
 const PurgeCSS = require("@fullhuman/postcss-purgecss");
+const hoverOnly = require("./bin/postcss/hover-only.js");
 
 const plugins = [
+  hoverOnly(),
   new Autoprefixer(),
   new PurgeCSS({
     content: ["./hugo_stats.json"],
@@ -53,6 +55,26 @@ const plugins = [
         "data-on",
         "data-open",
         "readonly",
+        "data-pay-state",
+        "loading",
+        "ready",
+        "venmo-only",
+        "unavailable",
+        "good",
+        "warn",
+        "data-shown",
+        "data-stuck",
+        "data-card-open",
+        "data-cart-passed",
+        "data-busy",
+        "data-row-start",
+        "data-playing",
+        "data-idle",
+        "role",
+        "option",
+        "aria-selected",
+        "data-search-stock",
+        "aria-pressed",
       ];
     },
     safelist: {
@@ -73,8 +95,13 @@ const plugins = [
         "is-valid",
         "is-active",
         "is-bumped",
+        "is-entering",
+        "is-fading",
         // The account page marks the order an email linked to.
         "is-linked",
+        // The search palette's JavaScript: open, and a real photo.
+        "is-open",
+        "is-photo",
         // Applied by session.js: the header's account slot fades in.
         "is-ready",
         "order-busy",
@@ -86,6 +113,8 @@ const plugins = [
         "order-cart-item-name",
         "order-cart-item-qty",
         "order-cart-item-sub",
+        "order-cart-remove",
+        "order-cart-toggle-word",
         "order-chicks",
         "order-qty-tick",
         "form-control-plaintext",

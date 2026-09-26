@@ -1,0 +1,30 @@
+{{/* The top bar: one quiet line above the header on every page, naming
+     the next event in data/events.json and linking to it. Each build
+     picks the next event that has not ended, so there is nothing to
+     edit to retire one; since no build runs on the day, top-bar.js
+     also drops a bar whose end has passed. An event without times
+     lasts the day; one without a link points at the home page's map.
+     Draft wording for James (#139). */}}
+{{ $zone := "America/New_York" }}
+{{ $next := false }}
+{{ range sort hugo.Data.events.events "date" }}
+  {{ $ends := time.AsTime (printf "%sT%s:00" .date (.end | default "23:59")) $zone }}
+  {{ if and (not $next) (gt $ends.Unix now.Unix) }}
+    {{ $next = merge . (dict "ends" $ends) }}
+  {{ end }}
+{{ end }}
+{{ with $next }}
+  {{ $day := time.AsTime .date $zone }}
+  {{ $hours := "" }}
+  {{ with .start }}
+    {{ $starts := time.AsTime (printf "%sT%s:00" $next.date .) $zone }}
+    {{ $hours = printf ", %s – %s" ($starts.Format "3:04 PM") ($next.ends.Format "3:04 PM") }}
+  {{ end }}
+  {{ $href := .href | default (printf "%s#map" (relURL "")) }}
+  <div class="top-bar" data-top-bar data-until="{{ .ends.Format "2006-01-02T15:04:05-07:00" }}">
+    <a class="top-bar-link" href="{{ $href }}" {{- if .href }} target="_blank" rel="noopener" {{- end }}>
+      <span class="d-sm-none">{{ .name }}, {{ $day.Format "Mon, Jan 2" }}</span>
+      <span class="d-none d-sm-inline">{{ .name }} in {{ .address.city }}, {{ $day.Format "Monday, January 2" }}{{ $hours }}</span>
+    </a>
+  </div>
+{{ end }}

@@ -1,0 +1,59 @@
+{{ define "main" }}
+  {{/* Ten posts a page, grouped under their year, with the Farm news
+       sign-up after each page's ten. The first page shows its first
+       post, the newest, large above the rest. The head's canonical
+       link has already made the pager from every post, so the lead is
+       split off here rather than left out of it. scripts/news/ fetches
+       the next page as the reader nears the end and appends its posts
+       and sign-up, joining a year that runs across the page break; the
+       pager links stay for anyone without the script. */}}
+  {{ $pager := .Paginate .Pages }}
+  {{ $pages := $pager.Pages }}
+  {{ $lead := false }}
+  {{ if eq $pager.PageNumber 1 }}
+    {{ $lead = index $pages 0 }}
+    {{ $pages = after 1 $pages }}
+  {{ end }}
+  {{ $groups := $pages.GroupByDate "2006" }}
+  {{ $last := sub (len $groups) 1 }}
+  <section class="{{ .Type }}">
+    <div class="page container py-5">
+      <div class="row justify-content-center mb-5">
+        <div class="col text-column">
+          {{ partial "page-heading.html" . }}
+          {{ with $lead }}{{ partial "news/lead.html" . }}{{ end }}
+          <div class="news-years" data-news-years>
+            {{ range $i, $group := $groups }}
+              <section class="news-year" data-year="{{ .Key }}" aria-labelledby="news-year-{{ .Key }}">
+                <h2 class="news-year-title" id="news-year-{{ .Key }}">{{ .Key }}</h2>
+                <ol class="list-unstyled news-list">
+                  {{ range .Pages }}
+                    {{ partial "news/row.html" . }}
+                  {{ end }}
+                </ol>
+                {{ if eq $i $last }}
+                  <aside class="news-inline-signup" aria-labelledby="news-signup-{{ $pager.PageNumber }}">
+                    <h3 class="news-inline-signup-title" id="news-signup-{{ $pager.PageNumber }}">Farm news and updates, wrote good by a real farmer</h3>
+                    {{ partial "news-signup.html" (dict "id" (printf "news-page-%d" $pager.PageNumber)) }}
+                  </aside>
+                {{ end }}
+              </section>
+            {{ end }}
+          </div>
+          {{ if gt $pager.TotalPages 1 }}
+            <nav class="news-pager d-flex justify-content-between gap-3" aria-label="More news" data-news-pager>
+              {{ with $pager.Prev }}
+                <a href="{{ .URL }}" rel="prev">&larr; Newer posts</a>
+              {{ else }}
+                <span></span>
+              {{ end }}
+              {{ with $pager.Next }}
+                <a href="{{ .URL }}" rel="next" data-news-next>Older posts &rarr;</a>
+              {{ end }}
+            </nav>
+          {{ end }}
+        </div>
+      </div>
+    </div>
+  </section>
+{{ end }}

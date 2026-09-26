@@ -1,24 +1,42 @@
-{{ $hen := resources.Get "images/photogenic-hen.jpg" }}
-{{ $widths := slice 800 1200 1600 2200 }}
+{{/* The coop opening, on a loop. The photograph is its poster: it
+  paints first and stays whenever the clip is not playing, so the page
+  never flashes. scripts/hero/ loads the clip once the photograph is up
+  and fades it in when it plays. */}}
+{{ $poster := resources.Get "images/opening-the-coop.jpg" }}
+{{ $widths := slice 640 960 1280 }}
 {{ $srcset := slice }}
 {{ range $widths }}
-  {{ $img := $hen.Resize (printf "%dx webp q82" .) }}
+  {{ $img := $poster.Resize (printf "%dx webp q82" .) }}
   {{ $srcset = $srcset | append (printf "%s %dw" $img.RelPermalink .) }}
 {{ end }}
-{{ $fallback := $hen.Resize "1600x jpg q82" }}
-<div class="home-hero border-bottom border-light">
+{{ $fallback := $poster.Resize "1280x jpg q82" }}
+<div class="home-hero video-frame border-bottom border-light" data-hero-video data-playing="false">
   <img class="home-hero-img" src="{{ $fallback.RelPermalink }}" srcset="{{ delimit $srcset ", " }}" sizes="100vw" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="" fetchpriority="high">
-  <div class="home-hero-overlay"></div>
+  <video class="home-hero-video" muted loop playsinline preload="none" aria-hidden="true" tabindex="-1">
+    <source data-src="{{ relURL "videos/opening-the-coop-loop.webm" }}" type='video/webm; codecs="av01.0.05M.08"'>
+    <source data-src="{{ relURL "videos/opening-the-coop-loop.mp4" }}" type='video/mp4; codecs="avc1.640028"'>
+  </video>
+  <div class="home-hero-shade" aria-hidden="true"></div>
   <div class="home-hero-body container">
-    <div class="home-hero-text text-white">
-      <hgroup>
-        <p class="home-hero-title"><span class="home-hero-line">Chicken that tastes</span><br><span class="home-hero-line">like <span class="home-hero-accent">chicken</span>.</span></p>
-        <h1 class="home-hero-sub">Pasture-raised chicken and eggs, proudly raised in Foster, Rhode Island.</h1>
-      </hgroup>
-      <div class="home-hero-actions">
-        <a class="btn btn-hero btn-lg" href="{{ relURL "order/" }}">Order now</a>
-        <a class="btn btn-outline-light btn-lg" href="#how-to-buy">How to buy</a>
+    <div class="row">
+      <div class="home-hero-text col-12 col-lg-auto ms-lg-auto text-white">
+        <hgroup>
+          <p class="home-hero-title"><span class="home-hero-br-xs">Chicken that</span> <span class="home-hero-br-sm">tastes</span> <span class="home-hero-br-xs">like</span> <span class="home-hero-accent">chicken</span>.</p>
+          <h1 class="home-hero-sub">Pasture-raised chicken and eggs, proudly raised in Foster, <span class="text-nowrap">Rhode Island</span>.</h1>
+        </hgroup>
+        <div class="home-hero-actions">
+          <a class="btn btn-hero btn-lg" href="{{ relURL "order/" }}">Order now</a>
+          <a class="btn btn-hero-outline btn-lg" href="#how-to-buy">How to buy <span class="home-hero-arrow" aria-hidden="true">{{ partial "svg.html" "icons/arrow-down" }}</span></a>
+        </div>
       </div>
     </div>
+  </div>
+  {{/* Draft wording for James (#133). */}}
+  <div class="video-controls" data-hero-controls hidden>
+    <button class="video-toggle" type="button" data-hero-toggle aria-label="Play video">
+      <svg class="video-toggle-play" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5Z"/></svg>
+      <svg class="video-toggle-pause" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 5h3.5v14H7Zm6.5 0H17v14h-3.5Z"/></svg>
+    </button>
+    {{ partial "video/autoplay-note.html" }}
   </div>
 </div>

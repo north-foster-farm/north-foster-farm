@@ -1,102 +1,79 @@
 // The scheduled work, decided in America/New_York from the records
 // alone, so a run at any minute does the right thing and a repeat
-// run does nothing twice.
+// run does nothing twice. Every order is paid when it is recorded, so
+// nothing here chases money; the jobs mind what happens after.
 //
-//   poll        ask Square about every unpaid order (missed webhook)
-//   soon        1 hour after placing, still unpaid: first reminder
-//   nextDay     24 hours after placing, still unpaid: second reminder
-//   final       8:00 the day before fulfilment (the Wednesday, for a
-//               delivery), still unpaid: last call
-//   abandon     unpaid at the cutoff: the delivery cutoff, or midnight
-//               before a pickup; the invoice is cancelled
-//   held        a bank transfer in flight gets no reminder and is not
-//               abandoned; Square will say PAID or UNPAID
-//   bank        an unpaid invoice that offered bank transfer loses the
-//               option once its date is too close to clear
-//   delivery    18:00 the day before a paid delivery: cooler reminder
-//   close       a paid order the day after fulfilment is fulfilled
+//   delivery    18:00 the day before a delivery: cooler reminder
+//   close       an order the day after fulfilment is fulfilled
+//   square      a Venmo order whose Square copy failed gets another
+//               try, so the dashboard sees it
 //   question    an order with an open question from the farm (a denied
-//               pickup window) is left alone: no reminders, not
-//               abandoned, not closed, until the customer answers
+//               pickup window) is left alone: not closed, until the
+//               customer answers
+//   rescue      a Venmo checkout the customer approved but whose page
+//               never finished it (the tab closed) is captured and
+//               recorded, once the page has had ten minutes
+//   checkouts   a Venmo checkout nobody finished is dropped after a day
 //   morning     8:00 daily, always: the day in numbers and the on-farm
 //               orders within two days still waiting on someone
-//   venmo       18:00 daily, the Venmo payments that named no order or
-//               the wrong amount, to ADMIN_EMAILS
 //   tomorrow    18:00 daily, always: every order due tomorrow, by
 //               method, with what to pack and where it goes
+//   audience    once a day from 05:00: the farm-news audience in Resend
+//               and the records made to agree
 //   health      each run ends with invariant checks, a ledger line,
 //               alerts for what went wrong, and a heartbeat ping
 
 import terms from "../../../data/delivery.json" with { type: "json" };
-import { cutoffFor } from "../../../assets/scripts/order/lib/dates.mjs";
+import {
+  cutoffFor, dropCutoffFor,
+} from "../../../assets/scripts/order/lib/dates.mjs";
 import {
   addDays, instant, parts, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
-import { alert, ping, readMark } from "./health.mjs";
+import { rescueCheckout, syncSquare } from "./checkout.mjs";
+import { finishEditVenmo } from "./edit.mjs";
+import { alert, ping, readCount, readMark } from "./health.mjs";
 import { log } from "./log.mjs";
 import { adminEmails, sendMail } from "./mail.mjs";
-import { pollUnpaid, sendForOrder } from "./payments.mjs";
+import { audienceConfigured, syncAudience } from "./news.mjs";
+import { sendForOrder } from "./payments.mjs";
+import * as paypalApi from "./paypal.mjs";
 import {
-  allOrders, amendOrder, getCustomer, needsAgreement, openOrders,
-  questionOpen, reminderPrefs, setStatus,
+  allOrders, getCustomer, listCheckouts, needsAgreement, openOrders,
+  paymentsOf, questionOpen, refundsOf, reminderPrefs, setStatus,
+  sweepCheckouts,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
 import {
-  bankTransferOffered, cancelInvoice, closeBankTransfer, getInvoice,
-} from "./square.mjs";
-import { adjust } from "./stock.mjs";
-import {
-  deliveryReminder, farmMorningReport, farmTomorrow, farmVenmoUnmatched,
-  paymentReminder,
+  deliveryReminder, farmMorningReport, farmTomorrow,
 } from "./templates.mjs";
-import { markReported, unreportedPayments } from "./venmo.mjs";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 
-export const SOON_AFTER = HOUR;
-export const NEXT_DAY_AFTER = 24 * HOUR;
-export const FINAL_HOUR = 8;
 export const DELIVERY_REMINDER_HOUR = 18;
 export const PICKUPS_REPORT_HOUR = 8;
 export const PICKUPS_REPORT_DAYS = 2;
-export const VENMO_REPORT_HOUR = 18;
 export const TOMORROW_REPORT_HOUR = 18;
 
 const tz = terms.timeZone;
 
 const sent = (order, key) => !!(order.emails && order.emails[key]);
 
-// When an unpaid order is given up on.
-export const abandonAt = (order) => {
-  const date = order.fulfilment.date;
+// When a customer can no longer change or cancel an order themselves:
+// the delivery or drop-site cutoff, or midnight before an on-farm
+// pickup.
+export const cutoffAt = (order) => {
+  const { date, method } = order.fulfilment;
 
-  return order.fulfilment.method === "delivery"
-    ? cutoffFor(date, terms)
-    : instant(date, 0, 0, tz);
+  if (method === "delivery") return cutoffFor(date, terms);
+  if (method === "scituate") return dropCutoffFor(date, terms);
+
+  return instant(date, 0, 0, tz);
 };
-
-export const finalReminderAt = (order) =>
-  instant(addDays(order.fulfilment.date, -1), FINAL_HOUR, 0, tz);
 
 export const deliveryReminderAt = (order) =>
   instant(addDays(order.fulfilment.date, -1), DELIVERY_REMINDER_HOUR, 0, tz);
-
-// Which payment reminder, if any, is due now and not yet sent.
-export const reminderDue = (order, now) => {
-  const placed = Date.parse(order.submittedAt);
-  const t = now.getTime();
-
-  if (t >= finalReminderAt(order).getTime() && !sent(order, "final")) {
-    return "final";
-  }
-  if (t >= placed + NEXT_DAY_AFTER && !sent(order, "nextDay")) {
-    return "nextDay";
-  }
-  if (t >= placed + SOON_AFTER && !sent(order, "soon")) return "soon";
-
-  return null;
-};
 
 // Every order's work is its own try: one that throws goes on the
 // report as an error and the run carries on. The run ends with the
@@ -108,16 +85,15 @@ export const runJobs = async (stores, {
   now = new Date(),
   env = process.env,
   mail = sendMail,
-  invoice = getInvoice,
-  cancel = cancelInvoice,
-  close = closeBankTransfer,
+  square,
+  // Null when PayPal is not configured: no checkout can be rescued.
+  paypal = paypalApi.configured(env) ? paypalApi : null,
   fetchImpl = globalThis.fetch,
 } = {}) => {
   const report = {
-    at: now.toISOString(), paid: [], reminded: [], abandoned: [],
-    deliveryReminded: [], closed: [], bankTransferClosed: [], muted: [],
-    pickupsToConfirm: [], venmoReported: [], tomorrow: null,
-    errors: [], invariants: [],
+    at: now.toISOString(), deliveryReminded: [], closed: [], squareSynced: [],
+    muted: [], checkoutsRescued: [], checkoutsSwept: 0, pickupsToConfirm: [],
+    tomorrow: null, errors: [], invariants: [],
   };
   const opts = { env, mail, now };
   const fail = (id, step, error) => {
@@ -136,14 +112,9 @@ export const runJobs = async (stores, {
     }
   };
 
-  report.paid = (await attempt(null, "poll", async () => pollUnpaid(
-    stores, await openOrders(stores), { invoice, ...opts }
-  ))) || [];
-
   // A customer's reminder settings, read once per run however many
   // orders they have open. A reminder they turned off is skipped and
-  // reported, never sent; the clocks it would have announced
-  // (abandonment, fulfilment) still run.
+  // reported, never sent; fulfilment still closes on its clock.
   const prefs = new Map();
   const wants = async (order, kind) => {
     const email = order.customer.email;
@@ -158,102 +129,71 @@ export const runJobs = async (stores, {
   };
 
   const workOrder = async (order) => {
+    if (order.status !== "paid") return;
+
+    const first = paymentsOf(order)[0];
+
+    if (!order.square && first && first.via === "venmo") {
+      const synced = await syncSquare(stores, order, {
+        ...opts, square, fetchImpl,
+      });
+
+      if (synced.square) report.squareSynced.push(order.id);
+    }
+
     if (questionOpen(order)) return;
 
-    if (order.status === "submitted") {
-      if (order.paymentPending) return;
+    const isDelivery = order.fulfilment.method === "delivery";
 
-      if (now.getTime() >= abandonAt(order).getTime()) {
-        await setStatus(stores, order.id, "abandoned", now, {
-          source: "jobs",
-        });
-        report.abandoned.push(order.id);
-        await adjust(stores, order.lines, 1);
-        if (order.square && order.square.invoiceId) {
-          try {
-            await cancel(order.square.invoiceId, { env });
-          } catch (error) {
-            log.error({
-              event: "invoice.cancel_failed", id: order.id,
-              error: String(error.message),
-            });
-          }
-        }
-
-        return;
-      }
-
-      // Once, per invoice that offered it. A Square failure is left
-      // for the next run; a "no longer unpaid" answer is not, since
-      // the invoice can no longer be edited either way.
-      const sq = order.square || {};
-
-      if (sq.bankTransfer && !sq.bankTransferClosedAt
-        && !bankTransferOffered(order.fulfilment.date, now)) {
-        try {
-          await close(sq.invoiceId, { env });
-          await amendOrder(stores, order.id, {
-            square: { ...sq, bankTransferClosedAt: now.toISOString() },
-          }, "bankTransfer.closed", now);
-          report.bankTransferClosed.push(order.id);
-        } catch (error) {
-          log.error({
-            event: "bank_transfer.close_failed", id: order.id,
-            error: String(error.message),
-          });
-        }
-      }
-
-      const stage = reminderDue(order, now);
-
-      if (stage && await wants(order, "payment")) {
-        await sendForOrder(stores, order, stage, paymentReminder(order, stage, {
+    if (isDelivery && !sent(order, "deliveryReminder")
+      && now.getTime() >= deliveryReminderAt(order).getTime()
+      && today(now, tz) < order.fulfilment.date
+      && await wants(order, "delivery")) {
+      await sendForOrder(stores, order, "deliveryReminder",
+        deliveryReminder(order, {
           orderUrl: orderUrlFor(env, order.id),
           settingsUrl: settingsUrlFor(env),
           links: mailLinks(env),
-          now,
         }), opts);
-        report.reminded.push({ id: order.id, stage });
-      }
+      report.deliveryReminded.push(order.id);
     }
 
-    if (order.status === "paid") {
-      const isDelivery = order.fulfilment.method === "delivery";
-
-      if (isDelivery && !sent(order, "deliveryReminder")
-        && now.getTime() >= deliveryReminderAt(order).getTime()
-        && today(now, tz) < order.fulfilment.date
-        && await wants(order, "delivery")) {
-        await sendForOrder(stores, order, "deliveryReminder",
-          deliveryReminder(order, {
-            orderUrl: orderUrlFor(env, order.id),
-            settingsUrl: settingsUrlFor(env),
-            links: mailLinks(env),
-          }), opts);
-        report.deliveryReminded.push(order.id);
-      }
-
-      if (today(now, tz) > order.fulfilment.date) {
-        await setStatus(stores, order.id, "fulfilled", now, { source: "jobs" });
-        report.closed.push(order.id);
-      }
+    if (today(now, tz) > order.fulfilment.date) {
+      await setStatus(stores, order.id, "fulfilled", now, { source: "jobs" });
+      report.closed.push(order.id);
     }
   };
 
-  // Re-read: the poll may have paid some.
   for (const order of await openOrders(stores)) {
     await attempt(order.id, "order", () => workOrder(order));
   }
 
+  // Before the sweep, so an approved payment is never dropped unpaid.
+  if (paypal) {
+    for (const checkout of (await attempt(null, "checkouts",
+      () => listCheckouts(stores))) || []) {
+      const saved = await attempt(checkout.order && checkout.order.id,
+        "rescue", () => rescueCheckout(stores, checkout, {
+          ...opts, paypal, square, fetchImpl, finishEdit: finishEditVenmo,
+        }));
+
+      if (saved) report.checkoutsRescued.push(saved.id);
+    }
+  }
+
+  report.checkoutsSwept = (await attempt(null, "checkouts",
+    () => sweepCheckouts(stores, now))) || 0;
   report.pickupsToConfirm = (await attempt(null, "morningReport",
     () => morningReport(stores, { env, mail, now, fetchImpl }))) || [];
-  report.venmoReported = (await attempt(null, "venmoReport",
-    () => venmoReport(stores, { env, mail, now }))) || [];
   report.tomorrow = await attempt(null, "tomorrowReport",
     () => tomorrowReport(stores, { env, mail, now }));
+  // Farm news: once a day the audience in Resend and the records are
+  // made to agree. Null when there is no audience to sync.
+  report.audience = await attempt(null, "audienceSync",
+    () => audienceSyncDaily(stores, { env, now, fetchImpl }));
 
   report.invariants = (await attempt(null, "invariants", async () =>
-    checkInvariants(await openOrders(stores), now, prefs))) || [];
+    checkInvariants(await openOrders(stores), now))) || [];
 
   await recordRun(stores, report, now);
 
@@ -279,14 +219,42 @@ export const runJobs = async (stores, {
   return report;
 };
 
+// Farm news, once a day from AUDIENCE_SYNC_HOUR: the audience in Resend
+// and the records made to agree (lib/news.mjs). -> the counts, or null
+// when nothing was done this run.
+const AUDIENCE_SYNC_HOUR = 5;
+
+const audienceSyncDaily = async (stores, { env, now, fetchImpl }) => {
+  if (!audienceConfigured(env)) return null;
+  if (parts(now, tz).hour < AUDIENCE_SYNC_HOUR) return null;
+
+  const key = `news/sync/${today(now, tz)}`;
+
+  if (await stores.jobs.get(key)) return null;
+
+  const r = await syncAudience(stores, { env, now, fetchImpl });
+
+  await stores.jobs.set(key, { at: now.toISOString() });
+
+  return {
+    created: r.created.length,
+    resubscribed: r.resubscribed.length,
+    unsubscribed: r.unsubscribed.length,
+    optedOut: r.optedOut.length,
+    imported: r.imported.length,
+  };
+};
+
 // The report, in counts, for the ledger, the log and the heartbeat.
 export const summarize = (report) => ({
   at: report.at,
   counts: Object.fromEntries([
-    "paid", "reminded", "abandoned", "deliveryReminded", "closed",
-    "bankTransferClosed", "muted", "pickupsToConfirm", "venmoReported",
+    "deliveryReminded", "closed", "squareSynced", "muted", "checkoutsRescued",
+    "pickupsToConfirm",
   ].map((k) => [k, (report[k] || []).length])),
+  checkoutsSwept: report.checkoutsSwept || 0,
   tomorrow: report.tomorrow,
+  audience: report.audience || null,
   errors: report.errors,
   invariants: report.invariants,
 });
@@ -298,43 +266,28 @@ export const summarize = (report) => ({
 // a store that would not write, a run that kept failing on one order.
 // Each is a rule name and the order it names.
 
-export const INVARIANT_GRACE = 30 * MINUTE;
-export const PAY_LINK_GRACE = 20 * MINUTE;
-export const VENMO_HOLD_GRACE = 24 * HOUR;
+export const SQUARE_SYNC_GRACE = 24 * HOUR;
 
-export const checkInvariants = (orders, now, prefs = new Map()) => {
+export const checkInvariants = (orders, now) => {
   const t = now.getTime();
   const day = today(now, tz);
   const found = [];
-  const muted = (order) => {
-    const p = prefs.get(order.customer.email);
-
-    return p ? !p.payment : false;
-  };
 
   for (const o of orders) {
     try {
-      const held = !!o.paymentPending || questionOpen(o);
-
-      if (o.status === "submitted" && !held
-        && t > abandonAt(o).getTime() + INVARIANT_GRACE) {
-        found.push({ rule: "unpaid.past_cutoff", id: o.id });
-      }
       if (o.status === "paid" && !questionOpen(o)
         && day > addDays(o.fulfilment.date, 1)) {
         found.push({ rule: "paid.not_closed", id: o.id });
       }
-      if (o.status === "submitted" && !sent(o, "completeYourOrder")
-        && t - Date.parse(o.submittedAt) > PAY_LINK_GRACE) {
-        found.push({ rule: "order.no_pay_link", id: o.id });
+      // Nothing makes an unpaid order any more; one still open is
+      // from before the checkout moved onto the page and needs a
+      // person.
+      if (o.status === "submitted") {
+        found.push({ rule: "legacy.unpaid", id: o.id });
       }
-      if (o.status === "submitted" && !held && !muted(o)
-        && reminderDue(o, new Date(t - INVARIANT_GRACE))) {
-        found.push({ rule: "reminder.overdue", id: o.id });
-      }
-      if (o.paymentPending && o.paymentPending.source === "venmo"
-        && t - Date.parse(o.paymentPending.at) > VENMO_HOLD_GRACE) {
-        found.push({ rule: "venmo.unchecked", id: o.id });
+      if (o.status === "paid" && !o.square
+        && t - Date.parse(o.paidAt || o.submittedAt) > SQUARE_SYNC_GRACE) {
+        found.push({ rule: "square.missing", id: o.id });
       }
     } catch {
       // A record the rules cannot even read is its own violation.
@@ -389,28 +342,25 @@ export const funnel = async (stores, now, { since } = {}) => {
   const iso = from.toISOString();
   const orders = await allOrders(stores);
   const within = (at) => !!at && at >= iso;
-  const paidSource = (o) => {
-    const entry = (o.history || []).find((h) => h.event === "paid");
-
-    return entry ? entry.source || "" : "";
-  };
+  const via = (o) => (paymentsOf(o)[0] || {}).via || "";
   const paid = orders.filter((o) => within(o.paidAt));
   const runs = await runsSince(stores, from);
   const mail = await readMark(stores, "mail");
   const days = (mail && mail.days) || {};
   const day = today(now, tz);
+  const yesterday = addDays(day, -1);
 
   return {
-    placed: orders.filter((o) => within(o.submittedAt)).length,
-    paid: paid.length,
-    paidByWebhook: paid.filter((o) => paidSource(o) === "webhook").length,
-    paidByPoll: paid.filter((o) => paidSource(o) === "poll").length,
-    paidByHand: paid.filter((o) => ["farm", "venmo"].includes(paidSource(o)))
-      .length,
-    abandoned: orders.filter((o) => within(o.abandonedAt)).length,
+    placed: paid.length,
+    paidByCard: paid.filter((o) => via(o) === "square").length,
+    paidByVenmo: paid.filter((o) => via(o) === "venmo").length,
+    declined: (await readCount(stores, "declined", day))
+      + (await readCount(stores, "declined", yesterday)),
     cancelled: orders.filter((o) => within(o.cancelledAt)).length,
-    openUnpaid: orders.filter((o) => o.status === "submitted").length,
-    mailFailures: (days[day] || 0) + (days[addDays(day, -1)] || 0),
+    refunded: orders
+      .filter((o) => refundsOf(o).some((r) => within(r.at))).length,
+    open: orders.filter((o) => o.status === "paid").length,
+    mailFailures: (days[day] || 0) + (days[yesterday] || 0),
     runs: runs.length,
     jobErrors: runs.reduce((n, r) => n + (r.errors || []).length, 0),
     invariants: runs.reduce((n, r) => n + (r.invariants || []).length, 0),
@@ -468,18 +418,12 @@ const morningReport = async (stores, { env, mail, now, fetchImpl }) => {
     key: `report/morning/${day}`,
     hour: PICKUPS_REPORT_HOUR,
     always: true,
-    list: async () => {
-      const open = await openOrders(stores);
-
-      return [{
-        stats: await funnel(stores, now),
-        pickups: pickupsDue(open, day),
-        holds: open.filter((o) => o.paymentPending
-          && o.paymentPending.source === "venmo"),
-      }];
-    },
-    build: ([{ stats, pickups, holds }]) => farmMorningReport(stats, pickups, {
-      date: day, links: mailLinks(env), holds, now,
+    list: async () => [{
+      stats: await funnel(stores, now),
+      pickups: pickupsDue(await openOrders(stores), day),
+    }],
+    build: ([{ stats, pickups }]) => farmMorningReport(stats, pickups, {
+      date: day, links: mailLinks(env), now,
     }),
     onSent: () => ping(env.HEALTHCHECKS_ALERT_URL, { ok: true, fetchImpl }),
     env, mail, now,
@@ -510,23 +454,3 @@ const tomorrowReport = async (stores, { env, mail, now }) => {
 
   return sent ? sent.length : null;
 };
-
-// The Venmo payments that arrived with no order number, or an amount
-// that is not the order's total, since the last report. Once a day
-// from VENMO_REPORT_HOUR. -> the transaction ids reported this run.
-const venmoReport = async (stores, { env, mail, now }) => {
-  const day = today(now, tz);
-  const due = await dailyReport(stores, {
-    key: `report/venmo/${day}`,
-    hour: VENMO_REPORT_HOUR,
-    list: () => unreportedPayments(stores),
-    build: (payments) => farmVenmoUnmatched(payments, {
-      date: day, links: mailLinks(env),
-    }),
-    onSent: (payments) => markReported(stores, payments, now),
-    env, mail, now,
-  });
-
-  return (due || []).map((v) => v.transactionId);
-};
-

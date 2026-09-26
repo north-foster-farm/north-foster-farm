@@ -1,0 +1,6 @@
+{{/* True in market season, from the month and day in
+     data/markets.json, so it comes back each spring without an edit.
+     It is decided at build time. */}}
+{{ $season := hugo.Data.markets.season }}
+{{ $today := now.Format "01-02" }}
+{{ return and (ge $today $season.from) (le $today $season.until) }}

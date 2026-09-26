@@ -1,21 +1,23 @@
+{{/* Draft wording for James (#173), revising his of 2026-09-24
+     (#150) after the reviewer found it flat. */}}
 {{ $steps := slice
-  (dict "icon" "cart" "title" "Start your order"
-    "copy" "Add what you'd like to your cart and choose when and how to get it.")
-  (dict "icon" "emails" "title" "Get a payment link"
-    "copy" "We'll email you a link where you'll pay for your order.")
-  (dict "icon" "payment" "title" "Pay to confirm"
-    "copy" "Your order is final when we receive your payment.")
-  (dict "icon" "tractor" "title" "Pick up or delivery"
-    "copy" "Pick up on our farm or get it hand-delivered to your door.")
+  (dict "icon" "cart" "title" "Shop what’s fresh"
+    "copy" "Everything we bring to market on one page, showing what’s in stock now.")
+  (dict "icon" "lot-location" "title" "Pick your day"
+    "copy" "Thursday delivery to your door, or pickup at our farm or drop site.")
+  (dict "icon" "changes" "title" "Change of plans?"
+    "copy" "Sign in with just your email, no password, and update your order.")
+  (dict "icon" "tractor" "title" "Taste the difference"
+    "copy" "Pick it up from us or have it hand-delivered to your door. Then dig in.")
 }}
 <div class="how border-bottom border-light" id="how-to-buy">
   <div class="container">
-    <p class="how-eyebrow">How to buy</p>
-    <h2 class="how-title">From our pasture to your table</h2>
+    <p class="home-eyebrow">How to buy</p>
+    <h2 class="home-title">From our pasture to your table</h2>
     <ol class="how-steps list-unstyled">
       {{ range $i, $step := $steps }}
         <li class="how-step">
-          <span class="how-icon" aria-hidden="true">
+          <span class="home-icon" aria-hidden="true">
             {{ partial "svg.html" (printf "icons/%s" $step.icon) }}
             <span class="how-num">{{ add $i 1 }}</span>
           </span>

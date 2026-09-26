@@ -1,0 +1,6 @@
+{{/* The home page's delivery map in a content page, with its own ZIP
+     check. The page needs pageScript: "zip-check" in its front
+     matter. The one argument keeps the ids unique. */}}
+<div class="delivery-map-block my-4">
+  {{ partial "map.html" (dict "id" (printf "map-%s" (.Get 0 | default "page")) "check" true) }}
+</div>

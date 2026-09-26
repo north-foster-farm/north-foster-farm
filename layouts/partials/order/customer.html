@@ -1,9 +1,9 @@
 {{/* Horizontal layout: label column, field column. A signed-in
      customer's name, email and phone arrive as plain text; a click
      turns one into a field, and leaving it turns it back. */}}
-<fieldset class="order-section mb-5" id="details">
-  <legend class="h2" tabindex="-1">Your details</legend>
-  <p class="order-section-hint">Click to edit</p>
+<fieldset class="order-section order-details mb-5" id="details">
+  <legend class="h2" tabindex="-1">Contact information</legend>
+  <p class="order-section-hint">Click on a field to edit it.</p>
   <div class="order-hform">
     <div class="row">
       <label class="col-sm-3 col-form-label" for="customer-first-name">First name</label>
@@ -22,24 +22,26 @@
     <div class="row">
       <label class="col-sm-3 col-form-label" for="customer-email">Email</label>
       <div class="col-sm-9">
-        <input class="form-control" type="email" id="customer-email" name="customer.email" autocomplete="email" inputmode="email" required data-field="customer.email" data-prefill="email" aria-describedby="help-customer-email err-customer-email">
-        <div class="form-text" id="help-customer-email">Your payment link will be sent to this address.</div>
+        <input class="form-control" type="email" id="customer-email" name="customer.email" autocomplete="email" inputmode="email" required data-field="customer.email" data-prefill="email" aria-describedby="err-customer-email">
         <div class="invalid-feedback" id="err-customer-email" data-error-for="customer.email"></div>
       </div>
     </div>
     <div class="row">
-      <label class="col-sm-3 col-form-label" for="customer-phone">Phone</label>
+      {{/* Required for delivery only (order-form.js toggles it). */}}
+      <label class="col-sm-3 col-form-label" for="customer-phone">Phone <span class="text-body-secondary" data-phone-optional hidden>(optional)</span></label>
       <div class="col-sm-9">
-        <input class="form-control" type="tel" id="customer-phone" name="customer.phone" autocomplete="tel" inputmode="tel" required data-field="customer.phone" data-prefill="phone" aria-describedby="err-customer-phone">
+        <input class="form-control" type="tel" id="customer-phone" name="customer.phone" autocomplete="tel" inputmode="tel" data-field="customer.phone" data-prefill="phone" aria-describedby="err-customer-phone">
         <div class="invalid-feedback" id="err-customer-phone" data-error-for="customer.phone"></div>
       </div>
     </div>
-    <div class="row">
+    {{/* Shown once the phone number is one we could use
+         (order-form.js showContact), fading in when it appears. */}}
+    <div class="row order-contact-row" data-contact-row data-shown="false">
       <span class="col-sm-3 col-form-label" id="customer-contact-label">Prefer text or call?</span>
       <div class="col-sm-9">
         <div class="order-radios" role="radiogroup" aria-labelledby="customer-contact-label" data-field="customer.contact">
           <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="customer.contact" id="contact-text" value="text">
+            <input class="form-check-input" type="radio" name="customer.contact" id="contact-text" value="text" checked>
             <label class="form-check-label" for="contact-text">Text</label>
           </div>
           <div class="form-check form-check-inline">
@@ -49,6 +51,19 @@
         </div>
         <div class="invalid-feedback" data-error-for="customer.contact"></div>
       </div>
+    </div>
+    {{/* Farm news is opt-in only: the box starts unticked, a ticked
+         box joins the list when the order is placed, with no
+         confirmation email (W1), and an unticked box changes nothing
+         on a record that already says yes. The account page's
+         settings tab has the same box. */}}
+    <div class="row">
+      <span class="col-sm-3 col-form-label">Marketing opt-in</span>
+      <div class="col-sm-9">
+        <div class="form-check order-check">
+          <input class="form-check-input" type="checkbox" id="customer-marketing" name="customer.marketing" data-field="customer.marketing">
+          <label class="form-check-label" for="customer-marketing">I want to get email from North Foster Farm.</label>
+        </div>      </div>
     </div>
   </div>
 </fieldset>

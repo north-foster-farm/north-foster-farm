@@ -1,12 +1,15 @@
 {{/*
-  A captioned photo, optionally displayed in a tinted frame.
+  A captioned photo, optionally framed: rounded, with a soft shadow,
+  and the caption set plainly beneath it.
 
   Params:
     image    Image resource displayed in the figure
     alt      Alt text for the image
-    caption  Caption text displayed beneath the image
+    caption  Caption text displayed beneath the image (optional)
     classes  Additional classes for the figure element (optional)
-    frame    Display the photo in a tinted frame (optional, default true)
+    frame    Frame the photo (optional, default true)
+    shape    "egg" clips the photo to the egg and drops the frame
+             (optional)
     lazy     Lazy-load the image (optional, default true)
 */}}
 
@@ -14,16 +17,19 @@
 {{ $alt := .alt }}
 {{ $caption := .caption }}
 {{ $classes := .classes }}
-{{ $frame := .frame | default true }}
+{{ $egg := eq .shape "egg" }}
+{{ $frame := and (.frame | default true) (not $egg) }}
 {{ $lazy := .lazy | default true }}
 
-<figure class="figure d-block mx-auto{{ if $frame }} photo-frame rounded-3 shadow-sm overflow-hidden{{ end }}{{ with $classes }} {{ . }}{{ end }}">
+<figure class="figure d-block{{ if not $egg }} mx-auto{{ end }}{{ if $egg }} figure-egg{{ end }}{{ with $classes }} {{ . }}{{ end }}">
   <img src="{{ $image.RelPermalink }}"
     width="{{ $image.Width }}" height="{{ $image.Height }}"
     alt="{{ $alt }}"
-    class="figure-img img-fluid d-block {{ if $frame }}mb-0{{ else }}rounded-4 mb-2{{ end }}"
+    class="figure-img img-fluid d-block {{ if $frame }}rounded-3 shadow-sm mb-0{{ else if $egg }}figure-egg-img mb-2{{ else }}rounded-4 mb-1{{ end }}"
     {{- if $lazy }} loading="lazy"{{ end }} />
-  <figcaption class="figure-caption text-center fst-italic px-3 py-2">
-    {{ $caption }}
-  </figcaption>
+  {{ with $caption }}
+    <figcaption class="figure-caption text-center fst-italic px-3 pt-2">
+      {{ . }}
+    </figcaption>
+  {{ end }}
 </figure>

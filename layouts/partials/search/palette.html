@@ -1,0 +1,79 @@
+{{/*
+  Product search: a command palette opened from the header's search
+  button or with cmd/ctrl K. Matches go down the left; the selected
+  one's card, with a quantity and an Add button, sits on the right.
+  On a phone it is a full-screen sheet with the card at the foot.
+
+  The products are the order page's own list (order/groups.html),
+  embedded as JSON so the palette needs no request to search; stock
+  is asked of /api/stock when it opens. scripts/search/ does the rest.
+
+  A photo for a group goes at assets/images/products/<group key>.jpg;
+  until one exists, the card shows the hen from the logo, or an egg
+  for the eggs.
+*/}}
+{{ $products := slice }}
+{{ range partial "order/groups.html" . }}
+  {{ $group := . }}
+  {{ $image := "" }}
+  {{ with resources.Get (printf "images/products/%s.jpg" .key) }}
+    {{ $image = (.Fill "320x240 webp q80").RelPermalink }}
+  {{ end }}
+  {{ range .items }}
+    {{ $products = $products | append (dict
+      "sku" .sku
+      "group" $group.short
+      "key" $group.key
+      "label" .label
+      "unit" (.unit | default $group.unit)
+      "note" (.note | default "")
+      "price" .price
+      "image" $image
+    ) }}
+  {{ end }}
+{{ end }}
+{{ $hen := (resources.Get "images/search/hen.svg" | fingerprint).RelPermalink }}
+{{ $egg := (resources.Get "images/search/egg.svg" | fingerprint).RelPermalink }}
+<dialog class="search-palette" id="search-palette" aria-labelledby="search-palette-label" data-search-palette data-hen="{{ $hen }}" data-egg="{{ $egg }}">
+  <div class="search-palette-panel">
+    <div class="search-palette-field">
+      {{ partial "svg.html" "icons/search" }}
+      <label class="visually-hidden" id="search-palette-label" for="search-palette-input">Search products</label>
+      <input class="search-palette-input" id="search-palette-input" type="text" role="combobox" aria-expanded="true" aria-controls="search-palette-list" aria-autocomplete="list" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Search eggs, whole birds, cuts">
+      <button class="search-palette-esc" type="button" data-search-close aria-label="Close search">Esc</button>
+    </div>
+    <div class="search-palette-body">
+      <ul class="search-palette-list" id="search-palette-list" role="listbox" aria-label="Products"></ul>
+      <p class="search-palette-empty" data-search-empty hidden></p>
+      <section class="search-palette-card" data-search-card hidden>
+        <div class="search-palette-photo">
+          <img alt="" width="320" height="240" loading="lazy" data-search-img>
+        </div>
+        <h2 class="search-palette-name" data-search-name></h2>
+        <p class="search-palette-group" data-search-group></p>
+        <dl class="search-palette-facts">
+          <div><dt>Price</dt><dd data-search-price></dd></div>
+          <div><dt>Stock</dt><dd data-search-stock></dd></div>
+        </dl>
+        <form class="search-palette-add" data-search-add>
+          <div class="search-palette-qty" role="group" aria-label="Quantity">
+            <button type="button" data-search-step="-1" aria-label="One fewer">&minus;</button>
+            <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="1" aria-label="Quantity" data-search-qty>
+            <button type="button" data-search-step="1" aria-label="One more">+</button>
+          </div>
+          <button class="btn btn-primary search-palette-button" type="submit" data-search-button>Add to cart</button>
+        </form>
+        <p class="search-palette-added" role="status" data-search-added></p>
+        {{/* The way on to checkout, once the cart holds something; the
+             order page has its own. Draft wording for James (#173). */}}
+        <a class="search-palette-checkout" href="{{ relURL "order/" }}#details" data-search-checkout hidden>Check out <span aria-hidden="true">&rarr;</span></a>
+      </section>
+    </div>
+    <p class="search-palette-keys" aria-hidden="true">
+      <span><kbd>&uarr;</kbd><kbd>&darr;</kbd> to move</span>
+      <span><kbd>Enter</kbd> to add</span>
+      <span><kbd>Esc</kbd> to close</span>
+    </p>
+  </div>
+  <script type="application/json" data-search-products>{{ $products | jsonify | safeJS }}</script>
+</dialog>

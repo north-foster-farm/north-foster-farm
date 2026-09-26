@@ -69,7 +69,8 @@ log, heartbeat  (configured or not)
 It is 503 when the last jobs run is more than 45 minutes old (or
 none is recorded in a day), when the last run had errors, or when
 mail has failed three or more times in the last hour with no success
-since. Everything else is information.
+since. Everything else is information. `webhook.lastAt` is the last
+signed delivery from Square or PayPal, whatever it carried.
 
 ## The alerts, and what to do
 
@@ -79,12 +80,13 @@ kind are counted, not sent) and one `/fail` ping. The subject is
 the kind, from `lib/alerts-guide.mjs`, with a button to this page.
 
 **`order.create_failed`.** `POST /api/orders` could not create the
-Square order or invoice after retries, or Square rejected it
-outright. The customer saw the failure card with your email and
-phone. Check Square status and the log (`event: order.failed`; the
-`detail` is Square's answer). A `retryable` failure is Square or the
-network; a permanent one is usually an item not available at the web
-location, or a bad token.
+Square order or take the payment after retries, or a processor
+rejected it outright. A declined card is not this: the customer just
+sees the decline. The customer saw the failure card with your email
+and phone. Check Square or PayPal status and the log (`event:
+order.failed`; the `detail` is the processor's answer). A `retryable`
+failure is the processor or the network; a permanent one is usually a
+bad token or application id.
 
 **`client.checkout_failed`.** The order page itself gave up: retries
 exhausted or a permanent error. It carries the message the customer
@@ -99,13 +101,17 @@ and the daily quota (100 on the free plan). The failing send is
 logged with the template name and order id; resend with `bin/nff` or
 from the order page once mail works.
 
-**`poll.failed`.** Asking Square about an unpaid invoice threw. The
-next run retries. Act only if it repeats for an hour: check
+**`square.record_failed`.** A Venmo payment was captured but its
+Square order and external tender could not be made. The order is
+recorded and the customer is fine; the Square dashboard does not show
+it yet. The jobs try again every run (`squareSynced` in the report).
+If `square.missing` shows up in the invariants a day later, check
 `SQUARE_ACCESS_TOKEN` and Square status.
 
-**`venmo.fetch_failed`.** Resend's inbound webhook arrived but the
-message could not be read. Resend retries the webhook. Check that
-`RESEND_READ_KEY` is set and can read received mail.
+**`venmo.amount_mismatch`.** PayPal captured a different amount than
+the order's total. The order is recorded as paid all the same.
+`bin/nff orders show <id>`, compare with the capture in PayPal, and
+refund or charge the difference by hand.
 
 **`jobs.errors`.** An order's work in the 15-minute run threw. The
 rest of the run finished. The report lists the order and the step.
@@ -124,17 +130,14 @@ Checked at the end of every run against every open order. Each is a
 statement that must be true after a healthy run; a violation means
 the job is not doing its job even though it ran.
 
-- `unpaid.past_cutoff`: no unpaid order is more than 30 minutes past
-  its cutoff without a payment hold or an open question.
 - `paid.not_closed`: no paid order is two or more days past its date
   without an open question.
-- `order.no_pay_link`: no order more than 20 minutes old lacks its
-  pay-link email.
-- `reminder.overdue`: no reminder that was due more than 30 minutes
-  ago is unsent, unless the customer turned reminders off.
-- `venmo.unchecked`: no order has sat in the "I paid by Venmo" hold
-  for more than a day. The morning report lists every hold; this
-  alerts when one is being forgotten.
+- `legacy.unpaid`: no order is `submitted`. Nothing makes one any
+  more; one still open is from before the checkout moved onto the
+  page and needs a person.
+- `square.missing`: no paid Venmo order has gone a day without its
+  Square copy (`square: null`). The jobs retry it every run; this
+  fires when the retries keep failing.
 - `order.unreadable`: the rules could not even read the record.
 
 ## The jobs heartbeat and partial failures
@@ -150,43 +153,42 @@ of its work, through the same channel.
 `bin/nff jobs history` prints the last runs, newest first, with the
 counts and any errors or violations, from the ledger in the jobs
 store (`run/<time>`, two days kept). It needs the Netlify Blobs
-variables in `.env`.
+variables in `.env.production` and the `--production` flag.
 
 ## The daily emails
 
 **Morning report**, 8:00: the site's vital signs for the last 24
 hours, each with the range a healthy day falls in (orders placed,
-paid by webhook, by poll, by hand, unpaid orders cancelled at the
-cutoff, cancellations, open unpaid, mail failures, jobs runs, errors
-and violations); then every order held on an "I paid by Venmo" claim,
-with how long it has waited; then the on-farm pickups within two days
-still waiting, each with its confirm command. A day when every
-payment arrived by the poll gets a bold line: the Square webhook is
-probably broken. This email also pings the *Alerts* check well.
+paid by card or a wallet, paid by Venmo, payments declined,
+cancellations, refunds, open orders paid and not yet fulfilled, mail
+failures, jobs runs, errors and violations); then the on-farm pickups
+within two days still waiting, each with its confirm command. This
+email also pings the *Alerts* check well.
 
 **Tomorrow**, 18:00: every order due the next day, grouped delivery,
-Scituate drop, on-farm, each with customer, phone, paid or UNPAID,
-and for a delivery the address, cooler, gate code and notes, and for
-every order what to pack. Sent even when empty ("Nothing due"). If it
-has not arrived by 18:15, something is wrong; the heartbeat will
-already have said so.
+drop site, on-farm, each with customer and phone, and for a
+delivery the address, cooler, gate code and notes, and for every
+order what to pack. Sent even when empty ("Nothing due"). If it has
+not arrived by 18:15, something is wrong; the heartbeat will already
+have said so.
 
 ## The log
 
 Every function writes one JSON line per event to the console (as
 before) and ships the invocation's lines to Axiom when it returns,
 with a 1.5-second cap; a failure to ship is swallowed. Query by
-`event` (`order.created`, `order.failed`, `mail.failed`,
-`square.webhook`, `venmo.received`, `jobs.run`, `alert`,
-`health.checked`, ...), by `id` for one order, or by `level: error`.
-The jobs run's full report is one `jobs.run` line every 15 minutes,
-so "when did it start" is a query for the first run whose `errors`
-is not empty. Deploy id and context ride on every line.
+`event` (`order.paid`, `payment.declined`, `order.failed`,
+`mail.failed`, `square.webhook`, `paypal.webhook`, `jobs.run`,
+`alert`, `health.checked`, ...), by `id` for one order, or by
+`level: error`. The jobs run's full report is one `jobs.run` line
+every 15 minutes, so "when did it start" is a query for the first run
+whose `errors` is not empty. Deploy id and context ride on every
+line.
 
 ## What is deliberately not here
 
-- A synthetic daily checkout. It would put a real invoice in Square
-  every day. The QA guide's occasional $1 order does the job.
+- A synthetic daily checkout. It would charge a real card every day.
+  The QA guide's occasional $1 order does the job.
 - Stack-trace tracking (Sentry). The log has the events and the
   errors' messages; add Sentry if that proves too thin.
 - Anything on the dashboard's side. When the delivery route batch

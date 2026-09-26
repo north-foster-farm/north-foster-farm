@@ -1,16 +1,14 @@
 // Sign-in, sign-out and "who am I":
 //
 //   POST /api/auth/request   { email, next }  -> 200 always (no leaks)
-//                            { email, orderId }  "Find my order": the
-//                            link goes to that order, if the pair match
 //   GET  /api/auth/verify?token=...            -> 302 to next, cookie set
 //   POST /api/auth/signout                     -> 204, cookie cleared
 //   GET  /api/me                               -> { signedIn, customer }
 
 import {
-  clearCookieHeader, cookieHeader, createSession, endSession, publicCustomer,
-  requestLink, requestOrderLink, safeNext, sameSite, sessionFrom,
-  verifyToken,
+  clearCookieHeader, clearStampHeader, cookieHeader, createSession,
+  endSession, publicCustomer, requestLink, safeNext, sameSite, sessionFrom,
+  stampHeader, verifyToken,
 } from "./lib/auth.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
@@ -31,8 +29,9 @@ const rateLimited = (ip, now) => {
   return recent.length > RATE.max;
 };
 
-const redirect = (location, headers = {}) => new Response(null, {
-  status: 302, headers: { Location: location, ...headers },
+// Headers as [name, value] pairs, so Set-Cookie can repeat.
+const redirect = (location, headers = []) => new Response(null, {
+  status: 302, headers: [["Location", location], ...headers],
 });
 
 export const handle = async (req, {
@@ -57,9 +56,7 @@ export const handle = async (req, {
       return json(200, { ok: true });
     }
 
-    const result = body.orderId
-      ? await requestOrderLink(stores, body, { now, env, mail })
-      : await requestLink(stores, body, { now, env, mail });
+    const result = await requestLink(stores, body, { now, env, mail });
 
     if (!result.ok && result.reason === "invalid") {
       return json(422, {
@@ -84,10 +81,11 @@ export const handle = async (req, {
       now, via: "link", userAgent: req.headers.get("user-agent"),
     });
 
-    return redirect(safeNext(result.next), {
-      "Set-Cookie": cookieHeader(session.id),
-      "Cache-Control": "no-store",
-    });
+    return redirect(safeNext(result.next), [
+      ["Set-Cookie", cookieHeader(session.id)],
+      ["Set-Cookie", stampHeader(now)],
+      ["Cache-Control", "no-store"],
+    ]);
   }
 
   if (path === "/api/auth/signout" && req.method === "POST") {
@@ -99,9 +97,11 @@ export const handle = async (req, {
 
     return new Response(null, {
       status: 204,
-      headers: {
-        "Set-Cookie": clearCookieHeader(), "Cache-Control": "no-store",
-      },
+      headers: [
+        ["Set-Cookie", clearCookieHeader()],
+        ["Set-Cookie", clearStampHeader()],
+        ["Cache-Control", "no-store"],
+      ],
     });
   }
 

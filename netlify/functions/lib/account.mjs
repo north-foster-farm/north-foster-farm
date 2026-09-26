@@ -12,24 +12,20 @@ import { datesFor } from "../../../assets/scripts/order/lib/dates.mjs";
 import {
   phoneOk, zipInfo,
 } from "../../../assets/scripts/order/lib/validate.mjs";
-import { abandonAt } from "./jobs.mjs";
-import { adminEmails, sendMail } from "./mail.mjs";
+import { cutoffAt } from "./jobs.mjs";
+import { adminEmails, mailbox, sendMail } from "./mail.mjs";
 import { log } from "./log.mjs";
+import { notifyFarm, sendForOrder } from "./payments.mjs";
 import {
-  hold, notifyFarm, resendInvoice as resendPayLink, sendForOrder,
-} from "./payments.mjs";
-import {
-  REMINDERS, amendOrder, answerQuestion, getOrder, ordersFor, questionOpen,
-  reminderPrefs, saveCustomer, setStatus,
+  REMINDERS, amendOrder, answerQuestion, getOrder, ordersFor, paymentRef,
+  paymentsOf, questionOpen, refundsOf, reminderPrefs, saveCustomer,
 } from "./records.mjs";
-import { mailLinks, orderUrlFor, siteUrl } from "./site.mjs";
-import {
-  cancelInvoice, cancelFulfilment, updateFulfilment,
-} from "./square.mjs";
+import { mailLinks, orderUrlFor } from "./site.mjs";
+import { updateFulfilment } from "./square.mjs";
 import { adjust } from "./stock.mjs";
 import {
-  addressReview, farmPickupChanged, farmVenmoClaimed, orderCancelled,
-  orderChanged,
+  addressReview, farmPickupChanged, farmRefundNeeded, farmReturnRequest,
+  farmSquareOutOfSync, farmSupport, orderCancelled, orderChanged,
 } from "./templates.mjs";
 
 export const AVATARS = avatars.map((a) => a.key);
@@ -70,15 +66,34 @@ export const publicOrder = (order, now = new Date()) => ({
     lineTotal: l.lineTotal,
   })),
   totals: order.totals,
+  // What the order page needs to open the order for a change (#160).
+  code: order.code || null,
+  customer: {
+    firstName: order.customer.firstName || "",
+    lastName: order.customer.lastName || "",
+    phone: order.customer.phone || "",
+    contact: order.customer.contact || "",
+  },
   fulfilment: order.fulfilment,
   notes: order.notes || "",
-  invoice: order.square ? {
-    number: order.square.invoiceNumber || null,
-    url: order.square.invoiceUrl || null,
-  } : null,
+  payments: paymentsOf(order).map((p) => ({
+    at: p.at || order.paidAt || null,
+    amount: p.amount,
+    via: p.via || null,
+    method: p.method || null,
+    brand: p.brand || null,
+    last4: p.last4 || null,
+    receiptUrl: p.receiptUrl || null,
+  })),
+  // Which payment each refund came out of, by its place in `payments`
+  // (a refund that names none came out of the first).
+  refunds: refundsOf(order).map((r) => ({
+    at: r.at,
+    amount: r.amount,
+    payment: Math.max(0, paymentsOf(order)
+      .findIndex((p) => paymentRef(p) === r.payment)),
+  })),
   returns: order.returns || [],
-  paymentPending: order.paymentPending
-    ? { source: order.paymentPending.source || null } : null,
   question: order.question ? {
     kind: order.question.kind,
     reason: order.question.reason || "",
@@ -90,14 +105,14 @@ export const publicOrder = (order, now = new Date()) => ({
   canChange: canChange(order, now),
 });
 
-// An order can be cancelled by the customer until the cutoff, while
-// it is unpaid or paid. Paid cancellations need a refund by hand. An
+// An order can be cancelled or changed by the customer until the
+// cutoff. A cancellation is a refund the farm makes from the CLI. An
 // open question from the farm (a denied pickup window) keeps both
 // doors open past the cutoff: the customer was asked to choose.
 const actionable = (order, now) =>
-  ["submitted", "paid"].includes(order.status)
+  order.status === "paid"
   && !order.cancelRequested
-  && (now.getTime() < abandonAt(order).getTime() || questionOpen(order));
+  && (now.getTime() < cutoffAt(order).getTime() || questionOpen(order));
 
 export const canCancel = actionable;
 
@@ -118,7 +133,6 @@ const owned = async (stores, customer, id) => {
 
 export const cancelOrder = async (stores, customer, id, {
   now = new Date(), env = process.env, mail = sendMail,
-  square = { cancelInvoice, cancelFulfilment },
 } = {}) => {
   const order = await owned(stores, customer, id);
 
@@ -134,33 +148,7 @@ export const cancelOrder = async (stores, customer, id, {
     }, "question.answered", now);
   }
 
-  if (order.status === "submitted") {
-    const cancelled = await setStatus(stores, id, "cancelled", now, {
-      source: "customer",
-    });
-
-    await adjust(stores, order.lines, 1);
-
-    if (order.square && order.square.invoiceId) {
-      try {
-        await square.cancelInvoice(order.square.invoiceId, { env });
-        if (order.square.squareOrderId) {
-          await square.cancelFulfilment(order.square.squareOrderId, { env });
-        }
-      } catch (error) {
-        log.error({
-          event: "square.cancel_failed", id, error: String(error.message),
-        });
-      }
-    }
-    await sendForOrder(stores, cancelled, "orderCancelled",
-      orderCancelled(cancelled, { refund: false, links: mailLinks(env) }),
-      { mail, env, now });
-
-    return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
-  }
-
-  // Paid: the farm refunds through Square, then closes it in the CLI.
+  // The farm refunds and closes it from the CLI.
   const flagged = await amendOrder(stores, id, {
     cancelRequested: true, cancelRequestedAt: now.toISOString(),
   }, "cancel.requested", now);
@@ -171,15 +159,9 @@ export const cancelOrder = async (stores, customer, id, {
   await sendForOrder(stores, flagged, "orderCancelled",
     orderCancelled(flagged, { refund: true, links: mailLinks(env) }),
     { mail, env, now });
-  await tellFarm({
-    subject: `Refund needed: ${id} cancelled by ${customer.email}`,
-    text: `${customer.name || customer.email} cancelled paid order ${id} ` +
-      `(${order.fulfilment.method} ${order.fulfilment.date}). Refund it ` +
-      `in Square, then: bin/nff order cancel ${id}`,
-    html: `<p>${customer.name || customer.email} cancelled paid order ` +
-      `${id} (${order.fulfilment.method} ${order.fulfilment.date}). Refund ` +
-      `it in Square, then run <code>bin/nff order cancel ${id}</code>.</p>`,
-  }, { mail, env });
+  await tellFarm(farmRefundNeeded(order, customer, {
+    links: mailLinks(env),
+  }), { mail, env });
 
   return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
 };
@@ -277,14 +259,9 @@ export const changeOrder = async (stores, customer, id, changes, {
       await amendOrder(stores, id, {
         flags: { ...(changed.flags || {}), squareOutOfSync: true },
       }, "square.out_of_sync", now);
-      await tellFarm({
-        subject: `Square out of sync: ${id}`,
-        text: `${customer.email} changed order ${id} but Square could not ` +
-          `be updated. Check the fulfilment in Square: ${f.method} ${f.date}.`,
-        html: `<p>${customer.email} changed order ${id} but Square could ` +
-          `not be updated. Check the fulfilment in Square: ${f.method} ` +
-          `${f.date}.</p>`,
-      }, { mail, env });
+      await tellFarm(farmSquareOutOfSync({ id, fulfilment: f }, customer, {
+        links: mailLinks(env),
+      }), { mail, env });
     }
   }
 
@@ -304,62 +281,21 @@ export const changeOrder = async (stores, customer, id, changes, {
   return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
 };
 
-// The pay-link email again, from the order page.
-export const resendInvoice = async (stores, customer, id, {
-  now = new Date(), env = process.env, mail = sendMail,
+export const updateProfile = async (stores, customer, changes, {
+  now = new Date(),
 } = {}) => {
-  const order = await owned(stores, customer, id);
-
-  if (!order) return fail(404, { order: "We can't find that order." });
-  if (order.status !== "submitted") {
-    return fail(409, { order: "This order isn't waiting for payment." });
-  }
-
-  const r = await resendPayLink(stores, order, {
-    orderUrl: orderUrlFor(env, id), mail, env, now,
-  });
-
-  if (!r.ok) {
-    return fail(429, { order: "We've sent that a few times already. " +
-      "Check your spam folder, or write to us." });
-  }
-
-  return { ok: true, order: publicOrder(r.order, now) };
-};
-
-// "I paid by Venmo": the order waits (no reminders, not abandoned)
-// while the farm checks the Venmo app, and the farm is told. Venmo's
-// own notification usually marks the order paid first; this is for
-// when it has not, or the note had no order number.
-export const claimVenmo = async (stores, customer, id, {
-  now = new Date(), env = process.env, mail = sendMail,
-} = {}) => {
-  const order = await owned(stores, customer, id);
-
-  if (!order) return fail(404, { order: "We can't find that order." });
-  if (order.status !== "submitted") {
-    return fail(409, { order: "This order isn't waiting for payment." });
-  }
-  if (order.paymentPending) {
-    return fail(409, { order: "We're already looking for that payment." });
-  }
-
-  const held = await hold(stores, order, now, "venmo");
-
-  await notifyFarm(stores, held, `farmVenmoClaimed-${now.getTime()}`,
-    farmVenmoClaimed(held, { links: mailLinks(env) }), { mail, env, now });
-
-  return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
-};
-
-export const updateProfile = async (stores, customer, changes) => {
   const c = changes && typeof changes === "object" ? changes : {};
   const errors = {};
   const patch = {};
 
-  if (c.name !== undefined) {
-    patch.name = text(c.name, 120);
-    if (!patch.name) errors.name = "Please enter your name.";
+  // The name is kept in parts, as the order form takes it; the full
+  // name is rebuilt from them for the places that show it whole.
+  if (c.firstName !== undefined || c.lastName !== undefined) {
+    patch.firstName = text(c.firstName, 60);
+    patch.lastName = text(c.lastName, 60);
+    if (!patch.firstName) errors.firstName = "Please enter your first name.";
+    if (!patch.lastName) errors.lastName = "Please enter your last name.";
+    patch.name = `${patch.firstName} ${patch.lastName}`.trim();
   }
   if (c.phone !== undefined) {
     patch.phone = text(c.phone, 40);
@@ -372,6 +308,15 @@ export const updateProfile = async (stores, customer, changes) => {
       errors.avatar = "Pick one of the chickens.";
     } else {
       patch.avatar = c.avatar;
+    }
+  }
+  // Farm news by email is opt-in only: off unless the customer ticks
+  // the box, here or at checkout, and the change is dated.
+  if (c.marketing !== undefined) {
+    patch.marketing = c.marketing === true;
+    if (patch.marketing !== (customer.marketing === true)) {
+      patch.marketingAt = now.toISOString();
+      patch.marketingSource = "account";
     }
   }
   // The reminder emails, each on or off; a key left out is unchanged.
@@ -483,16 +428,9 @@ export const requestReturn = async (stores, customer, id, request, {
     returns: [...(order.returns || []), entry],
   }, "return.requested", now);
 
-  await tellFarm({
-    subject: `Return request: ${id} from ${customer.email}`,
-    text: `${customer.name || customer.email} asked about a return on ` +
-      `${id}.\n\n${reason}\n\nItems: ${skus.join(", ") || "not specified"}` +
-      `\n\nSettle it with: bin/nff return resolve ${id} ${entry.id}`,
-    html: `<p>${customer.name || customer.email} asked about a return on ` +
-      `${id}.</p><blockquote>${reason}</blockquote><p>Items: ` +
-      `${skus.join(", ") || "not specified"}</p><p>Settle it with ` +
-      `<code>bin/nff return resolve ${id} ${entry.id}</code>.</p>`,
-  }, { mail, env });
+  await tellFarm(farmReturnRequest(order, customer, entry, {
+    links: mailLinks(env),
+  }), { mail, env });
 
   return { ok: true, order: publicOrder(changed, now), request: entry };
 };
@@ -514,17 +452,10 @@ export const sendSupport = async (stores, customer, request, {
     id, at: now.toISOString(), subject, message, orderId, status: "open",
   });
   await tellFarm({
-    subject: `Support: ${subject || "(no subject)"} from ${customer.email}`,
-    text: `${customer.name || customer.email} <${customer.email}>` +
-      `${customer.phone ? ` · ${customer.phone}` : ""}` +
-      `${orderId ? `\nOrder ${orderId}` : ""}\n\n${message}\n\n` +
-      `Reply to this email to answer. Account: ${siteUrl(env)}/account/`,
-    html: `<p><strong>${customer.name || customer.email}</strong> ` +
-      `&lt;${customer.email}&gt;${customer.phone
-        ? ` · ${customer.phone}` : ""}</p>` +
-      `${orderId ? `<p>Order ${orderId}</p>` : ""}` +
-      `<blockquote>${message.replace(/\n/g, "<br>")}</blockquote>` +
-      "<p>Reply to this email to answer.</p>",
+    replyTo: mailbox(customer.name, customer.email),
+    ...farmSupport(customer, { subject, message, orderId }, {
+      links: mailLinks(env),
+    }),
   }, { mail, env });
 
   return { ok: true, id };

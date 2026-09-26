@@ -1,0 +1,18 @@
+{{- /* The order cutoff for a fulfilment in data/delivery.json, as words:
+  partial "cutoff.html" "delivery" gives "Wednesday at noon". An hour of
+  24 is the end of that day. Used by the cutoff shortcode and llms.txt. */ -}}
+{{- $terms := index hugo.Data.delivery . -}}
+{{- $days := slice "Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday" -}}
+{{- $day := index $days (int $terms.cutoffWeekday) -}}
+{{- $hour := int $terms.cutoffHour -}}
+{{- $words := "" -}}
+{{- if eq $hour 24 -}}
+  {{- $words = print "the end of " $day -}}
+{{- else if eq $hour 12 -}}
+  {{- $words = print $day " at noon" -}}
+{{- else if gt $hour 12 -}}
+  {{- $words = print $day " at " (sub $hour 12) " PM" -}}
+{{- else -}}
+  {{- $words = print $day " at " $hour " AM" -}}
+{{- end -}}
+{{- return $words -}}

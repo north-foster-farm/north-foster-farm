@@ -5,7 +5,7 @@ import catalog from "../data/catalog.json" with { type: "json" };
 import terms from "../data/delivery.json" with { type: "json" };
 import { indexCatalog } from "../assets/scripts/order/lib/catalog.mjs";
 import {
-  validateOrder, zipStatus,
+  findCode, normalizeCode, validateOrder, zipStatus,
 } from "../assets/scripts/order/lib/validate.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 
@@ -79,11 +79,28 @@ describe("the customer's details", () => {
     assert.deepEqual(r.order.customer, {
       firstName: "Mary Ann",
       lastName: "Smith",
+      marketing: false,
       name: "Mary Ann Smith",
       email: "pat@example.com",
       phone: "401-555-0100",
       contact: "call",
     });
+  });
+
+  it("carry the farm-news box only when it is ticked", () => {
+    const withBox = (marketing) => {
+      const p = delivery();
+
+      return validateOrder({
+        ...p, customer: { ...p.customer, marketing },
+      }, ctx).order.customer.marketing;
+    };
+
+    assert.equal(validateOrder(delivery(), ctx).order.customer.marketing,
+      false, "absent is off");
+    assert.equal(withBox(true), true);
+    assert.equal(withBox(false), false);
+    assert.equal(withBox("yes"), false, "only true counts");
   });
 
   it("need a first name and a last name, each on its own", () => {
@@ -115,13 +132,15 @@ describe("the customer's details", () => {
     }
   });
 
-  it("need a phone number, and a plausible one", () => {
-    const missing = validateOrder(withCustomer({ phone: "" }), ctx);
+  it("need a phone number for delivery, and a plausible one", () => {
+    const missing = delivery();
 
-    assert.equal(missing.status, 422);
-    assert.equal(
-      missing.errors["customer.phone"], "Please enter a phone number."
-    );
+    missing.customer.phone = "";
+
+    const r = validateOrder(missing, ctx);
+
+    assert.equal(r.status, 422);
+    assert.equal(r.errors["customer.phone"], "Please enter a phone number.");
 
     for (const phone of ["12345", "401-555-010", "+44 20 7946 0958"]) {
       const r = validateOrder(withCustomer({ phone }), ctx);
@@ -133,6 +152,13 @@ describe("the customer's details", () => {
     for (const phone of ["4015550100", "(401) 555-0100", "1-401-555-0100"]) {
       assert.ok(validateOrder(withCustomer({ phone }), ctx).ok, phone);
     }
+  });
+
+  it("need no phone for pickup or the drop site", () => {
+    const r = validateOrder(withCustomer({ phone: "" }), ctx);
+
+    assert.ok(r.ok);
+    assert.equal(r.order.customer.phone, "");
   });
 
   it("need to say text or call", () => {
@@ -152,7 +178,7 @@ describe("the customer's details", () => {
     assert.equal(r.status, 422);
     assert.deepEqual(Object.keys(r.errors).sort(), [
       "customer.contact", "customer.email", "customer.firstName",
-      "customer.lastName", "customer.phone", "fulfilment.method", "lines",
+      "customer.lastName", "fulfilment.method", "lines",
     ]);
   });
 });
@@ -300,7 +326,7 @@ describe("delivery rules", () => {
     const r = validateOrder(small, ctx);
 
     assert.equal(r.status, 422);
-    assert.match(r.errors["delivery.minimum"], /Scituate/);
+    assert.match(r.errors["delivery.minimum"], /the drop site/);
   });
 
   it("records the state and takes eggs to Connecticut", () => {
@@ -320,11 +346,16 @@ describe("delivery rules", () => {
     assert.match(r.errors["delivery.zip"], /only able to deliver eggs/);
   });
 
-  it("warns and flags an unlisted Rhode Island ZIP", () => {
-    const r = validateOrder(delivery({ zip: "02831" }), ctx);
+  it("warns and flags an unlisted Rhode Island ZIP, and charges $3", () => {
+    const r = validateOrder(delivery({ zip: "02879" }), ctx);
+    const listed = validateOrder(delivery(), ctx);
 
     assert.ok(r.ok, JSON.stringify(r));
     assert.equal(r.order.flags.zipUnlisted, true);
+    assert.equal(r.order.totals.areaFee, 300);
+    assert.equal(r.order.totals.deliveryFee,
+      listed.order.totals.deliveryFee + 300);
+    assert.equal(r.order.totals.total, listed.order.totals.total + 300);
   });
 
   it("blocks a Massachusetts ZIP", () => {
@@ -339,8 +370,52 @@ describe("zipStatus", () => {
   it("classifies approved, unlisted, outside and invalid", () => {
     assert.equal(zipStatus("02825", terms.area), "approved");
     assert.equal(zipStatus("06239", terms.area), "approved");
-    assert.equal(zipStatus("02831", terms.area), "unlisted");
+    assert.equal(zipStatus("02879", terms.area), "unlisted");
     assert.equal(zipStatus("01527", terms.area), "outside");
     assert.equal(zipStatus("0282", terms.area), "invalid");
+  });
+});
+
+describe("discount codes", () => {
+  const codes = [{ code: "fall5", label: "Fall special", off: 5 }];
+
+  it("are normalised and looked up without regard to case", () => {
+    assert.equal(normalizeCode("  fall-5 ! "), "FALL-5");
+    assert.equal(findCode(" Fall5 ", codes).label, "Fall special");
+    assert.equal(findCode("nope", codes), null);
+    assert.equal(findCode("", codes), null);
+    assert.equal(findCode("x", undefined), null);
+  });
+
+  it("apply on the server from the list, and an unknown one is " +
+    "harmless", () => {
+    const known = validateOrder({ ...base(), code: "FALL5", claimedTotal:
+      5500 }, { ...ctx, codes });
+
+    assert.ok(known.ok, JSON.stringify(known));
+    // $60 subtotal: the $5 tier and the $5 code tie, the code wins
+    // nothing extra; the total is the same and the label is the code's.
+    assert.equal(known.order.totals.discountAmount, 500);
+    assert.equal(known.order.code, "FALL5");
+    assert.equal(known.order.totals.total, 5500);
+
+    const unknown = validateOrder({ ...base(), code: "EGGBOI" },
+      { ...ctx, codes });
+
+    assert.ok(unknown.ok, JSON.stringify(unknown));
+    assert.equal(unknown.order.code, null);
+    assert.equal(unknown.order.totals.total, 5500);
+    assert.equal(unknown.order.flags.totalMismatch, false,
+      "the joke changes nothing the server sees");
+  });
+
+  it("take the page's resolved entry when there is no list", () => {
+    const r = validateOrder({ ...base(), code: "BIG", claimedTotal: 3000 },
+      { ...ctx, code: { code: "BIG", label: "Big", off: 30 } });
+
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.equal(r.order.totals.discountAmount, 3000);
+    assert.equal(r.order.code, "BIG");
+    assert.equal(r.order.flags.totalMismatch, false);
   });
 });

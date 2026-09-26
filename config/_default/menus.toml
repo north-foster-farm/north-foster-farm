@@ -1,0 +1,47 @@
+# The footer's line of links, in order. Kept here rather than in each
+# page's front matter so the order reads in one place.
+
+[[footer]]
+name = "About"
+pageRef = "/about"
+weight = 10
+
+[[footer]]
+name = "Account"
+pageRef = "/account"
+weight = 20
+
+[[footer]]
+name = "News"
+pageRef = "/news"
+weight = 30
+
+[[footer]]
+name = "Accessibility"
+pageRef = "/accessibility"
+weight = 40
+
+[[footer]]
+name = "Privacy"
+pageRef = "/privacy"
+weight = 50
+
+[[footer]]
+name = "Delivery"
+pageRef = "/delivery-policy"
+weight = 60
+
+[[footer]]
+name = "Contact"
+pageRef = "/contact"
+weight = 70
+
+[[footer]]
+name = "Order"
+pageRef = "/order"
+weight = 80
+
+[[footer]]
+name = "llms.txt"
+url = "/llms.txt"
+weight = 90

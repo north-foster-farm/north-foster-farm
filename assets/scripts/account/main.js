@@ -12,16 +12,37 @@ const qs = (root, selector) => root.querySelector(selector);
 const all = (root, selector) => Array.from(root.querySelectorAll(selector));
 
 const STATUS = {
-  submitted: "Awaiting payment",
   paid: "Paid",
   fulfilled: "Delivered",
   cancelled: "Cancelled",
+  // From before the checkout moved onto the page.
+  submitted: "Awaiting payment",
   abandoned: "Not paid",
 };
 
+// "Visa ending 4242", "Apple Pay", "Venmo".
+const paidWith = (payment) => {
+  const p = payment || {};
+  const wallets = {
+    applepay: "Apple Pay", googlepay: "Google Pay", cashapp: "Cash App Pay",
+    venmo: "Venmo",
+  };
+
+  if (wallets[p.method]) return wallets[p.method];
+
+  const brand = String(p.brand || "card").toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+
+  return p.last4 ? `${brand} ending ${p.last4}` : brand;
+};
+
+const total = (items) => (items || [])
+  .reduce((s, x) => s + (x.amount || 0), 0);
+
 const METHOD = {
   delivery: "Delivery",
-  scituate: "Scituate drop site",
+  scituate: "Drop site",
   onfarm: "On-farm pickup",
 };
 
@@ -80,7 +101,6 @@ class Account {
 
     this.avatars = data.avatars;
     this.terms = data.terms;
-    this.venmo = data.venmo || "";
     this.app = document.getElementById("account-app");
     this.loading = document.getElementById("account-loading");
     this.flash = document.getElementById("account-flash");
@@ -147,10 +167,25 @@ class Account {
         location.href = "/";
       });
 
-    document.getElementById("address-form").addEventListener("submit",
-      (e) => this.saveAddress(e));
-    document.getElementById("profile-form").addEventListener("submit",
-      (e) => this.saveProfile(e));
+    // The address saves once the street, town and ZIP are there; the
+    // settings once both names are.
+    this.autosave(document.getElementById("address-form"),
+      () => this.saveAddress(),
+      (f) => f.address1.trim() && f.town.trim()
+        && f.zip.replace(/\D/g, "").length === 5);
+    this.autosave(document.getElementById("profile-form"),
+      () => this.saveProfile(),
+      (f) => f.firstName.trim() && f.lastName.trim());
+    // The chicken at the top changes the moment one is picked; the
+    // save that follows makes it stick.
+    document.getElementById("profile-form").addEventListener("change",
+      (e) => {
+        if (e.target.dataset.field === "avatar") {
+          qs(document, "#account-avatar use").setAttribute(
+            "href", `#avatar-${e.target.value}`
+          );
+        }
+      });
     document.getElementById("support-form").addEventListener("submit",
       (e) => this.sendSupport(e));
   }
@@ -180,8 +215,52 @@ class Account {
     if (message) this.flash.scrollIntoView({ block: "nearest" });
   }
 
-  // Field errors from the API, next to the fields of one form.
-  showErrors(form, errors) {
+  // A form that saves itself: a checkbox or radio as soon as it
+  // changes, a text field when the customer leaves it, and Enter as
+  // before. Nothing is sent while `ready` says the form is still
+  // being filled in, or when its values are the ones last sent.
+  autosave(form, save, ready) {
+    const status = qs(form, "[data-autosave]");
+    const idle = status.textContent;
+    const snapshot = () => JSON.stringify(all(form, "input, textarea")
+      .map((f) => (f.type === "checkbox" || f.type === "radio"
+        ? [f.name, f.value, f.checked]
+        : [f.name, f.value])));
+    const values = () => Object.fromEntries(all(form, "[data-field]")
+      .filter((f) => f.type !== "checkbox" && f.type !== "radio")
+      .map((f) => [f.dataset.field, f.value]));
+    let last = null;
+    const run = async () => {
+      const now = snapshot();
+
+      if (now === last) return;
+      if (!ready(values())) {
+        status.textContent = idle;
+
+        return;
+      }
+      last = now;
+      status.textContent = "Saving…";
+      status.textContent = (await save())
+        ? "Saved."
+        : "Not saved yet. Check the fields above.";
+    };
+
+    // The values are the saved ones once the page has filled them in,
+    // so the first edit is measured against those.
+    form.addEventListener("focusin", () => {
+      if (last === null) last = snapshot();
+    });
+    form.addEventListener("change", run);
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      run();
+    });
+  }
+
+  // Field errors from the API, next to the fields of one form. A form
+  // that saves itself does not pull the focus back to the error.
+  showErrors(form, errors, { focus = true } = {}) {
     this.clearErrors(form);
     for (const [key, message] of Object.entries(errors || {})) {
       const slot = qs(form, `[data-error-for="${key}"]`);
@@ -195,7 +274,7 @@ class Account {
     }
     const first = qs(form, ".is-invalid");
 
-    if (first) first.focus();
+    if (first && focus) first.focus();
   }
 
   clearErrors(form) {
@@ -243,7 +322,7 @@ class Account {
       tone = "wait";
     } else if (a && a.status === "denied") {
       text = "We can't deliver to this address. On-farm pickup and the " +
-        "Scituate drop site are open to everyone.";
+        "drop site are open to everyone.";
       tone = "no";
     }
     status.textContent = text;
@@ -255,8 +334,10 @@ class Account {
     const c = this.customer;
     const form = document.getElementById("profile-form");
 
-    qs(form, "[data-field='name']").value = c.name || "";
+    qs(form, "[data-field='firstName']").value = c.firstName || "";
+    qs(form, "[data-field='lastName']").value = c.lastName || "";
     qs(form, "[data-field='phone']").value = c.phone || "";
+    qs(form, "[data-field='marketing']").checked = c.marketing === true;
     document.getElementById("prof-email").value = c.email;
     for (const radio of all(form, "[data-field='avatar']")) {
       radio.checked = radio.value === c.avatar;
@@ -277,10 +358,8 @@ class Account {
     }
   }
 
-  async saveAddress(e) {
-    e.preventDefault();
-
-    const form = e.target;
+  async saveAddress() {
+    const form = document.getElementById("address-form");
     const body = {};
 
     for (const field of all(form, "[data-field]")) {
@@ -292,9 +371,9 @@ class Account {
     });
 
     if (!ok) {
-      this.showErrors(form, data.errors);
+      this.showErrors(form, data.errors, { focus: false });
 
-      return;
+      return false;
     }
 
     this.clearErrors(form);
@@ -303,17 +382,19 @@ class Account {
     this.say(data.customer.address.status === "approved"
       ? "Address saved."
       : "Address saved. We'll check it and email you.");
+
+    return true;
   }
 
-  async saveProfile(e) {
-    e.preventDefault();
-
-    const form = e.target;
+  async saveProfile() {
+    const form = document.getElementById("profile-form");
     const avatar = qs(form, "[data-field='avatar']:checked");
     const body = {
-      name: qs(form, "[data-field='name']").value,
+      firstName: qs(form, "[data-field='firstName']").value,
+      lastName: qs(form, "[data-field='lastName']").value,
       phone: qs(form, "[data-field='phone']").value,
       avatar: avatar ? avatar.value : null,
+      marketing: qs(form, "[data-field='marketing']").checked,
       reminders: Object.fromEntries(all(form, "[data-reminder]")
         .map((box) => [box.dataset.reminder, box.checked])),
     };
@@ -322,16 +403,17 @@ class Account {
     });
 
     if (!ok) {
-      this.showErrors(form, data.errors);
+      this.showErrors(form, data.errors, { focus: false });
 
-      return;
+      return false;
     }
 
     this.clearErrors(form);
     this.customer = data.customer;
     this.renderHead();
     forget();
-    this.say("Settings saved.");
+
+    return true;
   }
 
   async sendSupport(e) {
@@ -359,14 +441,14 @@ class Account {
     this.say("Sent. We'll answer by email.");
   }
 
-  // Orders and invoices
+  // Orders and receipts
 
   async loadOrders() {
     const { ok, data } = await api("/api/account/orders");
 
     this.orders = ok ? data.orders : [];
     this.renderOrders();
-    this.renderInvoices();
+    this.renderReceipts();
     this.renderSupportOrders();
   }
 
@@ -406,42 +488,26 @@ class Account {
       pickup.hidden = false;
     } else if (order.fulfilment.method === "onfarm"
       && order.fulfilment.state === "requested"
-      && ["submitted", "paid"].includes(order.status)) {
+      && order.status === "paid") {
       pickup.textContent = "Pickup time requested. We'll confirm it by " +
         "email.";
       pickup.hidden = false;
     }
 
     const note = qs(node, "[data-out='note']");
-    const pending = order.paymentPending;
 
-    if (order.status === "submitted" && pending
-      && pending.source === "venmo") {
-      note.textContent = "Thanks, we're checking Venmo for your payment. " +
-        "We'll confirm the order once it's in.";
-      note.hidden = false;
-    } else if (order.status === "submitted" && pending) {
-      note.textContent = "Your bank transfer is on its way. We'll confirm " +
-        "the order once it clears.";
-      note.hidden = false;
-    } else if (order.status === "submitted" && order.invoice
-      && order.invoice.url) {
-      note.textContent = "Not final until it's paid. ";
-      const link = el("a", "", "Pay the invoice");
-
-      link.href = order.invoice.url;
-      link.target = "_blank";
-      link.rel = "noopener";
-      note.appendChild(link);
-      if (this.venmo) {
-        note.appendChild(document.createTextNode(`, or send ${
-          dollars(order.totals.total)} to @${this.venmo} on Venmo with ${
-          order.id} in the note and press "I paid by Venmo" below.`));
-      }
-      note.hidden = false;
-    } else if (order.cancelRequested) {
+    if (order.cancelRequested) {
       note.textContent = "We're refunding this order. Your money goes back " +
         "to the way you paid.";
+      note.hidden = false;
+    } else if (order.refunds.length) {
+      const back = total(order.refunds);
+      const what = back >= total(order.payments)
+        ? "Refunded"
+        : `Refunded ${dollars(back)}`;
+
+      note.textContent = `${what} on ${
+        placed(order.refunds.at(-1).at)}, back to the way you paid.`;
       note.hidden = false;
     } else if (order.status === "abandoned") {
       note.textContent = "This order wasn't paid by the cutoff, so it was " +
@@ -484,6 +550,9 @@ class Account {
         t.deliveryFee ? `+${dollars(t.deliveryFee)}` : "Free");
     }
     row("Total", dollars(t.total), "account-totals-total");
+    if (order.payments.length) {
+      row("Paid with", order.payments.map(paidWith).join(", then "));
+    }
 
     const actions = qs(node, "[data-out='actions']");
     const button = (text, className, onClick) => {
@@ -502,19 +571,16 @@ class Account {
       "your cart again");
     actions.appendChild(again);
 
-    if (order.status === "submitted" && !pending) {
-      if (this.venmo) {
-        button("I paid by Venmo", "btn-outline-primary",
-          () => this.post(order, "venmo", "Thanks. We'll check Venmo and " +
-            "confirm your order once the payment is in."));
-      }
-      button("Resend the invoice", "btn-outline-secondary",
-        () => this.post(order, "resend", "Sent. Check your inbox for the " +
-          "invoice."));
-    }
     if (order.canChange) {
       button("Change", "btn-outline-primary",
         () => this.openChange(order, card));
+
+      // What is in it and how it comes are changed on the order page,
+      // which prices the change (#160). Draft wording.
+      const items = el("a", "btn btn-sm btn-outline-primary", "Change items");
+
+      items.href = `/order/?edit=${encodeURIComponent(order.id)}`;
+      actions.appendChild(items);
     }
     if (order.canCancel) {
       button("Cancel order", "btn-outline-secondary",
@@ -534,8 +600,8 @@ class Account {
     return node;
   }
 
-  // A one-press action on an order: resend the invoice, claim a Venmo
-  // payment. The answer is the order as it now stands, or an error.
+  // A one-press action on an order. The answer is the order as it now
+  // stands, or an error.
   async post(order, action, thanks) {
     const { ok, data } = await api(
       `/api/account/orders/${order.id}/${action}`, { method: "POST", body: {} }
@@ -669,10 +735,8 @@ class Account {
     const node = clone("tpl-cancel");
     const form = qs(node, "form");
 
-    qs(form, "[data-out='explain']").textContent = order.status === "paid"
-      ? "You've paid, so we'll refund you through Square to the card you " +
-        "used. It usually shows within a few business days."
-      : "Nothing has been charged. The invoice will be closed.";
+    qs(form, "[data-out='explain']").textContent = "We'll refund you the " +
+      "way you paid. It usually shows within a few business days.";
     qs(form, "[data-close]").addEventListener("click",
       () => this.closePanel(card));
     form.addEventListener("submit", async (e) => {
@@ -689,9 +753,7 @@ class Account {
       }
 
       this.replaceOrder(data.order);
-      this.say(order.status === "paid"
-        ? "Cancelled. Your refund is on its way."
-        : "Cancelled. Nothing was charged.");
+      this.say("Cancelled. Your refund is on its way.");
     });
 
     this.panel(card).appendChild(node);
@@ -746,38 +808,44 @@ class Account {
   replaceOrder(order) {
     this.orders = this.orders.map((o) => (o.id === order.id ? order : o));
     this.renderOrders();
-    this.renderInvoices();
+    this.renderReceipts();
     const card = document.getElementById(`order-${order.id}`);
 
     if (card) card.scrollIntoView({ block: "nearest" });
   }
 
-  renderInvoices() {
-    const body = document.getElementById("invoices-body");
-    const withInvoice = this.orders.filter((o) => o.invoice);
+  renderReceipts() {
+    const body = document.getElementById("receipts-body");
+    // One row per payment: an order changed after paying has several.
+    const rows = this.orders.flatMap((order) => order.payments
+      .map((payment, i) => ({ order, payment, i })));
 
     body.textContent = "";
-    document.getElementById("invoices-empty").hidden = withInvoice.length > 0;
-    document.getElementById("invoices-table").hidden = withInvoice.length === 0;
+    document.getElementById("receipts-empty").hidden = rows.length > 0;
+    document.getElementById("receipts-table").hidden = rows.length === 0;
 
-    for (const order of withInvoice) {
+    for (const { order, payment, i } of rows) {
       const tr = el("tr");
       const cell = (text) => tr.appendChild(el("td", "", text));
+      const back = total(order.refunds.filter((r) => r.payment === i));
 
       cell(order.id);
-      cell(order.invoice.number ? `#${order.invoice.number}` : "—");
-      cell(dollars(order.totals.total));
-      cell(order.status === "submitted"
-        ? "Open"
-        : (STATUS[order.status] || ""));
+      cell(payment.at ? placed(payment.at) : "");
+      cell(dollars(payment.amount));
+      cell(paidWith(payment));
+      if (back) {
+        cell(back >= payment.amount ? "Refunded" : `Refunded ${
+          dollars(back)}`);
+      } else {
+        cell(STATUS[order.status] || "");
+      }
 
       const td = el("td");
 
-      if (order.invoice.url && ["submitted", "paid", "fulfilled"]
-        .includes(order.status)) {
-        const a = el("a", "", order.status === "submitted" ? "Pay" : "Receipt");
+      if (payment.receiptUrl) {
+        const a = el("a", "", "Receipt");
 
-        a.href = order.invoice.url;
+        a.href = payment.receiptUrl;
         a.target = "_blank";
         a.rel = "noopener";
         td.appendChild(a);

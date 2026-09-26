@@ -4,13 +4,13 @@ import { describe, it } from "node:test";
 import terms from "../data/delivery.json" with { type: "json" };
 import {
   cancelOrder, confirmPickup, decideAddress, denyPickup, fulfilOrder,
-  listOrders, payOrder, pickupRange, pickupsNeedingConfirmation,
-  removeCustomer, removeOrder, resolveReturn, setCustomer, showCustomer,
-  stockList, stockSet, unholdOrder,
+  listOrders, markAttempted, pickupRange, pickupsNeedingConfirmation,
+  refundOrder, removeCustomer, removeOrder, resolveReturn, setCustomer,
+  showCustomer, stockList, stockSet,
 } from "../netlify/functions/lib/admin.mjs";
 import { verifyToken } from "../netlify/functions/lib/auth.mjs";
 import { requestReturn } from "../netlify/functions/lib/account.mjs";
-import { markPaid } from "../netlify/functions/lib/payments.mjs";
+import { announcePaid } from "../netlify/functions/lib/payments.mjs";
 import {
   getCustomer, getOrder, openOrders, saveCustomer, saveOrder,
 } from "../netlify/functions/lib/records.mjs";
@@ -19,17 +19,30 @@ import { testStores } from "../netlify/functions/lib/store.mjs";
 
 const now = new Date("2026-10-05T13:00:00Z");
 
-const order = (id, status = "submitted") => ({
+// Every order is born paid: a card through Square unless told.
+const order = (id, status = "paid", via = "square") => ({
   id,
   status,
   submittedAt: now.toISOString(),
+  paidAt: now.toISOString(),
   customer: { name: "Pat Example", email: "pat@example.com", phone: "" },
   lines: [{ sku: "NFF-CHK-EGG-LG", label: "Eggs (per dozen), Large", qty: 2,
     unitPrice: 7, lineTotal: 14 }],
   totals: { subtotal: 1400, discountAmount: 0, deliveryFee: 0, total: 1400 },
   fulfilment: { method: "onfarm", date: "2026-10-07",
     onfarm: { window: "morning", phone: "4015550100" } },
-  square: { squareOrderId: "SQO", invoiceId: `INV-${id}` },
+  square: { squareOrderId: "SQO", customerId: "CUST" },
+  payment: via === "venmo"
+    ? {
+      via: "venmo", method: "venmo", at: now.toISOString(),
+      squarePaymentId: `PAY-${id}`, receiptUrl: null,
+      paypalOrderId: `PPO-${id}`, paypalCaptureId: `CAP-${id}`,
+    }
+    : {
+      via: "square", method: "card", at: now.toISOString(),
+      squarePaymentId: `PAY-${id}`, receiptUrl: "https://r/x",
+      brand: "VISA", last4: "4242",
+    },
 });
 
 const customer = {
@@ -55,8 +68,23 @@ const harness = () => {
         return { id: `m${sent.length}`, driver: "test" };
       },
       square: {
-        cancelInvoice: async (id) => { calls.push(["invoice", id]); },
+        refundPayment: async ({ squarePaymentId, amount, key, reason }) => {
+          calls.push(["square.refund", squarePaymentId, amount]);
+          assert.match(key, /^refund-/);
+          assert.equal(typeof reason, "string");
+
+          return { squareRefundId: "SQR-1", status: "PENDING", amount };
+        },
         cancelFulfilment: async (id) => { calls.push(["fulfilment", id]); },
+      },
+      paypal: {
+        refundCapture: async ({ paypalCaptureId, amount, key, note }) => {
+          calls.push(["paypal.refund", paypalCaptureId, amount]);
+          assert.match(key, /^refund-/);
+          assert.ok(note);
+
+          return { paypalRefundId: "PPR-1", status: "COMPLETED", amount };
+        },
       },
     },
   };
@@ -122,103 +150,233 @@ describe("orders from the CLI", () => {
 
     await saveOrder(stores, order("A"), now);
     await saveOrder(stores, order("B", "fulfilled"), now);
-    await saveOrder(stores, {
-      ...order("C"), paymentPending: { at: now.toISOString(), source: "venmo" },
-    }, now);
+    await saveOrder(stores, order("C", "cancelled"), now);
     assert.equal((await listOrders(stores)).length, 3);
-    assert.equal((await listOrders(stores, { open: true })).length, 2);
-    assert.deepEqual((await listOrders(stores, { held: true }))
-      .map((o) => o.id), ["C"]);
+    assert.deepEqual((await listOrders(stores, { open: true }))
+      .map((o) => o.id), ["A"]);
     assert.equal((await listOrders(stores, { status: "fulfilled" }))[0].id,
       "B");
+    assert.equal((await listOrders(stores, {
+      email: "pat@example.com",
+    })).length, 3);
     assert.equal((await listOrders(stores, { email: "x@y.com" })).length, 0);
   });
 
-  it("pay by hand, fulfil, delete", async () => {
+  it("fulfil, delete", async () => {
     const stores = testStores();
-    const { calls, opts } = harness();
+    const { opts } = harness();
 
     await saveOrder(stores, order("A"), now);
-    const paid = await payOrder(stores, "A", { ...opts, via: "venmo" });
-
-    assert.equal(paid.status, "paid");
-    assert.equal(paid.payment.via, "venmo");
-    assert.deepEqual(calls, [["invoice", "INV-A"]], "the invoice is closed");
-    assert.equal((await payOrder(stores, "A", opts)).payment.via, "venmo",
-      "paying again changes nothing");
     assert.equal((await fulfilOrder(stores, "A", opts)).status, "fulfilled");
     assert.equal((await openOrders(stores)).length, 0);
     assert.equal(await removeOrder(stores, "A"), true);
     await assert.rejects(removeOrder(stores, "A"), /No such order/);
+    await assert.rejects(fulfilOrder(stores, "A", opts), /No such order/);
   });
 
-  it("cancel an unpaid order: stock back, Square closed, customer told",
-    async () => {
-      const stores = testStores();
-      const { sent, calls, opts } = harness();
+  it("refund a card order through Square, whole or part, once", async () => {
+    const stores = testStores();
+    const { calls, opts } = harness();
 
-      await setCount(stores, "NFF-CHK-EGG-LG", 3);
-      await saveOrder(stores, order("A"), now);
-      const c = await cancelOrder(stores, "A", opts);
+    await saveOrder(stores, order("A"), now);
+    await assert.rejects(refundOrder(stores, "A", { ...opts, amount: 1500 }),
+      /between \$0\.01 and \$14/);
+    await assert.rejects(refundOrder(stores, "A", { ...opts, amount: 0 }),
+      /between/);
+    await assert.rejects(refundOrder(stores, "A", { ...opts, amount: 7.5 }),
+      /between/);
+    assert.deepEqual(calls, [], "nothing moved");
 
-      assert.equal(c.status, "cancelled");
-      assert.equal((await getCounts(stores))["NFF-CHK-EGG-LG"], 5);
-      assert.deepEqual(calls, [["invoice", "INV-A"], ["fulfilment", "SQO"]]);
-      assert.match(sent[0].subject, /cancelled/);
-      assert.match(sent[0].text, /you were not charged/);
+    const part = await refundOrder(stores, "A", {
+      ...opts, amount: 700, reason: "One dozen short",
     });
 
-  it("close a paid order the customer asked to cancel, without a second " +
-    "email or a second stock release", async () => {
+    assert.deepEqual(calls, [["square.refund", "PAY-A", 700]]);
+    assert.equal(part.refunds.at(-1).amount, 700);
+    assert.equal(part.refunds.at(-1).total, false);
+    assert.equal(part.refunds.at(-1).source, "farm");
+    assert.equal(part.refunds.at(-1).squareRefundId, "SQR-1");
+    assert.equal(part.refunds.at(-1).paypalRefundId, null);
+    assert.equal(part.refunds.at(-1).status, "PENDING");
+    assert.equal(part.refunds.at(-1).at, now.toISOString());
+    assert.equal(part.refunds.at(-1).payment, "PAY-A");
+    assert.equal(part.history.at(-1).event, "refund.recorded");
+    assert.equal(part.status, "paid", "a refund alone does not cancel");
+
+    // The rest can follow; then there is nothing left to send back.
+    const rest = await refundOrder(stores, "A", opts);
+
+    assert.deepEqual(calls.at(-1), ["square.refund", "PAY-A", 700]);
+    assert.equal(rest.refunds.length, 2);
+    assert.equal(rest.refunds.at(-1).total, true);
+    await assert.rejects(refundOrder(stores, "A", opts),
+      /Already refunded in full \(\$14\)/);
+    assert.equal(calls.length, 2);
+
+    // The whole total by default, marked as such.
+    await saveOrder(stores, order("B"), now);
+    const whole = await refundOrder(stores, "B", opts);
+
+    assert.deepEqual(calls.at(-1), ["square.refund", "PAY-B", 1400]);
+    assert.equal(whole.refunds.at(-1).total, true);
+  });
+
+  it("refund a Venmo order through PayPal and note it on the Square copy",
+    async () => {
+      const stores = testStores();
+      const { calls, opts } = harness();
+
+      await saveOrder(stores, order("A", "paid", "venmo"), now);
+      const r = await refundOrder(stores, "A", opts);
+
+      assert.deepEqual(calls, [
+        ["paypal.refund", "CAP-A", 1400], ["square.refund", "PAY-A", 1400],
+      ]);
+      assert.equal(r.refunds.at(-1).paypalRefundId, "PPR-1");
+      assert.equal(r.refunds.at(-1).squareRefundId, "SQR-1");
+      assert.equal(r.refunds.at(-1).status, "COMPLETED");
+
+      // Square refusing to note it does not undo the refund.
+      await saveOrder(stores, order("B", "paid", "venmo"), now);
+      const noted = await refundOrder(stores, "B", {
+        ...opts,
+        square: {
+          ...opts.square,
+          refundPayment: async () => { throw new Error("Square 500"); },
+        },
+      });
+
+      assert.equal(noted.refunds.at(-1).paypalRefundId, "PPR-1");
+      assert.equal(noted.refunds.at(-1).squareRefundId, null);
+      assert.equal(noted.refunds.at(-1).total, true);
+
+      // A Venmo order that never got its Square copy still refunds.
+      const bare = order("C", "paid", "venmo");
+
+      bare.square = null;
+      bare.payment.squarePaymentId = null;
+      await saveOrder(stores, bare, now);
+      const c = await refundOrder(stores, "C", opts);
+
+      assert.equal(c.refunds.at(-1).paypalRefundId, "PPR-1");
+      assert.deepEqual(calls.at(-1), ["paypal.refund", "CAP-C", 1400]);
+    });
+
+  it("refuses to refund what has no payment or the wrong status",
+    async () => {
+      const stores = testStores();
+      const { calls, opts } = harness();
+      const none = order("A");
+
+      none.payment = null;
+      await saveOrder(stores, none, now);
+      await assert.rejects(refundOrder(stores, "A", opts),
+        /no payment to refund/);
+      await assert.rejects(refundOrder(stores, "Z", opts), /No such order/);
+
+      const legacy = { ...order("B"), status: "submitted", payment: null };
+
+      await saveOrder(stores, legacy, now);
+      await assert.rejects(refundOrder(stores, "B", opts),
+        /This order is submitted/);
+      assert.deepEqual(calls, []);
+    });
+
+  it("cancel without a refund: stock back, Square closed, customer told " +
+    "nothing more is charged", async () => {
     const stores = testStores();
     const { sent, calls, opts } = harness();
 
     await setCount(stores, "NFF-CHK-EGG-LG", 3);
     await saveOrder(stores, order("A"), now);
-    await markPaid(stores, "A", opts);
-    // The customer's request already released stock and emailed them.
-    await saveOrder(stores, {
-      ...(await getOrder(stores, "A")), cancelRequested: true,
-    }, now);
-    sent.length = 0;
     const c = await cancelOrder(stores, "A", opts);
 
     assert.equal(c.status, "cancelled");
-    assert.equal((await getCounts(stores))["NFF-CHK-EGG-LG"], 3);
-    assert.deepEqual(calls, [], "a paid invoice is not cancelled");
-    assert.equal(sent.length, 0);
-  });
+    assert.equal(c.refund, undefined);
+    assert.equal((await getCounts(stores))["NFF-CHK-EGG-LG"], 5);
+    assert.deepEqual(calls, [["fulfilment", "SQO"]]);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].subject, /cancelled/);
+    assert.match(sent[0].text, /Nothing more will be charged/);
+    assert.doesNotMatch(sent[0].text, /refund/i);
+    assert.equal((await openOrders(stores)).length, 0);
 
-  it("lift the Venmo hold when nothing arrived", async () => {
-    const stores = testStores();
-    const { opts } = harness();
-
-    await saveOrder(stores, {
-      ...order("A"), paymentPending: { at: now.toISOString(), source: "venmo" },
-    }, now);
-    const back = await unholdOrder(stores, "A", opts);
-
-    assert.equal(back.paymentPending, null);
-    assert.equal(back.history.at(-1).event, "payment.unclaimed");
-    await payOrder(stores, "A", opts);
-    await assert.rejects(unholdOrder(stores, "A", opts), /is paid/);
-  });
-
-  it("cancel a paid order the farm chose to: refund wording", async () => {
-    const stores = testStores();
-    const { sent, opts } = harness();
-
-    await saveOrder(stores, order("A"), now);
-    await markPaid(stores, "A", opts);
-    sent.length = 0;
+    // Cancelling again changes nothing and sends nothing.
     await cancelOrder(stores, "A", opts);
+    assert.equal(sent.length, 1);
+    assert.equal(calls.length, 1);
+  });
+
+  it("cancel with --refund: the money goes back first, then the wording " +
+    "says so", async () => {
+    const stores = testStores();
+    const { sent, calls, opts } = harness();
+
+    await setCount(stores, "NFF-CHK-EGG-LG", 3);
+    await saveOrder(stores, order("A"), now);
+    const c = await cancelOrder(stores, "A", { ...opts, refund: true });
+
+    assert.equal(c.status, "cancelled");
+    assert.equal(c.refunds.at(-1).amount, 1400);
+    assert.equal(c.refunds.at(-1).total, true);
+    assert.deepEqual(calls, [
+      ["square.refund", "PAY-A", 1400], ["fulfilment", "SQO"],
+    ]);
+    assert.equal((await getCounts(stores))["NFF-CHK-EGG-LG"], 5);
+    assert.equal(sent.length, 1);
     assert.match(sent[0].text, /refund is on its way/);
+    assert.match(sent[0].text, /on-farm pickup on Wednesday, October 7/);
+
+    // A partial refund with a reason rides along.
+    await saveOrder(stores, order("B", "paid", "venmo"), now);
+    const b = await cancelOrder(stores, "B", {
+      ...opts, refund: true, amount: 700, reason: "Half the order",
+    });
+
+    assert.equal(b.refunds.at(-1).amount, 700);
+    assert.equal(b.refunds.at(-1).total, false);
+    assert.deepEqual(calls.slice(2), [
+      ["paypal.refund", "CAP-B", 700], ["square.refund", "PAY-B", 700],
+      ["fulfilment", "SQO"],
+    ]);
+    assert.match(sent[1].text, /refund is on its way/);
+
+    // A processor failure stops the cancel before anything changes.
+    await saveOrder(stores, order("C"), now);
+    await assert.rejects(cancelOrder(stores, "C", {
+      ...opts, refund: true,
+      square: {
+        ...opts.square,
+        refundPayment: async () => { throw new Error("Square 503"); },
+      },
+    }), /Square 503/);
+    assert.equal((await getOrder(stores, "C")).status, "paid");
+    assert.equal(sent.length, 2);
+  });
+
+  it("close an order the customer asked to cancel, without a second " +
+    "email or a second stock release", async () => {
+    const stores = testStores();
+    const { sent, calls, opts } = harness();
+
+    await setCount(stores, "NFF-CHK-EGG-LG", 3);
+    // The customer's request already released stock and emailed them.
+    await saveOrder(stores, { ...order("A"), cancelRequested: true }, now);
+    const c = await cancelOrder(stores, "A", { ...opts, refund: true });
+
+    assert.equal(c.status, "cancelled");
+    assert.equal(c.refunds.at(-1).total, true);
+    assert.equal((await getCounts(stores))["NFF-CHK-EGG-LG"], 3);
+    assert.deepEqual(calls, [
+      ["square.refund", "PAY-A", 1400], ["fulfilment", "SQO"],
+    ]);
+    assert.equal(sent.length, 0);
   });
 });
 
 describe("an on-farm pickup window from the CLI", () => {
-  const requested = (id, status = "submitted") => {
-    const o = order(id, status);
+  const requested = (id) => {
+    const o = order(id);
 
     o.fulfilment.state = "requested";
 
@@ -230,21 +388,20 @@ describe("an on-farm pickup window from the CLI", () => {
     const stores = testStores();
     const { sent, opts } = harness();
 
-    // Agreed first: nothing to say until the money arrives.
+    // Every order is paid when recorded, so agreeing confirms it.
     await saveOrder(stores, requested("A"), now);
     const agreed = await confirmPickup(stores, "A", opts);
 
     assert.equal(agreed.fulfilment.state, "agreed");
     assert.equal(agreed.fulfilment.agreedAt, now.toISOString());
-    assert.equal(sent.length, 0);
-    await payOrder(stores, "A", opts);
     assert.equal(sent.length, 1);
     assert.equal(sent[0].subject, "Your order is confirmed");
     assert.match(sent[0].text, /your pickup time is set/);
 
-    // Paid first: "Payment received", then confirmed on agreement.
+    // The order's own announcement first: "Payment received", then
+    // confirmed on agreement.
     await saveOrder(stores, requested("B"), now);
-    await payOrder(stores, "B", opts);
+    await announcePaid(stores, "B", opts);
     assert.equal(sent.length, 2);
     assert.equal(sent[1].subject, "Payment received");
     const b = await confirmPickup(stores, "B", opts);
@@ -267,18 +424,17 @@ describe("an on-farm pickup window from the CLI", () => {
     const stores = testStores();
     const { sent, opts } = harness();
 
-    assert.deepEqual(pickupRange("morning"), { from: 8, to: 10 });
+    assert.deepEqual(pickupRange("morning"), { from: 9, to: 11 });
     assert.deepEqual(pickupRange("morning", { at: "9" }), { from: 9, to: 11 });
     assert.deepEqual(pickupRange("afternoon", { at: 13, until: 17 }),
       { from: 13, to: 17 });
-    assert.throws(() => pickupRange("morning", { at: 11 }), /8:00 to 12:00/);
+    assert.throws(() => pickupRange("morning", { at: 11 }), /9:00 to 12:00/);
     assert.throws(() => pickupRange("morning", { at: 9, until: 10 }),
       /at least 2 hours/);
     assert.throws(() => pickupRange("morning", { at: "9.5" }), /whole/);
     assert.throws(() => pickupRange("evening"), /Unknown pickup window/);
 
     await saveOrder(stores, requested("A"), now);
-    await payOrder(stores, "A", opts);
     const agreed = await confirmPickup(stores, "A", { ...opts, at: 10 });
 
     assert.deepEqual(agreed.fulfilment.onfarm.confirmed, { from: 10, to: 12 });
@@ -321,10 +477,14 @@ describe("an on-farm pickup window from the CLI", () => {
     assert.equal(denied.question.reason, "We're at the market that morning.");
     assert.equal(denied.question.answeredAt, null);
     assert.equal(sent.length, 1);
-    assert.equal(sent[0].subject, "One more step: pick a new pickup time");
-    assert.match(sent[0].text, /_\*\*We're at the market that morning\.\*\*_/);
+    assert.equal(sent[0].subject,
+      "Requested pickup time unavailable, please pick again");
+    assert.doesNotMatch(sent[0].text, /at the market/,
+      "the reason stays in the record");
+    assert.ok(sent[0].text.includes("you can cancel your order for a " +
+      "full refund"), "the refund is offered");
 
-    const link = sent[0].text.match(/Pick a new time: (\S+)/)[1];
+    const link = sent[0].text.match(/Reschedule or cancel: (\S+)/)[1];
     const token = new URL(link).searchParams.get("token");
     const week = new Date(now.getTime() + 6 * 24 * 60 * 60_000);
     const v = await verifyToken(stores, token, { now: week });
@@ -341,21 +501,20 @@ describe("an on-farm pickup window from the CLI", () => {
     assert.equal(agreed.question.by, "farm");
   });
 
-  it("deny without accounts asks for a reply, and each deny is its own " +
+  it("deny without accounts has no button, and each deny is its own " +
     "email", async () => {
     const stores = testStores();
     const { sent, opts } = harness();
 
     await saveOrder(stores, requested("A"), now);
     await denyPickup(stores, "A", opts);
-    assert.doesNotMatch(sent[0].text, /Pick a new time:/);
-    assert.match(sent[0].text, /Please reply with another day or window/);
+    assert.doesNotMatch(sent[0].text, /Reschedule or cancel:/);
+    assert.match(sent[0].text, /Please pick another day or window/);
 
     const later = new Date(now.getTime() + 60_000);
 
     await denyPickup(stores, "A", { ...opts, now: later, reason: "Rain." });
     assert.equal(sent.length, 2);
-    assert.match(sent[1].text, /_\*\*Rain\.\*\*_/);
   });
 });
 
@@ -365,7 +524,6 @@ describe("returns and stock from the CLI", () => {
     const { sent, opts } = harness();
 
     await saveOrder(stores, order("A"), now);
-    await markPaid(stores, "A", opts);
     const r = await requestReturn(stores, { email: "pat@example.com",
       name: "Pat" }, "A", { reason: "Thawed" }, opts);
 
@@ -388,5 +546,161 @@ describe("returns and stock from the CLI", () => {
     assert.deepEqual(await stockList(stores), { "NFF-CHK-EGG-LG": 12 });
     await stockSet(stores, "NFF-CHK-EGG-LG", "none");
     assert.deepEqual(await stockList(stores), {});
+  });
+});
+
+describe("refunds over several payments", () => {
+  // An order changed after paying: $14 by card, then $6 more by Venmo.
+  const changed = (id) => {
+    const base = order(id);
+
+    return {
+      ...base,
+      payment: undefined,
+      totals: { ...base.totals, subtotal: 2000, total: 2000 },
+      payments: [
+        { ...base.payment, amount: 1400 },
+        {
+          via: "venmo", method: "venmo", at: now.toISOString(), amount: 600,
+          squarePaymentId: `PAY-${id}-2`, receiptUrl: null,
+          paypalOrderId: `PPO-${id}-2`, paypalCaptureId: `CAP-${id}-2`,
+        },
+      ],
+      refunds: [],
+    };
+  };
+
+  it("takes a refund out of the newest payment first", async () => {
+    const stores = testStores();
+    const { calls, opts } = harness();
+
+    await saveOrder(stores, changed("A"), now);
+
+    const part = await refundOrder(stores, "A", { ...opts, amount: 1000 });
+
+    assert.deepEqual(calls, [
+      ["paypal.refund", "CAP-A-2", 600], ["square.refund", "PAY-A-2", 600],
+      ["square.refund", "PAY-A", 400],
+    ]);
+    assert.deepEqual(part.refunds.map((r) => [r.payment, r.amount]),
+      [["CAP-A-2", 600], ["PAY-A", 400]]);
+    assert.equal(part.refunds.at(-1).total, false);
+
+    const rest = await refundOrder(stores, "A", opts);
+
+    assert.deepEqual(calls.at(-1), ["square.refund", "PAY-A", 1000]);
+    assert.equal(rest.refunds.at(-1).total, true);
+    await assert.rejects(refundOrder(stores, "A", opts),
+      /Already refunded in full \(\$20\)/);
+  });
+
+  it("cancel with --refund after a partial refund sends back the rest, " +
+    "and says so", async () => {
+    const stores = testStores();
+    const { sent, calls, opts } = harness();
+
+    await saveOrder(stores, order("A"), now);
+    await refundOrder(stores, "A", { ...opts, amount: 400 });
+
+    const c = await cancelOrder(stores, "A", { ...opts, refund: true });
+
+    assert.deepEqual(calls, [
+      ["square.refund", "PAY-A", 400], ["square.refund", "PAY-A", 1000],
+      ["fulfilment", "SQO"],
+    ]);
+    assert.deepEqual(c.refunds.map((r) => r.amount), [400, 1000]);
+    assert.match(sent.at(-1).text, /refund is on its way/);
+
+    // Refunded in full already: nothing more goes back, and the email
+    // does not promise it.
+    await saveOrder(stores, order("B"), now);
+    await refundOrder(stores, "B", opts);
+    await cancelOrder(stores, "B", { ...opts, refund: true });
+
+    assert.deepEqual(calls.at(-1), ["fulfilment", "SQO"]);
+    assert.doesNotMatch(sent.at(-1).text, /refund is on its way/);
+  });
+});
+
+describe("an attempted delivery keeps its fee", () => {
+  // $14 of eggs and a $5 delivery fee, paid by card.
+  const delivered = (id) => {
+    const base = order(id);
+
+    return {
+      ...base,
+      totals: { ...base.totals, deliveryFee: 500, total: 1900 },
+      fulfilment: { method: "delivery", date: "2026-10-08",
+        delivery: { address1: "5 Far Rd", zip: "01234" } },
+    };
+  };
+
+  it("marks a delivery once, and nothing else", async () => {
+    const stores = testStores();
+
+    await saveOrder(stores, delivered("A"), now);
+    const a = await markAttempted(stores, "A", { now });
+
+    assert.deepEqual(a.attempted, { at: now.toISOString(), fee: 500 });
+
+    const later = new Date(now.getTime() + 7 * 86_400_000);
+
+    assert.equal((await markAttempted(stores, "A", { now: later }))
+      .attempted.at, now.toISOString());
+
+    await saveOrder(stores, order("B"), now);
+    await assert.rejects(markAttempted(stores, "B", { now }),
+      /Only a delivery/);
+    await saveOrder(stores, delivered("C"), now);
+    await fulfilOrder(stores, "C", { now });
+    await assert.rejects(markAttempted(stores, "C", { now }),
+      /This order is fulfilled/);
+    await assert.rejects(markAttempted(stores, "Z", { now }),
+      /No such order/);
+  });
+
+  it("refunds everything but the fee", async () => {
+    const stores = testStores();
+    const { calls, opts } = harness();
+
+    await saveOrder(stores, delivered("A"), now);
+    await markAttempted(stores, "A", { now });
+    await assert.rejects(refundOrder(stores, "A", { ...opts, amount: 1500 }),
+      /between \$0\.01 and \$14\./);
+
+    const r = await refundOrder(stores, "A", opts);
+
+    assert.deepEqual(calls, [["square.refund", "PAY-A", 1400]]);
+    assert.equal(r.refunds.at(-1).total, false);
+    await assert.rejects(refundOrder(stores, "A", opts),
+      /Only the delivery fee is left \(\$5\)/);
+
+    // Before an attempt, the fee goes back with the rest.
+    await saveOrder(stores, delivered("B"), now);
+    await refundOrder(stores, "B", opts);
+    assert.deepEqual(calls.at(-1), ["square.refund", "PAY-B", 1900]);
+  });
+
+  it("cancels with a refund of everything but the fee", async () => {
+    const stores = testStores();
+    const { sent, calls, opts } = harness();
+
+    await saveOrder(stores, delivered("A"), now);
+    await markAttempted(stores, "A", { now });
+
+    const c = await cancelOrder(stores, "A", { ...opts, refund: true });
+
+    assert.equal(c.status, "cancelled");
+    assert.deepEqual(calls, [
+      ["square.refund", "PAY-A", 1400], ["fulfilment", "SQO"],
+    ]);
+
+    // Only the fee left: the cancel goes through and refunds nothing.
+    await saveOrder(stores, delivered("B"), now);
+    await markAttempted(stores, "B", { now });
+    await refundOrder(stores, "B", opts);
+    await cancelOrder(stores, "B", { ...opts, refund: true });
+    assert.deepEqual(calls.at(-1), ["fulfilment", "SQO"]);
+    assert.doesNotMatch(sent.at(-1).text, /refund is on its way/);
   });
 });

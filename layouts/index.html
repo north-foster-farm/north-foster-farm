@@ -3,6 +3,14 @@
     {{ partial "home/hero.html" . }}
     {{ partial "home/how.html" . }}
     {{ partial "home/copy.html" . }}
+    {{/* The markets in their season, the three ways to buy the rest of
+         the year. */}}
+    {{ if partial "market-season.html" . }}
+      {{ partial "home/markets.html" . }}
+    {{ else }}
+      {{ partial "home/ways.html" . }}
+    {{ end }}
+    {{ partial "home/map.html" . }}
     {{ partial "home/contact.html" . }}
   </section>
 {{ end }}

@@ -1,55 +1,80 @@
 {{ $onOrder := eq .RelPermalink (relURL "order/") }}
-{{ $onAbout := eq .RelPermalink (relURL "about/") }}
 {{ $onLogin := eq .RelPermalink (relURL "login/") }}
-<div class="container site-header-inner">
-  <a class="site-brand" href="{{ .Site.BaseURL }}" aria-label="Home" {{- if .IsHome }} aria-current="page" {{ end }}>
-    {{ partial "svg.html" "logo" }}
+{{ $ctx := dict "onLogin" $onLogin }}
+{{ $accounts := .Site.Params.features.accounts }}
+{{/* The text links, in row order. Delivery points at the policy page
+     until the delivery page exists. */}}
+{{ $links := slice
+  (dict "name" "Delivery" "path" "delivery-policy/")
+  (dict "name" "News" "path" "news/")
+  (dict "name" "About" "path" "about/")
+  (dict "name" "Contact" "path" "contact/")
+}}
+{{ $here := .RelPermalink }}
+{{/* The whole row is the main navigation, so Home, the logo, is its
+     first item at every width. */}}
+<nav class="container site-header-inner" aria-label="Main">
+  {{/* The hen, and the wordmark beside it from sm up, so a page
+       reached from a link still says whose it is. */}}
+  <a class="site-brand" href="{{ .Site.BaseURL }}" aria-label="North Foster Farm, home" {{- if .IsHome }} aria-current="page" {{ end }}>
+    <span class="site-mark" aria-hidden="true">{{ partial "svg.html" "logo-mark" }}</span>
+    <span class="site-wordmark" aria-hidden="true">{{ partial "svg.html" "logo" }}</span>
   </a>
-  <nav class="site-actions" aria-label="Main">
-    {{ if .Site.Params.features.accounts }}
-      {{/* Settled by session.js once /api/me answers: the Sign in link
-           (already in place, transparent, so nothing shifts) fades in,
-           or is swapped for the Account menu. */}}
-      <div class="site-account dropdown" data-account>
-        <a class="site-nav-link" href="{{ relURL "login/" }}" data-account-signin {{- if $onLogin }} aria-current="page" {{ end }}>Sign in</a>
-        <button class="site-nav-link site-account-btn" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" data-account-menu hidden>
-          Account
-          <span class="site-nav-caret" aria-hidden="true">{{ partial "svg.html" "icons/chevron-down" }}</span>
-        </button>
-        <ul class="dropdown-menu dropdown-menu-end site-account-menu">
-          <li>
-            <a class="dropdown-item" href="{{ relURL "account/" }}#orders">
-              <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/orders" }}</span>
-              Your orders
-            </a>
-          </li>
-          <li>
-            <a class="dropdown-item" href="{{ relURL "account/" }}#invoices">
-              <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/invoice" }}</span>
-              Invoices
-            </a>
-          </li>
-          <li>
-            <a class="dropdown-item" href="{{ relURL "account/" }}#settings">
-              <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/account" }}</span>
-              Account settings
-            </a>
-          </li>
-          <li><hr class="dropdown-divider"></li>
-          <li>
-            <button class="dropdown-item" type="button" data-account-signout>
-              <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/sign-out" }}</span>
-              Sign out
-            </button>
-          </li>
-        </ul>
+  <div class="site-actions">
+    {{/* From md up: the text links in the row. On a phone they live in
+         the menu below; the row keeps the wordmark, Order and the
+         toggle. Sign in comes first so its fade-in never moves the
+         other links. */}}
+    <div class="site-links">
+      {{ if $accounts }}
+        {{ partial "header/account-menu.html" (dict "flat" false "ctx" $ctx) }}
+      {{ end }}
+      {{ range $links }}
+        <a class="site-nav-link" href="{{ relURL .path }}" {{- if eq $here (relURL .path) }} aria-current="page" {{ end }}>{{ .name }}</a>
+      {{ end }}
+    </div>
+    {{/* Product search: the icon turns into its closed twin while
+         the palette is open. */}}
+    <button class="site-search" type="button" aria-controls="search-palette" aria-expanded="false" aria-keyshortcuts="Meta+K Control+K" aria-label="Search products" data-search-open>
+      <span class="site-search-icon site-search-open" aria-hidden="true">{{ partial "svg.html" "icons/search" }}</span>
+      <span class="site-search-icon site-search-shut" aria-hidden="true">{{ partial "svg.html" "icons/search-close" }}</span>
+    </button>
+    {{ if $onOrder }}
+      <span class="site-order is-current" aria-current="page">Order{{ partial "header/cart-badge.html" }}</span>
+    {{ else }}
+      {{/* Order, and once the cart holds something, the cart beside
+           it with its count. */}}
+      <div class="site-order-group">
+        <a class="site-order" href="{{ relURL "order/" }}">Order</a>
+        {{ partial "header/mini-cart.html" . }}
       </div>
     {{ end }}
-    <a class="site-nav-link" href="{{ relURL "about/" }}" {{- if $onAbout }} aria-current="page" {{ end }}>About</a>
+    <button class="site-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#site-menu" aria-controls="site-menu" aria-expanded="false" aria-label="Menu">
+      <span class="site-toggle-bars" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+  </div>
+</nav>
+
+{{/* The phone menu: the same links, one per line, sliding in from
+     the right. */}}
+<div class="offcanvas offcanvas-end site-offcanvas" tabindex="-1" id="site-menu" aria-labelledby="site-menu-title">
+  <div class="offcanvas-header">
+    <h2 class="offcanvas-title h5" id="site-menu-title">Menu</h2>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body site-offcanvas-body">
+    <a class="site-nav-link" href="{{ .Site.BaseURL }}" {{- if .IsHome }} aria-current="page" {{ end }}>Home</a>
     {{ if $onOrder }}
-      <span class="site-order is-current" aria-current="page">Order</span>
+      <span class="site-nav-link is-current" aria-current="page">Order{{ partial "header/cart-badge.html" }}</span>
     {{ else }}
-      <a class="site-order" href="{{ relURL "order/" }}">Order</a>
+      <a class="site-nav-link" href="{{ relURL "order/" }}">Order{{ partial "header/cart-badge.html" }}</a>
     {{ end }}
-  </nav>
+    {{ range $links }}
+      <a class="site-nav-link" href="{{ relURL .path }}" {{- if eq $here (relURL .path) }} aria-current="page" {{ end }}>{{ .name }}</a>
+    {{ end }}
+    {{ if $accounts }}
+      <hr class="site-offcanvas-rule">
+      {{ partial "header/account-menu.html" (dict "flat" true "ctx" $ctx) }}
+    {{ end }}
+  </div>
 </div>

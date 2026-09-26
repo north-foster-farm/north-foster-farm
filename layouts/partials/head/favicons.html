@@ -1,8 +1,13 @@
-<link rel="apple-touch-icon" sizes="180x180" href="{{ partial "head/favicon-path.html" "apple-touch-icon.png" . }}">
+{{/* The gingham egg, built by bin/favicons/build. The SVG and the 16
+     and 32 px PNGs are its pixel-snapped design; browsers that take
+     the SVG prefer it. */}}
+<link rel="icon" type="image/svg+xml" href="{{ partial "head/favicon-path.html" "favicon.svg" . }}">
 <link rel="icon" type="image/png" sizes="32x32" href="{{ partial "head/favicon-path.html" "favicon-32x32.png" . }}">
 <link rel="icon" type="image/png" sizes="16x16" href="{{ partial "head/favicon-path.html" "favicon-16x16.png" . }}">
-<link rel="manifest" href="{{ partial "head/favicon-path.html" "site.webmanifest" . }}">
-<link rel="mask-icon" href="{{ partial "head/favicon-path.html" "safari-pinned-tab.svg" . }}" color="#1c75bc">
 <link rel="shortcut icon" href="{{ partial "head/favicon-path.html" "favicon.ico" . }}">
-<meta name="msapplication-TileColor" content="#1c75bc">
+<link rel="apple-touch-icon" sizes="180x180" href="{{ partial "head/favicon-path.html" "apple-touch-icon.png" . }}">
+<link rel="manifest" href="{{ partial "head/favicon-path.html" "site.webmanifest" . }}">
+<link rel="mask-icon" href="{{ partial "head/favicon-path.html" "safari-pinned-tab.svg" . }}" color="#1e7b54">
+<meta name="msapplication-TileColor" content="#1e7b54">
+<meta name="msapplication-config" content="{{ partial "head/favicon-path.html" "browserconfig.xml" . }}">
 <meta name="theme-color" content="#ffffff">

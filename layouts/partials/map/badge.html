@@ -1,0 +1,8 @@
+{{/* A pin's badge in the key and on its card: the farm's marker, or
+     the pin's number in its colour, hollow when it is not on now. */}}
+{{ $p := .pin }}
+{{ if eq $p.kind "farm" }}
+  <span class="map-key-marker" aria-hidden="true">{{ .marker }}</span>
+{{ else }}
+  <span class="map-key-n map-pin-{{ $p.kind }}{{ if not $p.on }} is-off{{ end }}" aria-hidden="true">{{ $p.label }}</span>
+{{ end }}

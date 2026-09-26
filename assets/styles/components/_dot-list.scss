@@ -1,0 +1,32 @@
+// A centred line of items with a dot between each pair, as in the
+// footer. The dot sits in the gap and takes no width of its own;
+// scripts/dot-list/ marks the item that starts each wrapped row, and
+// that item drops its dot.
+
+.dot-list {
+  --dot-gap: 1.5rem;
+
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem var(--dot-gap);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+
+  > li {
+    position: relative;
+  }
+
+  > li + li::before {
+    position: absolute;
+    left: calc(var(--dot-gap) / -2);
+    color: $gray-200;
+    content: "·";
+    transform: translateX(-50%);
+  }
+
+  > li[data-row-start]::before {
+    content: none;
+  }
+}

@@ -1,0 +1,46 @@
+{{/* Where to find us: the three markets, each with its day, its
+     place and its season, over the Tilted Barn photograph under a
+     dark tint, the hero's treatment. Evergreen: no dates that expire.
+     The drop site is not a market and is not here; the card above and
+     the order page carry it. Shown in market season only; see
+     index.html. */}}
+{{ $orderOnline := partial "link.html" (dict
+  "href" (relURL "order/")
+  "innerHTML" "order online"
+  "title" "Order online from North Foster Farm")
+}}
+{{ $market := resources.Get "images/tilted-market.jpg" }}
+{{ $widths := slice 800 1200 1600 2200 }}
+{{ $srcset := slice }}
+{{ range $widths }}
+  {{ $img := $market.Resize (printf "%dx webp q82" .) }}
+  {{ $srcset = $srcset | append (printf "%s %dw" $img.RelPermalink .) }}
+{{ end }}
+{{ $fallback := $market.Resize "1600x jpg q82" }}
+<div class="places home-band border-bottom border-light">
+  <img class="home-band-img" src="{{ $fallback.RelPermalink }}" srcset="{{ delimit $srcset ", " }}" sizes="100vw" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="" loading="lazy">
+  <div class="home-band-overlay"></div>
+  <div class="home-band-body container">
+    <p class="home-eyebrow">Where to find us</p>
+    <h2 class="home-title">We’ll see you at the market</h2>
+    <ul class="places-list list-unstyled">
+      {{ range hugo.Data.markets.markets }}
+        <li class="place">
+          <span class="home-icon" aria-hidden="true">
+            {{ partial "svg.html" "icons/sign" }}
+          </span>
+          <h3 class="place-name">
+            <a href="{{ .href }}" target="_blank" rel="noopener" title="{{ .name }} website">{{ .name }}</a>
+          </h3>
+          <p class="place-when">{{ .when }}</p>
+          <p class="place-where">{{ .where }}</p>
+          <p class="place-note">{{ .season }}</p>
+        </li>
+      {{ end }}
+    </ul>
+    <p class="places-note mb-0">
+      Between seasons, {{ $orderOnline }} for Thursday delivery, on-farm
+      pickup, or the Saturday drop site on the Village Green.
+    </p>
+  </div>
+</div>

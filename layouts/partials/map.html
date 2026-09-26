@@ -1,0 +1,278 @@
+{{/*
+  The delivery map: Rhode Island and the Connecticut border towns as
+  an inline SVG, from data/map.json (see bin/map/build). The ZIPs we
+  deliver to are filled from data/delivery.json, the file the order
+  form checks, so the map cannot disagree with it.
+
+  The pins: the farm in its own marker, and numbered pins for the drop
+  site, the markets and this year's pop-ups. What is on now (the farm,
+  the drop site, upcoming pop-ups, markets in season) stands solid and
+  on top, first in the key; what is not (past pop-ups, markets out of
+  season) is small, hollow and last. Pins that share a ZIP stand in a
+  stack, which spreads on hover, focus or a first tap.
+
+  scripts/map/ makes it answer: a ZIP names its town and whether we
+  deliver there on hover, and a tap on it runs the ZIP check and drops
+  a pin; a pin, or its line in the key, opens a card with the details,
+  directions and, for the farm and the drop site, a button to shop
+  that way; it zooms with the buttons, a pinch or a double tap and
+  pans with a drag. Wording is a draft for James (#138).
+
+  Params:
+    id     Prefix for ids, unique on the page
+    check  Put the "Do we deliver to you?" card above the key, or
+           above the map once the columns stack, so a link to the
+           row finds the field (optional); the page then needs
+           pageScript: "zip-check"
+*/}}
+{{ $id := .id | default "map" }}
+{{ $map := hugo.Data.map }}
+{{ $terms := hugo.Data.delivery }}
+{{ $zone := "America/New_York" }}
+{{ $inSeason := partial "market-season.html" . }}
+{{ $order := relURL "order/" }}
+{{/* The drop site's first Saturday, until it has passed, as the
+     off-season band gives it (home/ways.html). */}}
+{{ $dropStart := time.AsTime $terms.scituate.start $terms.timeZone }}
+{{ $dropWhen := printf "Saturdays, %s" $terms.scituate.window }}
+{{ if gt $dropStart.Unix now.Unix }}
+  {{ $dropWhen = printf "%s, starting %s" $dropWhen ($dropStart.Format "January 2") }}
+{{ end }}
+
+{{/* Every ZIP we deliver to, in either state, and those in a state
+     that takes only some groups (Connecticut, eggs). */}}
+{{ $ours := slice }}
+{{ $eggs := slice }}
+{{ range $terms.area.states }}
+  {{ $only := .onlyGroups }}
+  {{ range .towns }}
+    {{ $ours = $ours | append .zips }}
+    {{ if $only }}{{ $eggs = $eggs | append .zips }}{{ end }}
+  {{ end }}
+{{ end }}
+
+{{/* This year's pop-ups and any later ones, one pin per place, its
+     dates in order. Last year's drop off with the new year. */}}
+{{ $year := now.Year }}
+{{ $today := now.Format "2006-01-02" }}
+{{ $places := slice }}
+{{ $dates := dict }}
+{{ range sort hugo.Data.events.events "date" }}
+  {{ $at := time.AsTime .date $zone }}
+  {{ if and (eq .kind "pop-up") (or (eq $at.Year $year) (ge .date $today)) }}
+    {{ if not (index $dates .place) }}
+      {{ $places = $places | append . }}
+    {{ end }}
+    {{ $dates = merge $dates (dict .place ((index $dates .place | default slice) | append .)) }}
+  {{ end }}
+{{ end }}
+
+{{/* Every place, with what its card says and whether it is on now;
+     "section" groups the key. */}}
+{{ $all := slice
+  (merge (partial "map/xy.html" hugo.Data.places.farm) (dict
+    "kind" "farm" "section" "pickup" "on" true
+    "name" "Our farm"
+    "lines" (slice "On-farm pickup, select weekdays, by appointment" $terms.onFarm.address)
+    "address" $terms.onFarm.address
+    "directions" (partial "address.html" .).directions
+    "shop" (dict "label" "Shop for pickup" "href" (printf "%s?method=onfarm" $order))))
+  (merge (partial "map/xy.html" hugo.Data.places.dropsite) (dict
+    "kind" "dropsite" "section" "pickup" "on" true
+    "name" "Drop site"
+    "lines" (slice $dropWhen $terms.scituate.location)
+    "address" $terms.scituate.location
+    "shop" (dict "label" "Shop for the drop site" "href" (printf "%s?method=scituate" $order))))
+}}
+{{ range $places }}
+  {{ $lines := slice }}
+  {{ $upcoming := false }}
+  {{ range $e := index $dates .place }}
+    {{ $day := (time.AsTime $e.date $zone).Format "Mon, Jan 2" }}
+    {{ if $e.start }}
+      {{ $day = printf "%s, %s" $day (partial "map/hours.html" $e) }}
+    {{ end }}
+    {{ $lines = $lines | append $day }}
+    {{ if ge $e.date $today }}{{ $upcoming = true }}{{ end }}
+  {{ end }}
+  {{ if not $upcoming }}
+    {{ $lines = $lines | append "No more dates this year" }}
+  {{ end }}
+  {{ $a := .address }}
+  {{ $all = $all | append (merge (partial "map/xy.html" .) (dict
+    "kind" "popup" "section" (cond $upcoming "popups" "past") "on" $upcoming
+    "name" .place
+    "lines" $lines
+    "address" (printf "%s, %s, %s %s" $a.street $a.city $a.state $a.zip)
+    "instagram" .instagram)) }}
+{{ end }}
+{{ range hugo.Data.markets.markets }}
+  {{ $lines := slice .when .season }}
+  {{ if not $inSeason }}{{ $lines = $lines | append "Out of season" }}{{ end }}
+  {{ $all = $all | append (merge (partial "map/xy.html" .) (dict
+    "kind" "market" "section" (cond $inSeason "markets" "markets-off") "on" $inSeason
+    "name" .name
+    "lines" $lines
+    "address" .where
+    "href" .href
+    "instagram" .instagram)) }}
+{{ end }}
+
+{{/* On now first, the rest after; the farm has its marker, the others
+     numbers in that order. */}}
+{{ $pins := slice }}
+{{ $n := 0 }}
+{{ range (where $all "on" true) | append (where $all "on" false) }}
+  {{ $label := "" }}
+  {{ if ne .kind "farm" }}
+    {{ $n = add $n 1 }}
+    {{ $label = string $n }}
+  {{ end }}
+  {{ $pins = $pins | append (merge . (dict "label" $label)) }}
+{{ end }}
+
+{{ $pin := "M0 0C-4-11-15-18-15-30a15 15 0 1 1 30 0C15-18 4-11 0 0Z" }}
+{{/* The farm's marker. In the key and on its card, the whole SVG.
+     On the map, its shapes without the outer svg element: a nested
+     </svg> ends the map as far as the minifier can tell, and it
+     then minifies the rest as HTML and strips the self-closing
+     slashes. The file is 375 by 525 with its tip at (187.3,
+     500.2); it stands 62 units tall with the tip on the farm. */}}
+{{ $markerFile := partial "svg.html" "map/farm-marker" }}
+{{ $marker := $markerFile | replaceRE "^<svg " `<svg class="map-farm-marker" ` | safeHTML }}
+{{ $markerShapes := $markerFile | replaceRE `(?s)^<svg[^>]*>` "" | replaceRE `(?s)</svg>\s*$` "" | safeHTML }}
+{{ $ig := partial "svg.html" "icons/instagram" }}
+
+<div class="map" id="{{ $id }}" data-map>
+  {{ if .check }}
+    {{/* Narrower than its cell: a ZIP needs little room. */}}
+    <div class="map-check row">
+      <div class="col-md-9 col-lg-12 col-xl-10 col-xxl-9">
+        {{ partial "delivery-check.html" (dict "id" (printf "%s-zip" $id)) }}
+      </div>
+    </div>
+  {{ end }}
+  <div class="map-view">
+    <div class="map-frame" data-map-frame>
+      {{/* A label, not a title: a title shows as the browser's own
+           tooltip and competes with the map's. */}}
+      <svg class="map-svg" viewBox="0 0 {{ $map.frame.width }} {{ $map.frame.height }}" role="group" aria-label="Map of Rhode Island and its Connecticut border, showing where we deliver, our farm, the drop site, the farmers markets and this year’s pop-ups" data-map-svg>
+        {{/* The ZIP goes after a "z": the minifier reads a bare 02825
+             in SVG as a number and drops the leading zero. */}}
+        <g class="map-zips">
+          {{ range $map.zips }}
+            {{ $class := "is-land" }}
+            {{ if in $ours .zip }}{{ $class = "is-ours" }}{{ else if eq .state "RI" }}{{ $class = "is-away" }}{{ end }}
+            {{ if in $eggs .zip }}{{ $class = "is-ours is-eggs" }}{{ end }}
+            <path class="map-zip {{ $class }}" data-zip="z{{ .zip }}" data-town="{{ .town }}" data-x="{{ .x }}" data-y="{{ .y }}" d="{{ .d }}"/>
+          {{ end }}
+        </g>
+        <path class="map-borders" d="{{ $map.borders }}"/>
+        {{/* The ZIP picked, outlined under the pins. */}}
+        <path class="map-pick" data-map-pick hidden/>
+        {{/* The pins, drawn last to first so what is on now lies over
+             the rest. data-map-pin is the pin's place in the key. */}}
+        <g class="map-pins">
+          {{ range $i, $p := $pins | collections.Reverse }}
+            {{ $at := sub (len $pins) $i }}
+            <g class="map-pin map-pin-{{ $p.kind }} {{ cond $p.on "is-on" "is-off" }}" data-map-pin="{{ $at }}" data-x="{{ $p.x }}" data-y="{{ $p.y }}" transform="translate({{ $p.x }} {{ $p.y }})" tabindex="0" role="button" aria-pressed="false" aria-label="{{ with $p.label }}{{ . }}: {{ end }}{{ $p.name }}">
+              {{/* Pins that share a ZIP stand in a stack, which
+                   scripts/map/ builds by moving each pin's shift. One
+                   not on now is smaller. */}}
+              <g class="map-pin-shift">
+                <g {{- if not $p.on }} transform="scale(0.78)"{{ end }}>
+                  <g class="map-pin-body">
+                    {{ if eq $p.kind "farm" }}
+                      <g class="map-farm-marker" transform="translate(-22.1 -59.1) scale(0.1181)">{{ $markerShapes }}</g>
+                    {{ else }}
+                      <g class="map-pin-head">
+                        <path d="{{ $pin }}"/>
+                        <text y="-24">{{ $p.label }}</text>
+                      </g>
+                    {{ end }}
+                  </g>
+                </g>
+              </g>
+            </g>
+          {{ end }}
+        </g>
+        {{/* The dropped pin, over the others: it is the visitor's. */}}
+        <g class="map-drop" data-map-drop hidden>
+          <g data-map-drop-at>
+            <g class="map-drop-fall">
+              <path class="map-drop-pin" d="{{ $pin }}"/>
+              <circle class="map-drop-dot" cy="-30" r="6"/>
+              <text class="map-drop-label" y="-52" data-map-drop-label></text>
+            </g>
+          </g>
+        </g>
+      </svg>
+
+      <div class="map-tip" data-map-tip hidden></div>
+
+      {{ range $i, $p := $pins }}
+        <div class="map-card" data-map-card="{{ add $i 1 }}" role="group" aria-label="{{ $p.name }}" hidden>
+          <button class="btn-close map-card-close" type="button" data-map-card-close aria-label="Close"></button>
+          <p class="map-card-name" tabindex="-1">
+            {{ partial "map/badge.html" (dict "pin" $p "marker" $marker) }}
+            {{ $p.name }}
+          </p>
+          {{ range $p.lines }}
+            <p class="map-card-line">{{ . }}</p>
+          {{ end }}
+          <p class="map-card-directions">{{ partial "directions.html" ($p.directions | default (dict "to" $p.address)) }}</p>
+          {{ if or $p.href $p.instagram }}
+            <p class="map-card-links">
+              {{ with $p.href }}<a href="{{ . }}" target="_blank" rel="noopener">Website</a>{{ end }}
+              {{ with $p.instagram }}<a class="map-ig" href="https://www.instagram.com/{{ . }}/" target="_blank" rel="noopener" aria-label="{{ $p.name }} on Instagram">{{ $ig }}</a>{{ end }}
+            </p>
+          {{ end }}
+          {{ with $p.shop }}
+            <a class="btn btn-primary btn-sm map-card-shop" href="{{ .href }}">{{ .label }}</a>
+          {{ end }}
+        </div>
+      {{ end }}
+
+      <div class="map-zoom">
+        <button type="button" data-map-zoom="in" aria-label="Zoom in">+</button>
+        <button type="button" data-map-zoom="out" aria-label="Zoom out" disabled>−</button>
+        <button type="button" data-map-zoom="reset" aria-label="Show the whole map" hidden>
+          {{ partial "svg.html" "icons/globe" }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="map-key">
+    <ul class="map-key-areas list-unstyled">
+      <li><span class="map-swatch is-ours" aria-hidden="true"></span>We deliver here</li>
+      <li><span class="map-swatch is-away" aria-hidden="true"></span>A little outside our area</li>
+      <li class="text-body-secondary">In Connecticut, eggs only</li>
+    </ul>
+
+    {{ $heads := dict
+      "pickup" "Pick up from us"
+      "popups" "Upcoming pop-ups"
+      "markets" "Farmers markets"
+      "past" (printf "Earlier pop-ups in %d" $year)
+      "markets-off" "Farmers markets, out of season"
+    }}
+    {{ $section := "" }}
+    {{ range $i, $p := $pins }}
+      {{ if ne $p.section $section }}
+        {{ if $section }}</ol>{{ end }}
+        {{ $section = $p.section }}
+        <p class="map-key-head{{ if not $p.on }} is-off{{ end }}">{{ index $heads $section }}</p>
+        <ol class="map-key-list list-unstyled">
+      {{ end }}
+      <li class="map-key-item{{ if not $p.on }} is-off{{ end }}">
+        <button class="map-key-show" type="button" data-map-show="{{ add $i 1 }}">
+          {{ partial "map/badge.html" (dict "pin" $p "marker" $marker) }}
+          <span class="map-key-name">{{ $p.name }}</span>
+        </button>
+        {{ with $p.instagram }}<a class="map-ig" href="https://www.instagram.com/{{ . }}/" target="_blank" rel="noopener" aria-label="{{ $p.name }} on Instagram">{{ $ig }}</a>{{ end }}
+      </li>
+    {{ end }}
+    {{ if $section }}</ol>{{ end }}
+  </div>
+</div>

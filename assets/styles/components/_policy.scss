@@ -1,5 +1,8 @@
 .policy {
+  // flow-root keeps the heading, and so its rule, out from under a
+  // floated figure such as the about page's egg.
   h2 {
+    display: flow-root;
     margin-top: 2.25rem;
     margin-bottom: 1rem;
     padding-bottom: 0.25rem;
@@ -15,8 +18,14 @@
     max-width: 700px;
   }
 
-  // Markdown tables in the body copy.
+  // The delivery check card keeps its own heading spacing.
+  .delivery-check h3 {
+    margin-top: 0;
+  }
+
+  // Markdown tables in the body copy fill the column.
   table {
+    width: 100%;
     margin-bottom: 1.5rem;
     border-collapse: collapse;
 

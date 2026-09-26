@@ -1,0 +1,20 @@
+{{/*
+  Farm news by email: a label over one field with the button fixed to
+  it, the field and button the contact form's. The line under them
+  stays empty until there is an answer to give. Opt-in only: the
+  request adds the address at once, with no confirmation email (W1).
+  scripts/news/signup.js wires every form on the page.
+
+  Params:
+    id     Prefix for the field's id, unique on the page
+    class  Extra classes on the form (optional)
+*/}}
+{{ $id := .id | default "news" }}
+<form class="news-signup{{ with .class }} {{ . }}{{ end }}" data-news-signup novalidate>
+  <label class="form-label" for="{{ $id }}-email">Farm news by email</label>
+  <div class="input-group">
+    <input class="form-control" type="email" id="{{ $id }}-email" name="email" autocomplete="email" inputmode="email" required aria-describedby="{{ $id }}-note">
+    {{ partial "busy-button.html" (dict "label" "Sign me up" "busy" "Submitting" "class" "btn-primary") }}
+  </div>
+  <p class="news-signup-note" id="{{ $id }}-note" data-news-note role="status" aria-live="polite"></p>
+</form>

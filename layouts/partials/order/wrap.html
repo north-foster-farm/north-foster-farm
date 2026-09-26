@@ -5,23 +5,15 @@
 
 <div class="order-submit">
   <div class="alert alert-danger" role="alert" data-form-error hidden></div>
-  <p class="order-submit-note">
-    Within a minute or two of placing an order, you will receive a Square
-    invoice by email. <strong>You must pay the invoice to complete your
-    order.</strong> Confirmation will be sent by email when your payment
-    is received.
-  </p>
-  <button type="submit" class="btn btn-primary btn-lg" id="order-submit">Place your order</button>
+  {{ partial "busy-button.html" (dict "label" "Pay and place your order" "busy" "Taking your payment" "class" "btn-primary btn-lg" "id" "order-submit" "disabled" true) }}
+  {{/* A change to a paid order with nothing more to pay saves here
+       instead of paying (order-form.js). */}}
+  {{ partial "busy-button.html" (dict "label" "Save changes" "busy" "Saving" "class" "btn-primary btn-lg" "id" "order-save" "type" "button" "hidden" true) }}
+  <div class="invalid-feedback" data-error-for="order"></div>
+  {{/* A wallet or Venmo payment has no button of ours to spin, so
+       this says it is being placed. */}}
   <div class="order-pending" id="order-pending" role="status" aria-live="polite" hidden>
-    <p class="order-pending-title" data-pending-title></p>
-    <p class="order-pending-text" data-pending-text></p>
-    <p class="order-pending-meta">
-      <span data-pending-count></span>
-      <span class="order-pending-countdown" data-pending-countdown></span>
-    </p>
-    <div class="order-pending-actions">
-      <button type="button" class="btn btn-sm btn-outline-primary" data-pending-retry>Try now</button>
-      <button type="button" class="btn btn-sm btn-outline-primary" data-pending-cancel>Stop trying</button>
-    </div>
+    <p class="order-pending-title">Placing your order…</p>
+    <p class="order-pending-text">Sending your order to our payment system.</p>
   </div>
 </div>

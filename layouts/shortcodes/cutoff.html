@@ -1,0 +1,3 @@
+{{- /* The order cutoff for a fulfilment in data/delivery.json, as words:
+  {{< cutoff "delivery" >}} gives "Wednesday at noon". */ -}}
+{{- partial "cutoff.html" (.Get 0) -}}

@@ -1,4 +1,7 @@
-footer {
+// The footer: the news sign-up, the APPPA mark, a line of links, a
+// line of ways to reach the farm and the copyright, all centred.
+.site-footer {
+  padding-block: 2.75rem 2rem;
   color: $navbar-light-color;
 
   a {
@@ -9,12 +12,38 @@ footer {
     }
   }
 
-  .social-media {
-    line-height: 1.5;
-    fill: currentcolor;
+  .dot-list {
+    margin-bottom: 1rem;
   }
 
-  svg {
-    height: 1.25rem;
+  // The links read a little larger than the contact line under them.
+  nav .dot-list {
+    font-size: 1.0625rem;
+  }
+
+  .apppa-logo {
+    display: inline-block;
+    margin-bottom: 1.25rem;
+
+    svg {
+      display: block;
+      height: 3.5rem;
+    }
+
+    .apppa-black {
+      fill: #010101;
+    }
+
+    .apppa-white {
+      fill: #fff;
+    }
+
+    .apppa-brown {
+      fill: #6d412a;
+    }
+
+    .apppa-green {
+      fill: #32620e;
+    }
   }
 }

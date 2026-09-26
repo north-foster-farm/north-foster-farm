@@ -31,8 +31,7 @@ svg {
 }
 
 .btn {
-  text-transform: uppercase;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.01em;
 }
 
 // One hover for every button: the fill shades a step, the button
@@ -41,13 +40,13 @@ svg {
 .btn:not(.btn-link) {
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px -8px rgba($black, 0.45);
+    box-shadow: $btn-lift-shadow;
   }
 
   &:active,
   &.active {
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px -5px rgba($black, 0.4);
+    box-shadow: $btn-press-shadow;
   }
 }
 
@@ -119,8 +118,8 @@ svg {
 // Links inside running text get a hairline underline. The green alone
 // sits just under the 3:1 contrast against body text that WCAG asks
 // of an undecorated link; the underline is the second cue. Buttons,
-// navigation and headings are untouched.
-main :is(p, li, dd, td, figcaption) a:not(.btn) {
+// navigation (.nav-item), breadcrumbs and headings are untouched.
+main :is(p, li:not(.breadcrumb-item, .nav-item), dd, td, figcaption) a:not(.btn) {
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.18em;
@@ -197,4 +196,33 @@ h6 {
   width: 1px;
   padding: 0;
   border: 0;
+}
+
+// The skip link (baseof.html): out of sight until a keyboard reaches
+// it, then a button over the page's top left corner.
+.skip-link:focus {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: $zindex-fixed + 1;
+}
+
+// iOS Safari zooms the page into any focused field under 16px, so on
+// a touch screen every field is at least that.
+@media (hover: none) and (pointer: coarse) {
+  .form-control,
+  .form-select {
+    font-size: 1rem;
+  }
+}
+
+// Chrome paints an autofilled field pale blue. The inset shadow covers
+// the tint and the fill colour keeps the text ours.
+.form-control:-webkit-autofill,
+.form-control:-webkit-autofill:hover,
+.form-control:-webkit-autofill:focus {
+  box-shadow: 0 0 0 1000px var(--bs-body-bg) inset;
+  -webkit-text-fill-color: var(--bs-body-color);
+  caret-color: var(--bs-body-color);
+  transition: background-color 9999s ease-in-out 0s;
 }

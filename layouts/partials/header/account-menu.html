@@ -1,0 +1,61 @@
+{{/* The account slot: a Sign in link, or the Account menu, settled
+     by session.js once /api/me answers. Used twice: in the header row
+     (from md up) and in the phone menu. `flat` lays the account items
+     out as plain links instead of a dropdown. */}}
+{{ $flat := .flat }}
+{{ $ctx := .ctx }}
+<div class="site-account{{ if not $flat }} dropdown{{ end }}" data-account>
+  <a class="site-nav-link" href="{{ relURL "login/" }}" data-account-signin {{- if $ctx.onLogin }} aria-current="page" {{ end }}>Sign in</a>
+  {{ if $flat }}
+    <div class="site-menu-flat" data-account-menu hidden>
+      <a class="site-nav-link" href="{{ relURL "account/" }}#orders">
+        <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/orders" }}</span>
+        Your orders
+      </a>
+      <a class="site-nav-link" href="{{ relURL "account/" }}#receipts">
+        <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/receipt" }}</span>
+        Receipts
+      </a>
+      <a class="site-nav-link" href="{{ relURL "account/" }}#settings">
+        <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/account" }}</span>
+        Account settings
+      </a>
+      <button class="site-nav-link" type="button" data-account-signout>
+        <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/sign-out" }}</span>
+        Sign out
+      </button>
+    </div>
+  {{ else }}
+    <button class="site-nav-link site-account-btn" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" data-account-menu hidden>
+      Account
+      <span class="site-nav-caret" aria-hidden="true">{{ partial "svg.html" "icons/chevron-down" }}</span>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end site-account-menu">
+      <li>
+        <a class="dropdown-item" href="{{ relURL "account/" }}#orders">
+          <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/orders" }}</span>
+          Your orders
+        </a>
+      </li>
+      <li>
+        <a class="dropdown-item" href="{{ relURL "account/" }}#receipts">
+          <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/receipt" }}</span>
+          Receipts
+        </a>
+      </li>
+      <li>
+        <a class="dropdown-item" href="{{ relURL "account/" }}#settings">
+          <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/account" }}</span>
+          Account settings
+        </a>
+      </li>
+      <li><hr class="dropdown-divider"></li>
+      <li>
+        <button class="dropdown-item" type="button" data-account-signout>
+          <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/sign-out" }}</span>
+          Sign out
+        </button>
+      </li>
+    </ul>
+  {{ end }}
+</div>

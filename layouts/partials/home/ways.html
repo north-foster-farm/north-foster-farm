@@ -1,0 +1,74 @@
+{{/* No off-season: the three ways to get an order, in the market
+     band's place outside market season (see index.html), over the
+     winter tunnel under the same tint. Every fact comes from
+     data/delivery.json, which the order form reads too, and each
+     button opens the order page with that way chosen. Names follow
+     the order form; the rest is draft wording for James (#137). */}}
+{{ $terms := hugo.Data.delivery }}
+{{ $money := $terms.money }}
+{{ $dropStart := time.AsTime $terms.scituate.start $terms.timeZone }}
+{{ $dropWhen := printf "Saturdays, %s" $terms.scituate.window }}
+{{ if gt $dropStart.Unix now.Unix }}
+  {{ $dropWhen = printf "%s, starting %s" $dropWhen ($dropStart.Format "January 2") }}
+{{ end }}
+{{ $ways := slice
+  (dict
+    "method" "onfarm"
+    "icon" "barn"
+    "name" "On-farm pickup"
+    "when" "Select weekdays, by appointment"
+    "where" $terms.onFarm.address
+    "cost" "No minimum, no fee"
+    "cta" "Shop for pickup")
+  (dict
+    "method" "scituate"
+    "icon" "lot-location"
+    "name" "Drop site"
+    "when" $dropWhen
+    "where" $terms.scituate.location
+    "cost" "No minimum, no fee"
+    "cta" "Shop for the drop site")
+  (dict
+    "method" "delivery"
+    "icon" "delivery"
+    "name" "Delivery"
+    "when" (printf "Every Thursday, %s" $terms.delivery.window)
+    "where" "Most of central Rhode Island and parts of eastern Connecticut"
+    "cost" (printf "$%v minimum, $%v fee" $money.deliveryMinimum $money.deliveryFee)
+    "cta" "Shop for delivery")
+}}
+{{ $tunnel := resources.Get "images/winter-tunnel.jpg" }}
+{{ $widths := slice 800 1200 1600 2200 }}
+{{ $srcset := slice }}
+{{ range $widths }}
+  {{ $img := $tunnel.Resize (printf "%dx webp q82" .) }}
+  {{ $srcset = $srcset | append (printf "%s %dw" $img.RelPermalink .) }}
+{{ end }}
+{{ $fallback := $tunnel.Resize "1600x jpg q82" }}
+<div class="places ways home-band border-bottom border-light">
+  <img class="home-band-img" src="{{ $fallback.RelPermalink }}" srcset="{{ delimit $srcset ", " }}" sizes="100vw" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="" loading="lazy">
+  <div class="home-band-overlay"></div>
+  <div class="home-band-body container">
+    <p class="home-eyebrow">No off-season</p>
+    <h2 class="home-title">Three ways to get your order, all winter</h2>
+    <ul class="places-list list-unstyled">
+      {{ range $ways }}
+        <li class="place">
+          <span class="home-icon" aria-hidden="true">
+            {{ partial "svg.html" (printf "icons/%s" .icon) }}
+          </span>
+          <h3 class="place-name">{{ .name }}</h3>
+          <p class="place-when">{{ .when }}</p>
+          <p class="place-where">{{ .where }}</p>
+          <p class="place-note">{{ .cost }}</p>
+          <p class="place-cta">
+            <a class="btn btn-outline-light" href="{{ relURL "order/" }}?method={{ .method }}">{{ .cta }}</a>
+          </p>
+        </li>
+      {{ end }}
+    </ul>
+    <p class="places-note mb-0">
+      The farmers markets return in June.
+    </p>
+  </div>
+</div>

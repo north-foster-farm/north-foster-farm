@@ -1,19 +1,21 @@
 // Who is signed in, for every page. Asks /api/me once per five
-// minutes (cached in sessionStorage) and settles the header slot: the
+// minutes, or at once after signing in or out (cached in
+// sessionStorage; see cache.js), and settles the header slot: the
 // Sign in link fades in, or the Account menu takes its place. A build
 // without accounts has no slot.
 
 import { api } from "../utils/api.js";
+import { forgetCustomer } from "../order/draft.js";
+import { fresh, stampFrom } from "./cache.js";
 
 const KEY = "nff-me";
-const TTL = 5 * 60_000;
 
 const read = () => {
   try {
     const raw = sessionStorage.getItem(KEY);
-    const cached = raw ? JSON.parse(raw) : null;
 
-    return cached && Date.now() - cached.at < TTL ? cached.me : null;
+    return fresh(raw ? JSON.parse(raw) : null, stampFrom(document.cookie),
+      Date.now());
   } catch {
     return null;
   }
@@ -21,7 +23,9 @@ const read = () => {
 
 const write = (me) => {
   try {
-    sessionStorage.setItem(KEY, JSON.stringify({ at: Date.now(), me }));
+    sessionStorage.setItem(KEY, JSON.stringify({
+      at: Date.now(), stamp: stampFrom(document.cookie), me,
+    }));
   } catch {
     // A cache only.
   }
@@ -70,16 +74,20 @@ const fill = (slot, who) => {
     async () => {
       await api("/api/auth/signout", { method: "POST", body: {} });
       forget();
+      forgetCustomer();
       location.href = "/";
     }, { once: true });
 };
 
 export const Session = {
   async show() {
-    const slot = document.querySelector("[data-account]");
+    // Two slots: the header row and the phone menu.
+    const slots = document.querySelectorAll("[data-account]");
 
-    if (!slot) return;
+    if (!slots.length) return;
 
-    fill(slot, await me());
+    const who = await me();
+
+    for (const slot of slots) fill(slot, who);
   },
 };

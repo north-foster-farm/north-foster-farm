@@ -2,7 +2,7 @@
 
 // A group label without its parenthetical: "Eggs (per dozen)" -> "Eggs".
 // The parenthetical is for the form; a line is named by the short
-// form everywhere else (the cart, the emails, the invoice).
+// form everywhere else (the cart, the emails, the Square order).
 export const short = (label) => label.replace(/ \(.*\)$/, "");
 
 export const indexCatalog = (catalog) => {

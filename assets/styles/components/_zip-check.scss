@@ -1,0 +1,21 @@
+// "Do we deliver to you?" on the home page and the delivery policy:
+// a plain field that answers as it is typed; the answer takes the tone the
+// account page uses for an address (ok, wait, no).
+
+.zip-check-result {
+  &:empty {
+    display: none;
+  }
+
+  &[data-tone="ok"] {
+    color: var(--bs-success-text-emphasis);
+  }
+
+  &[data-tone="wait"] {
+    color: var(--bs-warning-text-emphasis);
+  }
+
+  &[data-tone="no"] {
+    color: var(--bs-danger-text-emphasis);
+  }
+}

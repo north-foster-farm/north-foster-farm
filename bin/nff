@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 // The farm's command line for orders, customers, stock and sign-in.
-// Reads .env from the repo root. Off Netlify the records live in the
-// site's Blobs stores only when NETLIFY_SITE_ID and NETLIFY_AUTH_TOKEN
-// are set; otherwise everything is in memory and lost on exit, which
-// the banner says.
+// Reads one env file from the repo root: .env (linked to
+// .env.development) with no flag, or .env.production, .env.staging or
+// .env.preview when that flag is given. Off Netlify the records live
+// in the site's Blobs stores only when NETLIFY_SITE_ID and
+// NETLIFY_AUTH_TOKEN are set; otherwise everything is in memory and
+// lost on exit, which the banner says.
 
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,31 +20,66 @@ const USAGE = `Usage:
   bin/nff customers set <email> name=.. phone=.. group=friends|none
   bin/nff customers delete <email>
   bin/nff address approve|deny <email>
-  bin/nff orders list [--open] [--held] [--status=paid] [--email=x]
+  bin/nff orders list [--open] [--status=paid] [--email=x]
   bin/nff orders show <id>
-  bin/nff orders paid <id> [--via venmo|cash|check]   paid by hand
-  bin/nff orders unpaid <id>          nothing arrived: lift the Venmo hold
   bin/nff orders confirm [<id>] [--at 9] [--until 11]
                                       agree to a pickup: the first two
                                       hours of the window unless told;
                                       no id: how many wait, and the next
   bin/nff orders deny <id> --reason "..."   have them pick another
-  bin/nff orders cancel <id> [--refund]
+  bin/nff orders cancel <id> [--refund] [--amount 12.34] [--reason "..."]
+                                      stock back, fulfilment closed in
+                                      Square; --refund sends the money
+                                      back first, all of it unless told
+  bin/nff orders refund <id> [--amount 12.34] [--reason "..."]
+                                      money back without cancelling:
+                                      card and wallets through Square,
+                                      Venmo through PayPal
+  bin/nff orders attempted <id>       a delivery we could not leave: its
+                                      fee stays through any refund
   bin/nff orders fulfil <id>
   bin/nff orders delete <id>
   bin/nff returns resolve <id> <returnId> [note...]
-  bin/nff venmo list                  every Venmo payment the site saw
   bin/nff stock list
   bin/nff stock set <sku> <count|none>
   bin/nff login <email>               print a sign-in link
   bin/nff masquerade <email>          open a sign-in link as them
+  bin/nff audience invite <csv> [--dry-run]   the confirmation email,
+                                      once, to each address not yet in
+  bin/nff audience sync [--dry-run]   the Resend audience and the
+                                      records, made to agree
   bin/nff jobs run
   bin/nff jobs history [--n=20]       the last runs: errors, invariants
-  bin/nff health                      what /api/health would answer`;
+  bin/nff health                      what /api/health would answer
+  bin/nff library [--staging]         James's approvals and rewrites
+                                      from the email library, to port
+  bin/nff library clear <id>          drop an email's, once ported
+  bin/nff --production mail list [--since 2026-09-19] [--to <email>]
+                                      what Resend sent and how it
+                                      ended; addresses masked unless
+                                      --to names one
+  bin/nff --production mail show <id> [--to <email>]
+                                      one email's headers, no body
+
+  --production, --staging, --preview  act on that deploy context's
+                                      data; with none, on the dev
+                                      stores, never production's`;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-loadEnv(join(root, ".env"));
+// Each env file is complete (.env.sample names every key), so a flag
+// reads its own file and nothing else: production's keys never mix
+// with the sandbox's. The deploy context is set by the flag, not the
+// file, so no flag can reach production's stores by accident.
+const CONTEXTS = {
+  production: "production",
+  staging: "branch-deploy",
+  preview: "deploy-preview",
+};
+const context = Object.keys(CONTEXTS)
+  .find((name) => process.argv.includes(`--${name}`)) || null;
+
+loadEnv(join(root, context ? `.env.${context}` : ".env"));
 
 const [
   { default: terms },
@@ -49,10 +87,15 @@ const [
   { requestLink },
   { runJobs, runsSince },
   { stores: makeStores },
-  { summaryLine },
-  { allPayments },
-  { dollars },
+  { paymentPhrase, summaryLine },
+  { inviteSubscribers, parseCsv, syncAudience },
+  { dollars, toCents },
   { snapshot },
+  { refundedTotal },
+  { library },
+  review,
+  { mailLinks },
+  sent,
 ] = await Promise.all([
   import("../data/delivery.json", { with: { type: "json" } }),
   import("../netlify/functions/lib/admin.mjs"),
@@ -60,17 +103,35 @@ const [
   import("../netlify/functions/lib/jobs.mjs"),
   import("../netlify/functions/lib/store.mjs"),
   import("../netlify/functions/lib/templates.mjs"),
-  import("../netlify/functions/lib/venmo.mjs"),
+  import("../netlify/functions/lib/news.mjs"),
   import("../assets/scripts/order/lib/totals.mjs"),
   import("../netlify/functions/health.mjs"),
+  import("../netlify/functions/lib/records.mjs"),
+  import("../netlify/functions/lib/library.mjs"),
+  import("../netlify/functions/lib/review.mjs"),
+  import("../netlify/functions/lib/site.mjs"),
+  import("../netlify/functions/lib/sent.mjs"),
 ]);
+
+process.env.SITE_CONTEXT = context ? CONTEXTS[context] : "dev";
+if (context === "production") console.error("[nff] Production.");
+
+// Emails from here go by MAIL_DRIVER, as on Netlify. Unset, every
+// message is logged to this terminal and nobody receives it, which
+// is worth hearing before a confirm or a deny.
+if (!["resend", "outbox", "file"].includes(process.env.MAIL_DRIVER || "")) {
+  console.error("Mail: MAIL_DRIVER is not set, so emails are logged here"
+    + " and not sent. Set it in .env.production (resend) or"
+    + " .env.staging (outbox).");
+}
 
 const stores = makeStores();
 const flags = {};
 const words = [];
 
 // Flags that take a value: `--reason "..."` as well as `--reason=...`.
-const VALUED = ["reason", "via", "note", "at", "until", "n"];
+const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
+  "to"];
 const args = process.argv.slice(2);
 
 for (let i = 0; i < args.length; i += 1) {
@@ -119,7 +180,66 @@ const signIn = async (email, open) => {
   }
 };
 
+// What James approved or rewrote in the staging email library and
+// is not yet in the code (lib/review.mjs).
+const HOW = {
+  port: { approval: "add it to APPROVED in lib/library.mjs",
+    rewrite: "apply it to lib/templates.mjs" },
+  stale: "made against an earlier version: clear it",
+  code: "approved in the code since: clear it",
+};
+
+const libraryReview = async () => {
+  if (action === "clear" && rest[0]) {
+    await review.clear(stores, rest[0]);
+
+    return out(`Cleared ${rest[0]}.`);
+  }
+
+  const items = await review.pending(stores, library, mailLinks());
+
+  for (const r of items) {
+    const how = r.state === "port" ? HOW.port[r.kind] : HOW[r.state];
+
+    out(`${r.state.toUpperCase().padEnd(6)}${r.kind.padEnd(10)}${r.id}  ${
+      (r.at || "").slice(0, 16)}\n      ${r.name || "(no such email)"}: ${
+      how}`);
+    if (r.diff) out(r.diff.map((l) => `      ${l}`).join("\n"));
+  }
+
+  return items.length ? undefined : out("Nothing waits to be ported.");
+};
+
+// What Resend sent from production (lib/sent.mjs). Only production
+// sends through Resend, and only .env.production holds the key.
+const mailLookup = async () => {
+  if (context !== "production") {
+    throw new Error("Mail is read from production's Resend: add"
+      + " --production.");
+  }
+
+  const to = typeof flags.to === "string" ? flags.to : undefined;
+
+  if (action === "show") return out(await sent.showSent(rest[0], { to }));
+  if (action !== "list") {
+    console.error(USAGE);
+    process.exit(1);
+  }
+
+  const since = typeof flags.since === "string" ? flags.since : undefined;
+  const rows = await sent.listSent({ since, to });
+
+  for (const r of rows) {
+    out(`${r.at.slice(0, 16)}  ${r.lastEvent.padEnd(10)}${r.id}  ${
+      r.to.join(", ")}\n      ${r.subject}`);
+  }
+
+  return rows.length ? undefined : out("No emails.");
+};
+
 const run = async () => {
+  if (group === "library") return libraryReview();
+  if (group === "mail") return mailLookup();
   if (group === "login" && action) return signIn(action, false);
   if (group === "masquerade" && action) return signIn(action, true);
 
@@ -151,7 +271,6 @@ const run = async () => {
   case "orders list": {
     const list = await admin.listOrders(stores, {
       status: flags.status, email: flags.email, open: !!flags.open,
-      held: !!flags.held,
     });
 
     for (const o of list) out(summaryLine(o));
@@ -161,12 +280,6 @@ const run = async () => {
   }
   case "orders show":
     return out(await admin.showOrder(stores, rest[0]));
-  case "orders paid":
-    return out(summaryLine(await admin.payOrder(stores, rest[0], {
-      via: typeof flags.via === "string" ? flags.via : "cash",
-    })));
-  case "orders unpaid":
-    return out(summaryLine(await admin.unholdOrder(stores, rest[0])));
   case "orders confirm": {
     if (rest[0]) {
       return out(summaryLine(await admin.confirmPickup(stores, rest[0], {
@@ -209,7 +322,31 @@ const run = async () => {
   case "orders cancel":
     return out(summaryLine(await admin.cancelOrder(stores, rest[0], {
       refund: !!flags.refund,
+      amount: typeof flags.amount === "string" ? toCents(flags.amount)
+        : undefined,
+      reason: typeof flags.reason === "string" ? flags.reason : "",
     })));
+  case "orders refund": {
+    const before = await admin.showOrder(stores, rest[0]);
+    const refunded = await admin.refundOrder(stores, rest[0], {
+      amount: typeof flags.amount === "string" ? toCents(flags.amount)
+        : undefined,
+      reason: typeof flags.reason === "string" ? flags.reason : "",
+    });
+
+    out(summaryLine(refunded));
+
+    return out(`Refunded ${dollars(refundedTotal(refunded)
+      - refundedTotal(before))} of ${paymentPhrase(refunded)}.`);
+  }
+  case "orders attempted": {
+    const marked = await admin.markAttempted(stores, rest[0]);
+
+    out(summaryLine(marked));
+
+    return out(`Attempted ${marked.attempted.at}; the delivery fee of ${
+      dollars(marked.attempted.fee)} stays with the farm.`);
+  }
   case "orders fulfil":
   case "orders fulfill":
     return out(summaryLine(await admin.fulfilOrder(stores, rest[0])));
@@ -223,22 +360,21 @@ const run = async () => {
         note: rest.slice(2).join(" "),
         outcome: flags.outcome || "resolved",
       })));
-  case "venmo list": {
-    const list = await allPayments(stores);
-
-    for (const v of list) {
-      out(`${v.at.slice(0, 16)}  ${dollars(v.cents).padStart(8)}  ${
-        v.payer}  "${v.note}"  ${v.orderId || "-"}  ${
-        v.matched ? "applied" : "unmatched"}  ${v.transactionId}`);
-    }
-    if (!list.length) out("No Venmo payments seen.");
-
-    return undefined;
-  }
   case "stock list":
     return out(await admin.stockList(stores));
   case "stock set":
     return out(await admin.stockSet(stores, rest[0], rest[1]));
+  case "audience invite": {
+    if (!rest[0]) throw new Error("Which CSV? bin/nff audience invite <csv>");
+
+    const rows = parseCsv(readFileSync(rest[0], "utf8"));
+
+    return out(await inviteSubscribers(stores, rows, {
+      dryRun: !!flags["dry-run"],
+    }));
+  }
+  case "audience sync":
+    return out(await syncAudience(stores, { dryRun: !!flags["dry-run"] }));
   case "jobs run":
     return out(await runJobs(stores));
   case "jobs history": {
@@ -248,9 +384,12 @@ const run = async () => {
     for (const r of runs.slice(0, n)) {
       const bad = (r.errors || []).length + (r.invariants || []).length;
 
-      out(`${r.at.slice(0, 16)}  ${bad ? "FAIL" : "ok  "}  paid ${
-        r.counts.paid}  reminded ${r.counts.reminded}  abandoned ${
-        r.counts.abandoned}  closed ${r.counts.closed}${
+      const c = r.counts || {};
+
+      out(`${r.at.slice(0, 16)}  ${bad ? "FAIL" : "ok  "}  reminded ${
+        c.deliveryReminded ?? 0}  closed ${c.closed ?? 0}  synced ${
+        c.squareSynced ?? 0}  pickups ${c.pickupsToConfirm ?? 0}  swept ${
+        r.checkoutsSwept ?? 0}${
         (r.errors || []).map((e) => `\n    error ${e.id || "-"}: ${e.error}`)
           .join("")}${(r.invariants || []).map((v) =>
         `\n    invariant ${v.rule}: ${v.id}`).join("")}`);

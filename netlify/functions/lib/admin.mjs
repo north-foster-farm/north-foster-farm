@@ -4,19 +4,20 @@
 // farm's authority. bin/nff is the thin front.
 
 import terms from "../../../data/delivery.json" with { type: "json" };
+import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import { adjust, getCounts, setCount } from "./stock.mjs";
 import { LONG_LINK_TTL, requestLink } from "./auth.mjs";
 import { sendMail } from "./mail.mjs";
-import {
-  confirmOrder, markPaid, release, sendForOrder,
-} from "./payments.mjs";
+import { confirmOrder, recordRefund, sendForOrder } from "./payments.mjs";
+import * as paypalApi from "./paypal.mjs";
 import {
   OPEN, allCustomers, allOrders, amendOrder, answerQuestion, deleteCustomer,
-  deleteOrder, getCustomer, getOrder, needsAgreement, openOrders, ordersFor,
-  questionOpen, saveCustomer, setStatus,
+  deleteOrder, getCustomer, getOrder, keptFee, needsAgreement, openOrders,
+  ordersFor, paidTotal, paymentRef, paymentsOf, questionOpen, refundedTotal,
+  refundsOf, saveCustomer, setStatus,
 } from "./records.mjs";
 import { mailLinks, orderPathFor, orderUrlFor } from "./site.mjs";
-import { cancelFulfilment, cancelInvoice } from "./square.mjs";
+import * as squareApi from "./square.mjs";
 import {
   addressDecision, orderCancelled, pickNewTime,
 } from "./templates.mjs";
@@ -101,17 +102,12 @@ export const decideAddress = async (stores, email, decision, {
 // Orders
 
 export const listOrders = async (stores, {
-  status, email, open, held,
+  status, email, open,
 } = {}) => {
   let orders = email ? await ordersFor(stores, email) : await allOrders(stores);
 
   if (status) orders = orders.filter((o) => o.status === status);
-  if (open) {
-    orders = orders.filter((o) => ["submitted", "paid"].includes(o.status));
-  }
-  // Held: a payment claimed (Venmo) or in flight (bank transfer) that
-  // the site has not seen; the reminders and the cutoff wait.
-  if (held) orders = orders.filter((o) => !!o.paymentPending);
+  if (open) orders = orders.filter((o) => OPEN.includes(o.status));
 
   return orders;
 };
@@ -119,64 +115,133 @@ export const listOrders = async (stores, {
 export const showOrder = async (stores, id) =>
   need(await getOrder(stores, id), "order");
 
-// Paid by hand: Venmo, cash or a check. The Square invoice is closed
-// so the same order cannot be paid twice; a failure there is logged
-// and the order is paid all the same.
-export const payOrder = async (stores, id, {
-  via = "cash", env = process.env, square = { cancelInvoice }, ...options
+// Money back, whole or part, through whichever processor took it: a
+// card or wallet payment through Square, a Venmo payment through
+// PayPal (and noted on the Square copy so the books agree, best
+// effort). Anything not yet refunded can go back, in as many calls as
+// the farm likes; an order changed after paying has several payments,
+// and a refund comes out of the newest first. -> the order.
+export const refundOrder = async (stores, id, {
+  now = new Date(), env = process.env, amount, reason = "",
+  square = squareApi, paypal = paypalApi, fetchImpl,
+  // An edit's refund carries the edit's key, so a retry refunds once,
+  // and is recorded as the edit's (`edit`).
+  key: base, source = "farm", edit,
 } = {}) => {
   const order = need(await getOrder(stores, id), "order");
-  const paid = await markPaid(stores, id, {
-    ...options, env, source: "farm", via,
-  });
 
-  if (order.status === "submitted" && order.square
-    && order.square.invoiceId) {
-    try {
-      await square.cancelInvoice(order.square.invoiceId, { env });
-    } catch (error) {
-      console.error(`Square cancel failed: ${error.message}`);
-    }
-  }
-
-  return paid;
-};
-
-// The customer said they paid by Venmo and nothing arrived: lift the
-// hold so the reminders and the cutoff run again.
-export const unholdOrder = async (stores, id, { now = new Date() } = {}) => {
-  const order = need(await getOrder(stores, id), "order");
-
-  if (order.status !== "submitted") {
+  if (!["paid", "cancelled", "fulfilled"].includes(order.status)) {
     throw new Error(`This order is ${order.status}.`);
   }
 
-  return release(stores, order, now, "payment.unclaimed");
+  const payments = paymentsOf(order);
+  const kept = keptFee(order);
+  const left = paidTotal(order) - refundedTotal(order) - kept;
+
+  if (!payments.length) throw new Error("This order has no payment to refund.");
+  if (left <= 0 && kept && refundedTotal(order) < paidTotal(order)) {
+    throw new Error(`Only the delivery fee is left (${dollars(kept)}), ` +
+      "and an attempted delivery keeps it.");
+  }
+  if (left <= 0) {
+    throw new Error(`Already refunded in full (${
+      dollars(refundedTotal(order))}).`);
+  }
+
+  const cents = amount === undefined ? left : amount;
+
+  if (!Number.isInteger(cents) || cents <= 0 || cents > left) {
+    throw new Error(`The refund must be between $0.01 and ${dollars(left)}.`);
+  }
+
+  // What each payment still holds: its amount less the refunds out of
+  // it. A refund from before refunds named their payment came out of
+  // the first.
+  const refunds = refundsOf(order);
+  const outOf = (r) => r.payment || paymentRef(payments[0]);
+  const holds = (p) => p.amount - refunds
+    .filter((r) => outOf(r) === paymentRef(p))
+    .reduce((s, r) => s + (r.amount || 0), 0);
+  const stamp = now.getTime();
+  let owed = cents;
+  let saved = order;
+
+  for (let i = payments.length - 1; i >= 0 && owed > 0; i -= 1) {
+    const p = payments[i];
+    const take = Math.min(owed, holds(p));
+
+    if (take <= 0) continue;
+
+    const key = `${base || `refund-${id}-${stamp}`}-${i}`;
+    let refund;
+
+    if (p.via === "venmo" && p.paypalCaptureId) {
+      refund = await paypal.refundCapture({
+        paypalCaptureId: p.paypalCaptureId, amount: take, key,
+        note: reason || `North Foster Farm order ${id}`,
+      }, { env, fetchImpl, now });
+      if (p.squarePaymentId) {
+        try {
+          const copy = await square.refundPayment({
+            squarePaymentId: p.squarePaymentId, amount: take, key, reason,
+          }, { env, fetchImpl });
+
+          refund.squareRefundId = copy.squareRefundId;
+        } catch (error) {
+          console.error(`Square could not note the refund: ${error.message}`);
+        }
+      }
+    } else if (p.squarePaymentId) {
+      refund = await square.refundPayment({
+        squarePaymentId: p.squarePaymentId, amount: take, key, reason,
+      }, { env, fetchImpl });
+    } else {
+      continue;
+    }
+
+    saved = await recordRefund(stores, order, {
+      ...refund, amount: take, payment: paymentRef(p), edit,
+    }, source, now);
+    owed -= take;
+  }
+
+  return saved;
 };
 
 // The farm cancels: any status but fulfilled. Stock goes back, the
-// invoice and fulfilment are cancelled if unpaid, the customer is told.
+// fulfilment is cancelled in Square, the money goes back when asked
+// (--refund), the customer is told.
 export const cancelOrder = async (stores, id, {
   now = new Date(), env = process.env, mail = sendMail,
-  square = { cancelInvoice, cancelFulfilment }, refund = false,
+  square = squareApi, paypal = paypalApi, refund = false, amount, reason,
+  fetchImpl,
 } = {}) => {
   const order = need(await getOrder(stores, id), "order");
 
   if (["cancelled", "abandoned"].includes(order.status)) return order;
 
-  const wasPaid = order.status === "paid" || order.cancelRequested;
+  // Whatever has not gone back yet, when asked, less a fee an attempted
+  // delivery keeps; a refund made earlier stays as it was.
+  const refundNow = refund
+    && paidTotal(order) - keptFee(order) > refundedTotal(order);
+
+  if (refundNow) {
+    await refundOrder(stores, id, {
+      now, env, amount, reason, square, paypal, fetchImpl,
+    });
+  }
+
   const cancelled = await setStatus(stores, id, "cancelled", now, {
     source: "farm",
   });
 
   if (!order.cancelRequested) await adjust(stores, order.lines, 1);
 
-  if (order.square && order.square.invoiceId && order.status === "submitted") {
+  if (order.square && order.square.squareOrderId) {
     try {
-      await square.cancelInvoice(order.square.invoiceId, { env });
-      if (order.square.squareOrderId) {
-        await square.cancelFulfilment(order.square.squareOrderId, { env });
-      }
+      await square.cancelFulfilment(order.square.squareOrderId, {
+        env, fetchImpl,
+      });
     } catch (error) {
       console.error(`Square cancel failed: ${error.message}`);
     }
@@ -186,7 +251,7 @@ export const cancelOrder = async (stores, id, {
   if (!order.cancelRequested) {
     await sendForOrder(stores, cancelled, "orderCancelled",
       orderCancelled(cancelled, {
-        refund: refund || wasPaid, links: mailLinks(env),
+        refund: refundNow, links: mailLinks(env),
       }), { mail, env, now });
   }
 
@@ -279,7 +344,7 @@ export const confirmPickup = async (stores, id, {
 // -> the order, with a `window` question open and the customer told
 // to pick again. The email's button is a sign-in link straight to the
 // order page, good for a week; while the account pages are off it has
-// no button and asks for a reply instead.
+// no button. The reason is kept in the question, not sent.
 export const denyPickup = async (stores, id, {
   reason = "", now = new Date(), env = process.env, mail = sendMail,
   link = requestLink,
@@ -309,9 +374,28 @@ export const denyPickup = async (stores, id, {
   }
 
   return sendForOrder(stores, denied, `pickNewTime-${now.getTime()}`,
-    pickNewTime(denied, {
-      reason: question.reason, pickUrl, links: mailLinks(env),
-    }), { mail, env, now });
+    pickNewTime(denied, { pickUrl, links: mailLinks(env) }),
+    { mail, env, now });
+};
+
+// The farm tried to deliver and could not: no cooler, nobody reached
+// (James, F1). From then on the delivery fee stays: a refund, a
+// cancellation or a switch to pickup hands back everything else.
+// Marking twice keeps the first. -> the order.
+export const markAttempted = async (stores, id, { now = new Date() } = {}) => {
+  const order = need(await getOrder(stores, id), "order");
+
+  if (order.attempted) return order;
+  if (order.fulfilment.method !== "delivery") {
+    throw new Error("Only a delivery can be attempted.");
+  }
+  if (order.status !== "paid") {
+    throw new Error(`This order is ${order.status}.`);
+  }
+
+  return amendOrder(stores, id, {
+    attempted: { at: now.toISOString(), fee: order.totals.deliveryFee || 0 },
+  }, "delivery.attempted", now);
 };
 
 export const fulfilOrder = async (stores, id, { now = new Date() } = {}) =>

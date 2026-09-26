@@ -4,18 +4,20 @@
 //   GET   /api/account/orders                 the customer's orders
 //   POST  /api/account/orders/:id/cancel
 //   POST  /api/account/orders/:id/change      { date, onfarm, delivery, notes }
+//   POST  /api/account/orders/:id/edit        the order as it should be,
+//                                             paying or refunding the
+//                                             difference (lib/edit.mjs)
 //   POST  /api/account/orders/:id/return      { reason, skus }
-//   POST  /api/account/orders/:id/resend      the pay-link email again
-//   POST  /api/account/orders/:id/venmo       "I paid by Venmo"
-//   PATCH /api/account/profile                { name, phone, avatar,
-//                                               reminders }
+//   PATCH /api/account/profile                { firstName, lastName, phone,
+//                                               avatar, reminders, marketing }
 //   PUT   /api/account/address                { address1, ..., zip, cooler }
 //   POST  /api/account/support                { subject, message, orderId }
 
 import {
-  cancelOrder, changeOrder, claimVenmo, listOrders, requestReturn,
-  resendInvoice, saveAddress, sendSupport, updateProfile,
+  cancelOrder, changeOrder, listOrders, requestReturn, saveAddress,
+  sendSupport, updateProfile,
 } from "./lib/account.mjs";
+import { editOrder } from "./lib/edit.mjs";
 import { publicCustomer, sameSite, sessionFrom } from "./lib/auth.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
@@ -23,11 +25,17 @@ import { stores as defaultStores } from "./lib/store.mjs";
 
 // Ownership is checked by the logic; the route only shapes the id.
 const ORDER = new RegExp("^/api/account/orders/([A-Za-z0-9-]{1,32})/" +
-  "(cancel|change|return|resend|venmo)$");
+  "(cancel|change|edit|return)$");
 
-const answer = (result) => (result.ok
-  ? json(200, result)
-  : json(result.status || 400, { errors: result.errors }));
+// A failure keeps what came with its errors (an edit's fresh totals,
+// stock or dates, a decline), for the page to act on.
+const answer = (result) => {
+  if (result.ok) return json(200, result);
+
+  const { status, ...rest } = result;
+
+  return json(status || 400, { ...rest, ok: undefined });
+};
 
 export const handle = async (req, {
   stores = defaultStores(),
@@ -67,11 +75,10 @@ export const handle = async (req, {
     if (action === "change") {
       return answer(await changeOrder(stores, customer, id, body, opts));
     }
-    if (action === "resend") {
-      return answer(await resendInvoice(stores, customer, id, opts));
-    }
-    if (action === "venmo") {
-      return answer(await claimVenmo(stores, customer, id, opts));
+    if (action === "edit") {
+      return answer(await editOrder(stores, customer, id, body, {
+        ...opts, group: customer.discountGroup || null,
+      }));
     }
 
     return answer(await requestReturn(stores, customer, id, body, opts));

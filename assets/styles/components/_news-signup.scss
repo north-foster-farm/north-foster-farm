@@ -1,0 +1,56 @@
+// Farm news by email: the field and button in the footer and on the
+// news page. The line under them is empty until there is an answer,
+// and takes its tone (ok, wait, no).
+
+.news-signup {
+  max-width: 28rem;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.news-signup-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--bs-secondary-color);
+
+  &:empty {
+    display: none;
+  }
+
+  &[data-tone="ok"] {
+    color: var(--bs-success-text-emphasis);
+  }
+
+  &[data-tone="wait"] {
+    color: var(--bs-warning-text-emphasis);
+  }
+
+  &[data-tone="no"] {
+    color: var(--bs-danger-text-emphasis);
+  }
+}
+
+// In the footer it sits above the APPPA mark, on the footer's grey.
+.site-footer .news-signup {
+  margin-bottom: 2.25rem;
+}
+
+// On the news page, after each ten posts: a heading over the form, set
+// apart from the rows by a tinted band.
+.news-inline-signup {
+  margin: 0.5rem 0 1.5rem;
+  padding: 1.5rem 1.25rem;
+  border-radius: var(--bs-border-radius-lg);
+  background-color: var(--bs-tertiary-bg);
+  text-align: center;
+
+  @include media-breakpoint-up(sm) {
+    padding: 2rem;
+  }
+}
+
+.news-inline-signup-title {
+  margin: 0 0 1rem;
+  font-size: $h4-font-size;
+  text-wrap: balance;
+}
