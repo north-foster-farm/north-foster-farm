@@ -330,14 +330,21 @@ export class OrderForm {
     // after the last row. Floating it casts a shadow; settled it is
     // flat and carries its heading. Sticky gives no event for this,
     // so the rect says which.
+    // On a phone the cart may grow up to the top bar, wherever the bar
+    // is: until the page scrolls it to the top, it sits lower (#180).
     let stuckTick = null;
+    const bar = document.querySelector(".order-topbar");
     const stuckWatch = () => {
       stuckTick = null;
 
       const r = this.cart.getBoundingClientRect();
       const below = matchMedia("(max-width: 1199.98px)").matches;
       const floating = below && r.bottom > window.innerHeight - 13;
+      const barBottom = bar ? bar.getBoundingClientRect().bottom : 0;
 
+      this.cart.style.setProperty(
+        "--cart-bar", `${Math.max(0, Math.round(barBottom))}px`
+      );
       this.cart.dataset.stuck = String(floating);
       // Scrolled past: the total bar takes over.
       this.form.dataset.cartPassed = String(below && r.bottom < 60);
@@ -369,6 +376,11 @@ export class OrderForm {
       list.scrollBy({ top: -list.clientHeight * 0.8, behavior: "smooth" });
     });
     window.addEventListener("resize", () => this.syncScroll());
+    // The cap follows the top bar on a phone, so the list also grows
+    // and shrinks as the page scrolls; recount what is beyond it.
+    new ResizeObserver(() => this.syncScroll()).observe(
+      qs(this.cart, "[data-cart-items]")
+    );
 
     // The × on a cart line takes every unit of that product out.
     this.cart.addEventListener("click", (e) => {

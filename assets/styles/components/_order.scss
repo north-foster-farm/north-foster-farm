@@ -1723,18 +1723,48 @@
 
       // On a phone the parts under the lines take about 330px, so the
       // cap is all of the screen under the top bar but a strip of the
-      // list, and the lines get what the parts under them leave: six
-      // or so rows on an iPhone with its toolbars showing (#180).
+      // list, and the lines get what the parts under them leave: five
+      // or more rows on an iPhone with its toolbars showing (#180).
+      // The bar sits lower until the page scrolls it to the top;
+      // order-form.js keeps --cart-bar at its bottom edge.
       @media (max-width: 767.98px) {
-        max-height: calc(100svh - var(--order-topbar-h) - 3rem);
+        max-height: calc(
+          100svh - max(var(--order-topbar-h), var(--cart-bar, 0px)) - 3rem
+        );
         margin-inline: 0.625rem;
       }
     }
   }
 
+  // On a phone the lines keep three rows. The floor goes on the
+  // scroller's wrapper, not the list: on the list alone, a squeezed
+  // wrapper let the rows run on under the rule and the sums (#180).
+  // Nothing from the sums to the code is tapped, so they sit closer
+  // and leave the height to the lines.
   @media (max-width: 767.98px) {
-    .order-cart-items {
+    .order-cart-scroll {
       min-height: 5.5rem;
+    }
+
+    .order-cart-items {
+      padding-bottom: 0.5rem;
+    }
+
+    .order-cart-rule {
+      margin: 0.5rem 0;
+    }
+
+    .order-cart-lines {
+      row-gap: 0.125rem;
+      line-height: 1.4;
+    }
+
+    .order-cart-total {
+      line-height: 1.2;
+    }
+
+    .order-badges {
+      margin-bottom: 0.5rem;
     }
   }
 
