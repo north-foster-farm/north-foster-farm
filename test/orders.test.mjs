@@ -548,4 +548,30 @@ describe("POST /api/orders, the gate", () => {
     assert.equal(last.headers.get("Retry-After"), "600");
     assert.match((await last.json()).message, /too many tries/);
   });
+
+  it("lets the staging token past the limit, never in production",
+    async () => {
+      const token = { "X-Staging-Token": "t0k" };
+      const hammer = async (ip, env, headers) => {
+        let last;
+
+        for (let i = 0; i < 13; i++) {
+          last = await handle(post(body(), headers), {
+            square: fakeSquare().square, paypal: fakePaypal().paypal, now,
+            ...quiet, ip, env,
+          });
+        }
+
+        return last.status;
+      };
+      const staging = { SITE_CONTEXT: "branch-deploy", STAGING_TOKEN: "t0k" };
+      const live = { SITE_CONTEXT: "production", STAGING_TOKEN: "t0k" };
+
+      assert.notEqual(await hammer("203.0.113.10", staging, token), 429);
+      assert.equal(await hammer("203.0.113.11", staging, {}), 429);
+      assert.equal(await hammer("203.0.113.12", staging, {
+        "X-Staging-Token": "wrong",
+      }), 429);
+      assert.equal(await hammer("203.0.113.13", live, token), 429);
+    });
 });
