@@ -5,6 +5,10 @@ import {
   OUTBOX_KEEP, OUTBOX_PREFIX, sendMail,
 } from "../netlify/functions/lib/mail.mjs";
 import { library } from "../netlify/functions/lib/library.mjs";
+import {
+  clear, diffLines, joined, pending, standing, tokenize, versionOf,
+} from "../netlify/functions/lib/review.mjs";
+import { mailLinks } from "../netlify/functions/lib/site.mjs";
 import { storeName, testStores } from "../netlify/functions/lib/store.mjs";
 import { handle, staging } from "../netlify/functions/staging.mjs";
 
@@ -258,5 +262,197 @@ describe("the email library", () => {
     assert.equal(none.status, 404);
     assert.deepEqual(await stores.jobs.list(OUTBOX_PREFIX), [],
       "nothing reaches the outbox");
+  });
+});
+
+describe("James's review in the library", () => {
+  const env = { CONTEXT: "branch-deploy", SITE_URL: "https://staging.test" };
+  const ID = "address-denied";
+  const call = async (stores, path, method = "GET", body) => {
+    const res = await handle(req(path, method, body), { stores, env });
+
+    return { status: res.status, data: await res.json() };
+  };
+  const one = async (stores, id = ID) => (await call(
+    stores, "/api/staging/emails"
+  )).data.emails.find((e) => e.id === id);
+
+  it("splits every email into text and sample tokens, losing nothing",
+    () => {
+      const links = mailLinks({ SITE_URL: "https://staging.test" });
+
+      for (const e of library) {
+        const m = e.build(links);
+
+        for (const s of [m.subject, m.text]) {
+          assert.equal(joined(tokenize(s)), s, e.id);
+        }
+      }
+
+      const parts = tokenize("New order NFF-2610-K3WM — $94, for Dana " +
+        "Whitcomb on Thursday, October 8, 9 – 11 AM.");
+      const tokens = parts.filter((p) => p.token).map((p) => p.token);
+
+      assert.deepEqual(tokens, ["NFF-2610-K3WM", "$94", "Dana Whitcomb",
+        "Thursday, October 8", "9 – 11 AM"]);
+    });
+
+  it("approves an email for its version, and withdraws it", async () => {
+    const stores = testStores();
+    const before = await one(stores);
+
+    assert.equal(before.approval, "to approve");
+    assert.match(before.version, /^[0-9a-f]{12}$/);
+
+    const path = `/api/staging/emails/${ID}/approval`;
+    const stale = await call(stores, path, "PUT", { version: "0123" });
+
+    assert.equal(stale.status, 409);
+
+    const ok = await call(stores, path, "PUT", { version: before.version });
+
+    assert.equal(ok.status, 200);
+    assert.equal(ok.data.email.approval, "approved");
+    assert.equal(ok.data.email.approvedBy, "staging");
+    assert.equal((await one(stores)).approval, "approved");
+
+    const back = await call(stores, path, "DELETE");
+
+    assert.equal(back.data.email.approval, "to approve");
+    assert.deepEqual(await stores.jobs.list(OUTBOX_PREFIX), [],
+      "nothing reaches the outbox");
+  });
+
+  it("does not count an approval of another version", () => {
+    const e = { approval: "to approve" };
+    const now = versionOf({ subject: "Hi", text: "Now." });
+    const saved = { approval: { version: "old", at: "x" } };
+
+    assert.equal(standing(e, now, saved).approval, "to approve");
+    assert.equal(standing(e, now, {
+      approval: { version: now, at: "x" },
+    }).approval, "approved");
+    assert.equal(standing(e, now, {
+      rewrite: { version: "old", subject: [], text: [] },
+    }).approval, "to approve", "a rewrite that has landed is done");
+  });
+
+  it("refuses to approve what the code already approves", async () => {
+    const stores = testStores();
+    const e = await one(stores, "sign-in-link");
+    const res = await call(stores, "/api/staging/emails/sign-in-link/" +
+      "approval", "PUT", { version: e.version });
+
+    assert.equal(res.status, 409);
+  });
+
+  it("saves a rewrite with its tokens, and reverts it", async () => {
+    const stores = testStores();
+    const e = await one(stores);
+    const path = `/api/staging/emails/${ID}/rewrite`;
+
+    await call(stores, `/api/staging/emails/${ID}/approval`, "PUT",
+      { version: e.version });
+
+    const text = [{ text: "Hi " }, { token: "Dana" },
+      { text: ", we can't reach you yet." }];
+    const res = await call(stores, path, "PUT", {
+      version: e.version, subject: [{ text: "Not yet" }], text,
+    });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.data.email.approval, "rewritten",
+      "a rewrite replaces the approval");
+    assert.deepEqual(res.data.email.rewrite.text, text);
+    assert.equal((await one(stores)).approval, "rewritten");
+
+    const back = await call(stores, path, "DELETE");
+
+    assert.equal(back.data.email.approval, "to approve");
+  });
+
+  it("refuses a rewrite with a token the email lacks, or no subject",
+    async () => {
+      const stores = testStores();
+      const { version } = await one(stores);
+      const path = `/api/staging/emails/${ID}/rewrite`;
+      const bad = [
+        { subject: [{ text: "Hi" }], text: [{ token: "Mallory" }] },
+        { subject: [{ text: " " }], text: [{ text: "Hi" }] },
+        { subject: [{ text: "Two\nlines" }], text: [{ text: "Hi" }] },
+        { subject: [{ text: "Hi" }], text: "Hi" },
+        { subject: [{ text: "Hi" }], text: [{ html: "<b>" }] },
+      ];
+
+      for (const body of bad) {
+        const res = await call(stores, path, "PUT", { version, ...body });
+
+        assert.equal(res.status, 400, JSON.stringify(body));
+      }
+      assert.equal((await one(stores)).approval, "to approve");
+    });
+
+  it("gives the same version on every deploy, whatever its links",
+    async () => {
+      const a = await handle(req("/api/staging/emails"), {
+        stores: testStores(), env,
+      });
+      const b = await handle(req("/api/staging/emails"), {
+        stores: testStores(),
+        env: { CONTEXT: "deploy-preview", SITE_URL: "https://other.test" },
+      });
+      const versions = async (res) => (await res.json()).emails
+        .map((e) => e.version);
+
+      assert.deepEqual(await versions(a), await versions(b));
+    });
+
+  it("lists what waits to be ported, with a diff, and clears it",
+    async () => {
+      const stores = testStores();
+      const links = mailLinks(env);
+      const e = await one(stores);
+      const other = await one(stores, "pick-new-time-reply");
+
+      await call(stores, `/api/staging/emails/${ID}/rewrite`, "PUT", {
+        version: e.version, subject: e.parts.subject,
+        text: [{ text: "Sorry, " }, { token: "Dana" }, { text: "." }],
+      });
+      await call(stores, "/api/staging/emails/pick-new-time-reply/" +
+        "approval", "PUT", { version: other.version });
+      await stores.jobs.set("library/approval/farm-alert",
+        { version: "old", at: "x" });
+
+      const items = await pending(stores, library, links);
+      const by = Object.fromEntries(items.map((r) => [r.id, r]));
+
+      assert.equal(items.length, 3);
+      assert.equal(by[ID].state, "port");
+      assert.ok(by[ID].diff.includes("+ Sorry, ⟦Dana⟧."));
+      assert.ok(by[ID].diff.includes("  Subject: We can't deliver to your " +
+        "address"));
+      assert.ok(by[ID].diff.includes("- Hi ⟦Dana⟧,"));
+      assert.equal(by["pick-new-time-reply"].kind, "approval");
+      assert.equal(by["pick-new-time-reply"].state, "port");
+      assert.equal(by["farm-alert"].state, "stale");
+
+      await clear(stores, ID);
+      assert.equal((await pending(stores, library, links)).length, 2);
+    });
+
+  it("diffs lines", () => {
+    assert.deepEqual(diffLines("a\nb\nc", "a\nx\nc"),
+      ["  a", "+ x", "- b", "  c"]);
+  });
+
+  it("is a 404 in production", async () => {
+    for (const kind of ["approval", "rewrite"]) {
+      const res = await handle(req(`/api/staging/emails/${ID}/${kind}`,
+        "PUT", { version: "x" }), {
+        stores: testStores(), env: { CONTEXT: "production" },
+      });
+
+      assert.equal(res.status, 404);
+    }
   });
 });

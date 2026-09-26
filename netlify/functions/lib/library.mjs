@@ -7,7 +7,9 @@
 // An entry: { id, name, when, audience, tags, approval, note?, build }.
 // `build(links)` returns { subject, text, html } from mailLinks(env).
 // `approval` is "approved" only where James approved the wording the
-// code prints today; `note` says what waits on him otherwise.
+// code prints today; `note` says what waits on him otherwise. What he
+// approves or rewrites in the library on staging is lib/review.mjs's
+// until it is ported here.
 
 import * as t from "./templates.mjs";
 import { orderPathFor } from "./site.mjs";
@@ -119,6 +121,21 @@ const dropped = order({
     discountLabel: "Bulk discount ($50+)", deliveryFee: 0, total: 6900,
   },
 });
+
+// The sample values above that no pattern in lib/review.mjs catches
+// (names, items, notes, messages), so a rewrite keeps them as tokens.
+export const SAMPLE_TEXT = [
+  "Dana Whitcomb", "Dana", "Sam Okafor", "Lee Marchetti",
+  "Whole Chicken, 3.5 – 3.9 lbs", "Eggs (per dozen), Large",
+  "Green cooler by the garage", "Dog is friendly",
+  "Please leave the eggs on top.", "On the front porch",
+  "We're at the market that morning.", "Village Green",
+  "Could I switch Thursday's delivery to the following week? " +
+    "We'll be away.",
+  "Two of the eggs were cracked.", "The rest were fine.",
+  "Eggs", "r7Kq2m", "Square 400", "Item not available at location",
+  "order.create_failed", "Apple Pay",
+];
 
 const orderUrl = (links) => `${links.site}${orderPathFor(ID)}`;
 const settingsUrl = (links) => `${links.site}/account/#settings`;

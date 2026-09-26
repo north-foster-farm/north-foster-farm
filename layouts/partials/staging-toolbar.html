@@ -61,6 +61,7 @@
             <button type="button" class="staging-filter" data-staging-filter="" aria-pressed="true">All</button>
             <button type="button" class="staging-filter" data-staging-filter="to approve" aria-pressed="false">To approve</button>
             <button type="button" class="staging-filter" data-staging-filter="approved" aria-pressed="false">Approved</button>
+            <button type="button" class="staging-filter" data-staging-filter="rewritten" aria-pressed="false">Rewritten</button>
           </div>
         </div>
         <div class="staging-shelf-list" data-staging-shelf>
@@ -77,6 +78,7 @@
           <div class="staging-views" role="group" aria-label="View">
             <button type="button" class="staging-filter" data-staging-view="html" aria-pressed="true">HTML</button>
             <button type="button" class="staging-filter" data-staging-view="text" aria-pressed="false">Text</button>
+            <button type="button" class="staging-filter" data-staging-view="rewrite" aria-pressed="false" hidden>Rewritten</button>
           </div>
           <button type="button" class="staging-action" data-staging-copy-link>Copy link</button>
         </header>
@@ -85,8 +87,33 @@
           <span data-staging-reader-subject></span>
         </p>
         <p class="staging-reader-note staging-muted" data-staging-reader-note hidden></p>
+        {{/* James's review: approve it, or rewrite it until he would.
+          Saved on this deploy only; an agent ports it into the code.
+          See lib/review.mjs. */}}
+        <div class="staging-review" data-staging-review hidden>
+          <span class="staging-review-status" data-staging-review-status></span>
+          <button type="button" class="staging-action staging-primary" data-staging-approve>Approve</button>
+          <button type="button" class="staging-action" data-staging-rewrite>Rewrite</button>
+          <button type="button" class="staging-action" data-staging-withdraw>Withdraw approval</button>
+          <button type="button" class="staging-action" data-staging-revert>Revert to the current wording</button>
+          <span class="staging-error" data-staging-review-error hidden></span>
+        </div>
         <iframe class="staging-frame" data-staging-frame title="The email as it renders" sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
         <pre class="staging-text" data-staging-text hidden></pre>
+        <pre class="staging-text" data-staging-rewritten hidden></pre>
+        <form class="staging-editor" data-staging-editor hidden>
+          <p class="staging-muted">Shaded words are sample values: the name, order, dates, amounts and links that change with each email. They can't be edited, only moved or deleted.</p>
+          <span class="staging-edit-label" id="staging-edit-subject">Subject</span>
+          <div class="staging-edit staging-edit-subject" data-staging-edit-subject role="textbox" aria-labelledby="staging-edit-subject"></div>
+          <span class="staging-edit-label" id="staging-edit-text">Body</span>
+          <div class="staging-edit" data-staging-edit-text role="textbox" aria-multiline="true" aria-labelledby="staging-edit-text"></div>
+          <p class="staging-muted" data-staging-edit-dropped hidden></p>
+          <p class="staging-error" data-staging-edit-error hidden></p>
+          <p class="staging-edit-actions">
+            <button type="submit" class="staging-action staging-primary">Save rewrite</button>
+            <button type="button" class="staging-action" data-staging-edit-cancel>Cancel</button>
+          </p>
+        </form>
       </section>
     </div>
     <template data-staging-item>
@@ -98,6 +125,7 @@
         </a>
       </li>
     </template>
+    <template data-staging-token><span class="staging-token" contenteditable="false"></span></template>
   </div>
   <script src="{{ $script.RelPermalink }}" type="module" integrity="{{ $script.Data.Integrity }}" defer></script>
 {{ end }}

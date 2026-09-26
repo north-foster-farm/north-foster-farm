@@ -16,6 +16,13 @@
 //                                     with its tags, approval and text
 //   GET    /api/staging/emails/:id    one as HTML (?format=text); nothing
 //                                     is sent
+//   PUT    /api/staging/emails/:id/approval  { version } James approves
+//   DELETE /api/staging/emails/:id/approval  and withdraws it
+//   PUT    /api/staging/emails/:id/rewrite   { version, subject, text }
+//                                     his rewrite, as parts with the
+//                                     sample values as tokens
+//   DELETE /api/staging/emails/:id/rewrite   back to the code's wording
+//                                     (all four: lib/review.mjs)
 //
 // STAGING_TOKEN, when set, is required as a bearer or ?token=.
 
@@ -24,6 +31,10 @@ import { runJobs } from "./lib/jobs.mjs";
 import { entry, library } from "./lib/library.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { OUTBOX_PREFIX } from "./lib/mail.mjs";
+import {
+  cleanParts, joined, revert, reviews, saveApproval, saveRewrite, standing,
+  tokenize, versionFor, withdrawApproval,
+} from "./lib/review.mjs";
 import { mailLinks } from "./lib/site.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 import terms from "../../data/delivery.json" with { type: "json" };
@@ -70,6 +81,21 @@ const MESSAGE_HEADERS = {
     "style-src 'unsafe-inline'; font-src https:",
   "Cache-Control": "no-store",
 };
+
+const about = (e) => ({
+  id: e.id, name: e.name, when: e.when, audience: e.audience,
+  tags: e.tags, note: e.note,
+});
+
+// A library email as the toolbar shows it: built, split into sample
+// tokens for the rewrite editor, and where James's review stands.
+const view = (e, m, saved) => ({
+  ...about(e),
+  subject: m.subject,
+  text: m.text,
+  parts: { subject: tokenize(m.subject), text: tokenize(m.text) },
+  ...standing(e, versionFor(e), saved),
+});
 
 export const handle = async (req, {
   stores = defaultStores(),
@@ -138,23 +164,74 @@ export const handle = async (req, {
 
   if (req.method === "GET" && path === "/api/staging/emails") {
     const links = mailLinks(env);
+    const saved = await reviews(stores);
 
     return json(200, {
       emails: library.map((e) => {
-        const base = {
-          id: e.id, name: e.name, when: e.when, audience: e.audience,
-          tags: e.tags, approval: e.approval, note: e.note,
-        };
-
         try {
-          const m = e.build(links);
-
-          return { ...base, subject: m.subject, text: m.text };
+          return view(e, e.build(links), saved[e.id]);
         } catch (error) {
-          return { ...base, subject: e.name, error: String(error.message) };
+          return {
+            ...about(e), subject: e.name, error: String(error.message),
+          };
         }
       }),
     });
+  }
+
+  const review = path.match(
+    /^\/api\/staging\/emails\/([^/]+)\/(approval|rewrite)$/
+  );
+
+  if (review) {
+    const e = entry(decodeURIComponent(review[1]));
+
+    if (!e) return json(404, { error: "No such email." });
+
+    const m = e.build(mailLinks(env));
+    const version = versionFor(e);
+    const answer = async () => json(200, {
+      email: view(e, m, (await reviews(stores))[e.id]),
+    });
+
+    if (req.method === "DELETE") {
+      await (review[2] === "approval" ? withdrawApproval : revert)(
+        stores, e.id
+      );
+
+      return answer();
+    }
+    if (req.method !== "PUT") return json(405, { error: "PUT or DELETE." });
+
+    const body = (await readJson(req)) || {};
+
+    if (body.version !== version) {
+      return json(409, {
+        error: "This email has changed since you opened it. Reload.",
+      });
+    }
+    if (e.approval === "approved") {
+      return json(409, { error: "Already approved in the code." });
+    }
+    if (review[2] === "approval") {
+      await saveApproval(stores, e.id, version, now);
+
+      return answer();
+    }
+
+    const allowed = new Set([...tokenize(m.subject), ...tokenize(m.text)]
+      .filter((p) => p.token !== undefined).map((p) => p.token));
+    const subject = cleanParts(body.subject, allowed);
+    const text = cleanParts(body.text, allowed);
+
+    if (!subject || !text || !joined(subject).trim()
+      || joined(subject).includes("\n")) {
+      return json(400, { error: "A subject on one line and a body." });
+    }
+    await saveRewrite(stores, e.id, { version, subject, text }, now);
+    log.info({ event: "staging.email_rewritten", id: e.id });
+
+    return answer();
   }
 
   if (req.method === "GET" && path.startsWith("/api/staging/emails/")) {

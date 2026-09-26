@@ -19,6 +19,10 @@
   --stg-ok-ink: #0f5132;
   --stg-focus: #186243;
   --stg-shadow: rgb(0 0 0 / 30%);
+  --stg-new-bg: #cfe2ff;
+  --stg-new-ink: #084298;
+  --stg-token: #e2e8f0;
+  --stg-error: #b02a37;
 
   position: fixed;
   right: 1rem;
@@ -42,6 +46,10 @@
     --stg-ok-ink: #75d3a4;
     --stg-focus: #75d3a4;
     --stg-shadow: rgb(0 0 0 / 60%);
+    --stg-new-bg: #112a4d;
+    --stg-new-ink: #9ec5fe;
+    --stg-token: #34404d;
+    --stg-error: #f1959f;
   }
 }
 
@@ -368,6 +376,11 @@ html.staging-library-open {
   color: var(--stg-ok-ink);
 }
 
+.staging-badge[data-approval="rewritten"] {
+  background: var(--stg-new-bg);
+  color: var(--stg-new-ink);
+}
+
 .staging-tag {
   border: 1px solid var(--stg-line);
   background: none;
@@ -448,6 +461,96 @@ html.staging-library-open {
   overflow-wrap: anywhere;
 }
 
+/* James's review of the open email, and the rewrite editor. */
+
+.staging-review {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem 0;
+}
+
+.staging-review[hidden],
+.staging-review [hidden],
+.staging-editor[hidden],
+.staging-editor [hidden] {
+  display: none;
+}
+
+.staging .staging-review .staging-action {
+  margin: 0;
+}
+
+.staging-review-status {
+  color: var(--stg-muted);
+}
+
+.staging .staging-primary {
+  border-color: var(--stg-ink);
+  background: var(--stg-ink);
+  color: var(--stg-bg) !important;
+}
+
+.staging .staging-primary:hover {
+  opacity: 0.85;
+}
+
+.staging-error {
+  color: var(--stg-error);
+}
+
+.staging-token {
+  padding: 0 0.15rem;
+  border-radius: 0.25rem;
+  background: var(--stg-token);
+}
+
+.staging-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0.5rem 0 0;
+  padding: 0.75rem;
+  overflow: auto;
+  border-top: 1px solid var(--stg-line);
+}
+
+.staging-editor > * {
+  flex: none; /* the editor scrolls; its fields keep their height */
+}
+
+.staging-editor p {
+  margin: 0;
+}
+
+.staging-edit-label {
+  margin-top: 0.25rem;
+  font-weight: 600;
+}
+
+.staging-edit {
+  min-height: 14rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--stg-line);
+  border-radius: 0.375rem;
+  background: var(--stg-field);
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.staging-edit-subject {
+  min-height: 0;
+}
+
+.staging-edit-actions {
+  display: flex;
+  gap: 0.375rem;
+}
+
 @media (max-width: 47.99rem) {
   .staging-shelf {
     width: 100%;
@@ -467,5 +570,9 @@ html.staging-library-open {
 
   .staging-reader-title {
     flex-basis: calc(100% - 3rem);
+  }
+
+  .staging-edit {
+    font-size: 16px !important; /* no zoom on focus in iOS Safari */
   }
 }

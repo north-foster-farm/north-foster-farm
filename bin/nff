@@ -49,6 +49,9 @@ const USAGE = `Usage:
   bin/nff jobs run
   bin/nff jobs history [--n=20]       the last runs: errors, invariants
   bin/nff health                      what /api/health would answer
+  bin/nff library [--staging]         James's approvals and rewrites
+                                      from the email library, to port
+  bin/nff library clear <id>          drop an email's, once ported
 
   --production, --staging, --preview  act on that deploy context's
                                       data; with none, on the dev
@@ -81,6 +84,9 @@ const [
   { dollars, toCents },
   { snapshot },
   { refundedTotal },
+  { library },
+  review,
+  { mailLinks },
 ] = await Promise.all([
   import("../data/delivery.json", { with: { type: "json" } }),
   import("../netlify/functions/lib/admin.mjs"),
@@ -92,6 +98,9 @@ const [
   import("../assets/scripts/order/lib/totals.mjs"),
   import("../netlify/functions/health.mjs"),
   import("../netlify/functions/lib/records.mjs"),
+  import("../netlify/functions/lib/library.mjs"),
+  import("../netlify/functions/lib/review.mjs"),
+  import("../netlify/functions/lib/site.mjs"),
 ]);
 
 process.env.SITE_CONTEXT = context ? CONTEXTS[context] : "dev";
@@ -160,7 +169,38 @@ const signIn = async (email, open) => {
   }
 };
 
+// What James approved or rewrote in the staging email library and
+// is not yet in the code (lib/review.mjs).
+const HOW = {
+  port: { approval: "add it to APPROVED in lib/library.mjs",
+    rewrite: "apply it to lib/templates.mjs" },
+  stale: "made against an earlier version: clear it",
+  code: "approved in the code since: clear it",
+};
+
+const libraryReview = async () => {
+  if (action === "clear" && rest[0]) {
+    await review.clear(stores, rest[0]);
+
+    return out(`Cleared ${rest[0]}.`);
+  }
+
+  const items = await review.pending(stores, library, mailLinks());
+
+  for (const r of items) {
+    const how = r.state === "port" ? HOW.port[r.kind] : HOW[r.state];
+
+    out(`${r.state.toUpperCase().padEnd(6)}${r.kind.padEnd(10)}${r.id}  ${
+      (r.at || "").slice(0, 16)}\n      ${r.name || "(no such email)"}: ${
+      how}`);
+    if (r.diff) out(r.diff.map((l) => `      ${l}`).join("\n"));
+  }
+
+  return items.length ? undefined : out("Nothing waits to be ported.");
+};
+
 const run = async () => {
+  if (group === "library") return libraryReview();
   if (group === "login" && action) return signIn(action, false);
   if (group === "masquerade" && action) return signIn(action, true);
 

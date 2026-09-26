@@ -69,6 +69,21 @@ opens to a panel with:
   page opens the library at that email (Copy link gives it), and
   `#emails` opens it at the top. A new template gets an entry in
   `library.mjs`, "to approve" until James says otherwise.
+- **Approving and rewriting.** An open email that waits on James has
+  Approve and Rewrite. Approve takes effect at once. Rewrite opens
+  the subject and the text for editing, with the sample values (name,
+  order number, dates, amounts, links) as shaded tokens that can be
+  moved or deleted but not changed, so the placeholders survive; the
+  email then shows "rewritten, to apply" and the new text, and Revert
+  drops the rewrite. Both are saved in this deploy's `jobs` store
+  under `library/` (`lib/review.mjs`), never in production's, and
+  each counts only for the wording it was given against: once the
+  code's text changes, the email is "to approve" again. An agent
+  ports them: `bin/nff library --staging` lists each approval to add
+  to `APPROVED` in `library.mjs` and each rewrite as a diff against
+  the code's text, and `bin/nff library clear <id> --staging` drops
+  an email's records once they are in. Farm news rewrites go to the
+  email lane, whose drafts they are.
 - **Inbox.** The outbox, newest first, refreshed every five seconds
   while open. A message opens in a new window as the HTML the
   customer would have received, with a bar above it saying who it was
