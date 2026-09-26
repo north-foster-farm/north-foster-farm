@@ -10,7 +10,7 @@
   "browserslist": "defaults",
   "scripts": {
     "lint": "npm run lint:scripts && npm run lint:styles",
-    "lint:scripts": "eslint 'assets/scripts/**/*.{js,mjs}' 'netlify/**/*.mjs' 'test/**/*.mjs' 'e2e/**/*.mjs' 'bin/grid/*.mjs' bin/nff *.config.js playwright.config.mjs",
+    "lint:scripts": "eslint 'assets/scripts/**/*.{js,mjs}' 'netlify/**/*.mjs' 'test/**/*.mjs' 'e2e/**/*.mjs' 'bin/grid/*.mjs' 'bin/postcss/*.js' bin/nff *.config.js playwright.config.mjs",
     "lint:styles": "stylelint assets/styles/**/*.scss",
     "start": "bin/dev",
     "start:bind": "HUGO_BIND_TO_IP=true bin/dev",

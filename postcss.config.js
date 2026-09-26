@@ -1,7 +1,9 @@
 const Autoprefixer = require("autoprefixer");
 const PurgeCSS = require("@fullhuman/postcss-purgecss");
+const hoverOnly = require("./bin/postcss/hover-only.js");
 
 const plugins = [
+  hoverOnly(),
   new Autoprefixer(),
   new PurgeCSS({
     content: ["./hugo_stats.json"],
