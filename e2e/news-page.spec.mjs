@@ -105,7 +105,8 @@ test.describe("news page (#143)", () => {
       await expect(pager).toBeVisible();
       await expect(pager.locator("[data-news-next]"))
         .toHaveAttribute("href", /\/news\/page\/2\/$/);
-      await expect(items(page)).toHaveCount(10);
+      // Page 1 holds ten posts; the newest is the lead, above the rows.
+      await expect(items(page)).toHaveCount(9);
     });
 
   test("each post has a picture or a leaf, and a leaf stays put",

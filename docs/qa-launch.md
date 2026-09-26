@@ -181,15 +181,15 @@ projects).
 - **Assert:** Wings 5, Scituate checked, first name "Draft", Total $45.
 - **Teardown:** None (the browser context is discarded).
 
-### OP-10 Continue to checkout goes to Contact information
+### OP-10 Continue to payment goes to Contact information
 
-Automated: `order-page.spec.mjs`, "Continue to checkout takes the
+Automated: `order-page.spec.mjs`, "Continue to payment takes the
 customer to Contact information" (both projects).
 
 - **Scenario:** The cart's way on lands the customer on their details.
 - **Setup:** 5 wings.
 - **Test:**
-  1. Press Continue to checkout.
+  1. Press Continue to payment.
 - **Assert:** The "Contact information" legend has focus and is on
   screen.
 - **Teardown:** None.
@@ -222,9 +222,9 @@ an Add button" (both projects).
   `available` not 0.
 - **Teardown:** None.
 
-### OP-13 Continue to checkout can always be reached
+### OP-13 Continue to payment can always be reached
 
-Automated: `cart-layout.spec.mjs`, "Continue to checkout can be reached
+Automated: `cart-layout.spec.mjs`, "Continue to payment can be reached
 and pressed", at 1500, 1198, 990, 575 and 390. Tagged `@regression`.
 
 - **Scenario:** With a long cart the sticky pane was taller than the
@@ -238,9 +238,9 @@ and pressed", at 1500, 1198, 990, 575 and 390. Tagged `@regression`.
   "Contact information" legend takes focus.
 - **Teardown:** None.
 
-### OP-14 Continue to checkout is never wider than 370px
+### OP-14 Continue to payment is never wider than 370px
 
-Automated: `cart-layout.spec.mjs`, "Continue to checkout is never wider
+Automated: `cart-layout.spec.mjs`, "Continue to payment is never wider
 than 370px", every width.
 
 - **Scenario:** Finding 21.
@@ -1296,12 +1296,13 @@ Manual: several emails and pages across a week-long link.
   a refund.
 - **Setup:** A paid on-farm order.
 - **Test:**
-  1. `bin/nff --staging orders deny <id> --reason "We're at the market
-     that morning."`
-  2. Open "Pick a new time" from the outbox; change the window; save.
+  1. `bin/nff --staging orders deny <id>`
+  2. Open "Reschedule or cancel" from the outbox; change the window;
+     save.
   3. On a second order, cancel from the card instead.
-- **Assert:** "One more step: pick a new pickup time" with the reason
-  and a "Pick a new time" button; the card says "We can't do that
+- **Assert:** "Requested pickup time unavailable, please pick again",
+  with no reason from the farm and a "Reschedule or cancel" button
+  (b14ad8b); the card says "We can't do that
   pickup time"; after the change "Your order is updated" and the farm's
   "Pickup time to confirm: <id>", `question.answer` reschedule,
   `fulfilment.state` requested. After the cancel: "We're refunding this
@@ -1594,7 +1595,7 @@ Manual.
 - **Scenario:** Only on-farm orders need agreement.
 - **Setup:** A paid delivery order.
 - **Test:**
-  1. `bin/nff --staging orders deny <id> --reason "x"`
+  1. `bin/nff --staging orders deny <id>`
 - **Assert:** Refused with "Only an on-farm pickup needs confirming."
 - **Teardown:** Cancel with `--refund`; delete.
 
@@ -2346,8 +2347,8 @@ same spec checks `lang="en-US"` on the three policy pages (99e4717).
 - **Setup:** `/privacy/`.
 - **Test:**
   1. Read it.
-- **Assert:** Sections on the farm-news list (Resend, double opt-in,
-  one-click unsubscribe), accounts and magic links, payments (Square
+- **Assert:** Sections on the farm-news list (Resend, joining at once
+  with no email to confirm, one-click unsubscribe), accounts and magic links, payments (Square
   and PayPal; card numbers never reach the site), what is stored where
   and for how long, what the browser keeps; no "Square, which creates
   your invoice"; a new effective date.
@@ -2484,7 +2485,7 @@ wired.
 5. PR-06 Under the minimum, delivery is blocked
 6. FM-02 An empty delivery order names every field
 7. FM-04 Errors clear as fields are fixed
-8. OP-13 Continue to checkout can always be reached
+8. OP-13 Continue to payment can always be reached
 9. AO-01 A sign-in link, used once
 10. FN-01 Sign up, opted in at once
 11. AO-15 Fewer items in a paid order: the difference goes back

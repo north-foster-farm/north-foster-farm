@@ -147,7 +147,7 @@ test.describe("order page", () => {
     await expect(order.total).toHaveText("$45");
   });
 
-  test("Continue to checkout takes the customer to Contact information",
+  test("Continue to payment takes the customer to Contact information",
     async ({ page }) => {
       const order = new OrderPage(page);
 
