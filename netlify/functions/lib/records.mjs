@@ -108,6 +108,13 @@ const sum = (items) => items.reduce((s, x) => s + (x.amount || 0), 0);
 export const paidTotal = (order) => sum(paymentsOf(order));
 export const refundedTotal = (order) => sum(refundsOf(order));
 
+// The delivery fee an attempted delivery keeps: "the delivery fee is
+// not refundable once we attempt the delivery" (James, F1). The farm
+// marks the attempt (`bin/nff orders attempted`), which records the
+// fee as it stood, so a later switch to pickup cannot take it off.
+export const keptFee = (order) =>
+  (order && order.attempted && order.attempted.fee) || 0;
+
 // What a payment is known by at its processor: the Square payment, or
 // for Venmo the PayPal capture.
 export const paymentRef = (payment) =>

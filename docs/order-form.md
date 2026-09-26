@@ -411,6 +411,13 @@ Square, the customer emailed "Your refund is on its way" (said only
 when money went back just then). Without `--refund` the cancellation
 email says nothing more will be charged.
 
+A delivery the farm could not leave (no cooler, nobody reached) keeps
+its fee (James, F1). `bin/nff orders attempted <id>` records the
+attempt and the fee as it stood (`attempted: { at, fee }`); from then
+on a refund, or a cancel with `--refund`, hands back everything but
+the fee. A refund made in the Square dashboard or PayPal is not held
+to it.
+
 A customer who cancels from the account page is flagged
 `cancelRequested`, their stock is released, and the farm is emailed
 "Refund needed" with the command; the order stays `paid` until the

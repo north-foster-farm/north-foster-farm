@@ -12,9 +12,9 @@ import { confirmOrder, recordRefund, sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
   OPEN, allCustomers, allOrders, amendOrder, answerQuestion, deleteCustomer,
-  deleteOrder, getCustomer, getOrder, needsAgreement, openOrders, ordersFor,
-  paidTotal, paymentRef, paymentsOf, questionOpen, refundedTotal, refundsOf,
-  saveCustomer, setStatus,
+  deleteOrder, getCustomer, getOrder, keptFee, needsAgreement, openOrders,
+  ordersFor, paidTotal, paymentRef, paymentsOf, questionOpen, refundedTotal,
+  refundsOf, saveCustomer, setStatus,
 } from "./records.mjs";
 import { mailLinks, orderPathFor, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
@@ -135,9 +135,14 @@ export const refundOrder = async (stores, id, {
   }
 
   const payments = paymentsOf(order);
-  const left = paidTotal(order) - refundedTotal(order);
+  const kept = keptFee(order);
+  const left = paidTotal(order) - refundedTotal(order) - kept;
 
   if (!payments.length) throw new Error("This order has no payment to refund.");
+  if (left <= 0 && kept && refundedTotal(order) < paidTotal(order)) {
+    throw new Error(`Only the delivery fee is left (${dollars(kept)}), ` +
+      "and an attempted delivery keeps it.");
+  }
   if (left <= 0) {
     throw new Error(`Already refunded in full (${
       dollars(refundedTotal(order))}).`);
@@ -215,9 +220,10 @@ export const cancelOrder = async (stores, id, {
 
   if (["cancelled", "abandoned"].includes(order.status)) return order;
 
-  // Whatever has not gone back yet, when asked; a refund made earlier
-  // stays as it was.
-  const refundNow = refund && paidTotal(order) > refundedTotal(order);
+  // Whatever has not gone back yet, when asked, less a fee an attempted
+  // delivery keeps; a refund made earlier stays as it was.
+  const refundNow = refund
+    && paidTotal(order) - keptFee(order) > refundedTotal(order);
 
   if (refundNow) {
     await refundOrder(stores, id, {
@@ -370,6 +376,26 @@ export const denyPickup = async (stores, id, {
   return sendForOrder(stores, denied, `pickNewTime-${now.getTime()}`,
     pickNewTime(denied, { pickUrl, links: mailLinks(env) }),
     { mail, env, now });
+};
+
+// The farm tried to deliver and could not: no cooler, nobody reached
+// (James, F1). From then on the delivery fee stays: a refund, a
+// cancellation or a switch to pickup hands back everything else.
+// Marking twice keeps the first. -> the order.
+export const markAttempted = async (stores, id, { now = new Date() } = {}) => {
+  const order = need(await getOrder(stores, id), "order");
+
+  if (order.attempted) return order;
+  if (order.fulfilment.method !== "delivery") {
+    throw new Error("Only a delivery can be attempted.");
+  }
+  if (order.status !== "paid") {
+    throw new Error(`This order is ${order.status}.`);
+  }
+
+  return amendOrder(stores, id, {
+    attempted: { at: now.toISOString(), fee: order.totals.deliveryFee || 0 },
+  }, "delivery.attempted", now);
 };
 
 export const fulfilOrder = async (stores, id, { now = new Date() } = {}) =>

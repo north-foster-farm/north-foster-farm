@@ -35,6 +35,8 @@ const USAGE = `Usage:
                                       money back without cancelling:
                                       card and wallets through Square,
                                       Venmo through PayPal
+  bin/nff orders attempted <id>       a delivery we could not leave: its
+                                      fee stays through any refund
   bin/nff orders fulfil <id>
   bin/nff orders delete <id>
   bin/nff returns resolve <id> <returnId> [note...]
@@ -336,6 +338,14 @@ const run = async () => {
 
     return out(`Refunded ${dollars(refundedTotal(refunded)
       - refundedTotal(before))} of ${paymentPhrase(refunded)}.`);
+  }
+  case "orders attempted": {
+    const marked = await admin.markAttempted(stores, rest[0]);
+
+    out(summaryLine(marked));
+
+    return out(`Attempted ${marked.attempted.at}; the delivery fee of ${
+      dollars(marked.attempted.fee)} stays with the farm.`);
   }
   case "orders fulfil":
   case "orders fulfill":

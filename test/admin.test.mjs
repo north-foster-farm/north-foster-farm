@@ -4,9 +4,9 @@ import { describe, it } from "node:test";
 import terms from "../data/delivery.json" with { type: "json" };
 import {
   cancelOrder, confirmPickup, decideAddress, denyPickup, fulfilOrder,
-  listOrders, pickupRange, pickupsNeedingConfirmation, refundOrder,
-  removeCustomer, removeOrder, resolveReturn, setCustomer, showCustomer,
-  stockList, stockSet,
+  listOrders, markAttempted, pickupRange, pickupsNeedingConfirmation,
+  refundOrder, removeCustomer, removeOrder, resolveReturn, setCustomer,
+  showCustomer, stockList, stockSet,
 } from "../netlify/functions/lib/admin.mjs";
 import { verifyToken } from "../netlify/functions/lib/auth.mjs";
 import { requestReturn } from "../netlify/functions/lib/account.mjs";
@@ -617,6 +617,89 @@ describe("refunds over several payments", () => {
     await refundOrder(stores, "B", opts);
     await cancelOrder(stores, "B", { ...opts, refund: true });
 
+    assert.deepEqual(calls.at(-1), ["fulfilment", "SQO"]);
+    assert.doesNotMatch(sent.at(-1).text, /refund is on its way/);
+  });
+});
+
+describe("an attempted delivery keeps its fee", () => {
+  // $14 of eggs and a $5 delivery fee, paid by card.
+  const delivered = (id) => {
+    const base = order(id);
+
+    return {
+      ...base,
+      totals: { ...base.totals, deliveryFee: 500, total: 1900 },
+      fulfilment: { method: "delivery", date: "2026-10-08",
+        delivery: { address1: "5 Far Rd", zip: "01234" } },
+    };
+  };
+
+  it("marks a delivery once, and nothing else", async () => {
+    const stores = testStores();
+
+    await saveOrder(stores, delivered("A"), now);
+    const a = await markAttempted(stores, "A", { now });
+
+    assert.deepEqual(a.attempted, { at: now.toISOString(), fee: 500 });
+
+    const later = new Date(now.getTime() + 7 * 86_400_000);
+
+    assert.equal((await markAttempted(stores, "A", { now: later }))
+      .attempted.at, now.toISOString());
+
+    await saveOrder(stores, order("B"), now);
+    await assert.rejects(markAttempted(stores, "B", { now }),
+      /Only a delivery/);
+    await saveOrder(stores, delivered("C"), now);
+    await fulfilOrder(stores, "C", { now });
+    await assert.rejects(markAttempted(stores, "C", { now }),
+      /This order is fulfilled/);
+    await assert.rejects(markAttempted(stores, "Z", { now }),
+      /No such order/);
+  });
+
+  it("refunds everything but the fee", async () => {
+    const stores = testStores();
+    const { calls, opts } = harness();
+
+    await saveOrder(stores, delivered("A"), now);
+    await markAttempted(stores, "A", { now });
+    await assert.rejects(refundOrder(stores, "A", { ...opts, amount: 1500 }),
+      /between \$0\.01 and \$14\./);
+
+    const r = await refundOrder(stores, "A", opts);
+
+    assert.deepEqual(calls, [["square.refund", "PAY-A", 1400]]);
+    assert.equal(r.refunds.at(-1).total, false);
+    await assert.rejects(refundOrder(stores, "A", opts),
+      /Only the delivery fee is left \(\$5\)/);
+
+    // Before an attempt, the fee goes back with the rest.
+    await saveOrder(stores, delivered("B"), now);
+    await refundOrder(stores, "B", opts);
+    assert.deepEqual(calls.at(-1), ["square.refund", "PAY-B", 1900]);
+  });
+
+  it("cancels with a refund of everything but the fee", async () => {
+    const stores = testStores();
+    const { sent, calls, opts } = harness();
+
+    await saveOrder(stores, delivered("A"), now);
+    await markAttempted(stores, "A", { now });
+
+    const c = await cancelOrder(stores, "A", { ...opts, refund: true });
+
+    assert.equal(c.status, "cancelled");
+    assert.deepEqual(calls, [
+      ["square.refund", "PAY-A", 1400], ["fulfilment", "SQO"],
+    ]);
+
+    // Only the fee left: the cancel goes through and refunds nothing.
+    await saveOrder(stores, delivered("B"), now);
+    await markAttempted(stores, "B", { now });
+    await refundOrder(stores, "B", opts);
+    await cancelOrder(stores, "B", { ...opts, refund: true });
     assert.deepEqual(calls.at(-1), ["fulfilment", "SQO"]);
     assert.doesNotMatch(sent.at(-1).text, /refund is on its way/);
   });
