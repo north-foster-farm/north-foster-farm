@@ -1,21 +1,27 @@
 {{ define "main" }}
-  {{/* The newest post large at the top of the first page, then the
-       rest ten a page, grouped under their year, with the Farm news
-       sign-up after each page's ten. scripts/news/ fetches the next
-       page as the reader nears the end and appends its posts and
-       sign-up, joining a year that runs across the page break; the
+  {{/* Ten posts a page, grouped under their year, with the Farm news
+       sign-up after each page's ten. The first page shows its first
+       post, the newest, large above the rest. The head's canonical
+       link has already made the pager from every post, so the lead is
+       split off here rather than left out of it. scripts/news/ fetches
+       the next page as the reader nears the end and appends its posts
+       and sign-up, joining a year that runs across the page break; the
        pager links stay for anyone without the script. */}}
-  {{ $pager := .Paginate (after 1 .Pages) }}
-  {{ $groups := $pager.Pages.GroupByDate "2006" }}
+  {{ $pager := .Paginate .Pages }}
+  {{ $pages := $pager.Pages }}
+  {{ $lead := false }}
+  {{ if eq $pager.PageNumber 1 }}
+    {{ $lead = index $pages 0 }}
+    {{ $pages = after 1 $pages }}
+  {{ end }}
+  {{ $groups := $pages.GroupByDate "2006" }}
   {{ $last := sub (len $groups) 1 }}
   <section class="{{ .Type }}">
     <div class="page container py-5">
       <div class="row justify-content-center mb-5">
         <div class="col text-column">
           {{ partial "page-heading.html" . }}
-          {{ if eq $pager.PageNumber 1 }}
-            {{ with index .Pages 0 }}{{ partial "news/lead.html" . }}{{ end }}
-          {{ end }}
+          {{ with $lead }}{{ partial "news/lead.html" . }}{{ end }}
           <div class="news-years" data-news-years>
             {{ range $i, $group := $groups }}
               <section class="news-year" data-year="{{ .Key }}" aria-labelledby="news-year-{{ .Key }}">
