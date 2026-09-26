@@ -416,6 +416,29 @@ CLI refunds and closes it. A refund made in the Square dashboard
 by the `by-payment` index, which holds every payment of an order,
 so `refunds` is right however the money went back.
 
+## Changing a paid order
+
+Until the cutoff, the account page's Change items opens
+`/order/?edit=<id>`, which loads the order into its own draft
+(`nff-edit-<id>`, never the cart) and prices the change with the same
+code as a new order, at today's prices. Under the total it shows what
+is paid and the difference. `POST /api/account/orders/<id>/edit`
+(`lib/edit.mjs`) takes the order as it should now be; what the page
+does not carry (notes, the pickup phone, drop-off details) comes from
+the record. More to pay is charged by card, wallet or Venmo (the same
+two steps) on a Square order of its own under the same `reference_id`,
+listing what was added with one discount for what was taken off, and
+recorded as a second payment, with the Square order in
+`square.changes`. Less is refunded as above, newest payment first,
+with `source: "customer"`. Stock moves by the change alone, and a line
+the order already holds may stay after it sells out. A switch between
+delivery and pickup puts the fulfilment on a new Square order ($0 and
+paid when nothing is owed, named in `square.fulfilmentOrderId`) and
+cancels the old one, since Square cannot change a fulfilment's type;
+once changed, the fulfilment's note lists the whole order. Each edit
+has its own idempotency key and a line in `edits`; the customer gets
+"Your order is updated" with the money, the farm "Order changed".
+
 ## Schedule
 
 `netlify/functions/jobs.mjs` runs every 15 minutes (Netlify scheduled

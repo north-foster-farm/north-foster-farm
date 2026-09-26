@@ -73,6 +73,9 @@ test.describe("changing a paid order", () => {
         .toHaveText("To refund");
       await expect(money.locator("[data-total='due']")).toHaveText("$7");
       await expect(page.locator("#payment")).toBeHidden();
+      await expect(page.locator("#order-submit")).toBeHidden();
+      await expect(page.locator(".page-heading h1"))
+        .toHaveText("Change your order");
 
       await page.locator("#order-save").click();
       await expect(page).toHaveURL(/\/account\/#orders/);

@@ -1439,6 +1439,56 @@ browser. Passed on staging 2026-09-25 (6100be0).
   A kept menu closes on a click elsewhere and on Escape.
 - **Teardown:** None.
 
+### AO-15 Fewer items in a paid order: the difference goes back (#160)
+
+Automated: `edit-order.spec.mjs`, "fewer items: the difference goes
+back". Tagged `@regression`.
+
+- **Scenario:** Change items on the account page opens the order on the
+  order page; a smaller order refunds the difference.
+- **Setup:** A paid on-farm order of 2 × Eggs, Large ($14), signed in.
+- **Test:**
+  1. Account page, the order's Change items.
+  2. Set Eggs, Large to 1; press Save changes.
+- **Assert:** The page reads "Change your order" and names the order.
+  Under the total: Paid $14, To refund $7. The payment section and the
+  card's Pay button are hidden; only Save changes shows. After it, the
+  account page; the record has 1 × Eggs and one $7 refund, source
+  `customer`; "Your order is updated" says "We refunded $7" and the farm
+  gets "Order changed". The header's cart count is untouched.
+- **Teardown:** `bin/nff orders cancel <id> --refund --staging`, then
+  delete.
+
+### AO-16 More items: the difference is charged (#160)
+
+Automated in part: `edit-order.spec.mjs`, "more items: the difference
+is charged" (through the endpoint, with `cnon:card-nonce-ok`).
+
+- **Scenario:** A larger order pays only the difference, by card,
+  wallet or Venmo, on a Square order of its own.
+- **Setup:** As AO-15.
+- **Test:**
+  1. Change items; set Eggs, Large to 3.
+  2. Pay by card (`4111 1111 1111 1111`); then again with Venmo.
+- **Assert:** To pay $7 and "Pay $7 and save". The record gains a second
+  payment of $7; `square.changes` names a Square order of 1 × Eggs,
+  Large (`bin/nff orders show <id> --staging`). A decline leaves the
+  order as it was. Venmo waits on #164's sandbox login.
+- **Teardown:** As AO-15.
+
+### AO-17 A switch between delivery and pickup (#160)
+
+- **Scenario:** The same order, now delivered, or now picked up.
+- **Setup:** A paid on-farm order over the delivery minimum.
+- **Test:** Change items; choose Delivery, fill the address, pay the
+  fee; and on another order, switch delivery to the drop site.
+- **Assert:** The record's method changes; `square.fulfilmentOrderId`
+  names a new Square order carrying the new fulfilment, and the old
+  one's fulfilment is cancelled in Square. A switch to on-farm pickup
+  asks the farm to confirm the window again. With nothing to pay, the
+  new Square order is $0 and paid.
+- **Teardown:** As AO-15.
+
 ## Refunds and the CLI
 
 Every command here runs from the checkout root with `.env.staging`
@@ -2436,3 +2486,4 @@ wired.
 8. OP-13 Continue to checkout can always be reached
 9. AO-01 A sign-in link, used once
 10. FN-01 Sign up, confirm, opted in
+11. AO-15 Fewer items in a paid order: the difference goes back
