@@ -479,7 +479,9 @@ const WAITING = {
     "and updates\" (W14).",
   "news-launch-email": "Subject and preview text are his (2026-09-26). " +
     "The whole body is the email lane\x27s draft and waits on him (W18), " +
-    "with \"much of Rhode Island\" (Q5).",
+    "with \"much of Rhode Island\" (Q5). Draft: \"In the next few days " +
+    "you\x27ll get one more email from us\", since the invitations go out " +
+    "over several mornings (F6).",
 };
 
 for (const e of library) {
