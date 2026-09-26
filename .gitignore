@@ -18,6 +18,11 @@ public/
 resources/
 .netlify/
 
+# Each agent's notes and files, and its local instructions (the
+# bullpen: ~/Code/nff/docs/multi-agent-workflow.md). Never tracked.
+.ignored/
+CLAUDE.local.md
+
 # Playwright's run output (npm run e2e).
 test-results/
 playwright-report/
