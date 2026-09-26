@@ -82,8 +82,13 @@ opens to a panel with:
   ports them: `bin/nff library --staging` lists each approval to add
   to `APPROVED` in `library.mjs` and each rewrite as a diff against
   the code's text, and `bin/nff library clear <id> --staging` drops
-  an email's records once they are in. Farm news rewrites go to the
-  email lane, whose drafts they are.
+  an email's records once they are in. Both need
+  `NETLIFY_SITE_ID` and `NETLIFY_AUTH_TOKEN` in `.env.staging`;
+  without them they read an empty store in memory and say so. The
+  Netlify CLI reads the same records from a linked checkout:
+  `netlify blobs:list branch-deploy-jobs --prefix library/`, then
+  `netlify blobs:get` or `blobs:delete` on each key. Farm news
+  rewrites go to the email lane, whose drafts they are.
 - **Inbox.** The outbox, newest first, refreshed every five seconds
   while open. A message opens in a new window as the HTML the
   customer would have received, with a bar above it saying who it was

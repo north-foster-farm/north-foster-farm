@@ -11,6 +11,9 @@
 // approves or rewrites in the library on staging is lib/review.mjs's
 // until it is ported here.
 
+import launch from "../../../data/emails/launch-email.json" with {
+  type: "json",
+};
 import * as t from "./templates.mjs";
 import { orderPathFor } from "./site.mjs";
 
@@ -121,6 +124,10 @@ const dropped = order({
     discountLabel: "Bulk discount ($50+)", deliveryFee: 0, total: 6900,
   },
 });
+// The edit's record of the order as it was, before either change.
+const before = () => ({
+  lines: order().lines, totals: order().totals, method: "delivery",
+});
 
 // The sample values above that no pattern in lib/review.mjs catches
 // (names, items, notes, messages), so a rewrite keeps them as tokens.
@@ -129,7 +136,7 @@ export const SAMPLE_TEXT = [
   "Whole Chicken, 3.5 – 3.9 lbs", "Eggs (per dozen), Large",
   "Green cooler by the garage", "Dog is friendly",
   "Please leave the eggs on top.", "On the front porch",
-  "We're at the market that morning.", "Village Green",
+  "morning", "afternoon", "Village Green",
   "Could I switch Thursday's delivery to the following week? " +
     "We'll be away.",
   "Two of the eggs were cracked.", "The rest were fine.",
@@ -146,8 +153,8 @@ const squareUrl = "https://app.squareup.com/dashboard/orders/overview/SO-1";
 //
 // List emails go out by hand from Fastmail, as plain text. The drafts
 // are the email lane's (north-foster-farm/.ignored/email-updates/);
-// their bodies come here once James agrees to publish them in the
-// repository (the liaison's Q19).
+// a body comes here, into data/emails/, once James agrees to publish
+// it in the repository.
 
 const plain = (subject, text) => {
   const escape = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
@@ -164,12 +171,6 @@ const plain = (subject, text) => {
   };
 };
 
-const LAUNCH_SUBJECTS = [
-  "You can now order from us online",
-  "Order online: eggs and chicken, delivered",
-  "Online ordering, and a new list for farm news",
-  "The market's closing. The chicken isn't.",
-];
 
 // --- The catalog ----------------------------------------------------
 
@@ -208,18 +209,11 @@ export const library = [
   },
   {
     id: "pick-new-time", name: "Pick a new pickup time",
-    when: "The farm denied the window, with a reason", audience: C,
+    when: "The farm denied the window", audience: C,
     tags: ["pickup denied", "pickup"],
     build: (links) => t.pickNewTime(requested(), {
-      reason: "We're at the market that morning.", pickUrl: signIn(links),
-      links,
+      pickUrl: signIn(links), links,
     }),
-  },
-  {
-    id: "pick-new-time-reply", name: "Pick a new pickup time, by reply",
-    when: "The farm denied the window, no reason, accounts off",
-    audience: C, tags: ["pickup denied", "pickup"],
-    build: (links) => t.pickNewTime(requested(), { pickUrl: null, links }),
   },
   {
     id: "delivery-reminder", name: "Delivery tomorrow",
@@ -240,15 +234,17 @@ export const library = [
     id: "order-changed-paid-more", name: "Order updated, paid more",
     when: "The customer added items and paid the difference",
     audience: C, tags: ["updated", "paid", "delivery", "card"],
-    build: (links) => t.orderChanged(added,
-      { orderUrl: orderUrl(links), links, difference: 700 }),
+    build: (links) => t.orderChanged(added, {
+      orderUrl: orderUrl(links), links, difference: 700, before: before(),
+    }),
   },
   {
     id: "order-changed-refunded", name: "Order updated, refunded",
     when: "The customer removed items and was refunded the difference",
     audience: C, tags: ["updated", "refunded", "delivery"],
-    build: (links) => t.orderChanged(dropped,
-      { orderUrl: orderUrl(links), links, difference: -2500 }),
+    build: (links) => t.orderChanged(dropped, {
+      orderUrl: orderUrl(links), links, difference: -2500, before: before(),
+    }),
   },
   {
     id: "order-cancelled", name: "Order cancelled, nothing charged",
@@ -315,10 +311,7 @@ export const library = [
     when: "A customer changed a paid order's items", audience: F,
     tags: ["updated", "paid", "delivery", "card"],
     build: (links) => t.farmOrderChanged(added, {
-      before: {
-        lines: order().lines, totals: order().totals, method: "delivery",
-      },
-      difference: 700, links,
+      before: before(), difference: 700, links,
     }),
   },
   {
@@ -344,7 +337,7 @@ export const library = [
     build: (links) => t.farmSupport(customer, {
       subject: "Eggs", orderId: ID,
       message: "Two of the eggs were cracked.\nThe rest were fine.",
-    }, { accountUrl: `${links.site}/account/` }),
+    }, { links }),
   },
   {
     id: "farm-address-review", name: "Address to review",
@@ -356,21 +349,21 @@ export const library = [
     id: "farm-refund-needed", name: "Refund needed",
     when: "A customer cancels a paid order", audience: F,
     tags: ["cancelled", "refunded", "account"],
-    build: () => t.farmRefundNeeded(order(), customer),
+    build: (links) => t.farmRefundNeeded(order(), customer, { links }),
   },
   {
     id: "farm-return-request", name: "Return request",
     when: "A customer asks about a return", audience: F,
     tags: ["support", "account", "refunded"],
-    build: () => t.farmReturnRequest(order(), customer, {
+    build: (links) => t.farmReturnRequest(order(), customer, {
       id: "r7Kq2m", reason: "Two of the eggs were cracked.", skus: ["B"],
-    }),
+    }, { links }),
   },
   {
     id: "farm-square-out-of-sync", name: "Square out of sync",
     when: "A customer's change could not be written to Square",
     audience: F, tags: ["alert", "updated"],
-    build: () => t.farmSquareOutOfSync(order(), customer),
+    build: (links) => t.farmSquareOutOfSync(order(), customer, { links }),
   },
   {
     id: "farm-alert", name: "Site alert",
@@ -419,78 +412,72 @@ export const library = [
     id: "news-launch-email", name: "Farm news: we're online",
     when: "Sent by James from Fastmail at launch, to the old list",
     audience: "list", tags: ["list", "farm news", "draft"],
-    build: () => plain(LAUNCH_SUBJECTS[0], [
-      "Subject, one of:",
-      ...LAUNCH_SUBJECTS.map((s) => `- ${s}`),
-      "",
-      "Preview text: Order online, then choose Thursday delivery, " +
-        "on-farm pickup, or our drop site in Scituate.",
-      "",
-      "The body is a draft in north-foster-farm/.ignored/email-updates/" +
-        "2026-09-launch-email.md. It appears here once James agrees to " +
-        "publish it in the repository.",
-    ].join("\n")),
+    build: () => plain(launch.subject,
+      `Preview text: ${launch.preview}\n\n---\n\n${launch.body}`),
   },
 ];
 
 // What James has approved, with its evidence; everything else is "to
 // approve", with what he has not seen. From an audit of his review
 // replies of 2026-09-22, the render notes, the commits since and the
-// liaison's queue, on 2026-09-26. Unclear counts as to approve.
+// liaison\x27s queue, on 2026-09-26, then his review in the library on
+// staging the same day. Unclear counts as to approve.
+const LIBRARY = "James approved in the library on 2026-09-26.";
 const APPROVED = {
-  "order-confirmed-delivery": "James's rewrite of 2026-09-22, verbatim.",
-  "delivery-reminder": "James's rewrite of 2026-09-22. Not yet seen: " +
+  "order-confirmed-delivery": "James\x27s rewrite of 2026-09-22, verbatim.",
+  "order-confirmed-dropsite": LIBRARY,
+  "order-confirmed-onfarm": LIBRARY,
+  "payment-received": LIBRARY,
+  "delivery-reminder": "James\x27s rewrite of 2026-09-22. Not yet seen: " +
     "the gate or door code line, shown only when one is given.",
-  "order-changed": "James's rewrite of 2026-09-22. Not yet seen: the " +
-    "gate or door code line, shown only when one is given.",
-  "order-cancelled-refund": "James's rewrite of 2026-09-22, for a " +
+  "order-changed": "James\x27s rewrite of 2026-09-22, and his opening " +
+    "line of 2026-09-26. Not yet seen: the gate or door code line, " +
+    "shown only when one is given.",
+  "order-cancelled-refund": "James\x27s rewrite of 2026-09-22, for a " +
     "delivery. Not yet seen: the drop-site and on-farm wording.",
-  "address-approved": "James's rewrite of 2026-09-22, verbatim.",
-  "sign-in-link": "James's rewrite of 2026-09-22, verbatim.",
-  "news-confirm": "James's dictation of 2026-09-24, verbatim. Open: " +
-    "\"farm news\" or \"news and updates\" (W14), and \"didn't request\" " +
+  "address-approved": "James\x27s rewrite of 2026-09-22, verbatim.",
+  "sign-in-link": "James\x27s rewrite of 2026-09-22, verbatim.",
+  "news-confirm": "James\x27s dictation of 2026-09-24, verbatim. Open: " +
+    "\"farm news\" or \"news and updates\" (W14), and \"didn\x27t request\" " +
     "for invited addresses (W19).",
+  "farm-order-placed-delivery": LIBRARY,
+  "farm-order-placed-dropsite": LIBRARY,
+  "farm-order-changed": LIBRARY,
+  "farm-contact-message": LIBRARY,
+  "farm-address-review": LIBRARY,
+  "farm-alert": LIBRARY,
+  "farm-tomorrow": LIBRARY,
 };
 
+// Rewrites of 2026-09-26 that have landed come back here to approve,
+// showing the landed text.
+const LANDED = "His rewrite of 2026-09-26, landed";
+const CARD = "Moved onto the farm card on 2026-09-26, after he asked " +
+  "\"No template?\"; agent-written.";
 const WAITING = {
-  "order-confirmed-dropsite": "His wording, but he has not seen the " +
-    "drop site's order details.",
-  "order-confirmed-onfarm": "Agent-written on-farm sentence and the " +
-    "Reschedule pickup button; never signed off.",
-  "payment-received": "The second sentence is his; the first is an " +
-    "agent's cut, and the whole was never signed off.",
-  "pick-new-time": "The paragraph is his; the subject, the bold line " +
-    "and \"Here's why:\" are agents'.",
-  "pick-new-time-reply": "The reply-instead wording has never been " +
-    "shown to him.",
-  "order-changed-paid-more": "New on 2026-09-25: the totals and " +
-    "\"You paid $X more.\"",
-  "order-changed-refunded": "New on 2026-09-25: the totals and " +
-    "\"We refunded $X.\"",
-  "order-cancelled": "His \"Your invoice is closed and you were not " +
-    "charged\" became \"Nothing more will be charged\" on 2026-09-23.",
-  "address-denied": "Agent-written; never in a review.",
-  "farm-order-placed-delivery": "His layout, but the invoice lines became " +
-    "\"Paid: $94 by Visa ending 4242\" and \"View order in Square\".",
-  "farm-order-placed-onfarm": "Agent-written confirm and deny paragraphs, " +
-    "and the new Paid line.",
-  "farm-order-placed-dropsite": "Never rendered for him.",
-  "farm-order-changed": "New on 2026-09-25.",
-  "farm-pickup-changed": "Agent-written; never signed off.",
-  "farm-contact-message": "Ported from PR #110; no review recorded.",
-  "farm-support": "Never reviewed; plain, without the site's look.",
-  "farm-address-review": "Differs from his rewrite: commands instead of " +
-    "Approve and Deny links, the full street, no drive time.",
-  "farm-refund-needed": "Never reviewed; plain, without the site's look.",
-  "farm-return-request": "Never reviewed; plain, without the site's look.",
-  "farm-square-out-of-sync": "Never reviewed; plain, without the site's " +
-    "look.",
-  "farm-alert": "Agent-written; the runbook text is alerts-guide.mjs.",
-  "farm-morning-report": "The vital signs were rebuilt for payment on " +
-    "the page on 2026-09-23; he has seen none of it.",
-  "farm-tomorrow": "Agent-written; never signed off.",
-  "news-launch-email": "No subject picked (W17); the draft's own lines " +
-    "(W18) wait on him too.",
+  "pick-new-time": `${LANDED}, with the pickup window as a token. ` +
+    "The farm\x27s reason is no longer sent.",
+  "order-changed-paid-more": `${LANDED}: each line says what was added ` +
+    "or removed, and the Total line what was paid.",
+  "order-changed-refunded": `${LANDED}, as for paid more. Agent-written: ` +
+    "\"Your refund can take a few days to reach you.\"",
+  "order-cancelled": "His rewrite, \"Nothing was charged\", is held: " +
+    "every order is paid when placed, so a customer cancelled without " +
+    "a refund was charged.",
+  "address-denied": `${LANDED}, verbatim.`,
+  "farm-order-placed-onfarm": "He approved it on 2026-09-26; since then " +
+    "the second confirm example is the whole window (#159) and deny " +
+    "takes no reason.",
+  "farm-pickup-changed": "He approved it on 2026-09-26; since then the " +
+    "confirm and deny lines changed, as in New order, on-farm pickup.",
+  "farm-support": CARD,
+  "farm-refund-needed": CARD,
+  "farm-return-request": CARD,
+  "farm-square-out-of-sync": CARD,
+  "farm-morning-report": `${LANDED}: the key under the table, and 🙈 ` +
+    "for outside limits.",
+  "news-launch-email": "Subject and preview text are his (2026-09-26); " +
+    "the body is the email lane\x27s draft, which he agreed to publish.",
 };
 
 for (const e of library) {

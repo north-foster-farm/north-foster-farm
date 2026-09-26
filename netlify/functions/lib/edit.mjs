@@ -388,6 +388,7 @@ export const applyEdit = async (stores, plan, {
   order = await sendForOrder(stores, order, `orderChanged-${key}`,
     orderChanged(order, {
       orderUrl: orderUrlFor(env, id), links, difference: change.difference,
+      before: editOf(order, key).before,
     }), { mail, env, now });
 
   return notifyFarm(stores, order, `farmOrderChanged-${key}`,

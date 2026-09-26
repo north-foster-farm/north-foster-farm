@@ -157,7 +157,7 @@ describe("cancelOrder", () => {
       "Refund needed: A cancelled by pat@example.com");
     assert.match(sent[1].text, /bin\/nff orders cancel A --refund/);
     assert.match(sent[1].html,
-      /<code>bin\/nff orders cancel A --refund<\/code>/);
+      /user-select:all">bin\/nff orders cancel A --refund<\/pre>/);
 
     const saved = await getOrder(stores, "A");
 

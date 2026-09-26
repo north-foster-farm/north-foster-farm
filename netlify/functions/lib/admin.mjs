@@ -338,7 +338,7 @@ export const confirmPickup = async (stores, id, {
 // -> the order, with a `window` question open and the customer told
 // to pick again. The email's button is a sign-in link straight to the
 // order page, good for a week; while the account pages are off it has
-// no button and asks for a reply instead.
+// no button. The reason is kept in the question, not sent.
 export const denyPickup = async (stores, id, {
   reason = "", now = new Date(), env = process.env, mail = sendMail,
   link = requestLink,
@@ -368,9 +368,8 @@ export const denyPickup = async (stores, id, {
   }
 
   return sendForOrder(stores, denied, `pickNewTime-${now.getTime()}`,
-    pickNewTime(denied, {
-      reason: question.reason, pickUrl, links: mailLinks(env),
-    }), { mail, env, now });
+    pickNewTime(denied, { pickUrl, links: mailLinks(env) }),
+    { mail, env, now });
 };
 
 export const fulfilOrder = async (stores, id, { now = new Date() } = {}) =>

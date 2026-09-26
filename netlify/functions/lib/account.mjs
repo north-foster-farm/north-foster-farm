@@ -20,7 +20,7 @@ import {
   REMINDERS, amendOrder, answerQuestion, getOrder, ordersFor, paymentRef,
   paymentsOf, questionOpen, refundsOf, reminderPrefs, saveCustomer,
 } from "./records.mjs";
-import { mailLinks, orderUrlFor, siteUrl } from "./site.mjs";
+import { mailLinks, orderUrlFor } from "./site.mjs";
 import { updateFulfilment } from "./square.mjs";
 import { adjust } from "./stock.mjs";
 import {
@@ -159,7 +159,9 @@ export const cancelOrder = async (stores, customer, id, {
   await sendForOrder(stores, flagged, "orderCancelled",
     orderCancelled(flagged, { refund: true, links: mailLinks(env) }),
     { mail, env, now });
-  await tellFarm(farmRefundNeeded(order, customer), { mail, env });
+  await tellFarm(farmRefundNeeded(order, customer, {
+    links: mailLinks(env),
+  }), { mail, env });
 
   return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
 };
@@ -257,8 +259,9 @@ export const changeOrder = async (stores, customer, id, changes, {
       await amendOrder(stores, id, {
         flags: { ...(changed.flags || {}), squareOutOfSync: true },
       }, "square.out_of_sync", now);
-      await tellFarm(farmSquareOutOfSync({ id, fulfilment: f }, customer),
-        { mail, env });
+      await tellFarm(farmSquareOutOfSync({ id, fulfilment: f }, customer, {
+        links: mailLinks(env),
+      }), { mail, env });
     }
   }
 
@@ -424,7 +427,9 @@ export const requestReturn = async (stores, customer, id, request, {
     returns: [...(order.returns || []), entry],
   }, "return.requested", now);
 
-  await tellFarm(farmReturnRequest(order, customer, entry), { mail, env });
+  await tellFarm(farmReturnRequest(order, customer, entry, {
+    links: mailLinks(env),
+  }), { mail, env });
 
   return { ok: true, order: publicOrder(changed, now), request: entry };
 };
@@ -448,7 +453,7 @@ export const sendSupport = async (stores, customer, request, {
   await tellFarm({
     replyTo: mailbox(customer.name, customer.email),
     ...farmSupport(customer, { subject, message, orderId }, {
-      accountUrl: `${siteUrl(env)}/account/`,
+      links: mailLinks(env),
     }),
   }, { mail, env });
 

@@ -45,7 +45,6 @@ const firstName = (who) => {
 
 // Blocks: text and HTML at once.
 const p = (text) => ({ text, html: `<p>${inline(text)}</p>` });
-const strong = (text) => p(`**${text}**`);
 const heading = (text) => ({
   text: `\n${text}`,
   html: `<h3 style="margin:24px 0 8px;font-size:16px">${escape(text)}</h3>`,
@@ -266,7 +265,25 @@ const lines = (order, { prices = false } = {}) => list(order.lines.map(
     prices ? ` (${dollars(l.lineTotal * 100)})` : ""}`
 ));
 
-const totalsBlock = (order) => {
+// The lines of an order a customer changed, each marked with what the
+// change did to it: "3 × Eggs (1 added)", "0 × Whole Chicken (1
+// removed)". `before` is the edit's record of the order as it was.
+const changedLines = (order, before) => {
+  const was = new Map(before.lines.map((l) => [l.sku, l.qty]));
+  const now = new Set(order.lines.map((l) => l.sku));
+  const delta = (d) => (d > 0 ? ` (${d} added)`
+    : d < 0 ? ` (${-d} removed)` : "");
+
+  return list([
+    ...order.lines.map((l) => `${l.qty} × ${l.label}${
+      delta(l.qty - (was.get(l.sku) || 0))}`),
+    ...before.lines.filter((l) => !now.has(l.sku))
+      .map((l) => `0 × ${l.label}${delta(-l.qty)}`),
+  ]);
+};
+
+// `total` follows the Total line: "(was $94, you paid $7 more)".
+const totalsBlock = (order, { total = "" } = {}) => {
   const t = order.totals;
   const items = [`Subtotal ${dollars(t.subtotal)}`];
 
@@ -281,7 +298,7 @@ const totalsBlock = (order) => {
     items.push(base ? `Delivery fee +${dollars(base)}` : "Delivery fee waived");
     if (t.areaFee) items.push(`Outside-area fee +${dollars(t.areaFee)}`);
   }
-  items.push(`Total ${dollars(t.total)}`);
+  items.push(`Total ${dollars(t.total)}${total ? ` ${total}` : ""}`);
 
   return list(items);
 };
@@ -356,14 +373,12 @@ const orderType = (order) => {
 };
 
 // The pickup window two ways: "Thursday, October 8, morning" for a
-// labelled line, "the morning of Thursday, October 8" in a sentence.
+// labelled line, "the morning on Thursday, October 8" in a sentence.
 const windowPhrase = (order) =>
   `${label(order.fulfilment.date)}, ${order.fulfilment.onfarm.window}`;
 
 const timeOf = (order) =>
-  `the ${order.fulfilment.onfarm.window} of ${label(order.fulfilment.date)}`;
-
-const capital = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  `the ${order.fulfilment.onfarm.window} on ${label(order.fulfilment.date)}`;
 
 // The block that names the order, in every customer email about one.
 const orderDetails = (order) => [
@@ -427,30 +442,21 @@ export const paymentReceived = (order, { orderUrl, links } = {}) => {
   return { subject: title, ...render(title, blocks, links) };
 };
 
-// The farm denied the requested window. `reason` is the farm's own
-// words from the command line, or empty; `pickUrl` signs the customer
-// in to the order page, and is null while the account pages are off,
-// when the customer answers by replying instead.
-export const pickNewTime = (order, { reason = "", pickUrl, links } = {}) => {
-  const title = "One more step: pick a new pickup time";
+// The farm denied the requested window. `pickUrl` signs the customer
+// in to the order page. The farm's reason, if it gave one, stays in
+// the record: James took it out of this email (2026-09-26).
+export const pickNewTime = (order, { pickUrl, links } = {}) => {
+  const title = "Requested pickup time unavailable, please pick again";
   const blocks = [
     p(`Hi ${firstName(order.customer)},`),
-    strong(`${capital(timeOf(order))} doesn't work for us.`),
+    p("We won't be able to accommodate your requested pickup time of " +
+      `${timeOf(order)}.`),
+    p("Please pick another day or window, and we'll be in touch to " +
+      "confirm. If rescheduling isn't an option, you can cancel your " +
+      "order for a full refund."),
   ];
 
-  if (reason) blocks.push(p(`Here's why: _**${reason}**_`));
-  if (pickUrl) {
-    blocks.push(
-      p("Please pick another day or window, and we'll be in touch to " +
-        "confirm. If rescheduling isn't an option, you can cancel your " +
-        "order from the same page for a full refund."),
-      button("Pick a new time", pickUrl)
-    );
-  } else {
-    blocks.push(p("Please reply with another day or window, and we'll be " +
-      "in touch to confirm. If rescheduling isn't an option, reply and " +
-      "we'll cancel your order for a full refund."));
-  }
+  if (pickUrl) blocks.push(button("Reschedule or cancel", pickUrl));
   blocks.push(...orderDetails(order), customerFooter(links));
 
   return { subject: title, ...render(title, blocks, links) };
@@ -490,26 +496,33 @@ export const deliveryReminder = (order, {
 
 // After a customer changes the date, the details or the items of an
 // order. `difference` (cents) is set when the items changed: what they
-// paid more, or what went back, and the new totals.
+// paid more, or what went back, and the new totals. `before` is the
+// edit's record of the order as it was, which marks each line.
 export const orderChanged = (order, {
-  orderUrl, links, difference = null,
+  orderUrl, links, difference = null, before = null,
 } = {}) => {
   const title = "Your order is updated";
   const f = order.fulfilment;
   const notes = instructions(order);
   const blocks = [
-    p(`${firstName(order.customer)}, here's your current order.`),
+    p(`${firstName(order.customer)}, your order has been updated.`),
     orderNumber(order),
-    lines(order),
+    before ? changedLines(order, before) : lines(order),
   ];
 
   if (difference !== null) {
-    blocks.push(totalsBlock(order));
+    const was = before ? [`was ${dollars(before.totals.total)}`] : [];
+
     if (difference > 0) {
-      blocks.push(p(`You paid ${dollars(difference)} more.`));
+      was.push(`you paid ${dollars(difference)} more`);
     } else if (difference < 0) {
-      blocks.push(p(`We refunded ${dollars(-difference)}. It can take a ` +
-        "few days to reach you."));
+      was.push(`you were refunded ${dollars(-difference)}`);
+    }
+    blocks.push(totalsBlock(order, {
+      total: was.length ? `(${was.join(", ")})` : "",
+    }));
+    if (difference < 0) {
+      blocks.push(p("Your refund can take a few days to reach you."));
     }
   }
   blocks.push(...orderType(order));
@@ -567,9 +580,9 @@ export const addressDecision = (customer, decision, { links } = {}) => {
       blocks.push(button("Start a delivery order", links.order));
     }
   } else {
-    blocks.push(p(`We looked at ${where} and it's farther than we can ` +
-      "drive on a Thursday. On-farm pickup and the drop site are " +
-      "open to everyone, with no minimum and no fee."));
+    blocks.push(p(`Unfortunately, ${where} is outside of our delivery ` +
+      "range. On-farm pickup and the drop site are open to everyone, " +
+      "with no minimum and no fee."));
   }
   blocks.push(customerFooter(links));
 
@@ -715,12 +728,12 @@ const confirmOrDeny = (order) => {
     p("To be there at other hours inside that window, give the start on " +
       "the 24-hour clock with --at (two hours from there), and the end " +
       `with --until if it is not two hours later. ${h24(example)} to ${
-        h24(example + 2)}, then ${h24(example)} to ${h24(to)}:`),
+        h24(example + 2)}, then the whole window, ${h24(from)} to ${
+        h24(to)}:`),
     command(`bin/nff orders confirm ${order.id} --at ${example}`),
-    command(`bin/nff orders confirm ${order.id} --at ${example} --until ${to}`),
-    p("Or deny the window and they pick another day or window. What you " +
-      "give as the reason goes to them in that email, in your words:"),
-    command(`bin/nff orders deny ${order.id} --reason "..."`),
+    command(`bin/nff orders confirm ${order.id} --at ${from} --until ${to}`),
+    p("Or deny the window and they pick another day or window:"),
+    command(`bin/nff orders deny ${order.id}`),
   ];
 };
 
@@ -856,6 +869,14 @@ export const farmPickupChanged = (order, { links } = {}) => {
   };
 };
 
+// A customer's own words, set off with the brand green.
+const quote = (text) => ({
+  text: `\n${text}\n`,
+  html: `<blockquote style="margin:16px 0;padding:8px 16px;` +
+    `border-left:3px solid ${GREEN};white-space:pre-wrap">${
+      escape(text)}</blockquote>`,
+});
+
 // A message from the contact page. Reply-to is the writer, so the
 // farm answers by replying. `order` says whether the order number
 // given belongs to the writer's email: true, false, or null for none.
@@ -876,12 +897,7 @@ export const farmContactMessage = (message, { order = null, links } = {}) => {
     p(`${message.name} wrote from the contact page. Reply to this ` +
       "email to answer them."),
     tree([mono(message.email), ...about]),
-    {
-      text: `\n${message.message}\n`,
-      html: `<blockquote style="margin:16px 0;padding:8px 16px;` +
-        `border-left:3px solid ${GREEN};white-space:pre-wrap">${
-          escape(message.message)}</blockquote>`,
-    },
+    quote(message.message),
   ];
   const url = order ? orderAdminUrl(links, message.orderId) : null;
 
@@ -894,74 +910,98 @@ export const farmContactMessage = (message, { order = null, links } = {}) => {
   };
 };
 
-// The account page's notices to the farm: plain, without the card, as
-// they were first written inline in account.mjs.
+// The account page's notices to the farm, on the same card as the
+// rest. `links` gives them their View order button and Admin link.
+
+// "delivery on Thursday, October 8".
+const methodOn = (f) =>
+  `${methodName(f.method).toLowerCase()} on ${label(f.date)}`;
+
+const farmCard = (title, tag, blocks, links, { orderId, customer } = {}) => {
+  const order = orderId ? orderAdminUrl(links, orderId) : null;
+  const who = customer ? customerUrl(links, customer) : null;
+
+  if (order) blocks.push(button("View order", order));
+  if (who) blocks.push(button("View customer", who, { outline: true }));
+  blocks.push(adminFooter(links));
+
+  return { subject: title, ...render(title, blocks, links, { tag }) };
+};
 
 // A customer cancelled a paid order; the farm refunds it by hand.
-export const farmRefundNeeded = (order, customer) => {
+export const farmRefundNeeded = (order, customer, { links } = {}) => {
   const who = customer.name || customer.email;
-  const f = order.fulfilment;
 
-  return {
-    subject: `Refund needed: ${order.id} cancelled by ${customer.email}`,
-    text: `${who} cancelled paid order ${order.id} (${f.method} ${f.date}). ` +
-      `Refund and close it: bin/nff orders cancel ${order.id} --refund`,
-    html: `<p>${who} cancelled paid order ${order.id} (${f.method} ` +
-      `${f.date}). Refund and close it: <code>bin/nff orders cancel ` +
-      `${order.id} --refund</code>.</p>`,
-  };
+  return farmCard(
+    `Refund needed: ${order.id} cancelled by ${customer.email}`,
+    "Refund needed",
+    [
+      p(`${who} cancelled paid order ${order.id}, ${
+        methodOn(order.fulfilment)}. Refund it and close it:`),
+      command(`bin/nff orders cancel ${order.id} --refund`),
+    ],
+    links, { orderId: order.id }
+  );
 };
 
 // A customer's change saved here but not in Square.
-export const farmSquareOutOfSync = (order, customer) => {
-  const f = order.fulfilment;
+export const farmSquareOutOfSync = (order, customer, { links } = {}) =>
+  farmCard(`Square out of sync: ${order.id}`, "Square out of sync", [
+    p(`${customer.name || customer.email} changed order ${order.id}, but ` +
+      "Square could not be updated. Check the fulfilment in Square: " +
+      `${methodOn(order.fulfilment)}.`),
+  ], links, { orderId: order.id });
 
-  return {
-    subject: `Square out of sync: ${order.id}`,
-    text: `${customer.email} changed order ${order.id} but Square could not ` +
-      `be updated. Check the fulfilment in Square: ${f.method} ${f.date}.`,
-    html: `<p>${customer.email} changed order ${order.id} but Square could ` +
-      `not be updated. Check the fulfilment in Square: ${f.method} ` +
-      `${f.date}.</p>`,
-  };
-};
-
-// A return or problem report; `entry` is the request as recorded.
-export const farmReturnRequest = (order, customer, entry) => {
+// A return or problem report; `entry` is the request as recorded, its
+// items by SKU, named here by the order's lines.
+export const farmReturnRequest = (order, customer, entry, {
+  links,
+} = {}) => {
   const who = customer.name || customer.email;
-  const skus = entry.skus.join(", ") || "not specified";
+  const named = (sku) => ((order.lines || []).find((l) => l.sku === sku)
+    || { label: sku }).label;
+  const items = entry.skus.map(named);
 
-  return {
-    subject: `Return request: ${order.id} from ${customer.email}`,
-    text: `${who} asked about a return on ${order.id}.\n\n${entry.reason}` +
-      `\n\nItems: ${skus}\n\nSettle it with: bin/nff returns resolve ` +
-      `${order.id} ${entry.id}`,
-    html: `<p>${escape(who)} asked about a return on ${order.id}.</p>` +
-      `<blockquote>${escape(entry.reason)}</blockquote><p>Items: ${skus}` +
-      `</p><p>Settle it with <code>bin/nff returns resolve ${order.id} ` +
-      `${entry.id}</code>.</p>`,
-  };
+  return farmCard(
+    `Return request: ${order.id} from ${customer.email}`,
+    "Return request",
+    [
+      p(`${who} asked about a return on order ${order.id}.`),
+      quote(entry.reason),
+      p(`Items: ${items.join(", ") || "not specified"}`),
+      p("Settle it with:"),
+      command(`bin/nff returns resolve ${order.id} ${entry.id}`),
+    ],
+    links, { orderId: order.id }
+  );
 };
 
 // A message from the account page, with the customer's details.
+// Reply-to is the customer, so the farm answers by replying.
 export const farmSupport = (customer, { subject, message, orderId }, {
-  accountUrl,
+  links,
 } = {}) => {
   const who = customer.name || customer.email;
+  const about = [mono(customer.email)];
 
-  return {
-    subject: `Support: ${subject || "(no subject)"} from ${customer.email}`,
-    text: `${who} <${customer.email}>` +
-      `${customer.phone ? ` · ${customer.phone}` : ""}` +
-      `${orderId ? `\nOrder ${orderId}` : ""}\n\n${message}\n\n` +
-      `Reply to this email to answer. Account: ${accountUrl}`,
-    html: `<p><strong>${escape(who)}</strong> ` +
-      `&lt;${escape(customer.email)}&gt;${customer.phone
-        ? ` · ${escape(customer.phone)}` : ""}</p>` +
-      `${orderId ? `<p>Order ${escape(orderId)}</p>` : ""}` +
-      `<blockquote>${escape(message).replace(/\n/g, "<br>")}</blockquote>` +
-      "<p>Reply to this email to answer.</p>",
-  };
+  if (customer.phone) about.push(customer.phone);
+  if (orderId) {
+    about.push({
+      text: `Order ${orderId}`, html: `Order ${mono(orderId).html}`,
+    });
+  }
+
+  return farmCard(
+    `Support: ${subject || "(no subject)"} from ${customer.email}`,
+    "Support",
+    [
+      p(`${who} wrote from their account page. Reply to this email to ` +
+        "answer them."),
+      tree(about),
+      quote(message),
+    ],
+    links, { orderId, customer: customer.email }
+  );
 };
 
 // --- Monitoring ----------------------------------------------------
@@ -1010,9 +1050,14 @@ export const farmAlert = (kind, detail = {}, { at, links } = {}) => {
 // this. GOOD is within limits, BAD outside them, PLAIN a number with
 // no limits, just worth knowing.
 const GOOD = "🐣";
-const BAD = "🤮";
+const BAD = "🙈";
 const PLAIN = "🫥";
 const within = (ok) => (ok ? GOOD : BAD);
+// Under the table, set off from it by a blank line in text.
+const legend = p(`${GOOD} within healthy limits, ${BAD} outside limits ` +
+  `and worth looking into, ${PLAIN} a number with no limits but worth ` +
+  "knowing");
+const key = { ...legend, text: `\n${legend.text}` };
 const VITALS = [
   ["placed", "Orders placed", () => PLAIN],
   ["paidByCard", "Paid by card or a wallet", () => PLAIN],
@@ -1042,15 +1087,11 @@ export const farmMorningReport = (stats, pickups, {
   const title = `Morning report: ${label(date)}`;
   const blocks = [
     heading("Vital signs: the last 24 hours"),
-    p("How the site did since yesterday's report. " +
-      `${GOOD} within healthy limits, ${BAD} outside them, ${PLAIN} a ` +
-      "number with no limits, just worth knowing. Anything marked " +
-      `${BAD} is worth a look, and an alert will usually have said so ` +
-      "already."),
     table(["", "Last 24 h", ""],
       VITALS.map(([key, name, judge]) => [name, String(stats[key]),
         judge(stats)]),
       { align: ["left", "right", "center"] }),
+    key,
   ];
 
   if (pickups.length) {

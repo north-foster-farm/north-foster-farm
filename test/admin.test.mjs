@@ -477,12 +477,14 @@ describe("an on-farm pickup window from the CLI", () => {
     assert.equal(denied.question.reason, "We're at the market that morning.");
     assert.equal(denied.question.answeredAt, null);
     assert.equal(sent.length, 1);
-    assert.equal(sent[0].subject, "One more step: pick a new pickup time");
-    assert.match(sent[0].text, /_\*\*We're at the market that morning\.\*\*_/);
-    assert.ok(sent[0].text.includes("cancel your order from the same page " +
-      "for a full refund"), "the refund is offered");
+    assert.equal(sent[0].subject,
+      "Requested pickup time unavailable, please pick again");
+    assert.doesNotMatch(sent[0].text, /at the market/,
+      "the reason stays in the record");
+    assert.ok(sent[0].text.includes("you can cancel your order for a " +
+      "full refund"), "the refund is offered");
 
-    const link = sent[0].text.match(/Pick a new time: (\S+)/)[1];
+    const link = sent[0].text.match(/Reschedule or cancel: (\S+)/)[1];
     const token = new URL(link).searchParams.get("token");
     const week = new Date(now.getTime() + 6 * 24 * 60 * 60_000);
     const v = await verifyToken(stores, token, { now: week });
@@ -499,21 +501,20 @@ describe("an on-farm pickup window from the CLI", () => {
     assert.equal(agreed.question.by, "farm");
   });
 
-  it("deny without accounts asks for a reply, and each deny is its own " +
+  it("deny without accounts has no button, and each deny is its own " +
     "email", async () => {
     const stores = testStores();
     const { sent, opts } = harness();
 
     await saveOrder(stores, requested("A"), now);
     await denyPickup(stores, "A", opts);
-    assert.doesNotMatch(sent[0].text, /Pick a new time:/);
-    assert.match(sent[0].text, /Please reply with another day or window/);
+    assert.doesNotMatch(sent[0].text, /Reschedule or cancel:/);
+    assert.match(sent[0].text, /Please pick another day or window/);
 
     const later = new Date(now.getTime() + 60_000);
 
     await denyPickup(stores, "A", { ...opts, now: later, reason: "Rain." });
     assert.equal(sent.length, 2);
-    assert.match(sent[1].text, /_\*\*Rain\.\*\*_/);
   });
 });
 
