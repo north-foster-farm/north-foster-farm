@@ -87,8 +87,8 @@
 
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, rgba($black, 0.6),
-      rgba($black, 0.4));
+    background: linear-gradient(to top, rgba($black, 0.7),
+      rgba($black, 0.55));
 
     @media (min-width: 992px) {
       background: linear-gradient(to left, rgba($wash, 0.75) 40%,
@@ -197,13 +197,15 @@
     letter-spacing: -0.12rem;
   }
 
-  // The h1, light. It steps up at md and again at lg; on phones it is
+  // The h1, regular weight on a soft shadow, to hold its contrast over
+  // the moving picture. It steps up at md and again at lg; on phones it is
   // narrower, where the sentence would otherwise run four lines.
   .home-hero-sub {
     max-width: 26ch;
     margin: 1.5rem auto 1.25rem;
     font-size: 1.1875rem;
-    font-weight: 300;
+    font-weight: normal;
+    text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     letter-spacing: -0.3px;
     line-height: 1.35;
   }

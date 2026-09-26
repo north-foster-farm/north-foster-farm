@@ -150,7 +150,8 @@ test.describe("home", () => {
       expect(m.wash, `${at} wash`).toMatch(width >= 992
         // The brand green shaded 45% (James, 2026-09-26).
         ? /^linear-gradient\(to left, rgba\(17, 68, 46, 0\.75\) 40%/
-        : /^linear-gradient\(to top, rgba\(7, 6, 6, 0\.6\)/);
+        // Deeper on phones for the h1 (James, 2026-09-26).
+        : /^linear-gradient\(to top, rgba\(7, 6, 6, 0\.7\)/);
 
       const middle = (m.room.left + m.room.right) / 2;
 
