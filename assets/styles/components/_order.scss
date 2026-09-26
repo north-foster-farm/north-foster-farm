@@ -643,6 +643,14 @@
       padding: 0 0.325rem;
       color: var(--bs-breadcrumb-divider-color);
     }
+
+    // A phone's floating cart has about 290 to 305px for them, and
+    // lit they need 303: closer dots keep them on one line.
+    @media (max-width: 413.98px) {
+      li + li::before {
+        padding: 0 0.1875rem;
+      }
+    }
   }
 
   .order-badge {
