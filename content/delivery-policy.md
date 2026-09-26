@@ -13,7 +13,7 @@ This policy covers delivery to an address you choose. Its last
 sections, on pickup, changes, cancellations and refunds, apply to
 every order.
 
-{{< zip-check "policy" >}}
+{{< delivery-cta href="#map-policy" >}}
 
 ## When we deliver
 
