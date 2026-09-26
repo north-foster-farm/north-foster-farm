@@ -488,8 +488,12 @@ export const deliveryReminder = (order, {
   return { subject: title, ...render(title, blocks, links) };
 };
 
-// After a customer changes the date or details of an order.
-export const orderChanged = (order, { orderUrl, links } = {}) => {
+// After a customer changes the date, the details or the items of an
+// order. `difference` (cents) is set when the items changed: what they
+// paid more, or what went back, and the new totals.
+export const orderChanged = (order, {
+  orderUrl, links, difference = null,
+} = {}) => {
   const title = "Your order is updated";
   const f = order.fulfilment;
   const notes = instructions(order);
@@ -497,8 +501,18 @@ export const orderChanged = (order, { orderUrl, links } = {}) => {
     p(`${firstName(order.customer)}, here's your current order.`),
     orderNumber(order),
     lines(order),
-    ...orderType(order),
   ];
+
+  if (difference !== null) {
+    blocks.push(totalsBlock(order));
+    if (difference > 0) {
+      blocks.push(p(`You paid ${dollars(difference)} more.`));
+    } else if (difference < 0) {
+      blocks.push(p(`We refunded ${dollars(-difference)}. It can take a ` +
+        "few days to reach you."));
+    }
+  }
+  blocks.push(...orderType(order));
 
   if (f.method === "delivery" && f.delivery) {
     blocks.push(p(`Where will we find your cooler? _**${
@@ -770,6 +784,53 @@ export const farmOrderPlaced = (order, { squareUrl, links } = {}) => {
 
   return {
     subject: title, ...render(title, blocks, links, { tag: "New order" }),
+  };
+};
+
+// The customer changed what is in a paid order, or how they get it,
+// from their account page. `before` is the edit's record of the order
+// as it was; `difference` what they paid more (or got back, below 0).
+export const farmOrderChanged = (order, {
+  before, difference = 0, links,
+} = {}) => {
+  const c = order.customer;
+  const title = `Order changed: ${order.id}, now ${
+    dollars(order.totals.total)}`;
+  const url = orderAdminUrl(links, order.id);
+  const blocks = [
+    p(`${c.name || c.email} changed order ${order.id}.`),
+    heading("Now"),
+    lines(order, { prices: true }),
+    totalsBlock(order),
+    ...farmOrderType(order),
+  ];
+
+  if (before) {
+    blocks.push(
+      heading("Before"),
+      lines({ lines: before.lines }, { prices: true }),
+      p(`Total ${dollars(before.totals.total)}, ${
+        methodName(before.method).toLowerCase()}`)
+    );
+  }
+  if (difference > 0) {
+    blocks.push(p(`They paid **${dollars(difference)} more**.`));
+  } else if (difference < 0) {
+    blocks.push(p(`**${dollars(-difference)} refunded** to them.`));
+  }
+  if (needsAgreement(order)) {
+    blocks.push(
+      p("Pickup time: **Requested, not yet confirmed**"),
+      ...confirmOrDeny(order)
+    );
+  }
+  blocks.push(p(`Paid: **${paymentPhrase(order)}**`));
+  if (url) blocks.push(button("View order", url));
+  blocks.push(adminFooter(links));
+
+  return {
+    subject: title,
+    ...render(title, blocks, links, { tag: "Order changed" }),
   };
 };
 

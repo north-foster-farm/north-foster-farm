@@ -37,15 +37,18 @@ import { alert } from "./health.mjs";
 import { retry } from "./http.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
+import { notifyFarm, sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./paypal.mjs";
 import {
   amendOrder, deleteCheckout, getCheckout, getOrder, moneyPatch, paidTotal,
   paymentRef, paymentsOf, refundedTotal, refundsOf, saveCheckout,
 } from "./records.mjs";
+import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import { DECLINE_MESSAGES as SQUARE_DECLINES } from "./square.mjs";
 import { adjust, checkLines } from "./stock.mjs";
+import { farmOrderChanged, orderChanged } from "./templates.mjs";
 
 const index = indexCatalog(catalog);
 
@@ -367,10 +370,23 @@ export const applyEdit = async (stores, plan, {
 
   order = await amendOrder(stores, id, markEdit(order, key, { state: "done" }),
     "edit.done", now);
-
-  return syncFulfilment(stores, order, change, {
+  order = await syncFulfilment(stores, order, change, {
     changeOrderId, k, square, env, fetchImpl, mail, now,
   });
+
+  // Keyed by the edit, so a retry or the jobs never send twice.
+  const links = mailLinks(env);
+
+  order = await sendForOrder(stores, order, `orderChanged-${key}`,
+    orderChanged(order, {
+      orderUrl: orderUrlFor(env, id), links, difference: change.difference,
+    }), { mail, env, now });
+
+  return notifyFarm(stores, order, `farmOrderChanged-${key}`,
+    farmOrderChanged(order, {
+      before: editOf(order, key).before, difference: change.difference,
+      links,
+    }), { mail, env, now });
 };
 
 // The difference by Venmo, in the new order's two steps. The first

@@ -228,6 +228,34 @@ describe("editOrder", () => {
     assert.ok(!calls.some((c) => c[0] === "changeOrder"));
   });
 
+  it("tells the customer and the farm once, with the money", async () => {
+    const { stores, id } = await placed();
+    const sent = [];
+    const mail = async (m) => {
+      sent.push(m);
+
+      return { id: `m${sent.length}`, driver: "test" };
+    };
+    const body = { idempotencyKey: editKey(), lines: [{ sku: SKU, qty: 1 }] };
+    const square = fakeSquare().square;
+    const first = await edit(stores, id, body, square, { mail });
+
+    await editOrder(stores, customer, id, {
+      ...body, claimedTotal: first.order.totals.total,
+    }, { now, env, square, mail, ...quiet });
+
+    const back = 5500 - first.order.totals.total;
+    const [toCustomer, toFarm] = sent;
+
+    assert.equal(sent.length, 2);
+    assert.equal(toCustomer.to, "pat@example.com");
+    assert.equal(toCustomer.subject, "Your order is updated");
+    assert.match(toCustomer.text, new RegExp(`refunded \\$${back / 100}`));
+    assert.deepEqual(toFarm.to, ["farm@example.com"]);
+    assert.match(toFarm.subject, new RegExp(`^Order changed: ${id}`));
+    assert.match(toFarm.text, /Before/);
+  });
+
   it("leaves the order as it was when the card is declined", async () => {
     const { stores, id } = await placed();
 
