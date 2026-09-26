@@ -16,9 +16,10 @@ webhook, and for Venmo `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`,
 emails carry no links to the account pages and the deny email asks
 for a reply; without the PayPal pair the Venmo button does not
 appear; without either processor the payment section says online
-payment is unavailable. On this machine, `.env.staging` beside
-`.env` with the same sandbox token and location, `MAIL_DRIVER=outbox`,
-`ACCOUNTS_ENABLED=true` and `SITE_URL` set to the staging address, so
+payment is unavailable. On this machine, `.env.staging` holds every
+key in `.env.sample`: the same sandbox token and location, the Netlify
+pair, `MAIL_DRIVER=outbox`, `ACCOUNTS_ENABLED=true` and `SITE_URL`
+set to the staging address, so
 `bin/nff --staging` meets the same sandbox and its emails land in the
 toolbar's inbox; a production location id there makes every Square
 update from the CLI fail with "Immutable field cannot be changed".

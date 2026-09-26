@@ -539,18 +539,23 @@ bundle) asks `/api/me` once per five minutes, cached in
 ## CLI
 
 `bin/nff` is the farm's admin surface; there are no admin pages. It
-reads `.env` from the repo root: `NETLIFY_SITE_ID` and
-`NETLIFY_AUTH_TOKEN` (a personal access token) to reach the site's
-Blobs stores, the production Square token and location, the mail
-variables (`MAIL_DRIVER=resend`, `RESEND_API_KEY`, `MAIL_FROM`,
+reads one env file from the repo root, each complete, with the keys
+`.env.sample` names. `--production` reads `.env.production`:
+`NETLIFY_SITE_ID` and `NETLIFY_AUTH_TOKEN` (a personal access token)
+to reach the site's Blobs stores, the production Square token and
+location, the live PayPal pair, the mail variables
+(`MAIL_DRIVER=resend`, `RESEND_API_KEY`, `MAIL_FROM`,
 `MAIL_REPLY_TO`), `ACCOUNTS_ENABLED=true` and `SITE_URL`, so a
 confirm or a deny sent from here reads as one sent from the site.
+`--staging` and `--preview` read `.env.staging` or `.env.preview`
+(the sandbox token and its location, `MAIL_DRIVER=outbox`, that
+deploy's `SITE_URL`). With no flag it reads `.env`, linked locally
+to `.env.development`, and acts on the `dev-` stores: only
+`--production` reaches production's records, whatever a file holds.
+The commands below act on production when given `--production`.
 Without the Netlify pair it runs against memory and says so; without
 a mail driver it logs every email to the terminal instead of sending
-it, and says that too. `--staging` and `--preview` read
-`.env.staging` or `.env.preview` first (the sandbox token and its
-location, `MAIL_DRIVER=outbox`, that deploy's `SITE_URL`), then
-`.env` for the rest. `bin/nff` with no arguments prints the commands:
+it, and says that too. `bin/nff` with no arguments prints the commands:
 customers (list, show, set, delete), address (approve, deny), orders
 (list with `--open`, `--status`, `--email`; show; confirm `[<id>]
 [--at H] [--until H]`, where no id prints how many pickups wait and
@@ -669,7 +674,7 @@ issue #112 (the Venmo matching problem) closes with it.
 `npm run start:functions` runs `netlify dev`, which starts the Hugo
 server and proxies the functions at <http://localhost:8888>. Put the
 Square sandbox credentials, `SQUARE_APPLICATION_ID` and, for Venmo,
-the PayPal sandbox pair in `.env` (ignored). Without them
+the PayPal sandbox pair in `.env.development` (ignored). Without them
 `/api/checkout/config` answers with nulls, the page says online
 payment is unavailable, and `/api/orders` answers `502` after
 validation, which is enough to exercise the form. The staging deploy
@@ -710,7 +715,8 @@ to the function log; Square's receipt still reaches the customer.
 3. **Apple Pay.** Square's domain-association file under
    `static/.well-known/` and the domain registered in the Square
    developer dashboard, sandbox and production.
-4. **Nothing left unpaid.** `bin/nff orders list --status=submitted`
+4. **Nothing left unpaid.** `bin/nff --production orders list
+   --status=submitted`
    must print "No orders." before the deploy: the code that would
    have chased those is gone, and the `legacy.unpaid` invariant will
    alert on any that remain. Settle them by hand first.

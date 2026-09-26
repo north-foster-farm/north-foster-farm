@@ -3,6 +3,7 @@
 *.bak
 *.env
 .env.*
+!.env.sample
 *.log
 .hugo_build.lock
 hugo_stats.json

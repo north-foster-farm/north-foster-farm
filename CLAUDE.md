@@ -8,6 +8,12 @@ North Foster Farm website - a static site built with Hugo (v0.164.0) and hosted 
 
 ## Development Commands
 
+Env files: `.env.sample` (tracked) names every key, without values.
+`.env.development`, `.env.staging` and `.env.production` (ignored)
+each hold all of them; `.env` is a symlink to `.env.development`.
+`bin/nff` reads `.env`; `--production` and `--staging` read their own
+file only. Never read, print or copy any of them.
+
 ```bash
 # Install dependencies (npm, not yarn -- package-lock.json is the
 # lockfile and Netlify picks its package manager from it)

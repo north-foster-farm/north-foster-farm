@@ -5,7 +5,7 @@
 // The outbox is read through /api/staging/outbox when STAGING_TOKEN is
 // in the environment. Without it, it is read straight from the jobs
 // store with the CLI's own credentials (NETLIFY_SITE_ID and
-// NETLIFY_AUTH_TOKEN in `.env`), the same way `bin/nff --staging`
+// NETLIFY_AUTH_TOKEN in `.env.staging`), the same way `bin/nff --staging`
 // reaches the orders. Nothing here can reach production: the store
 // names carry the branch-deploy prefix and the CLI runs with
 // --staging.
@@ -39,9 +39,9 @@ const readEnv = (file) => {
   return out;
 };
 
-// The process's own variables win, then .env.staging, then .env.
+// The process's own variables win, then .env.staging, which is
+// complete: .env is the developer's own and never read here.
 const env = {
-  ...readEnv(join(root, ".env")),
   ...readEnv(join(root, ".env.staging")),
   ...process.env,
   SITE_CONTEXT: "branch-deploy",
@@ -55,7 +55,7 @@ export const backOffice = () => ({
     || !!(env.NETLIFY_SITE_ID && env.NETLIFY_AUTH_TOKEN),
 });
 
-export const BACK_OFFICE_MISSING = "Needs .env and .env.staging in the " +
+export const BACK_OFFICE_MISSING = "Needs .env.staging in the " +
   "checkout root (the bin/nff --staging credentials), or STAGING_TOKEN " +
   "for the outbox.";
 

@@ -29,7 +29,7 @@ under the field says so. Everything is in `lib/news.mjs`.
 ## Asking an old list to opt in again
 
 ```
-bin/nff audience invite contacts.csv [--dry-run]
+bin/nff --production audience invite contacts.csv [--dry-run]
 ```
 
 The CSV has a header naming email, first and last (any order, any
@@ -46,7 +46,7 @@ sending keys cannot touch audiences). On Netlify: `RESEND_AUDIENCE_ID`
 and `RESEND_AUDIENCE_KEY` (falls back to `RESEND_API_KEY`).
 
 ```
-bin/nff audience sync [--dry-run]
+bin/nff --production audience sync [--dry-run]
 ```
 
 runs the sync, and the jobs run does it once a day from 05:00. The

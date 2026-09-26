@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // The farm's command line for orders, customers, stock and sign-in.
-// Reads .env from the repo root, after .env.staging or .env.preview
-// when that flag is given. Off Netlify the records live in the site's
-// Blobs stores only when NETLIFY_SITE_ID and NETLIFY_AUTH_TOKEN are
-// set; otherwise everything is in memory and lost on exit, which the
-// banner says.
+// Reads one env file from the repo root: .env (linked to
+// .env.development) with no flag, or .env.production, .env.staging or
+// .env.preview when that flag is given. Off Netlify the records live
+// in the site's Blobs stores only when NETLIFY_SITE_ID and
+// NETLIFY_AUTH_TOKEN are set; otherwise everything is in memory and
+// lost on exit, which the banner says.
 
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -49,20 +50,25 @@ const USAGE = `Usage:
   bin/nff jobs history [--n=20]       the last runs: errors, invariants
   bin/nff health                      what /api/health would answer
 
-  --staging, --preview                act on that deploy context's
-                                      data instead of production's`;
+  --production, --staging, --preview  act on that deploy context's
+                                      data; with none, on the dev
+                                      stores, never production's`;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-// --staging and --preview act on that deploy's data and processors,
-// never production's: `.env.staging` or `.env.preview` (the sandbox
-// token and its location, MAIL_DRIVER=outbox, that deploy's SITE_URL)
-// is read first, and `.env` fills in what it leaves out.
-const context = process.argv.includes("--staging") ? "staging"
-  : process.argv.includes("--preview") ? "preview" : null;
+// Each env file is complete (.env.sample names every key), so a flag
+// reads its own file and nothing else: production's keys never mix
+// with the sandbox's. The deploy context is set by the flag, not the
+// file, so no flag can reach production's stores by accident.
+const CONTEXTS = {
+  production: "production",
+  staging: "branch-deploy",
+  preview: "deploy-preview",
+};
+const context = Object.keys(CONTEXTS)
+  .find((name) => process.argv.includes(`--${name}`)) || null;
 
-if (context) loadEnv(join(root, `.env.${context}`));
-loadEnv(join(root, ".env"));
+loadEnv(join(root, context ? `.env.${context}` : ".env"));
 
 const [
   { default: terms },
@@ -88,15 +94,16 @@ const [
   import("../netlify/functions/lib/records.mjs"),
 ]);
 
-if (context === "staging") process.env.SITE_CONTEXT = "branch-deploy";
-if (context === "preview") process.env.SITE_CONTEXT = "deploy-preview";
+process.env.SITE_CONTEXT = context ? CONTEXTS[context] : "dev";
+if (context === "production") console.error("[nff] Production.");
 
 // Emails from here go by MAIL_DRIVER, as on Netlify. Unset, every
 // message is logged to this terminal and nobody receives it, which
 // is worth hearing before a confirm or a deny.
 if (!["resend", "outbox", "file"].includes(process.env.MAIL_DRIVER || "")) {
   console.error("Mail: MAIL_DRIVER is not set, so emails are logged here"
-    + " and not sent. Set it in .env (resend) or .env.staging (outbox).");
+    + " and not sent. Set it in .env.production (resend) or"
+    + " .env.staging (outbox).");
 }
 
 const stores = makeStores();

@@ -41,6 +41,21 @@ mostly — use `npm run start:bind`. It binds to this machine's LAN IP
 and expects `northfosterfarm.local` and `www.northfosterfarm.local` in
 `/etc/hosts`; it prints the exact lines to add if they are missing.
 
+### Environment files
+
+`.env.sample` names every key the functions, `bin/nff` and the e2e
+suite read. Keep three ignored copies with values, each complete:
+`.env.development`, `.env.staging` and `.env.production`. Link `.env`
+to the one you work in, normally development:
+
+```bash
+ln -sf .env.development .env
+```
+
+`bin/nff` reads `.env` and acts on the `dev-` stores. `bin/nff
+--production` and `bin/nff --staging` read their own file and never
+`.env`, so reaching production takes the flag, not a relink.
+
 ## Checks
 
 ```bash

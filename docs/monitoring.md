@@ -153,7 +153,7 @@ of its work, through the same channel.
 `bin/nff jobs history` prints the last runs, newest first, with the
 counts and any errors or violations, from the ledger in the jobs
 store (`run/<time>`, two days kept). It needs the Netlify Blobs
-variables in `.env`.
+variables in `.env.production` and the `--production` flag.
 
 ## The daily emails
 

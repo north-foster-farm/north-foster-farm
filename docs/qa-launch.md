@@ -5,7 +5,7 @@
 ```sh
 npm install
 npx playwright install chromium   # only if chromium-1234 is not cached
-# bin/nff --staging needs .env and .env.staging in the checkout root
+# bin/nff --staging needs .env.staging in the checkout root
 npm run e2e                                   # everything, both projects
 npm run e2e -- --grep @regression             # the regression list
 npm run e2e -- --project=desktop e2e/pricing.spec.mjs
@@ -1606,9 +1606,9 @@ Manual.
 Manual: James only; it reads production.
 
 - **Scenario:** `docs/order-form.md`, "Before it ships", item 4.
-- **Setup:** Production `.env`.
+- **Setup:** `.env.production`.
 - **Test:**
-  1. `bin/nff orders list --status=submitted`
+  1. `bin/nff --production orders list --status=submitted`
 - **Assert:** "No orders."
 - **Teardown:** None.
 
