@@ -8,8 +8,7 @@
     <span class="site-cart-icon" aria-hidden="true">{{ partial "svg.html" "icons/cart" }}</span>
     {{- partial "header/cart-badge.html" -}}
   </button>
-  <div class="dropdown-menu dropdown-menu-end site-mini-cart">
-    <p class="site-mini-cart-title">Your cart</p>
+  <div class="dropdown-menu dropdown-menu-end site-mini-cart" role="group" aria-label="Your cart">
     <ul class="site-mini-cart-lines list-unstyled" data-mini-cart-lines></ul>
     {{/* One line, which mini-cart.js copies for each; here, not in
          the script, so the build keeps its classes. */}}
@@ -17,10 +16,9 @@
       <li class="site-mini-cart-line"><span class="site-mini-cart-name"><b data-mini-cart-group></b> <span data-mini-cart-label></span></span><span class="site-mini-cart-qty" data-mini-cart-qty></span><span class="site-mini-cart-price" data-mini-cart-price></span></li>
     </template>
     <p class="site-mini-cart-subtotal"><span>Subtotal</span> <span data-mini-cart-subtotal></span></p>
-    <p class="site-mini-cart-note">Delivery and any discounts are worked out at checkout.</p>
     <div class="site-mini-cart-actions">
       <a class="btn btn-primary" href="{{ relURL "order/" }}#details">Check out</a>
-      <a class="site-mini-cart-edit" href="{{ relURL "order/" }}">Change your order</a>
+      <a class="btn btn-outline-primary" href="{{ relURL "order/" }}">Change your order</a>
     </div>
   </div>
 </div>
