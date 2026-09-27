@@ -1,11 +1,12 @@
 {{ define "main" }}
   {{/* Ten posts a page, grouped under their year, with the Farm news
-       sign-up after each page's ten. The first page shows its first
-       post, the newest, large above the rest. The head's canonical
-       link has already made the pager from every post, so the lead is
-       split off here rather than left out of it. scripts/news/ fetches
-       the next page as the reader nears the end and appends its posts
-       and sign-up, joining a year that runs across the page break; the
+       sign-up once, after the first page's ten. The first page shows
+       its first post, the newest, large above the rest. The head's
+       canonical link has already made the pager from every post, so
+       the lead is split off here rather than left out of it.
+       scripts/news/ fetches the next page as the reader nears the end
+       and appends its posts, joining a year that runs across the page
+       break; the
        pager links stay for anyone without the script. */}}
   {{ $pager := .Paginate .Pages }}
   {{ $pages := $pager.Pages }}
@@ -31,7 +32,7 @@
                     {{ partial "news/row.html" . }}
                   {{ end }}
                 </ol>
-                {{ if eq $i $last }}
+                {{ if and (eq $i $last) (eq $pager.PageNumber 1) }}
                   <aside class="news-inline-signup" aria-labelledby="news-signup-{{ $pager.PageNumber }}">
                     <h3 class="news-inline-signup-title" id="news-signup-{{ $pager.PageNumber }}">Farm news and updates, wrote good by a real farmer</h3>
                     {{ partial "news-signup.html" (dict "id" (printf "news-page-%d" $pager.PageNumber)) }}
