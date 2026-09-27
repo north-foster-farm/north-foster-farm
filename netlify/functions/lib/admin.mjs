@@ -378,14 +378,27 @@ export const denyPickup = async (stores, id, {
     { mail, env, now });
 };
 
+// Why a delivery could not be left. The fee follows the cause, not the
+// bare miss (James, C1): a customer's miss keeps it, the farm's or the
+// weather's waives it.
+export const ATTEMPT_CAUSES = ["customer", "farm", "weather"];
+
 // The farm tried to deliver and could not: no cooler, nobody reached
-// (James, F1). From then on the delivery fee stays: a refund, a
-// cancellation or a switch to pickup hands back everything else.
-// Marking twice keeps the first. -> the order.
-export const markAttempted = async (stores, id, { now = new Date() } = {}) => {
+// (James, F1). The attempt records its cause and the fee kept, in
+// cents: 0 when waived, so a refund, a cancellation, a switch to
+// pickup and every email read one fact. A customer's miss can be
+// waived anyway, with the reason, at the same moment (C2). Marking
+// twice keeps the first. -> the order.
+export const markAttempted = async (stores, id, {
+  cause, waive = "", now = new Date(),
+} = {}) => {
   const order = need(await getOrder(stores, id), "order");
 
   if (order.attempted) return order;
+  if (!ATTEMPT_CAUSES.includes(cause)) {
+    throw new Error(`Why did the delivery fail? One of: ${
+      ATTEMPT_CAUSES.join(", ")}.`);
+  }
   if (order.fulfilment.method !== "delivery") {
     throw new Error("Only a delivery can be attempted.");
   }
@@ -393,8 +406,17 @@ export const markAttempted = async (stores, id, { now = new Date() } = {}) => {
     throw new Error(`This order is ${order.status}.`);
   }
 
+  const note = waive.trim();
+  const waived = cause !== "customer" || !!note;
+
   return amendOrder(stores, id, {
-    attempted: { at: now.toISOString(), fee: order.totals.deliveryFee || 0 },
+    attempted: {
+      at: now.toISOString(),
+      cause,
+      fee: waived ? 0 : order.totals.deliveryFee || 0,
+      waived,
+      note,
+    },
   }, "delivery.attempted", now);
 };
 

@@ -12,7 +12,7 @@ import { verifyToken } from "../netlify/functions/lib/auth.mjs";
 import { requestReturn } from "../netlify/functions/lib/account.mjs";
 import { announcePaid } from "../netlify/functions/lib/payments.mjs";
 import {
-  getCustomer, getOrder, openOrders, saveCustomer, saveOrder,
+  getCustomer, getOrder, keptFee, openOrders, saveCustomer, saveOrder,
 } from "../netlify/functions/lib/records.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
@@ -638,25 +638,65 @@ describe("an attempted delivery keeps its fee", () => {
   it("marks a delivery once, and nothing else", async () => {
     const stores = testStores();
 
-    await saveOrder(stores, delivered("A"), now);
-    const a = await markAttempted(stores, "A", { now });
+    const cause = "customer";
 
-    assert.deepEqual(a.attempted, { at: now.toISOString(), fee: 500 });
+    await saveOrder(stores, delivered("A"), now);
+    const a = await markAttempted(stores, "A", { cause, now });
+
+    assert.deepEqual(a.attempted, {
+      at: now.toISOString(), cause, fee: 500, waived: false, note: "",
+    });
 
     const later = new Date(now.getTime() + 7 * 86_400_000);
+    const again = await markAttempted(stores, "A",
+      { cause: "farm", now: later });
 
-    assert.equal((await markAttempted(stores, "A", { now: later }))
-      .attempted.at, now.toISOString());
+    assert.deepEqual(again.attempted, a.attempted);
 
     await saveOrder(stores, order("B"), now);
-    await assert.rejects(markAttempted(stores, "B", { now }),
+    await assert.rejects(markAttempted(stores, "B", { cause, now }),
       /Only a delivery/);
     await saveOrder(stores, delivered("C"), now);
     await fulfilOrder(stores, "C", { now });
-    await assert.rejects(markAttempted(stores, "C", { now }),
+    await assert.rejects(markAttempted(stores, "C", { cause, now }),
       /This order is fulfilled/);
-    await assert.rejects(markAttempted(stores, "Z", { now }),
+    await assert.rejects(markAttempted(stores, "Z", { cause, now }),
       /No such order/);
+    await saveOrder(stores, delivered("D"), now);
+    await assert.rejects(markAttempted(stores, "D", { now }),
+      /One of: customer, farm, weather/);
+    await assert.rejects(markAttempted(stores, "D", { cause: "dog", now }),
+      /Why did the delivery fail/);
+    assert.equal((await getOrder(stores, "D")).attempted, undefined);
+  });
+
+  it("waives the fee for the farm, the weather, or when told", async () => {
+    const stores = testStores();
+    const { calls, opts } = harness();
+
+    for (const id of ["A", "B", "C"]) {
+      await saveOrder(stores, delivered(id), now);
+    }
+
+    const farm = await markAttempted(stores, "A", { cause: "farm", now });
+    const weather = await markAttempted(stores, "B",
+      { cause: "weather", now });
+    const told = await markAttempted(stores, "C",
+      { cause: "customer", waive: "  first order  ", now });
+
+    assert.deepEqual(farm.attempted, {
+      at: now.toISOString(), cause: "farm", fee: 0, waived: true, note: "",
+    });
+    assert.equal(weather.attempted.fee, 0);
+    assert.deepEqual(told.attempted, {
+      at: now.toISOString(), cause: "customer", fee: 0, waived: true,
+      note: "first order",
+    });
+    assert.equal(keptFee(told), 0);
+
+    // A waived fee goes back with the rest.
+    await refundOrder(stores, "C", opts);
+    assert.deepEqual(calls, [["square.refund", "PAY-C", 1900]]);
   });
 
   it("refunds everything but the fee", async () => {
@@ -664,7 +704,7 @@ describe("an attempted delivery keeps its fee", () => {
     const { calls, opts } = harness();
 
     await saveOrder(stores, delivered("A"), now);
-    await markAttempted(stores, "A", { now });
+    await markAttempted(stores, "A", { cause: "customer", now });
     await assert.rejects(refundOrder(stores, "A", { ...opts, amount: 1500 }),
       /between \$0\.01 and \$14\./);
 
@@ -686,7 +726,7 @@ describe("an attempted delivery keeps its fee", () => {
     const { sent, calls, opts } = harness();
 
     await saveOrder(stores, delivered("A"), now);
-    await markAttempted(stores, "A", { now });
+    await markAttempted(stores, "A", { cause: "customer", now });
 
     const c = await cancelOrder(stores, "A", { ...opts, refund: true });
 
@@ -697,7 +737,7 @@ describe("an attempted delivery keeps its fee", () => {
 
     // Only the fee left: the cancel goes through and refunds nothing.
     await saveOrder(stores, delivered("B"), now);
-    await markAttempted(stores, "B", { now });
+    await markAttempted(stores, "B", { cause: "customer", now });
     await refundOrder(stores, "B", opts);
     await cancelOrder(stores, "B", { ...opts, refund: true });
     assert.deepEqual(calls.at(-1), ["fulfilment", "SQO"]);

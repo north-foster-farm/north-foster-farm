@@ -35,8 +35,11 @@ const USAGE = `Usage:
                                       money back without cancelling:
                                       card and wallets through Square,
                                       Venmo through PayPal
-  bin/nff orders attempted <id>       a delivery we could not leave: its
-                                      fee stays through any refund
+  bin/nff orders attempted <id> <customer|farm|weather> [--waive "why"]
+                                      a delivery we could not leave: a
+                                      customer's miss keeps the fee
+                                      through any refund unless waived;
+                                      the farm's or the weather's waives it
   bin/nff orders fulfil <id>
   bin/nff orders delete <id>
   bin/nff returns resolve <id> <returnId> [note...]
@@ -131,7 +134,7 @@ const words = [];
 
 // Flags that take a value: `--reason "..."` as well as `--reason=...`.
 const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
-  "to"];
+  "to", "waive"];
 const args = process.argv.slice(2);
 
 for (let i = 0; i < args.length; i += 1) {
@@ -340,12 +343,19 @@ const run = async () => {
       - refundedTotal(before))} of ${paymentPhrase(refunded)}.`);
   }
   case "orders attempted": {
-    const marked = await admin.markAttempted(stores, rest[0]);
+    if (flags.waive === true) throw new Error("--waive needs a reason.");
+
+    const marked = await admin.markAttempted(stores, rest[0], {
+      cause: rest[1],
+      waive: typeof flags.waive === "string" ? flags.waive : "",
+    });
+    const { at, cause, fee } = marked.attempted;
 
     out(summaryLine(marked));
 
-    return out(`Attempted ${marked.attempted.at}; the delivery fee of ${
-      dollars(marked.attempted.fee)} stays with the farm.`);
+    return out(`Attempted ${at} (${cause || "no cause recorded"}); ${fee
+      ? `the delivery fee of ${dollars(fee)} stays with the farm.`
+      : "the delivery fee is waived."}`);
   }
   case "orders fulfil":
   case "orders fulfill":

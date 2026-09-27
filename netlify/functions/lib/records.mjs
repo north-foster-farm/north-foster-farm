@@ -111,7 +111,8 @@ export const refundedTotal = (order) => sum(refundsOf(order));
 // The delivery fee an attempted delivery keeps: "the delivery fee is
 // not refundable once we attempt the delivery" (James, F1). The farm
 // marks the attempt (`bin/nff orders attempted`), which records the
-// fee as it stood, so a later switch to pickup cannot take it off.
+// fee as it stood, or 0 when waived (C1, C2), so a later switch to
+// pickup cannot take it off.
 export const keptFee = (order) =>
   (order && order.attempted && order.attempted.fee) || 0;
 
