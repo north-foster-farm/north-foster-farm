@@ -8,8 +8,8 @@
 // - A pin, or its line in the key, opens a card with the details.
 //   Pins that share a ZIP stack there and spread to be picked.
 // - It zooms with its buttons, a pinch (a trackpad's too), a double
-//   click or ctrl and the wheel, and pans with a drag once zoomed. At
-//   full size a swipe still scrolls the page.
+//   click (not a double tap) or ctrl and the wheel, and pans with a
+//   drag once zoomed. At full size a swipe still scrolls the page.
 //
 // Wording of the labels is a draft for James (#138).
 
@@ -361,8 +361,15 @@ const wire = (map) => {
     zoomAbout(Math.exp(-e.deltaY * 0.01), p.x, p.y, false);
   }, { passive: false });
 
+  // A double tap is two taps: picking towns quickly must not zoom.
+  let touched = false;
+
+  svg.addEventListener("pointerdown", (e) => {
+    touched = e.pointerType === "touch";
+  });
   svg.addEventListener("dblclick", (e) => {
     e.preventDefault();
+    if (touched) return;
     const p = toMap(e.clientX, e.clientY);
 
     zoomAbout(2, p.x, p.y, true);
