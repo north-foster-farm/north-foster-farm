@@ -1,6 +1,24 @@
 // "Do we deliver to you?" on the home page and the delivery policy:
-// a plain field that answers as it is typed; the answer takes the tone the
-// account page uses for an address (ok, wait, no).
+// the heading with a small floating-label field beside it, and an
+// answer under both that takes the tone the account page uses for an
+// address (ok, wait, no). The field drops under the heading when the
+// two don't fit on one line; it stays small.
+
+.zip-check-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: center;
+}
+
+.zip-check-heading {
+  flex: 1 1 auto;
+}
+
+// Room for "ZIP code" as the label and five digits typed.
+.zip-check-field {
+  flex: 0 0 8.5rem;
+}
 
 .zip-check-result {
   &:empty {

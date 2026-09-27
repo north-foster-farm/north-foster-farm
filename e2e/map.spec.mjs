@@ -348,7 +348,7 @@ test.describe("map (#138)", () => {
     async ({ page }) => {
       await page.goto(HOME.path);
       await expect(page.locator(HOME.input))
-        .toHaveAttribute("autocomplete", "off");
+        .toHaveAttribute("autocomplete", "postal-code");
       await expect(dropPin(page)).toBeHidden();
 
       for (const [zip, tone, label] of [
@@ -570,7 +570,7 @@ test.describe("map (#138)", () => {
 
     const input = page.locator("[data-zip-check] input").first();
 
-    await expect(input).toHaveAttribute("autocomplete", "off");
+    await expect(input).toHaveAttribute("autocomplete", "postal-code");
     await input.fill("02857");
     await input.press("Enter");
     await expect(dropPin(page)).toBeVisible();

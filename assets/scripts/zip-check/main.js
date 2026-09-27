@@ -56,6 +56,7 @@ const wire = (form) => {
   const area = JSON.parse(form.querySelector("[data-zip-area]").textContent);
   const input = form.querySelector("[name='zip']");
   const result = form.querySelector("[data-zip-result]");
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)");
   const announce = (zip, tone) => {
     document.dispatchEvent(new CustomEvent("nff:zip", {
       detail: { zip, tone },
@@ -64,6 +65,13 @@ const wire = (form) => {
   const show = () => {
     const a = answerFor(input.value, area);
 
+    // A new answer fades in; the same one again stays put.
+    if (result.textContent !== a.text && !still.matches) {
+      result.animate([
+        { opacity: 0, transform: "translateY(-0.25rem)" },
+        { opacity: 1, transform: "none" },
+      ], { duration: 400, easing: "ease-out" });
+    }
     result.textContent = a.text;
     result.dataset.tone = a.tone;
     announce(digitsOf(input.value), a.tone);
