@@ -30,9 +30,17 @@
   }
 }
 
-// In the footer it sits above the APPPA mark, on the footer's grey.
+// In the footer it sits under its question and above the APPPA mark,
+// on the footer's grey.
 .site-footer .news-signup {
   margin-bottom: 2.25rem;
+}
+
+.news-signup-heading {
+  max-width: 28rem;
+  margin: 0 auto 0.75rem;
+  font-size: $h5-font-size;
+  text-wrap: balance;
 }
 
 // On the news page, after each ten posts: a heading over the form, set

@@ -5,7 +5,8 @@
 {{ partial "footer/shop.html" . }}
 <footer class="site-footer border-top border-white bg-light">
   <div class="container text-center">
-    {{ partial "news-signup.html" (dict "id" "news-footer") }}
+    <h2 class="news-signup-heading">Want occasional news and updates from North Foster Farm?</h2>
+    {{ partial "news-signup.html" (dict "id" "news-footer" "button" "Yes") }}
     <a class="apppa-logo" href="https://www.apppa.org/" target="_blank" rel="noopener" title="American Pastured Poultry Producers Association">
       {{ partial "svg.html" "apppa-logo" }}
       <span class="visually-hidden">Member, American Pastured Poultry Producers Association</span>
