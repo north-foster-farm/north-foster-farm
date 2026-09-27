@@ -187,6 +187,7 @@ $search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   margin: 0;
   padding: 0.5rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
   list-style: none;
   border-right: 1px solid $search-line;
 
@@ -230,6 +231,7 @@ $search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   align-items: center;
   padding: 1.5rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
   text-align: center;
 
   &[hidden] {

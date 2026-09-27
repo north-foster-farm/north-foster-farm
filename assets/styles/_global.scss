@@ -10,7 +10,10 @@ body {
   @extend .d-flex;
   @extend .flex-column;
 
+  // 100vh on a phone is the screen with the browser's bars hidden, so
+  // a short page scrolled by their height; svh is the screen with them.
   min-height: 100vh;
+  min-height: 100svh;
 }
 
 p {
