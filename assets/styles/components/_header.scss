@@ -260,7 +260,8 @@ header {
 // Safari tints its status bar and toolbar with a full-width fixed
 // layer's colour, ignoring its opacity: a black backdrop boxed the
 // menu in black bands; a white one runs the panel on into the bars.
-body:has(.site-offcanvas:is(.showing, .show, .hiding)) > .offcanvas-backdrop {
+// Bootstrap adds the backdrop beside the panel.
+.site-offcanvas ~ .offcanvas-backdrop {
   background-color: var(--bs-body-bg);
 
   &.show {
