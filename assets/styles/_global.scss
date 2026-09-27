@@ -1,5 +1,9 @@
+// The pale green shows only past the page's ends: in a scroll bounce
+// and behind a phone browser's bars. The body keeps its own white.
+// The theme-color meta in head/favicons.html repeats it as hex.
 html {
   height: 100vh;
+  background-color: tint-color($green, 85%);
 }
 
 body {

@@ -251,7 +251,21 @@ header {
 .offcanvas.site-offcanvas {
   --bs-offcanvas-width: min(20rem, 85vw);
 
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
   transition: transform 0.2s ease-out;
+}
+
+// Its backdrop veils the page in the panel's white, not black. iOS
+// Safari tints its status bar and toolbar with a full-width fixed
+// layer's colour, ignoring its opacity: a black backdrop boxed the
+// menu in black bands; a white one runs the panel on into the bars.
+body:has(.site-offcanvas:is(.showing, .show, .hiding)) > .offcanvas-backdrop {
+  background-color: var(--bs-body-bg);
+
+  &.show {
+    opacity: 0.7;
+  }
 }
 
 .site-offcanvas-body {
