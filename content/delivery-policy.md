@@ -74,9 +74,15 @@ You don't need to be home. If there's no cooler where you told us,
 we'll try to reach you: we'll call or text and ring the doorbell. If
 we can't reach you, we won't leave your order. You can choose to have
 it delivered the following Thursday, pick it up at the farm or drop
-site, or cancel your order for a refund. Once we've attempted the
-delivery, the delivery fee isn't refundable. Once it's delivered, it's
-in your care.
+site, or cancel your order for a refund of your items.
+
+A delivery we couldn't make because there was no cooler out, or no way
+to get to the spot you gave us, keeps its delivery fee, including any $3 for an
+address outside our area. It isn't refunded whichever you choose, and
+delivery the following Thursday costs the fee again. A delivery we
+miss ourselves, or because of the weather, never costs you the fee.
+
+Once it's delivered, it's in your care.
 
 ## Delivery area
 
@@ -124,7 +130,8 @@ after the cutoff. Otherwise, after the cutoff, call, text or email us.
 
 ## Refunds
 
-When you cancel an order, we refund it in full, the way you paid. It
+When you cancel an order, we refund it in full, the way you paid,
+except a delivery fee kept after a missed delivery (above). It
 usually shows within a few business days. If we ever have to cancel
 an order, we refund it in full too.
 
