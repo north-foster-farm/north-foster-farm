@@ -16,7 +16,7 @@
 <form class="news-signup{{ with .class }} {{ . }}{{ end }}" data-news-signup novalidate>
   <label class="visually-hidden" for="{{ $id }}-email">Farm news by email</label>
   <div class="input-group">
-    <input class="form-control" type="email" id="{{ $id }}-email" name="email" placeholder="Email" autocomplete="email" inputmode="email" enterkeyhint="send" required aria-describedby="{{ $id }}-note">
+    <input class="form-control" type="email" id="{{ $id }}-email" name="email" placeholder="Email address" autocomplete="email" inputmode="email" enterkeyhint="send" required aria-describedby="{{ $id }}-note">
     {{ partial "busy-button.html" (dict "label" (.button | default "Sign me up") "busy" "Submitting" "class" "btn-primary") }}
   </div>
   <p class="news-signup-note" id="{{ $id }}-note" data-news-note role="status" aria-live="polite"></p>
