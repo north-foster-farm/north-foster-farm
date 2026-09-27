@@ -20,7 +20,10 @@ $top-bar-height: 1.875rem;
 
 .top-bar-link {
   display: block;
-  padding: 0 1rem;
+
+  // Clear of the notch on a phone turned sideways.
+  padding: 0 max(1rem, env(safe-area-inset-right)) 0
+    max(1rem, env(safe-area-inset-left));
   overflow: hidden;
   line-height: $top-bar-height;
   color: var(--bs-body-color);
