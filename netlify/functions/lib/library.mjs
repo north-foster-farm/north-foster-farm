@@ -71,6 +71,21 @@ export const pickup = (over = {}) => order({
   ...over,
 });
 
+// A delivery the farm could not leave, under $150 so it paid a $5 fee,
+// with `fee` cents of it kept (0: waived, or the farm's miss).
+const missed = (fee, over = {}) => order({
+  totals: {
+    subtotal: 10400, discountTier: 100, discountAmount: 1000,
+    discountLabel: "Bulk discount ($100+)", deliveryFee: 500, total: 9900,
+  },
+  payments: [{ ...card, amount: 9900 }],
+  attempted: {
+    at: "2026-10-08T17:00:00.000Z", cause: fee ? "customer" : "farm",
+    fee, waived: !fee, note: "",
+  },
+  ...over,
+});
+
 // An on-farm window the farm has not agreed to yet.
 export const requested = (over = {}) => order({
   fulfilment: onfarm("requested"),
@@ -259,6 +274,38 @@ export const library = [
     audience: C, tags: ["cancelled", "refunded"],
     build: (links) => t.orderCancelled(order({ status: "cancelled" }),
       { refund: true, links }),
+  },
+  {
+    id: "missed-delivery-fee-kept", name: "Missed delivery, fee kept",
+    when: "The farm marked a delivery attempted: the customer's miss",
+    audience: C, tags: ["missed delivery", "delivery"],
+    build: (links) => t.missedDelivery(missed(500), {
+      pickUrl: signIn(links), links,
+    }),
+  },
+  {
+    id: "missed-delivery-no-fee", name: "Missed delivery, no fee kept",
+    when: "The farm marked a delivery attempted: its own miss, the " +
+      "weather's, or a waived one",
+    audience: C, tags: ["missed delivery", "delivery"],
+    build: (links) => t.missedDelivery(missed(0), {
+      pickUrl: signIn(links), links,
+    }),
+  },
+  {
+    id: "order-cancelled-missed-fee-kept",
+    name: "Cancelled after a missed delivery, fee kept",
+    when: "A missed delivery cancelled; the items refunded, the fee kept",
+    audience: C, tags: ["cancelled", "refunded", "missed delivery"],
+    build: (links) => t.orderCancelled(
+      missed(500, { status: "cancelled" }), { refunded: 9400, links }),
+  },
+  {
+    id: "order-cancelled-full-refund", name: "Cancelled, full refund stated",
+    when: "Any paid order cancelled with everything refunded",
+    audience: C, tags: ["cancelled", "refunded"],
+    build: (links) => t.orderCancelled(
+      missed(0, { status: "cancelled" }), { refunded: 9900, links }),
   },
   {
     id: "address-approved", name: "We can deliver to your address",
@@ -451,6 +498,8 @@ const APPROVED = {
 const LANDED = "His rewrite of 2026-09-26, landed";
 const CARD = "Moved onto the farm card on 2026-09-26, after he asked " +
   "\"No template?\"; agent-written.";
+const C3 = "Policy-pages\x27 draft of 2026-09-27 for C3 (#192): it " +
+  "switches on the fee the missed delivery kept.";
 const WAITING = {
   "pick-new-time": `${LANDED}, with the pickup window as a token. ` +
     "The farm\x27s reason is no longer sent.",
@@ -462,6 +511,12 @@ const WAITING = {
     "every order is paid when placed, so a customer cancelled without " +
     "a refund was charged.",
   "address-denied": `${LANDED}, verbatim.`,
+  "missed-delivery-fee-kept": `${C3} Not sent yet: redelivery's second ` +
+    "fee and the send itself wait on #193.",
+  "missed-delivery-no-fee": C3,
+  "order-cancelled-missed-fee-kept": C3,
+  "order-cancelled-full-refund": `${C3} Would replace "Order cancelled ` +
+    "and refunded\" for every full refund.",
   "farm-order-placed-onfarm": "He approved it on 2026-09-26; since then " +
     "the second confirm example is the whole window (#159) and deny " +
     "takes no reason.",

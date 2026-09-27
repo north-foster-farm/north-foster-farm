@@ -5,8 +5,8 @@ import {
   addressDecision, addressReview, deliveryReminder, farmAlert,
   farmMorningReport, farmOrderPlaced, farmPickupChanged, farmRefundNeeded,
   farmReturnRequest, farmSquareOutOfSync, farmSupport, farmTomorrow,
-  magicLink, orderCancelled, orderChanged, orderConfirmed, paymentPhrase,
-  paymentReceived, pickNewTime, summaryLine,
+  magicLink, missedDelivery, orderCancelled, orderChanged, orderConfirmed,
+  paymentPhrase, paymentReceived, pickNewTime, summaryLine,
 } from "../netlify/functions/lib/templates.mjs";
 
 const order = (method = "delivery") => ({
@@ -575,6 +575,42 @@ describe("order changed and cancelled", () => {
       "October 8.");
     has(m.text, "**Your refund is on its way.** Most refunds arrive within " +
       "a few business days.");
+  });
+
+  const attempted = (fee) => ({
+    ...order(), attempted: { cause: "customer", fee, waived: !fee },
+  });
+
+  it("warns a missed delivery that keeps its fee before they choose", () => {
+    const pick = "https://example.test/pick";
+    const m = missedDelivery(attempted(500), { pickUrl: pick, links });
+
+    assert.equal(m.subject, "We couldn't deliver your order");
+    has(m.text, "- Deliver it next Thursday, October 15, for " +
+      "another delivery fee of $5");
+    has(m.text, "- Cancel it, and we'll refund $62 for your items");
+    has(m.text, "Today's delivery fee of $5 isn't refunded, whichever " +
+      "you choose.");
+    has(m.text, `Reschedule or cancel: ${pick}`);
+  });
+
+  it("promises everything back when the missed fee is waived", () => {
+    const m = missedDelivery(attempted(0), { links });
+
+    has(m.text, "- Deliver it next Thursday, October 15, at no " +
+      "extra charge");
+    has(m.text, "- Cancel it for a full refund of $67");
+    assert.doesNotMatch(m.text, /isn't refunded|no cooler/);
+  });
+
+  it("states the refund that went out after a missed delivery", () => {
+    const kept = orderCancelled(attempted(500), { refunded: 6200, links });
+    const full = orderCancelled(attempted(0), { refunded: 6700, links });
+
+    has(kept.text, "**A refund of $62 for your items is on its way.** The " +
+      "delivery fee of $5 isn't refunded, because we made the trip.");
+    has(full.text, "**A full refund of $67 is on its way.**");
+    assert.doesNotMatch(full.text, /delivery fee/);
   });
 });
 

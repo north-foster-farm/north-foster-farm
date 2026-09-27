@@ -20,7 +20,7 @@ import { addDays, label } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { GUIDE, RUNBOOK_ALERTS } from "./alerts-guide.mjs";
 import { company } from "./company.mjs";
 import { between, methodName } from "./describe.mjs";
-import { needsAgreement, paymentsOf } from "./records.mjs";
+import { keptFee, needsAgreement, paymentsOf } from "./records.mjs";
 
 const escape = (s) => String(s)
   .replace(/&/g, "&amp;")
@@ -541,14 +541,79 @@ export const orderChanged = (order, {
   return { subject: title, ...render(title, blocks, links) };
 };
 
-// After a cancellation, by the customer or the farm.
+// A delivery the farm could not leave (#193). The fee the attempt kept
+// decides the wording: kept, the customer is warned before choosing
+// that it stays whatever they choose; waived, or the farm's or the
+// weather's miss, everything comes back (James, C3). Policy-pages'
+// drafts of 2026-09-27, to approve; nothing sends this yet.
+export const missedDelivery = (order, { pickUrl, links } = {}) => {
+  const title = "We couldn't deliver your order";
+  const fee = keptFee(order);
+  // "next Thursday, October 15": the draft names the weekday itself.
+  const next = label(addDays(order.fulfilment.date, 7)).replace(/^\w+, /, "");
+  const blocks = [p(`Hi ${firstName(order.customer)},`)];
+
+  if (fee) {
+    blocks.push(
+      p("We came by today with your order but couldn't leave it: there " +
+        "was no cooler out, and we couldn't reach you. Your order is " +
+        "back at the farm."),
+      p("Please choose what you'd like us to do:"),
+      list([
+        `Deliver it next Thursday, ${next}, for another delivery fee ` +
+          `of ${dollars(fee)}`,
+        "Have it ready for pickup at the farm or the drop site, at no " +
+          "charge",
+        `Cancel it, and we'll refund ${
+          dollars(order.totals.total - fee)} for your items`,
+      ]),
+      p(`Today's delivery fee of ${dollars(fee)} isn't refunded, ` +
+        "whichever you choose.")
+    );
+  } else {
+    blocks.push(
+      p("We weren't able to deliver your order today. Your order is " +
+        "back at the farm."),
+      p("Please choose what you'd like us to do:"),
+      list([
+        `Deliver it next Thursday, ${next}, at no extra charge`,
+        "Have it ready for pickup at the farm or the drop site",
+        `Cancel it for a full refund of ${dollars(order.totals.total)}`,
+      ])
+    );
+  }
+  if (pickUrl) blocks.push(button("Reschedule or cancel", pickUrl));
+  blocks.push(...orderDetails(order), customerFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
+// After a cancellation, by the customer or the farm. `refunded`, in
+// cents, names what went back (C3): the items only when a missed
+// delivery kept its fee, else the whole order. Without it, the wording
+// James approved on 2026-09-22; callers pass it once he approves the
+// drafts.
 export const orderCancelled = (order, {
-  refund = false, links,
+  refund = false, refunded = null, links,
 } = {}) => {
   const title = "Your order is cancelled";
   const blocks = [p(`Hi ${firstName(order.customer)},`)];
+  const fee = keptFee(order);
 
-  if (refund) {
+  if (refunded !== null) {
+    blocks.push(
+      p(`We cancelled your order for ${
+        methodName(order.fulfilment.method).toLowerCase()} on ${
+        label(order.fulfilment.date)}.`),
+      fee
+        ? p(`**A refund of ${dollars(refunded)} for your items is on its ` +
+          `way.** The delivery fee of ${dollars(fee)} isn't refunded, ` +
+          "because we made the trip. Most refunds arrive within a few " +
+          "business days.")
+        : p(`**A full refund of ${dollars(refunded)} is on its way.** ` +
+          "Most refunds arrive within a few business days.")
+    );
+  } else if (refund) {
     blocks.push(
       p(`We cancelled your order for ${
         methodName(order.fulfilment.method).toLowerCase()} on ${
