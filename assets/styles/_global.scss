@@ -1,10 +1,11 @@
-// The pale green shows only past the page's ends: in a scroll bounce,
-// top and bottom, and behind a phone browser's bars. Browsers take
-// that colour from html or from body, so both carry it, and the page
-// between the header and the footer keeps the white over it (the rest
-// of body's children have their own colours, or float). The
-// theme-color meta in head/favicons.html repeats it as hex.
-$page-root-bg: tint-color($green, 85%);
+// A near-white grey, lighter than the top bar, shows only past the
+// page's ends: in a scroll bounce, top and bottom, and behind a phone
+// browser's bars. Browsers take that color from body or html (Safari
+// 26 from body first), so both carry it, and the page between the
+// header and the footer keeps the white over it (the rest of body's
+// children have their own colors, or float). The theme-color meta in
+// head/favicons.html and the web manifest repeat it as hex.
+$page-root-bg: mix($gray-100, $white, 40%);
 
 html {
   height: 100vh;
