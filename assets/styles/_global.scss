@@ -1,9 +1,14 @@
-// The pale green shows only past the page's ends: in a scroll bounce
-// and behind a phone browser's bars. The body keeps its own white.
-// The theme-color meta in head/favicons.html repeats it as hex.
+// The pale green shows only past the page's ends: in a scroll bounce,
+// top and bottom, and behind a phone browser's bars. Browsers take
+// that colour from html or from body, so both carry it, and the page
+// between the header and the footer keeps the white over it (the rest
+// of body's children have their own colours, or float). The
+// theme-color meta in head/favicons.html repeats it as hex.
+$page-root-bg: tint-color($green, 85%);
+
 html {
   height: 100vh;
-  background-color: tint-color($green, 85%);
+  background-color: $page-root-bg;
 }
 
 body {
@@ -14,6 +19,12 @@ body {
   // a short page scrolled by their height; svh is the screen with them.
   min-height: 100vh;
   min-height: 100svh;
+  background-color: $page-root-bg;
+}
+
+body > main,
+body > .flex-grow-1 {
+  background-color: var(--bs-body-bg);
 }
 
 p {
