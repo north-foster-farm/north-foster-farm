@@ -4,9 +4,15 @@
 //   passes over it; a tap on it puts it in the map's ZIP check, which
 //   answers in words and announces an nff:zip event.
 // - On nff:zip, from any check on the page, the map outlines that ZIP
-//   and drops a pin onto its middle, coloured by the answer.
+//   and drops a pin onto its middle, coloured by the answer, with a
+//   tag: the town, an egg and a hen (coloured where we deliver them)
+//   and the delivery fee.
+// - A second tap on that town, or a tap on water or on a neighbouring
+//   state, clears the check, the pin and the outline. One tap makes
+//   one change: with a card open, a tap off the pins only closes it.
 // - A pin, or its line in the key, opens a card with the details.
-//   Pins that share a ZIP stack there and spread to be picked.
+//   Pins that share a ZIP stack there; each tap on the stack brings
+//   the next to the front and shows its card.
 // - It zooms with its buttons, a pinch (a trackpad's too), a double
 //   click (not a double tap) or ctrl and the wheel, and pans with a
 //   drag once zoomed. At full size a swipe still scrolls the page.
@@ -22,7 +28,12 @@ const LABELS = {
 // Where we deliver eggs only (Connecticut).
 const EGGS_ONLY = "We deliver eggs here";
 
-const TONE_OF = { "is-ours": "ok", "is-away": "wait", "is-land": "no" };
+const TONE_OF = {
+  "is-ours": "ok",
+  "is-eggs": "ok",
+  "is-away": "wait",
+  "is-land": "no",
+};
 
 const MAX_ZOOM = 5;
 
@@ -32,19 +43,17 @@ const PIN_PX = 38;
 const PIN_UNITS = 45;
 
 // Pins in a stack step this far up and right of the one before, in
-// pin units; spread in a row, this far apart.
+// pin units.
 const STEP = 8;
-const GAP = 5;
-
-// A stack spread by the pointer or focus closes this long after both
-// have left it.
-const LINGER = 400;
 
 // A pointer that moves further than this is dragging, not tapping.
 const SLOP = 6;
 
-// Labels near an edge grow inward rather than off the map.
-const EDGE = 160;
+// The dropped pin's tag, in screen pixels: its padding, its two lines
+// and the icons in the second, and how far it keeps from the frame's
+// edges and the zoom buttons.
+const TAG = { pad: 6, line: 17, gap: 3, icon: 16, egg: 16, hen: 13.1 };
+const MARGIN = 8;
 
 // The ZIP a shape stands for. The markup writes it after a "z": the
 // minifier reads a bare "02825" in an SVG as a number and drops its
@@ -58,8 +67,8 @@ const toneOf = (area) => {
   return "no";
 };
 
-const labelOf = (area, tone) => (tone === "ok"
-  && area.classList.contains("is-eggs") ? EGGS_ONLY : LABELS[tone]);
+const labelOf = (area, tone) => (area.classList.contains("is-eggs")
+  ? EGGS_ONLY : LABELS[tone]);
 
 const easeOut = (t) => 1 - (1 - t) ** 3;
 
@@ -69,14 +78,17 @@ const wire = (map) => {
   const tip = map.querySelector("[data-map-tip]");
   const drop = map.querySelector("[data-map-drop]");
   const dropAt = map.querySelector("[data-map-drop-at]");
+  const tag = map.querySelector("[data-map-drop-tag]");
+  const zooms = map.querySelector(".map-zoom");
   const zoomIn = map.querySelector("[data-map-zoom='in']");
   const zoomOut = map.querySelector("[data-map-zoom='out']");
   const reset = map.querySelector("[data-map-zoom='reset']");
+  const layer = map.querySelector(".map-pins");
   const pins = [...map.querySelectorAll("[data-map-pin]")];
   // A pin by its number in the key; the markup draws them in
   // reverse, so what is on now lies on top.
   const pinOf = (n) => map.querySelector(`[data-map-pin="${n}"]`);
-  const pick = map.querySelector("[data-map-pick]");
+  const picks = [...map.querySelectorAll("[data-map-pick]")];
   const form = map.querySelector("[data-zip-check]");
   const full = svg.viewBox.baseVal;
   const W = full.width;
@@ -86,6 +98,8 @@ const wire = (map) => {
   let tween = 0;
   // True while the view animates, when a pin may be on its way in.
   let moving = false;
+  // The ZIP the dropped pin stands on.
+  let picked = null;
 
   // The pointers down on the map, for drags and pinches.
   const pointers = new Map();
@@ -96,18 +110,15 @@ const wire = (map) => {
 
   // Stacks: the pins that stand in one ZIP, all at the place of the
   // first in the key, each a step up and to the right of the one
-  // before. A stack spreads into a row on hover, on focus, while one
-  // of its cards is open and, on a touch screen, at its first tap, so
-  // every pin in it can be reached. A pin alone is a stack of one.
+  // before. Showing a pin's card brings it to the front, the pins
+  // before it going to the back; closing the card puts the stack back
+  // in key order. A pin alone is a stack of one.
 
   const areas = [...svg.querySelectorAll("[data-zip]")];
   const stackOf = new Map();
+  const orderOf = new Map();
   const atOf = new Map();
   const shiftOf = new Map();
-  const wideStacks = new Set();
-  const lingering = new Map();
-  // The stack a tap spread, until a tap elsewhere.
-  let tapped = null;
 
   {
     const byZip = new Map();
@@ -126,6 +137,7 @@ const wire = (map) => {
     for (const [key, stack] of byZip) {
       const [first] = stack;
 
+      orderOf.set(stack, [...stack]);
       for (const pin of stack) {
         stackOf.set(pin, stack);
         atOf.set(pin, { x: first.dataset.x, y: first.dataset.y });
@@ -144,19 +156,15 @@ const wire = (map) => {
       : { half: 15 * k, tall: 45 * k };
   };
 
-  // Stacked, each pin's top right corner a step beyond the one before
-  // it, whatever their sizes; or spread in a row, tips on one line,
-  // from the first pin's place rightward.
-  const lay = (stack, wide) => {
-    const front = size(stack[0]);
-    let x = 0;
+  // Each pin's top right corner a step beyond the one before it,
+  // whatever their sizes, the front pin on the stack's place.
+  const lay = (stack) => {
+    const order = orderOf.get(stack);
+    const front = size(order[0]);
 
-    for (const [i, pin] of stack.entries()) {
+    for (const [i, pin] of order.entries()) {
       const own = size(pin);
-
-      if (i > 0 && wide) x += size(stack[i - 1]).half + GAP + own.half;
-
-      const shift = wide ? { x, y: 0 } : {
+      const shift = {
         x: front.half - own.half + STEP * i,
         y: own.tall - front.tall - STEP * i,
       };
@@ -165,28 +173,27 @@ const wire = (map) => {
       pin.querySelector(".map-pin-shift").style.transform =
         `translate(${shift.x}px, ${shift.y}px)`;
     }
-    if (wide) wideStacks.add(stack);
-    else wideStacks.delete(stack);
   };
 
-  const unfold = (stack) => {
-    clearTimeout(lingering.get(stack));
-    if (stack.length > 1 && !wideStacks.has(stack)) lay(stack, true);
+  // SVG paints in source order, so the front pin goes last.
+  const toFront = (pin) => {
+    const stack = stackOf.get(pin);
+    const order = orderOf.get(stack);
+
+    if (stack.length < 2 || order[0] === pin) return;
+
+    const i = order.indexOf(pin);
+
+    orderOf.set(stack, [...order.slice(i), ...order.slice(0, i)]);
+    lay(stack);
+    for (const p of [...orderOf.get(stack)].reverse()) layer.append(p);
   };
 
-  // What keeps a stack spread: the pointer or focus on it, its card,
-  // or the tap that spread it.
-  const held = (stack) => stack === tapped || stack.some((pin) =>
-    pin.matches(":hover") || pin === document.activeElement
-    || (open && open.dataset.mapCard === pin.dataset.mapPin));
-
-  const settle = (stack) => {
-    if (stack.length < 2) return;
-    clearTimeout(lingering.get(stack));
-    lingering.set(stack, setTimeout(() => {
-      if (!held(stack)) lay(stack, false);
-      place();
-    }, LINGER));
+  const restack = (stack) => {
+    if (stack.length < 2 || orderOf.get(stack)[0] === stack[0]) return;
+    orderOf.set(stack, [...stack]);
+    lay(stack);
+    for (const p of pins) layer.append(p);
   };
 
   // Stacked from the start, without sliding there.
@@ -195,7 +202,7 @@ const wire = (map) => {
     for (const pin of stack) {
       pin.querySelector(".map-pin-shift").style.transition = "none";
     }
-    lay(stack, false);
+    lay(stack);
     svg.getBoundingClientRect();
     for (const pin of stack) {
       pin.querySelector(".map-pin-shift").style.transition = "";
@@ -203,7 +210,8 @@ const wire = (map) => {
   }
 
   // The view: the viewBox, and everything that must keep its size on
-  // screen whatever the zoom (pins, the dropped pin, the open card).
+  // screen whatever the zoom (pins, the dropped pin and its tag, the
+  // open card).
 
   const zoom = () => W / view.w;
 
@@ -235,9 +243,7 @@ const wire = (map) => {
     // view has come to rest.
     if (x < 0 || x > box.width || y < 0 || y > box.height) {
       if (moving) return;
-      open.hidden = true;
-      pin.setAttribute("aria-pressed", "false");
-      open = null;
+      close();
       return;
     }
 
@@ -257,6 +263,65 @@ const wire = (map) => {
     open.style.transform = above
       ? "translate(-50%, -100%)"
       : "translate(-50%, 0)";
+  };
+
+  // The tag's box and lines, measured once its words are in and it
+  // shows: the town on top, centred, then the icons and the fee.
+  const layTag = () => {
+    const town = tag.querySelector("[data-map-drop-town]");
+    const fee = tag.querySelector("[data-map-drop-fee]");
+    const feeW = fee.textContent ? fee.getComputedTextLength() : 0;
+    const lineW = TAG.egg + 4 + TAG.hen + (feeW ? 6 + feeW : 0);
+    const w = Math.ceil(Math.max(town.getComputedTextLength(), lineW))
+      + 2 * TAG.pad;
+    const top = TAG.pad + TAG.line + TAG.gap;
+    const h = top + TAG.icon + TAG.pad;
+    const x0 = (w - lineW) / 2;
+    const box = tag.querySelector("[data-map-drop-box]");
+
+    box.setAttribute("width", w);
+    box.setAttribute("height", h);
+    town.setAttribute("x", w / 2);
+    town.setAttribute("y", TAG.pad + 13);
+    tag.querySelector("[data-map-drop-has='eggs']")
+      .setAttribute("transform", `translate(${x0} ${top})`);
+    tag.querySelector("[data-map-drop-has='hen']")
+      .setAttribute("transform", `translate(${x0 + TAG.egg + 4} ${top})`);
+    fee.setAttribute("x", x0 + TAG.egg + 4 + TAG.hen + 6);
+    fee.setAttribute("y", top + 13);
+    tag.dataset.w = w;
+    tag.dataset.h = h;
+  };
+
+  // Above the pin, or below its tip where the top of the frame is too
+  // near; never past an edge or under the zoom buttons.
+  const placeTag = () => {
+    if (!dropAt.dataset.x || !tag.dataset.w) return;
+
+    const box = svg.getBoundingClientRect();
+    const x = (dropAt.dataset.x - view.x) / view.w * box.width;
+    const y = (dropAt.dataset.y - view.y) / view.h * box.height;
+    const w = Number(tag.dataset.w);
+    const h = Number(tag.dataset.h);
+
+    if (x < 0 || x > box.width || y < 0 || y > box.height) {
+      tag.setAttribute("visibility", "hidden");
+      return;
+    }
+    tag.removeAttribute("visibility");
+
+    const above = y - PIN_PX - 6 - h;
+    const top = Math.max(MARGIN, Math.min(box.height - h - MARGIN,
+      above >= MARGIN ? above : y + MARGIN));
+    const z = zooms.getBoundingClientRect();
+    const beside = top < z.bottom - box.top + MARGIN
+      && top + h > z.top - box.top - MARGIN;
+    const right = (beside ? z.left - box.left : box.width) - MARGIN;
+    const left = Math.max(MARGIN, Math.min(right - w, x - w / 2));
+    const k = view.w / box.width;
+
+    tag.setAttribute("transform", `translate(${view.x + left * k} `
+      + `${view.y + top * k}) scale(${k})`);
   };
 
   const apply = () => {
@@ -281,6 +346,7 @@ const wire = (map) => {
     // Zoomed in, a drag pans the map; at full size it scrolls the page.
     svg.style.touchAction = k > 1.01 ? "none" : "pan-y";
     place();
+    placeTag();
   };
 
   const go = (target, animate = true) => {
@@ -377,30 +443,44 @@ const wire = (map) => {
 
   // Cards.
 
-  const close = () => {
+  const hide = () => {
+    open.hidden = true;
+    pinOf(open.dataset.mapCard).setAttribute("aria-pressed", "false");
+    open = null;
+  };
+
+  function close() {
     if (!open) return;
 
-    const pin = pinOf(open.dataset.mapCard);
+    const stack = stackOf.get(pinOf(open.dataset.mapCard));
 
-    open.hidden = true;
-    pin.setAttribute("aria-pressed", "false");
-    open = null;
-    settle(stackOf.get(pin));
-  };
+    hide();
+    restack(stack);
+  }
 
   const show = (n, { focus = false, centreOn = false } = {}) => {
     const card = map.querySelector(`[data-map-card="${n}"]`);
     const pin = pinOf(n);
+    const stack = stackOf.get(pin);
 
     if (open === card) {
       close();
       return;
     }
-    close();
+    // Within a stack, the stack stays as it is while the card swaps.
+    if (open && stack.includes(pinOf(open.dataset.mapCard))) hide();
+    else close();
+    toFront(pin);
     open = card;
     card.hidden = false;
     pin.setAttribute("aria-pressed", "true");
-    unfold(stackOf.get(pin));
+    if (stack.length > 1) {
+      const line = card.querySelector("[data-map-card-stack]");
+
+      line.textContent = `${stack.indexOf(pin) + 1} of ${stack.length} `
+        + "here. Tap the pin again for the next.";
+      line.hidden = false;
+    }
     if (centreOn && zoom() > 1.01) {
       const at = atOf.get(pin);
 
@@ -415,13 +495,6 @@ const wire = (map) => {
   };
 
   for (const pin of pins) {
-    const stack = stackOf.get(pin);
-
-    pin.addEventListener("focusin", () => {
-      unfold(stack);
-      place();
-    });
-    pin.addEventListener("focusout", () => settle(stack));
     pin.addEventListener("keydown", (e) => {
       if (e.key !== "Enter" && e.key !== " ") return;
       e.preventDefault();
@@ -486,65 +559,57 @@ const wire = (map) => {
   });
   svg.addEventListener("pointerleave", hideTip);
 
-  // A mouse or pen over a stack spreads it; it closes a moment after
-  // the pointer leaves, so the pointer can cross the gaps.
-  svg.addEventListener("pointerover", (e) => {
-    const pin = e.pointerType !== "touch"
-      && e.target.closest("[data-map-pin]");
+  // Puts a ZIP in the map's check, which answers and announces it, or
+  // on a page without one announces it here. An empty ZIP clears. On a
+  // phone the answer stands above the map, and the map must not move
+  // from under the finger as it grows or goes.
+  const check = (zip, tone) => {
+    const was = frame.getBoundingClientRect().top;
 
-    if (pin) unfold(stackOf.get(pin));
-  });
-  svg.addEventListener("pointerout", (e) => {
-    const pin = e.target.closest("[data-map-pin]");
-    const to = e.relatedTarget && e.relatedTarget.closest
-      && e.relatedTarget.closest("[data-map-pin]");
-
-    if (!pin) return;
-
-    const stack = stackOf.get(pin);
-
-    if (!stack.includes(to)) settle(stack);
-  });
-
-  // A tap on a ZIP runs the check; a tap on a pin opens its card, or on
-  // a touch screen first spreads its stack; a tap on anything else
-  // closes the card and any stack a tap spread.
-  const tap = (target, touch) => {
-    const pin = target.closest("[data-map-pin]");
-    const stack = pin && stackOf.get(pin);
-
-    if (tapped && tapped !== stack) {
-      const was = tapped;
-
-      tapped = null;
-      settle(was);
-    }
-    if (pin) {
-      if (touch && stack.length > 1) {
-        const first = !wideStacks.has(stack);
-
-        tapped = stack;
-        unfold(stack);
-        if (first) return;
-      }
-      show(Number(pin.dataset.mapPin));
-      return;
-    }
-    close();
-
-    const area = target.closest("[data-zip]");
-
-    if (!area) return;
     if (form) {
       const input = form.querySelector("[name='zip']");
 
-      input.value = zipOf(area);
+      input.value = zip;
       input.dispatchEvent(new Event("input", { bubbles: true }));
     } else {
       document.dispatchEvent(new CustomEvent("nff:zip", {
-        detail: { zip: zipOf(area), tone: toneOf(area) },
+        detail: { zip, tone },
       }));
     }
+
+    const moved = frame.getBoundingClientRect().top - was;
+
+    if (moved) scrollBy({ top: moved, behavior: "instant" });
+  };
+
+  // A tap on a pin opens its card; on a stack whose card is open, the
+  // next pin's. Otherwise a tap closes an open card and does no more;
+  // with none open, a tap on a town picks it, and a tap on the town
+  // picked, on water or on a neighbouring state clears the pick.
+  const tap = (target) => {
+    const pin = target.closest("[data-map-pin]");
+
+    if (pin) {
+      const order = orderOf.get(stackOf.get(pin));
+      const showing = open && order.includes(pinOf(open.dataset.mapCard));
+      const next = order.length > 1 && showing ? order[1] : order[0];
+
+      show(Number((order.length > 1 ? next : pin).dataset.mapPin));
+      return;
+    }
+    if (open) {
+      close();
+      return;
+    }
+
+    const area = target.closest("[data-zip]");
+
+    if (!area || area.classList.contains("is-land")
+      || zipOf(area) === picked) {
+      if (picked) check("", "");
+      return;
+    }
+    check(zipOf(area), toneOf(area));
   };
 
   // Drags and pinches, from pointer events so mouse, pen and touch
@@ -606,7 +671,7 @@ const wire = (map) => {
     if (!pointers.has(e.pointerId)) return;
     pointers.delete(e.pointerId);
     if (e.type === "pointerup" && !dragging && pointers.size === 0) {
-      tap(e.target, e.pointerType === "touch");
+      tap(e.target);
     }
     if (pointers.size === 0) {
       setTimeout(() => {
@@ -632,34 +697,43 @@ const wire = (map) => {
 
     // SVG elements have no hidden property, so the attribute it is.
     if (!area) {
+      picked = null;
       drop.setAttribute("hidden", "");
-      pick.setAttribute("hidden", "");
+      for (const p of picks) p.setAttribute("hidden", "");
       return;
     }
 
     const { x, y } = area.dataset;
-    const label = map.querySelector("[data-map-drop-label]");
-    let anchor = "middle";
+    const fee = Number(tag.dataset.fee)
+      + (tone === "wait" ? Number(tag.dataset.extra) : 0);
+    const has = {
+      eggs: tone !== "no",
+      hen: tone !== "no" && !area.classList.contains("is-eggs"),
+    };
 
-    if (x < EDGE) anchor = "start";
-    if (x > W - EDGE) anchor = "end";
-    label.setAttribute("text-anchor", anchor);
-    label.setAttribute("x", { start: -15, middle: 0, end: 15 }[anchor]);
-    const town = area.dataset.town ? ` ${area.dataset.town}` : "";
+    picked = zip;
+    tag.querySelector("[data-map-drop-town]").textContent =
+      area.dataset.town || zip;
+    tag.querySelector("[data-map-drop-fee]").textContent =
+      tone === "no" ? "" : `$${fee}`;
+    for (const [what, on] of Object.entries(has)) {
+      tag.querySelector(`[data-map-drop-has='${what}']`).dataset.on = on;
+    }
 
-    label.textContent = `${zip}${town}: ${labelOf(area, tone)}`;
-
-    pick.setAttribute("d", area.getAttribute("d"));
-    pick.removeAttribute("hidden");
+    for (const p of picks) {
+      p.setAttribute("d", area.getAttribute("d"));
+      p.removeAttribute("hidden");
+    }
     dropAt.dataset.x = x;
     dropAt.dataset.y = y;
     drop.dataset.tone = tone;
-    apply();
 
     // Hidden and shown again, with a layout between, the pin falls anew.
     drop.setAttribute("hidden", "");
     drop.getBoundingClientRect();
     drop.removeAttribute("hidden");
+    layTag();
+    apply();
   });
 
   addEventListener("resize", apply);

@@ -35,7 +35,10 @@ const drop = (page) => map(page).evaluate((m) => {
   return {
     shown: !group.hasAttribute("hidden"),
     tone: group.dataset.tone,
-    label: m.querySelector("[data-map-drop-label]").textContent,
+    town: m.querySelector("[data-map-drop-town]").textContent,
+    fee: m.querySelector("[data-map-drop-fee]").textContent,
+    has: [...m.querySelectorAll("[data-map-drop-has]")]
+      .map((g) => g.dataset.on === "true"),
     at: m.querySelector("[data-map-drop-at]").getAttribute("transform"),
     pick: m.querySelector("[data-map-pick]").getAttribute("d"),
   };
@@ -52,7 +55,7 @@ const check = async (page, input, zip) => {
 };
 
 test.describe("map (#138)", () => {
-  test("three fills: ours, the rest of Rhode Island, the neighbours",
+  test("four fills: ours, eggs only, the rest of RI, the neighbours",
     async ({ page, baseURL }) => {
       const foreign = [];
       const host = new URL(baseURL).host;
@@ -77,7 +80,7 @@ test.describe("map (#138)", () => {
       const shown = await map(page).locator("[data-zip]").evaluateAll(
         (els) => els.map((el) => ({
           zip: el.dataset.zip.slice(1),
-          cls: ["is-ours", "is-away", "is-land"]
+          cls: ["is-ours", "is-eggs", "is-away", "is-land"]
             .filter((c) => el.classList.contains(c)),
           town: el.dataset.town,
           fill: getComputedStyle(el).fill,
@@ -88,18 +91,18 @@ test.describe("map (#138)", () => {
       for (const z of shown) {
         expect(z.zip, "a whole ZIP, leading zero kept").toMatch(/^\d{5}$/);
         expect(z.cls, `${z.zip} has one class`).toHaveLength(1);
-        expect(z.cls[0] === "is-ours", `${z.zip} filled as ours`)
-          .toBe(ours.has(z.zip));
+        expect(["is-ours", "is-eggs"].includes(z.cls[0]),
+          `${z.zip} filled as ours`).toBe(ours.has(z.zip));
       }
 
       const fillOf = (cls) => new Set(
         shown.filter((z) => z.cls[0] === cls).map((z) => z.fill)
       );
 
-      for (const cls of ["is-ours", "is-away", "is-land"]) {
+      for (const cls of ["is-ours", "is-eggs", "is-away", "is-land"]) {
         expect(fillOf(cls).size, `${cls}: one fill`).toBe(1);
       }
-      expect(new Set(shown.map((z) => z.fill)).size).toBe(3);
+      expect(new Set(shown.map((z) => z.fill)).size).toBe(4);
 
       // Rhode Island's own ZIPs (028, 029) are ours or away, never
       // plain land; Massachusetts' 02 ZIPs may be land.
@@ -114,6 +117,7 @@ test.describe("map (#138)", () => {
 
     for (const [cls, text] of [
       ["is-ours", "We deliver here"],
+      ["is-eggs", "We deliver eggs here"],
       ["is-away", "A little outside our area"],
     ]) {
       const swatch = map(page).locator(`.map-key-areas .map-swatch.${cls}`);
@@ -188,10 +192,11 @@ test.describe("map (#138)", () => {
     });
 
   // Pins that share a ZIP stand in a stack at the place of the first
-  // in the key, each a step up and to the right of the one before, and
-  // spread into a row to be picked: under the mouse, or at a first tap
-  // on a touch screen (James, 2026-09-26). What hides a pin is another
-  // pin over its head, where its number is. The drop shape's head is
+  // in the key, each a step up and to the right of the one before. A
+  // tap or click on a stack shows its front pin's card, and each one
+  // after brings the next pin to the front (UX, 2026-09-26, replacing
+  // the spread James disliked on touch). A pin's head is where its
+  // number is. The drop shape's head is
   // a circle of 15 units at (0, -30) in its head group; the farm
   // marker's, of 22 at (0, -37).
   const heads = (page, stack) => map(page)
@@ -206,36 +211,9 @@ test.describe("map (#138)", () => {
         r: (farm ? 22 : 15) * Math.hypot(m.a, m.b) };
     }).sort((a, b) => a.key - b.key));
 
-  // The share of the smaller circle that the other covers.
-  const covered = (a, b) => {
-    const d = Math.hypot(a.x - b.x, a.y - b.y);
-    const [r, s] = a.r < b.r ? [a.r, b.r] : [b.r, a.r];
-
-    if (d >= r + s) return 0;
-    if (d <= s - r) return 1;
-
-    const lens = r * r * Math.acos((d * d + r * r - s * s) / (2 * d * r))
-      + s * s * Math.acos((d * d + s * s - r * r) / (2 * d * s))
-      - 0.5 * Math.sqrt((-d + r + s) * (d + r - s) * (d - r + s)
-        * (d + r + s));
-
-    return lens / (Math.PI * r * r);
-  };
-
   const stacks = (page) => map(page).locator("[data-stack]").evaluateAll(
     (els) => [...new Set(els.map((el) => el.dataset.stack))]
   );
-
-  const apart = async (page, stack) => {
-    const all = await heads(page, stack);
-
-    for (const [i, a] of all.entries()) {
-      for (const b of all.slice(i + 1)) {
-        expect(covered(a, b), `pins ${a.n} and ${b.n} overlap`)
-          .toBeLessThan(0.25);
-      }
-    }
-  };
 
   test("pins that share a ZIP stack there", async ({ page }) => {
     await page.goto(HOME.path);
@@ -255,24 +233,38 @@ test.describe("map (#138)", () => {
     }
   });
 
-  test("the mouse over a stack spreads it; no pin hides another",
+  // The front pin is the last of its stack in the markup, since SVG
+  // paints in source order; its card is the one open.
+  const cycle = async (page, stack, press) => {
+    const pins = map(page).locator(`[data-stack='${stack}']`);
+    const inKey = (await pins.evaluateAll(
+      (els) => els.map((el) => el.dataset.mapPin)
+    )).sort((a, b) => a - b);
+    const front = () => pins.evaluateAll((els) => els.at(-1).dataset.mapPin);
+    const shown = map(page).locator("[data-map-card]:not([hidden])");
+
+    for (const n of [...inKey, inKey[0]]) {
+      await press(pins.last().locator(".map-pin-body"));
+      await expect.poll(front).toBe(n);
+      await expect(shown).toHaveAttribute("data-map-card", n);
+      await expect(shown.locator("[data-map-card-stack]"))
+        .toContainText(`of ${inKey.length} here`);
+    }
+
+    // Closed, the stack stands in key order again.
+    await shown.locator("[data-map-card-close]").click();
+    await expect(shown).toHaveCount(0);
+    await expect.poll(front).toBe(inKey[0]);
+  };
+
+  test("a click on a stack brings the next pin to the front",
     async ({ page }) => {
+      test.skip(!!test.info().project.use.isMobile, "a mouse");
       await page.goto(HOME.path);
       await map(page).locator("[data-map-svg]").scrollIntoViewIfNeeded();
 
       for (const stack of await stacks(page)) {
-        await map(page).locator(`[data-stack='${stack}'] .map-pin-body`)
-          .last().hover();
-        await page.waitForTimeout(400);
-        await apart(page, stack);
-      }
-      await page.mouse.move(0, 0);
-      await page.waitForTimeout(1000);
-      for (const stack of await stacks(page)) {
-        const all = await heads(page, stack);
-
-        expect(covered(all[0], all[1]), `${stack} stacked again`)
-          .toBeGreaterThan(0.25);
+        await cycle(page, stack, (el) => el.click());
       }
     });
 
@@ -322,25 +314,14 @@ test.describe("map (#138)", () => {
   test.describe("on a touch screen", () => {
     test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
 
-    test("a first tap spreads a stack, the next opens a card",
+    test("a tap on a stack brings the next pin to the front",
       async ({ page }) => {
         await page.goto(HOME.path);
         await map(page).locator("[data-map-svg]").scrollIntoViewIfNeeded();
 
         const [stack] = await stacks(page);
-        const pins = map(page).locator(`[data-stack='${stack}']`);
-        const back = pins.first();
-        const n = await back.getAttribute("data-map-pin");
 
-        await pins.last().locator(".map-pin-body").tap();
-        await page.waitForTimeout(400);
-        await expect(map(page).locator("[data-map-card]:not([hidden])"))
-          .toHaveCount(0);
-        await apart(page, stack);
-
-        await back.locator(".map-pin-body").tap();
-        await expect(map(page).locator(`[data-map-card='${n}']`))
-          .toBeVisible();
+        await cycle(page, stack, (el) => el.tap());
       });
   });
 
@@ -351,9 +332,11 @@ test.describe("map (#138)", () => {
         .toHaveAttribute("autocomplete", "postal-code");
       await expect(dropPin(page)).toBeHidden();
 
-      for (const [zip, tone, label] of [
-        ["02857", "ok", /^02857 .+: We deliver here$/],
-        ["02802", "wait", /^02802 .+: A little outside our area$/],
+      // The tag: the town, an egg and a hen, and the delivery fee.
+      for (const [zip, tone, fee, has] of [
+        ["02857", "ok", "$5", [true, true]],
+        ["02802", "wait", "$8", [true, true]],
+        ["06234", "ok", "$5", [true, false]],
       ]) {
         await check(page, HOME.input, zip);
 
@@ -366,7 +349,9 @@ test.describe("map (#138)", () => {
         await expect(dropPin(page), zip).toBeVisible();
         expect(d.shown, zip).toBe(true);
         expect(d.tone, zip).toBe(tone);
-        expect(d.label, zip).toMatch(label);
+        expect(d.town, zip).toBe(await shape.getAttribute("data-town"));
+        expect(d.fee, zip).toBe(fee);
+        expect(d.has, zip).toEqual(has);
         expect(d.at, `${zip} lands on its middle`)
           .toMatch(new RegExp(`^translate\\(${x} ${y}\\)`));
         expect(d.pick, `${zip} outlined`)
@@ -384,6 +369,71 @@ test.describe("map (#138)", () => {
       await expect(dropPin(page)).toBeVisible();
       await page.locator(HOME.input).fill("");
       await page.locator(HOME.input).dispatchEvent("input");
+      await expect(dropPin(page)).toBeHidden();
+    });
+
+  // Lincoln lies on the map's top edge, under the zoom buttons.
+  test("the tag keeps inside the frame and clear of the zoom",
+    async ({ page }) => {
+      await page.goto(HOME.path);
+      await check(page, HOME.input, "02865");
+
+      const [tag, frame, zoom] = await Promise.all([
+        map(page).locator("[data-map-drop-tag]"),
+        map(page).locator("[data-map-frame]"),
+        map(page).locator(".map-zoom"),
+      ].map((el) => el.boundingBox()));
+
+      expect(tag.y).toBeGreaterThanOrEqual(frame.y);
+      expect(tag.x).toBeGreaterThanOrEqual(frame.x);
+      expect(tag.x + tag.width).toBeLessThanOrEqual(frame.x + frame.width);
+      expect(tag.y + tag.height)
+        .toBeLessThanOrEqual(frame.y + frame.height);
+      expect(tag.x + tag.width < zoom.x || tag.y > zoom.y + zoom.height,
+        "clear of the zoom buttons").toBe(true);
+    });
+
+  test("a second tap on the town picked clears it; so does water",
+    async ({ page }) => {
+      await page.goto(HOME.path);
+
+      const svg = map(page).locator("[data-map-svg]");
+      // A point on the shape itself, not under a pin or the tag.
+      const at = (zip) => zipShape(page, zip).evaluate((el) => {
+        const r = el.getBoundingClientRect();
+
+        for (let i = 1; i < 10; i += 1) {
+          for (let j = 1; j < 10; j += 1) {
+            const x = r.x + r.width * i / 10;
+            const y = r.y + r.height * j / 10;
+
+            if (document.elementFromPoint(x, y) === el) return [x, y];
+          }
+        }
+        return null;
+      });
+      const result = map(page).locator("[data-zip-result]");
+
+      await svg.scrollIntoViewIfNeeded();
+      const warwick = await at("02886");
+
+      await page.mouse.click(...warwick);
+      await expect(page.locator(HOME.input)).toHaveValue("02886");
+      await expect(dropPin(page)).toBeVisible();
+      await page.mouse.click(...warwick);
+      await expect(page.locator(HOME.input)).toHaveValue("");
+      await expect(result).toBeEmpty();
+      await expect(dropPin(page)).toBeHidden();
+      await expect(map(page).locator(".map-pick")).toBeHidden();
+
+      // Water, at the frame's bottom right corner.
+      await page.mouse.click(...warwick);
+      await expect(dropPin(page)).toBeVisible();
+
+      const box = await svg.boundingBox();
+
+      await page.mouse.click(box.x + box.width - 4, box.y + box.height - 4);
+      await expect(page.locator(HOME.input)).toHaveValue("");
       await expect(dropPin(page)).toBeHidden();
     });
 
@@ -574,6 +624,6 @@ test.describe("map (#138)", () => {
     await input.fill("02857");
     await input.press("Enter");
     await expect(dropPin(page)).toBeVisible();
-    expect((await drop(page)).label).toMatch(/^02857 .+: We deliver here$/);
+    expect((await drop(page)).fee).toBe("$5");
   });
 });

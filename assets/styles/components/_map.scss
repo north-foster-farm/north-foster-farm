@@ -11,6 +11,7 @@ $map-water: tint-color($teal, 84%);
 $map-land: #f3f1ea;
 $map-away: #e9dfc8;
 $map-ours: tint-color($green, 58%);
+$map-eggs: tint-color($green, 80%);
 $map-pins: (
   "dropsite": $green,
   "market": $orange,
@@ -68,6 +69,7 @@ $map-pins: (
 .map-zip,
 .map-borders,
 .map-pick,
+.map-pick-casing,
 .map-pin-head > path,
 .map-drop-pin {
   vector-effect: non-scaling-stroke;
@@ -85,6 +87,14 @@ $map-pins: (
 
     &:hover {
       fill: shade-color($map-ours, 12%);
+    }
+  }
+
+  &.is-eggs {
+    fill: $map-eggs;
+
+    &:hover {
+      fill: shade-color($map-eggs, 10%);
     }
   }
 
@@ -165,7 +175,7 @@ $map-pins: (
 }
 
 // Pins that share a ZIP: stacked, each a step up and to the right of
-// the one before, and spread in a row on hover, focus or a first tap.
+// the one before, sliding round as a tap brings the next to the front.
 .map-pin-shift {
   transition: transform 0.2s ease-out;
 }
@@ -203,18 +213,26 @@ $map-pins: (
   }
 }
 
-// The dropped pin: the ZIP typed or tapped, outlined, and a pin that
-// falls onto its middle from above the map with a small bounce. Its
-// colour says whether we deliver there.
+// The dropped pin: the ZIP typed or tapped, outlined in dark green
+// over a white casing, and a pin that falls onto its middle from
+// above the map with a small bounce. Its colour says whether we
+// deliver there. Its tag fades in as it lands.
 .map-drop {
   pointer-events: none;
 }
 
-.map-pick {
+.map-pick,
+.map-pick-casing {
   fill: none;
-  stroke: $gray-800;
-  stroke-width: 2.5;
+  stroke: $primary;
+  stroke-width: 3;
   stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.map-pick-casing {
+  stroke: $white;
+  stroke-width: 6;
 }
 
 .map-drop-pin {
@@ -227,15 +245,34 @@ $map-pins: (
   fill: $white;
 }
 
-.map-drop-label {
-  font-size: 16px;
+.map-drop-tag {
+  animation: map-drop-tag 0.2s 0.6s ease-out both;
+}
+
+.map-drop-box {
+  fill: $white;
+  stroke: rgba($black, 0.15);
+  stroke-width: 1;
+  filter: drop-shadow(0 1px 2px rgba($black, 0.25));
+}
+
+.map-drop-town,
+.map-drop-fee {
+  font-size: 14px;
   font-weight: bold;
-  text-anchor: middle;
   fill: $gray-800;
-  stroke: $white;
-  stroke-width: 4px;
-  stroke-linejoin: round;
-  paint-order: stroke fill;
+}
+
+.map-drop-town {
+  text-anchor: middle;
+}
+
+.map-drop-has {
+  fill: $gray-400;
+
+  &[data-on="true"] {
+    fill: $primary;
+  }
 }
 
 .map-drop[data-tone="ok"] .map-drop-pin {
@@ -248,6 +285,12 @@ $map-pins: (
 
 .map-drop-fall {
   animation: map-drop 0.75s cubic-bezier(0.3, 0, 0.6, 1) both;
+}
+
+@keyframes map-drop-tag {
+  from {
+    opacity: 0;
+  }
 }
 
 @keyframes map-drop {
@@ -326,6 +369,12 @@ $map-pins: (
   margin-top: 0.5rem !important;
 }
 
+.map-card-stack {
+  margin-top: 0.5rem !important;
+  font-size: 0.8125rem;
+  color: var(--bs-secondary-color);
+}
+
 .map-card-links {
   display: flex;
   gap: 1rem;
@@ -383,7 +432,8 @@ $map-pins: (
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .map-drop-fall {
+  .map-drop-fall,
+  .map-drop-tag {
     animation: none;
   }
 
@@ -422,6 +472,11 @@ $map-pins: (
   &.is-ours {
     border: 1px solid shade-color($map-ours, 15%);
     background-color: $map-ours;
+  }
+
+  &.is-eggs {
+    border: 1px solid shade-color($map-eggs, 15%);
+    background-color: $map-eggs;
   }
 
   &.is-away {

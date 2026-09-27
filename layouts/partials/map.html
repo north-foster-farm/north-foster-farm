@@ -9,14 +9,14 @@
   the drop site, upcoming pop-ups, markets in season) stands solid and
   on top, first in the key; what is not (past pop-ups, markets out of
   season) is small, hollow and last. Pins that share a ZIP stand in a
-  stack, which spreads on hover, focus or a first tap.
+  stack; each tap on it brings the next to the front.
 
   scripts/map/ makes it answer: a ZIP names its town and whether we
   deliver there on hover, and a tap on it runs the ZIP check and drops
-  a pin; a pin, or its line in the key, opens a card with the details,
-  directions and, for the farm and the drop site, a button to shop
-  that way; it zooms with the buttons, a pinch or a double tap and
-  pans with a drag. Wording is a draft for James (#138).
+  a pin, which a second tap clears; a pin, or its line in the key,
+  opens a card with the details, directions and, for the farm and the
+  drop site, a button to shop that way; it zooms with the buttons, a
+  pinch or a double tap and pans with a drag. Wording is a draft for James (#138).
 
   Params:
     id     Prefix for ids, unique on the page
@@ -142,6 +142,11 @@
 {{ $marker := $markerFile | replaceRE "^<svg " `<svg class="map-farm-marker" ` | safeHTML }}
 {{ $markerShapes := $markerFile | replaceRE `(?s)^<svg[^>]*>` "" | replaceRE `(?s)</svg>\s*$` "" | safeHTML }}
 {{ $ig := partial "svg.html" "icons/instagram" }}
+{{/* The dropped pin's egg and hen, their shapes alone, as with the
+     marker: eggs 24 units square, the hen 308 by 376 from (350, 158). */}}
+{{ $shapesOf := `(?s)^.*?<svg[^>]*>|</svg>\s*$` }}
+{{ $eggShapes := readFile "assets/images/icons/eggs.svg" | replaceRE $shapesOf "" | safeHTML }}
+{{ $henShapes := readFile "assets/images/search/hen.svg" | replaceRE $shapesOf "" | replaceRE ` fill="[^"]*"` "" | safeHTML }}
 
 <div class="map" id="{{ $id }}" data-map>
   {{ if .check }}
@@ -163,13 +168,40 @@
           {{ range $map.zips }}
             {{ $class := "is-land" }}
             {{ if in $ours .zip }}{{ $class = "is-ours" }}{{ else if eq .state "RI" }}{{ $class = "is-away" }}{{ end }}
-            {{ if in $eggs .zip }}{{ $class = "is-ours is-eggs" }}{{ end }}
+            {{ if in $eggs .zip }}{{ $class = "is-eggs" }}{{ end }}
             <path class="map-zip {{ $class }}" data-zip="z{{ .zip }}" data-town="{{ .town }}" data-x="{{ .x }}" data-y="{{ .y }}" d="{{ .d }}"/>
           {{ end }}
         </g>
         <path class="map-borders" d="{{ $map.borders }}"/>
-        {{/* The ZIP picked, outlined under the pins. */}}
+        {{/* The ZIP picked, outlined in dark green over a white
+             casing, under the pins. */}}
+        <path class="map-pick-casing" data-map-pick hidden/>
         <path class="map-pick" data-map-pick hidden/>
+        {{/* The dropped pin and its tag, under the pins: a pin in the
+             town picked paints over both. The tag names the town, then
+             an egg and a hen, coloured where we deliver them, and the
+             delivery fee. It repeats the check's answer, which a
+             screen reader hears from there. scripts/map/ lays it out
+             in screen pixels and keeps it inside the frame. */}}
+        <g class="map-drop" data-map-drop hidden>
+          <g data-map-drop-at>
+            <g class="map-drop-fall">
+              <path class="map-drop-pin" d="{{ $pin }}"/>
+              <circle class="map-drop-dot" cy="-30" r="6"/>
+            </g>
+          </g>
+          <g class="map-drop-tag" data-map-drop-tag data-fee="{{ $terms.money.deliveryFee }}" data-extra="{{ $terms.money.outsideAreaFee }}" aria-hidden="true">
+            <rect class="map-drop-box" rx="6" data-map-drop-box/>
+            <text class="map-drop-town" data-map-drop-town></text>
+            <g class="map-drop-has" data-map-drop-has="eggs">
+              <g transform="scale(0.6667)">{{ $eggShapes }}</g>
+            </g>
+            <g class="map-drop-has" data-map-drop-has="hen">
+              <g transform="scale(0.04255) translate(-350 -158)">{{ $henShapes }}</g>
+            </g>
+            <text class="map-drop-fee" data-map-drop-fee></text>
+          </g>
+        </g>
         {{/* The pins, drawn last to first so what is on now lies over
              the rest. data-map-pin is the pin's place in the key. */}}
         <g class="map-pins">
@@ -196,16 +228,6 @@
             </g>
           {{ end }}
         </g>
-        {{/* The dropped pin, over the others: it is the visitor's. */}}
-        <g class="map-drop" data-map-drop hidden>
-          <g data-map-drop-at>
-            <g class="map-drop-fall">
-              <path class="map-drop-pin" d="{{ $pin }}"/>
-              <circle class="map-drop-dot" cy="-30" r="6"/>
-              <text class="map-drop-label" y="-52" data-map-drop-label></text>
-            </g>
-          </g>
-        </g>
       </svg>
 
       <div class="map-tip" data-map-tip hidden></div>
@@ -220,6 +242,8 @@
           {{ range $p.lines }}
             <p class="map-card-line">{{ . }}</p>
           {{ end }}
+          {{/* For a pin in a stack, scripts/map/ says which it is. */}}
+          <p class="map-card-stack" data-map-card-stack hidden></p>
           <p class="map-card-directions">{{ partial "directions.html" ($p.directions | default (dict "to" $p.address)) }}</p>
           {{ if or $p.href $p.instagram }}
             <p class="map-card-links">
@@ -246,8 +270,8 @@
   <div class="map-key">
     <ul class="map-key-areas list-unstyled">
       <li><span class="map-swatch is-ours" aria-hidden="true"></span>We deliver here</li>
+      <li><span class="map-swatch is-eggs" aria-hidden="true"></span>We deliver eggs here</li>
       <li><span class="map-swatch is-away" aria-hidden="true"></span>A little outside our area</li>
-      <li class="text-body-secondary">In Connecticut, eggs only</li>
     </ul>
 
     {{ $heads := dict
