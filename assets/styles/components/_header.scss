@@ -256,6 +256,21 @@ header {
   transition: transform 0.2s ease-out;
 }
 
+// Closed, the panel is gone from the page, not only moved off it and
+// hidden: iOS Safari 26 tints its bars from any fixed layer at least
+// 80% as wide as the screen that touches its top or bottom, hidden or
+// not, and this white panel is 82% of a 390px phone. The slide-in
+// starts from off the screen, as it would have.
+.offcanvas.site-offcanvas:not(.show, .showing, .hiding) {
+  display: none;
+}
+
+@starting-style {
+  .offcanvas.site-offcanvas.showing {
+    transform: translateX(100%);
+  }
+}
+
 // Its backdrop veils the page in the panel's white, not black. iOS
 // Safari tints its status bar and toolbar with a full-width fixed
 // layer's colour, ignoring its opacity: a black backdrop boxed the
