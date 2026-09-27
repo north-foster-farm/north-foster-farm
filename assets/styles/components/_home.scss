@@ -41,8 +41,8 @@
   }
 
   // Hero: the coop video fills the viewport below the header, up to
-  // 80rem on a tall screen, softly blurred under a wash of dark green
-  // that is deepest where the words are. The photograph
+  // 80rem on a tall screen, softly blurred under a black wash that is
+  // deepest at the top. The photograph
   // beneath is the video's poster. Below lg the body is centred on
   // the viewport, not on the hero, by reserving the height above it,
   // the header's (its row and its stripe) and the top bar's, below
@@ -77,23 +77,15 @@
     filter: blur(var(--hero-blur));
   }
 
-  // The wash: while the words are centred, a plain black veil over the
-  // whole picture, deepest at the foot where the buttons are, so the
-  // video keeps its own colours; from lg, the brand green from the
-  // right, where the words then sit, fading out before the coop, in a
-  // green darker than the dark brand green.
+  // The wash: a black veil at every width, darkest at the top over the
+  // sky, the clip's brightest part, easing through the middle, where a
+  // phone's words sit, to its lightest over the grass. White type and
+  // the accent pass AA over every frame and the poster.
   .home-hero-shade {
-    $wash: shade-color($green, 45%);
-
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, rgba($black, 0.7),
-      rgba($black, 0.55));
-
-    @media (min-width: 992px) {
-      background: linear-gradient(to left, rgba($wash, 0.75) 40%,
-        rgba($wash, 0));
-    }
+    background: linear-gradient(rgba($black, 0.8), rgba($black, 0.6) 55%,
+      rgba($black, 0.4));
   }
 
   // The video fades in over its poster once frames are coming, and
