@@ -1,5 +1,5 @@
 // "Do we deliver to you?" on the home page and the delivery policy:
-// the heading with a small floating-label field beside it, and an
+// the heading with a five-digit field beside it, and an
 // answer under both that takes the tone the account page uses for an
 // address (ok, wait, no). The field drops under the heading when the
 // two don't fit on one line; it stays small.
@@ -15,9 +15,17 @@
   flex: 1 1 auto;
 }
 
-// Room for "ZIP code" as the label and five digits typed.
+// Five digits wide, and no wider: the padding, the border and room
+// for the caret after the last digit.
 .zip-check-field {
-  flex: 0 0 8.5rem;
+  flex: 0 0 auto;
+
+  .form-control {
+    width: calc(
+      5ch + 2 * #{$input-padding-x} + 2 * #{$input-border-width} + 2px
+    );
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 .zip-check-result {

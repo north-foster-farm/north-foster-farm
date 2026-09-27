@@ -6,9 +6,10 @@
   wires every form on the page; a page that uses this sets pageScript:
   "zip-check".
 
-  The field is small and floats its label: "ZIP code" sits in it until
-  it has focus or a value. It stands beside the heading where they fit
-  on one line and drops under it where they don't.
+  The field is five digits wide. Its label is there for screen
+  readers only; "ZIP" shows in it until it has a value. It stands
+  beside the heading where they fit on one line and drops under it
+  where they don't.
 
   Params:
     id       Prefix for the field's id, unique on the page
@@ -21,9 +22,9 @@
     {{ with .heading }}
       <h3 class="zip-check-heading fs-4 card-title mb-0">{{ . }}</h3>
     {{ end }}
-    <div class="form-floating zip-check-field">
-      <input class="form-control" type="text" id="{{ $id }}-input" name="zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="ZIP code" aria-describedby="{{ $id }}-result">
-      <label for="{{ $id }}-input">ZIP code</label>
+    <div class="zip-check-field">
+      <label class="visually-hidden" for="{{ $id }}-input">ZIP code</label>
+      <input class="form-control" type="text" id="{{ $id }}-input" name="zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="ZIP" aria-describedby="{{ $id }}-result">
     </div>
   </div>
   <p class="zip-check-result mt-2 mb-0" id="{{ $id }}-result" data-zip-result role="status" aria-live="polite"></p>
