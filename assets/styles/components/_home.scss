@@ -1,3 +1,7 @@
+// The hero's two lines of type share one soft shadow, which holds them
+// clear of the moving picture.
+$hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
+
 .home {
   // The update: the tint is the band, and the card on it is a shade
   // off white, so the photographs and the delivery check stand on
@@ -77,15 +81,25 @@
     filter: blur(var(--hero-blur));
   }
 
-  // The wash: a black veil at every width, darkest at the top over the
-  // sky, the clip's brightest part, easing through the middle, where a
-  // phone's words sit, to its lightest over the grass. White type and
-  // the accent pass AA over every frame and the poster.
+  // The wash. While the words are centred, a black veil, darkest at
+  // the top over the sky, the clip's brightest part, easing through
+  // the middle, where they sit, to its lightest over the grass. From
+  // lg, the brand green from the right, where the words then sit,
+  // fading out before the coop, in a green darker than the dark brand
+  // green. White type and the accent pass AA over every frame and the
+  // poster.
   .home-hero-shade {
+    $wash: shade-color($green, 45%);
+
     position: absolute;
     inset: 0;
     background: linear-gradient(rgba($black, 0.8), rgba($black, 0.6) 55%,
       rgba($black, 0.4));
+
+    @media (min-width: 992px) {
+      background: linear-gradient(to left, rgba($wash, 0.75) 40%,
+        rgba($wash, 0));
+    }
   }
 
   // The video fades in over its poster once frames are coming, and
@@ -154,6 +168,7 @@
     line-height: 1.05;
     letter-spacing: -0.08rem;
     white-space: nowrap;
+    text-shadow: $hero-text-shadow;
   }
 
   .home-hero-br-xs::after {
@@ -167,15 +182,15 @@
     letter-spacing: -0.12rem;
   }
 
-  // The h1, regular weight on a soft shadow, to hold its contrast over
-  // the moving picture. It steps up at md and again at lg; on phones it is
-  // narrower, where the sentence would otherwise run four lines.
+  // The h1, regular weight on the title's shadow. It steps up at md
+  // and again at lg; on phones it is narrower, where the sentence
+  // would otherwise run four lines.
   .home-hero-sub {
     max-width: 26ch;
     margin: 1.5rem auto 1.25rem;
     font-size: 1.1875rem;
     font-weight: normal;
-    text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
+    text-shadow: $hero-text-shadow;
     letter-spacing: -0.3px;
     line-height: 1.35;
   }

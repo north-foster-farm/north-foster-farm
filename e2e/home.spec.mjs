@@ -87,6 +87,8 @@ test.describe("home", () => {
         title: parseFloat(t.fontSize),
         sub: parseFloat(getComputedStyle(sub).fontSize),
         stroke: parseFloat(getComputedStyle(sub).webkitTextStrokeWidth),
+        titleShadow: t.textShadow,
+        subShadow: getComputedStyle(sub).textShadow,
         left: words.left,
         right: words.right,
         room: text.getBoundingClientRect(),
@@ -147,9 +149,14 @@ test.describe("home", () => {
       // carries the contrast.
       expect(m.stroke, `${at} no outline`).toBe(0);
       expect(m.filter).toBe("blur(9px)");
-      // Black, darkest at the top, at every width (James, 2026-09-26).
-      expect(m.wash, `${at} wash`).toMatch(
-        /^linear-gradient\(rgba\(7, 6, 6, 0\.8\), rgba\(7, 6, 6, 0\.6\) 55%/);
+      expect(m.wash, `${at} wash`).toMatch(width >= 992
+        // The brand green shaded 45% (James, 2026-09-26).
+        ? /^linear-gradient\(to left, rgba\(17, 68, 46, 0\.75\) 40%/
+        // Black, darkest at the top, on phones (James, 2026-09-26).
+        : /^linear-gradient\(rgba\(7, 6, 6, 0\.8\), rgba\(7, 6, 6, 0\.6\) 55%/);
+      // Both lines of type on the same soft shadow (James, 2026-09-26).
+      expect(m.titleShadow, `${at} title shadow`).toBe(m.subShadow);
+      expect(m.titleShadow, `${at} title shadow`).not.toBe("none");
 
       const middle = (m.room.left + m.room.right) / 2;
 
