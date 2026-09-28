@@ -76,6 +76,10 @@ const USAGE = `Usage:
                                       payment left open a day or more;
                                       a report unless --apply, which
                                       cancels them (#241)
+  bin/nff jobs customers [--apply]    Square profiles a checkout made
+                                      whose payment never succeeded; a
+                                      report unless --apply, which
+                                      deletes them (#236)
   bin/nff health                      what /api/health would answer
   bin/nff library [--staging]         James's approvals and rewrites
                                       from the email library, to port
@@ -111,7 +115,7 @@ const [
   { default: terms },
   admin,
   { requestLink },
-  { runJobs, runsSince, sweepSquareOrders },
+  { runJobs, runsSince, sweepMadeCustomers, sweepSquareOrders },
   { stores: makeStores },
   { CANCEL_REASONS, paymentPhrase, summaryLine },
   { inviteSubscribers, parseCsv, syncAudience },
@@ -518,6 +522,19 @@ const run = async () => {
 
     return out(`${found.length} left open.${apply ? "" : " This is only a " +
       "report; --apply cancels them."}`);
+  }
+  case "jobs customers": {
+    const apply = !!flags.apply;
+    const found = await sweepMadeCustomers(stores, { remove: apply });
+
+    if (!found) return out("Square is not configured here.");
+    for (const c of found) {
+      out(`${c.at.slice(0, 16)}  ${c.orderId}  ${c.customerId}  ${
+        c.error ? `error: ${c.error}` : c.deleted ? "deleted" : "unpaid"}`);
+    }
+
+    return out(`${found.length} made for a payment that never succeeded${
+      apply ? "" : " (a report; --apply deletes them)"}.`);
   }
   case "jobs history": {
     const n = Number(flags.n) || 20;

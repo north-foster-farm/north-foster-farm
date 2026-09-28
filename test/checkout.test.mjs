@@ -8,7 +8,8 @@ import {
 import { readMark } from "../netlify/functions/lib/health.mjs";
 import { PayPalError } from "../netlify/functions/lib/paypal.mjs";
 import {
-  CHECKOUT_TTL, getCheckout, getOrder, openOrders, saveOrder,
+  CHECKOUT_TTL, getCheckout, getOrder, listMadeCustomers, openOrders,
+  saveOrder,
 } from "../netlify/functions/lib/records.mjs";
 import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
@@ -259,6 +260,32 @@ describe("payWithSquare", () => {
       assert.equal(saved.status, "paid");
       assert.ok(!calls.some((c) => c[0] === "cancel"));
     });
+
+  it("notes a Square profile it made before the charge, so a failure " +
+    "leaves it for the jobs, and never one it found (#236)", async () => {
+    const stores = testStores();
+    const made = fakeSquare({
+      create: () => ({
+        squareOrderId: "SQO", customerId: "NEW", customerMade: true,
+      }),
+      pay: () => { throw new SquareError("500", { status: 500 }); },
+    });
+
+    await assert.rejects(payWithSquare(stores, order(), {
+      key: KEY, method: "card", sourceId: "tok",
+    }, { square: made.square, ...quiet }));
+    assert.deepEqual(await listMadeCustomers(stores), [{
+      customerId: "NEW", email: order().customer.email,
+      orderId: "NFF-2610-ABCD", at: now.toISOString(),
+    }]);
+
+    const other = testStores();
+
+    await payWithSquare(other, order(), {
+      key: KEY, method: "card", sourceId: "tok",
+    }, { square: fakeSquare().square, ...quiet });
+    assert.deepEqual(await listMadeCustomers(other), []);
+  });
 });
 
 describe("startVenmo and finishVenmo", () => {

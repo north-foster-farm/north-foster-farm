@@ -2,15 +2,15 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  SQUARE_OPEN_GRACE, SQUARE_SWEEP_HOUR, SQUARE_SYNC_GRACE, checkInvariants,
-  cutoffAt, deliveryReminderAt, leftOpen, runJobs, runsSince,
-  sweepSquareOrders,
+  MADE_CUSTOMER_GRACE, SQUARE_OPEN_GRACE, SQUARE_SWEEP_HOUR,
+  SQUARE_SYNC_GRACE, checkInvariants, cutoffAt, deliveryReminderAt,
+  leftOpen, runJobs, runsSince, sweepMadeCustomers, sweepSquareOrders,
 } from "../netlify/functions/lib/jobs.mjs";
 import { SOURCE_NAME } from "../netlify/functions/lib/square.mjs";
 import { readMark } from "../netlify/functions/lib/health.mjs";
 import {
-  CHECKOUT_TTL, getCheckout, getOrder, openOrders, saveCheckout,
-  saveCustomer, saveOrder,
+  CHECKOUT_TTL, getCheckout, getOrder, listMadeCustomers, noteMadeCustomer,
+  openOrders, saveCheckout, saveCustomer, saveOrder,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
@@ -728,6 +728,125 @@ describe("Square orders left open (#241)", () => {
     const square = fakeSquare([open("SQ-1", "NFF-2610-AAAA")]);
 
     assert.equal(await sweepSquareOrders(testStores(), {
+      env: {}, now, square,
+    }), null);
+    assert.deepEqual(square.calls, []);
+  });
+});
+
+describe("Square profiles a failed checkout made (#236)", () => {
+  const squareEnv = { SQUARE_ACCESS_TOKEN: "tok", SQUARE_LOCATION_ID: "LOC" };
+  const now = new Date(placed.getTime() + MADE_CUSTOMER_GRACE + 60 * 60_000);
+  const note = (stores, customerId, orderId, at = placed) =>
+    noteMadeCustomer(stores, {
+      customerId, orderId, email: `${customerId}@example.com`,
+    }, at);
+  const fakeSquare = ({ orders = {}, fails = [] } = {}) => {
+    const calls = [];
+
+    return {
+      calls,
+      // The jobs also sweep open orders (#241); there are none here.
+      searchOpenOrders: async () => [],
+      customerOrders: async (id, { since }) => {
+        calls.push(["orders", id, since.toISOString()]);
+
+        return orders[id] || { paid: false, recent: false };
+      },
+      deleteCustomer: async (id) => {
+        calls.push(["delete", id]);
+        if (fails.includes(id)) throw new Error("Square 500");
+
+        return { id, deleted: true };
+      },
+    };
+  };
+  const noted = async (stores) => (await listMadeCustomers(stores))
+    .map((m) => m.customerId).sort();
+
+  it("reports a profile whose payment never succeeded, and deletes " +
+    "nothing while the switch is off", async () => {
+    const stores = testStores();
+    const square = fakeSquare();
+
+    await note(stores, "LOST", "NFF-2610-LOST");
+    await note(stores, "FRESH", "NFF-2610-FRSH", now);
+
+    const found = await sweepMadeCustomers(stores, {
+      env: squareEnv, now, square,
+    });
+
+    assert.deepEqual(found, [{
+      customerId: "LOST", orderId: "NFF-2610-LOST",
+      at: placed.toISOString(), deleted: false,
+    }]);
+    assert.deepEqual(square.calls, [[
+      "orders", "LOST",
+      new Date(now.getTime() - MADE_CUSTOMER_GRACE).toISOString(),
+    ]], "a note under a day old is not weighed yet");
+    assert.deepEqual(await noted(stores), ["FRESH", "LOST"]);
+  });
+
+  it("keeps a profile a later attempt paid for, by record or in Square, " +
+    "and waits on one with a recent order", async () => {
+    const stores = testStores();
+    const square = fakeSquare({ orders: {
+      MARKET: { paid: true, recent: false },
+      RETRY: { paid: false, recent: true },
+    } });
+
+    await saveOrder(stores, order("NFF-2610-PAID"));
+    await note(stores, "PAID", "NFF-2610-PAID");
+    await saveOrder(stores, {
+      ...order("NFF-2610-LATR"),
+      customer: { ...order("X").customer, email: "SAME@example.com" },
+    });
+    await note(stores, "SAME", "NFF-2610-GONE");
+    await note(stores, "MARKET", "NFF-2610-MRKT");
+    await note(stores, "RETRY", "NFF-2610-RTRY");
+
+    const found = await sweepMadeCustomers(stores, {
+      env: { ...squareEnv, SQUARE_CUSTOMER_CLEANUP: "true" }, now, square,
+    });
+
+    assert.deepEqual(found, []);
+    assert.ok(!square.calls.some((c) => c[0] === "delete"));
+    assert.deepEqual(await noted(stores), ["RETRY"],
+      "kept ones are settled; the retry is weighed again later");
+  });
+
+  it("deletes them when SQUARE_CUSTOMER_CLEANUP is true, and reports a " +
+    "Square error as a job error, keeping the note", async () => {
+    const stores = testStores();
+    const square = fakeSquare({ fails: ["BAD"] });
+
+    await note(stores, "GONE", "NFF-2610-AAAA");
+    await note(stores, "BAD", "NFF-2610-BBBB");
+
+    const r = await runJobs(stores, {
+      ...harness().opts, square, now,
+      env: { ...squareEnv, SQUARE_CUSTOMER_CLEANUP: "true" },
+    });
+
+    assert.deepEqual(r.customersMade.map((c) => [c.customerId, c.deleted]),
+      [["BAD", false], ["GONE", true]]);
+    assert.deepEqual(r.errors, [{
+      id: "NFF-2610-BBBB", step: "customerDelete", error: "Square 500",
+    }]);
+    assert.deepEqual(await noted(stores), ["BAD"]);
+
+    const [run] = await runsSince(stores, new Date(0));
+
+    assert.equal(run.counts.customersMade, 2);
+    assert.equal(run.customersDeleted, 1);
+  });
+
+  it("does nothing where Square is not configured", async () => {
+    const stores = testStores();
+    const square = fakeSquare();
+
+    await note(stores, "LOST", "NFF-2610-LOST");
+    assert.equal(await sweepMadeCustomers(stores, {
       env: {}, now, square,
     }), null);
     assert.deepEqual(square.calls, []);

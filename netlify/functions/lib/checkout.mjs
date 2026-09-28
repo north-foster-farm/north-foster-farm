@@ -31,7 +31,8 @@ import { announcePaid } from "./payments.mjs";
 import { pickupSchedule } from "./pickups.mjs";
 import {
   amendOrder, deleteCheckout, getCheckout, getCustomer, getOrder,
-  moneyPatch, paymentsOf, saveCheckout, saveOrder, touchCustomer,
+  moneyPatch, noteMadeCustomer, paymentsOf, saveCheckout, saveOrder,
+  touchCustomer,
 } from "./records.mjs";
 import * as squareApi from "./square.mjs";
 import { adjust } from "./stock.mjs";
@@ -115,6 +116,23 @@ export const payWithSquare = async (stores, order, {
     () => square.createOrder(order, k, { env, fetchImpl }), { sleep }
   );
   let paid;
+
+  // Noted before the charge, so a failure of any kind leaves it for
+  // the jobs to weigh (#236). Best effort: it never stands between the
+  // customer and paying.
+  if (created.customerMade) {
+    try {
+      await noteMadeCustomer(stores, {
+        customerId: created.customerId, email: order.customer.email,
+        orderId: order.id,
+      }, options.now || new Date());
+    } catch (error) {
+      log.warn({
+        event: "square.customer_note_failed", id: order.id,
+        error: String(error && error.message),
+      });
+    }
+  }
 
   try {
     paid = await retry(() => square.createPayment({

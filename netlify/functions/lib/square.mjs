@@ -144,7 +144,7 @@ const call = async (cfg, path, body, fetchImpl, method = "POST") => {
         "Square-Version": cfg.version,
         "Content-Type": "application/json",
       },
-      body: method === "GET" ? undefined : JSON.stringify(body),
+      body: body === null ? undefined : JSON.stringify(body),
     });
   } catch (error) {
     throw new SquareError(`Network error calling ${path}`, {
@@ -333,13 +333,20 @@ export const buildOrder = (order, customerId, cfg) => {
   return out;
 };
 
-const findOrCreateCustomer = async (cfg, customer, key, fetchImpl) => {
+// A profile the site makes carries the order id it was made for as its
+// reference, so "made for this order" survives a retry that finds it
+// instead (#236). -> { id, made }
+const findOrCreateCustomer = async (cfg, customer, key, fetchImpl, ref) => {
   const found = await call(cfg, "/v2/customers/search", {
     query: { filter: { email_address: { exact: customer.email } } },
     limit: 1,
   }, fetchImpl);
 
-  if (found.customers && found.customers.length) return found.customers[0].id;
+  if (found.customers && found.customers.length) {
+    const c = found.customers[0];
+
+    return { id: c.id, made: !!ref && c.reference_id === ref };
+  }
 
   const [given, ...rest] = customer.firstName
     ? [customer.firstName, customer.lastName || ""]
@@ -350,28 +357,33 @@ const findOrCreateCustomer = async (cfg, customer, key, fetchImpl) => {
     family_name: rest.join(" ") || undefined,
     email_address: customer.email,
     phone_number: e164(customer.phone),
+    reference_id: ref,
   }, fetchImpl);
 
-  return created.customer.id;
+  return { id: created.customer.id, made: !!ref };
 };
 
 // The customer and the order with its fulfilment, before any money.
-// -> { squareOrderId, customerId }
+// `customerMade` says the profile was made for this order, not found.
+// -> { squareOrderId, customerId, customerMade }
 // throws SquareError { retryable, detail }
 export const createOrder = async (order, key, {
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) => {
   const cfg = settings(env);
-  const customerId = await findOrCreateCustomer(
-    cfg, order.customer, key, fetchImpl
+  const customer = await findOrCreateCustomer(
+    cfg, order.customer, key, fetchImpl, order.id
   );
   const created = await call(cfg, "/v2/orders", {
     idempotency_key: `${key}-order`,
-    order: buildOrder(order, customerId, cfg),
+    order: buildOrder(order, customer.id, cfg),
   }, fetchImpl);
 
-  return { squareOrderId: created.order.id, customerId };
+  return {
+    squareOrderId: created.order.id, customerId: customer.id,
+    customerMade: customer.made,
+  };
 };
 
 // A change to a paid order (lib/edit.mjs) as a Square order of its
@@ -432,7 +444,7 @@ export const createChangeOrder = async (order, change, key, {
   fetchImpl = globalThis.fetch,
 } = {}) => {
   const cfg = settings(env);
-  const customerId = await findOrCreateCustomer(
+  const { id: customerId } = await findOrCreateCustomer(
     cfg, order.customer, key, fetchImpl
   );
   const created = await call(cfg, "/v2/orders", {
@@ -728,4 +740,53 @@ export const renameCustomerEmail = async (from, to, {
   }
 
   return ids;
+};
+
+// A customer's orders at this location, by any channel: whether one
+// took money (`paid`), and whether one was made after `since` and may
+// be paying right now (`recent`). The check before a profile is
+// deleted (#236). -> { paid, recent }
+export const customerOrders = async (customerId, { since }, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  const cfg = settings(env);
+  let recent = false;
+  let cursor;
+
+  do {
+    const data = await call(cfg, "/v2/orders/search", {
+      location_ids: [cfg.locationId],
+      limit: 100,
+      cursor,
+      query: { filter: { customer_filter: { customer_ids: [customerId] } } },
+    }, fetchImpl);
+
+    for (const o of data.orders || []) {
+      if ((o.tenders || []).length || o.state === "COMPLETED") {
+        return { paid: true, recent };
+      }
+      if (Date.parse(o.created_at) > since.getTime()) recent = true;
+    }
+    cursor = data.cursor;
+  } while (cursor);
+
+  return { paid: false, recent };
+};
+
+// -> { id, deleted }; a profile already gone counts as deleted.
+export const deleteCustomer = async (customerId, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  const cfg = settings(env);
+
+  try {
+    await call(cfg, `/v2/customers/${customerId}`, null, fetchImpl,
+      "DELETE");
+  } catch (error) {
+    if (!(error instanceof SquareError && error.status === 404)) throw error;
+  }
+
+  return { id: customerId, deleted: true };
 };

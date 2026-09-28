@@ -319,6 +319,35 @@ export const sweepAuth = async (stores, now = new Date()) => {
   return swept;
 };
 
+// --- Square profiles a checkout made ---------------------------------
+//
+// Pressing Pay makes a Square customer profile when the email is new
+// to the farm's directory, before the charge. Each one made is noted
+// here, by its Square id, until the jobs decide whether the payment
+// behind it ever succeeded (#236).
+
+export const madeCustomerKey = (id) => `made-customer/${id}`;
+
+export const noteMadeCustomer = (stores, { customerId, email, orderId }, now) =>
+  stores.orders.set(madeCustomerKey(customerId), {
+    customerId, email, orderId, at: now.toISOString(),
+  });
+
+export const listMadeCustomers = async (stores) => {
+  const found = [];
+
+  for (const { key } of await stores.orders.list("made-customer/")) {
+    const made = await stores.orders.get(key);
+
+    if (made) found.push(made);
+  }
+
+  return found;
+};
+
+export const dropMadeCustomer = (stores, id) =>
+  stores.orders.delete(madeCustomerKey(id));
+
 // Customers are keyed by lowercased email. Creating from an order
 // keeps what the order knows and never overwrites a chosen name,
 // phone, avatar or address.
