@@ -65,10 +65,12 @@ const when = (order) => {
   const day = f.date ? label(f.date) : "";
 
   if (f.method === "onfarm" && f.onfarm) {
-    // Once the farm has confirmed, the window narrows to the hours it
-    // picked inside the one the customer asked for.
-    const c = f.state === "agreed" && f.onfarm.confirmed;
-    const window = c ? `${hour12(c.from)} – ${hour12(c.to)}` : f.onfarm.window;
+    // The window booked (W11d); a record from before may carry the
+    // hours the farm confirmed inside it.
+    const c = f.onfarm.confirmed;
+    const times = pickupTimes(f.onfarm);
+    const window = c ? `${hour12(c.from)} – ${hour12(c.to)}`
+      : times ? windowLabel(times) : f.onfarm.window;
 
     return `${METHOD.onfarm}, ${day}, ${window}`;
   }

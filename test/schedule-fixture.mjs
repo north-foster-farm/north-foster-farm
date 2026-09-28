@@ -16,3 +16,7 @@ for (let d = "2026-10-01"; d <= "2026-11-30"; d = addDays(d, 1)) {
 }
 
 export const SCHEDULE = days.join("\n");
+
+// A test file run alone, without test/setup.mjs, still sees the
+// fixture's schedule, never the machine's.
+process.env.PICKUP_SCHEDULE = SCHEDULE;
