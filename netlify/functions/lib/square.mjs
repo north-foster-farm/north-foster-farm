@@ -10,6 +10,7 @@
 // duplicate.
 
 import terms from "../../../data/delivery.json" with { type: "json" };
+import { company } from "./company.mjs";
 import {
   pickupTimes, windowLabel,
 } from "../../../assets/scripts/order/lib/schedule.mjs";
@@ -489,7 +490,7 @@ export const createPayment = async ({
     customer_id: customerId,
     buyer_email_address: order.customer.email,
     reference_id: order.id,
-    note: `North Foster Farm order ${order.id}`,
+    note: `${company.name} order ${order.id}`,
   };
 
   if (source.external) {

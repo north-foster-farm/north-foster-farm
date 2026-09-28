@@ -6,6 +6,7 @@
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import { adjust, getCounts, setCount } from "./stock.mjs";
 import { normalizeEmail, validEmail } from "./auth.mjs";
+import { company } from "./company.mjs";
 import { sendMail } from "./mail.mjs";
 import * as newsApi from "./news.mjs";
 import { recordRefund, sendForOrder } from "./payments.mjs";
@@ -280,7 +281,7 @@ export const refundOrder = async (stores, id, {
     if (p.via === "venmo" && p.paypalCaptureId) {
       refund = await paypal.refundCapture({
         paypalCaptureId: p.paypalCaptureId, amount: take, key,
-        note: reason || `North Foster Farm order ${id}`,
+        note: reason || `${company.name} order ${id}`,
       }, { env, fetchImpl, now });
       if (p.squarePaymentId) {
         try {

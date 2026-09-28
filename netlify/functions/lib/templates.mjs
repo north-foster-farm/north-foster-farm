@@ -736,7 +736,7 @@ export const addressDecision = (customer, decision, { links } = {}) => {
 export const magicLink = (email, url, {
   minutes = accounts.signInLinkMinutes, links,
 } = {}) => {
-  const title = "Your secure sign-in link to North Foster Farm";
+  const title = `Your secure sign-in link to ${company.name}`;
   const blocks = [
     p("Click the button below to sign in. This link expires in " +
       `${minutes} minutes.`),
@@ -755,7 +755,7 @@ export const magicLink = (email, url, {
 export const newsConfirm = (email, url, {
   days = accounts.newsInviteDays, links,
 } = {}) => {
-  const title = "Confirm your email for farm news from North Foster Farm";
+  const title = `Confirm your email for farm news from ${company.name}`;
   const blocks = [
     p("Click the button below to receive farm news from North Foster " +
       "Farm."),
@@ -772,7 +772,7 @@ export const newsConfirm = (email, url, {
 // 2026-09-28), since it is the only word they get that it worked.
 // `unsubscribeUrl` takes them off in one click, no sign-in (T6c).
 export const newsWelcome = (who, unsubscribeUrl, { links } = {}) => {
-  const title = "You're on the North Foster Farm list";
+  const title = `You're on the ${company.name} list`;
   const name = firstName(who);
   const blocks = [
     p(name ? `Hi ${name},` : "Hi,"),

@@ -9,6 +9,8 @@
 // Every call carries a PayPal-Request-Id derived from the submission's
 // key and attempt, so a retry returns what was already made.
 
+import { company } from "./company.mjs";
+
 const HOSTS = {
   live: "https://api-m.paypal.com",
   sandbox: "https://api-m.sandbox.paypal.com",
@@ -193,11 +195,11 @@ export const createOrder = async (order, key, {
     purchase_units: [{
       reference_id: order.id,
       custom_id: order.id,
-      description: `North Foster Farm order ${order.id}`.slice(0, 127),
+      description: `${company.name} order ${order.id}`.slice(0, 127),
       amount: { currency_code: "USD", value: value(order.totals.total) },
     }],
     application_context: {
-      brand_name: "North Foster Farm",
+      brand_name: company.name,
       shipping_preference: "NO_SHIPPING",
       user_action: "PAY_NOW",
     },
