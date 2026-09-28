@@ -20,14 +20,15 @@
   {{/* Below lg the heading lives in this sticky bar and follows the
        scroll: the current section or category (order-form.js). It
        spans the whole form, so it stays to the end; once the cart has
-       scrolled away the total joins it on the right. */}}
+       scrolled away the total joins it on the right, and a tap on it
+       goes back to the cart (#203). */}}
   <div class="order-topbar d-lg-none">
     <span class="order-topbar-title" data-topbar-title aria-hidden="true">{{ .Params.heading | default .Title }}</span>
-    <span class="order-topbar-total" aria-hidden="true">
+    <button type="button" class="order-topbar-total" data-to-cart inert>
       <span data-total-bar-count>0 items</span>
       <span class="order-cart-sum-label">Total</span>
       <span class="order-total-bar-total" data-total-bar-total>$0</span>
-    </span>
+    </button>
   </div>
   <div class="order-catalog-col">
     {{/* Changing a paid order (/order/?edit=<id>, order-form.js): which
@@ -41,13 +42,16 @@
   <div class="order-rest">
     {{/* From lg to xl the pane scrolls away; this bar keeps the
          section's name and the total in view from then on
-         (order-form.js marks the form once the pane is passed). Below
-         lg the topbar carries both. */}}
-    <div class="order-total-bar d-none d-lg-flex d-xl-none" aria-hidden="true">
-      <span class="order-total-bar-title" data-topbar-title>{{ .Params.heading | default .Title }}</span>
-      <span data-total-bar-count>0 items</span>
-      <span class="order-cart-sum-label">Total</span>
-      <span class="order-total-bar-total" data-total-bar-total>$0</span>
+         (order-form.js marks the form once the pane is passed), and a
+         tap on the total goes back to the pane. Below lg the topbar
+         carries both. */}}
+    <div class="order-total-bar d-none d-lg-flex d-xl-none">
+      <span class="order-total-bar-title" data-topbar-title aria-hidden="true">{{ .Params.heading | default .Title }}</span>
+      <button type="button" class="order-total-bar-sum" data-to-cart inert>
+        <span data-total-bar-count>0 items</span>
+        <span class="order-cart-sum-label">Total</span>
+        <span class="order-total-bar-total" data-total-bar-total>$0</span>
+      </button>
     </div>
     {{ partial "order/fulfilment.html" . }}
     {{ partial "order/customer.html" . }}

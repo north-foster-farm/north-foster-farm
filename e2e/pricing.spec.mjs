@@ -195,6 +195,7 @@ test.describe("pricing and discounts", () => {
     const order = new OrderPage(page);
 
     await order.open({ wings: 5 }, { method: "delivery" });
+    await order.codeOpen.click();
     await order.codeInput.fill("nosuchcode");
     await order.codeApply.click();
     await expect(order.codeNote).toHaveText("Not a valid discount code.");
@@ -209,6 +210,7 @@ test.describe("pricing and discounts", () => {
       const joke = order.cart.locator(".order-cart-joke");
 
       await order.open({ wings: 5 }, { method: "delivery" });
+      await order.codeOpen.click();
       await order.codeInput.fill("eggboi");
       await order.codeInput.press("Enter");
       await expect(order.codeNote).toHaveText("Code applied.");

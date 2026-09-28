@@ -325,7 +325,9 @@ export class OrderForm {
     this.form.addEventListener("change", (e) => {
       this.changed();
       this.revalidate();
-      if (e.target.name === "method") this.revealMethod();
+      if (e.target.name === "method" && !this.quietMethod) {
+        this.revealMethod();
+      }
     });
     this.form.addEventListener("submit", (e) => this.submit(e));
     this.form.addEventListener("click", (e) => this.step(e));
@@ -376,6 +378,40 @@ export class OrderForm {
       qs(target, "legend").focus({ preventScroll: true });
     });
 
+    // The total row's two controls (#203): the count folds the lines,
+    // the total unfolds the sums above it. Below xl only; the column
+    // shows both and its count and total are plain text.
+    const itemsToggle = qs(this.cart, "[data-cart-items-toggle]");
+    const moneyToggle = qs(this.cart, "[data-cart-money-toggle]");
+
+    itemsToggle.addEventListener("click", () => {
+      this.setPart("items", this.cart.dataset.items !== "open");
+    });
+    moneyToggle.addEventListener("click", () => {
+      this.setPart("money", this.cart.dataset.money !== "open");
+    });
+    const column = matchMedia("(min-width: 1200px)");
+    const plain = () => {
+      itemsToggle.disabled = column.matches;
+      moneyToggle.disabled = column.matches;
+    };
+
+    column.addEventListener("change", plain);
+    plain();
+
+    this.wireShare();
+
+    // The header's total, once the cart has scrolled away, goes back
+    // to it (#203).
+    for (const button of all(this.form, "[data-to-cart]")) {
+      button.addEventListener("click", () => {
+        const heading = document.getElementById("order-cart-heading");
+
+        heading.scrollIntoView({ behavior: "smooth", block: "start" });
+        heading.focus({ preventScroll: true });
+      });
+    }
+
     // Below xl the pane floats at the foot of the screen while its
     // place in the page is further down, and settles into the flow
     // after the last row. Floating it casts a shadow; settled it is
@@ -403,8 +439,16 @@ export class OrderForm {
       if (below && !floating && this.cart.dataset.open === "false") {
         this.setOpen(true);
       }
-      // Scrolled past: the total bar takes over.
-      this.form.dataset.cartPassed = String(below && r.bottom < 60);
+      // Scrolled past: the total bar takes over, and its total becomes
+      // a way back.
+      const passed = below && r.bottom < 60;
+
+      if (this.form.dataset.cartPassed !== String(passed)) {
+        this.form.dataset.cartPassed = String(passed);
+        for (const button of all(this.form, "[data-to-cart]")) {
+          button.inert = !passed;
+        }
+      }
     };
     const onScroll = () => {
       if (stuckTick === null) stuckTick = requestAnimationFrame(stuckWatch);
@@ -673,6 +717,85 @@ export class OrderForm {
     this.changed();
   }
 
+  // The shared row (#203): the way and Add discount side by side; each
+  // opens over the whole row. A pick, Apply that takes, a tap or a
+  // focus outside the row, or Escape folds it back. Blur alone does
+  // not: a tap on Apply blurs the field on iOS before its click lands.
+  wireShare() {
+    const share = qs(this.cart, "[data-share]");
+    const input = qs(share, "[data-field='code']");
+
+    qs(share, "[data-way-toggle]").addEventListener("click", () => {
+      this.setShare("way");
+      (qs(share, "[data-way][aria-pressed='true']")
+        || qs(share, "[data-way]")).focus();
+    });
+    qs(share, "[data-code-toggle]").addEventListener("click", () => {
+      this.setShare("code");
+      input.focus();
+    });
+
+    share.addEventListener("click", (e) => {
+      const pick = e.target.closest("[data-way]");
+
+      if (!pick) return;
+
+      const radio = qs(
+        this.form, `[name='method'][value='${pick.dataset.way}']`
+      );
+
+      this.setShare("");
+      qs(share, "[data-way-toggle]").focus();
+      if (!radio || radio.checked) return;
+      radio.checked = true;
+      // As a click on its card would, less the scroll to its fields:
+      // the customer is in the cart, not at the section.
+      this.quietMethod = true;
+      radio.dispatchEvent(new Event("change", { bubbles: true }));
+      this.quietMethod = false;
+    });
+
+    const away = (e) => {
+      if (share.dataset.share && !share.contains(e.target)) {
+        this.setShare("");
+      }
+    };
+
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("focusin", away);
+    share.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || !share.dataset.share) return;
+
+      const was = share.dataset.share;
+
+      this.setShare("");
+      qs(share, was === "way" ? "[data-way-toggle]" : "[data-code-toggle]")
+        .focus();
+    });
+  }
+
+  // Opens one side of the shared row over the other, or neither ("").
+  setShare(open) {
+    const share = qs(this.cart, "[data-share]");
+
+    share.dataset.share = open;
+    qs(share, "[data-way-toggle]").setAttribute(
+      "aria-expanded", String(open === "way")
+    );
+    qs(share, "[data-code-toggle]").setAttribute(
+      "aria-expanded", String(open === "code")
+    );
+  }
+
+  // Folds or opens the lines or the sums, from the total row.
+  setPart(part, open) {
+    const toggle = qs(this.cart, `[data-cart-${part}-toggle]`);
+
+    this.cart.dataset[part] = open ? "open" : "closed";
+    toggle.setAttribute("aria-expanded", String(open));
+    if (part === "items" && open) this.syncScroll();
+  }
+
   // Folds or opens the cart (below xl; the column ignores it).
   setOpen(open) {
     this.cart.dataset.open = String(open);
@@ -700,6 +823,9 @@ export class OrderForm {
     const button = qs(wrap, "[data-cart-more]");
     const top = qs(wrap, "[data-cart-more-top]");
 
+    // The floor under the lines is three rows, or the list's own
+    // height when it is shorter: one item leaves no gap (#203).
+    wrap.style.setProperty("--cart-list-h", `${list.scrollHeight}px`);
     wrap.toggleAttribute("data-top", list.scrollTop > 0);
     wrap.toggleAttribute("data-more", more);
     button.hidden = !more || below === 0;
@@ -810,8 +936,16 @@ export class OrderForm {
     // An accepted code leaves the field empty for the next one; the
     // discount line says it is on, and the note says so for a while.
     const accepted = (text) => {
+      const open = qs(this.cart, "[data-share]").dataset.share === "code";
+
       input.value = "";
       say(text, "good");
+      // Done with the field: the row folds back, and focus goes to
+      // the button that opens it.
+      if (open) {
+        this.setShare("");
+        qs(this.cart, "[data-code-toggle]").focus();
+      }
       this.noteTimer = setTimeout(() => {
         note.classList.add("is-fading");
         this.noteTimer = setTimeout(() => {
@@ -984,6 +1118,25 @@ export class OrderForm {
     for (const el of all(this.form, "[data-total-bar-total]")) {
       el.textContent = s.total;
     }
+    for (const el of all(this.form, "[data-to-cart]")) {
+      el.setAttribute(
+        "aria-label", `${s.countText}, total ${s.total}. Go to the cart.`
+      );
+    }
+
+    // The shared row's button names the way the page holds; the cart
+    // never picks one of its own (#203).
+    let wayName = "";
+
+    for (const way of all(c, "[data-way]")) {
+      const on = way.dataset.way === method;
+
+      way.setAttribute("aria-pressed", String(on));
+      way.classList.toggle("btn-primary", on);
+      way.classList.toggle("btn-outline-primary", !on);
+      if (on) wayName = way.textContent.trim();
+    }
+    qs(c, "[data-way-name]").textContent = wayName || "Pickup or delivery";
     // The header's Order link shows the same count; a change to a paid
     // order is not the cart.
     if (!this.editing) announceCart(count);

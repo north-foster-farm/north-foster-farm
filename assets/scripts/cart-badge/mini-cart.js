@@ -27,7 +27,34 @@ export const wireMiniCart = () => {
   const groupTemplate = menu.querySelector("[data-mini-cart-group]");
   const lineTemplate = menu.querySelector("[data-mini-cart-line]");
   const subtotal = menu.querySelector("[data-mini-cart-subtotal]");
+  const panel = menu.querySelector(".site-mini-cart");
+  const row = menu.closest(".site-header-inner");
+  const phone = matchMedia("(max-width: 575.98px)");
   let products = null;
+
+  // On a phone the panel sits on the page's gutters, as wide as the
+  // order page's cart (#203): from the header row's left content edge
+  // to its right one, whatever hangs it at the cart button.
+  const place = () => {
+    if (!phone.matches || !row) {
+      panel.style.removeProperty("--mini-cart-right");
+      panel.style.removeProperty("--mini-cart-width");
+
+      return;
+    }
+
+    const box = row.getBoundingClientRect();
+    const style = getComputedStyle(row);
+    const left = box.left + parseFloat(style.paddingLeft);
+    const right = box.right - parseFloat(style.paddingRight);
+    const anchor = menu.getBoundingClientRect().right;
+
+    panel.style.setProperty("--mini-cart-right", `${anchor - right}px`);
+    panel.style.setProperty("--mini-cart-width", `${right - left}px`);
+  };
+
+  window.addEventListener("resize", place);
+  menu.addEventListener("show.bs.dropdown", place);
 
   menu.addEventListener("show.bs.dropdown", () => {
     const saved = new Draft().load();

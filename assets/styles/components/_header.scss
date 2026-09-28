@@ -527,6 +527,15 @@ header {
   @media (max-width: 359.98px) {
     padding-inline: 0.75rem;
   }
+
+  // On a phone, the page's gutters and the order page cart's width
+  // (#203); mini-cart.js measures both as it opens.
+  @media (max-width: 575.98px) {
+    &[data-bs-popper] {
+      right: var(--mini-cart-right, 0);
+      width: var(--mini-cart-width, min(20rem, calc(100vw - 2rem)));
+    }
+  }
 }
 
 .site-mini-cart-lines {

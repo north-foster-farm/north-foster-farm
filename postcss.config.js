@@ -54,6 +54,13 @@ const plugins = [
         "last",
         "data-on",
         "data-open",
+        // The order cart's folds and its shared row (#203).
+        "data-items",
+        "data-money",
+        "closed",
+        "data-share",
+        "way",
+        "code",
         "readonly",
         "data-pay-state",
         "loading",

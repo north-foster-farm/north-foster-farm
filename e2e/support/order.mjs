@@ -89,6 +89,9 @@ export class OrderPage {
     this.nudge = page.locator("#order-cart [data-nudge]");
     this.next = page.locator("#order-cart [data-checkout]");
     this.short = page.locator("[data-delivery-short]");
+    // The field opens from Add discount, over the cart's shared row
+    // (#203).
+    this.codeOpen = page.locator("#order-cart [data-code-toggle]");
     this.codeInput = page.locator("#order-code");
     this.codeApply = page.locator("[data-code-apply]");
     this.codeNote = page.locator("[data-code-note]");
