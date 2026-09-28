@@ -65,8 +65,7 @@ test.describe("about (#144)", () => {
     expect(after.p).toMatch(/^We raise a premium chicken/);
     expect(after.p).toContain("pasture");
     expect(after.figure).toBe(true);
-    expect(after.caption)
-      .toBe("We work closely with Mother Nature; sometimes we don’t agree.");
+    expect(after.caption).toBe("Farming as advertised.");
   });
 
   test("the clip has a poster, a label and both encodes",

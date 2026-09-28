@@ -46,7 +46,7 @@ respectful way we know to raise animals.
 
 {{< video src="videos/tight-quarters" poster="images/tight-quarters.jpg"
   label="A farmer takes shelter from a sudden afternoon rain shower in one of the moveable pens the birds live in" >}}
-We work closely with Mother Nature; sometimes we don't agree.
+Farming as advertised.
 {{< /video >}}
 
 Pasture-raised whole chickens and cuts, chicken sausage, and eggs by
