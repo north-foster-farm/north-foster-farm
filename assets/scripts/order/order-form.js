@@ -377,8 +377,46 @@ export class OrderForm {
 
     // Below xl the cart folds down to the total row and the foot: the
     // toggle, the way on and the nudge.
-    qs(this.cart, "[data-cart-toggle]").addEventListener("click", () => {
+    const cartToggle = qs(this.cart, "[data-cart-toggle]");
+
+    cartToggle.addEventListener("click", () => {
       this.setOpen(this.cart.dataset.open !== "true");
+    });
+    // Escape folds it while it floats, and leaves the focus on the
+    // toggle that opens it again (#159).
+    this.cart.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || this.cart.dataset.stuck !== "true"
+        || this.cart.dataset.open !== "true") return;
+      e.preventDefault();
+      this.setOpen(false);
+      cartToggle.focus();
+    });
+    // A control the Tab key reaches under the floating cart scrolls up
+    // clear of it, never under the top bar (#159, WCAG 2.4.11). The
+    // cart's own are its own, and a scroller taller than the room is
+    // left where it is. The cart may grow once the bar sticks, so it
+    // looks again a frame later.
+    const clear = (el) => {
+      if (this.cart.dataset.stuck !== "true" || this.cart.contains(el)
+        || document.activeElement !== el) return;
+
+      const r = el.getBoundingClientRect();
+      const floor = this.cart.getBoundingClientRect().top;
+      const ceiling = bar ? Math.max(0, bar.getBoundingClientRect().bottom)
+        : 0;
+
+      if (r.height > (floor - ceiling) / 2) return;
+
+      const over = Math.min(r.bottom + 12 - floor, r.top - ceiling - 12);
+
+      if (over > 0) window.scrollBy({ top: over, behavior: "instant" });
+    };
+
+    document.addEventListener("focusin", (e) => {
+      clear(e.target);
+      requestAnimationFrame(() => requestAnimationFrame(
+        () => clear(e.target)
+      ));
     });
     qs(this.cart, "[data-checkout]").addEventListener("click", () => {
       const target = document.getElementById("pickup");
