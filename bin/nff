@@ -63,6 +63,11 @@ const USAGE = `Usage:
                                       order under the minimum; single
                                       use, tied to --email if given.
                                       The fee is charged as usual
+  bin/nff passes issue --ride-along --email <email> [--days 14]
+                                      a ride-along (#183): one
+                                      delivery order at no fee and no
+                                      minimum; at most 3 customers a
+                                      month
   bin/nff passes list
   bin/nff passes revoke <code>
   bin/nff returns resolve <id> <returnId> [note...]
@@ -527,13 +532,19 @@ const run = async () => {
   }
   case "passes issue": {
     const email = typeof flags.email === "string" ? flags.email : null;
+    const rideAlong = !!flags["ride-along"];
     const pass = await passes.issuePass(stores, {
       email,
       days: flags.days === undefined ? passes.PASS_DAYS : Number(flags.days),
       note: typeof flags.note === "string" ? flags.note : "",
+      rideAlong,
+      riders: rideAlong ? await admin.rideAlongRiders(stores) : [],
     });
+    const lifts = rideAlong
+      ? "makes one delivery order a ride-along, no fee and no minimum,"
+      : "lifts the delivery minimum on one order";
 
-    return out(`${pass.code}  lifts the delivery minimum on one order${
+    return out(`${pass.code}  ${lifts}${
       pass.email ? ` from ${pass.email}` : ""}, until ${
       pass.expiresAt.slice(0, 10)}.`);
   }
@@ -541,7 +552,8 @@ const run = async () => {
     const list = await passes.listPasses(stores);
 
     for (const p of list) {
-      out(`${p.code}  ${passes.passState(p)}  ${p.email || "any email"}${
+      out(`${p.code}  ${passes.passState(p)}${
+        passes.ridesAlong(p) ? "  ride-along" : ""}  ${p.email || "any email"}${
         p.note ? `  ${p.note}` : ""}`);
     }
     if (!list.length) out("No passes.");

@@ -19,7 +19,9 @@ import terms from "../../../data/delivery.json" with { type: "json" };
 import {
   pickupTimes, windowLabel,
 } from "../../../assets/scripts/order/lib/schedule.mjs";
-import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
+import {
+  RIDE_ALONG_FEE, dollars,
+} from "../../../assets/scripts/order/lib/totals.mjs";
 import {
   addDays, dayName, label, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
@@ -321,8 +323,9 @@ const totalsBlock = (order, { total = "" } = {}) => {
   if (order.fulfilment.method === "delivery") {
     const base = t.deliveryFee - (t.areaFee || 0);
 
-    // Draft wording for the ride-along line (#183).
-    if (order.fulfilment.rideAlong) items.push("Ride-along delivery, no fee");
+    if (order.fulfilment.rideAlong) {
+      items.push(`Delivery fee ${RIDE_ALONG_FEE.toLowerCase()}`);
+    }
     else if (base) items.push(`Delivery fee +${dollars(base)}`);
     else items.push("Delivery fee waived");
     if (t.areaFee) items.push(`Outside-area fee +${dollars(t.areaFee)}`);

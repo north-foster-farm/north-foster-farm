@@ -136,6 +136,10 @@ export const computeTotals = ({
   };
 };
 
+// What a ride-along's fee reads, wherever a fee is shown (#183).
+// Draft wording.
+export const RIDE_ALONG_FEE = "None (ride-along)";
+
 // A ride-along has no minimum: the run is made whatever it carries.
 export const meetsMinimum = (totals, money) => !!totals.rideAlong
   || totals.subtotal - totals.discountAmount

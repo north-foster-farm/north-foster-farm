@@ -38,7 +38,7 @@ import { log, withLog } from "./lib/log.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./lib/paypal.mjs";
 import {
-  PASS_MESSAGES, getPass, holdPass, passCodeOf, passProblem,
+  PASS_MESSAGES, getPass, holdPass, passCodeOf, passProblem, ridesAlong,
 } from "./lib/passes.mjs";
 import { pickupSchedule } from "./lib/pickups.mjs";
 import { paymentsOf } from "./lib/records.mjs";
@@ -177,7 +177,8 @@ export const handle = async (req, {
     : null;
   // A pass (#182) lifts the delivery minimum for this one order. It is
   // checked against the order's email and id, held for the order
-  // while it is paid, and used up by the paid record.
+  // while it is paid, and used up by the paid record. A ride-along
+  // pass (#183) makes a delivery order a ride-along, at no fee too.
   const id = orderId(key, now);
   const passCode = passCodeOf(payload.pass);
   const pass = passCode ? await getPass(stores, passCode) : null;
@@ -190,6 +191,7 @@ export const handle = async (req, {
     index, terms, now, group, codes: discountCodes.codes,
     schedule: pickupSchedule(env),
     waive: { minimum: !!passCode && !problem },
+    rideAlong: !!passCode && !problem && ridesAlong(pass),
   });
 
   if (!result.ok) {
@@ -216,6 +218,10 @@ export const handle = async (req, {
   // differs (a price changed under them, a group they did not know
   // of) they see the new total and decide again; nothing is charged.
   if (result.order.flags.totalMismatch) {
+    // The page priced a ride-along the pass can no longer give: say
+    // why, not only that the total moved.
+    const why = problem && ridesAlong(pass) ? PASS_MESSAGES[problem] : "";
+
     log.warn({
       event: "order.total_mismatch",
       id,
@@ -225,8 +231,8 @@ export const handle = async (req, {
 
     return json(422, {
       errors: {
-        total: "The total changed while you were on this page. Check " +
-          "it and pay again.",
+        total: why || "The total changed while you were on this page. " +
+          "Check it and pay again.",
       },
       totals: result.order.totals,
     });
@@ -234,15 +240,16 @@ export const handle = async (req, {
 
   // Every way is booked by paying: a window the schedule offers needs
   // no second yes from the farm (W11d).
-  const waived = result.order.flags.minimumWaived;
+  const usesPass = result.order.flags.minimumWaived
+    || !!result.order.totals.rideAlong;
 
-  if (waived) await holdPass(stores, pass, id, now);
+  if (usesPass) await holdPass(stores, pass, id, now);
 
   const order = {
     id,
     submittedAt: now.toISOString(),
     ...result.order,
-    pass: waived ? pass.code : null,
+    pass: usesPass ? pass.code : null,
     fulfilment: { ...result.order.fulfilment, state: "agreed" },
     meta: {
       formVersion: catalog.version,

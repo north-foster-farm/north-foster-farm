@@ -9,11 +9,22 @@
 // that order for HOLD_MS, so a second order cannot take it while the
 // first is being paid; the paid record uses it up. An order that meets
 // the minimum anyway, or is not a delivery, leaves the pass alone.
+//
+// A ride-along pass (#183) lifts the fee as well: the farm grants a
+// delivery on a run it drives anyway, one order at a time, to one
+// email, and to no more than RIDE_ALONG_CAP customers a month. It is
+// used by any delivery order it is given to, since it changes the
+// price.
 
 import { randomInt } from "node:crypto";
 
 export const PASS_DAYS = 14;
 export const HOLD_MS = 30 * 60_000;
+export const RIDE_ALONG_CAP = 3;
+
+// Whether a pass makes its order a ride-along.
+export const ridesAlong = (pass) => !!pass
+  && (pass.lifts || []).includes("fee");
 
 // No 0/O, 1/I/L: the farm reads these out over the phone.
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -53,12 +64,22 @@ export const getPass = async (stores, value) => {
   return code ? stores.orders.get(passKey(code)) : null;
 };
 
+// `riders` is who already rides along this month (rideAlongRiders in
+// lib/admin.mjs); a ride-along pass needs it and an email.
 export const issuePass = async (stores, {
   email = null, days = PASS_DAYS, note = "", now = new Date(),
-  pick = randomInt,
+  pick = randomInt, rideAlong = false, riders = [],
 } = {}) => {
   if (!(Number.isInteger(days) && days >= 1 && days <= 365)) {
     throw new Error("--days is a whole number from 1 to 365.");
+  }
+  if (rideAlong && !email) {
+    throw new Error("A ride-along pass needs --email.");
+  }
+  if (rideAlong && !riders.includes(emailOf(email))
+    && riders.length >= RIDE_ALONG_CAP) {
+    throw new Error(`${RIDE_ALONG_CAP} customers already ride along this ` +
+      `month: ${riders.join(", ")}.`);
   }
 
   let code = newPassCode(pick);
@@ -68,7 +89,7 @@ export const issuePass = async (stores, {
 
   const pass = {
     code,
-    lifts: ["minimum"],
+    lifts: rideAlong ? ["minimum", "fee"] : ["minimum"],
     email: email ? emailOf(email) : null,
     note: String(note || ""),
     issuedAt: now.toISOString(),

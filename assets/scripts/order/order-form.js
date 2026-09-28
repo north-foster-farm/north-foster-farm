@@ -76,6 +76,9 @@ export class OrderForm {
     // A pass the farm issued (#182): its code, once /api/pass says it
     // lifts the delivery minimum. The server checks it again.
     this.pass = null;
+    // A ride-along (#183): a delivery at no fee and no minimum, from a
+    // ride-along pass or the order being changed. The server decides.
+    this.rideAlong = false;
     this.joke = null;
     this.index = indexCatalog(this.catalog);
     this.money = this.terms.money;
@@ -204,6 +207,7 @@ export class OrderForm {
 
     this.group = customer.discountGroup || null;
     this.pass = order.pass || null;
+    this.rideAlong = !!order.fulfilment.rideAlong;
 
     const saved = this.draft.load();
 
@@ -967,6 +971,7 @@ export class OrderForm {
       group: this.group,
       code: this.code,
       zipStatus: this.zipStatus(),
+      rideAlong: this.rideAlong,
     });
   }
 
@@ -996,7 +1001,10 @@ export class OrderForm {
     if (!typed) {
       this.stopJoke();
       this.code = null;
-      if (!this.editing) this.pass = null;
+      if (!this.editing) {
+        this.pass = null;
+        this.rideAlong = false;
+      }
       say("");
       this.refresh();
 
@@ -1047,7 +1055,11 @@ export class OrderForm {
 
     const pass = this.editing ? { ok: false } : await this.applyPass(typed);
 
-    if (pass.ok) {
+    if (pass.ok && this.rideAlong) {
+      // Draft wording.
+      accepted("Code applied: a ride-along delivery, with no fee and no " +
+        `$${this.money.deliveryMinimum} minimum.`);
+    } else if (pass.ok) {
       // Draft wording.
       accepted("Code applied: this order can be delivered under the " +
         `$${this.money.deliveryMinimum} minimum.`);
@@ -1060,7 +1072,8 @@ export class OrderForm {
 
   // Asks the server whether a typed code is a pass (#182). Only the
   // pass shape, eight letters and digits, is worth a request.
-  // -> { ok, message? }; an accepted one becomes `this.pass`.
+  // -> { ok, message? }; an accepted one becomes `this.pass`, and
+  // says whether it makes the order a ride-along.
   async applyPass(value) {
     const raw = String(value || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
 
@@ -1071,7 +1084,10 @@ export class OrderForm {
       `/api/pass?code=${encodeURIComponent(code)}`
     ).catch(() => ({ ok: false, data: null }));
 
-    if (ok) this.pass = code;
+    if (ok) {
+      this.pass = code;
+      this.rideAlong = !!(data && data.rideAlong);
+    }
 
     return { ok, message: data && data.message };
   }
@@ -1626,6 +1642,7 @@ export class OrderForm {
       index: this.index, terms: this.terms, now: this.dates.now(),
       group: this.group, code: this.code, schedule: this.dates.schedule(),
       waive: { minimum: !!this.pass },
+      rideAlong: this.rideAlong,
     });
   }
 

@@ -4,7 +4,7 @@
 // URL hash.
 
 import { pickupTimes, windowLabel } from "../order/lib/schedule.mjs";
-import { dollars } from "../order/lib/totals.mjs";
+import { RIDE_ALONG_FEE, dollars } from "../order/lib/totals.mjs";
 import { label } from "../order/lib/zoned.mjs";
 import { forget, showChick, signOut } from "../session/session.js";
 import { api } from "../utils/api.js";
@@ -621,8 +621,8 @@ class Account {
       row(t.discountLabel || "Discount", `−${dollars(t.discountAmount)}`);
     }
     if (order.fulfilment.method === "delivery") {
-      row("Delivery fee",
-        t.deliveryFee ? `+${dollars(t.deliveryFee)}` : "Free");
+      row("Delivery fee", order.fulfilment.rideAlong ? RIDE_ALONG_FEE
+        : t.deliveryFee ? `+${dollars(t.deliveryFee)}` : "Free");
     }
     row("Total", dollars(t.total), "account-totals-total");
     if (order.payments.length) {

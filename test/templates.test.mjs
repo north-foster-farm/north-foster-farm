@@ -840,8 +840,9 @@ describe("the farm's own notices", () => {
 
     o.totals.deliveryFee = 0;
     o.fulfilment.rideAlong = true;
-    assert.match(farmOrderPlaced(o).text, /- Ride-along delivery, no fee\n/);
-    assert.doesNotMatch(farmOrderPlaced(o).text, /Delivery fee/);
+    assert.match(farmOrderPlaced(o).text,
+      /- Delivery fee none \(ride-along\)\n/);
+    assert.doesNotMatch(farmOrderPlaced(o).text, /Delivery fee (waived|\+)/);
   });
 
   it("names the outside-area fee on its own line", () => {

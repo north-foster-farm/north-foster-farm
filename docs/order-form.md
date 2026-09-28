@@ -651,6 +651,16 @@ Flags that take a value accept both `--reason "..."` and
   minutes while the order is paid, and the paid record uses it up
   (`lib/passes.mjs`). An order that meets the minimum anyway leaves it
   unused, and a change to the order keeps the waiver.
+- **A ride-along (#183) is a delivery at no fee and no minimum**, on a
+  run the farm drives anyway. It is booked as its own kind of
+  delivery (`fulfilment.rideAlong`), never as a fee comped by a
+  discount; discounts still apply. The farm grants one with
+  `bin/nff passes issue --ride-along --email x`, a pass that lifts the
+  fee as well (`lifts: ["minimum", "fee"]`), refused past 3 customers
+  a month (the month's ride-along orders and open ride-along passes).
+  Any delivery order it is given to uses it up. The fee reads
+  "None (ride-along)" in the cart, on the account page and in the
+  emails (draft). `bin/nff orders ride-alongs [YYYY-MM]` counts them.
 - **No South County option.** Dropped on 18 September 2026, along with
   the demand vote.
 - **Sold-out items are not rendered**, and a category with nothing in

@@ -3,7 +3,9 @@
 // same records and rules as the customer-facing functions, with the
 // farm's authority. bin/nff is the thin front.
 
+import terms from "../../../data/delivery.json" with { type: "json" };
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
+import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { adjust, getCounts, setCount } from "./stock.mjs";
 import { normalizeEmail, validEmail } from "./auth.mjs";
 import { company } from "./company.mjs";
@@ -17,6 +19,7 @@ import {
   paidTotal, paymentRef, paymentsOf, refundedTotal, saveCustomer, setStatus,
   settledRefunds,
 } from "./records.mjs";
+import { listPasses, ridesAlong } from "./passes.mjs";
 import { mailLinks } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import { addressDecision, orderCancelled } from "./templates.mjs";
@@ -232,6 +235,18 @@ export const rideAlongs = async (stores, month) => {
     orders,
     customers: [...new Set(orders.map((o) => o.customer.email))],
   };
+};
+
+// Who rides along in the month `now` falls in, for the cap a ride-along
+// pass is issued under (#183): the customers of its ride-along orders
+// and the emails of ride-along passes still open.
+export const rideAlongRiders = async (stores, now = new Date()) => {
+  const { customers } = await rideAlongs(stores,
+    today(now, terms.timeZone).slice(0, 7));
+  const open = (await listPasses(stores)).filter((p) => ridesAlong(p)
+    && !p.usedBy && !p.revokedAt && now.toISOString() <= p.expiresAt);
+
+  return [...new Set([...customers, ...open.map((p) => p.email)])];
 };
 
 export const showOrder = async (stores, id) =>

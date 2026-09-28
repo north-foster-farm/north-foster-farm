@@ -4,13 +4,15 @@
 // the order's email and holds it. Nothing about the pass is returned
 // but whether it is good and, if not, why.
 //
-//   200 { ok: true }     404 { ok: false, message }
+//   200 { ok: true, rideAlong? }     404 { ok: false, message }
+// `rideAlong` says the pass makes the order a ride-along (#183), at no
+// fee as well as no minimum, so the page can show the price.
 //   429 too many tries from one address
 
 import { json } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
 import {
-  PASS_MESSAGES, getPass, passCodeOf, passProblem,
+  PASS_MESSAGES, getPass, passCodeOf, passProblem, ridesAlong,
 } from "./lib/passes.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
@@ -42,13 +44,13 @@ export const handle = async (req, {
   }
 
   const code = passCodeOf(new URL(req.url).searchParams.get("code"));
-  const problem = code
-    ? passProblem(await getPass(stores, code), { now })
-    : "unknown";
+  const pass = code ? await getPass(stores, code) : null;
+  const problem = code ? passProblem(pass, { now }) : "unknown";
 
   return problem
     ? json(404, { ok: false, message: PASS_MESSAGES[problem] })
-    : json(200, { ok: true });
+    : json(200, ridesAlong(pass) ? { ok: true, rideAlong: true }
+      : { ok: true });
 };
 
 export default withLog(async (req, context) =>

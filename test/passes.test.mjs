@@ -5,15 +5,19 @@ import { handle, orderId } from "../netlify/functions/orders.mjs";
 import { handle as lookup } from "../netlify/functions/passes.mjs";
 import { publicOrder } from "../netlify/functions/lib/account.mjs";
 import { planEdit } from "../netlify/functions/lib/edit.mjs";
+import { rideAlongRiders } from "../netlify/functions/lib/admin.mjs";
 import {
-  HOLD_MS, PASS_DAYS, getPass, holdPass, issuePass, listPasses,
-  newPassCode, passCodeOf, passProblem, passState, revokePass, usePass,
+  HOLD_MS, PASS_DAYS, RIDE_ALONG_CAP, getPass, holdPass, issuePass,
+  listPasses, newPassCode, passCodeOf, passProblem, passState, revokePass,
+  ridesAlong, usePass,
 } from "../netlify/functions/lib/passes.mjs";
 import { getOrder } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import catalog from "../data/catalog.json" with { type: "json" };
 import terms from "../data/delivery.json" with { type: "json" };
 import { indexCatalog } from "../assets/scripts/order/lib/catalog.mjs";
+import { feeCell } from "../assets/scripts/order/lib/summary.mjs";
+import { RIDE_ALONG_FEE } from "../assets/scripts/order/lib/totals.mjs";
 import { validateOrder } from "../assets/scripts/order/lib/validate.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import { parseSchedule } from "../assets/scripts/order/lib/schedule.mjs";
@@ -331,5 +335,132 @@ describe("GET /api/pass", () => {
       last = await ask(stores, "ZZZZ-ZZZZ", { ip: "203.0.113.9" });
     }
     assert.equal(last.status, 429);
+  });
+});
+
+// A ride-along pass (#183): the farm's way to grant a delivery on a
+// run it drives anyway, at no fee and no minimum, capped by customers
+// a month.
+describe("ride-along passes", () => {
+  const ride = (stores, email = "pat@example.com", options = {}) =>
+    issuePass(stores, {
+      email, now, rideAlong: true, pick: picks("RYDE-AAAA"), ...options,
+    });
+
+  it("lift the fee as well as the minimum, for one email", async () => {
+    const stores = testStores();
+    const pass = await ride(stores);
+    const plain = await issuePass(stores, { now, pick: picks("ABCD-EFGH") });
+
+    assert.deepEqual(pass.lifts, ["minimum", "fee"]);
+    assert.equal(ridesAlong(pass), true);
+    assert.equal(ridesAlong(plain), false);
+    await assert.rejects(ride(testStores(), null), /needs --email/);
+  });
+
+  it(`are refused past ${RIDE_ALONG_CAP} customers a month`, async () => {
+    const riders = ["a@example.com", "b@example.com", "c@example.com"];
+
+    await assert.rejects(ride(testStores(), "d@example.com", { riders }),
+      /3 customers already ride along this month/);
+
+    const again = await ride(testStores(), "B@example.com", { riders });
+
+    assert.equal(again.email, "b@example.com", "a rider may ride again");
+    assert.ok(await ride(testStores(), "d@example.com", {
+      riders: riders.slice(1),
+    }));
+  });
+
+  it("count the month's ride-along orders and open passes", async () => {
+    const stores = testStores();
+
+    await ride(stores);
+    await run(stores, small({ pass: "RYDE-AAAA", claimedTotal: 3000 }));
+    await ride(stores, "sam@example.com", { pick: picks("SAMR-YDES") });
+    await revokePass(stores, (await ride(stores, "lee@example.com", {
+      pick: picks("KEER-YDES"),
+    })).code, now);
+    await issuePass(stores, {
+      email: "kim@example.com", now, pick: picks("KYMP-PPAN"),
+    });
+
+    assert.deepEqual((await rideAlongRiders(stores, now)).sort(),
+      ["pat@example.com", "sam@example.com"]);
+    assert.deepEqual(await rideAlongRiders(stores, later(40 * 86_400_000)),
+      [], "another month, and the open pass has expired");
+  });
+
+  it("book a delivery under the minimum at no fee, and are used up",
+    async () => {
+      const stores = testStores();
+      const pass = await ride(stores);
+      const res = await run(stores, small({
+        pass: pass.code, claimedTotal: 3000,
+      }));
+      const order = await getOrder(stores, orderId(KEY, now));
+
+      assert.equal(res.status, 200, JSON.stringify(await res.clone().json()));
+      assert.equal(order.fulfilment.rideAlong, true);
+      assert.equal(order.totals.deliveryFee, 0);
+      assert.equal(order.totals.total, 3000);
+      assert.equal(order.pass, pass.code);
+      assert.equal((await getPass(stores, pass.code)).usedBy, order.id);
+    });
+
+  it("are used by an order that meets the minimum too", async () => {
+    const stores = testStores();
+    const pass = await ride(stores);
+    const res = await run(stores, small({
+      lines: [{ sku: SKU, qty: 2 }], claimedTotal: 5500, pass: pass.code,
+    }));
+
+    assert.equal(res.status, 200);
+    assert.equal((await getOrder(stores, orderId(KEY, now))).pass, pass.code);
+  });
+
+  it("say why when the page priced one the pass can't give", async () => {
+    const stores = testStores();
+    const pass = await ride(stores);
+
+    await usePass(stores, pass.code, orderId(OTHER, now), now);
+
+    const res = await run(stores, small({
+      lines: [{ sku: SKU, qty: 2 }], claimedTotal: 5500, pass: pass.code,
+    }));
+    const body = await res.json();
+
+    assert.equal(res.status, 422);
+    assert.equal(body.errors.total, "That code has already been used.");
+    assert.equal(body.totals.deliveryFee, 500);
+  });
+
+  it("are named to the page, and keep the order one through a change",
+    async () => {
+      const stores = testStores();
+      const pass = await ride(stores);
+      const good = await lookup(
+        new Request(`http://x/api/pass?code=${pass.code}`), { stores, now },
+      );
+
+      assert.deepEqual(await good.json(), { ok: true, rideAlong: true });
+      await run(stores, small({ pass: pass.code, claimedTotal: 3000 }));
+
+      const order = await getOrder(stores, orderId(KEY, now));
+      const plan = await planEdit(stores, order, {
+        fulfilment: { date: "2026-10-15" }, claimedTotal: 3000,
+      }, {
+        now, index, terms, codes: [], group: null,
+        validate: validateOrder, schedule,
+      });
+
+      assert.equal(plan.ok, true, JSON.stringify(plan.errors));
+      assert.equal(publicOrder(order, now).fulfilment.rideAlong, true);
+    });
+
+  it("show their fee as a ride-along's on the page", () => {
+    assert.deepEqual(feeCell({ subtotal: 3000, deliveryFee: 0,
+      rideAlong: true }, "delivery"),
+    { show: true, waived: true, text: RIDE_ALONG_FEE });
   });
 });

@@ -3,7 +3,9 @@
 // might read is pinned by a test. Money is integer cents.
 
 import { short } from "./catalog.mjs";
-import { dollars, meetsMinimum, toCents } from "./totals.mjs";
+import {
+  RIDE_ALONG_FEE, dollars, meetsMinimum, toCents,
+} from "./totals.mjs";
 
 // Badges in the order they are shown. Each is on or off, never a
 // number that could disagree with the totals.
@@ -75,7 +77,7 @@ export const nudge = (totals, method, money) => {
   const waivesFee = next.threshold === toCents(money.feeWaivedAt)
     && s < toCents(money.feeWaivedAt);
 
-  if (waivesFee && (isDelivery || !method)) {
+  if (waivesFee && !totals.rideAlong && (isDelivery || !method)) {
     return `Next discount: add ${gap} for ${off} off and free delivery.`;
   }
 
@@ -97,9 +99,12 @@ export const deliveryShort = (totals, money) => {
 };
 
 // The fee cell: nothing outside delivery or on an empty cart, the
-// fee, or "Free".
+// fee, "Free", or RIDE_ALONG_FEE.
 export const feeCell = (totals, method) => {
   if (method !== "delivery" || totals.subtotal === 0) return { show: false };
+  if (totals.rideAlong) {
+    return { show: true, waived: true, text: RIDE_ALONG_FEE };
+  }
   if (totals.deliveryFee === 0) {
     return { show: true, waived: true, text: "Free" };
   }
