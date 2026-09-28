@@ -66,13 +66,22 @@ rules, in `syncAudience`:
 - Our record decides who is in: a consenting record with no contact
   is added; a record that withdrew here is unsubscribed there.
 - Resend decides who has left: a contact unsubscribed there whose
-  record still says yes is opted out here, dated, source `resend`.
-  Unless the record's consent is newer than the last sync, in which
-  case they signed up again here and are resubscribed there.
+  record still says yes is opted out here, dated, source `resend`,
+  and the time kept as `resendLeftAt`. Only consent given here after
+  that time resubscribes them there; without one, the unsubscribe
+  wins, however recent the consent.
 - A contact in Resend with no record, or with a record that never
   expressed a preference, is taken as consent given there (James adds
   people by hand) and gets a consenting record.
 - An unsubscribed stranger in Resend is left alone.
+
+The webhook, `/api/resend/webhook`, takes Resend's `contact.updated`
+and `contact.deleted` events, signed with `RESEND_WEBHOOK_SECRET`
+(the endpoint's `whsec_` secret; each environment has its own
+endpoint and secret). A contact that becomes unsubscribed, or is
+deleted, is opted out at once, as the sync would. Every environment
+gets every event from the one account; events outside the deploy's
+`RESEND_AUDIENCE_ID` are ignored.
 
 The last sync's time and counts are under `news/sync` in the jobs
 store; the daily run marks `news/sync/<day>`.
@@ -81,6 +90,6 @@ store; the daily run marks `news/sync/<day>`.
 
 Broadcasts from Resend's editor, to the audience, with the
 unsubscribe link Resend inserts. An unsubscribe reaches the record at
-the next sync. Template-driven broadcasts from the CLI, and sends to
+once through the webhook below, or at the next sync if it missed. Template-driven broadcasts from the CLI, and sends to
 a query of the records from the jobs run, can come later; nothing
 here stands in their way.

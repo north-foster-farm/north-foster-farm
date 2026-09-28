@@ -353,7 +353,7 @@ describe("the audience sync", () => {
     assert.equal((await stores.jobs.get(SYNC_KEY)).at, now.toISOString());
   });
 
-  it("lets a fresh consent here override an old unsubscribe there",
+  it("lets a consent here after leaving through Resend resubscribe there",
     async () => {
       const stores = testStores();
       const { calls, fetchImpl } = fake([
@@ -363,6 +363,7 @@ describe("the audience sync", () => {
       await stores.jobs.set(SYNC_KEY, { at: "2026-09-30T05:00:00.000Z" });
       await saveCustomer(stores, customer("back@example.com", {
         marketing: true, marketingAt: "2026-09-30T12:00:00.000Z",
+        resendLeftAt: "2026-09-29T12:00:00.000Z",
       }));
 
       const r = await syncAudience(stores, {
@@ -372,6 +373,51 @@ describe("the audience sync", () => {
       assert.deepEqual(r.resubscribed, ["back@example.com"]);
       assert.deepEqual(calls[1].body, { unsubscribed: false });
     });
+
+  it("never undoes an unsubscribe in Resend that came after the consent " +
+    "(#234)", async () => {
+    const stores = testStores();
+    const { calls, fetchImpl } = fake([
+      { email: "left@example.com", unsubscribed: true },
+      { email: "late@example.com", unsubscribed: true },
+    ]);
+
+    await stores.jobs.set(SYNC_KEY, { at: "2026-09-30T05:00:00.000Z" });
+    // Signed up here since the last sync, then left through Resend
+    // before this one: the unsubscribe has no time here yet.
+    await saveCustomer(stores, customer("left@example.com", {
+      marketing: true, marketingAt: "2026-09-30T12:00:00.000Z",
+    }));
+    // Left through Resend after the consent, as the webhook recorded.
+    await saveCustomer(stores, customer("late@example.com", {
+      marketing: true, marketingAt: "2026-09-30T12:00:00.000Z",
+      resendLeftAt: "2026-09-30T13:00:00.000Z",
+    }));
+
+    const r = await syncAudience(stores, {
+      env: audience, fetchImpl, now, pace: 0,
+    });
+
+    assert.deepEqual(r.resubscribed, []);
+    assert.deepEqual(r.optedOut, ["late@example.com", "left@example.com"]);
+    assert.equal(calls.length, 1, "only the listing: nothing sent to Resend");
+
+    const left = await getCustomer(stores, "left@example.com");
+
+    assert.equal(left.marketing, false);
+    assert.equal(left.marketingSource, "resend");
+    assert.equal(left.resendLeftAt, now.toISOString());
+
+    // A sign-up here after that does resubscribe at the next sync.
+    await optIn(stores, "left@example.com", { source: "signup" }, later);
+
+    const next = fake([{ email: "left@example.com", unsubscribed: true }]);
+    const again = await syncAudience(stores, {
+      env: audience, fetchImpl: next.fetchImpl, now: later, pace: 0,
+    });
+
+    assert.deepEqual(again.resubscribed, ["left@example.com"]);
+  });
 
   it("touches nothing on a dry run", async () => {
     const stores = testStores();

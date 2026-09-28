@@ -91,6 +91,29 @@ export const optOut = async (stores, email, { source = "site" } = {},
   });
 };
 
+// Left through Resend (its unsubscribe link, or deleted there), at `at`,
+// the time Resend gives the change. The time is kept as resendLeftAt,
+// so the sync can tell a sign-up here made since from one the
+// unsubscribe overrules (#234). A consent here newer than the event (a
+// late redelivery) stands.
+export const resendLeft = async (stores, email, at, now = new Date()) => {
+  const existing = await getCustomer(stores, normalizeEmail(email));
+  const when = Date.parse(at) || now.getTime();
+
+  if (!existing) return null;
+  if (existing.marketing === true
+    && Date.parse(existing.marketingAt) > when) return existing;
+
+  const before = existing.resendLeftAt ? Date.parse(existing.resendLeftAt) : 0;
+
+  await saveCustomer(stores, {
+    ...existing,
+    resendLeftAt: new Date(Math.max(when, before)).toISOString(),
+  });
+
+  return optOut(stores, existing.email, { source: "resend" }, now);
+};
+
 // --- The welcome and its unsubscribe -------------------------------
 
 // A link that takes one address off the list in one click, with no
@@ -375,9 +398,11 @@ export const listContacts = async (env, fetchImpl = globalThis.fetch) =>
     `/audiences/${env.RESEND_AUDIENCE_ID}/contacts`)).data || [];
 
 // Our records decide who is in; Resend decides who has left. A record
-// consenting after the last sync overrides an unsubscribe in Resend
-// (they signed up again here); otherwise the unsubscribe wins and the
-// record is opted out. A contact in Resend with no record, or with a
+// consenting since it last left through Resend (resendLeftAt) overrides
+// the unsubscribe there: they signed up again here. Otherwise the
+// unsubscribe wins and the record is opted out, however recent its
+// consent: with no time for the unsubscribe, it may be the newer choice
+// (#234). A contact in Resend with no record, or with a
 // record that never expressed a preference, is taken as consent
 // given there (James adds people by hand). -> the report.
 export const syncAudience = async (stores, {
@@ -390,8 +415,6 @@ export const syncAudience = async (stores, {
   if (!audienceConfigured(env)) return { ok: false, reason: "unconfigured" };
 
   const id = env.RESEND_AUDIENCE_ID;
-  const mark = (await stores.jobs.get(SYNC_KEY)) || { at: null };
-  const since = mark.at ? Date.parse(mark.at) : 0;
   const contacts = await listContacts(env, fetchImpl);
   const byEmail = new Map(contacts.map((c) => [normalizeEmail(c.email), c]));
   const report = {
@@ -413,6 +436,7 @@ export const syncAudience = async (stores, {
     const contact = byEmail.get(email);
     const consented = c.marketing === true;
     const changedAt = c.marketingAt ? Date.parse(c.marketingAt) : 0;
+    const leftAt = c.resendLeftAt ? Date.parse(c.resendLeftAt) : 0;
 
     byEmail.delete(email);
 
@@ -425,11 +449,11 @@ export const syncAudience = async (stores, {
       });
       report.created.push(email);
     } else if (consented && contact.unsubscribed) {
-      if (changedAt > since) {
+      if (leftAt && changedAt > leftAt) {
         await call("PATCH", contactPath(email), { unsubscribed: false });
         report.resubscribed.push(email);
       } else {
-        if (!dryRun) await optOut(stores, email, { source: "resend" }, now);
+        if (!dryRun) await resendLeft(stores, email, now.toISOString(), now);
         report.optedOut.push(email);
       }
     } else if (!consented && contact && !contact.unsubscribed) {
