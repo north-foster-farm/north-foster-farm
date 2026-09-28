@@ -4,6 +4,7 @@ slug: "privacy"
 title: "Privacy policy"
 type: "policy"
 layout: "policy/single.html"
+outputs: ["html", "markdown"]
 ---
 
 This policy applies to all information collected or submitted on the North

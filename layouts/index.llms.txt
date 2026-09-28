@@ -1,104 +1,49 @@
 {{- /*
-  /llms.txt, after the convention at https://llmstxt.org: what the farm
-  is and how to buy from it, for language models answering questions
-  about it. Built from the same data as the pages (data/company.json,
-  data/catalog.json, data/delivery.json, data/markets.json,
-  data/events.json and each page's description), so a price, a cutoff
-  or a market changes here when it changes there. The policy's terms
-  are not paraphrased: the Ordering section links its Markdown output
-  (layouts/policy/single.markdown.md), the words themselves. The few
-  lines still in our own words are guarded by llms-guard.html, which
-  stops the build when the section they summarize changes (Q21a).
+  /llms.txt, after the convention at https://llmstxt.org, built
+  entirely from the site's own content and data on every deploy
+  (Q21a). Nothing here is written for it: the summary is the home
+  page's description, each line a page's title and description, and
+  each link the page itself as Markdown (index.md beside its HTML,
+  from the same source; see the .markdown.md layouts). The pop-ups
+  are data/events.json, which no page carries as text.
 */ -}}
-{{- partial "llms-guard.html" . -}}
-{{- $company := hugo.Data.company -}}
-{{- $social := hugo.Data.socialMedia -}}
-{{- $terms := hugo.Data.delivery -}}
-{{- $days := slice "Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday" -}}
-{{- $order := site.GetPage "/order" -}}
-{{- $policy := site.GetPage "/delivery-policy" -}}
-{{- $policyMd := ($policy.OutputFormats.Get "markdown").Permalink -}}
-{{- $about := site.GetPage "/about" -}}
-{{- $contact := site.GetPage "/contact" -}}
+{{- define "partials/llms-line.html" -}}
+  {{- $link := .Permalink -}}
+  {{- with .OutputFormats.Get "markdown" }}{{ $link = .Permalink }}{{ end -}}
+  {{- return (printf "[%s](%s)" .Title $link) -}}
+{{- end -}}
 {{- $news := site.GetPage "/news" -}}
-{{- $login := site.GetPage "/login" -}}
-{{- $a := $company.address -}}
-{{- $farm := print $a.street ", " $a.city ", " $a.state " " $a.zip -}}
-{{- $money := $terms.money -}}
-{{- $dropStart := time.AsTime $terms.scituate.start -}}
-# {{ $company.name }}
+# {{ site.Title }}
 
-> A small family farm in Foster, Rhode Island, raising chickens on pasture for meat and eggs. Order online at {{ $order.Permalink }} for delivery, on-farm pickup or the drop site in North Scituate, and find us at farmers markets in season.
-
-Our meat chickens live in mobile pens that we move onto fresh grass every day. Our laying hens sleep in a mobile coop and spend their days on pasture. Their feed is free of GMOs.
-
-The order page is the live source for prices, stock and dates. The prices below come from the same catalog, as of {{ now.Format "January 2, 2006" }}; stock changes from day to day.
-
-## Ordering
-
-The terms in full, word for word: [{{ $policy.Title }}]({{ $policyMd }}). It covers how you pay, delivery day and the cooler, missed deliveries, weather, changes, cancellations and refunds. The facts below come from the same data.
-
-- Delivery: {{ index $days (int $terms.delivery.weekday) }}s, roughly {{ $terms.delivery.window }}, to the towns listed below. Order by {{ partial "cutoff.html" "delivery" }} for that week. Delivery needs an order of ${{ $money.deliveryMinimum }} or more after discounts; the fee is ${{ $money.deliveryFee }}, waived at ${{ $money.feeWaivedAt }} or more. Any other Rhode Island ZIP code costs ${{ $money.outsideAreaFee }} more.
-- On-farm pickup: {{ $farm }}, at a time booked on the order page, from the next day on; the order page lists the times open. No minimum and no fee.
-- The drop site: {{ index $days (int $terms.scituate.weekday) }}s, {{ $terms.scituate.window }}{{ if $dropStart.After now }}, starting {{ $dropStart.Format "January 2, 2006" }}{{ end }}, at the {{ $terms.scituate.location }}. Order by {{ partial "cutoff.html" "scituate" }} for that {{ index $days (int $terms.scituate.weekday) }}. No minimum and no fee.
-- Bulk discounts on every order: {{ range $i, $t := $money.bulkTiers }}{{ if $i }}, {{ end }}${{ $t.off }} off at ${{ $t.threshold }}{{ end }}.
-
-## Delivery area
-{{ range $terms.area.states }}
-- {{ .name }}{{ with .onlyGroups }} ({{ delimit . ", " }} only){{ end }}: {{ range $i, $t := .towns }}{{ if $i }}, {{ end }}{{ $t.town }}{{ end }}
-{{- end }}
-
-## Products and prices
-
-Prices in US dollars. Chicken is sold by the piece or the pack in weight ranges; items marked "sold out" are not on offer right now.
-{{ range hugo.Data.catalog.groups }}
-- {{ .label }}{{ if and .unit (not (in .label .unit)) }}, {{ .unit }}{{ end }}: {{ range $i, $item := .items }}{{ if $i }}; {{ end }}{{ $item.label }} ${{ $item.price }}{{ if not $item.inStock }} (sold out){{ end }}{{ end }}
-{{- end }}
-
-## Your account
-
-Sign in at {{ $login.Permalink }} with the email address you ordered with. We email a link to sign in; there is no password. The account page shows your orders and receipts, and until the cutoff it lets you change or cancel an order; "Changing or cancelling an order" in the terms says what and when.
-
-## Farmers markets
-
-{{ range hugo.Data.markets.markets -}}
-- {{ .name }}: {{ .when }}, {{ partial "market/season.html" . }}. {{ .where }}. {{ .href }}
-{{ end }}
-{{- $upcoming := where hugo.Data.events.events "date" "ge" (now.Format "2006-01-02") -}}
-{{- with $upcoming }}
-Coming up:
-
-{{ range . -}}
-- {{ (time.AsTime .date).Format "Monday, January 2" }}, {{ (time.AsTime (print .date "T" .start ":00")).Format "3:04 PM" }} – {{ (time.AsTime (print .date "T" .end ":00")).Format "3:04 PM" }}: {{ .name }}{{ if not (in .name .place) }}, {{ .place }}{{ end }}, {{ .address.street }}, {{ .address.city }}, {{ .address.state }}
-{{ end }}
-{{- end }}
-## Contact
-
-- Call or text {{ $company.phone.display }}
-- Email {{ $company.email }}
-- Instagram {{ $social.instagram.url }}
-- Message form: {{ $contact.Permalink }}
-- The farm: {{ $farm }} (visits by appointment)
+> {{ chomp .Description }}
 
 ## Pages
-
-- [{{ $order.Title }}]({{ $order.Permalink }}): {{ chomp $order.Description }}
-- [{{ $policy.Title }}]({{ $policy.Permalink }}): {{ chomp $policy.Description }}
-- [{{ $about.Title }}]({{ $about.Permalink }}): {{ chomp $about.Description }}
-- [{{ $contact.Title }}]({{ $contact.Permalink }}): {{ chomp $contact.Description }}
+{{ range slice "/order" "/delivery-policy" "/about" "/contact" }}
+{{- with site.GetPage . }}
+- {{ partial "llms-line.html" . }}: {{ chomp .Description }}
+{{- end }}
+{{- end }}
 - [{{ $news.Title }}]({{ $news.Permalink }}): {{ chomp $news.Description }}
 
 ## News
 {{ range first 5 $news.RegularPages }}
-- [{{ .Title }}]({{ .Permalink }}) ({{ .Date.Format "January 2, 2006" }}): {{ chomp .Description }}
+- {{ partial "llms-line.html" . }} ({{ .Date.Format "January 2, 2006" }}): {{ chomp .Description }}
+{{- end }}
+{{- $upcoming := where hugo.Data.events.events "date" "ge" (now.Format "2006-01-02") }}
+{{- with $upcoming }}
+
+## Pop-ups
+{{ range sort . "date" }}
+- {{ .name }}: {{ (time.AsTime .date).Format "Monday, January 2, 2006" }}, {{ (time.AsTime (print .date "T" .start ":00")).Format "3:04 PM" }} – {{ (time.AsTime (print .date "T" .end ":00")).Format "3:04 PM" }}, {{ .place }}, {{ .address.street }}, {{ .address.city }}, {{ .address.state }} {{ .address.zip }}
+{{- end }}
 {{- end }}
 
 ## Optional
-{{ range slice "/accessibility" "/privacy" }}
+{{ range slice "/accessibility" "/privacy" "/login" }}
 {{- with site.GetPage . }}
-- [{{ .Title }}]({{ .Permalink }}): {{ chomp .Description }}
+- {{ partial "llms-line.html" . }}: {{ chomp .Description }}
 {{- end }}
 {{- end }}
 {{- range after 5 $news.RegularPages }}
-- [{{ .Title }}]({{ .Permalink }}) ({{ .Date.Format "January 2, 2006" }})
+- {{ partial "llms-line.html" . }} ({{ .Date.Format "January 2, 2006" }}): {{ chomp .Description }}
 {{- end }}

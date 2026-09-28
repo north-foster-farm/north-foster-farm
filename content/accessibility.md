@@ -4,6 +4,7 @@ slug: "accessibility"
 title: "Accessibility"
 type: "policy"
 layout: "policy/single.html"
+outputs: ["html", "markdown"]
 ---
 
 We want everyone to be able to use this site, order from us and reach

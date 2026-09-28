@@ -12,10 +12,7 @@
       <div class="contact-layout mb-5">
         <div class="contact-head">
           {{ partial "page-heading.html" . }}
-          <p class="lead mb-4">
-            Call, text, email, message us on Instagram, or use our
-            <a href="#contact-form">contact form</a>.
-          </p>
+          <p class="lead mb-4">{{ .Params.lead | markdownify }}</p>
         </div>
 
         <div class="contact-rail border-light">
@@ -41,12 +38,7 @@
               <dd class="contact-directions">{{ partial "directions.html" $address.directions }}</dd>
             </div>
           </dl>
-          <p class="contact-note">
-            Visits are by appointment. To pick up an order, choose
-            on-farm pickup and a time on the
-            <a href="{{ relURL "order/" }}">order page</a>. To visit,
-            call, text or send us a message first.
-          </p>
+          <p class="contact-note">{{ .Params.note | markdownify }}</p>
         </div>
 
         <div class="contact-main">

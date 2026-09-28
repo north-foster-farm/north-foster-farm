@@ -6,6 +6,7 @@ slug: "about"
 title: "About"
 type: "policy"
 layout: "policy/single.html"
+outputs: ["html", "markdown"]
 ---
 
 {{< figure src="images/linus.jpg" shape="egg"

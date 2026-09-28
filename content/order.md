@@ -8,6 +8,7 @@ heading: "Place an order"
 type: "order"
 layout: "order/single.html"
 pageScript: "order"
+outputs: ["html", "markdown"]
 ---
 
 Pasture-raised, processed in Rhode Island, and packed by weight.
