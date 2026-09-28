@@ -10,12 +10,6 @@
   {{ $srcset = $srcset | append (printf "%s %dw" $img.RelPermalink .) }}
 {{ end }}
 {{ $fallback := $poster.Resize "1280x jpg q82" }}
-{{/* D10 (#192), staging only: see styles/experiments/d10.css. */}}
-{{ $context := getenv "CONTEXT" }}
-{{ if and $context (ne $context "production") }}
-  {{ $d10 := resources.Get "styles/experiments/d10.css" | fingerprint "sha512" }}
-  <link rel="stylesheet" href="{{ $d10.RelPermalink }}" integrity="{{ $d10.Data.Integrity }}">
-{{ end }}
 <div class="home-hero video-frame border-bottom border-light" data-hero-video data-playing="false">
   <img class="home-hero-img" src="{{ $fallback.RelPermalink }}" srcset="{{ delimit $srcset ", " }}" sizes="100vw" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="" fetchpriority="high">
   <video class="home-hero-video" muted loop playsinline preload="none" aria-hidden="true" tabindex="-1">
