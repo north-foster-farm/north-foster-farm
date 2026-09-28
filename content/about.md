@@ -30,6 +30,11 @@ pasture: fresh air, sunshine, grass and insects, with clean water and
 fresh feed always within reach. When the good stuff starts to dwindle,
 we move the coop to a new spot and start again.
 
+Out on pasture the hens eat grass and insects, and it shows in the
+yolks, a bright golden orange all season. When the grass goes dormant
+in winter, we switch them to a full ration of non-GMO feed, chosen to
+keep their eggs first-rate until spring.
+
 {{< figure src="images/mc-1.jpg"
   alt="The mobile coop in the pasture, the hens gathered underneath" >}}
 One of our mobile coops
