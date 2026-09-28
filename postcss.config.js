@@ -54,6 +54,9 @@ const plugins = [
         "last",
         "data-on",
         "data-open",
+        // The header's link to the page you are on.
+        "aria-current",
+        "page",
         // The order cart's folds and its shared row (#203).
         "data-items",
         "data-money",

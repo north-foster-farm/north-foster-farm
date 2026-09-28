@@ -52,6 +52,18 @@ export const me = async () => {
   return result;
 };
 
+// The customer's chicken before "Account" (#238), or none. The account
+// page calls it again when a new one is picked.
+export const showChick = (root, avatar) => {
+  for (const chick of root.querySelectorAll("[data-account-chick]")) {
+    // An <svg> has no `hidden` property; the attribute works.
+    chick.toggleAttribute("hidden", !avatar);
+    if (avatar) {
+      chick.querySelector("use").setAttribute("href", `#avatar-${avatar}`);
+    }
+  }
+};
+
 // The Sign in link is in the markup from the start, transparent; the
 // slot fades in once the answer is known, so the header never jumps.
 const fill = (slot, who) => {
@@ -68,6 +80,7 @@ const fill = (slot, who) => {
 
   signin.hidden = true;
   menu.hidden = false;
+  showChick(slot, who.customer && who.customer.avatar);
   slot.classList.add("is-ready");
 
   slot.querySelector("[data-account-signout]").addEventListener("click",

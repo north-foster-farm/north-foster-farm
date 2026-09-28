@@ -642,6 +642,34 @@ header {
   }
 }
 
+// Sign in: the site's outline button, green like Order (#238). On the
+// sign-in page it greys, as Order does on its own page. In the phone
+// menu it keeps its own width rather than the row's.
+.site-account .site-nav-link.site-signin {
+  padding-inline: 0.75rem;
+  border: 1.5px solid var(--bs-primary);
+  color: var(--bs-primary);
+
+  &[aria-current="page"] {
+    border-color: var(--bs-border-color);
+    color: var(--bs-secondary-color);
+  }
+
+  .site-menu-account & {
+    align-self: flex-start;
+    margin-top: 0.5rem;
+  }
+}
+
+// The customer's chicken before "Account", smaller than on the
+// settings page (#238).
+.site-account-chick {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-right: 0.125rem;
+  margin-left: -0.25rem;
+}
+
 .site-account-menu {
   min-width: 11.5rem;
   margin-top: 0.5rem;

@@ -11,6 +11,12 @@
   (dict "name" "Contact" "path" "contact/")
 }}
 {{ $here := .RelPermalink }}
+{{/* The chickens the Account button can show (#238). The account
+     page carries its own copy of the sprite, so it is left out there
+     to keep the ids unique. */}}
+{{ if and $accounts (ne .Type "account") }}
+  {{ partial "avatars.html" . }}
+{{ end }}
 {{/* A Bootstrap navbar that expands at md (768px): from there up the
      links sit in the row; below it they fold into the offcanvas menu
      and the toggle appears. The whole row is the main navigation, so
