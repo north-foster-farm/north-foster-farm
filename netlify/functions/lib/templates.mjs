@@ -1272,8 +1272,14 @@ export const farmMorningReport = (stats, pickups, {
       command("bin/nff schedule set <file>")
     );
   }
-  // What the day's Square sweeps found (#241). Draft wording.
+  // What the day's Square sweeps found (#241, #236). Draft wording.
   // `open` counts every order found, the cancelled ones among them.
+  const done = (n, verb) => (n
+    ? `, and ${n} ${n === 1 ? "was" : "were"} ${verb}` : "");
+
+  if (square && (square.open || square.profiles)) {
+    blocks.push(heading("Left in Square"));
+  }
   if (square && square.open) {
     const found = `${square.open} order${square.open === 1 ? "" : "s"}`;
     const left = square.open - square.cancelled;
@@ -1289,10 +1295,18 @@ export const farmMorningReport = (stats, pickups, {
     } else if (square.cancelled) {
       text = `${lead}, and the sweep cancelled ${all}. To see ${all}:`;
     }
+    blocks.push(p(text), command("bin/nff jobs square"));
+  }
+  if (square && square.profiles) {
+    const foundProfiles = `${square.profiles} customer profile${
+      square.profiles === 1 ? "" : "s"}`;
+    const allProfiles = square.profiles === 1 ? "it" : "them";
+
     blocks.push(
-      heading("Left in Square"),
-      p(text),
-      command("bin/nff jobs square")
+      p(`Checkouts whose payment never went through made ${
+        foundProfiles} in Square${done(square.deleted, "deleted")}. To see ${
+        allProfiles}:`),
+      command("bin/nff jobs customers")
     );
   }
   if (pickups.length) {

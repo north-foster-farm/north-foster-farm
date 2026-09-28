@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  MADE_CUSTOMER_GRACE, SQUARE_OPEN_GRACE, SQUARE_SWEEP_HOUR,
+  MADE_CUSTOMER_GRACE, MADE_CUSTOMER_KEEP, SQUARE_OPEN_GRACE,
+  SQUARE_SWEEP_HOUR,
   SQUARE_SYNC_GRACE, checkInvariants, cutoffAt, deliveryReminderAt,
   leftOpen, runJobs, runsSince, sweepMadeCustomers, sweepSquareOrders,
 } from "../netlify/functions/lib/jobs.mjs";
@@ -839,6 +840,58 @@ describe("Square profiles a failed checkout made (#236)", () => {
 
     assert.equal(run.counts.customersMade, 2);
     assert.equal(run.customersDeleted, 1);
+  });
+
+  it("drops a note after 30 days while the switch is off, and keeps " +
+    "the profile", async () => {
+    const stores = testStores();
+    const square = fakeSquare();
+    const late = new Date(placed.getTime() + MADE_CUSTOMER_KEEP + 60 * 60_000);
+
+    await note(stores, "OLD", "NFF-2610-OLDD");
+    assert.deepEqual(await sweepMadeCustomers(stores, {
+      env: squareEnv, now: late, square,
+    }), []);
+    assert.deepEqual(await noted(stores), []);
+    assert.deepEqual(square.calls, [], "nothing asked, nothing deleted");
+
+    // With the switch on, an old note is weighed and deleted as ever.
+    await note(stores, "OLD", "NFF-2610-OLDD");
+
+    const found = await sweepMadeCustomers(stores, {
+      env: { ...squareEnv, SQUARE_CUSTOMER_CLEANUP: "true" }, now: late,
+      square,
+    });
+
+    assert.deepEqual(found.map((c) => c.deleted), [true]);
+  });
+
+  it("runs once a day from 7:00, and the morning report says what it " +
+    "found", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const env = {
+      ...squareEnv, ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE,
+    };
+    const square = fakeSquare();
+    const run = (h, m = 0) => runJobs(stores, {
+      ...opts, env, square, now: at("2026-10-07", h, m),
+    });
+
+    await note(stores, "LOST", "NFF-2610-LOST");
+    assert.deepEqual((await run(6, 45)).customersMade, []);
+    assert.equal((await run(7)).customersMade.length, 1);
+    assert.deepEqual((await run(7, 15)).customersMade, []);
+    assert.deepEqual(square.calls.filter((c) => c[0] === "orders").length,
+      1, "one look that day");
+    await run(8);
+
+    const [report] = sent.filter((m) => /Morning report/.test(m.subject));
+
+    assert.ok(report.text.includes("A checkout made 1 customer profile " +
+      "in Square for a payment that never went through. To see them:"),
+    report.text);
+    assert.match(report.text, /\n {4}bin\/nff jobs customers\n/);
   });
 
   it("does nothing where Square is not configured", async () => {

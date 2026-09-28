@@ -264,7 +264,7 @@ describe("the monitoring emails", () => {
     const m = farmMorningReport(stats, [denied], {
       date: "2026-10-06", links, now: new Date("2026-10-06T12:00:00Z"),
       schedule: { last: "2026-10-16", until: "2026-10-19" },
-      square: { open: 1, cancelled: 1 },
+      square: { open: 1, cancelled: 1, profiles: 2, deleted: 0 },
     });
 
     assert.equal(m.subject, "Morning report: Tuesday, October 6");
@@ -288,6 +288,9 @@ describe("the monitoring emails", () => {
     has(m.text, "A failed payment left 1 order open in Square, and the " +
         "sweep cancelled it. To see it:");
     has(m.text, "\n    bin/nff jobs square\n");
+    has(m.text, "A checkout made 2 customer profiles in Square for a " +
+        "payment that never went through. To see them:");
+    has(m.text, "\n    bin/nff jobs customers\n");
     has(m.text, "We couldn't keep these pickup times and the customer " +
         "hasn't chosen another yet, oldest order first.");
     assert.match(m.text, /Order\s+Customer\s+Was\s+Waiting\n/);

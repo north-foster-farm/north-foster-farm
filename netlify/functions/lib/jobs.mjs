@@ -210,7 +210,9 @@ export const runJobs = async (stores, {
     if (o.error) fail(o.orderId, "squareCancel", o.error);
   }
   report.customersMade = (await attempt(null, "customers",
-    () => sweepMadeCustomers(stores, { env, now, square, fetchImpl }))) || [];
+    () => squareDaily(stores, "profiles", now, () => sweepMadeCustomers(
+      stores, { env, now, square, fetchImpl },
+    )))) || [];
   for (const c of report.customersMade) {
     if (c.error) fail(c.orderId, "customerDelete", c.error);
   }
@@ -305,12 +307,16 @@ const squareDaily = async (stores, name, now, sweep) => {
   return found;
 };
 
-// What today's sweeps found, for the morning report: { open, cancelled }.
+// What today's sweeps found, for the morning report: { open,
+// cancelled, profiles, deleted }.
 const squareFinds = async (stores, day) => {
   const open = await stores.jobs.get(`square/open/${day}`);
+  const profiles = await stores.jobs.get(`square/profiles/${day}`);
 
   return {
     open: (open && open.count) || 0, cancelled: (open && open.done) || 0,
+    profiles: (profiles && profiles.count) || 0,
+    deleted: (profiles && profiles.done) || 0,
   };
 };
 
@@ -387,8 +393,11 @@ export const sweepSquareOrders = async (stores, {
 // profile that was found rather than made is never noted, so never
 // weighed. Otherwise it is reported, and deleted only when
 // SQUARE_CUSTOMER_CLEANUP is "true". Square keeps the cancelled order.
+// The note holds the customer's email, so while the switch is off it
+// is kept MADE_CUSTOMER_KEEP and then dropped; the profile stays.
 
 export const MADE_CUSTOMER_GRACE = 24 * HOUR;
+export const MADE_CUSTOMER_KEEP = 30 * 24 * HOUR;
 
 // -> [{ customerId, orderId, at, deleted, error? }] for the profiles
 // with no paid order behind them, or null when Square is not
@@ -407,6 +416,11 @@ export const sweepMadeCustomers = async (stores, {
 
   for (const made of await listMadeCustomers(stores)) {
     if (!(Date.parse(made.at) < cutoff)) continue;
+    if (!remove
+      && Date.parse(made.at) < now.getTime() - MADE_CUSTOMER_KEEP) {
+      await dropMadeCustomer(stores, made.customerId);
+      continue;
+    }
 
     if (await getOrder(stores, made.orderId)
       || (await ordersFor(stores, made.email)).length) {

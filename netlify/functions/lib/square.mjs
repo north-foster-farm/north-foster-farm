@@ -144,7 +144,8 @@ const call = async (cfg, path, body, fetchImpl, method = "POST") => {
         "Square-Version": cfg.version,
         "Content-Type": "application/json",
       },
-      body: body === null ? undefined : JSON.stringify(body),
+      body: method === "GET" || body === null ? undefined
+        : JSON.stringify(body),
     });
   } catch (error) {
     throw new SquareError(`Network error calling ${path}`, {
@@ -742,34 +743,54 @@ export const renameCustomerEmail = async (from, to, {
   return ids;
 };
 
-// A customer's orders at this location, by any channel: whether one
-// took money (`paid`), and whether one was made after `since` and may
-// be paying right now (`recent`). The check before a profile is
-// deleted (#236). -> { paid, recent }
+// Every location on the account, closed ones too: a sale at the market
+// is at another location than the site's. -> ids, the site's first.
+const allLocations = async (cfg, fetchImpl) => {
+  const data = await call(cfg, "/v2/locations", null, fetchImpl, "GET");
+  const ids = (data.locations || []).map((l) => l.id)
+    .filter((id) => id && id !== cfg.locationId);
+
+  return [cfg.locationId, ...ids];
+};
+
+// SearchOrders takes up to this many locations at a time.
+const SEARCH_LOCATIONS = 10;
+
+// A customer's orders at any of the account's locations, by any
+// channel: whether one took money (`paid`), and whether one was made
+// after `since` and may be paying right now (`recent`). The check
+// before a profile is deleted (#236), so a sale at the market counts.
+// -> { paid, recent }
 export const customerOrders = async (customerId, { since }, {
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) => {
   const cfg = settings(env);
+  const locations = await allLocations(cfg, fetchImpl);
   let recent = false;
-  let cursor;
 
-  do {
-    const data = await call(cfg, "/v2/orders/search", {
-      location_ids: [cfg.locationId],
-      limit: 100,
-      cursor,
-      query: { filter: { customer_filter: { customer_ids: [customerId] } } },
-    }, fetchImpl);
+  for (let i = 0; i < locations.length; i += SEARCH_LOCATIONS) {
+    let cursor;
 
-    for (const o of data.orders || []) {
-      if ((o.tenders || []).length || o.state === "COMPLETED") {
-        return { paid: true, recent };
+    do {
+      const data = await call(cfg, "/v2/orders/search", {
+        location_ids: locations.slice(i, i + SEARCH_LOCATIONS),
+        limit: 100,
+        cursor,
+        query: {
+          filter: { customer_filter: { customer_ids: [customerId] } },
+        },
+      }, fetchImpl);
+
+      for (const o of data.orders || []) {
+        if ((o.tenders || []).length || o.state === "COMPLETED") {
+          return { paid: true, recent };
+        }
+        if (Date.parse(o.created_at) > since.getTime()) recent = true;
       }
-      if (Date.parse(o.created_at) > since.getTime()) recent = true;
-    }
-    cursor = data.cursor;
-  } while (cursor);
+      cursor = data.cursor;
+    } while (cursor);
+  }
 
   return { paid: false, recent };
 };

@@ -549,7 +549,7 @@ const run = async () => {
         c.deliveryReminded ?? 0}  closed ${c.closed ?? 0}  synced ${
         c.squareSynced ?? 0}  pickups ${c.pickupsToConfirm ?? 0}  swept ${
         r.checkoutsSwept ?? 0}  signins ${r.authSwept ?? 0}  open ${
-        c.squareOpen ?? 0}${
+        c.squareOpen ?? 0}  profiles ${c.customersMade ?? 0}${
         (r.errors || []).map((e) => `\n    error ${e.id || "-"}: ${e.error}`)
           .join("")}${(r.invariants || []).map((v) =>
         `\n    invariant ${v.rule}: ${v.id}`).join("")}`);

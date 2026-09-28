@@ -122,13 +122,18 @@ before the source was set are never listed.
 
 **Square profiles a failed checkout made (#236).** Pressing Pay makes
 a Square customer profile when the email is new to the farm, before
-the charge, and notes it. A day on, each run keeps the profile when
-the order was recorded, the customer has another order here, or Square
-shows a paid order for it from any channel; it waits when Square shows
-an order for it made in the last day. The rest are `customersMade` in
-the report and `bin/nff jobs customers` on demand. The jobs delete them
-only when `SQUARE_CUSTOMER_CLEANUP` is `true`; `bin/nff jobs customers
---apply` deletes them once. A profile that already existed is never
+the charge, and notes it. Once a day, the first run from 7:00, the
+jobs weigh each note a day old: they keep the profile when the order
+was recorded, the customer has another order here, or Square shows a
+paid order for it at any of the account's locations (the market
+included); they wait when Square shows an order for it made in the
+last day. The rest are `customersMade` in that run's report,
+`profiles` in `bin/nff jobs history`, a line under "Left in Square"
+in the morning report, and `bin/nff jobs customers` on demand. The
+jobs delete them only when `SQUARE_CUSTOMER_CLEANUP` is `true`;
+`bin/nff jobs customers --apply` deletes them once. While the switch
+is off, a note (it holds the customer's email) is dropped after 30
+days and the profile stays. A profile that already existed is never
 touched.
 
 **`venmo.amount_mismatch`.** PayPal captured a different amount than

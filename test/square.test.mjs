@@ -560,15 +560,42 @@ describe("customerOrders and deleteCustomer", () => {
     "/v2/orders/search": { orders },
   });
 
-  it("asks for the customer's orders at this location", async () => {
-    const { impl, calls } = search([]);
+  it("asks for the customer's orders at every location, ten at a time",
+    async () => {
+      const others = Array.from({ length: 10 }, (_, i) => ({ id: `M${i}` }));
+      const { impl, calls } = fakeFetch({
+        "/v2/locations": { locations: [{ id: "LOC" }, ...others] },
+        "/v2/orders/search": { orders: [] },
+      });
 
-    assert.deepEqual(await customerOrders("CUST", { since }, {
+      assert.deepEqual(await customerOrders("CUST", { since }, {
+        env, fetchImpl: impl,
+      }), { paid: false, recent: false });
+      assert.equal(calls[0].method, "GET");
+      assert.equal(calls[0].body, null);
+
+      const searches = calls.filter((c) => c.path === "/v2/orders/search");
+
+      assert.deepEqual(searches.map((c) => c.body.location_ids), [
+        ["LOC", "M0", "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"],
+        ["M9"],
+      ]);
+      assert.deepEqual(searches[0].body.query.filter,
+        { customer_filter: { customer_ids: ["CUST"] } });
+    });
+
+  it("counts a paid order at the market's location", async () => {
+    const { impl } = fakeFetch({
+      "/v2/locations": { locations: [{ id: "LOC" }, { id: "MKT" }] },
+      "/v2/orders/search": { orders: [{
+        id: "SALE", state: "COMPLETED", location_id: "MKT",
+        created_at: "2026-09-01T12:00:00Z",
+      }] },
+    });
+
+    assert.equal((await customerOrders("CUST", { since }, {
       env, fetchImpl: impl,
-    }), { paid: false, recent: false });
-    assert.deepEqual(calls[0].body.location_ids, ["LOC"]);
-    assert.deepEqual(calls[0].body.query.filter,
-      { customer_filter: { customer_ids: ["CUST"] } });
+    })).paid, true);
   });
 
   it("finds a paid order, or a recent one that may be paying", async () => {
