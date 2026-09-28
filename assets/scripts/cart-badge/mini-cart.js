@@ -24,7 +24,8 @@ export const wireMiniCart = () => {
   if (!menu) return;
 
   const list = menu.querySelector("[data-mini-cart-lines]");
-  const template = menu.querySelector("[data-mini-cart-line]");
+  const groupTemplate = menu.querySelector("[data-mini-cart-group]");
+  const lineTemplate = menu.querySelector("[data-mini-cart-line]");
   const subtotal = menu.querySelector("[data-mini-cart-subtotal]");
   let products = null;
 
@@ -35,24 +36,40 @@ export const wireMiniCart = () => {
     products ||= catalog();
     list.replaceChildren();
 
+    // In catalog order, each group under its own heading, as the
+    // order page's cart shows them: the name never has to share a
+    // row with its group, so no line wraps (#207).
+    const skus = [...products.keys()];
+    const shown = lines
+      .map((line) => ({
+        p: products.get(line.sku), qty: Number(line.qty) || 0,
+        at: skus.indexOf(line.sku),
+      }))
+      .filter(({ p, qty }) => p && qty >= 1)
+      .sort((a, b) => a.at - b.at);
+    let items = null;
+    let group = null;
     let sum = 0;
 
-    for (const line of lines) {
-      const p = products.get(line.sku);
-      const qty = Number(line.qty) || 0;
+    for (const { p, qty } of shown) {
+      if (p.group !== group) {
+        const g = groupTemplate.content.cloneNode(true);
 
-      if (!p || qty < 1) continue;
+        g.querySelector("[data-mini-cart-heading]").textContent = p.group;
+        items = g.querySelector("[data-mini-cart-items]");
+        list.append(g);
+        group = p.group;
+      }
 
-      const li = template.content.cloneNode(true);
+      const li = lineTemplate.content.cloneNode(true);
       const set = (name, text) => {
         li.querySelector(`[data-mini-cart-${name}]`).textContent = text;
       };
 
-      set("group", p.group);
       set("label", p.label);
       set("qty", `× ${qty}`);
       set("price", money(p.price * qty));
-      list.append(li);
+      items.append(li);
       sum += p.price * qty;
     }
     subtotal.textContent = money(sum);
