@@ -516,8 +516,8 @@ const run = async () => {
           : "open"}`);
     }
 
-    return out(`${found.length} left open${apply ? "" : " (a report; " +
-      "--apply cancels them)"}.`);
+    return out(`${found.length} left open.${apply ? "" : " This is only a " +
+      "report; --apply cancels them."}`);
   }
   case "jobs history": {
     const n = Number(flags.n) || 20;

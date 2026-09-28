@@ -719,7 +719,7 @@ describe("Square orders left open (#241)", () => {
     const [report] = sent.filter((m) => /Morning report/.test(m.subject));
 
     assert.match(report.text, /Left in Square/);
-    assert.ok(report.text.includes("A failed payment left 2 orders open " +
+    assert.ok(report.text.includes("Failed payments left 2 orders open " +
       "in Square. To see them:"), report.text);
     assert.match(report.text, /\n {4}bin\/nff jobs square\n/);
   });

@@ -285,8 +285,8 @@ describe("the monitoring emails", () => {
     has(m.text, "The pickup schedule's last window is on Friday, " +
         "October 16; it must reach the week of Monday, October 19.");
     has(m.text, "\n    bin/nff schedule set <file>\n");
-    has(m.text, "The sweep found 1 order a failed payment left open in " +
-        "Square and cancelled it. To see them:");
+    has(m.text, "A failed payment left 1 order open in Square, and the " +
+        "sweep cancelled it. To see it:");
     has(m.text, "\n    bin/nff jobs square\n");
     has(m.text, "We couldn't keep these pickup times and the customer " +
         "hasn't chosen another yet, oldest order first.");
@@ -311,13 +311,15 @@ describe("the monitoring emails", () => {
       schedule: { last: "2026-10-23", until: "2026-10-19" }, square,
     }).text;
 
+    has(left({ open: 1, cancelled: 0 }),
+      "A failed payment left 1 order open in Square. To see it:");
     has(left({ open: 2, cancelled: 0 }),
-      "A failed payment left 2 orders open in Square. To see them:");
-    has(left({ open: 3, cancelled: 1 }), "The sweep found 3 orders a " +
-      "failed payment left open in Square and cancelled 1; 2 are still " +
-      "open. To see them:");
-    has(left({ open: 2, cancelled: 2 }), "The sweep found 2 orders a " +
-      "failed payment left open in Square and cancelled them.");
+      "Failed payments left 2 orders open in Square. To see them:");
+    has(left({ open: 3, cancelled: 1 }), "Failed payments left 3 orders " +
+      "open in Square. The sweep cancelled 1; 2 are still open. To see " +
+      "them:");
+    has(left({ open: 2, cancelled: 2 }), "Failed payments left 2 orders " +
+      "open in Square, and the sweep cancelled them. To see them:");
   });
 
   it("tomorrow: every order due, by method, with what to pack", () => {

@@ -1278,15 +1278,20 @@ export const farmMorningReport = (stats, pickups, {
     const found = `${square.open} order${square.open === 1 ? "" : "s"}`;
     const left = square.open - square.cancelled;
     const all = square.open === 1 ? "it" : "them";
+    const lead = `${square.open === 1 ? "A failed payment" : "Failed payments"
+    } left ${found} open in Square`;
+    const still = `${left} ${left === 1 ? "is" : "are"} still open`;
+    let text = `${lead}. To see ${all}:`;
 
+    if (square.cancelled && left) {
+      text = `${lead}. The sweep cancelled ${square.cancelled}; ${still}. ` +
+        "To see them:";
+    } else if (square.cancelled) {
+      text = `${lead}, and the sweep cancelled ${all}. To see ${all}:`;
+    }
     blocks.push(
       heading("Left in Square"),
-      p(square.cancelled
-        ? `The sweep found ${found} a failed payment left open in ` +
-          `Square and cancelled ${left ? square.cancelled : all}${left
-            ? `; ${left} ${left === 1 ? "is" : "are"} still open` : ""
-          }. To see them:`
-        : `A failed payment left ${found} open in Square. To see them:`),
+      p(text),
       command("bin/nff jobs square")
     );
   }
