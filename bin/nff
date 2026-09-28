@@ -37,11 +37,15 @@ const USAGE = `Usage:
                                       money back without cancelling:
                                       card and wallets through Square,
                                       Venmo through PayPal
-  bin/nff orders attempted <id> <customer|farm|weather> [--waive "why"]
-                                      a delivery we could not leave: a
-                                      customer's miss keeps the fee
-                                      through any refund unless waived;
-                                      the farm's or the weather's waives it
+  bin/nff orders attempted <id> <cause> [--detail "..."] [--waive "why"]
+                                      a delivery we could not leave. The
+                                      cause: no-cooler, no-access or
+                                      no-address (the customer's miss:
+                                      the fee is kept through any refund
+                                      unless waived; waive a no-address
+                                      when in doubt), or weather or farm
+                                      (waived). --detail: where we
+                                      couldn't get to, for the email
   bin/nff orders fulfil <id>
   bin/nff orders delete <id>
   bin/nff returns resolve <id> <returnId> [note...]
@@ -136,7 +140,7 @@ const words = [];
 
 // Flags that take a value: `--reason "..."` as well as `--reason=...`.
 const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
-  "to", "waive"];
+  "to", "waive", "detail"];
 const args = process.argv.slice(2);
 
 for (let i = 0; i < args.length; i += 1) {
@@ -348,10 +352,12 @@ const run = async () => {
   }
   case "orders attempted": {
     if (flags.waive === true) throw new Error("--waive needs a reason.");
+    if (flags.detail === true) throw new Error("--detail needs the words.");
 
     const marked = await admin.markAttempted(stores, rest[0], {
       cause: rest[1],
       waive: typeof flags.waive === "string" ? flags.waive : "",
+      detail: typeof flags.detail === "string" ? flags.detail : "",
     });
     const { at, cause, fee } = marked.attempted;
 

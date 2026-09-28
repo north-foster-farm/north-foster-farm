@@ -418,19 +418,27 @@ run `orders cancel`.
 A delivery the farm could not leave (no cooler, nobody reached) keeps
 its fee when the customer caused the miss, and waives it when the
 farm or the weather did (James, F1 and C1). `bin/nff orders attempted
-<id> <customer|farm|weather> [--waive "why"]` records the attempt as
-`attempted: { at, cause, fee, waived, note }`: `fee` is the cents
-kept, 0 when waived, and `note` is the reason a customer's miss was
-waived anyway (C2). Refunds, cancels and emails all read `fee`
-through `keptFee(order)`. From then on a refund, or a cancel with
-`--refund`, hands back everything but the kept fee. A refund made in
+<id> <cause> [--detail "..."] [--waive "why"]` records the attempt as
+`attempted: { at, cause, fee, waived, note, detail }`. The causes
+(C6a): `no-cooler`, `no-access` and `no-address` are the customer's
+miss; `weather` and `farm` waive the fee. `no-address` counts as the
+customer's because the truck can't tell a wrong address from our own
+wrong turn; waive it when in doubt (C6b). `fee` is the cents kept, 0
+when waived; `note` is the private reason a customer's miss was
+waived anyway (C2); `detail` is what the missed-delivery email adds
+about where we couldn't get to. The email's reason line states what
+we saw, one per cause. Refunds, cancels and emails all read `fee`
+through `keptFee(order)`. From then on a refund or a cancel hands
+back everything but the kept fee. A refund made in
 the Square dashboard or PayPal is not held to it. The dashboard's
 delivery routes (nff-dashboard#24) will write the same record.
 
-A customer who cancels from the account page is flagged
-`cancelRequested`, their stock is released, and the farm is emailed
-"Refund needed" with the command; the order stays `paid` until the
-CLI refunds and closes it. A refund made in the Square dashboard
+A customer who cancels from the account page is refunded and
+cancelled at once (T1d), and the farm is emailed "Cancelled: <id>".
+Only if that refund fails is the order flagged `cancelRequested`,
+its stock released, and the farm emailed "Refund needed" with the
+command; it stays `paid` until the CLI refunds and closes it. A
+refund made in the Square dashboard
 (`refund.updated`, `POST /api/square/webhook`, signed with
 `SQUARE_WEBHOOK_SIGNATURE_KEY`) or in PayPal
 (`PAYMENT.CAPTURE.REFUNDED`) reaches the record through the webhooks,

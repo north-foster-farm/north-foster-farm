@@ -396,19 +396,24 @@ export const denyPickup = async (stores, id, {
     { mail, env, now });
 };
 
-// Why a delivery could not be left. The fee follows the cause, not the
-// bare miss (James, C1): a customer's miss keeps it, the farm's or the
-// weather's waives it.
-export const ATTEMPT_CAUSES = ["customer", "farm", "weather"];
+// Why a delivery could not be left (C6a). The fee follows the cause,
+// not the bare miss (James, C1): a customer's miss keeps it, the
+// farm's or the weather's waives it. No address we could find counts
+// as the customer's, since the truck can't tell it from our own
+// wrong turn; waive it when in doubt (C6b).
+export const CUSTOMER_CAUSES = ["no-cooler", "no-access", "no-address"];
+export const ATTEMPT_CAUSES = [...CUSTOMER_CAUSES, "weather", "farm"];
 
 // The farm tried to deliver and could not: no cooler, nobody reached
 // (James, F1). The attempt records its cause and the fee kept, in
 // cents: 0 when waived, so a refund, a cancellation, a switch to
 // pickup and every email read one fact. A customer's miss can be
-// waived anyway, with the reason, at the same moment (C2). Marking
-// twice keeps the first. -> the order.
+// waived anyway, with the reason, at the same moment (C2). `note` is
+// that private reason; `detail` is what the customer's email adds
+// about where we couldn't get to (no-access). Marking twice keeps the
+// first. -> the order.
 export const markAttempted = async (stores, id, {
-  cause, waive = "", now = new Date(),
+  cause, waive = "", detail = "", now = new Date(),
 } = {}) => {
   const order = need(await getOrder(stores, id), "order");
 
@@ -425,7 +430,7 @@ export const markAttempted = async (stores, id, {
   }
 
   const note = waive.trim();
-  const waived = cause !== "customer" || !!note;
+  const waived = !CUSTOMER_CAUSES.includes(cause) || !!note;
 
   return amendOrder(stores, id, {
     attempted: {
@@ -434,6 +439,7 @@ export const markAttempted = async (stores, id, {
       fee: waived ? 0 : order.totals.deliveryFee || 0,
       waived,
       note,
+      detail: detail.trim(),
     },
   }, "delivery.attempted", now);
 };

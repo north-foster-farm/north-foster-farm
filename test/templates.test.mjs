@@ -661,6 +661,28 @@ describe("order changed and cancelled", () => {
     assert.doesNotMatch(m.text, /isn't refunded|fee/);
   });
 
+  it("says what we saw for each of the customer's causes (C6a)", () => {
+    const missed = (cause, extra = {}) => missedDelivery({
+      ...attempted(500), attempted: { cause, fee: 500, ...extra },
+    }, { links }).text;
+    const d = order().fulfilment.delivery;
+    const lead = "We came by today with your order but couldn't leave it: ";
+    const tail = ". Your order is back at the farm.";
+
+    has(missed("no-cooler"), `${lead}we didn't find a cooler where you ` +
+      `told us (${d.cooler}), and we couldn't reach you by phone, text ` +
+      `or the doorbell${tail}`);
+    has(missed("no-access", { detail: "the gate was locked" }), `${lead}we ` +
+      "couldn't get to where you asked us to leave it (the gate was " +
+      "locked), and we couldn't reach you by phone, text or the doorbell");
+    has(missed("no-access"), "leave it, and we couldn't reach you");
+    has(missed("no-address"), `${lead}we couldn't find your address as ` +
+      `you gave it (${d.address1}, ${d.town}), and we couldn't reach ` +
+      `you${tail}`);
+    has(missed("customer"), `${lead}there was no cooler out, and we ` +
+      `couldn't reach you${tail}`);
+  });
+
   it("moves a farm or weather miss to next Thursday, fee and all", () => {
     const weather = { ...attempted(0), attempted: { cause: "weather" } };
     const w = movedDelivery(weather, { links });

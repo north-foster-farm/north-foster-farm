@@ -568,8 +568,34 @@ const dayAfter = (iso, days) => label(addDays(iso, days)).replace(/^\w+, /, "");
 // wording: kept, the customer is warned before choosing that it stays
 // whatever they choose; waived, everything comes back (James, C3). A
 // farm or weather miss gets movedDelivery instead (C7). Policy-pages'
-// drafts of 2026-09-28, to approve; nothing sends this yet. The reason
-// line waits on C6's causes; until then, the one F1 names.
+// drafts of 2026-09-28, to approve; nothing sends this yet.
+
+// What we saw, not what the customer did (C6a, James's drafts).
+const missedReason = (order) => {
+  const a = order.attempted || {};
+  const d = order.fulfilment.delivery || {};
+  const where = [d.address1, d.town].filter(Boolean).join(", ");
+  const unreached = "and we couldn't reach you by phone, text or the " +
+    "doorbell";
+
+  if (a.cause === "no-access") {
+    return "we couldn't get to where you asked us to leave it" +
+      `${a.detail ? ` (${a.detail})` : ""}, ${unreached}`;
+  }
+  if (a.cause === "no-address") {
+    return `we couldn't find your address as you gave it (${where}), ` +
+      "and we couldn't reach you";
+  }
+  if (a.cause === "no-cooler" && d.cooler) {
+    return `we didn't find a cooler where you told us (${d.cooler}), ${
+      unreached}`;
+  }
+
+  // F1's line, for no-cooler without a place and for an attempt
+  // recorded before the causes.
+  return "there was no cooler out, and we couldn't reach you";
+};
+
 export const missedDelivery = (order, { pickUrl, links } = {}) => {
   const title = "We couldn't deliver your order";
   const fee = keptFee(order);
@@ -578,9 +604,8 @@ export const missedDelivery = (order, { pickUrl, links } = {}) => {
   const items = dollars(order.totals.total - fee);
   const blocks = [
     p(`Hi ${firstName(order.customer)},`),
-    p("We came by today with your order but couldn't leave it: there " +
-      "was no cooler out, and we couldn't reach you. Your order is back " +
-      "at the farm."),
+    p("We came by today with your order but couldn't leave it: " +
+      `${missedReason(order)}. Your order is back at the farm.`),
   ];
 
   if (fee) {
