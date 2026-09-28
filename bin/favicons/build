@@ -54,12 +54,9 @@ for opaque in apple-touch-icon.png maskable-512x512.png; do
     "$out/$opaque"
 done
 
-# Windows tiles, at the sizes RealFaviconGenerator used.
-tile 80 128 128 "$out/mstile-70x70.png"
-tile 88 144 144 "$out/mstile-144x144.png"
+# The Windows tile browserconfig.xml names, at RealFaviconGenerator's
+# size. It named no other.
 tile 150 270 270 "$out/mstile-150x150.png"
-tile 150 558 270 "$out/mstile-310x150.png"
-tile 300 558 558 "$out/mstile-310x310.png"
 
 emblem mono > "$out/safari-pinned-tab.svg"
 
