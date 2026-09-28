@@ -222,6 +222,13 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
 
     .btn {
       --bs-btn-font-size: 1.125rem;
+
+      // Keyboard focus: the white ring the video controls wear, set
+      // off the button so it reads on the white face too.
+      &:focus-visible {
+        outline: 2px solid $white;
+        outline-offset: 3px;
+      }
     }
   }
 

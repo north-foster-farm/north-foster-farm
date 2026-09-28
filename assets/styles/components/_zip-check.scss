@@ -19,5 +19,10 @@
     font-variant-numeric: tabular-nums;
     border-color: var(--bs-border-color-translucent);
     box-shadow: $btn-lift-shadow;
+
+    // The lift would outrank Bootstrap's focus ring; wear both.
+    &:focus {
+      box-shadow: $btn-lift-shadow, $input-focus-box-shadow;
+    }
   }
 }

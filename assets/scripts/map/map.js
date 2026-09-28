@@ -342,9 +342,18 @@ const wire = (map) => {
 
   const layer = () => map.dataset.layer;
 
+  // Pins are Tab stops only where they show: Safari still stops on
+  // the ones Delivery hides with display: none.
+  const stops = () => {
+    for (const pin of pins) pin.tabIndex = layer() === "places" ? 0 : -1;
+  };
+
+  stops();
+
   function setLayer(name) {
     if (!tabs.length || layer() === name) return;
     map.dataset.layer = name;
+    stops();
     for (const t of tabs) {
       const on = t.dataset.mapLayer === name;
 
