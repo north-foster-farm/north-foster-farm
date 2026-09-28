@@ -11,70 +11,74 @@
   (dict "name" "Contact" "path" "contact/")
 }}
 {{ $here := .RelPermalink }}
-{{/* The whole row is the main navigation, so Home, the logo, is its
-     first item at every width. */}}
-<nav class="container site-header-inner" aria-label="Main">
-  {{/* The hen, and the wordmark beside it from sm up, so a page
-       reached from a link still says whose it is. */}}
-  <a class="site-brand" href="{{ .Site.BaseURL }}" aria-label="North Foster Farm, home" {{- if .IsHome }} aria-current="page" {{ end }}>
-    <span class="site-mark" aria-hidden="true">{{ partial "svg.html" "logo-mark" }}</span>
-    <span class="site-wordmark" aria-hidden="true">{{ partial "svg.html" "logo" }}</span>
-  </a>
-  <div class="site-actions">
-    {{/* From md up: the text links in the row. On a phone they live in
-         the menu below; the row keeps the wordmark, Order and the
-         toggle. Sign in comes first so its fade-in never moves the
-         other links. */}}
-    <div class="site-links">
-      {{ if $accounts }}
-        {{ partial "header/account-menu.html" (dict "flat" false "ctx" $ctx) }}
-      {{ end }}
-      {{ range $links }}
-        <a class="site-nav-link" href="{{ relURL .path }}" {{- if eq $here (relURL .path) }} aria-current="page" {{ end }}>{{ .name }}</a>
-      {{ end }}
-    </div>
-    {{/* Product search: the icon turns into its closed twin while
-         the palette is open. */}}
-    <button class="site-search" type="button" aria-controls="search-palette" aria-expanded="false" aria-keyshortcuts="Meta+K Control+K" aria-label="Search products" data-search-open>
-      <span class="site-search-icon site-search-open" aria-hidden="true">{{ partial "svg.html" "icons/search" }}</span>
-      <span class="site-search-icon site-search-shut" aria-hidden="true">{{ partial "svg.html" "icons/search-close" }}</span>
-    </button>
-    {{ if $onOrder }}
-      <span class="site-order is-current" aria-current="page">Order{{ partial "header/cart-badge.html" }}</span>
-    {{ else }}
-      {{/* Order, and once the cart holds something, the cart beside
-           it with its count. */}}
-      <div class="site-order-group">
-        <a class="site-order" href="{{ relURL "order/" }}">Order</a>
-        {{ partial "header/mini-cart.html" . }}
+{{/* A Bootstrap navbar that expands at md (768px): from there up the
+     links sit in the row; below it they fold into the offcanvas menu
+     and the toggle appears. The whole row is the main navigation, so
+     Home, the logo, is its first item at every width. */}}
+<nav class="navbar navbar-expand-md site-navbar" aria-label="Main">
+  <div class="container site-header-inner">
+    {{/* The hen, and the wordmark beside it from sm up, so a page
+         reached from a link still says whose it is. */}}
+    <a class="navbar-brand site-brand" href="{{ .Site.BaseURL }}" aria-label="North Foster Farm, home" {{- if .IsHome }} aria-current="page" {{ end }}>
+      <span class="site-mark" aria-hidden="true">{{ partial "svg.html" "logo-mark" }}</span>
+      <span class="site-wordmark" aria-hidden="true">{{ partial "svg.html" "logo" }}</span>
+    </a>
+
+    {{/* The links: in the row from md up, and below md a menu sliding
+         in from the right, one link per line. Home and Order are the
+         menu's alone; the row has the logo and the Order button. The
+         account comes first in the row, as a dropdown, so its fade-in
+         never moves the other links; in the menu it comes last, laid
+         flat. */}}
+    <div class="offcanvas offcanvas-end site-offcanvas" tabindex="-1" id="site-menu" aria-labelledby="site-menu-title">
+      <div class="offcanvas-header">
+        <h2 class="offcanvas-title h5" id="site-menu-title">Menu</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
       </div>
-    {{ end }}
-    <button class="site-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#site-menu" aria-controls="site-menu" aria-expanded="false" aria-label="Menu">
-      <span class="site-toggle-bars" aria-hidden="true"><span></span><span></span><span></span></span>
-    </button>
+      <div class="offcanvas-body navbar-nav site-links">
+        <a class="site-nav-link d-md-none" href="{{ .Site.BaseURL }}" {{- if .IsHome }} aria-current="page" {{ end }}>Home</a>
+        {{ if $onOrder }}
+          <span class="site-nav-link is-current d-md-none" aria-current="page">Order{{ partial "header/cart-badge.html" }}</span>
+        {{ else }}
+          <a class="site-nav-link d-md-none" href="{{ relURL "order/" }}">Order{{ partial "header/cart-badge.html" }}</a>
+        {{ end }}
+        {{ if $accounts }}
+          <div class="d-none d-md-flex">
+            {{ partial "header/account-menu.html" (dict "flat" false "ctx" $ctx) }}
+          </div>
+        {{ end }}
+        {{ range $links }}
+          <a class="site-nav-link" href="{{ relURL .path }}" {{- if eq $here (relURL .path) }} aria-current="page" {{ end }}>{{ .name }}</a>
+        {{ end }}
+        {{ if $accounts }}
+          <div class="site-menu-account d-md-none">
+            <hr class="site-offcanvas-rule">
+            {{ partial "header/account-menu.html" (dict "flat" true "ctx" $ctx) }}
+          </div>
+        {{ end }}
+      </div>
+    </div>
+
+    <div class="site-actions">
+      {{/* Product search: the icon turns into its closed twin while
+           the palette is open. */}}
+      <button class="site-search" type="button" aria-controls="search-palette" aria-expanded="false" aria-keyshortcuts="Meta+K Control+K" aria-label="Search products" data-search-open>
+        <span class="site-search-icon site-search-open" aria-hidden="true">{{ partial "svg.html" "icons/search" }}</span>
+        <span class="site-search-icon site-search-shut" aria-hidden="true">{{ partial "svg.html" "icons/search-close" }}</span>
+      </button>
+      {{ if $onOrder }}
+        <span class="site-order is-current" aria-current="page">Order{{ partial "header/cart-badge.html" }}</span>
+      {{ else }}
+        {{/* Order, and once the cart holds something, the cart beside
+             it with its count. */}}
+        <div class="site-order-group">
+          <a class="site-order" href="{{ relURL "order/" }}">Order</a>
+          {{ partial "header/mini-cart.html" . }}
+        </div>
+      {{ end }}
+      <button class="navbar-toggler site-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#site-menu" aria-controls="site-menu" aria-expanded="false" aria-label="Menu">
+        <span class="site-toggle-bars" aria-hidden="true"><span></span><span></span><span></span></span>
+      </button>
+    </div>
   </div>
 </nav>
-
-{{/* The phone menu: the same links, one per line, sliding in from
-     the right. */}}
-<div class="offcanvas offcanvas-end site-offcanvas" tabindex="-1" id="site-menu" aria-labelledby="site-menu-title">
-  <div class="offcanvas-header">
-    <h2 class="offcanvas-title h5" id="site-menu-title">Menu</h2>
-    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-  </div>
-  <div class="offcanvas-body site-offcanvas-body">
-    <a class="site-nav-link" href="{{ .Site.BaseURL }}" {{- if .IsHome }} aria-current="page" {{ end }}>Home</a>
-    {{ if $onOrder }}
-      <span class="site-nav-link is-current" aria-current="page">Order{{ partial "header/cart-badge.html" }}</span>
-    {{ else }}
-      <a class="site-nav-link" href="{{ relURL "order/" }}">Order{{ partial "header/cart-badge.html" }}</a>
-    {{ end }}
-    {{ range $links }}
-      <a class="site-nav-link" href="{{ relURL .path }}" {{- if eq $here (relURL .path) }} aria-current="page" {{ end }}>{{ .name }}</a>
-    {{ end }}
-    {{ if $accounts }}
-      <hr class="site-offcanvas-rule">
-      {{ partial "header/account-menu.html" (dict "flat" true "ctx" $ctx) }}
-    {{ end }}
-  </div>
-</div>

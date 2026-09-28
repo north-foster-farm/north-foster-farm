@@ -79,8 +79,28 @@ const hoverMenus = () => {
   }
 };
 
+// Bootstrap's offcanvas leaves its toggle's aria-expanded alone, so a
+// screen reader heard the menu as shut and the bars never folded into
+// their cross. The menu's own events set it (#227).
+const trackMenu = () => {
+  const menu = document.getElementById("site-menu");
+
+  if (!menu) return;
+  const set = (open) => {
+    for (const toggle of document.querySelectorAll(
+      "[data-bs-target='#site-menu']"
+    )) {
+      toggle.setAttribute("aria-expanded", String(open));
+    }
+  };
+
+  menu.addEventListener("show.bs.offcanvas", () => set(true));
+  menu.addEventListener("hide.bs.offcanvas", () => set(false));
+};
+
 document.addEventListener("DOMContentLoaded", () => {
   Session.show();
+  trackMenu();
   wireNewsSignup();
   wireDotLists();
   wireVideos();

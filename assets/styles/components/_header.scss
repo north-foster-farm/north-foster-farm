@@ -23,23 +23,28 @@ header {
   background-color: var(--bs-body-bg);
 }
 
+// Bootstrap's navbar lays out the row; its padding and the brand's
+// spacing give way to the row's own.
+.site-navbar {
+  --bs-navbar-padding-y: 0;
+  --bs-navbar-brand-padding-y: 0;
+  --bs-navbar-brand-margin-end: 0;
+}
+
 .site-header-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 1rem;
   min-height: var(--header-row);
 }
 
 // The hen in its arc, and beside it the wordmark once there is room
 // for it at a size that reads. A phone shows the hen alone; the link's
-// name says the farm's.
+// name says the farm's. The logo never gives up its width: the links
+// once slid under a squeezed wordmark (#227).
 .site-brand {
   display: flex;
   align-items: center;
-  flex: 0 1 auto;
+  flex: none;
   gap: 0.625rem;
-  min-width: 0;
 
   svg {
     display: block;
@@ -87,7 +92,7 @@ header {
     height: 1rem;
 
     @media (min-width: 768px) {
-      height: 0.875rem;
+      height: 0.8125rem;
     }
 
     @media (min-width: 992px) {
@@ -108,15 +113,6 @@ header {
   align-items: center;
   gap: 0.75rem;
   height: 2.25rem;
-}
-
-// The text links live in the row from md up; on a phone the row keeps
-// only the logo, Order and the toggle, and the links move into the
-// offcanvas menu.
-.site-links {
-  display: none;
-  align-items: center;
-  gap: 0.5rem;
 }
 
 // Text links: Sign in, Delivery, News, About, Contact, and the Account
@@ -178,7 +174,8 @@ header {
 }
 
 // The toggle: three bars that fold into a cross while the menu is
-// open. Shown only where the links are hidden.
+// open. The navbar shows it only below md, where the links fold away.
+// Its focus ring is for the keyboard alone, not left behind by a tap.
 .site-toggle {
   display: inline-flex;
   align-items: center;
@@ -201,6 +198,10 @@ header {
     border-color: $gray-100;
     transform: translateY(-2px);
     box-shadow: $btn-lift-shadow;
+  }
+
+  &:focus:not(:focus-visible, :hover) {
+    box-shadow: none;
   }
 }
 
@@ -245,28 +246,53 @@ header {
   }
 }
 
-// The phone menu: the buttons' easing, one link per line at a size a
-// thumb can hit.
-.offcanvas.site-offcanvas {
-  --bs-offcanvas-width: min(20rem, 85vw);
+// Below md, the phone menu: the buttons' easing, one link per line at
+// a size a thumb can hit.
+@media (max-width: 767.98px) {
+  .offcanvas.site-offcanvas {
+    --bs-offcanvas-width: min(20rem, 85vw);
 
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
-  transition: transform 0.2s ease-out;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    transition: transform 0.2s ease-out;
+  }
+
+  // Closed, the panel is gone from the page, not only moved off it and
+  // hidden: iOS Safari 26 tints its bars from any fixed layer at least
+  // 80% as wide as the screen that touches its top or bottom, hidden
+  // or not, and this white panel is 82% of a 390px phone. The slide-in
+  // starts from off the screen, as it would have.
+  .offcanvas.site-offcanvas:not(.show, .showing, .hiding) {
+    display: none;
+  }
+
+  @starting-style {
+    .offcanvas.site-offcanvas.showing {
+      transform: translateX(100%);
+    }
+  }
+
+  .site-links {
+    gap: 0.25rem;
+
+    .site-nav-link {
+      height: 2.75rem;
+      padding: 0 calc(0.875rem - 1px);
+      font-size: 1rem;
+      gap: 0.625rem;
+    }
+  }
 }
 
-// Closed, the panel is gone from the page, not only moved off it and
-// hidden: iOS Safari 26 tints its bars from any fixed layer at least
-// 80% as wide as the screen that touches its top or bottom, hidden or
-// not, and this white panel is 82% of a 390px phone. The slide-in
-// starts from off the screen, as it would have.
-.offcanvas.site-offcanvas:not(.show, .showing, .hiding) {
-  display: none;
-}
+// From md up the navbar sets the menu in the row, and its links to
+// the row's right, beside search and Order.
+@media (min-width: 768px) {
+  .site-offcanvas {
+    align-items: flex-end;
+  }
 
-@starting-style {
-  .offcanvas.site-offcanvas.showing {
-    transform: translateX(100%);
+  .site-links {
+    align-items: center;
   }
 }
 
@@ -280,19 +306,6 @@ header {
 
   &.show {
     opacity: 0.7;
-  }
-}
-
-.site-offcanvas-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-
-  .site-nav-link {
-    height: 2.75rem;
-    padding: 0 calc(0.875rem - 1px);
-    font-size: 1rem;
-    gap: 0.625rem;
   }
 }
 
@@ -414,7 +427,7 @@ header {
     display: none;
   }
 
-  .site-offcanvas-body & {
+  .site-links & {
     position: static;
     box-shadow: none;
     transform: none;
@@ -603,7 +616,7 @@ header {
   }
 
   // In the phone menu the account links stack like the others.
-  .site-offcanvas-body & {
+  .site-menu-account & {
     flex-direction: column;
     align-items: stretch;
     gap: 0.25rem;
@@ -662,25 +675,35 @@ header {
 }
 
 @media (min-width: 768px) {
-  .site-links {
-    display: flex;
+  // md is the tightest row: the logo, the Account menu and four links,
+  // search, and Order with its cart half, in a 720px container. The
+  // links sit shoulder to shoulder there, their padding the only space
+  // between them, and the wordmark steps down to fit; lg gives them
+  // back their room (#227).
+  .site-header-inner {
+    gap: 0.75rem;
   }
 
-  // md is the tightest row: the logo, four links, search, and Order
-  // with its cart half, in a 720px container. The links sit closer
-  // there; lg gives them back their room.
+  .site-actions {
+    gap: 0.5rem;
+  }
+
   .site-links .site-nav-link {
-    padding-inline: calc(0.5rem - 1px);
-  }
-
-  .site-toggle {
-    display: none;
+    padding-inline: calc(0.375rem - 1px);
   }
 }
 
 @media (min-width: 992px) {
+  .site-header-inner {
+    gap: 1rem;
+  }
+
   .site-actions {
     gap: 0.875rem;
+  }
+
+  .site-links {
+    gap: 0.5rem;
   }
 
   .site-links .site-nav-link {
