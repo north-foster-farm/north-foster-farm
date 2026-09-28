@@ -53,10 +53,20 @@
     <div class="order-method">
       <input class="form-check-input" type="radio" name="method" id="method-scituate" value="scituate" data-field="fulfilment.method">
       <label class="order-method-label" for="method-scituate">
-        <span class="order-method-title">Drop site</span>
+        {{/* The start is a badge, as on home's ways band (#212): the
+             build leaves it out once the day is over, and expiry.js
+             hides it in a page built before. */}}
+        {{ $dropStart := time.AsTime $terms.scituate.start $terms.timeZone }}
+        {{ $dropEnd := $dropStart.AddDate 0 0 1 }}
+        <span class="d-flex flex-wrap align-items-baseline column-gap-2">
+          <span class="order-method-title">Drop site</span>
+          {{ if gt $dropEnd.Unix now.Unix }}
+            <span class="badge rounded-pill bg-success-subtle text-success-emphasis" data-hide-from="{{ $dropEnd.Format "2006-01-02T15:04:05-07:00" }}">Starting {{ $dropStart.Format "January 2" }}</span>
+          {{ end }}
+        </span>
         <dl class="order-method-facts">
           <dt>When</dt>
-          <dd>Saturdays, {{ $terms.scituate.window }}, starting {{ dateFormat "January 2" $terms.scituate.start }}</dd>
+          <dd>Saturdays, {{ $terms.scituate.window }}</dd>
           <dt>Where</dt>
           <dd>{{ $terms.scituate.location }}</dd>
           <dt>Cost</dt>
