@@ -1,8 +1,8 @@
 // The map (partials/map.html), made to answer, in two layers (#214).
 //
 // Delivery:
-// - A tap on a town puts its ZIP in the map's ZIP check, which answers
-//   in words and announces an nff:zip event.
+// - A tap on a town puts its ZIP in the ZIP field on the map, which
+//   answers to screen readers and announces an nff:zip event.
 // - On nff:zip, from any check on the page, the map outlines that ZIP
 //   and drops its one pin onto its middle, with a tag: the town, an
 //   egg and a hen (struck through where we don't deliver them) and the
@@ -522,13 +522,9 @@ const wire = (map) => {
   });
   svg.addEventListener("pointerleave", hideTip);
 
-  // Puts a ZIP in the map's check, which answers and announces it, or
-  // on a page without one announces it here. An empty ZIP clears. On a
-  // phone the answer stands above the map, and the map must not move
-  // from under the finger as it grows or goes.
+  // Puts a ZIP in the map's field, which answers and announces it, or
+  // on a map without one announces it here. An empty ZIP clears.
   const check = (zip, tone) => {
-    const was = frame.getBoundingClientRect().top;
-
     if (form) {
       const input = form.querySelector("[name='zip']");
 
@@ -539,10 +535,6 @@ const wire = (map) => {
         detail: { zip, tone },
       }));
     }
-
-    const moved = frame.getBoundingClientRect().top - was;
-
-    if (moved) scrollBy({ top: moved, behavior: "instant" });
   };
 
   // Places: a tap on a pin opens its card; a tap anywhere else closes
@@ -703,7 +695,25 @@ const wire = (map) => {
     frame.scrollIntoView({ block: "center" });
   };
 
-  addEventListener("hashchange", follow);
+  // A link to the section holding the map ("Check your ZIP code") is
+  // a link to its ZIP field, which sits at the map's foot: if the jump
+  // leaves the field below the window, bring the map's foot up.
+  const toField = () => {
+    const hash = decodeURIComponent(location.hash.slice(1));
+    const at = hash && document.getElementById(hash);
+    const input = form && form.querySelector("[name='zip']");
+
+    if (!input || !at || !at.contains(map)) return;
+    if (input.getBoundingClientRect().bottom > innerHeight) {
+      frame.scrollIntoView({ block: "end" });
+    }
+  };
+
+  addEventListener("hashchange", () => {
+    follow();
+    toField();
+  });
+  addEventListener("load", toField);
   addEventListener("resize", apply);
   apply();
   follow();

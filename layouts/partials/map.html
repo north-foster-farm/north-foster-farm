@@ -5,7 +5,7 @@
   Delivery: the ZIPs we deliver to shaded from data/delivery.json, the
   file the order form checks, so the map cannot disagree with it: one
   shade at the delivery fee, one at the fee outside our area. No place
-  pins. A tap on a town, or a ZIP in the check, drops the one pin, dark
+  pins. A tap on a town, or a ZIP in the field on the map, drops the one pin, dark
   brand green whatever the answer, with a tag that says the rest: the
   town, what we deliver there and the delivery price, or "No delivery"
   and a way to the Places layer.
@@ -27,10 +27,8 @@
 
   Params:
     id      Prefix for ids, unique on the page
-    check   Put the "Do we deliver to you?" card above the key, or
-            above the map once the columns stack, so a link to the
-            row finds the field (optional); the page then needs
-            pageScript: "zip-check"
+    check   Float a ZIP field on the map, Delivery layer only
+            (optional); the page then needs pageScript: "zip-check"
     layers  Offer the Places layer beside Delivery (optional; the
             delivery policy's map shows Delivery only)
 */}}
@@ -161,14 +159,6 @@
 {{ $hen := partial "svg.html" "search/hen" | replaceRE ` fill="[^"]*"` "" | safeHTML }}
 
 <div class="map" id="{{ $id }}" data-map data-layer="delivery">
-  {{ if .check }}
-    {{/* Narrower than its cell: a ZIP needs little room. */}}
-    <div class="map-check row">
-      <div class="col-md-9 col-lg-12 col-xl-10 col-xxl-9">
-        {{ partial "delivery-check.html" (dict "id" (printf "%s-zip" $id)) }}
-      </div>
-    </div>
-  {{ end }}
   <div class="map-view">
     {{/* The layer switch and the zoom, above the map: the switch
          changes the key beside it too. */}}
@@ -244,6 +234,13 @@
         </span>
         <a class="map-tag-link" href="{{ relURL "" }}#places" data-map-to-places hidden>See pickup spots</a>
       </div>
+
+      {{/* The ZIP field, bare on the map, Delivery only. */}}
+      {{ if .check }}
+        <div class="map-field" data-map-for="delivery">
+          {{ partial "zip-check.html" (dict "id" (printf "%s-zip" $id)) }}
+        </div>
+      {{ end }}
 
       {{ range $i, $p := $places }}
         <div class="map-card" data-map-card="{{ add $i 1 }}" role="group" aria-label="{{ $p.name }}" hidden>

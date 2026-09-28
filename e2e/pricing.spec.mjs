@@ -143,21 +143,20 @@ test.describe("pricing and discounts", () => {
       await expect(order.zipNote).not.toContainText("before we charge you");
     });
 
-  test("the delivery policy's ZIP check hedges the same way",
+  // The map's field names the price outright, not the difference
+  // (#214); its words are for screen readers.
+  test("the delivery policy's ZIP field prices the same way",
     async ({ page }) => {
       const check = page.locator("[data-zip-check]").first();
 
       await page.goto("/delivery-policy/");
       await check.locator("input[name='zip']").fill("02830");
-      await expect(check.locator("[data-zip-result]")).toContainText(
-        "A little outside our usual area: delivery is $3 more"
-      );
-      await expect(check.locator("[data-zip-result]")).not.toContainText(
-        "before we charge you"
+      await expect(check.locator("[data-zip-result]")).toHaveText(
+        "We deliver eggs and chicken to 02830 for $8."
       );
       await check.locator("input[name='zip']").fill("02857");
-      await expect(check.locator("[data-zip-result]")).toContainText(
-        "Yes! We deliver to"
+      await expect(check.locator("[data-zip-result]")).toHaveText(
+        "We deliver eggs and chicken to North Scituate for $5."
       );
     });
 

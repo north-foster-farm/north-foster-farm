@@ -1,9 +1,11 @@
-// "Do we deliver to you?" A ZIP code in, an answer out, from the same
-// delivery area and the same rule the order form uses (validate.mjs),
-// so the home page can never promise what the form refuses. The area
-// rides in the page as JSON; nothing is fetched. Each answer is
-// announced as an nff:zip event, and the delivery map on the page
-// drops a pin on that ZIP.
+// The delivery map's ZIP field (#214). A ZIP code in, an answer out,
+// from the same delivery area and the same rule the order form uses
+// (validate.mjs), so the map can never promise what the form refuses.
+// The area rides in the page as JSON; nothing is fetched. Each answer
+// is announced as an nff:zip event, and the map drops its pin on that
+// ZIP, whose tag shows the answer. The words here are for screen
+// readers only, and say what the tag shows: what we deliver there and
+// the price. Drafts for James.
 
 import { wireMaps } from "../map/map.js";
 import { zipInfo } from "../order/lib/validate.mjs";
@@ -21,7 +23,8 @@ const townFor = (zip, area) => {
   return null;
 };
 
-export const answerFor = (zip, area) => {
+// "fees" is the delivery fee and what outside our area adds to it.
+export const answerFor = (zip, area, fees = { fee: 5, extra: 3 }) => {
   const z = digitsOf(zip);
   const info = zipInfo(z, area);
 
@@ -29,51 +32,44 @@ export const answerFor = (zip, area) => {
     return { tone: "", text: "Enter a five-digit ZIP code." };
   }
   if (info.status === "approved") {
-    const note = info.state && info.state.note ? ` ${info.state.note}` : "";
+    const town = townFor(z, area);
+    const only = info.state && info.state.onlyGroups;
 
     return {
       tone: "ok",
-      text: `Yes! We deliver to ${townFor(z, area)} on Thursdays. Order by ` +
-        `noon on Wednesday.${note}`,
+      text: only
+        ? `We deliver eggs to ${town} for $${fees.fee}, but not chicken.`
+        : `We deliver eggs and chicken to ${town} for $${fees.fee}.`,
     };
   }
   if (info.status === "unlisted") {
     return {
       tone: "wait",
-      text: "A little outside our usual area: delivery is $3 more. If we " +
-        "can't get to your address, we'll call, text, or email you.",
+      text: `We deliver eggs and chicken to ${z} for ` +
+        `$${fees.fee + fees.extra}.`,
     };
   }
 
-  return {
-    tone: "no",
-    text: "That's outside our delivery area. On-farm pickup and the " +
-      "drop site are open to everyone.",
-  };
+  return { tone: "no", text: `No delivery to ${z}.` };
 };
 
 const wire = (form) => {
   const area = JSON.parse(form.querySelector("[data-zip-area]").textContent);
+  const fees = {
+    fee: Number(form.dataset.fee),
+    extra: Number(form.dataset.extra),
+  };
   const input = form.querySelector("[name='zip']");
   const result = form.querySelector("[data-zip-result]");
-  const still = window.matchMedia("(prefers-reduced-motion: reduce)");
   const announce = (zip, tone) => {
     document.dispatchEvent(new CustomEvent("nff:zip", {
       detail: { zip, tone },
     }));
   };
   const show = () => {
-    const a = answerFor(input.value, area);
+    const a = answerFor(input.value, area, fees);
 
-    // A new answer fades in; the same one again stays put.
-    if (result.textContent !== a.text && !still.matches) {
-      result.animate([
-        { opacity: 0, transform: "translateY(-0.25rem)" },
-        { opacity: 1, transform: "none" },
-      ], { duration: 400, easing: "ease-out" });
-    }
     result.textContent = a.text;
-    result.dataset.tone = a.tone;
     announce(digitsOf(input.value), a.tone);
   };
 
@@ -89,7 +85,6 @@ const wire = (form) => {
       show();
     } else if (!z.length) {
       result.textContent = "";
-      result.dataset.tone = "";
       announce("", "");
     }
   });

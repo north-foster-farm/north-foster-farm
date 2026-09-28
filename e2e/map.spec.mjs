@@ -373,11 +373,12 @@ test.describe("map (#138, #214)", () => {
       await expect(dropPin(page)).toBeHidden();
       await map(page).getByRole("tab", { name: "Delivery" }).click();
 
-      // A ZIP the map does not show gets no pin; the words answer.
+      // A ZIP the map does not show gets no pin; the screen reader's
+      // words answer.
       await check(page, HOME.input, "10001");
       await expect(dropPin(page)).toBeHidden();
       await expect(map(page).locator("[data-zip-result]"))
-        .toContainText("outside our delivery area");
+        .toHaveText("No delivery to 10001.");
 
       // Clearing the field lifts the pin.
       await check(page, HOME.input, "02857");
@@ -485,8 +486,37 @@ test.describe("map (#138, #214)", () => {
         box.y + box.height / 2]));
       await expect(page.locator(HOME.input)).toHaveValue("02857");
       await expect(map(page).locator("[data-zip-result]"))
-        .toContainText("We deliver to");
+        .toContainText("We deliver eggs and chicken to");
       await expect(dropPin(page)).toBeVisible();
+    });
+
+  // The field is bare on the map, bottom right, on Delivery only; its
+  // placeholder is the instruction (#214).
+  test("the ZIP field floats on the map, Delivery only",
+    async ({ page }) => {
+      await page.goto(HOME.path);
+
+      const input = page.locator(HOME.input);
+
+      await expect(input).toHaveAttribute("placeholder", "Enter your ZIP");
+      await expect(map(page).getByText("Do we deliver to you?"))
+        .toHaveCount(0);
+      const [field, frame] = await Promise.all([
+        input.boundingBox(),
+        map(page).locator("[data-map-frame]").boundingBox(),
+      ]);
+
+      expect(field.x + field.width).toBeLessThanOrEqual(frame.x + frame.width);
+      expect(field.x + field.width).toBeGreaterThan(frame.x + frame.width - 40);
+      expect(field.y + field.height)
+        .toBeLessThanOrEqual(frame.y + frame.height);
+      expect(field.y + field.height)
+        .toBeGreaterThan(frame.y + frame.height - 40);
+
+      await map(page).getByRole("tab", { name: "Places" }).click();
+      await expect(input).toBeHidden();
+      await map(page).getByRole("tab", { name: "Delivery" }).click();
+      await expect(input).toBeVisible();
     });
 
   // With a mouse, a town shows the dropped pin's tag beside the

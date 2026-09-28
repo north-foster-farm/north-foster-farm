@@ -55,11 +55,6 @@
     margin-top: $paragraph-margin-bottom;
   }
 
-  // The delivery check card keeps its own heading spacing.
-  .delivery-check h3 {
-    margin-top: 0;
-  }
-
   // Markdown tables in the body copy fill the column.
   table {
     width: 100%;

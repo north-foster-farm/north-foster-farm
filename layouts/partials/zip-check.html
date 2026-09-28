@@ -1,31 +1,21 @@
 {{/*
-  "Do we deliver to you?": a ZIP code and an answer, from the same
-  delivery area the order form checks (data/delivery.json), with no
-  request to the server. The answer fades in under the row as soon as
-  five digits are typed; Enter works too. scripts/zip-check/main.js
-  wires every form on the page; a page that uses this sets pageScript:
-  "zip-check".
-
-  The field is five digits wide. Its label is there for screen
-  readers only; "ZIP" shows in it until it has a value. It stands
-  beside the heading where they fit on one line and drops under it
-  where they don't.
+  The delivery map's ZIP field: a bare input that floats on the map,
+  bottom right, on the Delivery layer (#214). Typing a ZIP drops the
+  map's pin on it, whose tag gives the answer; a tap on a town puts
+  its ZIP here. The answer is checked against the same delivery area
+  the order form uses (data/delivery.json), with no request to the
+  server, and is said to screen readers only: the tag is for the eye.
+  scripts/zip-check/main.js wires every form on the page; a page that
+  uses this sets pageScript: "zip-check".
 
   Params:
-    id       Prefix for the field's id, unique on the page
-    heading  The question beside the field (optional)
+    id  Prefix for the field's id, unique on the page
 */}}
 {{ $id := .id | default "zip" }}
-<form class="zip-check" data-zip-check novalidate>
+{{ $money := hugo.Data.delivery.money }}
+<form class="zip-check" data-zip-check data-fee="{{ $money.deliveryFee }}" data-extra="{{ $money.outsideAreaFee }}" novalidate>
   <script type="application/json" data-zip-area>{{ hugo.Data.delivery.area | jsonify | safeJS }}</script>
-  <div class="zip-check-row">
-    {{ with .heading }}
-      <h3 class="zip-check-heading fs-4 card-title mb-0">{{ . }}</h3>
-    {{ end }}
-    <div class="zip-check-field">
-      <label class="visually-hidden" for="{{ $id }}-input">ZIP code</label>
-      <input class="form-control" type="text" id="{{ $id }}-input" name="zip" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="ZIP" aria-describedby="{{ $id }}-result">
-    </div>
-  </div>
-  <p class="zip-check-result mt-2 mb-0" id="{{ $id }}-result" data-zip-result role="status" aria-live="polite"></p>
+  <label class="visually-hidden" for="{{ $id }}-input">ZIP code</label>
+  <input class="form-control" type="text" id="{{ $id }}-input" name="zip" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="Enter your ZIP" aria-describedby="{{ $id }}-result">
+  <p class="visually-hidden" id="{{ $id }}-result" data-zip-result role="status" aria-live="polite"></p>
 </form>
