@@ -27,7 +27,7 @@ There are three ways to get your order:
 
 ## On-farm pickup
 
-- Pickup on select weekdays, by appointment
+- Pick a time when you order
 - No fee, no minimum
 
 ## Drop site
