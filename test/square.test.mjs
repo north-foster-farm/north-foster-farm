@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  SquareError, buildOrder, cancelOrder, clientConfig, createOrder,
-  createPayment, dashboardUrl, e164, getPayment, refundPayment, settings,
+  SOURCE_NAME, SquareError, buildOrder, cancelOrder, clientConfig,
+  createOrder, createPayment, dashboardUrl, e164, getPayment, refundPayment,
+  searchOpenOrders, settings,
 } from "../netlify/functions/lib/square.mjs";
 
 const env = {
@@ -129,6 +130,7 @@ describe("buildOrder", () => {
 
     assert.equal(o.location_id, "LOC");
     assert.equal(o.reference_id, "NFF-2610-ABCD");
+    assert.deepEqual(o.source, { name: SOURCE_NAME });
     assert.deepEqual(o.line_items[0], {
       name: "Whole Chicken (per each), 3.5 – 3.9 lbs",
       quantity: "2",
@@ -473,6 +475,65 @@ describe("cancelOrder", () => {
 
     assert.equal(out.cancelled, false);
     assert.equal(calls.length, 1);
+  });
+
+  it("with unpaid, leaves an open order that has taken a tender",
+    async () => {
+      const { impl, calls } = fakeFetch({
+        "/v2/orders/SQO": { order: {
+          id: "SQO", state: "OPEN", version: 3, tenders: [{ id: "T" }],
+        } },
+      });
+      const out = await cancelOrder("SQO", {
+        env, fetchImpl: impl, unpaid: true,
+      });
+
+      assert.equal(out.cancelled, false);
+      assert.equal(calls.length, 1);
+    });
+});
+
+describe("searchOpenOrders", () => {
+  it("asks for this location's OPEN orders made before the cutoff, " +
+    "newest first, and follows the cursor", async () => {
+    const page = (orders, cursor) => new Response(JSON.stringify({
+      orders, cursor,
+    }));
+    const { impl, calls } = fakeFetch({
+      "/v2/orders/search": (n) => (n === 1
+        ? page([{
+          id: "SQ1", reference_id: "NFF-2610-ABCD",
+          source: { name: SOURCE_NAME }, created_at: "2026-10-01T12:00:00Z",
+          total_money: { amount: 1200, currency: "USD" },
+        }], "next")
+        : page([{
+          id: "SQ2", created_at: "2026-09-30T12:00:00Z",
+          tenders: [{ id: "T" }],
+        }])),
+    });
+    const before = new Date("2026-10-02T00:00:00Z");
+    const out = await searchOpenOrders({ before }, { env, fetchImpl: impl });
+
+    assert.deepEqual(out, [{
+      id: "SQ1", referenceId: "NFF-2610-ABCD", source: SOURCE_NAME,
+      createdAt: "2026-10-01T12:00:00Z", tenders: 0, total: 1200,
+    }, {
+      id: "SQ2", referenceId: null, source: null,
+      createdAt: "2026-09-30T12:00:00Z", tenders: 1, total: 0,
+    }]);
+    assert.equal(calls.length, 2);
+    assert.deepEqual(calls[0].body.location_ids, ["LOC"]);
+    assert.deepEqual(calls[0].body.query, {
+      filter: {
+        state_filter: { states: ["OPEN"] },
+        date_time_filter: {
+          created_at: { end_at: "2026-10-02T00:00:00.000Z" },
+        },
+      },
+      sort: { sort_field: "CREATED_AT", sort_order: "DESC" },
+    });
+    assert.equal(calls[0].body.cursor, undefined);
+    assert.equal(calls[1].body.cursor, "next");
   });
 });
 

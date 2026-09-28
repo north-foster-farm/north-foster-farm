@@ -109,6 +109,15 @@ it yet. The jobs try again every run (`squareSynced` in the report).
 If `square.missing` shows up in the invariants a day later, check
 `SQUARE_ACCESS_TOKEN` and Square status.
 
+**Square orders left open (#241).** A card payment that fails for any
+reason but a decline leaves its Square order OPEN. Each run lists the
+site's orders (source "North Foster Farm website", an `NFF-` reference)
+that are a day old with no tender, no record and no Venmo checkout
+waiting: `squareOpen` in the report, `open` in `bin/nff jobs history`,
+and `bin/nff jobs square` on demand. The jobs cancel them only when
+`SQUARE_SWEEP_CANCEL` is `true`; `bin/nff jobs square --apply` cancels
+them once. Orders made before the source was set are never listed.
+
 **`venmo.amount_mismatch`.** PayPal captured a different amount than
 the order's total. The order is recorded as paid all the same.
 `bin/nff orders show <id>`, compare with the capture in PayPal, and

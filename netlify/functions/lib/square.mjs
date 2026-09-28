@@ -175,6 +175,12 @@ const call = async (cfg, path, body, fetchImpl, method = "POST") => {
 
 const money = (amount) => ({ amount, currency: "USD" });
 
+// Every order the site makes says so, and carries its order id as the
+// reference, so a sweep can tell the site's orders from the farm's own
+// (the POS, invoices) at the same location.
+export const SOURCE_NAME = `${company.name} website`;
+export const ORDER_ID = /^NFF-\d{4}-[A-Z0-9]{4}$/;
+
 export const e164 = (phone) => {
   const d = String(phone || "").replace(/\D/g, "");
 
@@ -285,6 +291,7 @@ export const buildOrder = (order, customerId, cfg) => {
   const out = {
     location_id: cfg.locationId,
     reference_id: order.id,
+    source: { name: SOURCE_NAME },
     customer_id: customerId,
     line_items: order.lines.map((line) => (
       cfg.catalog && line.squareVariationId
@@ -401,6 +408,7 @@ export const buildChangeOrder = (order, change, customerId, cfg) => {
   const out = {
     location_id: cfg.locationId,
     reference_id: order.id,
+    source: { name: SOURCE_NAME },
     customer_id: customerId,
     line_items: lines,
   };
@@ -581,14 +589,18 @@ export const cancelFulfilment = async (squareOrderId, {
 // An order whose payment was declined is cancelled so it does not sit
 // in the dashboard as an open, unpaid order. Best effort: the next
 // attempt makes a fresh order under its own key.
+// With `unpaid`, an order that has taken a tender since it was found is
+// left alone.
 export const cancelOrder = async (squareOrderId, {
   env = process.env,
   fetchImpl = globalThis.fetch,
+  unpaid = false,
 } = {}) => {
   const cfg = settings(env);
   const current = await currentOrder(cfg, squareOrderId, fetchImpl);
 
-  if (current.state && current.state !== "OPEN") {
+  if ((current.state && current.state !== "OPEN")
+    || (unpaid && (current.tenders || []).length)) {
     return { id: squareOrderId, cancelled: false };
   }
 
@@ -601,6 +613,51 @@ export const cancelOrder = async (squareOrderId, {
   }, fetchImpl, "PUT");
 
   return { id: squareOrderId, cancelled: true };
+};
+
+// The location's OPEN orders created before `before`, newest first,
+// at most `max` of them, for the sweep in jobs.mjs (#241). Paid orders
+// stay OPEN until their fulfilment completes, so the newest come first
+// and the old paid ones fall past the cap.
+// -> [{ id, referenceId, source, createdAt, tenders, total }]
+export const searchOpenOrders = async ({ before, max = 500 }, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  const cfg = settings(env);
+  const found = [];
+  let cursor;
+
+  do {
+    const data = await call(cfg, "/v2/orders/search", {
+      location_ids: [cfg.locationId],
+      limit: 100,
+      cursor,
+      query: {
+        filter: {
+          state_filter: { states: ["OPEN"] },
+          date_time_filter: {
+            created_at: { end_at: before.toISOString() },
+          },
+        },
+        sort: { sort_field: "CREATED_AT", sort_order: "DESC" },
+      },
+    }, fetchImpl);
+
+    for (const o of data.orders || []) {
+      found.push({
+        id: o.id,
+        referenceId: o.reference_id || null,
+        source: (o.source && o.source.name) || null,
+        createdAt: o.created_at,
+        tenders: (o.tenders || []).length,
+        total: o.total_money ? o.total_money.amount : 0,
+      });
+    }
+    cursor = data.cursor;
+  } while (cursor && found.length < max);
+
+  return found.slice(0, max);
 };
 
 // Money back on a Square payment, whole or part. Square sends the

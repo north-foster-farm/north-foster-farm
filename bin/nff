@@ -72,6 +72,10 @@ const USAGE = `Usage:
                                       file has one
   bin/nff jobs run
   bin/nff jobs history [--n=20]       the last runs: errors, invariants
+  bin/nff jobs square [--apply]       the site's Square orders a failed
+                                      payment left open a day or more;
+                                      a report unless --apply, which
+                                      cancels them (#241)
   bin/nff health                      what /api/health would answer
   bin/nff library [--staging]         James's approvals and rewrites
                                       from the email library, to port
@@ -107,7 +111,7 @@ const [
   { default: terms },
   admin,
   { requestLink },
-  { runJobs, runsSince },
+  { runJobs, runsSince, sweepSquareOrders },
   { stores: makeStores },
   { CANCEL_REASONS, paymentPhrase, summaryLine },
   { inviteSubscribers, parseCsv, syncAudience },
@@ -500,6 +504,21 @@ const run = async () => {
   }
   case "jobs run":
     return out(await runJobs(stores));
+  case "jobs square": {
+    const apply = !!flags.apply;
+    const found = await sweepSquareOrders(stores, { cancel: apply });
+
+    if (!found) return out("Square is not configured here.");
+    for (const o of found) {
+      out(`${o.createdAt.slice(0, 16)}  ${o.orderId}  ${o.squareOrderId}  ${
+        dollars(o.total)}  ${o.error ? `error: ${o.error}`
+        : o.cancelled ? "cancelled" : apply ? "left (paid or closed)"
+          : "open"}`);
+    }
+
+    return out(`${found.length} left open${apply ? "" : " (a report; " +
+      "--apply cancels them)"}.`);
+  }
   case "jobs history": {
     const n = Number(flags.n) || 20;
     const runs = await runsSince(stores, new Date(0));
@@ -512,7 +531,8 @@ const run = async () => {
       out(`${r.at.slice(0, 16)}  ${bad ? "FAIL" : "ok  "}  reminded ${
         c.deliveryReminded ?? 0}  closed ${c.closed ?? 0}  synced ${
         c.squareSynced ?? 0}  pickups ${c.pickupsToConfirm ?? 0}  swept ${
-        r.checkoutsSwept ?? 0}  signins ${r.authSwept ?? 0}${
+        r.checkoutsSwept ?? 0}  signins ${r.authSwept ?? 0}  open ${
+        c.squareOpen ?? 0}${
         (r.errors || []).map((e) => `\n    error ${e.id || "-"}: ${e.error}`)
           .join("")}${(r.invariants || []).map((v) =>
         `\n    invariant ${v.rule}: ${v.id}`).join("")}`);

@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  SQUARE_SYNC_GRACE, checkInvariants, cutoffAt, deliveryReminderAt, runJobs,
-  runsSince,
+  SQUARE_OPEN_GRACE, SQUARE_SYNC_GRACE, checkInvariants, cutoffAt,
+  deliveryReminderAt, leftOpen, runJobs, runsSince, sweepSquareOrders,
 } from "../netlify/functions/lib/jobs.mjs";
+import { SOURCE_NAME } from "../netlify/functions/lib/square.mjs";
 import { readMark } from "../netlify/functions/lib/health.mjs";
 import {
   CHECKOUT_TTL, getCheckout, getOrder, openOrders, saveCheckout,
@@ -599,5 +600,105 @@ describe("runJobs", () => {
 
     assert.deepEqual(checkInvariants([{ ...order("C"), fulfilment: null }],
       at("2026-10-05", 9, 30)), [{ rule: "order.unreadable", id: "C" }]);
+  });
+});
+
+describe("Square orders left open (#241)", () => {
+  const squareEnv = { SQUARE_ACCESS_TOKEN: "tok", SQUARE_LOCATION_ID: "LOC" };
+  const now = at("2026-10-07", 9);
+  const open = (id, referenceId, extra = {}) => ({
+    id, referenceId, source: SOURCE_NAME, createdAt: placed.toISOString(),
+    tenders: 0, total: 1200, ...extra,
+  });
+  const fakeSquare = (found, { fails = [] } = {}) => {
+    const calls = [];
+
+    return {
+      calls,
+      searchOpenOrders: async ({ before }) => {
+        calls.push(["search", before.toISOString()]);
+
+        return found;
+      },
+      cancelOrder: async (id, { unpaid }) => {
+        calls.push(["cancel", id, unpaid]);
+        if (fails.includes(id)) throw new Error("Square 500");
+
+        return { id, cancelled: true };
+      },
+    };
+  };
+
+  it("counts only the site's own unpaid orders", () => {
+    assert.equal(leftOpen(open("S", "NFF-2610-ABCD")), true);
+    assert.equal(leftOpen(open("S", "NFF-2610-ABCD", { tenders: 1 })), false,
+      "paid");
+    assert.equal(leftOpen(open("S", "NFF-2610-ABCD", { source: null })),
+      false, "made before the source was set, or by the farm");
+    assert.equal(leftOpen(open("S", "INV-0042")), false, "an invoice");
+    assert.equal(leftOpen(open("S", null)), false, "the POS");
+  });
+
+  it("reports the orders a day old with no record and no checkout " +
+    "waiting, and cancels nothing", async () => {
+    const stores = testStores();
+
+    await saveOrder(stores, { ...order("NFF-2610-PAID"), square: null });
+    await saveCheckout(stores, {
+      key: "k", attempt: 1, at: placed.toISOString(),
+      order: order("NFF-2610-VENM"), paypalOrderId: "PPO",
+    });
+
+    const square = fakeSquare([
+      open("SQ-LEFT", "NFF-2610-LEFT"),
+      open("SQ-CHANGE", "NFF-2610-PAID"),
+      open("SQ-VENMO", "NFF-2610-VENM"),
+      open("SQ-POS", null, { source: "Square Point of Sale" }),
+    ]);
+    const found = await sweepSquareOrders(stores, {
+      env: squareEnv, now, square,
+    });
+
+    assert.deepEqual(found, [{
+      squareOrderId: "SQ-LEFT", orderId: "NFF-2610-LEFT",
+      createdAt: placed.toISOString(), total: 1200, cancelled: false,
+    }]);
+    assert.deepEqual(square.calls, [[
+      "search", new Date(now.getTime() - SQUARE_OPEN_GRACE).toISOString(),
+    ]]);
+  });
+
+  it("cancels them, unpaid only, when SQUARE_SWEEP_CANCEL is true, and " +
+    "reports a failure as a job error", async () => {
+    const stores = testStores();
+    const square = fakeSquare([
+      open("SQ-1", "NFF-2610-AAAA"), open("SQ-2", "NFF-2610-BBBB"),
+    ], { fails: ["SQ-2"] });
+    const r = await runJobs(stores, {
+      ...harness().opts, square, now,
+      env: { ...squareEnv, SQUARE_SWEEP_CANCEL: "true" },
+    });
+
+    assert.deepEqual(square.calls.slice(1), [
+      ["cancel", "SQ-1", true], ["cancel", "SQ-2", true],
+    ]);
+    assert.deepEqual(r.squareOpen.map((o) => o.cancelled), [true, false]);
+    assert.deepEqual(r.errors, [{
+      id: "NFF-2610-BBBB", step: "squareCancel", error: "Square 500",
+    }]);
+
+    const [run] = await runsSince(stores, new Date(0));
+
+    assert.equal(run.counts.squareOpen, 2);
+    assert.equal(run.squareCancelled, 1);
+  });
+
+  it("does nothing where Square is not configured", async () => {
+    const square = fakeSquare([open("SQ-1", "NFF-2610-AAAA")]);
+
+    assert.equal(await sweepSquareOrders(testStores(), {
+      env: {}, now, square,
+    }), null);
+    assert.deepEqual(square.calls, []);
   });
 });

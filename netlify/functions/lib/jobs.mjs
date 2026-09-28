@@ -16,6 +16,9 @@
 //   checkouts   a Venmo checkout nobody finished is dropped after a day
 //   auth        sign-in links and sessions past their expiry are
 //               deleted (#189)
+//   open        a Square order the site made whose payment failed is
+//               reported after a day, and cancelled when
+//               SQUARE_SWEEP_CANCEL is "true" (#241)
 //   morning     8:00 daily, always: the day in numbers, the on-farm
 //               orders within two days still waiting on the customer,
 //               and a warning when the pickup schedule runs short
@@ -45,11 +48,13 @@ import { audienceConfigured, syncAudience } from "./news.mjs";
 import { sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
-  allOrders, getCustomer, listCheckouts, openOrders,
+  allOrders, getCustomer, getOrder, listCheckouts, openOrders,
   paymentsOf, questionOpen, refundsOf, reminderPrefs, setStatus,
   sweepAuth, sweepCheckouts,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
+import * as squareApi from "./square.mjs";
+import { ORDER_ID, SOURCE_NAME } from "./square.mjs";
 import {
   deliveryReminder, farmMorningReport, farmTomorrow,
 } from "./templates.mjs";
@@ -99,8 +104,8 @@ export const runJobs = async (stores, {
   const report = {
     at: now.toISOString(), deliveryReminded: [], closed: [], squareSynced: [],
     muted: [], checkoutsRescued: [], checkoutsSwept: 0, authSwept: 0,
-    pickupsToConfirm: [],
-    tomorrow: null, errors: [], invariants: [],
+    squareOpen: [], pickupsToConfirm: [], tomorrow: null, errors: [],
+    invariants: [],
   };
   const opts = { env, mail, now };
   const fail = (id, step, error) => {
@@ -192,6 +197,11 @@ export const runJobs = async (stores, {
     () => sweepCheckouts(stores, now))) || 0;
   report.authSwept = (await attempt(null, "auth",
     () => sweepAuth(stores, now))) || 0;
+  report.squareOpen = (await attempt(null, "squareSweep",
+    () => sweepSquareOrders(stores, { env, now, square, fetchImpl }))) || [];
+  for (const o of report.squareOpen) {
+    if (o.error) fail(o.orderId, "squareCancel", o.error);
+  }
   report.pickupsToConfirm = (await attempt(null, "morningReport",
     () => morningReport(stores, { env, mail, now, fetchImpl }))) || [];
   report.tomorrow = await attempt(null, "tomorrowReport",
@@ -254,13 +264,75 @@ const audienceSyncDaily = async (stores, { env, now, fetchImpl }) => {
   };
 };
 
+// --- Square orders left open (#241) ----------------------------------
+//
+// A card payment that fails for any reason but a decline leaves its
+// Square order OPEN: the page may still retry it under the same keys,
+// so nothing cancels it then. A day on, it is left over. Only an order
+// the site made (its source and an order id for reference) with no
+// tender, no record and no Venmo checkout waiting is one: the farm's
+// own orders, paid orders and change orders to a recorded order never
+// are. The sweep reports them, and cancels them only when
+// SQUARE_SWEEP_CANCEL is "true".
+
+export const SQUARE_OPEN_GRACE = 24 * HOUR;
+
+export const leftOpen = (o) => o.tenders === 0 && o.source === SOURCE_NAME
+  && ORDER_ID.test(o.referenceId || "");
+
+// -> [{ squareOrderId, orderId, createdAt, total, cancelled, error? }],
+// or null when Square is not configured.
+export const sweepSquareOrders = async (stores, {
+  env = process.env,
+  now = new Date(),
+  square = squareApi,
+  fetchImpl = globalThis.fetch,
+  cancel = env.SQUARE_SWEEP_CANCEL === "true",
+} = {}) => {
+  if (!env.SQUARE_ACCESS_TOKEN || !env.SQUARE_LOCATION_ID) return null;
+
+  const found = await square.searchOpenOrders({
+    before: new Date(now.getTime() - SQUARE_OPEN_GRACE),
+  }, { env, fetchImpl });
+  const waiting = new Set((await listCheckouts(stores))
+    .map((c) => c.order && c.order.id).filter(Boolean));
+  const out = [];
+
+  for (const o of found.filter(leftOpen)) {
+    if (waiting.has(o.referenceId)) continue;
+    if (await getOrder(stores, o.referenceId)) continue;
+
+    const item = {
+      squareOrderId: o.id, orderId: o.referenceId, createdAt: o.createdAt,
+      total: o.total, cancelled: false,
+    };
+
+    if (cancel) {
+      try {
+        const r = await square.cancelOrder(o.id, {
+          env, fetchImpl, unpaid: true,
+        });
+
+        item.cancelled = r.cancelled;
+      } catch (error) {
+        item.error = String((error && error.message) || error);
+      }
+    }
+    out.push(item);
+  }
+
+  return out;
+};
+
 // The report, in counts, for the ledger, the log and the heartbeat.
 export const summarize = (report) => ({
   at: report.at,
   counts: Object.fromEntries([
     "deliveryReminded", "closed", "squareSynced", "muted", "checkoutsRescued",
-    "pickupsToConfirm",
+    "pickupsToConfirm", "squareOpen",
   ].map((k) => [k, (report[k] || []).length])),
+  squareCancelled: (report.squareOpen || []).filter((o) => o.cancelled)
+    .length,
   checkoutsSwept: report.checkoutsSwept || 0,
   authSwept: report.authSwept || 0,
   tomorrow: report.tomorrow,
