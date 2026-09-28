@@ -29,8 +29,8 @@ export const wireCartBadge = () => {
 
       badge.hidden = n === 0;
       badge.textContent = n > MAX ? `${MAX}+` : String(n);
-      // On the order page Order is not a link, and the cart beside it
-      // says the count; the cart half names itself below.
+      // The cart half's badge sits in a button, which names itself
+      // below.
       if (!link) continue;
       if (n) {
         link.setAttribute("aria-label", `Order, ${itemsText(n)} in your cart`);

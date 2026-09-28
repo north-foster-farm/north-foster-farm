@@ -37,11 +37,7 @@
       </div>
       <div class="offcanvas-body navbar-nav site-links">
         <a class="site-nav-link d-md-none" href="{{ .Site.BaseURL }}" {{- if .IsHome }} aria-current="page" {{ end }}>Home</a>
-        {{ if $onOrder }}
-          <span class="site-nav-link is-current d-md-none" aria-current="page">Order{{ partial "header/cart-badge.html" }}</span>
-        {{ else }}
-          <a class="site-nav-link d-md-none" href="{{ relURL "order/" }}">Order{{ partial "header/cart-badge.html" }}</a>
-        {{ end }}
+        <a class="site-nav-link d-md-none" href="{{ relURL "order/" }}" {{- if $onOrder }} aria-current="page" {{ end }}>Order{{ partial "header/cart-badge.html" }}</a>
         {{ if $accounts }}
           <div class="d-none d-md-flex">
             {{ partial "header/account-menu.html" (dict "flat" false "ctx" $ctx) }}
@@ -66,8 +62,10 @@
         <span class="site-search-icon site-search-open" aria-hidden="true">{{ partial "svg.html" "icons/search" }}</span>
         <span class="site-search-icon site-search-shut" aria-hidden="true">{{ partial "svg.html" "icons/search-close" }}</span>
       </button>
+      {{/* On the order page Order stays a link, as every link in the
+           row does on its own page, greyed as the page you are on. */}}
       {{ if $onOrder }}
-        <span class="site-order is-current" aria-current="page">Order{{ partial "header/cart-badge.html" }}</span>
+        <a class="site-order is-current" href="{{ relURL "order/" }}" aria-current="page">Order{{ partial "header/cart-badge.html" }}</a>
       {{ else }}
         {{/* Order, and once the cart holds something, the cart beside
              it with its count. */}}
