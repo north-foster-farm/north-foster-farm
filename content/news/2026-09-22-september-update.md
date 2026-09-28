@@ -16,9 +16,6 @@ featured: "images/linus-featured.jpg"
 to see our catalog, which includes everything we bring to market, from
 eggs by the dozen to whole chickens, sausage, and every cut in between.
 
-You pay when you order, so there’s nothing to settle at pickup
-or on delivery.
-
 There are three ways to get your order:
 
 ## Delivery
