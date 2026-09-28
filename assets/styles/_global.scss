@@ -84,6 +84,12 @@ svg {
   --bs-btn-active-border-color: var(--bs-btn-border-color);
 }
 
+// Orange type on white is 2.3:1; the deep shade meets AA's 4.5 on the
+// page and on both tints above (#197). The border stays orange.
+.btn-outline-secondary {
+  --bs-btn-color: var(--bs-secondary-text-emphasis);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .btn,
   .btn:hover,
