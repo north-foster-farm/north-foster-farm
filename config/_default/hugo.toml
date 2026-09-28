@@ -58,7 +58,7 @@ timeZone = "America/New_York"
   [params.defaults]
     [params.defaults.featuredImage]
       [params.defaults.featuredImage.default]
-        path = "default-featured-image.png"
+        path = "share-card.png"
 
       [params.defaults.featuredImage.linkToOriginal]
         list = true
