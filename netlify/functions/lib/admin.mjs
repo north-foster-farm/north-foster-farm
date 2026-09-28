@@ -215,6 +215,25 @@ export const listOrders = async (stores, {
   return orders;
 };
 
+// Ride-alongs run in a month, "YYYY-MM", by delivery date (#183): the
+// operational number that shows whether the favor is drifting into a
+// route. Cancelled orders don't count. -> { month, orders, customers }
+export const rideAlongs = async (stores, month) => {
+  if (!/^\d{4}-\d{2}$/.test(String(month))) {
+    throw new Error("The month is YYYY-MM.");
+  }
+
+  const orders = (await allOrders(stores)).filter((o) =>
+    o.fulfilment.rideAlong && o.status !== "cancelled"
+    && String(o.fulfilment.date || "").startsWith(`${month}-`));
+
+  return {
+    month,
+    orders,
+    customers: [...new Set(orders.map((o) => o.customer.email))],
+  };
+};
+
 export const showOrder = async (stores, id) =>
   need(await getOrder(stores, id), "order");
 

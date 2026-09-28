@@ -321,7 +321,10 @@ const totalsBlock = (order, { total = "" } = {}) => {
   if (order.fulfilment.method === "delivery") {
     const base = t.deliveryFee - (t.areaFee || 0);
 
-    items.push(base ? `Delivery fee +${dollars(base)}` : "Delivery fee waived");
+    // Draft wording for the ride-along line (#183).
+    if (order.fulfilment.rideAlong) items.push("Ride-along delivery, no fee");
+    else if (base) items.push(`Delivery fee +${dollars(base)}`);
+    else items.push("Delivery fee waived");
     if (t.areaFee) items.push(`Outside-area fee +${dollars(t.areaFee)}`);
   }
   items.push(`Total ${dollars(t.total)}${total ? ` ${total}` : ""}`);

@@ -242,6 +242,31 @@ describe("buildOrder", () => {
     );
     assert.match(f.delivery_details.note, /gate: 1234/);
     assert.match(f.delivery_details.note, /Dog in the yard/);
+    assert.doesNotMatch(f.delivery_details.note, /ride-along/);
+  });
+
+  it("books a ride-along with no fee and says so to the driver", () => {
+    const o = order({
+      fulfilment: {
+        method: "delivery",
+        date: "2026-10-08",
+        onfarm: null,
+        rideAlong: true,
+        delivery: {
+          address1: "1 Main St", address2: "", town: "Foster",
+          zip: "02825", cooler: "Porch", notes: "", zipStatus: "approved",
+        },
+      },
+      totals: {
+        subtotal: 2200, discountAmount: 0, deliveryFee: 0, areaFee: 0,
+        rideAlong: true, total: 2200,
+      },
+    });
+    const built = buildOrder(o, "CUST", cfg);
+
+    assert.equal(built.service_charges, undefined);
+    assert.match(built.fulfillments[0].delivery_details.note,
+      /^prefers \w+ · ride-along, no fee · cooler: Porch/);
   });
 });
 

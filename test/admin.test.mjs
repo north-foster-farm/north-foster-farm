@@ -5,7 +5,8 @@ import terms from "../data/delivery.json" with { type: "json" };
 import {
   cancelOrder, decideAddress, fulfilOrder, listOrders,
   markAttempted,
-  refundOrder, removeCustomer, removeOrder, resolveReturn, setCustomer,
+  refundOrder, removeCustomer, removeOrder, resolveReturn, rideAlongs,
+  setCustomer,
   showCustomer, stockList, stockSet,
 } from "../netlify/functions/lib/admin.mjs";
 import { requestReturn } from "../netlify/functions/lib/account.mjs";
@@ -648,4 +649,37 @@ describe("an attempted delivery keeps its fee", () => {
     assert.deepEqual(calls.at(-1), ["fulfilment", "SQO"]);
     assert.doesNotMatch(sent.at(-1).text, /on its way/);
   });
+});
+
+describe("ride-alongs by month (#183)", () => {
+  const riding = (id, date, email = "pat@example.com", status = "paid") => {
+    const o = order(id, status);
+
+    o.customer = { ...o.customer, email };
+    o.fulfilment = { method: "delivery", date, rideAlong: true,
+      delivery: { address1: "1 Main St", town: "Foster", zip: "02825",
+        cooler: "Porch" } };
+
+    return o;
+  };
+
+  it("counts runs and customers by delivery date, not cancelled",
+    async () => {
+      const stores = testStores();
+
+      await saveOrder(stores, riding("A", "2026-10-08"), now);
+      await saveOrder(stores, riding("B", "2026-10-22"), now);
+      await saveOrder(stores, riding("C", "2026-10-15", "ron@x.com"), now);
+      await saveOrder(stores, riding("D", "2026-10-29", "ron@x.com",
+        "cancelled"), now);
+      await saveOrder(stores, riding("E", "2026-11-05"), now);
+      await saveOrder(stores, order("F"), now);
+
+      const r = await rideAlongs(stores, "2026-10");
+
+      assert.deepEqual(r.orders.map((o) => o.id).sort(), ["A", "B", "C"]);
+      assert.deepEqual(r.customers.sort(), ["pat@example.com", "ron@x.com"]);
+      assert.equal((await rideAlongs(stores, "2026-11")).orders.length, 1);
+      await assert.rejects(rideAlongs(stores, "October"), /YYYY-MM/);
+    });
 });

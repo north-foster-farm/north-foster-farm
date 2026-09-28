@@ -835,6 +835,15 @@ describe("the farm's own notices", () => {
     assert.doesNotMatch(farmOrderPlaced(order("onfarm")).text, /Delivery fee/);
   });
 
+  it("names a ride-along as the delivery it is (#183)", () => {
+    const o = order();
+
+    o.totals.deliveryFee = 0;
+    o.fulfilment.rideAlong = true;
+    assert.match(farmOrderPlaced(o).text, /- Ride-along delivery, no fee\n/);
+    assert.doesNotMatch(farmOrderPlaced(o).text, /Delivery fee/);
+  });
+
   it("names the outside-area fee on its own line", () => {
     const o = order("delivery");
 

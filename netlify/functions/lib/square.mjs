@@ -203,6 +203,7 @@ const staffNote = (order) => {
     bits.push(`pickup ${times ? windowLabel(times) : f.onfarm.window}`);
   }
   if (f.method === "delivery") {
+    if (f.rideAlong) bits.push("ride-along, no fee");
     bits.push(`cooler: ${f.delivery.cooler}`);
     if (f.delivery.gate) bits.push(`gate: ${f.delivery.gate}`);
     if (f.delivery.notes) bits.push(f.delivery.notes);

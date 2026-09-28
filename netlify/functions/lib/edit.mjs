@@ -134,10 +134,13 @@ export const planEdit = async (stores, order, body, {
   now, index, terms, codes, group, validate, schedule,
 }) => {
   // An order placed with a pass (#182) keeps its waiver through every
-  // change; the pass is already used up by this order.
+  // change; the pass is already used up by this order. A ride-along
+  // stays one too (#183); it lapses only if the order stops being a
+  // delivery.
   const result = validate(payloadFor(order, body), {
     index, terms, now, group, codes, schedule,
     waive: { minimum: !!order.pass },
+    rideAlong: !!order.fulfilment.rideAlong,
   });
 
   if (!result.ok) {

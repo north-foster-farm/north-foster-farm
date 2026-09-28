@@ -28,6 +28,10 @@ const USAGE = `Usage:
   bin/nff address approve|deny <email>
   bin/nff orders list [--open] [--status=paid] [--email=x]
   bin/nff orders show <id>
+  bin/nff orders ride-alongs [YYYY-MM]
+                                      ride-along deliveries in a month,
+                                      by delivery date; this month
+                                      unless named
   bin/nff orders cancel <id> --reason <why> | --reason-text "..." |
                              --no-reason [--no-refund] [--amount 12.34]
                                       the money back first, all of it
@@ -361,6 +365,20 @@ const run = async () => {
   }
   case "orders show":
     return out(await admin.showOrder(stores, rest[0]));
+  case "orders ride-alongs": {
+    // This month in the farm's zone unless one is named.
+    const month = rest[0] || new Date().toLocaleDateString("en-CA", {
+      timeZone: terms.timeZone,
+    }).slice(0, 7);
+    const r = await admin.rideAlongs(stores, month);
+
+    for (const o of r.orders) out(summaryLine(o));
+    out(`${r.orders.length} ride-along${r.orders.length === 1 ? "" : "s"} ` +
+      `in ${r.month}, for ${r.customers.length} customer${
+        r.customers.length === 1 ? "" : "s"}.`);
+
+    return undefined;
+  }
   case "orders cancel": {
     // The customer is told why, from the list or in the farm's words
     // (T2a); saying nothing takes --no-reason (T2b).

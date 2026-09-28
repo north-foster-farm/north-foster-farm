@@ -372,6 +372,40 @@ describe("delivery rules", () => {
     assert.match(r.errors["delivery.minimum"], /the drop site/);
   });
 
+  it("lets a ride-along through under the minimum, at no fee (#183)",
+    () => {
+      const small = delivery();
+
+      small.lines = [{ sku: "NFF-CHK-WHL-0350-0400", qty: 1 }];
+      small.claimedTotal = 3000;
+      const r = validateOrder(small, { ...ctx, rideAlong: true });
+
+      assert.equal(r.ok, true);
+      assert.equal(r.order.fulfilment.rideAlong, true);
+      assert.equal(r.order.totals.deliveryFee, 0);
+      assert.equal(r.order.totals.total, 3000);
+      assert.equal(r.order.flags.totalMismatch, false);
+    });
+
+  it("never takes a ride-along from the payload", () => {
+    const small = delivery();
+
+    small.lines = [{ sku: "NFF-CHK-WHL-0350-0400", qty: 1 }];
+    small.rideAlong = true;
+    small.fulfilment.rideAlong = true;
+    const r = validateOrder(small, ctx);
+
+    assert.equal(r.status, 422);
+    assert.ok(r.errors["delivery.minimum"]);
+  });
+
+  it("leaves a ride-along off the record when it isn't one", () => {
+    const r = validateOrder(delivery(), ctx);
+
+    assert.equal(r.ok, true);
+    assert.equal("rideAlong" in r.order.fulfilment, false);
+  });
+
   it("records the state and takes eggs to Connecticut", () => {
     const eggs = delivery({ zip: "06239" });
 

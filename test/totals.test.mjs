@@ -150,6 +150,43 @@ describe("the $40 delivery minimum", () => {
   });
 });
 
+describe("a ride-along delivery (#183)", () => {
+  const riding = (price, method = "delivery", zipStatus = "approved") =>
+    computeTotals({
+      lines: [{ sku: "X", qty: 1 }], method, index: priced(price), money,
+      zipStatus, rideAlong: true,
+    });
+
+  it("costs nothing to deliver and is booked as a ride-along", () => {
+    const t = riding(22);
+
+    assert.equal(t.deliveryFee, 0);
+    assert.equal(t.areaFee, 0);
+    assert.equal(t.rideAlong, true);
+    assert.equal(t.total, 2200);
+  });
+
+  it("drives no extra miles, so an unlisted ZIP adds nothing", () => {
+    assert.equal(riding(60, "delivery", "unlisted").deliveryFee, 0);
+  });
+
+  it("has no minimum, and keeps its discounts", () => {
+    assert.ok(meetsMinimum(riding(22), money));
+    assert.equal(riding(60).discountAmount, 500);
+  });
+
+  it("means nothing for pickup, the drop site or an empty cart", () => {
+    assert.equal(riding(22, "onfarm").rideAlong, false);
+    assert.equal(riding(22, "scituate").rideAlong, false);
+    assert.equal(riding(0).rideAlong, false);
+  });
+
+  it("is off unless the caller says so", () => {
+    assert.equal(totalsAt(22, "delivery").rideAlong, false);
+    assert.equal(totalsAt(22, "delivery").deliveryFee, 500);
+  });
+});
+
 describe("real catalog prices", () => {
   it("total a mixed order correctly", () => {
     const t = computeTotals({

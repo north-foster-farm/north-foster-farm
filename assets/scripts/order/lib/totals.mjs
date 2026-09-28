@@ -76,8 +76,10 @@ export const codeDiscountFor = (subtotal, code) => {
 // code entry, if a known one was typed. The bulk tier, the group
 // discount and the code never stack: the customer gets the largest.
 // `zipStatus` is the delivery ZIP's status from zipInfo, when known.
+// `rideAlong` marks a delivery the farm makes on a run it drives
+// anyway (#183): a delivery at no fee, never a fee comped.
 export const computeTotals = ({
-  lines, method, index, money, group, code, zipStatus,
+  lines, method, index, money, group, code, zipStatus, rideAlong = false,
 }) => {
   let subtotal = 0;
 
@@ -98,12 +100,15 @@ export const computeTotals = ({
   // An empty cart owes nothing, whatever method is chosen: Delivery
   // is the starting choice, and a fee on nothing read as a $5 order.
   const isDelivery = method === "delivery" && subtotal > 0;
-  const baseFee = isDelivery && subtotal < toCents(money.feeWaivedAt)
+  const riding = isDelivery && !!rideAlong;
+  const baseFee = isDelivery && !riding
+    && subtotal < toCents(money.feeWaivedAt)
     ? toCents(money.deliveryFee)
     : 0;
   // A Rhode Island address outside the published towns pays a flat
-  // charge on top, never waived: it covers the extra miles.
-  const areaFee = isDelivery && zipStatus === "unlisted"
+  // charge on top, never waived: it covers the extra miles. A
+  // ride-along drives none.
+  const areaFee = isDelivery && !riding && zipStatus === "unlisted"
     ? toCents(money.outsideAreaFee || 0)
     : 0;
   const deliveryFee = baseFee + areaFee;
@@ -126,9 +131,12 @@ export const computeTotals = ({
     discountAmount,
     deliveryFee,
     areaFee,
+    rideAlong: riding,
     total: subtotal - discountAmount + deliveryFee,
   };
 };
 
-export const meetsMinimum = (totals, money) =>
-  totals.subtotal - totals.discountAmount >= toCents(money.deliveryMinimum);
+// A ride-along has no minimum: the run is made whatever it carries.
+export const meetsMinimum = (totals, money) => !!totals.rideAlong
+  || totals.subtotal - totals.discountAmount
+    >= toCents(money.deliveryMinimum);

@@ -6,7 +6,9 @@ import { rescueCheckout } from "../netlify/functions/lib/checkout.mjs";
 import {
   diffLines, editOrder, finishEditVenmo,
 } from "../netlify/functions/lib/edit.mjs";
-import { getCheckout, getOrder } from "../netlify/functions/lib/records.mjs";
+import {
+  getCheckout, getOrder, saveOrder,
+} from "../netlify/functions/lib/records.mjs";
 import { buildChangeOrder } from "../netlify/functions/lib/square.mjs";
 import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
@@ -206,6 +208,33 @@ describe("editOrder", () => {
 
     assert.equal(again.ok, true);
     assert.equal(calls.filter((c) => c[0] === "payment").length, 1);
+  });
+
+  it("keeps a ride-along one through a change (#183)", async () => {
+    const { stores, id } = await placed();
+    const { square } = fakeSquare();
+    const riding = await getOrder(stores, id);
+
+    riding.fulfilment = {
+      method: "delivery", date: "2026-10-08", onfarm: null, rideAlong: true,
+      delivery: { address1: "1 Main St", address2: "", town: "Foster",
+        state: "RI", zip: "02825", cooler: "Porch", notes: "",
+        zipStatus: "approved" },
+    };
+    await saveOrder(stores, riding, now);
+
+    // One bird is $30: under the minimum, and still delivered free.
+    const result = await edit(stores, id, {
+      idempotencyKey: editKey(), lines: [{ sku: SKU, qty: 1 }],
+    }, square);
+
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+
+    const saved = await getOrder(stores, id);
+
+    assert.equal(saved.fulfilment.rideAlong, true);
+    assert.equal(saved.totals.deliveryFee, 0);
+    assert.equal(saved.totals.total, 3000);
   });
 
   it("refunds the difference to the payment that took it", async () => {

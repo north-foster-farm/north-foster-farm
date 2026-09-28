@@ -74,9 +74,12 @@ export const findCode = (value, codes) => {
 // environment, the page from /api/dates. `waive.minimum` lets a
 // delivery under the minimum through: the caller has checked the
 // customer's pass (lib/passes.mjs, #182), and the order says it used
-// one in `flags.minimumWaived`.
+// one in `flags.minimumWaived`. `rideAlong` is the caller's word
+// that the farm offered this delivery as a ride-along (#183), at no
+// fee and no minimum; like `group`, never the payload's.
 export const validateOrder = (payload, {
   index, terms, now, group, codes, code, schedule = [], waive = {},
+  rideAlong = false,
 }) => {
   const errors = {};
   const p = payload && typeof payload === "object" ? payload : {};
@@ -159,6 +162,7 @@ export const validateOrder = (payload, {
     : null;
   const totals = computeTotals({
     lines, method, index, money, group, code: discountCode, zipStatus,
+    rideAlong,
   });
   const out = {
     customer: {
@@ -274,6 +278,8 @@ export const validateOrder = (payload, {
         date: out.date || null,
         onfarm: out.onfarm || null,
         delivery: out.delivery || null,
+        // A kind of delivery, booked as one: counted, never a comp.
+        ...(totals.rideAlong ? { rideAlong: true } : {}),
       },
       lines: lines.map(({ sku, qty, item }) => ({
         sku,
