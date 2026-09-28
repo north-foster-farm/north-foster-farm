@@ -42,7 +42,8 @@ export const nextTier = (subtotal, money) => {
 };
 
 // A customer's discount group, from money.discountGroups, as a
-// percentage of the subtotal. -> { key, label, percent, amount }.
+// percentage of the subtotal, in whole dollars, halves up (D5).
+// -> { key, label, percent, amount }.
 export const groupDiscountFor = (subtotal, group, money) => {
   const groups = money.discountGroups || {};
   const found = group && groups[group];
@@ -53,7 +54,7 @@ export const groupDiscountFor = (subtotal, group, money) => {
     key: group,
     label: found.label || group,
     percent: found.percent,
-    amount: Math.round(subtotal * found.percent / 100),
+    amount: Math.round(subtotal * found.percent / 10000) * 100,
   };
 };
 

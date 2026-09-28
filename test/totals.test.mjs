@@ -117,8 +117,8 @@ describe("discount groups", () => {
     // $60: bulk $5 beats friends $6? No, $6 wins.
     assert.equal(withGroup(60, "friends").discountAmount, 600);
     assert.equal(withGroup(60, "friends").discountGroup, "friends");
-    // $45: friends $4.50 beats no tier.
-    assert.equal(withGroup(45, "friends").discountAmount, 450);
+    // $45: friends $4.50, rounded to $5, beats no tier.
+    assert.equal(withGroup(45, "friends").discountAmount, 500);
     // $100: bulk $10 equals friends $10; the bulk tier stands.
     assert.equal(withGroup(100, "friends").discountGroup, null);
     assert.equal(withGroup(100, "friends").discountLabel,
@@ -132,8 +132,10 @@ describe("discount groups", () => {
     assert.equal(withGroup(60, null).discountLabel, "Bulk discount ($50+)");
   });
 
-  it("round to the cent", () => {
-    assert.equal(withGroup(33.33, "friends").discountAmount, 333);
+  it("round to whole dollars, halves up", () => {
+    assert.equal(withGroup(33.33, "friends").discountAmount, 300);
+    assert.equal(withGroup(35, "friends").discountAmount, 400);
+    assert.equal(withGroup(34.99, "friends").discountAmount, 300);
   });
 });
 

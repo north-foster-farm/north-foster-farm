@@ -18,6 +18,10 @@ $cart-group-gap:   0.75rem; // Between one category and the next.
 $cart-line-gap:    0.25rem; // Heading to lines, and line to line.
 $cart-indent:      0.875rem; // The lines, set in under their heading.
 
+// The cart's Expand/Hide pill: halfway between $gray-100 (its hover)
+// and Bootstrap's light-bg-subtle (O1a).
+$pill-bg: #ededed;
+
 // Bootstrap variables
 
 // Color system
