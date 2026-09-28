@@ -1561,7 +1561,7 @@
 
   .order-pay {
     container-type: inline-size;
-    padding: 1rem 1.25rem 1.25rem;
+    padding: 1rem 1.25rem;
     border: 1px solid var(--bs-border-color-translucent);
     border-radius: var(--order-radius);
     box-shadow: var(--order-shadow);
@@ -1611,6 +1611,12 @@
   // the page does not jump.
   .order-card-fields {
     min-height: 3.5rem;
+
+    // Square's hint line under the fields ("Enter your card number")
+    // carries a bottom margin that would double the card's padding.
+    > * > :last-child {
+      margin-bottom: 0;
+    }
   }
 
   .order-pay-loading {
@@ -1733,7 +1739,10 @@
     display: block;
   }
 
+  // Block without Bootstrap's d-block, whose !important would beat
+  // [hidden] and keep the empty line's margin under the buttons.
   .order-pay-error {
+    display: block;
     margin: 0.75rem 0 0;
     font-weight: bold;
 
