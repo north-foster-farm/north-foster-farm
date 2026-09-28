@@ -1,6 +1,6 @@
 [build]
 publish = "public"
-command = "npm run check:schedule && npm run deploy && hugo --gc && npm run check:grid"
+command = "npm run check:schedule && npm run deploy && hugo --gc && npm run check:grid && npm run check:schema"
 
 [build.environment]
 HUGO_VERSION = "0.164.0"
@@ -9,10 +9,10 @@ HUGO_ENV = "production"
 HUGO_ENABLEGITINFO = "true"
 
 [context.deploy-preview]
-command = "npm run check:schedule && npm run deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL && npm run check:grid"
+command = "npm run check:schedule && npm run deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL && npm run check:grid && npm run check:schema"
 
 [context.branch-deploy]
-command = "npm run check:schedule && npm run deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL && npm run check:grid"
+command = "npm run check:schedule && npm run deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL && npm run check:grid && npm run check:schema"
 
 # The order form's API. Each function declares its own /api/* path.
 [functions]

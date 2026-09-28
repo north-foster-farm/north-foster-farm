@@ -149,9 +149,10 @@ ES6 modules with explicit imports:
 ## Netlify Configuration
 
 Deployment configured in `netlify.toml`:
-- Build command: `npm run deploy && hugo --gc && npm run check:grid`
-  (the last step holds the built HTML to Bootstrap's grid rules;
-  see `bin/grid/check.mjs`)
+- Build command: `npm run deploy && hugo --gc && npm run check:grid
+  && npm run check:schema` (the last steps hold the built HTML to
+  Bootstrap's grid rules and its JSON-LD to the rules in
+  `bin/grid/check.mjs` and `bin/schema/check.mjs`)
 - Hugo version: 0.164.0 (pinned; Node 26 via NODE_VERSION and .nvmrc)
 - Deploy previews build drafts/future/expired content
 - Custom redirects (e.g., `/venmo` → Venmo profile)

@@ -1,0 +1,230 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@id": "https://www.northfosterfarm.com/#farm",
+      "@type": "LocalBusiness",
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "US",
+        "addressLocality": "Foster",
+        "addressRegion": "RI",
+        "postalCode": "02825",
+        "streetAddress": "99 East Killingly Road"
+      },
+      "areaServed": [
+        {
+          "@type": "City",
+          "name": "Chepachet, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Clayville, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Coventry, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Cranston, RI"
+        },
+        {
+          "@type": "City",
+          "name": "East Greenwich, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Exeter, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Fiskeville, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Foster, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Glocester, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Greene, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Greenville, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Harmony, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Hope, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Johnston, RI"
+        },
+        {
+          "@type": "City",
+          "name": "North Kingstown, RI"
+        },
+        {
+          "@type": "City",
+          "name": "North Providence, RI"
+        },
+        {
+          "@type": "City",
+          "name": "North Scituate, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Providence, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Scituate, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Smithfield, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Warwick, RI"
+        },
+        {
+          "@type": "City",
+          "name": "West Greenwich, RI"
+        },
+        {
+          "@type": "City",
+          "name": "West Warwick, RI"
+        },
+        {
+          "@type": "City",
+          "name": "Brooklyn, CT"
+        },
+        {
+          "@type": "City",
+          "name": "Central Village, CT"
+        },
+        {
+          "@type": "City",
+          "name": "Danielson, CT"
+        },
+        {
+          "@type": "City",
+          "name": "Dayville, CT"
+        },
+        {
+          "@type": "City",
+          "name": "East Killingly, CT"
+        },
+        {
+          "@type": "City",
+          "name": "Killingly, CT"
+        },
+        {
+          "@type": "City",
+          "name": "Moosup, CT"
+        },
+        {
+          "@type": "City",
+          "name": "Oneco, CT"
+        },
+        {
+          "@type": "City",
+          "name": "Plainfield, CT"
+        },
+        {
+          "@type": "City",
+          "name": "Putnam, CT"
+        },
+        {
+          "@type": "City",
+          "name": "Sterling, CT"
+        }
+      ],
+      "description": "Pasture-raised chicken and eggs in Foster, Rhode Island",
+      "email": "sales@northfosterfarm.com",
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 41.82808,
+        "longitude": -71.76379
+      },
+      "hasMap": "https://www.google.com/maps/place/?q=place_id:ChIJzyPlPhkx5IkR8uzxOc4uJwg",
+      "image": "https://www.northfosterfarm.com/images/share-card.png",
+      "logo": {
+        "@type": "ImageObject",
+        "height": 499,
+        "url": "https://www.northfosterfarm.com/images/logo-mark.png",
+        "width": 512
+      },
+      "name": "North Foster Farm",
+      "sameAs": [
+        "https://instagram.com/northfosterfarm"
+      ],
+      "telephone": "+14015783713",
+      "url": "https://www.northfosterfarm.com/"
+    },
+    {
+      "@id": "https://www.northfosterfarm.com/#website",
+      "@type": "WebSite",
+      "inLanguage": "en-US",
+      "name": "North Foster Farm",
+      "publisher": {
+        "@id": "https://www.northfosterfarm.com/#farm"
+      },
+      "url": "https://www.northfosterfarm.com/"
+    },
+    {
+      "@id": "https://www.northfosterfarm.com/#webpage",
+      "@type": "WebPage",
+      "about": {
+        "@id": "https://www.northfosterfarm.com/#farm"
+      },
+      "description": "Pasture-raised chicken and eggs from a small family farm in Foster, Rhode Island. Order online for pickup or delivery.",
+      "inLanguage": "en-US",
+      "isPartOf": {
+        "@id": "https://www.northfosterfarm.com/#website"
+      },
+      "name": "North Foster Farm",
+      "url": "https://www.northfosterfarm.com/"
+    },
+    {
+      "@id": "https://www.northfosterfarm.com/#event-village-fitness-2026-10-18",
+      "@type": "Event",
+      "endDate": "2026-10-18T14:00:00-04:00",
+      "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+      "eventStatus": "https://schema.org/EventScheduled",
+      "image": "https://www.northfosterfarm.com/images/share-card.png",
+      "location": {
+        "@type": "Place",
+        "address": {
+          "@type": "PostalAddress",
+          "addressCountry": "US",
+          "addressLocality": "Warwick",
+          "addressRegion": "RI",
+          "postalCode": "02888",
+          "streetAddress": "53 Venturi Ave"
+        },
+        "geo": {
+          "@type": "GeoCoordinates",
+          "latitude": 41.76519,
+          "longitude": -71.39709
+        },
+        "name": "The Village Family Fitness"
+      },
+      "name": "Pop-up at The Village Family Fitness",
+      "organizer": {
+        "@id": "https://www.northfosterfarm.com/#farm"
+      },
+      "startDate": "2026-10-18T10:00:00-04:00"
+    }
+  ]
+}

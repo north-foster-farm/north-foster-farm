@@ -1,33 +1,210 @@
-<script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "name": "{{ .Site.Title }}",
-    "url": {{ .Site.BaseURL }},
-    "logo": {{ partial "logo-url.html" . }},
-    "sameAs": [
-      {{ hugo.Data.socialMedia.instagram.url }}
-    ]
-  }
-</script>
+{{/*
+  The page's structured data (#191): one JSON-LD @graph, built as Hugo
+  dicts and written with jsonify so nothing is hand-quoted. Every page
+  gets the farm, the site and itself; nodes point at one another by
+  @id. bin/schema/check.mjs holds the build to the rules these follow.
+
+  - The farm: a LocalBusiness (schema.org has no Farm type), in full on
+    the home and contact pages from data/company.json, data/places.json
+    and the delivery towns; a name, URL and logo elsewhere, enough to
+    stand as publisher.
+  - The page: a WebPage (ContactPage, AboutPage, CollectionPage for the
+    news list), with a BreadcrumbList from its ancestors.
+  - A news post: a BlogPosting by and from the farm.
+  - The home page: each upcoming pop-up in data/events.json as an Event.
+    Markets are left out: the farm does not run them, and their hours
+    are text. Products and offers wait until stock in the markup can't
+    lag /api/stock.
+*/}}
+{{ $company := hugo.Data.company }}
+{{ $home := .Site.Home.Permalink }}
+{{ $farmId := print $home "#farm" }}
+{{ $siteId := print $home "#website" }}
+{{ $zone := hugo.Data.delivery.timeZone }}
+{{ $stamp := "2006-01-02T15:04:05-07:00" }}
+{{ $shareCard := resources.Get "images/share-card.png" }}
+{{/* The mark as a PNG, built from James's originals (params.logo). */}}
+{{ $mark := resources.Get (printf "images/%s" .Site.Params.logo) }}
+{{ $logo := dict
+  "@type" "ImageObject"
+  "url" $mark.Permalink
+  "width" $mark.Width
+  "height" $mark.Height
+}}
+
+{{/* Same rule as the canonical link in meta-and-link-tags.html. */}}
+{{ $url := .Permalink }}
+{{ if and .IsSection (eq .Section "news") }}
+  {{ $url = .Paginator.URL | absURL }}
+{{ end }}
+{{ $pageId := print $url "#webpage" }}
+{{ $full := or .IsHome (eq .Type "contact") }}
+
+{{ $farm := dict
+  "@type" "LocalBusiness"
+  "@id" $farmId
+  "name" .Site.Title
+  "url" $home
+  "logo" $logo
+}}
+{{ if $full }}
+  {{ $a := $company.address }}
+  {{ $towns := slice }}
+  {{ range hugo.Data.delivery.area.states }}
+    {{ $state := .code }}
+    {{ range .towns }}
+      {{ $towns = $towns | append (dict
+        "@type" "City" "name" (print .town ", " $state)) }}
+    {{ end }}
+  {{ end }}
+  {{ $farm = merge $farm (dict
+    "description" .Site.Params.slogan
+    "image" $shareCard.Permalink
+    "telephone" $company.phone.plain
+    "email" $company.email
+    "address" (dict
+      "@type" "PostalAddress"
+      "streetAddress" $a.street
+      "addressLocality" $a.city
+      "addressRegion" $a.state
+      "postalCode" $a.zip
+      "addressCountry" "US")
+    "geo" (dict
+      "@type" "GeoCoordinates"
+      "latitude" hugo.Data.places.farm.lat
+      "longitude" hugo.Data.places.farm.lng)
+    "hasMap" (print "https://www.google.com/maps/place/?q=place_id:"
+      $company.placeIds.google)
+    "areaServed" $towns
+    "sameAs" (slice hugo.Data.socialMedia.instagram.url)
+  ) }}
+{{ end }}
+
+{{ $site := dict
+  "@type" "WebSite"
+  "@id" $siteId
+  "name" .Site.Title
+  "url" $home
+  "inLanguage" "en-US"
+  "publisher" (dict "@id" $farmId)
+}}
+
+{{ $type := "WebPage" }}
+{{ if eq .Type "contact" }}
+  {{ $type = "ContactPage" }}
+{{ else if eq .RelPermalink "/about/" }}
+  {{ $type = "AboutPage" }}
+{{ else if and .IsSection (eq .Section "news") }}
+  {{ $type = "CollectionPage" }}
+{{ end }}
+{{ $page := dict
+  "@type" $type
+  "@id" $pageId
+  "url" $url
+  "name" (partial "page-title.html" .)
+  "isPartOf" (dict "@id" $siteId)
+  "inLanguage" "en-US"
+}}
+{{ with .Description }}
+  {{ $page = merge $page (dict "description" (chomp .)) }}
+{{ end }}
+{{ if $full }}
+  {{ $page = merge $page (dict "about" (dict "@id" $farmId)) }}
+{{ end }}
+
+{{ $graph := slice $farm $site }}
+
+{{/* Home, then each ancestor, then the page, named as
+     breadcrumbs.html names them. A page that shows no visible trail
+     still gets this one. */}}
+{{ if not (or .IsHome (eq .RelPermalink "/404.html")) }}
+  {{ $items := slice }}
+  {{ range $i, $p := .Ancestors.Reverse | append . }}
+    {{ $item := dict
+      "@type" "ListItem"
+      "position" (add $i 1)
+      "name" (cond $p.IsHome "Home" $p.Title)
+    }}
+    {{ if not ($p.Eq $) }}
+      {{ $item = merge $item (dict "item" $p.Permalink) }}
+    {{ end }}
+    {{ $items = $items | append $item }}
+  {{ end }}
+  {{ $crumbId := print $url "#breadcrumb" }}
+  {{ $page = merge $page (dict "breadcrumb" (dict "@id" $crumbId)) }}
+  {{ $graph = $graph | append (dict
+    "@type" "BreadcrumbList"
+    "@id" $crumbId
+    "itemListElement" $items
+  ) }}
+{{ end }}
+
+{{ $graph = $graph | append $page }}
+
+{{ if and .IsPage (eq .Section "news") }}
+  {{ $image := $shareCard.Permalink }}
+  {{ with partial "news/featured.html" . }}
+    {{ $image = (.Fill "1200x900 jpg q82 Center").Permalink }}
+  {{ end }}
+  {{/* Netlify dates Lastmod from git, and a post committed before its
+       date would otherwise be modified before it was published. */}}
+  {{ $modified := .Lastmod }}
+  {{ if $modified.Before .Date }}
+    {{ $modified = .Date }}
+  {{ end }}
+  {{ $post := dict
+    "@type" "BlogPosting"
+    "@id" (print $url "#article")
+    "headline" .Title
+    "url" $url
+    "image" $image
+    "datePublished" (.Date.Format $stamp)
+    "dateModified" ($modified.Format $stamp)
+    "author" (dict "@id" $farmId)
+    "publisher" (dict "@id" $farmId)
+    "mainEntityOfPage" (dict "@id" $pageId)
+    "isPartOf" (dict "@id" $siteId)
+    "inLanguage" "en-US"
+  }}
+  {{ with .Description }}
+    {{ $post = merge $post (dict "description" (chomp .)) }}
+  {{ end }}
+  {{ $graph = $graph | append $post }}
+{{ end }}
 
 {{ if .IsHome }}
-  <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "{{ .Site.Title }}",
-      "url": {{ .Site.BaseURL }},
-      "description": "{{ chomp .Params.description }}",
-      "thumbnailUrl": {{ partial "logo-url.html" . }}
-    }
-  </script>
-  <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebPage",
-      "name": {{ .Site.Title }},
-      "url": {{ .Site.BaseURL }}
-    }
-  </script>
+  {{ $today := now.Format "2006-01-02" }}
+  {{ range sort (where hugo.Data.events.events "date" "ge" $today) "date" }}
+    {{ $start := time.AsTime (print .date "T" .start ":00") $zone }}
+    {{ $end := time.AsTime (print .date "T" .end ":00") $zone }}
+    {{ $graph = $graph | append (dict
+      "@type" "Event"
+      "@id" (print $home "#event-" .id)
+      "name" .name
+      "startDate" ($start.Format $stamp)
+      "endDate" ($end.Format $stamp)
+      "eventStatus" "https://schema.org/EventScheduled"
+      "eventAttendanceMode" "https://schema.org/OfflineEventAttendanceMode"
+      "image" $shareCard.Permalink
+      "location" (dict
+        "@type" "Place"
+        "name" .place
+        "address" (dict
+          "@type" "PostalAddress"
+          "streetAddress" .address.street
+          "addressLocality" .address.city
+          "addressRegion" .address.state
+          "postalCode" .address.zip
+          "addressCountry" "US")
+        "geo" (dict
+          "@type" "GeoCoordinates"
+          "latitude" .lat
+          "longitude" .lng))
+      "organizer" (dict "@id" $farmId)
+    ) }}
+  {{ end }}
 {{ end }}
+
+<script type="application/ld+json">
+  {{- dict "@context" "https://schema.org" "@graph" $graph | jsonify | safeJS -}}
+</script>

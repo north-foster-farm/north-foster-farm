@@ -1,0 +1,87 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@id": "https://www.northfosterfarm.com/#farm",
+      "@type": "LocalBusiness",
+      "logo": {
+        "@type": "ImageObject",
+        "height": 499,
+        "url": "https://www.northfosterfarm.com/images/logo-mark.png",
+        "width": 512
+      },
+      "name": "North Foster Farm",
+      "url": "https://www.northfosterfarm.com/"
+    },
+    {
+      "@id": "https://www.northfosterfarm.com/#website",
+      "@type": "WebSite",
+      "inLanguage": "en-US",
+      "name": "North Foster Farm",
+      "publisher": {
+        "@id": "https://www.northfosterfarm.com/#farm"
+      },
+      "url": "https://www.northfosterfarm.com/"
+    },
+    {
+      "@id": "https://www.northfosterfarm.com/news/2026-09-22-september-update/#breadcrumb",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "item": "https://www.northfosterfarm.com/",
+          "name": "Home",
+          "position": 1
+        },
+        {
+          "@type": "ListItem",
+          "item": "https://www.northfosterfarm.com/news/",
+          "name": "News",
+          "position": 2
+        },
+        {
+          "@type": "ListItem",
+          "name": "September Update",
+          "position": 3
+        }
+      ]
+    },
+    {
+      "@id": "https://www.northfosterfarm.com/news/2026-09-22-september-update/#webpage",
+      "@type": "WebPage",
+      "breadcrumb": {
+        "@id": "https://www.northfosterfarm.com/news/2026-09-22-september-update/#breadcrumb"
+      },
+      "description": "You can now order online, with delivery, on-farm pickup and our drop site in Scituate.",
+      "inLanguage": "en-US",
+      "isPartOf": {
+        "@id": "https://www.northfosterfarm.com/#website"
+      },
+      "name": "September Update",
+      "url": "https://www.northfosterfarm.com/news/2026-09-22-september-update/"
+    },
+    {
+      "@id": "https://www.northfosterfarm.com/news/2026-09-22-september-update/#article",
+      "@type": "BlogPosting",
+      "author": {
+        "@id": "https://www.northfosterfarm.com/#farm"
+      },
+      "dateModified": "2026-09-22T00:00:00-04:00",
+      "datePublished": "2026-09-22T00:00:00-04:00",
+      "description": "You can now order online, with delivery, on-farm pickup and our drop site in Scituate.",
+      "headline": "September Update",
+      "image": "https://www.northfosterfarm.com/images/linus-featured_hu_669f9b2651e65ee0.jpg",
+      "inLanguage": "en-US",
+      "isPartOf": {
+        "@id": "https://www.northfosterfarm.com/#website"
+      },
+      "mainEntityOfPage": {
+        "@id": "https://www.northfosterfarm.com/news/2026-09-22-september-update/#webpage"
+      },
+      "publisher": {
+        "@id": "https://www.northfosterfarm.com/#farm"
+      },
+      "url": "https://www.northfosterfarm.com/news/2026-09-22-september-update/"
+    }
+  ]
+}
