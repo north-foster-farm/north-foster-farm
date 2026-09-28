@@ -6,7 +6,7 @@ import {
   deleteCheckout, deleteOrder, getCheckout, getCustomer, getOrder,
   moneyPatch, openOrders, orderByPayment, ordersFor, paidTotal, paymentRef,
   paymentsOf, refundedTotal, refundsOf, saveCheckout, saveOrder, setStatus,
-  sweepCheckouts, touchCustomer,
+  sweepAuth, sweepCheckouts, touchCustomer,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 
@@ -257,6 +257,34 @@ describe("checkouts", () => {
     assert.equal(await sweepCheckouts(stores, now), 0);
     assert.equal(CHECKOUT_TTL, 24 * 60 * 60_000);
   });
+});
+
+describe("the auth sweep (#189)", () => {
+  it("deletes links and sessions past their expiry, and nothing else",
+    async () => {
+      const stores = testStores();
+      const past = now.getTime() - 60_000;
+      const future = now.getTime() + 60_000;
+      const put = (key, value) => stores.auth.set(key, value);
+
+      await put("token/dead", { email: "a@x.com", expires: past });
+      await put("token/live", { email: "a@x.com", expires: future });
+      await put("session/dead", { email: "a@x.com", expires: past });
+      await put("session/live", { email: "a@x.com", expires: future });
+      await put("session/odd", { email: "a@x.com" });
+      await put("unsub/old", { email: "a@x.com", expires: past });
+      await put("rate/a@x.com", { times: [past] });
+
+      assert.equal(await sweepAuth(stores, now), 2);
+
+      const left = (await stores.auth.list("")).map((k) => k.key).sort();
+
+      assert.deepEqual(left, [
+        "rate/a@x.com", "session/live", "session/odd", "token/live",
+        "unsub/old",
+      ]);
+      assert.equal(await sweepAuth(stores, now), 0);
+    });
 });
 
 describe("customer records", () => {

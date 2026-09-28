@@ -294,6 +294,31 @@ export const sweepCheckouts = async (stores, now = new Date()) => {
   return swept;
 };
 
+// Sign-in links and sessions (lib/auth.mjs) past their own `expires`
+// are dead: a link is refused and a session ends when next read. Only
+// a session read after it expires was ever deleted, so they piled up.
+// Nothing else in the auth store is touched, and nothing still live
+// (#189). -> how many.
+export const AUTH_SWEPT = ["token/", "session/"];
+
+export const sweepAuth = async (stores, now = new Date()) => {
+  let swept = 0;
+
+  for (const prefix of AUTH_SWEPT) {
+    for (const { key } of await stores.auth.list(prefix)) {
+      const found = await stores.auth.get(key);
+
+      if (found && Number.isFinite(found.expires)
+        && found.expires < now.getTime()) {
+        await stores.auth.delete(key);
+        swept += 1;
+      }
+    }
+  }
+
+  return swept;
+};
+
 // Customers are keyed by lowercased email. Creating from an order
 // keeps what the order knows and never overwrites a chosen name,
 // phone, avatar or address.

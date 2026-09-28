@@ -1,7 +1,7 @@
 // Every 15 minutes: remind tomorrow's deliveries, close fulfilled
 // orders, retry a Venmo order's Square copy, finish a Venmo payment
-// the page never did, drop unfinished Venmo checkouts, send the daily
-// reports. Every order is paid when it is recorded, so nothing here
+// the page never did, drop unfinished Venmo checkouts and expired
+// sign-ins, send the daily reports. Every order is paid when it is recorded, so nothing here
 // chases money. All decisions come from the records and the wall clock
 // in America/New_York, so the schedule's UTC minute does not matter
 // and a repeat run sends nothing twice.

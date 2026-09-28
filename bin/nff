@@ -512,7 +512,7 @@ const run = async () => {
       out(`${r.at.slice(0, 16)}  ${bad ? "FAIL" : "ok  "}  reminded ${
         c.deliveryReminded ?? 0}  closed ${c.closed ?? 0}  synced ${
         c.squareSynced ?? 0}  pickups ${c.pickupsToConfirm ?? 0}  swept ${
-        r.checkoutsSwept ?? 0}${
+        r.checkoutsSwept ?? 0}  signins ${r.authSwept ?? 0}${
         (r.errors || []).map((e) => `\n    error ${e.id || "-"}: ${e.error}`)
           .join("")}${(r.invariants || []).map((v) =>
         `\n    invariant ${v.rule}: ${v.id}`).join("")}`);

@@ -14,6 +14,8 @@
 //               never finished it (the tab closed) is captured and
 //               recorded, once the page has had ten minutes
 //   checkouts   a Venmo checkout nobody finished is dropped after a day
+//   auth        sign-in links and sessions past their expiry are
+//               deleted (#189)
 //   morning     8:00 daily, always: the day in numbers, the on-farm
 //               orders within two days still waiting on the customer,
 //               and a warning when the pickup schedule runs short
@@ -45,7 +47,7 @@ import * as paypalApi from "./paypal.mjs";
 import {
   allOrders, getCustomer, listCheckouts, openOrders,
   paymentsOf, questionOpen, refundsOf, reminderPrefs, setStatus,
-  sweepCheckouts,
+  sweepAuth, sweepCheckouts,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
 import {
@@ -96,7 +98,8 @@ export const runJobs = async (stores, {
 } = {}) => {
   const report = {
     at: now.toISOString(), deliveryReminded: [], closed: [], squareSynced: [],
-    muted: [], checkoutsRescued: [], checkoutsSwept: 0, pickupsToConfirm: [],
+    muted: [], checkoutsRescued: [], checkoutsSwept: 0, authSwept: 0,
+    pickupsToConfirm: [],
     tomorrow: null, errors: [], invariants: [],
   };
   const opts = { env, mail, now };
@@ -187,6 +190,8 @@ export const runJobs = async (stores, {
 
   report.checkoutsSwept = (await attempt(null, "checkouts",
     () => sweepCheckouts(stores, now))) || 0;
+  report.authSwept = (await attempt(null, "auth",
+    () => sweepAuth(stores, now))) || 0;
   report.pickupsToConfirm = (await attempt(null, "morningReport",
     () => morningReport(stores, { env, mail, now, fetchImpl }))) || [];
   report.tomorrow = await attempt(null, "tomorrowReport",
@@ -257,6 +262,7 @@ export const summarize = (report) => ({
     "pickupsToConfirm",
   ].map((k) => [k, (report[k] || []).length])),
   checkoutsSwept: report.checkoutsSwept || 0,
+  authSwept: report.authSwept || 0,
   tomorrow: report.tomorrow,
   audience: report.audience || null,
   errors: report.errors,
