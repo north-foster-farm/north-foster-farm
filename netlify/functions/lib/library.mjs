@@ -579,6 +579,9 @@ const APPROVED = {
   "farm-address-review": LIBRARY,
   "farm-alert": LIBRARY,
   "farm-tomorrow": LIBRARY,
+  "order-cancelled-refund": "James approved it on #233 (T1a, " +
+    "2026-09-28) with his two changes: \"as requested\" and no comma " +
+    "in the fee line.",
 };
 
 // Rewrites of 2026-09-26 that have landed come back here to approve,
@@ -594,7 +597,8 @@ const T4 = "Removed items head the list under \"Removed\", as plain " +
   "lines (T4, 2026-09-28). Draft: the heading \"Your order now\" above " +
   "what is still coming.";
 const T1 = "One cancellation email for every case, stating the " +
-  "refund (T1a, 2026-09-28); \"nothing charged\" is gone (T1b).";
+  "refund: James approved it with his wording (T1a, #233, " +
+  "2026-09-28); \"nothing charged\" is gone (T1b).";
 const T2 = "The farm\x27s reason, from the list drafted for T2a.";
 const W11D = "W11d (2026-09-28): a pickup is booked by paying, from " +
   "the farm\x27s schedule; no farm confirmation, and the window " +
@@ -608,7 +612,6 @@ const WAITING = {
     "and the Total line what was paid.",
   "order-changed-refunded": `${T4} Its refund line he kept (T3).`,
   "farm-order-changed": `He approved it on 2026-09-26; since then ${T4}`,
-  "order-cancelled-refund": T1,
   "order-cancelled-refunded-earlier": `${T1} ${T2}`,
   "order-cancelled-sold-out": T2,
   "order-cancelled-delay": T2,

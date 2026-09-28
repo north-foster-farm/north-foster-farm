@@ -172,7 +172,7 @@ describe("cancelOrder", () => {
     assert.equal(sent.length, 2);
     assert.match(sent[0].subject, /cancelled/);
     assert.match(sent[0].text,
-      /as you asked\.\n\*\*A refund of \$\d+ is on its way/);
+      /as requested\.\n\*\*A refund of \$\d+ is on its way/);
     assert.deepEqual(sent[1].to, ["farm@example.com"]);
     assert.equal(sent[1].subject, "Cancelled: A by pat@example.com");
     assert.match(sent[1].text, /refunded \$12 automatically/);

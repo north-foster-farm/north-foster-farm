@@ -686,7 +686,7 @@ export const orderCancelled = (order, {
     blocks.push(p("We held your order for seven days and didn't hear " +
       "from you, so we've cancelled it."));
   } else if (by === "customer") {
-    blocks.push(p(`${cancelled}, as you asked.`));
+    blocks.push(p(`${cancelled}, as requested.`));
   } else {
     blocks.push(p(`${cancelled}.`));
 
@@ -703,7 +703,7 @@ export const orderCancelled = (order, {
         label(today(new Date(refundedOn), terms.timeZone))}.**`
       : `**A refund of ${dollars(refunded)} is on its way.**`));
     if (fee) {
-      blocks.push(p(`The delivery fee of ${dollars(fee)} isn't refunded, ` +
+      blocks.push(p(`The delivery fee of ${dollars(fee)} isn't refunded ` +
         "because we made the trip."));
     }
     blocks.push(p("Most refunds arrive within a few business days."));

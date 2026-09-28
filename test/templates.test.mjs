@@ -549,7 +549,7 @@ describe("order changed and cancelled", () => {
       by: "customer", refunded: 6700, reason: "delay", links,
     });
 
-    has(m.text, "October 8, as you asked.");
+    has(m.text, "October 8, as requested.");
     assert.doesNotMatch(m.text, /ready in time/);
   });
 
@@ -665,7 +665,7 @@ describe("order changed and cancelled", () => {
     const full = orderCancelled(attempted(0), { refunded: 6700, links });
 
     has(kept.text, "**A refund of $62 is on its way.**\nThe delivery " +
-      "fee of $5 isn't refunded, because we made the trip.");
+      "fee of $5 isn't refunded because we made the trip.");
     has(full.text, "**A refund of $67 is on its way.**");
     assert.doesNotMatch(full.text, /delivery fee/);
   });
