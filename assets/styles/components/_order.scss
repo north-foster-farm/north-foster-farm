@@ -850,7 +850,6 @@
     align-items: baseline;
     justify-content: space-between;
     gap: 0.75rem;
-    cursor: pointer;
   }
 
   // The foot: Hide or Expand on the left, the way on at the right,
@@ -1710,10 +1709,6 @@
     .order-cart-toggle,
     h2.order-cart-heading {
       display: none;
-    }
-
-    .order-cart-total-row {
-      cursor: default;
     }
 
     .order-cart-next {

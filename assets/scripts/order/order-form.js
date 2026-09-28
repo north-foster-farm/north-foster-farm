@@ -376,13 +376,8 @@ export class OrderForm {
     });
 
     // Below xl the cart folds down to the total row and the foot: the
-    // toggle, the way on and the nudge. A click on the total row folds
-    // it too.
+    // toggle, the way on and the nudge.
     qs(this.cart, "[data-cart-toggle]").addEventListener("click", () => {
-      this.setOpen(this.cart.dataset.open !== "true");
-    });
-    qs(this.cart, "[data-cart-total-row]").addEventListener("click", () => {
-      if (!matchMedia("(max-width: 1199.98px)").matches) return;
       this.setOpen(this.cart.dataset.open !== "true");
     });
     qs(this.cart, "[data-checkout]").addEventListener("click", () => {
