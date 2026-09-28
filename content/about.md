@@ -61,19 +61,11 @@ Scituate, or [delivery](/delivery-policy).
 
 ## Where to find us
 
-The markets are our favorite place to be. At Scituate on Saturdays,
-the Original Italian Bakery gives away so much that Jim comes home
-with pizza chips. At Tilted Barn on Wednesdays, we get lemonade from
-the kids and trade with Reds for their hot sauce and with South County
-Barbecue for their pulled pork plates. And at almost every market
-someone is playing, usually a full band.
-
-Some of our regulars have been with us since we showed up with nothing
-but eggs. We see them every week, and the diehards come out in the
-rain too.
-
-They're the reason we have a drop site. When the season closed, they
-still needed a way to get our eggs. The market ended, but we didn't.
+The markets are our favorite place to be because it's where we get to
+meet the people who appreciate what we do. We make friends, serve our
+community, and have a great time doing it. Whether you've been buying
+our eggs for years or you're just passing by, we hope you'll stop by
+our table the next time you get the chance.
 
 {{< markets photo="images/chicken-suit.jpg"
   alt="Someone in a giant chicken suit behind our table at the Foster Farmers Market" />}}
