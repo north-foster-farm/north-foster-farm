@@ -82,6 +82,7 @@ const squareHost = () => async (url, { method }) => {
     [/^\/v2\/customers\/search$/, { customers: [{ id: "C1" }] }],
     [/^\/v2\/customers\//, { customer: { id: "C1" } }],
     [/^\/v2\/orders\/[^/]+\/pay$/, { order: { id: "O1" } }],
+    [/^\/v2\/orders\/search$/, { orders: [] }],
     [/^\/v2\/orders\/[^/]+$/, method === "GET"
       ? {
         order: {
@@ -153,6 +154,9 @@ const SQUARE_CALLS = {
   inventoryCounts: (o) => square.inventoryCounts(["V1"], o),
   findPaid: (o) => square.findPaid(order(), o),
   deleteCustomer: (o) => square.deleteCustomer("C1", o),
+  searchOpenOrders: (o) => square.searchOpenOrders({
+    before: new Date(),
+  }, o),
   renameCustomerEmail: (o) => square.renameCustomerEmail(
     "a@example.com", "b@example.com", o
   ),

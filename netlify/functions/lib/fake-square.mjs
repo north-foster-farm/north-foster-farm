@@ -98,6 +98,9 @@ export const cancelFulfilment = async (squareOrderId) => ({
 
 export const deleteCustomer = async () => ({ deleted: true });
 
+// A fake payment never fails part way, so no order is left open.
+export const searchOpenOrders = async () => [];
+
 export const cancelOrder = async (squareOrderId) => ({
   id: squareOrderId, cancelled: true,
 });

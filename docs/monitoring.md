@@ -425,6 +425,15 @@ disagree. In the Square dashboard, refund the same amount on that
 Venmo payment so Square agrees with PayPal. Its tender is external,
 so no money moves. The alert names the order and the PayPal refund.
 
+**Square orders left open (#241).** A card payment that fails for any
+reason but a decline leaves its Square order OPEN. Each run lists the
+site's orders (source "North Foster Farm website", an `NFF-` reference)
+that are a day old with no tender, no record and no Venmo checkout
+waiting: `squareOpen` in the report, `open` in `bin/nff jobs history`,
+and `bin/nff jobs square` on demand. The jobs cancel them only when
+`SQUARE_SWEEP_CANCEL` is `true`; `bin/nff jobs square --apply` cancels
+them once. Orders made before the source was set are never listed.
+
 **`venmo.amount_mismatch`.** PayPal captured a different amount than
 was asked: the order's total, or for a change to an order, the
 difference. The order is recorded as paid all the same. `bin/nff
