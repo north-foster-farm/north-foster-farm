@@ -53,6 +53,9 @@ const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const word = (s) => new RegExp(`(?<![\\w$])${escape(s)}(?![\\w])`);
 // A weekday, "Thursday" or "Thursdays".
 const days = (s) => new RegExp(`(?<!\\w)${s}s?(?!\\w)`);
+// Templates and code, which can read data/. Content can't in its
+// front matter, and its copy names the farm as prose.
+const CODE = /^(layouts|assets|netlify)\//;
 
 // What to look for, derived from the sources, each with where it
 // belongs.
@@ -61,10 +64,12 @@ export const knownFacts = () => {
   const terms = json("data/delivery.json");
   const { markets } = json("data/markets.json");
   const facts = [];
-  const add = (fact, source, value, pattern = word(value)) =>
-    facts.push({ fact, source, value: String(value), pattern });
+  // `only`, when given, limits the files the value is looked for in.
+  const add = (fact, source, value, pattern = word(value), only) =>
+    facts.push({ fact, source, value: String(value), pattern, only });
 
   const c = "data/company.json";
+  add("farm name", c, company.name, word(company.name), CODE);
   const [area, exchange, line] =
     company.phone.plain.replace(/^\+1/, "").match(/(\d{3})(\d{3})(\d{4})/)
       .slice(1);
@@ -154,9 +159,10 @@ const allowed = (file, text) =>
 // -> [{ file, line, fact, source, value, text }]
 export const scan = (file, source, facts = knownFacts()) => {
   const found = [];
+  const here = facts.filter((f) => !f.only || f.only.test(file));
   visible(file, source).split("\n").forEach((text, i) => {
     if (allowed(file, text)) return;
-    for (const f of facts) {
+    for (const f of here) {
       if (f.pattern.test(text)) {
         found.push({ file, line: i + 1, fact: f.fact, source: f.source,
           value: f.value, text: text.trim() });
@@ -174,13 +180,19 @@ export const findCopies = (files = trackedFiles()) => {
     scan(file, readFileSync(join(ROOT, file), "utf8"), facts));
 };
 
-// Two copies can't read data/, so they are held to it: the Netlify
-// config and the browser bundle.
+// Three copies can't read data/, so they are held to it: the Netlify
+// config, the site's title and the browser bundle.
 export const configDrift = () => {
   const company = json("data/company.json");
   const accounts = json("data/accounts.json");
   const toml = readFileSync(join(ROOT, "netlify.toml"), "utf8");
+  const hugo = readFileSync(join(ROOT, "config/production/hugo.toml"),
+    "utf8");
   const drift = [];
+  if (!hugo.includes(`title = "${company.name}"`)) {
+    drift.push("config/production/hugo.toml: the title isn't " +
+      "company.name");
+  }
   if (!toml.includes(`venmo.com/u/${company.venmo}"`)) {
     drift.push("netlify.toml: the /venmo redirect isn't company.venmo");
   }

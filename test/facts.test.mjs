@@ -26,6 +26,15 @@ describe("one source for every fact (Q21b)", () => {
       ["(401) 578-3713"]);
   });
 
+  it("finds the farm's name in templates and code, not in content", () => {
+    assert.deepEqual(values("layouts/x.html",
+      "<a aria-label=\"North Foster Farm, home\">"), ["North Foster Farm"]);
+    assert.deepEqual(values("assets/scripts/x.js",
+      "label: \"North Foster Farm\""), ["North Foster Farm"]);
+    assert.deepEqual(values("content/x.md",
+      "North Foster Farm is a small family farm"), []);
+  });
+
   it("reads a dollar amount whole", () => {
     assert.deepEqual(values("content/x.md", "$55 or $400"), []);
     assert.deepEqual(values("content/x.md", "$50 or $5.00"), ["$5", "$50"]);
