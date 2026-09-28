@@ -56,6 +56,17 @@ export const cartOf = (payload) => {
   };
 };
 
+// A draft's payload once its customer signs out: their details and
+// their delivery address and notes go; the cart, the way and the day
+// stay. Nothing of theirs then reaches the next account signed in at
+// this browser, which the cart would otherwise be carried into.
+export const signedOut = (payload) => {
+  const p = obj(payload);
+  const f = obj(p.fulfilment);
+
+  return { ...p, customer: {}, fulfilment: { ...f, delivery: {} } };
+};
+
 // Which copy wins. `local` is the browser's draft ({ payload, savedAt }
 // or null); `remote` is the account's ({ payload | null, savedAt } or
 // null when it has never had one). -> "remote" to take the account's
