@@ -32,6 +32,8 @@ const desktopOnly = [
   "**/contact-send.spec.mjs",
   "**/policies.spec.mjs",
   "**/skip-link.spec.mjs",
+  // It sets its own widths.
+  "**/overflow.spec.mjs",
 ];
 
 export default defineConfig({
