@@ -14,10 +14,14 @@ const save = async (page, name) => {
     page.getByRole("button", { name }).click(),
   ]);
 
+  const text = await readFile(await download.path(), "utf8");
+
+  // A byte-order mark first, so Excel reads it as UTF-8.
+  expect(text[0]).toBe("\uFEFF");
+
   return {
     file: download.suggestedFilename(),
-    rows: (await readFile(await download.path(), "utf8"))
-      .trimEnd().split("\r\n"),
+    rows: text.slice(1).trimEnd().split("\r\n"),
   };
 };
 
