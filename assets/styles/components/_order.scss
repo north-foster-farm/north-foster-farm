@@ -943,6 +943,23 @@
     display: none;
   }
 
+  // An unseen "Expand" shares the word's cell, so the pill is as wide
+  // as the longer word whichever shows, and doesn't move when it flips.
+  .order-cart-words {
+    display: inline-grid;
+    justify-items: start;
+
+    > *,
+    &::after {
+      grid-area: 1 / 1;
+    }
+
+    &::after {
+      content: "Expand";
+      visibility: hidden;
+    }
+  }
+
   // The gap after it goes too: the margin takes it back.
   .order-cart[data-stuck="false"] .order-cart-toggle {
     max-width: 0;
@@ -992,7 +1009,7 @@
     flex: 1 0 100%;
     margin: 0.5rem 0 0;
     font-size: 0.8125rem;
-    text-align: right;
+    text-align: center;
     color: var(--bs-secondary-color);
 
     &[data-tone="warn"] {
@@ -1729,17 +1746,9 @@
       flex: 1 1 auto;
     }
 
-    .order-cart-nudge {
-      text-align: center;
-    }
-
     @container cart-end (min-width: 23.125rem) {
       .order-cart-next {
         flex: 0 0 auto;
-      }
-
-      .order-cart-nudge {
-        text-align: right;
       }
     }
 
