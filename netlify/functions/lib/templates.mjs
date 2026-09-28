@@ -1246,7 +1246,7 @@ const age = (iso, now) => {
 };
 
 export const farmMorningReport = (stats, pickups, {
-  date, links, now = new Date(), schedule = null,
+  date, links, now = new Date(), schedule = null, square = null,
 } = {}) => {
   const title = `Morning report: ${label(date)}`;
   const blocks = [
@@ -1270,6 +1270,17 @@ export const farmMorningReport = (stats, pickups, {
         : "The pickup schedule offers no windows."}**`),
       p("Add windows and deploy, or the next deploy fails:"),
       command("bin/nff schedule set <file>")
+    );
+  }
+  // What the day's Square sweeps found (#241). Draft wording.
+  if (square && square.open) {
+    blocks.push(
+      heading("Left in Square"),
+      p(`A failed payment left ${square.open} order${
+        square.open === 1 ? "" : "s"} open in Square${square.cancelled
+        ? `, and ${square.cancelled} ${square.cancelled === 1 ? "was" : "were"
+        } cancelled` : ""}. To see them:`),
+      command("bin/nff jobs square")
     );
   }
   if (pickups.length) {

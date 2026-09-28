@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  SQUARE_OPEN_GRACE, SQUARE_SYNC_GRACE, checkInvariants, cutoffAt,
-  deliveryReminderAt, leftOpen, runJobs, runsSince, sweepSquareOrders,
+  SQUARE_OPEN_GRACE, SQUARE_SWEEP_HOUR, SQUARE_SYNC_GRACE, checkInvariants,
+  cutoffAt, deliveryReminderAt, leftOpen, runJobs, runsSince,
+  sweepSquareOrders,
 } from "../netlify/functions/lib/jobs.mjs";
 import { SOURCE_NAME } from "../netlify/functions/lib/square.mjs";
 import { readMark } from "../netlify/functions/lib/health.mjs";
@@ -691,6 +692,36 @@ describe("Square orders left open (#241)", () => {
 
     assert.equal(run.counts.squareOpen, 2);
     assert.equal(run.squareCancelled, 1);
+  });
+
+  it("runs once a day from 7:00, and the morning report says what it " +
+    "found", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const env = {
+      ...squareEnv, ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE,
+    };
+    const square = fakeSquare([
+      open("SQ-1", "NFF-2610-AAAA"), open("SQ-2", "NFF-2610-BBBB"),
+    ]);
+    const run = (h, m = 0) => runJobs(stores, {
+      ...opts, env, square, now: at("2026-10-07", h, m),
+    });
+
+    assert.equal(SQUARE_SWEEP_HOUR, 7);
+    assert.deepEqual((await run(6, 45)).squareOpen, []);
+    assert.equal((await run(7)).squareOpen.length, 2);
+    assert.deepEqual((await run(7, 15)).squareOpen, []);
+    assert.deepEqual(square.calls.map((c) => c[0]), ["search"],
+      "one search that day");
+    await run(8);
+
+    const [report] = sent.filter((m) => /Morning report/.test(m.subject));
+
+    assert.match(report.text, /Left in Square/);
+    assert.ok(report.text.includes("A failed payment left 2 orders open " +
+      "in Square. To see them:"), report.text);
+    assert.match(report.text, /\n {4}bin\/nff jobs square\n/);
   });
 
   it("does nothing where Square is not configured", async () => {

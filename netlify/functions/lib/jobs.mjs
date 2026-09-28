@@ -16,9 +16,10 @@
 //   checkouts   a Venmo checkout nobody finished is dropped after a day
 //   auth        sign-in links and sessions past their expiry are
 //               deleted (#189)
-//   open        a Square order the site made whose payment failed is
-//               reported after a day, and cancelled when
-//               SQUARE_SWEEP_CANCEL is "true" (#241)
+//   open        7:00 daily: a Square order the site made whose payment
+//               failed is reported after a day, in the morning report
+//               too, and cancelled when SQUARE_SWEEP_CANCEL is "true"
+//               (#241)
 //   morning     8:00 daily, always: the day in numbers, the on-farm
 //               orders within two days still waiting on the customer,
 //               and a warning when the pickup schedule runs short
@@ -198,7 +199,9 @@ export const runJobs = async (stores, {
   report.authSwept = (await attempt(null, "auth",
     () => sweepAuth(stores, now))) || 0;
   report.squareOpen = (await attempt(null, "squareSweep",
-    () => sweepSquareOrders(stores, { env, now, square, fetchImpl }))) || [];
+    () => squareDaily(stores, "open", now, () => sweepSquareOrders(stores, {
+      env, now, square, fetchImpl,
+    })))) || [];
   for (const o of report.squareOpen) {
     if (o.error) fail(o.orderId, "squareCancel", o.error);
   }
@@ -261,6 +264,44 @@ const audienceSyncDaily = async (stores, { env, now, fetchImpl }) => {
     unsubscribed: r.unsubscribed.length,
     optedOut: r.optedOut.length,
     imported: r.imported.length,
+  };
+};
+
+// The Square sweeps run once a day, from SQUARE_SWEEP_HOUR, an hour
+// before the morning report says what they found. They ask Square
+// about every order or profile they weigh, and until their switch is
+// on they find the same ones again, so every run would be 96 times the
+// calls for nothing new. The day's finds are kept under
+// square/<name>/<day>: { at, count, done }, `done` being those
+// cancelled or deleted. A run that fails keeps no mark, so the next
+// run tries again. -> what the sweep found, or null when it did not run.
+export const SQUARE_SWEEP_HOUR = 7;
+
+const squareDaily = async (stores, name, now, sweep) => {
+  if (parts(now, tz).hour < SQUARE_SWEEP_HOUR) return null;
+
+  const key = `square/${name}/${today(now, tz)}`;
+
+  if (await stores.jobs.get(key)) return null;
+
+  const found = await sweep();
+
+  if (found) {
+    await stores.jobs.set(key, {
+      at: now.toISOString(), count: found.length,
+      done: found.filter((f) => f.cancelled || f.deleted).length,
+    });
+  }
+
+  return found;
+};
+
+// What today's sweeps found, for the morning report: { open, cancelled }.
+const squareFinds = async (stores, day) => {
+  const open = await stores.jobs.get(`square/open/${day}`);
+
+  return {
+    open: (open && open.count) || 0, cancelled: (open && open.done) || 0,
   };
 };
 
@@ -513,10 +554,13 @@ const morningReport = async (stores, { env, mail, now, fetchImpl }) => {
     list: async () => [{
       stats: await funnel(stores, now),
       pickups: pickupsDue(await openOrders(stores), day),
+      square: await squareFinds(stores, day),
     }],
-    build: ([{ stats, pickups }]) => farmMorningReport(stats, pickups, {
-      date: day, links: mailLinks(env), now, schedule: coverage(env, now),
-    }),
+    build: ([{ stats, pickups, square }]) => farmMorningReport(stats,
+      pickups, {
+        date: day, links: mailLinks(env), now, schedule: coverage(env, now),
+        square,
+      }),
     onSent: () => ping(env.HEALTHCHECKS_ALERT_URL, { ok: true, fetchImpl }),
     env, mail, now,
   });
