@@ -1699,6 +1699,8 @@ export const farmMorningReport = (stats, pickups, {
   // copy lane's approved lines; the paused line is a draft. `open`
   // counts every order found, the cancelled ones among them; `paused`,
   // the Square deletion kill switch is set.
+  const done = (n, verb) => (n
+    ? `, and ${n} ${n === 1 ? "was" : "were"} ${verb}` : "");
   if (square && square.open) {
     const found = `${square.open} order${square.open === 1 ? "" : "s"}`;
     const left = square.open - square.cancelled;
@@ -1722,6 +1724,21 @@ export const farmMorningReport = (stats, pickups, {
       heading("Square sweep: open orders from failed payments"),
       p(text),
       command("bin/nff jobs square")
+    );
+  }
+  // The profiles failed checkouts made (#236). The heading is a draft,
+  // after James's for the orders.
+  if (square && square.profiles) {
+    const foundProfiles = `${square.profiles} customer profile${
+      square.profiles === 1 ? "" : "s"}`;
+    const allProfiles = square.profiles === 1 ? "it" : "them";
+
+    blocks.push(
+      heading("Square sweep: customer profiles from failed payments"),
+      p(`Checkouts whose payment never went through made ${
+        foundProfiles} in Square${done(square.deleted, "deleted")}. To see ${
+        allProfiles}:`),
+      command("bin/nff jobs customers")
     );
   }
   if (pickups.length) {

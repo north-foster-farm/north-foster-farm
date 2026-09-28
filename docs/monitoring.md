@@ -430,7 +430,7 @@ reason but a decline leaves its Square order OPEN. Once a day, the
 first run from 7:00, the jobs list the site's orders (source "North
 Foster Farm website", an `NFF-` reference) that are a day old with no
 tender, no record and no Venmo checkout waiting: `squareOpen` in that
-run's report, `open` in `bin/nff jobs history`, a "Left in Square"
+run's report, `open` in `bin/nff jobs history`, a "Square sweep"
 section in the 8:00 morning report, and `bin/nff jobs square` on
 demand. The jobs cancel them unless the Square deletion kill switch
 is set; `bin/nff jobs square --apply` cancels them once. Orders made
@@ -438,14 +438,19 @@ before the source was set are never listed.
 
 **Square profiles a failed checkout made (#236).** Pressing Pay makes
 a Square customer profile when the email is new to the farm, before
-the charge, and notes it. A day on, each run keeps the profile when
-the order was recorded, the customer has another order here, or Square
-shows a paid order for it from any channel; it waits when Square shows
-an order for it made in the last day. The rest are `customersMade` in
-the report and `bin/nff jobs customers` on demand. The jobs delete them
-unless the Square deletion kill switch (below) is set; `bin/nff jobs
-customers --apply` deletes them once. A profile that already existed
-is never touched.
+the charge, and notes it. Once a day, the first run from 7:00, the
+jobs weigh each note a day old: they keep the profile when the order
+was recorded, the customer has another order here, or Square shows a
+paid order for it at any of the account's locations (the market
+included); they wait when Square shows an order for it made in the
+last day. The rest are `customersMade` in that run's report,
+`profiles` in `bin/nff jobs history`, a "Square sweep" section in
+the morning report, and `bin/nff jobs customers` on demand. The jobs
+delete them unless the Square deletion kill switch (below) is set;
+`bin/nff jobs customers --apply` deletes them once. While the switch
+is set, a note (it holds the customer's email) is dropped after 30
+days and the profile stays. A profile that already existed is never
+touched.
 
 **The Square deletion kill switch, `SQUARE_DELETION_KILL_SWITCH`.**
 Unset, as it is by default, the automatic Square cleanups run: this

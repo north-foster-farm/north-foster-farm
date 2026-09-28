@@ -83,6 +83,7 @@ const squareHost = () => async (url, { method }) => {
     [/^\/v2\/customers\//, { customer: { id: "C1" } }],
     [/^\/v2\/orders\/[^/]+\/pay$/, { order: { id: "O1" } }],
     [/^\/v2\/orders\/search$/, { orders: [] }],
+    [/^\/v2\/locations$/, { locations: [{ id: "L" }] }],
     [/^\/v2\/orders\/[^/]+$/, method === "GET"
       ? {
         order: {
