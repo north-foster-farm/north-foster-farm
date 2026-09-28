@@ -91,8 +91,11 @@ test.describe("about (#144)", () => {
         ...[...v.querySelectorAll("source")].map((s) => [s.src, s.type]),
       ]);
 
-      expect(urls.map(([, type]) => type))
-        .toEqual(["image/webp", "video/mp4", "video/webm"]);
+      // The shortcode lists the encodes smallest first, so their order
+      // follows the files (ca39990 made the WebM the smaller).
+      expect(urls[0][1]).toBe("image/webp");
+      expect(urls.slice(1).map(([, type]) => type).sort())
+        .toEqual(["video/mp4", "video/webm"]);
       for (const [url, type] of urls) {
         const res = await request.head(url);
 

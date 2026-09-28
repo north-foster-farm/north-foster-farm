@@ -25,7 +25,8 @@ test.describe("policies", () => {
 
     // Farm news: Resend, single opt-in, one-click unsubscribe.
     expect(text).toMatch(/Resend keeps the list/);
-    expect(text).toMatch(/we send no email to confirm it/);
+    expect(text).toMatch(/Signing up adds\s+you to the list at once/);
+    expect(text).toMatch(/not one asking you to\s+confirm/);
     expect(text).toMatch(/unsubscribe link that takes you off the list in one/);
     // Payments: Square and PayPal, and no card details on the site.
     expect(text).toMatch(/Square/);

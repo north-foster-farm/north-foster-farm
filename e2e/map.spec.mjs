@@ -224,7 +224,7 @@ test.describe("map (#138, #214)", () => {
     const market = rows.find((r) => /^Scituate/.test(r.name));
 
     if (market) expect(market.n).toBe(drop.n);
-    expect(new Set(drawn.map((d) => d.fill)).size, "one pin colour")
+    expect(new Set(drawn.map((d) => d.fill)).size, "one pin color")
       .toBe(1);
     await expect(map(page).locator(".map-key-n, .map-ig, [data-stack]"))
       .toHaveCount(0);

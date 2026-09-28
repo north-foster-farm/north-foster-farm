@@ -70,7 +70,8 @@ test.describe("top bar (#139)", () => {
     await expect(card).toContainText("Pop-up");
     await expect(card).toContainText("The Village Family Fitness");
     await expect(card.getByRole("link", { name: "Instagram" }))
-      .toHaveAttribute("href", "https://www.instagram.com/thevillagefitnessri/");
+      .toHaveAttribute("href",
+        "https://www.instagram.com/thevillagefitnessri/");
   });
 
   test("every page carries it", async ({ page }) => {
