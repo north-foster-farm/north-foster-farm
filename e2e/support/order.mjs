@@ -36,19 +36,21 @@ export const uniqueEmail = (tag) => `qa-e2e-${tag}-${Date.now().toString(36)}${
   Math.random().toString(36).slice(2, 6)}@example.com`;
 
 export const test = base.extend({
-  // The staging toolbar polls the outbox, which needs a token; with a
-  // wrong one it asks again and again. Tests start with it hidden (its
-  // own "Hide", per tab) and answer any prompt once, then dismiss.
+  // The staging toolbar sits over the page, and it polls the outbox,
+  // which needs a token; with a wrong one it asks again and again.
+  // Tests start with it out of sight (a style: its own "Hide" no
+  // longer lasts past a reload, e5c2072) and answer any prompt once,
+  // then dismiss.
   hideToolbar: [true, { option: true }],
   page: async ({ page, hideToolbar }, use) => {
     if (hideToolbar) {
       await page.addInitScript(() => {
-        try {
-          sessionStorage.setItem("staging.hidden", "1");
-        } catch {
-          // Storage off: the toolbar shows, and the prompt handler
-          // below answers it.
-        }
+        document.addEventListener("DOMContentLoaded", () => {
+          const style = document.createElement("style");
+
+          style.textContent = "#staging { display: none !important; }";
+          document.head.append(style);
+        });
       });
     }
 

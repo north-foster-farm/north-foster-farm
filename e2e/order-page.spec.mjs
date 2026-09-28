@@ -52,7 +52,7 @@ test.describe("order page", () => {
       const order = new OrderPage(page);
       const eggs = order.item("eggs");
 
-      await order.open();
+      await order.open(null, { method: "delivery" });
       // Add is aria-hidden (the stepper's + is the accessible control).
       await eggs.locator(".order-qty-add").click();
       await expect(eggs.locator(".order-qty")).toHaveAttribute(
