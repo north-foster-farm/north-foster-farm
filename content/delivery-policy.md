@@ -10,10 +10,10 @@ pageScript: "zip-check"
 ---
 
 {{< delivery-area-button >}}
-
 This policy covers delivery to an address you choose. Its last
 sections, on pickup, changes, cancellations and refunds, apply to
 every order.
+{{< /delivery-area-button >}}
 
 ## When we deliver
 

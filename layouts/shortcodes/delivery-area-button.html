@@ -1,11 +1,15 @@
-{{/* One button at the top of a page, down to the section that lists
-     the delivery area, where the map and its ZIP check are (#221).
-     Button wording is a draft for James.
+{{/* A page's opening paragraph with a button beside it, down to the
+     delivery map, where the ZIP check is (#221). The paragraph is the
+     shortcode's inner Markdown. The row holds on phones: below 30rem
+     the label wraps to two lines, and only a column too narrow for both
+     stacks them (_policy.scss). Button wording is a draft for James.
 
      Params (named, optional):
-       href   Where the button points (default "#delivery-area")
-       label  The button's words (default "See every town we deliver to")
+       href   Where the button points (default "#map-policy", the id
+              the delivery-map shortcode gives the map on this page)
+       label  The button's words (default "See where we deliver")
 */}}
-<p class="my-4">
-  <a class="btn btn-primary" href="{{ .Get "href" | default "#delivery-area" }}">{{ .Get "label" | default "See every town we deliver to" }} <span class="delivery-cta-arrow" aria-hidden="true">{{ partial "svg.html" "icons/arrow-down" }}</span></a>
-</p>
+<div class="policy-lead my-4">
+  <div class="policy-lead-text">{{ .Inner | .Page.RenderString (dict "display" "block") }}</div>
+  <a class="btn btn-primary policy-lead-button" href="{{ .Get "href" | default "#map-policy" }}">{{ .Get "label" | default "See where we deliver" }}&nbsp;<span class="delivery-cta-arrow" aria-hidden="true">{{ partial "svg.html" "icons/arrow-down" }}</span></a>
+</div>

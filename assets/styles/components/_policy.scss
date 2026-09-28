@@ -16,6 +16,38 @@
     max-width: 700px;
   }
 
+  // The opening paragraph with the map button to its right
+  // (shortcodes/delivery-area-button.html). Below 30rem the label
+  // wraps to two lines so the row holds on a phone; the two stack
+  // only when the column cannot give the paragraph 10rem beside the
+  // button, below about a 350px screen.
+  .policy-lead {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 1.5rem;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .policy-lead-text {
+    flex: 1 1 10rem;
+
+    > :last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .policy-lead-button {
+    flex: none;
+    white-space: nowrap;
+
+    @media (max-width: 29.98rem) {
+      max-width: 8rem;
+      white-space: normal;
+      text-wrap: balance;
+    }
+  }
+
   // The delivery check card keeps its own heading spacing.
   .delivery-check h3 {
     margin-top: 0;
