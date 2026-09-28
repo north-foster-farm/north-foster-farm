@@ -62,9 +62,9 @@ export const GUIDE = {
     means: "A Venmo payment approved on the order page was finished by " +
       "the jobs after its pickup time had left the schedule. The order " +
       "is paid and booked for that time.",
-    action: "Keep the time if you can be there. If not, bin/nff orders " +
-      "deny <id> --reason \"...\" and the customer picks another or " +
-      "cancels.",
+    action: "Keep the time if you can be there. If not, cancel it with " +
+      "bin/nff orders cancel <id> --reason <why> (or --reason-text " +
+      "\"...\"), which refunds it.",
   },
   "jobs.errors": {
     means: "An order's work in the 15-minute run threw. The rest of the " +

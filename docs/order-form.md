@@ -602,8 +602,7 @@ Without the Netlify pair it runs against memory and says so; without
 a mail driver it logs every email to the terminal instead of sending
 it, and says that too. `bin/nff` with no arguments prints the commands:
 customers (list, show, set, delete), address (approve, deny), orders
-(list with `--open`, `--status`, `--email`; show; deny `--reason`;
-cancel `--reason <why> | --reason-text | --no-reason [--no-refund]
+(list with `--open`, `--status`, `--email`; show; cancel `--reason <why> | --reason-text | --no-reason [--no-refund]
 [--amount]`, which says what it refunds; attempted; refund
 `[--amount] [--reason]`; fulfil; delete), returns resolve, stock
 (list, set), schedule (check, set), login and masquerade (a
