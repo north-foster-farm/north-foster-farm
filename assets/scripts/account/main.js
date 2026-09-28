@@ -520,7 +520,9 @@ class Account {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+    // The browser reads the file after the click returns; older iOS
+    // Safari and a busy machine need the link a moment longer.
+    setTimeout(() => URL.revokeObjectURL(url), 2_000);
   }
 
   renderOrders() {
