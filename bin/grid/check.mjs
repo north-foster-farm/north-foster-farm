@@ -15,6 +15,11 @@
 // outside any row (G15, a warning). A .g-0 row may go edge to edge
 // without a container (G7).
 //
+// One site rule rides along (P1, #225): the last block in a page's
+// .page.container carries mb-5, which is what spaces the content from
+// the band below it. A container with data-page-end="own" makes its
+// own space and is skipped.
+//
 // The HTML is read with a small tag scanner, not a full parser: Hugo's
 // output closes its elements, and the scanner closes the few that HTML
 // lets go unclosed (p, li, option) when their parent closes.
@@ -146,6 +151,19 @@ export function checkHtml(html) {
     return null;
   };
 
+  // P1, when a page container closes: its last block carries mb-5.
+  const close = (at) => {
+    for (const el of stack.slice(at)) {
+      if (!el.isPage) continue;
+      const end = el.lastChild;
+      if (!end?.classes.includes("mb-5")) {
+        add("P1", "error", el.at, `${label(el)}: its last block, `
+          + `${end ? label(end) : "none"}, has no mb-5`);
+      }
+    }
+    stack.length = at;
+  };
+
   TAG.lastIndex = 0;
   let m;
   while ((m = TAG.exec(html))) {
@@ -155,19 +173,23 @@ export function checkHtml(html) {
     const tag = m[2].toLowerCase();
     if (m[1]) {
       const at = stack.findLastIndex((el) => el.tag === tag);
-      if (at > 0) stack.length = at;
+      if (at > 0) close(at);
       continue;
     }
     const a = attrs(m[3]);
     const classes = (a.class || "").split(/\s+/).filter(Boolean);
     const el = {
-      tag, attrs: a, classes,
+      tag, attrs: a, classes, at: m.index,
       isContainer: classes.some(isContainer),
       isRow: classes.includes("row"),
       isCol: classes.some(isCol),
     };
+    el.isPage = el.isContainer && classes.includes("page")
+      && a["data-page-end"] !== "own";
     const parent = stack[stack.length - 1];
     const name = label(el);
+    // Scripts and templates render nothing, so they are no one's block.
+    if (!RAW.has(tag) && tag !== "template") parent.lastChild = el;
 
     for (const c of classes) {
       for (const [re, why] of BAD_GRID) {
@@ -236,6 +258,7 @@ export function checkHtml(html) {
     stack.push(el);
   }
   text(last, html.length);
+  close(1);
   return findings;
 }
 

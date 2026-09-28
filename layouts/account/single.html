@@ -4,7 +4,7 @@
   <section class="{{ .Type }}">
     <script type="application/json" id="account-data">{{ $data | jsonify | safeJS }}</script>
     <div class="page container py-5">
-      <div class="account-wide">
+      <div class="account-wide mb-5">
         {{ partial "page-heading.html" . }}
 
         <p class="account-loading" id="account-loading" role="status">Loading your account…</p>

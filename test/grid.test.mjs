@@ -73,6 +73,19 @@ describe("the grid check", () => {
       <div class="col">x</div></fieldset></div>`), ["G13"]);
   });
 
+  it("finds a page container whose last block has no mb-5", () => {
+    assert.deepEqual(rules(`<div class="page container py-5">
+      <div class="mb-5">heading</div><div>form</div>
+      <script>x</script><template><p>t</p></template></div>`), ["P1"]);
+    assert.deepEqual(rules(`<div class="page container py-5">
+      <div>heading</div><div class="mb-5">form</div>
+      <script>x</script></div>`), []);
+    assert.deepEqual(rules(`<div class="page container" data-page-end="own">
+      <div>form</div></div>`), []);
+    assert.deepEqual(rules(`<div class="container"><div>x</div></div>`), []);
+    assert.deepEqual(rules(`<div class="page container">`), ["P1"]);
+  });
+
   it("skips scripts and comments, and names the line", () => {
     const html = `<div class="container">
       <script>const s = '<div class="row">';</script>
