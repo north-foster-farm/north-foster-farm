@@ -11,9 +11,7 @@
 // approves or rewrites in the library on staging is lib/review.mjs's
 // until it is ported here.
 
-import launch from "../../../data/emails/launch-email.json" with {
-  type: "json",
-};
+import { launchEmail } from "./launch.mjs";
 import * as t from "./templates.mjs";
 import { orderPathFor } from "./site.mjs";
 
@@ -544,8 +542,11 @@ export const library = [
     id: "news-launch-email", name: "Farm news: we're online",
     when: "Sent by James from Fastmail at launch, to the old list",
     audience: "list", tags: ["list", "farm news", "launch", "draft"],
-    build: () => plain(launch.subject,
-      `Preview text: ${launch.preview}\n\n---\n\n${launch.body}`),
+    build: () => {
+      const launch = launchEmail();
+      return plain(launch.subject,
+        `Preview text: ${launch.preview}\n\n---\n\n${launch.body}`);
+    },
   },
 ];
 
