@@ -13,6 +13,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadEnv } from "../netlify/functions/lib/env.mjs";
+import { setSchedule } from "./schedule-env.mjs";
 
 const USAGE = `Usage:
   bin/nff customers list
@@ -236,15 +237,17 @@ const checkedSchedule = (file) => {
 };
 
 // The Netlify CLI, as the env file's site and token, for the one
-// command that changes a deploy's settings.
+// command that changes a deploy's settings. -> its stdout.
 const netlify = (args) => new Promise((resolve, reject) => {
   const child = spawn("npx", ["netlify", ...args], {
-    stdio: ["ignore", "ignore", "inherit"],
+    stdio: ["ignore", "pipe", "inherit"],
     env: process.env,
   });
+  let stdout = "";
 
+  child.stdout.on("data", (chunk) => { stdout += chunk; });
   child.on("error", reject);
-  child.on("exit", (code) => (code === 0 ? resolve()
+  child.on("close", (code) => (code === 0 ? resolve(stdout)
     : reject(new Error(`netlify ${args[0]} failed (${code}).`))));
 });
 
@@ -475,12 +478,11 @@ const run = async () => {
     const targets = context === "production"
       ? ["production"] : ["branch:staging"];
 
-    for (const target of targets) {
-      await netlify(["env:set", "PICKUP_SCHEDULE", checked.value,
-        "--context", target]);
-    }
+    await setSchedule(netlify, checked.value, targets,
+      process.env.NETLIFY_SITE_ID);
     out(checked.summary);
-    out(`Set PICKUP_SCHEDULE for ${targets.join(" and ")}.`);
+    out(`Set PICKUP_SCHEDULE for ${targets.join(" and ")} on site ${
+      process.env.NETLIFY_SITE_ID}, and read it back.`);
 
     // The functions read the variable as of their deploy.
     const hook = process.env.PICKUP_SCHEDULE_HOOK;
