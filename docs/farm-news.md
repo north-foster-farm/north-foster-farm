@@ -2,12 +2,14 @@
 
 Opt-in only, ever. Consent is `marketing` and `marketingAt` on the
 customer record (`marketingSource` says how it came: `signup`,
-`order`, `account`, `confirm`, `resend`), set by the sign-up field,
+`order`, `account`, `confirm`, `resend`, `unsubscribe`), set by the
+sign-up field,
 the checkout box, the settings box, or the old list's confirmation
 link below. Anyone with an email address may opt in; a record is made
 for an address that has never ordered.
 
-A sign-up on the site joins at once, with no confirmation email. Only
+A sign-up on the site joins at once and gets a welcome, with no
+confirmation step. Only
 the old Fastmail list is asked to confirm (James, W1, 2026-09-26:
 "we should only be asking Fastmail contacts to confirm, no double opt
 in on the website including news sign up").
@@ -22,15 +24,30 @@ wanted, come from our own records.
 
 A field in the footer and on the news page (`news-signup.html`,
 `scripts/news/signup.js`). `POST /api/news/subscribe` opts the record
-in, dated, source `signup`, creating the record if there is none, and
-sends nothing. It is rate-limited per address like sign-in. The answer
-is `{ ok: true }` for any address that looks like one, rate limit
+in, dated, source `signup`, creating the record if there is none. It
+is rate-limited per address like sign-in. The answer is
+`{ ok: true }` for any address that looks like one, rate limit
 included, so nobody can learn who is on the list from here.
 
 The checkout box joins when the order is placed (`touchCustomer`,
-source `order`); ticking it sends nothing. The account page's box
-writes the same consent, source `account`. Everything else is in
-`lib/news.mjs`.
+source `order`). The account page's box writes the same consent,
+source `account`. Everything else is in `lib/news.mjs`.
+
+## The welcome
+
+A real join from any of the three sends the welcome (`newsWelcome`
+in `templates.mjs`, T6); a repeat sends nothing. From the order box it
+goes once the order is paid, after the order's own emails. A failed
+send is logged as `news.welcome.failed` and leaves them on the list.
+
+Its unsubscribe takes one click and no sign-in (T6c). A random token,
+kept hashed in the auth store with no expiry, names the address. The
+body's link opens `/news/?unsubscribe=<token>`, whose script posts
+it, so a mail scanner that only fetches links takes no one off. The
+`List-Unsubscribe` and `List-Unsubscribe-Post` headers give mail apps
+the RFC 8058 one-click POST to `/api/news/unsubscribe`, which takes
+it from any site. Opting out dates the record, source `unsubscribe`,
+and the sync then unsubscribes the contact in Resend.
 
 ## Asking an old list to opt in again
 
@@ -90,6 +107,7 @@ store; the daily run marks `news/sync/<day>`.
 
 Broadcasts from Resend's editor, to the audience, with the
 unsubscribe link Resend inserts. An unsubscribe reaches the record at
-once through the webhook below, or at the next sync if it missed. Template-driven broadcasts from the CLI, and sends to
-a query of the records from the jobs run, can come later; nothing
-here stands in their way.
+once through the webhook above, or at the next sync if it missed.
+Template-driven broadcasts from the CLI, and sends to a query of the
+records from the jobs run, can come later; nothing here stands in
+their way.
