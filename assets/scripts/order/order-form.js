@@ -441,8 +441,12 @@ export class OrderForm {
       const r = this.cart.getBoundingClientRect();
       const below = matchMedia("(max-width: 1199.98px)").matches;
       const floating = below && r.bottom > window.innerHeight - 13;
-      const barBottom = bar ? bar.getBoundingClientRect().bottom : 0;
+      const barRect = bar ? bar.getBoundingClientRect() : null;
+      const barBottom = barRect ? barRect.bottom : 0;
 
+      // The phone bar casts its shadow only once stuck; at rest it
+      // lies flat under the header (O5).
+      if (bar) bar.dataset.stuck = String(barRect.top <= 0.5);
       this.cart.style.setProperty(
         "--cart-bar", `${Math.max(0, Math.round(barBottom))}px`
       );
