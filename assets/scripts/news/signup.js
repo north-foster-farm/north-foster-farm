@@ -1,7 +1,9 @@
 // Farm news by email: the field in the footer and on the news page.
 // One request puts the address on the list (W1). The old list's
 // confirmation link lands back on /news/ with ?news=, which the line
-// under the field explains.
+// under the field explains. The welcome email's unsubscribe link
+// lands with ?unsubscribe=<token>, posted from here so that a mail
+// scanner fetching the link takes no one off (T6c).
 
 import { api } from "../utils/api.js";
 import { looksLikeEmail } from "../utils/email.js";
@@ -12,8 +14,14 @@ const JOINED = "You're on the list. Thanks!";
 const LANDED = {
   confirmed: JOINED,
   expired: "That link had expired. Enter your email here to join.",
-  invalid: "That link isn't valid any more. Enter your email here to join.",
+  invalid: "That link was already used or isn't valid. If you haven't " +
+    "joined yet, enter your email here.",
 };
+
+// Drafts, to approve.
+const LEFT = "You're off the list. We won't send you Farm news.";
+const NOT_LEFT = "That unsubscribe link isn't valid. Reply to any of our " +
+  "emails and we'll take you off.";
 
 const say = (note, text, tone) => {
   note.textContent = text;
@@ -81,14 +89,24 @@ export const wireNewsSignup = () => {
 
   const params = new URLSearchParams(location.search);
   const landed = params.get("news");
-
-  if (landed && LANDED[landed]) {
-    const note = forms[0].querySelector("[data-news-note]");
-
-    say(note, LANDED[landed], landed === "confirmed" ? "ok" : "wait");
+  const token = params.get("unsubscribe");
+  const note = forms[0].querySelector("[data-news-note]");
+  const clean = (name) => {
     forms[0].scrollIntoView({ block: "center" });
-    params.delete("news");
+    params.delete(name);
     history.replaceState(null, "", `${location.pathname}${
       params.toString() ? `?${params}` : ""}`);
+  };
+
+  if (landed && LANDED[landed]) {
+    say(note, LANDED[landed], landed === "confirmed" ? "ok" : "wait");
+    clean("news");
+  }
+
+  if (token) {
+    clean("unsubscribe");
+    api("/api/news/unsubscribe", { method: "POST", body: { token } })
+      .catch(() => ({ ok: false }))
+      .then(({ ok }) => say(note, ok ? LEFT : NOT_LEFT, ok ? "ok" : "wait"));
   }
 };

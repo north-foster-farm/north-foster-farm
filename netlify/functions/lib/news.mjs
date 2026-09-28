@@ -17,7 +17,7 @@ import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { allCustomers, getCustomer, saveCustomer } from "./records.mjs";
 import { mailLinks, siteUrl } from "./site.mjs";
-import { newsConfirm } from "./templates.mjs";
+import { newsConfirm, newsWelcome } from "./templates.mjs";
 
 const MINUTE = 60 * 1000;
 const DAY = 24 * 60 * MINUTE;
@@ -91,6 +91,79 @@ export const optOut = async (stores, email, { source = "site" } = {},
   });
 };
 
+// --- The welcome and its unsubscribe -------------------------------
+
+// A link that takes one address off the list in one click, with no
+// sign-in (T6c). The token is random, kept hashed in the auth store
+// and never expires, so the link in an old email still works.
+// -> { page, post }: `page` for the email's body, a /news/ link that
+// unsubscribes once the page has loaded, so a mail scanner that only
+// fetches it takes no one off; `post` for the List-Unsubscribe header,
+// the one-click POST of RFC 8058.
+export const unsubscribeLinks = async (stores, email, {
+  env = process.env, now = new Date(),
+} = {}) => {
+  const token = secret();
+  const site = siteUrl(env);
+
+  await stores.auth.set(`unsub/${hash(token)}`, {
+    email: normalizeEmail(email), createdAt: now.toISOString(),
+  });
+
+  return {
+    page: `${site}/news/?unsubscribe=${token}`,
+    post: `${site}/api/news/unsubscribe?token=${token}`,
+  };
+};
+
+// The click, as often as it comes. -> { ok: true, email } or
+// { ok: false, reason }.
+export const unsubscribe = async (stores, token, { now = new Date() } = {}) => {
+  if (!token || typeof token !== "string" || token.length > 200) {
+    return { ok: false, reason: "invalid" };
+  }
+
+  const found = await stores.auth.get(`unsub/${hash(token)}`);
+
+  if (!found) return { ok: false, reason: "unknown" };
+  await optOut(stores, found.email, { source: "unsubscribe" }, now);
+
+  return { ok: true, email: found.email };
+};
+
+// True when a change put an address on the list that wasn't on it.
+export const joined = (before, after) => !!after
+  && after.marketing === true && !(before && before.marketing === true);
+
+// The welcome (T6), to a record just put on the list from the site: the
+// news field, account settings, or the order box once the order is
+// placed. Never throws; a welcome that fails leaves them on the list.
+// -> true when it went.
+export const welcome = async (stores, customer, {
+  env = process.env, mail = sendMail, now = new Date(),
+} = {}) => {
+  try {
+    const links = await unsubscribeLinks(stores, customer.email, { env, now });
+
+    await mail({
+      to: customer.email,
+      idempotencyKey: `welcome-${
+        hash(`${customer.email} ${customer.marketingAt}`).slice(0, 16)}`,
+      headers: {
+        "List-Unsubscribe": `<${links.post}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
+      ...newsWelcome(customer, links.page, { links: mailLinks(env) }),
+    }, { env });
+
+    return true;
+  } catch (error) {
+    log.error({ event: "news.welcome.failed", error: error.message });
+
+    return false;
+  }
+};
+
 // Per address, like sign-in. -> true when this request may go on.
 const withinRate = async (stores, address, now) => {
   const rateKey = `rate/news/${address}`;
@@ -105,11 +178,13 @@ const withinRate = async (stores, address, now) => {
 
 // --- Signing up on the site ----------------------------------------
 
-// The footer and news-page field: on the list at once, no email.
-// -> { ok: true, email } or { ok: false, reason }.
+// The footer and news-page field: on the list at once (W1), then the
+// welcome (T6). -> { ok: true, email } or { ok: false, reason }.
 export const subscribe = async (stores, { email, firstName, lastName }, {
   now = new Date(),
   limit = true,
+  env = process.env,
+  mail = sendMail,
 } = {}) => {
   const address = normalizeEmail(email);
 
@@ -118,9 +193,12 @@ export const subscribe = async (stores, { email, firstName, lastName }, {
     return { ok: false, reason: "rate" };
   }
 
-  await optIn(stores, address, {
+  const before = await getCustomer(stores, address);
+  const after = await optIn(stores, address, {
     firstName: text(firstName), lastName: text(lastName), source: "signup",
   }, now);
+
+  if (joined(before, after)) await welcome(stores, after, { env, mail, now });
 
   return { ok: true, email: address };
 };

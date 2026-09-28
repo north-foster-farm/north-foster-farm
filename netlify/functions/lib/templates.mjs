@@ -766,6 +766,31 @@ export const newsConfirm = (email, url, { days = 7, links } = {}) => {
   return { subject: title, ...render(title, blocks, links) };
 };
 
+// Farm news: the welcome to anyone who joins on the site (T6, James,
+// 2026-09-28), since it is the only word they get that it worked.
+// `unsubscribeUrl` takes them off in one click, no sign-in (T6c).
+export const newsWelcome = (who, unsubscribeUrl, { links } = {}) => {
+  const title = "You're on the North Foster Farm list";
+  const name = firstName(who);
+  const blocks = [
+    p(name ? `Hi ${name},` : "Hi,"),
+    p("Thanks for signing up. You're on our Farm news list."),
+    p("About once a month, we'll email you what's happening on the " +
+      "farm: what's in stock, where to find us, and news from the " +
+      "pasture. Nothing else, and we never share your address."),
+    {
+      text: "Don't want these after all? Unsubscribe here: " +
+        `${unsubscribeUrl}\nOne click and you're off.`,
+      html: "<p>Don't want these after all? " +
+        `<a href="${escape(unsubscribeUrl)}" style="color:${GREEN}">` +
+        "Unsubscribe here</a>. One click and you're off.</p>",
+    },
+    p("— James and Jim"),
+  ];
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
 // --- To the farm ---------------------------------------------------
 //
 // These are the farm's notice of an order. They go to ADMIN_EMAILS

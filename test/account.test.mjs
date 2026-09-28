@@ -375,10 +375,11 @@ describe("profile and address", () => {
   it("updates the name in parts and a valid avatar; ignores a phone",
     async () => {
     const stores = testStores();
+    const { sent, opts } = harness();
     const ok = await updateProfile(stores, customerOf(), {
       firstName: " Patricia ", lastName: "Example", phone: "401-555-0100",
       avatar: "rooster", marketing: true,
-    }, { now: new Date("2026-09-23T15:00:00Z") });
+    }, { ...opts, now: new Date("2026-09-23T15:00:00Z") });
 
     assert.equal(ok.customer.firstName, "Patricia");
     assert.equal(ok.customer.lastName, "Example");
@@ -388,9 +389,12 @@ describe("profile and address", () => {
     assert.equal(ok.customer.marketingAt, "2026-09-23T15:00:00.000Z");
     assert.equal(ok.customer.marketingSource, "account");
 
+    assert.equal(sent.length, 1, "welcomed to farm news (T6)");
+    assert.equal(sent[0].subject, "You're on the North Foster Farm list");
+
     const off = await updateProfile(stores, ok.customer, {
       marketing: false,
-    }, { now: new Date("2026-09-24T15:00:00Z") });
+    }, { ...opts, now: new Date("2026-09-24T15:00:00Z") });
 
     assert.equal(off.customer.marketing, false);
     assert.equal(off.customer.marketingAt, "2026-09-24T15:00:00.000Z");

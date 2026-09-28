@@ -5,13 +5,15 @@ import { describe, it } from "node:test";
 import {
   CONFIRM_TTL, REQUESTS_PER_WINDOW, SYNC_KEY, confirmSubscribe,
   inviteSubscribers, optIn, optOut, parseCsv, requestSubscribe,
-  subscribe, syncAudience,
+  subscribe, syncAudience, unsubscribe,
 } from "../netlify/functions/lib/news.mjs";
 import {
   getCustomer, saveCustomer,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
-import { newsConfirm } from "../netlify/functions/lib/templates.mjs";
+import {
+  newsConfirm, newsWelcome,
+} from "../netlify/functions/lib/templates.mjs";
 import { handle } from "../netlify/functions/news.mjs";
 
 const now = new Date("2026-10-01T12:00:00Z");
@@ -37,12 +39,13 @@ const customer = (email, extra = {}) => ({
 });
 
 describe("a sign-up on the site", () => {
-  it("opts a normalised address in at once, dated, with no email",
+  it("opts a normalised address in at once, dated, and welcomes it once",
     async () => {
       const stores = testStores();
+      const { sent, mail } = mailbox();
       const r = await subscribe(stores, {
         email: " Pat@Example.COM ", firstName: "Pat",
-      }, { now });
+      }, { now, env, mail });
 
       assert.deepEqual(r, { ok: true, email: "pat@example.com" });
 
@@ -53,7 +56,47 @@ describe("a sign-up on the site", () => {
       assert.equal(saved.marketingSource, "signup");
       assert.equal(saved.firstName, "Pat");
       assert.equal(saved.lastOrderAt, null, "never ordered");
+
+      assert.equal(sent.length, 1);
+      assert.equal(sent[0].to, "pat@example.com");
+      assert.equal(sent[0].subject, "You're on the North Foster Farm list");
+      assert.match(sent[0].text, /^Hi Pat,$/m);
+      assert.ok(sent[0].text.includes("Unsubscribe here: " +
+        "https://northfosterfarm.com/news/?unsubscribe="));
+      assert.ok(sent[0].headers["List-Unsubscribe"].startsWith(
+        "<https://northfosterfarm.com/api/news/unsubscribe?token="));
+      assert.equal(sent[0].headers["List-Unsubscribe-Post"],
+        "List-Unsubscribe=One-Click");
+
+      // Already on the list: no second welcome.
+      await subscribe(stores, { email: "pat@example.com" }, { now, env, mail });
+      assert.equal(sent.length, 1);
     });
+
+  it("takes an address off in one click from the welcome, as often as " +
+    "it is clicked", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await subscribe(stores, { email: "pat@example.com" }, { now, env, mail });
+
+    const token = new URL(sent[0].text.match(/https:\S+unsubscribe=\S+/)[0])
+      .searchParams.get("unsubscribe");
+
+    assert.deepEqual(await unsubscribe(stores, token, { now: later }),
+      { ok: true, email: "pat@example.com" });
+
+    const saved = await getCustomer(stores, "pat@example.com");
+
+    assert.equal(saved.marketing, false);
+    assert.equal(saved.marketingAt, later.toISOString());
+    assert.equal(saved.marketingSource, "unsubscribe");
+    assert.equal((await unsubscribe(stores, token, { now })).ok, true);
+    assert.deepEqual(await unsubscribe(stores, "nope", { now }),
+      { ok: false, reason: "unknown" });
+    assert.deepEqual(await unsubscribe(stores, "", { now }),
+      { ok: false, reason: "invalid" });
+  });
 
   it("refuses a bad address and rate-limits an eager one", async () => {
     const stores = testStores();
@@ -364,16 +407,18 @@ describe("the endpoints", () => {
       const stores = testStores();
       const { sent, mail } = mailbox();
       const ok = await handle(req("/api/news/subscribe", "POST",
-        { email: "Pat@Example.com" }), { stores, env, now });
+        { email: "Pat@Example.com" }), { stores, env, now, mail });
 
       assert.equal(ok.status, 200);
       assert.deepEqual(await ok.json(), { ok: true });
       assert.equal((await getCustomer(stores, "pat@example.com")).marketing,
         true);
 
+      assert.equal(sent.length, 1, "the welcome");
+
       const r = await requestSubscribe(stores, { email: "old@example.com" },
         { now, env, mail });
-      const url = sent[0].text.match(/https:\S+confirm\?token=\S+/)[0];
+      const url = sent[1].text.match(/https:\S+confirm\?token=\S+/)[0];
       const landed = await handle(
         req(`/api/news/confirm?token=${tokenIn(url)}`),
         { stores, env, now: later }
@@ -412,6 +457,65 @@ describe("the endpoints", () => {
 
       assert.equal(res.status, 200);
     }
+  });
+});
+
+describe("the unsubscribe endpoint", () => {
+  it("takes the page's post and a mail app's one-click post, from " +
+    "anywhere", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await subscribe(stores, { email: "pat@example.com" }, { now, env, mail });
+
+    const header = sent[0].headers["List-Unsubscribe"].slice(1, -1);
+    const token = new URL(header).searchParams.get("token");
+    const page = await handle(new Request(
+      "https://northfosterfarm.com/api/news/unsubscribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json", "sec-fetch-site": "same-origin",
+        },
+        body: JSON.stringify({ token }),
+      }), { stores, env, now });
+
+    assert.equal(page.status, 200);
+    assert.equal((await getCustomer(stores, "pat@example.com")).marketing,
+      false);
+
+    const app = await handle(new Request(header, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "sec-fetch-site": "cross-site",
+      },
+      body: "List-Unsubscribe=One-Click",
+    }), { stores, env, now });
+
+    assert.equal(app.status, 200);
+
+    const bad = await handle(new Request(
+      "https://northfosterfarm.com/api/news/unsubscribe?token=nope",
+      { method: "POST" }), { stores, env, now });
+
+    assert.equal(bad.status, 404);
+  });
+});
+
+describe("the welcome email", () => {
+  it("reads as James drafted it (T6a)", () => {
+    const url = "https://x/news/?unsubscribe=t";
+    const m = newsWelcome({ firstName: "Pat" }, url, {});
+
+    assert.equal(m.subject, "You're on the North Foster Farm list");
+    assert.ok(m.text.includes("Hi Pat,\nThanks for signing up. You're on " +
+      "our Farm news list.\nAbout once a month, we'll email you what's " +
+      "happening on the farm: what's in stock, where to find us, and news " +
+      "from the pasture. Nothing else, and we never share your address." +
+      `\nDon't want these after all? Unsubscribe here: ${url}\nOne click ` +
+      "and you're off.\n— James and Jim"), m.text);
+    assert.match(m.html, /<a href="https:\/\/x\/news\/\?unsubscribe=t"/);
+    assert.match(newsWelcome({}, url, {}).text, /^Hi,$/m);
   });
 });
 

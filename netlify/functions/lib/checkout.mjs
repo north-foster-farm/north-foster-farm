@@ -25,11 +25,12 @@ import { retry } from "./http.mjs";
 import { alert, mark } from "./health.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
+import { joined, welcome } from "./news.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { announcePaid } from "./payments.mjs";
 import {
-  amendOrder, deleteCheckout, getCheckout, getOrder, moneyPatch,
-  paymentsOf, saveCheckout, saveOrder, touchCustomer,
+  amendOrder, deleteCheckout, getCheckout, getCustomer, getOrder,
+  moneyPatch, paymentsOf, saveCheckout, saveOrder, touchCustomer,
 } from "./records.mjs";
 import * as squareApi from "./square.mjs";
 import { adjust } from "./stock.mjs";
@@ -76,7 +77,9 @@ export const completeOrder = async (stores, order, { square, payment }, {
     refunds: [],
   }, now);
 
-  await touchCustomer(stores, order.customer, now);
+  const before = await getCustomer(stores, order.customer.email);
+  const customer = await touchCustomer(stores, order.customer, now);
+
   await adjust(stores, order.lines, -1);
   await mark(stores, "order", { id: order.id }, now);
 
@@ -84,7 +87,15 @@ export const completeOrder = async (stores, order, { square, payment }, {
     event: "order.paid", id: saved.id, persistent: stores.persistent,
   });
 
-  return announcePaid(stores, order.id, { mail, env, now }) || saved;
+  const announced = await announcePaid(stores, order.id, { mail, env, now });
+
+  // The order box joins farm news once the order is placed (T7), and
+  // the welcome follows the confirmation (T6).
+  if (joined(before, customer)) {
+    await welcome(stores, customer, { env, mail, now });
+  }
+
+  return announced || saved;
 };
 
 // A card or a wallet, tokenised by the SDK. -> the paid record.

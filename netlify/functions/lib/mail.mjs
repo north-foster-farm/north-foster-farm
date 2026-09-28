@@ -110,8 +110,12 @@ const viaResend = async (message, env, fetchImpl) => {
         subject: message.subject,
         text: message.text,
         html: message.html,
-        headers: message.idempotencyKey
-          ? { "X-Entity-Ref-ID": message.idempotencyKey }
+        headers: message.idempotencyKey || message.headers
+          ? {
+            ...message.headers,
+            ...(message.idempotencyKey
+              ? { "X-Entity-Ref-ID": message.idempotencyKey } : {}),
+          }
           : undefined,
       }),
     });

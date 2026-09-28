@@ -14,6 +14,7 @@ import { cancelOrder as cancelAndRefund } from "./admin.mjs";
 import { cutoffAt } from "./jobs.mjs";
 import { adminEmails, mailbox, sendMail } from "./mail.mjs";
 import { log } from "./log.mjs";
+import { joined, welcome } from "./news.mjs";
 import { notifyFarm, sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
@@ -301,7 +302,7 @@ export const changeOrder = async (stores, customer, id, changes, {
 };
 
 export const updateProfile = async (stores, customer, changes, {
-  now = new Date(),
+  now = new Date(), env = process.env, mail = sendMail,
 } = {}) => {
   const c = changes && typeof changes === "object" ? changes : {};
   const errors = {};
@@ -349,6 +350,8 @@ export const updateProfile = async (stores, customer, changes, {
   if (Object.keys(errors).length) return fail(422, errors);
 
   const saved = await saveCustomer(stores, { ...customer, ...patch });
+
+  if (joined(customer, saved)) await welcome(stores, saved, { env, mail, now });
 
   return { ok: true, customer: saved };
 };

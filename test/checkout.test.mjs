@@ -169,6 +169,23 @@ describe("completeOrder", () => {
       assert.equal((await getCounts(stores))["NFF-CHK-WHL-0350-0400"], 2);
       assert.equal(sent.length, 2);
     });
+
+  it("welcomes a customer the order box put on farm news, after the " +
+    "order's own emails (T6, T7)", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const env = { ADMIN_EMAILS: "farm@x.com" };
+    const boxed = order();
+
+    boxed.customer = { ...boxed.customer, marketing: true };
+    await completeOrder(stores, boxed, {
+      square: { squareOrderId: "SQO" }, payment: { via: "square" },
+    }, { mail, env, now });
+
+    assert.equal(sent.length, 3);
+    assert.equal(sent[2].subject, "You're on the North Foster Farm list");
+    assert.equal(sent[2].to, boxed.customer.email);
+  });
 });
 
 describe("payWithSquare", () => {

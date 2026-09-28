@@ -388,6 +388,14 @@ export const library = [
     build: (links) => t.newsConfirm(customer.email,
       `${links.site}/api/news/confirm?token=abc123`, { links }),
   },
+  {
+    id: "news-welcome", name: "Farm news welcome",
+    when: "Someone joins on the site: the news field, account settings, " +
+      "or the order box once the order is placed",
+    audience: C, tags: ["list", "sign-up", "farm news"],
+    build: (links) => t.newsWelcome(customer,
+      `${links.site}/news/?unsubscribe=abc123`, { links }),
+  },
 
   // To the farm
   {
@@ -586,6 +594,9 @@ const WAITING = {
   "order-cancelled-mistake": `${T2} Open: every order is paid, so ` +
     "\"rather than charge you for it\" may need to read \"and refunded " +
     "you\".",
+  "news-welcome": "His draft of 2026-09-28 (T6a, T6b), verbatim; " +
+    "the sign-off takes the dash (#211). The link takes them off in one " +
+    "click, with no sign-in (T6c).",
   "address-denied": `${LANDED}, verbatim.`,
   "missed-delivery-fee-kept": `${C3}${REASON} Not sent yet: the send, ` +
     "the hold and redelivery\x27s second fee wait on #193.",
