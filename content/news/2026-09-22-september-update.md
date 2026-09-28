@@ -12,9 +12,11 @@ featured: "images/linus-featured.jpg"
   alt="A laptop showing the North Foster Farm order page, with whole chickens and boneless breasts in the cart"
   caption="Introducing: online ordering, on-farm pickup, and delivery." />}}
 
-**You can now order from us online.** Visit the [order page](/order/)
-to see our catalog, which includes everything we bring to market, from
-eggs by the dozen to whole chickens, sausage, and every cut in between.
+**You can now order from us online.** This summer was the first we
+sold our chicken, and we're grateful to everyone who tried it. Now you
+can keep buying from us after the market season ends: the
+[order page](/order/) has everything we bring to market, from eggs by
+the dozen to whole chickens, sausage, and every cut in between.
 
 There are three ways to get your order:
 
