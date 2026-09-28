@@ -1,4 +1,4 @@
-# ![North Foster Farm](./assets/images/logo-small.png) North Foster Farm
+# <img src="./assets/images/logo-mark.svg" alt="" height="28"> North Foster Farm
 
 The website for North Foster Farm — [northfosterfarm.com][site]. A
 static site built with [Hugo][hugo], styled with Bootstrap 5 and SCSS,
