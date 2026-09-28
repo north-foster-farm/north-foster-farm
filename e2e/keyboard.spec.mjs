@@ -276,6 +276,9 @@ for (const width of WIDTHS) {
     test("every page tabs cleanly", async ({ page, request, browserName }) => {
       const paths = [...await sitemap(request), ...UNLISTED];
 
+      // A Tab walk of some 30 pages takes WebKit over two minutes.
+      test.setTimeout(10 * 60_000);
+
       for (const path of paths) {
         await page.goto(path);
         await settle(page);
