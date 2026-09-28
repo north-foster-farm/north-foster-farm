@@ -74,13 +74,16 @@ You don't need to be home. If there's no cooler where you told us,
 we'll try to reach you: we'll call or text and ring the doorbell. If
 we can't reach you, we won't leave your order. You can choose to have
 it delivered the following Thursday, pick it up at the farm or drop
-site, or cancel your order for a refund of your items.
+site, or cancel your order for a refund of your items. We hold your
+order for 7 days while you choose. If you haven't chosen by then, we
+cancel it, refund your items and email you to say so.
 
-A delivery we couldn't make because there was no cooler out, or no way
-to get to the spot you gave us, keeps its delivery fee, including any $3 for an
-address outside our area. It isn't refunded whichever you choose, and
-delivery the following Thursday costs the fee again. A delivery we
-miss ourselves, or because of the weather, never costs you the fee.
+A delivery we couldn't make because there was no cooler out, or no
+way to get to the spot you gave us, keeps its delivery fee, including
+any $3 for an address outside our area. It isn't refunded whichever
+you choose, and delivery the following Thursday costs the fee again. A
+delivery we miss ourselves, or because of the weather, never costs you
+the fee.
 
 Once it's delivered, it's in your care.
 
