@@ -94,6 +94,11 @@ $danger-bg-subtle:        tint-color($danger, 95%);
 $light-bg-subtle:         mix($gray-100, $white);
 $dark-bg-subtle:          $gray-400;
 
+// The footer's ground: the bands' green tint one step darker, so the
+// two differ in lightness only and a green button reads the same on
+// both (#202).
+$footer-bg:               tint-color($success, 90%);
+
 // Options
 $enable-rounded:              true;
 $enable-cssgrid:              true;
@@ -199,8 +204,8 @@ $btn-hover-border-tint-amount:    12%;
 // Forms
 $form-label-font-size:                  $small-font-size;
 
-// A shade darker than $light, the footer's ground, so a field's edge
-// shows there and it stands as tall as the button beside it (#201).
+// Darker than $footer-bg, so a field's edge shows on the footer and it
+// stands as tall as the button beside it (#201).
 $input-border-color:                    $gray-200;
 
 $form-feedback-valid-color:         $gray-100;
