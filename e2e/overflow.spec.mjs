@@ -14,78 +14,16 @@
 // A failure names the element that sticks out: the outermost one
 // whose right edge passes the viewport's.
 
-import { readFileSync } from "node:fs";
-
 import { FULL_CART, OrderPage, expect, test } from "./support/order.mjs";
-import { allDates } from "../assets/scripts/order/lib/dates.mjs";
-import { parseSchedule } from "../assets/scripts/order/lib/schedule.mjs";
 import {
-  addDays, today, weekday,
-} from "../assets/scripts/order/lib/zoned.mjs";
-
-const TERMS = JSON.parse(readFileSync(
-  new URL("../data/delivery.json", import.meta.url), "utf8",
-));
+  ACCOUNT_TABS, cannedDates, keepHome, signedIn, sitemap,
+} from "./support/canned.mjs";
 
 const WIDTHS = [375, 768, 992, 1440];
 
 // Not in the sitemap. /account/ is left out: signed out, it sends you
 // to /login/, and the signed-in test below covers it.
 const UNLISTED = ["/login/", "/404.html"];
-
-const ACCOUNT_TABS = ["orders", "receipts", "address", "settings", "help"];
-
-const CUSTOMER = {
-  email: "qa-e2e-overflow@example.com", name: "Ada Hen", firstName: "Ada",
-  lastName: "Hen", phone: "4015550100", avatar: null, discountGroup: null,
-  address: null, reminders: {}, marketing: false,
-};
-
-const ORDER = {
-  id: "NFF-2609-QA85", status: "paid",
-  submittedAt: "2026-09-26T14:00:00.000Z",
-  paidAt: "2026-09-26T14:00:05.000Z", cancelRequested: false,
-  lines: [{
-    sku: "NFF-CHK-EGG-LG", label: "Eggs, large, one dozen", qty: 2,
-    unitPrice: 7, lineTotal: 14,
-  }],
-  totals: { subtotal: 1400, discountAmount: 0, deliveryFee: 0, total: 1400 },
-  code: null,
-  customer: {
-    firstName: "Ada", lastName: "Hen", phone: "4015550100", contact: "",
-  },
-  fulfilment: {
-    method: "onfarm", date: "2026-10-03", state: "requested",
-    onfarm: { window: "10 AM – 12 PM" },
-  },
-  notes: "",
-  payments: [{
-    at: "2026-09-26T14:00:05.000Z", amount: 1400, via: "square",
-    method: "card", brand: "VISA", last4: "1111",
-    receiptUrl: "https://squareupsandbox.com/receipt/preview/qa",
-  }],
-  refunds: [], returns: [], question: null,
-  canCancel: true, canChange: true,
-};
-
-// The farm's pickup schedule is an environment setting (W11d), so
-// /api/dates answers from a schedule of our own: each weekday of the
-// next three weeks, a morning and an afternoon window.
-const dates = () => {
-  const now = new Date();
-  const start = today(now, TERMS.timeZone);
-  const days = [];
-
-  for (let i = 1; i <= 21; i += 1) {
-    const day = addDays(start, i);
-
-    if (weekday(day) >= 1 && weekday(day) <= 5) {
-      days.push(`${day} 09:00-12:00 13:00-17:00`);
-    }
-  }
-
-  return allDates(now, TERMS, parseSchedule(days.join("\n")).windows);
-};
 
 // How far the page scrolls sideways, and, if it does, what sticks
 // out. An element inside a box that clips or scrolls sideways can't
@@ -136,15 +74,6 @@ const fits = async (page, width, what) => {
   expect.soft(await overflow(page, width), what).toBeNull();
 };
 
-const sitemap = async (request) => {
-  const res = await request.get("/sitemap.xml");
-
-  expect(res.ok(), "the sitemap loads").toBe(true);
-
-  return [...(await res.text()).matchAll(/<loc>([^<]+)<\/loc>/g)]
-    .map(([, loc]) => new URL(loc).pathname);
-};
-
 for (const width of WIDTHS) {
   test.describe(`at ${width}px (#185)`, () => {
     test.use({
@@ -153,9 +82,10 @@ for (const width of WIDTHS) {
       hasTouch: width < 768,
     });
 
-    test.beforeEach(({ page }) => page.emulateMedia({
-      reducedMotion: "reduce",
-    }));
+    test.beforeEach(async ({ page, baseURL }) => {
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await keepHome(page, baseURL);
+    });
 
     test("every page fits", async ({ page, request }) => {
       const paths = [...await sitemap(request), ...UNLISTED];
@@ -189,9 +119,7 @@ for (const width of WIDTHS) {
       const order = new OrderPage(page);
       const money = order.cart.locator("[data-cart-money-toggle]");
 
-      await page.route("**/api/dates", (route) => route.fulfill({
-        json: dates(),
-      }));
+      await cannedDates(page);
       await order.open(FULL_CART);
       // Unfold the sums where they fold (below xl).
       if (await money.isEnabled()
@@ -218,13 +146,7 @@ for (const width of WIDTHS) {
     });
 
     test("the account fits, signed in", async ({ page }) => {
-      await page.route("**/api/me", (route) => route.fulfill({
-        json: { signedIn: true, customer: CUSTOMER },
-      }));
-      await page.route("**/api/account/orders", (route) => route.fulfill({
-        json: { orders: [ORDER] },
-      }));
-
+      await signedIn(page);
       for (const tab of ACCOUNT_TABS) {
         await page.goto(`/account/#${tab}`);
         await expect(page.locator("#account-app")).toBeVisible();

@@ -34,6 +34,7 @@ const desktopOnly = [
   "**/skip-link.spec.mjs",
   // It sets its own widths.
   "**/overflow.spec.mjs",
+  "**/keyboard.spec.mjs",
 ];
 
 export default defineConfig({
@@ -79,7 +80,9 @@ export default defineConfig({
     // of layout and accessibility, where a WebKit-only fault shows.
     {
       name: "iphone",
-      testMatch: ["**/overflow.spec.mjs", "**/a11y.spec.mjs"],
+      testMatch: [
+        "**/overflow.spec.mjs", "**/a11y.spec.mjs", "**/keyboard.spec.mjs",
+      ],
       use: { ...devices["iPhone 15"] },
     },
   ],
