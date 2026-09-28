@@ -622,13 +622,6 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
       align-items: end;
     }
 
-    // The gap under the text is 12% of the hero's height, so the
-    // block rises with a taller screen (H15, option B on #219).
-    .home-hero-body {
-      padding-block: 3rem calc(0.12 * min(100vh - var(--hero-above), 80rem));
-      padding-bottom: calc(0.12 * min(100svh - var(--hero-above), 80rem));
-    }
-
     .home-hero-text {
       text-align: end;
     }
