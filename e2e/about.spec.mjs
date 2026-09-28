@@ -78,7 +78,7 @@ test.describe("about (#144)", () => {
       // The scene names the figure, so it is read before the caption
       // and its joke; the video itself is hidden, its button is not.
       await expect(video.locator("xpath=ancestor::figure[1]"))
-        .toHaveAttribute("aria-label", /^Rain falls .*low chicken pen/);
+        .toHaveAttribute("aria-label", /^A farmer takes shelter .*pens/);
       await expect(video).toHaveAttribute("aria-hidden", "true");
       for (const attr of ["muted", "loop", "playsinline"]) {
         expect(await video.evaluate((v, a) => v.hasAttribute(a), attr))

@@ -45,7 +45,7 @@ because it makes our chicken better, and because it's the most
 respectful way we know to raise animals.
 
 {{< video src="videos/tight-quarters" poster="images/tight-quarters.jpg"
-  label="Rain falls on the pasture while a farmer, hunched in a low chicken pen, tends the birds" >}}
+  label="A farmer takes shelter from a sudden afternoon rain shower in one of the moveable pens the birds live in" >}}
 We work closely with Mother Nature; sometimes we don't agree.
 {{< /video >}}
 
