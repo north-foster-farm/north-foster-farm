@@ -64,7 +64,9 @@ test.describe("cart count on the Order link (#166)", () => {
       )).toBeCloseTo(width, 0);
     });
 
-  test("search's Add to cart counts at once", async ({ page }) => {
+  // #208: search's Add puts one in the cart and becomes the stepper;
+  // each step counts in the header at once.
+  test("search's Add and stepper count at once", async ({ page }) => {
     await page.goto("/about/");
 
     const dialog = page.locator("#search-palette");
@@ -75,10 +77,11 @@ test.describe("cart count on the Order link (#166)", () => {
     await dialog.locator("#search-palette-input").fill("eggs");
     await expect(dialog.locator("[data-search-card] [data-search-name]"))
       .toHaveText("Large");
-    await dialog.getByRole("button", { name: "One more" }).click();
-    await dialog.locator("[data-search-button]").click();
+    await dialog.locator("[data-search-add]").click();
+    await expect(rowBadge(page)).toHaveText("1");
+    await dialog.locator("[data-search-step='1']").click();
     await expect(dialog.locator("[data-search-added]")).toContainText(
-      "2 items in your cart"
+      "2 items in all"
     );
     await expect(rowBadge(page)).toHaveText("2");
   });
