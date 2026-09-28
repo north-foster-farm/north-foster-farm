@@ -77,6 +77,10 @@ test.describe("payments", () => {
     await expect(card.locator("[data-out='receiptUrl']")).toHaveAttribute(
       "href", /^https:\/\/.*squareup(sandbox)?\.com\//
     );
+    // Signed out, the card says the email is an account (#114).
+    await expect(card.locator("[data-out='account']")).toBeVisible();
+    await expect(card.locator("[data-out='account'] a"))
+      .toHaveAttribute("href", /\/login\/$/);
     // The header's cart count goes with the cart (#166).
     await expect(page.locator(".site-order [data-cart-badge]")).toBeHidden();
 
@@ -101,6 +105,9 @@ test.describe("payments", () => {
     expect(receipt.text).toContain("Your payment of $7 came through and " +
       "your pickup time is set");
     expect(receipt.text).toContain("When:");
+    // A first order says once that it made an account (#114).
+    expect(receipt.text).toContain("Placing this order made you an " +
+      "account with us.");
 
     const farm = await waitForMail({
       // The subject is "New order <id>", a dash, then the total and how.
@@ -124,6 +131,18 @@ test.describe("payments", () => {
       const email = uniqueEmail("delivery");
 
       emails.push(email);
+      // Signed in, as far as the page knows: the thank-you card then
+      // leaves out the account line (#114). The details match what
+      // the test fills in, so the prefill changes nothing.
+      await page.route("**/api/me", (route) => route.fulfill({
+        json: {
+          signedIn: true,
+          customer: {
+            email, firstName: "Drop", lastName: "Tester",
+            phone: "4015550100", discountGroup: null, address: null,
+          },
+        },
+      }));
       await order.open({ wings: 5 });
       await order.contact({ first: "Drop", email, phone: "4015550100" });
       await order.delivery({ address1: "12 Test Road", zip: "02857" });
@@ -141,6 +160,7 @@ test.describe("payments", () => {
       await expect(out("when")).toHaveText(
         /, delivered to 12 Test Road\.$/
       );
+      await expect(out("account")).toBeHidden();
 
       const record = await orderRecord(body.orderId);
 
