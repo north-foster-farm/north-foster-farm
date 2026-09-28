@@ -13,10 +13,9 @@ Before starting, on the staging context: `ACCOUNTS_ENABLED=true`,
 `SQUARE_LOCATION_ID`, `SQUARE_WEBHOOK_SIGNATURE_KEY` for the sandbox
 webhook, and for Venmo `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`,
 `PAYPAL_ENV=sandbox` and `PAYPAL_WEBHOOK_ID`. Without the first,
-emails carry no links to the account pages and the deny email asks
-for a reply; without the PayPal pair the Venmo button does not
-appear; without either processor the payment section says online
-payment is unavailable. On this machine, `.env.staging` holds every
+emails carry no links to the account pages; without the PayPal pair
+the Venmo button does not appear; without either processor the
+payment section says online payment is unavailable. On this machine, `.env.staging` holds every
 key in `.env.sample`: the same sandbox token and location, the Netlify
 pair, `MAIL_DRIVER=outbox`, `ACCOUNTS_ENABLED=true` and `SITE_URL`
 set to the staging address, so
@@ -124,41 +123,26 @@ its days and times.
 
 The farm can't keep a booked time:
 
-- [ ] New on-farm order, paid. `bin/nff --staging orders deny <id>
-      --reason "We're at the market that morning."`: customer gets
-      "We can't make your pickup time" with "we can't be here for your
-      pickup at <window> on <day>", "Here's why: ...", a "Reschedule
-      or cancel" button and the line that cancelling is a full refund.
-- [ ] `bin/nff --staging orders show <id>`: `question.kind` is
-      `window`, `answeredAt` null, `fulfilment.state` still `agreed`.
-- [ ] `bin/nff --staging jobs run` the day after its date: not closed
-      while the question is open.
-- [ ] Click "Reschedule or cancel" (works for a week): lands signed in
-      on that order's card, which says "We can't make that pickup
-      time: ... Please choose another day and time with Change, or
-      cancel the order." Change and Cancel are offered even past the
-      cutoff.
-- [ ] Change the day or time (the form offers the schedule's) and
-      save: "Order updated" email shows "When:"; farm gets "Pickup
-      moved: <id>"; `question.answer` is `reschedule`;
-      `fulfilment.state` stays `agreed`.
-- [ ] Alternatively cancel from the card: `question.answer` is
-      `cancel`; the order is refunded in full and `cancelled` at once
-      (T1d); the cancellation email says the refund is on its way;
-      the farm gets "Cancelled: <id>" saying there's nothing to run.
-- [ ] `bin/nff --staging orders deny <id> --reason x` on a delivery
-      order: refused with "Only an on-farm pickup has a time to give
-      up."
+- [ ] New on-farm order, paid. `bin/nff --staging orders cancel <id>
+      --reason weather`: the order is refunded in full and
+      `cancelled`; the customer gets "Your order is cancelled" with
+      "We cancelled your order for on-farm pickup on <day>.", "For
+      everyone's safety, we won't open for pickup on <day> due to
+      severe weather." and "A refund of $<total> is on its way." No
+      "We can't make your pickup time" email (19ee3de, T2d).
+- [ ] The same with `--reason-text "We're at the market that
+      morning."`: that sentence is the email's reason line.
+- [ ] `bin/nff --staging orders deny <id>`: refused as an unknown
+      command; `bin/nff` alone lists no `orders deny`.
 
 The morning report:
 
-- [ ] With an on-farm order whose time the farm gave up and the
-      customer hasn't re-picked, within two days of its date, the
-      first jobs run after 8:00 (the toolbar's "As 8:00 today") sends
-      "Morning report: <today>" to ADMIN_EMAILS, the vital signs
-      first, then one line per such pickup, once that day. If the
-      schedule doesn't reach the week after next, it says so first,
-      with `bin/nff schedule set <file>`.
+- [ ] The first jobs run after 8:00 (the toolbar's "As 8:00 today")
+      sends "Morning report: <today>" to ADMIN_EMAILS, the vital signs
+      first, once that day. If the schedule doesn't reach the week
+      after next, it says so first, with `bin/nff schedule set
+      <file>`. Nothing opens a pickup question any more, so "Pickups
+      waiting on the customer" never appears.
 
 ## 4. The receipts
 
@@ -262,7 +246,7 @@ inbox hears.
 
 - Take the account pages off: `accounts = false` in
   `config/_default/hugo.toml` and unset `ACCOUNTS_ENABLED`. Emails
-  drop their account links; the deny email asks for a reply.
+  drop their account links.
 - Take Venmo off: unset `PAYPAL_CLIENT_ID`; the button disappears and
   nothing else changes.
 - Close a test order: `bin/nff orders cancel <id> --reason-text "Test

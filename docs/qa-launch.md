@@ -1302,26 +1302,24 @@ booked by paying (W11d). PY-01 covers the confirmation email.
 
 ### AO-06 The farm can't keep a booked pickup
 
-Manual: several emails and pages across a week-long link.
+Manual: a CLI cancel and its email.
 
-- **Scenario:** The farm gives up a booked time (`orders deny`): the
-  customer picks another from the schedule, or cancels for a refund.
-- **Setup:** A paid on-farm order.
+- **Scenario:** The farm can't keep a booked time, so it cancels the
+  order like any other (19ee3de, T2d); `orders deny` is gone.
+- **Setup:** Two paid on-farm orders.
 - **Test:**
-  1. `bin/nff --staging orders deny <id> --reason "Frost."`
-  2. Open "Reschedule or cancel" from the outbox; change the time;
-     save.
-  3. On a second order, cancel from the card instead.
-- **Assert:** "We can't make your pickup time", with "Here's why:
-  Frost." (T2d) and a "Reschedule or cancel" button (b14ad8b); the card
-  says "We can't make that pickup time"; the change form's times are
-  the schedule's for the chosen day; after the change "Your order is
-  updated" and the farm's "Pickup moved: <id>", `question.answer`
-  reschedule, `fulfilment.state` agreed. After the cancel: refunded in full on
-  the spot (T1d), `status` cancelled, the farm's "Cancelled: <id>"
-  saying there's nothing to run.
-- **Teardown:** `orders cancel <id> --reason-text "Test order."` for the
-  first; delete both.
+  1. `bin/nff --staging orders cancel <id> --reason weather`
+  2. On the second, `orders cancel <id> --reason-text "Frost."`
+  3. `bin/nff --staging orders deny <id>`
+- **Assert:** Each is refunded in full on the spot (T1d), `status`
+  cancelled, with "Your order is cancelled": "We cancelled your order
+  for on-farm pickup on <day>.", then the reason line (the first:
+  "For everyone's safety, we won't open for pickup on <day> due to
+  severe weather."; the second: "Frost.") and "A refund of $<total>
+  is on its way." No "We can't make your pickup time" email and no
+  `question` on either record. Step 3 is refused as an unknown
+  command.
+- **Teardown:** delete both.
 
 ### AO-07 A customer cancels
 
@@ -1356,15 +1354,14 @@ Manual: automatable; not yet written.
 Manual: needs the toolbar's token (or `STAGING_TOKEN`) for the jobs.
 
 - **Scenario:** The daily reports the farm lives by.
-- **Setup:** An on-farm order within two days whose time the farm gave
-  up (`orders deny`), not yet re-picked.
+- **Setup:** A paid on-farm order for tomorrow.
 - **Test:**
   1. Toolbar: tick "Send today's reports again"; press As 8:00 today.
   2. Press As 18:00 today.
 - **Assert:** "Morning report: <today>" with the vitals (placed, by card,
-  by Venmo, declined, cancelled, refunded, open) and the pickup under
-  "Pickups waiting on the customer"; "Tomorrow, <date>: N orders"
-  grouped by method.
+  by Venmo, declined, cancelled, refunded, open) and no "Pickups
+  waiting on the customer" (nothing opens that question since
+  19ee3de); "Tomorrow, <date>: N orders" grouped by method.
 - **Teardown:** Cancel and delete the order; clear the reports' mail.
 
 ### AO-10 The delivery reminder
@@ -1610,16 +1607,11 @@ capture"; it now takes the capture from the refund's "up" link.
   `square.refund_failed` alert.
 - **Teardown:** Cancel; delete.
 
-### RF-07 Confirm and deny guard themselves
+### RF-07 Retired
 
-Manual.
-
-- **Scenario:** Only on-farm orders need agreement.
-- **Setup:** A paid delivery order.
-- **Test:**
-  1. `bin/nff --staging orders deny <id>`
-- **Assert:** Refused with "Only an on-farm pickup needs confirming."
-- **Teardown:** Cancel with `--refund`; delete.
+`orders confirm` and `orders deny` are both gone (W11d, 19ee3de): a
+pickup is booked by paying, and one the farm can't keep is cancelled
+(AO-06).
 
 ### RF-08 Nothing left unpaid before the deploy
 
