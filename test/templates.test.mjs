@@ -274,7 +274,7 @@ describe("a booked pickup time (W11d)", () => {
       "time.");
     has(m.text, "Now: **Thursday, October 8, 9 AM – noon**");
     assert.doesNotMatch(m.text, /orders confirm|confirming/);
-    has(m.text, "View order: https://admin.example.com/orders/NFF-2610-ABCD");
+    assert.doesNotMatch(m.text, /View order:|View customer/);
     has(m.text, "Admin: https://admin.example.com");
   });
 });
@@ -704,9 +704,10 @@ describe("addresses and sign-in", () => {
       const m = addressReview(customer, { links });
 
       assert.match(m.subject, /Address to review: Pat Example/);
-      has(m.html, '<a href="https://admin.example.com/customers/' +
-        'pat%40example.com" style="color:#186243">Pat Example</a> saved an ' +
-        "address outside of the published delivery area.");
+      has(m.text, "Pat Example (pat@example.com) saved an address " +
+        "outside of the published delivery area.");
+      assert.doesNotMatch(m.html, /admin.example.com\/customers/,
+        "no link to a dashboard page without the customer (T5b)");
       assert.match(m.text, /Location: \*\*5 Far Rd, Nowhere, MA 01234\*\*/);
       has(m.text, "View location in Maps: https://maps.apple.com/?address=" +
         "5%20Far%20Rd%2C%20Nowhere%2C%20MA%2001234");
@@ -789,7 +790,6 @@ describe("the farm's own notices", () => {
   it("sends the account page's notices on the farm card", () => {
     const o = reachable("delivery");
     const c = o.customer;
-    const view = "View order: https://admin.example.com/orders/NFF-2610-ABCD";
     const refund = farmRefundNeeded(o, c, { links });
     const sync = farmSquareOutOfSync(o, c, { links });
     const back = farmReturnRequest(o, c, {
@@ -803,7 +803,7 @@ describe("the farm's own notices", () => {
       [sync, "SQUARE OUT OF SYNC"], [back, "RETURN REQUEST"],
       [help, "SUPPORT"]]) {
       has(m.text, `\n${tag}\n`);
-      has(m.text, view);
+      assert.doesNotMatch(m.text, /View order:|View customer/, "T5b");
       has(m.text, "Admin: https://admin.example.com");
     }
     has(refund.text, "Pat Example cancelled paid order NFF-2610-ABCD, " +
@@ -816,8 +816,6 @@ describe("the farm's own notices", () => {
     has(back.text, "    bin/nff returns resolve NFF-2610-ABCD r1\n");
     has(help.text, "Pat Example wrote from their account page. Reply to " +
       "this email to answer them.");
-    has(help.text, "View customer: https://admin.example.com/customers/" +
-      "pat%40example.com");
   });
 
   it("says in the subject what it is, which order and how much", () => {
@@ -842,11 +840,9 @@ describe("the farm's own notices", () => {
       "prefers a text");
     assert.match(m.html, new RegExp("<li><span [^>]*user-select:all\">" +
       "pat@example.com</span></li>"), "the address is set for copying");
-    has(m.text, "View customer: https://admin.example.com/customers/" +
-      "pat%40example.com");
     assert.match(m.text, /\nOrder details\n/);
-    assert.match(m.text,
-      /View order: https:\/\/admin.example.com\/orders\/NFF-2610-ABCD/);
+    assert.doesNotMatch(m.text, /View order:|View customer/,
+      "the dashboard doesn't show the site's orders yet (T5b)");
     assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/);
     assert.match(m.text, /- 2 × Whole Chicken, 3.5 – 3.9 lbs \(\$60\)/);
     has(m.text, "- Subtotal $67\n- Bulk discount ($50+) −$5\n" +

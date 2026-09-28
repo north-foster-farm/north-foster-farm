@@ -803,19 +803,25 @@ export const newsWelcome = (who, unsubscribeUrl, { links } = {}) => {
 // --- To the farm ---------------------------------------------------
 //
 // These are the farm's notice of an order. They go to ADMIN_EMAILS
-// and link into the admin dashboard; the pages they point at arrive
-// with the dashboard's order views.
+// and carry the Admin link to the dashboard.
 
 const CONTACT_WORD = { text: "prefers a text", call: "prefers a call" };
 
 const adminUrl = (links, path) =>
   (links && links.admin ? `${links.admin}/${path}` : null);
 
-const customerUrl = (links, email) =>
-  adminUrl(links, `customers/${encodeURIComponent(email || "")}`);
+// The dashboard doesn't show the site's orders or customers yet, so
+// "View order" and "View customer" would open a list without them
+// (T5b, 2026-09-28). Set true when it does, and the buttons return.
+const DASHBOARD_VIEWS = false;
 
-const orderAdminUrl = (links, id) =>
-  adminUrl(links, `orders/${encodeURIComponent(id)}`);
+const customerUrl = (links, email) => (DASHBOARD_VIEWS
+  ? adminUrl(links, `customers/${encodeURIComponent(email || "")}`)
+  : null);
+
+const orderAdminUrl = (links, id) => (DASHBOARD_VIEWS
+  ? adminUrl(links, `orders/${encodeURIComponent(id)}`)
+  : null);
 
 const mapsUrl = (a) =>
   `https://maps.apple.com/?address=${encodeURIComponent(streetAddress(a))}`;
@@ -1052,7 +1058,8 @@ export const farmContactMessage = (message, { order = null, links } = {}) => {
 };
 
 // The account page's notices to the farm, on the same card as the
-// rest. `links` gives them their View order button and Admin link.
+// rest. `links` gives them their Admin link (and, once the dashboard
+// shows them, the View order and View customer buttons).
 
 // "delivery on Thursday, October 8".
 const methodOn = (f) =>

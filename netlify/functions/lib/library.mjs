@@ -567,6 +567,9 @@ const T2A = "James approved the farm\x27s reasons on #233 (T2a, " +
   "2026-09-28), rewriting sold out, weather and our mistake.";
 const C4 = "James approved it on #233 (C4, 2026-09-28): a cancel " +
   "after a miss doesn\x27t say \"as requested\".";
+const T5A = "Decided on #233 (T5a, 2026-09-28): it uses the farm " +
+  "card, as the other farm notices do. No View order or View customer " +
+  "button until the dashboard shows the site\x27s orders (T5b).";
 const APPROVED = {
   "order-confirmed-delivery": "James\x27s rewrite of 2026-09-22, verbatim.",
   "order-confirmed-dropsite": LIBRARY,
@@ -595,6 +598,10 @@ const APPROVED = {
   "order-cancelled-hold-fee-kept": `${C4} Sent by the job that ends ` +
     "the hold, still to build (#193).",
   "order-cancelled-hold-full-refund": `${C4} As above.`,
+  "farm-support": T5A,
+  "farm-refund-needed": T5A,
+  "farm-return-request": T5A,
+  "farm-square-out-of-sync": T5A,
   "news-welcome": "James\x27s rewrite on #233 (T6a, 2026-09-28), " +
     "verbatim; the sign-off takes the dash (#211). The link takes them " +
     "off in one click, with no sign-in, and turns off the account " +
@@ -604,8 +611,6 @@ const APPROVED = {
 // Rewrites of 2026-09-26 that have landed come back here to approve,
 // showing the landed text.
 const LANDED = "His rewrite of 2026-09-26, landed";
-const CARD = "Moved onto the farm card on 2026-09-26, after he asked " +
-  "\"No template?\"; agent-written.";
 const C3 = "Policy-pages\x27 draft of 2026-09-28 for C3, C7 and C8 " +
   "(#192): it switches on the fee the missed delivery kept.";
 const REASON = " The reason line is his C6a draft for the cause " +
@@ -641,12 +646,8 @@ const WAITING = {
     "The confirm and deny commands are gone from it.",
   "farm-pickup-changed": `${W11D} Now a notice, "Pickup moved", with ` +
     "nothing to run. Draft wording.",
-  "farm-support": CARD,
-  "farm-refund-needed": CARD,
   "farm-order-cancelled": "Checkout\x27s draft of 2026-09-28 (T1d): a " +
     "customer\x27s cancel now refunds by itself.",
-  "farm-return-request": CARD,
-  "farm-square-out-of-sync": CARD,
   "farm-morning-report": `${LANDED}: the key under the table, and 🙈 ` +
     `for outside limits. ${W11D} Its pickups are now those waiting on ` +
     "the customer, and it warns when the schedule runs short. Draft.",
