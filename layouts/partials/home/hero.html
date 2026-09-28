@@ -24,7 +24,9 @@
       <div class="home-hero-text col-12 col-lg-auto ms-lg-auto text-white">
         <hgroup>
           <p class="home-hero-title"><span class="home-hero-br-xs">Chicken that</span> <span class="home-hero-br-sm">tastes</span> <span class="home-hero-br-xs">like</span> <span class="home-hero-accent">chicken</span>.</p>
-          <h1 class="home-hero-sub">Proudly pasture-raised in Foster, <span class="text-nowrap">Rhode Island</span>.</h1>
+          {{ $at := hugo.Data.company.address }}
+          {{ $state := index (where hugo.Data.delivery.area.states "code" $at.state) 0 }}
+          <h1 class="home-hero-sub">Proudly pasture-raised in {{ $at.city }}, <span class="text-nowrap">{{ $state.name }}</span>.</h1>
         </hgroup>
         <div class="home-hero-actions">
           <a class="btn btn-hero btn-lg" href="{{ relURL "order/" }}">Order now</a>
