@@ -5,42 +5,54 @@
   {{ $instagram := hugo.Data.socialMedia.instagram.url }}
   <section class="contact">
     <div class="page container py-5">
-      {{ partial "page-heading.html" . }}
-      <p class="lead mb-4">
-        Call, text, email, message us on Instagram, or use our
-        <a href="#contact-form">contact form</a>.
-      </p>
-
-      <div class="row g-4 g-lg-5">
-        {{/* The ways to reach the farm; on a phone they come first,
-             the form under them. */}}
-        <div class="col-lg-5">
-          <dl class="contact-ways mb-0">
-            <dt>Call or text</dt>
-            <dd><a href="{{ $phone.href }}">{{ $phone.display }}</a></dd>
-            <dt>Email</dt>
-            <dd><a href="mailto:{{ $email }}">{{ $email }}</a></dd>
-            <dt>Instagram</dt>
-            <dd><a href="{{ $instagram }}" target="_blank" rel="noopener">@{{ path.Base $instagram }}</a></dd>
-            <dt>The farm</dt>
-            <dd>
-              {{ $address.street }}<br>
-              {{ $address.city }}, {{ $address.state }} {{ $address.zip }}<br>
-              {{ partial "directions.html" $address.directions }}
-              <p class="contact-note">
-                Visits and pickup are by appointment. Choose on-farm
-                pickup on the <a href="{{ relURL "order/" }}">order page</a>,
-                or ask us here.
-              </p>
-            </dd>
-          </dl>
+      {{/* A rail of the ways to reach the farm and a main column of
+           the heading and the form, a rule between them, as on the
+           order page. Stacked below lg: the heading, then the ways,
+           then the form (_contact.scss). */}}
+      <div class="contact-layout mb-5">
+        <div class="contact-head">
+          {{ partial "page-heading.html" . }}
+          <p class="lead mb-4">
+            Call, text, email, message us on Instagram, or use our
+            <a href="#contact-form">contact form</a>.
+          </p>
         </div>
 
-        <div class="col-lg-7">
+        <div class="contact-rail">
+          <dl class="contact-ways">
+            <div>
+              <dt>Call or text</dt>
+              <dd><a href="{{ $phone.href }}">{{ $phone.display }}</a></dd>
+            </div>
+            <div>
+              <dt>Email</dt>
+              <dd><a href="mailto:{{ $email }}">{{ $email }}</a></dd>
+            </div>
+            <div>
+              <dt>Instagram</dt>
+              <dd><a href="{{ $instagram }}" target="_blank" rel="noopener">@{{ path.Base $instagram }}</a></dd>
+            </div>
+            <div>
+              <dt>The farm</dt>
+              <dd>
+                {{ $address.street }}<br>
+                {{ $address.city }}, {{ $address.state }} {{ $address.zip }}
+              </dd>
+              <dd class="contact-directions">{{ partial "directions.html" $address.directions }}</dd>
+            </div>
+          </dl>
+          <p class="contact-note">
+            Visits and pickup are by appointment. Choose on-farm
+            pickup on the <a href="{{ relURL "order/" }}">order page</a>,
+            or ask us here.
+          </p>
+        </div>
+
+        <div class="contact-main">
           {{/* The form follows the order page's horizontal layout
                (partials/order/customer.html): a label column, a field
                column, the same .form-control and .invalid-feedback. */}}
-          <form class="contact-card" id="contact-form" novalidate>
+          <form id="contact-form" novalidate>
             <h2 class="h4">Send us a message</h2>
             <div class="alert alert-danger" role="alert" data-contact-error hidden></div>
             <div class="order-hform">
@@ -93,7 +105,7 @@
             </div>
           </form>
 
-          <div class="contact-card" id="contact-sent" role="status" aria-live="polite" hidden>
+          <div id="contact-sent" role="status" aria-live="polite" hidden>
             <h2 class="h4">Thanks, we have it</h2>
             <p class="mb-0">
               Your message is on its way to the farm. We'll answer by
