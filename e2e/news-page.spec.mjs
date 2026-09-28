@@ -1,5 +1,5 @@
 // The news list (#143): posts under a heading per year, a picture or
-// a leaf card on each, ten a page, the next page appended as the
+// a card with the mark on each, ten a page, the next page appended as the
 // reader nears the end, and the pager for anyone without scripts.
 // Captions sit plainly under framed photos (83de703).
 // docs/qa-launch.md, "The autumn refresh".
@@ -109,27 +109,25 @@ test.describe("news page (#143)", () => {
       await expect(items(page)).toHaveCount(9);
     });
 
-  test("each post has a picture or a leaf, and a leaf stays put",
+  test("each post has a picture or the mark, the same on every card",
     async ({ page }) => {
-      const leaves = async () => {
-        await page.goto("/news/");
-
-        return items(page).evaluateAll((els) => els.map((el) => ({
-          href: el.querySelector(".news-item-title a").getAttribute("href"),
-          img: !!el.querySelector(".news-thumb img"),
-          leaf: el.querySelector(".news-leaf svg")?.outerHTML || null,
-        })));
-      };
-      const first = await leaves();
+      await page.goto("/news/");
+      const first = await items(page).evaluateAll((els) => els.map((el) => ({
+        href: el.querySelector(".news-item-title a").getAttribute("href"),
+        img: !!el.querySelector(".news-thumb img"),
+        mark: el.querySelector(".news-mark svg")?.outerHTML || null,
+      })));
 
       for (const post of first) {
-        expect(post.img || !!post.leaf, post.href).toBe(true);
+        expect(post.img || !!post.mark, post.href).toBe(true);
       }
       expect(first.some((p) => p.img), "some posts have pictures")
         .toBe(true);
-      expect(first.some((p) => p.leaf), "some posts have leaves")
-        .toBe(true);
-      expect(await leaves()).toEqual(first);
+      const marks = first.filter((p) => p.mark).map((p) => p.mark);
+
+      expect(marks.length, "some posts have the mark").toBeGreaterThan(0);
+      // #222: one mark, never varied from card to card.
+      expect(new Set(marks).size).toBe(1);
 
       // Pictures are 4:3 and load.
       for (const img of await page.locator(".news-thumb img").all()) {
