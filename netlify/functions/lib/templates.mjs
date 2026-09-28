@@ -1659,6 +1659,7 @@ const MESSAGES_SHOWN = 30;
 
 export const farmMorningReport = (stats, pickups, {
   date, links, now = clock(), schedule = null, archived = [], messages = [],
+  square = null,
 } = {}) => {
   const title = `Morning report: ${label(date)}`;
   const blocks = [
@@ -1692,6 +1693,17 @@ export const farmMorningReport = (stats, pickups, {
         "can see or buy it, but stock shows it on hand:"),
       archivedRows(archived),
       ...archivedFix()
+    );
+  }
+  // What the day's Square sweeps found (#241). Draft wording.
+  if (square && square.open) {
+    blocks.push(
+      heading("Left in Square"),
+      p(`A failed payment left ${square.open} order${
+        square.open === 1 ? "" : "s"} open in Square${square.cancelled
+        ? `, and ${square.cancelled} ${square.cancelled === 1 ? "was" : "were"
+        } cancelled` : ""}. To see them:`),
+      command("bin/nff jobs square")
     );
   }
   if (pickups.length) {
