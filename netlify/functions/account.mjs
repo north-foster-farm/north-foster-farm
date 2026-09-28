@@ -2,6 +2,8 @@
 // state changes must come from this site.
 //
 //   GET   /api/account/orders                 the customer's orders
+//   GET   /api/account/cart                   the cart across devices
+//   PUT   /api/account/cart                   { payload, savedAt }
 //   POST  /api/account/orders/:id/cancel
 //   POST  /api/account/orders/:id/change      { date, onfarm, delivery,
 //                                               notes, and for a scheduled
@@ -22,8 +24,8 @@
 //                                             is the account's address
 
 import {
-  cancelOrder, changeOrder, listOrders, requestReturn, saveAddress,
-  sendSupport, updateProfile,
+  cancelOrder, changeOrder, getCart, listOrders, requestReturn, saveAddress,
+  saveCart, sendSupport, updateProfile,
 } from "./lib/account.mjs";
 import { now as clock } from "./lib/clock.mjs";
 import { editOrder } from "./lib/edit.mjs";
@@ -92,6 +94,10 @@ export const handle = async (req, {
     return answer(await listOrders(stores, customer, { now }));
   }
 
+  if (req.method === "GET" && path === "/api/account/cart") {
+    return answer(await getCart(stores, customer));
+  }
+
   if (req.method === "GET") return json(404, { error: "Not found." });
   if (!sameSite(req)) return json(403, { error: "Cross-site request." });
 
@@ -130,6 +136,10 @@ export const handle = async (req, {
     return result.ok
       ? json(200, { ok: true, customer: publicCustomer(result.customer) })
       : answer(result);
+  }
+
+  if (req.method === "PUT" && path === "/api/account/cart") {
+    return answer(await saveCart(stores, customer, body, { now }));
   }
 
   if (req.method === "PUT" && path === "/api/account/address") {

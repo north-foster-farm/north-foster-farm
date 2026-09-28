@@ -11,6 +11,13 @@
 const DRAFT = "nff-order-draft";
 const PENDING = "nff-order-pending";
 
+// Tells the account's copy of the cart that this one changed (#149;
+// session/cart-sync.js). Only the cart draft; a change to a paid order
+// stays on this device.
+const announce = (draft) => {
+  if (draft.name === DRAFT) window.dispatchEvent(new CustomEvent("nff:draft"));
+};
+
 const read = (key) => {
   try {
     const raw = window.localStorage.getItem(key);
@@ -73,11 +80,36 @@ export class Draft {
 
   save(payload) {
     this.put({ ...this.current(), payload, savedAt: Date.now() });
+    announce(this);
   }
 
   clear() {
     this.memory = null;
     write(this.name, null);
+    announce(this);
+  }
+
+  // The account's copy of the cart, from another device: its payload
+  // and time, keeping this device's submission key. No payload means
+  // that cart was cleared. The next payment attempt is a new one.
+  adopt(cart) {
+    if (!cart.payload) {
+      this.memory = null;
+      write(this.name, null);
+
+      return;
+    }
+    this.put({
+      ...this.current(), payload: cart.payload, savedAt: cart.savedAt,
+    });
+    this.touch();
+  }
+
+  // The time the account keeps for this draft, when it differs.
+  restamp(savedAt) {
+    const current = this.current();
+
+    if (current.payload) this.put({ ...current, savedAt });
   }
 
   // One key per submission, kept across retries and attempts.

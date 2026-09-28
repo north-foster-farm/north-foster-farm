@@ -14,6 +14,7 @@ import { wireNewsSignup } from "./news/signup.js";
 import { wireSchedule } from "./schedule/schedule.js";
 import { wireSearch } from "./search/palette.js";
 import { wireVideos } from "./video/video.js";
+import { wireCartSync } from "./session/cart-sync.js";
 import { Session } from "./session/session.js";
 import { retireTopBar } from "./top-bar/top-bar.js";
 import { Touchable } from "./touchable/touchable.js";
@@ -27,6 +28,7 @@ wireSchedule();
 // this one and announces its first count before that event.
 wireCartBadge();
 wireMiniCart();
+wireCartSync();
 Touchable.addTouchedListener();
 // The account menu opens on hover where there is a pointer to hover
 // with, and stays open under it; a tap still toggles it.
