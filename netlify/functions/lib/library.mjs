@@ -597,7 +597,7 @@ const APPROVED = {
   "order-cancelled-missed-fee-kept": C4,
   "order-cancelled-missed-full-refund": C4,
   "order-cancelled-hold-fee-kept": `${C4} Sent by the job that ends ` +
-    "the hold, still to build (#193).",
+    "the hold (#193).",
   "order-cancelled-hold-full-refund": `${C4} As above.`,
   "farm-support": T5A,
   "farm-refund-needed": T5A,
@@ -630,8 +630,8 @@ const WAITING = {
   "order-changed-refunded": `${T4} Its refund line he kept (T3).`,
   "farm-order-changed": `He approved it on 2026-09-26; since then ${T4}`,
   "address-denied": `${LANDED}, verbatim.`,
-  "missed-delivery-fee-kept": `${C3}${REASON} Not sent yet: the send, ` +
-    "the hold and redelivery\x27s second fee wait on #193.",
+  "missed-delivery-fee-kept": `${C3}${REASON} Sent by ` +
+    "bin/nff orders attempted for the customer\x27s miss (#193).",
   "missed-delivery-no-fee": `${C3}${REASON} A waived miss gets the ` +
     "same seven-day hold (C8b).",
   "missed-delivery-no-access": `${C3}${REASON} The words in brackets ` +
@@ -639,7 +639,8 @@ const WAITING = {
   "missed-delivery-no-address": `${C3}${REASON} The address is the one ` +
     "the customer gave.",
   "moved-delivery-weather": `${C3} It offers another day as well as ` +
-    "pickup or a refund (C7b, 2026-09-28).",
+    "pickup or a refund (C7b, 2026-09-28). Sent by bin/nff orders attempted " +
+    "for a weather or farm miss, which moves the order (#193).",
   "moved-delivery-farm": C3,
   "farm-order-placed-onfarm": `He approved it on 2026-09-26. ${W11D} ` +
     "The confirm and deny commands are gone from it.",
