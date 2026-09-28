@@ -70,6 +70,7 @@ const plugins = [
         "data-row-start",
         "data-playing",
         "data-idle",
+        "data-reveal",
         "role",
         "option",
         "aria-selected",

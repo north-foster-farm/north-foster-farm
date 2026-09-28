@@ -1,10 +1,10 @@
 // The home hero's coop video. The photograph under it is its poster,
 // so nothing loads until that has painted; the clip then plays while
 // the hero is on screen, where Autoplay allows, and fades in over the
-// photograph once frames are coming. A pause offers, once, to stop
-// every video on the site playing on its own.
+// photograph once frames are coming. Beside its button, the switch for
+// whether every video on the site plays on its own.
 
-import { Autoplay, autoplayOffer, fadeWhenIdle } from "../video/video.js";
+import { Autoplay, autoplaySwitch, fadeWhenIdle } from "../video/video.js";
 
 // Two frames on, the poster is on screen, not only decoded.
 const afterPaint = (img) => img.decode()
@@ -20,13 +20,14 @@ export const wireHeroVideo = () => {
 
   const video = hero.querySelector("video");
   const toggle = hero.querySelector("[data-hero-toggle]");
-  const note = autoplayOffer(hero.querySelector("[data-autoplay-note]"));
+  const autoplay = autoplaySwitch(hero);
 
   // The visitor paused it: it stays paused. The visitor started it:
   // it plays again when back on screen, whatever the preference.
   let held = false;
   let started = false;
   let loaded = false;
+  let onScreen = false;
 
   const play = () => {
     if (!loaded) {
@@ -44,7 +45,6 @@ export const wireHeroVideo = () => {
 
     hero.dataset.playing = playing ? "true" : "false";
     toggle.setAttribute("aria-label", playing ? "Pause video" : "Play video");
-    if (playing) note.hide();
   };
 
   video.addEventListener("play", show);
@@ -54,6 +54,7 @@ export const wireHeroVideo = () => {
   });
 
   toggle.addEventListener("click", () => {
+    autoplay.reveal();
     if (video.paused) {
       held = false;
       started = true;
@@ -63,13 +64,16 @@ export const wireHeroVideo = () => {
     held = true;
     started = false;
     video.pause();
-    note.show();
   });
 
+  // Turned off, a clip playing on its own stops; turned on, it starts
+  // if it is on screen and the visitor did not pause it.
   document.addEventListener("nff:autoplay", (e) => {
-    if (e.detail.on) return;
-    started = false;
-    video.pause();
+    if (!e.detail.on) {
+      if (!started) video.pause();
+    } else if (!held && onScreen) {
+      play();
+    }
   });
 
   hero.querySelector("[data-hero-controls]").hidden = false;
@@ -80,6 +84,7 @@ export const wireHeroVideo = () => {
   afterPaint(hero.querySelector(".home-hero-img")).then(() => {
     // Play while on screen, pause once scrolled away.
     new IntersectionObserver(([{ isIntersecting }]) => {
+      onScreen = isIntersecting;
       if (!isIntersecting) {
         video.pause();
         return;

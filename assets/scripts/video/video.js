@@ -1,7 +1,7 @@
 // The site's own videos: short, silent clips that play on a loop once
 // they are on screen, with a play/pause button over each. Whether they
 // may start by themselves is one preference for the whole site, which
-// the offer after a pause sets, on any of them and the hero (#133).
+// the switch beside each button turns off and on again (#133, #200).
 
 const KEY = "nff:autoplay";
 
@@ -13,9 +13,12 @@ const held = new WeakSet();
 // whatever the preference.
 const started = new WeakSet();
 
+// Frames at least half on screen.
+const onScreen = new WeakSet();
+
 export const Autoplay = {
-  // Off when the visitor turned it off, asked their system for less
-  // motion, or asked their browser to save data.
+  // What the visitor chose, if they did. Otherwise off when they asked
+  // their system for less motion or their browser to save data.
   allowed() {
     let stored = null;
 
@@ -26,6 +29,7 @@ export const Autoplay = {
       // saved.
     }
     if (stored === "off") return false;
+    if (stored === "on") return true;
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
     if (navigator.connection && navigator.connection.saveData) return false;
 
@@ -44,28 +48,31 @@ export const Autoplay = {
   },
 };
 
-// The offer beside a video's button: after a pause, to stop every
-// video on the site playing on its own; then its answer. Nothing to
-// offer where videos already wait to be played.
-export const autoplayOffer = (note) => {
-  const offer = note.querySelector("[data-autoplay-offer]");
-  const done = note.querySelector("[data-autoplay-done]");
+// The switch beside a video's button, in step with the preference on
+// every video on the page. It says what a press will do. A press of
+// play or pause shows it (the frame's data-reveal), and it fades with
+// the controls; it is never taken out of the page, so the keyboard
+// and screen readers always reach it. Play and pause never change it.
+export const autoplaySwitch = (frame) => {
+  const button = frame.querySelector("[data-autoplay-switch]");
+  const words = button.querySelector("[data-autoplay-words]");
 
-  note.querySelector("[data-autoplay-off]").addEventListener("click", () => {
-    Autoplay.set(false);
-    offer.hidden = true;
-    done.hidden = false;
+  const show = () => {
+    const on = Autoplay.allowed();
+
+    button.setAttribute("aria-checked", on ? "true" : "false");
+    words.textContent = on ? "Turn autoplay off" : "Turn autoplay on";
+  };
+
+  button.addEventListener("click", () => {
+    Autoplay.set(!Autoplay.allowed());
   });
+  document.addEventListener("nff:autoplay", show);
+  show();
 
   return {
-    show() {
-      if (!Autoplay.allowed()) return;
-      offer.hidden = false;
-      done.hidden = true;
-      note.hidden = false;
-    },
-    hide() {
-      note.hidden = true;
+    reveal() {
+      frame.dataset.reveal = "true";
     },
   };
 };
@@ -74,7 +81,9 @@ const IDLE_MS = 5000;
 
 // The controls fade almost away five seconds after the last touch,
 // tap or mouse movement on the video, and come back with the next.
-// Returns the wake, for when the video comes back on screen.
+// The autoplay switch fades with them and waits for the next press of
+// play or pause. Returns the wake, for when the video comes back on
+// screen.
 export const fadeWhenIdle = (frame) => {
   let timer;
 
@@ -83,6 +92,7 @@ export const fadeWhenIdle = (frame) => {
     clearTimeout(timer);
     timer = setTimeout(() => {
       frame.dataset.idle = "true";
+      delete frame.dataset.reveal;
     }, IDLE_MS);
   };
 
@@ -99,7 +109,7 @@ const wakes = new WeakMap();
 const wire = (frame, observer) => {
   const video = frame.querySelector("video");
   const toggle = frame.querySelector("[data-video-toggle]");
-  const note = autoplayOffer(frame.querySelector("[data-autoplay-note]"));
+  const autoplay = autoplaySwitch(frame);
 
   wakes.set(frame, fadeWhenIdle(frame));
 
@@ -108,12 +118,12 @@ const wire = (frame, observer) => {
 
     frame.dataset.playing = playing ? "true" : "false";
     toggle.setAttribute("aria-label", playing ? "Pause video" : "Play video");
-    if (playing) note.hide();
   };
 
   video.addEventListener("play", show);
   video.addEventListener("pause", show);
   toggle.addEventListener("click", () => {
+    autoplay.reveal();
     if (video.paused) {
       held.delete(frame);
       started.add(frame);
@@ -122,7 +132,6 @@ const wire = (frame, observer) => {
       held.add(frame);
       started.delete(frame);
       video.pause();
-      note.show();
     }
   });
   show();
@@ -140,9 +149,11 @@ export const wireVideos = () => {
       const video = target.querySelector("video");
 
       if (!isIntersecting) {
+        onScreen.delete(target);
         video.pause();
         continue;
       }
+      onScreen.add(target);
       wakes.get(target)();
       if (started.has(target)
         || (!held.has(target) && Autoplay.allowed())) {
@@ -153,8 +164,17 @@ export const wireVideos = () => {
 
   for (const frame of frames) wire(frame, observer);
 
+  // Turned off, whatever plays on its own stops; turned on, what is on
+  // screen and not paused by the visitor starts.
   document.addEventListener("nff:autoplay", (e) => {
-    if (e.detail.on) return;
-    for (const frame of frames) frame.querySelector("video").pause();
+    for (const frame of frames) {
+      const video = frame.querySelector("video");
+
+      if (!e.detail.on) {
+        if (!started.has(frame)) video.pause();
+      } else if (!held.has(frame) && onScreen.has(frame)) {
+        video.play().catch(() => {});
+      }
+    }
   });
 };

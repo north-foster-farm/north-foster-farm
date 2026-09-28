@@ -124,31 +124,34 @@ test.describe("about (#144)", () => {
     expect(await video.evaluate((v) => v.paused)).toBe(true);
   });
 
-  // James, 2026-09-25: every video offers what the hero does after a
-  // pause, and the choice holds for the whole site.
-  test("a pause offers to stop autoplay site-wide", async ({ page }) => {
-    await page.goto("/about/");
+  // James, 2026-09-25: every video has what the hero has beside its
+  // button, and the choice holds for the whole site. #200: a two-way
+  // switch, shown by a press of play or pause.
+  test("the autoplay switch turns it off and on site-wide",
+    async ({ page }) => {
+      await page.goto("/about/");
 
-    const { frame, video, toggle } = clip(page);
-    const note = frame.locator("[data-autoplay-note]");
+      const { frame, video, toggle } = clip(page);
+      const autoplay = frame.locator("[data-autoplay-switch]");
 
-    await onScreen(page, frame);
-    await expect.poll(() => playing(video)).toBe(true);
-    await expect(note).toBeHidden();
-    await toggle.click();
-    await expect(note).toBeVisible();
-    await expect(note.locator("[data-autoplay-offer]")).toHaveText(
-      "Turn off autoplay"
-    );
-    await note.getByRole("button", { name: "Turn off autoplay" }).click();
-    await expect(note.locator("[data-autoplay-done]")).toBeVisible();
-    expect(await page.evaluate(() => localStorage.getItem("nff:autoplay")))
-      .toBe("off");
+      await onScreen(page, frame);
+      await expect.poll(() => playing(video)).toBe(true);
+      await expect(autoplay).toHaveCSS("opacity", "0");
+      await toggle.click();
+      await expect(autoplay).toHaveCSS("opacity", "1");
+      await expect(autoplay).toHaveAttribute("aria-checked", "true");
+      await expect(autoplay).toHaveText(/^Turn autoplay off/);
+      await autoplay.click();
+      await expect(autoplay).toHaveAttribute("aria-checked", "false");
+      await expect(autoplay).toHaveText(/^Turn autoplay on/);
+      expect(await page.evaluate(() => localStorage.getItem("nff:autoplay")))
+        .toBe("off");
 
-    // Playing again takes the note away.
-    await toggle.click();
-    await expect(note).toBeHidden();
-  });
+      // Playing this clip leaves the preference off.
+      await toggle.click();
+      await expect.poll(() => playing(video)).toBe(true);
+      await expect(autoplay).toHaveAttribute("aria-checked", "false");
+    });
 
   for (const [how, setup] of [
     ["reduced motion", (page) => page.emulateMedia({

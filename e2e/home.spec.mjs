@@ -187,7 +187,7 @@ test.describe("home", () => {
   });
 
   // #133: the coop clip plays behind the hero over its photograph, and
-  // a pause offers to stop every video on the site playing by itself.
+  // a switch beside its button turns autoplay off and on site-wide.
   test.describe("hero video (#133)", () => {
     const hero = (page) => {
       const root = page.locator("[data-hero-video]");
@@ -197,7 +197,7 @@ test.describe("home", () => {
         img: root.locator(".home-hero-img"),
         video: root.locator("video"),
         toggle: root.locator("[data-hero-toggle]"),
-        note: root.locator("[data-autoplay-note]"),
+        autoplay: root.locator("[data-autoplay-switch]"),
       };
     };
 
@@ -253,11 +253,15 @@ test.describe("home", () => {
         expect(size, `${src} under 1.5 MB`).toBeLessThan(1.5 * 1024 * 1024);
       });
 
-    test("a pause offers to stop autoplay, and the choice holds site-wide",
+    // #200: a two-way switch, shown by a press of play or pause, faded
+    // with the controls, and always in the page for the keyboard.
+    test("the autoplay switch turns it off and on, and holds site-wide",
       async ({ page, isMobile }) => {
         await page.goto("/");
 
         const h = hero(page);
+        const off = { name: "Turn autoplay off for every video on this site" };
+        const on = { name: "Turn autoplay on for every video on this site" };
 
         await expect.poll(() => playing(h.video)).toBe(true);
         if (!isMobile) {
@@ -265,29 +269,35 @@ test.describe("home", () => {
           await page.waitForTimeout(400);
           await expect(h.toggle).toHaveCSS("opacity", "1");
         }
+
+        // Unseen until play or pause is pressed, but in the page.
+        await expect(h.autoplay).toHaveCSS("opacity", "0");
+        await expect(page.getByRole("switch", off)).toHaveAttribute(
+          "aria-checked", "true"
+        );
+
         await expect(h.toggle).toHaveAttribute("aria-label", "Pause video");
         await h.toggle.click();
         await expect(h.root).toHaveAttribute("data-playing", "false");
         await expect(h.toggle).toHaveAttribute("aria-label", "Play video");
-        const offer = h.note.locator("[data-autoplay-offer]");
-        const done = h.note.locator("[data-autoplay-done]");
+        await expect(h.autoplay).toHaveCSS("opacity", "1");
+        await expect(h.autoplay).toHaveText(/^Turn autoplay off/);
 
-        await expect(h.note).toBeVisible();
-        await expect(offer).toBeVisible();
-        await expect(offer).toHaveText(
-          "Turn off autoplay"
-        );
-        await expect(done).toBeHidden();
+        // Pausing changed nothing site-wide.
+        expect(await page.evaluate(() => localStorage.getItem("nff:autoplay")))
+          .toBe(null);
 
-        await offer.getByRole("button", { name: "Turn off autoplay" })
-          .click();
-        await expect(offer).toBeHidden();
-        await expect(done).toBeVisible();
-        await expect(done).toHaveText(
-          "Videos here will wait for you to press play."
+        await page.getByRole("switch", off).click();
+        await expect(page.getByRole("switch", on)).toHaveAttribute(
+          "aria-checked", "false"
         );
         expect(await page.evaluate(() => localStorage.getItem("nff:autoplay")))
           .toBe("off");
+
+        // Five seconds idle, it fades with the controls.
+        await page.mouse.move(0, 0);
+        await page.waitForTimeout(6_500);
+        await expect(h.autoplay).toHaveCSS("opacity", "0");
 
         // After a reload the photograph stays and nothing is fetched.
         const clips = clipRequests(page);
@@ -300,21 +310,35 @@ test.describe("home", () => {
         await expect(h.toggle).toBeVisible();
         await expect(h.toggle).toHaveCSS("opacity", "1");
 
-        // A pause now offers nothing: there is nothing left to turn off.
+        // Play shows the switch, still off: playing one clip leaves the
+        // preference alone.
         await h.toggle.click();
         await expect.poll(() => playing(h.video)).toBe(true);
-        await h.toggle.click();
-        await expect(h.note).toBeHidden();
+        await expect(h.autoplay).toHaveCSS("opacity", "1");
+        await expect(page.getByRole("switch", on)).toHaveAttribute(
+          "aria-checked", "false"
+        );
+        expect(await page.evaluate(() => localStorage.getItem("nff:autoplay")))
+          .toBe("off");
 
-        // The about page's clip follows the same choice.
+        // The about page's clip follows the same choice, and its own
+        // switch turns autoplay back on, which starts it.
         await page.goto("/about/");
 
         const clip = page.locator("[data-video]").first();
+        const video = clip.locator("video");
 
         await clip.evaluate((el) => el.scrollIntoView({ block: "center" }));
         await page.waitForTimeout(1_500);
-        expect(await clip.locator("video").evaluate((v) => v.paused))
-          .toBe(true);
+        expect(await video.evaluate((v) => v.paused)).toBe(true);
+        await clip.getByRole("switch", on).focus();
+        await page.keyboard.press("Space");
+        await expect(clip.getByRole("switch", off)).toHaveAttribute(
+          "aria-checked", "true"
+        );
+        expect(await page.evaluate(() => localStorage.getItem("nff:autoplay")))
+          .toBe("on");
+        await expect.poll(() => playing(video)).toBe(true);
       });
 
     test("the play button can be reached by keyboard", async ({ page }) => {
@@ -331,6 +355,13 @@ test.describe("home", () => {
       await expect(h.toggle).toHaveCSS("opacity", "1");
       await page.keyboard.press("Enter");
       await expect(h.root).toHaveAttribute("data-playing", "false");
+
+      // The autoplay switch is next, and shows when focused even after
+      // the controls have faded.
+      await page.waitForTimeout(6_500);
+      await page.keyboard.press("Tab");
+      await expect(h.autoplay).toBeFocused();
+      await expect(h.autoplay).toHaveCSS("opacity", "1");
     });
 
     test("with reduced motion the photograph stays until play",
@@ -350,9 +381,9 @@ test.describe("home", () => {
 
         await h.toggle.click();
         await expect.poll(() => playing(h.video)).toBe(true);
-        // Nothing to offer where videos already wait to be played.
-        await h.toggle.click();
-        await expect(h.note).toBeHidden();
+        // Autoplay reads as off, and a press turns it on.
+        await expect(h.autoplay).toHaveAttribute("aria-checked", "false");
+        await expect(h.autoplay).toHaveText(/^Turn autoplay on/);
       });
   });
 

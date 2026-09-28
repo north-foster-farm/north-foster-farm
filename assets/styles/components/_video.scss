@@ -43,9 +43,8 @@
   display: none;
 }
 
-// In the corner: the button, and beside it the offer after a pause.
-// Both sit on the bottom line, so the button never moves when the
-// offer's answer runs to two lines on a phone.
+// In the corner: the button, and beside it the autoplay switch. Both
+// sit on the bottom line.
 .video-controls {
   position: absolute;
   right: 0.75rem;
@@ -71,39 +70,39 @@
   opacity: 0.12;
 }
 
-// The offer to stop videos playing on their own, on every video and
-// the home page's hero: a pill as tall as the button, the whole of it
-// the offer's button.
-.video-note {
-  display: flex;
-  align-items: center;
+// The autoplay switch, on every video and the home page's hero: a pill
+// as tall as the button. Unseen and untouchable until a press of play
+// or pause reveals it, then gone again with the controls' fade; the
+// keyboard can reach it at any time, and focus shows it.
+.video-autoplay {
   min-height: 2.75rem;
-  margin: 0;
+  padding: 0 0.875rem;
+  border: 0;
   border-radius: var(--bs-border-radius);
   background: rgb(0 0 0 / 55%);
   color: $white;
   font-size: 0.875rem;
-  line-height: 1.35;
-}
-
-.video-note-btn {
-  min-height: 2.75rem;
-  padding: 0 0.875rem;
-  border: 0;
-  background: none;
-  color: inherit;
   font-weight: bold;
+  line-height: 1.35;
   text-decoration: underline;
   text-underline-offset: 0.18em;
+  opacity: 0;
+  transition: opacity 0.6s ease;
 
   &:focus-visible {
     outline: 2px solid #fff;
     outline-offset: -4px;
+    opacity: 1;
   }
 }
 
-.video-note-done {
-  padding: 0.375rem 0.875rem;
+.video-controls > .video-autoplay:not(:focus-visible) {
+  pointer-events: none;
+}
+
+.video-frame[data-reveal="true"] .video-controls > .video-autoplay {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .video-frame[data-playing="true"] {
@@ -117,7 +116,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .video-controls {
+  .video-controls,
+  .video-autoplay {
     transition: none;
   }
 }
