@@ -378,8 +378,9 @@ grouped is a visual judgement.
 - **Test:**
   1. Measure the legend's bottom margin and the hint's inline style.
   2. Where labels stack, measure label-to-field and field-to-next-label.
-  3. By eye at 575 and on an iPhone: "Marketing opt-in" belongs to its
-     checkbox, not the phone above.
+  3. By eye at 575 and on an iPhone: the farm-news checkbox reads as
+     part of the Email field, closer to it than to the next field
+     (#228).
 - **Assert:** Margin 6px; no `-12px` inline margin; the gap between
   groups is larger than the gap inside one.
 - **Teardown:** None.

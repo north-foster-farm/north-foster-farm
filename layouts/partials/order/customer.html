@@ -24,17 +24,14 @@
       <div class="col-sm-9">
         <input class="form-control" type="email" id="customer-email" name="customer.email" autocomplete="email" inputmode="email" required data-field="customer.email" data-prefill="email" aria-describedby="err-customer-email">
         <div class="invalid-feedback" id="err-customer-email" data-error-for="customer.email"></div>
-      </div>
-    </div>
-    {{/* Farm news is opt-in only: the box starts unticked, a ticked
-         box joins the list when the order is placed, with no
-         confirmation email (W1), and an unticked box changes nothing
-         on a record that already says yes. The account page's
-         settings tab has the same box. */}}
-    <div class="row">
-      <span class="col-sm-3 col-form-label">Marketing opt-in</span>
-      <div class="col-sm-9">
-        <div class="form-check order-check">
+        {{/* Farm news is opt-in only: the box starts unticked, a
+             ticked box joins the list when the order is placed, with
+             no confirmation email (W1), and an unticked box changes
+             nothing on a record that already says yes. The account
+             page's settings tab has the same box. It sits under the
+             email as part of that field, not as a row of its own
+             (#228). */}}
+        <div class="form-check order-optin">
           <input class="form-check-input" type="checkbox" id="customer-marketing" name="customer.marketing" data-field="customer.marketing">
           <label class="form-check-label" for="customer-marketing">I want to get email from North Foster Farm.</label>
         </div>

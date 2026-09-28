@@ -482,12 +482,10 @@
     margin: 2.75rem 0 1rem;
   }
 
-  // Beside its label, the box lines up with the label's text; stacked
-  // under it, it follows at once.
-  @media (min-width: 576px) {
-    .order-check {
-      padding-top: 0.45rem;
-    }
+  // The farm-news box belongs to the email above it: closer to that
+  // field than one field is to the next (#228).
+  .order-optin {
+    margin: 0.25rem 0 0;
   }
 
   // The cart. Below xl it floats above the list while it scrolls and

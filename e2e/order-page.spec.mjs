@@ -41,10 +41,10 @@ test.describe("order page", () => {
       await order.open();
       await expect(page.locator(".order-rest > .order-section > legend"))
         .toHaveText(["Pickup or delivery", "Contact information", "Payment"]);
-      // Farm news stays right under the email it belongs to.
+      // Farm news sits in the email's own row, under the field (#228).
       expect(await page.locator("#customer-email").evaluate((el) =>
-        el.closest(".row").nextElementSibling
-          .querySelector("#customer-marketing") !== null)).toBe(true);
+        el.closest(".row").querySelector("#customer-marketing") !== null))
+        .toBe(true);
     });
 
   test("Add becomes a stepper and the cart itemizes the line",
