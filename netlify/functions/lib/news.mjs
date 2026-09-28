@@ -478,3 +478,40 @@ export const syncAudience = async (stores, {
 
   return report;
 };
+
+// One contact moved to a new address with its name and its choice,
+// for `bin/nff customers rename` (#238). Resend can't change a
+// contact's email, so the new one is made and the old one deleted;
+// where the new address is already a contact, that one stays as it
+// is. Left behind, the old contact would come back in the next sync
+// as a sign-up. -> "moved", "none" or "unconfigured"; with `apply`
+// false nothing is written.
+export const moveContact = async (from, to, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+  apply = false,
+} = {}) => {
+  if (!audienceConfigured(env)) return "unconfigured";
+
+  const id = env.RESEND_AUDIENCE_ID;
+  const contacts = await listContacts(env, fetchImpl);
+  const find = (email) =>
+    contacts.find((c) => normalizeEmail(c.email) === email);
+  const old = find(from);
+
+  if (!old) return "none";
+  if (apply) {
+    if (!find(to)) {
+      await resend(env, fetchImpl, "POST", `/audiences/${id}/contacts`, {
+        email: to,
+        first_name: old.first_name || "",
+        last_name: old.last_name || "",
+        unsubscribed: !!old.unsubscribed,
+      });
+    }
+    await resend(env, fetchImpl, "DELETE",
+      `/audiences/${id}/contacts/${encodeURIComponent(from)}`);
+  }
+
+  return "moved";
+};

@@ -6,15 +6,18 @@
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import { adjust, getCounts, setCount } from "./stock.mjs";
-import { LONG_LINK_TTL, requestLink } from "./auth.mjs";
+import {
+  LONG_LINK_TTL, normalizeEmail, requestLink, validEmail,
+} from "./auth.mjs";
 import { sendMail } from "./mail.mjs";
+import * as newsApi from "./news.mjs";
 import { confirmOrder, recordRefund, sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
-  OPEN, allCustomers, allOrders, amendOrder, answerQuestion, deleteCustomer,
-  deleteOrder, getCustomer, getOrder, keptFee, needsAgreement, openOrders,
-  ordersFor, paidTotal, paymentRef, paymentsOf, questionOpen, refundedTotal,
-  refundsOf, saveCustomer, setStatus,
+  OPEN, allCustomers, allOrders, amendOrder, answerQuestion, byEmailKey,
+  deleteCustomer, deleteOrder, getCustomer, getOrder, keptFee, listCheckouts,
+  needsAgreement, openOrders, ordersFor, paidTotal, paymentRef, paymentsOf,
+  questionOpen, refundedTotal, refundsOf, saveCustomer, setStatus,
 } from "./records.mjs";
 import { mailLinks, orderPathFor, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
@@ -56,6 +59,110 @@ export const setCustomer = async (stores, email, patch, money) => {
   }
 
   return saveCustomer(stores, next);
+};
+
+// A customer's email changed, from the CLI (#238): the record, every
+// order and its index, support messages, unsubscribe and farm-news
+// links, the Resend contact and the Square customer move to the new
+// address; sessions end and waiting sign-in links are voided, so the
+// next sign-in is with the new one. Refuses when the new address has
+// a record, or while a Venmo payment for the old one is under way.
+// With `apply` false it only reports what it would do.
+export const renameCustomer = async (stores, from, to, {
+  apply = false, env = process.env, fetchImpl = globalThis.fetch,
+  square = squareApi, news = newsApi, now = new Date(),
+} = {}) => {
+  const old = normalizeEmail(from);
+  const next = normalizeEmail(to);
+
+  if (!validEmail(next)) throw new Error(`"${to}" isn't an email address.`);
+  if (old === next) throw new Error("The two addresses are the same.");
+
+  const customer = need(await getCustomer(stores, old), "customer");
+
+  if (await getCustomer(stores, next)) {
+    throw new Error(`${next} already has an account. Nothing changed.`);
+  }
+  if ((await listCheckouts(stores)).some(
+    (c) => normalizeEmail(c.order && c.order.customer
+      && c.order.customer.email) === old
+  )) {
+    throw new Error(`A Venmo payment from ${old} is under way. Try again ` +
+      "once it has finished or lapsed (a day at most).");
+  }
+
+  const orders = await ordersFor(stores, old);
+  const auth = [];
+
+  for (const prefix of ["session/", "token/", "unsub/", "news/"]) {
+    for (const { key } of await stores.auth.list(prefix)) {
+      const value = await stores.auth.get(key);
+
+      if (value && normalizeEmail(value.email) === old) {
+        auth.push({ key, value });
+      }
+    }
+  }
+
+  const support = await stores.customers.list(`support/${old}/`);
+  const count = (prefix) => auth.filter((a) => a.key.startsWith(prefix))
+    .length;
+  const report = {
+    apply, from: old, to: next,
+    orders: orders.map((o) => o.id),
+    supportMessages: support.length,
+    sessionsEnded: count("session/"),
+    signInLinksVoided: count("token/"),
+    linksRepointed: count("unsub/") + count("news/"),
+  };
+  // The outside services are asked even on a dry run: reads only.
+  const outside = async (name, fn) => {
+    try {
+      report[name] = await fn();
+    } catch (error) {
+      report[name] = `not reached: ${error.message}`;
+    }
+  };
+
+  if (!apply) {
+    await outside("resend", () => news.moveContact(old, next, {
+      env, fetchImpl,
+    }));
+    await outside("square", () => square.renameCustomerEmail(old, next, {
+      env, fetchImpl,
+    }));
+
+    return report;
+  }
+
+  await saveCustomer(stores, { ...customer, email: next });
+  for (const order of orders) {
+    await amendOrder(stores, order.id, {
+      customer: { ...order.customer, email: next },
+    }, "email changed", now);
+    await stores.orders.delete(byEmailKey(old, order.id));
+  }
+  for (const { key } of support) {
+    await stores.customers.set(`support/${next}/${key.split("/").pop()}`,
+      await stores.customers.get(key));
+    await stores.customers.delete(key);
+  }
+  for (const { key, value } of auth) {
+    if (/^(session|token)\//.test(key)) {
+      await stores.auth.delete(key);
+    } else {
+      await stores.auth.set(key, { ...value, email: next });
+    }
+  }
+  await deleteCustomer(stores, old);
+  await outside("resend", () => news.moveContact(old, next, {
+    env, fetchImpl, apply: true,
+  }));
+  await outside("square", () => square.renameCustomerEmail(old, next, {
+    env, fetchImpl, apply: true,
+  }));
+
+  return report;
 };
 
 export const removeCustomer = async (stores, email) => {

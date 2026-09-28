@@ -635,3 +635,28 @@ export const getPayment = async (squarePaymentId, {
     refunded: payment.refunded_money ? payment.refunded_money.amount : 0,
   };
 };
+
+// Every Square customer under one email, moved to another, for
+// `bin/nff customers rename` (#238). -> the ids found; with `apply`
+// false nothing is written.
+export const renameCustomerEmail = async (from, to, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+  apply = false,
+} = {}) => {
+  const cfg = settings(env);
+  const found = await call(cfg, "/v2/customers/search", {
+    query: { filter: { email_address: { exact: from } } },
+    limit: 10,
+  }, fetchImpl);
+  const ids = (found.customers || []).map((c) => c.id);
+
+  if (apply) {
+    for (const id of ids) {
+      await call(cfg, `/v2/customers/${id}`, { email_address: to },
+        fetchImpl, "PUT");
+    }
+  }
+
+  return ids;
+};

@@ -19,6 +19,12 @@ const USAGE = `Usage:
   bin/nff customers show <email>
   bin/nff customers set <email> name=.. phone=.. group=friends|none
   bin/nff customers delete <email>
+  bin/nff customers rename <old> <new> [--apply]
+                                      a customer's email changed: the
+                                      record, orders, links, the Resend
+                                      contact and the Square customer
+                                      move; sessions end. A dry run
+                                      unless --apply
   bin/nff address approve|deny <email>
   bin/nff orders list [--open] [--status=paid] [--email=x]
   bin/nff orders show <id>
@@ -275,6 +281,10 @@ const run = async () => {
   case "customers set":
     return out(await admin.setCustomer(stores, rest[0], kv(rest.slice(1)),
       terms.money));
+  case "customers rename":
+    return out(await admin.renameCustomer(stores, rest[0], rest[1], {
+      apply: !!flags.apply,
+    }));
   case "customers delete":
     await admin.removeCustomer(stores, rest[0]);
 
