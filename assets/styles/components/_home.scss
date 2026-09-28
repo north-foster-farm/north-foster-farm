@@ -17,6 +17,9 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
   .home-update-card {
     --figure-band-bleed: 1rem;
 
+    // Centred in a flex column, it is as wide as its content; a photo
+    // not yet loaded must not make it wider than the column.
+    max-width: 100%;
     padding-inline: var(--figure-band-bleed);
     background-color: #fcfcfc;
 
@@ -304,7 +307,9 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     );
   }
 
-  // A column on a phone: the steps, the photo, the button (#230).
+  // A column on a phone: the steps, the photo, the button (#230). Its
+  // items may shrink below the photo's own width, which is all a photo
+  // not yet loaded has to size by.
   .how-grid {
     display: grid;
     grid-template-areas:
@@ -313,6 +318,10 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
       "cta";
     max-width: 520px;
     margin-inline: auto;
+
+    > * {
+      min-width: 0;
+    }
   }
 
   .how-steps {
