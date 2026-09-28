@@ -6,7 +6,7 @@
 import { pickupTimes, windowLabel } from "../order/lib/schedule.mjs";
 import { dollars } from "../order/lib/totals.mjs";
 import { label } from "../order/lib/zoned.mjs";
-import { forget } from "../session/session.js";
+import { forget, showChick } from "../session/session.js";
 import { api } from "../utils/api.js";
 
 const qs = (root, selector) => root.querySelector(selector);
@@ -20,6 +20,13 @@ const STATUS = {
   submitted: "Awaiting payment",
   abandoned: "Not paid",
 };
+
+// A finished order was delivered only if it went by delivery; the
+// rest were picked up (copy's #158 review; the wording is a draft).
+const statusOf = (order) => (order.status === "fulfilled"
+  && order.fulfilment && order.fulfilment.method !== "delivery"
+  ? "Picked up"
+  : STATUS[order.status]);
 
 // "Visa ending 4242", "Apple Pay", "Venmo".
 const paidWith = (payment) => {
@@ -179,16 +186,21 @@ class Account {
     this.autosave(document.getElementById("profile-form"),
       () => this.saveProfile(),
       (f) => f.firstName.trim() && f.lastName.trim());
-    // The chicken at the top changes the moment one is picked; the
-    // save that follows makes it stick.
-    document.getElementById("profile-form").addEventListener("change",
-      (e) => {
-        if (e.target.dataset.field === "avatar") {
-          qs(document, "#account-avatar use").setAttribute(
-            "href", `#avatar-${e.target.value}`
-          );
-        }
-      });
+    // The chicken saves the moment one is picked, on its own: saved
+    // with the names, it was lost whenever they were blank or another
+    // field was wrong (#238). The one at the top and the header's
+    // change at once.
+    const profile = document.getElementById("profile-form");
+
+    profile.addEventListener("change", (e) => {
+      if (e.target.dataset.field !== "avatar") return;
+
+      qs(document, "#account-avatar use").setAttribute(
+        "href", `#avatar-${e.target.value}`
+      );
+      showChick(document, e.target.value);
+      this.saving(profile, "avatar", () => this.saveAvatar(e.target.value));
+    });
     document.getElementById("support-form").addEventListener("submit",
       (e) => this.sendSupport(e));
   }
@@ -221,11 +233,12 @@ class Account {
   // A form that saves itself: a checkbox or radio as soon as it
   // changes, a text field when the customer leaves it, and Enter as
   // before. Nothing is sent while `ready` says the form is still
-  // being filled in, or when its values are the ones last sent.
+  // being filled in, or when its values are the ones last sent. The
+  // chicken saves on its own (saveAvatar), so it is left out here.
   autosave(form, save, ready) {
-    const status = qs(form, "[data-autosave]");
-    const idle = status.textContent;
-    const snapshot = () => JSON.stringify(all(form, "input, textarea")
+    const fields = () => all(form, "input, textarea")
+      .filter((f) => f.name !== "avatar");
+    const snapshot = () => JSON.stringify(fields()
       .map((f) => (f.type === "checkbox" || f.type === "radio"
         ? [f.name, f.value, f.checked]
         : [f.name, f.value])));
@@ -233,20 +246,14 @@ class Account {
       .filter((f) => f.type !== "checkbox" && f.type !== "radio")
       .map((f) => [f.dataset.field, f.value]));
     let last = null;
-    const run = async () => {
+    const run = async (e) => {
+      if (e && e.target && e.target.name === "avatar") return;
+
       const now = snapshot();
 
-      if (now === last) return;
-      if (!ready(values())) {
-        status.textContent = idle;
-
-        return;
-      }
+      if (now === last || !ready(values())) return;
       last = now;
-      status.textContent = "Saving…";
-      status.textContent = (await save())
-        ? "Saved."
-        : "Not saved yet. Check the fields above.";
+      await this.saving(form, e && e.target && e.target.name, save);
     };
 
     // The values are the saved ones once the page has filled them in,
@@ -259,6 +266,63 @@ class Account {
       e.preventDefault();
       run();
     });
+  }
+
+  // One save, told on the form's line (#238): "Saving…" with a
+  // spinner while it is out, "Saved 👍" for ten seconds, or "Failed
+  // to save: <why>" until the next save. A failure also goes to the
+  // console with the field that sent it. `save` resolves to { ok,
+  // error }.
+  async saving(form, field, save) {
+    this.saveLine(form, "saving", "Saving…");
+
+    let result;
+
+    try {
+      result = await save();
+    } catch (error) {
+      result = { ok: false, error: "we couldn't reach the farm's site. " +
+        "Check your connection." };
+      console.error("Account save failed", { field, error });
+    }
+
+    if (result.ok) {
+      this.saveLine(form, "saved", "Saved 👍");
+    } else {
+      console.error("Account save failed", { field, error: result.error });
+      this.saveLine(form, "failed", `Failed to save: ${result.error}`);
+    }
+
+    return result.ok;
+  }
+
+  saveLine(form, state, text) {
+    const line = qs(form, "[data-autosave]");
+
+    this.fades ||= new Map();
+    clearTimeout(this.fades.get(form));
+    line.classList.remove("is-fading");
+    line.dataset.save = state;
+    qs(line, "[data-save-text]").textContent = text;
+    if (state !== "saved") return;
+
+    this.fades.set(form, setTimeout(() => {
+      line.classList.add("is-fading");
+      this.fades.set(form, setTimeout(() => {
+        line.dataset.save = "";
+        qs(line, "[data-save-text]").textContent = "";
+        line.classList.remove("is-fading");
+      }, 600));
+    }, 10_000));
+  }
+
+  // What went wrong, in the words the server gave: the first field
+  // error, or its message, or a plain fallback.
+  static why(data) {
+    const errors = Object.values((data && data.errors) || {});
+
+    return errors[0] || (data && data.error)
+      || "something went wrong on our side. Try again.";
   }
 
   // Field errors from the API, next to the fields of one form. A form
@@ -374,29 +438,26 @@ class Account {
     });
 
     if (!ok) {
-      this.showErrors(form, data.errors, { focus: false });
+      this.showErrors(form, data && data.errors, { focus: false });
 
-      return false;
+      return { ok: false, error: Account.why(data) };
     }
 
+    // The save line says it saved; the address's own status line says
+    // whether we'll check it first.
     this.clearErrors(form);
     this.customer = data.customer;
     this.renderAddress();
-    this.say(data.customer.address.status === "approved"
-      ? "Address saved."
-      : "Address saved. We'll check it and email you.");
 
-    return true;
+    return { ok: true };
   }
 
   async saveProfile() {
     const form = document.getElementById("profile-form");
-    const avatar = qs(form, "[data-field='avatar']:checked");
     const body = {
       firstName: qs(form, "[data-field='firstName']").value,
       lastName: qs(form, "[data-field='lastName']").value,
       phone: qs(form, "[data-field='phone']").value,
-      avatar: avatar ? avatar.value : null,
       marketing: qs(form, "[data-field='marketing']").checked,
       reminders: Object.fromEntries(all(form, "[data-reminder]")
         .map((box) => [box.dataset.reminder, box.checked])),
@@ -406,9 +467,9 @@ class Account {
     });
 
     if (!ok) {
-      this.showErrors(form, data.errors, { focus: false });
+      this.showErrors(form, data && data.errors, { focus: false });
 
-      return false;
+      return { ok: false, error: Account.why(data) };
     }
 
     this.clearErrors(form);
@@ -416,7 +477,28 @@ class Account {
     this.renderHead();
     forget();
 
-    return true;
+    return { ok: true };
+  }
+
+  // The chicken alone, so a blank name or a wrong phone never holds it
+  // back. The header's cached answer is dropped so the next page asks
+  // again.
+  async saveAvatar(avatar) {
+    const form = document.getElementById("profile-form");
+    const { ok, data } = await api("/api/account/profile", {
+      method: "PATCH", body: { avatar },
+    });
+
+    if (!ok) {
+      this.showErrors(form, data && data.errors, { focus: false });
+
+      return { ok: false, error: Account.why(data) };
+    }
+
+    this.customer = data.customer;
+    forget();
+
+    return { ok: true };
   }
 
   async sendSupport(e) {
@@ -477,7 +559,7 @@ class Account {
     set("placed", placed(order.submittedAt));
     set("status", order.cancelRequested
       ? "Cancellation requested"
-      : (STATUS[order.status] || order.status));
+      : (statusOf(order) || order.status));
 
     // A booked pickup time the farm gave up asks them to pick again
     // (W11d).
@@ -775,7 +857,12 @@ class Account {
       }
 
       this.replaceOrder(data.order);
-      this.say("Cancelled. Your refund is on its way.");
+      // When the refund couldn't go through at once, the order is only
+      // flagged for the farm to refund (copy's #158 review; draft).
+      this.say(data.order.status === "cancelled"
+        ? "Cancelled. Your refund is on its way."
+        : "We've asked for this cancellation. We'll refund you the way " +
+          "you paid and email you when it's done.");
     });
 
     this.panel(card).appendChild(node);
@@ -859,7 +946,7 @@ class Account {
         cell(back >= payment.amount ? "Refunded" : `Refunded ${
           dollars(back)}`);
       } else {
-        cell(STATUS[order.status] || "");
+        cell(statusOf(order) || "");
       }
 
       const td = el("td");
@@ -871,10 +958,47 @@ class Account {
         a.target = "_blank";
         a.rel = "noopener";
         td.appendChild(a);
+      } else if (payment.method === "venmo") {
+        // PayPal gives Venmo no receipt link: ours, under the table.
+        const a = el("a", "", "Receipt");
+
+        a.href = "#receipt-card";
+        a.addEventListener("click", (e) => {
+          e.preventDefault();
+          this.showReceipt(order, payment);
+        });
+        td.appendChild(a);
       }
       tr.appendChild(td);
       body.appendChild(tr);
     }
+  }
+
+  // Our receipt for one Venmo payment (#238): what PayPal and the
+  // order hold, and the farm's name and address.
+  showReceipt(order, payment) {
+    const card = document.getElementById("receipt-card");
+    const set = (key, text) => {
+      qs(card, `[data-receipt="${key}"]`).textContent = text;
+    };
+    const row = (key, text) => {
+      const dt = qs(card, `[data-receipt-row="${key}"]`);
+
+      dt.hidden = !text;
+      dt.nextElementSibling.hidden = !text;
+      set(key, text || "");
+    };
+
+    document.getElementById("receipt-card-h").textContent =
+      `Receipt for ${order.id}`;
+    set("paid", payment.at ? placed(payment.at) : "");
+    set("amount", dollars(payment.amount));
+    row("payer", payment.payer);
+    row("capture", payment.paypalCaptureId
+      ? `PayPal ${payment.paypalCaptureId}` : "");
+    card.hidden = false;
+    card.focus({ preventScroll: true });
+    card.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 
   renderSupportOrders() {

@@ -1,6 +1,6 @@
 {{ define "main" }}
   {{ $data := dict "avatars" hugo.Data.avatars "terms" hugo.Data.delivery }}
-  {{ partial "avatars.html" . }}
+  {{/* The chickens' sprite comes with the header on every page. */}}
   <section class="{{ .Type }}">
     <script type="application/json" id="account-data">{{ $data | jsonify | safeJS }}</script>
     <div class="page container py-5">
@@ -39,7 +39,7 @@
 
           <section class="account-section" id="acct-receipts" data-section="receipts" aria-labelledby="acct-receipts-h" hidden>
             <h2 class="h4" id="acct-receipts-h">Receipts</h2>
-            <p class="text-body-secondary">Every payment, and the receipt for it. A Venmo payment's receipt is in the Venmo app.</p>
+            <p class="text-body-secondary">Every payment, and the receipt for it.</p>
             <table class="table account-table" id="receipts-table">
               <thead>
                 <tr><th scope="col">Order</th><th scope="col">Paid</th><th scope="col">Total</th><th scope="col">Paid with</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Link</span></th></tr>
@@ -47,6 +47,20 @@
               <tbody id="receipts-body"></tbody>
             </table>
             <p class="account-empty" id="receipts-empty" hidden>No payments yet.</p>
+            {{/* Our own receipt for a Venmo payment, which PayPal gives
+                 no receipt link (#238); main.js fills it from the
+                 payment when its Receipt is pressed. */}}
+            <div class="account-card account-receipt" id="receipt-card" tabindex="-1" aria-labelledby="receipt-card-h" hidden>
+              <p class="account-receipt-title" id="receipt-card-h"></p>
+              <dl class="account-receipt-lines">
+                <dt>Paid</dt><dd data-receipt="paid"></dd>
+                <dt>Amount</dt><dd data-receipt="amount"></dd>
+                <dt>Paid with</dt><dd>Venmo</dd>
+                <dt data-receipt-row="payer">From</dt><dd data-receipt="payer"></dd>
+                <dt data-receipt-row="capture">Transaction</dt><dd data-receipt="capture"></dd>
+              </dl>
+              <p class="form-text mb-0">{{ hugo.Data.company.name }}, {{ with hugo.Data.company.address }}{{ .street }}, {{ .city }}, {{ .state }} {{ .zip }}{{ end }}</p>
+            </div>
           </section>
 
           <section class="account-section" id="acct-address" data-section="address" aria-labelledby="acct-address-h" hidden>
@@ -87,69 +101,83 @@
                   <textarea class="form-control" id="addr-notes" name="notes" rows="2" data-field="notes"></textarea>
                 </div>
               </div>
-              <p class="form-text mt-3 mb-0" data-autosave aria-live="polite">Changes save as you make them.</p>
+              {{/* What the last save did (#238): Saving… with a spinner, Saved,
+                   or why it failed; main.js sets data-save and the words. */}}
+              <p class="form-text mt-3 mb-0 account-save" data-autosave aria-live="polite"><span class="account-save-spin" aria-hidden="true"></span><span data-save-text></span></p>
             </form>
           </section>
 
           <section class="account-section" id="acct-settings" data-section="settings" aria-labelledby="acct-settings-h" hidden>
             <h2 class="h4" id="acct-settings-h">Settings</h2>
+            {{/* Three groups under headings (#238): a label sits closer to
+                 its field than a group to the next. */}}
             <form class="account-card" id="profile-form" novalidate>
-              <div class="row g-3">
-                <div class="col-md-4">
-                  <label class="form-label" for="prof-first">First name</label>
-                  <input class="form-control" type="text" id="prof-first" name="firstName" autocomplete="given-name" data-field="firstName" aria-describedby="err-prof-first">
-                  <div class="invalid-feedback" id="err-prof-first" data-error-for="firstName"></div>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label" for="prof-last">Last name</label>
-                  <input class="form-control" type="text" id="prof-last" name="lastName" autocomplete="family-name" data-field="lastName" aria-describedby="err-prof-last">
-                  <div class="invalid-feedback" id="err-prof-last" data-error-for="lastName"></div>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label" for="prof-phone">Phone <span class="text-body-secondary">(optional)</span></label>
-                  <input class="form-control" type="tel" id="prof-phone" name="phone" autocomplete="tel" inputmode="tel" data-field="phone" aria-describedby="err-prof-phone">
-                  <div class="invalid-feedback" id="err-prof-phone" data-error-for="phone"></div>
-                </div>
-                <div class="col-12">
-                  <label class="form-label" for="prof-email">Email</label>
-                  <input class="form-control-plaintext" type="email" id="prof-email" readonly>
-                  <div class="form-text">Your email is how you sign in. Write us to change it.</div>
-                </div>
-                <div class="col-12" id="prof-group-row" hidden>
-                  <span class="form-label d-block">Your pricing</span>
-                  <p class="mb-0" id="prof-group"></p>
-                </div>
-                <fieldset class="col-12">
-                  <legend class="form-label">Your chicken</legend>
-                  <div class="account-avatars" id="avatar-picker">
-                    {{ range hugo.Data.avatars }}
-                      <label class="account-avatar-choice">
-                        <input type="radio" name="avatar" value="{{ .key }}" data-field="avatar">
-                        <svg class="account-avatar" aria-hidden="true"><use href="#avatar-{{ .key }}"/></svg>
-                        <span>{{ .label }}</span>
-                      </label>
-                    {{ end }}
+              <section class="account-group" aria-labelledby="prof-details-h">
+                <h3 class="account-group-title" id="prof-details-h">Your details</h3>
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label" for="prof-first">First name</label>
+                    <input class="form-control" type="text" id="prof-first" name="firstName" autocomplete="given-name" data-field="firstName" aria-describedby="err-prof-first">
+                    <div class="invalid-feedback" id="err-prof-first" data-error-for="firstName"></div>
                   </div>
-                  <div class="invalid-feedback d-block" data-error-for="avatar"></div>
-                </fieldset>
-                <fieldset class="col-12">
-                  <legend class="form-label">Email reminders</legend>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="prof-remind-delivery" name="remind-delivery" data-reminder="delivery">
-                    <label class="form-check-label" for="prof-remind-delivery">Remind me the evening before a delivery</label>
+                  <div class="col-md-4">
+                    <label class="form-label" for="prof-last">Last name</label>
+                    <input class="form-control" type="text" id="prof-last" name="lastName" autocomplete="family-name" data-field="lastName" aria-describedby="err-prof-last">
+                    <div class="invalid-feedback" id="err-prof-last" data-error-for="lastName"></div>
                   </div>
-                  <div class="form-text">Your confirmation, receipt and changes to an order are always sent.</div>
-                </fieldset>
-                <fieldset class="col-12">
-                  <legend class="form-label">Farm news</legend>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="prof-marketing" name="marketing" data-field="marketing">
-                    <label class="form-check-label" for="prof-marketing">Receive occasional email from North Foster Farm</label>
+                  <div class="col-md-4">
+                    <label class="form-label" for="prof-phone">Phone <span class="text-body-secondary">(optional)</span></label>
+                    <input class="form-control" type="tel" id="prof-phone" name="phone" autocomplete="tel" inputmode="tel" data-field="phone" aria-describedby="err-prof-phone">
+                    <div class="invalid-feedback" id="err-prof-phone" data-error-for="phone"></div>
                   </div>
-                  <div class="form-text">Off unless you turn it on. Turn it off here any time.</div>
-                </fieldset>
-              </div>
-              <p class="form-text mt-3 mb-0" data-autosave aria-live="polite">Changes save as you make them.</p>
+                  <div class="col-12">
+                    <label class="form-label" for="prof-email">Email</label>
+                    <input class="form-control-plaintext account-email-value" type="email" id="prof-email" readonly aria-describedby="prof-email-note">
+                    <div class="form-text" id="prof-email-note">Your email is how you sign in. Write us to change it.</div>
+                  </div>
+                  <div class="col-12" id="prof-group-row" hidden>
+                    <span class="form-label d-block">Your pricing</span>
+                    <p class="mb-0" id="prof-group"></p>
+                  </div>
+                </div>
+              </section>
+              <section class="account-group" aria-labelledby="prof-chicken-h">
+                <h3 class="account-group-title" id="prof-chicken-h">Your chicken</h3>
+                <div class="account-avatars" id="avatar-picker" role="radiogroup" aria-labelledby="prof-chicken-h">
+                  {{ range hugo.Data.avatars }}
+                    <label class="account-avatar-choice">
+                      <input type="radio" name="avatar" value="{{ .key }}" data-field="avatar">
+                      <svg class="account-avatar" aria-hidden="true"><use href="#avatar-{{ .key }}"/></svg>
+                      <span>{{ .label }}</span>
+                    </label>
+                  {{ end }}
+                </div>
+                <div class="invalid-feedback d-block" data-error-for="avatar"></div>
+              </section>
+              <section class="account-group" aria-labelledby="prof-email-h">
+                <h3 class="account-group-title" id="prof-email-h">Email from us</h3>
+                <div class="row g-3">
+                  <fieldset class="col-12">
+                    <legend class="form-label">Reminders</legend>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="prof-remind-delivery" name="remind-delivery" data-reminder="delivery">
+                      <label class="form-check-label" for="prof-remind-delivery">Remind me the evening before a delivery</label>
+                    </div>
+                    <div class="form-text">We always email your order confirmation and any change to an order.</div>
+                  </fieldset>
+                  <fieldset class="col-12">
+                    <legend class="form-label">Farm news</legend>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="prof-marketing" name="marketing" data-field="marketing">
+                      <label class="form-check-label" for="prof-marketing">Receive occasional email from North Foster Farm</label>
+                    </div>
+                    <div class="form-text">Off unless you turn it on. Turn it off here any time.</div>
+                  </fieldset>
+                </div>
+              </section>
+              {{/* What the last save did (#238): Saving… with a spinner, Saved,
+                   or why it failed; main.js sets data-save and the words. */}}
+              <p class="form-text mt-3 mb-0 account-save" data-autosave aria-live="polite"><span class="account-save-spin" aria-hidden="true"></span><span data-save-text></span></p>
             </form>
           </section>
 
@@ -181,6 +209,9 @@
               <button type="submit" class="btn btn-primary mt-3">Send</button>
             </form>
           </section>
+
+          {{/* James's line (#238), once under every tab. */}}
+          <p class="account-contact"><a href="mailto:{{ hugo.Data.company.email }}">Contact us</a> with your questions or concerns and we'll answer by email.</p>
         </div>
       </div>
     </div>

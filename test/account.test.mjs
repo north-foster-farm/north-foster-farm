@@ -115,7 +115,7 @@ describe("listOrders", () => {
       assert.deepEqual(orders[0].payments, [{
         at: orders[0].paidAt, amount: orders[0].totals.total, via: "square",
         method: "card", brand: "VISA", last4: "4242",
-        receiptUrl: "https://r/x",
+        receiptUrl: "https://r/x", paypalCaptureId: null, payer: null,
       }]);
       assert.deepEqual(orders[0].refunds, []);
       assert.equal(orders[0].invoice, undefined);
@@ -124,6 +124,29 @@ describe("listOrders", () => {
       assert.equal(orders[0].canChange, true);
       assert.equal(orders[0].square, undefined);
       assert.equal(orders[0].history, undefined);
+    });
+
+  it("gives a Venmo payment what its receipt needs, not the email",
+    async () => {
+      const stores = testStores();
+
+      await saveOrder(stores, {
+        ...order("V"),
+        payment: {
+          via: "venmo", method: "venmo", at: now.toISOString(),
+          amount: 1400, squarePaymentId: "PAY-V", receiptUrl: null,
+          paypalOrderId: "PPO-V", paypalCaptureId: "CAP-V",
+          payer: { name: "Pat Example", email: "pat@paypal.example" },
+        },
+      });
+
+      const { orders } = await listOrders(stores, customerOf(), { now });
+      const [payment] = orders[0].payments;
+
+      assert.equal(payment.paypalCaptureId, "CAP-V");
+      assert.equal(payment.payer, "Pat Example");
+      assert.equal(JSON.stringify(payment).includes("paypal.example"),
+        false);
     });
 
   it("shows a refund, and a record with no payment shows none", async () => {

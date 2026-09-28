@@ -54,6 +54,11 @@ const plugins = [
         "last",
         "data-on",
         "data-open",
+        // The account page's save line (#238).
+        "data-save",
+        "saving",
+        "saved",
+        "failed",
         // The header's link to the page you are on.
         "aria-current",
         "page",

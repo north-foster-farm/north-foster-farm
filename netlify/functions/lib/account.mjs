@@ -90,6 +90,10 @@ export const publicOrder = (order, now = new Date()) => ({
     brand: p.brand || null,
     last4: p.last4 || null,
     receiptUrl: p.receiptUrl || null,
+    // PayPal gives a Venmo payment no receipt link, so the account
+    // page writes its own from these (#238).
+    paypalCaptureId: p.via === "venmo" ? p.paypalCaptureId || null : null,
+    payer: p.via === "venmo" && p.payer ? p.payer.name || null : null,
   })),
   // Which payment each refund came out of, by its place in `payments`
   // (a refund that names none came out of the first).
