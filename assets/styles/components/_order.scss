@@ -218,12 +218,15 @@
     transition: padding-left var(--order-base) var(--order-ease);
   }
 
+  // Marks the section in view. A double chevron, since a single one
+  // read as an accordion's toggle (#228); it takes no pointer.
   .order-cat-chev {
     position: absolute;
     top: 50%;
     left: 0;
     display: inline-flex;
     color: var(--bs-primary);
+    pointer-events: none;
     opacity: 0;
     translate: -0.75rem -50%;
     transition:
@@ -688,9 +691,11 @@
 
   // The lines: what is in the cart, grouped under its category with
   // the tiers indented beneath, then the sum. Related things sit
-  // closer together than unrelated ones.
+  // closer together than unrelated ones. The rows stack from the top:
+  // where the pane is taller than the list, the room goes below them.
   .order-cart-items {
     display: grid;
+    align-content: start;
     gap: 0.75rem;
     flex: 1 1 auto;
     min-height: 0;
@@ -1853,6 +1858,11 @@
     .order-cart-rule-end,
     .order-cart-end {
       grid-column: 1 / -1;
+    }
+
+    // The totals live on the right, so the nudge reads from there.
+    .order-cart-nudge {
+      text-align: right;
     }
 
     .order-cart[data-open="false"] {

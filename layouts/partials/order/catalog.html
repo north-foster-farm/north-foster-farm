@@ -6,7 +6,7 @@
   {{ range $groups }}
     <section class="order-cat" id="cat-{{ .key }}" aria-labelledby="cat-{{ .key }}-h">
       <h3 class="order-cat-title" id="cat-{{ .key }}-h">
-        <span class="order-cat-chev" aria-hidden="true">{{ partial "svg.html" "icons/chevron-right" }}</span>
+        <span class="order-cat-chev" aria-hidden="true">{{ partial "svg.html" "icons/chevrons-right" }}</span>
         <span class="order-cat-text">{{ .short }}</span>
         {{ with .unit }}<span class="order-cat-note">{{ . }}</span>{{ end }}
       </h3>
