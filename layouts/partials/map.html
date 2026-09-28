@@ -86,7 +86,7 @@
   {{ with $scituate }}
     {{ if ge .closes $today }}
       {{ $when = $when | append (dict
-        "head" .when "line" (printf "%s, %s" .name .season)
+        "head" .when "line" (printf "%s, %s" .name (partial "market/season.html" .))
         "from" .opens "until" .closes "alone" "Drop site") }}
       {{ $kind = "Farmers market and drop site" }}
       {{ $links = slice (dict "label" "Market website" "href" .href)
@@ -110,7 +110,7 @@
         "kind" "Farmers market" "name" .name "key" .name
         "section" "markets" "from" .opens "until" .closes
         "nudge" (cond (eq .name "Foster Farmers Market") -1 0)
-        "when" (slice (dict "head" .when "line" .season))
+        "when" (slice (dict "head" .when "line" (partial "market/season.html" .)))
         "where" .where
         "links" (slice (dict "label" "Website" "href" .href)
           (dict "label" "Instagram" "href" (printf "https://www.instagram.com/%s/" .instagram))))) }}

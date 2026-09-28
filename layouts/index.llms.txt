@@ -62,7 +62,7 @@ Sign in at {{ $login.Permalink }} with the email address you ordered with. We em
 ## Farmers markets
 
 {{ range hugo.Data.markets.markets -}}
-- {{ .name }}: {{ .when }}, {{ .season }}. {{ .where }}. {{ .href }}
+- {{ .name }}: {{ .when }}, {{ partial "market/season.html" . }}. {{ .where }}. {{ .href }}
 {{ end }}
 {{- $upcoming := where hugo.Data.events.events "date" "ge" (now.Format "2006-01-02") -}}
 {{- with $upcoming }}

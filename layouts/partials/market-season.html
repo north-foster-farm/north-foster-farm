@@ -1,6 +1,11 @@
-{{/* True in market season, from the month and day in
-     data/markets.json, so it comes back each spring without an edit.
-     It is decided at build time. */}}
-{{ $season := hugo.Data.markets.season }}
-{{ $today := now.Format "01-02" }}
-{{ return and (ge $today $season.from) (le $today $season.until) }}
+{{/* The markets running today, each from its own "opens" to its
+     "closes" date in data/markets.json. The home page shows the market
+     band while any runs. It is decided at build time. */}}
+{{ $today := now.Format "2006-01-02" }}
+{{ $running := slice }}
+{{ range hugo.Data.markets.markets }}
+  {{ if and (le .opens $today) (ge .closes $today) }}
+    {{ $running = $running | append . }}
+  {{ end }}
+{{ end }}
+{{ return $running }}

@@ -454,10 +454,35 @@ test.describe("home", () => {
       });
   });
 
-  // #137: outside market season (May 15 to September 15, decided at
-  // build time) the market band gives way to the three ways to buy,
-  // every fact from data/delivery.json.
+  // #214: while any market runs (from its own opens to its closes in
+  // data/markets.json, decided at build time) the band lists the
+  // markets running, and only those.
+  test("the market band lists only the markets running", async ({ page }) => {
+    await page.goto("/");
+
+    const band = page.locator(".places.home-band");
+
+    test.skip(await band.count() === 0, "built with no market running");
+    const markets = (await import("../data/markets.json",
+      { with: { type: "json" } })).default.markets;
+    const built = await band.getAttribute("data-built");
+    const running = markets
+      .filter((m) => m.opens <= built && m.closes >= built)
+      .map((m) => m.name);
+
+    await expect(band.locator(".place-name")).toHaveText(running);
+    await expect(page.locator(".ways")).toHaveCount(0);
+  });
+
+  // #137: while no market runs, the market band gives way to the three
+  // ways to buy, every fact from data/delivery.json.
   test.describe("off-season band (#137)", () => {
+    test.beforeEach(async ({ page }) => {
+      await page.goto("/");
+      test.skip(await page.locator(".ways").count() === 0,
+        "built while a market runs");
+    });
+
     const WAYS = [
       {
         method: "onfarm", name: "On-farm pickup",

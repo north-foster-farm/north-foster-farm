@@ -35,7 +35,7 @@
         <li class="market">
           <strong class="d-block">{{ .name }}</strong>
           {{ .when }}<br>
-          {{ .season }}<br>
+          {{ partial "market/season.html" . }}<br>
           <a href="{{ $map }}" target="_blank" rel="noopener">{{ $venue }}<br>{{ $street }}, RI</a>
         </li>
       {{ end }}

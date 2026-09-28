@@ -680,8 +680,12 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
       }
     }
 
+    // A column for each place, three at most, centred: the market
+    // band lists only the markets running now.
     .places-list {
-      grid-template-columns: repeat(3, 1fr);
+      grid-auto-columns: minmax(0, 23rem);
+      grid-auto-flow: column;
+      justify-content: center;
       max-width: none;
       margin-bottom: 3rem;
     }
