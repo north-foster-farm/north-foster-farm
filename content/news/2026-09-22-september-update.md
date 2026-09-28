@@ -22,9 +22,10 @@ There are three ways to get your order:
 
 ## Delivery
 
-- We deliver every week on Thursday
-- Order by noon on Wednesday
-- As affordable as possible: $40 minimum, $5 fee
+- We deliver every week on {{< terms "day" >}}
+- Order by {{< terms "cutoff-hour" >}} on {{< terms "cutoff-day" >}}
+- As affordable as possible: {{< terms "minimum" >}} minimum,
+  {{< terms "fee" >}} fee
 - [Check your ZIP code](/#map)
 
 ## On-farm pickup
@@ -34,7 +35,8 @@ There are three ways to get your order:
 
 ## Drop site
 
-- Back on Saturday mornings in Scituate, starting October 17
+- Back on {{< terms "day" "scituate" >}} mornings in
+  {{< terms "town" "scituate" >}}, starting {{< terms "start" "scituate" >}}
 - Pick up your order for free
 
 {{< figure src="images/sunset.jpg" shape="band"
