@@ -47,19 +47,25 @@
   }
 }
 
-// In the footer it sits under its question and above the APPPA mark,
-// on the footer's grey. "Yes" is short, so the form narrows to keep the
-// field near its old width (#223).
-.site-footer .news-signup {
-  max-width: 21rem;
-  margin-bottom: 2.25rem;
-}
-
 .news-signup-heading {
   max-width: 28rem;
   margin: 0 auto 0.75rem;
   font-size: $h5-font-size;
   text-wrap: balance;
+}
+
+// In the footer it sits flush left under its question. "Yes" is
+// short, so the form narrows to keep the field near its old width
+// (#223).
+.site-footer {
+  .news-signup {
+    max-width: 21rem;
+    margin: 0;
+  }
+
+  .news-signup-heading {
+    margin-inline: 0;
+  }
 }
 
 // On the news page, at the seam between the newest post and the

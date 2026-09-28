@@ -1,6 +1,6 @@
-// The footer as #141 lands it: the sign-up as an input group with one
-// focus ring and an egg spinner, one line of links, one line of
-// ways to reach the farm, the copyright. The sign-up request is
+// The footer as #141 and #226 land it: one line of links and one of
+// ways to reach the farm, the sign-up as an input group with one focus
+// ring and an egg spinner, the copyright. The sign-up request is
 // stubbed here; farm news end to end is news.spec.mjs.
 // docs/qa-launch.md, "The autumn refresh".
 
@@ -54,9 +54,10 @@ test.describe("footer (#141)", () => {
       await expect(reach.nth(2).locator("a"))
         .toHaveAttribute("href", /instagram\.com\/northfosterfarm$/);
 
-      // In reading order: sign-up, links, contact line, copyright.
+      // In reading order (#226): links, contact line, sign-up,
+      // copyright.
       const order = await footer.evaluate((el) => [
-        "[data-news-signup]", "nav[aria-label='Footer']", ".footer-contact",
+        "nav[aria-label='Footer']", ".footer-contact", "[data-news-signup]",
         "#copyright-year",
       ].map((sel) => {
         const all = [...el.querySelectorAll("*")];
