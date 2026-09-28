@@ -1,0 +1,28 @@
+{
+  "guards": [
+    {
+      "page": "/about",
+      "section": "",
+      "summary": "the farming paragraph under the summary",
+      "hash": "708942788a1d"
+    },
+    {
+      "page": "/about",
+      "section": "How we raise them",
+      "summary": "the farming paragraph under the summary",
+      "hash": "8a81d78f8a6d"
+    },
+    {
+      "page": "/delivery-policy",
+      "section": "Pickup and the drop site",
+      "summary": "the On-farm pickup and drop site lines under Ordering",
+      "hash": "2303f187def5"
+    },
+    {
+      "page": "/delivery-policy",
+      "section": "Changing or cancelling an order",
+      "summary": "the Your account section",
+      "hash": "56137eaebfa1"
+    }
+  ]
+}

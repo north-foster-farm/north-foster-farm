@@ -6,6 +6,7 @@ slug: "delivery-policy"
 title: "Delivery policy"
 type: "policy"
 layout: "policy/single.html"
+outputs: ["html", "markdown"]
 pageScript: "zip-check"
 ---
 

@@ -1,0 +1,34 @@
+{{- /*
+  Stops the build when a page section that llms.txt summarizes in its
+  own words has changed since someone last reread the summary (Q21a,
+  #192). data/llms.json lists each guarded section with a fingerprint
+  of its source: the first 12 characters of the SHA-256 of its raw
+  Markdown, whitespace collapsed, so rewrapping doesn't count. A
+  section of "" means the text above the page's first "## " heading.
+
+  When the build stops, reread the summary it names in
+  layouts/index.llms.txt, fix it if the page now says otherwise, and
+  set the new fingerprint (the error gives it) in data/llms.json.
+*/ -}}
+{{- range hugo.Data.llms.guards -}}
+  {{- $page := site.GetPage .page -}}
+  {{- if not $page -}}
+    {{- errorf "llms.txt guard: no page %s (data/llms.json)" .page -}}
+  {{- end -}}
+  {{- $raw := printf "\n%s" $page.RawContent -}}
+  {{- $text := "" -}}
+  {{- if .section -}}
+    {{- $parts := split $raw (printf "\n## %s\n" .section) -}}
+    {{- if ne (len $parts) 2 -}}
+      {{- errorf "llms.txt guard: %s has no one section %q (data/llms.json)" .page .section -}}
+    {{- end -}}
+    {{- $text = index (split (index $parts 1) "\n## ") 0 -}}
+  {{- else -}}
+    {{- $text = index (split $raw "\n## ") 0 -}}
+  {{- end -}}
+  {{- $text = $text | replaceRE `\s+` " " | strings.TrimSpace -}}
+  {{- $hash := substr (crypto.SHA256 $text) 0 12 -}}
+  {{- if ne $hash .hash -}}
+    {{- errorf "llms.txt: %s, section %q, changed (now %s). Reread %s in layouts/index.llms.txt, fix it if the page now says otherwise, then set that section's hash to %s in data/llms.json." .page (.section | default "(intro)") $hash .summary $hash -}}
+  {{- end -}}
+{{- end -}}

@@ -209,6 +209,14 @@ framework = "#custom"
   [headers.values]
     Cache-Control = "public, max-age=604800"
 
+# The delivery policy as Markdown, which llms.txt links (Q21a). Named
+# here so it reads as UTF-8 text in a browser, not a download.
+[[headers]]
+  for = "/delivery-policy/index.md"
+
+  [headers.values]
+    Content-Type = "text/markdown; charset=utf-8"
+
 # Netlify serves .webmanifest as application/octet-stream by default.
 [[headers]]
   for = "/favicons/site.webmanifest"
