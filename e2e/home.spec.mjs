@@ -408,14 +408,14 @@ test.describe("home", () => {
       await expect(card.locator("time.home-update-date"))
         .toHaveText("September 22, 2026");
 
-      const cta = card.locator(".delivery-cta");
-
-      await expect(cta.locator(".delivery-cta-question"))
-        .toHaveText("Do we deliver to you?");
-      await expect(cta.getByRole("link")).toHaveText("Check your ZIP code");
+      // Since #211 the ZIP check is a plain link under Delivery.
+      await expect(card.getByRole("link", { name: "Check your ZIP code" }))
+        .toHaveAttribute("href", /\/#map$/);
       await expect(card.locator("[data-zip-check]")).toHaveCount(0);
 
-      const news = card.getByRole("link", { name: /news/i }).last();
+      // The news button sits below the card, in the section.
+      const news = page.locator(".home-update")
+        .getByRole("link", { name: /news/i }).last();
 
       await expect(news).toHaveClass(/btn-outline/);
       await expect(news).toHaveAttribute("href", /\/news\/$/);
@@ -440,7 +440,8 @@ test.describe("home", () => {
         await expect(page.locator("link[rel='canonical']"))
           .toHaveAttribute("href", new RegExp(`${POST}$`));
         await expect(page.locator("h1")).toHaveText("September Update");
-        await expect(page.locator(".delivery-cta a"))
+        await expect(page.locator("main")
+          .getByRole("link", { name: "Check your ZIP code" }))
           .toHaveAttribute("href", /\/#map$/);
 
         await page.goto("/");

@@ -603,11 +603,12 @@ test.describe("map (#138)", () => {
     });
 
   // Since #136 the home page's only ZIP check is the map's; the news
-  // post's "Check your ZIP code" button leads to it.
-  test("the news post's ZIP button leads to the map's check",
+  // post's "Check your ZIP code" link leads to it.
+  test("the news post's ZIP link leads to the map's check",
     async ({ page }) => {
       await page.goto(HOME.path);
-      await page.locator(".delivery-cta a").click();
+      await page.locator(".home-update-card")
+        .getByRole("link", { name: "Check your ZIP code" }).click();
       await expect(page).toHaveURL(/#map$/);
       await expect(page.locator(HOME.input)).toBeInViewport();
     });
