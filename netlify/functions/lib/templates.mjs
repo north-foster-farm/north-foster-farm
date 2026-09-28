@@ -440,8 +440,9 @@ export const orderConfirmed = (order, { orderUrl, links } = {}) => {
 
 // The farm can't keep a booked pickup time after all (W11d's
 // exception): the customer picks another or cancels. `pickUrl` signs
-// them in to the order page. The farm's reason is required (T2d).
-// Draft wording.
+// them in to the order page. A reschedule needs no reason (T2d is
+// moot: nothing is requested and denied); one given is shown. Draft
+// wording.
 export const pickNewTime = (order, { pickUrl, links } = {}) => {
   const title = "We can't make your pickup time";
   const blocks = [
@@ -651,17 +652,17 @@ export const movedDelivery = (order, { pickUrl, links } = {}) => {
 // (T2c).
 export const CANCEL_REASONS = {
   "sold-out": () => "Something in your order sold out before our stock " +
-    "count caught up. We're sorry; that one's on us.",
+    "count caught up. We're sorry we didn't catch it before you placed " +
+    "your order.",
   delay: (order) => "We couldn't get your order ready in time for " +
     `${label(order.fulfilment.date)}.`,
-  weather: (order) => `The weather made it unsafe to ${
+  weather: (order) => `For everyone's safety, we won't ${
     order.fulfilment.method === "delivery" ? "deliver" : "open for pickup"
-  } on ${label(order.fulfilment.date)}.`,
+  } on ${label(order.fulfilment.date)} due to severe weather.`,
   emergency: () => "Something urgent came up on the farm that needs us " +
     "that day.",
-  mistake: () => "We made a mistake with your order (a wrong price or a " +
-    "slot we couldn't really offer), so we've cancelled it rather than " +
-    "charge you for it.",
+  mistake: () => "We made a mistake with your order so we had to cancel " +
+    "it. We're sorry we didn't catch it before you placed your order.",
 };
 
 // After a cancellation: always a notice of the money that went back
@@ -686,7 +687,10 @@ export const orderCancelled = (order, {
     blocks.push(p("We held your order for seven days and didn't hear " +
       "from you, so we've cancelled it."));
   } else if (by === "customer") {
-    blocks.push(p(`${cancelled}, as requested.`));
+    // After a missed delivery the miss prompted it, so no "as
+    // requested" (C4, 2A and 2B).
+    blocks.push(p(order.attempted ? `${cancelled}.` : `${cancelled}, ` +
+      "as requested."));
   } else {
     blocks.push(p(`${cancelled}.`));
 

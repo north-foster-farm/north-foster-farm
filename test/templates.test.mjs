@@ -553,6 +553,14 @@ describe("order changed and cancelled", () => {
     assert.doesNotMatch(m.text, /ready in time/);
   });
 
+  it("leaves out \"as requested\" after a missed delivery (C4)", () => {
+    const o = { ...order(), attempted: { cause: "customer", fee: 500 } };
+    const m = orderCancelled(o, { by: "customer", refunded: 6200, links });
+
+    has(m.text, "on Thursday, October 8.\n");
+    assert.doesNotMatch(m.text, /as requested/);
+  });
+
   it("gives the farm's reason from the list, or its own words (T2a)", () => {
     const pickup = {
       ...order(), fulfilment: { ...order().fulfilment, method: "onfarm" },
@@ -561,17 +569,18 @@ describe("order changed and cancelled", () => {
       orderCancelled(o, { refunded: 6700, links, ...options }).text;
 
     has(says(order(), { reason: "sold-out" }), "Something in your order " +
-      "sold out before our stock count caught up. We're sorry; that " +
-      "one's on us.");
+      "sold out before our stock count caught up. We're sorry we didn't " +
+      "catch it before you placed your order.");
     has(says(order(), { reason: "delay" }), "We couldn't get your order " +
       "ready in time for Thursday, October 8.");
-    has(says(order(), { reason: "weather" }), "The weather made it unsafe " +
-      "to deliver on Thursday, October 8.");
-    has(says(pickup, { reason: "weather" }), "unsafe to open for pickup on");
+    has(says(order(), { reason: "weather" }), "For everyone's safety, we " +
+      "won't deliver on Thursday, October 8 due to severe weather.");
+    has(says(pickup, { reason: "weather" }), "won't open for pickup on");
     has(says(order(), { reason: "emergency" }), "Something urgent came up " +
       "on the farm that needs us that day.");
     has(says(order(), { reason: "mistake" }), "We made a mistake with " +
-      "your order");
+      "your order so we had to cancel it. We're sorry we didn't catch it " +
+      "before you placed your order.");
     has(says(order(), { reasonText: "The truck broke down." }),
       "October 8.\nThe truck broke down.\n**A refund");
     assert.equal(Object.keys(CANCEL_REASONS).length, 5);

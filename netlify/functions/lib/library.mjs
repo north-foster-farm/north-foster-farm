@@ -563,6 +563,10 @@ export const library = [
 // liaison\x27s queue, on 2026-09-26, then his review in the library on
 // staging the same day. Unclear counts as to approve.
 const LIBRARY = "James approved in the library on 2026-09-26.";
+const T2A = "James approved the farm\x27s reasons on #233 (T2a, " +
+  "2026-09-28), rewriting sold out, weather and our mistake.";
+const C4 = "James approved it on #233 (C4, 2026-09-28): a cancel " +
+  "after a miss doesn\x27t say \"as requested\".";
 const APPROVED = {
   "order-confirmed-delivery": "James\x27s rewrite of 2026-09-22, verbatim.",
   "order-confirmed-dropsite": LIBRARY,
@@ -582,6 +586,15 @@ const APPROVED = {
   "order-cancelled-refund": "James approved it on #233 (T1a, " +
     "2026-09-28) with his two changes: \"as requested\" and no comma " +
     "in the fee line.",
+  ...Object.fromEntries(Object.keys(REASONS).map((key) => [
+    `order-cancelled-${key}`, T2A,
+  ])),
+  "order-cancelled-refunded-earlier": `${T2A} The refund line is T1a\x27s.`,
+  "order-cancelled-missed-fee-kept": C4,
+  "order-cancelled-missed-full-refund": C4,
+  "order-cancelled-hold-fee-kept": `${C4} Sent by the job that ends ` +
+    "the hold, still to build (#193).",
+  "order-cancelled-hold-full-refund": `${C4} As above.`,
 };
 
 // Rewrites of 2026-09-26 that have landed come back here to approve,
@@ -596,31 +609,18 @@ const REASON = " The reason line is his C6a draft for the cause " +
 const T4 = "Removed items head the list under \"Removed\", as plain " +
   "lines (T4, 2026-09-28). Draft: the heading \"Your order now\" above " +
   "what is still coming.";
-const T1 = "One cancellation email for every case, stating the " +
-  "refund: James approved it with his wording (T1a, #233, " +
-  "2026-09-28); \"nothing charged\" is gone (T1b).";
-const T2 = "The farm\x27s reason, from the list drafted for T2a.";
 const W11D = "W11d (2026-09-28): a pickup is booked by paying, from " +
   "the farm\x27s schedule; no farm confirmation, and the window " +
   "reads as its times (9 AM – noon).";
 const WAITING = {
   "order-confirmed-onfarm": `James approved it in the library on ` +
     `2026-09-26. ${W11D}`,
-  "pick-new-time": `${W11D} Now the farm giving up a booked time; the ` +
-    "farm\x27s reason is sent again (T2d). Draft wording.",
+  "pick-new-time": `${W11D} Now the farm giving up a booked time. A ` +
+    "reason is optional, shown when given (T2d is moot). Draft wording.",
   "order-changed-paid-more": `${LANDED}: each line says what was added, ` +
     "and the Total line what was paid.",
   "order-changed-refunded": `${T4} Its refund line he kept (T3).`,
   "farm-order-changed": `He approved it on 2026-09-26; since then ${T4}`,
-  "order-cancelled-refunded-earlier": `${T1} ${T2}`,
-  "order-cancelled-sold-out": T2,
-  "order-cancelled-delay": T2,
-  "order-cancelled-weather": `${T2} Shown for a pickup ("open for ` +
-    "pickup\"); a delivery reads \"deliver\".",
-  "order-cancelled-emergency": T2,
-  "order-cancelled-mistake": `${T2} Open: every order is paid, so ` +
-    "\"rather than charge you for it\" may need to read \"and refunded " +
-    "you\".",
   "news-welcome": "His draft of 2026-09-28 (T6a, T6b), verbatim; " +
     "the sign-off takes the dash (#211). The link takes them off in one " +
     "click, with no sign-in (T6c).",
@@ -636,11 +636,6 @@ const WAITING = {
   "moved-delivery-weather": `${C3} It offers another day as well as ` +
     "pickup or a refund (C7b, 2026-09-28).",
   "moved-delivery-farm": C3,
-  "order-cancelled-missed-fee-kept": `${C3} ${T1}`,
-  "order-cancelled-missed-full-refund": `${C3} ${T1}`,
-  "order-cancelled-hold-fee-kept": `${C3} ${T1} Sent by the job that ` +
-    "ends the hold, still to build (#193).",
-  "order-cancelled-hold-full-refund": `${C3} ${T1} As above.`,
   "farm-order-placed-onfarm": `He approved it on 2026-09-26. ${W11D} ` +
     "The confirm and deny commands are gone from it.",
   "farm-pickup-changed": `${W11D} Now a notice, "Pickup moved", with ` +
