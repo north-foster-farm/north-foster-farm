@@ -220,7 +220,7 @@ export const library = [
     when: "The moment a delivery order is paid", audience: C,
     tags: ["paid", "placed", "delivery", "card"],
     build: (links) => t.orderConfirmed(order(),
-      { orderUrl: orderUrl(links), links }),
+      { orderUrl: orderUrl(links), links, firstOrder: true }),
   },
   {
     id: "order-confirmed-dropsite", name: "Order confirmed, drop site",

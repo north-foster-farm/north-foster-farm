@@ -87,6 +87,14 @@
         <strong data-out="how"></strong>.
         A confirmation is on its way to <strong data-out="email"></strong>.
       </p>
+      {{- if site.Params.features.accounts }}
+      {{- /* Draft wording (#114). Hidden for a customer signed in. */}}
+      <p data-out="account">
+        Your email address is your account with us.
+        <a href="{{ relURL "login/" }}">Sign in</a> any time with a link we
+        email you; there's no password.
+      </p>
+      {{- end }}
       <p data-out="when"></p>
       <p>
         Your order number is <strong data-out="orderId"></strong>.

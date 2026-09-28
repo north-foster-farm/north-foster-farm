@@ -7,7 +7,7 @@ import { adminEmails, sendMail } from "./mail.mjs";
 import { log } from "./log.mjs";
 import {
   FAILED_REFUND, amendOrder, getOrder, moneyPatch, orderByPayment,
-  paidTotal, paymentRef, paymentsOf, refundedTotal, refundsOf,
+  ordersFor, paidTotal, paymentRef, paymentsOf, refundedTotal, refundsOf,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import { dashboardUrl } from "./square.mjs";
@@ -90,8 +90,13 @@ export const confirmOrder = async (stores, order, {
 
   const key = done ? `orderConfirmed-${now.getTime()}` : "orderConfirmed";
 
+  // The first order on an email is the one that made its account.
+  const others = (await ordersFor(stores, order.customer.email))
+    .filter((o) => o.id !== order.id);
+
   return sendForOrder(stores, order, key, orderConfirmed(order, {
     orderUrl: orderUrlFor(env, order.id), links: mailLinks(env),
+    firstOrder: !others.length,
   }), { mail, env, now });
 };
 

@@ -170,6 +170,23 @@ describe("confirmOrder and notifyFarm", () => {
     assert.ok(o.emails[`orderConfirmed-${later.getTime()}`]);
   });
 
+  it("tells the customer of their account on their first order only",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+      const env = { ACCOUNTS_ENABLED: "true", URL: "https://x" };
+
+      await saveOrder(stores, order("NFF-1"), now);
+      await confirmOrder(stores, await getOrder(stores, "NFF-1"),
+        { mail, env, now });
+      await saveOrder(stores, order("NFF-2"), now);
+      await confirmOrder(stores, await getOrder(stores, "NFF-2"),
+        { mail, env, now });
+
+      assert.match(sent[0].text, /made you an account/);
+      assert.doesNotMatch(sent[1].text, /made you an account/);
+    });
+
   it("notifies the farm once per key, and not at all with nobody listed",
     async () => {
       const stores = testStores();

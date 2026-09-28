@@ -423,8 +423,12 @@ const instructions = (order) => {
 
 // Sent when the order is paid, which books every way to get it,
 // pickup times included (W11d). Square sends the receipt, so this one
-// does not price anything either.
-export const orderConfirmed = (order, { orderUrl, links } = {}) => {
+// does not price anything either. On the customer's first order it
+// says, once, that the order made them an account (#114); that needs
+// the account pages, so only with `orderUrl`.
+export const orderConfirmed = (order, {
+  orderUrl, links, firstOrder = false,
+} = {}) => {
   const title = "Your order is confirmed";
   const total = dollars(order.totals.total);
   const blocks = [
@@ -438,6 +442,11 @@ export const orderConfirmed = (order, { orderUrl, links } = {}) => {
   ];
 
   if (orderUrl) {
+    // Draft wording.
+    if (firstOrder) {
+      blocks.push(p("Placing this order made you an account with us. " +
+        "Sign in any time with a link we email you; there's no password."));
+    }
     blocks.push(button("View or edit this order", orderUrl));
     if (order.fulfilment.method === "onfarm") {
       blocks.push(button("Reschedule pickup", orderUrl, { outline: true }));
