@@ -6,7 +6,7 @@
 import { pickupTimes, windowLabel } from "../order/lib/schedule.mjs";
 import { dollars } from "../order/lib/totals.mjs";
 import { label } from "../order/lib/zoned.mjs";
-import { forget, showChick } from "../session/session.js";
+import { forget, showChick, signOut } from "../session/session.js";
 import { api } from "../utils/api.js";
 
 const qs = (root, selector) => root.querySelector(selector);
@@ -171,11 +171,7 @@ class Account {
     });
 
     document.getElementById("account-signout").addEventListener("click",
-      async () => {
-        await api("/api/auth/signout", { method: "POST", body: {} });
-        forget();
-        location.href = "/";
-      });
+      signOut);
 
     // The address saves once the street, town and ZIP are there; the
     // settings once both names are.

@@ -39,6 +39,15 @@ export const forget = () => {
   }
 };
 
+// Every Sign out button: the order draft keeps its cart but loses the
+// customer's details, as the privacy page promises.
+export const signOut = async () => {
+  await api("/api/auth/signout", { method: "POST", body: {} });
+  forget();
+  forgetCustomer();
+  location.href = "/";
+};
+
 export const me = async () => {
   const cached = read();
 
@@ -84,12 +93,7 @@ const fill = (slot, who) => {
   slot.classList.add("is-ready");
 
   slot.querySelector("[data-account-signout]").addEventListener("click",
-    async () => {
-      await api("/api/auth/signout", { method: "POST", body: {} });
-      forget();
-      forgetCustomer();
-      location.href = "/";
-    }, { once: true });
+    signOut, { once: true });
 };
 
 export const Session = {
