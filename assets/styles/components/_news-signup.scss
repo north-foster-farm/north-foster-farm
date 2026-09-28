@@ -8,6 +8,23 @@
   text-align: left;
 }
 
+// The field and its button read as one control, so the field's focus
+// ring goes round both (#226): Bootstrap draws it on the field alone,
+// where it stops against the button.
+.news-signup .input-group:has(> .form-control:focus) {
+  border-radius: $input-border-radius;
+  box-shadow: $input-focus-box-shadow;
+
+  &:has(> .is-invalid) {
+    box-shadow: 0 0 $input-btn-focus-blur $input-btn-focus-width
+      rgba($form-feedback-invalid-color, $input-btn-focus-color-opacity);
+  }
+
+  > .form-control:focus {
+    box-shadow: none;
+  }
+}
+
 .news-signup-note {
   margin: 0.5rem 0 0;
   font-size: 0.875rem;

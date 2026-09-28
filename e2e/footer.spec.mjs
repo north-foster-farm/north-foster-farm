@@ -1,5 +1,5 @@
-// The footer as #141 lands it: the sign-up as an input group with a
-// floating label and an egg spinner, one line of links, one line of
+// The footer as #141 lands it: the sign-up as an input group with one
+// focus ring and an egg spinner, one line of links, one line of
 // ways to reach the farm, the copyright. The sign-up request is
 // stubbed here; farm news end to end is news.spec.mjs.
 // docs/qa-launch.md, "The autumn refresh".
@@ -127,6 +127,22 @@ test.describe("footer (#141)", () => {
       await input.fill("you@example.com");
       await expect(input).not.toHaveClass(/\bis-invalid\b/);
       await expect(note).toHaveText("");
+    });
+
+  test("the focus ring goes round the field and its button (#226)",
+    async ({ page }) => {
+      const form = page.locator("footer [data-news-signup]");
+      const input = form.locator("input[type='email']");
+      const shadow = (el) =>
+        el.evaluate((node) => getComputedStyle(node).boxShadow);
+
+      await page.goto("/");
+      await input.focus();
+      expect(await shadow(form.locator(".input-group"))).not.toBe("none");
+      expect(await shadow(input), "no ring of its own").toBe("none");
+
+      await input.blur();
+      expect(await shadow(form.locator(".input-group"))).toBe("none");
     });
 
   test("while it sends, the button shows the egg, grows and settles back",
