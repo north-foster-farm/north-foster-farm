@@ -10,4 +10,4 @@ layout: "order/single.html"
 pageScript: "order"
 ---
 
-Pasture-raised, processed locally in state, and packed by weight.
+Pasture-raised, processed in Rhode Island, and packed by weight.

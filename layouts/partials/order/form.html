@@ -32,9 +32,12 @@
   </div>
   <div class="order-catalog-col">
     {{/* The page's lead, under the title wherever the title is: below
-         lg that is the top bar, so it cannot sit with the heading. */}}
+         lg that is the top bar, so it cannot sit with the heading.
+         "Rhode Island" never breaks across its phone lines; Aller's
+         no-break space has no width, so a span holds it instead. */}}
     {{ with .Content }}
-      <div class="order-lead mb-4">{{ . }}</div>
+      {{ $lead := replace . "Rhode Island" `<span class="text-nowrap">Rhode Island</span>` }}
+      <div class="order-lead mb-4">{{ $lead | safeHTML }}</div>
     {{ end }}
     {{/* Changing a paid order (/order/?edit=<id>, order-form.js): which
          order, filled in by the script. */}}
