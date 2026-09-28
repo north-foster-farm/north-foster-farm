@@ -8,6 +8,8 @@
       "when": "Saturdays, 9:00 AM – 12:00 PM",
       "where": "The Village Green, 46 Institute Lane, North Scituate",
       "season": "June through early October",
+      "opens": "2026-06-06",
+      "closes": "2026-10-10",
       "lat": 41.8339,
       "lng": -71.58346
     },
@@ -18,6 +20,8 @@
       "when": "Sundays, 9:00 AM – 1:00 PM",
       "where": "Shady Acres Diner, 164 Danielson Pike, Foster",
       "season": "June through October",
+      "opens": "2026-06-07",
+      "closes": "2026-10-25",
       "lat": 41.80426,
       "lng": -71.77252
     },
@@ -28,6 +32,8 @@
       "when": "Wednesdays, 4:00 – 7:00 PM",
       "where": "Tilted Barn Brewery, One Hemsley Place, Exeter",
       "season": "June through August",
+      "opens": "2026-06-03",
+      "closes": "2026-08-26",
       "lat": 41.56961,
       "lng": -71.52379
     }

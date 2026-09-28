@@ -1,11 +1,11 @@
-{{/* The map row: where we deliver and where to find us, with a ZIP
-     check that drops a pin on the map. The top bar links here (#map)
-     for an event with no page of its own. Draft wording for James
-     (#138). */}}
+{{/* The map row: where we deliver, with a ZIP check that drops a pin
+     on the map, and where to find us, on the Places layer. The top
+     bar links here (#map, or #place-… for a pop-up, which opens
+     Places with its card). Draft wording for James (#138, #214). */}}
 <div class="home-map border-bottom border-light" id="map">
   <div class="container">
     <p class="home-eyebrow">On the map</p>
     <h2 class="home-title">Where to find us</h2>
-    {{ partial "map.html" (dict "id" "home-map" "check" true) }}
+    {{ partial "map.html" (dict "id" "home-map" "check" true "layers" true) }}
   </div>
 </div>

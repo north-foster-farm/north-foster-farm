@@ -1,58 +1,44 @@
-// The delivery map (partials/map.html), made to answer.
+// The map (partials/map.html), made to answer, in two layers (#214).
 //
-// - A ZIP names its town and whether we deliver there as the pointer
-//   passes over it; a tap on it puts it in the map's ZIP check, which
-//   answers in words and announces an nff:zip event.
+// Delivery:
+// - A tap on a town puts its ZIP in the map's ZIP check, which answers
+//   in words and announces an nff:zip event.
 // - On nff:zip, from any check on the page, the map outlines that ZIP
-//   and drops a pin onto its middle, coloured by the answer, with a
-//   tag: the town, an egg and a hen (coloured where we deliver them)
-//   and the delivery fee.
+//   and drops its one pin onto its middle, with a tag: the town, an
+//   egg and a hen (struck through where we don't deliver them) and the
+//   delivery price, or "No delivery" and a way to the Places layer.
+// - With a mouse, the pointer over a town shows the same tag.
 // - A second tap on that town, or a tap on water or on a neighbouring
-//   state, clears the check, the pin and the outline. One tap makes
-//   one change: with a card open, a tap off the pins only closes it.
-// - A pin, or its line in the key, opens a card with the details.
-//   Pins that share a ZIP stack there; each tap on the stack brings
-//   the next to the front and shows its card.
-// - It zooms with its buttons, a pinch (a trackpad's too), a double
-//   click (not a double tap) or ctrl and the wheel, and pans with a
-//   drag once zoomed. At full size a swipe still scrolls the page.
+//   state, clears the check, the pin and the outline (M1).
 //
-// Wording of the labels is a draft for James (#138).
-
-const LABELS = {
-  ok: "We deliver here",
-  wait: "A little outside our area",
-  no: "Outside our area",
-};
-
-// Where we deliver eggs only (Connecticut).
-const EGGS_ONLY = "We deliver eggs here";
-
-const TONE_OF = {
-  "is-ours": "ok",
-  "is-eggs": "ok",
-  "is-away": "wait",
-  "is-land": "no",
-};
+// Places:
+// - A pin, or its name in the list beside the map, opens a card with
+//   the details. The farm and the Foster market stand apart at the
+//   whole map. A place, or a line on its card, past its date goes.
+// - The top bar's link to a pop-up, #place-…, opens its card.
+//
+// Both: it zooms with its buttons, a pinch (a trackpad's too), a
+// double click (not a double tap) or ctrl and the wheel, and pans with
+// a drag once zoomed. At full size a swipe still scrolls the page.
+//
+// Wording is a draft for James (#138, #214).
 
 const MAX_ZOOM = 5;
 
 // Pins stand this tall on screen at any zoom and any width; the shape
-// is drawn 45 units tall.
+// is drawn 45 units tall and 30 wide.
 const PIN_PX = 38;
 const PIN_UNITS = 45;
 
-// Pins in a stack step this far up and right of the one before, in
-// pin units.
-const STEP = 8;
+// Below this zoom, a nudged pin stands this far aside, in screen
+// pixels, so two places that meet at the whole map can both be tapped.
+const NUDGE_BELOW = 2;
+const NUDGE_PX = 14;
 
 // A pointer that moves further than this is dragging, not tapping.
 const SLOP = 6;
 
-// The dropped pin's tag, in screen pixels: its padding, its two lines
-// and the icons in the second, and how far it keeps from the frame's
-// edges and the zoom buttons.
-const TAG = { pad: 6, line: 17, gap: 3, icon: 16, egg: 16, hen: 13.1 };
+// How far the tag and the cards keep from the frame's edges.
 const MARGIN = 8;
 
 // The ZIP a shape stands for. The markup writes it after a "z": the
@@ -61,32 +47,65 @@ const MARGIN = 8;
 const zipOf = (area) => area.dataset.zip.slice(1);
 
 const toneOf = (area) => {
-  for (const [name, tone] of Object.entries(TONE_OF)) {
-    if (area.classList.contains(name)) return tone;
-  }
+  if (area.classList.contains("is-ours")) return "ok";
+  if (area.classList.contains("is-away")) return "wait";
   return "no";
 };
 
-const labelOf = (area, tone) => (area.classList.contains("is-eggs")
-  ? EGGS_ONLY : LABELS[tone]);
-
 const easeOut = (t) => 1 - (1 - t) ** 3;
 
+// Today on the visitor's clock, to compare with the dates in the
+// markup.
+const today = () => {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+// What has ended, or not begun, goes: a card's line, a name in the
+// list, a pin. A card left with one line takes that line's kind.
+const expire = (map) => {
+  const day = today();
+  const gone = (el) => (el.dataset.until && el.dataset.until < day)
+    || (el.dataset.from && el.dataset.from > day);
+
+  for (const line of map.querySelectorAll(".map-card-when [data-until]")) {
+    if (!gone(line)) continue;
+    const card = line.closest("[data-map-card]");
+
+    if (line.dataset.alone) {
+      card.querySelector("[data-map-card-kind]").textContent =
+        line.dataset.alone;
+      for (const link of card.querySelectorAll(".map-card-links a")) {
+        if (link.textContent.startsWith("Market ")) link.remove();
+      }
+    }
+    line.remove();
+  }
+  for (const el of map.querySelectorAll(
+    ".map-places [data-until], .map-places [data-from]"
+  )) {
+    if (gone(el)) el.remove();
+  }
+  for (const pin of map.querySelectorAll("[data-map-pin]")) {
+    if (gone(pin)) pin.remove();
+  }
+};
+
 const wire = (map) => {
+  expire(map);
+
   const frame = map.querySelector("[data-map-frame]");
   const svg = map.querySelector("[data-map-svg]");
-  const tip = map.querySelector("[data-map-tip]");
   const drop = map.querySelector("[data-map-drop]");
   const dropAt = map.querySelector("[data-map-drop-at]");
   const tag = map.querySelector("[data-map-drop-tag]");
-  const zooms = map.querySelector(".map-zoom");
   const zoomIn = map.querySelector("[data-map-zoom='in']");
   const zoomOut = map.querySelector("[data-map-zoom='out']");
   const reset = map.querySelector("[data-map-zoom='reset']");
-  const layer = map.querySelector(".map-pins");
+  const tabs = [...map.querySelectorAll("[data-map-layer]")];
   const pins = [...map.querySelectorAll("[data-map-pin]")];
-  // A pin by its number in the key; the markup draws them in
-  // reverse, so what is on now lies on top.
   const pinOf = (n) => map.querySelector(`[data-map-pin="${n}"]`);
   const picks = [...map.querySelectorAll("[data-map-pick]")];
   const form = map.querySelector("[data-zip-check]");
@@ -101,113 +120,25 @@ const wire = (map) => {
   // The ZIP the dropped pin stands on.
   let picked = null;
 
+  // The tag beside the pointer: the dropped pin's tag, copied, without
+  // its link, which the pointer could never reach.
+  const tip = tag.cloneNode(true);
+
+  tip.removeAttribute("data-map-drop-tag");
+  for (const el of tip.querySelectorAll("*")) {
+    for (const name of Object.keys(el.dataset)) delete el.dataset[name];
+  }
+  tip.querySelector(".map-tag-link").remove();
+  tip.classList.add("is-tip");
+  tip.setAttribute("aria-hidden", "true");
+  frame.append(tip);
+
   // The pointers down on the map, for drags and pinches.
   const pointers = new Map();
   let dragging = false;
   let startView = null;
   let startPoint = null;
   let startSpread = 0;
-
-  // Stacks: the pins that stand in one ZIP, all at the place of the
-  // first in the key, each a step up and to the right of the one
-  // before. Showing a pin's card brings it to the front, the pins
-  // before it going to the back; closing the card puts the stack back
-  // in key order. A pin alone is a stack of one.
-
-  const areas = [...svg.querySelectorAll("[data-zip]")];
-  const stackOf = new Map();
-  const orderOf = new Map();
-  const atOf = new Map();
-  const shiftOf = new Map();
-
-  {
-    const byZip = new Map();
-    const inOrder = [...pins].sort(
-      (a, b) => a.dataset.mapPin - b.dataset.mapPin
-    );
-
-    for (const pin of inOrder) {
-      const point = new DOMPoint(Number(pin.dataset.x), Number(pin.dataset.y));
-      const area = areas.find((a) => a.isPointInFill(point));
-      const key = area ? area.dataset.zip : `pin${pin.dataset.mapPin}`;
-
-      if (!byZip.has(key)) byZip.set(key, []);
-      byZip.get(key).push(pin);
-    }
-    for (const [key, stack] of byZip) {
-      const [first] = stack;
-
-      orderOf.set(stack, [...stack]);
-      for (const pin of stack) {
-        stackOf.set(pin, stack);
-        atOf.set(pin, { x: first.dataset.x, y: first.dataset.y });
-        shiftOf.set(pin, { x: 0, y: 0 });
-        if (stack.length > 1) pin.dataset.stack = key;
-      }
-    }
-  }
-
-  // Half a pin's width and its height above its tip, in pin units.
-  const size = (pin) => {
-    const k = pin.classList.contains("is-off") ? 0.78 : 1;
-
-    return pin.classList.contains("map-pin-farm")
-      ? { half: 22 * k, tall: 59 * k }
-      : { half: 15 * k, tall: 45 * k };
-  };
-
-  // Each pin's top right corner a step beyond the one before it,
-  // whatever their sizes, the front pin on the stack's place.
-  const lay = (stack) => {
-    const order = orderOf.get(stack);
-    const front = size(order[0]);
-
-    for (const [i, pin] of order.entries()) {
-      const own = size(pin);
-      const shift = {
-        x: front.half - own.half + STEP * i,
-        y: own.tall - front.tall - STEP * i,
-      };
-
-      shiftOf.set(pin, shift);
-      pin.querySelector(".map-pin-shift").style.transform =
-        `translate(${shift.x}px, ${shift.y}px)`;
-    }
-  };
-
-  // SVG paints in source order, so the front pin goes last.
-  const toFront = (pin) => {
-    const stack = stackOf.get(pin);
-    const order = orderOf.get(stack);
-
-    if (stack.length < 2 || order[0] === pin) return;
-
-    const i = order.indexOf(pin);
-
-    orderOf.set(stack, [...order.slice(i), ...order.slice(0, i)]);
-    lay(stack);
-    for (const p of [...orderOf.get(stack)].reverse()) layer.append(p);
-  };
-
-  const restack = (stack) => {
-    if (stack.length < 2 || orderOf.get(stack)[0] === stack[0]) return;
-    orderOf.set(stack, [...stack]);
-    lay(stack);
-    for (const p of pins) layer.append(p);
-  };
-
-  // Stacked from the start, without sliding there.
-  for (const stack of new Set(stackOf.values())) {
-    if (stack.length < 2) continue;
-    for (const pin of stack) {
-      pin.querySelector(".map-pin-shift").style.transition = "none";
-    }
-    lay(stack);
-    svg.getBoundingClientRect();
-    for (const pin of stack) {
-      pin.querySelector(".map-pin-shift").style.transition = "";
-    }
-  }
 
   // The view: the viewBox, and everything that must keep its size on
   // screen whatever the zoom (pins, the dropped pin and its tag, the
@@ -227,114 +158,80 @@ const wire = (map) => {
     };
   };
 
+  // A point in map units on screen, in pixels from the frame's corner.
+  const onScreen = (x, y) => {
+    const box = svg.getBoundingClientRect();
+
+    return {
+      x: (x - view.x) / view.w * box.width,
+      y: (y - view.y) / view.h * box.height,
+      width: box.width,
+      height: box.height,
+    };
+  };
+
+  // A pin's tip on screen, nudged aside at the whole map.
+  const tipOf = (pin) => {
+    const at = onScreen(Number(pin.dataset.x), Number(pin.dataset.y));
+    const nudge = zoom() < NUDGE_BELOW ? Number(pin.dataset.nudge || 0) : 0;
+
+    return { ...at, x: at.x + nudge * NUDGE_PX };
+  };
+
+  // Above a point where there is room, else below it, never past an
+  // edge: an element over the map, "lift" pixels above its tip.
+  const stand = (el, at, lift) => {
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    const left = Math.max(MARGIN, Math.min(at.width - w - MARGIN,
+      at.x - w / 2));
+    const above = at.y - lift - 6 - h;
+    const top = Math.max(MARGIN, Math.min(at.height - h - MARGIN,
+      above >= MARGIN ? above : at.y + MARGIN));
+
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+  };
+
   const place = () => {
     if (!open) return;
 
-    const pin = pinOf(open.dataset.mapCard);
-    const box = frame.getBoundingClientRect();
-    const at = atOf.get(pin);
-    const shift = shiftOf.get(pin);
-    const x = (at.x - view.x) / view.w * box.width
-      + shift.x * PIN_PX / PIN_UNITS;
-    const y = (at.y - view.y) / view.h * box.height
-      + shift.y * PIN_PX / PIN_UNITS;
+    const at = tipOf(pinOf(open.dataset.mapCard));
 
     // A pin panned out of view takes its card with it, once the
     // view has come to rest.
-    if (x < 0 || x > box.width || y < 0 || y > box.height) {
+    if (at.x < 0 || at.x > at.width || at.y < 0 || at.y > at.height) {
       if (moving) return;
       close();
       return;
     }
-
-    const half = open.offsetWidth / 2;
-    const left = Math.min(box.width - half - 8, Math.max(half + 8, x));
-    // Above the pin where there is room, else below it, and never off
-    // the bottom of the map.
-    // The farm marker stands 62 units to the others' 45.
-    const tall = (pin.classList.contains("map-pin-farm") ? 62 / 45 : 1)
-      * PIN_PX + 4;
-    const above = y - tall - open.offsetHeight > 8;
-    const below = Math.max(8,
-      Math.min(y + 10, box.height - open.offsetHeight - 8));
-
-    open.style.left = `${left}px`;
-    open.style.top = `${above ? y - tall : below}px`;
-    open.style.transform = above
-      ? "translate(-50%, -100%)"
-      : "translate(-50%, 0)";
+    stand(open, at, PIN_PX);
   };
 
-  // The tag's box and lines, measured once its words are in and it
-  // shows: the town on top, centred, then the icons and the fee.
-  const layTag = () => {
-    const town = tag.querySelector("[data-map-drop-town]");
-    const fee = tag.querySelector("[data-map-drop-fee]");
-    const feeW = fee.textContent ? fee.getComputedTextLength() : 0;
-    const lineW = TAG.egg + 4 + TAG.hen + (feeW ? 6 + feeW : 0);
-    const w = Math.ceil(Math.max(town.getComputedTextLength(), lineW))
-      + 2 * TAG.pad;
-    const top = TAG.pad + TAG.line + TAG.gap;
-    const h = top + TAG.icon + TAG.pad;
-    const x0 = (w - lineW) / 2;
-    const box = tag.querySelector("[data-map-drop-box]");
-
-    box.setAttribute("width", w);
-    box.setAttribute("height", h);
-    town.setAttribute("x", w / 2);
-    town.setAttribute("y", TAG.pad + 13);
-    tag.querySelector("[data-map-drop-has='eggs']")
-      .setAttribute("transform", `translate(${x0} ${top})`);
-    tag.querySelector("[data-map-drop-has='hen']")
-      .setAttribute("transform", `translate(${x0 + TAG.egg + 4} ${top})`);
-    fee.setAttribute("x", x0 + TAG.egg + 4 + TAG.hen + 6);
-    fee.setAttribute("y", top + 13);
-    tag.dataset.w = w;
-    tag.dataset.h = h;
-  };
-
-  // Above the pin, or below its tip where the top of the frame is too
-  // near; never past an edge or under the zoom buttons.
   const placeTag = () => {
-    if (!dropAt.dataset.x || !tag.dataset.w) return;
+    if (tag.hidden || !dropAt.dataset.x) return;
 
-    const box = svg.getBoundingClientRect();
-    const x = (dropAt.dataset.x - view.x) / view.w * box.width;
-    const y = (dropAt.dataset.y - view.y) / view.h * box.height;
-    const w = Number(tag.dataset.w);
-    const h = Number(tag.dataset.h);
+    const at = onScreen(Number(dropAt.dataset.x), Number(dropAt.dataset.y));
 
-    if (x < 0 || x > box.width || y < 0 || y > box.height) {
-      tag.setAttribute("visibility", "hidden");
-      return;
-    }
-    tag.removeAttribute("visibility");
-
-    const above = y - PIN_PX - 6 - h;
-    const top = Math.max(MARGIN, Math.min(box.height - h - MARGIN,
-      above >= MARGIN ? above : y + MARGIN));
-    const z = zooms.getBoundingClientRect();
-    const beside = top < z.bottom - box.top + MARGIN
-      && top + h > z.top - box.top - MARGIN;
-    const right = (beside ? z.left - box.left : box.width) - MARGIN;
-    const left = Math.max(MARGIN, Math.min(right - w, x - w / 2));
-    const k = view.w / box.width;
-
-    tag.setAttribute("transform", `translate(${view.x + left * k} `
-      + `${view.y + top * k}) scale(${k})`);
+    tag.style.visibility = at.x < 0 || at.x > at.width || at.y < 0
+      || at.y > at.height ? "hidden" : "";
+    stand(tag, at, PIN_PX);
   };
 
   const apply = () => {
     const k = zoom();
     const width = svg.getBoundingClientRect().width || W;
-    const s = (PIN_PX / PIN_UNITS * view.w / width).toFixed(4);
+    const units = view.w / width;
+    const s = (PIN_PX / PIN_UNITS * units).toFixed(4);
+    const nudged = k < NUDGE_BELOW;
 
     svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
     for (const pin of pins) {
-      const at = atOf.get(pin);
+      const dx = nudged ? Number(pin.dataset.nudge || 0) * NUDGE_PX * units
+        : 0;
 
-      pin.setAttribute("transform",
-        `translate(${at.x} ${at.y}) scale(${s})`);
+      pin.setAttribute("transform", `translate(${Number(pin.dataset.x) + dx} `
+        + `${pin.dataset.y}) scale(${s})`);
     }
     if (dropAt.dataset.x) {
       dropAt.setAttribute("transform",
@@ -441,53 +338,82 @@ const wire = (map) => {
     zoomAbout(2, p.x, p.y, true);
   });
 
+  // Layers.
+
+  const layer = () => map.dataset.layer;
+
+  function setLayer(name) {
+    if (!tabs.length || layer() === name) return;
+    map.dataset.layer = name;
+    for (const t of tabs) {
+      const on = t.dataset.mapLayer === name;
+
+      t.setAttribute("aria-selected", String(on));
+      t.tabIndex = on ? 0 : -1;
+      if (on) frame.setAttribute("aria-labelledby", t.id);
+    }
+    for (const el of map.querySelectorAll("[data-map-for]")) {
+      el.hidden = el.dataset.mapFor !== name;
+    }
+    if (name === "delivery") close();
+    hideTip();
+    apply();
+  }
+
+  for (const [i, t] of tabs.entries()) {
+    t.addEventListener("click", () => setLayer(t.dataset.mapLayer));
+    t.addEventListener("keydown", (e) => {
+      const d = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+
+      if (!d) return;
+      const next = tabs[(i + d + tabs.length) % tabs.length];
+
+      setLayer(next.dataset.mapLayer);
+      next.focus();
+    });
+  }
+
   // Cards.
 
-  const hide = () => {
-    open.hidden = true;
-    pinOf(open.dataset.mapCard).setAttribute("aria-pressed", "false");
-    open = null;
+  const pressed = (n) => {
+    for (const pin of pins) {
+      pin.setAttribute("aria-pressed", String(pin.dataset.mapPin === n));
+    }
+    for (const b of map.querySelectorAll("[data-map-show]")) {
+      b.setAttribute("aria-pressed", String(b.dataset.mapShow === n));
+    }
   };
 
   function close() {
     if (!open) return;
-
-    const stack = stackOf.get(pinOf(open.dataset.mapCard));
-
-    hide();
-    restack(stack);
+    open.hidden = true;
+    open = null;
+    pressed(null);
+    // The selected pin painted last; back in its place.
+    for (const pin of pins) pin.parentNode.append(pin);
   }
 
   const show = (n, { focus = false, centreOn = false } = {}) => {
     const card = map.querySelector(`[data-map-card="${n}"]`);
     const pin = pinOf(n);
-    const stack = stackOf.get(pin);
 
+    if (!card || !pin) return;
     if (open === card) {
       close();
       return;
     }
-    // Within a stack, the stack stays as it is while the card swaps.
-    if (open && stack.includes(pinOf(open.dataset.mapCard))) hide();
-    else close();
-    toFront(pin);
+    close();
+    setLayer("places");
     open = card;
     card.hidden = false;
-    pin.setAttribute("aria-pressed", "true");
-    if (stack.length > 1) {
-      const line = card.querySelector("[data-map-card-stack]");
-
-      line.textContent = `${stack.indexOf(pin) + 1} of ${stack.length} `
-        + "here. Tap the pin again for the next.";
-      line.hidden = false;
-    }
+    pressed(String(n));
+    // SVG paints in source order: the selected pin goes on top.
+    pin.parentNode.append(pin);
     if (centreOn && zoom() > 1.01) {
-      const at = atOf.get(pin);
-
       go({
         ...view,
-        x: at.x - view.w / 2,
-        y: at.y - view.h / 2,
+        x: Number(pin.dataset.x) - view.w / 2,
+        y: Number(pin.dataset.y) - view.h / 2,
       });
     }
     place();
@@ -498,19 +424,23 @@ const wire = (map) => {
     pin.addEventListener("keydown", (e) => {
       if (e.key !== "Enter" && e.key !== " ") return;
       e.preventDefault();
-      show(Number(pin.dataset.mapPin), { focus: true });
+      show(pin.dataset.mapPin, { focus: true });
     });
   }
 
+  // On a phone the list is below the map; bring the map back.
+  const bringBack = () => {
+    const box = frame.getBoundingClientRect();
+
+    if (box.top < 0 || box.bottom > innerHeight) {
+      frame.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  };
+
   for (const button of map.querySelectorAll("[data-map-show]")) {
     button.addEventListener("click", () => {
-      show(Number(button.dataset.mapShow), { centreOn: true });
-      // On a phone the key is below the map; bring the map back.
-      const box = frame.getBoundingClientRect();
-
-      if (box.top < 0 || box.bottom > innerHeight) {
-        frame.scrollIntoView({ block: "center", behavior: "smooth" });
-      }
+      show(button.dataset.mapShow, { centreOn: true });
+      bringBack();
     });
   }
 
@@ -532,30 +462,63 @@ const wire = (map) => {
     pinOf(n).focus();
   });
 
-  // The tip: a ZIP's town and answer, beside the pointer.
+  // The tag: the town, what we deliver there and the price. "el" is
+  // the dropped pin's tag or the pointer's.
+  const fill = (el, area) => {
+    const tone = toneOf(area);
+    const fee = Number(tag.dataset.fee)
+      + (tone === "wait" ? Number(tag.dataset.extra) : 0);
+    const has = {
+      eggs: tone !== "no",
+      hen: tone !== "no" && !area.classList.contains("is-eggs"),
+    };
+    const [town, eggs, hen, price, none] = [
+      ".map-tag-town", ".map-tag-icon:nth-of-type(1)",
+      ".map-tag-icon:nth-of-type(2)", ".map-tag-fee", ".map-tag-none",
+    ].map((s) => el.querySelector(s));
 
-  const hideTip = () => {
-    tip.hidden = true;
+    town.textContent = area.dataset.town || zipOf(area);
+    price.textContent = tone === "no" ? "" : `$${fee}`;
+    price.hidden = tone === "no";
+    none.hidden = tone !== "no";
+    for (const [icon, on] of [[eggs, has.eggs], [hen, has.hen]]) {
+      icon.classList.toggle("is-off", !on);
+      if (el === tag) icon.dataset.on = on;
+    }
+    const link = el.querySelector(".map-tag-link");
+
+    if (link) link.hidden = tone !== "no";
   };
 
-  svg.addEventListener("pointermove", (e) => {
-    const area = e.pointerType === "mouse" && e.target.closest("[data-zip]");
+  // The tag beside the pointer, over a town, with a mouse.
 
-    if (!area || dragging) {
+  function hideTip() {
+    tip.hidden = true;
+  }
+
+  svg.addEventListener("pointermove", (e) => {
+    const area = layer() === "delivery" && e.pointerType === "mouse"
+      && e.target.closest("[data-zip]");
+
+    if (!area || dragging || zipOf(area) === picked) {
       hideTip();
       return;
     }
 
     const box = frame.getBoundingClientRect();
-    const town = area.dataset.town ? `${area.dataset.town}, ` : "";
+    const x = e.clientX - box.left;
+    const y = e.clientY - box.top;
 
-    tip.textContent = `${town}${zipOf(area)}: ${labelOf(area, toneOf(area))}`;
+    fill(tip, area);
     tip.hidden = false;
-    tip.style.left = `${e.clientX - box.left}px`;
-    tip.style.top = `${e.clientY - box.top}px`;
-    tip.style.transform = e.clientX - box.left > box.width / 2
-      ? "translate(calc(-100% - 12px), 12px)"
-      : "translate(12px, 12px)";
+    tip.style.left = `${x + 14}px`;
+    tip.style.top = `${y + 14}px`;
+    if (x + 14 + tip.offsetWidth > box.width - MARGIN) {
+      tip.style.left = `${x - 14 - tip.offsetWidth}px`;
+    }
+    if (y + 14 + tip.offsetHeight > box.height - MARGIN) {
+      tip.style.top = `${y - 14 - tip.offsetHeight}px`;
+    }
   });
   svg.addEventListener("pointerleave", hideTip);
 
@@ -582,23 +545,15 @@ const wire = (map) => {
     if (moved) scrollBy({ top: moved, behavior: "instant" });
   };
 
-  // A tap on a pin opens its card; on a stack whose card is open, the
-  // next pin's. Otherwise a tap closes an open card and does no more;
-  // with none open, a tap on a town picks it, and a tap on the town
+  // Places: a tap on a pin opens its card; a tap anywhere else closes
+  // one. Delivery: a tap on a town picks it, and a tap on the town
   // picked, on water or on a neighbouring state clears the pick.
   const tap = (target) => {
-    const pin = target.closest("[data-map-pin]");
+    if (layer() === "places") {
+      const pin = target.closest("[data-map-pin]");
 
-    if (pin) {
-      const order = orderOf.get(stackOf.get(pin));
-      const showing = open && order.includes(pinOf(open.dataset.mapCard));
-      const next = order.length > 1 && showing ? order[1] : order[0];
-
-      show(Number((order.length > 1 ? next : pin).dataset.mapPin));
-      return;
-    }
-    if (open) {
-      close();
+      if (pin) show(pin.dataset.mapPin);
+      else close();
       return;
     }
 
@@ -609,6 +564,7 @@ const wire = (map) => {
       if (picked) check("", "");
       return;
     }
+    hideTip();
     check(zipOf(area), toneOf(area));
   };
 
@@ -692,52 +648,65 @@ const wire = (map) => {
 
   document.addEventListener("nff:zip", (e) => {
     const { zip, tone } = e.detail;
-    const area = zip && LABELS[tone]
+    const area = zip && tone
       && svg.querySelector(`[data-zip="z${CSS.escape(zip)}"]`);
 
     // SVG elements have no hidden property, so the attribute it is.
     if (!area) {
       picked = null;
       drop.setAttribute("hidden", "");
+      tag.hidden = true;
       for (const p of picks) p.setAttribute("hidden", "");
       return;
     }
 
-    const { x, y } = area.dataset;
-    const fee = Number(tag.dataset.fee)
-      + (tone === "wait" ? Number(tag.dataset.extra) : 0);
-    const has = {
-      eggs: tone !== "no",
-      hen: tone !== "no" && !area.classList.contains("is-eggs"),
-    };
-
     picked = zip;
-    tag.querySelector("[data-map-drop-town]").textContent =
-      area.dataset.town || zip;
-    tag.querySelector("[data-map-drop-fee]").textContent =
-      tone === "no" ? "" : `$${fee}`;
-    for (const [what, on] of Object.entries(has)) {
-      tag.querySelector(`[data-map-drop-has='${what}']`).dataset.on = on;
-    }
-
+    setLayer("delivery");
+    fill(tag, area);
     for (const p of picks) {
       p.setAttribute("d", area.getAttribute("d"));
       p.removeAttribute("hidden");
     }
-    dropAt.dataset.x = x;
-    dropAt.dataset.y = y;
+    dropAt.dataset.x = area.dataset.x;
+    dropAt.dataset.y = area.dataset.y;
     drop.dataset.tone = tone;
 
-    // Hidden and shown again, with a layout between, the pin falls anew.
+    // Hidden and shown again, with a layout between, the pin falls anew
+    // and the tag fades in again.
     drop.setAttribute("hidden", "");
+    tag.hidden = true;
     drop.getBoundingClientRect();
     drop.removeAttribute("hidden");
-    layTag();
+    tag.hidden = false;
     apply();
   });
 
+  // "See pickup spots", on a map with the Places layer; on one without,
+  // the link goes to the home page's.
+  tag.querySelector("[data-map-to-places]").addEventListener("click", (e) => {
+    if (!tabs.length) return;
+    e.preventDefault();
+    setLayer("places");
+    tabs.find((t) => t.dataset.mapLayer === "places").focus();
+  });
+
+  // #places opens the Places layer; #place-… opens that place's card.
+  const follow = () => {
+    const hash = decodeURIComponent(location.hash.slice(1));
+
+    if (!tabs.length || !hash.startsWith("place")) return;
+    const pin = hash === "places" ? null
+      : map.querySelector(`[data-map-slug="${CSS.escape(hash)}"]`);
+
+    setLayer("places");
+    if (pin) show(pin.dataset.mapPin);
+    frame.scrollIntoView({ block: "center" });
+  };
+
+  addEventListener("hashchange", follow);
   addEventListener("resize", apply);
   apply();
+  follow();
 };
 
 export const wireMaps = () => {

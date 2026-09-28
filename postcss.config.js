@@ -85,6 +85,9 @@ const plugins = [
         "data-search-cart",
         "full",
         "aria-pressed",
+        "data-layer",
+        "delivery",
+        "places",
       ];
     },
     safelist: {
