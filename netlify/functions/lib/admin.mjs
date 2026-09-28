@@ -3,7 +3,9 @@
 // same records and rules as the customer-facing functions, with the
 // farm's authority. bin/nff is the thin front.
 
+import terms from "../../../data/delivery.json" with { type: "json" };
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
+import { addDays } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { adjust, getCounts, setCount } from "./stock.mjs";
 import { normalizeEmail, validEmail } from "./auth.mjs";
 import { company } from "./company.mjs";
@@ -18,11 +20,11 @@ import {
   paidTotal, paymentRef, paymentsOf, refundedTotal, saveCustomer, setStatus,
   settledRefunds,
 } from "./records.mjs";
-import { mailLinks } from "./site.mjs";
+import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import {
-  addressDecision, age, devMailTest as devMailTestMessage, orderCancelled,
-  sessionsEnded,
+  addressDecision, age, devMailTest as devMailTestMessage, missedDelivery,
+  orderCancelled, sessionsEnded,
 } from "./templates.mjs";
 import { lastInteraction, quietDue } from "./retention.mjs";
 
@@ -421,9 +423,15 @@ export const ATTEMPT_CAUSES = [...CUSTOMER_CAUSES, "weather", "farm"];
 // waived anyway, with the reason, at the same moment (C2). `note` is
 // that private reason; `detail` is what the customer's email adds
 // about where we couldn't get to (no-access). Marking twice keeps the
-// first. -> the order.
+// first.
+//
+// A customer's miss, waived or not, asks them what to do (F2): the
+// order holds a `missed` question until they reschedule, switch or
+// cancel, or until the hold runs out (C8, `until`), and the
+// missed-delivery email says so. -> the order.
 export const markAttempted = async (stores, id, {
-  cause, waive = "", detail = "", now = new Date(),
+  cause, waive = "", detail = "", now = new Date(), env = process.env,
+  mail = sendMail,
 } = {}) => {
   const order = need(await getOrder(stores, id), "order");
 
@@ -440,9 +448,9 @@ export const markAttempted = async (stores, id, {
   }
 
   const note = waive.trim();
-  const waived = !CUSTOMER_CAUSES.includes(cause) || !!note;
-
-  return amendOrder(stores, id, {
+  const theirs = CUSTOMER_CAUSES.includes(cause);
+  const waived = !theirs || !!note;
+  const marked = await amendOrder(stores, id, {
     attempted: {
       at: now.toISOString(),
       cause,
@@ -451,7 +459,21 @@ export const markAttempted = async (stores, id, {
       note,
       detail: detail.trim(),
     },
+    ...theirs && {
+      question: {
+        kind: "missed", reason: "", openedAt: now.toISOString(),
+        until: addDays(order.fulfilment.date, terms.delivery.holdDays),
+        answeredAt: null, answer: null, by: null,
+      },
+    },
   }, "delivery.attempted", now);
+
+  if (!theirs) return marked;
+
+  return sendForOrder(stores, marked, "missedDelivery",
+    missedDelivery(marked, {
+      pickUrl: orderUrlFor(env, id), links: mailLinks(env),
+    }), { mail, env, now });
 };
 
 export const fulfilOrder = async (stores, id, { now = new Date() } = {}) =>
