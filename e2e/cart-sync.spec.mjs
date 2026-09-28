@@ -94,7 +94,10 @@ test.describe("the cart across devices (#149)", () => {
     async ({ page, context, baseURL }) => {
       const { puts } = await setUp(page, context, baseURL, {
         remote: cart([{ sku: WHOLE, qty: 3 }], 5),
-        local: cart([{ sku: EGGS, qty: 1 }], Date.now() - 1000),
+        local: {
+          key: "k", attempt: 2,
+          ...cart([{ sku: EGGS, qty: 1 }], Date.now() - 1000),
+        },
       });
 
       await page.goto("/order/");
@@ -107,8 +110,11 @@ test.describe("the cart across devices (#149)", () => {
       await expect.poll(() => puts.length, { timeout: 5_000 })
         .toBeGreaterThan(before);
       expect(puts.at(-1).payload.lines).toContainEqual({ sku: EGGS, qty: 4 });
-      // The payment key never leaves the browser.
-      expect(puts.at(-1).payload.idempotencyKey).toBeUndefined();
+      // The payment key and attempt never leave the browser.
+      expect(Object.keys(puts.at(-1)).sort()).toEqual(["payload", "savedAt"]);
+      for (const key of ["key", "attempt", "idempotencyKey"]) {
+        expect(puts.at(-1).payload).not.toHaveProperty(key);
+      }
     });
 
   test("another page asks once and shows the count",
