@@ -26,6 +26,11 @@ describe("the grid check", () => {
       rules(`<div class="row g-0"><div class="col">1</div></div>`), []);
   });
 
+  it("takes a make-container() class for a container", () => {
+    assert.deepEqual(rules(`<div class="order-page"><div class="row">
+      <div class="col">1</div></div></div>`), []);
+  });
+
   it("finds a row's non-column children and bare text", () => {
     assert.deepEqual(rules(`<div class="container"><div class="row">
       <p>Words</p> loose <div class="col">ok</div></div></div>`),

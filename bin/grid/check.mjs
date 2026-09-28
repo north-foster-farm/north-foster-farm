@@ -35,8 +35,12 @@ const VOID = new Set([
 const RAW = new Set(["script", "style", "textarea", "title"]);
 const BP = "(?:sm|md|lg|xl|xxl)";
 
-const isContainer = (c) =>
-  new RegExp(`^container(?:-(?:fluid|${BP}))?$`).test(c);
+// Classes whose styles build a container with make-container(), as
+// the docs' semantic grid does: the order page's (#235).
+const MIXIN_CONTAINERS = new Set(["order-page"]);
+
+const isContainer = (c) => MIXIN_CONTAINERS.has(c)
+  || new RegExp(`^container(?:-(?:fluid|${BP}))?$`).test(c);
 const isCol = (c) =>
   new RegExp(`^col(?:-${BP})?(?:-(?:[1-9]|1[0-2]|auto))?$`).test(c);
 

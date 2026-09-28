@@ -1,6 +1,11 @@
 // The order form. Written against Bootstrap's CSS variables only: no
-// @extend, no mixins, no colour functions, so it survives the
-// Tailwind migration unchanged.
+// @extend, no colour functions, and one mixin, the page's container,
+// so it survives the Tailwind migration nearly unchanged.
+
+$order-page-max-widths: (
+  xs: 1040px,
+  xl: 1320px
+);
 
 .order {
   --order-gutter: 1rem;
@@ -13,8 +18,17 @@
   --order-base: 220ms;
   --order-slow: 420ms;
 
+  // The page's own container (#235): Bootstrap's, at 1040px wide and
+  // 1320px from xl, rather than a restyled .container. Below lg the
+  // gutter widens with --order-gutter.
   .order-page {
-    max-width: 1040px;
+    @include make-container;
+
+    @each $breakpoint, $width in $order-page-max-widths {
+      @include media-breakpoint-up($breakpoint) {
+        max-width: $width;
+      }
+    }
   }
 
   // One line from sm up; on a phone it takes two of even length.
@@ -1200,7 +1214,7 @@
 
     // Room at the sides, less of it on a phone.
     .order-page {
-      padding-inline: var(--order-gutter);
+      --bs-gutter-x: calc(var(--order-gutter) * 2);
     }
 
     @media (max-width: 575.98px) {
@@ -1922,10 +1936,6 @@
   }
 
   @media (min-width: 1200px) {
-    .order-page {
-      max-width: 1320px;
-    }
-
     .order-main {
       display: grid;
       grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
