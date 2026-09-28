@@ -8,51 +8,15 @@ import { dollars } from "../order/lib/totals.mjs";
 import { label } from "../order/lib/zoned.mjs";
 import { forget, showChick, signOut } from "../session/session.js";
 import { api } from "../utils/api.js";
+import {
+  METHOD, fileName, ordersCsv, paidWith, receiptsCsv, statusOf,
+} from "./lib/history.mjs";
 
 const qs = (root, selector) => root.querySelector(selector);
 const all = (root, selector) => Array.from(root.querySelectorAll(selector));
 
-const STATUS = {
-  paid: "Paid",
-  fulfilled: "Delivered",
-  cancelled: "Cancelled",
-  // From before the checkout moved onto the page.
-  submitted: "Awaiting payment",
-  abandoned: "Not paid",
-};
-
-// A finished order was delivered only if it went by delivery; the
-// rest were picked up (copy's #158 review; the wording is a draft).
-const statusOf = (order) => (order.status === "fulfilled"
-  && order.fulfilment && order.fulfilment.method !== "delivery"
-  ? "Picked up"
-  : STATUS[order.status]);
-
-// "Visa ending 4242", "Apple Pay", "Venmo".
-const paidWith = (payment) => {
-  const p = payment || {};
-  const wallets = {
-    applepay: "Apple Pay", googlepay: "Google Pay", cashapp: "Cash App Pay",
-    venmo: "Venmo",
-  };
-
-  if (wallets[p.method]) return wallets[p.method];
-
-  const brand = String(p.brand || "card").toLowerCase()
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (ch) => ch.toUpperCase());
-
-  return p.last4 ? `${brand} ending ${p.last4}` : brand;
-};
-
 const total = (items) => (items || [])
   .reduce((s, x) => s + (x.amount || 0), 0);
-
-const METHOD = {
-  delivery: "Delivery",
-  scituate: "Drop site",
-  onfarm: "On-farm pickup",
-};
 
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -172,6 +136,12 @@ class Account {
 
     document.getElementById("account-signout").addEventListener("click",
       signOut);
+
+    for (const button of all(document, "[data-download]")) {
+      button.addEventListener("click", () => this.download(
+        button.dataset.download
+      ));
+    }
 
     // The address saves once the street, town and ZIP are there; the
     // settings once both names are.
@@ -528,9 +498,29 @@ class Account {
     const { ok, data } = await api("/api/account/orders");
 
     this.orders = ok ? data.orders : [];
+    for (const row of all(document, "[data-download-row]")) {
+      row.hidden = this.orders.length === 0;
+    }
     this.renderOrders();
     this.renderReceipts();
     this.renderSupportOrders();
+  }
+
+  // The whole order or receipt history as a CSV file (#165).
+  download(kind) {
+    const text = kind === "receipts"
+      ? receiptsCsv(this.orders) : ordersCsv(this.orders);
+    const url = URL.createObjectURL(
+      new Blob([text], { type: "text/csv;charset=utf-8" })
+    );
+    const a = el("a");
+
+    a.href = url;
+    a.download = fileName(kind);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   renderOrders() {

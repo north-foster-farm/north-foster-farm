@@ -31,6 +31,8 @@
 
           <section class="account-section" id="acct-orders" data-section="orders" aria-labelledby="acct-orders-h">
             <h2 class="h4" id="acct-orders-h">Your orders</h2>
+            {{/* #165: the whole history as a CSV; the wording is a draft. */}}
+            <p class="mb-3" data-download-row hidden><button type="button" class="btn btn-sm btn-outline-primary" data-download="orders">Download all orders (CSV)</button></p>
             <p class="account-empty" id="orders-empty" hidden>
               No orders yet. <a href="{{ relURL "order/" }}">Browse what's in stock</a>.
             </p>
@@ -40,6 +42,7 @@
           <section class="account-section" id="acct-receipts" data-section="receipts" aria-labelledby="acct-receipts-h" hidden>
             <h2 class="h4" id="acct-receipts-h">Receipts</h2>
             <p class="text-body-secondary">Every payment, and the receipt for it.</p>
+            <p class="mb-3" data-download-row hidden><button type="button" class="btn btn-sm btn-outline-primary" data-download="receipts">Download all receipts (CSV)</button></p>
             <table class="table account-table" id="receipts-table">
               <thead>
                 <tr><th scope="col">Order</th><th scope="col">Paid</th><th scope="col">Total</th><th scope="col">Paid with</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Link</span></th></tr>
