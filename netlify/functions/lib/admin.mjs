@@ -211,11 +211,13 @@ export const refundOrder = async (stores, id, {
 // A cancel, the farm's or the customer's: any status but fulfilled.
 // Stock goes back, the fulfilment is cancelled in Square, the money
 // goes back unless the farm says otherwise (--no-refund: W11a-1,
-// T1c), the customer is told.
+// T1c), the customer is told. The farm's `reason`, one of the
+// templates' CANCEL_REASONS keys, or its `reasonText` is the
+// customer's line why (T2a); either also goes on the refund.
 export const cancelOrder = async (stores, id, {
   now = new Date(), env = process.env, mail = sendMail,
   square = squareApi, paypal = paypalApi, refund = true, amount, reason,
-  fetchImpl, source = "farm", key,
+  reasonText = "", fetchImpl, source = "farm", key,
 } = {}) => {
   const order = need(await getOrder(stores, id), "order");
 
@@ -228,7 +230,8 @@ export const cancelOrder = async (stores, id, {
 
   if (refundNow) {
     await refundOrder(stores, id, {
-      now, env, amount, reason, square, paypal, fetchImpl, source, key,
+      now, env, amount, reason: reasonText || reason, square, paypal,
+      fetchImpl, source, key,
     });
   }
 
@@ -248,11 +251,20 @@ export const cancelOrder = async (stores, id, {
     }
   }
 
-  // A customer who already asked was already told.
+  // A customer who already asked was already told. The email states
+  // the money (T1a): what went back just now, or else what went back
+  // before, dated.
   if (!order.cancelRequested) {
+    const earlier = refundsOf(order);
+    const justNow = refundedTotal(cancelled) - refundedTotal(order);
+
     await sendForOrder(stores, cancelled, "orderCancelled",
       orderCancelled(cancelled, {
-        refund: refundNow, links: mailLinks(env),
+        refunded: justNow || refundedTotal(order),
+        refundedOn: justNow || !earlier.length ? null
+          : earlier[earlier.length - 1].at,
+        by: source === "customer" ? "customer" : "farm",
+        reason, reasonText, links: mailLinks(env),
       }), { mail, env, now });
   }
 

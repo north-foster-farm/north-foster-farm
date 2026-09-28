@@ -167,7 +167,8 @@ describe("cancelOrder", () => {
     assert.equal((await getCounts(stores)).A, 4);
     assert.equal(sent.length, 2);
     assert.match(sent[0].subject, /cancelled/);
-    assert.match(sent[0].text, /refund is on its way/);
+    assert.match(sent[0].text,
+      /as you asked\.\n\*\*A refund of \$\d+ is on its way/);
     assert.deepEqual(sent[1].to, ["farm@example.com"]);
     assert.equal(sent[1].subject, "Cancelled: A by pat@example.com");
     assert.match(sent[1].text, /refunded \$12 automatically/);
@@ -206,7 +207,7 @@ describe("cancelOrder", () => {
     assert.deepEqual(calls, []);
     assert.equal((await getCounts(stores)).A, 4);
     assert.equal(sent.length, 2);
-    assert.match(sent[0].text, /refund is on its way/);
+    assert.match(sent[0].text, /A refund of \$12 is on its way/);
     assert.equal(sent[1].subject,
       "Refund needed: A cancelled by pat@example.com");
     assert.match(sent[1].text, /bin\/nff orders cancel A\n/);
@@ -342,7 +343,7 @@ describe("changeOrder", () => {
       assert.equal(r.order.status, "cancelled", "refunded on the spot");
       assert.equal(r.order.question.answer, "cancel");
       assert.match(sent[0].subject, /cancelled/);
-      assert.match(sent[0].text, /refund is on its way/);
+      assert.match(sent[0].text, /A refund of \$\d+ is on its way/);
 
       // Without a question the cutoff still closes the doors.
       await saveOrder(stores, order("B", "onfarm"), now);

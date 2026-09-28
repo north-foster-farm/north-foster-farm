@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  addressDecision, addressReview, deliveryReminder, farmAlert,
+  CANCEL_REASONS, addressDecision, addressReview, deliveryReminder, farmAlert,
   farmMorningReport, farmOrderChanged, farmOrderPlaced, farmPickupChanged,
   farmRefundNeeded, farmReturnRequest, farmSquareOutOfSync, farmSupport,
   farmTomorrow, magicLink, missedDelivery, movedDelivery, orderCancelled,
@@ -578,22 +578,57 @@ describe("order changed and cancelled", () => {
       orderChanged(was, { links, before }).text, /Removed|order now/);
   });
 
-  it("tells a cancellation without a refund nothing more is charged", () => {
-    const m = orderCancelled(order(), { links });
+  it("states the refund a cancellation sends back (T1a)", () => {
+    const m = orderCancelled(order(), { refunded: 6700, links });
 
     assert.equal(m.subject, "Your order is cancelled");
-    has(m.text, "We cancelled your order. Nothing more will be charged.");
+    has(m.text, "We cancelled your order for delivery on Thursday, " +
+      "October 8.\n**A refund of $67 is on its way.**\nMost refunds " +
+      "arrive within a few business days.");
     assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/);
-    assert.doesNotMatch(m.text, /refund/i);
+    assert.doesNotMatch(m.text, /charged/);
   });
 
-  it("tells a paid cancellation the refund is coming", () => {
-    const m = orderCancelled(order(), { refund: true, links });
+  it("says a customer's own cancel was as they asked", () => {
+    const m = orderCancelled(order(), {
+      by: "customer", refunded: 6700, reason: "delay", links,
+    });
 
-    has(m.text, "We cancelled your order for delivery on Thursday, " +
-      "October 8.");
-    has(m.text, "**Your refund is on its way.** Most refunds arrive within " +
-      "a few business days.");
+    has(m.text, "October 8, as you asked.");
+    assert.doesNotMatch(m.text, /ready in time/);
+  });
+
+  it("gives the farm's reason from the list, or its own words (T2a)", () => {
+    const pickup = {
+      ...order(), fulfilment: { ...order().fulfilment, method: "onfarm" },
+    };
+    const says = (o, options) =>
+      orderCancelled(o, { refunded: 6700, links, ...options }).text;
+
+    has(says(order(), { reason: "sold-out" }), "Something in your order " +
+      "sold out before our stock count caught up. We're sorry; that " +
+      "one's on us.");
+    has(says(order(), { reason: "delay" }), "We couldn't get your order " +
+      "ready in time for Thursday, October 8.");
+    has(says(order(), { reason: "weather" }), "The weather made it unsafe " +
+      "to deliver on Thursday, October 8.");
+    has(says(pickup, { reason: "weather" }), "unsafe to open for pickup on");
+    has(says(order(), { reason: "emergency" }), "Something urgent came up " +
+      "on the farm that needs us that day.");
+    has(says(order(), { reason: "mistake" }), "We made a mistake with " +
+      "your order");
+    has(says(order(), { reasonText: "The truck broke down." }),
+      "October 8.\nThe truck broke down.\n**A refund");
+    assert.equal(Object.keys(CANCEL_REASONS).length, 5);
+  });
+
+  it("dates a refund made before the cancel", () => {
+    const m = orderCancelled(order(), {
+      refunded: 6700, refundedOn: "2026-10-07T02:00:00.000Z", links,
+    });
+
+    has(m.text, "**We refunded $67 on Tuesday, October 6.**");
+    assert.doesNotMatch(m.text, /on its way/);
   });
 
   const attempted = (fee) => ({
@@ -641,20 +676,20 @@ describe("order changed and cancelled", () => {
 
   it("says why when the hold ran out", () => {
     const m = orderCancelled(attempted(500),
-      { refunded: 6200, held: true, links });
+      { by: "hold", refunded: 6200, links });
 
-    has(m.text, "We couldn't deliver your order on Thursday, October 8, " +
-      "and we held it for seven days for you to choose what to do.");
-    has(m.text, "**A refund of $62 for your items is on its way.**");
+    has(m.text, "We held your order for seven days and didn't hear from " +
+      "you, so we've cancelled it.");
+    has(m.text, "**A refund of $62 is on its way.**");
   });
 
   it("states the refund that went out after a missed delivery", () => {
     const kept = orderCancelled(attempted(500), { refunded: 6200, links });
     const full = orderCancelled(attempted(0), { refunded: 6700, links });
 
-    has(kept.text, "**A refund of $62 for your items is on its way.** The " +
-      "delivery fee of $5 isn't refunded, because we made the trip.");
-    has(full.text, "**A full refund of $67 is on its way.**");
+    has(kept.text, "**A refund of $62 is on its way.**\nThe delivery " +
+      "fee of $5 isn't refunded, because we made the trip.");
+    has(full.text, "**A refund of $67 is on its way.**");
     assert.doesNotMatch(full.text, /delivery fee/);
   });
 });

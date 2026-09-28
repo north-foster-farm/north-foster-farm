@@ -282,8 +282,24 @@ describe("orders from the CLI", () => {
       assert.deepEqual(calls, []);
     });
 
+  it("cancel gives the customer the farm's reason (T2a)", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+
+    await saveOrder(stores, order("A"), now);
+    await cancelOrder(stores, "A", { ...opts, reason: "sold-out" });
+    await saveOrder(stores, order("B"), now);
+    await cancelOrder(stores, "B", {
+      ...opts, reasonText: "The truck broke down.",
+    });
+
+    assert.match(sent[0].text, /October 7\.\nSomething in your order sold /);
+    assert.match(sent[0].text, /\*\*A refund of \$14 is on its way\.\*\*/);
+    assert.match(sent[1].text, /October 7\.\nThe truck broke down\.\n/);
+  });
+
   it("cancel --no-refund: stock back, Square closed, customer told " +
-    "nothing more is charged", async () => {
+    "of no refund", async () => {
     const stores = testStores();
     const { sent, calls, opts } = harness();
 
@@ -297,8 +313,7 @@ describe("orders from the CLI", () => {
     assert.deepEqual(calls, [["fulfilment", "SQO"]]);
     assert.equal(sent.length, 1);
     assert.match(sent[0].subject, /cancelled/);
-    assert.match(sent[0].text, /Nothing more will be charged/);
-    assert.doesNotMatch(sent[0].text, /refund/i);
+    assert.doesNotMatch(sent[0].text, /refund|charged/i);
     assert.equal((await openOrders(stores)).length, 0);
 
     // Cancelling again changes nothing and sends nothing.
@@ -324,7 +339,7 @@ describe("orders from the CLI", () => {
     ]);
     assert.equal((await getCounts(stores))["NFF-CHK-EGG-LG"], 5);
     assert.equal(sent.length, 1);
-    assert.match(sent[0].text, /refund is on its way/);
+    assert.match(sent[0].text, /A refund of \$14 is on its way/);
     assert.match(sent[0].text, /on-farm pickup on Wednesday, October 7/);
 
     // A partial refund with a reason rides along.
@@ -339,7 +354,7 @@ describe("orders from the CLI", () => {
       ["paypal.refund", "CAP-B", 700], ["square.refund", "PAY-B", 700],
       ["fulfilment", "SQO"],
     ]);
-    assert.match(sent[1].text, /refund is on its way/);
+    assert.match(sent[1].text, /A refund of \$7 is on its way/);
 
     // A processor failure stops the cancel before anything changes.
     await saveOrder(stores, order("C"), now);
@@ -612,7 +627,7 @@ describe("refunds over several payments", () => {
       ["fulfilment", "SQO"],
     ]);
     assert.deepEqual(c.refunds.map((r) => r.amount), [400, 1000]);
-    assert.match(sent.at(-1).text, /refund is on its way/);
+    assert.match(sent.at(-1).text, /A refund of \$10 is on its way/);
 
     // Refunded in full already: nothing more goes back, and the email
     // does not promise it.
@@ -621,7 +636,8 @@ describe("refunds over several payments", () => {
     await cancelOrder(stores, "B", { ...opts, refund: true });
 
     assert.deepEqual(calls.at(-1), ["fulfilment", "SQO"]);
-    assert.doesNotMatch(sent.at(-1).text, /refund is on its way/);
+    assert.doesNotMatch(sent.at(-1).text, /on its way/);
+    assert.match(sent.at(-1).text, /We refunded \$14 on /);
   });
 });
 
@@ -753,6 +769,6 @@ describe("an attempted delivery keeps its fee", () => {
     await refundOrder(stores, "B", opts);
     await cancelOrder(stores, "B", { ...opts, refund: true });
     assert.deepEqual(calls.at(-1), ["fulfilment", "SQO"]);
-    assert.doesNotMatch(sent.at(-1).text, /refund is on its way/);
+    assert.doesNotMatch(sent.at(-1).text, /on its way/);
   });
 });

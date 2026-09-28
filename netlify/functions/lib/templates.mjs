@@ -16,7 +16,9 @@
 
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
-import { addDays, label } from "../../../assets/scripts/order/lib/zoned.mjs";
+import {
+  addDays, label, today,
+} from "../../../assets/scripts/order/lib/zoned.mjs";
 import { GUIDE, RUNBOOK_ALERTS } from "./alerts-guide.mjs";
 import { company } from "./company.mjs";
 import { between, methodName } from "./describe.mjs";
@@ -637,46 +639,70 @@ export const movedDelivery = (order, { pickUrl, links } = {}) => {
   return { subject: title, ...render(title, blocks, links) };
 };
 
-// After a cancellation, by the customer or the farm. `refunded`, in
-// cents, names what went back (C3): the items only when a missed
-// delivery kept its fee, else the whole order. Without it, the wording
-// James approved on 2026-09-22; callers pass it once he approves the
-// drafts. `held`: the seven-day hold after a miss ran out (C8).
+// Why the farm cancelled (T2a, James's list of 2026-09-28): the
+// customer always gets a sentence written in advance, never one typed
+// in a hurry. The keys are `bin/nff orders cancel --reason`; anything
+// else is `--reason-text`. A customer we won't serve gets no reason by
+// email (T2b); James writes to them himself. A site bug is "mistake"
+// (T2c).
+export const CANCEL_REASONS = {
+  "sold-out": () => "Something in your order sold out before our stock " +
+    "count caught up. We're sorry; that one's on us.",
+  delay: (order) => "We couldn't get your order ready in time for " +
+    `${label(order.fulfilment.date)}.`,
+  weather: (order) => `The weather made it unsafe to ${
+    order.fulfilment.method === "delivery" ? "deliver" : "open for pickup"
+  } on ${label(order.fulfilment.date)}.`,
+  emergency: () => "Something urgent came up on the farm that needs us " +
+    "that day.",
+  mistake: () => "We made a mistake with your order (a wrong price or a " +
+    "slot we couldn't really offer), so we've cancelled it rather than " +
+    "charge you for it.",
+};
+
+// After a cancellation: always a notice of the money that went back
+// (T1a), since an order is only placed once it is paid. `by` is who
+// ended it: "farm", "customer" or "hold" (the seven-day hold after a
+// miss ran out, C8). `refunded`, in cents, is what this cancellation
+// sends back: the items only when a missed delivery kept its fee.
+// `refundedOn` (ISO) says it went back earlier instead. The farm's
+// `reason` (a CANCEL_REASONS key) or `reasonText` is its one line why.
 export const orderCancelled = (order, {
-  refund = false, refunded = null, held = false, links,
+  by = "farm", refunded = 0, refundedOn = null, reason = null,
+  reasonText = "", links,
 } = {}) => {
   const title = "Your order is cancelled";
   const blocks = [p(`Hi ${firstName(order.customer)},`)];
   const fee = keptFee(order);
+  const cancelled = `We cancelled your order for ${
+    methodName(order.fulfilment.method).toLowerCase()} on ${
+    label(order.fulfilment.date)}`;
 
-  if (refunded !== null) {
-    blocks.push(
-      held
-        ? p("We couldn't deliver your order on " +
-          `${label(order.fulfilment.date)}, and we held it for seven days ` +
-          "for you to choose what to do. We didn't hear from you, so " +
-          "we've cancelled it.")
-        : p(`We cancelled your order for ${
-          methodName(order.fulfilment.method).toLowerCase()} on ${
-          label(order.fulfilment.date)}.`),
-      fee
-        ? p(`**A refund of ${dollars(refunded)} for your items is on its ` +
-          `way.** The delivery fee of ${dollars(fee)} isn't refunded, ` +
-          "because we made the trip. Most refunds arrive within a few " +
-          "business days.")
-        : p(`**A full refund of ${dollars(refunded)} is on its way.** ` +
-          "Most refunds arrive within a few business days.")
-    );
-  } else if (refund) {
-    blocks.push(
-      p(`We cancelled your order for ${
-        methodName(order.fulfilment.method).toLowerCase()} on ${
-        label(order.fulfilment.date)}.`),
-      p("**Your refund is on its way.** Most refunds arrive within a " +
-        "few business days.")
-    );
+  if (by === "hold") {
+    blocks.push(p("We held your order for seven days and didn't hear " +
+      "from you, so we've cancelled it."));
+  } else if (by === "customer") {
+    blocks.push(p(`${cancelled}, as you asked.`));
   } else {
-    blocks.push(p("We cancelled your order. Nothing more will be charged."));
+    blocks.push(p(`${cancelled}.`));
+
+    const why = CANCEL_REASONS[reason]
+      ? CANCEL_REASONS[reason](order)
+      : String(reasonText || "").trim();
+
+    if (why) blocks.push(p(why));
+  }
+
+  if (refunded > 0) {
+    blocks.push(p(refundedOn
+      ? `**We refunded ${dollars(refunded)} on ${
+        label(today(new Date(refundedOn), terms.timeZone))}.**`
+      : `**A refund of ${dollars(refunded)} is on its way.**`));
+    if (fee) {
+      blocks.push(p(`The delivery fee of ${dollars(fee)} isn't refunded, ` +
+        "because we made the trip."));
+    }
+    blocks.push(p("Most refunds arrive within a few business days."));
   }
   blocks.push(orderNumber(order), customerFooter(links));
 

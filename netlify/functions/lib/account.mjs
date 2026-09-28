@@ -17,8 +17,9 @@ import { log } from "./log.mjs";
 import { notifyFarm, sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
-  REMINDERS, amendOrder, answerQuestion, getOrder, ordersFor, paymentRef,
-  paymentsOf, questionOpen, refundsOf, reminderPrefs, saveCustomer,
+  REMINDERS, amendOrder, answerQuestion, getOrder, keptFee, ordersFor,
+  paidTotal, paymentRef, paymentsOf, questionOpen, refundedTotal, refundsOf,
+  reminderPrefs, saveCustomer,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
@@ -178,9 +179,14 @@ export const cancelOrder = async (stores, customer, id, {
   // The packs will not ship; put them back for the next customer.
   await adjust(stores, order.lines, 1);
 
+  // What the farm will send back (T1a): everything not yet back, less
+  // a fee a missed delivery kept.
   await sendForOrder(stores, flagged, "orderCancelled",
-    orderCancelled(flagged, { refund: true, links: mailLinks(env) }),
-    { mail, env, now });
+    orderCancelled(flagged, {
+      by: "customer",
+      refunded: paidTotal(order) - refundedTotal(order) - keptFee(order),
+      links: mailLinks(env),
+    }), { mail, env, now });
   await tellFarm(farmRefundNeeded(order, customer, {
     links: mailLinks(env),
   }), { mail, env });

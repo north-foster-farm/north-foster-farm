@@ -163,6 +163,18 @@ export const SAMPLE_TEXT = [
 const orderUrl = (links) => `${links.site}${orderPathFor(ID)}`;
 const settingsUrl = (links) => `${links.site}/account/#settings`;
 const signIn = (links) => `${links.site}/api/auth/verify?token=abc123`;
+
+// The farm's reasons for a cancel (T2a), each a sample order; weather's
+// is a pickup, so its "open for pickup" shows.
+const REASONS = {
+  "sold-out": ["sold out", {}],
+  delay: ["processing delay", {}],
+  weather: ["weather", {
+    fulfilment: onfarm("agreed", { confirmed: { from: 9, to: 11 } }),
+  }],
+  emergency: ["farm emergency", {}],
+  mistake: ["our mistake", {}],
+};
 const squareUrl = "https://app.squareup.com/dashboard/orders/overview/SO-1";
 
 // --- Farm news drafts -----------------------------------------------
@@ -263,18 +275,28 @@ export const library = [
     }),
   },
   {
-    id: "order-cancelled", name: "Order cancelled, nothing charged",
-    when: "The farm cancelled an order without a refund", audience: C,
-    tags: ["cancelled"],
+    id: "order-cancelled-refund", name: "Cancelled by the customer",
+    when: "The customer cancelled on the account page; all refunded",
+    audience: C, tags: ["cancelled", "refunded", "account"],
     build: (links) => t.orderCancelled(order({ status: "cancelled" }),
-      { links }),
+      { by: "customer", refunded: 9400, links }),
   },
+  ...Object.entries(REASONS).map(([key, [name, over]]) => ({
+    id: `order-cancelled-${key}`, name: `Cancelled by the farm: ${name}`,
+    when: `The farm cancelled with --reason ${key}; all refunded`,
+    audience: C, tags: ["cancelled", "refunded", "reason"],
+    build: (links) => t.orderCancelled(order({ status: "cancelled", ...over }),
+      { reason: key, refunded: 9400, links }),
+  })),
   {
-    id: "order-cancelled-refund", name: "Order cancelled and refunded",
-    when: "A paid order cancelled by the customer or the farm",
+    id: "order-cancelled-refunded-earlier",
+    name: "Cancelled by the farm, refunded earlier",
+    when: "The farm cancelled an order it had already refunded",
     audience: C, tags: ["cancelled", "refunded"],
-    build: (links) => t.orderCancelled(order({ status: "cancelled" }),
-      { refund: true, links }),
+    build: (links) => t.orderCancelled(order({ status: "cancelled" }), {
+      reason: "delay", refunded: 9400,
+      refundedOn: "2026-10-07T15:00:00.000Z", links,
+    }),
   },
   {
     id: "missed-delivery-fee-kept", name: "Missed delivery, fee kept",
@@ -314,7 +336,7 @@ export const library = [
     when: "Seven days after a customer's miss, with no choice made",
     audience: C, tags: ["cancelled", "refunded", "missed delivery"],
     build: (links) => t.orderCancelled(missed(500, { status: "cancelled" }),
-      { refunded: 9400, held: true, links }),
+      { by: "hold", refunded: 9400, links }),
   },
   {
     id: "order-cancelled-hold-full-refund",
@@ -322,22 +344,23 @@ export const library = [
     when: "Seven days after a waived miss, with no choice made",
     audience: C, tags: ["cancelled", "refunded", "missed delivery"],
     build: (links) => t.orderCancelled(missed(0, { status: "cancelled" }),
-      { refunded: 9900, held: true, links }),
+      { by: "hold", refunded: 9900, links }),
   },
   {
     id: "order-cancelled-missed-fee-kept",
     name: "Cancelled after a missed delivery, fee kept",
     when: "A missed delivery cancelled; the items refunded, the fee kept",
     audience: C, tags: ["cancelled", "refunded", "missed delivery"],
-    build: (links) => t.orderCancelled(
-      missed(500, { status: "cancelled" }), { refunded: 9400, links }),
+    build: (links) => t.orderCancelled(missed(500, { status: "cancelled" }),
+      { by: "customer", refunded: 9400, links }),
   },
   {
-    id: "order-cancelled-full-refund", name: "Cancelled, full refund stated",
-    when: "Any paid order cancelled with everything refunded",
-    audience: C, tags: ["cancelled", "refunded"],
-    build: (links) => t.orderCancelled(
-      missed(0, { status: "cancelled" }), { refunded: 9900, links }),
+    id: "order-cancelled-missed-full-refund",
+    name: "Cancelled after a missed delivery, fee waived",
+    when: "A waived or farm miss cancelled; everything refunded",
+    audience: C, tags: ["cancelled", "refunded", "missed delivery"],
+    build: (links) => t.orderCancelled(missed(0, { status: "cancelled" }),
+      { by: "customer", refunded: 9900, links }),
   },
   {
     id: "address-approved", name: "We can deliver to your address",
@@ -425,8 +448,17 @@ export const library = [
     build: (links) => t.addressReview(customer, { links }),
   },
   {
+    id: "farm-order-cancelled", name: "Cancelled by the customer",
+    when: "A customer cancels a paid order and it refunds on the spot",
+    audience: F, tags: ["cancelled", "refunded", "account"],
+    build: (links) => t.farmOrderCancelled(order({
+      status: "cancelled",
+      refunds: [{ amount: 9400, source: "customer", at: card.at }],
+    }), customer, { links }),
+  },
+  {
     id: "farm-refund-needed", name: "Refund needed",
-    when: "A customer cancels a paid order", audience: F,
+    when: "A customer's cancel couldn't refund on the spot", audience: F,
     tags: ["cancelled", "refunded", "account"],
     build: (links) => t.farmRefundNeeded(order(), customer, { links }),
   },
@@ -512,8 +544,6 @@ const APPROVED = {
   "order-changed": "James\x27s rewrite of 2026-09-22, and his opening " +
     "line of 2026-09-26. Not yet seen: the gate or door code line, " +
     "shown only when one is given.",
-  "order-cancelled-refund": "James\x27s rewrite of 2026-09-22, for a " +
-    "delivery. Not yet seen: the drop-site and on-farm wording.",
   "address-approved": "James\x27s rewrite of 2026-09-22, verbatim.",
   "sign-in-link": "James\x27s rewrite of 2026-09-22, verbatim.",
   "farm-order-placed-delivery": LIBRARY,
@@ -536,6 +566,9 @@ const REASON = " The reason line is F1\x27s until James answers C6 " +
 const T4 = "Removed items head the list under \"Removed\", as plain " +
   "lines (T4, 2026-09-28). Draft: the heading \"Your order now\" above " +
   "what is still coming.";
+const T1 = "One cancellation email for every case, stating the " +
+  "refund (T1a, 2026-09-28); \"nothing charged\" is gone (T1b).";
+const T2 = "The farm\x27s reason, from the list drafted for T2a.";
 const WAITING = {
   "pick-new-time": `${LANDED}, with the pickup window as a token. ` +
     "The farm\x27s reason is no longer sent.",
@@ -543,23 +576,29 @@ const WAITING = {
     "and the Total line what was paid.",
   "order-changed-refunded": `${T4} Its refund line he kept (T3).`,
   "farm-order-changed": `He approved it on 2026-09-26; since then ${T4}`,
-  "order-cancelled": "His rewrite, \"Nothing was charged\", is held: " +
-    "every order is paid when placed, so a customer cancelled without " +
-    "a refund was charged.",
+  "order-cancelled-refund": T1,
+  "order-cancelled-refunded-earlier": `${T1} ${T2}`,
+  "order-cancelled-sold-out": T2,
+  "order-cancelled-delay": T2,
+  "order-cancelled-weather": `${T2} Shown for a pickup ("open for ` +
+    "pickup\"); a delivery reads \"deliver\".",
+  "order-cancelled-emergency": T2,
+  "order-cancelled-mistake": `${T2} Open: every order is paid, so ` +
+    "\"rather than charge you for it\" may need to read \"and refunded " +
+    "you\".",
   "address-denied": `${LANDED}, verbatim.`,
   "missed-delivery-fee-kept": `${C3}${REASON} Not sent yet: the send, ` +
     "the hold and redelivery\x27s second fee wait on #193.",
   "missed-delivery-no-fee": `${C3}${REASON} Open: does a waived miss ` +
     "get the same hold (policy-pages\x27 question 3)?",
-  "moved-delivery-weather": `${C3} Open: offer "another day" as well ` +
-    "as pickup or a refund (policy-pages\x27 question 4)?",
+  "moved-delivery-weather": `${C3} It offers another day as well as ` +
+    "pickup or a refund (C7b, 2026-09-28).",
   "moved-delivery-farm": C3,
-  "order-cancelled-missed-fee-kept": C3,
-  "order-cancelled-hold-fee-kept": `${C3} Sent by the job that ends ` +
-    "the hold, still to build (#193).",
-  "order-cancelled-hold-full-refund": `${C3} As above.`,
-  "order-cancelled-full-refund": `${C3} Would replace "Order cancelled ` +
-    "and refunded\" for every full refund.",
+  "order-cancelled-missed-fee-kept": `${C3} ${T1}`,
+  "order-cancelled-missed-full-refund": `${C3} ${T1}`,
+  "order-cancelled-hold-fee-kept": `${C3} ${T1} Sent by the job that ` +
+    "ends the hold, still to build (#193).",
+  "order-cancelled-hold-full-refund": `${C3} ${T1} As above.`,
   "farm-order-placed-onfarm": "He approved it on 2026-09-26; since then " +
     "the second confirm example is the whole window (#159) and deny " +
     "takes no reason.",
@@ -567,6 +606,8 @@ const WAITING = {
     "confirm and deny lines changed, as in New order, on-farm pickup.",
   "farm-support": CARD,
   "farm-refund-needed": CARD,
+  "farm-order-cancelled": "Checkout\x27s draft of 2026-09-28 (T1d): a " +
+    "customer\x27s cancel now refunds by itself.",
   "farm-return-request": CARD,
   "farm-square-out-of-sync": CARD,
   "farm-morning-report": `${LANDED}: the key under the table, and 🙈 ` +
