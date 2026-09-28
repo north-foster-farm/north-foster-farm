@@ -17,12 +17,7 @@
     }
   },
   "onFarm": {
-    "address": "99 East Killingly Road, Foster, RI 02825",
-    "note": "By appointment only.",
-    "windows": {
-      "morning": { "from": 9, "to": 12 },
-      "afternoon": { "from": 13, "to": 17 }
-    }
+    "address": "99 East Killingly Road, Foster, RI 02825"
   },
   "scituate": {
     "start": "2026-10-17",
