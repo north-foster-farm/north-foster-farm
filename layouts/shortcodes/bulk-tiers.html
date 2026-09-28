@@ -1,0 +1,11 @@
+{{- /* The delivery policy's fee table, from data/delivery.json (Q21b).
+  Call it as {{% bulk-tiers %}}: it writes a Markdown table, so it
+  renders the same in the page and in its Markdown output. */ -}}
+{{- $money := hugo.Data.delivery.money -}}
+{{- $fee := printf "$%v" $money.deliveryFee -}}
+| Your items | Bulk discount | Delivery fee |
+| ---------- | ------------- | ------------ |
+| ${{ $money.deliveryMinimum }} or more | none | {{ $fee }} |
+{{ range $money.bulkTiers -}}
+| ${{ .threshold }} or more | ${{ .off }} off | {{ if ge .threshold $money.feeWaivedAt }}free{{ else }}{{ $fee }}{{ end }} |
+{{ end -}}

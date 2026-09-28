@@ -17,8 +17,8 @@ every order.
 
 ## When we deliver
 
-- Deliveries run on Thursdays, roughly between 10:00 AM and 4:00 PM.
-  The window is approximate.
+- Deliveries run on Thursdays, roughly from
+  {{< terms "window" "delivery" >}}. The window is approximate.
 - Order by {{< cutoff "delivery" >}} for that Thursday's delivery. After the
   cutoff, the order page offers the Thursday after.
 - We don't deliver on a holiday. When one falls on a Thursday, such as
@@ -26,24 +26,20 @@ every order.
 
 ## What it costs
 
-Delivery is available for orders of $40 or more, after discounts. The
-delivery fee is $5, waived when your items come to $150 or more.
+Delivery is available for orders of {{< terms "minimum" >}} or more,
+after discounts. The delivery fee is {{< terms "fee" >}}, waived when
+your items come to {{< terms "waived-at" >}} or more.
 
-| Your items   | Bulk discount | Delivery fee |
-| ------------ | ------------- | ------------ |
-| $40 or more  | none          | $5           |
-| $50 or more  | $5 off        | $5           |
-| $100 or more | $10 off       | $5           |
-| $150 or more | $15 off       | free         |
-| $200 or more | $20 off       | free         |
+{{% bulk-tiers %}}
 
 Bulk discounts apply to every order, pickup and the drop site
 included. The highest tier you reach applies, automatically.
 Discounts never combine: if more than one applies, your order takes
 whichever saves you more.
 
-A Rhode Island address outside our delivery area (below) costs $3
-more, on every order, even one of $150 or more. The order page shows
+A Rhode Island address outside our delivery area (below) costs
+{{< terms "outside-fee" >}} more, on every order, even one of
+{{< terms "waived-at" >}} or more. The order page shows
 it as soon as you enter your ZIP code.
 
 ## How you pay
@@ -58,9 +54,8 @@ We email you as soon as it is.
 ## On delivery day
 
 Leave a cooler with ice outside on Thursday morning, somewhere easy to
-find. The order page asks where it will be, and for a phone number so
-we can reach you on the day. Add a gate or door code to your notes if
-we'll need one.
+find. The order page asks where it will be. Add a gate or door code to
+your notes if we'll need one.
 
 We email you a reminder the evening before.
 
@@ -70,17 +65,19 @@ delivery until the following Thursday. Alternatively, you can choose
 to pick up your order at the farm or drop site, or cancel your order
 for a full refund.
 
-You don't need to be home. If there's no cooler where you told us,
-we'll try to reach you: we'll call or text and ring the doorbell. If
-we can't reach you, we won't leave your order. You can choose to have
+You don't need to be home. If there's no cooler where you told us, we
+can't get to that spot, or we can't find your address as you gave it,
+we'll try to reach you: we'll ring the doorbell and email you. If we
+can't reach you, we won't leave your order. You can choose to have
 it delivered the following Thursday, pick it up at the farm or drop
 site, or cancel your order for a refund of your items. We hold your
 order for 7 days while you choose. If you haven't chosen by then, we
 cancel it, refund your items and email you to say so.
 
-A delivery we couldn't make because there was no cooler out, or no
-way to get to the spot you gave us, keeps its delivery fee, including
-any $3 for an address outside our area. It isn't refunded whichever
+A delivery we couldn't make because there was no cooler out, no way
+to get to the spot you gave us, or no finding your address as you gave
+it, keeps its delivery fee, including any {{< terms "outside-fee" >}}
+for an address outside our area. It isn't refunded whichever
 you choose, and delivery the following Thursday costs the fee again. A
 delivery we miss ourselves, or because of the weather, never costs you
 the fee.
@@ -91,8 +88,8 @@ Once it's delivered, it's in your care.
 
 These are the towns we deliver to at the fees above. You may provide
 any other Rhode Island ZIP code that is *not* in our delivery area for
-$3 more. If we can't get to your address, we'll call, text, or email
-you. If we aren't able to get your order to you, we will hold your
+{{< terms "outside-fee" >}} more. If we can't get to your address,
+we'll email you. If we aren't able to get your order to you, we will hold your
 order for up to 7 days. You may also request a refund for the order in
 full. For anywhere else,
 [email us](mailto:sales@northfosterfarm.com) before you order.
@@ -105,16 +102,16 @@ full. For anywhere else,
 
 Neither has a minimum or a fee.
 
-**On-farm pickup** is at 99 East Killingly Road, Foster, by
+**On-farm pickup** is at {{< terms "place" "onFarm" >}}, by
 appointment. Choose a weekday, from tomorrow through the Friday of
 next week, and a morning or an afternoon. That's a request: we check
 it against the farm's schedule and email you to confirm it by the day
 before. If the time doesn't work for us, we'll email you to choose
 another day or window, or to cancel for a full refund.
 
-**The drop site** in Scituate runs on Saturdays from 10:00 to 11:00 AM,
-starting October 17, on the Village Green, 46 Institute Lane, North
-Scituate: the same corner of the lot where our tent sits in market
+**The drop site** in Scituate runs on Saturdays from
+{{< terms "window" "scituate" >}}, {{< terms "starting" "scituate" >}}on
+the {{< terms "place" "scituate" >}}: the same corner of the lot where our tent sits in market
 season. Order by {{< cutoff "scituate" >}} for that Saturday.
 
 ## Changing or cancelling an order

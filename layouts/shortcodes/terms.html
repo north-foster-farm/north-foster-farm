@@ -1,0 +1,33 @@
+{{- /* One fact from data/delivery.json, as words, so the policy never
+  restates a number the data owns (Q21b).
+    {{< terms "minimum" >}}              $40
+    {{< terms "fee" >}}                  $5
+    {{< terms "waived-at" >}}            $150
+    {{< terms "outside-fee" >}}          $3
+    {{< terms "window" "delivery" >}}    10:00 AM to 4:00 PM
+    {{< terms "place" "onFarm" >}}       99 East Killingly Road, Foster
+    {{< terms "starting" "scituate" >}}  "starting October 17, " while
+                                         that date is ahead, else ""
+  A place drops its state and ZIP code. */ -}}
+{{- $terms := hugo.Data.delivery -}}
+{{- $money := $terms.money -}}
+{{- $fact := .Get 0 -}}
+{{- $of := index $terms (.Get 1 | default "delivery") -}}
+{{- if eq $fact "minimum" -}}
+  ${{ $money.deliveryMinimum }}
+{{- else if eq $fact "fee" -}}
+  ${{ $money.deliveryFee }}
+{{- else if eq $fact "waived-at" -}}
+  ${{ $money.feeWaivedAt }}
+{{- else if eq $fact "outside-fee" -}}
+  ${{ $money.outsideAreaFee }}
+{{- else if eq $fact "window" -}}
+  {{ replace $of.window " – " " to " }}
+{{- else if eq $fact "place" -}}
+  {{ replaceRE `, [A-Z]{2} \d{5}$` "" (or $of.location $of.address) }}
+{{- else if eq $fact "starting" -}}
+  {{- $start := time.AsTime $of.start $terms.timeZone -}}
+  {{- if $start.After now }}starting {{ $start.Format "January 2" }}, {{ end -}}
+{{- else -}}
+  {{- errorf "terms: no fact %q in %s" $fact .Position -}}
+{{- end -}}
