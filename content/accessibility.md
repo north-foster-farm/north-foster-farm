@@ -13,7 +13,7 @@ take your order another way in the meantime.
 ## Standards
 
 We aim to meet the [Web Content Accessibility Guidelines (WCAG)] 2.1
-at level AA. The site has not been formally assessed.
+at level A. The site has not been formally assessed.
 
 [Web Content Accessibility Guidelines (WCAG)]: https://www.w3.org/WAI/standards-guidelines/wcag/
 
