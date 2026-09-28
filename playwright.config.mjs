@@ -75,5 +75,12 @@ export default defineConfig({
         hasTouch: true,
       },
     },
+    // Safari on an iPhone, which is how James tests: only the checks
+    // of layout and accessibility, where a WebKit-only fault shows.
+    {
+      name: "iphone",
+      testMatch: ["**/overflow.spec.mjs", "**/a11y.spec.mjs"],
+      use: { ...devices["iPhone 15"] },
+    },
   ],
 });

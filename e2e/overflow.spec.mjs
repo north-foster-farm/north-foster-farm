@@ -149,7 +149,8 @@ for (const width of WIDTHS) {
   test.describe(`at ${width}px (#185)`, () => {
     test.use({
       viewport: { width, height: 900 },
-      ...(width < 768 ? { isMobile: true, hasTouch: true } : {}),
+      isMobile: width < 768,
+      hasTouch: width < 768,
     });
 
     test.beforeEach(({ page }) => page.emulateMedia({
