@@ -21,7 +21,7 @@ The suite runs against the staging branch deploy and refuses any host
 without `--` in its name, so production is out of reach. Each test opens
 a fresh browser (empty `localStorage`) with the staging toolbar hidden,
 uses its own address (`qa-e2e-<tag>-<id>@example.com`), and cleans up
-after itself: paid orders are cancelled with `--refund` and deleted,
+after itself: paid orders are cancelled, which refunds them, and deleted,
 test customers are deleted, and their messages are removed from the
 outbox. The outbox is read from the jobs store with the CLI's Netlify
 credentials, or over `/api/staging/outbox` when `STAGING_TOKEN` is set.
@@ -1078,7 +1078,7 @@ card, which headless Chromium cannot provide.
   1. Press Buy with G Pay; approve.
 - **Assert:** The sheet shows $7; "paid with Google Pay"; record
   `payment.method` googlepay; emails as PY-01.
-- **Teardown:** Cancel with `--refund`, delete, as PY-01.
+- **Teardown:** Cancel (it refunds), delete, as PY-01.
 
 ### PY-12 Apple Pay
 
@@ -1260,7 +1260,7 @@ Automated: `account.spec.mjs`, "a link by email signs in, once". Tagged
   `/about/` then shows the account menu at once, though `/login/`
   cached "signed out" in that tab (16122c2); the second use lands on
   `/login/` with "already used".
-- **Teardown:** The order cancelled with `--refund` and deleted; the
+- **Teardown:** The order cancelled (it refunds) and deleted; the
   customer deleted; the outbox cleared.
 
 ### AO-02 Orders and receipts on the account page
@@ -1347,7 +1347,7 @@ Manual: automatable; not yet written.
   1. Change the date and the cooler note; save.
 - **Assert:** "Your order is updated"; the Square order's fulfilment
   moves; no `squareOutOfSync`.
-- **Teardown:** Cancel with `--refund`; delete.
+- **Teardown:** Cancel (it refunds); delete.
 
 ### AO-09 The morning report and the manifest
 
@@ -2143,7 +2143,7 @@ minutes between runs, and after any hand test from the same machine.
   email" (`order: false`). Signed in: the row lists the order ending
   "$7"; the farm's "Message from <name> about <id>" says "placed with
   this email"; the record has `order: true`.
-- **Teardown:** The order cancelled with `--refund` and deleted; the
+- **Teardown:** The order cancelled (it refunds) and deleted; the
   records deleted from the customers store (no CLI command until
   #167); the customer deleted; the outbox cleared.
 
