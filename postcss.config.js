@@ -74,7 +74,9 @@ const plugins = [
         "role",
         "option",
         "aria-selected",
-        "data-search-stock",
+        "data-search-qty-state",
+        "data-search-cart",
+        "full",
         "aria-pressed",
       ];
     },

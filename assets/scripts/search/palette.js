@@ -2,17 +2,16 @@
 // combobox. Cmd or ctrl K opens and closes it, as does the header's
 // search button; Escape and a click outside close it. Arrows move
 // through the matches, the selected one's card shows beside them, and
-// Enter or the card's button adds it to the cart.
+// Enter or the card's Add puts one in the cart. Add then turns into
+// the quantity in the cart, as on the order page, and taking it to 0
+// takes the product out (#208).
 
 import Dropdown from "bootstrap/js/dist/dropdown.js";
 import { index, search } from "./match.js";
-import { addToCart, cartCount, inCart } from "./cart.js";
-import {
-  MAX, fitQty, room as roomFor, soldOut as isSoldOut, stockText,
-} from "./stock.js";
+import { cartCount, inCart, setCart } from "./cart.js";
+import { room as roomFor, soldOut as isSoldOut } from "./stock.js";
 
 const STOCK_TTL = 60_000;
-const ADDED_MS = 1800;
 
 const money = (n) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
@@ -31,14 +30,16 @@ export const wireSearch = () => {
   const empty = q("[data-search-empty]");
   const card = q("[data-search-card]");
   const img = q("[data-search-img]");
+  const qtyWrap = q("[data-search-qty-state]");
   const qtyBox = q("[data-search-qty]");
-  const addForm = q("[data-search-add]");
-  const addButton = q("[data-search-button]");
+  const addButton = q("[data-search-add]");
+  const fewer = q("[data-search-step='-1']");
+  const more = q("[data-search-step='1']");
   const added = q("[data-search-added]");
   const cartButton = q("[data-search-cart]");
   // The way to the cart, once there is one.
   const showCartButton = () => {
-    cartButton.hidden = cartCount() === 0;
+    cartButton.dataset.searchCart = cartCount() === 0 ? "empty" : "full";
   };
   const products = JSON.parse(q("[data-search-products]").textContent);
   const indexed = index(products);
@@ -47,7 +48,6 @@ export const wireSearch = () => {
   let active = -1;
   let stock = null;
   let stockAt = 0;
-  let addedTimer = null;
 
   // Live stock: { sku: { inStock, available } }, or null if unknown.
   const loadStock = async () => {
@@ -69,16 +69,20 @@ export const wireSearch = () => {
   // How many more of this product can go in the cart.
   const room = (p) => roomFor(stock, p.sku, inCart(p.sku));
 
-  const qty = () => {
-    const n = parseInt(qtyBox.value.replace(/\D/g, ""), 10);
+  // The card's control as the cart has it: Add at 0, else the stepper
+  // holding the quantity, its + gone quiet when there is no more room.
+  const syncQty = (p) => {
+    const have = inCart(p.sku);
+    const state = have > 0 ? "active" : "empty";
 
-    return Number.isFinite(n) ? n : 1;
-  };
-
-  const setQty = (n) => {
-    const p = matches[active];
-
-    qtyBox.value = String(fitQty(n, p ? room(p) : MAX));
+    if (qtyWrap.dataset.searchQtyState !== state) {
+      qtyWrap.dataset.searchQtyState = state;
+    }
+    qtyBox.value = String(have);
+    addButton.disabled = room(p) === 0;
+    more.disabled = room(p) === 0;
+    fewer.setAttribute("aria-label", have === 1 ? "Remove" : "One fewer");
+    showCartButton();
   };
 
   const showCard = (p) => {
@@ -96,10 +100,7 @@ export const wireSearch = () => {
     q("[data-search-price]").textContent =
       `${money(p.price)}${p.unit ? ` ${p.unit}` : ""}` +
       `${p.note ? ` · ${p.note}` : ""}`;
-    q("[data-search-stock]").textContent = stockText(stock, p.sku);
-    card.dataset.stock = soldOut(p) ? "out" : "in";
-    addButton.disabled = room(p) === 0;
-    setQty(qty());
+    syncQty(p);
   };
 
   const select = (i, { scroll = true } = {}) => {
@@ -118,7 +119,6 @@ export const wireSearch = () => {
     }
     input.setAttribute("aria-activedescendant", rows[active].id);
     if (scroll) rows[active].scrollIntoView({ block: "nearest" });
-    qtyBox.value = "1";
     added.textContent = "";
     showCard(matches[active]);
   };
@@ -144,7 +144,8 @@ export const wireSearch = () => {
       row.dataset.sku = p.sku;
       name.className = "search-palette-row-name";
       group.textContent = p.group;
-      name.append(group, ` ${p.label}`);
+      // A dot between them: weight alone can't part "Eggs Large".
+      name.append(group, ` · ${p.label}`);
       price.className = "search-palette-row-price";
       row.append(name, price);
       markRow(row, p);
@@ -161,40 +162,48 @@ export const wireSearch = () => {
     select(0, { scroll: false });
   };
 
-  // Stock has come in: mark the rows and the card where they stand. The
-  // customer may have chosen a quantity or added already, so the
-  // quantity stays, lowered only to what is left, and so does "Added".
+  // Stock has come in: mark the rows, and the card's + and Add. What
+  // the customer has in the cart stays as it is.
   const refreshStock = () => {
     [...list.children].forEach((row, i) => markRow(row, matches[i]));
-    if (matches[active]) showCard(matches[active]);
+    if (matches[active]) syncQty(matches[active]);
   };
 
-  const add = () => {
+  // Puts n of the selected product in the cart, no more than stock
+  // allows, and says so to a screen reader. -> false if it couldn't.
+  const setTo = (n) => {
     const p = matches[active];
 
-    if (!p || room(p) === 0) return;
+    if (!p) return false;
 
-    const n = Math.min(qty(), room(p));
-    const now = addToCart(p.sku, n);
+    const have = inCart(p.sku);
+    const now = setCart(p.sku, Math.min(n, have + room(p)));
 
     if (now === null) {
       added.textContent = "That's no longer on the order page. Reload it " +
         "to see what's available.";
 
-      return;
+      return false;
     }
 
     const count = cartCount();
+    const items = `${count} ${count === 1 ? "item" : "items"}`;
 
-    added.textContent = `Added ${n} × ${title(p)}. ` +
-      `${count} ${count === 1 ? "item" : "items"} in your cart.`;
-    addButton.textContent = `Added · ${count} in cart`;
-    showCartButton();
-    clearTimeout(addedTimer);
-    addedTimer = setTimeout(() => {
-      addButton.textContent = "Add to cart";
-    }, ADDED_MS);
-    showCard(p);
+    added.textContent = now > 0
+      ? `${now} × ${title(p)} in your cart. ${items} in all.`
+      : `Removed ${title(p)}. ${items} in your cart.`;
+    syncQty(p);
+
+    return true;
+  };
+
+  // Enter in the field, or Add: one more.
+  const add = () => {
+    const p = matches[active];
+
+    if (!p || room(p) === 0) return false;
+
+    return setTo(inCart(p.sku) + 1);
   };
 
   const isOpen = () => dialog.open;
@@ -323,14 +332,38 @@ export const wireSearch = () => {
     if (pointer === "mouse") input.focus();
   });
 
-  q(".search-palette-qty").addEventListener("click", (e) => {
-    const step = e.target.closest("[data-search-step]");
-
-    if (step) setQty(qty() + Number(step.dataset.searchStep));
+  // Add hands the focus to its +, and a step to 0 hands it back to
+  // Add, so the keyboard stays on the control that is showing.
+  addButton.addEventListener("click", () => {
+    if (add()) more.focus();
   });
-  qtyBox.addEventListener("change", () => setQty(qty()));
-  addForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    add();
+  fewer.addEventListener("click", () => {
+    const p = matches[active];
+
+    if (p && setTo(inCart(p.sku) - 1) && inCart(p.sku) === 0) {
+      addButton.focus();
+    }
+  });
+  more.addEventListener("click", () => add());
+
+  // A typed quantity counts once it is left or entered; blank or 0
+  // takes the product out.
+  const typed = () => {
+    const p = matches[active];
+
+    if (!p) return;
+
+    const n = parseInt(qtyBox.value.replace(/\D/g, ""), 10);
+
+    setTo(Number.isFinite(n) ? n : 0);
+    if (inCart(p.sku) === 0) addButton.focus();
+  };
+
+  qtyBox.addEventListener("change", typed);
+  qtyBox.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      typed();
+    }
   });
 };

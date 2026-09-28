@@ -312,27 +312,43 @@ $search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 }
 
-.search-palette-card[data-stock="out"] [data-search-stock] {
-  color: #f0a58f;
-}
-
-.search-palette-add {
-  display: flex;
+// Add, and Go to cart to its right, in two equal columns.
+.search-palette-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.5rem;
   width: 100%;
   max-width: 18rem;
 }
 
-.search-palette-qty {
-  display: flex;
-  flex: none;
-  align-items: stretch;
+.search-palette-add {
+  --bs-btn-bg: #{$green};
+  --bs-btn-border-color: #{$green};
+  --bs-btn-color: #{$white};
+  --bs-btn-hover-bg: #{shade-color($green, 15%)};
+  --bs-btn-hover-border-color: #{shade-color($green, 15%)};
+  --bs-btn-hover-color: #{$white};
+  --bs-btn-active-bg: #{shade-color($green, 20%)};
+  --bs-btn-active-border-color: #{shade-color($green, 20%)};
+  --bs-btn-active-color: #{$white};
+  --bs-btn-disabled-bg: #{$search-raised};
+  --bs-btn-disabled-border-color: #{$search-line};
+  --bs-btn-disabled-color: #{$search-muted};
+
+  white-space: nowrap;
+}
+
+.search-palette-step {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr) 2.25rem;
   overflow: hidden;
   border: 1px solid $search-line;
   border-radius: var(--bs-border-radius);
 
   button,
   input {
+    min-width: 0;
+    padding: 0;
     border: 0;
     background: none;
     color: $search-text;
@@ -340,32 +356,61 @@ $search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   button {
-    width: 2rem;
+    font-size: 1.125rem;
+    line-height: 1;
 
-    &:hover {
+    &:disabled {
+      color: $search-muted;
+    }
+
+    &:hover:not(:disabled) {
       background: $search-raised;
     }
   }
 
   input {
-    width: 2.25rem;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
+
+    // iOS Safari zooms the page into any focused field under 16px.
+    @media (hover: none) and (pointer: coarse) {
+      font-size: 1rem;
+    }
+
+    &:focus {
+      outline: none;
+      background: $search-raised;
+    }
   }
 }
 
-.search-palette-button {
-  --bs-btn-bg: #{$green};
-  --bs-btn-border-color: #{$green};
-  --bs-btn-disabled-bg: #{$search-raised};
-  --bs-btn-disabled-border-color: #{$search-line};
-  --bs-btn-disabled-color: #{$search-muted};
+// Add turns into the stepper in place, as on the order page: the two
+// share one cell and cross-fade.
+.search-palette-qty {
+  display: grid;
 
-  flex: 1 1 auto;
-  white-space: nowrap;
+  > * {
+    grid-area: 1 / 1;
+    transition:
+      opacity 0.14s ease,
+      transform 0.22s $search-ease,
+      visibility 0s linear 0s;
+  }
+
+  &[data-search-qty-state="empty"] .search-palette-step,
+  &[data-search-qty-state="active"] .search-palette-add {
+    visibility: hidden;
+    opacity: 0;
+    transform: scale(0.94);
+    transition:
+      opacity 0.14s ease,
+      transform 0.22s $search-ease,
+      visibility 0s linear 0.14s;
+  }
 }
 
-// Under the add row and as wide: the way to the cart, which is
-// somewhere else. Outlined, so Add stays the one filled button.
+// The way to the cart, which is somewhere else. Outlined, so Add stays
+// the one filled button; its place is held while the cart is empty.
 .search-palette-cart {
   --bs-btn-color: #{$search-accent};
   --bs-btn-border-color: #{$search-accent};
@@ -376,12 +421,10 @@ $search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --bs-btn-active-bg: #{$search-accent};
   --bs-btn-active-border-color: #{$search-accent};
 
-  width: 100%;
-  max-width: 18rem;
-  margin-top: 0.75rem;
+  white-space: nowrap;
 
-  &[hidden] {
-    display: none;
+  &[data-search-cart="empty"] {
+    visibility: hidden;
   }
 }
 
@@ -470,18 +513,10 @@ $search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     }
   }
 
-  .search-palette-add,
-  .search-palette-cart {
+  .search-palette-actions {
     grid-column: 1 / -1;
     max-width: none;
-  }
-
-  .search-palette-add {
     margin-top: 0.75rem;
-  }
-
-  .search-palette-cart {
-    margin-top: 0.5rem;
   }
 
   .search-palette-keys {
@@ -492,7 +527,9 @@ $search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 @media (prefers-reduced-motion: reduce) {
   .search-palette,
   .search-palette::backdrop,
-  .site-search-icon {
+  .site-search-icon,
+  .search-palette-qty[data-search-qty-state] > .search-palette-add,
+  .search-palette-qty[data-search-qty-state] > .search-palette-step {
     transition: none;
   }
 }

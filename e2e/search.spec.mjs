@@ -1,6 +1,7 @@
 // Product search in the header (#142): a command palette opened with
 // the search button or cmd/ctrl K, matches on the left, the selected
-// product's card on the right, and Add to cart from the results.
+// product's card on the right, and its Add, which turns into the
+// quantity in the cart as on the order page (#208).
 // docs/qa-launch.md, "The autumn refresh".
 
 import { OrderPage, expect, test } from "./support/order.mjs";
@@ -15,7 +16,9 @@ const palette = (page) => {
     rows: dialog.locator("#search-palette-list [role='option']"),
     card: dialog.locator("[data-search-card]"),
     qty: dialog.locator("[data-search-qty]"),
-    add: dialog.locator("[data-search-button]"),
+    add: dialog.locator("[data-search-add]"),
+    fewer: dialog.locator("[data-search-step='-1']"),
+    more: dialog.locator("[data-search-step='1']"),
     added: dialog.locator("[data-search-added]"),
     empty: dialog.locator("[data-search-empty]"),
   };
@@ -45,6 +48,10 @@ test.describe("search (#142)", () => {
 
       await expect(p.opener).toHaveAttribute("aria-expanded", "true");
       await expect(p.input).toHaveAttribute("role", "combobox");
+
+      // #208: a dot parts the group from the item, "Eggs · Large".
+      await p.input.fill("egg");
+      await expect(p.rows.first()).toHaveText(/^Eggs · Large\$/);
 
       await p.input.fill("wing");
       await expect(p.rows.first()).toContainText("Wings");
@@ -148,10 +155,9 @@ test.describe("search (#142)", () => {
     });
 
   // Found by QA, 2026-09-24: the palette asks /api/stock as it opens,
-  // and the answer re-renders the card, putting the quantity back to 1
-  // and wiping the "Added" line. A slow answer (a cold function) lands
-  // after the customer has chosen.
-  test("stock arriving late keeps the quantity chosen", async ({ page }) => {
+  // and the answer re-renders the card. A slow answer (a cold function)
+  // lands after the customer has added, and must leave the cart alone.
+  test("stock arriving late keeps what's in the cart", async ({ page }) => {
     let release;
     const held = new Promise((resolve) => {
       release = resolve;
@@ -168,7 +174,8 @@ test.describe("search (#142)", () => {
     await p.opener.click();
     await expect(p.input).toBeFocused();
     await p.input.fill("eggs");
-    await p.dialog.getByRole("button", { name: "One more" }).click();
+    await p.add.click();
+    await p.more.click();
     await expect(p.qty).toHaveValue("2");
 
     const stock = page.waitForResponse("**/api/stock");
@@ -177,6 +184,37 @@ test.describe("search (#142)", () => {
     await stock;
     await page.waitForTimeout(300);
     await expect(p.qty).toHaveValue("2");
+  });
+
+  // #208: one Add, as on the order page. It becomes the stepper, which
+  // edits the cart itself; at 0 the product leaves and Add returns.
+  test("Add becomes the stepper, and 0 takes it out", async ({ page }) => {
+    await page.goto("/about/");
+
+    const p = palette(page);
+
+    await p.opener.click();
+    await p.input.fill("eggs");
+    await expect(p.card).not.toContainText("Stock");
+    await expect(p.card.getByRole("button", { name: "Add to cart" }))
+      .toHaveCount(0);
+    await expect(p.qty).toBeHidden();
+    await p.add.click();
+    await expect(p.add).toBeHidden();
+    await expect(p.qty).toHaveValue("1");
+    await expect(p.more).toBeFocused();
+    await expect(p.added).toHaveText(
+      "1 × Eggs, Large in your cart. 1 item in all."
+    );
+    await expect(p.fewer).toHaveAttribute("aria-label", "Remove");
+    await p.fewer.click();
+    await expect(p.add).toBeVisible();
+    await expect(p.add).toBeFocused();
+    await expect(p.added).toHaveText(
+      "Removed Eggs, Large. 0 items in your cart."
+    );
+    await expect(p.dialog.getByRole("button", { name: "Go to cart" }))
+      .toBeHidden();
   });
 
   test("add from any page, and the order page has it", async ({ page }) => {
@@ -191,14 +229,12 @@ test.describe("search (#142)", () => {
     await expect(p.input).toBeFocused();
     await p.input.fill("eggs");
     await expect(p.card.locator("[data-search-name]")).toHaveText("Large");
-    await expect(p.card.locator("[data-search-stock]")).toHaveText("In stock");
-    await p.dialog.getByRole("button", { name: "One more" }).click();
-    await expect(p.qty).toHaveValue("2");
     await p.add.click();
+    await p.more.click();
+    await expect(p.qty).toHaveValue("2");
     await expect(p.added).toHaveText(
-      "Added 2 × Eggs, Large. 2 items in your cart."
+      "2 × Eggs, Large in your cart. 2 items in all."
     );
-    await expect(p.add).toHaveText("Added · 2 in cart");
 
     const order = new OrderPage(page);
 
@@ -220,8 +256,10 @@ test.describe("search (#142)", () => {
 
       await p.input.fill("wings");
       await expect(p.card.locator("[data-search-group]")).toHaveText("Wings");
+      await expect(p.qty).toHaveValue("1");
       await page.keyboard.press("Enter");
-      await expect(p.added).toContainText("Added 1 × Wings,");
+      await expect(p.added).toContainText("2 × Wings,");
+      await expect(p.qty).toHaveValue("2");
       await page.keyboard.press("Escape");
       await expect.poll(() => isOpen(p)).toBe(false);
       await expect(order.qty("wings")).toHaveValue("2");

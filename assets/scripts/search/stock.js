@@ -22,15 +22,3 @@ export const room = (stock, sku, have) => {
 
   return Math.max(0, Math.min(MAX, n === null ? MAX : n) - have);
 };
-
-export const stockText = (stock, sku) => {
-  if (soldOut(stock, sku)) return "Sold out";
-
-  const n = left(stock, sku);
-
-  return n !== null && n <= 10 ? `Only ${n} left` : "In stock";
-};
-
-// -> the quantity to show: the one chosen, lowered to the room there
-// is, and never below 1.
-export const fitQty = (n, most) => Math.max(1, Math.min(most, n));

@@ -1,16 +1,18 @@
 {{/*
   Product search: a command palette opened from the header's search
   button or with cmd/ctrl K. Matches go down the left; the selected
-  one's card, with a quantity and an Add button, sits on the right.
-  On a phone it is a full-screen sheet with the card at the foot.
+  one's card sits on the right. Its Add turns into the quantity in the
+  cart, as on the order page (#208). On a phone it is a full-screen
+  sheet with the card at the foot.
 
   The products are the order page's own list (order/groups.html),
   embedded as JSON so the palette needs no request to search; stock
   is asked of /api/stock when it opens. scripts/search/ does the rest.
 
   A photo for a group goes at assets/images/products/<group key>.jpg;
-  until one exists, the card shows the hen from the logo, or an egg
-  for the eggs.
+  until one exists, the card shows the hen, cut from the logo
+  (logo-vertical.svg), or for the eggs the map's egg pair
+  (icons/eggs.svg), both filled green here (#220).
 
   The catalog's "per each" reads "$30 each" here (#208).
 */}}
@@ -35,7 +37,8 @@
   {{ end }}
 {{ end }}
 {{ $hen := (resources.Get "images/search/hen.svg" | fingerprint).RelPermalink }}
-{{ $egg := (resources.Get "images/search/egg.svg" | fingerprint).RelPermalink }}
+{{ $egg := (resources.Get "images/icons/eggs.svg").Content | replaceRE `<path ` `<path fill="#4c6b5c" ` | resources.FromString "images/search/eggs.svg" | fingerprint }}
+{{ $egg = $egg.RelPermalink }}
 <dialog class="search-palette" id="search-palette" aria-labelledby="search-palette-label" data-search-palette data-hen="{{ $hen }}" data-egg="{{ $egg }}">
   <div class="search-palette-panel">
     <div class="search-palette-field">
@@ -55,24 +58,29 @@
         </div>
         <h2 class="search-palette-name" data-search-name></h2>
         <p class="search-palette-group" data-search-group></p>
+        {{/* No stock row: nothing shown here can be out of stock, so
+             "In stock" would be a claim nothing backs (#208). */}}
         <dl class="search-palette-facts">
           <div><dt>Price</dt><dd data-search-price></dd></div>
-          <div><dt>Stock</dt><dd data-search-stock></dd></div>
         </dl>
-        <form class="search-palette-add" data-search-add>
-          <div class="search-palette-qty" role="group" aria-label="Quantity">
-            <button type="button" data-search-step="-1" aria-label="One fewer">&minus;</button>
-            <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="1" aria-label="Quantity" data-search-qty>
-            <button type="button" data-search-step="1" aria-label="One more">+</button>
+        <div class="search-palette-actions">
+          <div class="search-palette-qty" data-search-qty-state="empty">
+            <button class="btn search-palette-add" type="button" data-search-add>Add</button>
+            <div class="search-palette-step" role="group" aria-label="Quantity in your cart">
+              <button type="button" data-search-step="-1" aria-label="One fewer">&minus;</button>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="0" aria-label="Quantity in your cart" data-search-qty>
+              <button type="button" data-search-step="1" aria-label="One more">+</button>
+            </div>
           </div>
-          <button class="btn btn-primary search-palette-button" type="submit" data-search-button>Add to cart</button>
-        </form>
-        {{/* What an add did, for screen readers only; the eye has the
-             button's "Added" and the cart button below (#208). */}}
+          {{/* Once the cart holds something, the way to it: this panel
+               is search, and the cart is somewhere else (#208). Its
+               place is kept while it is empty, so Add never moves out
+               from under a second tap. */}}
+          <button class="btn search-palette-cart" type="button" data-search-cart="empty">Go to cart</button>
+        </div>
+        {{/* What a change did, for screen readers only; the eye has
+             the quantity (#208). */}}
         <p class="visually-hidden" role="status" data-search-added></p>
-        {{/* Once the cart holds something, the way to it: this panel
-             is search, and the cart is somewhere else (#208). */}}
-        <button class="btn search-palette-cart" type="button" data-search-cart hidden>Go to cart</button>
       </section>
     </div>
     <p class="search-palette-keys" aria-hidden="true">
