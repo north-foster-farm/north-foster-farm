@@ -27,7 +27,7 @@ repository.
 | `assets/images/ivy-sniffs-chick.jpg` | James or Jim | | Farm iPhone, Pixelmator Pro. June post. Original has GPS. |
 | `assets/images/photogenic-hen.jpg` | James or Jim | | Farm iPhone, Pixelmator Pro. June post. Original has GPS. |
 | `assets/images/tilted-market.jpg` | James or Jim | | Farm iPhone, Pixelmator Pro. August post, home markets band. Original has GPS. |
-| `assets/images/winter-tunnel.jpg` | James or Jim | | iPhone 14 Pro, Pixelmator Pro. Home ways band (#137), Instagram. Original has GPS. |
+| `assets/images/winter-tunnel.jpg` | James or Jim | | iPhone 14 Pro, Pixelmator Pro. Home ways band (#137), Instagram slide 5. Original has GPS. |
 | `assets/images/egg-basket.jpg` | James or Jim | | Farm iPhone, Pixelmator Pro, 2024. Unused on the site; kept for the Instagram questions on #192. Original has GPS. |
 | `assets/images/chickens.jpg` | James or Jim | | iPhone 13 Pro Max, 2024. Unused on the site; kept for the Instagram questions on #192. |
 | `assets/images/linus-featured.jpg` | James | | Byte for byte `~/Code/nff/linus-featured.jpg`, which James supplied. |
@@ -45,8 +45,9 @@ never committed or uploaded (#230):
 | File | Made by | Credit | Source and notes |
 | --- | --- | --- | --- |
 | `broilers.jpg`, `broilers-square.jpg` | James | | Broilers on pasture, from IMG_7035. The square one is Instagram slide 2 (#230). |
-| `sheep-with-broilers.jpg`, `sheep-with-broilers-square.jpg` | James | | Sheep by a pen of broilers, from IMG_7109. Approved for Instagram, no post yet. |
+| `sheep-with-broilers.jpg`, `sheep-with-broilers-square.jpg` | James | | Sheep by a pen of broilers, from IMG_7109. The square one is the Instagram post's cover and its Story. |
 | `cooked.jpg` | Jess Brayton (@fussica) | @fussica, her choice | The original of `assets/images/cooked.jpg`. Instagram slide 3. |
+| `tilted-tent.jpg`, `tilted-tent-square.jpg` | Unknown | | No metadata in either. The square one is Instagram slide 4. Who took it is with James (#233 item 31). |
 
 ## Video and posters
 
@@ -70,11 +71,16 @@ font are missing (#220, first audit).
 | `assets/images/logo.svg` | Unknown (trace); James supplied it | | The wordmark in `nff-site-mockup/pics/logo.svg`, scaled 1.72 times (3225811). Where James got the mockup file is not recorded. Header wordmark. |
 | `assets/images/logo-mark.svg` | An agent | | Crop of `logo-horizontal.svg`'s hen and arc, paths unchanged (332f971, 101f3c1, #170). Header hen, README, news placeholder tiles. |
 | `assets/images/search/hen.svg` | An agent | | `logo-vertical.svg`'s hen path, recolored (306922f, #142). Search placeholder, the map's dropped pin. |
-| `assets/images/map/farm-marker.svg` | James, per d400453 | | "The hen pin from James" (#138): `logo-vertical.svg`'s hen at 0.63 scale in a drawn pin. No other copy exists to confirm it. |
 | `assets/images/share-card.png` | James | | Made 2026-09-24 (1352220). `og:image` on every page. |
 | `static/images/email/logo.png` | An agent | | Inkscape render of `logo.svg` in the header green (72205a2). Every email's header. |
 | `static/email-signature/logo-horizontal.png` | James | | "New image files for general use outside of this project" (57e89d5). Public URL, likely his email signature. |
 | `bin/favicons/emblem.mjs` and `static/favicons/*` | An agent, from James's choice | | The gingham egg James chose (#145). `bin/favicons/build` writes every favicon file from the script; a rebuild reproduces them pixel for pixel. |
+
+## Drawn in code
+
+| File | Made by | Credit | Source and notes |
+| --- | --- | --- | --- |
+| `layouts/partials/avatars.html` | An agent | | The six chicken avatars a customer picks in account settings (`data/avatars.json`), SVG symbols drawn from shapes in the template (8a5bf6f). No file or icon set behind them. |
 
 ## Icons
 
