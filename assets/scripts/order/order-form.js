@@ -27,7 +27,6 @@ import { setBusy as spin } from "../utils/busy-button.js";
 // A send that can't get through is tried once more this soon, while
 // the page still shows it being placed, and then not again (#154).
 const RETRY_DELAY = 3000;
-const AGREE_SEEN = "nff-delivery-policy-seen";
 
 // The code that is a joke: the cart shows a discount growing by this
 // much a minute for as long as the page is open, and nothing else
@@ -366,22 +365,13 @@ export class OrderForm {
     this.formatPhone();
     this.showContact();
 
-    // The delivery-policy note can be dismissed, and stays dismissed.
-    const agree = qs(this.form, "[data-agree]");
-
-    agree.hidden = this.draft.flag(AGREE_SEEN);
-    qs(agree, "[data-agree-dismiss]").addEventListener("click", () => {
-      this.draft.setFlag(AGREE_SEEN);
-      agree.hidden = true;
-    });
-
     // Below xl the cart folds down to the total row and the foot: the
     // toggle, the way on and the nudge.
     qs(this.cart, "[data-cart-toggle]").addEventListener("click", () => {
       this.setOpen(this.cart.dataset.open !== "true");
     });
     qs(this.cart, "[data-checkout]").addEventListener("click", () => {
-      const target = document.getElementById("details");
+      const target = document.getElementById("pickup");
 
       target.scrollIntoView({ behavior: "smooth", block: "start" });
       qs(target, "legend").focus({ preventScroll: true });

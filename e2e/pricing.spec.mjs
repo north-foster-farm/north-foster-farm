@@ -25,7 +25,7 @@ test.describe("pricing and discounts", () => {
       fee}, total ${total}`, { tag: "@regression" }, async ({ page }) => {
       const order = new OrderPage(page);
 
-      await order.open(cart);
+      await order.open(cart, { method: "delivery" });
       await expect(order.subtotal).toHaveText(subtotal);
       if (label) {
         await expect(order.discountRow).toBeVisible();
@@ -42,7 +42,7 @@ test.describe("pricing and discounts", () => {
   test("pickup and the drop site carry no fee", async ({ page }) => {
     const order = new OrderPage(page);
 
-    await order.open({ eggs: 7 });
+    await order.open({ eggs: 7 }, { method: "delivery" });
     await order.method("onfarm");
     await expect(order.feeRow).toBeHidden();
     await expect(order.total).toHaveText("$49");
@@ -55,7 +55,7 @@ test.describe("pricing and discounts", () => {
     const order = new OrderPage(page);
     const badge = (key) => order.cart.locator(`[data-badge='${key}']`);
 
-    await order.open({ wings: 15 });
+    await order.open({ wings: 15 }, { method: "delivery" });
     for (const key of ["delivery", "free-delivery", "tier-50", "tier-100",
       "tier-150"]) {
       await expect(badge(key)).toHaveAttribute("data-on", "true");
@@ -67,7 +67,7 @@ test.describe("pricing and discounts", () => {
     async ({ page }) => {
       const order = new OrderPage(page);
 
-      await order.open({ wings: 10 });
+      await order.open({ wings: 10 }, { method: "delivery" });
       await expect(order.nudge).toHaveText(
         "Next discount: add $50 for $15 off and free delivery."
       );
@@ -84,7 +84,7 @@ test.describe("pricing and discounts", () => {
   test("exactly $40 meets the delivery minimum", async ({ page }) => {
     const order = new OrderPage(page);
 
-    await order.open({ wings: 4 });
+    await order.open({ wings: 4 }, { method: "delivery" });
     await expect(order.short).toBeHidden();
     await expect(order.next).toBeEnabled();
     await expect(order.fee).toHaveText("+$5");
@@ -97,7 +97,7 @@ test.describe("pricing and discounts", () => {
     { tag: "@regression" }, async ({ page }) => {
       const order = new OrderPage(page);
 
-      await order.open({ eggs: 5 });
+      await order.open({ eggs: 5 }, { method: "delivery" });
       await expect(order.nudge).toHaveText(
         "Add $5 to reach the $40 delivery minimum."
       );
@@ -115,7 +115,7 @@ test.describe("pricing and discounts", () => {
     async ({ page }) => {
       const order = new OrderPage(page);
 
-      await order.open({ wings: 5 });
+      await order.open({ wings: 5 }, { method: "delivery" });
       // 02830 (Harrisville) is in Rhode Island but not on the list.
       await order.zip.fill("02830");
       await expect(order.fee).toHaveText("+$8");
@@ -133,7 +133,7 @@ test.describe("pricing and discounts", () => {
     async ({ page }) => {
       const order = new OrderPage(page);
 
-      await order.open({ wings: 5 });
+      await order.open({ wings: 5 }, { method: "delivery" });
       await order.zip.fill("02830");
       await expect(order.zipNote).toContainText("A little outside our usual");
       // The fee is money: "$3 more", not "3 more".
@@ -164,7 +164,7 @@ test.describe("pricing and discounts", () => {
   test("a ZIP outside the area is refused at the field", async ({ page }) => {
     const order = new OrderPage(page);
 
-    await order.open({ wings: 5 });
+    await order.open({ wings: 5 }, { method: "delivery" });
     await order.zip.fill("10001");
     await expect(order.zipNote).toHaveText(
       "That's outside our delivery area. On-farm pickup and the drop " +
@@ -176,7 +176,7 @@ test.describe("pricing and discounts", () => {
   test("Connecticut takes eggs only", async ({ page }) => {
     const order = new OrderPage(page);
 
-    await order.open({ wings: 5 });
+    await order.open({ wings: 5 }, { method: "delivery" });
     await order.zip.fill("06239");
     await expect(order.zipNote).toHaveText(
       "We can only deliver eggs to Connecticut for now. Remove the " +
@@ -194,7 +194,7 @@ test.describe("pricing and discounts", () => {
   test("an unknown code says so and changes nothing", async ({ page }) => {
     const order = new OrderPage(page);
 
-    await order.open({ wings: 5 });
+    await order.open({ wings: 5 }, { method: "delivery" });
     await order.codeInput.fill("nosuchcode");
     await order.codeApply.click();
     await expect(order.codeNote).toHaveText("Not a valid discount code.");
@@ -208,7 +208,7 @@ test.describe("pricing and discounts", () => {
       const order = new OrderPage(page);
       const joke = order.cart.locator(".order-cart-joke");
 
-      await order.open({ wings: 5 });
+      await order.open({ wings: 5 }, { method: "delivery" });
       await order.codeInput.fill("eggboi");
       await order.codeInput.press("Enter");
       await expect(order.codeNote).toHaveText("Code applied.");

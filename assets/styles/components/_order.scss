@@ -1326,29 +1326,14 @@
     }
   }
 
-  // The agreement: one sentence in the note style above it, in the
-  // yellow, with a dismiss that is remembered.
+  // The agreement: one plain sentence directly above the Pay button,
+  // for every way to get an order (#196).
   .order-agree {
-    display: flex;
-    gap: 0.75rem;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 1.25rem;
-    font-weight: bold;
+    margin-bottom: 0.75rem;
 
     a {
       text-decoration: underline;
     }
-
-    &[hidden] {
-      display: none;
-    }
-  }
-
-  .order-agree-dismiss {
-    flex: none;
-    margin-top: 0.1875rem;
-    font-size: 0.625rem;
   }
 
   // Payment: the card form the SDK mounts, and the wallet buttons

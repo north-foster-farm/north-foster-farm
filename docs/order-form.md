@@ -662,10 +662,10 @@ Flags that take a value accept both `--reason "..."` and
   `data/delivery.json` is the switch.
 - **The delivery terms are linked, not ticked.** Above the delivery
   fields a live countdown says "Order in the next N days, N hours, and
-  N minutes to get your order on our next delivery day", and a yellow
-  note in the same style says that placing a delivery order is agreeing
-  to the policy at `/delivery-policy`. The note has a dismiss that is
-  remembered in `localStorage`. No drop-off contact name or phone: the
+  N minutes to get your order on our next delivery day". For every
+  way to get an order, one line directly above the Pay button says
+  that placing an order is agreeing to the policy at
+  `/delivery-policy` (W8, #196). No drop-off contact name or phone: the
   customer's own name and phone go to Square as the recipient.
 - **West Greenwich is ZIP 02817.** The v4 PDF prints 02818, which is
   East Greenwich. Corrected in `data/delivery.json`.

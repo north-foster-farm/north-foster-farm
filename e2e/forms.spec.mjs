@@ -25,20 +25,20 @@ test.describe("contact and pickup forms", () => {
     });
   });
 
-  test("Delivery is the default and needs a phone; pickup does not",
+  test("On-farm pickup is the default; only delivery needs a phone",
     async ({ page }) => {
       const order = new OrderPage(page);
       const optional = page.locator("[data-phone-optional]");
 
       await order.open({ wings: 5 });
-      await expect(page.locator("#method-delivery")).toBeChecked();
+      await expect(page.locator("#method-onfarm")).toBeChecked();
+      await expect(optional).toBeVisible();
+      await expect(optional).toHaveText("(optional)");
+      await order.method("delivery");
       await expect(optional).toBeHidden();
       await expect(page.locator("#customer-phone")).toHaveAttribute(
         "required", ""
       );
-      await order.method("onfarm");
-      await expect(optional).toBeVisible();
-      await expect(optional).toHaveText("(optional)");
       await order.method("scituate");
       await expect(optional).toBeVisible();
     });
@@ -47,7 +47,7 @@ test.describe("contact and pickup forms", () => {
     "nothing", { tag: "@regression" }, async ({ page }) => {
     const order = new OrderPage(page);
 
-    await order.open({ wings: 5 });
+    await order.open({ wings: 5 }, { method: "delivery" });
     await attempt(order);
     await expect(order.errorFor("customer.firstName"))
       .toHaveText("Please enter your first name.");
@@ -183,7 +183,7 @@ test.describe("contact and pickup forms", () => {
     "blocks the order", async ({ page }) => {
     const order = new OrderPage(page);
 
-    await order.open({ eggs: 5 });
+    await order.open({ eggs: 5 }, { method: "delivery" });
     await expect(order.short).toBeVisible();
     await expect(order.short).toHaveText(
       "You need $40 or more in your cart to use this option. Add $5 more."
@@ -205,27 +205,30 @@ test.describe("contact and pickup forms", () => {
     expect(posted).toBe(0);
   });
 
-  test("the delivery-policy note can be dismissed, and stays dismissed",
+  test("every way to get an order agrees to the policy, above Pay",
     async ({ page }) => {
       const order = new OrderPage(page);
-      const note = page.locator("[data-agree]");
+      const line = page.locator(".order-submit .order-agree");
 
       await order.open({ wings: 5 });
-      await expect(note).toContainText(
-        "By placing a delivery order you agree to our delivery policy."
-      );
-      await note.getByRole("button", { name: "Dismiss" }).click();
-      await expect(note).toBeHidden();
-      await page.reload();
-      await expect(page.locator("#onfarm-date")).toBeEnabled();
-      await expect(note).toBeHidden();
+      for (const method of ["onfarm", "scituate", "delivery"]) {
+        await order.method(method);
+        await expect(line).toBeVisible();
+        await expect(line).toHaveText(
+          "By placing an order you agree to our delivery policy."
+        );
+      }
+      // Directly above the button, and nowhere else.
+      await expect(page.locator(".order-agree")).toHaveCount(1);
+      expect(await line.evaluate((el) =>
+        el.nextElementSibling?.id)).toBe("order-submit");
     });
 
   test("the delivery countdown names the next delivery day",
     async ({ page }) => {
       const order = new OrderPage(page);
 
-      await order.open({ wings: 5 });
+      await order.open({ wings: 5 }, { method: "delivery" });
       await expect(page.locator("[data-countdown-text]")).toHaveText(
         /^Order in the next .+ to get your order on our next delivery day/
       );

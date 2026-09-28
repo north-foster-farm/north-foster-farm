@@ -65,7 +65,7 @@ for (const size of WIDTHS) {
         // A trial click fails if anything covers the button.
         await order.next.click({ trial: true });
         await order.next.click();
-        await expect(page.locator("#details legend")).toBeFocused();
+        await expect(page.locator("#pickup legend")).toBeFocused();
       });
 
     test("Continue to payment is never wider than 370px", async ({
@@ -142,17 +142,17 @@ for (const size of WIDTHS) {
 
       await order.open(FULL_CART);
       // Scroll so the cart has settled into the page, just above
-      // Contact information.
-      await page.locator("#details").scrollIntoViewIfNeeded();
+      // Pickup or delivery.
+      await page.locator("#pickup").scrollIntoViewIfNeeded();
       await page.waitForTimeout(600);
 
       const cart = await box(order.cart);
-      const details = await box(page.locator("#details legend"));
+      const next = await box(page.locator("#pickup legend"));
       const end = await box(order.cart.locator(".order-cart-end"));
 
       expect(end.bottom).toBeLessThanOrEqual(cart.bottom + 1);
       if (size.width < XL) {
-        expect(cart.bottom).toBeLessThanOrEqual(details.y + 1);
+        expect(cart.bottom).toBeLessThanOrEqual(next.y + 1);
       }
       // No line of the item list spills below the cart.
       const spill = await order.cart.locator(".order-cart-item").evaluateAll(

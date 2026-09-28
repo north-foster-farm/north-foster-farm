@@ -26,6 +26,20 @@
         <div class="invalid-feedback" id="err-customer-email" data-error-for="customer.email"></div>
       </div>
     </div>
+    {{/* Farm news is opt-in only: the box starts unticked, a ticked
+         box joins the list when the order is placed, with no
+         confirmation email (W1), and an unticked box changes nothing
+         on a record that already says yes. The account page's
+         settings tab has the same box. */}}
+    <div class="row">
+      <span class="col-sm-3 col-form-label">Marketing opt-in</span>
+      <div class="col-sm-9">
+        <div class="form-check order-check">
+          <input class="form-check-input" type="checkbox" id="customer-marketing" name="customer.marketing" data-field="customer.marketing">
+          <label class="form-check-label" for="customer-marketing">I want to get email from North Foster Farm.</label>
+        </div>
+      </div>
+    </div>
     <div class="row">
       {{/* Required for delivery only (order-form.js toggles it). */}}
       <label class="col-sm-3 col-form-label" for="customer-phone">Phone <span class="text-body-secondary" data-phone-optional hidden>(optional)</span></label>
@@ -51,19 +65,6 @@
         </div>
         <div class="invalid-feedback" data-error-for="customer.contact"></div>
       </div>
-    </div>
-    {{/* Farm news is opt-in only: the box starts unticked, a ticked
-         box joins the list when the order is placed, with no
-         confirmation email (W1), and an unticked box changes nothing
-         on a record that already says yes. The account page's
-         settings tab has the same box. */}}
-    <div class="row">
-      <span class="col-sm-3 col-form-label">Marketing opt-in</span>
-      <div class="col-sm-9">
-        <div class="form-check order-check">
-          <input class="form-check-input" type="checkbox" id="customer-marketing" name="customer.marketing" data-field="customer.marketing">
-          <label class="form-check-label" for="customer-marketing">I want to get email from North Foster Farm.</label>
-        </div>      </div>
     </div>
   </div>
 </fieldset>

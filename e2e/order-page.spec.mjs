@@ -8,7 +8,8 @@ test.describe("order page", () => {
     const order = new OrderPage(page);
 
     await order.open();
-    await expect(page.locator("#method-delivery")).toBeChecked();
+    await expect(page.locator("#method-onfarm")).toBeChecked();
+    await order.method("delivery");
     await expect(order.count).toHaveText("0 items");
     await expect(order.subtotal).toHaveText("$0");
     await expect(order.total).toHaveText("$0");
@@ -23,15 +24,28 @@ test.describe("order page", () => {
     );
   });
 
-  test("the ways to get an order: Delivery first, then the drop site, " +
-    "then the farm", async ({ page }) => {
+  test("the ways to get an order: the farm first, then the drop site, " +
+    "then delivery", async ({ page }) => {
     const order = new OrderPage(page);
 
     await order.open();
     await expect(page.locator(".order-method-title")).toHaveText([
-      "Delivery", "Drop site", "On-farm pickup",
+      "On-farm pickup", "Drop site", "Delivery",
     ]);
   });
+
+  test("the steps run items, pickup or delivery, contact, payment",
+    async ({ page }) => {
+      const order = new OrderPage(page);
+
+      await order.open();
+      await expect(page.locator(".order-rest > .order-section > legend"))
+        .toHaveText(["Pickup or delivery", "Contact information", "Payment"]);
+      // Farm news stays right under the email it belongs to.
+      expect(await page.locator("#customer-email").evaluate((el) =>
+        el.closest(".row").nextElementSibling
+          .querySelector("#customer-marketing") !== null)).toBe(true);
+    });
 
   test("Add becomes a stepper and the cart itemizes the line",
     async ({ page }) => {
@@ -147,15 +161,15 @@ test.describe("order page", () => {
     await expect(order.total).toHaveText("$45");
   });
 
-  test("Continue to payment takes the customer to Contact information",
+  test("Continue to payment takes the customer to Pickup or delivery",
     async ({ page }) => {
       const order = new OrderPage(page);
 
       await order.open({ wings: 5 });
       await expect(order.next).toBeEnabled();
       await order.next.click();
-      await expect(page.locator("#details legend")).toBeFocused();
-      await expect(page.locator("#details legend")).toBeInViewport();
+      await expect(page.locator("#pickup legend")).toBeFocused();
+      await expect(page.locator("#pickup legend")).toBeInViewport();
     });
 
   test("the site's own scripts log no errors", async ({ page, baseURL }) => {

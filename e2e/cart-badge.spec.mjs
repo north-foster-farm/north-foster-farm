@@ -119,9 +119,9 @@ test.describe("cart count on the Order link (#166)", () => {
       await expect(mini.locator("[data-mini-cart-subtotal]"))
         .toHaveText(/^\$\d/);
       await mini.getByRole("link", { name: "Check out" }).click();
-      await expect(page).toHaveURL(/\/order\/#details$/);
+      await expect(page).toHaveURL(/\/order\/#pickup$/);
       await expect(order.count).toHaveText("2 items");
-      await expect(page.locator("#details")).toBeInViewport();
+      await expect(page.locator("#pickup")).toBeInViewport();
     });
 
   test("blocked storage reads as an empty cart", async ({ page }) => {

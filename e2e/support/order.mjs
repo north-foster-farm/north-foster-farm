@@ -97,7 +97,9 @@ export class OrderPage {
   }
 
   // Opens /order/, optionally with a cart, and waits for the dates.
-  async open(cart = null) {
+  // On-farm pickup is chosen on load (#196); `method` chooses another
+  // way, as a customer would.
+  async open(cart = null, { method } = {}) {
     const query = cart ? `?add=${addQuery(cart)}` : "";
 
     await this.page.goto(`/order/${query}`);
@@ -105,6 +107,7 @@ export class OrderPage {
     // ?add= scrolls the cart into view 300 ms after load, smoothly; a
     // test that scrolls first would be scrolled back. Let it finish.
     if (cart) await this.page.waitForTimeout(1_000);
+    if (method) await this.method(method);
   }
 
   item(name) {
@@ -167,6 +170,7 @@ export class OrderPage {
     address1 = "1 Test Lane", town = "Scituate", zip = "02857",
     cooler = "By the front steps",
   } = {}) {
+    await this.method("delivery");
     await this.page.locator("#delivery-address1").fill(address1);
     await this.page.locator("#delivery-town").fill(town);
     await this.zip.fill(zip);

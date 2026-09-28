@@ -58,24 +58,29 @@ continue" (both projects).
 - **Setup:** Fresh browser, no draft.
 - **Test:**
   1. Open `/order/`.
-- **Assert:** Delivery is checked. The cart reads "0 items", Subtotal $0,
-  Total $0, with no Delivery fee row and no discount row. Continue to
-  checkout is disabled. The nudge reads "Delivery orders need a $40
-  minimum." The Delivery card reads "You need $40 or more in your cart
-  to use this option."
+- **Assert:** On-farm pickup is checked. With Delivery chosen, the cart
+  reads "0 items", Subtotal $0, Total $0, with no Delivery fee row and
+  no discount row. Continue to checkout is disabled. The nudge reads
+  "Delivery orders need a $40 minimum." The Delivery card reads "You
+  need $40 or more in your cart to use this option."
 - **Teardown:** None.
 
-### OP-02 Delivery comes first
+### OP-02 On-farm pickup comes first
 
-Automated: `order-page.spec.mjs`, "the ways to get an order: Delivery
-first, then the drop site, then the farm" (both projects).
+Automated: `order-page.spec.mjs`, "the ways to get an order: the farm
+first, then the drop site, then delivery" (both projects).
 
-- **Scenario:** Delivery is the default and leads the list (finding 17).
+- **Scenario:** On-farm pickup is the default and leads the list
+  (#196; it reverses finding 17).
 - **Setup:** Fresh browser.
 - **Test:**
   1. Open `/order/`.
-- **Assert:** The method cards read, in order, "Delivery", "Scituate
-  drop site", "On-farm pickup".
+- **Assert:** The method cards read, in order, "On-farm pickup",
+  "Drop site", "Delivery". The sections after the cart read, in
+  order, "Pickup or delivery", "Contact information", "Payment"
+  (`order-page.spec.mjs`, "the steps run items, pickup or delivery,
+  contact, payment"), and the farm-news box is the row right under
+  Email.
 - **Teardown:** None.
 
 ### OP-03 Add becomes a stepper and the cart itemizes it
@@ -181,16 +186,17 @@ projects).
 - **Assert:** Wings 5, Scituate checked, first name "Draft", Total $45.
 - **Teardown:** None (the browser context is discarded).
 
-### OP-10 Continue to payment goes to Contact information
+### OP-10 Continue to payment goes to Pickup or delivery
 
 Automated: `order-page.spec.mjs`, "Continue to payment takes the
-customer to Contact information" (both projects).
+customer to Pickup or delivery" (both projects).
 
-- **Scenario:** The cart's way on lands the customer on their details.
+- **Scenario:** The cart's way on lands the customer on the next step,
+  choosing how to get the order (#196).
 - **Setup:** 5 wings.
 - **Test:**
   1. Press Continue to payment.
-- **Assert:** The "Contact information" legend has focus and is on
+- **Assert:** The "Pickup or delivery" legend has focus and is on
   screen.
 - **Teardown:** None.
 
@@ -235,7 +241,7 @@ and pressed", at 1500, 1198, 990, 575 and 390. Tagged `@regression`.
   1. Scroll the button into view.
   2. Press it.
 - **Assert:** The whole button is on screen, nothing covers it, and the
-  "Contact information" legend takes focus.
+  "Pickup or delivery" legend takes focus.
 - **Teardown:** None.
 
 ### OP-14 Continue to payment is never wider than 370px
@@ -299,7 +305,7 @@ own box", every width.
   Contact information (finding 4).
 - **Setup:** `FULL_CART`.
 - **Test:**
-  1. Scroll Contact information into view so the cart settles.
+  1. Scroll Pickup or delivery into view so the cart settles.
 - **Assert:** The foot ends inside the cart; below xl the cart ends above
   the legend; no line is drawn below the cart's bottom edge.
 - **Teardown:** None.
@@ -391,7 +397,7 @@ Manual: visual judgement and a real iPhone keyboard.
   2. Scroll until it settles.
   3. Tap the discount code field.
 - **Assert:** Floating: inset on both sides, shadow on its back edge.
-  Settled: no border, no inset, the gap to "Contact information" matches
+  Settled: no border, no inset, the gap to "Pickup or delivery" matches
   the gaps between sections. The cart does not jump when the keyboard
   opens; the lines scroll with a finger.
 - **Teardown:** Clear the draft (Safari settings, or remove the lines).
@@ -685,8 +691,8 @@ Manual: needs a signed-in customer whose record carries a group.
 
 ### FM-01 The phone is required for delivery only
 
-Automated: `forms.spec.mjs`, "Delivery is the default and needs a phone;
-pickup does not" (both projects).
+Automated: `forms.spec.mjs`, "On-farm pickup is the default; only
+delivery needs a phone" (both projects).
 
 - **Scenario:** Finding 14: phone required for delivery, optional for
   pickup and the drop site.
@@ -787,17 +793,19 @@ the choice and blocks the order" (both projects).
   $5 more." in a red color; Continue disabled; nothing sent.
 - **Teardown:** None.
 
-### FM-08 The delivery-policy note stays dismissed
+### FM-08 Every order agrees to the policy, above Pay
 
-Automated: `forms.spec.mjs`, "the delivery-policy note can be dismissed,
-and stays dismissed" (both projects).
+Automated: `forms.spec.mjs`, "every way to get an order agrees to the
+policy, above Pay" (both projects).
 
-- **Scenario:** The yellow note is dismissible and remembered.
-- **Setup:** 5 wings, Delivery.
+- **Scenario:** The policy carries pickup, cancellation and refund
+  terms, so every order agrees to it (W8, #196).
+- **Setup:** 5 wings.
 - **Test:**
-  1. Press Dismiss; reload.
-- **Assert:** "By placing a delivery order you agree to our delivery
-  policy." is shown, then gone, and gone after the reload.
+  1. Choose each of On-farm pickup, Drop site and Delivery.
+- **Assert:** "By placing an order you agree to our delivery policy."
+  shows for each, once, directly above the Pay button, with no
+  dismiss.
 - **Teardown:** None.
 
 ### FM-09 The delivery countdown
