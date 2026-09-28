@@ -25,19 +25,6 @@
 {{- $a := $company.address -}}
 {{- $farm := print $a.street ", " $a.city ", " $a.state " " $a.zip -}}
 {{- $money := $terms.money -}}
-{{- $hours := slice -}}
-{{- range $key := slice "morning" "afternoon" -}}
-  {{- $w := index $terms.onFarm.windows $key -}}
-  {{- $ends := slice -}}
-  {{- range $h := slice $w.from $w.to -}}
-    {{- $h = int $h -}}
-    {{- if eq $h 12 }}{{ $ends = $ends | append "12 PM" }}
-    {{- else if gt $h 12 }}{{ $ends = $ends | append (print (sub $h 12) " PM") }}
-    {{- else }}{{ $ends = $ends | append (print $h " AM") }}
-    {{- end -}}
-  {{- end -}}
-  {{- $hours = $hours | append (print $key " (" (delimit $ends " – ") ")") -}}
-{{- end -}}
 {{- $dropStart := time.AsTime $terms.scituate.start -}}
 # {{ $company.name }}
 
@@ -52,7 +39,7 @@ The order page is the live source for prices, stock and dates. The prices below 
 The terms in full, word for word: [{{ $policy.Title }}]({{ $policyMd }}). It covers how you pay, delivery day and the cooler, missed deliveries, weather, changes, cancellations and refunds. The facts below come from the same data.
 
 - Delivery: {{ index $days (int $terms.delivery.weekday) }}s, roughly {{ $terms.delivery.window }}, to the towns listed below. Order by {{ partial "cutoff.html" "delivery" }} for that week. Delivery needs an order of ${{ $money.deliveryMinimum }} or more after discounts; the fee is ${{ $money.deliveryFee }}, waived at ${{ $money.feeWaivedAt }} or more. Any other Rhode Island ZIP code costs ${{ $money.outsideAreaFee }} more.
-- On-farm pickup: {{ $farm }}, by appointment, on a weekday, {{ delimit $hours " or " }}. No minimum and no fee.
+- On-farm pickup: {{ $farm }}, at a time booked on the order page, from the next day on; the order page lists the times open. No minimum and no fee.
 - The drop site: {{ index $days (int $terms.scituate.weekday) }}s, {{ $terms.scituate.window }}{{ if $dropStart.After now }}, starting {{ $dropStart.Format "January 2, 2006" }}{{ end }}, at the {{ $terms.scituate.location }}. Order by {{ partial "cutoff.html" "scituate" }} for that {{ index $days (int $terms.scituate.weekday) }}. No minimum and no fee.
 - Bulk discounts on every order: {{ range $i, $t := $money.bulkTiers }}{{ if $i }}, {{ end }}${{ $t.off }} off at ${{ $t.threshold }}{{ end }}.
 

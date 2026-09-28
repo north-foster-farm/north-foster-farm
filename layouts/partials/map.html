@@ -67,7 +67,7 @@
   {{ $places = $places | append (merge (partial "map/xy.html" hugo.Data.places.farm) (dict
     "kind" "Our farm" "name" "North Foster Farm" "key" "Our farm"
     "town" "Foster" "section" "pickup" "nudge" 1
-    "when" (slice (dict "head" "Select weekdays, by appointment" "line" "On-farm pickup"))
+    "when" (slice (dict "head" "Pick a time when you order" "line" "On-farm pickup"))
     "where" $farm
     "directions" (partial "address.html" .).directions
     "shop" (dict "label" "Shop for pickup" "href" (printf "%s?method=onfarm" $order)))) }}

@@ -461,7 +461,7 @@ test.describe("home", () => {
     const WAYS = [
       {
         method: "onfarm", name: "On-farm pickup",
-        when: "Select weekdays, by appointment",
+        when: "Pick a time when you order",
         where: "99 E Killingly Rd, Foster, RI",
         cost: "No minimum, no fee", cta: "Shop for pickup",
       },

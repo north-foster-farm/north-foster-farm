@@ -102,12 +102,11 @@ refund for the order in full. For anywhere else,
 
 Neither has a minimum or a fee.
 
-**On-farm pickup** is at {{< terms "place" "onFarm" >}}, by
-appointment. Choose a weekday, from tomorrow through the Friday of
-next week, and a morning or an afternoon. That's a request: we check
-it against the farm's schedule and email you to confirm it by the day
-before. If the time doesn't work for us, we'll email you to choose
-another day or window, or to cancel for a full refund.
+**On-farm pickup** is at {{< terms "place" "onFarm" >}}. The order page
+shows the times we have open, from tomorrow on; the one you choose is
+confirmed when you place your order. If something at the farm means we
+can't keep it, we'll cancel your order, refund it in full and email you
+to say so.
 
 **The drop site** in Scituate runs on Saturdays from
 {{< terms "window" "scituate" >}}, {{< terms "starting" "scituate" >}}on
@@ -119,15 +118,14 @@ that Saturday.
 
 Sign in with the email address you ordered with. We email you a link
 to sign in; there's no password. Your account page lets you change
-the day, your pickup window, where we'll find your cooler and your
+the day, your pickup time, where we'll find your cooler and your
 notes, or cancel the order, until the cutoff:
 
 - **Delivery:** Wednesday at noon, the day before your Thursday.
 - **Pickup and the drop site:** the end of the day before your pickup.
 
-To change what's in an order, cancel it and place a new one. If we've
-asked you to choose a new pickup time, you can still change or cancel
-after the cutoff. Otherwise, after the cutoff, call, text or email us.
+To change what's in an order, cancel it and place a new one. After the
+cutoff, call, text or email us.
 
 ## Refunds
 
