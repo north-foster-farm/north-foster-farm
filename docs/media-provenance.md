@@ -73,7 +73,7 @@ below from them, paths as drawn; run it after changing an original.
 | `assets/images/search/hen.svg` | Built from the originals | | The hen of `halo-chicken.svg`, recolored (#142). Search placeholder, the map's dropped pin. |
 | `assets/images/logo-horizontal.svg`, `static/logo-horizontal.svg` | Built from the originals | | `halo-chicken-wordmark.svg`, unchanged. Public; unused on the pages (L3). |
 | `static/images/email/logo.png` | Built from the originals | | Inkscape render of `logo.svg` in the header green. Every email's header. |
-| `assets/images/logo-vertical.svg`, `static/logo-vertical.svg` | Unknown | | Traced from an image; first commit, 2024. The "FOSTER, RI • EST 2022" lockup, which the originals don't include. JSON-LD `logo`. The static copy is byte-identical and public. |
+| `assets/images/logo-mark.png` | Built from the originals | | Inkscape render of the hen and arc of `halo-chicken.svg` in its own green, 512 wide. JSON-LD `logo` (`params.logo`). |
 | `assets/images/share-card.png` | James | | Made 2026-09-24 (1352220). `og:image` on every page. |
 | `static/email-signature/logo-horizontal.png` | James | | "New image files for general use outside of this project" (57e89d5). Public URL, likely his email signature. |
 | `bin/favicons/emblem.mjs` and `static/favicons/*` | An agent, from James's choice | | The gingham egg James chose (#145). `bin/favicons/build` writes every favicon file from the script; a rebuild reproduces them pixel for pixel. |

@@ -19,6 +19,8 @@ import { join } from "node:path";
 const SRC = "bin/logos/originals";
 // The header's green, which the emails' wordmark wears.
 const EMAIL_GREEN = "#124a32";
+// The originals' own green.
+const LOGO_GREEN = "#1e7b54";
 // The search palette's and the map's hen (#142).
 const HEN_GREEN = "#4c6b5c";
 
@@ -84,6 +86,15 @@ try {
   const arc = path(halo, "Path-copy");
   write("assets/images/logo-mark.svg",
     svg(bounds(haloFile, "Group"), [hen, arc], 'class="black"'));
+  // The mark as a PNG in the originals' green: the farm's logo in the
+  // JSON-LD (params.logo), where some readers take no SVG.
+  const mark = join(tmp, "mark.svg");
+  writeFileSync(mark, svg(bounds(haloFile, "Group"), [hen, arc],
+    `fill="${LOGO_GREEN}"`));
+  execFileSync("inkscape", [mark, "--export-type=png",
+    "--export-width=512", "--export-filename=assets/images/logo-mark.png"],
+  { stdio: "ignore" });
+  console.log("wrote assets/images/logo-mark.png");
   write("assets/images/search/hen.svg",
     svg(bounds(haloFile, "Path-copy-2"), [hen], `fill="${HEN_GREEN}"`));
 

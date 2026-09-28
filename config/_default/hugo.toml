@@ -76,7 +76,7 @@ timeZone = "America/New_York"
     getenv = ['^HUGO_', '^CI$', '^CONTEXT$']
 
 [params]
-  logo = "logo-vertical.svg"
+  logo = "logo-mark.png"
   slogan = "Pasture-raised chicken and eggs in Foster, Rhode Island"
 
   [params.features]
