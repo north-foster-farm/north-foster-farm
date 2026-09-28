@@ -15,7 +15,7 @@
   }
 
   // The newest post, large above the list: its picture across the
-  // column, or a wide card in the pale green with the farm's mark.
+  // column, or a wide card with a faint leaf in it.
   .news-lead {
     margin-bottom: 1rem;
   }
@@ -26,7 +26,7 @@
     place-items: center;
     overflow: hidden;
     border-radius: var(--bs-border-radius-lg);
-    background-color: var(--bs-success-bg-subtle);
+    background-color: var(--bs-tertiary-bg);
 
     img {
       width: 100%;
@@ -66,15 +66,14 @@
     }
   }
 
-  // The picture, or a card of the same shape in the pale green with
-  // the farm's mark (#222).
+  // The picture, or a card of the same shape with a faint leaf in it.
   .news-thumb {
     display: grid;
     aspect-ratio: 4 / 3;
     place-items: center;
     overflow: hidden;
     border-radius: var(--bs-border-radius-lg);
-    background-color: var(--bs-success-bg-subtle);
+    background-color: var(--bs-tertiary-bg);
 
     img {
       width: 100%;
@@ -83,24 +82,19 @@
     }
   }
 
-  // The farm's mark in the dark green, the same on every card, about
-  // a third of it: it marks a post without a picture and recedes.
-  .news-mark {
-    width: 28%;
+  .news-leaf {
+    width: 38%;
+    color: $gray-500;
 
     svg {
       display: block;
       width: 100%;
       height: auto;
     }
-
-    .black {
-      fill: var(--bs-primary);
-    }
   }
 
-  .news-lead-image .news-mark {
-    width: 15%;
+  .news-lead-image .news-leaf {
+    width: 20%;
   }
 
   .news-item-title {
