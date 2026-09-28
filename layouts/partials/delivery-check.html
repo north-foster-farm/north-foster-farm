@@ -8,9 +8,16 @@
     id      Prefix for the field's id, unique on the page
     anchor  An id for the card itself, for links (optional)
     class   Extra classes on the card (optional)
+    more    A button under the answer, pointing down the page, as
+            (dict "href" "#section" "label" "Its words"); optional.
+            The delivery policy uses it to reach the area's detail
+            (PP1 on #192).
 */}}
 <div class="card delivery-check bg-success-subtle border border-1 border-success border-opacity-50 rounded-4{{ with .class }} {{ . }}{{ end }}" {{- with .anchor }} id="{{ . }}" {{- end }}>
   <div class="card-body">
     {{ partial "zip-check.html" (dict "id" .id "heading" "Do we deliver to you?") }}
+    {{ with .more }}
+      <a class="btn btn-outline-primary mt-3" href="{{ .href }}">{{ .label }} <span class="delivery-cta-arrow" aria-hidden="true">{{ partial "svg.html" "icons/arrow-down" }}</span></a>
+    {{ end }}
   </div>
 </div>

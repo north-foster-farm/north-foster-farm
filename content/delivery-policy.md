@@ -9,11 +9,11 @@ layout: "policy/single.html"
 pageScript: "zip-check"
 ---
 
+{{< delivery-check >}}
+
 This policy covers delivery to an address you choose. Its last
 sections, on pickup, changes, cancellations and refunds, apply to
 every order.
-
-{{< delivery-cta href="#map-policy" >}}
 
 ## When we deliver
 
@@ -39,8 +39,8 @@ delivery fee is $5, waived when your items come to $150 or more.
 
 Bulk discounts apply to every order, pickup and the drop site
 included. The highest tier you reach applies, automatically.
-Discounts never combine: if you also have a discount code, your order
-takes whichever saves you more.
+Discounts never combine: if more than one applies, your order takes
+whichever saves you more.
 
 A Rhode Island address outside our delivery area (below) costs $3
 more, on every order, even one of $150 or more. The order page shows
@@ -99,7 +99,7 @@ full. For anywhere else,
 
 {{< delivery-area >}}
 
-{{< delivery-map "policy" >}}
+{{< delivery-map "policy" "nocheck" >}}
 
 ## Pickup and the drop site
 
