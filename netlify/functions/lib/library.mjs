@@ -78,7 +78,9 @@ export const pickup = (over = {}) => order({
 
 // A delivery the farm could not leave, under $150 so it paid a $5 fee,
 // with `fee` cents of it kept (0: waived). `cause` is no cooler unless
-// given; weather and farm are the farm's own misses (C6a).
+// given; weather and farm are the farm's own misses (C6a). Sent on the
+// day it missed, `missedOn`, however late the library is read.
+const missedOn = new Date("2026-10-08T20:00:00Z");
 const missed = (fee, over = {}, cause = "no-cooler", detail = "") => order({
   totals: {
     subtotal: 10400, discountTier: 100, discountAmount: 1000,
@@ -447,7 +449,7 @@ export const library = [
     when: "The farm marked a delivery attempted: no cooler out",
     audience: C, tags: ["missed delivery", "delivery"],
     build: (links) => t.missedDelivery(missed(500), {
-      pickUrl: signIn(links), links,
+      pickUrl: signIn(links), links, now: missedOn,
     }),
   },
   {
@@ -455,7 +457,7 @@ export const library = [
     when: "The farm marked a customer's miss and waived the fee",
     audience: C, tags: ["missed delivery", "delivery"],
     build: (links) => t.missedDelivery(missed(0), {
-      pickUrl: signIn(links), links,
+      pickUrl: signIn(links), links, now: missedOn,
     }),
   },
   {
@@ -464,7 +466,7 @@ export const library = [
     audience: C, tags: ["missed delivery", "delivery"],
     build: (links) => t.missedDelivery(
       missed(500, {}, "no-access", "the gate was locked"),
-      { pickUrl: signIn(links), links },
+      { pickUrl: signIn(links), links, now: missedOn },
     ),
   },
   {
@@ -472,7 +474,7 @@ export const library = [
     when: "The farm marked a delivery attempted: couldn't find the address",
     audience: C, tags: ["missed delivery", "delivery"],
     build: (links) => t.missedDelivery(missed(500, {}, "no-address"), {
-      pickUrl: signIn(links), links,
+      pickUrl: signIn(links), links, now: missedOn,
     }),
   },
   {
