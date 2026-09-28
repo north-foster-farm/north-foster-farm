@@ -84,6 +84,12 @@ const USAGE = `Usage:
   bin/nff orders fulfil <id>
   bin/nff orders delete <id>
   bin/nff returns resolve <id> <returnId> [note...]
+  bin/nff messages [--all]            messages to the farm not yet
+                                      answered, from the contact page
+                                      and the help form, oldest first;
+                                      --all adds the answered ones
+  bin/nff messages done <id>          mark one answered, which takes it
+                                      off the morning report
   bin/nff stock list
   bin/nff stock set <sku> <count|none>
   bin/nff login <email>               print a sign-in link
@@ -691,6 +697,29 @@ const restoreCommand = async (file) => {
   if (!same) process.exitCode = 1;
 };
 
+// Messages to the farm (#167): listed until marked answered, and the
+// morning report lists them too.
+const messages = async () => {
+  if (action === "done") {
+    if (!rest[0]) throw new Error("Which? bin/nff messages done <id>");
+
+    const m = await admin.answerMessage(stores, rest[0]);
+
+    return out(admin.answeredLine(m));
+  }
+  if (action) {
+    console.error(USAGE);
+    process.exit(1);
+  }
+
+  const now = new Date();
+  const list = await admin.listMessages(stores, { all: !!flags.all });
+
+  for (const m of list) out(admin.messageLine(m, now));
+
+  return list.length ? undefined : out("No messages waiting on an answer.");
+};
+
 const run = async () => {
   if (group === "env") return envCommand();
   if (group === "breaker") {
@@ -707,6 +736,7 @@ const run = async () => {
   if (group === "supply") {
     return supplyCommand(action, rest, { flags, out, root });
   }
+  if (group === "messages") return messages();
   if (group === "library") return libraryReview();
   if (group === "export") return exportCommand();
   if (group === "restore") return restoreCommand(action);

@@ -164,8 +164,13 @@ const CASES = {
       reason: HOSTILE }],
     start: "2026-12-01", links,
   }), true],
-  farmMorningReport: [() => templates.farmMorningReport(stats, [asked()],
-    { date: "2026-10-06", links, now: at }), true],
+  farmMorningReport: [() => templates.farmMorningReport(stats, [asked()], {
+    date: "2026-10-06", links, now: at,
+    messages: [{
+      id: HOSTILE, at: "2026-10-05T12:00:00Z", name: HOSTILE, email: HOSTILE,
+      orderId: HOSTILE, order: false,
+    }],
+  }), true],
   farmArchivedInStock: [() => templates.farmArchivedInStock(
     [{ sku: HOSTILE, name: HOSTILE, count: 3 }], { links }), true],
   farmTomorrow: [() => templates.farmTomorrow(
@@ -183,7 +188,7 @@ const CASES = {
 
 // Helpers that return a phrase or a table, not a message.
 const NOT_MESSAGES = [
-  "CANCEL_REASONS", "listBlocks", "optInPhrase", "paymentPhrase",
+  "CANCEL_REASONS", "age", "listBlocks", "optInPhrase", "paymentPhrase",
   "summaryLine",
 ];
 

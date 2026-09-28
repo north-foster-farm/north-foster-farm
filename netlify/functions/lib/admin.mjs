@@ -21,7 +21,7 @@ import {
 import { mailLinks } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import {
-  addressDecision, devMailTest as devMailTestMessage, orderCancelled,
+  addressDecision, age, devMailTest as devMailTestMessage, orderCancelled,
   sessionsEnded,
 } from "./templates.mjs";
 import { lastInteraction, quietDue } from "./retention.mjs";
@@ -476,6 +476,95 @@ export const resolveReturn = async (stores, id, returnId, {
   await amendOrder(stores, id, { returns }, `return.${outcome}`, now);
 
   return getOrder(stores, id);
+};
+
+// Messages
+
+// Every message to the farm, from the contact page (`messages/<id>`)
+// and the account page's help form (`support/<email>/<id>`), in one
+// shape, oldest first; only the open ones unless `all`. `order` is
+// whether the order number is one the writer placed, null when none
+// was given or when the help form sent it (it offers only the
+// customer's own).
+export const listMessages = async (stores, { all = false } = {}) => {
+  const found = [];
+
+  for (const { key } of await stores.customers.list("messages/")) {
+    const m = await stores.customers.get(key);
+
+    if (m) {
+      found.push({
+        id: m.id, from: "contact", at: m.at, status: m.status,
+        name: m.name, email: m.email, orderId: m.orderId || "",
+        order: m.order ?? null, subject: "", message: m.message,
+        answeredAt: m.answeredAt || null, key,
+      });
+    }
+  }
+  for (const { key } of await stores.customers.list("support/")) {
+    const m = await stores.customers.get(key);
+
+    if (m) {
+      const email = key.slice("support/".length, key.lastIndexOf("/"));
+      const customer = await getCustomer(stores, email);
+
+      found.push({
+        id: m.id, from: "help", at: m.at, status: m.status,
+        name: (customer && customer.name) || "", email,
+        orderId: m.orderId || "", order: null, subject: m.subject || "",
+        message: m.message, answeredAt: m.answeredAt || null, key,
+      });
+    }
+  }
+
+  return found.filter((m) => all || m.status === "open")
+    .sort((a, b) => (a.at < b.at ? -1 : 1));
+};
+
+// Marks one message answered, so the morning report stops listing it.
+// Marking twice keeps the first. -> the message.
+// A writer's text, safe to print on the farm's terminal: no control
+// characters (escape sequences, carriage returns) and no bidirectional
+// overrides, either of which could make a line show something it is
+// not (#167, security review).
+// eslint-disable-next-line no-control-regex -- matching them is the point
+const UNSAFE = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g;
+
+export const plain = (value) => String(value ?? "").replace(UNSAFE, "");
+
+// One message as `bin/nff messages` prints it: id, age, form, writer,
+// order, and the first 70 characters, every field made plain.
+export const messageLine = (m, now = new Date()) => {
+  const order = m.orderId ? `  order ${plain(m.orderId)}${
+    m.order === false ? " (not their order)" : ""}` : "";
+  const gist = plain(String(m.subject || m.message || "")
+    .replace(/\s+/g, " "));
+  const who = m.name ? `${plain(m.name)} <${plain(m.email)}>`
+    : plain(m.email);
+
+  return `${plain(m.id)}  ${age(m.at, now).padEnd(15)}${
+    plain(m.from).padEnd(9)}${who}${order}${
+    m.status === "open" ? "" : `  answered ${m.answeredAt.slice(0, 10)}`
+  }\n      ${gist.length > 70 ? `${gist.slice(0, 69)}…` : gist}`;
+};
+
+export const answeredLine = (m) => `Answered ${plain(m.id)} from ${
+  plain(m.name || m.email)} (${m.answeredAt.slice(0, 16)}).`;
+
+export const answerMessage = async (stores, id, { now = new Date() } = {}) => {
+  const all = await listMessages(stores, { all: true });
+  const m = need(all.find((x) => x.id === id), "message");
+
+  if (m.status === "answered") return m;
+
+  const record = await stores.customers.get(m.key);
+  const answeredAt = now.toISOString();
+
+  await stores.customers.set(m.key, {
+    ...record, status: "answered", answeredAt,
+  });
+
+  return { ...m, status: "answered", answeredAt };
 };
 
 // Stock

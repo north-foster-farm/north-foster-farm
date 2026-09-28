@@ -1646,15 +1646,19 @@ const VITALS = [
   ["invariants", "Invariant violations", (s) => within(s.invariants === 0)],
 ];
 
-const age = (iso, now) => {
+export const age = (iso, now) => {
   const hours = Math.round((now.getTime() - Date.parse(iso)) / 3_600_000);
 
   return hours < 1 ? "under an hour" : hours < 48 ? `${hours} h`
     : `${Math.round(hours / 24)} days`;
 };
 
+// The most messages the morning report lists; the rest are counted,
+// and `bin/nff messages` lists them all (#167, security review).
+const MESSAGES_SHOWN = 30;
+
 export const farmMorningReport = (stats, pickups, {
-  date, links, now = clock(), schedule = null, archived = [],
+  date, links, now = clock(), schedule = null, archived = [], messages = [],
 } = {}) => {
   const title = `Morning report: ${label(date)}`;
   const blocks = [
@@ -1706,6 +1710,30 @@ export const farmMorningReport = (stats, pickups, {
     );
   } else {
     blocks.push(p("No pickups waiting on the customer."));
+  }
+  // Every message not yet marked answered, every morning until it is
+  // (#167). `messages`: admin's listMessages, oldest first.
+  if (messages.length) {
+    blocks.push(
+      heading("Messages waiting on an answer"),
+      p("From the contact page and the account page's help form, oldest " +
+        "first. Once you've answered one, mark it:"),
+      command("bin/nff messages done <id>"),
+      table(["Message", "From", "Order", "Waiting"],
+        messages.slice(0, MESSAGES_SHOWN).map((m) => [
+          mono(m.id),
+          m.name || m.email,
+          m.orderId ? `${m.orderId}${m.order === false
+            ? " (not their order)" : ""}` : "",
+          age(m.at, now),
+        ]))
+    );
+    if (messages.length > MESSAGES_SHOWN) {
+      blocks.push(p(`And ${messages.length - MESSAGES_SHOWN} more. To see `
+        + "every one:"), command("bin/nff messages"));
+    }
+  } else {
+    blocks.push(p("No messages waiting on an answer."));
   }
   blocks.push(adminFooter(links));
 

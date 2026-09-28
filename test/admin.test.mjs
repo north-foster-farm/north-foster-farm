@@ -3,8 +3,8 @@ import { describe, it } from "node:test";
 
 import terms from "../data/delivery.json" with { type: "json" };
 import {
-  cancelOrder, decideAddress, fulfilOrder, listOrders,
-  markAttempted,
+  answerMessage, answeredLine, cancelOrder, decideAddress, fulfilOrder,
+  listMessages, listOrders, markAttempted, messageLine, plain,
   refundOrder, removeCustomer, removeOrder, resolveReturn, setCustomer,
   showCustomer, stockList, stockSet,
 } from "../netlify/functions/lib/admin.mjs";
@@ -660,4 +660,92 @@ describe("an attempted delivery keeps its fee", () => {
     assert.deepEqual(calls.at(-1), ["fulfilment", "SQO"]);
     assert.doesNotMatch(sent.at(-1).text, /on its way/);
   });
+});
+
+describe("messages from the CLI (#167)", () => {
+  // One from the contact page, one from the help form, one answered.
+  const seed = async (stores) => {
+    await saveCustomer(stores, customer);
+    await stores.customers.set("messages/c1", {
+      id: "c1", at: "2026-10-04T12:00:00Z", name: "Sam Okafor",
+      email: "sam@example.com", orderId: "NFF-2610-ABCD", order: false,
+      message: "Do you have duck eggs?", status: "open",
+    });
+    await stores.customers.set("support/pat@example.com/h1", {
+      id: "h1", at: "2026-10-03T12:00:00Z", subject: "Late",
+      message: "Where is my order?", orderId: "A", status: "open",
+    });
+    await stores.customers.set("messages/c0", {
+      id: "c0", at: "2026-10-01T12:00:00Z", name: "Lee",
+      email: "lee@example.com", orderId: "", order: null,
+      message: "Thanks!", status: "answered",
+      answeredAt: "2026-10-02T12:00:00Z",
+    });
+  };
+
+  it("lists the open ones from both forms, oldest first", async () => {
+    const stores = testStores();
+
+    await seed(stores);
+    const open = await listMessages(stores);
+
+    assert.deepEqual(open.map((m) => [m.id, m.from]),
+      [["h1", "help"], ["c1", "contact"]]);
+    assert.equal(open[0].email, "pat@example.com", "from the key");
+    assert.equal(open[0].name, "Pat", "from the customer record");
+    assert.equal(open[0].orderId, "A");
+    assert.equal(open[1].order, false);
+    assert.deepEqual((await listMessages(stores, { all: true }))
+      .map((m) => m.id), ["c0", "h1", "c1"]);
+  });
+
+  it("marks one answered, once", async () => {
+    const stores = testStores();
+
+    await seed(stores);
+    const done = await answerMessage(stores, "h1", { now });
+
+    assert.equal(done.status, "answered");
+    assert.equal(done.answeredAt, now.toISOString());
+    const stored = await stores.customers.get("support/pat@example.com/h1");
+
+    assert.equal(stored.status, "answered");
+    assert.equal(stored.message, "Where is my order?", "the rest kept");
+    assert.deepEqual((await listMessages(stores)).map((m) => m.id), ["c1"]);
+
+    const again = await answerMessage(stores, "h1", {
+      now: new Date("2026-10-09T00:00:00Z"),
+    });
+
+    assert.equal(again.answeredAt, now.toISOString(), "the first stands");
+    await answerMessage(stores, "c1", { now });
+    assert.equal((await stores.customers.get("messages/c1")).status,
+      "answered");
+    assert.deepEqual(await listMessages(stores), []);
+    await assert.rejects(answerMessage(stores, "nope"), /No such message/);
+  });
+
+  it("prints a writer's text with no control or direction characters",
+    () => {
+      const bad = "\u001b[2J\u001b]0;pwned\u0007Eve\rX\u009b31m"
+        + "\u202eevil\u2066\u2069\u202a";
+      const m = {
+        id: `c1${bad}`, at: "2026-10-04T12:00:00Z", from: "contact",
+        name: bad, email: `e${bad}@x.com`, orderId: `NFF${bad}`,
+        order: false, subject: "", message: `Hi\n${bad} there`,
+        status: "answered", answeredAt: "2026-10-05T08:00:00.000Z",
+      };
+      const unsafe = new RegExp("[\\u0000-\\u0009\\u000b-\\u001f"
+        + "\\u007f-\\u009f\\u202a-\\u202e\\u2066-\\u2069]");
+      const line = messageLine(m, new Date("2026-10-05T12:00:00Z"));
+
+      assert.doesNotMatch(line, unsafe);
+      assert.doesNotMatch(answeredLine(m), unsafe);
+      assert.match(line, /^c1\[2J\]0;pwnedEveX31mevil\s/);
+      assert.match(line, /order NFF\[2J/);
+      assert.match(line, /\n {6}Hi \[2J.*there$/,
+        "a newline in the message is a space; only the row's own breaks");
+      assert.equal(plain(null), "");
+      assert.equal(plain("Sam O'Kafor"), "Sam O'Kafor");
+    });
 });

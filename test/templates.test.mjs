@@ -318,9 +318,55 @@ describe("the monitoring emails", () => {
     });
 
     has(quiet.text, "No pickups waiting on the customer.");
+    has(quiet.text, "No messages waiting on an answer.");
     assert.doesNotMatch(quiet.text, /Pickup schedule/);
     assert.match(quiet.text, /Payments declined\s+4\s+🙈\n/,
       "many declines are worth a look");
+  });
+
+  it("morning report: the messages not yet answered (#167)", () => {
+    const m = farmMorningReport(stats, [], {
+      date: "2026-10-06", links, now: new Date("2026-10-06T12:00:00Z"),
+      messages: [
+        { id: "aB3-x_9Q", name: "Sam Okafor", email: "sam@example.com",
+          orderId: "NFF-2610-ABCD", order: false,
+          at: "2026-10-03T12:00:00Z" },
+        { id: "Zz9yY8xX", name: "", email: "lee@example.com", orderId: "",
+          order: null, at: "2026-10-06T07:00:00Z" },
+      ],
+    });
+
+    has(m.text, "Messages waiting on an answer");
+    has(m.text, "\n    bin/nff messages done <id>\n");
+    assert.match(m.text, /Message\s+From\s+Order\s+Waiting\n/);
+    assert.match(m.text, new RegExp("aB3-x_9Q\\s+Sam Okafor\\s+" +
+      "NFF-2610-ABCD \\(not their order\\)\\s+3 days"));
+    assert.match(m.text, /Zz9yY8xX\s+lee@example\.com\s+5 h/,
+      "no name: the email; no order: nothing");
+    assert.doesNotMatch(m.text, /No messages waiting/);
+  });
+
+  it("morning report: lists 30 messages and counts the rest", () => {
+    const many = Array.from({ length: 33 }, (_, i) => ({
+      id: `m${String(i).padStart(2, "0")}`, name: "", email: "a@x.com",
+      orderId: "", order: null, at: "2026-10-03T12:00:00Z",
+    }));
+    const m = farmMorningReport(stats, [], {
+      date: "2026-10-06", links, now: new Date("2026-10-06T12:00:00Z"),
+      messages: many,
+    });
+
+    has(m.text, "m29");
+    assert.doesNotMatch(m.text, /m30|m32/);
+    has(m.text, "And 3 more. To see every one:");
+    has(m.text, "\n    bin/nff messages\n");
+
+    const exact = farmMorningReport(stats, [], {
+      date: "2026-10-06", links, now: new Date("2026-10-06T12:00:00Z"),
+      messages: many.slice(0, 30),
+    });
+
+    assert.doesNotMatch(exact.text, /more\. To see every one/);
   });
 
   it("tomorrow: every order due, by method, with what to pack", () => {
