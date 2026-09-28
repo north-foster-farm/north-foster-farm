@@ -61,9 +61,11 @@ audience's id for the segment made from it) and `RESEND_AUDIENCE_KEY`
 Resend's contacts belong to the account, not to a segment (#148), and
 one account serves every environment. So a contact the sync adds may
 already exist, in another deploy's segment or none: it joins this
-segment as it is, and an unsubscribe on it counts like any other. The
-`unsubscribed` flag is the account's, so it stops every broadcast to
-that address from every environment. A rename (`bin/nff customers
+segment as it is. The `unsubscribed` flag is the account's, shared by
+every environment, so only production's sync changes it. Elsewhere the
+sync reports the change it would make under `held` and makes none: a
+staging sync must never undo an unsubscribe from a production email,
+or opt out a production reader. A rename (`bin/nff customers
 rename`) moves the contact out of this segment without deleting it.
 
 ```
@@ -80,6 +82,11 @@ rules, in `syncAudience`:
   and the time kept as `resendLeftAt`. Only consent given here after
   that time resubscribes them there; without one, the unsubscribe
   wins, however recent the consent.
+- A consenting record whose contact was outside the segment until
+  this sync, and unsubscribed, is resubscribed there: the unsubscribe
+  came before this list knew them, and the sign-up here is the newer
+  word. So a sign-up the footer answers with "You're on the list"
+  stays on it.
 - A contact in Resend with no record, or with a record that never
   expressed a preference, is taken as consent given there (James adds
   people by hand) and gets a consenting record.

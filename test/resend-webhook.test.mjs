@@ -211,7 +211,8 @@ describe("the Resend webhook", () => {
       await optIn(stores, "pat@example.com", { source: "settings" }, later);
 
       const r = await syncAudience(stores, {
-        env: { ...env, RESEND_API_KEY: "k" }, fetchImpl, now: later, pace: 0,
+        env: { ...env, RESEND_API_KEY: "k", SITE_CONTEXT: "production" },
+        fetchImpl, now: later, pace: 0,
       });
 
       assert.deepEqual(r.resubscribed, ["pat@example.com"]);

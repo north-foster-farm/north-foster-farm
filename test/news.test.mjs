@@ -271,7 +271,10 @@ describe("the invitation of an old list", () => {
 });
 
 describe("the segment sync", () => {
-  const audience = { ...env, RESEND_SEGMENT_ID: "seg", RESEND_API_KEY: "k" };
+  const audience = {
+    ...env, RESEND_SEGMENT_ID: "seg", RESEND_API_KEY: "k",
+    SITE_CONTEXT: "production",
+  };
   // The segment's `contacts`, in pages of `size`; `account` the
   // contacts Resend has outside it, found by address.
   const fake = (contacts, { account = [], size = 100 } = {}) => {
@@ -478,8 +481,8 @@ describe("the segment sync", () => {
     ]);
   });
 
-  it("adds a contact Resend already has to the segment, keeping its " +
-    "unsubscribe", async () => {
+  it("adds a contact Resend already has to the segment, and takes a " +
+    "sign-up here over an unsubscribe the segment never saw", async () => {
     const stores = testStores();
     const { calls, fetchImpl } = fake([], {
       account: [
@@ -504,12 +507,72 @@ describe("the segment sync", () => {
       ["POST", "/contacts/known%40example.com/segments/seg"],
       ["GET", "/contacts/off%40example.com"],
       ["POST", "/contacts/off%40example.com/segments/seg"],
-    ], "no new contact, and no change to either one's flag");
+      ["PATCH", "/contacts/off%40example.com"],
+    ], "no new contact; only the unsubscribed one's flag changes");
+    assert.deepEqual(calls[5].body, { unsubscribed: false });
     assert.deepEqual(r.created, ["known@example.com", "off@example.com"]);
-    assert.deepEqual(r.optedOut, ["off@example.com"]);
+    assert.deepEqual(r.resubscribed, ["off@example.com"]);
+    assert.deepEqual(r.optedOut, []);
     assert.equal((await getCustomer(stores, "off@example.com")).marketing,
-      false, "unsubscribed in Resend, opted out here");
+      true, "the footer's 'You're on the list' holds");
   });
+
+  it("never writes the account's unsubscribe flag outside production",
+    async () => {
+      const stores = testStores();
+      const { calls, fetchImpl } = fake([
+        { email: "left@example.com", unsubscribed: false },
+        { email: "back@example.com", unsubscribed: true },
+        { email: "gone@example.com", unsubscribed: true },
+      ], {
+        account: [{ id: "k2", email: "off@example.com", unsubscribed: true }],
+      });
+
+      // Withdrew on staging: production may still mail this address.
+      await saveCustomer(stores, customer("left@example.com", {
+        marketing: false, marketingAt: "2026-09-30T12:00:00.000Z",
+      }));
+      // Consented on staging after leaving: the unsubscribe may be
+      // production's, and only production may undo it.
+      await saveCustomer(stores, customer("back@example.com", {
+        marketing: true, marketingAt: "2026-09-30T12:00:00.000Z",
+        resendLeftAt: "2026-09-29T12:00:00.000Z",
+      }));
+      await saveCustomer(stores, customer("gone@example.com", {
+        marketing: true, marketingAt: "2026-09-01T00:00:00.000Z",
+      }));
+      await saveCustomer(stores, customer("off@example.com", {
+        marketing: true, marketingAt: now.toISOString(),
+      }));
+
+      for (const context of ["branch-deploy", "deploy-preview", "dev", ""]) {
+        calls.length = 0;
+
+        const r = await syncAudience(stores, {
+          env: { ...audience, SITE_CONTEXT: context }, fetchImpl, now,
+          pace: 0,
+        });
+
+        assert.equal(r.flags, false);
+        assert.equal(calls.filter((c) => c.method === "PATCH").length, 0,
+          `no flag written on "${context}"`);
+        assert.deepEqual(r.resubscribed, []);
+        assert.deepEqual(r.unsubscribed, []);
+      }
+
+      const r = await syncAudience(stores, {
+        env: { ...audience, SITE_CONTEXT: "branch-deploy" }, fetchImpl, now,
+        pace: 0,
+      });
+
+      assert.deepEqual(r.held, [
+        { email: "back@example.com", unsubscribed: false },
+        { email: "left@example.com", unsubscribed: true },
+        { email: "off@example.com", unsubscribed: false },
+      ]);
+      assert.equal((await getCustomer(stores, "gone@example.com")).marketing,
+        false, "its own record still follows Resend's flag");
+    });
 
   it("reads the old audience id as the segment's", async () => {
     const { calls, fetchImpl } = fake([]);

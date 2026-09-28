@@ -500,7 +500,7 @@ function) and calls `lib/jobs.mjs`, which decides in
 | every run                              | checkouts older than a day swept |
 | 8:00 daily, always                     | "Morning report"            |
 | 18:00 daily, always                    | "Tomorrow", the manifest    |
-| once a day from 5:00                   | farm-news audience sync     |
+| once a day from 5:00                   | farm-news segment sync      |
 | every run                              | invariants, ledger, heartbeat |
 
 Sends are noted on the order under `emails`, so a repeat run sends
@@ -608,7 +608,8 @@ customers (list, show, set, delete), address (approve, deny), orders
 [--amount]`, which says what it refunds; attempted; refund
 `[--amount] [--reason]`; fulfil; delete), returns resolve, stock
 (list, set), schedule (check, set), login and masquerade (a
-single-use sign-in link, opened for you), audience (invite, sync),
+single-use sign-in link, opened for you), audience (invite, sync: the farm-news
+segment),
 jobs (run, history), health.
 `--staging` and `--preview` act on that deploy context's stores.
 Flags that take a value accept both `--reason "..."` and

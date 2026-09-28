@@ -205,10 +205,12 @@ describe("the rename's outside moves", () => {
     ]);
 
     assert.equal(await moveContact(OLD, NEW, {
-      env: resendEnv, fetchImpl,
+      env: resendEnv, fetchImpl, pace: 0,
     }), "moved");
     assert.equal(asked.length, 1);
-    await moveContact(OLD, NEW, { env: resendEnv, fetchImpl, apply: true });
+    await moveContact(OLD, NEW, {
+      env: resendEnv, fetchImpl, apply: true, pace: 0,
+    });
     assert.deepEqual(asked.slice(2).map(([m, p]) => [m, p]), [
       ["GET", `/contacts/${encodeURIComponent(NEW)}`],
       ["POST", "/contacts"],
@@ -224,7 +226,7 @@ describe("the rename's outside moves", () => {
       const both = resendFake([{ email: OLD }, { email: NEW }]);
 
       await moveContact(OLD, NEW, {
-        env: resendEnv, fetchImpl: both.fetchImpl, apply: true,
+        env: resendEnv, fetchImpl: both.fetchImpl, apply: true, pace: 0,
       });
       assert.deepEqual(both.asked.map(([m, p]) => [m, p]), [
         ["GET", "/segments/seg/contacts"], leave,
@@ -234,6 +236,7 @@ describe("the rename's outside moves", () => {
 
       await moveContact(OLD, NEW, {
         env: resendEnv, fetchImpl: elsewhere.fetchImpl, apply: true,
+        pace: 0,
       });
       assert.deepEqual(elsewhere.asked.slice(1).map(([m, p]) => [m, p]), [
         ["GET", `/contacts/${encodeURIComponent(NEW)}`],
@@ -244,7 +247,7 @@ describe("the rename's outside moves", () => {
       const none = resendFake([]);
 
       assert.equal(await moveContact(OLD, NEW, {
-        env: resendEnv, fetchImpl: none.fetchImpl, apply: true,
+        env: resendEnv, fetchImpl: none.fetchImpl, apply: true, pace: 0,
       }), "none");
       assert.equal(await moveContact(OLD, NEW, { env: {} }), "unconfigured");
     });
