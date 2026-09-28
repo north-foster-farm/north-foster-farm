@@ -265,21 +265,36 @@ const lines = (order, { prices = false } = {}) => list(order.lines.map(
     prices ? ` (${dollars(l.lineTotal * 100)})` : ""}`
 ));
 
-// The lines of an order a customer changed, each marked with what the
-// change did to it: "3 × Eggs (1 added)", "0 × Whole Chicken (1
-// removed)". `before` is the edit's record of the order as it was.
+// What a change took out of an order, as "1 × Sausage" lines: a line
+// dropped whole, or the part of one that went down. `before` is the
+// edit's record of the order as it was. James (T4, #192): removals sit
+// in their own group at the top of every email that lists a change,
+// never "0 ×" or a struck-through or muted line, since an email client
+// may strip the styling.
+const removedGroup = (order, before) => {
+  const now = new Map(order.lines.map((l) => [l.sku, l.qty]));
+  const gone = before.lines
+    .map((l) => ({ ...l, qty: l.qty - (now.get(l.sku) || 0) }))
+    .filter((l) => l.qty > 0)
+    .map((l) => `${l.qty} × ${l.label}`);
+
+  return gone.length ? [heading("Removed"), list(gone)] : [];
+};
+
+// The lines of an order a customer changed: what was removed first,
+// then the order as it stands, an increase marked "3 × Eggs (1 added)".
 const changedLines = (order, before) => {
   const was = new Map(before.lines.map((l) => [l.sku, l.qty]));
-  const now = new Set(order.lines.map((l) => l.sku));
-  const delta = (d) => (d > 0 ? ` (${d} added)`
-    : d < 0 ? ` (${-d} removed)` : "");
+  const removed = removedGroup(order, before);
+  const current = list(order.lines.map((l) => {
+    const d = l.qty - (was.get(l.sku) || 0);
 
-  return list([
-    ...order.lines.map((l) => `${l.qty} × ${l.label}${
-      delta(l.qty - (was.get(l.sku) || 0))}`),
-    ...before.lines.filter((l) => !now.has(l.sku))
-      .map((l) => `0 × ${l.label}${delta(-l.qty)}`),
-  ]);
+    return `${l.qty} × ${l.label}${d > 0 ? ` (${d} added)` : ""}`;
+  }));
+
+  return removed.length
+    ? [...removed, heading("Your order now"), current]
+    : [current];
 };
 
 // `total` follows the Total line: "(was $94, you paid $7 more)".
@@ -507,7 +522,7 @@ export const orderChanged = (order, {
   const blocks = [
     p(`${firstName(order.customer)}, your order has been updated.`),
     orderNumber(order),
-    before ? changedLines(order, before) : lines(order),
+    ...(before ? changedLines(order, before) : [lines(order)]),
   ];
 
   if (difference !== null) {
@@ -877,6 +892,7 @@ export const farmOrderChanged = (order, {
   const url = orderAdminUrl(links, order.id);
   const blocks = [
     p(`${c.name || c.email} changed order ${order.id}.`),
+    ...(before ? removedGroup(order, before) : []),
     heading("Now"),
     lines(order, { prices: true }),
     totalsBlock(order),

@@ -486,7 +486,6 @@ const APPROVED = {
   "sign-in-link": "James\x27s rewrite of 2026-09-22, verbatim.",
   "farm-order-placed-delivery": LIBRARY,
   "farm-order-placed-dropsite": LIBRARY,
-  "farm-order-changed": LIBRARY,
   "farm-contact-message": LIBRARY,
   "farm-address-review": LIBRARY,
   "farm-alert": LIBRARY,
@@ -500,13 +499,16 @@ const CARD = "Moved onto the farm card on 2026-09-26, after he asked " +
   "\"No template?\"; agent-written.";
 const C3 = "Policy-pages\x27 draft of 2026-09-27 for C3 (#192): it " +
   "switches on the fee the missed delivery kept.";
+const T4 = "Removed items head the list under \"Removed\", as plain " +
+  "lines (T4, 2026-09-28). Draft: the heading \"Your order now\" above " +
+  "what is still coming.";
 const WAITING = {
   "pick-new-time": `${LANDED}, with the pickup window as a token. ` +
     "The farm\x27s reason is no longer sent.",
-  "order-changed-paid-more": `${LANDED}: each line says what was added ` +
-    "or removed, and the Total line what was paid.",
-  "order-changed-refunded": `${LANDED}, as for paid more. Agent-written: ` +
-    "\"Your refund can take a few days to reach you.\"",
+  "order-changed-paid-more": `${LANDED}: each line says what was added, ` +
+    "and the Total line what was paid.",
+  "order-changed-refunded": `${T4} Its refund line he kept (T3).`,
+  "farm-order-changed": `He approved it on 2026-09-26; since then ${T4}`,
   "order-cancelled": "His rewrite, \"Nothing was charged\", is held: " +
     "every order is paid when placed, so a customer cancelled without " +
     "a refund was charged.",

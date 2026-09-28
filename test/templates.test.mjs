@@ -3,7 +3,8 @@ import { describe, it } from "node:test";
 
 import {
   addressDecision, addressReview, deliveryReminder, farmAlert,
-  farmMorningReport, farmOrderPlaced, farmPickupChanged, farmRefundNeeded,
+  farmMorningReport, farmOrderChanged, farmOrderPlaced, farmPickupChanged,
+  farmRefundNeeded,
   farmReturnRequest, farmSquareOutOfSync, farmSupport, farmTomorrow,
   magicLink, missedDelivery, orderCancelled, orderChanged, orderConfirmed,
   paymentPhrase, paymentReceived, pickNewTime, summaryLine,
@@ -547,9 +548,10 @@ describe("order changed and cancelled", () => {
     const before = { lines: was.lines, totals: was.totals };
     const more = orderChanged(o, { links, difference: 700, before });
 
-    has(more.text, "- 2 × Whole Chicken\n");
-    has(more.text, "- 3 × Eggs (per dozen) (2 added)\n");
-    has(more.text, "- 0 × Sausage (1 removed)\n");
+    // Removals head the list, as plain lines (James, T4).
+    has(more.text, "\nRemoved\n- 1 × Sausage\n\nYour order now\n" +
+      "- 2 × Whole Chicken\n- 3 × Eggs (per dozen) (2 added)\n");
+    assert.doesNotMatch(more.text, /0 ×|removed\)/);
     has(more.text, "- Total $101 (was $94, you paid $7 more)\n");
     assert.doesNotMatch(more.text, /You paid|few days/);
 
@@ -557,6 +559,23 @@ describe("order changed and cancelled", () => {
 
     has(back.text, "- Total $101 (was $94, you were refunded $25)\n");
     has(back.text, "Your refund can take a few days to reach you.");
+  });
+
+  it("groups part of a line taken out, and nothing when none was", () => {
+    const was = order();
+    const o = order();
+
+    o.lines = [{ ...was.lines[0], qty: 1 }, was.lines[1]];
+
+    const before = { lines: was.lines, totals: was.totals,
+      method: "delivery" };
+
+    has(orderChanged(o, { links, before }).text,
+      "\nRemoved\n- 1 × Whole Chicken, 3.5 – 3.9 lbs\n");
+    has(farmOrderChanged(o, { links, before }).text,
+      "\nRemoved\n- 1 × Whole Chicken, 3.5 – 3.9 lbs\n");
+    assert.doesNotMatch(
+      orderChanged(was, { links, before }).text, /Removed|order now/);
   });
 
   it("tells a cancellation without a refund nothing more is charged", () => {
