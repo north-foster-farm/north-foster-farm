@@ -187,12 +187,13 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
   // The dark brand green, which all but vanishes into the veiled clip,
   // held by a white outline (D10 on #192, #219). The stroke paints
   // under the fill, so the letters keep their weight and half of it
-  // shows outside them. It is in em to scale with the title.
+  // shows outside them, so 0.052em shows 0.026em (H16). It is in em
+  // to scale with the title.
   .home-hero-accent {
     color: $primary;
     font-weight: bold;
     letter-spacing: -0.12rem;
-    -webkit-text-stroke: 0.026em $white;
+    -webkit-text-stroke: 0.052em $white;
     paint-order: stroke fill;
   }
 
