@@ -450,6 +450,46 @@ describe("profile and address", () => {
       ["avatar", "firstName", "lastName", "phone"]);
   });
 
+  it("keeps the videos setting unset until chosen (#161)", async () => {
+    const stores = testStores();
+    const saved = await saveCustomer(stores, customerOf());
+
+    assert.equal(publicCustomer(saved).autoplay, null,
+      "each browser follows its own rules until the customer chooses");
+
+    const off = await updateProfile(stores, saved, { autoplay: "off" });
+
+    assert.equal(off.customer.autoplay, "off");
+    assert.equal(publicCustomer(off.customer).autoplay, "off");
+    assert.equal((await getCustomer(stores, "pat@example.com")).autoplay,
+      "off");
+
+    const on = await updateProfile(stores, off.customer, { autoplay: "on" });
+
+    assert.equal(publicCustomer(on.customer).autoplay, "on");
+
+    const other = await updateProfile(stores, on.customer, { phone: "" });
+
+    assert.equal(other.customer.autoplay, "on", "left alone when not sent");
+
+    const reset = await updateProfile(stores, on.customer, {
+      autoplay: null,
+    });
+
+    assert.equal(publicCustomer(reset.customer).autoplay, null);
+
+    for (const value of [true, "yes", 1]) {
+      const bad = await updateProfile(stores, on.customer, {
+        autoplay: value,
+      });
+
+      assert.equal(bad.status, 422);
+      assert.deepEqual(Object.keys(bad.errors), ["autoplay"]);
+    }
+    assert.equal(publicCustomer({ ...saved, autoplay: "maybe" }).autoplay,
+      null, "a stray value reads as never chosen");
+  });
+
   it("turns the delivery reminder off and on", async () => {
     const stores = testStores();
     const saved = await saveCustomer(stores, customerOf());

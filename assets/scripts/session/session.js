@@ -97,14 +97,17 @@ const fill = (slot, who) => {
 };
 
 export const Session = {
+  // -> who is signed in, or null in a build without accounts.
   async show() {
     // Two slots: the header row and the phone menu.
     const slots = document.querySelectorAll("[data-account]");
 
-    if (!slots.length) return;
+    if (!slots.length) return null;
 
     const who = await me();
 
     for (const slot of slots) fill(slot, who);
+
+    return who;
   },
 };

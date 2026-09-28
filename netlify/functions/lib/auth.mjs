@@ -30,6 +30,8 @@ export const SESSION_TTL = accounts.sessionDays * 24 * 60 * MINUTE;
 export const LINKS_PER_WINDOW = 3;
 export const LINK_WINDOW = 15 * MINUTE;
 export const COOKIE = "nff_session";
+// A customer's choice for videos playing on their own.
+export const AUTOPLAY = ["on", "off"];
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -251,4 +253,7 @@ export const publicCustomer = (customer) => ({
   address: customer.address || null,
   reminders: reminderPrefs(customer),
   marketing: customer.marketing === true,
+  // "on" or "off" once the customer chose; until then null, and each
+  // browser follows its own rules (#161).
+  autoplay: AUTOPLAY.includes(customer.autoplay) ? customer.autoplay : null,
 });

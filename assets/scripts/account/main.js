@@ -8,6 +8,7 @@ import { dollars } from "../order/lib/totals.mjs";
 import { label } from "../order/lib/zoned.mjs";
 import { forget, showChick, signOut } from "../session/session.js";
 import { api } from "../utils/api.js";
+import { Autoplay } from "../video/video.js";
 
 const qs = (root, selector) => root.querySelector(selector);
 const all = (root, selector) => Array.from(root.querySelectorAll(selector));
@@ -197,6 +198,16 @@ class Account {
       showChick(document, e.target.value);
       this.saving(profile, "avatar", () => this.saveAvatar(e.target.value));
     });
+    // Videos playing on their own save the moment the box changes,
+    // and this page follows at once (#161).
+    profile.addEventListener("change", (e) => {
+      if (e.target.dataset.field !== "autoplay") return;
+
+      const on = e.target.checked;
+
+      Autoplay.set(on, { from: "account" });
+      this.saving(profile, "autoplay", () => this.saveAutoplay(on));
+    });
     document.getElementById("support-form").addEventListener("submit",
       (e) => this.sendSupport(e));
   }
@@ -230,10 +241,12 @@ class Account {
   // changes, a text field when the customer leaves it, and Enter as
   // before. Nothing is sent while `ready` says the form is still
   // being filled in, or when its values are the ones last sent. The
-  // chicken saves on its own (saveAvatar), so it is left out here.
+  // chicken and the videos setting save on their own (saveAvatar,
+  // saveAutoplay), so they are left out here.
   autosave(form, save, ready) {
+    const alone = (name) => name === "avatar" || name === "autoplay";
     const fields = () => all(form, "input, textarea")
-      .filter((f) => f.name !== "avatar");
+      .filter((f) => !alone(f.name));
     const snapshot = () => JSON.stringify(fields()
       .map((f) => (f.type === "checkbox" || f.type === "radio"
         ? [f.name, f.value, f.checked]
@@ -243,7 +256,7 @@ class Account {
       .map((f) => [f.dataset.field, f.value]));
     let last = null;
     const run = async (e) => {
-      if (e && e.target && e.target.name === "avatar") return;
+      if (e && e.target && alone(e.target.name)) return;
 
       const now = snapshot();
 
@@ -401,6 +414,10 @@ class Account {
     qs(form, "[data-field='lastName']").value = c.lastName || "";
     qs(form, "[data-field='phone']").value = c.phone || "";
     qs(form, "[data-field='marketing']").checked = c.marketing === true;
+    // Never chosen: what this browser does now.
+    qs(form, "[data-field='autoplay']").checked = c.autoplay
+      ? c.autoplay === "on"
+      : Autoplay.allowed();
     document.getElementById("prof-email").value = c.email;
     for (const radio of all(form, "[data-field='avatar']")) {
       radio.checked = radio.value === c.avatar;
@@ -476,13 +493,21 @@ class Account {
     return { ok: true };
   }
 
-  // The chicken alone, so a blank name or a wrong phone never holds it
-  // back. The header's cached answer is dropped so the next page asks
-  // again.
-  async saveAvatar(avatar) {
+  // The chicken or the videos setting alone, so a blank name or a
+  // wrong phone never holds it back. The header's cached answer is
+  // dropped so the next page asks again.
+  saveAvatar(avatar) {
+    return this.saveAlone({ avatar });
+  }
+
+  saveAutoplay(on) {
+    return this.saveAlone({ autoplay: on ? "on" : "off" });
+  }
+
+  async saveAlone(body) {
     const form = document.getElementById("profile-form");
     const { ok, data } = await api("/api/account/profile", {
-      method: "PATCH", body: { avatar },
+      method: "PATCH", body,
     });
 
     if (!ok) {

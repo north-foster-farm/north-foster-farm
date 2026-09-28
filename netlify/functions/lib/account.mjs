@@ -13,6 +13,7 @@ import {
   phoneOk, zipInfo,
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { cancelOrder as cancelAndRefund } from "./admin.mjs";
+import { AUTOPLAY } from "./auth.mjs";
 import { cutoffAt } from "./jobs.mjs";
 import { adminEmails, mailbox, sendMail } from "./mail.mjs";
 import { log } from "./log.mjs";
@@ -364,6 +365,16 @@ export const updateProfile = async (stores, customer, changes, {
           patch.reminders[key] = !!c.reminders[key];
         }
       }
+    }
+  }
+
+  // Videos playing on their own: "on", "off", or null to leave it to
+  // each browser again (#161).
+  if (c.autoplay !== undefined) {
+    if (c.autoplay !== null && !AUTOPLAY.includes(c.autoplay)) {
+      errors.autoplay = "On or off?";
+    } else {
+      patch.autoplay = c.autoplay;
     }
   }
 

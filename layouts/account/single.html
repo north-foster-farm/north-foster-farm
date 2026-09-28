@@ -175,6 +175,18 @@
                   </fieldset>
                 </div>
               </section>
+              {{/* Saved on its own, like the chicken (#161). Until the
+                   customer chooses, main.js ticks it by what this browser
+                   does. The words are drafts for James. */}}
+              <section class="account-group" aria-labelledby="prof-videos-h">
+                <h3 class="account-group-title" id="prof-videos-h">Videos</h3>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="prof-autoplay" name="autoplay" data-field="autoplay" aria-describedby="prof-autoplay-note">
+                  <label class="form-check-label" for="prof-autoplay">Play videos on their own</label>
+                </div>
+                <div class="form-text" id="prof-autoplay-note">Your choice follows you to every browser you sign in on.</div>
+                <div class="invalid-feedback d-block" data-error-for="autoplay"></div>
+              </section>
               {{/* What the last save did (#238): Saving… with a spinner, Saved,
                    or why it failed; main.js sets data-save and the words. */}}
               <p class="form-text mt-3 mb-0 account-save" data-autosave aria-live="polite"><span class="account-save-spin" aria-hidden="true"></span><span data-save-text></span></p>

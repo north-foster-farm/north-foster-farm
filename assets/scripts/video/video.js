@@ -17,17 +17,24 @@ const started = new WeakSet();
 const onScreen = new WeakSet();
 
 export const Autoplay = {
-  // What the visitor chose, if they did. Otherwise off when they asked
-  // their system for less motion or their browser to save data.
-  allowed() {
-    let stored = null;
-
+  // "on" or "off" if the visitor chose, else null.
+  stored() {
     try {
-      stored = localStorage.getItem(KEY);
+      const value = localStorage.getItem(KEY);
+
+      return value === "on" || value === "off" ? value : null;
     } catch {
       // Storage refused (private mode, blocked site data): no choice
       // saved.
+      return null;
     }
+  },
+
+  // What the visitor chose, if they did. Otherwise off when they asked
+  // their system for less motion or their browser to save data.
+  allowed() {
+    const stored = Autoplay.stored();
+
     if (stored === "off") return false;
     if (stored === "on") return true;
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
@@ -36,14 +43,17 @@ export const Autoplay = {
     return true;
   },
 
-  set(on) {
+  // `from` says who changed it: "switch" (a video's switch), "account"
+  // (the account page, which saves it itself) or "sync" (the account's
+  // value, adopted). Only a switch's change is saved to the account.
+  set(on, { from = "switch" } = {}) {
     try {
       localStorage.setItem(KEY, on ? "on" : "off");
     } catch {
       // Nowhere to keep it; this page still honours the click.
     }
     document.dispatchEvent(new CustomEvent("nff:autoplay", {
-      detail: { on },
+      detail: { on, from },
     }));
   },
 };
