@@ -285,8 +285,8 @@ describe("the monitoring emails", () => {
     has(m.text, "The pickup schedule's last window is on Friday, " +
         "October 16; it must reach the week of Monday, October 19.");
     has(m.text, "\n    bin/nff schedule set <file>\n");
-    has(m.text, "A failed payment left 1 order open in Square, and 1 was " +
-        "cancelled. To see them:");
+    has(m.text, "The sweep found 1 order a failed payment left open in " +
+        "Square and cancelled it. To see them:");
     has(m.text, "\n    bin/nff jobs square\n");
     has(m.text, "We couldn't keep these pickup times and the customer " +
         "hasn't chosen another yet, oldest order first.");
@@ -305,6 +305,19 @@ describe("the monitoring emails", () => {
     assert.doesNotMatch(quiet.text, /Pickup schedule|Left in Square/);
     assert.match(quiet.text, /Payments declined\s+4\s+🙈\n/,
       "many declines are worth a look");
+
+    const left = (square) => farmMorningReport(stats, [], {
+      date: "2026-10-06", links, now: new Date("2026-10-06T12:00:00Z"),
+      schedule: { last: "2026-10-23", until: "2026-10-19" }, square,
+    }).text;
+
+    has(left({ open: 2, cancelled: 0 }),
+      "A failed payment left 2 orders open in Square. To see them:");
+    has(left({ open: 3, cancelled: 1 }), "The sweep found 3 orders a " +
+      "failed payment left open in Square and cancelled 1; 2 are still " +
+      "open. To see them:");
+    has(left({ open: 2, cancelled: 2 }), "The sweep found 2 orders a " +
+      "failed payment left open in Square and cancelled them.");
   });
 
   it("tomorrow: every order due, by method, with what to pack", () => {

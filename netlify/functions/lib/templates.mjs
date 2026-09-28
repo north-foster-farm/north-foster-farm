@@ -1273,13 +1273,20 @@ export const farmMorningReport = (stats, pickups, {
     );
   }
   // What the day's Square sweeps found (#241). Draft wording.
+  // `open` counts every order found, the cancelled ones among them.
   if (square && square.open) {
+    const found = `${square.open} order${square.open === 1 ? "" : "s"}`;
+    const left = square.open - square.cancelled;
+    const all = square.open === 1 ? "it" : "them";
+
     blocks.push(
       heading("Left in Square"),
-      p(`A failed payment left ${square.open} order${
-        square.open === 1 ? "" : "s"} open in Square${square.cancelled
-        ? `, and ${square.cancelled} ${square.cancelled === 1 ? "was" : "were"
-        } cancelled` : ""}. To see them:`),
+      p(square.cancelled
+        ? `The sweep found ${found} a failed payment left open in ` +
+          `Square and cancelled ${left ? square.cancelled : all}${left
+            ? `; ${left} ${left === 1 ? "is" : "are"} still open` : ""
+          }. To see them:`
+        : `A failed payment left ${found} open in Square. To see them:`),
       command("bin/nff jobs square")
     );
   }
