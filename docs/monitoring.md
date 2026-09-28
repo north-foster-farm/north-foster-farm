@@ -195,8 +195,8 @@ Every function writes one JSON line per event to the console (as
 before) and ships the invocation's lines to Axiom when it returns,
 with a 1.5-second cap; a failure to ship is swallowed. Query by
 `event` (`order.paid`, `payment.declined`, `order.failed`,
-`mail.failed`, `square.webhook`, `paypal.webhook`, `jobs.run`,
-`alert`, `health.checked`, ...), by `id` for one order, or by
+`mail.failed`, `square.webhook`, `paypal.webhook`, `resend.webhook`,
+`jobs.run`, `alert`, `health.checked`, ...), by `id` for one order, or by
 `level: error`. The jobs run's full report is one `jobs.run` line
 every 15 minutes, so "when did it start" is a query for the first run
 whose `errors` is not empty. Deploy id and context ride on every
