@@ -12,6 +12,7 @@ import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
+import { Submitter } from "../assets/scripts/order/submit.js";
 import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
 const now = instant("2026-10-06", 9, 0, "America/New_York");
@@ -554,6 +555,26 @@ describe("POST /api/orders, the gate", () => {
     assert.equal(last.status, 429);
     assert.equal(last.headers.get("Retry-After"), "600");
     assert.match((await last.json()).message, /too many tries/);
+  });
+
+  // #154: the page once took the limit's answer for a placed order. The
+  // handler's own answer, fed to the page's Submitter, must read busy.
+  it("gives the page an answer it never reads as placed", async () => {
+    const realFetch = globalThis.fetch;
+    let last;
+
+    for (let i = 0; i < 13; i++) {
+      last = await run(body(), { ip: "203.0.113.14" });
+    }
+    globalThis.fetch = async () => last;
+    try {
+      const outcome = await new Submitter().send(body());
+
+      assert.equal(outcome.kind, "busy");
+      assert.match(outcome.message, /too many tries/);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
   });
 
   it("lets the staging token past the limit, never in production",
