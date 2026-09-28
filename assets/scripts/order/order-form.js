@@ -7,7 +7,7 @@ import {
   computeTotals, dollars, meetsMinimum, toCents,
 } from "./lib/totals.mjs";
 import {
-  disallowedFor, normalizeCode, validateOrder, zipInfo,
+  disallowedFor, normalizeCode, phoneOk, validateOrder, zipInfo,
 } from "./lib/validate.mjs";
 import { label } from "./lib/zoned.mjs";
 import { celebrate } from "./celebrate.js";
@@ -244,7 +244,7 @@ export class OrderForm {
       || this.payment.state.dataset.cardOpen !== "true";
   }
 
-  // Name and email from the customer's record, shown as plain
+  // Name, email and phone from the customer's record, shown as plain
   // text. A click turns one back into a field; leaving it, filled,
   // turns it into text again.
   prefill(customer) {
@@ -258,6 +258,7 @@ export class OrderForm {
       this.plain(input, true);
       any = true;
     }
+    this.formatPhone();
 
     // A customer who already said yes to farm news sees the box ticked;
     // it starts unticked for everyone else.
@@ -268,7 +269,46 @@ export class OrderForm {
       any = true;
     }
 
+    this.showContact();
     if (any) this.draft.save(this.collect());
+  }
+
+  // The phone number as "(xxx) xxx-xxxx" while it is typed. A
+  // deletion that lands on a bracket or a dash takes the digit before
+  // it too, so backspace never fights the mask. A leading 1 is dropped.
+  formatPhone(deleting = false) {
+    const input = qs(this.form, "[data-field='customer.phone']");
+    const raw = input.value;
+    let digits = raw.replace(/\D/g, "");
+
+    if (digits.length === 11 && digits.startsWith("1")) {
+      digits = digits.slice(1);
+    }
+    if (deleting && /\D$/.test(raw)) digits = digits.slice(0, -1);
+    digits = digits.slice(0, 10);
+
+    const out = digits.length <= 3 ? (digits ? `(${digits}` : "")
+      : digits.length <= 6 ? `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+        : `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+
+    if (out !== raw) input.value = out;
+  }
+
+  // "Prefer text or call?" shows once the phone number is one we could
+  // use, and fades in when it appears.
+  showContact() {
+    const row = qs(this.form, "[data-contact-row]");
+    const phone = qs(this.form, "[data-field='customer.phone']");
+    const on = phoneOk(phone.value.trim());
+
+    if (row.dataset.shown === String(on)) return;
+    row.dataset.shown = String(on);
+    if (on) {
+      row.classList.add("is-entering");
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        row.classList.remove("is-entering");
+      }));
+    }
   }
 
   plain(input, on) {
@@ -314,6 +354,15 @@ export class OrderForm {
         e.target.focus();
       }
     });
+
+    const phone = qs(this.form, "[data-field='customer.phone']");
+
+    phone.addEventListener("input", (e) => {
+      this.formatPhone((e.inputType || "").startsWith("delete"));
+      this.showContact();
+    });
+    this.formatPhone();
+    this.showContact();
 
     // Below xl the cart folds down to the total row and the foot: the
     // toggle, the way on and the nudge.
@@ -863,6 +912,12 @@ export class OrderForm {
       body.toggleAttribute("inert", body.dataset.methodBody !== method);
     }
 
+    // Delivery needs a phone for the driver; the rest can do without.
+    const phone = qs(this.form, "[data-field='customer.phone']");
+
+    phone.required = method === "delivery";
+    qs(this.form, "[data-phone-optional]").hidden = method === "delivery";
+
     this.renderCart(totals, method);
     this.renderZipNote();
   }
@@ -1043,7 +1098,7 @@ export class OrderForm {
     } else if (info.status === "unlisted") {
       note.textContent = "A little outside our usual area: delivery is " +
         `$${this.money.outsideAreaFee} more. If we can't get to your ` +
-        "address, we'll email you.";
+        "address, we'll call, text, or email you.";
     } else if (bad.length) {
       note.textContent = "We can only deliver eggs to Connecticut for now. " +
         "Remove the chicken, or choose pickup.";
@@ -1081,6 +1136,8 @@ export class OrderForm {
         firstName: value("customer.firstName"),
         lastName: value("customer.lastName"),
         email: value("customer.email"),
+        phone: value("customer.phone"),
+        contact: value("customer.contact"),
         marketing: value("customer.marketing") === true,
       },
       lines: this.lines(),
@@ -1133,6 +1190,9 @@ export class OrderForm {
     set("customer.firstName", c.firstName);
     set("customer.lastName", c.lastName);
     set("customer.email", c.email);
+    set("customer.phone", c.phone);
+    this.formatPhone();
+    set("customer.contact", c.contact);
     set("code", payload.code);
 
     for (const line of payload.lines || []) {
@@ -1157,6 +1217,7 @@ export class OrderForm {
       // date is still valid.
       if (select) select.value = f.date;
     }
+    this.showContact();
   }
 
   // What the payment section asks of the form (pay.js).
@@ -1186,6 +1247,7 @@ export class OrderForm {
 
     return {
       firstName: c.firstName, lastName: c.lastName, email: c.email,
+      phone: c.phone,
       address1: d.address1 || "", address2: d.address2 || "",
       town: d.town || "", zip: d.zip || "",
       state: d.zip ? (zipInfo(d.zip, this.terms.area).state || {}).code : "",

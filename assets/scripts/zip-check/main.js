@@ -41,7 +41,7 @@ export const answerFor = (zip, area) => {
     return {
       tone: "wait",
       text: "A little outside our usual area: delivery is $3 more. If we " +
-        "can't get to your address, we'll email you.",
+        "can't get to your address, we'll call, text, or email you.",
     };
   }
 

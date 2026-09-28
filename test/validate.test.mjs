@@ -69,7 +69,7 @@ describe("a valid on-farm order", () => {
 });
 
 describe("the customer's details", () => {
-  it("are trimmed and the email lowercased; a phone is dropped", () => {
+  it("are trimmed, the email lowercased, and the preference kept", () => {
     const r = validateOrder(withCustomer({
       firstName: "  Mary Ann ", lastName: " Smith ",
       email: " Pat@Example.COM ", contact: "call",
@@ -82,6 +82,8 @@ describe("the customer's details", () => {
       marketing: false,
       name: "Mary Ann Smith",
       email: "pat@example.com",
+      phone: "401-555-0100",
+      contact: "call",
     });
   });
 
@@ -130,16 +132,42 @@ describe("the customer's details", () => {
     }
   });
 
-  it("need no phone, not even for delivery (PH1)", () => {
-    const p = delivery();
+  it("need a phone number for delivery, and a plausible one", () => {
+    const missing = delivery();
 
-    p.customer.phone = "";
-    p.customer.contact = "";
+    missing.customer.phone = "";
 
-    const r = validateOrder(p, ctx);
+    const r = validateOrder(missing, ctx);
 
-    assert.ok(r.ok, JSON.stringify(r));
-    assert.equal(r.order.customer.phone, undefined);
+    assert.equal(r.status, 422);
+    assert.equal(r.errors["customer.phone"], "Please enter a phone number.");
+
+    for (const phone of ["12345", "401-555-010", "+44 20 7946 0958"]) {
+      const r = validateOrder(withCustomer({ phone }), ctx);
+
+      assert.equal(r.status, 422, phone);
+      assert.match(r.errors["customer.phone"], /doesn't look right/);
+    }
+
+    for (const phone of ["4015550100", "(401) 555-0100", "1-401-555-0100"]) {
+      assert.ok(validateOrder(withCustomer({ phone }), ctx).ok, phone);
+    }
+  });
+
+  it("need no phone for pickup or the drop site", () => {
+    const r = validateOrder(withCustomer({ phone: "" }), ctx);
+
+    assert.ok(r.ok);
+    assert.equal(r.order.customer.phone, "");
+  });
+
+  it("need to say text or call", () => {
+    for (const contact of ["", "email", "TEXT", 7]) {
+      const r = validateOrder(withCustomer({ contact }), ctx);
+
+      assert.equal(r.status, 422, String(contact));
+      assert.equal(r.errors["customer.contact"], "Text or call?");
+    }
   });
 
   it("report every missing field at once", () => {
@@ -149,8 +177,8 @@ describe("the customer's details", () => {
 
     assert.equal(r.status, 422);
     assert.deepEqual(Object.keys(r.errors).sort(), [
-      "customer.email", "customer.firstName", "customer.lastName",
-      "fulfilment.method", "lines",
+      "customer.contact", "customer.email", "customer.firstName",
+      "customer.lastName", "fulfilment.method", "lines",
     ]);
   });
 });

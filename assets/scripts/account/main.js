@@ -336,6 +336,7 @@ class Account {
 
     qs(form, "[data-field='firstName']").value = c.firstName || "";
     qs(form, "[data-field='lastName']").value = c.lastName || "";
+    qs(form, "[data-field='phone']").value = c.phone || "";
     qs(form, "[data-field='marketing']").checked = c.marketing === true;
     document.getElementById("prof-email").value = c.email;
     for (const radio of all(form, "[data-field='avatar']")) {
@@ -391,6 +392,7 @@ class Account {
     const body = {
       firstName: qs(form, "[data-field='firstName']").value,
       lastName: qs(form, "[data-field='lastName']").value,
+      phone: qs(form, "[data-field='phone']").value,
       avatar: avatar ? avatar.value : null,
       marketing: qs(form, "[data-field='marketing']").checked,
       reminders: Object.fromEntries(all(form, "[data-reminder]")

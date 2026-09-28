@@ -115,10 +115,9 @@ Delivery ZIPs: on the approved list passes; an unlisted `028`/`029` ZIP
 passes and flags the order for follow-up; anything else is blocked.
 
 The customer: a first and last name (kept together as `name` as well,
-which records from before the split carry alone) and an email. No
-phone since PH1 (#228): email reaches every customer, delivery
-included. Orders placed before it may still carry `customer.phone`
-and `customer.contact`, and every reader copes with either.
+which records from before the split carry alone), an email, a phone
+number (required, ten digits or eleven with a leading 1) and whether
+they prefer a text or a call (`customer.contact`, `text` or `call`).
 The preference and the on-farm window go to Square in the fulfilment
 note. On-farm pickup asks only for the day and the window; delivery
 asks for the address, the town, the ZIP, where the cooler will be and
@@ -453,7 +452,7 @@ Until the cutoff, the account page's Change items opens
 code as a new order, at today's prices. Under the total it shows what
 is paid and the difference. `POST /api/account/orders/<id>/edit`
 (`lib/edit.mjs`) takes the order as it should now be; what the page
-does not carry (notes, drop-off details) comes from
+does not carry (notes, the pickup phone, drop-off details) comes from
 the record. More to pay is charged by card, wallet or Venmo (the same
 two steps) on a Square order of its own under the same `reference_id`,
 listing what was added with one discount for what was taken off, and
@@ -539,7 +538,7 @@ Settings, Help) rendered from `GET /api/me` and
 - Support: stored under `support/<email>/<id>` in the customers store
   and emailed to the farm, who replies by email.
 - Settings: first and last name (kept in parts, as the order form
-  takes them; `name` is rebuilt from them), avatar, the farm
+  takes them; `name` is rebuilt from them), phone, avatar, the farm
   news opt-in (`marketing`, off unless the customer ticks it, with
   `marketingAt` the date it last changed; the checkout has the same
   box as `customer.marketing` on the payload, and only a ticked box
@@ -660,7 +659,7 @@ Flags that take a value accept both `--reason "..."` and
   The design spec behind the page lives in
   `.ignored/handoffs/online-orders-but-fable/design-critique.md`.
 - **Forms are horizontal**: a label column and a field column. A
-  signed-in customer's name and email arrive as plain text
+  signed-in customer's name, email and phone arrive as plain text
   under a "Click to edit" hint; a click makes one a field again.
 - **"Pressing the button charges your card and places your order"**
   is the note above the button, set large; the success card's
@@ -677,8 +676,8 @@ Flags that take a value accept both `--reason "..."` and
   N minutes to get your order on our next delivery day". For every
   way to get an order, one line directly above the Pay button says
   that placing an order is agreeing to the policy at
-  `/delivery-policy` (W8, #196). No drop-off contact name: the
-  customer's own name goes to Square as the recipient.
+  `/delivery-policy` (W8, #196). No drop-off contact name or phone: the
+  customer's own name and phone go to Square as the recipient.
 - **West Greenwich is ZIP 02817.** The v4 PDF prints 02818, which is
   East Greenwich. Corrected in `data/delivery.json`.
 - **The `/venmo` redirect stays** for the PDF and the market signs.

@@ -148,10 +148,11 @@ export class OrderPage {
     await expect(this.page.locator(`#method-${value}`)).toBeChecked();
   }
 
-  async contact({ first = "QA", last = "Tester", email } = {}) {
+  async contact({ first = "QA", last = "Tester", email, phone } = {}) {
     await this.page.locator("#customer-first-name").fill(first);
     await this.page.locator("#customer-last-name").fill(last);
     if (email) await this.page.locator("#customer-email").fill(email);
+    if (phone) await this.page.locator("#customer-phone").fill(phone);
   }
 
   // The first offered date for the chosen method.

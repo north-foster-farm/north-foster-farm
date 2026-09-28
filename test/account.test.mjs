@@ -287,9 +287,10 @@ describe("changeOrder", () => {
 
     // Only the notes: still agreed, question still open.
     const same = await changeOrder(stores, customerOf(), "A", {
-      notes: "Back door", onfarm: { window: "morning" },
+      notes: "Back door", onfarm: { window: "morning", phone: "12" },
     }, opts);
 
+    assert.equal(same.ok, true, "Phone for the day is gone (PH2)");
     assert.equal(same.order.fulfilment.state, "agreed");
     assert.equal(same.order.question.answeredAt, null);
     assert.equal(sent.filter((m) => Array.isArray(m.to)).length, 0);
@@ -372,8 +373,7 @@ describe("changeOrder", () => {
 });
 
 describe("profile and address", () => {
-  it("updates the name in parts and a valid avatar; ignores a phone",
-    async () => {
+  it("updates the name in parts, the phone and a valid avatar", async () => {
     const stores = testStores();
     const { sent, opts } = harness();
     const ok = await updateProfile(stores, customerOf(), {
@@ -384,7 +384,6 @@ describe("profile and address", () => {
     assert.equal(ok.customer.firstName, "Patricia");
     assert.equal(ok.customer.lastName, "Example");
     assert.equal(ok.customer.name, "Patricia Example");
-    assert.equal(ok.customer.phone, "", "PH2: the profile has no phone");
     assert.equal(ok.customer.marketing, true);
     assert.equal(ok.customer.marketingAt, "2026-09-23T15:00:00.000Z");
     assert.equal(ok.customer.marketingSource, "account");
@@ -410,7 +409,7 @@ describe("profile and address", () => {
 
     assert.equal(bad.status, 422);
     assert.deepEqual(Object.keys(bad.errors).sort(),
-      ["avatar", "firstName", "lastName"]);
+      ["avatar", "firstName", "lastName", "phone"]);
   });
 
   it("turns the delivery reminder off and on", async () => {

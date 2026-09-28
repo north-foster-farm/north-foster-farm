@@ -72,6 +72,7 @@ test.describe("orders API", () => {
     expect(body.errors).toMatchObject({
       "customer.firstName": "Please enter your first name.",
       "customer.email": "That email address doesn't look right.",
+      "customer.phone": "Please enter a phone number.",
       "delivery.zip": "That's outside our delivery area.",
       "delivery.minimum": expect.stringContaining("$40 or more"),
     });

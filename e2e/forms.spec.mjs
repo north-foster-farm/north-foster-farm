@@ -25,15 +25,22 @@ test.describe("contact and pickup forms", () => {
     });
   });
 
-  test("On-farm pickup is the default, and no way asks for a phone",
+  test("On-farm pickup is the default; only delivery needs a phone",
     async ({ page }) => {
       const order = new OrderPage(page);
+      const optional = page.locator("[data-phone-optional]");
 
       await order.open({ wings: 5 });
       await expect(page.locator("#method-onfarm")).toBeChecked();
-      // PH1: email reaches everyone, delivery included.
-      await expect(page.locator("#customer-phone")).toHaveCount(0);
-      await expect(page.locator("[data-contact-row]")).toHaveCount(0);
+      await expect(optional).toBeVisible();
+      await expect(optional).toHaveText("(optional)");
+      await order.method("delivery");
+      await expect(optional).toBeHidden();
+      await expect(page.locator("#customer-phone")).toHaveAttribute(
+        "required", ""
+      );
+      await order.method("scituate");
+      await expect(optional).toBeVisible();
     });
 
   test("an empty delivery order names every missing field and sends " +
@@ -48,6 +55,8 @@ test.describe("contact and pickup forms", () => {
       .toHaveText("Please enter your last name.");
     await expect(order.errorFor("customer.email"))
       .toHaveText("That email address doesn't look right.");
+    await expect(order.errorFor("customer.phone"))
+      .toHaveText("Please enter a phone number.");
     await expect(order.errorFor("delivery.address1"))
       .toHaveText("Please enter your street address.");
     await expect(order.errorFor("delivery.town"))
@@ -66,10 +75,31 @@ test.describe("contact and pickup forms", () => {
       (els) => els.map((el) => `${el.id}:${el.getAttribute("aria-invalid")}`)
     );
 
-    expect(marked.length).toBeGreaterThanOrEqual(7);
+    expect(marked.length).toBeGreaterThanOrEqual(8);
     expect(marked.filter((m) => !m.endsWith(":true"))).toEqual([]);
     expect(posted).toBe(0);
   });
+
+  test("on-farm pickup needs no phone, but a phone given must work",
+    async ({ page }) => {
+      const order = new OrderPage(page);
+
+      await order.open({ eggs: 1 });
+      await order.method("onfarm");
+      await order.contact({ email: uniqueEmail("nophone") });
+      await order.firstDate("onfarm");
+      await attempt(order);
+      // Everything is valid, so the card form is what stops it.
+      await expect(order.errorFor("customer.phone")).toHaveCount(0);
+      await expect(order.payError).toBeVisible();
+      expect(posted).toBe(0);
+
+      await page.locator("#customer-phone").fill("401555");
+      await attempt(order);
+      await expect(order.errorFor("customer.phone"))
+        .toHaveText("That phone number doesn't look right.");
+      expect(posted).toBe(0);
+    });
 
   test("errors clear as each field is fixed, without refocusing",
     { tag: "@regression" }, async ({ page }) => {
@@ -135,6 +165,20 @@ test.describe("contact and pickup forms", () => {
         .toHaveText("Please enter your first name.");
     });
 
+  test("the phone formats itself and then offers text or call",
+    async ({ page }) => {
+      const order = new OrderPage(page);
+      const row = page.locator("[data-contact-row]");
+
+      await order.open({ eggs: 1 });
+      await expect(row).toHaveAttribute("data-shown", "false");
+      await page.locator("#customer-phone").pressSequentially("4015550100");
+      await expect(page.locator("#customer-phone"))
+        .toHaveValue("(401) 555-0100");
+      await expect(row).toHaveAttribute("data-shown", "true");
+      await expect(page.locator("#contact-text")).toBeChecked();
+    });
+
   test("delivery under the minimum warns in red at the choice and " +
     "blocks the order", async ({ page }) => {
     const order = new OrderPage(page);
@@ -154,7 +198,7 @@ test.describe("contact and pickup forms", () => {
       .toBeGreaterThan(Math.max(g, b) + 60);
     await expect(order.next).toBeDisabled();
 
-    await order.contact({ email: uniqueEmail("short") });
+    await order.contact({ email: uniqueEmail("short"), phone: "4015550100" });
     await order.delivery();
     await attempt(order);
     await expect(order.short).toContainText("You need $40 or more");
@@ -200,7 +244,7 @@ test.describe("contact and pickup forms", () => {
     await order.open({ eggs: 1 });
     await page.locator("#customer-email").fill(uniqueEmail("optin"));
     await page.locator("label[for='customer-marketing']").click();
-    await page.locator("#customer-first-name").focus();
+    await page.locator("#customer-phone").focus();
     await expect(page.locator("#customer-marketing")).toBeChecked();
     await expect(page.locator("#details [data-news-note]")).toHaveCount(0);
     expect(asked, "the box joins with the order, not before").toBe(0);
