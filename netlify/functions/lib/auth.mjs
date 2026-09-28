@@ -138,7 +138,6 @@ export const verifyToken = async (stores, token, { now = new Date() } = {}) => {
 export const createSession = async (stores, email, {
   now = new Date(),
   via = "link",
-  userAgent = "",
 } = {}) => {
   const id = secret();
   const address = normalizeEmail(email);
@@ -149,7 +148,6 @@ export const createSession = async (stores, email, {
     createdAt: now.toISOString(),
     expires: now.getTime() + SESSION_TTL,
     via,
-    userAgent: String(userAgent || "").slice(0, 200),
   });
 
   return { id, email: address };

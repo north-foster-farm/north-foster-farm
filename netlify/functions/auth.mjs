@@ -78,7 +78,7 @@ export const handle = async (req, {
     }
 
     const session = await createSession(stores, result.email, {
-      now, via: "link", userAgent: req.headers.get("user-agent"),
+      now, via: "link",
     });
 
     return redirect(safeNext(result.next), [

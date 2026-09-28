@@ -224,8 +224,6 @@ export const handle = async (req, {
     },
     meta: {
       formVersion: catalog.version,
-      userAgent: String(req.headers.get("user-agent") || "").slice(0, 200),
-      referrer: String(req.headers.get("referer") || "").slice(0, 200),
       idempotencyKey: key,
       attempt,
     },
