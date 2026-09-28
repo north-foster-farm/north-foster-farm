@@ -440,11 +440,17 @@ export class OrderForm {
     // Settled, the cart shows everything and the two are plain text
     // too (#203): stuckWatch below calls this when it settles.
     const column = matchMedia("(min-width: 1200px)");
+    const folds = all(this.cart, ".order-cart-fold");
     const plain = () => {
       const still = column.matches || this.cart.dataset.stuck === "false";
 
       itemsToggle.disabled = still;
       moneyToggle.disabled = still;
+      // Folded, what the fold hides is out of the Tab order too, or the
+      // focus goes under the bar (#159). The column never folds.
+      const folded = !column.matches && this.cart.dataset.open === "false";
+
+      for (const fold of folds) fold.inert = folded;
     };
 
     this.plainTotals = plain;
@@ -867,6 +873,7 @@ export class OrderForm {
     );
     qs(this.cart, "[data-cart-word]").textContent = open ? "Hide" : "Expand";
     if (open) this.syncScroll();
+    if (this.plainTotals) this.plainTotals();
   }
 
   // Marks the scroller's wrapper with which edges have more beyond
