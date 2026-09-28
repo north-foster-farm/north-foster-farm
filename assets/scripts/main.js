@@ -13,6 +13,7 @@ import { wireHeroVideo } from "./hero/hero.js";
 import { wireNewsSignup } from "./news/signup.js";
 import { wireSchedule } from "./schedule/schedule.js";
 import { wireSearch } from "./search/palette.js";
+import { followAccount } from "./video/follow.js";
 import { wireVideos } from "./video/video.js";
 import { wireCartSync } from "./session/cart-sync.js";
 import { Session } from "./session/session.js";
@@ -103,7 +104,7 @@ const trackMenu = () => {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
-  Session.show();
+  Session.show().then(followAccount);
   trackMenu();
   wireNewsSignup();
   wireDotLists();

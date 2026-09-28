@@ -22,6 +22,7 @@ import {
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { cancelOrder as cancelAndRefund } from "./admin.mjs";
 import { placeOf } from "./describe.mjs";
+import { AUTOPLAY } from "./auth.mjs";
 import { cutoffAt } from "./jobs.mjs";
 import { now as clock } from "./clock.mjs";
 import { farmEmails, mailbox, sendMail } from "./mail.mjs";
@@ -547,6 +548,16 @@ export const updateProfile = async (stores, customer, changes, {
   // device, so only a first dismissal is dated and nothing undoes it.
   if (c.reviewDismissed === true && !customer.reviewDismissedAt) {
     patch.reviewDismissedAt = now.toISOString();
+  }
+
+  // Videos playing on their own: "on", "off", or null to leave it to
+  // each browser again (#161).
+  if (c.autoplay !== undefined) {
+    if (c.autoplay !== null && !AUTOPLAY.includes(c.autoplay)) {
+      errors.autoplay = "On or off?";
+    } else {
+      patch.autoplay = c.autoplay;
+    }
   }
 
   if (Object.keys(errors).length) return fail(422, errors);

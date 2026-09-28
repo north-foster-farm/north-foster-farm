@@ -38,7 +38,8 @@ for {{< fact "accounts" "orderLinkDays" >}} days.
 Signing in keeps you signed in on that browser for
 {{< fact "accounts" "sessionDays" >}} days, or until you sign out. Your
 account holds your name, phone number, delivery address and drop-off notes,
-the picture you chose, your email settings, your orders and the
+the picture you chose, your email settings, whether videos play on their
+own, your orders and the
 messages you have sent us from it.
 
 ### Farm news

@@ -13,7 +13,8 @@
 //                                             difference (lib/edit.mjs)
 //   POST  /api/account/orders/:id/return      { reason, skus }
 //   PATCH /api/account/profile                { firstName, lastName, phone,
-//                                               avatar, reminders, marketing }
+//                                               avatar, reminders, marketing,
+//                                               autoplay }
 //   PUT   /api/account/address                { address1, ..., zip, cooler }
 //   POST  /api/account/support                { subject, message, orderId }
 //   POST  /api/account/email                  { email }, a link to the new

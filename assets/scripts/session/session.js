@@ -131,12 +131,13 @@ const fill = (slot, who) => {
 };
 
 export const Session = {
+  // -> who is signed in, or null in a build without accounts.
   async show() {
     // Two slots in the header row: with the links from md up, and with
     // the actions below md (#303).
     const slots = document.querySelectorAll("[data-account]");
 
-    if (!slots.length) return;
+    if (!slots.length) return null;
 
     // A slow answer shows a bar in the slot (#271); none at all, or an
     // error, leaves the Sign in link, and a late answer still lands.
@@ -147,5 +148,9 @@ export const Session = {
     });
 
     if (!who) for (const slot of slots) fill(slot, { signedIn: false });
+
+    // A late answer is null here: that page leaves the videos setting
+    // to the next one (#161).
+    return who;
   },
 };
