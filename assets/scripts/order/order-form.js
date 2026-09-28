@@ -399,12 +399,17 @@ export class OrderForm {
     moneyToggle.addEventListener("click", () => {
       this.setPart("money", this.cart.dataset.money !== "open");
     });
+    // Settled, the cart shows everything and the two are plain text
+    // too (#203): stuckWatch below calls this when it settles.
     const column = matchMedia("(min-width: 1200px)");
     const plain = () => {
-      itemsToggle.disabled = column.matches;
-      moneyToggle.disabled = column.matches;
+      const still = column.matches || this.cart.dataset.stuck === "false";
+
+      itemsToggle.disabled = still;
+      moneyToggle.disabled = still;
     };
 
+    this.plainTotals = plain;
     column.addEventListener("change", plain);
     plain();
 
@@ -448,6 +453,13 @@ export class OrderForm {
       if (below && !floating && this.cart.dataset.open === "false") {
         this.setOpen(true);
       }
+      // So are the lines and the sums, subtotal included (#203), and
+      // they too stay open when it floats again, for the same reason.
+      if (below && !floating) {
+        if (this.cart.dataset.items !== "open") this.setPart("items", true);
+        if (this.cart.dataset.money !== "open") this.setPart("money", true);
+      }
+      this.plainTotals();
       // Scrolled past: the total bar takes over, and its total becomes
       // a way back.
       const passed = below && r.bottom < 60;
