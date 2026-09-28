@@ -645,7 +645,7 @@
     font-size: 0.7rem;
     font-weight: bold;
     line-height: 1.4;
-    color: var(--bs-tertiary-color);
+    color: var(--bs-secondary-color);
 
     li {
       display: inline-flex;
@@ -1270,7 +1270,7 @@
     margin: 0.5rem 0 0;
     font-size: 0.875rem;
     font-weight: bold;
-    color: var(--bs-danger);
+    color: var(--bs-danger-text-emphasis);
 
     &[hidden] {
       display: none;
@@ -1293,7 +1293,7 @@
 
     dt {
       font-weight: normal;
-      color: var(--bs-tertiary-color);
+      color: var(--bs-secondary-color);
     }
 
     dd {
