@@ -91,8 +91,8 @@ test.describe("accounts", () => {
       await page.goto(linkIn(mail, /\/api\/auth\/verify\?token=/));
       await expect(page).toHaveURL(/\/account\/?/);
       await expect(page.locator("#orders-list")).toContainText(orderId);
-      await expect(page.locator("#orders-list")).toContainText(
-        "Pickup time requested. We'll confirm it by email."
+      await expect(page.locator("#orders-list")).not.toContainText(
+        "We'll confirm it", { timeout: 1_000 }
       );
       await page.locator("[data-tab='receipts']").click();
       await expect(page.locator("#receipts-body")).toContainText(orderId);

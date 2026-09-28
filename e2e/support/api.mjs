@@ -21,6 +21,15 @@ export const firstDate = async (request, method) => {
   return dates[method][0].date;
 };
 
+// The first pickup the farm's schedule offers (W11d): its day and the
+// id of that day's first window.
+export const firstPickup = async (request) => {
+  const dates = await (await request.get("/api/dates")).json();
+  const day = dates.onfarm[0];
+
+  return { date: day.date, window: day.windows[0].id };
+};
+
 // A valid on-farm order for one dozen eggs ($7), ready to send.
 export const eggOrder = async (request, {
   email, nonce = NONCE.ok, claimedTotal = 700, qty = 1, extra = {},
@@ -30,12 +39,11 @@ export const eggOrder = async (request, {
     marketing: false,
   },
   lines: [{ sku: SKU.eggs, qty }],
-  fulfilment: {
-    method: "onfarm",
-    date: await firstDate(request, "onfarm"),
-    onfarm: { window: "morning" },
-    delivery: {},
-  },
+  fulfilment: await (async () => {
+    const { date, window } = await firstPickup(request);
+
+    return { method: "onfarm", date, onfarm: { window }, delivery: {} };
+  })(),
   code: "",
   claimedTotal,
   website: "",

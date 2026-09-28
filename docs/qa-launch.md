@@ -878,29 +878,35 @@ with a fresh list" covers the server. The page's message is manual.
   1. API: post an order dated `2026-01-02`.
   2. Page: choose the first delivery date, wait past the cutoff, pay.
 - **Assert:** API: 409, "That date is no longer available.", a non-empty
-  `dates`. Page: "That date just closed. Pick another from the updated
-  list and try again." and the list replaced; nothing charged.
+  `dates`. Page: the blocking dialog (W11d, U3) "That delivery day is no
+  longer available", "Nothing has been charged.", the open days as
+  radios; "Use this day" puts it on the form and says "Delivery is now
+  ... Pay to place your order." by the Pay button; nothing charged.
 - **Teardown:** None.
 
 ### FM-14 The date lists
 
 Manual: automatable; not yet written.
 
-- **Scenario:** Dates follow `data/delivery.json`.
+- **Scenario:** Pickup days and times follow the farm's schedule
+  (`PICKUP_SCHEDULE`, W11d); the other dates follow
+  `data/delivery.json`.
 - **Setup:** Fresh page.
 - **Test:**
-  1. Open each method's date list.
-- **Assert:** On-farm: weekdays from tomorrow through next Friday, no
-  holidays. Scituate: the next two Saturdays from October 17. Delivery:
-  the next two Thursdays whose Wednesday-noon cutoff has not passed.
+  1. Open each method's date list; for On-farm pickup, change the day.
+- **Assert:** On-farm: exactly the schedule's days from tomorrow on
+  (a Saturday or holiday included if listed), and under Pickup time
+  that day's windows as radios, "9 AM – noon". Scituate: the next two
+  Saturdays from October 17. Delivery: the next two Thursdays whose
+  Wednesday-noon cutoff has not passed.
 - **Teardown:** None.
 
 ## Payments
 
 ### PY-01 A card pays for an on-farm pickup
 
-Automated: `payment.spec.mjs`, "a card pays for an on-farm pickup, and
-the farm is asked to confirm". Tagged `@regression`.
+Automated: `payment.spec.mjs`, "a card pays for an on-farm pickup, booked
+by paying (W11d)". Tagged `@regression`.
 
 - **Scenario:** The main path, end to end: page, Square, record, emails.
 - **Setup:** 1 egg, On-farm pickup, first date, name, unique email.
@@ -910,15 +916,16 @@ the farm is asked to confirm". Tagged `@regression`.
   3. Reload `/order/`.
 - **Assert:** `/api/orders` answers 200. "Thank you, Card. Your order is
   placed."; "$7" paid with "Visa ending 1111"; the email; an order
-  number like `NFF-2609-AB2C`; "The pickup time you chose is a request";
+  number like `NFF-2609-AB2C`; the when line "<day>, <window>, at the
+  farm.";
   a receipt link to Square; no cart count on the header's Order link
   (AR-29). `bin/nff --staging orders show <id>`:
   `status` paid, `payment.via` square, `method` card, `last4` 1111,
-  `square.squareOrderId` set, `fulfilment.state` requested, `total`
-  700. Outbox: "Payment received" to the customer with "Your payment of
-  $7 came through." and "Requested:"; the farm's "New order <id>" for
-  "$7, on-farm pickup" with "$7 by Visa ending 1111", "Requested, not
-  yet confirmed" and `orders confirm <id>`. After the reload: "0 items".
+  `square.squareOrderId` set, `fulfilment.state` agreed, `total`
+  700. Outbox: "Your order is confirmed" to the customer with "Your
+  payment of $7 came through and your pickup time is set" and "When:";
+  the farm's "New order <id>" for "$7, on-farm pickup" with "$7 by Visa
+  ending 1111" and no confirm command. After the reload: "0 items".
 - **Teardown:** `bin/nff --staging orders cancel <id> --reason-text
   "Test order."`, then `orders delete <id>`, `customers delete <email>`,
   outbox cleared.
@@ -1111,8 +1118,8 @@ account; never done yet (#151).
 - **Assert:** "paid with Venmo"; record `payment.via` venmo,
   `paypalOrderId`, `paypalCaptureId`, `square.squareOrderId` and
   `payment.squarePaymentId` set; the Square sandbox order shows an
-  external "Venmo" tender for $7; outbox "Payment received" and the
-  farm's notice with "$7 by Venmo".
+  external "Venmo" tender for $7; outbox "Your order is confirmed" and
+  the farm's notice with "$7 by Venmo".
 - **Teardown:** `bin/nff --staging orders cancel <id> --reason-text
   "Test order."` (PayPal refunds; RF-05), then delete.
 
@@ -1146,7 +1153,8 @@ do, once PayPal has left the checkout alone for ten minutes.
      wait for the schedule).
   3. Go back online and let the page retry its capture.
 - **Assert:** One order, paid, with `paypalCaptureId` set; stock taken
-  once; one "Payment received" and one farm notice in the outbox. The
+  once; one "Your order is confirmed" and one farm notice in the
+  outbox. The
   page's retry answers with the same record rather than asking the
   customer to start again. No `paypal.webhook` line finishes the
   order; it only notes the delivery.
@@ -1162,7 +1170,7 @@ Manual: PayPal's window.
 - **Test:**
   1. Pay by Venmo normally; wait a minute for the webhook.
 - **Assert:** One record for the PayPal order; stock taken once; one
-  "Payment received" and one farm notice.
+  "Your order is confirmed" and one farm notice.
 - **Teardown:** As PY-14.
 
 ### PY-17 Venmo when Square is down
@@ -1264,8 +1272,8 @@ receipt".
 - **Setup:** As AO-01, signed in.
 - **Test:**
   1. Read the Orders tab; open Receipts.
-- **Assert:** The order number; "Pickup time requested. We'll confirm it
-  by email."; a receipt row with the number, "Visa ending" and four
+- **Assert:** The order number, and no "we'll confirm it" note (W11d);
+  a receipt row with the number, "Visa ending" and four
   digits, $7. No "Pay now" and no "I paid by Venmo" anywhere.
 - **Teardown:** As AO-01.
 
@@ -1287,38 +1295,29 @@ first three kept". Passed on staging 2026-09-25.
   the outbox; the first and third links still sign in.
 - **Teardown:** Delete the customer; clear its messages.
 
-### AO-05 The farm confirms a pickup
+### AO-05 Retired
 
-Manual: a CLI step with emails to read; automatable later.
+The farm no longer confirms a pickup: a time the schedule offers is
+booked by paying (W11d). PY-01 covers the confirmation email.
 
-- **Scenario:** The farm agrees to an on-farm window.
-- **Setup:** A paid on-farm order, placed for the purpose.
-- **Test:**
-  1. `bin/nff --staging orders confirm <id>`
-  2. Run it again.
-- **Assert:** "Your order is confirmed" with "Your payment of $7 came
-  through and your pickup time is set" and "When:";
-  `fulfilment.state` agreed. The second run sends nothing.
-- **Teardown:** Cancel with `--refund`; delete.
-
-### AO-06 The farm denies a pickup
+### AO-06 The farm can't keep a booked pickup
 
 Manual: several emails and pages across a week-long link.
 
-- **Scenario:** A denied window: the customer picks again or cancels for
-  a refund.
+- **Scenario:** The farm gives up a booked time (`orders deny`): the
+  customer picks another from the schedule, or cancels for a refund.
 - **Setup:** A paid on-farm order.
 - **Test:**
   1. `bin/nff --staging orders deny <id> --reason "Frost."`
-  2. Open "Reschedule or cancel" from the outbox; change the window;
+  2. Open "Reschedule or cancel" from the outbox; change the time;
      save.
   3. On a second order, cancel from the card instead.
-- **Assert:** "Requested pickup time unavailable, please pick again",
-  with "Here's why: Frost." (T2d) and a "Reschedule or cancel" button
-  (b14ad8b); the card says "We can't do that
-  pickup time"; after the change "Your order is updated" and the farm's
-  "Pickup time to confirm: <id>", `question.answer` reschedule,
-  `fulfilment.state` requested. After the cancel: refunded in full on
+- **Assert:** "We can't make your pickup time", with "Here's why:
+  Frost." (T2d) and a "Reschedule or cancel" button (b14ad8b); the card
+  says "We can't make that pickup time"; the change form's times are
+  the schedule's for the chosen day; after the change "Your order is
+  updated" and the farm's "Pickup moved: <id>", `question.answer`
+  reschedule, `fulfilment.state` agreed. After the cancel: refunded in full on
   the spot (T1d), `status` cancelled, the farm's "Cancelled: <id>"
   saying there's nothing to run.
 - **Teardown:** `orders cancel <id> --reason-text "Test order."` for the
@@ -1357,13 +1356,15 @@ Manual: automatable; not yet written.
 Manual: needs the toolbar's token (or `STAGING_TOKEN`) for the jobs.
 
 - **Scenario:** The daily reports the farm lives by.
-- **Setup:** An on-farm order still requested within two days.
+- **Setup:** An on-farm order within two days whose time the farm gave
+  up (`orders deny`), not yet re-picked.
 - **Test:**
   1. Toolbar: tick "Send today's reports again"; press As 8:00 today.
   2. Press As 18:00 today.
 - **Assert:** "Morning report: <today>" with the vitals (placed, by card,
-  by Venmo, declined, cancelled, refunded, open) and the pickup with its
-  confirm command; "Tomorrow, <date>: N orders" grouped by method.
+  by Venmo, declined, cancelled, refunded, open) and the pickup under
+  "Pickups waiting on the customer"; "Tomorrow, <date>: N orders"
+  grouped by method.
 - **Teardown:** Cancel and delete the order; clear the reports' mail.
 
 ### AO-10 The delivery reminder
@@ -1390,7 +1391,8 @@ Manual: real iOS Mail rendering.
 - **Setup:** A real send to James's inbox (a preview with Resend), or
   the outbox HTML opened in iOS Safari.
 - **Test:**
-  1. Open "Payment received" and the farm-news confirmation in iOS Mail.
+  1. Open "Your order is confirmed" and the farm-news confirmation in
+     iOS Mail.
 - **Assert:** The footer's phone number keeps the text color, no
   underline; layout intact.
 - **Teardown:** None.
@@ -1500,7 +1502,8 @@ is charged" (through the endpoint, with `cnon:card-nonce-ok`).
 - **Assert:** The record's method changes; `square.fulfilmentOrderId`
   names a new Square order carrying the new fulfilment, and the old
   one's fulfilment is cancelled in Square. A switch to on-farm pickup
-  asks the farm to confirm the window again. With nothing to pay, the
+  takes a time the schedule offers, booked as it stands. With nothing
+  to pay, the
   new Square order is $0 and paid.
 - **Teardown:** As AO-15.
 

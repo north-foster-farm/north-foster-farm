@@ -1461,6 +1461,77 @@
     }
   }
 
+  // What the order says after the lapsed-time dialog, by Pay.
+  .order-moved {
+    margin-bottom: 0.75rem;
+    font-weight: bold;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .order-windows-none {
+    margin: 0;
+    color: var(--bs-secondary-color);
+  }
+
+  // The lapsed-time dialog (W11d): blocking, one column, the choices
+  // as a list of radios.
+  .order-lapsed {
+    width: min(32rem, calc(100vw - 2rem));
+    padding: 0;
+    border: 0;
+    border-radius: 0.75rem;
+    box-shadow: 0 1.5rem 3rem rgb(0 0 0 / 30%);
+
+    &::backdrop {
+      background: rgb(10 16 13 / 55%);
+    }
+  }
+
+  .order-lapsed-panel {
+    padding: 1.5rem;
+  }
+
+  .order-lapsed-choices {
+    margin: 1rem 0 1.25rem;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .order-lapsed-list {
+    display: grid;
+    gap: 0.5rem;
+
+    .form-check {
+      margin: 0;
+    }
+  }
+
+  .order-lapsed-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+
+    .btn-primary {
+      margin-bottom: 0.5rem;
+    }
+
+    [hidden] {
+      display: none;
+    }
+  }
+
+  // Flush left as links; the one that leads, when nothing is left,
+  // is a button with its own padding.
+  .order-lapsed-link.btn-link {
+    padding-inline: 0;
+  }
+
   // Payment: the card form the SDK mounts, and the wallet buttons
   // beside it. The states are set by scripts/order/pay.js.
 

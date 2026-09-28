@@ -9,11 +9,13 @@ import {
 import {
   disallowedFor, normalizeCode, phoneOk, validateOrder, zipInfo,
 } from "./lib/validate.mjs";
+import { pickupTimes, windowLabel } from "./lib/schedule.mjs";
 import { label } from "./lib/zoned.mjs";
 import { celebrate } from "./celebrate.js";
 import { DateLists } from "./date-lists.js";
 import { Draft } from "./draft.js";
 import { Errors } from "./errors.js";
+import { Lapsed } from "./lapsed.js";
 import { Payment } from "./pay.js";
 import { Pending } from "./pending.js";
 import { Stock } from "./stock.js";
@@ -84,6 +86,13 @@ export class OrderForm {
     this.draft = new Draft(this.editId ? { name: `nff-edit-${this.editId}` }
       : {});
     this.dates = new DateLists(form, () => this.refresh());
+    // A pickup time to select once its day's windows are drawn: a
+    // restored draft's, or the dialog's.
+    this.wantedWindow = null;
+    this.lapsed = new Lapsed(document.getElementById("order-lapsed"), {
+      onUse: (choice) => this.useLapsed(choice),
+      onOther: (method) => this.otherWay(method),
+    });
     this.submitter = new Submitter(this.editId
       ? { url: `/api/account/orders/${this.editId}/edit` }
       : {});
@@ -1028,6 +1037,8 @@ export class OrderForm {
     const method = this.method();
     const totals = this.totals();
 
+    this.renderWindows();
+
     for (const input of all(this.form, "[data-qty]")) {
       const qty = this.qty(input);
       const box = input.closest(".order-qty");
@@ -1054,6 +1065,101 @@ export class OrderForm {
 
     this.renderCart(totals, method);
     this.renderZipNote();
+  }
+
+  // The chosen pickup day's windows, one radio each, from the farm's
+  // schedule (W11d). The time chosen carries over to a new day that
+  // has it; otherwise the day's first is chosen.
+  renderWindows() {
+    const box = qs(this.form, "[data-windows]");
+    const select = qs(this.form, "[data-dates='onfarm']");
+
+    if (!box || !select) return;
+
+    const lists = this.dates.lists;
+    const day = lists && (lists.onfarm || [])
+      .find((d) => d.date === select.value);
+    const windows = day ? day.windows : [];
+    const key = `${select.value} ${windows.map((w) => w.id).join(" ")}`;
+
+    if (box.dataset.key === key && !this.wantedWindow) return;
+
+    const checked = qs(box, "input:checked");
+    const current = this.wantedWindow || (checked && checked.value);
+    const pick = windows.some((w) => w.id === current) ? current
+      : windows[0] && windows[0].id;
+
+    box.dataset.key = key;
+    box.textContent = "";
+    if (!windows.length) {
+      const none = document.createElement("p");
+
+      none.className = "order-windows-none";
+      none.textContent = lists ? "No pickup times on this day."
+        : "Loading times…";
+      box.appendChild(none);
+    }
+    for (const w of windows) {
+      const node = document.getElementById("tpl-window").content
+        .cloneNode(true);
+      const input = qs(node, "input");
+      const text = qs(node, "label");
+
+      input.id = `onfarm-window-${w.id.replace(/\D/g, "")}`;
+      input.value = w.id;
+      input.checked = w.id === pick;
+      text.htmlFor = input.id;
+      text.textContent = w.label;
+      box.appendChild(node);
+    }
+    if (lists) this.wantedWindow = null;
+  }
+
+  // The dialog's choice, put on the form; the customer pays again with
+  // the same button (U1).
+  useLapsed({ method, date, window }) {
+    const select = qs(this.form, `[data-dates="${method}"]`);
+    const status = document.querySelector("[data-lapsed-status]");
+
+    if (select) select.value = date;
+    if (window) this.wantedWindow = window;
+    this.refresh();
+    this.errors.clear();
+    this.draft.save(this.collect());
+
+    const day = label(date);
+    const times = window && windowLabel(pickupTimes({ window }));
+
+    if (status) {
+      status.textContent = `${method === "onfarm"
+        ? `Pickup is now ${day}, ${times}`
+        : method === "scituate" ? `Drop-site pickup is now ${day}`
+          : `Delivery is now ${day}`}. Pay to place your order.`;
+      status.hidden = false;
+    }
+
+    const pay = [this.submitButton, this.saveButton]
+      .find((button) => !button.hidden)
+      || qs(document.getElementById("payment"), "legend");
+
+    pay.focus();
+  }
+
+  // The dialog's other way: to the choice of ways, which the customer
+  // makes themselves.
+  otherWay(method) {
+    const other = qs(this.form, `[name="method"]:not([value="${method}"])`);
+
+    document.getElementById("pickup").scrollIntoView({ block: "start" });
+    if (other) other.focus({ preventScroll: true });
+  }
+
+  // A 409: what was chosen lapsed. The fresh list goes on the form and
+  // the dialog offers it (U1, U3).
+  lapse(method, dates) {
+    this.dates.replace(method, dates);
+    this.lapsed.open(method, dates, this.submitButton.hidden ? null
+      : this.submitButton);
   }
 
   revealMethod() {
@@ -1272,8 +1378,11 @@ export class OrderForm {
       if (!el) return "";
       if (el.type === "checkbox") return el.checked;
       if (el.type === "radio" || el.getAttribute("role") === "radiogroup") {
-        const name = el.getAttribute("name") || qs(el, "input").name;
-        const checked = qs(this.form, `[name="${name}"]:checked`);
+        // A group drawn from the lists (the pickup times) may have no
+        // radios yet.
+        const first = el.getAttribute("name") ? el : qs(el, "input");
+        const checked = first
+          && qs(this.form, `[name="${first.name}"]:checked`);
 
         return checked ? checked.value : "";
       }
@@ -1355,7 +1464,8 @@ export class OrderForm {
     }
 
     if (f.method) set("fulfilment.method", f.method);
-    set("onfarm.window", o.window);
+    // The radios are drawn from the lists when they come.
+    this.wantedWindow = o.window || null;
 
     for (const key of [
       "address1", "address2", "town", "zip", "cooler", "notes",
@@ -1413,7 +1523,7 @@ export class OrderForm {
   check(payload) {
     return validateOrder(payload, {
       index: this.index, terms: this.terms, now: this.dates.now(),
-      group: this.group, code: this.code,
+      group: this.group, code: this.code, schedule: this.dates.schedule(),
     });
   }
 
@@ -1434,9 +1544,18 @@ export class OrderForm {
 
     const payload = this.collect();
     const check = this.check(payload);
+    const status = document.querySelector("[data-lapsed-status]");
 
+    if (status) status.hidden = true;
     if (!check.ok) {
-      if (check.dates) {
+      // Only the day or time lapsed: the dialog. Before the lists have
+      // come there is nothing to offer, so the errors say it.
+      if (check.status === 409 && this.dates.lists) {
+        this.lapse(payload.fulfilment.method, check.dates);
+
+        return null;
+      }
+      if (check.dates && this.dates.lists) {
         this.dates.replace(payload.fulfilment.method, check.dates);
       }
       this.errors.show(check.errors);
@@ -1460,6 +1579,19 @@ export class OrderForm {
     const payload = this.prepare();
 
     if (!payload) return null;
+
+    // The farm may have dropped the time since the page loaded: ask
+    // now, before a wallet or Venmo opens (UX's point 2). The server
+    // checks again whatever happens here.
+    if (await this.dates.refresh()) {
+      const again = this.check(payload);
+
+      if (!again.ok && again.status === 409) {
+        this.lapse(payload.fulfilment.method, again.dates);
+
+        return null;
+      }
+    }
 
     this.moved = false;
     await this.stock.refresh();
@@ -1580,11 +1712,7 @@ export class OrderForm {
       this.errors.show(outcome.errors);
       break;
     case "stale":
-      this.dates.replace(payload.fulfilment.method, outcome.dates);
-      this.errors.show({
-        "fulfilment.date": "That date just closed. Pick another from the " +
-            "updated list and try again.",
-      });
+      this.lapse(payload.fulfilment.method, outcome.dates);
       break;
     case "declined":
       // The next try is a new attempt: fresh keys for the processor.
@@ -1644,7 +1772,9 @@ export class OrderForm {
       return `${day}, ${this.terms.scituate.window}, at the drop site.`;
     }
     if (f.method === "onfarm" && f.onfarm) {
-      return `${day}, ${f.onfarm.window}, at the farm.`;
+      const times = pickupTimes(f.onfarm);
+
+      return `${day}, ${times ? windowLabel(times) : ""}, at the farm.`;
     }
 
     return day;
@@ -1692,12 +1822,6 @@ export class OrderForm {
       fill("orderId", data.orderId);
       fill("how", this.paidWith(data.payment));
       fill("when", this.when(data.fulfilment));
-      // An on-farm window is a request the farm still has to agree
-      // to, so paying alone does not confirm that order.
-      if (data.fulfilment && data.fulfilment.method === "onfarm") {
-        fill("confirms", "The pickup time you chose is a request; we'll " +
-          "check the schedule and confirm it by email.");
-      }
 
       const receipt = qs(node, "[data-out='receiptUrl']");
 

@@ -37,8 +37,8 @@ test.describe("payments", () => {
     ]),
   ]));
 
-  test("a card pays for an on-farm pickup, and the farm is asked to " +
-    "confirm", { tag: "@regression" }, async ({ page }) => {
+  test("a card pays for an on-farm pickup, booked by paying " +
+    "(W11d)", { tag: "@regression" }, async ({ page }) => {
     const order = new OrderPage(page);
     const email = uniqueEmail("card");
 
@@ -71,8 +71,8 @@ test.describe("payments", () => {
       .toHaveText("Visa ending 1111");
     await expect(card.locator("[data-out='email']")).toHaveText(email);
     await expect(card.locator("[data-out='orderId']")).toHaveText(ORDER_ID);
-    await expect(card.locator("[data-out='confirms']")).toContainText(
-      "The pickup time you chose is a request"
+    await expect(card.locator("[data-out='when']")).toHaveText(
+      /, \d.* (AM|PM|noon), at the farm\.$/
     );
     await expect(card.locator("[data-out='receiptUrl']")).toHaveAttribute(
       "href", /^https:\/\/.*squareup(sandbox)?\.com\//
@@ -88,17 +88,19 @@ test.describe("payments", () => {
       via: "square", method: "card", last4: "1111", amount: 700,
     });
     expect(record.square && record.square.squareOrderId).toBeTruthy();
+    // Booked by paying (W11d).
     expect(record.fulfilment).toMatchObject({
-      method: "onfarm", date, state: "requested",
+      method: "onfarm", date, state: "agreed",
     });
     expect(record.totals.total).toBe(700);
 
     const receipt = await waitForMail({
-      to: email, subject: "Payment received", since,
+      to: email, subject: "Your order is confirmed", since,
     });
 
-    expect(receipt.text).toContain("Your payment of $7 came through.");
-    expect(receipt.text).toContain("Requested:");
+    expect(receipt.text).toContain("Your payment of $7 came through and " +
+      "your pickup time is set");
+    expect(receipt.text).toContain("When:");
 
     const farm = await waitForMail({
       // The subject is "New order <id>", a dash, then the total and how.
@@ -109,8 +111,7 @@ test.describe("payments", () => {
     });
 
     expect(farm.text).toContain("$7 by Visa ending 1111");
-    expect(farm.text).toContain("Requested, not yet confirmed");
-    expect(farm.text).toContain(`orders confirm ${body.orderId}`);
+    expect(farm.text).not.toContain("orders confirm");
 
     // The draft is gone: a reload starts a new, empty order.
     await page.goto("/order/");
@@ -140,7 +141,6 @@ test.describe("payments", () => {
       await expect(out("when")).toHaveText(
         /, delivered to 12 Test Road\.$/
       );
-      await expect(out("confirms")).toHaveText("");
 
       const record = await orderRecord(body.orderId);
 

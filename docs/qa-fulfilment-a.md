@@ -74,10 +74,10 @@ days out, and scroll to Payment.
       `paid`, stock moved down.
 - [ ] The Square sandbox dashboard shows the order with its fulfilment
       and the payment against it.
-- [ ] The customer email is "Payment received" (on-farm, window
-      requested) and the farm's "New order ... on-farm pickup" carries
-      "Paid: **$X by Visa ending 1111**", "Pickup time: **Requested,
-      not yet confirmed**" and the confirm and deny commands.
+- [ ] The customer email is "Your order is confirmed" with "your
+      pickup time is set" and "When: <day>, <window>" (W11d: booked by
+      paying), and the farm's "New order ... on-farm pickup" carries
+      "Paid: **$X by Visa ending 1111**" and no confirm command.
 - [ ] Reload the page: the cart is empty, the draft gone.
 
 Declined:
@@ -102,56 +102,63 @@ A wallet:
       the sheet shows the cart's total; approving it places the order
       with "paid with Google Pay", `payment.method` `googlepay`.
 
-## 3. On-farm pickup: the farm's agreement
+## 3. On-farm pickup: the farm's schedule (W11d)
 
-Using the on-farm order above (`fulfilment.state` is `requested`):
+The schedule is staging's `PICKUP_SCHEDULE`; the order page offers only
+its days and times.
 
-- [ ] `/account/#orders`: the card says "Pickup time requested. We'll
-      confirm it by email." and "Paid with: Visa ending 1111" under
-      the totals.
-- [ ] `bin/nff --staging orders confirm <id>`: customer gets "Your
-      order is confirmed" with "Your payment of $X came through and
-      your pickup time is set" and "When:" in Order details.
-      `fulfilment.state` is `agreed`, `agreedAt` set.
-- [ ] Run confirm again: nothing sent, nothing changed.
+- [ ] The pickup day list has exactly the schedule's days from
+      tomorrow on, a Saturday or a holiday included if listed; each
+      day's times appear as radios ("9 AM – noon") and change with the
+      day.
+- [ ] `/account/#orders`: an on-farm order's card has no "we'll
+      confirm" note, and "Paid with: Visa ending 1111" under the
+      totals.
+- [ ] A time dropped from the schedule while the page is open: press
+      Pay and a dialog says "That pickup time is no longer available",
+      "Nothing has been charged.", with the open times as radios. "Use
+      this time" puts it on the form and says "Pickup is now ... Pay
+      to place your order." by the Pay button; "Never mind" and Escape
+      leave the page as it was; with no times left, "Choose the drop
+      site or delivery" leads to the choice of ways.
 
-Denied:
+The farm can't keep a booked time:
 
 - [ ] New on-farm order, paid. `bin/nff --staging orders deny <id>
       --reason "We're at the market that morning."`: customer gets
-      "One more step: pick a new pickup time" with the bold "The
-      morning of ... doesn't work for us.", "Here's why:" in bold
-      italic, your paragraph, a "Pick a new time" button and the line
-      that cancelling from the same page is a full refund.
+      "We can't make your pickup time" with "we can't be here for your
+      pickup at <window> on <day>", "Here's why: ...", a "Reschedule
+      or cancel" button and the line that cancelling is a full refund.
 - [ ] `bin/nff --staging orders show <id>`: `question.kind` is
-      `window`, `answeredAt` null.
+      `window`, `answeredAt` null, `fulfilment.state` still `agreed`.
 - [ ] `bin/nff --staging jobs run` the day after its date: not closed
       while the question is open.
-- [ ] Click "Pick a new time" (works for a week): lands signed in on
-      that order's card, which says "We can't do that pickup time: ...
-      Please choose another day or window with Change, or cancel the
-      order." Change and Cancel are offered even past the cutoff.
-- [ ] Change the window or date and save: "Order updated" email shows
-      "Requested:"; farm gets "Pickup time to confirm: <id>";
-      `question.answer` is `reschedule`; `fulfilment.state` back to
-      `requested`.
+- [ ] Click "Reschedule or cancel" (works for a week): lands signed in
+      on that order's card, which says "We can't make that pickup
+      time: ... Please choose another day and time with Change, or
+      cancel the order." Change and Cancel are offered even past the
+      cutoff.
+- [ ] Change the day or time (the form offers the schedule's) and
+      save: "Order updated" email shows "When:"; farm gets "Pickup
+      moved: <id>"; `question.answer` is `reschedule`;
+      `fulfilment.state` stays `agreed`.
 - [ ] Alternatively cancel from the card: `question.answer` is
       `cancel`; the order is refunded in full and `cancelled` at once
       (T1d); the cancellation email says the refund is on its way;
       the farm gets "Cancelled: <id>" saying there's nothing to run.
-- [ ] Alternatively `bin/nff --staging orders confirm <id>` after a
-      deny: the time works after all; `question.answer` is
-      `confirmed`, `by: farm`.
-- [ ] `bin/nff --staging orders deny <id>` on a delivery order:
-      refused with "Only an on-farm pickup needs confirming."
+- [ ] `bin/nff --staging orders deny <id> --reason x` on a delivery
+      order: refused with "Only an on-farm pickup has a time to give
+      up."
 
 The morning report:
 
-- [ ] With an on-farm order still `requested` (or denied and not
-      re-picked) within two days of its date, the first jobs run after
-      8:00 (the toolbar's "As 8:00 today") sends "Morning report:
-      <today>" to ADMIN_EMAILS, the vital signs first, then one line
-      per pickup with the confirm command, once that day.
+- [ ] With an on-farm order whose time the farm gave up and the
+      customer hasn't re-picked, within two days of its date, the
+      first jobs run after 8:00 (the toolbar's "As 8:00 today") sends
+      "Morning report: <today>" to ADMIN_EMAILS, the vital signs
+      first, then one line per such pickup, once that day. If the
+      schedule doesn't reach the week after next, it says so first,
+      with `bin/nff schedule set <file>`.
 
 ## 4. The receipts
 

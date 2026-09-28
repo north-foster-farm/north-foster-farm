@@ -1,0 +1,26 @@
+{{/* What the customer chose lapsed as they paid (W11d; UX's U1 to U3):
+     a pickup time the farm's schedule dropped, or a day that closed.
+     It blocks the page and offers what is open now; nothing has been
+     charged, and the customer pays again with the same button.
+     order/lapsed.js fills and runs it. Draft wording. */}}
+<dialog class="order-lapsed" id="order-lapsed" aria-labelledby="order-lapsed-title" aria-describedby="order-lapsed-lead">
+  <div class="order-lapsed-panel">
+    <h2 class="h4 order-lapsed-title" id="order-lapsed-title"></h2>
+    <p class="order-lapsed-lead" id="order-lapsed-lead"></p>
+    <fieldset class="order-lapsed-choices" data-lapsed-choices>
+      <legend class="visually-hidden" data-lapsed-legend></legend>
+      <div class="order-lapsed-list" data-lapsed-list></div>
+    </fieldset>
+    <div class="order-lapsed-actions">
+      <button type="button" class="btn btn-primary" data-lapsed-use></button>
+      <button type="button" class="btn btn-link order-lapsed-link" data-lapsed-other></button>
+      <button type="button" class="btn btn-link order-lapsed-link" data-lapsed-never>Never mind</button>
+    </div>
+  </div>
+  <template id="tpl-lapsed-choice">
+    <div class="form-check">
+      <input class="form-check-input" type="radio" name="lapsed">
+      <label class="form-check-label"></label>
+    </div>
+  </template>
+</dialog>

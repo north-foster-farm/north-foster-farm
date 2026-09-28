@@ -3,6 +3,7 @@
 // customer typed can become markup. Sections are tabs keyed by the
 // URL hash.
 
+import { pickupTimes, windowLabel } from "../order/lib/schedule.mjs";
 import { dollars } from "../order/lib/totals.mjs";
 import { label } from "../order/lib/zoned.mjs";
 import { forget } from "../session/session.js";
@@ -476,21 +477,15 @@ class Account {
       ? "Cancellation requested"
       : (STATUS[order.status] || order.status));
 
-    // The farm's side of a pickup: a denied window asks them to pick
-    // again; a requested one is waiting on the farm.
+    // A booked pickup time the farm gave up asks them to pick again
+    // (W11d).
     const pickup = qs(node, "[data-out='pickup']");
     const q = order.question;
 
     if (q && !q.answeredAt && q.kind === "window") {
-      pickup.textContent = "We can't do that pickup time" +
-        `${q.reason ? `: ${q.reason}` : "."} Please choose another day or ` +
-        "window with Change, or cancel the order.";
-      pickup.hidden = false;
-    } else if (order.fulfilment.method === "onfarm"
-      && order.fulfilment.state === "requested"
-      && order.status === "paid") {
-      pickup.textContent = "Pickup time requested. We'll confirm it by " +
-        "email.";
+      pickup.textContent = "We can't make that pickup time" +
+        `${q.reason ? `: ${q.reason}` : "."} Please choose another day and ` +
+        "time with Change, or cancel the order.";
       pickup.hidden = false;
     }
 
@@ -676,15 +671,14 @@ class Account {
       qs(form, "[name='gate']").value = d.gate || "";
       qs(form, "[name='dnotes']").value = d.notes || "";
     } else {
-      const o = order.fulfilment.onfarm;
-
       for (const part of all(form, "[data-onfarm]")) {
         part.hidden = order.fulfilment.method !== "onfarm";
       }
-      if (o) {
-        const radio = qs(form, `[name='window'][value='${o.window}']`);
+      if (order.fulfilment.method === "onfarm") {
+        const draw = () => this.drawWindows(form, order, dates, select.value);
 
-        if (radio) radio.checked = true;
+        select.addEventListener("change", draw);
+        draw();
       }
     }
 
@@ -725,6 +719,36 @@ class Account {
 
     this.panel(card).appendChild(node);
     select.focus();
+  }
+
+  // The chosen day's pickup times, from the farm's schedule (W11d).
+  // The day as booked, if the schedule no longer has it, keeps just
+  // the booked time, so the notes can change without moving it.
+  drawWindows(form, order, dates, date) {
+    const box = qs(form, "[data-windows]");
+    const tpl = qs(form, "template");
+    const o = order.fulfilment.onfarm || {};
+    const checked = qs(box, "input:checked");
+    const current = checked ? checked.value : o.window;
+    const day = dates.find((d) => d.date === date);
+    const booked = pickupTimes(o);
+    const windows = day ? day.windows
+      : date === order.fulfilment.date && booked
+        ? [{ id: o.window, label: `${windowLabel(booked)} (as booked)` }]
+        : [];
+    const pick = windows.some((w) => w.id === current) ? current
+      : windows[0] && windows[0].id;
+
+    box.textContent = "";
+    for (const w of windows) {
+      const node = tpl.content.cloneNode(true);
+      const input = qs(node, "input");
+
+      input.value = w.id;
+      input.checked = w.id === pick;
+      qs(node, "span").textContent = w.label;
+      box.appendChild(node);
+    }
   }
 
   openCancel(order, card) {

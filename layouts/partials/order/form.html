@@ -64,6 +64,7 @@
     {{ partial "order/wrap.html" . }}
   </div>
 </form>
+{{ partial "order/lapsed.html" . }}
 
 <div id="order-result" class="order-result" aria-live="polite" hidden></div>
 
@@ -82,7 +83,6 @@
         <strong data-out="total"></strong> paid with
         <strong data-out="how"></strong>.
         A confirmation is on its way to <strong data-out="email"></strong>.
-        <span data-out="confirms"></span>
       </p>
       <p data-out="when"></p>
       <p>

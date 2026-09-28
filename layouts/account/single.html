@@ -264,9 +264,13 @@
           <div class="invalid-feedback" data-error-for="date"></div>
         </div>
         <div class="col-md-6" data-onfarm>
-          <span class="form-label d-block">Roughly when?</span>
-          <label class="form-check-inline"><input class="form-check-input" type="radio" name="window" value="morning"> Morning</label>
-          <label class="form-check-inline"><input class="form-check-input" type="radio" name="window" value="afternoon"> Afternoon</label>
+          {{/* The chosen day's times from the farm's schedule (W11d),
+               drawn by main.js from the template below. */}}
+          <span class="form-label d-block">Pickup time</span>
+          <div data-windows></div>
+          <template id="tpl-change-window">
+            <label class="form-check-inline"><input class="form-check-input" type="radio" name="window"> <span></span></label>
+          </template>
           <div class="invalid-feedback" data-error-for="onfarm.window"></div>
         </div>
         <div class="col-12">

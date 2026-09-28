@@ -22,7 +22,7 @@
       <div class="order-method-reveal" data-method-body="onfarm" inert>
         <div class="order-method-body order-hform">
           <div class="row">
-            <label class="col-sm-4 col-form-label" for="onfarm-date">Requested pick-up day</label>
+            <label class="col-sm-4 col-form-label" for="onfarm-date">Pickup day</label>
             <div class="col-sm-8">
               <select class="form-select" id="onfarm-date" name="onfarm.date" data-dates="onfarm" data-field="fulfilment.date" disabled aria-describedby="err-onfarm-date">
                 <option value="">Loading dates&hellip;</option>
@@ -31,18 +31,20 @@
             </div>
           </div>
           <div class="row">
-            <span class="col-sm-4 col-form-label" id="onfarm-window-label">Preferred window</span>
+            <span class="col-sm-4 col-form-label" id="onfarm-window-label">Pickup time</span>
             <div class="col-sm-8">
-              <div class="order-radios" role="radiogroup" aria-labelledby="onfarm-window-label" data-field="onfarm.window">
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="radio" name="onfarm.window" id="onfarm-morning" value="morning" checked>
-                  <label class="form-check-label" for="onfarm-morning">Morning</label>
-                </div>
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="radio" name="onfarm.window" id="onfarm-afternoon" value="afternoon">
-                  <label class="form-check-label" for="onfarm-afternoon">Afternoon</label>
-                </div>
+              {{/* The chosen day's windows from the farm's schedule
+                   (/api/dates, W11d), one radio each, from the
+                   template below (order-form.js renderWindows). */}}
+              <div class="order-radios" role="radiogroup" aria-labelledby="onfarm-window-label" data-field="onfarm.window" data-windows>
+                <p class="order-windows-none">Loading times&hellip;</p>
               </div>
+              <template id="tpl-window">
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="onfarm.window">
+                  <label class="form-check-label"></label>
+                </div>
+              </template>
               <div class="invalid-feedback" data-error-for="onfarm.window"></div>
             </div>
           </div>
