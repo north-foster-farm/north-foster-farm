@@ -1721,12 +1721,12 @@ Manual: automatable with a sign-in; not yet written.
   `marketingAt`, and `marketingSource` account.
 - **Teardown:** Delete the customer.
 
-### FN-07 The audience sync
+### FN-07 The segment sync
 
-Pending: `RESEND_AUDIENCE_ID` and `RESEND_AUDIENCE_KEY` are not set.
+Pending: `RESEND_SEGMENT_ID` and `RESEND_AUDIENCE_KEY` are not set.
 
 - **Scenario:** Consent flows to Resend and unsubscribes flow back.
-- **Setup:** A Resend test audience; one consenting and one withdrawn
+- **Setup:** A Resend test segment; one consenting and one withdrawn
   record.
 - **Test:**
   1. `bin/nff --staging audience sync --dry-run`, then without it.

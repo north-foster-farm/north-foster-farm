@@ -6,9 +6,10 @@
 // with an email address may opt in; a record is made for an address
 // that has never ordered.
 //
-// The list itself lives in Resend (an audience), so broadcasts go out
-// with Resend's unsubscribe link. syncAudience keeps the two in step:
-// our record decides who is in, Resend decides who has left.
+// The list itself lives in Resend (a segment of its contacts), so
+// broadcasts go out with Resend's unsubscribe link. syncAudience keeps
+// the two in step: our record decides who is in, Resend decides who
+// has left.
 
 import { createHash, randomBytes } from "node:crypto";
 
@@ -365,13 +366,24 @@ export const parseCsv = (content) => {
   }));
 };
 
-// --- The audience in Resend ----------------------------------------
+// --- The segment in Resend -----------------------------------------
 //
+// Resend's contacts belong to the account, not to a list: the farm-news
+// list is a segment of them (#148). One account serves every
+// environment, so a contact may already exist, in another deploy's
+// segment or none. Its `unsubscribed` flag is the account's too.
 // Resend names its contact fields first_name and last_name.
 /* eslint-disable camelcase */
 
+// RESEND_SEGMENT_ID, or the audience id it replaced: Resend kept each
+// audience's id for the segment made from it.
+export const segmentId = (env = process.env) =>
+  env.RESEND_SEGMENT_ID || env.RESEND_AUDIENCE_ID || "";
+
 export const audienceConfigured = (env = process.env) =>
-  !!(env.RESEND_AUDIENCE_ID && (env.RESEND_AUDIENCE_KEY || env.RESEND_API_KEY));
+  !!(segmentId(env) && (env.RESEND_AUDIENCE_KEY || env.RESEND_API_KEY));
+
+export const PAGE_SIZE = 100;
 
 const resend = async (env, fetchImpl, method, path, body) => {
   const res = await fetchImpl(`https://api.resend.com${path}`, {
@@ -385,18 +397,61 @@ const resend = async (env, fetchImpl, method, path, body) => {
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new Error(`Resend ${res.status} on ${method} ${path}: ${
-      data.message || JSON.stringify(data)}`);
+    throw Object.assign(new Error(`Resend ${res.status} on ${method} ${
+      path}: ${data.message || JSON.stringify(data)}`), { status: res.status });
   }
 
   return data;
 };
 
-// Every contact in the audience. -> [{ id, email, first_name,
-// last_name, unsubscribed }]
-export const listContacts = async (env, fetchImpl = globalThis.fetch) =>
-  (await resend(env, fetchImpl, "GET",
-    `/audiences/${env.RESEND_AUDIENCE_ID}/contacts`)).data || [];
+const contactPath = (email) => `/contacts/${encodeURIComponent(email)}`;
+
+// Every contact in the segment, a page of PAGE_SIZE at a time.
+// `read` makes each call, so the sync can pace them.
+// -> [{ id, email, first_name, last_name, unsubscribed }]
+export const listContacts = async (env, fetchImpl = globalThis.fetch, {
+  read = (path) => resend(env, fetchImpl, "GET", path),
+} = {}) => {
+  const contacts = [];
+  let after = "";
+
+  for (;;) {
+    const page = await read(`/segments/${segmentId(env)}/contacts?limit=${
+      PAGE_SIZE}${after ? `&after=${encodeURIComponent(after)}` : ""}`);
+    const data = page.data || [];
+
+    contacts.push(...data);
+    if (!page.has_more || !data.length) return contacts;
+    after = data[data.length - 1].id;
+  }
+};
+
+// The account's contact at an address, in any segment or none; null
+// when there is none.
+const findContact = async (read, email) => {
+  try {
+    return await read(contactPath(email));
+  } catch (error) {
+    if (error.status === 404) return null;
+    throw error;
+  }
+};
+
+// The address into the segment: a new contact, or one the account
+// already has, which keeps its own `unsubscribed`. `read` and `send`
+// make the calls. -> the existing contact, or null when one was made.
+const addContact = async (env, email, fields, { read, send }) => {
+  const id = segmentId(env);
+  const existing = await findContact(read, email);
+
+  if (existing) {
+    await send("POST", `${contactPath(email)}/segments/${id}`);
+  } else {
+    await send("POST", "/contacts", { email, ...fields, segments: [{ id }] });
+  }
+
+  return existing;
+};
 
 // Our records decide who is in; Resend decides who has left. A record
 // consenting since it last left through Resend (resendLeftAt) overrides
@@ -415,43 +470,54 @@ export const syncAudience = async (stores, {
 } = {}) => {
   if (!audienceConfigured(env)) return { ok: false, reason: "unconfigured" };
 
-  const id = env.RESEND_AUDIENCE_ID;
-  const contacts = await listContacts(env, fetchImpl);
+  // Resend allows two calls a second; reads are made on a dry run too.
+  let first = true;
+  const paced = async () => {
+    if (pace && !first) await sleep(pace);
+    first = false;
+  };
+  const read = async (path) => {
+    await paced();
+
+    return resend(env, fetchImpl, "GET", path);
+  };
+  const send = async (method, path, body) => {
+    if (dryRun) return null;
+    await paced();
+
+    return resend(env, fetchImpl, method, path, body);
+  };
+  const contacts = await listContacts(env, fetchImpl, { read });
   const byEmail = new Map(contacts.map((c) => [normalizeEmail(c.email), c]));
   const report = {
     ok: true, at: now.toISOString(), dryRun,
     created: [], resubscribed: [], unsubscribed: [], optedOut: [],
     imported: [],
   };
-  const call = async (method, path, body) => {
-    if (dryRun) return null;
-    if (pace) await sleep(pace);
-
-    return resend(env, fetchImpl, method, path, body);
-  };
-  const contactPath = (email) =>
-    `/audiences/${id}/contacts/${encodeURIComponent(email)}`;
 
   for (const c of await allCustomers(stores)) {
     const email = normalizeEmail(c.email);
-    const contact = byEmail.get(email);
+    let contact = byEmail.get(email);
     const consented = c.marketing === true;
     const changedAt = c.marketingAt ? Date.parse(c.marketingAt) : 0;
     const leftAt = c.resendLeftAt ? Date.parse(c.resendLeftAt) : 0;
 
     byEmail.delete(email);
 
+    // Into the segment. A contact the account already had keeps its
+    // flag, and an unsubscribe on it is weighed below like any other.
     if (consented && !contact) {
-      await call("POST", `/audiences/${id}/contacts`, {
-        email,
+      contact = await addContact(env, email, {
         first_name: c.firstName || "",
         last_name: c.lastName || "",
         unsubscribed: false,
-      });
+      }, { read, send });
       report.created.push(email);
-    } else if (consented && contact.unsubscribed) {
+    }
+
+    if (consented && contact && contact.unsubscribed) {
       if (leftAt && changedAt > leftAt) {
-        await call("PATCH", contactPath(email), { unsubscribed: false });
+        await send("PATCH", contactPath(email), { unsubscribed: false });
         report.resubscribed.push(email);
       } else {
         if (!dryRun) await resendLeft(stores, email, now.toISOString(), now);
@@ -459,7 +525,7 @@ export const syncAudience = async (stores, {
       }
     } else if (!consented && contact && !contact.unsubscribed) {
       if (c.marketingAt) {
-        await call("PATCH", contactPath(email), { unsubscribed: true });
+        await send("PATCH", contactPath(email), { unsubscribed: true });
         report.unsubscribed.push(email);
       } else {
         if (!dryRun) {
@@ -506,11 +572,12 @@ export const syncAudience = async (stores, {
 
 // One contact moved to a new address with its name and its choice,
 // for `bin/nff customers rename` (#238). Resend can't change a
-// contact's email, so the new one is made and the old one deleted;
-// where the new address is already a contact, that one stays as it
-// is. Left behind, the old contact would come back in the next sync
-// as a sign-up. -> "moved", "none" or "unconfigured"; with `apply`
-// false nothing is written.
+// contact's email, so the new one joins the segment and the old one
+// leaves it; where the new address is already a contact, that one
+// keeps its own choice. The old contact is not deleted: other deploys'
+// segments may hold it. Left in this one, it would come back in the
+// next sync as a sign-up. -> "moved", "none" or "unconfigured"; with
+// `apply` false nothing is written.
 export const moveContact = async (from, to, {
   env = process.env,
   fetchImpl = globalThis.fetch,
@@ -518,8 +585,10 @@ export const moveContact = async (from, to, {
 } = {}) => {
   if (!audienceConfigured(env)) return "unconfigured";
 
-  const id = env.RESEND_AUDIENCE_ID;
-  const contacts = await listContacts(env, fetchImpl);
+  const read = (path) => resend(env, fetchImpl, "GET", path);
+  const send = (method, path, body) =>
+    resend(env, fetchImpl, method, path, body);
+  const contacts = await listContacts(env, fetchImpl, { read });
   const find = (email) =>
     contacts.find((c) => normalizeEmail(c.email) === email);
   const old = find(from);
@@ -527,15 +596,13 @@ export const moveContact = async (from, to, {
   if (!old) return "none";
   if (apply) {
     if (!find(to)) {
-      await resend(env, fetchImpl, "POST", `/audiences/${id}/contacts`, {
-        email: to,
+      await addContact(env, to, {
         first_name: old.first_name || "",
         last_name: old.last_name || "",
         unsubscribed: !!old.unsubscribed,
-      });
+      }, { read, send });
     }
-    await resend(env, fetchImpl, "DELETE",
-      `/audiences/${id}/contacts/${encodeURIComponent(from)}`);
+    await send("DELETE", `${contactPath(from)}/segments/${segmentId(env)}`);
   }
 
   return "moved";

@@ -61,7 +61,7 @@ const USAGE = `Usage:
   bin/nff masquerade <email>          open a sign-in link as them
   bin/nff audience invite <csv> [--dry-run]   the confirmation email,
                                       once, to each address not yet in
-  bin/nff audience sync [--dry-run]   the Resend audience and the
+  bin/nff audience sync [--dry-run]   the Resend segment and the
                                       records, made to agree
   bin/nff schedule check <file>       the pickup schedule, checked as a
                                       deploy checks it (W11d)

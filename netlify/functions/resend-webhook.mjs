@@ -5,12 +5,12 @@
 //   contact.updated   with unsubscribed true: they left through
 //                     Resend's link, so the record is opted out at
 //                     once, not at the next daily sync.
-//   contact.deleted   off the audience, so off the list here too;
+//   contact.deleted   gone from Resend, so off the list here too;
 //                     left alone, the sync would add them back.
 //
 // One Resend account serves every environment, so each receives every
-// contact event; one outside this deploy's RESEND_AUDIENCE_ID is
-// ignored. Resend retries on anything but a 2xx, so an ignored event
+// contact event; one outside this deploy's segment (RESEND_SEGMENT_ID,
+// #148) is ignored. Resend retries on anything but a 2xx, so an ignored event
 // answers 200.
 
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -18,7 +18,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { mark } from "./lib/health.mjs";
 import { json } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
-import { resendLeft } from "./lib/news.mjs";
+import { resendLeft, segmentId } from "./lib/news.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
 // Svix's own tolerance for a delivery's timestamp, either way.
@@ -56,8 +56,7 @@ export const verifyWebhook = (headers, body, {
 };
 
 const inAudience = (contact, env) => {
-  const id = env.RESEND_AUDIENCE_ID;
-
+  const id = segmentId(env);
   const segments = Array.isArray(contact.segment_ids)
     ? contact.segment_ids : [];
 

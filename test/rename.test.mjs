@@ -169,47 +169,79 @@ describe("customers rename (#238)", () => {
 // Resend and Square name their fields in snake case.
 /* eslint-disable camelcase */
 
-// A fetch that answers from a table and remembers what it was asked.
+// A fetch that answers from a table and remembers what it was asked;
+// an answer of null is a 404.
 const fakeFetch = (answer) => {
   const asked = [];
   const fetchImpl = async (url, { method, body } = {}) => {
+    const found = answer(method, url);
+
     asked.push([method, new URL(url).pathname, body && JSON.parse(body)]);
 
-    return new Response(JSON.stringify(answer(method, url)), { status: 200 });
+    return new Response(JSON.stringify(found || { message: "Not found" }),
+      { status: found ? 200 : 404 });
   };
 
   return { asked, fetchImpl };
 };
 
 describe("the rename's outside moves", () => {
-  const resendEnv = { RESEND_AUDIENCE_ID: "aud", RESEND_API_KEY: "k" };
+  const resendEnv = { RESEND_SEGMENT_ID: "seg", RESEND_API_KEY: "k" };
+  // The segment holds `segment`; the account also has `account`.
+  const resendFake = (segment, account = []) => fakeFetch((method, url) => {
+    const { pathname } = new URL(url);
+
+    if (method !== "GET") return {};
+    if (pathname.startsWith("/segments/")) return { data: segment };
+
+    return account.find((c) =>
+      pathname === `/contacts/${encodeURIComponent(c.email)}`) || null;
+  });
+  const leave = ["DELETE", `/contacts/${encodeURIComponent(OLD)}/segments/seg`];
 
   it("Resend: the new contact keeps the old one's choice", async () => {
-    const { asked, fetchImpl } = fakeFetch((method) => (method === "GET"
-      ? { data: [{ email: OLD, first_name: "Pat", unsubscribed: true }] }
-      : {}));
+    const { asked, fetchImpl } = resendFake([
+      { email: OLD, first_name: "Pat", unsubscribed: true },
+    ]);
 
     assert.equal(await moveContact(OLD, NEW, {
       env: resendEnv, fetchImpl,
     }), "moved");
     assert.equal(asked.length, 1);
     await moveContact(OLD, NEW, { env: resendEnv, fetchImpl, apply: true });
-    assert.deepEqual(asked.slice(2).map(([m]) => m), ["POST", "DELETE"]);
-    assert.equal(asked[2][2].email, NEW);
-    assert.equal(asked[2][2].unsubscribed, true);
+    assert.deepEqual(asked.slice(2).map(([m, p]) => [m, p]), [
+      ["GET", `/contacts/${encodeURIComponent(NEW)}`],
+      ["POST", "/contacts"],
+      leave,
+    ]);
+    assert.equal(asked[3][2].email, NEW);
+    assert.equal(asked[3][2].unsubscribed, true);
+    assert.deepEqual(asked[3][2].segments, [{ id: "seg" }]);
   });
 
-  it("Resend: an existing new contact stays; none, or no audience",
+  it("Resend: an existing new contact stays; none, or no segment",
     async () => {
-      const both = fakeFetch((method) => (method === "GET"
-        ? { data: [{ email: OLD }, { email: NEW }] } : {}));
+      const both = resendFake([{ email: OLD }, { email: NEW }]);
 
       await moveContact(OLD, NEW, {
         env: resendEnv, fetchImpl: both.fetchImpl, apply: true,
       });
-      assert.deepEqual(both.asked.map(([m]) => m), ["GET", "DELETE"]);
+      assert.deepEqual(both.asked.map(([m, p]) => [m, p]), [
+        ["GET", "/segments/seg/contacts"], leave,
+      ]);
 
-      const none = fakeFetch(() => ({ data: [] }));
+      const elsewhere = resendFake([{ email: OLD }], [{ email: NEW }]);
+
+      await moveContact(OLD, NEW, {
+        env: resendEnv, fetchImpl: elsewhere.fetchImpl, apply: true,
+      });
+      assert.deepEqual(elsewhere.asked.slice(1).map(([m, p]) => [m, p]), [
+        ["GET", `/contacts/${encodeURIComponent(NEW)}`],
+        ["POST", `/contacts/${encodeURIComponent(NEW)}/segments/seg`],
+        leave,
+      ], "in the account already: joins the segment as it is");
+
+      const none = resendFake([]);
 
       assert.equal(await moveContact(OLD, NEW, {
         env: resendEnv, fetchImpl: none.fetchImpl, apply: true,

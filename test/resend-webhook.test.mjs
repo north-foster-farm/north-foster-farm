@@ -16,7 +16,7 @@ import {
 
 const KEY = Buffer.from("resend-test-signing-key").toString("base64");
 const env = {
-  RESEND_WEBHOOK_SECRET: `whsec_${KEY}`, RESEND_AUDIENCE_ID: "aud",
+  RESEND_WEBHOOK_SECRET: `whsec_${KEY}`, RESEND_SEGMENT_ID: "aud",
 };
 const now = new Date("2026-10-01T12:00:00Z");
 const later = new Date("2026-10-02T12:00:00Z");
@@ -86,7 +86,7 @@ describe("the Resend webhook's signature", () => {
       at: new Date(now.getTime() + TOLERANCE + 1000),
     })), false);
     assert.equal(check({ "svix-id": "msg_1" }), false);
-    assert.equal(check(sign(body), { env: { RESEND_AUDIENCE_ID: "aud" } }),
+    assert.equal(check(sign(body), { env: { RESEND_SEGMENT_ID: "aud" } }),
       false);
   });
 });

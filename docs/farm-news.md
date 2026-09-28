@@ -12,8 +12,8 @@ the old Fastmail list is asked to confirm (James, W1, 2026-09-26:
 "we should only be asking Fastmail contacts to confirm, no double opt
 in on the website including news sign up").
 
-The list itself lives in Resend as an audience, so broadcasts go out
-with Resend's unsubscribe link, and the sync keeps the audience and
+The list itself lives in Resend as a segment, so broadcasts go out
+with Resend's unsubscribe link, and the sync keeps the segment and
 the records in step. James decided this on 2026-09-23 (issue #115):
 Resend is the home, marketing will be light, and segments, when
 wanted, come from our own records.
@@ -50,11 +50,21 @@ click: it opts the record in, dated, source `confirm`, and lands on
 `/news/?news=confirmed` (or `expired`, `invalid`), where the note
 under the field says so. This is the Fastmail list's way in.
 
-## The audience
+## The segment
 
-Set up in Resend: an audience, and an API key with full access (the
-sending keys cannot touch audiences). On Netlify: `RESEND_AUDIENCE_ID`
-and `RESEND_AUDIENCE_KEY` (falls back to `RESEND_API_KEY`).
+Set up in Resend: a segment, and an API key with full access (the
+sending keys cannot touch contacts). On Netlify: `RESEND_SEGMENT_ID`
+(read from the old `RESEND_AUDIENCE_ID` when unset; Resend kept each
+audience's id for the segment made from it) and `RESEND_AUDIENCE_KEY`
+(falls back to `RESEND_API_KEY`).
+
+Resend's contacts belong to the account, not to a segment (#148), and
+one account serves every environment. So a contact the sync adds may
+already exist, in another deploy's segment or none: it joins this
+segment as it is, and an unsubscribe on it counts like any other. The
+`unsubscribed` flag is the account's, so it stops every broadcast to
+that address from every environment. A rename (`bin/nff customers
+rename`) moves the contact out of this segment without deleting it.
 
 ```
 bin/nff --production audience sync [--dry-run]
@@ -63,8 +73,8 @@ bin/nff --production audience sync [--dry-run]
 runs the sync, and the jobs run does it once a day from 05:00. The
 rules, in `syncAudience`:
 
-- Our record decides who is in: a consenting record with no contact
-  is added; a record that withdrew here is unsubscribed there.
+- Our record decides who is in: a consenting record not in the
+  segment is added to it; a record that withdrew here is unsubscribed there.
 - Resend decides who has left: a contact unsubscribed there whose
   record still says yes is opted out here, dated, source `resend`,
   and the time kept as `resendLeftAt`. Only consent given here after
@@ -81,14 +91,14 @@ and `contact.deleted` events, signed with `RESEND_WEBHOOK_SECRET`
 endpoint and secret). A contact that becomes unsubscribed, or is
 deleted, is opted out at once, as the sync would. Every environment
 gets every event from the one account; events outside the deploy's
-`RESEND_AUDIENCE_ID` are ignored.
+segment are ignored.
 
 The last sync's time and counts are under `news/sync` in the jobs
 store; the daily run marks `news/sync/<day>`.
 
 ## Sending
 
-Broadcasts from Resend's editor, to the audience, with the
+Broadcasts from Resend's editor, to the segment, with the
 unsubscribe link Resend inserts. An unsubscribe reaches the record at
 once through the webhook below, or at the next sync if it missed. Template-driven broadcasts from the CLI, and sends to
 a query of the records from the jobs run, can come later; nothing

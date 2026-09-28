@@ -270,22 +270,44 @@ describe("the invitation of an old list", () => {
   });
 });
 
-describe("the audience sync", () => {
-  const audience = { ...env, RESEND_AUDIENCE_ID: "aud", RESEND_API_KEY: "k" };
-  const fake = (contacts) => {
+describe("the segment sync", () => {
+  const audience = { ...env, RESEND_SEGMENT_ID: "seg", RESEND_API_KEY: "k" };
+  // The segment's `contacts`, in pages of `size`; `account` the
+  // contacts Resend has outside it, found by address.
+  const fake = (contacts, { account = [], size = 100 } = {}) => {
     const calls = [];
+    const reply = (status, body) => ({
+      ok: status < 300, status, json: async () => body,
+    });
     const fetchImpl = async (url, init) => {
+      const u = new URL(url);
+
       calls.push({ method: init.method, url, body: init.body
         ? JSON.parse(init.body) : null });
 
-      return {
-        ok: true,
-        json: async () => (init.method === "GET" ? { data: contacts } : {}),
-      };
+      if (init.method !== "GET") return reply(200, {});
+      if (u.pathname.startsWith("/segments/")) {
+        const after = u.searchParams.get("after");
+        const from = after
+          ? contacts.findIndex((c) => c.id === after) + 1 : 0;
+
+        return reply(200, {
+          data: contacts.slice(from, from + size),
+          has_more: from + size < contacts.length,
+        });
+      }
+
+      const found = account.find((c) =>
+        `/contacts/${encodeURIComponent(c.email)}` === u.pathname);
+
+      return found ? reply(200, found)
+        : reply(404, { message: "Contact not found" });
     };
 
     return { calls, fetchImpl };
   };
+  const paths = (calls) => calls.map((c) => [c.method,
+    c.url.replace("https://api.resend.com", "")]);
 
   it("does nothing without an audience", async () => {
     const r = await syncAudience(testStores(), { env });
@@ -331,16 +353,16 @@ describe("the audience sync", () => {
       optedOut: ["gone@example.com"],
       imported: ["hand@example.com"],
     });
-    assert.deepEqual(calls.map((c) => [c.method, c.url.replace(
-      "https://api.resend.com", "")]), [
-      ["GET", "/audiences/aud/contacts"],
-      ["PATCH", "/audiences/aud/contacts/left%40example.com"],
-      ["POST", "/audiences/aud/contacts"],
+    assert.deepEqual(paths(calls), [
+      ["GET", "/segments/seg/contacts?limit=100"],
+      ["PATCH", "/contacts/left%40example.com"],
+      ["GET", "/contacts/new%40example.com"],
+      ["POST", "/contacts"],
     ], "records in key order: the withdrawn one first");
     assert.deepEqual(calls[1].body, { unsubscribed: true });
-    assert.deepEqual(calls[2].body, {
+    assert.deepEqual(calls[3].body, {
       email: "new@example.com", first_name: "Pat", last_name: "Example",
-      unsubscribed: false,
+      unsubscribed: false, segments: [{ id: "seg" }],
     });
     assert.equal((await getCustomer(stores, "gone@example.com")).marketing,
       false, "unsubscribed in Resend, opted out here");
@@ -432,8 +454,73 @@ describe("the audience sync", () => {
     });
 
     assert.deepEqual(r.created, ["new@example.com"]);
-    assert.equal(calls.length, 1, "only the listing");
+    assert.deepEqual(paths(calls).map(([m]) => m), ["GET", "GET"],
+      "only reads: the listing and the lookup");
     assert.equal(await stores.jobs.get(SYNC_KEY), null);
+  });
+
+  it("reads every page of the segment", async () => {
+    const stores = testStores();
+    const contacts = ["a", "b", "c", "d", "e"].map((n) => ({
+      id: `id-${n}`, email: `${n}@example.com`, unsubscribed: false,
+    }));
+    const { calls, fetchImpl } = fake(contacts, { size: 2 });
+
+    const r = await syncAudience(stores, {
+      env: audience, fetchImpl, now, pace: 0,
+    });
+
+    assert.equal(r.imported.length, 5);
+    assert.deepEqual(paths(calls).map(([, p]) => p), [
+      "/segments/seg/contacts?limit=100",
+      "/segments/seg/contacts?limit=100&after=id-b",
+      "/segments/seg/contacts?limit=100&after=id-d",
+    ]);
+  });
+
+  it("adds a contact Resend already has to the segment, keeping its " +
+    "unsubscribe", async () => {
+    const stores = testStores();
+    const { calls, fetchImpl } = fake([], {
+      account: [
+        { id: "k1", email: "known@example.com", unsubscribed: false },
+        { id: "k2", email: "off@example.com", unsubscribed: true },
+      ],
+    });
+
+    await saveCustomer(stores, customer("known@example.com", {
+      marketing: true, marketingAt: now.toISOString(),
+    }));
+    await saveCustomer(stores, customer("off@example.com", {
+      marketing: true, marketingAt: now.toISOString(),
+    }));
+
+    const r = await syncAudience(stores, {
+      env: audience, fetchImpl, now, pace: 0,
+    });
+
+    assert.deepEqual(paths(calls).slice(1), [
+      ["GET", "/contacts/known%40example.com"],
+      ["POST", "/contacts/known%40example.com/segments/seg"],
+      ["GET", "/contacts/off%40example.com"],
+      ["POST", "/contacts/off%40example.com/segments/seg"],
+    ], "no new contact, and no change to either one's flag");
+    assert.deepEqual(r.created, ["known@example.com", "off@example.com"]);
+    assert.deepEqual(r.optedOut, ["off@example.com"]);
+    assert.equal((await getCustomer(stores, "off@example.com")).marketing,
+      false, "unsubscribed in Resend, opted out here");
+  });
+
+  it("reads the old audience id as the segment's", async () => {
+    const { calls, fetchImpl } = fake([]);
+
+    await syncAudience(testStores(), {
+      env: { ...env, RESEND_AUDIENCE_ID: "aud", RESEND_API_KEY: "k" },
+      fetchImpl, now, pace: 0,
+    });
+    assert.deepEqual(paths(calls), [
+      ["GET", "/segments/aud/contacts?limit=100"],
+    ]);
   });
 });
 

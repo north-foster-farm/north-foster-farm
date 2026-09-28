@@ -21,7 +21,7 @@
 //               and a warning when the pickup schedule runs short
 //   tomorrow    18:00 daily, always: every order due tomorrow, by
 //               method, with what to pack and where it goes
-//   audience    once a day from 05:00: the farm-news audience in Resend
+//   audience    once a day from 05:00: the farm-news segment in Resend
 //               and the records made to agree
 //   health      each run ends with invariant checks, a ledger line,
 //               alerts for what went wrong, and a heartbeat ping
@@ -196,8 +196,8 @@ export const runJobs = async (stores, {
     () => morningReport(stores, { env, mail, now, fetchImpl }))) || [];
   report.tomorrow = await attempt(null, "tomorrowReport",
     () => tomorrowReport(stores, { env, mail, now }));
-  // Farm news: once a day the audience in Resend and the records are
-  // made to agree. Null when there is no audience to sync.
+  // Farm news: once a day the segment in Resend and the records are
+  // made to agree. Null when there is no segment to sync.
   report.audience = await attempt(null, "audienceSync",
     () => audienceSyncDaily(stores, { env, now, fetchImpl }));
 
@@ -228,7 +228,7 @@ export const runJobs = async (stores, {
   return report;
 };
 
-// Farm news, once a day from AUDIENCE_SYNC_HOUR: the audience in Resend
+// Farm news, once a day from AUDIENCE_SYNC_HOUR: the segment in Resend
 // and the records made to agree (lib/news.mjs). -> the counts, or null
 // when nothing was done this run.
 const AUDIENCE_SYNC_HOUR = 5;
