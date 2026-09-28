@@ -329,7 +329,7 @@ test.describe("map (#138)", () => {
     async ({ page }) => {
       await page.goto(HOME.path);
       await expect(page.locator(HOME.input))
-        .toHaveAttribute("autocomplete", "postal-code");
+        .toHaveAttribute("autocomplete", "off");
       await expect(dropPin(page)).toBeHidden();
 
       // The tag: the town, an egg and a hen, and the delivery fee.
@@ -621,7 +621,7 @@ test.describe("map (#138)", () => {
 
     const input = page.locator("[data-zip-check] input").first();
 
-    await expect(input).toHaveAttribute("autocomplete", "postal-code");
+    await expect(input).toHaveAttribute("autocomplete", "off");
     await input.fill("02857");
     await input.press("Enter");
     await expect(dropPin(page)).toBeVisible();

@@ -24,7 +24,7 @@
     {{ end }}
     <div class="zip-check-field">
       <label class="visually-hidden" for="{{ $id }}-input">ZIP code</label>
-      <input class="form-control" type="text" id="{{ $id }}-input" name="zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="ZIP" aria-describedby="{{ $id }}-result">
+      <input class="form-control" type="text" id="{{ $id }}-input" name="zip" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="ZIP" aria-describedby="{{ $id }}-result">
     </div>
   </div>
   <p class="zip-check-result mt-2 mb-0" id="{{ $id }}-result" data-zip-result role="status" aria-live="polite"></p>
