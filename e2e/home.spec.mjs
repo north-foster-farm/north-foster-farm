@@ -590,8 +590,11 @@ test.describe("home", () => {
     test("header links ease in a gray border without changing size",
       async ({ page }) => {
         const shop = page.locator("#how-to-buy .how-cta .btn");
+        // Sign in is an outline button like Order, not a link (#238).
         const links = [
-          [1500, page.locator("header .site-nav-link:visible").first()],
+          [1500, page.locator(
+            "header .site-nav-link:not(.site-signin):visible"
+          ).first()],
           [390, page.locator("header .site-toggle")],
         ];
 
