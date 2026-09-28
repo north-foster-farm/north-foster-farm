@@ -190,7 +190,9 @@ $btn-hover-border-tint-amount:    12%;
 // Forms
 $form-label-font-size:                  $small-font-size;
 
-$input-border-color:                    $gray-100;
+// A shade darker than $light, the footer's ground, so a field's edge
+// shows there and it stands as tall as the button beside it (#201).
+$input-border-color:                    $gray-200;
 
 $form-feedback-valid-color:         $gray-100;
 
