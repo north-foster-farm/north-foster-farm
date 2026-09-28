@@ -55,6 +55,34 @@ test.describe("history downloads (#165)", () => {
     ]);
   });
 
+  test.describe("in New York", () => {
+    test.use({ timezoneId: "America/New_York" });
+
+    test("an evening order is dated that day, not the UTC one",
+      async ({ page }) => {
+        // 9:30 PM on the 26th in New York is 01:30 UTC on the 27th.
+        const late = {
+          ...ORDER, submittedAt: "2026-09-27T01:30:00.000Z",
+          payments: [{ ...ORDER.payments[0], at: "2026-09-27T01:30:05.000Z" }],
+        };
+
+        await signedIn(page);
+        await page.route("**/api/account/orders", (route) => route.fulfill({
+          json: { orders: [late] },
+        }));
+        await page.goto("/account/#orders");
+
+        const orders = await save(page, "Download all orders (CSV)");
+
+        expect(orders.rows[1]).toMatch(new RegExp(`^${ORDER.id},2026-09-26,`));
+        await page.goto("/account/#receipts");
+
+        const receipts = await save(page, "Download all receipts (CSV)");
+
+        expect(receipts.rows[1]).toMatch(/^2026-09-26,/);
+      });
+  });
+
   test("neither button shows with no orders", async ({ page }) => {
     await page.route("**/api/me", (route) => route.fulfill({
       json: { signedIn: true, customer: CUSTOMER },
