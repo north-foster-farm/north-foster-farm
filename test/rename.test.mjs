@@ -63,6 +63,7 @@ const seed = async () => {
   await stores.auth.set("unsub/u1", { email: OLD });
   await stores.auth.set("news/n1", { email: OLD });
   await stores.customers.set(`support/${OLD}/m1`, { message: "Hi" });
+  await stores.customers.set(`cart/${OLD}`, { payload: null, savedAt: 1 });
 
   return stores;
 };
@@ -113,6 +114,10 @@ describe("customers rename (#238)", () => {
     assert.equal(await stores.customers.get(`support/${OLD}/m1`), null);
     assert.deepEqual(await stores.customers.get(`support/${NEW}/m1`),
       { message: "Hi" });
+    // The cart carried across devices goes with it (#149).
+    assert.equal(await stores.customers.get(`cart/${OLD}`), null);
+    assert.deepEqual(await stores.customers.get(`cart/${NEW}`),
+      { payload: null, savedAt: 1 });
     assert.deepEqual(calls.filter(([, , , apply]) => apply).map(([s]) => s),
       ["resend", "square"]);
   });

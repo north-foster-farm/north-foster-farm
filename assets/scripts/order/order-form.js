@@ -21,6 +21,7 @@ import { Pending } from "./pending.js";
 import { Stock } from "./stock.js";
 import { Submitter } from "./submit.js";
 import { announceCart } from "../cart-badge/announce.js";
+import { pullCart } from "../session/cart-sync.js";
 import { me } from "../session/session.js";
 import { api } from "../utils/api.js";
 import { setBusy as spin } from "../utils/busy-button.js";
@@ -120,7 +121,7 @@ export class OrderForm {
     this.group = null;
   }
 
-  start() {
+  async start() {
     if (this.editId) {
       this.startEdit();
 
@@ -132,6 +133,9 @@ export class OrderForm {
     // Nothing is retried in the background any more (#154); an order
     // an older page left to retry is forgotten, its draft kept.
     this.draft.clearPending();
+
+    // A signed-in customer's cart may be newer on another device (#149).
+    await pullCart();
 
     const draft = this.draft.load();
 

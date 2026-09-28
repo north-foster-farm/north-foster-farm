@@ -8,6 +8,7 @@ import { randomBytes } from "node:crypto";
 
 import avatars from "../../../data/avatars.json" with { type: "json" };
 import terms from "../../../data/delivery.json" with { type: "json" };
+import { cartOf } from "../../../assets/scripts/order/lib/cart-sync.mjs";
 import { datesFor } from "../../../assets/scripts/order/lib/dates.mjs";
 import {
   phoneOk, zipInfo,
@@ -21,8 +22,8 @@ import { notifyFarm, sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { pickupSchedule } from "./pickups.mjs";
 import {
-  REMINDERS, amendOrder, answerQuestion, getOrder, keptFee, ordersFor,
-  paidTotal, paymentRef, paymentsOf, questionOpen, refundedTotal,
+  REMINDERS, amendOrder, answerQuestion, cartKey, getOrder, keptFee,
+  ordersFor, paidTotal, paymentRef, paymentsOf, questionOpen, refundedTotal,
   reminderPrefs, saveCustomer, settledRefunds,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
@@ -431,6 +432,46 @@ export const saveAddress = async (stores, customer, address, {
   }
 
   return { ok: true, customer: saved };
+};
+
+// The cart the customer carries across devices (#149): the account's
+// copy, or null when it has never had one.
+export const getCart = async (stores, customer) => ({
+  ok: true,
+  cart: (await stores.customers.get(cartKey(customer.email))) || null,
+});
+
+// A device's copy, kept unless the account's is newer; either way the
+// answer is the copy that stands, and `kept` says whether it is this
+// one. No payload means the cart was cleared. A time ahead of the
+// server's clock is brought back to it, and the device takes that time
+// as its own, so a fast clock cannot win every race after.
+export const saveCart = async (stores, customer, body, {
+  now = new Date(),
+} = {}) => {
+  const b = body && typeof body === "object" ? body : {};
+  const savedAt = Number(b.savedAt);
+
+  if (!Number.isFinite(savedAt) || savedAt <= 0) {
+    return fail(422, { savedAt: "When was this cart saved?" });
+  }
+  if (b.payload !== null && typeof b.payload !== "object") {
+    return fail(422, { payload: "Expected a cart." });
+  }
+
+  const key = cartKey(customer.email);
+  const stored = await stores.customers.get(key);
+  const at = Math.min(savedAt, now.getTime());
+
+  if (stored && stored.savedAt >= at) {
+    return { ok: true, cart: stored, kept: false };
+  }
+
+  const cart = { payload: b.payload ? cartOf(b.payload) : null, savedAt: at };
+
+  await stores.customers.set(key, cart);
+
+  return { ok: true, cart, kept: true };
 };
 
 // A return or problem report on an order. The farm answers by email

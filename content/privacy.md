@@ -20,7 +20,8 @@ send that to Square, which records your order and takes card and wallet
 payments. Venmo payments go through PayPal. We never see your card number.
 
 While you fill out the form, a draft is kept in your browser until you
-place your order. It never leaves your device.
+place your order. When you're signed in, your account keeps a copy too, so
+the same cart is waiting on your other devices.
 
 If you write to us through the contact page or your account, we keep your
 message with your name and email address and email it to the farm, so we can
@@ -38,8 +39,8 @@ for {{< fact "accounts" "orderLinkDays" >}} days.
 Signing in keeps you signed in on that browser for
 {{< fact "accounts" "sessionDays" >}} days, or until you sign out. Your
 account holds your name, phone number, delivery address and drop-off notes,
-the picture you chose, your email settings, your orders and the
-messages you have sent us from it.
+the picture you chose, your email settings, your orders, the order you're
+filling out and the messages you have sent us from it.
 
 ### Farm news
 

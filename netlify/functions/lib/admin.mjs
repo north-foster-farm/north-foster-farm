@@ -12,10 +12,10 @@ import * as newsApi from "./news.mjs";
 import { recordRefund, sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
-  OPEN, allCustomers, allOrders, amendOrder, byEmailKey, deleteCustomer,
-  deleteOrder, getCustomer, getOrder, keptFee, listCheckouts, ordersFor,
-  paidTotal, paymentRef, paymentsOf, refundedTotal, saveCustomer, setStatus,
-  settledRefunds,
+  OPEN, allCustomers, allOrders, amendOrder, byEmailKey, cartKey,
+  deleteCustomer, deleteOrder, getCustomer, getOrder, keptFee, listCheckouts,
+  ordersFor, paidTotal, paymentRef, paymentsOf, refundedTotal, saveCustomer,
+  setStatus, settledRefunds,
 } from "./records.mjs";
 import { mailLinks } from "./site.mjs";
 import * as squareApi from "./square.mjs";
@@ -150,6 +150,9 @@ export const renameCustomer = async (stores, from, to, {
       await stores.auth.set(key, { ...value, email: next });
     }
   }
+  const cart = await stores.customers.get(cartKey(old));
+
+  if (cart) await stores.customers.set(cartKey(next), cart);
   await deleteCustomer(stores, old);
   await outside("resend", () => news.moveContact(old, next, {
     env, fetchImpl, apply: true,

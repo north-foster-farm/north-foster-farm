@@ -353,6 +353,9 @@ export const dropMadeCustomer = (stores, id) =>
 // phone, avatar or address.
 export const customerKey = (email) => `customer/${emailKey(email)}`;
 
+// The cart a signed-in customer carries across devices (#149).
+export const cartKey = (email) => `cart/${emailKey(email)}`;
+
 // Which reminder emails a customer takes. On unless the record says
 // otherwise, so a customer who never visited the settings tab, or a
 // record from before the setting existed, keeps getting them; the
@@ -427,5 +430,7 @@ export const allCustomers = async (stores) => {
   return customers.filter(Boolean);
 };
 
-export const deleteCustomer = (stores, email) =>
-  stores.customers.delete(customerKey(email));
+export const deleteCustomer = async (stores, email) => {
+  await stores.customers.delete(customerKey(email));
+  await stores.customers.delete(cartKey(email));
+};
