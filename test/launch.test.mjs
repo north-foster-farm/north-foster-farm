@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import email from "../data/emails/launch-email.json" with { type: "json" };
 import {
-  FACTS, fill, launchEmail,
+  FACTS, fill, launchEmail, span,
 } from "../netlify/functions/lib/launch.mjs";
 
 describe("launch email", () => {
@@ -19,11 +19,18 @@ describe("launch email", () => {
         "starting October 17",
       "Village Green, 46 Institute Lane, North Scituate, in the same",
       "from $5 off orders of $50 up to $20 off orders of $200",
+      "Click it within a week and you're on the new list",
     ]) assert.ok(body.includes(line), line);
   });
 
   it("keeps the facts out of the words", () => {
-    assert.doesNotMatch(email.body, /\$\d|Thursday|Institute Lane|Killingly/);
+    assert.doesNotMatch(email.body,
+      /\$\d|Thursday|Institute Lane|Killingly|a week/);
+  });
+
+  it("words the invite's life in days unless it is a week", () => {
+    assert.equal(span(7), "a week");
+    assert.equal(span(10), "10 days");
   });
 
   it("follows the data when it changes", () => {

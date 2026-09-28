@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 
 import { dayName } from "../../assets/scripts/order/lib/zoned.mjs";
 import { TTL as sessionCacheTtl } from "../../assets/scripts/session/cache.js";
+import { span } from "../../netlify/functions/lib/launch.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const json = (path) => JSON.parse(readFileSync(join(ROOT, path), "utf8"));
@@ -113,6 +114,7 @@ export const knownFacts = () => {
   add("session", a, `${accounts.sessionDays} days`);
   add("session cache", a, `${accounts.sessionCacheMinutes} minutes`);
   add("news invite", a, `${accounts.newsInviteDays} days`);
+  add("news invite", a, `within ${span(accounts.newsInviteDays)}`);
 
   const m = "data/markets.json";
   for (const market of markets) {

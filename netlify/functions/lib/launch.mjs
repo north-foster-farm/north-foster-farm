@@ -7,6 +7,7 @@
 import email from "../../../data/emails/launch-email.json" with {
   type: "json",
 };
+import accounts from "../../../data/accounts.json" with { type: "json" };
 import company from "../../../data/company.json" with { type: "json" };
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { dayName } from "../../../assets/scripts/order/lib/zoned.mjs";
@@ -26,6 +27,9 @@ const monthDay = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString(
 
 // "10:00 AM – 4:00 PM" -> ["10:00 AM", "4:00 PM"]
 const ends = (window) => window.split(/\s*–\s*/);
+
+// 7 -> "a week", 3 -> "3 days": the email says it in words.
+export const span = (days) => (days === 7 ? "a week" : `${days} days`);
 
 const { money, delivery, scituate } = terms;
 const tiers = money.bulkTiers;
@@ -50,6 +54,8 @@ export const FACTS = {
   bulkFirstAt: dollars(tiers[0].threshold),
   bulkLastOff: dollars(tiers.at(-1).off),
   bulkLastAt: dollars(tiers.at(-1).threshold),
+  // How long the sign-up email's button works (news.mjs CONFIRM_TTL).
+  inviteLife: span(accounts.newsInviteDays),
 };
 
 export const fill = (text, facts = FACTS) =>
