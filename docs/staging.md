@@ -22,7 +22,7 @@ Unset means production: bare store names, no staging endpoints.
   preview never lands beside a real one. `bin/nff --staging` and
   `bin/nff --preview` reach those stores, and read `.env.staging` or
   `.env.preview` (never `.env`) for the sandbox token and location,
-  `MAIL_DRIVER=outbox` and the deploy's `SITE_URL`, so a confirm or
+  `MAIL_DRIVER=outbox` and the deploy's `SITE_URL`, so a cancel or
   a refund from the terminal meets the same sandbox and its email
   lands in the toolbar's inbox.
 - **Mail.** `MAIL_DRIVER=outbox` on the non-production contexts:
