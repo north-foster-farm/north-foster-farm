@@ -16,9 +16,8 @@ featured: "images/linus-featured.jpg"
 to see our catalog, which includes everything we bring to market, from
 eggs by the dozen to whole chickens, sausage, and every cut in between.
 
-**The way it works:** choose what you’d like, pick how you want to
-receive it, and pay by card, Apple Pay, Google Pay, Cash App Pay or
-Venmo. Order placed and confirmation in your inbox in no time.
+You pay when you order, so there’s nothing to settle at pickup
+or on delivery.
 
 There are three ways to get your order:
 
@@ -27,8 +26,7 @@ There are three ways to get your order:
 - We deliver every week on Thursday
 - Order by noon on Wednesday
 - As affordable as possible: $40 minimum, $5 fee
-
-{{< delivery-cta >}}
+- [Check your ZIP code](/#map)
 
 **On-farm pickup**
 
@@ -48,10 +46,7 @@ will continue to lay for us all year round. We aim to keep you fully
 supplied from here all the way to next market season.
 
 This is the first version of our online ordering system, and we want
-to hear how it works for you. If anything is confusing, or something
-you want isn’t there, or you run into any problems, feel free to reach
-out at [sales@northfosterfarm.com][email].
+to hear how it works for you. [Get in touch](/contact/) if you run into
+any problems.
 
-— The NFF team
-
-[email]: mailto:sales@northfosterfarm.com?subject=Online%20ordering
+{{< sign-off "James and Jim" >}}

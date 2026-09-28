@@ -1,6 +1,7 @@
 {{/* News and updates: the post marked home: true, or else the newest,
      published here in full. The post's own page under /news/ stays
-     its canonical home, and the title links to it. Draft wording for
+     its canonical home, and the title links to it. The link to more
+     news sits below the card, outside the post. Draft wording for
      James (#136). */}}
 {{ $news := where site.RegularPages "Section" "news" }}
 {{ $post := index (where $news "Params.home" true).ByDate.Reverse 0 }}
@@ -21,11 +22,13 @@
                 {{ .Date | time.Format "January 2, 2006" }}
               </time>
               {{ .Content }}
-              <p class="text-center mt-5 mb-0">
-                <a class="btn btn-outline-primary" href="{{ relURL "news/" }}">More news and updates</a>
-              </p>
             </div>
           </article>
+          {{/* Outside the card: a link onward is not part of the post
+               (#211). */}}
+          <p class="text-center mt-4 mt-md-5 mb-0">
+            <a class="btn btn-outline-primary" href="{{ relURL "news/" }}">More news and updates</a>
+          </p>
         </div>
       </div>
     </div>
