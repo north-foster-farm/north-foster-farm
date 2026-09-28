@@ -38,7 +38,7 @@ There are three ways to get your order:
 - Back on Saturday mornings in Scituate, starting October 17
 - Pick up your order for free
 
-{{< figure src="images/sunset.jpg"
+{{< figure src="images/sunset.jpg" shape="band"
   alt="Streaks of orange cloud at sunset over the tree line" />}}
 
 Our freezers are fully stocked, and our hens, although slowing down,

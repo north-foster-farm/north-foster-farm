@@ -8,7 +8,9 @@
     caption  Caption text displayed beneath the image (optional)
     classes  Additional classes for the figure element (optional)
     frame    Frame the photo (optional, default true)
-    shape    "egg" clips the photo to the egg and drops the frame
+    shape    "egg" clips the photo to the egg and drops the frame;
+             "band" crops it to a strip, square-cornered and
+             unshadowed, that runs to the edges of its container
              (optional)
     lazy     Lazy-load the image (optional, default true)
 */}}
@@ -18,14 +20,15 @@
 {{ $caption := .caption }}
 {{ $classes := .classes }}
 {{ $egg := eq .shape "egg" }}
-{{ $frame := and (.frame | default true) (not $egg) }}
+{{ $band := eq .shape "band" }}
+{{ $frame := and (.frame | default true) (not $egg) (not $band) }}
 {{ $lazy := .lazy | default true }}
 
-<figure class="figure d-block{{ if not $egg }} mx-auto{{ end }}{{ if $egg }} figure-egg{{ end }}{{ with $classes }} {{ . }}{{ end }}">
+<figure class="figure d-block{{ if not (or $egg $band) }} mx-auto{{ end }}{{ if $egg }} figure-egg{{ end }}{{ if $band }} figure-band{{ end }}{{ with $classes }} {{ . }}{{ end }}">
   <img src="{{ $image.RelPermalink }}"
     width="{{ $image.Width }}" height="{{ $image.Height }}"
     alt="{{ $alt }}"
-    class="figure-img img-fluid d-block {{ if $frame }}rounded-3 shadow-sm mb-0{{ else if $egg }}figure-egg-img mb-2{{ else }}rounded-4 mb-1{{ end }}"
+    class="figure-img img-fluid d-block {{ if $frame }}rounded-3 shadow-sm mb-0{{ else if $egg }}figure-egg-img mb-2{{ else if $band }}figure-band-img mb-0{{ else }}rounded-4 mb-1{{ end }}"
     {{- if $lazy }} loading="lazy"{{ end }} />
   {{ with $caption }}
     <figcaption class="figure-caption text-center fst-italic px-3 pt-2">

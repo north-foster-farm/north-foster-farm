@@ -12,12 +12,20 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
 
   // The post: eyebrow, title and date centred above it, the title a
   // link to the post's own page. A little more side padding on large
-  // screens.
+  // screens. A band photo in the post bleeds by the same padding, out
+  // to the frame.
   .home-update-card {
+    --figure-band-bleed: 1rem;
+
+    padding-inline: var(--figure-band-bleed);
     background-color: #fcfcfc;
 
+    @media (min-width: 576px) {
+      --figure-band-bleed: 3rem;
+    }
+
     @media (min-width: 992px) {
-      padding-inline: 3.25rem !important;
+      --figure-band-bleed: 3.25rem;
     }
   }
 

@@ -29,3 +29,20 @@
     margin: 0.25rem 0 1rem 2rem;
   }
 }
+
+// The band: a wide photograph as a pause between sections, not an
+// object on the page (#211). Square, unshadowed, cropped to a strip,
+// and pulled out past the text by --figure-band-bleed, which a frame
+// sets to its own side padding so the strip meets it. The crop sits a
+// little below centre, keeping the cloud streaks and the tree line;
+// James sets the final value.
+.figure-band {
+  margin-inline: calc(-1 * var(--figure-band-bleed, 0px));
+
+  .figure-band-img {
+    width: 100%;
+    aspect-ratio: 5.4 / 1;
+    object-fit: cover;
+    object-position: 50% 55%;
+  }
+}
