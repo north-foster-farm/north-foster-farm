@@ -143,6 +143,7 @@ describe("verifyToken", () => {
 
     assert.deepEqual(await verifyToken(stores, token, { now: soon }), {
       ok: true, email: "pat@example.com", next: "/account/orders/",
+      changeFrom: null,
     });
     assert.equal((await verifyToken(stores, token, { now: soon })).reason,
       "unknown", "second use fails");

@@ -10,6 +10,7 @@ import {
   endSession, normalizeEmail, publicCustomer, requestLink, safeNext, sameSite,
   sessionFrom, stampHeader, tokenEmail, verifyToken,
 } from "./lib/auth.mjs";
+import { finishEmailChange } from "./lib/email-change.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
@@ -45,6 +46,7 @@ export const handle = async (req, {
   now = clock(),
   ip = "",
   mail,
+  fetchImpl,
 } = {}) => {
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/+$/, "");
@@ -94,6 +96,16 @@ export const handle = async (req, {
 
     if (!result.ok) {
       return redirect(`/login/?error=${result.reason}`);
+    }
+
+    // A link to a new address moves the account first (#240); the
+    // move ends the old address's sessions, so this one starts fresh.
+    if (result.changeFrom) {
+      const moved = await finishEmailChange(stores, result, {
+        now, env, mail, fetchImpl,
+      });
+
+      if (!moved.ok) return redirect(`/login/?error=${moved.reason}`);
     }
 
     const session = await createSession(stores, result.email, {
