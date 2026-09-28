@@ -288,8 +288,8 @@ describe("the monitoring emails", () => {
     has(m.text, "A failed payment left 1 order open in Square, and the " +
         "sweep cancelled it. To see it:");
     has(m.text, "\n    bin/nff jobs square\n");
-    has(m.text, "A checkout made 2 customer profiles in Square for a " +
-        "payment that never went through. To see them:");
+    has(m.text, "Checkouts whose payment never went through made 2 " +
+        "customer profiles in Square. To see them:");
     has(m.text, "\n    bin/nff jobs customers\n");
     has(m.text, "We couldn't keep these pickup times and the customer " +
         "hasn't chosen another yet, oldest order first.");

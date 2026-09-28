@@ -533,8 +533,9 @@ const run = async () => {
         c.error ? `error: ${c.error}` : c.deleted ? "deleted" : "unpaid"}`);
     }
 
-    return out(`${found.length} made for a payment that never succeeded${
-      apply ? "" : " (a report; --apply deletes them)"}.`);
+    return out(`${found.length} profiles made for payments that never ` +
+      `went through.${apply ? "" : " This is only a report; --apply " +
+      "deletes them."}`);
   }
   case "jobs history": {
     const n = Number(flags.n) || 20;

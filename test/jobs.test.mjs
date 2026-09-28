@@ -888,8 +888,8 @@ describe("Square profiles a failed checkout made (#236)", () => {
 
     const [report] = sent.filter((m) => /Morning report/.test(m.subject));
 
-    assert.ok(report.text.includes("A checkout made 1 customer profile " +
-      "in Square for a payment that never went through. To see them:"),
+    assert.ok(report.text.includes("Checkouts whose payment never went " +
+      "through made 1 customer profile in Square. To see it:"),
     report.text);
     assert.match(report.text, /\n {4}bin\/nff jobs customers\n/);
   });
