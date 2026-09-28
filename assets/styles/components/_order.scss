@@ -340,10 +340,12 @@
     font-size: 0.8125rem;
   }
 
+  // A long note wraps without leaving one word alone on its line.
   .order-item-price {
     grid-area: price;
     color: var(--bs-secondary-color);
     font-variant-numeric: tabular-nums;
+    text-wrap: pretty;
   }
 
   .order-item-unit {
