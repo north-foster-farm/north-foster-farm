@@ -79,8 +79,7 @@ cancel it, refund your items and email you to say so.
 If we couldn't complete a delivery because there was no cooler out, no
 access to the address you gave us, or no way to find the address as
 you gave it, we keep the delivery fee. A second delivery attempt the
-following Thursday is charged the fee again. A delivery we miss
-ourselves, or because of the weather, never costs you the fee.
+following Thursday is charged the fee again.
 
 Once it's delivered, it's in your care.
 
