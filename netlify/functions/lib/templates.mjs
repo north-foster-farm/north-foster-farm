@@ -783,12 +783,13 @@ export const newsWelcome = (who, unsubscribeUrl, { links } = {}) => {
   const blocks = [
     p(name ? `Hi ${name},` : "Hi,"),
     p("Thanks for signing up. You're on our farm news list."),
-    p("About once a month, we'll email you what's happening on the " +
+    p("Every now and then, we'll email you what's happening on the " +
       "farm: what's in stock, where to find us, and news from the " +
-      "pasture. Nothing else, and we never share your address."),
+      "pasture. We hope it goes without saying, but we will never " +
+      "sell or give out your address."),
     {
       text: "Don't want these after all? Unsubscribe here: " +
-        `${unsubscribeUrl}\nOne click and you're off.`,
+        `${unsubscribeUrl}. One click and you're off.`,
       html: "<p>Don't want these after all? " +
         `<a href="${escape(unsubscribeUrl)}" style="color:${GREEN}">` +
         "Unsubscribe here</a>. One click and you're off.</p>",

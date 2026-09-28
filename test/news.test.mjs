@@ -80,7 +80,7 @@ describe("a sign-up on the site", () => {
 
     await subscribe(stores, { email: "pat@example.com" }, { now, env, mail });
 
-    const token = new URL(sent[0].text.match(/https:\S+unsubscribe=\S+/)[0])
+    const token = new URL(sent[0].text.match(/https:\S+unsubscribe=[\w-]+/)[0])
       .searchParams.get("unsubscribe");
 
     assert.deepEqual(await unsubscribe(stores, token, { now: later }),
@@ -509,11 +509,12 @@ describe("the welcome email", () => {
 
     assert.equal(m.subject, "You're on the North Foster Farm list");
     assert.ok(m.text.includes("Hi Pat,\nThanks for signing up. You're on " +
-      "our farm news list.\nAbout once a month, we'll email you what's " +
+      "our farm news list.\nEvery now and then, we'll email you what's " +
       "happening on the farm: what's in stock, where to find us, and news " +
-      "from the pasture. Nothing else, and we never share your address." +
-      `\nDon't want these after all? Unsubscribe here: ${url}\nOne click ` +
-      "and you're off.\n— James and Jim"), m.text);
+      "from the pasture. We hope it goes without saying, but we will " +
+      "never sell or give out your address.\nDon't want these after " +
+      `all? Unsubscribe here: ${url}. One click and you're off.\n` +
+      "— James and Jim"), m.text);
     assert.match(m.html, /<a href="https:\/\/x\/news\/\?unsubscribe=t"/);
     assert.match(newsWelcome({}, url, {}).text, /^Hi,$/m);
   });

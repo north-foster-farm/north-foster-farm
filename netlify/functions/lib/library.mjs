@@ -595,6 +595,10 @@ const APPROVED = {
   "order-cancelled-hold-fee-kept": `${C4} Sent by the job that ends ` +
     "the hold, still to build (#193).",
   "order-cancelled-hold-full-refund": `${C4} As above.`,
+  "news-welcome": "James\x27s rewrite on #233 (T6a, 2026-09-28), " +
+    "verbatim; the sign-off takes the dash (#211). The link takes them " +
+    "off in one click, with no sign-in, and turns off the account " +
+    "setting at once (T6c).",
 };
 
 // Rewrites of 2026-09-26 that have landed come back here to approve,
@@ -621,9 +625,6 @@ const WAITING = {
     "and the Total line what was paid.",
   "order-changed-refunded": `${T4} Its refund line he kept (T3).`,
   "farm-order-changed": `He approved it on 2026-09-26; since then ${T4}`,
-  "news-welcome": "His draft of 2026-09-28 (T6a, T6b), verbatim; " +
-    "the sign-off takes the dash (#211). The link takes them off in one " +
-    "click, with no sign-in (T6c).",
   "address-denied": `${LANDED}, verbatim.`,
   "missed-delivery-fee-kept": `${C3}${REASON} Not sent yet: the send, ` +
     "the hold and redelivery\x27s second fee wait on #193.",
