@@ -80,7 +80,7 @@ chicken tastes like _chicken_.
 Thank you to everyone who has supported our farm this year. We just
 can’t say “thank you” enough. We’ve got more good things coming soon!
 
-— The NFF team
+{{< sign-off "James and Jim" >}}
 
 [pasture]: https://www.getrealchicken.com/why-pasture-raised
 [gmo]: https://www.nongmoproject.org/

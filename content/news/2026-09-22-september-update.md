@@ -21,19 +21,19 @@ or on delivery.
 
 There are three ways to get your order:
 
-**Delivery**
+## Delivery
 
 - We deliver every week on Thursday
 - Order by noon on Wednesday
 - As affordable as possible: $40 minimum, $5 fee
 - [Check your ZIP code](/#map)
 
-**On-farm pickup**
+## On-farm pickup
 
 - Pickup on select weekdays, by appointment
 - No fee, no minimum
 
-**Drop site**
+## Drop site
 
 - Back on Saturday mornings in Scituate, starting October 17
 - Pick up your order for free

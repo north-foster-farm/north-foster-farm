@@ -61,7 +61,7 @@ along… mostly. This is Ivy, conducting a thorough inspection.
 As always, we can’t say “thank you” enough. Your support is what lets
 us keep doing this, and we can’t wait to see you at market this summer.
 
-— The NFF team
+{{< sign-off "James and Jim" >}}
 
 [pasture]: https://www.getrealchicken.com/why-pasture-raised
 [gmo]: https://en.wikipedia.org/wiki/The_Non-GMO_Project

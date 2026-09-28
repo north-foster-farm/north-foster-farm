@@ -21,7 +21,9 @@
               <time class="news-date home-update-date" datetime="{{ .Date.Format "2006-01-02" }}">
                 {{ .Date | time.Format "January 2, 2006" }}
               </time>
-              {{ .Content }}
+              {{/* The post's own h2s sit under its title here, an h2
+                   itself, so they step down to h3. */}}
+              {{ .Content | replaceRE `<(/?)h2([ >])` `<${1}h3${2}` | safeHTML }}
             </div>
           </article>
           {{/* Outside the card: a link onward is not part of the post
