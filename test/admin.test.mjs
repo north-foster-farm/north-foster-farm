@@ -3,8 +3,8 @@ import { describe, it } from "node:test";
 
 import terms from "../data/delivery.json" with { type: "json" };
 import {
-  cancelOrder, decideAddress, fulfilOrder, listOrders,
-  markAttempted,
+  answerMessage, cancelOrder, decideAddress, fulfilOrder, listMessages,
+  listOrders, markAttempted,
   refundOrder, removeCustomer, removeOrder, resolveReturn, setCustomer,
   showCustomer, stockList, stockSet,
 } from "../netlify/functions/lib/admin.mjs";
@@ -647,5 +647,69 @@ describe("an attempted delivery keeps its fee", () => {
     await cancelOrder(stores, "B", { ...opts, refund: true });
     assert.deepEqual(calls.at(-1), ["fulfilment", "SQO"]);
     assert.doesNotMatch(sent.at(-1).text, /on its way/);
+  });
+});
+
+describe("messages from the CLI (#167)", () => {
+  // One from the contact page, one from the help form, one answered.
+  const seed = async (stores) => {
+    await saveCustomer(stores, customer);
+    await stores.customers.set("messages/c1", {
+      id: "c1", at: "2026-10-04T12:00:00Z", name: "Sam Okafor",
+      email: "sam@example.com", orderId: "NFF-2610-ABCD", order: false,
+      message: "Do you have duck eggs?", status: "open",
+    });
+    await stores.customers.set("support/pat@example.com/h1", {
+      id: "h1", at: "2026-10-03T12:00:00Z", subject: "Late",
+      message: "Where is my order?", orderId: "A", status: "open",
+    });
+    await stores.customers.set("messages/c0", {
+      id: "c0", at: "2026-10-01T12:00:00Z", name: "Lee",
+      email: "lee@example.com", orderId: "", order: null,
+      message: "Thanks!", status: "answered",
+      answeredAt: "2026-10-02T12:00:00Z",
+    });
+  };
+
+  it("lists the open ones from both forms, oldest first", async () => {
+    const stores = testStores();
+
+    await seed(stores);
+    const open = await listMessages(stores);
+
+    assert.deepEqual(open.map((m) => [m.id, m.from]),
+      [["h1", "help"], ["c1", "contact"]]);
+    assert.equal(open[0].email, "pat@example.com", "from the key");
+    assert.equal(open[0].name, "Pat", "from the customer record");
+    assert.equal(open[0].orderId, "A");
+    assert.equal(open[1].order, false);
+    assert.deepEqual((await listMessages(stores, { all: true }))
+      .map((m) => m.id), ["c0", "h1", "c1"]);
+  });
+
+  it("marks one answered, once", async () => {
+    const stores = testStores();
+
+    await seed(stores);
+    const done = await answerMessage(stores, "h1", { now });
+
+    assert.equal(done.status, "answered");
+    assert.equal(done.answeredAt, now.toISOString());
+    const stored = await stores.customers.get("support/pat@example.com/h1");
+
+    assert.equal(stored.status, "answered");
+    assert.equal(stored.message, "Where is my order?", "the rest kept");
+    assert.deepEqual((await listMessages(stores)).map((m) => m.id), ["c1"]);
+
+    const again = await answerMessage(stores, "h1", {
+      now: new Date("2026-10-09T00:00:00Z"),
+    });
+
+    assert.equal(again.answeredAt, now.toISOString(), "the first stands");
+    await answerMessage(stores, "c1", { now });
+    assert.equal((await stores.customers.get("messages/c1")).status,
+      "answered");
+    assert.deepEqual(await listMessages(stores), []);
+    await assert.rejects(answerMessage(stores, "nope"), /No such message/);
   });
 });

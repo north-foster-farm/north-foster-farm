@@ -18,7 +18,8 @@
 //               deleted (#189)
 //   morning     8:00 daily, always: the day in numbers, the on-farm
 //               orders within two days still waiting on the customer,
-//               and a warning when the pickup schedule runs short
+//               a warning when the pickup schedule runs short, and the
+//               messages to the farm not yet marked answered
 //   tomorrow    18:00 daily, always: every order due tomorrow, by
 //               method, with what to pack and where it goes
 //   audience    once a day from 05:00: the farm-news audience in Resend
@@ -36,6 +37,7 @@ import {
 import {
   addDays, instant, parts, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { listMessages } from "./admin.mjs";
 import { rescueCheckout, syncSquare } from "./checkout.mjs";
 import { finishEditVenmo } from "./edit.mjs";
 import { alert, ping, readCount, readMark } from "./health.mjs";
@@ -441,10 +443,13 @@ const morningReport = async (stores, { env, mail, now, fetchImpl }) => {
     list: async () => [{
       stats: await funnel(stores, now),
       pickups: pickupsDue(await openOrders(stores), day),
+      messages: await listMessages(stores),
     }],
-    build: ([{ stats, pickups }]) => farmMorningReport(stats, pickups, {
-      date: day, links: mailLinks(env), now, schedule: coverage(env, now),
-    }),
+    build: ([{ stats, pickups, messages }]) => farmMorningReport(stats,
+      pickups, {
+        date: day, links: mailLinks(env), now, schedule: coverage(env, now),
+        messages,
+      }),
     onSent: () => ping(env.HEALTHCHECKS_ALERT_URL, { ok: true, fetchImpl }),
     env, mail, now,
   });

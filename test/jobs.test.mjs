@@ -5,6 +5,7 @@ import {
   SQUARE_SYNC_GRACE, checkInvariants, cutoffAt, deliveryReminderAt, runJobs,
   runsSince,
 } from "../netlify/functions/lib/jobs.mjs";
+import { answerMessage } from "../netlify/functions/lib/admin.mjs";
 import { readMark } from "../netlify/functions/lib/health.mjs";
 import {
   CHECKOUT_TTL, getCheckout, getOrder, openOrders, saveCheckout,
@@ -439,6 +440,27 @@ describe("runJobs", () => {
     });
     assert.match(sent.at(-1).text, /The pickup schedule's last window is on /);
   });
+
+  it("lists every open message each morning until it is answered (#167)",
+    async () => {
+      const stores = testStores();
+      const { sent, opts } = harness();
+      const env = { ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE };
+
+      await stores.customers.set("messages/m1", {
+        id: "m1", at: "2026-10-04T12:00:00Z", name: "Sam Okafor",
+        email: "sam@example.com", orderId: "", order: null,
+        message: "Duck eggs?", status: "open",
+      });
+      await runJobs(stores, { ...opts, env, now: at("2026-10-05", 8) });
+      assert.match(sent.at(-1).text, /Messages waiting on an answer/);
+      assert.match(sent.at(-1).text, /\nm1\s+Sam Okafor\s+/);
+
+      await answerMessage(stores, "m1");
+      await runJobs(stores, { ...opts, env, now: at("2026-10-06", 8) });
+      assert.match(sent.at(-1).subject, /Morning report: Tuesday/);
+      assert.match(sent.at(-1).text, /No messages waiting on an answer/);
+    });
 
   it("sends tomorrow's manifest at 18:00, even when empty", async () => {
     const stores = testStores();

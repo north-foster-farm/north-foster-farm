@@ -454,6 +454,67 @@ export const resolveReturn = async (stores, id, returnId, {
   return getOrder(stores, id);
 };
 
+// Messages
+
+// Every message to the farm, from the contact page (`messages/<id>`)
+// and the account page's help form (`support/<email>/<id>`), in one
+// shape, oldest first; only the open ones unless `all`. `order` is
+// whether the order number is one the writer placed, null when none
+// was given or when the help form sent it (it offers only the
+// customer's own).
+export const listMessages = async (stores, { all = false } = {}) => {
+  const found = [];
+
+  for (const { key } of await stores.customers.list("messages/")) {
+    const m = await stores.customers.get(key);
+
+    if (m) {
+      found.push({
+        id: m.id, from: "contact", at: m.at, status: m.status,
+        name: m.name, email: m.email, orderId: m.orderId || "",
+        order: m.order ?? null, subject: "", message: m.message,
+        answeredAt: m.answeredAt || null, key,
+      });
+    }
+  }
+  for (const { key } of await stores.customers.list("support/")) {
+    const m = await stores.customers.get(key);
+
+    if (m) {
+      const email = key.slice("support/".length, key.lastIndexOf("/"));
+      const customer = await getCustomer(stores, email);
+
+      found.push({
+        id: m.id, from: "help", at: m.at, status: m.status,
+        name: (customer && customer.name) || "", email,
+        orderId: m.orderId || "", order: null, subject: m.subject || "",
+        message: m.message, answeredAt: m.answeredAt || null, key,
+      });
+    }
+  }
+
+  return found.filter((m) => all || m.status === "open")
+    .sort((a, b) => (a.at < b.at ? -1 : 1));
+};
+
+// Marks one message answered, so the morning report stops listing it.
+// Marking twice keeps the first. -> the message.
+export const answerMessage = async (stores, id, { now = new Date() } = {}) => {
+  const all = await listMessages(stores, { all: true });
+  const m = need(all.find((x) => x.id === id), "message");
+
+  if (m.status === "answered") return m;
+
+  const record = await stores.customers.get(m.key);
+  const answeredAt = now.toISOString();
+
+  await stores.customers.set(m.key, {
+    ...record, status: "answered", answeredAt,
+  });
+
+  return { ...m, status: "answered", answeredAt };
+};
+
 // Stock
 
 export const stockList = (stores) => getCounts(stores);

@@ -180,7 +180,11 @@ failures, jobs runs, errors and violations); a warning, with the
 command, when `PICKUP_SCHEDULE` doesn't reach the week after next
 (the next deploy would fail on it); then the on-farm pickups within
 two days whose time the farm gave up and the customer hasn't
-re-picked (W11d). This email also pings the *Alerts* check well.
+re-picked (W11d); then every message to the farm, from the contact
+page or the account page's help form, not yet marked answered, oldest
+first, with its age (#167). A message stays on the report every
+morning until `bin/nff messages done <id>`; `bin/nff messages` lists
+the same. This email also pings the *Alerts* check well.
 
 **Tomorrow**, 18:00: every order due the next day, grouped delivery,
 drop site, on-farm, each with customer and phone, and for a

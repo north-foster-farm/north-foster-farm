@@ -515,6 +515,10 @@ export const library = [
     }, [gaveUp()], {
       date: "2026-10-07", links, now: new Date("2026-10-07T12:00:00Z"),
       schedule: { last: "2026-10-16", until: "2026-10-19" },
+      messages: [{
+        id: "q7Rk2wXa", name: "Sam Okafor", email: "sam@example.com",
+        orderId: "", order: null, at: "2026-10-05T19:30:00Z",
+      }],
     }),
   },
   {
@@ -640,7 +644,8 @@ const WAITING = {
     "customer\x27s cancel now refunds by itself.",
   "farm-morning-report": `${LANDED}: the key under the table, and 🙈 ` +
     `for outside limits. ${W11D} Its pickups are now those waiting on ` +
-    "the customer, and it warns when the schedule runs short. Draft.",
+    "the customer, and it warns when the schedule runs short. Draft. " +
+    "So is its list of messages waiting on an answer (#167).",
   "news-invite": "His dictation of 2026-09-24, ending on his line for " +
     "the old list (W19, 2026-09-26) in place of \"If you didn\x27t " +
     "request this email, you can safely ignore it.\" Site sign-ups get " +
