@@ -19,7 +19,7 @@ send that to Square, which records your order and takes card and wallet
 payments. Venmo payments go through PayPal. We never see your card number.
 
 While you fill out the form, a draft is kept in your browser until you
-place your order or discard it. It never leaves your device.
+place your order. It never leaves your device.
 
 If you write to us through the contact page or your account, we keep your
 message with your name and email address and email it to the farm, so we can
@@ -87,9 +87,11 @@ details, so we can put it right. Axiom deletes log lines after 30 days.
 
 ### What your browser keeps
 
-The site sets one cookie, and only when you sign in. It holds a random code
-that tells the site you're signed in. Scripts on the page can't read it, it
-lasts 30 days, and signing out deletes it.
+The site sets two cookies, and only when you sign in. One holds a random code
+that tells the site you're signed in, and scripts on the page can't read it.
+The other holds only the time you signed in. Scripts on the page read it to
+notice at once when you sign in or out. Both last 30 days, and signing out
+deletes both.
 
 Your browser also keeps:
 
