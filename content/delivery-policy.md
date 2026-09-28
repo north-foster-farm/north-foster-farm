@@ -76,13 +76,11 @@ site, or cancel your order for a refund of your items. We hold your
 order for 7 days while you choose. If you haven't chosen by then, we
 cancel it, refund your items and email you to say so.
 
-A delivery we couldn't make because there was no cooler out, no way
-to get to the spot you gave us, or no finding your address as you gave
-it, keeps its delivery fee, including any {{< terms "outside-fee" >}}
-for an address outside our area. It isn't refunded whichever
-you choose, and delivery the following Thursday costs the fee again. A
-delivery we miss ourselves, or because of the weather, never costs you
-the fee.
+If we couldn't complete a delivery because there was no cooler out, no
+access to the address you gave us, or no way to find the address as
+you gave it, we keep the delivery fee. A second delivery attempt the
+following Thursday is charged the fee again. A delivery we miss
+ourselves, or because of the weather, never costs you the fee.
 
 Once it's delivered, it's in your care.
 
