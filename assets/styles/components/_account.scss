@@ -382,6 +382,30 @@
     padding-top: 0;
   }
 
+  // The address with its Change button beside it (#240); the address
+  // gives way first on a narrow screen.
+  .account-email-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+
+    // Sized to the address by main.js, so the button sits beside it.
+    .account-email-value {
+      flex: 0 1 auto;
+      width: auto;
+      min-width: 0;
+      text-overflow: ellipsis;
+    }
+
+    .btn {
+      flex: none;
+    }
+  }
+
+  .account-email-change {
+    margin-top: 0.75rem;
+  }
+
   // What the last save did: "Saving…" with a spinner, "Saved 👍",
   // which fades, or why it failed. It keeps a line's height empty, so
   // the card doesn't jump.

@@ -130,10 +130,26 @@
                     <input class="form-control" type="tel" id="prof-phone" name="phone" autocomplete="tel" inputmode="tel" data-field="phone" aria-describedby="err-prof-phone">
                     <div class="invalid-feedback" id="err-prof-phone" data-error-for="phone"></div>
                   </div>
-                  <div class="col-12">
+                  {{/* The email changes by a link to the new address (#240),
+                       never by the autosave: data-own-save keeps it out.
+                       The words are drafts. */}}
+                  <div class="col-12" data-own-save>
                     <label class="form-label" for="prof-email">Email</label>
-                    <input class="form-control-plaintext account-email-value" type="email" id="prof-email" readonly tabindex="-1" aria-describedby="prof-email-note">
-                    <div class="form-text" id="prof-email-note">Your email is how you sign in. Write us to change it.</div>
+                    <div class="account-email-row">
+                      <input class="form-control-plaintext account-email-value" type="email" id="prof-email" readonly tabindex="-1" aria-describedby="prof-email-note">
+                      <button class="btn btn-outline-primary btn-sm" type="button" id="email-change-open" aria-expanded="false" aria-controls="email-change">Change</button>
+                    </div>
+                    <div class="form-text" id="prof-email-note">Your email is how you sign in.</div>
+                    <div class="account-email-change" id="email-change" hidden>
+                      <label class="form-label" for="email-new">New email</label>
+                      <div class="input-group">
+                        <input class="form-control" type="email" id="email-new" autocomplete="email" inputmode="email" enterkeyhint="send" aria-describedby="err-email-new email-change-note">
+                        {{ partial "busy-button.html" (dict "label" "Send link" "busy" "Sending" "class" "btn-primary" "id" "email-change-send" "type" "button" "fit" true) }}
+                      </div>
+                      <div class="invalid-feedback d-block" id="err-email-new"></div>
+                      <div class="form-text" id="email-change-note">We'll email a link to the new address. Nothing changes until you open it. <button class="btn btn-link btn-sm p-0 align-baseline" type="button" id="email-change-cancel">Cancel</button></div>
+                    </div>
+                    <p class="form-text mb-0" id="email-change-sent" role="status"></p>
                   </div>
                   <div class="col-12" id="prof-group-row" hidden>
                     <span class="form-label d-block">Your pricing</span>

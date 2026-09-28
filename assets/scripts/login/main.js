@@ -8,6 +8,13 @@ const ERRORS = {
   unknown: "That sign-in link was already used or isn't valid. Ask for " +
     "a new one below.",
   invalid: "That sign-in link isn't valid. Ask for a new one below.",
+  // A link to a new address that could not move the account (#240).
+  // Drafts.
+  "change-taken": "That address has an account of its own now, so " +
+    "your email wasn't changed. Sign in with your old address, or " +
+    "write us and we'll sort it out.",
+  "change-failed": "We couldn't change your email just now. Sign in " +
+    "with your old address and try again, or write us.",
 };
 
 const start = () => {

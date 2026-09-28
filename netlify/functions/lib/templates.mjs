@@ -748,6 +748,37 @@ export const magicLink = (email, url, {
   return { subject: title, ...render(title, blocks, links) };
 };
 
+// A customer's own email change (#240), in two parts: the link to the
+// new address, which alone moves the account, and the word to the old
+// one once it has moved. Draft wording, on the sign-in email's pattern.
+export const emailChangeLink = (email, url, {
+  minutes = accounts.signInLinkMinutes, links,
+} = {}) => {
+  const title = `Confirm your new email for ${company.name}`;
+  const blocks = [
+    p(`Click the button below to move your ${company.name} account to ` +
+      `this address. This link expires in ${minutes} minutes.`),
+    button("Confirm new email", url),
+    p("Until you do, nothing changes. If you didn't ask for this, you " +
+      "can safely ignore it."),
+    row([["Need help? Contact us", contactUrl(links)]]),
+  ];
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
+export const emailChanged = (from, to, { links } = {}) => {
+  const title = `Your email with ${company.name} was changed`;
+  const blocks = [
+    p(`Your account now signs in with ${to}, not ${from}. Order ` +
+      "emails and farm news go there from now on."),
+    p("If you didn't make this change, contact us right away."),
+    row([["Contact us", contactUrl(links)]]),
+  ];
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
 // Farm news: the one click that puts an address from the old list on
 // the new one, when it is asked to opt in again. A sign-up on the site
 // needs no click (W1). The wording is James's, on the pattern of the

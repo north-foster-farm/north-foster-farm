@@ -4,7 +4,8 @@
 // same way to sign in as a customer.
 //
 // Store layout (the `auth` store):
-//   token/<sha256(token)>   { email, expires, next }   one use, 15 min
+//   token/<sha256(token)>   { email, expires, next, changeFrom? }
+//                           one use, 15 min
 //   session/<id>            { email, createdAt, expires, via }
 //   rate/<email>            { times: [...] }             link requests
 
@@ -15,7 +16,7 @@ import {
   getCustomer, reminderPrefs, saveCustomer,
 } from "./records.mjs";
 import { mailLinks, siteUrl } from "./site.mjs";
-import { magicLink } from "./templates.mjs";
+import { emailChangeLink, magicLink } from "./templates.mjs";
 import accounts from "../../../data/accounts.json" with { type: "json" };
 
 const MINUTE = 60_000;
@@ -72,7 +73,9 @@ export const ensureCustomer = async (stores, email, now) => {
 // URL is returned for the CLI; the API never shows it to the browser.
 // The rate limit is for the public request form; a link the farm
 // mints itself (`limit: false`) counts against nobody and may live
-// longer (`ttl`).
+// longer (`ttl`). With `changeFrom`, the link confirms a signed-in
+// customer's new address (#240): it goes to that address, and
+// following it moves the account from `changeFrom` (lib/email-change).
 export const requestLink = async (stores, { email, next }, {
   now = new Date(),
   env = process.env,
@@ -80,6 +83,7 @@ export const requestLink = async (stores, { email, next }, {
   send = true,
   limit = true,
   ttl = LINK_TTL,
+  changeFrom = null,
 } = {}) => {
   const address = normalizeEmail(email);
 
@@ -103,15 +107,17 @@ export const requestLink = async (stores, { email, next }, {
     next: safeNext(next),
     expires: now.getTime() + ttl,
     createdAt: now.toISOString(),
+    ...(changeFrom ? { changeFrom: normalizeEmail(changeFrom) } : {}),
   });
 
   const url = `${siteUrl(env)}/api/auth/verify?token=${token}`;
+  const letter = changeFrom ? emailChangeLink : magicLink;
 
   if (send) {
     await mail({
       to: address,
       idempotencyKey: `link-${hash(token).slice(0, 16)}`,
-      ...magicLink(address, url, {
+      ...letter(address, url, {
         minutes: ttl / MINUTE, links: mailLinks(env),
       }),
     }, { env });
@@ -135,7 +141,12 @@ export const verifyToken = async (stores, token, { now = new Date() } = {}) => {
 
   if (now.getTime() > found.expires) return { ok: false, reason: "expired" };
 
-  return { ok: true, email: found.email, next: found.next || "/account/" };
+  return {
+    ok: true,
+    email: found.email,
+    next: found.next || "/account/",
+    changeFrom: found.changeFrom || null,
+  };
 };
 
 export const createSession = async (stores, email, {

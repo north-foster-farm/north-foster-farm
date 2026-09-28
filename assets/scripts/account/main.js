@@ -8,6 +8,7 @@ import { dollars } from "../order/lib/totals.mjs";
 import { label } from "../order/lib/zoned.mjs";
 import { forget, showChick, signOut } from "../session/session.js";
 import { api } from "../utils/api.js";
+import { isBusy, whileBusy } from "../utils/busy-button.js";
 
 const qs = (root, selector) => root.querySelector(selector);
 const all = (root, selector) => Array.from(root.querySelectorAll(selector));
@@ -142,6 +143,22 @@ class Account {
     this.app.hidden = false;
     this.showTab(location.hash.replace("#", "") || "orders");
     this.openOrder(orderFromPath());
+    this.emailChanged();
+  }
+
+  // Arrived from the link that moved the account (#240): say so once,
+  // then drop the flag so a reload doesn't repeat it. Draft wording.
+  emailChanged() {
+    const params = new URLSearchParams(location.search);
+
+    if (params.get("email") !== "changed") return;
+
+    params.delete("email");
+    history.replaceState(null, "", location.pathname
+      + (params.size ? `?${params}` : "") + location.hash);
+    document.getElementById("email-change-sent").textContent =
+      `Your email is now ${this.customer.email}. Sign in with it from ` +
+      "now on.";
   }
 
   // Arrived from an email about one order: show that order rather
@@ -199,6 +216,76 @@ class Account {
     });
     document.getElementById("support-form").addEventListener("submit",
       (e) => this.sendSupport(e));
+    this.wireEmailChange();
+  }
+
+  // The email changes by a link to the new address (#240): the page
+  // asks for it, and following it moves the account and signs in
+  // there. Until then nothing changes. The words are drafts.
+  wireEmailChange() {
+    const open = document.getElementById("email-change-open");
+    const panel = document.getElementById("email-change");
+    const input = document.getElementById("email-new");
+    const send = document.getElementById("email-change-send");
+    const error = document.getElementById("err-email-new");
+    const sent = document.getElementById("email-change-sent");
+    const show = (on) => {
+      panel.hidden = !on;
+      open.hidden = on;
+      open.setAttribute("aria-expanded", String(on));
+      input.classList.remove("is-invalid");
+      error.textContent = "";
+      if (on) {
+        sent.textContent = "";
+        input.focus();
+      } else {
+        open.focus();
+      }
+    };
+    const fail = (message) => {
+      input.classList.add("is-invalid");
+      error.textContent = message;
+      input.focus();
+    };
+    const request = async () => {
+      if (isBusy(send)) return;
+
+      const email = input.value.trim();
+
+      if (!email) {
+        fail("Enter your new email address.");
+
+        return;
+      }
+
+      const { ok, data } = await whileBusy(send, api("/api/account/email", {
+        method: "POST", body: { email },
+      }).catch(() => ({ ok: false, data: {} })));
+
+      if (!ok) {
+        fail((data && data.errors && data.errors.email)
+          || "We couldn't send the link. Try again in a moment.");
+
+        return;
+      }
+
+      input.value = "";
+      show(false);
+      sent.textContent = `We sent a link to ${data.email}. Open it to ` +
+        "make that your email; until then, sign in with this one.";
+    };
+
+    open.addEventListener("click", () => show(true));
+    document.getElementById("email-change-cancel").addEventListener("click",
+      () => show(false));
+    send.addEventListener("click", request);
+    // Enter sends the link, never the settings form around it.
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") show(false);
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      request();
+    });
   }
 
   showTab(name) {
@@ -230,10 +317,12 @@ class Account {
   // changes, a text field when the customer leaves it, and Enter as
   // before. Nothing is sent while `ready` says the form is still
   // being filled in, or when its values are the ones last sent. The
-  // chicken saves on its own (saveAvatar), so it is left out here.
+  // chicken saves on its own (saveAvatar), and so does anything inside
+  // [data-own-save] (the email change), so they are left out here.
   autosave(form, save, ready) {
+    const own = (f) => f && f.closest && f.closest("[data-own-save]");
     const fields = () => all(form, "input, textarea")
-      .filter((f) => f.name !== "avatar");
+      .filter((f) => f.name !== "avatar" && !own(f));
     const snapshot = () => JSON.stringify(fields()
       .map((f) => (f.type === "checkbox" || f.type === "radio"
         ? [f.name, f.value, f.checked]
@@ -243,7 +332,9 @@ class Account {
       .map((f) => [f.dataset.field, f.value]));
     let last = null;
     const run = async (e) => {
-      if (e && e.target && e.target.name === "avatar") return;
+      if (e && e.target && (e.target.name === "avatar" || own(e.target))) {
+        return;
+      }
 
       const now = snapshot();
 
@@ -401,7 +492,11 @@ class Account {
     qs(form, "[data-field='lastName']").value = c.lastName || "";
     qs(form, "[data-field='phone']").value = c.phone || "";
     qs(form, "[data-field='marketing']").checked = c.marketing === true;
-    document.getElementById("prof-email").value = c.email;
+    const email = document.getElementById("prof-email");
+
+    email.value = c.email;
+    // As wide as the address, so Change sits beside it (#240).
+    email.size = Math.max(c.email.length, 10);
     for (const radio of all(form, "[data-field='avatar']")) {
       radio.checked = radio.value === c.avatar;
     }

@@ -12,12 +12,15 @@
 //                                               avatar, reminders, marketing }
 //   PUT   /api/account/address                { address1, ..., zip, cooler }
 //   POST  /api/account/support                { subject, message, orderId }
+//   POST  /api/account/email                  { email }, a link to the new
+//                                             address (lib/email-change)
 
 import {
   cancelOrder, changeOrder, listOrders, requestReturn, saveAddress,
   sendSupport, updateProfile,
 } from "./lib/account.mjs";
 import { editOrder } from "./lib/edit.mjs";
+import { requestEmailChange } from "./lib/email-change.mjs";
 import { publicCustomer, sameSite, sessionFrom } from "./lib/auth.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
@@ -98,6 +101,11 @@ export const handle = async (req, {
     return result.ok
       ? json(200, { ok: true, customer: publicCustomer(result.customer) })
       : answer(result);
+  }
+
+  if (req.method === "POST" && path === "/api/account/email") {
+    return answer(await requestEmailChange(stores, customer, body.email,
+      opts));
   }
 
   if (req.method === "POST" && path === "/api/account/support") {
