@@ -630,6 +630,25 @@ export const refundPayment = async ({
   };
 };
 
+// One refund, by id, for the check that every refund settled (#215).
+// -> { squareRefundId, status, amount }
+export const getRefund = async (squareRefundId, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  const cfg = settings(env);
+  const data = await call(
+    cfg, `/v2/refunds/${squareRefundId}`, null, fetchImpl, "GET"
+  );
+  const refund = data.refund || {};
+
+  return {
+    squareRefundId: refund.id,
+    status: refund.status,
+    amount: refund.amount_money ? refund.amount_money.amount : 0,
+  };
+};
+
 // One payment, by id, for reconciling a webhook, with what has been
 // refunded of it so far (cents).
 export const getPayment = async (squarePaymentId, {

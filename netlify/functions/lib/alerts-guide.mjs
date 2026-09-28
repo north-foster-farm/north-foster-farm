@@ -50,13 +50,25 @@ export const GUIDE = {
       "PayPal, and refund or charge the difference by hand.",
   },
   "refund.failed": {
-    means: "Square reports a refund FAILED or REJECTED: the customer " +
-      "did not get that money back. A refund from bin/nff is marked so " +
-      "on the order and no longer counts as refunded; one made in the " +
-      "Square dashboard was never recorded.",
-    action: "Look up the refund in Square for the reason (often a card " +
-      "that has closed). Refund again with bin/nff orders refund <id>, " +
-      "or pay the customer another way and tell them.",
+    means: "Square reports a refund FAILED or REJECTED, or PayPal a " +
+      "Venmo refund FAILED or CANCELLED: the customer did not get that " +
+      "money back. A refund from bin/nff is marked so on the order and " +
+      "no longer counts as refunded; one made in the Square dashboard " +
+      "was never recorded. The webhook raises it as it happens; the " +
+      "daily refund check raises what the webhooks missed.",
+    action: "Look up the refund in Square or PayPal for the reason " +
+      "(often a card or account that has closed). Refund again with " +
+      "bin/nff orders refund <id>, or pay the customer another way and " +
+      "tell them.",
+  },
+  "refund.stalled": {
+    means: "A refund made five or more days ago has still not " +
+      "settled, or has no Square or PayPal id to check it by. The " +
+      "customer was told it takes a few days. Raised once per refund.",
+    action: "Look up the refund in Square or PayPal. If it is still " +
+      "pending there, ask their support why. If it is not there at " +
+      "all, refund again with bin/nff orders refund <id>. " +
+      "bin/nff refunds check lists every refund still waiting.",
   },
   "pickup.lapsed": {
     means: "A Venmo payment approved on the order page was finished by " +

@@ -27,6 +27,10 @@ nobody.
   the customer. `ADMIN_EMAILS`.
 - **Tomorrow.** 18:00 daily, always: every order due tomorrow by
   method, with what to pack and where to leave it. `ADMIN_EMAILS`.
+- **Refund check.** 07:00 daily: every refund not yet settled is asked
+  of Square, or of PayPal for Venmo; one that failed or stalled raises
+  an alert (#215). `bin/nff refunds check` runs it on demand. Needs
+  nothing.
 - **Checkout beacon.** The order page posts to `/api/health` when a
   checkout cannot complete; it becomes the `client.checkout_failed`
   alert. Needs nothing.
@@ -114,13 +118,23 @@ the order's total. The order is recorded as paid all the same.
 `bin/nff orders show <id>`, compare with the capture in PayPal, and
 refund or charge the difference by hand.
 
-**`refund.failed`.** Square reports a refund FAILED or REJECTED: the
-customer did not get that money back. A refund from `bin/nff` is
-marked so on the order and no longer counts as refunded; one made in
-the Square dashboard was never recorded. Look up the refund in Square
-for the reason (often a card that has closed). Refund again with
-`bin/nff orders refund <id>`, or pay the customer another way and
-tell them.
+**`refund.failed`.** Square reports a refund FAILED or REJECTED, or
+PayPal a Venmo refund FAILED or CANCELLED: the customer did not get
+that money back. A refund from `bin/nff` is marked so on the order
+and no longer counts as refunded; one made in the Square dashboard was
+never recorded. The Square webhook raises it as it happens; the daily
+refund check (07:00, `lib/settle.mjs`) raises what the webhooks
+missed. Look up the refund in Square or PayPal for the reason (often a
+card or account that has closed). Refund again with `bin/nff orders
+refund <id>`, or pay the customer another way and tell them.
+
+**`refund.stalled`.** The daily refund check found a refund made five
+or more days ago that has still not settled, or one with no Square or
+PayPal id to check it by. The customer was told it takes a few days.
+Raised once per refund. Look it up in Square or PayPal: if it is still
+pending there, ask their support why; if it is not there at all,
+refund again with `bin/nff orders refund <id>`. `bin/nff refunds
+check` lists every refund still waiting.
 
 **`pickup.lapsed`.** A Venmo payment approved on the order page was
 finished by the jobs after its pickup time had left the schedule

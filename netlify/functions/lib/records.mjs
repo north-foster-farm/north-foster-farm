@@ -96,9 +96,10 @@ export const refundsOf = (order) => {
 
 const sum = (items) => items.reduce((s, x) => s + (x.amount || 0), 0);
 
-// A refund Square reports FAILED or REJECTED stays on the record, for
-// the history, but returned nothing (#215).
-export const FAILED_REFUND = ["FAILED", "REJECTED"];
+// A refund Square reports FAILED or REJECTED, or PayPal FAILED or
+// CANCELLED, stays on the record, for the history, but returned
+// nothing (#215).
+export const FAILED_REFUND = ["FAILED", "REJECTED", "CANCELLED"];
 export const settledRefunds = (order) => refundsOf(order)
   .filter((r) => !FAILED_REFUND.includes(r.status));
 

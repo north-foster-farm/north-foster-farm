@@ -315,6 +315,24 @@ export const refundCapture = async ({
   };
 };
 
+// One refund, by id, for the check that every refund settled (#215).
+// -> { paypalRefundId, status, amount }
+export const getRefund = async (paypalRefundId, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+  now = new Date(),
+} = {}) => {
+  const cfg = settings(env);
+  const data = await call(cfg, `/v2/payments/refunds/${paypalRefundId}`,
+    null, { fetchImpl, now, method: "GET" });
+
+  return {
+    paypalRefundId: data.id,
+    status: data.status,
+    amount: data.amount ? Math.round(Number(data.amount.value) * 100) : 0,
+  };
+};
+
 // PayPal signs each webhook delivery; the verification is a call back
 // to PayPal with the headers and the body as received. -> true/false.
 export const verifyWebhook = async (headers, body, {

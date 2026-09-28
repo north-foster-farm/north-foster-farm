@@ -54,6 +54,10 @@ const USAGE = `Usage:
                                       couldn't get to, for the email
   bin/nff orders fulfil <id>
   bin/nff orders delete <id>
+  bin/nff refunds check               every refund not yet settled,
+                                      asked of Square or PayPal: the
+                                      jobs do it daily; alerts as they
+                                      do for one that failed or stalled
   bin/nff returns resolve <id> <returnId> [note...]
   bin/nff stock list
   bin/nff stock set <sku> <count|none>
@@ -119,6 +123,7 @@ const [
   { mailLinks },
   sent,
   { checkSchedule },
+  { checkRefunds },
 ] = await Promise.all([
   import("../data/delivery.json", { with: { type: "json" } }),
   import("../netlify/functions/lib/admin.mjs"),
@@ -135,6 +140,7 @@ const [
   import("../netlify/functions/lib/site.mjs"),
   import("../netlify/functions/lib/sent.mjs"),
   import("../assets/scripts/order/lib/schedule.mjs"),
+  import("../netlify/functions/lib/settle.mjs"),
 ]);
 
 process.env.SITE_CONTEXT = context ? CONTEXTS[context] : "dev";
@@ -439,6 +445,21 @@ const run = async () => {
     await admin.removeOrder(stores, rest[0]);
 
     return out(`Deleted ${rest[0]}.`);
+  case "refunds check": {
+    const r = await checkRefunds(stores);
+    const line = (word, x) => out(`${word.padEnd(10)}${x.id}  ${
+      dollars(x.amount)}  ${x.via || "no id"} ${x.refund || ""}  ${
+      (x.at || "").slice(0, 10)}  ${x.status || x.error || ""}`);
+
+    for (const x of r.failed) line("FAILED", x);
+    for (const x of r.stalled) line("STALLED", x);
+    for (const x of r.errors) line("ERROR", x);
+    for (const x of r.pending) line("pending", x);
+    for (const x of r.completed) line("settled", x);
+
+    return out(r.checked ? `Checked ${r.checked}.`
+      : "Every refund has settled.");
+  }
   case "returns resolve":
     return out(summaryLine(await admin.resolveReturn(stores, rest[0],
       rest[1], {

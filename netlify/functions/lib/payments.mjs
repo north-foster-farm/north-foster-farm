@@ -177,6 +177,13 @@ export const applyRefundEvent = async (stores, event, {
   const order = await orderByPayment(stores, refund.payment_id);
   const refunds = refundsOf(order);
   const known = refunds.findIndex((r) => r.squareRefundId === refund.id);
+
+  // A Venmo refund's Square refund only keeps Square's books; PayPal
+  // says whether the customer got the money (lib/settle.mjs).
+  if (known >= 0 && refunds[known].paypalRefundId) {
+    return { handled: true, id: order.id, repeat: true };
+  }
+
   const changed = known < 0 || refunds[known].status !== refund.status;
 
   if (failed && changed) {

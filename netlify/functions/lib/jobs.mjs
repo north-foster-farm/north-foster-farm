@@ -23,6 +23,9 @@
 //               method, with what to pack and where it goes
 //   audience    once a day from 05:00: the farm-news audience in Resend
 //               and the records made to agree
+//   refunds     once a day from 07:00: every refund not yet settled
+//               asked of Square or PayPal, and the farm alerted to one
+//               that failed or stalled (lib/settle.mjs, #215)
 //   health      each run ends with invariant checks, a ledger line,
 //               alerts for what went wrong, and a heartbeat ping
 
@@ -43,6 +46,7 @@ import { log } from "./log.mjs";
 import { adminEmails, sendMail } from "./mail.mjs";
 import { audienceConfigured, syncAudience } from "./news.mjs";
 import { sendForOrder } from "./payments.mjs";
+import { checkRefunds } from "./settle.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
   allOrders, getCustomer, listCheckouts, openOrders,
@@ -200,6 +204,10 @@ export const runJobs = async (stores, {
   // made to agree. Null when there is no audience to sync.
   report.audience = await attempt(null, "audienceSync",
     () => audienceSyncDaily(stores, { env, now, fetchImpl }));
+  report.refunds = await attempt(null, "refundCheck",
+    () => refundCheckDaily(stores, {
+      env, mail, now, square, paypal, fetchImpl, fail,
+    }));
 
   report.invariants = (await attempt(null, "invariants", async () =>
     checkInvariants(await openOrders(stores), now))) || [];
@@ -254,6 +262,39 @@ const audienceSyncDaily = async (stores, { env, now, fetchImpl }) => {
   };
 };
 
+// Refunds, once a day from REFUND_CHECK_HOUR: each one not yet settled
+// asked of its processor (lib/settle.mjs). A refund the processor
+// could not be asked about goes on the report as an error, and is
+// asked again tomorrow. -> the counts, or null when nothing was done
+// this run.
+export const REFUND_CHECK_HOUR = 7;
+
+const refundCheckDaily = async (stores, {
+  env, mail, now, square, paypal, fetchImpl, fail,
+}) => {
+  if (parts(now, tz).hour < REFUND_CHECK_HOUR) return null;
+
+  const key = `refunds/check/${today(now, tz)}`;
+
+  if (await stores.jobs.get(key)) return null;
+
+  const r = await checkRefunds(stores, {
+    env, mail, now, fetchImpl, paypal,
+    ...(square ? { square } : {}),
+  });
+
+  for (const e of r.errors) fail(e.id, "refundCheck", e.error);
+  await stores.jobs.set(key, { at: now.toISOString() });
+
+  return {
+    checked: r.checked,
+    completed: r.completed.length,
+    failed: r.failed.length,
+    stalled: r.stalled.length,
+    pending: r.pending.length,
+  };
+};
+
 // The report, in counts, for the ledger, the log and the heartbeat.
 export const summarize = (report) => ({
   at: report.at,
@@ -265,6 +306,7 @@ export const summarize = (report) => ({
   authSwept: report.authSwept || 0,
   tomorrow: report.tomorrow,
   audience: report.audience || null,
+  refunds: report.refunds || null,
   errors: report.errors,
   invariants: report.invariants,
 });
