@@ -26,11 +26,13 @@ const USAGE = `Usage:
                                       agree to a pickup: the first two
                                       hours of the window unless told;
                                       no id: how many wait, and the next
-  bin/nff orders deny <id> --reason "..."   have them pick another
-  bin/nff orders cancel <id> [--refund] [--amount 12.34] [--reason "..."]
-                                      stock back, fulfilment closed in
-                                      Square; --refund sends the money
-                                      back first, all of it unless told
+  bin/nff orders deny <id> --reason "..."   have them pick another;
+                                      the reason is required and emailed
+  bin/nff orders cancel <id> [--no-refund] [--amount 12.34] [--reason "..."]
+                                      the money back first, all of it
+                                      unless told; then stock back and
+                                      the fulfilment closed in Square;
+                                      --no-refund only on purpose
   bin/nff orders refund <id> [--amount 12.34] [--reason "..."]
                                       money back without cancelling:
                                       card and wallets through Square,
@@ -324,7 +326,9 @@ const run = async () => {
     })));
   case "orders cancel":
     return out(summaryLine(await admin.cancelOrder(stores, rest[0], {
-      refund: !!flags.refund,
+      // A refund unless the farm says otherwise (T1c); --refund,
+      // once required, still reads as the default.
+      refund: !flags["no-refund"],
       amount: typeof flags.amount === "string" ? toCents(flags.amount)
         : undefined,
       reason: typeof flags.reason === "string" ? flags.reason : "",

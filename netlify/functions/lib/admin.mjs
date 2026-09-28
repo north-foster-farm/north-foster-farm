@@ -208,31 +208,32 @@ export const refundOrder = async (stores, id, {
   return saved;
 };
 
-// The farm cancels: any status but fulfilled. Stock goes back, the
-// fulfilment is cancelled in Square, the money goes back when asked
-// (--refund), the customer is told.
+// A cancel, the farm's or the customer's: any status but fulfilled.
+// Stock goes back, the fulfilment is cancelled in Square, the money
+// goes back unless the farm says otherwise (--no-refund: W11a-1,
+// T1c), the customer is told.
 export const cancelOrder = async (stores, id, {
   now = new Date(), env = process.env, mail = sendMail,
-  square = squareApi, paypal = paypalApi, refund = false, amount, reason,
-  fetchImpl,
+  square = squareApi, paypal = paypalApi, refund = true, amount, reason,
+  fetchImpl, source = "farm", key,
 } = {}) => {
   const order = need(await getOrder(stores, id), "order");
 
   if (["cancelled", "abandoned"].includes(order.status)) return order;
 
-  // Whatever has not gone back yet, when asked, less a fee an attempted
-  // delivery keeps; a refund made earlier stays as it was.
+  // Whatever has not gone back yet, less a fee an attempted delivery
+  // keeps; a refund made earlier stays as it was.
   const refundNow = refund
     && paidTotal(order) - keptFee(order) > refundedTotal(order);
 
   if (refundNow) {
     await refundOrder(stores, id, {
-      now, env, amount, reason, square, paypal, fetchImpl,
+      now, env, amount, reason, square, paypal, fetchImpl, source, key,
     });
   }
 
   const cancelled = await setStatus(stores, id, "cancelled", now, {
-    source: "farm",
+    source,
   });
 
   if (!order.cancelRequested) await adjust(stores, order.lines, 1);
@@ -349,10 +350,15 @@ export const denyPickup = async (stores, id, {
   reason = "", now = new Date(), env = process.env, mail = sendMail,
   link = requestLink,
 } = {}) => {
+  const why = String(reason || "").trim();
+
+  // The customer is told why in the farm's own words (T2d).
+  if (!why) throw new Error('Say why: --reason "..." (a short sentence).');
+
   const order = await openPickup(stores, id);
   const question = {
     kind: "window",
-    reason: String(reason || "").trim(),
+    reason: why,
     openedAt: now.toISOString(),
     answeredAt: null,
     answer: null,

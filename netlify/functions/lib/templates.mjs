@@ -466,6 +466,8 @@ export const pickNewTime = (order, { pickUrl, links } = {}) => {
     p(`Hi ${firstName(order.customer)},`),
     p("We won't be able to accommodate your requested pickup time of " +
       `${timeOf(order)}.`),
+    ...(order.question && order.question.reason
+      ? [p(`Here's why: ${order.question.reason}`)] : []),
     p("Please pick another day or window, and we'll be in touch to " +
       "confirm. If rescheduling isn't an option, you can cancel your " +
       "order for a full refund."),
@@ -1056,7 +1058,29 @@ export const farmRefundNeeded = (order, customer, { links } = {}) => {
     [
       p(`${who} cancelled paid order ${order.id}, ${
         methodOn(order.fulfilment)}. Refund it and close it:`),
-      command(`bin/nff orders cancel ${order.id} --refund`),
+      command(`bin/nff orders cancel ${order.id}`),
+    ],
+    links, { orderId: order.id }
+  );
+};
+
+// A customer's cancel, refunded on the spot (T1d): nothing to run,
+// only an order not to pack.
+export const farmOrderCancelled = (order, customer, { links } = {}) => {
+  const who = customer.name || customer.email;
+  const back = (order.refunds || [])
+    .filter((r) => r.source === "customer")
+    .reduce((s, r) => s + (r.amount || 0), 0);
+
+  return farmCard(
+    `Cancelled: ${order.id} by ${customer.email}`,
+    "Order cancelled",
+    [
+      p(`${who} cancelled paid order ${order.id}, ${
+        methodOn(order.fulfilment)}. ${back
+        ? `We refunded ${dollars(back)} automatically; there's nothing ` +
+          "to run."
+        : "Nothing was left to refund."} Don't pack it.`),
     ],
     links, { orderId: order.id }
   );

@@ -788,7 +788,7 @@ describe("the farm's own notices", () => {
     }
     has(refund.text, "Pat Example cancelled paid order NFF-2610-ABCD, " +
       "delivery on Thursday, October 8. Refund it and close it:\n\n" +
-      "    bin/nff orders cancel NFF-2610-ABCD --refund\n");
+      "    bin/nff orders cancel NFF-2610-ABCD\n");
     has(sync.text, "Check the fulfilment in Square: delivery on " +
       "Thursday, October 8.");
     has(back.text, "Items: Eggs (per dozen), Large");

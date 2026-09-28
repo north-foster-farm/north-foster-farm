@@ -405,11 +405,14 @@ sends its refund receipt), Venmo through PayPal (`POST
 /v2/payments/captures/<id>/refund`, Venmo tells the customer), and
 for Venmo the Square copy is noted as refunded too, best effort, so
 the books agree. It can be called again for the rest, until
-everything is back. `bin/nff orders cancel <id> --refund` refunds what
-is left first, then cancels: stock back, the fulfilment closed in
+everything is back. `bin/nff orders cancel <id>` refunds what is
+left first, then cancels: stock back, the fulfilment closed in
 Square, the customer emailed "Your refund is on its way" (said only
-when money went back just then). Without `--refund` the cancellation
-email says nothing more will be charged.
+when money went back just then). Only `--no-refund` cancels without
+money back (T1c), and its email says nothing more will be charged.
+A customer's cancel from the account page runs the same refund at
+once (T1d); if it fails, the order is flagged and the farm told to
+run `orders cancel`.
 
 A delivery the farm could not leave (no cooler, nobody reached) keeps
 its fee when the customer caused the miss, and waives it when the

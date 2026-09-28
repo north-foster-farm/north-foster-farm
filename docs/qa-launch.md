@@ -1305,19 +1305,19 @@ Manual: several emails and pages across a week-long link.
   a refund.
 - **Setup:** A paid on-farm order.
 - **Test:**
-  1. `bin/nff --staging orders deny <id>`
+  1. `bin/nff --staging orders deny <id> --reason "Frost."`
   2. Open "Reschedule or cancel" from the outbox; change the window;
      save.
   3. On a second order, cancel from the card instead.
 - **Assert:** "Requested pickup time unavailable, please pick again",
-  with no reason from the farm and a "Reschedule or cancel" button
+  with "Here's why: Frost." (T2d) and a "Reschedule or cancel" button
   (b14ad8b); the card says "We can't do that
   pickup time"; after the change "Your order is updated" and the farm's
   "Pickup time to confirm: <id>", `question.answer` reschedule,
-  `fulfilment.state` requested. After the cancel: "We're refunding this
-  order", the farm's "Refund needed" naming `orders cancel <id>
-  --refund`, `cancelRequested` true, still paid.
-- **Teardown:** `orders cancel <id> --refund` for both; delete.
+  `fulfilment.state` requested. After the cancel: refunded in full on
+  the spot (T1d), `status` cancelled, the farm's "Cancelled: <id>"
+  saying there's nothing to run.
+- **Teardown:** `orders cancel <id>` for the first; delete both.
 
 ### AO-07 A customer cancels
 
@@ -1328,8 +1328,11 @@ Manual: as AO-06, step 3, on a delivery order.
 - **Test:**
   1. Cancel from the order card.
 - **Assert:** "Your order is cancelled" saying the refund is on its way;
-  the farm's "Refund needed"; stock released.
-- **Teardown:** `orders cancel <id> --refund`; delete.
+  the order refunded in full and `cancelled` at once (T1d); the farm's
+  "Cancelled: <id>"; stock released. If the refund fails, the order
+  stays paid with `cancelRequested` and the farm gets "Refund needed"
+  naming `orders cancel <id>`.
+- **Teardown:** delete.
 
 ### AO-08 A customer changes an order
 
@@ -1536,10 +1539,11 @@ Manual; every automated payment's teardown runs it, without asserting.
 
 Manual.
 
-- **Scenario:** An order cancelled without money back.
+- **Scenario:** An order cancelled without money back, which the CLI
+  does only when told (T1c).
 - **Setup:** A paid order.
 - **Test:**
-  1. `bin/nff --staging orders cancel <id>`
+  1. `bin/nff --staging orders cancel <id> --no-refund`
 - **Assert:** The email says "Nothing more will be charged"; no
   `refund`.
 - **Teardown:** Refund in the Square sandbox dashboard (which is RF-04);

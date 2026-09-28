@@ -136,11 +136,9 @@ Denied:
       `question.answer` is `reschedule`; `fulfilment.state` back to
       `requested`.
 - [ ] Alternatively cancel from the card: `question.answer` is
-      `cancel`; the card says "We're refunding this order"; the
-      cancellation email says the refund is on its way; the farm gets
-      "Refund needed" naming `bin/nff orders cancel <id> --refund`.
-      `cancelRequested` is true and the order is still `paid` until
-      the CLI runs.
+      `cancel`; the order is refunded in full and `cancelled` at once
+      (T1d); the cancellation email says the refund is on its way;
+      the farm gets "Cancelled: <id>" saying there's nothing to run.
 - [ ] Alternatively `bin/nff --staging orders confirm <id>` after a
       deny: the time works after all; `question.answer` is
       `confirmed`, `by: farm`.
@@ -199,7 +197,7 @@ Use a PayPal sandbox personal account as the buyer.
       as refunded; `status` is `cancelled`, `refund.total` true, stock
       back, the fulfilment Canceled in Square, the customer emailed
       "Your refund is on its way".
-- [ ] `bin/nff --staging orders cancel <id>` without `--refund`: the
+- [ ] `bin/nff --staging orders cancel <id> --no-refund`: the
       email says "Nothing more will be charged"; `refund` stays
       unset.
 - [ ] Refund a card payment in the Square sandbox dashboard instead:

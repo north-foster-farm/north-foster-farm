@@ -12,20 +12,23 @@ import { datesFor } from "../../../assets/scripts/order/lib/dates.mjs";
 import {
   phoneOk, zipInfo,
 } from "../../../assets/scripts/order/lib/validate.mjs";
+import { cancelOrder as cancelAndRefund } from "./admin.mjs";
 import { cutoffAt } from "./jobs.mjs";
 import { adminEmails, mailbox, sendMail } from "./mail.mjs";
 import { log } from "./log.mjs";
 import { notifyFarm, sendForOrder } from "./payments.mjs";
+import * as paypalApi from "./paypal.mjs";
 import {
   REMINDERS, amendOrder, answerQuestion, getOrder, ordersFor, paymentRef,
   paymentsOf, questionOpen, refundsOf, reminderPrefs, saveCustomer,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
-import { updateFulfilment } from "./square.mjs";
+import * as squareApi from "./square.mjs";
 import { adjust } from "./stock.mjs";
 import {
-  addressReview, farmPickupChanged, farmRefundNeeded, farmReturnRequest,
-  farmSquareOutOfSync, farmSupport, orderCancelled, orderChanged,
+  addressReview, farmOrderCancelled, farmPickupChanged, farmRefundNeeded,
+  farmReturnRequest, farmSquareOutOfSync, farmSupport, orderCancelled,
+  orderChanged,
 } from "./templates.mjs";
 
 export const AVATARS = avatars.map((a) => a.key);
@@ -133,6 +136,7 @@ const owned = async (stores, customer, id) => {
 
 export const cancelOrder = async (stores, customer, id, {
   now = new Date(), env = process.env, mail = sendMail,
+  square = squareApi, paypal = paypalApi, fetchImpl,
 } = {}) => {
   const order = await owned(stores, customer, id);
 
@@ -148,7 +152,29 @@ export const cancelOrder = async (stores, customer, id, {
     }, "question.answered", now);
   }
 
-  // The farm refunds and closes it from the CLI.
+  // The money goes back now, as the farm's cancel sends it (T1d), so
+  // the email's "on its way" is true.
+  try {
+    await cancelAndRefund(stores, id, {
+      now, env, mail, square, paypal, fetchImpl, source: "customer",
+      key: `refund-cancel-${id}`, reason: `Order ${id}, cancelled by you`,
+    });
+    await tellFarm(farmOrderCancelled(await getOrder(stores, id), customer, {
+      links: mailLinks(env),
+    }), { mail, env });
+
+    return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
+  } catch (error) {
+    log.error({ event: "cancel.refund_failed", id, message: error.message });
+  }
+
+  // The refund failed, so the farm refunds and closes it from the CLI.
+  const current = await getOrder(stores, id);
+
+  if (current.status === "cancelled") {
+    return { ok: true, order: publicOrder(current, now) };
+  }
+
   const flagged = await amendOrder(stores, id, {
     cancelRequested: true, cancelRequestedAt: now.toISOString(),
   }, "cancel.requested", now);
@@ -170,7 +196,7 @@ export const cancelOrder = async (stores, customer, id, {
 // window and phone, the drop-off details, the notes.
 export const changeOrder = async (stores, customer, id, changes, {
   now = new Date(), env = process.env, mail = sendMail,
-  square = { updateFulfilment },
+  square = { updateFulfilment: squareApi.updateFulfilment },
 } = {}) => {
   const order = await owned(stores, customer, id);
 

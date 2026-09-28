@@ -282,14 +282,14 @@ describe("orders from the CLI", () => {
       assert.deepEqual(calls, []);
     });
 
-  it("cancel without a refund: stock back, Square closed, customer told " +
+  it("cancel --no-refund: stock back, Square closed, customer told " +
     "nothing more is charged", async () => {
     const stores = testStores();
     const { sent, calls, opts } = harness();
 
     await setCount(stores, "NFF-CHK-EGG-LG", 3);
     await saveOrder(stores, order("A"), now);
-    const c = await cancelOrder(stores, "A", opts);
+    const c = await cancelOrder(stores, "A", { ...opts, refund: false });
 
     assert.equal(c.status, "cancelled");
     assert.equal(c.refund, undefined);
@@ -307,14 +307,14 @@ describe("orders from the CLI", () => {
     assert.equal(calls.length, 1);
   });
 
-  it("cancel with --refund: the money goes back first, then the wording " +
-    "says so", async () => {
+  it("cancel refunds by default: the money goes back first, then the " +
+    "wording says so", async () => {
     const stores = testStores();
     const { sent, calls, opts } = harness();
 
     await setCount(stores, "NFF-CHK-EGG-LG", 3);
     await saveOrder(stores, order("A"), now);
-    const c = await cancelOrder(stores, "A", { ...opts, refund: true });
+    const c = await cancelOrder(stores, "A", opts);
 
     assert.equal(c.status, "cancelled");
     assert.equal(c.refunds.at(-1).amount, 1400);
@@ -479,8 +479,8 @@ describe("an on-farm pickup window from the CLI", () => {
     assert.equal(sent.length, 1);
     assert.equal(sent[0].subject,
       "Requested pickup time unavailable, please pick again");
-    assert.doesNotMatch(sent[0].text, /at the market/,
-      "the reason stays in the record");
+    assert.match(sent[0].text,
+      /Here's why: We're at the market that morning\./, "T2d");
     assert.ok(sent[0].text.includes("you can cancel your order for a " +
       "full refund"), "the refund is offered");
 
@@ -507,7 +507,10 @@ describe("an on-farm pickup window from the CLI", () => {
     const { sent, opts } = harness();
 
     await saveOrder(stores, requested("A"), now);
-    await denyPickup(stores, "A", opts);
+    await assert.rejects(denyPickup(stores, "A", opts), /Say why/,
+      "a reason is required (T2d)");
+    assert.equal(sent.length, 0);
+    await denyPickup(stores, "A", { ...opts, reason: "Frost." });
     assert.doesNotMatch(sent[0].text, /Reschedule or cancel:/);
     assert.match(sent[0].text, /Please pick another day or window/);
 

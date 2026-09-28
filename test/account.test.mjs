@@ -76,6 +76,19 @@ const harness = () => {
         updateFulfilment: async (id, o) => {
           calls.push(["updateFulfilment", id, o.fulfilment.date]);
         },
+        refundPayment: async ({ squarePaymentId, amount, key }) => {
+          calls.push(["square.refund", squarePaymentId, amount, key]);
+
+          return { squareRefundId: "SQR-1", status: "PENDING", amount };
+        },
+        cancelFulfilment: async (id) => { calls.push(["fulfilment", id]); },
+      },
+      paypal: {
+        refundCapture: async ({ paypalCaptureId, amount }) => {
+          calls.push(["paypal.refund", paypalCaptureId, amount]);
+
+          return { paypalRefundId: "PPR-1", status: "COMPLETED", amount };
+        },
       },
     },
   };
@@ -133,8 +146,8 @@ describe("listOrders", () => {
 });
 
 describe("cancelOrder", () => {
-  it("flags the order for a refund, puts the stock back and tells the " +
-    "farm what to run", async () => {
+  it("refunds in full, cancels, puts the stock back and tells the farm " +
+    "there's nothing to run", async () => {
     const stores = testStores();
     const { sent, calls, opts } = harness();
 
@@ -143,32 +156,67 @@ describe("cancelOrder", () => {
     const r = await cancelOrder(stores, customerOf(), "A", opts);
 
     assert.equal(r.ok, true);
-    assert.equal(r.order.status, "paid", "closed by the farm, not here");
-    assert.equal(r.order.cancelRequested, true);
+    assert.equal(r.order.status, "cancelled");
     assert.equal(r.order.canCancel, false);
     assert.equal(r.order.canChange, false);
-    assert.deepEqual(calls, [], "Square is touched from the CLI");
+    assert.deepEqual(r.order.refunds.map((x) => x.amount), [1200]);
+    assert.deepEqual(calls, [
+      ["square.refund", "PAY-A", 1200, "refund-cancel-A-0"],
+      ["fulfilment", "SQO"],
+    ]);
     assert.equal((await getCounts(stores)).A, 4);
     assert.equal(sent.length, 2);
     assert.match(sent[0].subject, /cancelled/);
     assert.match(sent[0].text, /refund is on its way/);
     assert.deepEqual(sent[1].to, ["farm@example.com"]);
+    assert.equal(sent[1].subject, "Cancelled: A by pat@example.com");
+    assert.match(sent[1].text, /refunded \$12 automatically/);
+
+    const saved = await getOrder(stores, "A");
+
+    assert.equal(saved.refunds[0].source, "customer");
+    assert.equal(saved.cancelRequested, undefined);
+
+    // Asking twice is refused: it is already cancelled.
+    const again = await cancelOrder(stores, customerOf(), "A", opts);
+
+    assert.equal(again.status, 409);
+    assert.equal(sent.length, 2);
+  });
+
+  it("when the refund fails, flags the order and tells the farm what " +
+    "to run", async () => {
+    const stores = testStores();
+    const { sent, calls, opts } = harness();
+
+    await setCount(stores, "A", 3);
+    await saveOrder(stores, order("A"), now);
+    const r = await cancelOrder(stores, customerOf(), "A", {
+      ...opts,
+      square: {
+        ...opts.square,
+        refundPayment: async () => { throw new Error("Square 503"); },
+      },
+    });
+
+    assert.equal(r.ok, true);
+    assert.equal(r.order.status, "paid", "closed by the farm, not here");
+    assert.equal(r.order.cancelRequested, true);
+    assert.equal(r.order.canCancel, false);
+    assert.deepEqual(calls, []);
+    assert.equal((await getCounts(stores)).A, 4);
+    assert.equal(sent.length, 2);
+    assert.match(sent[0].text, /refund is on its way/);
     assert.equal(sent[1].subject,
       "Refund needed: A cancelled by pat@example.com");
-    assert.match(sent[1].text, /bin\/nff orders cancel A --refund/);
+    assert.match(sent[1].text, /bin\/nff orders cancel A\n/);
     assert.match(sent[1].html,
-      /user-select:all">bin\/nff orders cancel A --refund<\/pre>/);
+      /user-select:all">bin\/nff orders cancel A<\/pre>/);
 
     const saved = await getOrder(stores, "A");
 
     assert.equal(saved.cancelRequestedAt, now.toISOString());
     assert.equal(saved.history.at(-2).event, "cancel.requested");
-
-    // Asking twice is refused: the first request already stands.
-    const again = await cancelOrder(stores, customerOf(), "A", opts);
-
-    assert.equal(again.status, 409);
-    assert.equal(sent.length, 2);
   });
 
   it("refuses someone else's order, and one past the cutoff", async () => {
@@ -291,7 +339,7 @@ describe("changeOrder", () => {
       });
 
       assert.equal(r.ok, true);
-      assert.equal(r.order.cancelRequested, true, "the farm refunds");
+      assert.equal(r.order.status, "cancelled", "refunded on the spot");
       assert.equal(r.order.question.answer, "cancel");
       assert.match(sent[0].subject, /cancelled/);
       assert.match(sent[0].text, /refund is on its way/);
@@ -522,7 +570,7 @@ describe("the account endpoints", () => {
       {}, session.id), { stores, ...opts });
 
     assert.equal(cancel.status, 200);
-    assert.equal((await cancel.json()).order.cancelRequested, true);
+    assert.equal((await cancel.json()).order.status, "cancelled");
 
     const missing = await handle(req("/api/account/orders/ZZZZZZ/cancel",
       "POST", {}, session.id), { stores, ...opts });
