@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  cartOf, settle,
+  cartOf, settle, signedOut,
 } from "../assets/scripts/order/lib/cart-sync.mjs";
 import { getCart, saveCart } from "../netlify/functions/lib/account.mjs";
 import { createSession } from "../netlify/functions/lib/auth.mjs";
@@ -47,6 +47,32 @@ describe("the cart across devices (#149)", () => {
       assert.equal(key in cart, false, key);
     }
     assert.deepEqual(cartOf("junk").lines, []);
+  });
+
+  it("sign-out keeps the cart and none of the customer's details", () => {
+    const mine = payload();
+
+    mine.fulfilment = {
+      method: "delivery", date: "2026-10-08", delivery: {
+        address1: "1 Elm St", town: "Scituate", zip: "02857",
+        cooler: "By the door", notes: "Gate code 1234",
+      },
+    };
+
+    const left = signedOut(mine);
+
+    assert.deepEqual(left.customer, {});
+    assert.deepEqual(left.fulfilment, {
+      method: "delivery", date: "2026-10-08", delivery: {},
+    });
+    assert.deepEqual(left.lines, mine.lines);
+    assert.equal(left.code, "HELLO");
+    // What then goes up to the next account signed in here.
+    assert.deepEqual(cartOf(left).fulfilment.delivery, {
+      address1: "", address2: "", town: "", zip: "", cooler: "",
+      notes: "",
+    });
+    assert.equal(cartOf(left).customer.email, "");
   });
 
   it("the copy saved last wins", () => {

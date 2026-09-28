@@ -134,12 +134,12 @@ export class OrderForm {
     // an older page left to retry is forgotten, its draft kept.
     this.draft.clearPending();
 
-    // A signed-in customer's cart may be newer on another device (#149).
-    await pullCart();
-
-    const draft = this.draft.load();
-
-    if (draft && draft.payload) this.restore(draft.payload);
+    // This browser's draft first, so the form is never empty while the
+    // account's copy is on its way: a change made meanwhile saves the
+    // whole cart, and is newer than the account's. The account's copy
+    // replaces it only when nothing changed here (#149).
+    this.resume();
+    if (await pullCart()) this.resume({ fresh: true });
 
     this.methodFromQuery();
     this.addFromQuery();
@@ -1483,6 +1483,18 @@ export class OrderForm {
       claimedTotal: this.totals().total,
       website: qs(this.form, "[name='website']").value,
     };
+  }
+
+  // Fills the form from the saved draft. `fresh` first empties the
+  // cart, for a draft that replaced the one already shown.
+  resume({ fresh = false } = {}) {
+    const draft = this.draft.load();
+
+    if (!draft || !draft.payload) return;
+    if (fresh) {
+      for (const input of all(this.form, "[data-qty]")) this.setQty(input, 0);
+    }
+    this.restore(draft.payload);
   }
 
   restore(payload) {

@@ -8,6 +8,8 @@
 // idempotency key from the pair, so a retry of one attempt finds what
 // it made and a new attempt never collides with an old one.
 
+import { signedOut } from "./lib/cart-sync.mjs";
+
 const DRAFT = "nff-order-draft";
 const PENDING = "nff-order-pending";
 
@@ -171,13 +173,12 @@ export class Draft {
   }
 }
 
-// Signing out takes the customer's details out of the draft and
-// leaves the cart, so the next person at this browser starts clean.
+// Signing out takes the customer's details and address out of the
+// draft and leaves the cart, so the next person at this browser starts
+// clean (lib/cart-sync.mjs, signedOut).
 export const forgetCustomer = () => {
   const current = read(DRAFT);
 
   if (!current || !current.payload) return;
-  write(DRAFT, {
-    ...current, payload: { ...current.payload, customer: {} },
-  });
+  write(DRAFT, { ...current, payload: signedOut(current.payload) });
 };
