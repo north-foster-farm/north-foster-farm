@@ -17,8 +17,9 @@
 
   Optional: shape="egg" clips a portrait photo to the egg and sets it
   beside the text; shape="band" crops a wide photo to a strip that
-  runs to the edges of the post, a pause between sections; class adds classes to the figure; frame="false"
-  drops the rounding and shadow, for a cut-out such as a PNG on transparency.
+  runs to the edges of the post, a pause between sections; class adds
+  classes to the figure; frame="false" drops the rounding and shadow,
+  for a cut-out such as a PNG on transparency.
 */}}
 {{ $src := .Get "src" }}
 {{ $image := resources.Get $src }}
@@ -29,7 +30,27 @@
 {{ with .Inner }}{{ $caption = . | markdownify }}{{ end }}
 {{ $shape := .Get "shape" | default "" }}
 {{ $width := cond (eq $shape "egg") "600x" "1150x" }}
+{{/* A srcset, so a retina screen gets twice the pixels (#220). A
+     post's column is at most 700px, a band bleeds a little past it,
+     and the egg is at most 16rem. No width beyond the original. */}}
+{{ $widths := slice 575 800 1150 1400 2100 }}
+{{ $sizes := "(min-width: 768px) 700px, calc(100vw - 2rem)" }}
+{{ if eq $shape "egg" }}
+  {{ $widths = slice 300 600 900 }}
+  {{ $sizes = "16rem" }}
+{{ else if eq $shape "band" }}
+  {{ $sizes = "(min-width: 768px) 710px, 100vw" }}
+{{ end }}
+{{ $srcset := slice }}
+{{ range $widths }}
+  {{ if le . $image.Width }}
+    {{ $each := $image.Resize (printf "%dx webp q82" .) }}
+    {{ $srcset = $srcset | append (printf "%s %dw" $each.RelPermalink .) }}
+  {{ end }}
+{{ end }}
 {{ partial "home/figure.html" (dict
+  "srcset" (delimit $srcset ", ")
+  "sizes" $sizes
   "image" ($image.Resize (printf "%s webp q82" $width))
   "alt" (.Get "alt")
   "caption" $caption

@@ -13,6 +13,8 @@
              unshadowed, that runs to the edges of its container
              (optional)
     lazy     Lazy-load the image (optional, default true)
+    srcset   Other widths of the image, as a srcset (optional)
+    sizes    The width the image shows at, for srcset (optional)
 */}}
 
 {{ $image := .image }}
@@ -26,6 +28,8 @@
 
 <figure class="figure d-block{{ if not (or $egg $band) }} mx-auto{{ end }}{{ if $egg }} figure-egg{{ end }}{{ if $band }} figure-band{{ end }}{{ with $classes }} {{ . }}{{ end }}">
   <img src="{{ $image.RelPermalink }}"
+    {{- with .srcset }} srcset="{{ . }}"{{ end }}
+    {{- with .sizes }} sizes="{{ . }}"{{ end }}
     width="{{ $image.Width }}" height="{{ $image.Height }}"
     alt="{{ $alt }}"
     class="figure-img img-fluid d-block {{ if $frame }}rounded-3 shadow-sm mb-0{{ else if $egg }}figure-egg-img mb-2{{ else if $band }}figure-band-img mb-0{{ else }}rounded-4 mb-1{{ end }}"
