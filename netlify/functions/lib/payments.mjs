@@ -6,7 +6,7 @@ import { alert, mark, noteMail } from "./health.mjs";
 import { adminEmails, sendMail } from "./mail.mjs";
 import { log } from "./log.mjs";
 import {
-  amendOrder, getOrder, moneyPatch, orderByPayment,
+  FAILED_REFUND, amendOrder, getOrder, moneyPatch, orderByPayment,
   paidTotal, paymentRef, paymentsOf, refundedTotal, refundsOf,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
@@ -151,39 +151,64 @@ export const recordRefund = async (stores, order, refund, source, now) => {
 };
 
 // A refund made in the Square dashboard rather than the CLI reaches
-// the record through the webhook. -> { handled, id }.
-export const applyRefundEvent = async (stores, event, { now = new Date() }
-= {}) => {
+// the record through the webhook, and so does Square's word on how a
+// refund ended. One that FAILED or was REJECTED returned nothing: the
+// CLI's record of it is marked so (it no longer counts as refunded),
+// and the farm is alerted, since the customer is still owed (#215).
+// -> { handled, id }.
+export const applyRefundEvent = async (stores, event, {
+  now = new Date(),
+  env = process.env,
+  mail = sendMail,
+} = {}) => {
   const refund = event && event.data && event.data.object
     && event.data.object.refund;
 
   if (!refund || !refund.payment_id) {
     return { handled: false, reason: "no refund" };
   }
-  if (refund.status !== "COMPLETED") {
+
+  const failed = FAILED_REFUND.includes(refund.status);
+
+  if (refund.status !== "COMPLETED" && !failed) {
     return { handled: false, reason: `refund ${refund.status}` };
   }
 
   const order = await orderByPayment(stores, refund.payment_id);
+  const refunds = refundsOf(order);
+  const known = refunds.findIndex((r) => r.squareRefundId === refund.id);
+  const changed = known < 0 || refunds[known].status !== refund.status;
+
+  if (failed && changed) {
+    await alert(stores, "refund.failed", {
+      id: order ? order.id : null,
+      squareRefundId: refund.id,
+      squarePaymentId: refund.payment_id,
+      amount: refund.amount_money ? refund.amount_money.amount : 0,
+      status: refund.status,
+      reason: refund.reason || null,
+    }, { env, mail, now });
+  }
 
   if (!order) return { handled: false, reason: "unknown payment" };
 
-  const refunds = refundsOf(order);
-  const known = refunds.findIndex((r) => r.squareRefundId === refund.id);
-
   if (known >= 0) {
-    // A refund the CLI made is recorded PENDING; Square's word that
-    // it completed is the one change worth noting.
-    if (refunds[known].status !== refund.status) {
+    // A refund the CLI made is recorded PENDING; Square's word on how
+    // it ended is the one change worth noting.
+    if (changed) {
       await amendOrder(stores, order.id, moneyPatch(order, {
         refunds: refunds.map((r, i) => (i === known
           ? { ...r, status: refund.status }
           : r)),
-      }), "refund.completed", now);
+      }), failed ? "refund.failed" : "refund.completed", now);
     }
 
     return { handled: true, id: order.id, repeat: true };
   }
+
+  // A refund made elsewhere that failed moved no money: the alert is
+  // all there is to it.
+  if (failed) return { handled: true, id: order.id, failed: true };
 
   const from = paymentsOf(order)
     .find((x) => x.squarePaymentId === refund.payment_id);

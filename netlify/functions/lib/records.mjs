@@ -96,8 +96,14 @@ export const refundsOf = (order) => {
 
 const sum = (items) => items.reduce((s, x) => s + (x.amount || 0), 0);
 
+// A refund Square reports FAILED or REJECTED stays on the record, for
+// the history, but returned nothing (#215).
+export const FAILED_REFUND = ["FAILED", "REJECTED"];
+export const settledRefunds = (order) => refundsOf(order)
+  .filter((r) => !FAILED_REFUND.includes(r.status));
+
 export const paidTotal = (order) => sum(paymentsOf(order));
-export const refundedTotal = (order) => sum(refundsOf(order));
+export const refundedTotal = (order) => sum(settledRefunds(order));
 
 // The delivery fee an attempted delivery keeps: "the delivery fee is
 // not refundable once we attempt the delivery" (James, F1). The farm

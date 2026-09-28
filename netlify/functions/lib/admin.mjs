@@ -13,8 +13,8 @@ import * as paypalApi from "./paypal.mjs";
 import {
   OPEN, allCustomers, allOrders, amendOrder, byEmailKey, deleteCustomer,
   deleteOrder, getCustomer, getOrder, keptFee, listCheckouts, ordersFor,
-  paidTotal, paymentRef, paymentsOf, refundedTotal, refundsOf, saveCustomer,
-  setStatus,
+  paidTotal, paymentRef, paymentsOf, refundedTotal, saveCustomer, setStatus,
+  settledRefunds,
 } from "./records.mjs";
 import { mailLinks } from "./site.mjs";
 import * as squareApi from "./square.mjs";
@@ -259,7 +259,7 @@ export const refundOrder = async (stores, id, {
   // What each payment still holds: its amount less the refunds out of
   // it. A refund from before refunds named their payment came out of
   // the first.
-  const refunds = refundsOf(order);
+  const refunds = settledRefunds(order);
   const outOf = (r) => r.payment || paymentRef(payments[0]);
   const holds = (p) => p.amount - refunds
     .filter((r) => outOf(r) === paymentRef(p))
@@ -359,7 +359,7 @@ export const cancelOrder = async (stores, id, {
   // the money (T1a): what went back just now, or else what went back
   // before, dated.
   if (!order.cancelRequested) {
-    const earlier = refundsOf(order);
+    const earlier = settledRefunds(order);
     const justNow = refundedTotal(cancelled) - refundedTotal(order);
 
     await sendForOrder(stores, cancelled, "orderCancelled",

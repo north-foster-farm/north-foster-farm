@@ -6,7 +6,7 @@ import {
   announcePaid, applyRefundEvent, confirmOrder, notifyFarm, recordRefund,
 } from "../netlify/functions/lib/payments.mjs";
 import {
-  getOrder, openOrders, saveOrder,
+  getOrder, openOrders, refundedTotal, saveOrder,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import {
@@ -276,6 +276,69 @@ describe("refunds", () => {
       assert.equal(noted.history
         .filter((h) => h.event === "refund.recorded").length, 1);
     });
+
+  const alerting = () => {
+    const sent = [];
+
+    return {
+      sent,
+      env: { ADMIN_EMAILS: "farm@x.com" },
+      mail: async (m) => {
+        sent.push(m);
+
+        return { id: `m${sent.length}`, driver: "test" };
+      },
+    };
+  };
+  const failures = (sent) => sent
+    .filter((m) => m.subject === "Site alert: refund.failed").length;
+
+  it("applyRefundEvent marks a CLI refund Square failed, stops counting " +
+    "it, and alerts the farm once", async () => {
+    const stores = testStores();
+    const { sent, env, mail } = alerting();
+
+    await saveOrder(stores, order("NFF-1"), now);
+    await recordRefund(stores, await getOrder(stores, "NFF-1"), {
+      amount: 700, squareRefundId: "REF-9", status: "PENDING",
+    }, "farm", now);
+
+    const failed = event({
+      id: "REF-9", payment_id: "PAY-NFF-1", status: "FAILED",
+      amount_money: { amount: 700, currency: "USD" },
+    });
+    const r = await applyRefundEvent(stores, failed, { now, env, mail });
+
+    assert.deepEqual(r, { handled: true, id: "NFF-1", repeat: true });
+
+    const noted = await getOrder(stores, "NFF-1");
+
+    assert.equal(noted.refunds.at(-1).status, "FAILED");
+    assert.equal(refundedTotal(noted), 0);
+    assert.equal(noted.history
+      .filter((h) => h.event === "refund.failed").length, 1);
+    assert.equal(failures(sent), 1);
+
+    await applyRefundEvent(stores, failed, { now, env, mail });
+    assert.equal(failures(sent), 1, "a redelivery alerts nothing more");
+  });
+
+  it("applyRefundEvent alerts a rejected dashboard refund and records " +
+    "nothing", async () => {
+    const stores = testStores();
+    const { sent, env, mail } = alerting();
+
+    await saveOrder(stores, order("NFF-1"), now);
+
+    const r = await applyRefundEvent(stores, event({
+      id: "REF-7", payment_id: "PAY-NFF-1", status: "REJECTED",
+      amount_money: { amount: 300, currency: "USD" },
+    }), { now, env, mail });
+
+    assert.deepEqual(r, { handled: true, id: "NFF-1", failed: true });
+    assert.deepEqual((await getOrder(stores, "NFF-1")).refunds || [], []);
+    assert.equal(failures(sent), 1);
+  });
 
   it("applyRefundEvent leaves unknown payments and pending refunds alone",
     async () => {

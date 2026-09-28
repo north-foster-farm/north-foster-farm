@@ -22,8 +22,8 @@ import * as paypalApi from "./paypal.mjs";
 import { pickupSchedule } from "./pickups.mjs";
 import {
   REMINDERS, amendOrder, answerQuestion, getOrder, keptFee, ordersFor,
-  paidTotal, paymentRef, paymentsOf, questionOpen, refundedTotal, refundsOf,
-  reminderPrefs, saveCustomer,
+  paidTotal, paymentRef, paymentsOf, questionOpen, refundedTotal,
+  reminderPrefs, saveCustomer, settledRefunds,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
@@ -97,7 +97,7 @@ export const publicOrder = (order, now = new Date()) => ({
   })),
   // Which payment each refund came out of, by its place in `payments`
   // (a refund that names none came out of the first).
-  refunds: refundsOf(order).map((r) => ({
+  refunds: settledRefunds(order).map((r) => ({
     at: r.at,
     amount: r.amount,
     payment: Math.max(0, paymentsOf(order)

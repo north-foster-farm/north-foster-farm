@@ -114,6 +114,14 @@ the order's total. The order is recorded as paid all the same.
 `bin/nff orders show <id>`, compare with the capture in PayPal, and
 refund or charge the difference by hand.
 
+**`refund.failed`.** Square reports a refund FAILED or REJECTED: the
+customer did not get that money back. A refund from `bin/nff` is
+marked so on the order and no longer counts as refunded; one made in
+the Square dashboard was never recorded. Look up the refund in Square
+for the reason (often a card that has closed). Refund again with
+`bin/nff orders refund <id>`, or pay the customer another way and
+tell them.
+
 **`pickup.lapsed`.** A Venmo payment approved on the order page was
 finished by the jobs after its pickup time had left the schedule
 (W11d). The order is paid and booked for that time. Keep the time if
