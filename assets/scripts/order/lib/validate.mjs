@@ -119,7 +119,14 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
     errors["fulfilment.method"] = "Choose how you'd like to get your order.";
   }
 
-  const totals = computeTotals({ lines, method, index, money, group });
+  // The ZIP's status feeds the totals (an unlisted Rhode Island ZIP
+  // adds the outside-area fee) before the delivery block reads it.
+  const zipStatus = method === "delivery"
+    ? zipInfo((fulfilment.delivery || {}).zip, terms.area).status
+    : null;
+  const totals = computeTotals({
+    lines, method, index, money, group, zipStatus,
+  });
   const out = {
     customer: { firstName, lastName, name, email, phone, contact }, method,
   };

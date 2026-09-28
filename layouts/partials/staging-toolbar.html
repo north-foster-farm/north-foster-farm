@@ -1,0 +1,45 @@
+{{/*
+  The staging toolbar: the outbox of emails the site wrote instead of
+  sending, and a trigger for the scheduled jobs. Rendered only when
+  Netlify's build-time CONTEXT is set and is not "production", so the
+  production HTML, CSS and JS carry no trace of it: the stylesheet and
+  the script below are built by Hugo only when this partial renders.
+  (hugo.Environment cannot decide this; previews build with the
+  production environment too.) The endpoints it calls refuse in
+  production as well. See docs/staging.md.
+*/}}
+{{ $context := getenv "CONTEXT" }}
+{{ if and $context (ne $context "production") }}
+  {{ $style := resources.Get "styles/staging.css" | fingerprint "sha512" }}
+  {{ $script := resources.Get "scripts/staging/main.js" | js.Build (dict "minify" true) | fingerprint "sha512" }}
+  <link rel="stylesheet" href="{{ $style.RelPermalink }}" integrity="{{ $style.Data.Integrity }}">
+  <div class="staging" id="staging" data-context="{{ $context }}" hidden>
+    <button class="staging-tab" type="button" data-staging-open aria-expanded="false">Staging</button>
+    <section class="staging-panel" data-staging-panel aria-label="Staging tools" hidden>
+      <header class="staging-head">
+        <strong>Staging</strong>
+        <span data-staging-info>{{ $context }}</span>
+        <button type="button" data-staging-collapse title="Collapse to a tab" aria-label="Collapse">–</button>
+        <button type="button" data-staging-hide title="Hide until the next page load" aria-label="Hide">×</button>
+      </header>
+      <div class="staging-body">
+        <h2>Inbox</h2>
+        <p class="staging-muted" data-staging-empty>Nothing yet. Every email the site would send lands here instead.</p>
+        <ol class="staging-list" data-staging-list></ol>
+        <p>
+          <button type="button" class="staging-action" data-staging-refresh>Refresh</button>
+          <button type="button" class="staging-action" data-staging-clear>Clear</button>
+        </p>
+        <h2>Jobs</h2>
+        <p>
+          <button type="button" class="staging-action" data-staging-run="">Run now</button>
+          <button type="button" class="staging-action" data-staging-run="08:00">As 8:00 today</button>
+          <button type="button" class="staging-action" data-staging-run="18:00">As 18:00 today</button>
+        </p>
+        <label><input type="checkbox" data-staging-reset> Send today's reports again</label>
+        <pre class="staging-out" data-staging-out hidden></pre>
+      </div>
+    </section>
+  </div>
+  <script src="{{ $script.RelPermalink }}" type="module" integrity="{{ $script.Data.Integrity }}" defer></script>
+{{ end }}

@@ -244,13 +244,20 @@ export const buildOrder = (order, customerId, cfg) => {
       scope: "ORDER",
     }];
   }
-  if (t.deliveryFee > 0) {
-    out.service_charges = [{
-      name: "Delivery fee",
-      amount_money: money(t.deliveryFee),
+  // Two lines when the address is outside the published towns, so
+  // the invoice explains the extra $3 on its own.
+  const charges = [
+    ["Delivery fee", t.deliveryFee - (t.areaFee || 0)],
+    ["Outside-area fee", t.areaFee || 0],
+  ].filter(([, cents]) => cents > 0);
+
+  if (charges.length) {
+    out.service_charges = charges.map(([name, cents]) => ({
+      name,
+      amount_money: money(cents),
       calculation_phase: "SUBTOTAL_PHASE",
       taxable: false,
-    }];
+    }));
   }
 
   return out;

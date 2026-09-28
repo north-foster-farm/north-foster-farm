@@ -320,11 +320,16 @@ describe("delivery rules", () => {
     assert.match(r.errors["delivery.zip"], /only able to deliver eggs/);
   });
 
-  it("warns and flags an unlisted Rhode Island ZIP", () => {
+  it("warns and flags an unlisted Rhode Island ZIP, and charges $3", () => {
     const r = validateOrder(delivery({ zip: "02831" }), ctx);
+    const listed = validateOrder(delivery(), ctx);
 
     assert.ok(r.ok, JSON.stringify(r));
     assert.equal(r.order.flags.zipUnlisted, true);
+    assert.equal(r.order.totals.areaFee, 300);
+    assert.equal(r.order.totals.deliveryFee,
+      listed.order.totals.deliveryFee + 300);
+    assert.equal(r.order.totals.total, listed.order.totals.total + 300);
   });
 
   it("blocks a Massachusetts ZIP", () => {

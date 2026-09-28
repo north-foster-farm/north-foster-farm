@@ -352,14 +352,21 @@ export const claimVenmo = async (stores, customer, id, {
   return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
 };
 
-export const updateProfile = async (stores, customer, changes) => {
+export const updateProfile = async (stores, customer, changes, {
+  now = new Date(),
+} = {}) => {
   const c = changes && typeof changes === "object" ? changes : {};
   const errors = {};
   const patch = {};
 
-  if (c.name !== undefined) {
-    patch.name = text(c.name, 120);
-    if (!patch.name) errors.name = "Please enter your name.";
+  // The name is kept in parts, as the order form takes it; the full
+  // name is rebuilt from them for the places that show it whole.
+  if (c.firstName !== undefined || c.lastName !== undefined) {
+    patch.firstName = text(c.firstName, 60);
+    patch.lastName = text(c.lastName, 60);
+    if (!patch.firstName) errors.firstName = "Please enter your first name.";
+    if (!patch.lastName) errors.lastName = "Please enter your last name.";
+    patch.name = `${patch.firstName} ${patch.lastName}`.trim();
   }
   if (c.phone !== undefined) {
     patch.phone = text(c.phone, 40);
@@ -372,6 +379,14 @@ export const updateProfile = async (stores, customer, changes) => {
       errors.avatar = "Pick one of the chickens.";
     } else {
       patch.avatar = c.avatar;
+    }
+  }
+  // Farm news by email is opt-in only: off unless the customer ticks
+  // the box, here or at checkout, and the change is dated.
+  if (c.marketing !== undefined) {
+    patch.marketing = c.marketing === true;
+    if (patch.marketing !== (customer.marketing === true)) {
+      patch.marketingAt = now.toISOString();
     }
   }
   // The reminder emails, each on or off; a key left out is unchanged.

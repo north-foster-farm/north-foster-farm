@@ -1,3 +1,9 @@
+{{/* The site builds relative URLs, which this page cannot use: it is
+     served at whatever path was asked for, so "./about/" would stack
+     onto it. A base at the site root fixes every link and asset on it
+     (the CSP allows a same-origin base; a root-relative one Hugo
+     would rewrite as relative too). */}}
+{{ define "head-extra" }}<base href="{{ .Site.BaseURL }}">{{ end }}
 {{ define "main" }}
   <section class="{{ .Type }}">
     <div class="page container py-5">

@@ -1,5 +1,7 @@
-// The account menu's dropdown registers itself on import.
+// The account menu's dropdown and the phone menu's offcanvas register
+// themselves on import.
 import "bootstrap/js/dist/dropdown.js";
+import "bootstrap/js/dist/offcanvas.js";
 
 import { Extensions } from "./extensions/extensions.js";
 import { Copyright } from "./copyright/copyright.js";
