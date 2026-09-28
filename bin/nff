@@ -54,6 +54,13 @@ const USAGE = `Usage:
                                       couldn't get to, for the email
   bin/nff orders fulfil <id>
   bin/nff orders delete <id>
+  bin/nff passes issue [--email <email>] [--days 14] [--note "..."]
+                                      a code that lets one delivery
+                                      order under the minimum; single
+                                      use, tied to --email if given.
+                                      The fee is charged as usual
+  bin/nff passes list
+  bin/nff passes revoke <code>
   bin/nff returns resolve <id> <returnId> [note...]
   bin/nff stock list
   bin/nff stock set <sku> <count|none>
@@ -119,6 +126,7 @@ const [
   { mailLinks },
   sent,
   { checkSchedule },
+  passes,
 ] = await Promise.all([
   import("../data/delivery.json", { with: { type: "json" } }),
   import("../netlify/functions/lib/admin.mjs"),
@@ -135,6 +143,7 @@ const [
   import("../netlify/functions/lib/site.mjs"),
   import("../netlify/functions/lib/sent.mjs"),
   import("../assets/scripts/order/lib/schedule.mjs"),
+  import("../netlify/functions/lib/passes.mjs"),
 ]);
 
 process.env.SITE_CONTEXT = context ? CONTEXTS[context] : "dev";
@@ -155,7 +164,7 @@ const words = [];
 
 // Flags that take a value: `--reason "..."` as well as `--reason=...`.
 const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
-  "to", "waive", "detail", "reason-text"];
+  "to", "waive", "detail", "reason-text", "email", "days"];
 const args = process.argv.slice(2);
 
 for (let i = 0; i < args.length; i += 1) {
@@ -498,6 +507,31 @@ const run = async () => {
     return out("Deploy started. It fails, and the last good one stays " +
       "live, if the schedule doesn't pass there either.");
   }
+  case "passes issue": {
+    const email = typeof flags.email === "string" ? flags.email : null;
+    const pass = await passes.issuePass(stores, {
+      email,
+      days: flags.days === undefined ? passes.PASS_DAYS : Number(flags.days),
+      note: typeof flags.note === "string" ? flags.note : "",
+    });
+
+    return out(`${pass.code}  lifts the delivery minimum on one order${
+      pass.email ? ` from ${pass.email}` : ""}, until ${
+      pass.expiresAt.slice(0, 10)}.`);
+  }
+  case "passes list": {
+    const list = await passes.listPasses(stores);
+
+    for (const p of list) {
+      out(`${p.code}  ${passes.passState(p)}  ${p.email || "any email"}${
+        p.note ? `  ${p.note}` : ""}`);
+    }
+    if (!list.length) out("No passes.");
+
+    return undefined;
+  }
+  case "passes revoke":
+    return out(`Revoked ${(await passes.revokePass(stores, rest[0])).code}.`);
   case "jobs run":
     return out(await runJobs(stores));
   case "jobs history": {

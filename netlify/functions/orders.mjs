@@ -37,6 +37,9 @@ import { alert, count } from "./lib/health.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./lib/paypal.mjs";
+import {
+  PASS_MESSAGES, getPass, holdPass, passCodeOf, passProblem,
+} from "./lib/passes.mjs";
 import { pickupSchedule } from "./lib/pickups.mjs";
 import { paymentsOf } from "./lib/records.mjs";
 import { DECLINE_MESSAGES as SQUARE_DECLINES } from "./lib/square.mjs";
@@ -172,14 +175,30 @@ export const handle = async (req, {
   const group = session && session.customer
     ? session.customer.discountGroup || null
     : null;
+  // A pass (#182) lifts the delivery minimum for this one order. It is
+  // checked against the order's email and id, held for the order
+  // while it is paid, and used up by the paid record.
+  const id = orderId(key, now);
+  const passCode = passCodeOf(payload.pass);
+  const pass = passCode ? await getPass(stores, passCode) : null;
+  const problem = passCode
+    ? passProblem(pass, {
+      email: (payload.customer || {}).email, orderId: id, now,
+    })
+    : null;
   const result = validateOrder(payload, {
     index, terms, now, group, codes: discountCodes.codes,
     schedule: pickupSchedule(env),
+    waive: { minimum: !!passCode && !problem },
   });
 
   if (!result.ok) {
+    const errors = problem && result.errors["delivery.minimum"]
+      ? { ...result.errors, "delivery.minimum": PASS_MESSAGES[problem] }
+      : result.errors;
+
     return json(result.status, {
-      errors: result.errors,
+      errors,
       dates: result.dates || undefined,
     });
   }
@@ -199,7 +218,7 @@ export const handle = async (req, {
   if (result.order.flags.totalMismatch) {
     log.warn({
       event: "order.total_mismatch",
-      id: orderId(key, now),
+      id,
       claimed: payload.claimedTotal,
       computed: result.order.totals.total,
     });
@@ -215,10 +234,15 @@ export const handle = async (req, {
 
   // Every way is booked by paying: a window the schedule offers needs
   // no second yes from the farm (W11d).
+  const waived = result.order.flags.minimumWaived;
+
+  if (waived) await holdPass(stores, pass, id, now);
+
   const order = {
-    id: orderId(key, now),
+    id,
     submittedAt: now.toISOString(),
     ...result.order,
+    pass: waived ? pass.code : null,
     fulfilment: { ...result.order.fulfilment, state: "agreed" },
     meta: {
       formVersion: catalog.version,

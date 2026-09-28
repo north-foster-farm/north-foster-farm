@@ -73,6 +73,9 @@ export class OrderForm {
     // Discount codes, by hash; the plain codes stay on the server.
     this.codes = data.codes || [];
     this.code = null;
+    // A pass the farm issued (#182): its code, once /api/pass says it
+    // lifts the delivery minimum. The server checks it again.
+    this.pass = null;
     this.joke = null;
     this.index = indexCatalog(this.catalog);
     this.money = this.terms.money;
@@ -200,6 +203,7 @@ export class OrderForm {
     const customer = (who && who.customer) || {};
 
     this.group = customer.discountGroup || null;
+    this.pass = order.pass || null;
 
     const saved = this.draft.load();
 
@@ -987,10 +991,12 @@ export class OrderForm {
     clearTimeout(this.noteTimer);
     note.classList.remove("is-fading");
 
-    // Apply with the field empty takes the code off again.
+    // Apply with the field empty takes the code off again, and a pass
+    // with it; a change keeps the pass its order was placed with.
     if (!typed) {
       this.stopJoke();
       this.code = null;
+      if (!this.editing) this.pass = null;
       say("");
       this.refresh();
 
@@ -1034,11 +1040,46 @@ export class OrderForm {
       this.stopJoke();
       this.code = { code: typed, label: found.label, off: found.off };
       accepted(`Code applied: $${found.off} off.`);
+      this.refresh();
+
+      return;
+    }
+
+    const pass = this.editing ? { ok: false } : await this.applyPass(typed);
+
+    if (pass.ok) {
+      // Draft wording.
+      accepted("Code applied: this order can be delivered under the " +
+        `$${this.money.deliveryMinimum} minimum.`);
     } else if (!quiet) {
       // The code that was on stays on.
-      say("Not a valid discount code.");
+      say(pass.message || "Not a valid discount code.");
     }
     this.refresh();
+  }
+
+  // Asks the server whether a typed code is a pass (#182). Only the
+  // pass shape, eight letters and digits, is worth a request.
+  // -> { ok, message? }; an accepted one becomes `this.pass`.
+  async applyPass(value) {
+    const raw = String(value || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
+
+    if (raw.length !== 8) return { ok: false };
+
+    const code = `${raw.slice(0, 4)}-${raw.slice(4)}`;
+    const { ok, data } = await api(
+      `/api/pass?code=${encodeURIComponent(code)}`
+    ).catch(() => ({ ok: false, data: null }));
+
+    if (ok) this.pass = code;
+
+    return { ok, message: data && data.message };
+  }
+
+  // The money rules the page holds the order to: a pass lifts the
+  // delivery minimum, and nothing else.
+  rules() {
+    return this.pass ? { ...this.money, deliveryMinimum: 0 } : this.money;
   }
 
   startJoke() {
@@ -1082,7 +1123,7 @@ export class OrderForm {
   }
 
   eligible(totals) {
-    return meetsMinimum(totals, this.money);
+    return meetsMinimum(totals, this.rules());
   }
 
   // Everything derived from the current field values.
@@ -1237,7 +1278,7 @@ export class OrderForm {
     const lines = this.lines();
     const count = lines.reduce((n, line) => n + line.qty, 0);
     const s = summarize({
-      totals, method, money: this.money, count, lines, index: this.index,
+      totals, method, money: this.rules(), count, lines, index: this.index,
     });
 
     this.renderItems(s);
@@ -1476,6 +1517,7 @@ export class OrderForm {
       code: this.code
         ? this.code.code
         : normalizeCode(qs(this.form, "[data-field='code']").value),
+      pass: this.pass,
       claimedTotal: this.totals().total,
       website: qs(this.form, "[name='website']").value,
     };
@@ -1511,6 +1553,10 @@ export class OrderForm {
     this.formatPhone();
     set("customer.contact", c.contact);
     set("code", payload.code);
+    // A saved draft's pass is asked about again: it may be gone.
+    if (payload.pass && !this.editing) {
+      this.applyPass(payload.pass).then(() => this.refresh());
+    }
 
     for (const line of payload.lines || []) {
       const input = qs(this.form, `[data-qty="${line.sku}"]`);
@@ -1579,6 +1625,7 @@ export class OrderForm {
     return validateOrder(payload, {
       index: this.index, terms: this.terms, now: this.dates.now(),
       group: this.group, code: this.code, schedule: this.dates.schedule(),
+      waive: { minimum: !!this.pass },
     });
   }
 

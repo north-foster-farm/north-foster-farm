@@ -642,7 +642,15 @@ Flags that take a value accept both `--reason "..."` and
 - **Fee waiver at `subtotal >= 150`**, copy says "$150 or more". The v4
   PDF's "over $150" would charge $5 on exactly $150.
 - **$40 minimum is a hard block** with pickup and the drop site as the
-  escape hatch, both without a minimum.
+  escape hatch, both without a minimum. The one exception is a pass
+  (#182): `bin/nff passes issue [--email x] [--days 14]` prints a code
+  that lets one delivery order under the minimum. It changes nothing
+  charged (the fee stays), is single use, expires, and is tied to an
+  email when given. The code box takes it; `GET /api/pass` tells the
+  page, and `POST /api/orders` checks it again, holds it for 30
+  minutes while the order is paid, and the paid record uses it up
+  (`lib/passes.mjs`). An order that meets the minimum anyway leaves it
+  unused, and a change to the order keeps the waiver.
 - **No South County option.** Dropped on 18 September 2026, along with
   the demand vote.
 - **Sold-out items are not rendered**, and a category with nothing in

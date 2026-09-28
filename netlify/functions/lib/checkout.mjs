@@ -27,6 +27,7 @@ import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { joined, welcome } from "./news.mjs";
 import * as paypalApi from "./paypal.mjs";
+import { usePass } from "./passes.mjs";
 import { announcePaid } from "./payments.mjs";
 import { pickupSchedule } from "./pickups.mjs";
 import {
@@ -82,6 +83,7 @@ export const completeOrder = async (stores, order, { square, payment }, {
   const customer = await touchCustomer(stores, order.customer, now);
 
   await adjust(stores, order.lines, -1);
+  if (order.pass) await usePass(stores, order.pass, order.id, now);
   await mark(stores, "order", { id: order.id }, now);
 
   log.info({
