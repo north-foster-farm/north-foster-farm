@@ -1,6 +1,7 @@
 // The busy button (layouts/partials/busy-button.html), shared by the
 // news sign-up and the contact form: while its request runs it fades
-// to an egg spinner and a busy word, at the same width.
+// to an egg spinner and a busy word, at the same width or, when fitted,
+// at the busy word's.
 
 import { expect } from "@playwright/test";
 
@@ -41,11 +42,12 @@ export const expectBusy = async (page, button, { busyWord, width }) => {
   await expect(button.locator(".busy-button-idle"))
     .toHaveCSS("opacity", "0");
   expect((await button.boundingBox()).width, "width while busy")
-    .toBe(width);
+    .toBeCloseTo(width, 0);
 };
 
 export const expectIdle = async (button, { width }) => {
   await expect(button).toHaveAttribute("data-busy", "false");
   await expect(button).toHaveAttribute("aria-disabled", "false");
-  expect((await button.boundingBox()).width, "width after").toBe(width);
+  expect((await button.boundingBox()).width, "width after")
+    .toBeCloseTo(width, 0);
 };

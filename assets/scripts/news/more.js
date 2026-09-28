@@ -45,10 +45,9 @@ export const wireMore = () => {
       added += items.length;
       section.querySelectorAll("[data-news-signup]").forEach(wire);
       if (last && last.dataset.year === section.dataset.year) {
-        // The year goes on under its heading: this page's list and
-        // sign-up follow the last page's.
-        last.append(...section.querySelectorAll(
-          ":scope > .news-list, :scope > .news-inline-signup"));
+        // The year goes on under its heading: this page's list
+        // follows the last page's.
+        last.append(...section.querySelectorAll(":scope > .news-list"));
       } else {
         years.append(section);
       }

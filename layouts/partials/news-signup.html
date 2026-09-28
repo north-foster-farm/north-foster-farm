@@ -1,6 +1,7 @@
 {{/*
   Farm news by email: one field with the button fixed to it, the
-  button stretched to the field's height by the input group. The label
+  button stretched to the field's height by the input group and as
+  wide as its label, growing to fit "Submitting" while it sends. The label
   is for assistive tech only; the placeholder names the field on
   screen. The line under them stays empty until there is an answer to
   give. Opt-in only: the request adds the address at once, with no
@@ -17,7 +18,7 @@
   <label class="visually-hidden" for="{{ $id }}-email">Farm news by email</label>
   <div class="input-group">
     <input class="form-control" type="email" id="{{ $id }}-email" name="email" placeholder="Email address" autocomplete="email" inputmode="email" enterkeyhint="send" required aria-describedby="{{ $id }}-note">
-    {{ partial "busy-button.html" (dict "label" (.button | default "Sign me up") "busy" "Submitting" "class" "btn-primary") }}
+    {{ partial "busy-button.html" (dict "label" (.button | default "Sign me up") "busy" "Submitting" "class" "btn-primary" "fit" true) }}
   </div>
   <p class="news-signup-note" id="{{ $id }}-note" data-news-note role="status" aria-live="polite"></p>
 </form>

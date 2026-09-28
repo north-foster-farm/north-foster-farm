@@ -129,7 +129,7 @@ test.describe("footer (#141)", () => {
       await expect(note).toHaveText("");
     });
 
-  test("while it sends, the button shows the egg and keeps its width",
+  test("while it sends, the button shows the egg, grows and settles back",
     async ({ page }) => {
       const form = page.locator("footer [data-news-signup]");
       const button = form.locator(".busy-button");
@@ -138,11 +138,25 @@ test.describe("footer (#141)", () => {
       await page.goto("/");
 
       const email = "qa-e2e-footer@example.com";
+      // At rest the button fits "Yes" (#223); while it sends, it fits
+      // the spinner and "Submitting".
       const width = (await button.boundingBox()).width;
+      const busyWidth = await button.evaluate((el) => {
+        const face = el.querySelector(".busy-button-busy");
+        const style = getComputedStyle(el);
 
+        return face.getBoundingClientRect().width
+          + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
+          + parseFloat(style.borderLeftWidth)
+          + parseFloat(style.borderRightWidth);
+      });
+
+      expect(busyWidth, "the busy face is wider").toBeGreaterThan(width);
       await form.locator("input[type='email']").fill(email);
       await button.click();
-      await expectBusy(page, button, { busyWord: "Submitting", width });
+      await expectBusy(page, button, {
+        busyWord: "Submitting", width: busyWidth,
+      });
       await expect(form.locator("[data-news-note]")).toHaveText("");
 
       // A second press while it sends sends nothing more. The button is
@@ -152,7 +166,9 @@ test.describe("footer (#141)", () => {
 
       await expect(form.locator("[data-news-note]"))
         .toHaveText("You're on the list. Thanks!");
+      await page.waitForTimeout(400);
       await expectIdle(button, { width });
+      await expect(button).not.toHaveAttribute("style", /width/);
       expect(hold.calls()).toBe(1);
     });
 });

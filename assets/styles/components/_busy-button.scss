@@ -1,6 +1,7 @@
 // The busy button (partials/busy-button.html). Idle and busy faces are
 // stacked in one cell: the button is as wide as the wider face,
-// whichever is showing, and only fades between them.
+// whichever is showing, and only fades between them. The fitted kind,
+// below, changes width instead.
 
 .busy-button {
   display: grid;
@@ -59,13 +60,37 @@
   }
 }
 
+// The fitted kind (#223) is as wide as the face that's showing: the
+// other face leaves the flow, centered over it and clipped. Its width
+// eases between the two; scripts/utils/busy-button.js pins the width
+// it starts from, as width won't transition from auto.
+.busy-button-fit {
+  position: relative;
+  overflow: hidden;
+  transition: $btn-transition, width 0.3s ease-in-out;
+
+  > span {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  &:not([data-busy="true"]) .busy-button-idle,
+  &[data-busy="true"] .busy-button-busy {
+    position: static;
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .egg-spinner-run {
     animation: none;
     stroke-dasharray: none;
   }
 
-  .busy-button > span {
+  .busy-button > span,
+  .busy-button-fit {
     transition: none;
   }
 }
