@@ -195,8 +195,11 @@ export class OrderForm {
     const sum = (list) => (list || []).reduce((s, x) => s + (x.amount || 0),
       0);
 
+    // A fee a missed delivery kept paid for that trip: it counts toward
+    // nothing now (#193).
     this.editing = {
       id: order.id, held: sum(order.payments) - sum(order.refunds),
+      kept: order.keptFee || 0,
     };
     for (const line of order.lines) this.stock.held[line.sku] = line.qty;
 
@@ -241,10 +244,13 @@ export class OrderForm {
     if (!this.editing) return;
 
     const box = qs(this.cart, "[data-edit-money]");
-    const diff = total - this.editing.held;
+    const { held, kept } = this.editing;
+    const diff = total - (held - kept);
 
     box.hidden = false;
-    qs(box, "[data-total='paid']").textContent = dollars(this.editing.held);
+    qs(box, "[data-total='paid']").textContent = dollars(held);
+    qs(box, "[data-edit-kept]").hidden = !kept;
+    qs(box, "[data-total='kept']").textContent = `−${dollars(kept)}`;
     // Draft wording.
     qs(box, "[data-total='due-label']").textContent = diff < 0
       ? "To refund"
@@ -1558,7 +1564,7 @@ export class OrderForm {
 
   amount() {
     return this.editing
-      ? Math.max(0, (this.total || 0) - this.editing.held)
+      ? Math.max(0, (this.total || 0) - this.editing.held + this.editing.kept)
       : this.total || 0;
   }
 

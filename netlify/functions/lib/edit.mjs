@@ -42,8 +42,8 @@ import { pickupSchedule } from "./pickups.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./paypal.mjs";
 import {
-  amendOrder, deleteCheckout, getCheckout, getOrder, moneyPatch, paidTotal,
-  paymentRef, paymentsOf, refundedTotal, refundsOf, saveCheckout,
+  amendOrder, deleteCheckout, getCheckout, getOrder, keptFee, moneyPatch,
+  paidTotal, paymentRef, paymentsOf, refundedTotal, refundsOf, saveCheckout,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
@@ -127,6 +127,12 @@ export const diffLines = (before, after) => {
 // What the customer has paid and not had back.
 export const heldOn = (order) => paidTotal(order) - refundedTotal(order);
 
+// What of that counts toward the order as it becomes: a fee a missed
+// delivery kept paid for that trip, not this one (#193). So a switch
+// to pickup refunds nothing of it, and a delivery on another day
+// charges the fee again after the customer's miss (C1).
+export const creditOn = (order) => heldOn(order) - keptFee(order);
+
 // Validated, priced and checked, before any money: the new order, and
 // the change against the record. -> { ok, order, next, change } or a
 // failure shaped like the order endpoint's.
@@ -155,7 +161,7 @@ export const planEdit = async (stores, order, body, {
 
   const switched = next.fulfilment.method !== order.fulfilment.method;
 
-  change.difference = next.totals.total - heldOn(order);
+  change.difference = next.totals.total - creditOn(order);
   change.switched = switched;
   // A switch needs a Square order to carry the new fulfilment, even
   // when there is nothing to pay.

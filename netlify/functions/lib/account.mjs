@@ -105,6 +105,9 @@ export const publicOrder = (order, now = new Date()) => ({
       .findIndex((p) => paymentRef(p) === r.payment)),
   })),
   returns: order.returns || [],
+  // Paid and not refundable: a missed delivery's fee (#193). A change
+  // on the order page counts what is paid less this.
+  keptFee: keptFee(order),
   question: order.question ? {
     kind: order.question.kind,
     reason: order.question.reason || "",

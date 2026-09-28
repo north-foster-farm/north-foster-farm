@@ -6,7 +6,9 @@ import { rescueCheckout } from "../netlify/functions/lib/checkout.mjs";
 import {
   diffLines, editOrder, finishEditVenmo,
 } from "../netlify/functions/lib/edit.mjs";
-import { getCheckout, getOrder } from "../netlify/functions/lib/records.mjs";
+import {
+  amendOrder, getCheckout, getOrder,
+} from "../netlify/functions/lib/records.mjs";
 import { buildChangeOrder } from "../netlify/functions/lib/square.mjs";
 import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
@@ -450,6 +452,53 @@ describe("editOrder", () => {
     assert.equal(saved.lines[0].qty, 3);
     assert.equal(saved.payments[1].paypalOrderId, "PPO-1");
     assert.equal(await getCheckout(stores, key), null);
+  });
+
+  it("counts nothing of a fee a missed delivery kept (#193)", async () => {
+    const { stores, id } = await placed();
+    const { square, calls } = fakeSquare();
+    const home = {
+      method: "delivery", date: "2026-10-08",
+      delivery: {
+        address1: "1 Main St", town: "Foster", zip: "02825", cooler: "Porch",
+      },
+    };
+
+    await edit(stores, id, {
+      idempotencyKey: editKey(), fulfilment: home,
+      payment: { method: "card", sourceId: "cnon:tok" },
+    }, square);
+
+    const delivered = await getOrder(stores, id);
+    const fee = delivered.totals.deliveryFee;
+
+    assert.ok(fee > 0);
+    await amendOrder(stores, id, {
+      attempted: { at: now.toISOString(), cause: "no-cooler", fee,
+        waived: false, note: "", detail: "" },
+    }, "delivery.attempted", now);
+
+    // Another day's delivery: the fee again, and nothing else.
+    const again = await edit(stores, id, {
+      idempotencyKey: editKey(), fulfilment: { ...home, date: "2026-10-15" },
+      payment: { method: "card", sourceId: "cnon:tok2" },
+    }, square);
+
+    assert.equal(again.ok, true, JSON.stringify(again.errors));
+    assert.equal(again.difference, fee);
+
+    // To pickup: the second fee comes back, the kept one never.
+    const pickup = await edit(stores, id, {
+      idempotencyKey: editKey(),
+      fulfilment: { method: "onfarm", date: "2026-10-07",
+        onfarm: { window: MORNING } },
+    }, square);
+
+    assert.equal(pickup.ok, true, JSON.stringify(pickup.errors));
+    assert.equal(pickup.difference, -fee);
+    assert.deepEqual(calls.filter((c) => c[0] === "refund")
+      .map((c) => c[2]), [fee]);
+    assert.equal(pickup.order.keptFee, fee);
   });
 
   it("refuses someone else's order and an order past its cutoff",
