@@ -5,7 +5,9 @@
 
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
-import { addDays } from "../../../assets/scripts/order/lib/zoned.mjs";
+import {
+  addDays, today, weekday,
+} from "../../../assets/scripts/order/lib/zoned.mjs";
 import { adjust, getCounts, setCount } from "./stock.mjs";
 import { normalizeEmail, validEmail } from "./auth.mjs";
 import { company } from "./company.mjs";
@@ -14,15 +16,16 @@ import * as newsApi from "./news.mjs";
 import { recordRefund, sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
-  OPEN, allCustomers, allOrders, amendOrder, byEmailKey, cartKey,
-  deleteCustomer, deleteOrder, getCustomer, getOrder, keptFee, listCheckouts,
-  ordersFor, paidTotal, paymentRef, paymentsOf, refundedTotal, saveCustomer,
-  setStatus, settledRefunds,
+  OPEN, allCustomers, allOrders, amendOrder, answerQuestion, byEmailKey,
+  cartKey, deleteCustomer, deleteOrder, getCustomer, getOrder, keptFee,
+  listCheckouts, ordersFor, paidTotal, paymentRef, paymentsOf, questionOpen,
+  refundedTotal, saveCustomer, setStatus, settledRefunds,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import {
-  addressDecision, missedDelivery, orderCancelled,
+  addressDecision, missedDelivery, movedDelivery, orderCancelled,
+  orderChanged,
 } from "./templates.mjs";
 
 const need = (thing, what) => {
@@ -406,7 +409,7 @@ export const ATTEMPT_CAUSES = [...CUSTOMER_CAUSES, "weather", "farm"];
 // missed-delivery email says so. -> the order.
 export const markAttempted = async (stores, id, {
   cause, waive = "", detail = "", now = new Date(), env = process.env,
-  mail = sendMail,
+  mail = sendMail, square = squareApi, fetchImpl,
 } = {}) => {
   const order = need(await getOrder(stores, id), "order");
 
@@ -428,6 +431,7 @@ export const markAttempted = async (stores, id, {
   const marked = await amendOrder(stores, id, {
     attempted: {
       at: now.toISOString(),
+      date: order.fulfilment.date,
       cause,
       fee: waived ? 0 : order.totals.deliveryFee || 0,
       waived,
@@ -443,12 +447,89 @@ export const markAttempted = async (stores, id, {
     },
   }, "delivery.attempted", now);
 
-  if (!theirs) return marked;
+  // Ours or the weather's: moved to the next delivery day, no fee, no
+  // question (C7).
+  if (!theirs) {
+    return moveDelivery(stores, id, nextDeliveryDay(order.fulfilment.date),
+      { now, env, mail, square, fetchImpl, email: "movedDelivery" });
+  }
 
   return sendForOrder(stores, marked, "missedDelivery",
     missedDelivery(marked, {
       pickUrl: orderUrlFor(env, id), links: mailLinks(env),
     }), { mail, env, now });
+};
+
+const isDeliveryDay = (date) => weekday(date) === terms.delivery.weekday
+  && !terms.holidays.includes(date);
+
+// The first delivery day after `date`.
+export const nextDeliveryDay = (date) => {
+  let d = addDays(date, 1);
+
+  while (!isDeliveryDay(d)) d = addDays(d, 1);
+
+  return d;
+};
+
+// A delivery moved to another delivery day by the farm, past any
+// cutoff: the record, Square's fulfilment, and the customer told.
+// It answers a missed delivery's question, unless that miss was the
+// customer's and kept the fee: the next trip charges the fee again
+// (C1), which only the customer can pay, on the order page. `email`
+// names the template: orderChanged, or movedDelivery after the farm's
+// or the weather's miss (C7). -> the order.
+export const moveDelivery = async (stores, id, date, {
+  now = new Date(), env = process.env, mail = sendMail, square = squareApi,
+  fetchImpl, email = "orderChanged",
+} = {}) => {
+  const order = need(await getOrder(stores, id), "order");
+
+  if (order.fulfilment.method !== "delivery") {
+    throw new Error("Only a delivery can be moved.");
+  }
+  if (order.status !== "paid") {
+    throw new Error(`This order is ${order.status}.`);
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || "") || !isDeliveryDay(date)
+    || date <= today(now, terms.timeZone)) {
+    throw new Error("Move it to a delivery day after today (YYYY-MM-DD).");
+  }
+  if (questionOpen(order) && order.question.kind === "missed"
+    && keptFee(order) > 0) {
+    throw new Error("The customer missed this delivery, so another trip " +
+      `charges the fee of ${dollars(keptFee(order))} again, which only ` +
+      "they can pay: they choose the day with Change items on their " +
+      "account page, which the missed-delivery email links to.");
+  }
+
+  const moved = await amendOrder(stores, id, {
+    fulfilment: { ...order.fulfilment, date },
+    question: answerQuestion(order, "reschedule", "farm", now),
+  }, "delivery.moved", now);
+  const holder = order.square
+    && (order.square.fulfilmentOrderId || order.square.squareOrderId);
+  let saved = moved;
+
+  if (holder) {
+    try {
+      await square.updateFulfilment(holder, moved, { env, fetchImpl });
+    } catch (error) {
+      console.error(`Square could not follow the move: ${error.message}`);
+      saved = await amendOrder(stores, id, {
+        flags: { ...(moved.flags || {}), squareOutOfSync: true },
+      }, "square.out_of_sync", now);
+    }
+  }
+
+  const links = mailLinks(env);
+  const orderUrl = orderUrlFor(env, id);
+  const message = email === "movedDelivery"
+    ? movedDelivery(saved, { pickUrl: orderUrl, links })
+    : orderChanged(saved, { orderUrl, links });
+
+  return sendForOrder(stores, saved, `${email}-${date}`, message,
+    { mail, env, now });
 };
 
 export const fulfilOrder = async (stores, id, { now = new Date() } = {}) =>

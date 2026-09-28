@@ -90,6 +90,14 @@ const missed = (fee, over = {}, cause = "no-cooler", detail = "") => order({
   ...over,
 });
 
+// The farm's or the weather's miss, moved on a week (C7).
+const movedOn = (cause) => {
+  const o = missed(0, {}, cause);
+
+  return { ...o, fulfilment: { ...o.fulfilment, date: "2026-10-15" },
+    attempted: { ...o.attempted, date: o.fulfilment.date } };
+};
+
 // An on-farm window the farm has not agreed to yet.
 // A booked pickup time the farm had to give up (`orders deny`): the
 // customer is to pick another.
@@ -328,7 +336,7 @@ export const library = [
     id: "moved-delivery-weather", name: "Delivery moved, weather",
     when: "The weather stopped a delivery; moved to next Thursday",
     audience: C, tags: ["missed delivery", "delivery", "weather"],
-    build: (links) => t.movedDelivery(missed(0, {}, "weather"), {
+    build: (links) => t.movedDelivery(movedOn("weather"), {
       pickUrl: signIn(links), links,
     }),
   },
@@ -336,7 +344,7 @@ export const library = [
     id: "moved-delivery-farm", name: "Delivery moved, our miss",
     when: "The farm missed a delivery itself; moved to next Thursday",
     audience: C, tags: ["missed delivery", "delivery"],
-    build: (links) => t.movedDelivery(missed(0, {}, "farm"), {
+    build: (links) => t.movedDelivery(movedOn("farm"), {
       pickUrl: signIn(links), links,
     }),
   },

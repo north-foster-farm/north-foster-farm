@@ -426,7 +426,8 @@ A delivery the farm could not leave (no cooler, nobody reached) keeps
 its fee when the customer caused the miss, and waives it when the
 farm or the weather did (James, F1 and C1). `bin/nff orders attempted
 <id> <cause> [--detail "..."] [--waive "why"]` records the attempt as
-`attempted: { at, cause, fee, waived, note, detail }`. The causes
+`attempted: { at, date, cause, fee, waived, note, detail }` (`date`,
+the day missed). The causes
 (C6a): `no-cooler`, `no-access` and `no-address` are the customer's
 miss; `weather` and `farm` waive the fee. `no-address` counts as the
 customer's because the truck can't tell a wrong address from our own
@@ -440,16 +441,28 @@ back everything but the kept fee. A refund made in
 the Square dashboard or PayPal is not held to it. The dashboard's
 delivery routes (nff-dashboard#24) will write the same record.
 
-Until the customer-facing flow (#193) lands, the rest of a miss is by
-hand, since `orders attempted` sends no email yet. Contact the
-customer and record the attempt, then either refund (`orders refund`,
-or `orders cancel`, which refunds unless told `--no-refund`
-(W11a-1); both keep a kept fee) or deliver the next Thursday outside
-the record, charging the fee again after a customer's miss. A
-customer's miss with no choice from them within seven days ends with
-`orders cancel <id> --reason-text "..."` (C8; no `--reason` key fits
-a lapsed hold): stock back, the kept fee stays, and the customer is
-emailed.
+What follows the mark depends on whose miss it was (#193). The
+customer's, waived or not, opens a `missed` question on the order,
+held until the missed day plus `holdDays` (`question.until`), and
+emails missedDelivery, which links to the order. While the question
+is open the jobs neither close the order nor remind, and the account
+page keeps Change, Change items and Cancel open past the cutoff.
+Another delivery day or a switch on the order page answers it, as
+does cancelling; the order page counts what is paid less the kept
+fee (`creditOn` in lib/edit.mjs), so another delivery after a kept
+fee charges the fee again (C1) and a switch to pickup refunds none of
+it. The account page's Change panel moves the day only when the fee
+was waived. A reminder sent before the miss was for that trip, so the
+new day gets its own.
+
+The farm's or the weather's miss asks nothing (C7): the order moves
+to the next delivery day (a holiday pushes it a week further), Square's
+fulfilment follows, and movedDelivery tells the customer, who can
+still change it or cancel for a full refund. `bin/nff orders move
+<id> <date>` moves any paid delivery to a later delivery day, past
+the cutoff, answers the question and emails orderChanged; it refuses
+after the customer's miss kept the fee, since only the customer can
+pay the next trip's fee, on the order page.
 
 A customer who cancels from the account page is refunded and
 cancelled at once (T1d), and the farm is emailed "Cancelled: <id>".

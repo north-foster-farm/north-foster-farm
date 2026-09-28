@@ -51,7 +51,17 @@ const USAGE = `Usage:
                                       unless waived; waive a no-address
                                       when in doubt), or weather or farm
                                       (waived). --detail: where we
-                                      couldn't get to, for the email
+                                      couldn't get to, for the email.
+                                      The customer's miss emails them to
+                                      choose, held seven days; weather
+                                      or farm moves it to the next
+                                      delivery day and says so
+  bin/nff orders move <id> <date>     a delivery to another delivery
+                                      day, past the cutoff; the
+                                      customer is emailed. Not after
+                                      their own miss that kept the fee:
+                                      they pay it again on the order
+                                      page
   bin/nff orders fulfil <id>
   bin/nff orders delete <id>
   bin/nff returns resolve <id> <returnId> [note...]
@@ -432,14 +442,26 @@ const run = async () => {
       waive: typeof flags.waive === "string" ? flags.waive : "",
       detail: typeof flags.detail === "string" ? flags.detail : "",
     });
-    const { at, cause, fee } = marked.attempted;
+    const { at, cause, fee, date } = marked.attempted;
+    const moved = !!date && marked.fulfilment.date !== date;
+    const asked = marked.question && marked.question.kind === "missed";
 
     out(summaryLine(marked));
-
-    return out(`Attempted ${at} (${cause || "no cause recorded"}); ${fee
+    out(`Attempted ${at} (${cause || "no cause recorded"}); ${fee
       ? `the delivery fee of ${dollars(fee)} stays with the farm.`
       : "the delivery fee is waived."}`);
+
+    if (moved) {
+      return out(`Moved to ${marked.fulfilment.date}; the customer is told.`);
+    }
+
+    return asked
+      ? out(`The customer is asked to choose by ${marked.question.until}.`)
+      : undefined;
   }
+  case "orders move":
+    return out(summaryLine(await admin.moveDelivery(stores, rest[0],
+      rest[1])));
   case "orders fulfil":
   case "orders fulfill":
     return out(summaryLine(await admin.fulfilOrder(stores, rest[0])));

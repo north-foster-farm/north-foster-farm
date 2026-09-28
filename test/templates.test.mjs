@@ -638,16 +638,26 @@ describe("order changed and cancelled", () => {
   });
 
   it("moves a farm or weather miss to next Thursday, fee and all", () => {
-    const weather = { ...attempted(0), attempted: { cause: "weather" } };
-    const w = movedDelivery(weather, { links });
-    const f = movedDelivery({ ...attempted(0),
-      attempted: { cause: "farm" } }, { links });
+    // The record as moved: the new day, and the day we missed.
+    const moved = (cause, date = "2026-10-15") => {
+      const o = attempted(0);
+
+      return { ...o, fulfilment: { ...o.fulfilment, date },
+        attempted: { cause, date: o.fulfilment.date } };
+    };
+    const w = movedDelivery(moved("weather"), { links });
+    const f = movedDelivery(moved("farm"), { links });
+    const h = movedDelivery(moved("farm", "2026-10-22"), { links });
 
     assert.equal(w.subject, "Your delivery is moved to next Thursday");
     has(w.text, "The weather kept us from delivering your order today, so " +
       "we've moved your delivery to next Thursday, October 15.");
     has(f.text, "We weren't able to deliver your order today, so");
     has(f.text, "cancel for a full refund of $67, delivery fee included.");
+    // A holiday a week on: the day is named, not "next".
+    assert.equal(h.subject, "Your delivery is moved to Thursday, October 22");
+    has(h.text, "we've moved your delivery to Thursday, October 22.");
+    has(h.text, "If that day doesn't suit you");
   });
 
   it("says why when the hold ran out", () => {

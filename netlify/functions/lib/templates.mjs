@@ -611,18 +611,24 @@ export const missedDelivery = (order, { pickUrl, links } = {}) => {
 
 // Our own miss or the weather's (C7): no fee, no choice asked for. We
 // have moved it to the next delivery day; they may pick otherwise.
-// Policy-pages' draft of 2026-09-28, to approve; nothing sends this
-// yet.
+// `order` is the moved record, and `attempted.date` the day we missed;
+// a holiday a week on puts the new day further out, and the email
+// names it without "next". Policy-pages' draft of 2026-09-28, to
+// approve; `orders attempted` sends it.
 export const movedDelivery = (order, { pickUrl, links } = {}) => {
-  const title = `Your delivery is moved to next ${DELIVERY_DAY}`;
-  const why = order.attempted && order.attempted.cause === "weather"
+  const a = order.attempted || {};
+  const date = order.fulfilment.date;
+  const next = !a.date || addDays(a.date, 7) === date;
+  const when = next ? `next ${DELIVERY_DAY}` : DELIVERY_DAY;
+  const title = `Your delivery is moved to ${next ? when : label(date)}`;
+  const why = a.cause === "weather"
     ? "The weather kept us from delivering your order today"
     : "We weren't able to deliver your order today";
   const blocks = [
     p(`Hi ${firstName(order.customer)},`),
-    p(`${why}, so we've moved your delivery to next ${DELIVERY_DAY}, ${
-      dayAfter(order.fulfilment.date, 7)}. You don't need to do anything.`),
-    p(`If next ${DELIVERY_DAY} doesn't suit you, you can choose ` +
+    p(`${why}, so we've moved your delivery to ${when}, ${
+      dayAfter(date, 0)}. You don't need to do anything.`),
+    p(`If ${next ? when : "that day"} doesn't suit you, you can choose ` +
       "another day, " +
       "pick up at the farm or the drop site, or cancel for a full refund " +
       `of ${dollars(order.totals.total)}, delivery fee included.`),

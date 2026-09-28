@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import terms from "../data/delivery.json" with { type: "json" };
 import {
   cancelOrder, decideAddress, fulfilOrder, listOrders,
-  markAttempted,
+  markAttempted, moveDelivery,
   refundOrder, removeCustomer, removeOrder, resolveReturn, setCustomer,
   showCustomer, stockList, stockSet,
 } from "../netlify/functions/lib/admin.mjs";
@@ -74,6 +74,9 @@ const harness = () => {
           return { squareRefundId: "SQR-1", status: "PENDING", amount };
         },
         cancelFulfilment: async (id) => { calls.push(["fulfilment", id]); },
+        updateFulfilment: async (id, o) => {
+          calls.push(["updateFulfilment", id, o.fulfilment.date]);
+        },
       },
       paypal: {
         refundCapture: async ({ paypalCaptureId, amount, key, note }) => {
@@ -515,8 +518,8 @@ describe("an attempted delivery keeps its fee", () => {
     const a = await markAttempted(stores, "A", { cause, now });
 
     assert.deepEqual(a.attempted, {
-      at: now.toISOString(), cause, fee: 500, waived: false, note: "",
-      detail: "",
+      at: now.toISOString(), date: "2026-10-08", cause, fee: 500,
+      waived: false, note: "", detail: "",
     });
 
     const later = new Date(now.getTime() + 7 * 86_400_000);
@@ -573,20 +576,20 @@ describe("an attempted delivery keeps its fee", () => {
       await saveOrder(stores, delivered(id), now);
     }
 
-    const farm = await markAttempted(stores, "A", { cause: "farm", now });
+    const farm = await markAttempted(stores, "A", { ...opts, cause: "farm" });
     const weather = await markAttempted(stores, "B",
-      { cause: "weather", now });
+      { ...opts, cause: "weather" });
     const told = await markAttempted(stores, "C",
-      { cause: "no-address", waive: "  our map was wrong  ", now });
+      { ...opts, cause: "no-address", waive: "  our map was wrong  " });
 
     assert.deepEqual(farm.attempted, {
-      at: now.toISOString(), cause: "farm", fee: 0, waived: true, note: "",
-      detail: "",
+      at: now.toISOString(), date: "2026-10-08", cause: "farm", fee: 0,
+      waived: true, note: "", detail: "",
     });
     assert.equal(weather.attempted.fee, 0);
     assert.deepEqual(told.attempted, {
-      at: now.toISOString(), cause: "no-address", fee: 0, waived: true,
-      note: "our map was wrong", detail: "",
+      at: now.toISOString(), date: "2026-10-08", cause: "no-address",
+      fee: 0, waived: true, note: "our map was wrong", detail: "",
     });
     assert.equal(keptFee(told), 0);
 
@@ -600,6 +603,7 @@ describe("an attempted delivery keeps its fee", () => {
       { cause: "no-cooler", now })), 800);
 
     // A waived fee goes back with the rest.
+    calls.length = 0;
     await refundOrder(stores, "C", opts);
     assert.deepEqual(calls, [["square.refund", "PAY-C", 1900]]);
   });
@@ -634,6 +638,66 @@ describe("an attempted delivery keeps its fee", () => {
     // Marking again sends nothing more.
     await markAttempted(stores, "A", { ...opts, env, cause: "no-cooler" });
     assert.equal(sent.length, 2);
+  });
+
+  it("moves the farm's or the weather's miss a week on, and says so (C7)",
+    async () => {
+      const stores = testStores();
+      const { sent, calls, opts } = harness();
+
+      await saveOrder(stores, delivered("A"), now);
+
+      const moved = await markAttempted(stores, "A",
+        { ...opts, cause: "weather" });
+
+      assert.equal(moved.fulfilment.date, "2026-10-15");
+      assert.equal(moved.attempted.date, "2026-10-08");
+      assert.equal(moved.question, null);
+      assert.deepEqual(calls, [["updateFulfilment", "SQO", "2026-10-15"]]);
+      assert.equal(sent.length, 1);
+      assert.equal(sent[0].subject, "Your delivery is moved to next Thursday");
+      assert.ok(moved.emails["movedDelivery-2026-10-15"]);
+
+      // A cancel now refunds it all, fee and all.
+      await cancelOrder(stores, "A", { ...opts, reason: "weather" });
+      assert.deepEqual(calls.find((c) => c[0] === "square.refund"),
+        ["square.refund", "PAY-A", 1900]);
+    });
+
+  it("moves a delivery from the CLI, except after a kept fee", async () => {
+    const stores = testStores();
+    const { sent, calls, opts } = harness();
+
+    for (const id of ["A", "B", "C"]) {
+      await saveOrder(stores, delivered(id), now);
+    }
+    await markAttempted(stores, "A", { ...opts, cause: "no-cooler" });
+    await markAttempted(stores, "B",
+      { ...opts, cause: "no-cooler", waive: "first time" });
+    sent.length = 0;
+
+    await assert.rejects(moveDelivery(stores, "A", "2026-10-15", opts),
+      /charges the fee of \$5 again/);
+    await assert.rejects(moveDelivery(stores, "B", "2026-10-14", opts),
+      /a delivery day after today/);
+    await assert.rejects(moveDelivery(stores, "B", "2026-10-12", opts),
+      /a delivery day after today/, "a holiday");
+    await assert.rejects(moveDelivery(stores, "B", "2026-10-01", opts),
+      /a delivery day after today/);
+
+    const b = await moveDelivery(stores, "B", "2026-10-15", opts);
+
+    assert.equal(b.fulfilment.date, "2026-10-15");
+    assert.equal(b.question.answer, "reschedule");
+    assert.equal(b.question.by, "farm");
+    assert.deepEqual(calls.at(-1), ["updateFulfilment", "SQO", "2026-10-15"]);
+    assert.equal(sent.at(-1).subject, "Your order is updated");
+
+    // Not yet attempted: any delivery day ahead, past the cutoff.
+    const c = await moveDelivery(stores, "C", "2026-10-22", opts);
+
+    assert.equal(c.fulfilment.date, "2026-10-22");
+    assert.equal(c.question, null);
   });
 
   it("refunds everything but the fee", async () => {
