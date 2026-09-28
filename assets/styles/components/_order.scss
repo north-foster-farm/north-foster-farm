@@ -53,6 +53,23 @@
   // Category sidebar. Below lg it is Bootstrap's offcanvas drawer; the
   // drawer chrome is Bootstrap's, only the list is styled here.
 
+  // Closed, the drawer is gone from the page, as the phone menu is:
+  // iOS Safari 26 tints its bars from any fixed layer at least 80% as
+  // wide as the screen that touches its top or bottom, hidden or not,
+  // and on a phone this white drawer is the screen's full width.
+
+  @media (max-width: 991.98px) {
+    .order-side.offcanvas-lg:not(.show, .showing, .hiding) {
+      display: none;
+    }
+
+    @starting-style {
+      .order-side.offcanvas-lg.showing {
+        transform: translateX(-100%);
+      }
+    }
+  }
+
   .order-side-title {
     margin: 0 0 0.5rem;
     font-size: 0.75rem;
