@@ -13,10 +13,10 @@ Foster Farm website.
 
 We collect personal information you provide to us.
 
-The order form at [/order](/order) collects your name, email address and your
-order, plus a delivery address if you choose delivery. We send that to
-Square, which records your order and takes card and wallet payments. Venmo
-payments go through PayPal. We never see your card number.
+The order form at [/order](/order) collects your name, email address, phone
+number and your order, plus a delivery address if you choose delivery. We
+send that to Square, which records your order and takes card and wallet
+payments. Venmo payments go through PayPal. We never see your card number.
 
 While you fill out the form, a draft is kept in your browser until you
 place your order. It never leaves your device.
@@ -34,19 +34,19 @@ minutes. A link we send about a particular order, such as one asking you to
 pick a new pickup time, works for 7 days.
 
 Signing in keeps you signed in on that browser for 30 days, or until you sign
-out. Your account holds your name, delivery address and drop-off notes, the
-picture you chose, your email settings, your orders and the messages you have
-sent us from it. We also record which browser you signed in with.
+out. Your account holds your name, phone number, delivery address and drop-off
+notes, the picture you chose, your email settings, your orders and the
+messages you have sent us from it.
 
 ### Farm news
 
 We send farm news only to people who ask for it. You can sign up on the site,
 tick "I want to get email from North Foster Farm" when you place an order, or
 turn farm news on in your account. The box starts unticked. Signing up adds
-you to the list at once, and we send no email to confirm it. If you were on
-our old mailing list, we email you an invitation instead, and you join only
-if you follow its link within 7 days. We add an address only when its owner
-asks, and we record when and how you signed up.
+you to the list at once. We send you a welcome email, not one asking you to
+confirm. If you were on our old mailing list, we email you an invitation
+instead, and you join only if you follow its link within 7 days. We add an
+address only when its owner asks, and we record when and how you signed up.
 
 Resend keeps the list and sends the emails. Every farm news email has an
 unsubscribe link that takes you off the list in one click. You can also turn
@@ -61,19 +61,19 @@ reminder off in your account or from the link in the reminder itself.
 Orders, customer records and your messages to us are stored in Netlify
 Blobs, storage run by Netlify, which hosts the site.
 
-An order holds your name, email address, what you ordered, how and when
-you'll get it, any delivery address and notes, and what you paid and any
-refund. For a card, Square tells us the card's brand and its last four
+An order holds your name, email address, phone number, what you ordered, how
+and when you'll get it, any delivery address and notes, and what you paid and
+any refund. For a card, Square tells us the card's brand and its last four
 digits. For Venmo, PayPal tells us the name and email address on the Venmo
-account. We keep no other payment details. An order also records which
-browser you used.
+account. We keep no other payment details.
 
 Square keeps its own copy of your order, your payment, and your name, email
-address and delivery details. It does so from the moment you press Pay, even
-if the payment doesn't go through.
+address, phone number and delivery details. It does so from the moment you
+press Pay. If the payment doesn't go through, Square keeps that profile and
+the order is marked cancelled.
 
-If you start paying with Venmo and don't finish, we delete the details we
-saved within a day, and PayPal lets the unfinished payment expire. Orders and
+If you start paying with Venmo and don't finish, we delete your order details
+within a day, and PayPal lets the unfinished payment expire. Orders and
 customer records are kept until you ask us to delete them.
 
 ### Technical basics
@@ -85,16 +85,16 @@ logs.
 The site's server code keeps a log of what it does, stored by Axiom. Netlify,
 which runs that code, also keeps them. Log lines name orders by number, not by
 customer. When something goes wrong with an order, the line may hold the order
-as it was sent, including your contact details, so we can put it right. Axiom deletes log lines after
-30 days.
+as it was sent, including your contact details, so we can put it right. Axiom
+deletes log lines after 30 days.
 
 ### What your browser keeps
 
 The site sets two cookies, and only when you sign in. One holds a random code
 that tells the site you're signed in, and scripts on the page can't read it.
 The other holds only the time you signed in. Scripts on the page read it to
-notice at once when you sign in or out. Both last 30 days, and signing out
-deletes both.
+notice when you sign in or out. Both last 30 days, and signing out deletes
+both.
 
 Your browser also keeps:
 
@@ -107,6 +107,8 @@ Your browser also keeps:
 - for up to five minutes at a time, whether you're signed in and your account
   details, so each page doesn't have to ask the site again. This is gone when
   you close the tab.
+- two random codes that PayPal's script stores when the payment buttons
+  appear on the order page. They hold nothing about you.
 
 ### Hosting and service providers
 
@@ -149,8 +151,8 @@ assets.
 
 ## Accessing, changing, or deleting information
 
-When you're signed in, you can see your orders and change your name, address
-and email settings on your account page.
+When you're signed in, you can see your orders and change your name, phone
+number, address and email settings on your account page.
 
 You may email info@northfosterfarm.com to request access to, changes to, or
 deletion of your information. Square and PayPal keep their own records of
