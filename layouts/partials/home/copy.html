@@ -15,15 +15,11 @@
           <article class="home-update-card border border-1 border-success border-opacity-50 rounded-4 py-3 py-sm-5">
             <div class="fmw-600 w-100">
               <p class="home-eyebrow">News and updates</p>
-              <h2 class="home-update-title">
-                <a class="home-update-link" href="{{ .RelPermalink }}">{{ .Title }}</a>
-              </h2>
-              <time class="news-date home-update-date" datetime="{{ .Date.Format "2006-01-02" }}">
-                {{ .Date | time.Format "January 2, 2006" }}
-              </time>
-              {{/* The post's own h2s sit under its title here, an h2
-                   itself, so they step down to h3. */}}
-              <div class="prose">{{ .Content | replaceRE `<(/?)h2([ >])` `<${1}h3${2}` | safeHTML }}</div>
+              {{/* The post's header and body, shared with its own
+                   page (#232); the title is an h2 under the hero's
+                   h1. */}}
+              {{ partial "news/header.html" (dict "page" . "level" 2 "link" true) }}
+              {{ partial "news/body.html" (dict "page" . "level" 2) }}
             </div>
           </article>
           {{/* Outside the card: a link onward is not part of the post

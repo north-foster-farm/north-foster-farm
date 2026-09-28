@@ -1,0 +1,13 @@
+{{/*
+  A post's body wherever the post is shown in full (#232).
+
+  Params:
+    page   The post
+    level  Its title's heading level (optional, default 1). Under an
+           h2 title the post's own h2s step down to h3.
+*/}}
+{{ $content := .page.Content }}
+{{ if eq (.level | default 1) 2 }}
+  {{ $content = $content | replaceRE `<(/?)h2([ >])` `<${1}h3${2}` | safeHTML }}
+{{ end }}
+<div class="prose">{{ $content }}</div>

@@ -1,3 +1,39 @@
+// A post's date, in lists and under its title.
+.news-date {
+  font-size: $font-size-sm;
+  color: var(--bs-secondary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+// A post's header wherever it is shown in full, on its own page and on
+// home (#232): the title centered over the dateline, set like a display
+// heading in light italic, scaling down from 2.125rem at xl.
+.news-header {
+  margin-bottom: 2rem;
+}
+
+.news-header-title {
+  --news-title-tracking: -0.02em;
+
+  margin-bottom: 0.5rem;
+  letter-spacing: var(--news-title-tracking);
+
+  @include font-size(2.125rem);
+}
+
+.news-header-link {
+  color: inherit;
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+  }
+}
+
 .news {
   .text-column {
     max-width: 700px;
@@ -5,13 +41,6 @@
 
   h2 {
     margin-top: 2.25rem;
-  }
-
-  .news-date {
-    font-size: $font-size-sm;
-    color: var(--bs-secondary-color);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
   }
 
   // The newest post, large above the list: its picture across the

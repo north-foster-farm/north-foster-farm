@@ -399,13 +399,13 @@ test.describe("home", () => {
 
       await expect(card.locator(".home-eyebrow"))
         .toHaveText("News and updates");
-      await expect(card.locator(".home-update-link"))
+      await expect(card.locator(".news-header-link"))
         .toHaveText("September Update");
-      await expect(card.locator(".home-update-link"))
+      await expect(card.locator(".news-header-link"))
         .toHaveAttribute("href", new RegExp(`${POST}$`));
-      await expect(card.locator("time.home-update-date"))
+      await expect(card.locator(".news-header time"))
         .toHaveAttribute("datetime", "2026-09-22");
-      await expect(card.locator("time.home-update-date"))
+      await expect(card.locator(".news-header time"))
         .toHaveText("September 22, 2026");
 
       // Since #211 the ZIP check is a plain link under Delivery.
