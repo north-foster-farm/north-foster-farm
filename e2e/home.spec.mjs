@@ -44,7 +44,7 @@ test.describe("home", () => {
         .toHaveText("From our pasture to your table");
       await expect(how.locator(".how-step-title")).toHaveText([
         "Step 1: Shop what’s fresh",
-        "Step 2: Pick your day",
+        "Step 2: Pickup or delivery",
         "Step 3: Change of plans?",
         "Step 4: Taste the difference",
       ]);
