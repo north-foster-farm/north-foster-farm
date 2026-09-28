@@ -192,11 +192,11 @@ Use a PayPal sandbox personal account as the buyer.
       Square sandbox shows the refund; the customer gets Square's
       refund receipt. The account card says "Refunded $5 on <date>".
 - [ ] Run it again: refused, "Already refunded $5 on <date>".
-- [ ] `bin/nff --staging orders cancel <id> --refund` on a paid Venmo
-      order: PayPal refunds the capture and the Square tender is noted
-      as refunded; `status` is `cancelled`, `refund.total` true, stock
-      back, the fulfilment Canceled in Square, the customer emailed
-      "Your refund is on its way".
+- [ ] `bin/nff --staging orders cancel <id> --reason-text "Test order."`
+      on a paid Venmo order: PayPal refunds the capture and the Square
+      tender is noted as refunded; `status` is `cancelled`,
+      `refund.total` true, stock back, the fulfilment Canceled in
+      Square, the customer emailed "Your refund is on its way".
 - [ ] `bin/nff --staging orders cancel <id> --no-refund`: the
       email says "Nothing more will be charged"; `refund` stays
       unset.
@@ -258,6 +258,6 @@ inbox hears.
   drop their account links; the deny email asks for a reply.
 - Take Venmo off: unset `PAYPAL_CLIENT_ID`; the button disappears and
   nothing else changes.
-- Close a test order: `bin/nff orders cancel <id> --refund`, or
-  `bin/nff orders delete <id>` to remove the record entirely (the
-  money stays where it is).
+- Close a test order: `bin/nff orders cancel <id> --reason-text "Test
+  order."`, or `bin/nff orders delete <id>` to remove the record
+  entirely (the money stays where it is).

@@ -28,11 +28,17 @@ const USAGE = `Usage:
                                       no id: how many wait, and the next
   bin/nff orders deny <id> --reason "..."   have them pick another;
                                       the reason is required and emailed
-  bin/nff orders cancel <id> [--no-refund] [--amount 12.34] [--reason "..."]
+  bin/nff orders cancel <id> --reason <why> | --reason-text "..." |
+                             --no-reason [--no-refund] [--amount 12.34]
                                       the money back first, all of it
                                       unless told; then stock back and
                                       the fulfilment closed in Square;
-                                      --no-refund only on purpose
+                                      --no-refund only on purpose. The
+                                      customer is told why: sold-out,
+                                      delay, weather, emergency or
+                                      mistake, or your own words;
+                                      --no-reason for a customer we
+                                      won't serve (write to them)
   bin/nff orders refund <id> [--amount 12.34] [--reason "..."]
                                       money back without cancelling:
                                       card and wallets through Square,
@@ -96,7 +102,7 @@ const [
   { requestLink },
   { runJobs, runsSince },
   { stores: makeStores },
-  { paymentPhrase, summaryLine },
+  { CANCEL_REASONS, paymentPhrase, summaryLine },
   { inviteSubscribers, parseCsv, syncAudience },
   { dollars, toCents },
   { snapshot },
@@ -140,7 +146,7 @@ const words = [];
 
 // Flags that take a value: `--reason "..."` as well as `--reason=...`.
 const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
-  "to", "waive", "detail"];
+  "to", "waive", "detail", "reason-text"];
 const args = process.argv.slice(2);
 
 for (let i = 0; i < args.length; i += 1) {
@@ -328,15 +334,40 @@ const run = async () => {
     return out(summaryLine(await admin.denyPickup(stores, rest[0], {
       reason: flags.reason || "",
     })));
-  case "orders cancel":
+  case "orders cancel": {
+    // The customer is told why, from the list or in the farm's words
+    // (T2a); saying nothing takes --no-reason (T2b).
+    const reasons = Object.keys(CANCEL_REASONS);
+    const reason = typeof flags.reason === "string" ? flags.reason : "";
+    const reasonText = typeof flags["reason-text"] === "string"
+      ? flags["reason-text"].trim() : "";
+    const given = [!!reason, !!reasonText, !!flags["no-reason"]]
+      .filter(Boolean).length;
+
+    if (reason && !reasons.includes(reason)) {
+      throw new Error(`--reason is one of: ${reasons.join(", ")}. ` +
+        "Anything else goes in --reason-text \"...\".");
+    }
+    // A customer's own cancel was already emailed; the farm only
+    // finishes it.
+    const asked = !!(await admin.showOrder(stores, rest[0])).cancelRequested;
+
+    if (given !== 1 && !(asked && given === 0)) {
+      throw new Error(`Say why, once: --reason <${reasons.join("|")}>, ` +
+        "--reason-text \"...\", or --no-reason for a customer we won't " +
+        "serve.");
+    }
+
     return out(summaryLine(await admin.cancelOrder(stores, rest[0], {
       // A refund unless the farm says otherwise (T1c); --refund,
       // once required, still reads as the default.
       refund: !flags["no-refund"],
       amount: typeof flags.amount === "string" ? toCents(flags.amount)
         : undefined,
-      reason: typeof flags.reason === "string" ? flags.reason : "",
+      reason,
+      reasonText,
     })));
+  }
   case "orders refund": {
     const before = await admin.showOrder(stores, rest[0]);
     const refunded = await admin.refundOrder(stores, rest[0], {

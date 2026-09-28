@@ -654,8 +654,8 @@ order endpoint's rate limit.
   Total $50 unchanged. Step 3 (on-farm, so no fee): charged $45;
   `bin/nff --staging orders show <id>` has no code and the emails
   mention none.
-- **Teardown:** `bin/nff --staging orders cancel <id> --refund`, then
-  `bin/nff --staging orders delete <id>`.
+- **Teardown:** `bin/nff --staging orders cancel <id> --reason-text
+  "Test order."`, then `bin/nff --staging orders delete <id>`.
 
 ### PR-14 A real discount code
 
@@ -919,8 +919,9 @@ the farm is asked to confirm". Tagged `@regression`.
   $7 came through." and "Requested:"; the farm's "New order <id>" for
   "$7, on-farm pickup" with "$7 by Visa ending 1111", "Requested, not
   yet confirmed" and `orders confirm <id>`. After the reload: "0 items".
-- **Teardown:** `bin/nff --staging orders cancel <id> --refund`, then
-  `orders delete <id>`, `customers delete <email>`, outbox cleared.
+- **Teardown:** `bin/nff --staging orders cancel <id> --reason-text
+  "Test order."`, then `orders delete <id>`, `customers delete <email>`,
+  outbox cleared.
 
 ### PY-02 A delivery paid by card is confirmed at once
 
@@ -1112,8 +1113,8 @@ account; never done yet (#151).
   `payment.squarePaymentId` set; the Square sandbox order shows an
   external "Venmo" tender for $7; outbox "Payment received" and the
   farm's notice with "$7 by Venmo".
-- **Teardown:** `bin/nff --staging orders cancel <id> --refund` (PayPal
-  refunds; RF-05), then delete.
+- **Teardown:** `bin/nff --staging orders cancel <id> --reason-text
+  "Test order."` (PayPal refunds; RF-05), then delete.
 
 ### PY-15 Venmo cancelled during approval
 
@@ -1320,7 +1321,8 @@ Manual: several emails and pages across a week-long link.
   `fulfilment.state` requested. After the cancel: refunded in full on
   the spot (T1d), `status` cancelled, the farm's "Cancelled: <id>"
   saying there's nothing to run.
-- **Teardown:** `orders cancel <id>` for the first; delete both.
+- **Teardown:** `orders cancel <id> --reason-text "Test order."` for the
+  first; delete both.
 
 ### AO-07 A customer cancels
 
@@ -1469,8 +1471,8 @@ back". Tagged `@regression`.
   account page; the record has 1 × Eggs and one $7 refund, source
   `customer`; "Your order is updated" says "We refunded $7" and the farm
   gets "Order changed". The header's cart count is untouched.
-- **Teardown:** `bin/nff orders cancel <id> --refund --staging`, then
-  delete.
+- **Teardown:** `bin/nff orders cancel <id> --reason-text "Test order."
+  --staging`, then delete.
 
 ### AO-16 More items: the difference is charged (#160)
 
@@ -1523,7 +1525,8 @@ Manual: money leaves through the CLI, by design.
   500, `refund.total` false; the Square sandbox shows the refund; the
   account card says "Refunded $5 on <date>". The second run is refused:
   "Already refunded $5 on <date>".
-- **Teardown:** `bin/nff --staging orders cancel <id>`; delete.
+- **Teardown:** `bin/nff --staging orders cancel <id> --reason-text
+  "Test order."`; delete.
 
 ### RF-02 Cancel with refund
 
@@ -1532,7 +1535,7 @@ Manual; every automated payment's teardown runs it, without asserting.
 - **Scenario:** The farm cancels and refunds.
 - **Setup:** A paid card order.
 - **Test:**
-  1. `bin/nff --staging orders cancel <id> --refund`
+  1. `bin/nff --staging orders cancel <id> --reason-text "Test order."`
 - **Assert:** `status` cancelled, `refund.total` true, stock back, the
   Square fulfilment Canceled, "Your order is cancelled" saying the
   refund is on its way.
@@ -1572,7 +1575,7 @@ Manual: needs a Venmo order (PY-14).
 - **Setup:** Two paid Venmo orders.
 - **Test:**
   1. `bin/nff --staging orders refund <id1> --amount 2`
-  2. `bin/nff --staging orders cancel <id2> --refund`
+  2. `bin/nff --staging orders cancel <id2> --reason-text "Test order."`
 - **Assert:** PayPal refunds each capture; the Square tender is noted as
   refunded; <id2> cancelled with stock back and the refund email. The
   refund webhook PayPal sends afterwards adds nothing: Square's
@@ -2369,10 +2372,10 @@ same spec checks `lang="en-US"` on the three policy pages (99e4717).
 - **Test:**
   1. Read it.
 - **Assert:** Sections on the farm-news list (Resend, joining at once
-  with no email to confirm, one-click unsubscribe), accounts and magic links, payments (Square
-  and PayPal; card numbers never reach the site), what is stored where
-  and for how long, what the browser keeps; no "Square, which creates
-  your invoice"; a new effective date.
+  with no email to confirm, one-click unsubscribe), accounts and magic
+  links, payments (Square and PayPal; card numbers never reach the
+  site), what is stored where and for how long, what the browser keeps;
+  no "Square, which creates your invoice"; a new effective date.
 - **Teardown:** None.
 
 ### AR-27 The cart follows a signed-in customer (#149)

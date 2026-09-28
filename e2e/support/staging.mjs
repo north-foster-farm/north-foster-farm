@@ -235,7 +235,7 @@ export const closeOrder = async (id) => {
     : 0;
 
   if (record.status === "paid") {
-    await nff(["orders", "cancel", id, "--refund", "--reason=QA e2e"]);
+    await nff(["orders", "cancel", id, "--reason-text=QA e2e"]);
   } else if (owed > 0) {
     await nff(["orders", "refund", id, "--reason=QA e2e"]);
   }
