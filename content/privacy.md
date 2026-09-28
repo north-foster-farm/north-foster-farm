@@ -13,10 +13,10 @@ Foster Farm website.
 
 We collect personal information you provide to us.
 
-The order form at [/order](/order) collects your name, email address, phone
-number and your order, plus a delivery address if you choose delivery. We
-send that to Square, which records your order and takes card and wallet
-payments. Venmo payments go through PayPal. We never see your card number.
+The order form at [/order](/order) collects your name, email address and your
+order, plus a delivery address if you choose delivery. We send that to
+Square, which records your order and takes card and wallet payments. Venmo
+payments go through PayPal. We never see your card number.
 
 While you fill out the form, a draft is kept in your browser until you
 place your order. It never leaves your device.
@@ -34,9 +34,9 @@ minutes. A link we send about a particular order, such as one asking you to
 pick a new pickup time, works for 7 days.
 
 Signing in keeps you signed in on that browser for 30 days, or until you sign
-out. Your account holds your name, phone number, delivery address and drop-off
-notes, the picture you chose, your email settings, your orders and the
-messages you have sent us from it.
+out. Your account holds your name, delivery address and drop-off notes, the
+picture you chose, your email settings, your orders and the messages you have
+sent us from it. We also record which browser you signed in with.
 
 ### Farm news
 
@@ -61,29 +61,32 @@ reminder off in your account or from the link in the reminder itself.
 Orders, customer records and your messages to us are stored in Netlify
 Blobs, storage run by Netlify, which hosts the site.
 
-An order holds your name, email address, phone number, what you ordered, how
-and when you'll get it, any delivery address and notes, and what you paid and
-any refund. For a card, Square tells us the card's brand and its last four
+An order holds your name, email address, what you ordered, how and when
+you'll get it, any delivery address and notes, and what you paid and any
+refund. For a card, Square tells us the card's brand and its last four
 digits. For Venmo, PayPal tells us the name and email address on the Venmo
 account. We keep no other payment details. An order also records which
-browser you used and the page you came from.
+browser you used.
 
 Square keeps its own copy of your order, your payment, and your name, email
-address, phone number and delivery details.
+address and delivery details. It does so from the moment you press Pay, even
+if the payment doesn't go through.
 
-If you start paying with Venmo and don't finish, the unpaid order is deleted
-within a day. Orders and customer records are kept until you ask us to
-delete them.
+If you start paying with Venmo and don't finish, we delete the details we
+saved within a day, and PayPal lets the unfinished payment expire. Orders and
+customer records are kept until you ask us to delete them.
 
 ### Technical basics
 
 The site uses your IP address to limit how often a form can be sent. It is
-held in memory for a few minutes and is not written to our records.
+kept only in the server's memory and is never written to our records or
+logs.
 
-The site's server code keeps a log of what it does, stored by Axiom. Log lines
-name orders by number, not by customer. When something goes wrong with an
-order, the line may hold the order as it was sent, including your contact
-details, so we can put it right. Axiom deletes log lines after 30 days.
+The site's server code keeps a log of what it does, stored by Axiom. Netlify,
+which runs that code, also keeps them. Log lines name orders by number, not by
+customer. When something goes wrong with an order, the line may hold the order
+as it was sent, including your contact details, so we can put it right. Axiom deletes log lines after
+30 days.
 
 ### What your browser keeps
 
@@ -146,8 +149,8 @@ assets.
 
 ## Accessing, changing, or deleting information
 
-When you're signed in, you can see your orders and change your name, phone
-number, address and email settings on your account page.
+When you're signed in, you can see your orders and change your name, address
+and email settings on your account page.
 
 You may email info@northfosterfarm.com to request access to, changes to, or
 deletion of your information. Square and PayPal keep their own records of
