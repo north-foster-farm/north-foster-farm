@@ -408,13 +408,15 @@ twice; with `ADMIN_EMAILS` unset it is skipped.
 
 Money goes back from the CLI. `bin/nff orders refund <id> [--amount
 12.34] [--reason "..."]` refunds whatever has not gone back yet
-unless told the amount, out of the newest payment first: a card or wallet through Square (`POST /v2/refunds`, Square
-sends its refund receipt), Venmo through PayPal (`POST
+unless told the amount, out of the newest payment first: a card or
+wallet through Square (`POST /v2/refunds`, Square sends its refund
+receipt), Venmo through PayPal (`POST
 /v2/payments/captures/<id>/refund`, Venmo tells the customer), and
 for Venmo the Square copy is noted as refunded too, best effort, so
 the books agree. It can be called again for the rest, until
-everything is back. `bin/nff orders cancel <id>` refunds what is
-left first, then cancels: stock back, the fulfilment closed in
+everything is back. `bin/nff orders cancel <id> --reason <why>` (or
+`--reason-text "..."`, or `--no-reason`) refunds what is left first,
+then cancels: stock back, the fulfilment closed in
 Square, the customer emailed "Your refund is on its way" (said only
 when money went back just then). Only `--no-refund` cancels without
 money back (T1c), and its email says nothing more will be charged.
@@ -528,8 +530,8 @@ the `auth` store. State-changing posts must come from this site
 CLI, which mints links and sessions to sign in as a customer. The
 page is `/login/`.
 
-A link the farm mints (the deny email's "Pick a new time") uses
-`limit: false` and a week-long `ttl`. The page's second form, **Find
+The CLI's `login` and `masquerade` mint a link without mailing it
+(`send: false`). The page's second form, **Find
 my order** (an order number and its email, sent as `{ email, orderId }`),
 was removed on 2026-09-25 (#150): a customer signs in with the email
 instead. An `orderId` in a request is ignored.
@@ -540,11 +542,11 @@ instead. An `orderId` in a request is ignored.
 Settings, Help) rendered from `GET /api/me` and
 `GET /api/account/orders`. `lib/account.mjs` holds the rules:
 
-- Cancel: the order is flagged `cancelRequested`, its stock released,
-  the customer told the refund is coming and the farm told to refund
-  and close it from the CLI. Allowed until the cutoff (delivery
-  cutoff, or midnight before a pickup), or while a question from the
-  farm is open.
+- Cancel: refunded and closed at once, as under "Refunds" below;
+  only a failed refund leaves it `cancelRequested` for the CLI.
+  Allowed until the cutoff (delivery cutoff, or midnight before a
+  pickup), or while a question from the farm is open on an older
+  record.
 - Change: the date (from the offered list), pickup window,
   drop-off cooler, gate and notes, order notes. Square's fulfilment is
   updated; if that fails the order is flagged `squareOutOfSync` and
@@ -593,7 +595,8 @@ to reach the site's Blobs stores, the production Square token and
 location, the live PayPal pair, the mail variables
 (`MAIL_DRIVER=resend`, `RESEND_API_KEY`, `MAIL_FROM`,
 `MAIL_REPLY_TO`), `ACCOUNTS_ENABLED=true` and `SITE_URL`, so a
-deny or a cancel sent from here reads as one sent from the site.
+cancel or an address decision sent from here reads as one sent from
+the site.
 `--staging` and `--preview` read `.env.staging` or `.env.preview`
 (the sandbox token and its location, `MAIL_DRIVER=outbox`, that
 deploy's `SITE_URL`). With no flag it reads `.env`, linked locally
@@ -604,8 +607,9 @@ Without the Netlify pair it runs against memory and says so; without
 a mail driver it logs every email to the terminal instead of sending
 it, and says that too. `bin/nff` with no arguments prints the commands:
 customers (list, show, set, delete), address (approve, deny), orders
-(list with `--open`, `--status`, `--email`; show; cancel `--reason <why> | --reason-text | --no-reason [--no-refund]
-[--amount]`, which says what it refunds; attempted; refund
+(list with `--open`, `--status`, `--email`; show; cancel `--reason
+<why> | --reason-text | --no-reason [--no-refund] [--amount]`, which
+says what it refunds; attempted; refund
 `[--amount] [--reason]`; fulfil; delete), returns resolve, stock
 (list, set), schedule (check, set), login and masquerade (a
 single-use sign-in link, opened for you), audience (invite, sync),
