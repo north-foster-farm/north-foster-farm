@@ -40,9 +40,11 @@
   {{ partial "order/cart.html" . }}
   <div class="order-rest">
     {{/* From lg to xl the pane scrolls away; this bar keeps the
-         total in view from then on (order-form.js marks the form once
-         the pane is passed). Below lg the topbar carries the total. */}}
+         section's name and the total in view from then on
+         (order-form.js marks the form once the pane is passed). Below
+         lg the topbar carries both. */}}
     <div class="order-total-bar d-none d-lg-flex d-xl-none" aria-hidden="true">
+      <span class="order-total-bar-title" data-topbar-title>{{ .Params.heading | default .Title }}</span>
       <span data-total-bar-count>0 items</span>
       <span class="order-cart-sum-label">Total</span>
       <span class="order-total-bar-total" data-total-bar-total>$0</span>

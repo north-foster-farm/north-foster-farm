@@ -18,7 +18,6 @@ import { Payment } from "./pay.js";
 import { Pending } from "./pending.js";
 import { Stock } from "./stock.js";
 import { Submitter } from "./submit.js";
-import ScrollSpy from "bootstrap/js/dist/scrollspy.js";
 import { announceCart } from "../cart-badge/announce.js";
 import { me } from "../session/session.js";
 import { api } from "../utils/api.js";
@@ -482,73 +481,95 @@ export class OrderForm {
       }
     });
 
-    // The sidebar is an outline of the whole page, so the spy watches
-    // the page. Keep the active link in view, and mark the category so
-    // its heading can show the chevron.
-    const catalog = document.getElementById("order-catalog");
-
-    ScrollSpy.getOrCreateInstance(document.body, {
-      target: "#order-nav", rootMargin: "-10% 0px -80%", smoothScroll: true,
-    });
-    document.body.addEventListener("activate.bs.scrollspy", (e) => {
-      const link = e.relatedTarget;
-
-      link.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      for (const cat of all(catalog, ".order-cat")) {
-        cat.classList.toggle("is-active", `#${cat.id}` === link.hash);
-      }
-    });
-    qs(catalog, ".order-cat").classList.add("is-active");
-    this.watchTopbar();
+    this.watchSections();
   }
 
-  // Below lg the sticky bar names the section under it, or the page's
-  // own heading above the first. The spy can't do this: it only hears
-  // sections crossing a band, so a fast scroll jumps past them and
-  // leaves a stale name, and it says nothing when none is active
-  // (#204). This asks where each section is on every frame the page
-  // moves, so the name is right at any speed.
-  watchTopbar() {
-    const title = document.querySelector("[data-topbar-title]");
-    const bar = document.querySelector(".order-topbar");
-
-    if (!title || !bar) return;
-
+  // The section on screen, named in three places: the sidebar's
+  // outline from lg up, the phone's sticky bar below lg, and the total
+  // bar from lg to xl. Bootstrap's spy only hears sections crossing a
+  // band, so a fast scroll left a stale name, and the last section,
+  // too short to reach the band, never lit (#204). This asks where
+  // each section is on every frame the page moves.
+  watchSections() {
+    const nav = document.getElementById("order-nav");
+    const catalog = document.getElementById("order-catalog");
+    const titles = all(document, "[data-topbar-title]");
+    const bars = all(document, ".order-topbar, .order-total-bar");
     const heading = document.querySelector(".page-heading h1");
-    const sections = all(document.getElementById("order-nav"), "a")
+    const wide = window.matchMedia("(min-width: 992px)");
+    const xl = window.matchMedia("(min-width: 1200px)");
+    const sections = all(nav, "a")
       .map((link) => ({
         link, target: document.querySelector(link.hash),
       }))
       .filter(({ target }) => target);
+    let shown = null;
     let tick = null;
+
+    // Mark the link, its parent in the outline (Catalog, over a
+    // category) and the category, whose heading shows the chevron.
+    const mark = (link) => {
+      const parent = link.closest(".order-side-sub")
+        ?.closest(".nav-item").querySelector(":scope > .nav-link");
+
+      for (const a of all(nav, ".nav-link")) {
+        a.classList.toggle("active", a === link || a === parent);
+      }
+      for (const cat of all(catalog, ".order-cat")) {
+        cat.classList.toggle("is-active", `#${cat.id}` === link.hash);
+      }
+      if (wide.matches) {
+        link.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    };
 
     const update = () => {
       tick = null;
-      if (!bar.offsetParent) return;
 
-      // A section is current once its top reaches the bar's lower
-      // edge. The floating cart is at the foot of the screen, not at
-      // its place in the page, so it counts only once settled.
-      const line = bar.getBoundingClientRect().bottom + 1;
+      // A section is current once its top reaches the lower edge of
+      // whichever bar is stuck at the top, less a little so a jump to
+      // it lands inside it. The floating cart is at the foot of the
+      // screen, not at its place in the page, so it counts only once
+      // settled. From xl it is a column stuck beside the others and
+      // never counts.
+      const column = xl.matches;
+      const edge = bars.reduce((low, bar) => {
+        const r = bar.getBoundingClientRect();
+
+        return bar.offsetParent && getComputedStyle(bar).opacity !== "0"
+          && r.top <= 1 ? Math.max(low, r.bottom) : low;
+      }, 0);
+      const line = edge + 24;
+      const end = window.innerHeight + window.scrollY
+        >= document.documentElement.scrollHeight - 2;
       let current = null;
       let best = -Infinity;
 
       for (const { link, target } of sections) {
         if (target.dataset.stuck === "true") continue;
+        if (column && target.id === "order-cart") continue;
         const top = target.getBoundingClientRect().top;
 
         // On a tie the later link wins: a category over the catalog.
-        if (top <= line && top >= best) {
+        // At the foot of the page the last section on screen wins,
+        // since it may be too short ever to reach the line.
+        if ((top <= line || (end && top < window.innerHeight))
+          && (top >= best || end)) {
           best = top;
           current = link;
         }
       }
 
+      if (current && current !== shown) mark(current);
+      shown = current || shown;
+
       const name = current
         ? current.dataset.heading || current.textContent.trim()
-        : heading ? heading.textContent.trim() : title.textContent;
+        : heading ? heading.textContent.trim() : "";
 
-      if (title.textContent !== name) title.textContent = name;
+      for (const title of titles) {
+        if (title.textContent !== name) title.textContent = name;
+      }
     };
     const onScroll = () => {
       if (tick === null) tick = requestAnimationFrame(update);
