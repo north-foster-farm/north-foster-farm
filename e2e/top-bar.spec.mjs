@@ -4,19 +4,21 @@
 
 import { expect, test } from "./support/order.mjs";
 
-// The event on staging today, and when it ends in the farm's zone.
+// The event on staging today, and when it ends in the farm's zone. A
+// pop-up's link opens its card on the home page's map (M9 on #214),
+// in the same tab; the card carries its Instagram link.
 const EVENT = {
   short: "Pop-up at The Village Family Fitness, Sun, Oct 18",
   long: "Pop-up at The Village Family Fitness in Warwick, Sunday, " +
     "October 18, 10:00 AM – 2:00 PM",
-  href: "https://www.instagram.com/thevillagefitnessri/",
+  href: /#place-the-village-family-fitness$/,
   ends: "2026-10-18T14:00:00-04:00",
 };
 
 const bar = (page) => page.locator("[data-top-bar]");
 
 test.describe("top bar (#139)", () => {
-  test("one line above the header, short on a phone, linking out",
+  test("one line above the header, short on a phone, linking to the map",
     async ({ page }) => {
       await page.goto("/");
 
@@ -38,7 +40,7 @@ test.describe("top bar (#139)", () => {
         expect(m.height, `${at} one line`).toBe(30);
         if (width >= 390) expect(m.clipped, `${at} no ellipsis`).toBe(false);
         await expect(link).toHaveAttribute("href", EVENT.href);
-        await expect(link).toHaveAttribute("target", "_blank");
+        await expect(link).not.toHaveAttribute("target", /./);
 
         const below = await page.evaluate(() => {
           const b = document.querySelector("[data-top-bar]");
@@ -55,6 +57,21 @@ test.describe("top bar (#139)", () => {
       await page.setViewportSize({ width: 320, height: 568 });
       expect((await bar(page).boundingBox()).height).toBeCloseTo(30, 1);
     });
+
+  test("the pop-up's link opens its card on the map", async ({ page }) => {
+    await page.goto("/about/");
+    await bar(page).locator("a").click();
+
+    const map = page.locator("[data-map]").first();
+    const card = map.locator("[data-map-card]:not([hidden])");
+
+    await expect(page).toHaveURL(EVENT.href);
+    await expect(map).toHaveAttribute("data-layer", "places");
+    await expect(card).toContainText("Pop-up");
+    await expect(card).toContainText("The Village Family Fitness");
+    await expect(card.getByRole("link", { name: "Instagram" }))
+      .toHaveAttribute("href", "https://www.instagram.com/thevillagefitnessri/");
+  });
 
   test("every page carries it", async ({ page }) => {
     for (const path of ["/order/", "/about/", "/contact/", "/news/",
