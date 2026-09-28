@@ -20,6 +20,10 @@
 //               failed is reported after a day, in the morning report
 //               too, and cancelled unless the Square deletion kill
 //               switch is set (#241; lib/square.mjs)
+//   profiles    7:00 daily: a Square customer profile a checkout made,
+//               whose payment never succeeded, is reported after a day,
+//               in the morning report too, and deleted unless the
+//               same kill switch is set (#236)
 //   morning     8:00 daily, always: the day in numbers, the on-farm
 //               orders within two days still waiting on the customer,
 //               a warning when the pickup schedule runs short, and the
@@ -60,9 +64,9 @@ import { changedAfterPrint, packingDaily } from "./packing.mjs";
 import { sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
-  allOrders, getCustomer, getOrder, listCheckouts, openOrders,
-  paymentsOf, questionOpen, refundsOf, reminderPrefs, setStatus,
-  sweepAuth, sweepCheckouts,
+  allOrders, dropMadeCustomer, getCustomer, getOrder, listCheckouts,
+  listMadeCustomers, openOrders, ordersFor, paymentsOf, questionOpen,
+  refundsOf, reminderPrefs, setStatus, sweepAuth, sweepCheckouts,
 } from "./records.mjs";
 import { rotationDaily } from "./rotation.mjs";
 import { archivedOnHand } from "./stock.mjs";
@@ -132,8 +136,9 @@ export const runJobs = async (stores, {
   const report = {
     at: now.toISOString(), announced: [], deliveryReminded: [], closed: [],
     squareSynced: [], muted: [], checkoutsRescued: [], checkoutsSwept: 0,
-    authSwept: 0, squareOpen: [], pickupsToConfirm: [], scrubbed: [],
-    tomorrow: null, packing: null, changedAfterPrint: [], rotation: null,
+    authSwept: 0, squareOpen: [], customersMade: [], pickupsToConfirm: [],
+    scrubbed: [], tomorrow: null, packing: null, changedAfterPrint: [],
+    rotation: null,
     errors: [], invariants: [],
   };
   const opts = { env, mail, now };
@@ -250,6 +255,13 @@ export const runJobs = async (stores, {
     )))) || [];
   for (const o of report.squareOpen) {
     if (o.error) fail(o.orderId, "squareCancel", o.error);
+  }
+  report.customersMade = (await attempt(null, "customers",
+    () => sweepMadeCustomers(stores, {
+      env, now: realNow, square, fetchImpl,
+    }))) || [];
+  for (const c of report.customersMade) {
+    if (c.error) fail(c.orderId, "customerDelete", c.error);
   }
   report.pickupsToConfirm = (await attempt(null, "morningReport",
     () => morningReport(stores, {
@@ -463,15 +475,87 @@ export const sweepSquareOrders = async (stores, {
   return out;
 };
 
+// --- Square profiles a failed checkout made (#236) -------------------
+//
+// A profile checkout made (records.mjs, noteMadeCustomer) is weighed a
+// day on, well past the page's retries and a Venmo checkout's life.
+// It stays, and its note goes, when the order was recorded, when the
+// customer has any other order here, or when Square shows a paid order
+// for that profile from any channel (a later attempt, the market). A
+// Square order for it made in the last day (a retry that may be paying
+// now) leaves it for a later run, as does a retry of the same order,
+// which notes it again and so restarts the day. A
+// profile that was found rather than made is never noted, so never
+// weighed. Otherwise it is reported, and deleted only when
+// SQUARE_CUSTOMER_CLEANUP is "true". Square keeps the cancelled order.
+
+export const MADE_CUSTOMER_GRACE = 24 * HOUR;
+
+// -> [{ customerId, orderId, at, deleted, error? }] for the profiles
+// with no paid order behind them, or null when Square is not
+// configured.
+export const sweepMadeCustomers = async (stores, {
+  env = process.env,
+  now = new Date(),
+  square = squareApi,
+  fetchImpl = globalThis.fetch,
+  remove = env.SQUARE_CUSTOMER_CLEANUP === "true",
+} = {}) => {
+  if (!env.SQUARE_ACCESS_TOKEN || !env.SQUARE_LOCATION_ID) return null;
+
+  const cutoff = now.getTime() - MADE_CUSTOMER_GRACE;
+  const out = [];
+
+  for (const made of await listMadeCustomers(stores)) {
+    if (!(Date.parse(made.at) < cutoff)) continue;
+
+    if (await getOrder(stores, made.orderId)
+      || (await ordersFor(stores, made.email)).length) {
+      await dropMadeCustomer(stores, made.customerId);
+      continue;
+    }
+
+    const orders = await square.customerOrders(made.customerId, {
+      since: new Date(cutoff),
+    }, { env, fetchImpl });
+
+    if (orders.paid) {
+      await dropMadeCustomer(stores, made.customerId);
+      continue;
+    }
+    if (orders.recent) continue;
+
+    const item = {
+      customerId: made.customerId, orderId: made.orderId, at: made.at,
+      deleted: false,
+    };
+
+    if (remove) {
+      try {
+        await square.deleteCustomer(made.customerId, { env, fetchImpl });
+        await dropMadeCustomer(stores, made.customerId);
+        item.deleted = true;
+      } catch (error) {
+        item.error = String((error && error.message) || error);
+      }
+    }
+    out.push(item);
+  }
+
+  return out;
+};
+
 // The report, in counts, for the ledger, the log and the heartbeat.
 export const summarize = (report) => ({
   at: report.at,
   counts: Object.fromEntries([
     "announced", "deliveryReminded", "closed", "squareSynced", "muted",
     "checkoutsRescued", "pickupsToConfirm", "scrubbed", "changedAfterPrint",
-    "squareOpen",
+    "squareOpen", "customersMade",
   ].map((k) => [k, (report[k] || []).length])),
   squareCancelled: (report.squareOpen || []).filter((o) => o.cancelled)
+    .length,
+  customersDeleted: (report.customersMade || []).filter((c) => c.deleted)
     .length,
   packing: report.packing || null,
   checkoutsSwept: report.checkoutsSwept || 0,

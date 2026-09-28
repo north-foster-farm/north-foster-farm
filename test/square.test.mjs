@@ -3,9 +3,10 @@ import { describe, it } from "node:test";
 
 import {
   KILL_SWITCH, SOURCE_NAME, SquareError, buildOrder, cancelFulfilment,
-  cancelOrder, clientConfig, createOrder, createPayment, dashboardUrl,
-  deleteCustomer, deletionsPaused, e164, getPayment, inventoryCounts,
-  refundPayment, searchOpenOrders, settings, updateFulfilment,
+  cancelOrder, clientConfig, createOrder, createPayment, customerOrders,
+  dashboardUrl, deleteCustomer, deletionsPaused, e164, getPayment,
+  inventoryCounts, refundPayment, searchOpenOrders, settings,
+  updateFulfilment,
 } from "../netlify/functions/lib/square.mjs";
 
 const env = {
@@ -300,13 +301,16 @@ describe("createOrder", () => {
       });
       const out = await createOrder(order(), KEY, { env, fetchImpl: impl });
 
-      assert.deepEqual(out, { squareOrderId: "SQO", customerId: "CUST" });
+      assert.deepEqual(out, {
+        squareOrderId: "SQO", customerId: "CUST", customerMade: true,
+      });
       assert.deepEqual(calls.map((c) => c.path), [
         "/v2/customers/search", "/v2/customers", "/v2/orders",
       ]);
       assert.deepEqual(calls[0].body.query.filter.email_address,
         { exact: "pat@example.com" });
       assert.equal(calls[1].body.idempotency_key, `${KEY}-customer`);
+      assert.equal(calls[1].body.reference_id, "NFF-2610-ABCD");
       assert.equal(calls[1].body.given_name, "Pat");
       assert.equal(calls[1].body.family_name, "Example");
       assert.equal(calls[2].body.idempotency_key, `${KEY}-order`);
@@ -324,9 +328,23 @@ describe("createOrder", () => {
     const out = await createOrder(order(), KEY, { env, fetchImpl: impl });
 
     assert.equal(out.customerId, "OLD");
+    assert.equal(out.customerMade, false, "found, not made");
     assert.ok(!calls.some((c) => c.path === "/v2/customers"));
     assert.equal(calls[1].body.order.customer_id, "OLD");
   });
+
+  it("knows a profile it made for this order when a retry finds it",
+    async () => {
+      const { impl } = fakeFetch({
+        "/v2/customers/search": { customers: [{
+          id: "CUST", reference_id: "NFF-2610-ABCD",
+        }] },
+        "/v2/orders": { order: { id: "SQO" } },
+      });
+      const out = await createOrder(order(), KEY, { env, fetchImpl: impl });
+
+      assert.equal(out.customerMade, true);
+    });
 
   it("marks 5xx and network failures retryable and 4xx not", async () => {
     const boom = fakeFetch({
@@ -678,6 +696,42 @@ describe("an update to an order at another location", () => {
       await run(impl);
       assert.equal(sent(calls), "OLD");
     }
+  });
+});
+
+describe("customerOrders", () => {
+  const since = new Date("2026-10-05T00:00:00Z");
+  const search = (orders) => fakeFetch({
+    "/v2/orders/search": { orders },
+  });
+
+  it("asks for the customer's orders at this location", async () => {
+    const { impl, calls } = search([]);
+
+    assert.deepEqual(await customerOrders("CUST", { since }, {
+      env, fetchImpl: impl,
+    }), { paid: false, recent: false });
+    assert.deepEqual(calls[0].body.location_ids, ["LOC"]);
+    assert.deepEqual(calls[0].body.query.filter,
+      { customer_filter: { customer_ids: ["CUST"] } });
+  });
+
+  it("finds a paid order, or a recent one that may be paying", async () => {
+    const old = "2026-10-04T12:00:00Z";
+    const paid = search([
+      { id: "A", state: "CANCELED", created_at: old },
+      { id: "B", state: "OPEN", created_at: old, tenders: [{ id: "T" }] },
+    ]);
+    const recent = search([
+      { id: "A", state: "OPEN", created_at: "2026-10-05T09:00:00Z" },
+    ]);
+
+    assert.equal((await customerOrders("CUST", { since }, {
+      env, fetchImpl: paid.impl,
+    })).paid, true);
+    assert.deepEqual(await customerOrders("CUST", { since }, {
+      env, fetchImpl: recent.impl,
+    }), { paid: false, recent: true });
   });
 });
 

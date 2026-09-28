@@ -27,7 +27,12 @@ export const createOrder = async (order, key, { env = process.env } = {}) => {
 
   buildOrder(order, id, cfg(env));
 
-  return { squareOrderId: fakeId("FAKE-ORDER", key), customerId: id };
+  // The fake keeps no profiles, so it never makes one for an order to
+  // clean up (#236).
+  return {
+    squareOrderId: fakeId("FAKE-ORDER", key), customerId: id,
+    customerMade: false,
+  };
 };
 
 export const createChangeOrder = async (order, change, key, {
@@ -100,6 +105,8 @@ export const deleteCustomer = async () => ({ deleted: true });
 
 // A fake payment never fails part way, so no order is left open.
 export const searchOpenOrders = async () => [];
+
+export const customerOrders = async () => ({ paid: false, recent: false });
 
 export const cancelOrder = async (squareOrderId) => ({
   id: squareOrderId, cancelled: true,

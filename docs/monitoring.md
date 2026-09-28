@@ -436,6 +436,17 @@ demand. The jobs cancel them unless the Square deletion kill switch
 is set; `bin/nff jobs square --apply` cancels them once. Orders made
 before the source was set are never listed.
 
+**Square profiles a failed checkout made (#236).** Pressing Pay makes
+a Square customer profile when the email is new to the farm, before
+the charge, and notes it. A day on, each run keeps the profile when
+the order was recorded, the customer has another order here, or Square
+shows a paid order for it from any channel; it waits when Square shows
+an order for it made in the last day. The rest are `customersMade` in
+the report and `bin/nff jobs customers` on demand. The jobs delete them
+unless the Square deletion kill switch (below) is set; `bin/nff jobs
+customers --apply` deletes them once. A profile that already existed
+is never touched.
+
 **The Square deletion kill switch, `SQUARE_DELETION_KILL_SWITCH`.**
 Unset, as it is by default, the automatic Square cleanups run: this
 sweep's cancelling and the deletion of the customer profiles a failed

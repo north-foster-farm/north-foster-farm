@@ -154,6 +154,9 @@ const SQUARE_CALLS = {
   inventoryCounts: (o) => square.inventoryCounts(["V1"], o),
   findPaid: (o) => square.findPaid(order(), o),
   deleteCustomer: (o) => square.deleteCustomer("C1", o),
+  customerOrders: (o) => square.customerOrders("C1", {
+    since: new Date(),
+  }, o),
   searchOpenOrders: (o) => square.searchOpenOrders({
     before: new Date(),
   }, o),
