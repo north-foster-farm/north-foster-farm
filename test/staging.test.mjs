@@ -412,13 +412,13 @@ describe("James's review in the library", () => {
       const stores = testStores();
       const links = mailLinks(env);
       const e = await one(stores);
-      const other = await one(stores, "pick-new-time");
+      const other = await one(stores, "farm-pickup-changed");
 
       await call(stores, `/api/staging/emails/${ID}/rewrite`, "PUT", {
         version: e.version, subject: e.parts.subject,
         text: [{ text: "Sorry, " }, { token: "Dana" }, { text: "." }],
       });
-      await call(stores, "/api/staging/emails/pick-new-time/approval",
+      await call(stores, "/api/staging/emails/farm-pickup-changed/approval",
         "PUT", { version: other.version });
       await stores.jobs.set("library/approval/farm-alert",
         { version: "old", at: "x" });
@@ -432,8 +432,8 @@ describe("James's review in the library", () => {
       assert.ok(by[ID].diff.includes("  Subject: We can't deliver to your " +
         "address"));
       assert.ok(by[ID].diff.includes("- Hi ⟦Dana⟧,"));
-      assert.equal(by["pick-new-time"].kind, "approval");
-      assert.equal(by["pick-new-time"].state, "port");
+      assert.equal(by["farm-pickup-changed"].kind, "approval");
+      assert.equal(by["farm-pickup-changed"].state, "port");
       assert.equal(by["farm-alert"].state, "stale");
 
       await clear(stores, ID);

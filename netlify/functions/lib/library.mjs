@@ -239,14 +239,6 @@ export const library = [
       { orderUrl: orderUrl(links), links }),
   },
   {
-    id: "pick-new-time", name: "We can't make your pickup time",
-    when: "The farm can't keep a booked pickup time", audience: C,
-    tags: ["pickup denied", "pickup"],
-    build: (links) => t.pickNewTime(gaveUp(), {
-      pickUrl: signIn(links), links,
-    }),
-  },
-  {
     id: "delivery-reminder", name: "Delivery tomorrow",
     when: "Wednesday evening, for each paid delivery", audience: C,
     tags: ["reminder", "delivery"],
@@ -624,8 +616,6 @@ const W11D = "W11d (2026-09-28): a pickup is booked by paying, from " +
 const WAITING = {
   "order-confirmed-onfarm": `James approved it in the library on ` +
     `2026-09-26. ${W11D}`,
-  "pick-new-time": `${W11D} Now the farm giving up a booked time. A ` +
-    "reason is optional, shown when given (T2d is moot). Draft wording.",
   "order-changed-paid-more": `${LANDED}: each line says what was added, ` +
     "and the Total line what was paid.",
   "order-changed-refunded": `${T4} Its refund line he kept (T3).`,

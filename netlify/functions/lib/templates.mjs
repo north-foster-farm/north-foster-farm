@@ -386,13 +386,10 @@ const orderType = (order) => {
   return [p(`Order type: **${methodName(f.method)}**`), list(items)];
 };
 
-// The pickup window two ways: "Thursday, October 8, 9 AM – noon" for
-// a labelled line, "9 AM – noon on Thursday, October 8" in a sentence.
+// The pickup window for a labelled line: "Thursday, October 8,
+// 9 AM – noon".
 const windowPhrase = (order) =>
   `${label(order.fulfilment.date)}, ${pickupWindow(order)}`;
-
-const timeOf = (order) =>
-  `${pickupWindow(order)} on ${label(order.fulfilment.date)}`;
 
 // The block that names the order, in every customer email about one.
 const orderDetails = (order) => [
@@ -434,29 +431,6 @@ export const orderConfirmed = (order, { orderUrl, links } = {}) => {
     }
   }
   blocks.push(customerFooter(links));
-
-  return { subject: title, ...render(title, blocks, links) };
-};
-
-// The farm can't keep a booked pickup time after all (W11d's
-// exception): the customer picks another or cancels. `pickUrl` signs
-// them in to the order page. A reschedule needs no reason (T2d is
-// moot: nothing is requested and denied); one given is shown. Draft
-// wording.
-export const pickNewTime = (order, { pickUrl, links } = {}) => {
-  const title = "We can't make your pickup time";
-  const blocks = [
-    p(`Hi ${firstName(order.customer)},`),
-    p("We're sorry, but we can't be here for your pickup at " +
-      `${timeOf(order)}.`),
-    ...(order.question && order.question.reason
-      ? [p(`Here's why: ${order.question.reason}`)] : []),
-    p("Please choose another day and time. If none of them works for " +
-      "you, you can cancel your order for a full refund."),
-  ];
-
-  if (pickUrl) blocks.push(button("Reschedule or cancel", pickUrl));
-  blocks.push(...orderDetails(order), customerFooter(links));
 
   return { subject: title, ...render(title, blocks, links) };
 };

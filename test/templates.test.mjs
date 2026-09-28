@@ -6,8 +6,7 @@ import {
   farmMorningReport, farmOrderChanged, farmOrderPlaced, farmPickupChanged,
   farmRefundNeeded, farmReturnRequest, farmSquareOutOfSync, farmSupport,
   farmTomorrow, magicLink, missedDelivery, movedDelivery, orderCancelled,
-  orderChanged, orderConfirmed, paymentPhrase,
-  pickNewTime, summaryLine,
+  orderChanged, orderConfirmed, paymentPhrase, summaryLine,
 } from "../netlify/functions/lib/templates.mjs";
 
 const order = (method = "delivery") => ({
@@ -185,9 +184,9 @@ describe("the greeting", () => {
     const o = order("onfarm");
 
     o.customer.name = "<b>Pat</b>";
-    const m = pickNewTime(o);
+    const m = orderConfirmed(o);
 
-    assert.match(m.html, /Hi &lt;b&gt;Pat&lt;\/b&gt;,/);
+    assert.match(m.html, /Thanks, &lt;b&gt;Pat&lt;\/b&gt;\./);
     assert.doesNotMatch(m.html, /<b>Pat<\/b>/);
   });
 });
@@ -228,37 +227,6 @@ describe("order confirmed", () => {
 });
 
 describe("a booked pickup time (W11d)", () => {
-  it("is given up by the farm: the customer picks again or cancels", () => {
-    const o = order("onfarm");
-    const pick = "https://x/api/auth/verify?token=abc";
-
-    o.question = { kind: "window", reason: "Frost.", answeredAt: null };
-    const m = pickNewTime(o, { pickUrl: pick, links });
-
-    assert.equal(m.subject, "We can't make your pickup time");
-    has(m.text, "Hi Pat,");
-    has(m.text, "We're sorry, but we can't be here for your pickup at " +
-      "9 AM – noon on Thursday, October 8.");
-    has(m.text, "Here's why: Frost.");
-    has(m.text, "Please choose another day and time. If none of them " +
-      "works for you, you can cancel your order for a full refund.");
-    has(m.text, `Reschedule or cancel: ${pick}`);
-    assert.doesNotMatch(m.text, /confirm|reminders are paused/);
-    assert.match(m.text, /- When: Thursday, October 8, 9 AM – noon/);
-
-    // The window is the order's.
-    const later = order("onfarm");
-
-    later.fulfilment.onfarm = { window: "13:00-17:00", from: "13:00",
-      to: "17:00" };
-    has(pickNewTime(later, { pickUrl: pick, links }).text,
-      "your pickup at 1 – 5 PM on Thursday, October 8.");
-
-    // Accounts off: the same words, no button.
-    assert.doesNotMatch(pickNewTime(o, { links }).text,
-      /Reschedule or cancel:/);
-  });
-
   it("gives the farm nothing to confirm on the new order", () => {
     const m = farmOrderPlaced(order("onfarm"), { links });
 
