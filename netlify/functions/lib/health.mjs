@@ -189,7 +189,9 @@ export const raise = async (stores, kind, detail = {}, {
       await mail({
         to,
         idempotencyKey: `alert-${kind}-${now.getTime()}`,
-        ...farmAlert(kind, detail, { at: now, links: mailLinks(env) }),
+        ...farmAlert(kind, detail, {
+          at: now, links: mailLinks(env), held: dedupe,
+        }),
       }, { env });
       sent = true;
     } catch (error) {
