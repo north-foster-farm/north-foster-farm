@@ -110,6 +110,14 @@ Your browser also keeps:
 - two random codes that PayPal's script stores when the payment buttons
   appear on the order page. They hold nothing about you.
 
+Other companies set a few things of their own. When the payment section of
+the order page appears, Square sets a cookie that identifies your device;
+[Cloudflare](https://www.cloudflare.com/privacypolicy/), which guards
+Square's service, sets one that lasts 30 minutes; and Google sets one for the
+Google Pay button. A news post with a YouTube video lets YouTube keep two
+entries in your browser, but no cookie. Each company's own policy, linked on
+this page, covers what it sets. Your browser may block some of these.
+
 ### Hosting and service providers
 
 We use the following hosting and service providers, which also have access to
