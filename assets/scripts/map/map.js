@@ -709,9 +709,26 @@ const wire = (map) => {
     }
   };
 
+  // A jump within the page scrolls smoothly: wait until it stops, two
+  // frames at the same place, for a second and a half at most.
+  const settled = (fn) => {
+    const until = performance.now() + 1500;
+    let last = null;
+    const step = () => {
+      if (scrollY === last || performance.now() > until) {
+        fn();
+        return;
+      }
+      last = scrollY;
+      requestAnimationFrame(step);
+    };
+
+    requestAnimationFrame(step);
+  };
+
   addEventListener("hashchange", () => {
     follow();
-    toField();
+    settled(toField);
   });
   addEventListener("load", toField);
   addEventListener("resize", apply);

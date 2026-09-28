@@ -706,6 +706,10 @@ test.describe("map (#138, #214)", () => {
 
     const input = page.locator("[data-zip-check] input").first();
 
+    // "See where we deliver" lands with the field, at the map's foot,
+    // in the window.
+    await page.locator("a[href='#map-policy']").first().click();
+    await expect(input).toBeInViewport({ ratio: 1 });
     await expect(input).toHaveAttribute("autocomplete", "off");
     await input.fill("02857");
     await input.press("Enter");
