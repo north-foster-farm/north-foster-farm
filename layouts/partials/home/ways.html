@@ -3,13 +3,22 @@
      winter tunnel under the same tint. Every fact comes from
      data/delivery.json, which the order form reads too, and each
      button opens the order page with that way chosen. Names follow
-     the order form; the rest is draft wording for James (#137). */}}
+     the order form; the rest is draft wording for James (#137).
+
+     Each way's when, where and cost are one list, marked by icon
+     (#212). The addresses are short: this only says where; the
+     footer and contact page carry the full one. The drop site's
+     first Saturday is a badge by its name, not part of its line, so
+     the badge can go once the day is over: the build leaves it out
+     after then, and expiry.js hides it in a page built before. */}}
 {{ $terms := hugo.Data.delivery }}
 {{ $money := $terms.money }}
+{{ $address := hugo.Data.company.address }}
 {{ $dropStart := time.AsTime $terms.scituate.start $terms.timeZone }}
-{{ $dropWhen := printf "Saturdays, %s" $terms.scituate.window }}
-{{ if gt $dropStart.Unix now.Unix }}
-  {{ $dropWhen = printf "%s, starting %s" $dropWhen ($dropStart.Format "January 2") }}
+{{ $dropEnd := $dropStart.AddDate 0 0 1 }}
+{{ $dropBadge := "" }}
+{{ if gt $dropEnd.Unix now.Unix }}
+  {{ $dropBadge = printf "Starting %s" ($dropStart.Format "January 2") }}
 {{ end }}
 {{ $ways := slice
   (dict
@@ -17,25 +26,31 @@
     "icon" "barn"
     "name" "On-farm pickup"
     "when" "Select weekdays, by appointment"
-    "where" $terms.onFarm.address
+    "where" (printf "%s, %s, %s" $address.short $address.city $address.state)
     "cost" "No minimum, no fee"
     "cta" "Shop for pickup")
   (dict
     "method" "scituate"
     "icon" "lot-location"
     "name" "Drop site"
-    "when" $dropWhen
-    "where" $terms.scituate.location
+    "badge" $dropBadge
+    "when" (printf "Saturdays, %s" (replace (replace $terms.scituate.window "–" "–\u2060") " " "\u00a0"))
+    "where" $terms.scituate.short
     "cost" "No minimum, no fee"
     "cta" "Shop for the drop site")
   (dict
     "method" "delivery"
     "icon" "delivery"
     "name" "Delivery"
-    "when" (printf "Every Thursday, %s" $terms.delivery.window)
+    "when" (printf "Every Thursday, %s" (replace (replace $terms.delivery.window "–" "–\u2060") " " "\u00a0"))
     "where" "Most of central Rhode Island and parts of eastern Connecticut"
     "cost" (printf "$%v minimum, $%v fee" $money.deliveryMinimum $money.deliveryFee)
     "cta" "Shop for delivery")
+}}
+{{ $facts := slice
+  (dict "key" "when" "icon" "calendar")
+  (dict "key" "where" "icon" "map-pin")
+  (dict "key" "note" "field" "cost" "icon" "tag")
 }}
 {{ $tunnel := resources.Get "images/winter-tunnel.jpg" }}
 {{ $widths := slice 800 1200 1600 2200 }}
@@ -50,25 +65,34 @@
   <div class="home-band-overlay"></div>
   <div class="home-band-body container">
     <p class="home-eyebrow">No off-season</p>
-    <h2 class="home-title">Three ways to get your order, all winter</h2>
-    <ul class="places-list list-unstyled">
-      {{ range $ways }}
-        <li class="place">
+    <h2 class="home-title">Three ways to get your order</h2>
+    <ul class="places-list list-unstyled mb-0">
+      {{ range $way := $ways }}
+        <li class="place place-way">
           <span class="home-icon" aria-hidden="true">
-            {{ partial "svg.html" (printf "icons/%s" .icon) }}
+            {{ partial "svg.html" (printf "icons/%s" $way.icon) }}
           </span>
-          <h3 class="place-name">{{ .name }}</h3>
-          <p class="place-when">{{ .when }}</p>
-          <p class="place-where">{{ .where }}</p>
-          <p class="place-note">{{ .cost }}</p>
+          <div class="place-head">
+            <h3 class="place-name">{{ $way.name }}</h3>
+            {{ with $way.badge }}
+              <span class="place-badge badge rounded-pill" data-hide-from="{{ $dropEnd.Format "2006-01-02T15:04:05-07:00" }}">{{ . }}</span>
+            {{ end }}
+          </div>
+          <ul class="place-facts list-unstyled">
+            {{ range $facts }}
+              <li class="place-fact place-{{ .key }}">
+                <span class="place-fact-icon" aria-hidden="true">
+                  {{ partial "svg.html" (printf "icons/%s" .icon) }}
+                </span>
+                {{ index $way (.field | default .key) }}
+              </li>
+            {{ end }}
+          </ul>
           <p class="place-cta">
-            <a class="btn btn-outline-light" href="{{ relURL "order/" }}?method={{ .method }}">{{ .cta }}</a>
+            <a class="btn btn-outline-light" href="{{ relURL "order/" }}?method={{ $way.method }}">{{ $way.cta }}</a>
           </p>
         </li>
       {{ end }}
     </ul>
-    <p class="places-note mb-0">
-      The farmers markets return in June.
-    </p>
   </div>
 </div>

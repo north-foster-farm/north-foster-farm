@@ -8,6 +8,7 @@ import { wireCartBadge } from "./cart-badge/cart-badge.js";
 import { wireMiniCart } from "./cart-badge/mini-cart.js";
 import { Copyright } from "./copyright/copyright.js";
 import { wireDotLists } from "./dot-list/dot-list.js";
+import { hideExpired } from "./expiry/expiry.js";
 import { wireHeroVideo } from "./hero/hero.js";
 import { wireNewsSignup } from "./news/signup.js";
 import { wireSearch } from "./search/palette.js";
@@ -19,6 +20,7 @@ import { Touchable } from "./touchable/touchable.js";
 Extensions.apply();
 Copyright.setYear();
 retireTopBar();
+hideExpired();
 // Now, not on DOMContentLoaded: the order page's own bundle runs after
 // this one and announces its first count before that event.
 wireCartBadge();

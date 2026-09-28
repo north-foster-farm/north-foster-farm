@@ -430,18 +430,18 @@ test.describe("home", () => {
       {
         method: "onfarm", name: "On-farm pickup",
         when: "Select weekdays, by appointment",
-        where: "99 East Killingly Road, Foster, RI 02825",
+        where: "99 E Killingly Rd, Foster, RI",
         cost: "No minimum, no fee", cta: "Shop for pickup",
       },
       {
         method: "scituate", name: "Drop site",
-        when: /^Saturdays, 10:00 – 11:00 AM(, starting October 17)?$/,
-        where: "Village Green, 46 Institute Lane, North Scituate, RI 02857",
+        when: /Saturdays, 10:00\s–\u2060\s11:00\sAM/,
+        where: "46 Institute Ln, North Scituate, RI",
         cost: "No minimum, no fee", cta: "Shop for the drop site",
       },
       {
         method: "delivery", name: "Delivery",
-        when: "Every Thursday, 10:00 AM – 4:00 PM",
+        when: /Every Thursday, 10:00\sAM\s–\u2060\s4:00\sPM/,
         where: "Most of central Rhode Island and parts of eastern " +
           "Connecticut",
         cost: "$40 minimum, $5 fee", cta: "Shop for delivery",
@@ -459,7 +459,7 @@ test.describe("home", () => {
           "No off-season"
         );
         await expect(band.locator(".home-title")).toHaveText(
-          "Three ways to get your order, all winter"
+          "Three ways to get your order"
         );
         await expect(places).toHaveCount(3);
         for (const [i, way] of WAYS.entries()) {
@@ -467,13 +467,36 @@ test.describe("home", () => {
 
           await expect(place.locator(".place-name")).toHaveText(way.name);
           await expect(place.locator(".home-icon svg")).toBeVisible();
+          // #212: when, where and cost are one list, each with an icon.
+          await expect(place.locator(".place-fact")).toHaveCount(3);
+          await expect(place.locator(".place-fact svg")).toHaveCount(3);
           await expect(place.locator(".place-when")).toHaveText(way.when);
           await expect(place.locator(".place-where")).toHaveText(way.where);
           await expect(place.locator(".place-note")).toHaveText(way.cost);
           await expect(place.getByRole("link")).toHaveText(way.cta);
         }
-        await expect(band.locator(".places-note"))
-          .toHaveText("The farmers markets return in June.");
+        await expect(band.locator(".places-note")).toHaveCount(0);
+      });
+
+    // #212: the drop site's first Saturday is a badge by its name
+    // until that day is over, then gone.
+    test("the drop site's start is a badge until it passes",
+      async ({ page }) => {
+        await page.goto("/");
+
+        const badge = page.locator(".ways .place-badge");
+
+        test.skip(await badge.count() === 0, "built after the start");
+        const until = await badge.getAttribute("data-hide-from");
+
+        expect(until).toMatch(/^2026-10-18T00:00:00-04:00$/);
+        if (Date.now() < Date.parse(until)) {
+          await expect(badge).toHaveText("Starting October 17");
+          await expect(badge).toBeVisible();
+        }
+        await page.clock.setFixedTime(new Date("2026-10-18T12:00:00-04:00"));
+        await page.reload();
+        await expect(badge).toBeHidden();
       });
 
     for (const way of WAYS) {
