@@ -72,9 +72,9 @@ export const pickup = (over = {}) => order({
 });
 
 // A delivery the farm could not leave, under $150 so it paid a $5 fee,
-// with `fee` cents of it kept (0: waived). `cause` is the customer's
-// miss unless given.
-const missed = (fee, over = {}, cause = "customer") => order({
+// with `fee` cents of it kept (0: waived). `cause` is no cooler unless
+// given; weather and farm are the farm's own misses (C6a).
+const missed = (fee, over = {}, cause = "no-cooler", detail = "") => order({
   totals: {
     subtotal: 10400, discountTier: 100, discountAmount: 1000,
     discountLabel: "Bulk discount ($100+)", deliveryFee: 500, total: 9900,
@@ -82,7 +82,9 @@ const missed = (fee, over = {}, cause = "customer") => order({
   payments: [{ ...card, amount: 9900 }],
   attempted: {
     at: "2026-10-08T17:00:00.000Z", cause, fee, waived: !fee,
-    note: fee || cause !== "customer" ? "" : "First delivery; we'll let it go.",
+    note: fee || ["weather", "farm"].includes(cause) ? "" :
+      "First delivery; we'll let it go.",
+    ...detail && { detail },
   },
   ...over,
 });
@@ -300,7 +302,7 @@ export const library = [
   },
   {
     id: "missed-delivery-fee-kept", name: "Missed delivery, fee kept",
-    when: "The farm marked a delivery attempted: the customer's miss",
+    when: "The farm marked a delivery attempted: no cooler out",
     audience: C, tags: ["missed delivery", "delivery"],
     build: (links) => t.missedDelivery(missed(500), {
       pickUrl: signIn(links), links,
@@ -311,6 +313,23 @@ export const library = [
     when: "The farm marked a customer's miss and waived the fee",
     audience: C, tags: ["missed delivery", "delivery"],
     build: (links) => t.missedDelivery(missed(0), {
+      pickUrl: signIn(links), links,
+    }),
+  },
+  {
+    id: "missed-delivery-no-access", name: "Missed delivery, no access",
+    when: "The farm marked a delivery attempted: couldn't get to the spot",
+    audience: C, tags: ["missed delivery", "delivery"],
+    build: (links) => t.missedDelivery(
+      missed(500, {}, "no-access", "the gate was locked"),
+      { pickUrl: signIn(links), links },
+    ),
+  },
+  {
+    id: "missed-delivery-no-address", name: "Missed delivery, no address",
+    when: "The farm marked a delivery attempted: couldn't find the address",
+    audience: C, tags: ["missed delivery", "delivery"],
+    build: (links) => t.missedDelivery(missed(500, {}, "no-address"), {
       pickUrl: signIn(links), links,
     }),
   },
@@ -569,8 +588,8 @@ const CARD = "Moved onto the farm card on 2026-09-26, after he asked " +
   "\"No template?\"; agent-written.";
 const C3 = "Policy-pages\x27 draft of 2026-09-28 for C3, C7 and C8 " +
   "(#192): it switches on the fee the missed delivery kept.";
-const REASON = " The reason line is F1\x27s until James answers C6 " +
-  "(no cooler, no access, no address).";
+const REASON = " The reason line is his C6a draft for the cause " +
+  "(2026-09-28); the other causes have their own entries.";
 const T4 = "Removed items head the list under \"Removed\", as plain " +
   "lines (T4, 2026-09-28). Draft: the heading \"Your order now\" above " +
   "what is still coming.";
@@ -602,6 +621,10 @@ const WAITING = {
     "the hold and redelivery\x27s second fee wait on #193.",
   "missed-delivery-no-fee": `${C3}${REASON} Open: does a waived miss ` +
     "get the same hold (policy-pages\x27 question 3)?",
+  "missed-delivery-no-access": `${C3}${REASON} The words in brackets ` +
+    "are the farm\x27s --detail; without it the line goes without.",
+  "missed-delivery-no-address": `${C3}${REASON} The address is the one ` +
+    "the customer gave.",
   "moved-delivery-weather": `${C3} It offers another day as well as ` +
     "pickup or a refund (C7b, 2026-09-28).",
   "moved-delivery-farm": C3,
