@@ -45,6 +45,7 @@ const desktopOnly = [
   "**/rate-limit.spec.mjs",
   "**/maintenance.spec.mjs",
   "**/account.spec.mjs",
+  "**/email-change.spec.mjs",
   "**/news.spec.mjs",
   "**/staging-toolbar.spec.mjs",
   "**/gate.spec.mjs",
