@@ -94,7 +94,7 @@ describe("the order details block", () => {
 
 describe("the account the first order makes (#114)", () => {
   const url = "https://x/account/orders/NFF-2610-ABCD";
-  const said = /made you an account with us/;
+  const said = /Your email address is your account with us\./;
 
   it("says so once, above the sign-in button", () => {
     const m = orderConfirmed(order(), { orderUrl: url, links,
