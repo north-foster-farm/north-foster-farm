@@ -129,7 +129,33 @@ export class OrderPage {
   // phone, most of it), and the sticky topbar covers the top. A
   // customer folds the cart and scrolls the row to the middle; so do
   // the tests, before they press a row's buttons.
+  // Until the page stops scrolling: a smooth scroll the page started
+  // (choosing a method scrolls to its date) would override ours.
+  async scrollSettled() {
+    await this.page.evaluate(() => new Promise((done) => {
+      let last = scrollY;
+      let still = 0;
+      const tick = () => {
+        still = scrollY === last ? still + 1 : 0;
+        last = scrollY;
+        if (still >= 10) done();
+        else requestAnimationFrame(tick);
+      };
+
+      requestAnimationFrame(tick);
+    }));
+  }
+
+  // Scroll first: a cart that settled below opens in full, and the
+  // scroll up floats it that way over the rows (a28065b).
   async showRow(name) {
+    await this.scrollSettled();
+    await this.item(name).evaluate(
+      (el) => el.scrollIntoView({ block: "center" })
+    );
+    // The cart's scroll watch runs on the next frames.
+    await this.scrollSettled();
+
     const floating = await this.cart.evaluate(
       (el) => el.dataset.stuck === "true" && el.dataset.open === "true"
     );
@@ -137,16 +163,18 @@ export class OrderPage {
     if (floating) {
       await this.cart.locator("[data-cart-toggle]").click();
       await expect(this.cart).toHaveAttribute("data-open", "false");
+      await this.item(name).evaluate(
+        (el) => el.scrollIntoView({ block: "center" })
+      );
     }
-    await this.item(name).evaluate(
-      (el) => el.scrollIntoView({ block: "center" })
-    );
 
     return this.item(name);
   }
 
   // The radio is visually replaced by its card, so click the label.
   async method(value) {
+    // A tap mid-scroll can land beside the card (WebKit, now and then).
+    await this.scrollSettled();
     await this.page.locator(`label[for='method-${value}']`).click();
     await expect(this.page.locator(`#method-${value}`)).toBeChecked();
   }

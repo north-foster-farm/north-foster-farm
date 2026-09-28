@@ -53,6 +53,8 @@ test.describe("order page", () => {
       const eggs = order.item("eggs");
 
       await order.open(null, { method: "delivery" });
+      // Delivery scrolled the cart settled, open; back up, it floats.
+      await order.showRow("eggs");
       // Add is aria-hidden (the stepper's + is the accessible control).
       await eggs.locator(".order-qty-add").click();
       await expect(eggs.locator(".order-qty")).toHaveAttribute(

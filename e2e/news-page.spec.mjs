@@ -7,6 +7,8 @@
 import { expect, test } from "./support/order.mjs";
 
 const items = (page) => page.locator("[data-news-years] .news-item");
+// Mobile WebKit has no mouse wheel; scroll the window instead.
+const scroll = (page, y) => page.evaluate((by) => window.scrollBy(0, by), y);
 
 const hrefs = (page) => items(page).evaluateAll((els) => els.map(
   (el) => new URL(el.querySelector(".news-item-title a").href).pathname
@@ -60,7 +62,7 @@ test.describe("news page (#143)", () => {
 
       for (let i = 0; i < 20; i += 1) {
         if ((await items(page).count()) >= all.length) break;
-        await page.mouse.wheel(0, 4000);
+        await scroll(page, 4000);
         await page.waitForTimeout(500);
       }
 
@@ -101,7 +103,7 @@ test.describe("news page (#143)", () => {
 
       const pager = page.locator("[data-news-pager]");
 
-      await page.mouse.wheel(0, 20_000);
+      await scroll(page, 20_000);
       await expect(pager).toBeVisible();
       await expect(pager.locator("[data-news-next]"))
         .toHaveAttribute("href", /\/news\/page\/2\/$/);

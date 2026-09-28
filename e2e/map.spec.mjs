@@ -30,6 +30,9 @@ const areaZips = (page) => page.evaluate(() => {
 
 const map = (page) => page.locator("[data-map]").first();
 const dropPin = (page) => map(page).locator(".map-drop-pin");
+// Hidden is asserted on the group: WebKit gives a shape inside a
+// display: none group a box, so the shape itself reads as visible.
+const dropGroup = (page) => map(page).locator(".map-drop");
 
 const drop = (page) => map(page).evaluate((m) => {
   const group = m.querySelector("[data-map-drop]");
@@ -185,7 +188,7 @@ test.describe("map (#138, #214)", () => {
 
     const pins = map(page).locator("[data-map-pin]");
 
-    await expect(pins.first()).toBeHidden();
+    await expect(map(page).locator(".map-pins")).toBeHidden();
     await expect(map(page).locator(".map-places")).toBeHidden();
     await places(page);
     await expect(pins.first()).toBeVisible();
@@ -329,7 +332,7 @@ test.describe("map (#138, #214)", () => {
       await page.goto(HOME.path);
       await expect(page.locator(HOME.input))
         .toHaveAttribute("autocomplete", "off");
-      await expect(dropPin(page)).toBeHidden();
+      await expect(dropGroup(page)).toBeHidden();
 
       // The tag: the town, an egg and a hen (struck through where we
       // don't deliver them), and the price, or "No delivery" and a way
@@ -370,13 +373,13 @@ test.describe("map (#138, #214)", () => {
       // "See pickup spots" opens the Places layer.
       await map(page).locator("[data-map-to-places]").click();
       await expect(map(page)).toHaveAttribute("data-layer", "places");
-      await expect(dropPin(page)).toBeHidden();
+      await expect(dropGroup(page)).toBeHidden();
       await map(page).getByRole("tab", { name: "Delivery" }).click();
 
       // A ZIP the map does not show gets no pin; the screen reader's
       // words answer.
       await check(page, HOME.input, "10001");
-      await expect(dropPin(page)).toBeHidden();
+      await expect(dropGroup(page)).toBeHidden();
       await expect(map(page).locator("[data-zip-result]"))
         .toHaveText("No delivery to 10001.");
 
@@ -385,7 +388,7 @@ test.describe("map (#138, #214)", () => {
       await expect(dropPin(page)).toBeVisible();
       await page.locator(HOME.input).fill("");
       await page.locator(HOME.input).dispatchEvent("input");
-      await expect(dropPin(page)).toBeHidden();
+      await expect(dropGroup(page)).toBeHidden();
     });
 
   // Lincoln lies on the map's top edge. The zoom sits above the map
@@ -439,7 +442,7 @@ test.describe("map (#138, #214)", () => {
       await page.mouse.click(...warwick);
       await expect(page.locator(HOME.input)).toHaveValue("");
       await expect(result).toBeEmpty();
-      await expect(dropPin(page)).toBeHidden();
+      await expect(dropGroup(page)).toBeHidden();
       await expect(map(page).locator(".map-pick")).toBeHidden();
 
       // Water, at the frame's bottom right corner.
@@ -450,7 +453,7 @@ test.describe("map (#138, #214)", () => {
 
       await page.mouse.click(box.x + box.width - 4, box.y + box.height - 4);
       await expect(page.locator(HOME.input)).toHaveValue("");
-      await expect(dropPin(page)).toBeHidden();
+      await expect(dropGroup(page)).toBeHidden();
     });
 
   test("a tap on a town runs the check and drops the pin",
