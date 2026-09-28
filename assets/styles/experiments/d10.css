@@ -1,0 +1,12 @@
+/* D10 on #192, a staging-only experiment: the hero's accented word,
+   "chicken.", in the full dark brand green ($primary, #186243) with a
+   white outline, in place of the pale tint. The stroke is painted
+   under the fill, so the letters keep their weight and the outline
+   shows about 0.04em outside them. hero.html links this only where
+   Netlify's CONTEXT is set and is not production. */
+
+.home-hero .home-hero-accent {
+  color: #186243;
+  -webkit-text-stroke: 0.08em #fff;
+  paint-order: stroke fill;
+}
