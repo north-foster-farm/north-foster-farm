@@ -109,6 +109,10 @@ const USAGE = `Usage:
                                       $0 too (Square gets a $0 charge)
   bin/nff passes list
   bin/nff passes revoke <code>
+  bin/nff refunds check               every refund not yet settled,
+                                      asked of Square or PayPal: the
+                                      jobs do it daily; alerts as they
+                                      do for one that failed or stalled
   bin/nff returns resolve <id> <returnId> [note...]
   bin/nff messages [--all]            messages to the farm not yet
                                       answered, from the contact page
@@ -296,6 +300,7 @@ const [
   maintenance,
   passes,
   square,
+  { checkRefunds },
 ] = await Promise.all([
   import("../data/delivery.json", { with: { type: "json" } }),
   import("../netlify/functions/lib/admin.mjs"),
@@ -317,6 +322,7 @@ const [
   import("../netlify/functions/lib/maintenance.mjs"),
   import("../netlify/functions/lib/passes.mjs"),
   import("../netlify/functions/lib/square-pause.mjs"),
+  import("../netlify/functions/lib/settle.mjs"),
 ]);
 
 // --scratch: development's env, but stores of their own
@@ -956,6 +962,21 @@ const run = async () => {
     await admin.removeOrder(stores, rest[0]);
 
     return out(`Deleted ${rest[0]}.`);
+  case "refunds check": {
+    const r = await checkRefunds(stores);
+    const line = (word, x) => out(`${word.padEnd(10)}${x.id}  ${
+      dollars(x.amount)}  ${x.via || "no id"} ${x.refund || ""}  ${
+      (x.at || "").slice(0, 10)}  ${x.status || x.error || ""}`);
+
+    for (const x of r.failed) line("FAILED", x);
+    for (const x of r.stalled) line("STALLED", x);
+    for (const x of r.errors) line("ERROR", x);
+    for (const x of r.pending) line("pending", x);
+    for (const x of r.completed) line("settled", x);
+
+    return out(r.checked ? `Checked ${r.checked}.`
+      : "Every refund has settled.");
+  }
   case "returns resolve":
     return out(summaryLine(await admin.resolveReturn(stores, rest[0],
       rest[1], {
