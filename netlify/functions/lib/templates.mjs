@@ -1173,17 +1173,19 @@ export const farmSupport = (customer, { subject, message, orderId }, {
 const when = (iso) => (iso ? `${iso.replace("T", " ").slice(0, 16)} UTC`
   : "never");
 
-// A failure on the critical path, one per kind per hour, with the
-// runbook's entry for it in the body.
-export const farmAlert = (kind, detail = {}, { at, links } = {}) => {
+// A failure on the critical path, one per kind per hour unless `held`
+// is false, with the runbook's entry for it in the body.
+export const farmAlert = (kind, detail = {}, {
+  at, links, held = true,
+} = {}) => {
   const title = `Site alert: ${kind}`;
   const guide = GUIDE[kind];
   const rows = Object.entries(detail)
     .filter(([, v]) => v !== null && v !== undefined && v !== "")
     .map(([k, v]) => [k, typeof v === "string" ? v : JSON.stringify(v)]);
   const blocks = [
-    p(`**${kind}** at ${when(at ? at.toISOString() : null)}. Further ` +
-      "alerts of this kind are held for an hour."),
+    p(`**${kind}** at ${when(at ? at.toISOString() : null)}.${
+      held ? " Further alerts of this kind are held for an hour." : ""}`),
   ];
 
   if (rows.length) blocks.push(table(["Field", "Value"], rows));

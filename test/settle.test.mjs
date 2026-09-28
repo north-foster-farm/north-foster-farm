@@ -187,6 +187,33 @@ describe("the refund check (#215)", () => {
     assert.equal(alerts("refund.stalled"), 1, "but alerted only once");
   });
 
+  it("alerts a refund that stalls within the hour of another alert",
+    async () => {
+      const stores = testStores();
+      const { sent, env, mail, alerts } = alerting();
+      const { square, paypal } = processors({ R1: "PENDING", R2: "PENDING" });
+
+      await saveOrder(stores, order("NFF-1", [
+        refund({ squareRefundId: "R1" }),
+      ]), made);
+      await saveOrder(stores, order("NFF-2", [
+        refund({ squareRefundId: "R2", at: later(DAY / 48).toISOString() }),
+      ]), made);
+
+      await checkRefunds(stores, {
+        now: later(STALL_AFTER), env, mail, square, paypal,
+      });
+      const byHand = await checkRefunds(stores, {
+        now: later(STALL_AFTER + DAY / 24 - 60_000), env, mail, square,
+        paypal,
+      });
+
+      assert.equal(byHand.stalled.length, 2);
+      assert.equal(alerts("refund.stalled"), 2, "the hand run is heard");
+      assert.match(sent[1].text, /NFF-2/);
+      assert.doesNotMatch(sent[1].text, /held for an hour/);
+    });
+
   it("calls a refund with no processor id stalled, asking nobody",
     async () => {
       const stores = testStores();

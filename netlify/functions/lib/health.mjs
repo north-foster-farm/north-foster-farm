@@ -138,19 +138,21 @@ export const ping = async (url, {
 
 // A failure on the critical path. `kind` is dotted and stable
 // (order.create_failed, mail.failed, jobs.errors, ...); `detail` is
-// what a person needs to act. Deduplicated per kind for an hour, so a
-// storm is one email. -> "sent" | "muted" | "skipped".
+// what a person needs to act. Deduplicated per kind for `every` (an
+// hour), so a storm is one email; a caller whose alerts never repeat
+// passes 0. -> "sent" | "muted" | "skipped".
 export const alert = async (stores, kind, detail = {}, {
   env = process.env,
   mail = sendMail,
   now = new Date(),
   fetchImpl = globalThis.fetch,
+  every = ALERT_EVERY,
 } = {}) => {
   log.error({ event: "alert", kind, ...detail });
 
   const last = await readMark(stores, `alert/${kind}`);
 
-  if (last && now.getTime() - Date.parse(last.at) < ALERT_EVERY) {
+  if (last && now.getTime() - Date.parse(last.at) < every) {
     await mark(stores, `alert/${kind}`, {
       at: last.at, muted: (last.muted || 0) + 1, lastAt: now.toISOString(),
     }, now);
@@ -167,7 +169,9 @@ export const alert = async (stores, kind, detail = {}, {
       await mail({
         to,
         idempotencyKey: `alert-${kind}-${now.getTime()}`,
-        ...farmAlert(kind, detail, { at: now, links: mailLinks(env) }),
+        ...farmAlert(kind, detail, {
+          at: now, links: mailLinks(env), held: every > 0,
+        }),
       }, { env });
       sent = true;
     } catch (error) {

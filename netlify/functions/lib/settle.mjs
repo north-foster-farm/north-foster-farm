@@ -130,9 +130,10 @@ export const checkRefunds = async (stores, {
     }
   }
 
-  // One alert per kind for the lot, since alerts of a kind are held
-  // for an hour after the first.
-  const opts = { env, mail, now, fetchImpl };
+  // One alert per kind for the lot. Never muted: each refund is in a
+  // lot once (settled, or stalledAt set), so a hand-run check within
+  // the hour of another alert of the kind must still be heard.
+  const opts = { env, mail, now, fetchImpl, every: 0 };
 
   if (report.failed.length) {
     await alert(stores, "refund.failed", {
