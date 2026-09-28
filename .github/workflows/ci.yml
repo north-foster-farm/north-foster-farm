@@ -119,6 +119,9 @@ jobs:
       - name: Grid, production
         run: env -i PATH="$PATH" HOME="$HOME" npm run check:grid
 
+      - name: Schema, production
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:schema
+
       - name: News, production
         run: env -i PATH="$PATH" HOME="$HOME" npm run check:news
 
@@ -142,6 +145,9 @@ jobs:
 
       - name: Grid, staging
         run: env -i PATH="$PATH" HOME="$HOME" npm run check:grid
+
+      - name: Schema, staging
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:schema
 
       - name: News, staging
         run: env -i PATH="$PATH" HOME="$HOME" npm run check:news
