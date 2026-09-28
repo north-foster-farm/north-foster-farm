@@ -3,6 +3,7 @@
   "money": {
     "deliveryMinimum": 40,
     "deliveryFee": 5,
+    "outsideAreaFee": 3,
     "feeWaivedAt": 150,
     "bulkTiers": [
       { "threshold": 50, "off": 5 },

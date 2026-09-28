@@ -417,7 +417,18 @@ export class OrderForm {
       index: this.index,
       money: this.money,
       group: this.group,
+      zipStatus: this.zipStatus(),
     });
+  }
+
+  // The delivery ZIP's status, for the outside-area fee. Null unless
+  // delivery is chosen, so the fee shows the moment it applies.
+  zipStatus() {
+    if (this.method() !== "delivery") return null;
+
+    return zipInfo(
+      qs(this.form, "[data-field='delivery.zip']").value, this.terms.area
+    ).status;
   }
 
   eligible(totals) {
@@ -589,7 +600,8 @@ export class OrderForm {
         "and the Scituate drop site are open to everyone.";
       note.classList.add("text-danger-emphasis");
     } else if (info.status === "unlisted") {
-      note.textContent = "A little outside our usual area. We'll confirm " +
+      note.textContent = "A little outside our usual area: delivery is " +
+        `${this.money.outsideAreaFee} more, and we'll confirm with you ` +
         "before we charge you.";
     } else if (bad.length) {
       note.textContent = "We can only deliver eggs to Connecticut for now. " +
