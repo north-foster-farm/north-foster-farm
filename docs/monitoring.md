@@ -117,8 +117,8 @@ refund or charge the difference by hand.
 **`pickup.lapsed`.** A Venmo payment approved on the order page was
 finished by the jobs after its pickup time had left the schedule
 (W11d). The order is paid and booked for that time. Keep the time if
-you can be there. If not, `bin/nff orders deny <id> --reason "..."`,
-and the customer picks another or cancels.
+you can be there. If not, cancel it with `bin/nff orders cancel <id>
+--reason <why>` (or `--reason-text "..."`), which refunds it.
 
 **`jobs.errors`.** An order's work in the 15-minute run threw. The
 rest of the run finished. The report lists the order and the step.

@@ -5,9 +5,7 @@
 
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import { adjust, getCounts, setCount } from "./stock.mjs";
-import {
-  LONG_LINK_TTL, normalizeEmail, requestLink, validEmail,
-} from "./auth.mjs";
+import { normalizeEmail, validEmail } from "./auth.mjs";
 import { sendMail } from "./mail.mjs";
 import * as newsApi from "./news.mjs";
 import { recordRefund, sendForOrder } from "./payments.mjs";
@@ -18,11 +16,9 @@ import {
   paidTotal, paymentRef, paymentsOf, refundedTotal, refundsOf, saveCustomer,
   setStatus,
 } from "./records.mjs";
-import { mailLinks, orderPathFor, orderUrlFor } from "./site.mjs";
+import { mailLinks } from "./site.mjs";
 import * as squareApi from "./square.mjs";
-import {
-  addressDecision, orderCancelled, pickNewTime,
-} from "./templates.mjs";
+import { addressDecision, orderCancelled } from "./templates.mjs";
 
 const need = (thing, what) => {
   if (!thing) throw new Error(`No such ${what}.`);
@@ -319,7 +315,9 @@ export const refundOrder = async (stores, id, {
 // goes back unless the farm says otherwise (--no-refund: W11a-1,
 // T1c), the customer is told. The farm's `reason`, one of the
 // templates' CANCEL_REASONS keys, or its `reasonText` is the
-// customer's line why (T2a); either also goes on the refund.
+// customer's line why (T2a); either also goes on the refund. A
+// booked pickup time the farm can't keep is cancelled the same way;
+// nothing is denied (W11d, T2d).
 export const cancelOrder = async (stores, id, {
   now = new Date(), env = process.env, mail = sendMail,
   square = squareApi, paypal = paypalApi, refund = true, amount, reason,
@@ -375,65 +373,6 @@ export const cancelOrder = async (stores, id, {
   }
 
   return getOrder(stores, id);
-};
-
-// The farm's side of an on-farm pickup (W11d): a time the schedule
-// offered is booked by paying, with no second yes. The exception is a
-// booked time the farm can't keep after all: `orders deny` tells the
-// customer, who picks another or cancels. The farm never moves a time
-// itself (James, 2026-09-21).
-
-const openPickup = async (stores, id) => {
-  const order = need(await getOrder(stores, id), "order");
-
-  if (order.fulfilment.method !== "onfarm") {
-    throw new Error("Only an on-farm pickup has a time to give up.");
-  }
-  if (!OPEN.includes(order.status)) {
-    throw new Error(`This order is ${order.status}.`);
-  }
-
-  return order;
-};
-
-// -> the order, with a `window` question open and the customer told
-// to pick again. The email's button is a sign-in link straight to the
-// order page, good for a week; while the account pages are off it has
-// no button. The reason goes in the question and the email (T2d).
-export const denyPickup = async (stores, id, {
-  reason = "", now = new Date(), env = process.env, mail = sendMail,
-  link = requestLink,
-} = {}) => {
-  const why = String(reason || "").trim();
-
-  // The customer is told why in the farm's own words (T2d).
-  if (!why) throw new Error('Say why: --reason "..." (a short sentence).');
-
-  const order = await openPickup(stores, id);
-  const question = {
-    kind: "window",
-    reason: why,
-    openedAt: now.toISOString(),
-    answeredAt: null,
-    answer: null,
-    by: null,
-  };
-  const denied = await amendOrder(stores, id, { question },
-    "pickup.denied", now);
-
-  let pickUrl = null;
-
-  if (orderUrlFor(env, id)) {
-    const r = await link(stores, {
-      email: order.customer.email, next: orderPathFor(id),
-    }, { now, env, send: false, limit: false, ttl: LONG_LINK_TTL });
-
-    pickUrl = r.ok ? r.url : orderUrlFor(env, id);
-  }
-
-  return sendForOrder(stores, denied, `pickNewTime-${now.getTime()}`,
-    pickNewTime(denied, { pickUrl, links: mailLinks(env) }),
-    { mail, env, now });
 };
 
 // Why a delivery could not be left (C6a). The fee follows the cause,

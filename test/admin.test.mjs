@@ -3,12 +3,11 @@ import { describe, it } from "node:test";
 
 import terms from "../data/delivery.json" with { type: "json" };
 import {
-  cancelOrder, decideAddress, denyPickup, fulfilOrder, listOrders,
+  cancelOrder, decideAddress, fulfilOrder, listOrders,
   markAttempted,
   refundOrder, removeCustomer, removeOrder, resolveReturn, setCustomer,
   showCustomer, stockList, stockSet,
 } from "../netlify/functions/lib/admin.mjs";
-import { verifyToken } from "../netlify/functions/lib/auth.mjs";
 import { requestReturn } from "../netlify/functions/lib/account.mjs";
 import {
   getCustomer, getOrder, keptFee, openOrders, saveCustomer, saveOrder,
@@ -281,6 +280,7 @@ describe("orders from the CLI", () => {
       assert.deepEqual(calls, []);
     });
 
+  // The fixture is a pickup: it cancels like a delivery (T2d).
   it("cancel gives the customer the farm's reason (T2a)", async () => {
     const stores = testStores();
     const { sent, opts } = harness();
@@ -385,65 +385,6 @@ describe("orders from the CLI", () => {
       ["square.refund", "PAY-A", 1400], ["fulfilment", "SQO"],
     ]);
     assert.equal(sent.length, 0);
-  });
-});
-
-describe("a booked pickup time the farm can't keep (W11d)", () => {
-  it("deny: opens a question, keeps the booking, and mails a week-long " +
-    "link to the order page", async () => {
-    const stores = testStores();
-    const { sent, opts } = harness();
-    const env = { ACCOUNTS_ENABLED: "true", URL: "https://x" };
-
-    await saveOrder(stores, { ...order("A"), fulfilment: {
-      ...order("A").fulfilment, state: "agreed" } }, now);
-    const denied = await denyPickup(stores, "A", {
-      ...opts, env, reason: "  We're at the market that morning.  ",
-    });
-
-    assert.equal(denied.fulfilment.state, "agreed");
-    assert.equal(denied.question.kind, "window");
-    assert.equal(denied.question.reason, "We're at the market that morning.");
-    assert.equal(denied.question.answeredAt, null);
-    assert.equal(sent.length, 1);
-    assert.equal(sent[0].subject, "We can't make your pickup time");
-    assert.match(sent[0].text, /can't be here for your pickup at 9 AM – noon /);
-    assert.match(sent[0].text,
-      /Here's why: We're at the market that morning\./, "T2d");
-    assert.ok(sent[0].text.includes("you can cancel your order for a " +
-      "full refund"), "the refund is offered");
-
-    const link = sent[0].text.match(/Reschedule or cancel: (\S+)/)[1];
-    const token = new URL(link).searchParams.get("token");
-    const week = new Date(now.getTime() + 6 * 24 * 60 * 60_000);
-    const v = await verifyToken(stores, token, { now: week });
-
-    assert.equal(v.ok, true, "still good six days on");
-    assert.equal(v.email, "pat@example.com");
-    assert.equal(v.next, "/account/orders/A/");
-  });
-
-  it("deny without accounts has no button, and each deny is its own " +
-    "email", async () => {
-    const stores = testStores();
-    const { sent, opts } = harness();
-
-    await saveOrder(stores, order("A"), now);
-    await assert.rejects(denyPickup(stores, "A", opts), /Say why/,
-      "a reason is required (T2d)");
-    assert.equal(sent.length, 0);
-    await denyPickup(stores, "A", { ...opts, reason: "Frost." });
-    assert.doesNotMatch(sent[0].text, /Reschedule or cancel:/);
-    assert.match(sent[0].text, /Please choose another day and time/);
-
-    const later = new Date(now.getTime() + 60_000);
-
-    await denyPickup(stores, "A", { ...opts, now: later, reason: "Rain." });
-    assert.equal(sent.length, 2);
-    await saveOrder(stores, { ...order("B"), fulfilment: {
-      method: "scituate", date: "2026-10-17" } }, now);
-    await assert.rejects(denyPickup(stores, "B", { ...opts, reason: "x" }),
-      /Only an on-farm pickup/);
   });
 });
 

@@ -340,18 +340,12 @@ records from before keep `window: "morning"` or `"afternoon"` (9 to 12,
 1 to 5) and may carry the hours the farm confirmed then,
 `onfarm.confirmed = { from, to }` (`pickupTimes` in `lib/schedule.mjs`
 reads both). Square's pickup time is the window's start. A pickup the
-farm can't keep after all: `bin/nff orders deny <id> --reason "..."`
-opens a **question** on the order (`order.question = { kind: "window",
-reason, openedAt, answeredAt, answer, by }`) and emails the customer
-the reason and a way to pick another time, or cancel for a full
-refund. While a question is open the jobs run leaves the order alone
-(not closed), and the customer can change or cancel it even past the
-cutoff. Moving the date or time from the account page (to one the
-schedule offers) answers the question (`reschedule`) and tells the
-farm, "Pickup moved"; cancelling answers it (`cancel`). The "Pick a new
-time" button is a sign-in link to the order page that lives a week
-(`LONG_LINK_TTL`, minted with `limit: false`); while accounts are off
-the email asks for a reply.
+farm can't keep after all is cancelled like any order, with
+`bin/nff orders cancel <id> --reason <why>` or `--reason-text`, and
+refunded; nothing is denied (T2d). Records from before may carry a
+**question** (`order.question = { kind: "window", ... }`) from the
+old `orders deny`; the account pages still let such an order be moved
+or cancelled past the cutoff.
 
 A time that lapses as the customer pays (the farm dropped it, or a
 day closed) answers 409 with the fresh list, and the page raises a
@@ -631,9 +625,8 @@ Flags that take a value accept both `--reason "..."` and
   and this keeps the checkout small and conventional. PayPal itself
   is not offered as a way to pay.
 - **Card, Apple Pay, Google Pay and Cash App Pay**; no bank transfer.
-- **Refunds from the CLI**, Square and PayPal both. A denied pickup
-  window means the customer picks a new time or takes a refund, their
-  choice.
+- **Refunds from the CLI**, Square and PayPal both. A pickup time the
+  farm can't keep is cancelled and refunded.
 - **No Google Sheet.** Square is the system of record; the function log
   is the fallback record.
 - **Catalog version 2026-v6, keyed by SKU.** The spec's 2026-v5 list of
@@ -735,7 +728,7 @@ validation, which is enough to exercise the form. The staging deploy
 ## Shipping scope
 
 Sign-in and the account pages were out of the first launch and came
-on 2026-09-22, for the self-service a denied pickup window needs:
+on 2026-09-22, so a customer can find, change and cancel an order:
 `params.features.accounts` in `config/_default/hugo.toml` is `true`
 (the Sign in link in the header, `/login/` and `/account/` in the
 build), and `ACCOUNTS_ENABLED=true` on Netlify lets the emails link to
