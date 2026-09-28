@@ -1869,7 +1869,7 @@ other button is as wide as its words.
 
 Automated: `home.spec.mjs`, "the post in full, linked to its own page"
 and "the post's page is canonical, and the home page is its own" (both
-projects); `map.spec.mjs`, "the news post's ZIP button leads to the
+projects); `map.spec.mjs`, "the news post's ZIP link leads to the
 map's check", which passes on the phone since 7e757ac put the check
 above the map when stacked (#159). The invoice wording on `/` is
 AO-13's.
@@ -1882,12 +1882,13 @@ AO-13's.
   2. Open the post; open the news list.
 - **Assert:** "News and updates"; "September Update" linking to
   `/news/2026-09-22-september-update/`; "September 22, 2026" dated
-  `2026-09-22`; the "Do we deliver to you?" row with "Check your ZIP
-  code" and no ZIP check in the card; an outline button to `/news/`;
-  the text no wider than 600px and, from 992 up, 52px of padding each
-  side. The button lands on the map with its ZIP field on screen. The
-  post's canonical URL is its own, the home page's is `/`, its ZIP
-  button points at `/#map`, and the news list links to it.
+  `2026-09-22`; a "Check your ZIP code" link in the Delivery list, with
+  no "Do we deliver to you?" card and no ZIP check in the card (#211);
+  "More news and updates", an outline button to `/news/`, below the
+  card; the text no wider than 600px and, from 992 up, 52px of padding
+  each side. The link lands on the map with its ZIP field on screen.
+  The post's canonical URL is its own, the home page's is `/`, its ZIP
+  link points at `/#map`, and the news list links to it.
 - **Teardown:** None.
 
 ### AR-09 The off-season band (#137)
