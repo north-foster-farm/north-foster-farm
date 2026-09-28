@@ -1609,18 +1609,22 @@ Manual: James only; it reads production.
 
 ### FN-01 Sign up, opted in at once
 
-Automated: `news.spec.mjs`, "the footer sign-up joins at once, with no
-email". Tagged `@regression`.
+Automated: `news.spec.mjs`, "the footer sign-up joins at once and
+sends a welcome". Tagged `@regression`.
 
-- **Scenario:** Single opt-in from the footer (W1, 2026-09-26).
+- **Scenario:** Single opt-in from the footer (W1, 2026-09-26), with a
+  welcome that carries a one-click unsubscribe (T6, 6166efa).
 - **Setup:** A unique address.
 - **Test:**
   1. Home page footer: type the address; press Sign me up.
   2. Check the record and the outbox.
 - **Assert:** The note says "You're on the list. Thanks!" and the field
   empties. The record has `marketing` true, a `marketingAt` and
-  `marketingSource` signup. Nothing in the outbox to that address.
-- **Teardown:** `customers delete`.
+  `marketingSource` signup. The outbox holds one message to that
+  address, "You're on the North Foster Farm list", with a link carrying
+  `?unsubscribe=`.
+- **Teardown:** `customers delete`; the welcome is removed from the
+  outbox.
 
 ### FN-02 A bad address
 

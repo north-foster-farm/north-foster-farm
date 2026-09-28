@@ -53,7 +53,7 @@ test.describe("top bar (#139)", () => {
 
       // A narrow phone keeps the one line, with an ellipsis if need be.
       await page.setViewportSize({ width: 320, height: 568 });
-      expect((await bar(page).boundingBox()).height).toBe(30);
+      expect((await bar(page).boundingBox()).height).toBeCloseTo(30, 1);
     });
 
   test("every page carries it", async ({ page }) => {

@@ -1,16 +1,18 @@
-// Farm news: the footer sign-up joins at once, with no email (W1,
-// 2026-09-26). Only the old list is asked to confirm, by bin/nff
-// audience invite. docs/qa-launch.md, "Farm news".
+// Farm news: the footer sign-up joins at once (W1, 2026-09-26) and
+// sends one welcome with a one-click unsubscribe (T6, 6166efa). Only the
+// old list is asked to confirm, by bin/nff audience invite.
+// docs/qa-launch.md, "Farm news".
 
 import { expect, test, uniqueEmail } from "./support/order.mjs";
 import {
-  BACK_OFFICE_MISSING, backOffice, customerRecord, deleteCustomer, mailTo,
+  BACK_OFFICE_MISSING, backOffice, clearMail, customerRecord, deleteCustomer,
+  linkIn, mailTo,
 } from "./support/staging.mjs";
 
 test.describe("farm news", () => {
   test.skip(!backOffice().cli, BACK_OFFICE_MISSING);
 
-  test("the footer sign-up joins at once, with no email",
+  test("the footer sign-up joins at once and sends a welcome",
     { tag: "@regression" }, async ({ page }) => {
       const email = uniqueEmail("news");
       const since = new Date();
@@ -29,9 +31,15 @@ test.describe("farm news", () => {
         expect(record.marketing).toBe(true);
         expect(record.marketingAt).toBeTruthy();
         expect(record.marketingSource).toBe("signup");
-        expect(await mailTo(email, since), "no email").toHaveLength(0);
+
+        const mail = await mailTo(email, since);
+
+        expect(mail.map((m) => m.subject), "only the welcome")
+          .toEqual(["You're on the North Foster Farm list"]);
+        expect(linkIn(mail[0], /unsubscribe=/)).toBeTruthy();
       } finally {
         await deleteCustomer(email);
+        await clearMail({ to: email, since });
       }
     });
 
