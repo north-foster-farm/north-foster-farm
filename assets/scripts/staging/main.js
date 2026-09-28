@@ -34,8 +34,12 @@ const cartKeys = () => {
     return [];
   }
 };
-const store = (bag, key, value) => {
+// `name` names the storage ("localStorage"), so a browser that blocks
+// it throws inside the try: even reading window.localStorage can.
+const store = (name, key, value) => {
   try {
+    const bag = window[name];
+
     if (value === undefined) return bag.getItem(key);
     if (value === null) bag.removeItem(key);
     else bag.setItem(key, value);
@@ -46,7 +50,7 @@ const store = (bag, key, value) => {
   return value;
 };
 
-const token = () => store(localStorage, KEY.token) || "";
+const token = () => store("localStorage", KEY.token) || "";
 
 // A 401 asks for the token once until the next click in the toolbar;
 // otherwise a wrong answer is asked again by the retry and by every
@@ -65,12 +69,12 @@ const api = async (path, { method = "GET", body } = {}) => {
 
   if (res.status === 401 && !asked) {
     asked = true;
-    store(localStorage, KEY.token, null);
+    store("localStorage", KEY.token, null);
 
     const given = prompt("Staging token:");
 
     if (given) {
-      store(localStorage, KEY.token, given.trim());
+      store("localStorage", KEY.token, given.trim());
 
       return api(path, { method, body });
     }
@@ -107,7 +111,7 @@ const show = (open) => {
   panel.hidden = !open;
   tab.hidden = open;
   tab.setAttribute("aria-expanded", String(open));
-  store(localStorage, KEY.open, open ? "1" : null);
+  store("localStorage", KEY.open, open ? "1" : null);
   if (open) poll();
   else clearTimeout(timer);
 };
@@ -194,7 +198,7 @@ const library = mountLibrary({
 });
 
 const boot = async () => {
-  store(sessionStorage, HIDDEN, null);
+  store("sessionStorage", HIDDEN, null);
   library.fromHash();
 
   root.hidden = false;
@@ -209,7 +213,7 @@ const boot = async () => {
     text = "no token";
   }
   qs("[data-staging-info]").textContent = text;
-  show(!!store(localStorage, KEY.open));
+  show(!!store("localStorage", KEY.open));
   if (info.ok) library.counted();
 };
 
@@ -218,7 +222,7 @@ root.addEventListener("click", () => { asked = false; }, true);
 tab.addEventListener("click", () => show(true));
 qs("[data-staging-collapse]").addEventListener("click", () => show(false));
 qs("[data-staging-forget]").addEventListener("click", () => {
-  for (const k of cartKeys()) store(localStorage, k, null);
+  for (const k of cartKeys()) store("localStorage", k, null);
   window.location.reload();
 });
 qs("[data-staging-hide]").addEventListener("click", () => {
