@@ -191,11 +191,14 @@ export const saveCustomer = async (stores, customer) => {
   return record;
 };
 
+// `marketing` true on an order opts the customer in to farm news and
+// dates it; false or absent never opts anyone out.
 export const touchCustomer = async (
-  stores, { firstName, lastName, name, email, phone }, now
+  stores, { firstName, lastName, name, email, phone, marketing }, now
 ) => {
   const existing = await getCustomer(stores, email);
   const at = now.toISOString();
+  const optIn = marketing === true;
 
   if (existing) {
     return saveCustomer(stores, {
@@ -205,6 +208,9 @@ export const touchCustomer = async (
       lastName: existing.lastName || lastName || "",
       phone: existing.phone || phone || "",
       lastOrderAt: at,
+      ...(optIn && existing.marketing !== true
+        ? { marketing: true, marketingAt: at }
+        : {}),
     });
   }
 
@@ -217,6 +223,8 @@ export const touchCustomer = async (
     avatar: null,
     discountGroup: null,
     address: null,
+    marketing: optIn,
+    marketingAt: optIn ? at : null,
     createdAt: at,
     lastOrderAt: at,
   });

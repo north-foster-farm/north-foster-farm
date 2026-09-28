@@ -76,10 +76,13 @@ const fill = (slot, who) => {
 
 export const Session = {
   async show() {
-    const slot = document.querySelector("[data-account]");
+    // Two slots: the header row and the phone menu.
+    const slots = document.querySelectorAll("[data-account]");
 
-    if (!slot) return;
+    if (!slots.length) return;
 
-    fill(slot, await me());
+    const who = await me();
+
+    for (const slot of slots) fill(slot, who);
   },
 };

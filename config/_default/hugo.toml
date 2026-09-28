@@ -43,6 +43,13 @@ timeZone = "America/New_York"
 [pagination]
   pagerSize = 10
 
+# The staging toolbar partial reads Netlify's CONTEXT to keep itself
+# out of production builds. Hugo lets templates read only the
+# variables named here.
+[security]
+  [security.funcs]
+    getenv = ['^HUGO_', '^CI$', '^CONTEXT$']
+
 [params]
   logo = "logo-vertical.svg"
   slogan = "Pasture-raised chicken and eggs in Foster, Rhode Island"
@@ -58,7 +65,7 @@ timeZone = "America/New_York"
   [params.defaults]
     [params.defaults.featuredImage]
       [params.defaults.featuredImage.default]
-        path = "default-featured-image.png"
+        path = "share-card.png"
 
       [params.defaults.featuredImage.linkToOriginal]
         list = true

@@ -274,9 +274,10 @@ const totalsBlock = (order) => {
     );
   }
   if (order.fulfilment.method === "delivery") {
-    items.push(t.deliveryFee
-      ? `Delivery fee +${dollars(t.deliveryFee)}`
-      : "Delivery fee waived");
+    const base = t.deliveryFee - (t.areaFee || 0);
+
+    items.push(base ? `Delivery fee +${dollars(base)}` : "Delivery fee waived");
+    if (t.areaFee) items.push(`Outside-area fee +${dollars(t.areaFee)}`);
   }
   items.push(`Total ${dollars(t.total)}`);
 
