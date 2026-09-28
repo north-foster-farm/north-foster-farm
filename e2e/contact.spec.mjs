@@ -7,7 +7,7 @@
 import { expectBusy, expectIdle, holdRequests } from "./support/busy.mjs";
 import { expect, test } from "./support/order.mjs";
 
-const HEADING = "Don't be a chicken. Talk to us.";
+const HEADING = "Contact";
 const LEAD = "Call, text, email, message us on Instagram, or use our " +
   "contact form.";
 const LIMITED = "There have been too many messages from here. Wait a " +
@@ -89,7 +89,7 @@ test.describe("contact (#140)", () => {
         .toHaveAttribute("href", "mailto:sales@northfosterfarm.com");
       await expect(ways.nth(2))
         .toHaveAttribute("href", /instagram\.com\/northfosterfarm$/);
-      await expect(page.locator(".contact-ways"))
+      await expect(page.locator(".contact-rail .contact-note"))
         .toContainText("by appointment");
 
       await page.locator(".contact .lead a").click();
