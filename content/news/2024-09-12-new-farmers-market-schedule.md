@@ -1,5 +1,7 @@
 ---
 title: "Update: New Farmers Market Schedule"
+heading: >-
+  Update: New Farmers <span class="text-nowrap">Market Schedule</span>
 date: 2024-09-12
 description: >-
   Eggs are selling out early, so we move to an every-other-week schedule at the
