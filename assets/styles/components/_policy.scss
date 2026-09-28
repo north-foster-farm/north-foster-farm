@@ -48,6 +48,13 @@
     }
   }
 
+  // The About page's markets (shortcodes/markets.html): each market
+  // is a short stack of lines, set apart from the next like a
+  // paragraph.
+  .markets-list .market + .market {
+    margin-top: $paragraph-margin-bottom;
+  }
+
   // The delivery check card keeps its own heading spacing.
   .delivery-check h3 {
     margin-top: 0;

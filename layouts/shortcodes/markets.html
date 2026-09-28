@@ -1,0 +1,58 @@
+{{/*
+  The About page's markets: the list from data/markets.json on the
+  left, a photo on the right. Each market stacks its name, day and
+  hours, season and address, one short line each, so none wraps in
+  five twelfths of the text column. The row stacks below md, the
+  photo first, so the list stays beside the line that follows it.
+
+    {{< markets photo="images/chicken-suit.jpg" alt="…" >}}
+    Optional caption.
+    {{< /markets >}}
+*/}}
+{{ $src := .Get "photo" }}
+{{ $photo := resources.Get $src }}
+{{ if not $photo }}
+  {{ errorf "markets: no image at assets/%s (%s)" $src .Position }}
+{{ end }}
+{{ $widths := slice 400 700 1000 }}
+{{ $srcset := slice }}
+{{ range $widths }}
+  {{ $img := $photo.Resize (printf "%dx webp q82" .) }}
+  {{ $srcset = $srcset | append (printf "%s %dw" $img.RelPermalink .) }}
+{{ end }}
+{{ $fallback := $photo.Resize "700x jpg q82" }}
+{{ $caption := "" }}
+{{ with .Inner }}{{ $caption = . | markdownify }}{{ end }}
+<div class="markets row g-4 align-items-start mb-3">
+  <div class="col-md-5">
+    <ul class="markets-list list-unstyled mb-0">
+      {{ range hugo.Data.markets.markets }}
+        {{ $parts := split .where ", " }}
+        {{ $venue := index $parts 0 }}
+        {{ $street := delimit (after 1 $parts) ", " }}
+        {{ $map := printf "https://www.google.com/maps/search/?api=1&query=%s"
+          (urlquery (printf "%s, RI" .where)) }}
+        <li class="market">
+          <strong class="d-block">{{ .name }}</strong>
+          {{ .when }}<br>
+          {{ .season }}<br>
+          <a href="{{ $map }}" target="_blank" rel="noopener">{{ $venue }}<br>{{ $street }}, RI</a>
+        </li>
+      {{ end }}
+    </ul>
+  </div>
+  <figure class="markets-photo figure col-md-7 order-first order-md-last mb-0">
+    <img src="{{ $fallback.RelPermalink }}"
+      srcset="{{ delimit $srcset ", " }}"
+      sizes="(min-width: 768px) 384px, calc(100vw - 2rem)"
+      width="{{ $fallback.Width }}" height="{{ $fallback.Height }}"
+      alt="{{ .Get "alt" }}"
+      class="figure-img img-fluid d-block rounded-3 shadow-sm mb-0"
+      loading="lazy">
+    {{ with $caption }}
+      <figcaption class="figure-caption text-center fst-italic px-3 pt-2">
+        {{ . }}
+      </figcaption>
+    {{ end }}
+  </figure>
+</div>

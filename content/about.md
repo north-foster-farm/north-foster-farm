@@ -56,19 +56,22 @@ Scituate, or [delivery](/delivery-policy).
 
 ## Where to find us
 
-- **Scituate Rotary Farmers Market**, Saturdays, 9:00 AM – 12:00 PM,
-  June through early October.
-  [The Village Green, 46 Institute Lane, North Scituate, RI][map-scituate].
-- **Foster Farmers Market**, Sundays, 9:00 AM – 1:00 PM, June through
-  October. [Shady Acres Diner, 164 Danielson Pike, Foster,
-  RI][map-foster].
-- **Summer Market at Tilted Barn**, Wednesdays, 4:00 – 7:00 PM, June
-  through August.
-  [Tilted Barn Brewery, One Hemsley Place, Exeter, RI][map-tilted].
+The markets are our favorite place to be. At Scituate on Saturdays,
+the Original Italian Bakery gives away so much that Jim comes home
+with pizza chips. At Tilted Barn on Wednesdays, we get lemonade from
+the kids and trade with Reds for their hot sauce and with South County
+Barbecue for their pulled pork plates. And at almost every market
+someone is playing, usually a full band.
+
+Some of our regulars have been with us since we showed up with nothing
+but eggs. We see them every week, and the diehards come out in the
+rain too.
+
+They're the reason we have a drop site. When the season closed, they
+still needed a way to get our eggs. The market ended, but we didn't.
+
+{{< markets photo="images/chicken-suit.jpg"
+  alt="Someone in a giant chicken suit behind our table at the Foster Farmers Market" />}}
 
 Between seasons, [order online](/order) for delivery, on-farm pickup
 or our drop site in Scituate.
-
-[map-tilted]: https://www.google.com/maps/search/?api=1&query=Tilted+Barn+Brewery%2C+One+Hemsley+Place%2C+Exeter%2C+RI
-[map-scituate]: https://www.google.com/maps/search/?api=1&query=46+Institute+Lane%2C+North+Scituate%2C+RI
-[map-foster]: https://www.google.com/maps/search/?api=1&query=Shady+Acres+Diner%2C+164+Danielson+Pike%2C+Foster%2C+RI
