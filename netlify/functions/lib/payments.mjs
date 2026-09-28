@@ -16,17 +16,19 @@ import { farmOrderPlaced, orderConfirmed } from "./templates.mjs";
 // Sends one templated email about an order and notes it on the order.
 // The recipient is the customer unless `to` says otherwise. Never
 // throws: a mail failure is logged and the order is left for the next
-// run to retry.
+// run to retry. An email sent again for a new day passes its own
+// `idempotencyKey`, so Resend never takes it for the first.
 export const sendForOrder = async (stores, order, key, message, {
   mail = sendMail,
   env = process.env,
   now = new Date(),
   to = order.customer.email,
+  idempotencyKey = `${order.id}-${key}`,
 } = {}) => {
   try {
     const sent = await mail({
       to,
-      idempotencyKey: `${order.id}-${key}`,
+      idempotencyKey,
       ...message,
     }, { env });
 

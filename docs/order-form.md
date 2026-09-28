@@ -439,12 +439,26 @@ we saw, one per cause. Refunds, cancels and emails all read `fee`
 through `keptFee(order)`. From then on a refund or a cancel hands
 back everything but the kept fee. A refund made in
 the Square dashboard or PayPal is not held to it. The dashboard's
-delivery routes (nff-dashboard#24) will write the same record.
+delivery routes (nff-dashboard#24) must mark a miss through the
+site's `markAttempted`, never by writing the record: the question,
+the email and the move below all happen there, and a record written
+directly would start none of them.
+
+The jobs close a delivery the morning after its day, so a miss can
+be marked until `MARK_LATE_DAYS` (2) days after it: an order the jobs
+closed in that time is reopened (`reopened` in its history) and
+marked. Later than that, or after the farm closed it itself, the
+mark is refused.
 
 What follows the mark depends on whose miss it was (#193). The
-customer's, waived or not, opens a `missed` question on the order,
-held until the missed day plus `holdDays` (`question.until`), and
-emails missedDelivery, which links to the order. While the question
+customer's, waived or not, opens a `missed` question on the order
+and emails missedDelivery, which links to the order. The hold runs
+`holdDays` from the day that email goes (`question.until`), never
+from a day the customer didn't know about: if the send fails,
+`orders attempted` run again resends it, the jobs try each run
+(`jobs history` counts `told`), and the hold can't run out until it
+has gone. An email sent after the missed day names that day rather
+than "today". While the question
 is open the jobs neither close the order nor remind, and the account
 page keeps Change, Change items and Cancel open past the cutoff.
 Another delivery day or a switch on the order page answers it, as
@@ -453,12 +467,13 @@ fee (`creditOn` in lib/edit.mjs), so another delivery after a kept
 fee charges the fee again (C1) and a switch to pickup refunds none of
 it. The account page's Change panel moves the day only when the fee
 was waived. A reminder sent before the miss was for that trip, so the
-new day gets its own. If the customer hasn't chosen by the end of
-`until` (C8), the next jobs run cancels the order (`source: "hold"`):
-stock back, everything refunded but the kept fee, and orderCancelled
-with its held-seven-days line. The question is answered `expired`
-only once the cancel has gone through, so a refund that fails is
-tried again next run, and `jobs history` counts each as `held`.
+new day gets its own, with the date in its mail key. If the customer
+hasn't chosen by the end of `until` (C8), the next jobs run cancels
+the order (`source: "hold"`): stock back, everything refunded but
+the kept fee, and orderCancelled with its held-seven-days line. The
+question is answered `expired` only once the cancel has gone through,
+so a refund that fails is tried again next run, and `jobs history`
+counts each as `held`.
 
 The farm's or the weather's miss asks nothing (C7): the order moves
 to the next delivery day (a holiday pushes it a week further), Square's

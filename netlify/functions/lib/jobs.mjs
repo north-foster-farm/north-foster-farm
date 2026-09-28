@@ -12,7 +12,9 @@
 //               until the customer answers
 //   hold        a missed delivery nobody chose for by `question.until`
 //               is cancelled the day after: stock back, everything
-//               refunded but a kept fee, the customer told (C8)
+//               refunded but a kept fee, the customer told (C8). One
+//               whose email failed is emailed again first, and its
+//               hold runs from then
 //   rescue      a Venmo checkout the customer approved but whose page
 //               never finished it (the tab closed) is captured and
 //               recorded, once the page has had ten minutes
@@ -47,7 +49,7 @@ import {
 import {
   addDays, instant, parts, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
-import { cancelOrder } from "./admin.mjs";
+import { cancelOrder, missedUntold, tellMissed } from "./admin.mjs";
 import { rescueCheckout, syncSquare } from "./checkout.mjs";
 import { finishEditVenmo } from "./edit.mjs";
 import { alert, ping, readCount, readMark } from "./health.mjs";
@@ -102,9 +104,11 @@ export const cutoffAt = (order) => {
 export const deliveryReminderAt = (order) =>
   instant(addDays(order.fulfilment.date, -1), DELIVERY_REMINDER_HOUR, 0, tz);
 
-// A missed delivery's hold (C8) runs to the end of `until`.
+// A missed delivery's hold (C8) runs to the end of `until`, and only
+// once the customer was told: an untold miss is emailed again first.
 export const holdExpired = (order, now) => questionOpen(order)
   && order.question.kind === "missed" && !!order.question.until
+  && !missedUntold(order)
   && today(now, tz) > order.question.until;
 
 // Every order's work is its own try: one that throws goes on the
@@ -124,7 +128,8 @@ export const runJobs = async (stores, {
 } = {}) => {
   const report = {
     at: now.toISOString(), deliveryReminded: [], closed: [], squareSynced: [],
-    muted: [], holdsExpired: [], checkoutsRescued: [], checkoutsSwept: 0,
+    muted: [], missedTold: [], holdsExpired: [], checkoutsRescued: [],
+    checkoutsSwept: 0,
     authSwept: 0, squareOpen: [], customersMade: [], pickupsToConfirm: [],
     tomorrow: null, errors: [], invariants: [],
   };
@@ -174,6 +179,15 @@ export const runJobs = async (stores, {
       if (synced.square) report.squareSynced.push(order.id);
     }
 
+    // A missed-delivery email that failed goes again; its hold starts
+    // from the day it reaches them. A failure alerts from sendForOrder.
+    if (missedUntold(order)) {
+      const told = await tellMissed(stores, order, opts);
+
+      if (!missedUntold(told)) report.missedTold.push(order.id);
+
+      return;
+    }
     if (holdExpired(order, now)) {
       // The question stays open until the cancel has gone through, so
       // a refund that fails is tried again next run, by the same key.
@@ -203,7 +217,11 @@ export const runJobs = async (stores, {
           orderUrl: orderUrlFor(env, order.id),
           settingsUrl: settingsUrlFor(env),
           links: mailLinks(env),
-        }), opts);
+        }), {
+          ...opts,
+          idempotencyKey:
+            `${order.id}-deliveryReminder-${order.fulfilment.date}`,
+        });
       report.deliveryReminded.push(order.id);
     }
 
@@ -494,8 +512,9 @@ export const sweepMadeCustomers = async (stores, {
 export const summarize = (report) => ({
   at: report.at,
   counts: Object.fromEntries([
-    "deliveryReminded", "closed", "squareSynced", "muted", "holdsExpired",
-    "checkoutsRescued", "pickupsToConfirm", "squareOpen", "customersMade",
+    "deliveryReminded", "closed", "squareSynced", "muted", "missedTold",
+    "holdsExpired", "checkoutsRescued", "pickupsToConfirm", "squareOpen",
+    "customersMade",
   ].map((k) => [k, (report[k] || []).length])),
   squareCancelled: (report.squareOpen || []).filter((o) => o.cancelled)
     .length,

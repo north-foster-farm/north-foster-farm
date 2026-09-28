@@ -53,9 +53,12 @@ const USAGE = `Usage:
                                       (waived). --detail: where we
                                       couldn't get to, for the email.
                                       The customer's miss emails them to
-                                      choose, held seven days; weather
-                                      or farm moves it to the next
-                                      delivery day and says so
+                                      choose, held seven days from when
+                                      the email goes; weather or farm
+                                      moves it to the next delivery day
+                                      and says so. Mark it by two days
+                                      after the delivery day. Run again
+                                      to resend an email that failed
   bin/nff orders move <id> <date>     a delivery to another delivery
                                       day, past the cutoff; the
                                       customer is emailed. Not after
@@ -454,6 +457,10 @@ const run = async () => {
     if (moved) {
       return out(`Moved to ${marked.fulfilment.date}; the customer is told.`);
     }
+    if (admin.missedUntold(marked)) {
+      return out("The email to the customer failed, so nothing is held yet. " +
+        "Run this again to resend it; the jobs also try each run.");
+    }
 
     return asked
       ? out(`The customer is asked to choose by ${marked.question.until}.`)
@@ -570,7 +577,8 @@ const run = async () => {
 
       out(`${r.at.slice(0, 16)}  ${bad ? "FAIL" : "ok  "}  reminded ${
         c.deliveryReminded ?? 0}  closed ${c.closed ?? 0}  synced ${
-        c.squareSynced ?? 0}  held ${c.holdsExpired ?? 0}  pickups ${
+        c.squareSynced ?? 0}  told ${c.missedTold ?? 0}  held ${
+        c.holdsExpired ?? 0}  pickups ${
         c.pickupsToConfirm ?? 0}  swept ${
         r.checkoutsSwept ?? 0}  signins ${r.authSwept ?? 0}  open ${
         c.squareOpen ?? 0}  profiles ${c.customersMade ?? 0}${

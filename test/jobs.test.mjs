@@ -272,6 +272,7 @@ describe("runJobs", () => {
       question: { kind: "missed", reason: "", until: "2026-10-15",
         openedAt: at("2026-10-08", 13).toISOString(), answeredAt: null,
         answer: null, by: null },
+      emails: { missedDelivery: { at: at("2026-10-08", 13).toISOString() } },
     }, placed);
 
     const last = await runJobs(stores, {
@@ -306,6 +307,91 @@ describe("runJobs", () => {
     assert.equal(calls.length, 2);
   });
 
+  it("never lets a hold run out on a customer who wasn't told, and " +
+    "holds seven days from when they are (#193)", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    let up = false;
+    const mail = async (m) => {
+      if (!up) throw new Error("Resend is down");
+      sent.push(m);
+
+      return { id: `m${sent.length}`, driver: "test" };
+    };
+    const calls = [];
+    const square = {
+      refundPayment: async ({ amount }) => {
+        calls.push(["refund", amount]);
+
+        return { squareRefundId: "R", status: "PENDING", amount };
+      },
+      cancelFulfilment: async () => {},
+    };
+
+    // Marked on the 8th, but missedDelivery never went.
+    await saveOrder(stores, {
+      ...order("A"),
+      attempted: { at: at("2026-10-08", 13).toISOString(),
+        date: "2026-10-08", cause: "no-cooler", fee: 500, waived: false },
+      question: { kind: "missed", reason: "", until: "2026-10-15",
+        openedAt: at("2026-10-08", 13).toISOString(), answeredAt: null,
+        answer: null, by: null },
+    }, placed);
+
+    const down = await runJobs(stores, {
+      ...opts, mail, square, now: at("2026-10-16", 9),
+    });
+
+    assert.deepEqual(down.holdsExpired, []);
+    assert.deepEqual(down.missedTold, []);
+    assert.deepEqual(calls, []);
+    assert.equal((await getOrder(stores, "A")).status, "paid");
+    assert.equal((await getOrder(stores, "A")).question.until, "2026-10-15");
+
+    up = true;
+    const told = await runJobs(stores, {
+      ...opts, mail, square, now: at("2026-10-17", 9),
+    });
+    const a = await getOrder(stores, "A");
+
+    assert.deepEqual(told.missedTold, ["A"]);
+    assert.deepEqual(told.holdsExpired, []);
+    assert.equal(a.question.until, "2026-10-24");
+    assert.ok(a.emails.missedDelivery);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].text, /We came by on Thursday, October 8 with/);
+    assert.match(sent[0].text, /That day's delivery fee of \$5/);
+    assert.match(sent[0].text, /hold your order until Saturday, October 24/);
+
+    const held = await runJobs(stores, {
+      ...opts, mail, square, now: at("2026-10-24", 23),
+    });
+
+    assert.deepEqual(held.missedTold, []);
+    assert.deepEqual(held.holdsExpired, []);
+
+    const out = await runJobs(stores, {
+      ...opts, mail, square, now: at("2026-10-25", 9),
+    });
+
+    assert.deepEqual(out.holdsExpired, ["A"]);
+    assert.deepEqual(calls, [["refund", 700]]);
+  });
+
+  it("keys a second delivery reminder by its day (#193)", async () => {
+    const stores = testStores();
+    const keys = [];
+    const mail = async (m) => {
+      keys.push(m.idempotencyKey);
+
+      return { id: "m", driver: "test" };
+    };
+
+    await saveOrder(stores, order("A"), placed);
+    await runJobs(stores, { env: {}, mail, now: at("2026-10-07", 18, 5) });
+    assert.deepEqual(keys, ["A-deliveryReminder-2026-10-08"]);
+  });
+
   it("tries an expired hold again when its refund fails", async () => {
     const stores = testStores();
     const { opts } = harness();
@@ -324,6 +410,7 @@ describe("runJobs", () => {
       attempted: { at: "x", date: "2026-10-08", cause: "no-cooler",
         fee: 0, waived: true },
       question: { kind: "missed", until: "2026-10-15", answeredAt: null },
+      emails: { missedDelivery: { at: "x" } },
     }, placed);
 
     const down = await runJobs(stores, {

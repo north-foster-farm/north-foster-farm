@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import terms from "../data/delivery.json" with { type: "json" };
 import {
   cancelOrder, decideAddress, fulfilOrder, listOrders,
-  markAttempted, moveDelivery,
+  markAttempted, missedUntold, moveDelivery,
   refundOrder, removeCustomer, removeOrder, resolveReturn, setCustomer,
   showCustomer, stockList, stockSet,
 } from "../netlify/functions/lib/admin.mjs";
@@ -638,6 +638,69 @@ describe("an attempted delivery keeps its fee", () => {
     // Marking again sends nothing more.
     await markAttempted(stores, "A", { ...opts, env, cause: "no-cooler" });
     assert.equal(sent.length, 2);
+  });
+
+  it("resends a missed-delivery email that failed when marked again, " +
+    "and holds from then (#193)", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const down = async () => { throw new Error("Resend is down"); };
+
+    await saveOrder(stores, delivered("A"), now);
+
+    const untold = await markAttempted(stores, "A",
+      { ...opts, mail: down, cause: "no-cooler" });
+
+    assert.equal(missedUntold(untold), true);
+    assert.equal(untold.question.until, "2026-10-15");
+    assert.equal(sent.length, 0);
+
+    // The farm runs it again on the 9th, with no cause.
+    const later = new Date("2026-10-09T14:00:00Z");
+    const told = await markAttempted(stores, "A", { ...opts, now: later });
+
+    assert.equal(missedUntold(told), false);
+    assert.equal(told.question.until, "2026-10-16");
+    assert.equal(told.attempted.at, now.toISOString());
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].text, /We came by on Thursday, October 8/);
+    assert.match(sent[0].text, /until Friday, October 16/);
+
+    await markAttempted(stores, "A", { ...opts, now: later });
+    assert.equal(sent.length, 1);
+  });
+
+  it("marks a miss the jobs closed up to two days late, but not one " +
+    "the farm closed (#193)", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const closed = (id) => ({
+      ...delivered(id), status: "fulfilled",
+      history: [{ at: now.toISOString(), event: "paid" },
+        { at: "2026-10-09T11:00:00Z", event: "fulfilled", source: "jobs" }],
+    });
+    const on = (iso) => ({ ...opts, now: new Date(iso) });
+
+    await saveOrder(stores, closed("A"), now);
+    await saveOrder(stores, closed("B"), now);
+    await saveOrder(stores, delivered("C"), now);
+    await fulfilOrder(stores, "C", { now });
+
+    const a = await markAttempted(stores, "A",
+      { ...on("2026-10-10T20:00:00Z"), cause: "no-cooler" });
+
+    assert.equal(a.status, "paid");
+    assert.equal(a.question.until, "2026-10-17");
+    assert.ok(a.history.some((h) => h.event === "reopened"));
+    assert.ok((await openOrders(stores)).some((o) => o.id === "A"));
+    assert.equal(sent.length, 1);
+
+    await assert.rejects(markAttempted(stores, "B",
+      { ...on("2026-10-11T14:00:00Z"), cause: "no-cooler" }),
+    /This order is fulfilled/);
+    await assert.rejects(markAttempted(stores, "C",
+      { ...on("2026-10-09T14:00:00Z"), cause: "no-cooler" }),
+    /This order is fulfilled/);
   });
 
   it("moves the farm's or the weather's miss a week on, and says so (C7)",

@@ -535,7 +535,9 @@ const dayAfter = (iso, days) => label(addDays(iso, days)).replace(/^\w+, /, "");
 // wording: kept, the customer is warned before choosing that it stays
 // whatever they choose; waived, everything comes back (James, C3). A
 // farm or weather miss gets movedDelivery instead (C7). Policy-pages'
-// drafts of 2026-09-28, to approve; nothing sends this yet.
+// drafts of 2026-09-28, to approve. The hold runs to the order's
+// `question.until`; an email sent after the day of the miss (a resend,
+// a late mark) names that day instead of "today" (draft).
 
 // What we saw, not what the customer did (C6a, James's drafts).
 const missedReason = (order) => {
@@ -563,16 +565,22 @@ const missedReason = (order) => {
   return "there was no cooler out, and we couldn't reach you";
 };
 
-export const missedDelivery = (order, { pickUrl, links } = {}) => {
+export const missedDelivery = (order, {
+  pickUrl, links, now = new Date(),
+} = {}) => {
   const title = "We couldn't deliver your order";
   const fee = keptFee(order);
-  const next = dayAfter(order.fulfilment.date, 7);
-  const hold = label(addDays(order.fulfilment.date, HOLD_DAYS));
+  const { date } = order.fulfilment;
+  const late = today(now, terms.timeZone) > date;
+  const next = dayAfter(date, 7);
+  const hold = label((order.question && order.question.until)
+    || addDays(date, HOLD_DAYS));
   const items = dollars(order.totals.total - fee);
   const blocks = [
     p(`Hi ${firstName(order.customer)},`),
-    p("We came by today with your order but couldn't leave it: " +
-      `${missedReason(order)}. Your order is back at the farm.`),
+    p(`We came by ${late ? `on ${label(date)}` : "today"} with your order ` +
+      `but couldn't leave it: ${missedReason(order)}. Your order is back ` +
+      "at the farm."),
   ];
 
   if (fee) {
@@ -586,7 +594,8 @@ export const missedDelivery = (order, { pickUrl, links } = {}) => {
           "charge",
         `Cancel it, and we'll refund ${items} for your items`,
       ]),
-      p(`Today's delivery fee of ${dollars(fee)} isn't refunded, ` +
+      p(`${late ? "That day's" : "Today's"} delivery fee of ${
+        dollars(fee)} isn't refunded, ` +
         "whichever you choose."),
       p(`We'll hold your order until ${hold}. If you haven't chosen by ` +
         `then, we'll cancel it and refund ${items} for your items.`)

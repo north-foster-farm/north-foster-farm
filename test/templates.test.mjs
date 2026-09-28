@@ -588,10 +588,13 @@ describe("order changed and cancelled", () => {
   const attempted = (fee) => ({
     ...order(), attempted: { cause: "customer", fee, waived: !fee },
   });
+  // The evening of the missed delivery.
+  const missedOn = new Date("2026-10-08T20:00:00Z");
 
   it("warns a missed delivery that keeps its fee before they choose", () => {
     const pick = "https://example.test/pick";
-    const m = missedDelivery(attempted(500), { pickUrl: pick, links });
+    const m = missedDelivery(attempted(500),
+      { pickUrl: pick, links, now: missedOn });
 
     assert.equal(m.subject, "We couldn't deliver your order");
     has(m.text, "- Deliver it next Thursday, October 15, for " +
@@ -606,7 +609,7 @@ describe("order changed and cancelled", () => {
   });
 
   it("promises everything back when the missed fee is waived", () => {
-    const m = missedDelivery(attempted(0), { links });
+    const m = missedDelivery(attempted(0), { links, now: missedOn });
 
     has(m.text, "- Deliver it next Thursday, October 15, at no " +
       "extra charge");
@@ -615,10 +618,24 @@ describe("order changed and cancelled", () => {
     assert.doesNotMatch(m.text, /isn't refunded|fee/);
   });
 
+  it("names the missed day, and holds to the order's own date, when " +
+    "sent late (#193)", () => {
+    const m = missedDelivery({
+      ...attempted(500),
+      question: { kind: "missed", until: "2026-10-17" },
+    }, { links, now: new Date("2026-10-10T14:00:00Z") });
+
+    has(m.text, "We came by on Thursday, October 8 with your order but " +
+      "couldn't leave it: ");
+    has(m.text, "That day's delivery fee of $5 isn't refunded");
+    has(m.text, "We'll hold your order until Saturday, October 17.");
+    assert.doesNotMatch(m.text, /today|Today/);
+  });
+
   it("says what we saw for each of the customer's causes (C6a)", () => {
     const missed = (cause, extra = {}) => missedDelivery({
       ...attempted(500), attempted: { cause, fee: 500, ...extra },
-    }, { links }).text;
+    }, { links, now: missedOn }).text;
     const d = order().fulfilment.delivery;
     const lead = "We came by today with your order but couldn't leave it: ";
     const tail = ". Your order is back at the farm.";

@@ -406,20 +406,32 @@ export const ATTEMPT_CAUSES = [...CUSTOMER_CAUSES, "weather", "farm"];
 // A customer's miss, waived or not, asks them what to do (F2): the
 // order holds a `missed` question until they reschedule, switch or
 // cancel, or until the hold runs out (C8, `until`), and the
-// missed-delivery email says so. -> the order.
+// missed-delivery email says so. Marking again, once that email has
+// failed, sends it again. The jobs close a delivery the day after, so
+// a miss marked up to MARK_LATE_DAYS late reopens the order first.
+// -> the order.
 export const markAttempted = async (stores, id, {
   cause, waive = "", detail = "", now = new Date(), env = process.env,
   mail = sendMail, square = squareApi, fetchImpl,
 } = {}) => {
-  const order = need(await getOrder(stores, id), "order");
+  let order = need(await getOrder(stores, id), "order");
 
-  if (order.attempted) return order;
+  if (order.attempted) {
+    return missedUntold(order)
+      ? tellMissed(stores, order, { now, env, mail })
+      : order;
+  }
   if (!ATTEMPT_CAUSES.includes(cause)) {
     throw new Error(`Why did the delivery fail? One of: ${
       ATTEMPT_CAUSES.join(", ")}.`);
   }
   if (order.fulfilment.method !== "delivery") {
     throw new Error("Only a delivery can be attempted.");
+  }
+  if (closedLately(order, now)) {
+    order = await amendOrder(stores, id, {
+      status: "paid", fulfilledAt: undefined,
+    }, "reopened", now);
   }
   if (order.status !== "paid") {
     throw new Error(`This order is ${order.status}.`);
@@ -454,10 +466,46 @@ export const markAttempted = async (stores, id, {
       { now, env, mail, square, fetchImpl, email: "movedDelivery" });
   }
 
-  return sendForOrder(stores, marked, "missedDelivery",
-    missedDelivery(marked, {
-      pickUrl: orderUrlFor(env, id), links: mailLinks(env),
+  return tellMissed(stores, marked, { now, env, mail });
+};
+
+// How many days after a delivery its miss can still be marked, though
+// the jobs have closed it.
+export const MARK_LATE_DAYS = 2;
+
+const closedLately = (order, now) => order.status === "fulfilled"
+  && [...order.history || []].reverse()
+    .find((h) => h.event === "fulfilled")?.source === "jobs"
+  && today(now, terms.timeZone)
+    <= addDays(order.fulfilment.date, MARK_LATE_DAYS);
+
+// A missed delivery whose email never went out: the customer doesn't
+// know it is held.
+export const missedUntold = (order) => order.status === "paid"
+  && questionOpen(order) && order.question.kind === "missed"
+  && !(order.emails && order.emails.missedDelivery);
+
+// Tells the customer their delivery was missed and how long it is
+// held. The hold runs at least `holdDays` from the day they are told,
+// never from a day they didn't know about: a send that fails leaves
+// `until` as it was, and the jobs try again each run.
+export const tellMissed = async (stores, order, {
+  now = new Date(), env = process.env, mail = sendMail,
+} = {}) => {
+  const from = addDays(today(now, terms.timeZone), terms.delivery.holdDays);
+  const until = order.question.until > from ? order.question.until : from;
+  const held = { ...order, question: { ...order.question, until } };
+  const told = await sendForOrder(stores, held, "missedDelivery",
+    missedDelivery(held, {
+      pickUrl: orderUrlFor(env, order.id), links: mailLinks(env), now,
     }), { mail, env, now });
+
+  if (missedUntold(told)) return getOrder(stores, order.id);
+  if (until === order.question.until) return told;
+
+  return amendOrder(stores, order.id, {
+    question: { ...told.question, until },
+  }, "question.held", now);
 };
 
 const isDeliveryDay = (date) => weekday(date) === terms.delivery.weekday
