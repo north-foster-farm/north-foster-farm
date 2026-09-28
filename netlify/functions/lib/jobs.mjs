@@ -7,9 +7,9 @@
 //   close       an order the day after fulfilment is fulfilled
 //   square      a Venmo order whose Square copy failed gets another
 //               try, so the dashboard sees it
-//   question    an order with an open question from the farm (a pickup
-//               time it gave up) is left alone: not closed, until the
-//               customer answers
+//   question    an order with an open question from the farm (a
+//               delivery it couldn't leave) is left alone: not closed,
+//               until the customer answers
 //   rescue      a Venmo checkout the customer approved but whose page
 //               never finished it (the tab closed) is captured and
 //               recorded, once the page has had ten minutes
@@ -75,6 +75,12 @@ export const TOMORROW_REPORT_HOUR = 18;
 const tz = terms.timeZone;
 
 const sent = (order, key) => !!(order.emails && order.emails[key]);
+
+// A reminder sent before a missed delivery was for that trip; the new
+// day gets its own (#193).
+const reminded = (order) => sent(order, "deliveryReminder")
+  && !(order.attempted
+    && order.emails.deliveryReminder.at < order.attempted.at);
 
 // When a customer can no longer change or cancel an order themselves:
 // the delivery or drop-site cutoff, or midnight before an on-farm
@@ -162,7 +168,7 @@ export const runJobs = async (stores, {
 
     const isDelivery = order.fulfilment.method === "delivery";
 
-    if (isDelivery && !sent(order, "deliveryReminder")
+    if (isDelivery && !reminded(order)
       && now.getTime() >= deliveryReminderAt(order).getTime()
       && today(now, tz) < order.fulfilment.date
       && await wants(order, "delivery")) {

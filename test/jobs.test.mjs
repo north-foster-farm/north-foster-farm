@@ -222,6 +222,35 @@ describe("runJobs", () => {
       assert.deepEqual(closed.closed, ["A"]);
     });
 
+  it("reminds again before a missed delivery's new day (#193)", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+
+    await saveOrder(stores, order("A"), placed);
+    await runJobs(stores, { ...opts, now: at("2026-10-07", 18, 5) });
+    assert.equal(sent.length, 1);
+
+    // Missed on the 8th, and the customer chose the 15th.
+    await saveOrder(stores, {
+      ...(await getOrder(stores, "A")),
+      attempted: { at: at("2026-10-08", 13).toISOString(),
+        cause: "no-cooler", fee: 500 },
+      fulfilment: { ...order("A").fulfilment, date: "2026-10-15" },
+      question: { kind: "missed", answeredAt: "x", answer: "reschedule" },
+    }, placed);
+
+    const r = await runJobs(stores, { ...opts, now: at("2026-10-14", 18, 5) });
+
+    assert.deepEqual(r.deliveryReminded, ["A"]);
+    assert.equal(sent.length, 2);
+
+    const again = await runJobs(stores, {
+      ...opts, now: at("2026-10-14", 20),
+    });
+
+    assert.deepEqual(again.deliveryReminded, []);
+  });
+
   it("makes the Square copy of a Venmo order that lacks one", async () => {
     const stores = testStores();
     const { opts } = harness();

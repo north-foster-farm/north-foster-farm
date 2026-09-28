@@ -539,7 +539,7 @@ describe("an attempted delivery keeps its fee", () => {
       /One of: no-cooler, no-access, no-address, weather, farm/);
     await assert.rejects(markAttempted(stores, "D",
       { now, cause: "customer" }), /Why did the delivery fail/,
-      "the cause before C6 is no longer taken");
+    "the cause before C6 is no longer taken");
     await assert.rejects(markAttempted(stores, "D", { cause: "dog", now }),
       /Why did the delivery fail/);
     assert.equal((await getOrder(stores, "D")).attempted, undefined);
@@ -602,6 +602,38 @@ describe("an attempted delivery keeps its fee", () => {
     // A waived fee goes back with the rest.
     await refundOrder(stores, "C", opts);
     assert.deepEqual(calls, [["square.refund", "PAY-C", 1900]]);
+  });
+
+  it("asks the customer after their miss, waived or not, by email and " +
+    "with a question held seven days (#193)", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const env = { ACCOUNTS_ENABLED: "true", URL: "https://x" };
+
+    for (const id of ["A", "B", "C"]) {
+      await saveOrder(stores, delivered(id), now);
+    }
+
+    const kept = await markAttempted(stores, "A",
+      { ...opts, env, cause: "no-cooler" });
+    const waived = await markAttempted(stores, "B",
+      { ...opts, env, cause: "no-access", waive: "new gate" });
+
+    assert.deepEqual(kept.question, {
+      kind: "missed", reason: "", openedAt: now.toISOString(),
+      until: "2026-10-15", answeredAt: null, answer: null, by: null,
+    });
+    assert.equal(waived.question.kind, "missed");
+    assert.equal(sent.length, 2);
+    assert.equal(sent[0].subject, "We couldn't deliver your order");
+    assert.match(sent[0].text, /isn't refunded, whichever you choose/);
+    assert.match(sent[0].text, /https:\/\/x\/account\/orders\/A\//);
+    assert.doesNotMatch(sent[1].text, /isn't refunded/);
+    assert.ok(kept.emails.missedDelivery);
+
+    // Marking again sends nothing more.
+    await markAttempted(stores, "A", { ...opts, env, cause: "no-cooler" });
+    assert.equal(sent.length, 2);
   });
 
   it("refunds everything but the fee", async () => {

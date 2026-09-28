@@ -568,6 +568,19 @@ class Account {
         "time with Change, or cancel the order.";
       pickup.hidden = false;
     }
+    // A delivery we couldn't leave (#193). Draft wording.
+    if (q && !q.answeredAt && q.kind === "missed") {
+      const back = total(order.payments) - total(order.refunds)
+        - order.keptFee;
+      const day = order.keptFee
+        ? "another delivery day (with another delivery fee)"
+        : "another delivery day";
+
+      pickup.textContent = "We couldn't deliver this order, so we're " +
+        `holding it until ${label(q.until)}. Choose ${day} or a pickup ` +
+        `with Change items, or cancel it for a refund of ${dollars(back)}.`;
+      pickup.hidden = false;
+    }
 
     const note = qs(node, "[data-out='note']");
 
@@ -835,8 +848,14 @@ class Account {
     const node = clone("tpl-cancel");
     const form = qs(node, "form");
 
-    qs(form, "[data-out='explain']").textContent = "We'll refund you the " +
-      "way you paid. It usually shows within a few business days.";
+    // After a missed delivery the fee stays (#193). Draft wording.
+    const fee = order.keptFee
+      ? `The delivery fee of ${dollars(order.keptFee)} isn't refunded ` +
+        "because we made the trip. "
+      : "";
+
+    qs(form, "[data-out='explain']").textContent = `${fee}We'll refund you ` +
+      "the way you paid. It usually shows within a few business days.";
     qs(form, "[data-close]").addEventListener("click",
       () => this.closePanel(card));
     form.addEventListener("submit", async (e) => {

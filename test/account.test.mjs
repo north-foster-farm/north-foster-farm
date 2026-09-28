@@ -391,6 +391,65 @@ describe("changeOrder", () => {
       assert.equal(b.orders.find((x) => x.id === "B").canChange, false);
     });
 
+  it("after a missed delivery, keeps the doors open and moves the day " +
+    "only when the fee was waived (#193)", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const missed = (id, fee) => ({
+      ...order(id),
+      attempted: { at: "2026-10-08T17:00:00Z", cause: "no-cooler", fee,
+        waived: !fee, note: "", detail: "" },
+      question: { kind: "missed", reason: "", until: "2026-10-15",
+        openedAt: "2026-10-08T17:00:00Z", answeredAt: null, answer: null,
+        by: null },
+    });
+    const late = instant("2026-10-09", 9, 0, TZ);
+
+    await saveOrder(stores, missed("A", 500), now);
+    await saveOrder(stores, missed("B", 0), now);
+
+    const listed = await listOrders(stores, customerOf(), { now: late });
+    const a = listed.orders.find((x) => x.id === "A");
+
+    assert.equal(a.canChange, true);
+    assert.equal(a.canCancel, true);
+    assert.equal(a.keptFee, 500);
+    assert.equal(a.question.until, "2026-10-15");
+
+    // The same day with a new cooler spot: fine, and still open.
+    const spot = await changeOrder(stores, customerOf(), "A", {
+      date: "2026-10-08", delivery: { cooler: "Side door" },
+    }, { ...opts, now: late });
+
+    assert.equal(spot.ok, true, JSON.stringify(spot));
+    assert.equal(spot.order.question.answeredAt, null);
+
+    // Another day charges the fee again, so not here.
+    const refused = await changeOrder(stores, customerOf(), "A", {
+      date: "2026-10-15",
+    }, { ...opts, now: late });
+
+    assert.equal(refused.status, 422);
+    assert.match(refused.errors.date, /Change items/);
+
+    const moved = await changeOrder(stores, customerOf(), "B", {
+      date: "2026-10-15",
+    }, { ...opts, now: late });
+
+    assert.equal(moved.ok, true, JSON.stringify(moved));
+    assert.equal(moved.order.question.answer, "reschedule");
+
+    // Cancelling answers it and keeps the fee.
+    sent.length = 0;
+    const c = await cancelOrder(stores, customerOf(), "A", {
+      ...opts, now: late,
+    });
+
+    assert.equal(c.order.status, "cancelled");
+    assert.equal(c.order.question.answer, "cancel");
+    assert.match(sent[0].text, /A refund of \$7 is on its way/);
+  });
+
   it("flags the order and tells the farm when Square cannot follow",
     async () => {
       const stores = testStores();

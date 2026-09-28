@@ -112,6 +112,7 @@ export const publicOrder = (order, now = new Date()) => ({
     kind: order.question.kind,
     reason: order.question.reason || "",
     openedAt: order.question.openedAt,
+    until: order.question.until || null,
     answeredAt: order.question.answeredAt || null,
     answer: order.question.answer || null,
   } : null,
@@ -228,10 +229,18 @@ export const changeOrder = async (stores, customer, id, changes, {
 
   const allowed = datesFor(method, now, terms, pickupSchedule(env));
 
-  if (c.date !== undefined) {
+  // After the customer's miss, another delivery day charges the fee
+  // again (C1), which only the order page can take. Draft wording.
+  const refee = questionOpen(order) && order.question.kind === "missed"
+    && keptFee(order) > 0;
+
+  if (c.date !== undefined && text(c.date, 10) !== order.fulfilment.date) {
     const date = text(c.date, 10);
 
-    if (!allowed.some((d) => d.date === date)) {
+    if (refee) {
+      errors.date = "Another delivery day has a new delivery fee. Choose " +
+        "it with Change items, where you can pay it.";
+    } else if (!allowed.some((d) => d.date === date)) {
       errors.date = "That date isn't available.";
     } else {
       f.date = date;
@@ -274,11 +283,12 @@ export const changeOrder = async (stores, customer, id, changes, {
 
   if (Object.keys(errors).length) return fail(422, errors);
 
-  // A moved pickup answers a time the farm gave up.
+  // A moved pickup answers a time the farm gave up; a delivery on
+  // another day answers a missed one.
   const patch = { fulfilment: f, notes };
 
-  if (moved) {
-    f.state = "agreed";
+  if (moved) f.state = "agreed";
+  if (moved || f.date !== order.fulfilment.date) {
     patch.question = answerQuestion(order, "reschedule", "customer", now);
   }
 

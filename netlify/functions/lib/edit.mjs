@@ -42,8 +42,9 @@ import { pickupSchedule } from "./pickups.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./paypal.mjs";
 import {
-  amendOrder, deleteCheckout, getCheckout, getOrder, keptFee, moneyPatch,
-  paidTotal, paymentRef, paymentsOf, refundedTotal, refundsOf, saveCheckout,
+  amendOrder, answerQuestion, deleteCheckout, getCheckout, getOrder, keptFee,
+  moneyPatch, paidTotal, paymentRef, paymentsOf, questionOpen, refundedTotal,
+  refundsOf, saveCheckout,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
@@ -185,8 +186,15 @@ const changedRecord = (order, next, change, key, now) => {
     || (f.onfarm || {}).window !== (was.onfarm || {}).window);
   const fulfilment = { ...f, state: "agreed",
     agreedAt: moved ? null : was.agreedAt || null };
+  // Another day or another way answers what the farm asked (a missed
+  // delivery, #193).
+  const answered = change.switched || f.date !== was.date || moved;
 
   return {
+    ...answered && questionOpen(order) && {
+      question: answerQuestion(order,
+        change.switched ? "switch" : "reschedule", "customer", now),
+    },
     customer: { ...order.customer, phone: next.customer.phone,
       contact: next.customer.contact },
     lines: next.lines,

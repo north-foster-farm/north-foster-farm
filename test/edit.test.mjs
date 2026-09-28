@@ -476,6 +476,9 @@ describe("editOrder", () => {
     await amendOrder(stores, id, {
       attempted: { at: now.toISOString(), cause: "no-cooler", fee,
         waived: false, note: "", detail: "" },
+      question: { kind: "missed", reason: "", until: "2026-10-15",
+        openedAt: now.toISOString(), answeredAt: null, answer: null,
+        by: null },
     }, "delivery.attempted", now);
 
     // Another day's delivery: the fee again, and nothing else.
@@ -486,6 +489,7 @@ describe("editOrder", () => {
 
     assert.equal(again.ok, true, JSON.stringify(again.errors));
     assert.equal(again.difference, fee);
+    assert.equal(again.order.question.answer, "reschedule");
 
     // To pickup: the second fee comes back, the kept one never.
     const pickup = await edit(stores, id, {

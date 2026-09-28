@@ -23,10 +23,11 @@
 
 export const OPEN = ["paid"];
 
-// A question the farm put to the customer (today only `window`: the
-// farm gave up a booked pickup time, pick another). While one is open
-// the clocks on the order pause; the customer rescheduling or
-// cancelling answers it.
+// A question the farm put to the customer: `missed`, a delivery we
+// couldn't leave, held until `until` for them to choose (#193); or,
+// on older records, `window`, a booked pickup time the farm gave up.
+// While one is open the clocks on the order pause; the customer
+// rescheduling, switching or cancelling answers it.
 export const questionOpen = (order) =>
   !!(order.question && !order.question.answeredAt);
 
