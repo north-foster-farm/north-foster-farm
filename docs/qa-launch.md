@@ -25,9 +25,12 @@ after itself: paid orders are cancelled with `--refund` and deleted,
 test customers are deleted, and their messages are removed from the
 outbox. The outbox is read from the jobs store with the CLI's Netlify
 credentials, or over `/api/staging/outbox` when `STAGING_TOKEN` is set.
-`POST /api/orders` answers 429 after 12 requests in 10 minutes; one full
-run sends about ten, so leave ten minutes between runs that include the
-payment, API and account specs. `rate-limit.spec.mjs` (PY-18) reaches
+`POST /api/orders` answers 429 after 12 requests in 10 minutes. With
+`STAGING_TOKEN` in `.env.staging` the suite sends it as
+`X-Staging-Token` on every order post, which skips the limit off
+production; without it, one full run sends about ten, so leave ten
+minutes between runs that include the payment, API and account specs.
+`rate-limit.spec.mjs` (PY-18) never sends the token. It reaches
 the limit on purpose and runs only with `E2E_LOCKOUT=1`: run it alone,
 last in a pass.
 
@@ -60,7 +63,7 @@ continue" (both projects).
   1. Open `/order/`.
 - **Assert:** On-farm pickup is checked. With Delivery chosen, the cart
   reads "0 items", Subtotal $0, Total $0, with no Delivery fee row and
-  no discount row. Continue to checkout is disabled. The nudge reads
+  no discount row. Continue to payment is disabled. The nudge reads
   "Delivery orders need a $40 minimum." The Delivery card reads "You
   need $40 or more in your cart to use this option."
 - **Teardown:** None.

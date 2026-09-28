@@ -55,6 +55,14 @@ export const backOffice = () => ({
     || !!(env.NETLIFY_SITE_ID && env.NETLIFY_AUTH_TOKEN),
 });
 
+// Off production, X-Staging-Token skips the /api/orders rate limit
+// (docs/staging.md, "The order limit"), so the suite leaves the limit
+// to a person testing by hand from the same machine. Empty without
+// STAGING_TOKEN, and never sent where the limit itself is tested.
+export const orderLimitHeaders = () => (
+  env.STAGING_TOKEN ? { "X-Staging-Token": env.STAGING_TOKEN } : {}
+);
+
 export const BACK_OFFICE_MISSING = "Needs .env.staging in the " +
   "checkout root (the bin/nff --staging credentials), or STAGING_TOKEN " +
   "for the outbox.";

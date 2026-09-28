@@ -4,6 +4,8 @@
 
 import { test as base, expect } from "@playwright/test";
 
+import { orderLimitHeaders } from "./staging.mjs";
+
 // SKUs and prices from data/catalog.json (price list 2026-v6). The
 // sums below are chosen to land on the thresholds in
 // data/delivery.json.
@@ -208,8 +210,21 @@ export class OrderPage {
   }
 
   // Presses Pay and waits for the server's answer to /api/orders.
-  // `limited` lets the rate-limit spec see its 429.
+  // `limited` lets the rate-limit spec see its 429: the post then goes
+  // without the staging token, so the limit applies.
   async pay({ limited = false } = {}) {
+    const headers = limited ? {} : orderLimitHeaders();
+
+    if (Object.keys(headers).length) {
+      await this.page.route("**/api/orders", (route) => (
+        route.request().method() === "POST"
+          ? route.continue({
+            headers: { ...route.request().headers(), ...headers },
+          })
+          : route.fallback()
+      ));
+    }
+
     const answer = this.page.waitForResponse(
       (r) => r.url().includes("/api/orders") && r.request().method() === "POST",
       { timeout: 60_000 }

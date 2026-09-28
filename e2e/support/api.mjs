@@ -7,6 +7,7 @@
 import { randomUUID } from "node:crypto";
 
 import { SKU } from "./order.mjs";
+import { orderLimitHeaders } from "./staging.mjs";
 
 export const NONCE = {
   ok: "cnon:card-nonce-ok",
@@ -52,9 +53,13 @@ export const RATE_LIMITED = "Answered 429: the order endpoint's rate " +
   "limit (12 per 10 minutes per IP) was hit. Wait ten minutes and run " +
   "again.";
 
-// -> { status, body }. `limited` lets the rate-limit spec see its 429.
+// -> { status, body }. `limited` lets the rate-limit spec see its 429:
+// it sends no staging token, so the limit applies.
 export const postOrder = async (request, payload, { limited = false } = {}) => {
-  const res = await request.post("/api/orders", { data: payload });
+  const res = await request.post("/api/orders", {
+    data: payload,
+    headers: limited ? {} : orderLimitHeaders(),
+  });
   const text = await res.text();
 
   if (res.status() === 429 && !limited) throw new Error(RATE_LIMITED);
