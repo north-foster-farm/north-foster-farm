@@ -520,7 +520,7 @@ header {
   padding: 1rem;
   border-color: var(--bs-border-color-translucent);
   box-shadow: var(--bs-box-shadow-sm);
-  font-size: 0.9375rem;
+  font-size: $cart-font-size;
 
   // Under 360 wide the checkout note needs a few more pixels to stay
   // on one line (#207).
@@ -536,14 +536,21 @@ header {
   overscroll-behavior: contain;
 }
 
-// A group's heading, then its lines under it, set in a little.
+// A group's heading, then its lines under it, set in a little: the
+// order page's cart, spaced the same.
 .site-mini-cart-group + .site-mini-cart-group {
-  margin-top: 0.5rem;
+  margin-top: $cart-group-gap;
 }
 
 .site-mini-cart-heading {
   display: block;
-  padding-block: 0.125rem;
+}
+
+.site-mini-cart-items {
+  display: grid;
+  gap: $cart-line-gap;
+  margin-top: $cart-line-gap;
+  padding-left: $cart-indent;
 }
 
 .site-mini-cart-line {
@@ -551,7 +558,7 @@ header {
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 0.75rem;
   align-items: baseline;
-  padding: 0.125rem 0 0.125rem 0.75rem;
+  line-height: $cart-line-height;
 }
 
 // Never wraps; the room above makes the ellipsis a last resort.
@@ -579,7 +586,6 @@ header {
   margin: 0.5rem 0 0.25rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--bs-border-color);
-  font-weight: 700;
 }
 
 // Without it the subtotal reads as the final price.

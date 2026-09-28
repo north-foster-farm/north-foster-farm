@@ -9,6 +9,15 @@ $fixed-max-width-min: 300;
 $fixed-max-width-max: 600;
 $fixed-max-width-step: 25;
 
+// Cart
+// The order page's cart and the header's mini cart set their lines
+// from these, so the two read the same (#203).
+$cart-font-size:   0.875rem;
+$cart-line-height: 1.5;
+$cart-group-gap:   0.75rem; // Between one category and the next.
+$cart-line-gap:    0.25rem; // Heading to lines, and line to line.
+$cart-indent:      0.875rem; // The lines, set in under their heading.
+
 // Bootstrap variables
 
 // Color system
