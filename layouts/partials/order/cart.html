@@ -1,5 +1,5 @@
 {{ $money := hugo.Data.delivery.money }}
-{{ $deliveryTip := printf "Orders of $%v or more after discounts can be delivered on Thursdays. $%v fee, waived at $%v." $money.deliveryMinimum $money.deliveryFee $money.feeWaivedAt }}
+{{ $deliveryTip := printf "Orders of $%v or more after discounts can be delivered on %ss. $%v fee, waived at $%v." $money.deliveryMinimum (partial "weekday.html" "delivery") $money.deliveryFee $money.feeWaivedAt }}
 {{ $freeTip := printf "No delivery fee on orders of $%v or more." $money.feeWaivedAt }}
 {{/* The ways, in the order the page lists them (#196), named as the
      cart's switch names them. */}}

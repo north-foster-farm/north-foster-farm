@@ -1375,8 +1375,9 @@ export class OrderForm {
         `$${this.money.outsideAreaFee} more. If we can't get to your ` +
         "address, we'll call, text, or email you.";
     } else if (bad.length) {
-      note.textContent = "We can only deliver eggs to Connecticut for now. " +
-        "Remove the chicken, or choose pickup.";
+      note.textContent = "We can only deliver " +
+        `${info.state.onlyGroups.join(" and ")} to ${info.state.name} ` +
+        "for now. Remove the chicken, or choose pickup.";
       note.classList.add("text-danger-emphasis");
     } else if (info.state && info.state.note) {
       note.textContent = info.state.note;

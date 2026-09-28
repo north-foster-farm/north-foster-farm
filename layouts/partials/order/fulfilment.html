@@ -68,7 +68,7 @@
         </span>
         <dl class="order-method-facts">
           <dt>When</dt>
-          <dd>Saturdays, {{ $terms.scituate.window }}</dd>
+          <dd>{{ partial "weekday.html" "scituate" }}s, {{ $terms.scituate.window }}</dd>
           <dt>Where</dt>
           <dd>{{ $terms.scituate.location }}</dd>
           <dt>Cost</dt>
@@ -96,7 +96,7 @@
         <span class="order-method-title">Delivery</span>
         <dl class="order-method-facts">
           <dt>When</dt>
-          <dd>Thursdays, approximately {{ $terms.delivery.window }}</dd>
+          <dd>{{ partial "weekday.html" "delivery" }}s, approximately {{ $terms.delivery.window }}</dd>
           <dt>Where</dt>
           <dd>Check <a href="{{ $policy }}#delivery-area" target="_blank" rel="noopener">our delivery area</a></dd>
           <dt>Cost</dt>
