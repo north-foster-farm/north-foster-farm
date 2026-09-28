@@ -493,11 +493,9 @@ export class OrderForm {
     });
 
     // The sidebar is an outline of the whole page, so the spy watches
-    // the page. Keep the active link in view, mark the category so its
-    // heading can show the chevron, and below lg put the current name
-    // in the sticky bar, where the heading lives on a phone.
+    // the page. Keep the active link in view, and mark the category so
+    // its heading can show the chevron.
     const catalog = document.getElementById("order-catalog");
-    const topbar = document.querySelector("[data-topbar-title]");
 
     ScrollSpy.getOrCreateInstance(document.body, {
       target: "#order-nav", rootMargin: "-10% 0px -80%", smoothScroll: true,
@@ -509,11 +507,66 @@ export class OrderForm {
       for (const cat of all(catalog, ".order-cat")) {
         cat.classList.toggle("is-active", `#${cat.id}` === link.hash);
       }
-      if (topbar) {
-        topbar.textContent = link.dataset.heading || link.textContent.trim();
-      }
     });
     qs(catalog, ".order-cat").classList.add("is-active");
+    this.watchTopbar();
+  }
+
+  // Below lg the sticky bar names the section under it, or the page's
+  // own heading above the first. The spy can't do this: it only hears
+  // sections crossing a band, so a fast scroll jumps past them and
+  // leaves a stale name, and it says nothing when none is active
+  // (#204). This asks where each section is on every frame the page
+  // moves, so the name is right at any speed.
+  watchTopbar() {
+    const title = document.querySelector("[data-topbar-title]");
+    const bar = document.querySelector(".order-topbar");
+
+    if (!title || !bar) return;
+
+    const heading = document.querySelector(".page-heading h1");
+    const sections = all(document.getElementById("order-nav"), "a")
+      .map((link) => ({
+        link, target: document.querySelector(link.hash),
+      }))
+      .filter(({ target }) => target);
+    let tick = null;
+
+    const update = () => {
+      tick = null;
+      if (!bar.offsetParent) return;
+
+      // A section is current once its top reaches the bar's lower
+      // edge. The floating cart is at the foot of the screen, not at
+      // its place in the page, so it counts only once settled.
+      const line = bar.getBoundingClientRect().bottom + 1;
+      let current = null;
+      let best = -Infinity;
+
+      for (const { link, target } of sections) {
+        if (target.dataset.stuck === "true") continue;
+        const top = target.getBoundingClientRect().top;
+
+        // On a tie the later link wins: a category over the catalog.
+        if (top <= line && top >= best) {
+          best = top;
+          current = link;
+        }
+      }
+
+      const name = current
+        ? current.dataset.heading || current.textContent.trim()
+        : heading ? heading.textContent.trim() : title.textContent;
+
+      if (title.textContent !== name) title.textContent = name;
+    };
+    const onScroll = () => {
+      if (tick === null) tick = requestAnimationFrame(update);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    update();
   }
 
   changed() {
