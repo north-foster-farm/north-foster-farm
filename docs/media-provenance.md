@@ -47,7 +47,7 @@ never committed or uploaded (#230):
 | `broilers.jpg`, `broilers-square.jpg` | James | | Broilers on pasture, from IMG_7035. The square one is Instagram slide 2 (#230). |
 | `sheep-with-broilers.jpg`, `sheep-with-broilers-square.jpg` | James | | Sheep by a pen of broilers, from IMG_7109. The square one is the Instagram post's cover and its Story. |
 | `cooked.jpg` | Jess Brayton (@fussica) | @fussica, her choice | The original of `assets/images/cooked.jpg`. Instagram slide 3. |
-| `tilted-tent.jpg`, `tilted-tent-square.jpg` | Unknown | | No metadata in either. The square one is Instagram slide 4. Who took it is with James (#233 item 31). |
+| `tilted-tent.jpg`, `tilted-tent-square.jpg` | James | | The farm's tent at the Tilted Barn; James took it (#233 item 31). No metadata in either. The square one is Instagram slide 4, untagged. |
 
 ## Video and posters
 
