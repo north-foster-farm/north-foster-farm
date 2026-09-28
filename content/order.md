@@ -10,4 +10,4 @@ layout: "order/single.html"
 pageScript: "order"
 ---
 
-Pasture-raised, frozen, and packed by weight.
+Pasture-raised, processed locally in state, and packed by weight.

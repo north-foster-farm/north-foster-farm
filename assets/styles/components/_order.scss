@@ -17,6 +17,11 @@
     max-width: 1040px;
   }
 
+  // One line from sm up; on a phone it takes two of even length.
+  .order-lead {
+    text-wrap: balance;
+  }
+
   .order-section legend {
     margin-bottom: 1rem;
   }
