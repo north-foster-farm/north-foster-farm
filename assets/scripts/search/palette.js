@@ -4,6 +4,7 @@
 // through the matches, the selected one's card shows beside them, and
 // Enter or the card's button adds it to the cart.
 
+import Dropdown from "bootstrap/js/dist/dropdown.js";
 import { index, search } from "./match.js";
 import { addToCart, cartCount, inCart } from "./cart.js";
 import {
@@ -34,11 +35,10 @@ export const wireSearch = () => {
   const addForm = q("[data-search-add]");
   const addButton = q("[data-search-button]");
   const added = q("[data-search-added]");
-  const checkout = q("[data-search-checkout]");
-  // Off the order page, the way on to checkout once there is a cart.
-  const showCheckout = () => {
-    checkout.hidden = !!document.getElementById("order-form")
-      || cartCount() === 0;
+  const cartButton = q("[data-search-cart]");
+  // The way to the cart, once there is one.
+  const showCartButton = () => {
+    cartButton.hidden = cartCount() === 0;
   };
   const products = JSON.parse(q("[data-search-products]").textContent);
   const indexed = index(products);
@@ -189,7 +189,7 @@ export const wireSearch = () => {
     added.textContent = `Added ${n} × ${title(p)}. ` +
       `${count} ${count === 1 ? "item" : "items"} in your cart.`;
     addButton.textContent = `Added · ${count} in cart`;
-    showCheckout();
+    showCartButton();
     clearTimeout(addedTimer);
     addedTimer = setTimeout(() => {
       addButton.textContent = "Add to cart";
@@ -226,12 +226,13 @@ export const wireSearch = () => {
     opener.setAttribute("aria-expanded", "true");
     input.value = "";
     render("");
-    showCheckout();
+    showCartButton();
     input.focus();
     loadStock();
   };
 
-  const close = () => {
+  // Closes, then runs then(), if given, once the palette is gone.
+  const close = (then) => {
     if (!isOpen() || !dialog.classList.contains("is-open")) return;
     dialog.classList.remove("is-open");
     opener.setAttribute("aria-expanded", "false");
@@ -240,6 +241,7 @@ export const wireSearch = () => {
       settle();
       dialog.close();
       opener.focus();
+      then?.();
     };
 
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -255,7 +257,26 @@ export const wireSearch = () => {
   const toggle = () => (isOpen() && !closing ? close() : open());
 
   opener.addEventListener("click", toggle);
-  q("[data-search-close]").addEventListener("click", close);
+  q("[data-search-close]").addEventListener("click", () => close());
+
+  // On the order page, the cart on the page, opened if folded; anywhere
+  // else, the header's cart.
+  cartButton.addEventListener("click", () => close(() => {
+    const pageCart = document.getElementById("order-cart");
+
+    if (pageCart) {
+      if (pageCart.dataset.open === "false") {
+        pageCart.querySelector("[data-cart-toggle]")?.click();
+      }
+      pageCart.scrollIntoView({ block: "nearest" });
+
+      return;
+    }
+
+    const toggle = document.querySelector("[data-cart-toggle]");
+
+    if (toggle) Dropdown.getOrCreateInstance(toggle).show();
+  }));
 
   document.addEventListener("keydown", (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -286,12 +307,20 @@ export const wireSearch = () => {
     }
   });
 
+  // A click on a row keeps the keyboard in the field, as a combobox
+  // should; a tap doesn't, or the phone's keyboard would rise over the
+  // card each time (#208).
+  let pointer = "mouse";
+
+  list.addEventListener("pointerdown", (e) => {
+    pointer = e.pointerType;
+  });
   list.addEventListener("click", (e) => {
     const row = e.target.closest("[role='option']");
 
     if (!row) return;
     select([...list.children].indexOf(row), { scroll: false });
-    input.focus();
+    if (pointer === "mouse") input.focus();
   });
 
   q(".search-palette-qty").addEventListener("click", (e) => {

@@ -250,4 +250,43 @@ test.describe("search (#142)", () => {
     await expect(p.card).toBeInViewport();
     await expect(p.add).toBeInViewport();
   });
+
+  // #208: a tapped row leaves the field alone, or the phone's keyboard
+  // rises over the card; a clicked one keeps it, as a combobox should.
+  test("a tapped row doesn't take the focus to the field",
+    async ({ page, isMobile }) => {
+      await page.goto("/about/");
+
+      const p = palette(page);
+
+      await p.opener.click();
+      await expect(p.input).toBeFocused();
+      await p.input.fill("chicken");
+      if (isMobile) {
+        await p.rows.nth(1).tap();
+        await expect(p.rows.nth(1)).toHaveAttribute("aria-selected", "true");
+        await expect(p.input).not.toBeFocused();
+      } else {
+        await p.rows.nth(1).click();
+        await expect(p.rows.nth(1)).toHaveAttribute("aria-selected", "true");
+        await expect(p.input).toBeFocused();
+      }
+    });
+
+  // #208: once something is in the cart, Go to cart closes search and
+  // opens the header's cart.
+  test("Go to cart opens the header's cart", async ({ page }) => {
+    await page.goto("/about/");
+
+    const p = palette(page);
+    const goToCart = p.dialog.getByRole("button", { name: "Go to cart" });
+
+    await p.opener.click();
+    await p.input.fill("eggs");
+    await expect(goToCart).toBeHidden();
+    await p.add.click();
+    await goToCart.click();
+    await expect.poll(() => isOpen(p)).toBe(false);
+    await expect(page.locator(".site-mini-cart")).toBeVisible();
+  });
 });

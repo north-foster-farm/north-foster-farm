@@ -11,6 +11,8 @@
   A photo for a group goes at assets/images/products/<group key>.jpg;
   until one exists, the card shows the hen from the logo, or an egg
   for the eggs.
+
+  The catalog's "per each" reads "$30 each" here (#208).
 */}}
 {{ $products := slice }}
 {{ range partial "order/groups.html" . }}
@@ -25,7 +27,7 @@
       "group" $group.short
       "key" $group.key
       "label" .label
-      "unit" (.unit | default $group.unit)
+      "unit" (replaceRE `^per each$` "each" (.unit | default $group.unit))
       "note" (.note | default "")
       "price" .price
       "image" $image
@@ -40,7 +42,9 @@
       {{ partial "svg.html" "icons/search" }}
       <label class="visually-hidden" id="search-palette-label" for="search-palette-input">Search products</label>
       <input class="search-palette-input" id="search-palette-input" type="text" role="combobox" aria-expanded="true" aria-controls="search-palette-list" aria-autocomplete="list" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Search eggs, whole birds, cuts">
-      <button class="search-palette-esc" type="button" data-search-close aria-label="Close search">Esc</button>
+      {{/* An X, not an Esc keycap: a phone has no Escape key. Escape
+           still closes it and cmd/ctrl K still opens it (#208). */}}
+      <button class="search-palette-close" type="button" data-search-close aria-label="Close search">{{ partial "svg.html" "icons/x" }}</button>
     </div>
     <div class="search-palette-body">
       <ul class="search-palette-list" id="search-palette-list" role="listbox" aria-label="Products"></ul>
@@ -63,10 +67,12 @@
           </div>
           <button class="btn btn-primary search-palette-button" type="submit" data-search-button>Add to cart</button>
         </form>
-        <p class="search-palette-added" role="status" data-search-added></p>
-        {{/* The way on to checkout, once the cart holds something; the
-             order page has its own. Draft wording for James (#173). */}}
-        <a class="search-palette-checkout" href="{{ relURL "order/" }}#pickup" data-search-checkout hidden>Check out <span aria-hidden="true">&rarr;</span></a>
+        {{/* What an add did, for screen readers only; the eye has the
+             button's "Added" and the cart button below (#208). */}}
+        <p class="visually-hidden" role="status" data-search-added></p>
+        {{/* Once the cart holds something, the way to it: this panel
+             is search, and the cart is somewhere else (#208). */}}
+        <button class="btn search-palette-cart" type="button" data-search-cart hidden>Go to cart</button>
       </section>
     </div>
     <p class="search-palette-keys" aria-hidden="true">

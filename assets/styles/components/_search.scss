@@ -146,17 +146,29 @@ $search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 }
 
-.search-palette-esc {
+// An X, a full fingertip wide; its margin sets the glyph back on the
+// field's edge.
+.search-palette-close {
+  display: grid;
   flex: none;
-  padding: 0.125rem 0.5rem;
-  border: 1px solid $search-line;
-  border-radius: 0.375rem;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-right: -0.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
   background: none;
   color: $search-muted;
-  font-size: 0.75rem;
+
+  svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
 
   &:hover,
   &:focus-visible {
+    background: $search-raised;
     color: $search-text;
   }
 }
@@ -352,20 +364,21 @@ $search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   white-space: nowrap;
 }
 
-.search-palette-added {
-  min-height: 1.5em;
-  margin: 0.75rem 0 0;
-  color: $search-accent;
-  font-size: 0.875rem;
-}
+// Under the add row and as wide: the way to the cart, which is
+// somewhere else. Outlined, so Add stays the one filled button.
+.search-palette-cart {
+  --bs-btn-color: #{$search-accent};
+  --bs-btn-border-color: #{$search-accent};
+  --bs-btn-hover-color: #{$search-bg};
+  --bs-btn-hover-bg: #{$search-accent};
+  --bs-btn-hover-border-color: #{$search-accent};
+  --bs-btn-active-color: #{$search-bg};
+  --bs-btn-active-bg: #{$search-accent};
+  --bs-btn-active-border-color: #{$search-accent};
 
-.search-palette-checkout {
-  display: inline-block;
-  margin-top: 0.25rem;
-  color: $search-accent;
-  font-size: 0.9375rem;
-  font-weight: 700;
-  text-underline-offset: 0.18em;
+  width: 100%;
+  max-width: 18rem;
+  margin-top: 0.75rem;
 
   &[hidden] {
     display: none;
@@ -458,7 +471,7 @@ $search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   .search-palette-add,
-  .search-palette-added {
+  .search-palette-cart {
     grid-column: 1 / -1;
     max-width: none;
   }
@@ -467,8 +480,7 @@ $search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     margin-top: 0.75rem;
   }
 
-  .search-palette-added {
-    min-height: 0;
+  .search-palette-cart {
     margin-top: 0.5rem;
   }
 
