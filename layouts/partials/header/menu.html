@@ -24,7 +24,7 @@
   <div class="container site-header-inner">
     {{/* The hen, and the wordmark beside it from sm up, so a page
          reached from a link still says whose it is. */}}
-    <a class="navbar-brand site-brand" href="{{ .Site.BaseURL }}" aria-label="North Foster Farm, home" {{- if .IsHome }} aria-current="page" {{ end }}>
+    <a class="navbar-brand site-brand" href="{{ .Site.BaseURL }}" aria-label="{{ hugo.Data.company.name }}, home" {{- if .IsHome }} aria-current="page" {{ end }}>
       <span class="site-mark" aria-hidden="true">{{ partial "svg.html" "logo-mark" }}</span>
       <span class="site-wordmark" aria-hidden="true">{{ partial "svg.html" "logo" }}</span>
     </a>

@@ -6,7 +6,7 @@
 {{ $orderOnline := partial "link.html" (dict
   "href" (relURL "order/")
   "innerHTML" "order online"
-  "title" "Order online from North Foster Farm")
+  "title" (print "Order online from " hugo.Data.company.name))
 }}
 {{ $market := resources.Get "images/tilted-market.jpg" }}
 {{ $widths := slice 800 1200 1600 2200 }}
