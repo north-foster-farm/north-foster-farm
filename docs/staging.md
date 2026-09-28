@@ -101,6 +101,12 @@ opens to a panel with:
   send. Each daily report sends once per day; tick "Send today's
   reports again" to have them go again. The run's report shows
   under the buttons.
+- **Cart.** Reset to a first visit removes every `nff-` key in this
+  browser's localStorage but the sign-in cache: the cart draft and
+  any undelivered submission, paid-order edit drafts, the dismissed
+  delivery-policy note and a remembered Venmo buyer. Then it
+  reloads, so the order page shows what a new visitor sees (#206).
+  Sign-in is left alone.
 
 Collapse folds the panel back to the tab and is remembered per
 browser. Hide removes the toolbar until the next page load, for

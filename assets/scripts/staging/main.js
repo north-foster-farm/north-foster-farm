@@ -6,16 +6,34 @@
 // production deploy.
 //
 // States: open, collapsed to a tab (remembered per browser), or hidden
-// until the next load (per tab), so a review of the page itself is
-// not disturbed. The email library (library.js) opens from the panel
-// or from a #email=<id> link, even when the toolbar is hidden.
+// for this view only: a refresh always brings it back (James, #206).
+// The email library (library.js) opens from the panel or from a
+// #email=<id> link, even when the toolbar is hidden.
 
 import { mountLibrary } from "./library.js";
 
 const root = document.getElementById("staging");
 const qs = (sel) => root.querySelector(sel);
 const KEY = { open: "staging.open", token: "staging.token" };
+// Hiding was once kept for the tab, which left no way back (#206).
 const HIDDEN = "staging.hidden";
+
+// What the cart and the order page remember, all in localStorage
+// under "nff-": the cart draft and a submission not yet delivered
+// (order/draft.js), a paid order's edit draft, nff-edit-<id> and its
+// -pending (order-form.js), the dismissed delivery-policy note
+// (order-form.js) and a Venmo buyer (order/pay.js). The prefix catches
+// a key added later. Kept: nff-me, the sign-in cache
+// (session/session.js, in sessionStorage anyway), and nff:autoplay.
+const SIGN_IN = "nff-me";
+const cartKeys = () => {
+  try {
+    return Object.keys(localStorage)
+      .filter((k) => k.startsWith("nff-") && k !== SIGN_IN);
+  } catch {
+    return [];
+  }
+};
 const store = (bag, key, value) => {
   try {
     if (value === undefined) return bag.getItem(key);
@@ -172,15 +190,12 @@ const runJobs = async (at) => {
 const library = mountLibrary({
   root,
   api,
-  onOpen: () => {
-    store(sessionStorage, HIDDEN, null);
-    root.hidden = false;
-  },
+  onOpen: () => { root.hidden = false; },
 });
 
 const boot = async () => {
+  store(sessionStorage, HIDDEN, null);
   library.fromHash();
-  if (store(sessionStorage, HIDDEN)) return;
 
   root.hidden = false;
   const info = await api("/api/staging/info");
@@ -202,8 +217,11 @@ const boot = async () => {
 root.addEventListener("click", () => { asked = false; }, true);
 tab.addEventListener("click", () => show(true));
 qs("[data-staging-collapse]").addEventListener("click", () => show(false));
+qs("[data-staging-forget]").addEventListener("click", () => {
+  for (const k of cartKeys()) store(localStorage, k, null);
+  window.location.reload();
+});
 qs("[data-staging-hide]").addEventListener("click", () => {
-  store(sessionStorage, HIDDEN, "1");
   root.hidden = true;
   clearTimeout(timer);
 });
