@@ -5,9 +5,10 @@ static site built with [Hugo][hugo], styled with Bootstrap 5 and SCSS,
 and hosted on [Netlify][netlify].
 
 > [!WARNING]
-> **Pushing to `main` deploys the live public site.** There is no
-> staging step and no manual approval. Work on a branch, let the
-> Netlify deploy preview build, and merge once it is green.
+> **Pushing to `main` deploys the live public site**, with no manual
+> approval. Work lands on `next`, which does not build; `staging` is
+> fast-forwarded from it for review on its branch deploy
+> (`docs/staging.md`), and `main` only after that.
 
 ## Prerequisites
 
@@ -62,15 +63,23 @@ ln -sf .env.development .env
 npm run lint            # both linters
 npm run lint:scripts    # ESLint, assets/scripts, netlify, test
 npm run lint:styles     # Stylelint, assets/styles
-npm test                # node:test, the order form's shared logic
+npm test                # node:test: functions, CLI and build checks
 ```
 
 Lint and tests gate the deploy — Netlify runs both as part of the
-build, so a failure fails the deploy rather than shipping.
+build, so a failure fails the deploy rather than shipping. The build
+also checks the pickup schedule (`npm run check:schedule`) and the
+built HTML against Bootstrap's grid (`npm run check:grid`).
+
+Every fact the site repeats (prices, fees, hours, addresses, the
+farm's name) has one source in `data/` or site config, and templates
+read it through a partial or shortcode. `npm test` runs
+`bin/facts/check.mjs`, which fails on a literal copy of a known value
+outside its source; `node bin/facts/check.mjs` lists them.
 
 ## The order form
 
-`/order` is a custom form backed by two Netlify Functions and Square.
+`/order` is a custom form backed by Netlify Functions and Square.
 `docs/order-form.md` explains the data files, the rules, the recovery
 design and what is still needed before launch. Day to day:
 
@@ -99,13 +108,16 @@ silently falling back to LibSass the way older versions did.
 assets/          SCSS and JS, processed by Hugo Pipes
 config/          Hugo config, layered: _default, development, production
 content/         Markdown pages
-data/            company.yaml, socialMedia.yaml, catalog.json,
-                 delivery.json — read via hugo.Data
-netlify/         Functions behind /api/* for the order form
-test/            node:test suite for the order form's shared logic
-layouts/         Templates; partials/ is heavily reused
+data/            One source per fact: company, catalog, delivery,
+                 markets, accounts and more — read via hugo.Data
+netlify/         Functions behind /api/*: orders, accounts, news
+test/            node:test suite for the functions and checks
+e2e/             Playwright suite, run against staging
+layouts/         Templates; partials/ is heavily reused.
+                 index.llms.txt builds /llms.txt from the content
 static/          Copied to the output verbatim
 bin/dev          Dev server wrapper
+bin/nff          The farm's CLI: orders, refunds, customers, jobs
 bin/prod         Netlify-only build step (installs Dart Sass)
 ```
 
@@ -114,7 +126,8 @@ SCSS import order, and where the site's data lives.
 
 ## Deployment
 
-Netlify builds `npm run deploy && hugo --gc` and publishes `public/`.
+Netlify builds `npm run check:schedule && npm run deploy && hugo --gc
+&& npm run check:grid` and publishes `public/`.
 Every pull request gets a deploy preview built the same way production
 is, which is the safety net: a bad build fails the preview instead of
 the site.
