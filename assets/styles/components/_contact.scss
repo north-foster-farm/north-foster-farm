@@ -73,7 +73,8 @@
   }
 
   // From lg the rail sits left of the head and the form, with a rule
-  // between; below it the rule gives way to the stack's spacing.
+  // between; below it the rule gives way to the stack's spacing. The
+  // rule's color is the rail's border-light, the page heading's rule.
   @media (min-width: 992px) {
     .contact-layout {
       grid-template:
@@ -86,7 +87,7 @@
       margin-bottom: 0;
       padding-top: 0.5rem;
       padding-right: 2.5rem;
-      border-right: 1px solid var(--bs-border-color);
+      border-right: var(--bs-border-width) var(--bs-border-style);
     }
 
     .contact-head,
