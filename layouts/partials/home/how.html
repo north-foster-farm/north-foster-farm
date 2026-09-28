@@ -10,12 +10,12 @@
 }}
 <div class="how border-bottom border-light" id="how-to-buy">
   <div class="container">
-    <p class="how-eyebrow">How to buy</p>
-    <h2 class="how-title">From our pasture to your table</h2>
+    <p class="home-eyebrow">How to buy</p>
+    <h2 class="home-title">From our pasture to your table</h2>
     <ol class="how-steps list-unstyled">
       {{ range $i, $step := $steps }}
         <li class="how-step">
-          <span class="how-icon" aria-hidden="true">
+          <span class="home-icon" aria-hidden="true">
             {{ partial "svg.html" (printf "icons/%s" $step.icon) }}
             <span class="how-num">{{ add $i 1 }}</span>
           </span>

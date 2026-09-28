@@ -1,0 +1,16 @@
+{{/* Shop now: the band above the footer on every page but two. The
+     home page has its own band in this style (home/contact.html) and
+     the hero's Order now; the order page is the shop. The styles are
+     the shared .touch set (_touch.scss). */}}
+{{ if not (or .IsHome (eq .Type "order")) }}
+  <div class="touch touch-shop border-top border-light">
+    <div class="container">
+      <p class="touch-eyebrow">Shop</p>
+      <h2 class="touch-title">Ready to order?</h2>
+      <p class="touch-lead">Delivery on Thursdays, on-farm pickup, or the <span class="text-nowrap">Scituate drop site</span>.</p>
+      <div class="touch-actions">
+        <a class="btn btn-primary btn-lg" href="{{ relURL "order/" }}">Shop now</a>
+      </div>
+    </div>
+  </div>
+{{ end }}
