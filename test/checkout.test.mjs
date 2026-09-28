@@ -426,6 +426,49 @@ describe("rescueCheckout", () => {
         "the customer hears, late");
     });
 
+  it("finishes a pickup whose time left the schedule, and alerts the " +
+    "farm (W11d)", async () => {
+    const stores = testStores();
+    const { mail } = mailbox();
+    const { paypal } = fakePaypal({ updatedAt: now.toISOString() });
+    const pickup = order({
+      fulfilment: {
+        method: "onfarm", date: "2026-10-08", state: "agreed",
+        onfarm: { window: "09:00-12:00", from: "09:00", to: "12:00" },
+        delivery: null,
+      },
+    });
+
+    await startVenmo(stores, pickup, { key: KEY }, { paypal, ...quiet });
+
+    const checkout = await getCheckout(stores, KEY);
+    const options = {
+      paypal, square: fakeSquare().square, mail, sleep: quiet.sleep,
+      now: later(PAGE_GRACE),
+    };
+    // The 8th still has its morning: no alert.
+    const kept = await rescueCheckout(stores, checkout, {
+      ...options, env: { ADMIN_EMAILS: "farm@x.com",
+        PICKUP_SCHEDULE: "2026-10-08 09:00-12:00" },
+    });
+
+    assert.equal(kept.status, "paid");
+    assert.equal(await readMark(stores, "alert/pickup.lapsed"), null);
+
+    // Dropped since: the order stands, the farm hears.
+    const stores2 = testStores();
+
+    await startVenmo(stores2, pickup, { key: KEY }, { paypal, ...quiet });
+    const saved = await rescueCheckout(stores2,
+      await getCheckout(stores2, KEY), {
+        ...options, env: { ADMIN_EMAILS: "farm@x.com",
+          PICKUP_SCHEDULE: "2026-10-08 13:00-17:00" },
+      });
+
+    assert.equal(saved.status, "paid");
+    assert.ok(await readMark(stores2, "alert/pickup.lapsed"), "alerted");
+  });
+
   it("leaves an unapproved payment for the sweep", async () => {
     const stores = testStores();
     const { paypal, calls } = fakePaypal({ status: "PAYER_ACTION_REQUIRED" });

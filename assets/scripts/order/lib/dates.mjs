@@ -1,7 +1,10 @@
 // The three date rules, computed at request time. Every function takes
 // `now` (a Date) and `terms` (data/delivery.json) and returns ISO dates
-// with labels, so the browser and the functions cannot disagree.
+// with labels, so the browser and the functions cannot disagree. On-farm
+// pickup also takes the farm's schedule (lib/schedule.mjs), the parsed
+// windows, which alone decides its days and times (W11d).
 
+import { bookable, windowLabel } from "./schedule.mjs";
 import {
   addDays, instant, label, today, weekday,
 } from "./zoned.mjs";
@@ -10,25 +13,14 @@ const isHoliday = (iso, terms) => terms.holidays.includes(iso);
 
 const entry = (iso, extra = {}) => ({ date: iso, label: label(iso), ...extra });
 
-// Every non-holiday weekday from tomorrow through the Friday of next
-// week.
-export const onFarmDates = (now, terms) => {
-  const start = addDays(today(now, terms.timeZone), 1);
-  let friday = today(now, terms.timeZone);
-
-  while (weekday(friday) !== 5) friday = addDays(friday, 1);
-
-  const end = addDays(friday, 7);
-  const out = [];
-
-  for (let d = start; d <= end; d = addDays(d, 1)) {
-    const w = weekday(d);
-
-    if (w >= 1 && w <= 5 && !isHoliday(d, terms)) out.push(entry(d));
-  }
-
-  return out;
-};
+// Every day in the schedule from tomorrow on, each with its windows
+// (W11d). No weekday, holiday or horizon rule: a day is offered if the
+// schedule has it.
+export const onFarmDates = (now, terms, schedule = []) =>
+  bookable(schedule, now, terms.timeZone).map(({ date, windows }) =>
+    entry(date, {
+      windows: windows.map((w) => ({ ...w, label: windowLabel(w) })),
+    }));
 
 // The last moment to order for a day: its `cutoffHour` on the
 // `cutoffWeekday` at or before it. Hour 24 is the end of that day.
@@ -93,12 +85,12 @@ export const scituateDates = (now, terms, count) => {
   return out;
 };
 
-export const allDates = (now, terms) => ({
+export const allDates = (now, terms, schedule) => ({
   now: now.toISOString(),
-  onfarm: onFarmDates(now, terms),
+  onfarm: onFarmDates(now, terms, schedule),
   scituate: scituateDates(now, terms),
   delivery: deliveryDates(now, terms),
 });
 
-export const datesFor = (method, now, terms) =>
-  allDates(now, terms)[method] || [];
+export const datesFor = (method, now, terms, schedule) =>
+  allDates(now, terms, schedule)[method] || [];

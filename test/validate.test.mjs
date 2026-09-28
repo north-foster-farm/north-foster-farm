@@ -7,11 +7,16 @@ import { indexCatalog } from "../assets/scripts/order/lib/catalog.mjs";
 import {
   findCode, normalizeCode, validateOrder, zipStatus,
 } from "../assets/scripts/order/lib/validate.mjs";
+import {
+  parseSchedule,
+} from "../assets/scripts/order/lib/schedule.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
+import { AFTERNOON, MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
 const index = indexCatalog(catalog);
 const now = instant("2026-10-06", 9, 0, "America/New_York");
-const ctx = { index, terms, now };
+const schedule = parseSchedule(SCHEDULE).windows;
+const ctx = { index, terms, now, schedule };
 
 const base = () => ({
   customer: {
@@ -25,7 +30,7 @@ const base = () => ({
   fulfilment: {
     method: "onfarm",
     date: "2026-10-07",
-    onfarm: { window: "morning" },
+    onfarm: { window: MORNING },
   },
   claimedTotal: 5500,
 });
@@ -184,20 +189,58 @@ describe("the customer's details", () => {
 });
 
 describe("on-farm pickup", () => {
-  it("needs a window and nothing else", () => {
+  it("needs a window, and records its times", () => {
     const p = base();
 
-    p.fulfilment.onfarm = { window: "evening" };
+    p.fulfilment.onfarm = { window: "" };
     const r = validateOrder(p, ctx);
 
     assert.equal(r.status, 422);
-    assert.equal(r.errors["onfarm.window"], "Morning or afternoon?");
+    assert.equal(r.errors["onfarm.window"], "Choose a pickup time.");
 
-    p.fulfilment.onfarm = { window: "afternoon" };
+    p.fulfilment.onfarm = { window: AFTERNOON };
     const ok = validateOrder(p, ctx);
 
     assert.ok(ok.ok);
-    assert.deepEqual(ok.order.fulfilment.onfarm, { window: "afternoon" });
+    assert.deepEqual(ok.order.fulfilment.onfarm, {
+      window: AFTERNOON, from: "13:00", to: "17:00",
+    });
+  });
+
+  it("answers 409 with the fresh list for a window the schedule " +
+    "dropped (W11d)", () => {
+    const p = base();
+
+    p.fulfilment.onfarm = { window: "10:00-11:00" };
+    const r = validateOrder(p, ctx);
+
+    assert.equal(r.status, 409);
+    assert.equal(r.errors["onfarm.window"],
+      "That pickup time is no longer available.");
+    assert.equal(r.dates[0].date, "2026-10-07");
+    assert.deepEqual(r.dates[0].windows.map((w) => w.label),
+      ["9 AM – noon", "1 – 5 PM"]);
+
+    // The morning gone from the 7th: the old morning is stale there.
+    const left = validateOrder(base(), {
+      ...ctx,
+      schedule: schedule.filter((w) => w.date !== "2026-10-07"
+        || w.id === AFTERNOON),
+    });
+
+    assert.equal(left.status, 409);
+    assert.ok(left.errors["onfarm.window"]);
+  });
+
+  it("offers only what the schedule has: a Saturday if listed, no " +
+    "weekday that isn't", () => {
+    const p = base();
+
+    p.fulfilment.date = "2026-10-10";
+    assert.equal(validateOrder(p, ctx).status, 409, "not in the fixture");
+    assert.ok(validateOrder(p, {
+      ...ctx, schedule: parseSchedule(`2026-10-10 ${MORNING}`).windows,
+    }).ok);
   });
 });
 

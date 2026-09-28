@@ -23,19 +23,10 @@
 
 export const OPEN = ["paid"];
 
-// The farm's side of a pickup, beside `status`. Only an on-farm window
-// needs the farm's agreement: `fulfilment.state` is `requested` until
-// `bin/nff orders confirm` makes it `agreed`. Delivery and the
-// drop site are born agreed, and so is any record from before the
-// state existed.
-export const needsAgreement = (order) =>
-  order.fulfilment.method === "onfarm"
-  && order.fulfilment.state === "requested";
-
 // A question the farm put to the customer (today only `window`: the
-// pickup time was denied, pick another). While one is open the clocks
-// on the order pause; answering it, by the customer rescheduling or
-// cancelling or by the farm confirming after all, closes it.
+// farm gave up a booked pickup time, pick another). While one is open
+// the clocks on the order pause; the customer rescheduling or
+// cancelling answers it.
 export const questionOpen = (order) =>
   !!(order.question && !order.question.answeredAt);
 

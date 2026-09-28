@@ -185,15 +185,26 @@ describe("buildOrder", () => {
     );
   });
 
-  it("schedules a morning on-farm pickup at 9:00 New York", () => {
+  it("schedules an on-farm pickup at its window's start, New York " +
+    "time (W11d-D)", () => {
     const o = buildOrder(order(), "CUST", cfg);
     const f = o.fulfillments[0];
 
     assert.equal(f.type, "PICKUP");
-    assert.equal(f.pickup_details.pickup_at, "2026-10-07T13:00:00.000Z");
+    assert.equal(f.pickup_details.pickup_at, "2026-10-07T13:00:00.000Z",
+      "a record from before W11d: its morning is 9:00");
     assert.equal(f.pickup_details.recipient.phone_number, "+14015550100");
     assert.match(f.pickup_details.note, /prefers text/);
-    assert.match(f.pickup_details.note, /morning pickup/);
+    assert.match(f.pickup_details.note, /pickup 9 AM – noon/);
+
+    const later = order();
+
+    later.fulfilment.onfarm = { window: "13:30-15:00", from: "13:30",
+      to: "15:00" };
+    const g = buildOrder(later, "CUST", cfg).fulfillments[0];
+
+    assert.equal(g.pickup_details.pickup_at, "2026-10-07T17:30:00.000Z");
+    assert.match(g.pickup_details.note, /pickup 1:30 – 3 PM/);
   });
 
   it("builds a delivery fulfillment with fee and address", () => {

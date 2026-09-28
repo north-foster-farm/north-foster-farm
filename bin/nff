@@ -28,12 +28,9 @@ const USAGE = `Usage:
   bin/nff address approve|deny <email>
   bin/nff orders list [--open] [--status=paid] [--email=x]
   bin/nff orders show <id>
-  bin/nff orders confirm [<id>] [--at 9] [--until 11]
-                                      agree to a pickup: the first two
-                                      hours of the window unless told;
-                                      no id: how many wait, and the next
-  bin/nff orders deny <id> --reason "..."   have them pick another;
-                                      the reason is required and emailed
+  bin/nff orders deny <id> --reason "..."   a booked pickup time we
+                                      can't keep: they pick another or
+                                      cancel; the reason is emailed
   bin/nff orders cancel <id> --reason <why> | --reason-text "..." |
                              --no-reason [--no-refund] [--amount 12.34]
                                       the money back first, all of it
@@ -69,6 +66,13 @@ const USAGE = `Usage:
                                       once, to each address not yet in
   bin/nff audience sync [--dry-run]   the Resend audience and the
                                       records, made to agree
+  bin/nff schedule check <file>       the pickup schedule, checked as a
+                                      deploy checks it (W11d)
+  bin/nff schedule set <file> --staging|--production
+                                      check it, set PICKUP_SCHEDULE on
+                                      Netlify, and start a deploy with
+                                      PICKUP_SCHEDULE_HOOK if the env
+                                      file has one
   bin/nff jobs run
   bin/nff jobs history [--n=20]       the last runs: errors, invariants
   bin/nff health                      what /api/health would answer
@@ -112,11 +116,12 @@ const [
   { inviteSubscribers, parseCsv, syncAudience },
   { dollars, toCents },
   { snapshot },
-  { refundedTotal },
+  { keptFee, paidTotal, refundedTotal },
   { library },
   review,
   { mailLinks },
   sent,
+  { checkSchedule },
 ] = await Promise.all([
   import("../data/delivery.json", { with: { type: "json" } }),
   import("../netlify/functions/lib/admin.mjs"),
@@ -132,6 +137,7 @@ const [
   import("../netlify/functions/lib/review.mjs"),
   import("../netlify/functions/lib/site.mjs"),
   import("../netlify/functions/lib/sent.mjs"),
+  import("../assets/scripts/order/lib/schedule.mjs"),
 ]);
 
 process.env.SITE_CONTEXT = context ? CONTEXTS[context] : "dev";
@@ -200,6 +206,50 @@ const signIn = async (email, open) => {
     }).unref();
   }
 };
+
+// A schedule file, checked as a deploy checks it (W11d). -> { value,
+// summary }: the variable's value, one date per entry, and a line to
+// print. Throws with every problem.
+const checkedSchedule = (file) => {
+  if (!file) throw new Error("Which file? bin/nff schedule check <file>");
+
+  const r = checkSchedule(readFileSync(file, "utf8"), {
+    timeZone: terms.timeZone,
+  });
+
+  if (!r.ok) {
+    throw new Error(`The schedule has ${r.errors.length} problem${
+      r.errors.length === 1 ? "" : "s"}:\n  ${r.errors.join("\n  ")}`);
+  }
+
+  const byDate = new Map();
+
+  for (const w of r.windows) {
+    byDate.set(w.date, [...(byDate.get(w.date) || []), w.id]);
+  }
+
+  return {
+    value: [...byDate].map(([date, ids]) => `${date} ${ids.join(" ")}`)
+      .join("; "),
+    summary: `${r.windows.length} window${
+      r.windows.length === 1 ? "" : "s"} on ${byDate.size} day${
+      byDate.size === 1 ? "" : "s"}, ${r.windows[0].date} through ${
+      r.last}. It passes.`,
+  };
+};
+
+// The Netlify CLI, as the env file's site and token, for the one
+// command that changes a deploy's settings.
+const netlify = (args) => new Promise((resolve, reject) => {
+  const child = spawn("npx", ["netlify", ...args], {
+    stdio: ["ignore", "ignore", "inherit"],
+    env: process.env,
+  });
+
+  child.on("error", reject);
+  child.on("exit", (code) => (code === 0 ? resolve()
+    : reject(new Error(`netlify ${args[0]} failed (${code}).`))));
+});
 
 // What James approved or rewrote in the staging email library and
 // is not yet in the code (lib/review.mjs).
@@ -305,39 +355,6 @@ const run = async () => {
   }
   case "orders show":
     return out(await admin.showOrder(stores, rest[0]));
-  case "orders confirm": {
-    if (rest[0]) {
-      return out(summaryLine(await admin.confirmPickup(stores, rest[0], {
-        at: flags.at, until: flags.until,
-      })));
-    }
-
-    const waiting = await admin.pickupsNeedingConfirmation(stores);
-
-    out(`${waiting.length} pickup${waiting.length === 1 ? "" : "s"} ` +
-      "waiting for confirmation.");
-    if (!waiting[0]) return undefined;
-
-    const next = waiting[0];
-    const o = next.fulfilment.onfarm;
-    const w = (terms.onFarm.windows || {})[o.window] || {};
-
-    out("");
-    out(`Next, oldest first: ${summaryLine(next)}`);
-    out(`  ${next.customer.name || next.customer.email}${
-      next.customer.phone ? `, ${next.customer.phone}` : ""}`);
-    out(`  Requested: ${next.fulfilment.date}, ${o.window} (${w.from}:00 ` +
-      `to ${w.to}:00), placed ${next.submittedAt.slice(0, 16)}`);
-    out(`  Lines: ${next.lines.map((l) => `${l.qty} × ${l.label}`)
-      .join("; ")}`);
-    out("");
-    out(`  bin/nff orders confirm ${next.id}            (${w.from}:00 to ${
-      w.from + admin.PICKUP_HOURS}:00)`);
-    out(`  bin/nff orders confirm ${next.id} --at H     (H to H+2)`);
-    out(`  bin/nff orders deny ${next.id} --reason "..."`);
-
-    return undefined;
-  }
   case "orders deny":
     if (flags.reason === true) flags.reason = "";
 
@@ -360,7 +377,8 @@ const run = async () => {
     }
     // A customer's own cancel was already emailed; the farm only
     // finishes it.
-    const asked = !!(await admin.showOrder(stores, rest[0])).cancelRequested;
+    const order = await admin.showOrder(stores, rest[0]);
+    const asked = !!order.cancelRequested;
 
     if (given !== 1 && !(asked && given === 0)) {
       throw new Error(`Say why, once: --reason <${reasons.join("|")}>, ` +
@@ -368,12 +386,27 @@ const run = async () => {
         "serve.");
     }
 
+    const amount = typeof flags.amount === "string" ? toCents(flags.amount)
+      : undefined;
+    const left = paidTotal(order) - keptFee(order) - refundedTotal(order);
+
+    // James is told what goes back, and the way out, every time
+    // (W11a-1, #233).
+    if (flags["no-refund"]) {
+      out("Cancelling without a refund (--no-refund).");
+    } else if (left > 0 && order.status === "paid") {
+      // "Visa ending 4242", "Visa ending 4242, then Venmo".
+      const to = paymentPhrase(order).replace(/\$[\d,.]+ by /g, "");
+
+      out(`Refunding ${dollars(amount === undefined ? left : amount)} to ${
+        to}… Pass --no-refund to cancel without refunding.`);
+    }
+
     return out(summaryLine(await admin.cancelOrder(stores, rest[0], {
       // A refund unless the farm says otherwise (T1c); --refund,
       // once required, still reads as the default.
       refund: !flags["no-refund"],
-      amount: typeof flags.amount === "string" ? toCents(flags.amount)
-        : undefined,
+      amount,
       reason,
       reasonText,
     })));
@@ -436,6 +469,44 @@ const run = async () => {
   }
   case "audience sync":
     return out(await syncAudience(stores, { dryRun: !!flags["dry-run"] }));
+  case "schedule check": {
+    const checked = checkedSchedule(rest[0]);
+
+    return out(checked.summary);
+  }
+  case "schedule set": {
+    if (!context || context === "preview") {
+      throw new Error("Say which: --staging or --production.");
+    }
+
+    const checked = checkedSchedule(rest[0]);
+    // Staging is the staging branch's deploys.
+    const targets = context === "production"
+      ? ["production"] : ["branch:staging"];
+
+    for (const target of targets) {
+      await netlify(["env:set", "PICKUP_SCHEDULE", checked.value,
+        "--context", target]);
+    }
+    out(checked.summary);
+    out(`Set PICKUP_SCHEDULE for ${targets.join(" and ")}.`);
+
+    // The functions read the variable as of their deploy.
+    const hook = process.env.PICKUP_SCHEDULE_HOOK;
+
+    if (!hook) {
+      return out("Now deploy for it to take effect: Netlify, Deploys, " +
+        "Trigger deploy (or PICKUP_SCHEDULE_HOOK, a build hook, in the " +
+        "env file does it from here).");
+    }
+
+    const res = await fetch(hook, { method: "POST" });
+
+    if (!res.ok) throw new Error(`The build hook answered ${res.status}.`);
+
+    return out("Deploy started. It fails, and the last good one stays " +
+      "live, if the schedule doesn't pass there either.");
+  }
   case "jobs run":
     return out(await runJobs(stores));
   case "jobs history": {

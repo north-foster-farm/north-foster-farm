@@ -12,6 +12,7 @@ import {
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
+import { SCHEDULE } from "./schedule-fixture.mjs";
 
 const TZ = "America/New_York";
 const at = (iso, h, m = 0) => instant(iso, h, m, TZ);
@@ -364,17 +365,22 @@ describe("runJobs", () => {
     assert.deepEqual(r.errors, []);
   });
 
-  it("sends the morning report once a morning, with the pickups to " +
-    "decide", async () => {
+  it("sends the morning report once a morning, with the pickups " +
+    "waiting on the customer", async () => {
     const stores = testStores();
     const { sent, opts } = harness();
-    const env = { ADMIN_EMAILS: "farm@x.com" };
+    const env = { ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE };
     const waiting = order("A", "onfarm");
     const far = order("B", "onfarm");
     const delivery = order("C");
+    // The farm gave up both times (W11d); only A is within two days.
+    const gaveUp = {
+      kind: "window", reason: "Frost.", openedAt: placed.toISOString(),
+      answeredAt: null, answer: null, by: null,
+    };
 
-    waiting.fulfilment.state = "requested";
-    far.fulfilment.state = "requested";
+    waiting.question = gaveUp;
+    far.question = gaveUp;
     far.fulfilment.date = "2026-10-14";
     await saveOrder(stores, waiting, placed);
     await saveOrder(stores, far, placed);
@@ -404,9 +410,10 @@ describe("runJobs", () => {
     assert.match(report[0].text, /Orders placed\s+3\s+🫥\n/, "the funnel");
     assert.match(report[0].text, /Paid by card or a wallet\s+3\s+🫥\n/);
     assert.match(report[0].text,
-      /\nA\s+Pat Example\s+Wednesday, October 7, morning\s+under an hour/);
+      /\nA\s+Pat Example\s+Wednesday, October 7, 9 AM – noon\s+under an hour/);
     assert.doesNotMatch(report[0].text, /\bunpaid\b/, "no Paid column");
-    assert.ok(report[0].text.includes("\n    bin/nff orders confirm <id>\n"));
+    assert.doesNotMatch(report[0].text, /orders confirm|Pickup schedule/,
+      "the fixture's schedule reaches far enough");
     assert.doesNotMatch(report[0].text, /\nB\s+Pat|\nC\s+Pat/);
 
     // Nothing to decide: the report still goes, and says so.
@@ -421,7 +428,16 @@ describe("runJobs", () => {
     const both = sent.filter((m) => /Morning report/.test(m.subject));
 
     assert.equal(both.length, 2);
-    assert.match(both[1].text, /No pickups waiting on a decision/);
+    assert.match(both[1].text, /No pickups waiting on the customer/);
+
+    // A schedule that falls short is flagged every morning.
+    const short = testStores();
+
+    await runJobs(short, {
+      ...opts, env: { ...env, PICKUP_SCHEDULE: "2026-10-09 09:00-12:00" },
+      now: at("2026-10-05", 8),
+    });
+    assert.match(sent.at(-1).text, /The pickup schedule's last window is on /);
   });
 
   it("sends tomorrow's manifest at 18:00, even when empty", async () => {
@@ -452,7 +468,7 @@ describe("runJobs", () => {
     assert.equal(manifest.length, 1);
     assert.equal(manifest[0].subject,
       "Tomorrow, Wednesday, October 7: 1 order");
-    assert.match(manifest[0].text, /\*\*B\*\*, Pat Example, morning/);
+    assert.match(manifest[0].text, /\*\*B\*\*, Pat Example, 9 AM – noon/);
     assert.doesNotMatch(manifest[0].text, /\*\*A\*\*/, "A is Thursday");
 
     const thursdayEve = await runJobs(stores, {

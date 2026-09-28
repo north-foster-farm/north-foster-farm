@@ -19,6 +19,7 @@ import { log } from "./log.mjs";
 import { joined, welcome } from "./news.mjs";
 import { notifyFarm, sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
+import { pickupSchedule } from "./pickups.mjs";
 import {
   REMINDERS, amendOrder, answerQuestion, getOrder, keptFee, ordersFor,
   paidTotal, paymentRef, paymentsOf, questionOpen, refundedTotal, refundsOf,
@@ -217,9 +218,10 @@ export const changeOrder = async (stores, customer, id, changes, {
   const f = JSON.parse(JSON.stringify(order.fulfilment));
   const method = f.method;
 
+  const allowed = datesFor(method, now, terms, pickupSchedule(env));
+
   if (c.date !== undefined) {
     const date = text(c.date, 10);
-    const allowed = datesFor(method, now, terms);
 
     if (!allowed.some((d) => d.date === date)) {
       errors.date = "That date isn't available.";
@@ -228,15 +230,24 @@ export const changeOrder = async (stores, customer, id, changes, {
     }
   }
 
-  if (method === "onfarm" && c.onfarm && typeof c.onfarm === "object") {
-    const window = text(c.onfarm.window, 20);
+  if (method === "onfarm" && c.onfarm && typeof c.onfarm === "object"
+    && c.onfarm.window !== undefined) {
+    f.onfarm.window = text(c.onfarm.window, 20);
+  }
 
-    if (c.onfarm.window !== undefined) {
-      if (!["morning", "afternoon"].includes(window)) {
-        errors["onfarm.window"] = "Morning or afternoon?";
-      } else {
-        f.onfarm.window = window;
-      }
+  // A pickup moved to another day or time takes one the schedule
+  // offers now, and is booked as it stands (W11d).
+  const moved = method === "onfarm" && (f.date !== order.fulfilment.date
+    || f.onfarm.window !== order.fulfilment.onfarm.window);
+
+  if (moved && !errors.date) {
+    const day = allowed.find((d) => d.date === f.date);
+    const w = day && day.windows.find((x) => x.id === f.onfarm.window);
+
+    if (w) {
+      f.onfarm = { window: w.id, from: w.from, to: w.to };
+    } else {
+      errors["onfarm.window"] = "That pickup time isn't available.";
     }
   }
 
@@ -255,16 +266,11 @@ export const changeOrder = async (stores, customer, id, changes, {
 
   if (Object.keys(errors).length) return fail(422, errors);
 
-  // A pickup moved to another day or window is a new request: the
-  // farm has to agree again, and a denied window is answered.
-  const moved = method === "onfarm" && (f.date !== order.fulfilment.date
-    || f.onfarm.window !== order.fulfilment.onfarm.window);
+  // A moved pickup answers a time the farm gave up.
   const patch = { fulfilment: f, notes };
 
   if (moved) {
-    f.state = "requested";
-    f.agreedAt = null;
-    f.onfarm.confirmed = null;
+    f.state = "agreed";
     patch.question = answerQuestion(order, "reschedule", "customer", now);
   }
 

@@ -15,6 +15,9 @@
 // the row leaves it out.
 
 import terms from "../../../data/delivery.json" with { type: "json" };
+import {
+  pickupTimes, windowLabel,
+} from "../../../assets/scripts/order/lib/schedule.mjs";
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import {
   addDays, label, today,
@@ -22,7 +25,7 @@ import {
 import { GUIDE, RUNBOOK_ALERTS } from "./alerts-guide.mjs";
 import { company } from "./company.mjs";
 import { between, methodName } from "./describe.mjs";
-import { keptFee, needsAgreement, paymentsOf } from "./records.mjs";
+import { keptFee, paymentsOf } from "./records.mjs";
 
 const escape = (s) => String(s)
   .replace(/&/g, "&amp;")
@@ -83,12 +86,6 @@ const mono = (text) => ({
   text,
   html: `<span style="font-family:${MONO};font-size:14px;` +
     `-webkit-user-select:all;user-select:all">${escape(text)}</span>`,
-});
-
-// A figure that wants attention: bold, in the site's danger red.
-const alarm = (text) => ({
-  text: `**${text}**`,
-  html: `<strong style="color:#b02a37">${escape(text)}</strong>`,
 });
 
 // A small table: aligned columns in text, a plain <table> in HTML that
@@ -338,7 +335,8 @@ const orderNumber = (order, {
   }
   : p(`${label}: **${order.id}**`));
 
-// "9 – 11 AM", "11 AM – 1 PM": a confirmed pickup range, on the hour.
+// "9 – 11 AM", "11 AM – 1 PM": a range the farm confirmed before W11d,
+// on the hour.
 const hoursRange = (from, to) => {
   const h = (x) => `${((x + 11) % 12) + 1}`;
   const m = (x) => (x < 12 ? "AM" : "PM");
@@ -348,14 +346,15 @@ const hoursRange = (from, to) => {
     : `${h(from)} ${m(from)} – ${h(to)} ${m(to)}`;
 };
 
-// "morning" until the farm has confirmed a range inside it, then
-// "9 – 11 AM (morning)".
+// "9 AM – noon": the window booked. A record from before W11d may
+// carry the range the farm confirmed inside its window; that wins.
 const pickupWindow = (order) => {
   const o = order.fulfilment.onfarm || {};
+  const times = pickupTimes(o);
 
-  return o.confirmed && !needsAgreement(order)
-    ? `${hoursRange(o.confirmed.from, o.confirmed.to)} (${o.window})`
-    : o.window;
+  if (o.confirmed) return hoursRange(o.confirmed.from, o.confirmed.to);
+
+  return times ? windowLabel(times) : String(o.window || "");
 };
 
 // "84 Foster Center Rd, Foster, RI 02825", skipping whatever the
@@ -365,8 +364,7 @@ const streetAddress = (a = {}) => [
   [a.state, a.zip].filter(Boolean).join(" "),
 ].filter(Boolean).join(", ");
 
-// "Order type: Delivery" and the two lines under it. An on-farm
-// window the farm has not agreed to yet is "Requested:", not "When:".
+// "Order type: Delivery" and the two lines under it.
 const orderType = (order) => {
   const f = order.fulfilment;
   const when = label(f.date);
@@ -381,21 +379,20 @@ const orderType = (order) => {
         `Where: ${terms.scituate.location}`,
       ]
       : [
-        `${needsAgreement(order) ? "Requested" : "When"}: ${when}, ${
-          pickupWindow(order)}`,
+        `When: ${when}, ${pickupWindow(order)}`,
         `Where: ${terms.onFarm.address}`,
       ];
 
   return [p(`Order type: **${methodName(f.method)}**`), list(items)];
 };
 
-// The pickup window two ways: "Thursday, October 8, morning" for a
-// labelled line, "the morning on Thursday, October 8" in a sentence.
+// The pickup window two ways: "Thursday, October 8, 9 AM – noon" for
+// a labelled line, "9 AM – noon on Thursday, October 8" in a sentence.
 const windowPhrase = (order) =>
-  `${label(order.fulfilment.date)}, ${order.fulfilment.onfarm.window}`;
+  `${label(order.fulfilment.date)}, ${pickupWindow(order)}`;
 
 const timeOf = (order) =>
-  `the ${order.fulfilment.onfarm.window} on ${label(order.fulfilment.date)}`;
+  `${pickupWindow(order)} on ${label(order.fulfilment.date)}`;
 
 // The block that names the order, in every customer email about one.
 const orderDetails = (order) => [
@@ -414,9 +411,9 @@ const instructions = (order) => {
   return notes.join(" ");
 };
 
-// Sent when the order is both paid and, for an on-farm pickup, agreed:
-// by whichever of the two arrives second. Square sends the receipt,
-// so this one does not price anything either.
+// Sent when the order is paid, which books every way to get it,
+// pickup times included (W11d). Square sends the receipt, so this one
+// does not price anything either.
 export const orderConfirmed = (order, { orderUrl, links } = {}) => {
   const title = "Your order is confirmed";
   const total = dollars(order.totals.total);
@@ -441,38 +438,20 @@ export const orderConfirmed = (order, { orderUrl, links } = {}) => {
   return { subject: title, ...render(title, blocks, links) };
 };
 
-// An on-farm order paid before the farm has agreed to the window.
-export const paymentReceived = (order, { orderUrl, links } = {}) => {
-  const title = "Payment received";
-  const blocks = [
-    p(`Thanks, ${firstName(order.customer)}. Your payment of ` +
-      `${dollars(order.totals.total)} came through.`),
-    p("We're checking the schedule to make sure we can accommodate your " +
-      "requested pick-up time, and will confirm it by " +
-      `${label(addDays(order.fulfilment.date, -1))}.`),
-    ...orderDetails(order),
-  ];
-
-  if (orderUrl) blocks.push(button("View or edit this order", orderUrl));
-  blocks.push(customerFooter(links));
-
-  return { subject: title, ...render(title, blocks, links) };
-};
-
-// The farm denied the requested window. `pickUrl` signs the customer
-// in to the order page. The farm's reason, if it gave one, stays in
-// the record: James took it out of this email (2026-09-26).
+// The farm can't keep a booked pickup time after all (W11d's
+// exception): the customer picks another or cancels. `pickUrl` signs
+// them in to the order page. The farm's reason is required (T2d).
+// Draft wording.
 export const pickNewTime = (order, { pickUrl, links } = {}) => {
-  const title = "Requested pickup time unavailable, please pick again";
+  const title = "We can't make your pickup time";
   const blocks = [
     p(`Hi ${firstName(order.customer)},`),
-    p("We won't be able to accommodate your requested pickup time of " +
+    p("We're sorry, but we can't be here for your pickup at " +
       `${timeOf(order)}.`),
     ...(order.question && order.question.reason
       ? [p(`Here's why: ${order.question.reason}`)] : []),
-    p("Please pick another day or window, and we'll be in touch to " +
-      "confirm. If rescheduling isn't an option, you can cancel your " +
-      "order for a full refund."),
+    p("Please choose another day and time. If none of them works for " +
+      "you, you can cancel your order for a full refund."),
   ];
 
   if (pickUrl) blocks.push(button("Reschedule or cancel", pickUrl));
@@ -905,33 +884,6 @@ const farmOrderType = (order) => {
   return [p(`Order type: **${methodName(f.method)}**`), list(items)];
 };
 
-// The two commands that settle a requested pickup window. The farm's
-// "New order" notice is the queue, so it carries them.
-const confirmOrDeny = (order) => {
-  const window = order.fulfilment.onfarm.window;
-  const bounds = (terms.onFarm.windows || {})[window] || {};
-  const h24 = (h) => `${h}:00`;
-  const from = bounds.from;
-  const to = bounds.to;
-  const example = Math.min(from + 1, to - 2);
-
-  return [
-    p(`They asked for the ${window}, which runs ${h24(from)} to ${h24(to)}. ` +
-      "Confirming with no hours tells them you'll be there for the first " +
-      `two hours of it, ${h24(from)} to ${h24(from + 2)}:`),
-    command(`bin/nff orders confirm ${order.id}`),
-    p("To be there at other hours inside that window, give the start on " +
-      "the 24-hour clock with --at (two hours from there), and the end " +
-      `with --until if it is not two hours later. ${h24(example)} to ${
-        h24(example + 2)}, then the whole window, ${h24(from)} to ${
-        h24(to)}:`),
-    command(`bin/nff orders confirm ${order.id} --at ${example}`),
-    command(`bin/nff orders confirm ${order.id} --at ${from} --until ${to}`),
-    p("Or deny the window and they pick another day or window:"),
-    command(`bin/nff orders deny ${order.id}`),
-  ];
-};
-
 // How the money came, for the farm: "$55 by Visa ending 4242", "$55
 // by Venmo", "$55 by Apple Pay". Cash or a check, from the CLI, name
 // themselves.
@@ -980,12 +932,6 @@ export const farmOrderPlaced = (order, { squareUrl, links } = {}) => {
     totalsBlock(order),
     ...farmOrderType(order)
   );
-  if (needsAgreement(order)) {
-    blocks.push(
-      p("Pickup time: **Requested, not yet confirmed**"),
-      ...confirmOrDeny(order)
-    );
-  }
   blocks.push(p(`Paid: **${paymentPhrase(order)}**`));
   if (squareUrl) blocks.push(button("View order in Square", squareUrl));
   blocks.push(adminFooter(links));
@@ -1027,12 +973,6 @@ export const farmOrderChanged = (order, {
   } else if (difference < 0) {
     blocks.push(p(`**${dollars(-difference)} refunded** to them.`));
   }
-  if (needsAgreement(order)) {
-    blocks.push(
-      p("Pickup time: **Requested, not yet confirmed**"),
-      ...confirmOrDeny(order)
-    );
-  }
   blocks.push(p(`Paid: **${paymentPhrase(order)}**`));
   if (url) blocks.push(button("View order", url));
   blocks.push(adminFooter(links));
@@ -1043,17 +983,17 @@ export const farmOrderChanged = (order, {
   };
 };
 
-// The customer moved an on-farm order to another day or window from
-// their account page, so the farm has to agree to it again.
+// The customer moved an on-farm order to another time the schedule
+// offers, from their account page. Booked as it stands (W11d); the
+// farm only hears of it.
 export const farmPickupChanged = (order, { links } = {}) => {
   const c = order.customer;
-  const title = `Pickup time to confirm: ${order.id}`;
+  const title = `Pickup moved: ${order.id}`;
   const url = orderAdminUrl(links, order.id);
   const blocks = [
     p(`${c.name || c.email} moved order ${order.id} to a new pickup ` +
-      "time. It needs confirming again."),
-    p(`Requested: **${windowPhrase(order)}**`),
-    ...confirmOrDeny(order),
+      "time."),
+    p(`Now: **${windowPhrase(order)}**`),
   ];
 
   if (url) blocks.push(button("View order", url));
@@ -1061,7 +1001,7 @@ export const farmPickupChanged = (order, { links } = {}) => {
 
   return {
     subject: title,
-    ...render(title, blocks, links, { tag: "Pickup time to confirm" }),
+    ...render(title, blocks, links, { tag: "Pickup moved" }),
   };
 };
 
@@ -1300,7 +1240,7 @@ const age = (iso, now) => {
 };
 
 export const farmMorningReport = (stats, pickups, {
-  date, links, now = new Date(),
+  date, links, now = new Date(), schedule = null,
 } = {}) => {
   const title = `Morning report: ${label(date)}`;
   const blocks = [
@@ -1312,28 +1252,36 @@ export const farmMorningReport = (stats, pickups, {
     key,
   ];
 
+  // The schedule running short is the farm's to fix, before the
+  // next deploy fails on it (W11d). `schedule`: { last, until }.
+  if (schedule && (!schedule.last || schedule.last < schedule.until)) {
+    blocks.push(
+      heading("Pickup schedule"),
+      p(`**${schedule.last
+        ? `The pickup schedule's last window is on ${
+          label(schedule.last)}; it must reach the week of ${
+          label(schedule.until)}.`
+        : "The pickup schedule offers no windows."}**`),
+      p("Add windows and deploy, or the next deploy fails:"),
+      command("bin/nff schedule set <file>")
+    );
+  }
   if (pickups.length) {
     blocks.push(
-      heading("Pickups to confirm"),
-      p("These on-farm pickups are within two days and not confirmed, " +
-        "oldest order first."),
-      table(["Order", "Customer", "Requested", "Waiting", "Status"],
+      heading("Pickups waiting on the customer"),
+      p("We couldn't keep these pickup times and the customer hasn't " +
+        "chosen another yet, oldest order first."),
+      table(["Order", "Customer", "Was", "Waiting"],
         pickups.slice().sort((a, b) => (a.submittedAt < b.submittedAt
           ? -1 : 1)).map((o) => [
           mono(o.id),
           o.customer.name || o.customer.email,
           windowPhrase(o),
-          age(o.submittedAt, now),
-          o.question && !o.question.answeredAt
-            ? alarm("denied, not re-picked") : "to confirm",
-        ])),
-      p("Confirm one by its order number, or run the command with no " +
-        "number to be shown how many wait and the oldest of them:"),
-      command("bin/nff orders confirm <id>"),
-      command("bin/nff orders confirm")
+          age(o.question.openedAt || o.submittedAt, now),
+        ]))
     );
   } else {
-    blocks.push(p("No pickups waiting on a decision."));
+    blocks.push(p("No pickups waiting on the customer."));
   }
   blocks.push(adminFooter(links));
 
@@ -1395,12 +1343,9 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
   if (farm.length) {
     blocks.push(heading(`On-farm pickups (${farm.length})`));
     for (const o of farm) {
-      const agreed = needsAgreement(o)
-        ? `${o.fulfilment.onfarm.window}, NOT CONFIRMED`
-        : `${pickupWindow(o)}, confirmed`;
-
-      blocks.push(p(`**${o.id}**, ${who(o)}, ${agreed}, ${state(o)}`),
-        tree([pack(o)]));
+      blocks.push(p(`**${o.id}**, ${who(o)}, ${pickupWindow(o)}, ${
+        state(o)}`),
+      tree([pack(o)]));
     }
   }
   blocks.push(adminFooter(links));

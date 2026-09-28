@@ -102,8 +102,22 @@ changes, since the server has never heard of it.
 Dates are computed at request time in `America/New_York`, holidays
 skipped rather than shifted:
 
-- On-farm: every non-holiday weekday from tomorrow through the Friday
-  of next week.
+- On-farm: every day in the farm's pickup schedule from tomorrow on,
+  each with its windows (W11d). The schedule is the only rule: no
+  weekday, holiday or horizon test. It lives in the `PICKUP_SCHEDULE`
+  environment variable, one date per entry (new lines, `,` or `;`),
+  each with its windows: `2026-10-06 09:00-12:00 13:00-17:00`
+  (`lib/schedule.mjs`; `#` starts a comment). The functions read it
+  on every request (`lib/pickups.mjs`); the page never holds it, and
+  gets the windows from `/api/dates`. There is no default: every
+  build runs `npm run check:schedule` (`bin/check-schedule.mjs`) and
+  fails on a missing, broken or past schedule, or one that doesn't
+  reach the week after next, which leaves the last good deploy live.
+  `bin/nff schedule check <file>` runs the same check, and
+  `bin/nff schedule set <file> --staging|--production` sets the
+  variable (then deploy; `PICKUP_SCHEDULE_HOOK`, a build hook in the
+  env file, starts one). The morning report warns while the schedule
+  runs short.
 - Scituate: the next two Saturdays on or after 17 October 2026 whose
   cutoff has not passed: the end of Friday (`scituate.cutoffWeekday`
   and `cutoffHour`, 24 being midnight). Customers can change or cancel
@@ -318,30 +332,35 @@ and the first change to its money rewrites it as lists. `meta` keeps
 the submission key and the attempt, which the jobs need to retry a
 missing Square copy.
 
-Beside `status`, an order carries the farm's side of its pickup in
-`fulfilment.state`: `requested` or `agreed`. Only an on-farm window
-needs the farm's agreement, so only an on-farm order is born
-`requested`; delivery, the drop site, and every record from
-before the state existed, are `agreed` (`needsAgreement(order)` in
-`lib/records.mjs`). `bin/nff orders confirm <id>` sets `agreed` and
-records the hours the farm will be there, `fulfilment.onfarm.confirmed
-= { from, to }`: whole hours inside the requested window's bounds
-(`onFarm.windows` in `data/delivery.json`), at least two hours, the
-first two of the window unless `--at` and `--until` say otherwise. The
-farm never moves a time outside the requested window; a customer who
-reschedules clears the confirmed hours. `bin/nff orders deny <id>
---reason "..."` opens a **question** on the order (`order.question =
-{ kind: "window", reason, openedAt, answeredAt, answer, by }`) and
-emails the customer to pick again, or cancel for a full refund. While
-a question is open the jobs run leaves the order alone (not closed),
-and the customer can change or cancel it even past the cutoff. Moving
-the date or window from the account page answers the question
-(`reschedule`), makes the order `requested` again and tells the farm;
-cancelling answers it (`cancel`); confirming after all answers it
-(`confirmed`, by the farm). The "Pick a new time" button is a sign-in
-link to the order page that lives a week (`LONG_LINK_TTL`, minted
-with `limit: false`); while accounts are off the email asks for a
-reply.
+Every order is booked by paying (W11d): a pickup time the schedule
+offers needs no second yes from the farm, and `fulfilment.state` is
+`agreed` on every new order. `fulfilment.onfarm` keeps the window's
+id and times, `{ window: "09:00-12:00", from: "09:00", to: "12:00" }`;
+records from before keep `window: "morning"` or `"afternoon"` (9 to 12,
+1 to 5) and may carry the hours the farm confirmed then,
+`onfarm.confirmed = { from, to }` (`pickupTimes` in `lib/schedule.mjs`
+reads both). Square's pickup time is the window's start. A pickup the
+farm can't keep after all: `bin/nff orders deny <id> --reason "..."`
+opens a **question** on the order (`order.question = { kind: "window",
+reason, openedAt, answeredAt, answer, by }`) and emails the customer
+the reason and a way to pick another time, or cancel for a full
+refund. While a question is open the jobs run leaves the order alone
+(not closed), and the customer can change or cancel it even past the
+cutoff. Moving the date or time from the account page (to one the
+schedule offers) answers the question (`reschedule`) and tells the
+farm, "Pickup moved"; cancelling answers it (`cancel`). The "Pick a new
+time" button is a sign-in link to the order page that lives a week
+(`LONG_LINK_TTL`, minted with `limit: false`); while accounts are off
+the email asks for a reply.
+
+A time that lapses as the customer pays (the farm dropped it, or a
+day closed) answers 409 with the fresh list, and the page raises a
+blocking dialog offering what is open now (`order/lapsed.js`, UX's U1
+to U3); nothing has been charged, and the customer pays again with
+the same button. The page asks `/api/dates` once more before a card,
+wallet or Venmo payment goes out, so the dialog usually comes before
+a wallet opens. A Venmo payment the jobs finish after its time left
+the schedule stands, and alerts the farm (`pickup.lapsed`).
 
 A customer record (`customer/<email>`) keeps the name, phone, avatar,
 pricing group, delivery address and `reminders`, with one reminder
@@ -363,18 +382,13 @@ them in the jobs store. `node .ignored/render-all.mjs --open` renders
 every template from the sample order into `.ignored/rendered/` with
 an index page. `MAIL_REPLY_TO` and `ADMIN_EMAILS` (comma-separated)
 are optional. `lib/templates.mjs` holds every message as a pure
-function with tests: order confirmed, payment received (an on-farm
-order paid before its window is agreed), pick a new time (a denied
-window), delivery reminder, order changed, order cancelled, address
-decision, sign-in link, farm-news confirmation, and to the farm:
-address review, order placed (with the confirm and deny commands for
-an on-farm window), pickup time changed, the morning report, the
-Tomorrow manifest and the alerts. Square sends the card receipt;
-Venmo shows its own. For an on-farm order "Your order is confirmed"
-goes out when the farm agrees (`confirmOrder` in `lib/payments.mjs`),
-"Payment received" at the moment of paying; the Order details block
-reads "Requested:" instead of "When:" until then. Every other order
-is confirmed by paying (`announcePaid`). The delivery reminder carries
+function with tests: order confirmed, pick a new time (a booked time
+the farm gave up), delivery reminder, order changed, order cancelled,
+address decision, sign-in link, farm-news confirmation, and to the
+farm: address review, order placed, pickup moved, the morning report,
+the Tomorrow manifest and the alerts. Square sends the card receipt;
+Venmo shows its own. Every order is confirmed by paying
+(`announcePaid`). The delivery reminder carries
 a "Turn off delivery reminders" link to the account page's settings
 tab; the jobs run reads the customer's `reminders` before it and
 skips, and reports as `muted`, one the customer turned off. The
@@ -557,8 +571,8 @@ Settings, Help) rendered from `GET /api/me` and
   anything no longer sold, saves the draft, scrolls to the summary
   and clears the query. The live stock check then clamps if needed.
 
-The order card shows a pickup note while an on-farm window is
-requested or denied. Avatars are the six SVG symbols in
+The order card shows a pickup note while a booked pickup time the farm
+gave up waits on the customer. Avatars are the six SVG symbols in
 `layouts/partials/avatars.html`, keyed by `data/avatars.json`, shown
 on the account page only. The header (`session.js` in the site
 bundle) asks `/api/me` once per five minutes, cached in
@@ -574,7 +588,7 @@ to reach the site's Blobs stores, the production Square token and
 location, the live PayPal pair, the mail variables
 (`MAIL_DRIVER=resend`, `RESEND_API_KEY`, `MAIL_FROM`,
 `MAIL_REPLY_TO`), `ACCOUNTS_ENABLED=true` and `SITE_URL`, so a
-confirm or a deny sent from here reads as one sent from the site.
+deny or a cancel sent from here reads as one sent from the site.
 `--staging` and `--preview` read `.env.staging` or `.env.preview`
 (the sandbox token and its location, `MAIL_DRIVER=outbox`, that
 deploy's `SITE_URL`). With no flag it reads `.env`, linked locally
@@ -585,12 +599,13 @@ Without the Netlify pair it runs against memory and says so; without
 a mail driver it logs every email to the terminal instead of sending
 it, and says that too. `bin/nff` with no arguments prints the commands:
 customers (list, show, set, delete), address (approve, deny), orders
-(list with `--open`, `--status`, `--email`; show; confirm `[<id>]
-[--at H] [--until H]`, where no id prints how many pickups wait and
-the oldest one; deny; cancel `[--refund] [--amount] [--reason]`;
-refund `[--amount] [--reason]`; fulfil; delete), returns resolve,
-stock (list, set), login and masquerade (a single-use sign-in link,
-opened for you), audience (invite, sync), jobs (run, history), health.
+(list with `--open`, `--status`, `--email`; show; deny `--reason`;
+cancel `--reason <why> | --reason-text | --no-reason [--no-refund]
+[--amount]`, which says what it refunds; attempted; refund
+`[--amount] [--reason]`; fulfil; delete), returns resolve, stock
+(list, set), schedule (check, set), login and masquerade (a
+single-use sign-in link, opened for you), audience (invite, sync),
+jobs (run, history), health.
 `--staging` and `--preview` act on that deploy context's stores.
 Flags that take a value accept both `--reason "..."` and
 `--reason=...`. `lib/admin.mjs` holds the rules with tests.

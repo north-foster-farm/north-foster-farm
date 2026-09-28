@@ -16,3 +16,9 @@ for (const name of [
 
 process.env.MAIL_DRIVER = "log";
 process.env.SQUARE_ENV = "sandbox";
+
+// The farm's pickup schedule (W11d): the fixture's, never the
+// deploy's, which changes with the calendar.
+const { SCHEDULE } = await import("./schedule-fixture.mjs");
+
+process.env.PICKUP_SCHEDULE = SCHEDULE;

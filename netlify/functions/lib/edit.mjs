@@ -38,6 +38,7 @@ import { retry } from "./http.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { notifyFarm, sendForOrder } from "./payments.mjs";
+import { pickupSchedule } from "./pickups.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./paypal.mjs";
 import {
@@ -130,10 +131,10 @@ export const heldOn = (order) => paidTotal(order) - refundedTotal(order);
 // the change against the record. -> { ok, order, next, change } or a
 // failure shaped like the order endpoint's.
 export const planEdit = async (stores, order, body, {
-  now, index, terms, codes, group, validate,
+  now, index, terms, codes, group, validate, schedule,
 }) => {
   const result = validate(payloadFor(order, body), {
-    index, terms, now, group, codes,
+    index, terms, now, group, codes, schedule,
   });
 
   if (!result.ok) {
@@ -168,20 +169,16 @@ export const planEdit = async (stores, order, body, {
   return { ok: true, order, next, change };
 };
 
-// The record as it becomes. An on-farm pickup whose day, window or
-// method changed waits for the farm's agreement again; anything else
-// keeps the state it had.
+// The record as it becomes. Every way is booked as it stands (W11d):
+// the validator already held a new pickup time to the schedule.
 const changedRecord = (order, next, change, key, now) => {
   const f = next.fulfilment;
   const was = order.fulfilment;
   const moved = f.method === "onfarm" && (change.switched
     || f.date !== was.date
     || (f.onfarm || {}).window !== (was.onfarm || {}).window);
-  const fulfilment = moved
-    ? { ...f, state: "requested", agreedAt: null,
-      onfarm: { ...f.onfarm, confirmed: null } }
-    : { ...f, state: f.method === "onfarm" ? was.state : "agreed",
-      agreedAt: was.agreedAt || null };
+  const fulfilment = { ...f, state: "agreed",
+    agreedAt: moved ? null : was.agreedAt || null };
 
   return {
     customer: { ...order.customer, phone: next.customer.phone,
@@ -575,7 +572,7 @@ export const editOrder = async (stores, customer, id, body, {
 
   const plan = await planEdit(stores, order, b, {
     now, index, terms, codes: discountCodes.codes, group,
-    validate: validateOrder,
+    validate: validateOrder, schedule: pickupSchedule(options.env),
   });
 
   if (!plan.ok) return plan;

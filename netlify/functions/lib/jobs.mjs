@@ -7,15 +7,16 @@
 //   close       an order the day after fulfilment is fulfilled
 //   square      a Venmo order whose Square copy failed gets another
 //               try, so the dashboard sees it
-//   question    an order with an open question from the farm (a denied
-//               pickup window) is left alone: not closed, until the
+//   question    an order with an open question from the farm (a pickup
+//               time it gave up) is left alone: not closed, until the
 //               customer answers
 //   rescue      a Venmo checkout the customer approved but whose page
 //               never finished it (the tab closed) is captured and
 //               recorded, once the page has had ten minutes
 //   checkouts   a Venmo checkout nobody finished is dropped after a day
-//   morning     8:00 daily, always: the day in numbers and the on-farm
-//               orders within two days still waiting on someone
+//   morning     8:00 daily, always: the day in numbers, the on-farm
+//               orders within two days still waiting on the customer,
+//               and a warning when the pickup schedule runs short
 //   tomorrow    18:00 daily, always: every order due tomorrow, by
 //               method, with what to pack and where it goes
 //   audience    once a day from 05:00: the farm-news audience in Resend
@@ -28,6 +29,9 @@ import {
   cutoffFor, dropCutoffFor,
 } from "../../../assets/scripts/order/lib/dates.mjs";
 import {
+  coverUntil, parseSchedule,
+} from "../../../assets/scripts/order/lib/schedule.mjs";
+import {
   addDays, instant, parts, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { rescueCheckout, syncSquare } from "./checkout.mjs";
@@ -39,7 +43,7 @@ import { audienceConfigured, syncAudience } from "./news.mjs";
 import { sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
-  allOrders, getCustomer, listCheckouts, needsAgreement, openOrders,
+  allOrders, getCustomer, listCheckouts, openOrders,
   paymentsOf, questionOpen, refundsOf, reminderPrefs, setStatus,
   sweepCheckouts,
 } from "./records.mjs";
@@ -401,17 +405,27 @@ const dailyReport = async (stores, {
 };
 
 // The on-farm orders within PICKUPS_REPORT_DAYS of their date that
-// still wait on someone: the farm to confirm, or the customer to pick
-// again after a deny.
+// still wait on the customer to pick again, after the farm gave up
+// their time.
 export const pickupsDue = (orders, day) => orders.filter((o) =>
   o.fulfilment.method === "onfarm"
-  && (needsAgreement(o) || questionOpen(o))
+  && questionOpen(o)
   && o.fulfilment.date <= addDays(day, PICKUPS_REPORT_DAYS));
 
 // 8:00 daily, always: the day in numbers, then the pickups waiting
 // on a decision. Its going out well pings the alert channel's check,
 // so a morning without it is itself an alert. -> the pickup ids
 // reported this run.
+// How far the pickup schedule reaches, against how far it must.
+const coverage = (env, now) => {
+  const { windows } = parseSchedule(env.PICKUP_SCHEDULE);
+
+  return {
+    last: windows.length ? windows[windows.length - 1].date : null,
+    until: coverUntil(now, tz),
+  };
+};
+
 const morningReport = async (stores, { env, mail, now, fetchImpl }) => {
   const day = today(now, tz);
   const sent = await dailyReport(stores, {
@@ -423,7 +437,7 @@ const morningReport = async (stores, { env, mail, now, fetchImpl }) => {
       pickups: pickupsDue(await openOrders(stores), day),
     }],
     build: ([{ stats, pickups }]) => farmMorningReport(stats, pickups, {
-      date: day, links: mailLinks(env), now,
+      date: day, links: mailLinks(env), now, schedule: coverage(env, now),
     }),
     onSent: () => ping(env.HEALTHCHECKS_ALERT_URL, { ok: true, fetchImpl }),
     env, mail, now,

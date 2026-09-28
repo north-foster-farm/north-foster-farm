@@ -37,6 +37,7 @@ import { alert, count } from "./lib/health.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./lib/paypal.mjs";
+import { pickupSchedule } from "./lib/pickups.mjs";
 import { paymentsOf } from "./lib/records.mjs";
 import { DECLINE_MESSAGES as SQUARE_DECLINES } from "./lib/square.mjs";
 import { checkLines } from "./lib/stock.mjs";
@@ -173,6 +174,7 @@ export const handle = async (req, {
     : null;
   const result = validateOrder(payload, {
     index, terms, now, group, codes: discountCodes.codes,
+    schedule: pickupSchedule(env),
   });
 
   if (!result.ok) {
@@ -211,17 +213,13 @@ export const handle = async (req, {
     });
   }
 
-  // Only an on-farm window waits for the farm's agreement; the other
-  // methods are born agreed (see records.mjs).
-  const fulfilmentMethod = result.order.fulfilment.method;
+  // Every way is booked by paying: a window the schedule offers needs
+  // no second yes from the farm (W11d).
   const order = {
     id: orderId(key, now),
     submittedAt: now.toISOString(),
     ...result.order,
-    fulfilment: {
-      ...result.order.fulfilment,
-      state: fulfilmentMethod === "onfarm" ? "requested" : "agreed",
-    },
+    fulfilment: { ...result.order.fulfilment, state: "agreed" },
     meta: {
       formVersion: catalog.version,
       idempotencyKey: key,

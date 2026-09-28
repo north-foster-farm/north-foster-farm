@@ -5,6 +5,9 @@ import terms from "../data/delivery.json" with { type: "json" };
 import {
   cutoffFor, deliveryDates, dropCutoffFor, onFarmDates, scituateDates,
 } from "../assets/scripts/order/lib/dates.mjs";
+import {
+  checkSchedule, coverUntil, parseSchedule, pickupTimes, windowLabel,
+} from "../assets/scripts/order/lib/schedule.mjs";
 import { instant, label } from "../assets/scripts/order/lib/zoned.mjs";
 
 // A wall-clock time in New York as an instant.
@@ -13,46 +16,111 @@ const ny = (iso, hour = 9, minute = 0) =>
 
 const dates = (list) => list.map((d) => d.date);
 
-describe("on-farm pickup window", () => {
-  it("from Tuesday 6 Oct: Wed 7 Oct through Fri 16 Oct, weekdays only", () => {
-    const got = dates(onFarmDates(ny("2026-10-06"), terms));
+describe("on-farm pickup, from the farm's schedule (W11d)", () => {
+  const schedule = parseSchedule([
+    "2026-10-06 09:00-12:00",
+    "2026-10-07 09:00-12:00 13:00-17:00",
+    "2026-10-10 10:00-11:30",
+    "2026-10-12 13:00-17:00",
+  ].join("\n")).windows;
 
-    assert.equal(got[0], "2026-10-07");
-    assert.equal(got.at(-1), "2026-10-16");
-    assert.equal(got.length, 7);
-    assert.ok(!got.includes("2026-10-12"), "Columbus Day dropped");
-    assert.ok(!got.includes("2026-10-10"));
-    assert.ok(!got.includes("2026-10-11"));
-  });
+  it("offers each scheduled day from tomorrow, with its windows", () => {
+    const got = onFarmDates(ny("2026-10-06"), terms, schedule);
 
-  it("from a Friday reaches the Friday after next", () => {
-    const got = dates(onFarmDates(ny("2026-10-02"), terms));
-
-    assert.equal(got[0], "2026-10-05");
-    assert.equal(got.at(-1), "2026-10-09");
-  });
-
-  it("from a Saturday starts on Monday", () => {
-    const got = dates(onFarmDates(ny("2026-10-03"), terms));
-
-    assert.equal(got[0], "2026-10-05");
-    assert.equal(got.at(-1), "2026-10-16");
-  });
-
-  it("from a Sunday starts on Monday", () => {
-    const got = dates(onFarmDates(ny("2026-10-04"), terms));
-
-    assert.equal(got[0], "2026-10-05");
-    assert.equal(got.at(-1), "2026-10-16");
-  });
-
-  it("spans the November DST change without losing a day", () => {
-    const got = dates(onFarmDates(ny("2026-10-29"), terms));
-
-    assert.deepEqual(got, [
-      "2026-10-30",
-      "2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06",
+    assert.deepEqual(dates(got), ["2026-10-07", "2026-10-10", "2026-10-12"],
+      "today is past booking; a Saturday and a holiday are offered if " +
+      "listed");
+    assert.equal(got[0].label, label("2026-10-07"));
+    assert.deepEqual(got[0].windows, [
+      { id: "09:00-12:00", from: "09:00", to: "12:00", label: "9 AM – noon" },
+      { id: "13:00-17:00", from: "13:00", to: "17:00", label: "1 – 5 PM" },
     ]);
+    assert.equal(got[1].windows[0].label, "10 – 11:30 AM");
+  });
+
+  it("closes a day at midnight before it (W11d-A)", () => {
+    const late = dates(onFarmDates(ny("2026-10-06", 23, 59), terms,
+      schedule));
+    const after = dates(onFarmDates(ny("2026-10-07", 0, 0), terms,
+      schedule));
+
+    assert.equal(late[0], "2026-10-07");
+    assert.equal(after[0], "2026-10-10");
+  });
+
+  it("offers nothing without a schedule", () => {
+    assert.deepEqual(onFarmDates(ny("2026-10-06"), terms), []);
+  });
+});
+
+describe("the schedule's format and deploy check", () => {
+  it("reads new lines, commas, semicolons and comments", () => {
+    const { windows, errors } = parseSchedule(
+      "# October\n2026-10-07 09:00-12:00, 2026-10-08 13:00-17:00;\n\n" +
+      "2026-10-06 09:00-12:00 13:00-14:30"
+    );
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(windows.map((w) => `${w.date} ${w.id}`), [
+      "2026-10-06 09:00-12:00", "2026-10-06 13:00-14:30",
+      "2026-10-07 09:00-12:00", "2026-10-08 13:00-17:00",
+    ], "sorted by day and start");
+  });
+
+  it("names every problem at once", () => {
+    const { errors } = parseSchedule([
+      "2026-02-30 09:00-12:00", "10/07 09:00-12:00", "2026-10-07",
+      "2026-10-08 9-12", "2026-10-09 12:00-09:00", "2026-10-10 25:00-26:00",
+      "2026-10-11 09:00-12:00 11:00-13:00",
+    ].join("\n"));
+
+    assert.equal(errors.length, 7, errors.join("\n"));
+    assert.match(errors[0], /"2026-02-30" is not a date/);
+    assert.match(errors[2], /at least one time range/);
+    assert.match(errors[3], /not a time range/);
+    assert.match(errors[4], /ends before it starts/);
+    assert.match(errors[5], /doesn't exist/);
+    assert.match(errors[6], /overlap/);
+  });
+
+  it("fails a missing, empty, past or short schedule (amendments 2, 3)",
+    () => {
+      const check = (raw, day = "2026-10-06") =>
+        checkSchedule(raw, { now: ny(day), timeZone: terms.timeZone });
+
+      assert.match(check(undefined).errors[0], /missing or empty/);
+      assert.match(check("  \n  ").errors[0], /missing or empty/);
+      assert.match(check("# only a comment").errors[0], /no windows/);
+      assert.match(check("2026-10-01 09:00-12:00").errors[0],
+        /already past/);
+      // Tuesday the 6th: this week's Monday is the 5th, so the
+      // schedule must reach the week of the 19th.
+      assert.equal(coverUntil(ny("2026-10-06"), terms.timeZone),
+        "2026-10-19");
+      assert.match(check("2026-10-16 09:00-12:00").errors[0],
+        /must reach the week of 2026-10-19; its last window is on 2026-10-16/);
+      assert.equal(check("2026-10-19 09:00-12:00").ok, true);
+      // A Sunday still counts in its own week.
+      assert.equal(coverUntil(ny("2026-10-11"), terms.timeZone),
+        "2026-10-19");
+    });
+
+  it("labels a window for people", () => {
+    assert.equal(windowLabel({ from: "09:00", to: "12:00" }), "9 AM – noon");
+    assert.equal(windowLabel({ from: "13:00", to: "17:00" }), "1 – 5 PM");
+    assert.equal(windowLabel({ from: "11:30", to: "13:00" }),
+      "11:30 AM – 1 PM");
+    assert.equal(windowLabel({ from: "12:00", to: "14:00" }), "noon – 2 PM");
+  });
+
+  it("gives the times of any record's pickup, however old", () => {
+    assert.deepEqual(pickupTimes({ window: "morning" }),
+      { from: "09:00", to: "12:00" });
+    assert.deepEqual(pickupTimes({ window: "afternoon" }),
+      { from: "13:00", to: "17:00" });
+    assert.deepEqual(pickupTimes({ window: "10:00-11:00", from: "10:00",
+      to: "11:00" }), { from: "10:00", to: "11:00" });
+    assert.equal(pickupTimes(null), null);
   });
 });
 

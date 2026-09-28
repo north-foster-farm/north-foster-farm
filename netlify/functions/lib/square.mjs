@@ -10,6 +10,9 @@
 // duplicate.
 
 import terms from "../../../data/delivery.json" with { type: "json" };
+import {
+  pickupTimes, windowLabel,
+} from "../../../assets/scripts/order/lib/schedule.mjs";
 import { instant } from "../../../assets/scripts/order/lib/zoned.mjs";
 
 const HOSTS = {
@@ -193,7 +196,11 @@ const staffNote = (order) => {
   const f = order.fulfilment;
 
   if (order.customer.contact) bits.push(`prefers ${order.customer.contact}`);
-  if (f.method === "onfarm") bits.push(`${f.onfarm.window} pickup`);
+  if (f.method === "onfarm") {
+    const times = pickupTimes(f.onfarm);
+
+    bits.push(`pickup ${times ? windowLabel(times) : f.onfarm.window}`);
+  }
   if (f.method === "delivery") {
     bits.push(`cooler: ${f.delivery.cooler}`);
     if (f.delivery.gate) bits.push(`gate: ${f.delivery.gate}`);
@@ -245,9 +252,13 @@ const fulfillment = (order) => {
     };
   }
 
-  const hour = f.method === "scituate"
-    ? terms.scituate.opensHour
-    : (f.onfarm.window === "afternoon" ? 13 : 9);
+  // A pickup's time is its window's start (W11d-D); the drop site's is
+  // when it opens.
+  const start = f.method === "onfarm"
+    && (pickupTimes(f.onfarm) || { from: "09:00" }).from;
+  const [hour, minute] = start
+    ? start.split(":").map(Number)
+    : [terms.scituate.opensHour, 0];
   const where = f.method === "scituate"
     ? `Drop site, ${terms.scituate.location}`
     : "On-farm pickup";
@@ -262,7 +273,7 @@ const fulfillment = (order) => {
         phone_number: e164(phone),
       },
       schedule_type: "SCHEDULED",
-      pickup_at: instant(f.date, hour, 0, tz).toISOString(),
+      pickup_at: instant(f.date, hour, minute, tz).toISOString(),
       note: `${where} · ${note}`.slice(0, 500),
     },
   };

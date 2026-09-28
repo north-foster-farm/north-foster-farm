@@ -6,14 +6,12 @@ import { alert, mark, noteMail } from "./health.mjs";
 import { adminEmails, sendMail } from "./mail.mjs";
 import { log } from "./log.mjs";
 import {
-  amendOrder, getOrder, moneyPatch, needsAgreement, orderByPayment,
+  amendOrder, getOrder, moneyPatch, orderByPayment,
   paidTotal, paymentRef, paymentsOf, refundedTotal, refundsOf,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import { dashboardUrl } from "./square.mjs";
-import {
-  farmOrderPlaced, orderConfirmed, paymentReceived,
-} from "./templates.mjs";
+import { farmOrderPlaced, orderConfirmed } from "./templates.mjs";
 
 // Sends one templated email about an order and notes it on the order.
 // The recipient is the customer unless `to` says otherwise. Never
@@ -77,10 +75,9 @@ export const notifyFarm = async (stores, order, key, message, {
   return sendForOrder(stores, order, key, message, { mail, env, now, to });
 };
 
-// "Your order is confirmed", once, when the order is paid and its
-// window agreed. `again` is for the farm confirming a window the
-// customer re-picked after an earlier confirmation, which the
-// `emails` table would otherwise keep to the first.
+// "Your order is confirmed", once, when the order is paid. `again`
+// sends it once more, which the `emails` table would otherwise keep
+// to the first.
 export const confirmOrder = async (stores, order, {
   mail = sendMail,
   env = process.env,
@@ -99,10 +96,9 @@ export const confirmOrder = async (stores, order, {
 };
 
 // The emails a freshly paid order sends, each once however many times
-// this runs. Delivery and the drop site are confirmed by paying;
-// an on-farm pickup the farm has not agreed to yet is not, so that
-// customer hears "Payment received" now and "confirmed" when the farm
-// agrees. The farm hears once either way.
+// this runs. Paying books every way to get an order, a pickup time
+// included (W11d), so the customer hears "confirmed" now; the farm
+// hears once.
 export const announcePaid = async (stores, id, {
   mail = sendMail,
   env = process.env,
@@ -116,15 +112,7 @@ export const announcePaid = async (stores, id, {
 
   await mark(stores, "paid", { id, via: first && first.via }, now);
 
-  if (!needsAgreement(order)) {
-    order = await confirmOrder(stores, order, { mail, env, now });
-  } else if (!(order.emails && order.emails.paymentReceived)) {
-    order = await sendForOrder(stores, order, "paymentReceived",
-      paymentReceived(order, {
-        orderUrl: orderUrlFor(env, order.id), links: mailLinks(env),
-      }),
-      { mail, env, now });
-  }
+  order = await confirmOrder(stores, order, { mail, env, now });
 
   return notifyFarm(stores, order, "farmOrderPlaced", farmOrderPlaced(order, {
     squareUrl: dashboardUrl(order.square, env), links: mailLinks(env),

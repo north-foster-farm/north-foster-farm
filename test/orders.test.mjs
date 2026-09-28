@@ -12,6 +12,7 @@ import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
+import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
 const now = instant("2026-10-06", 9, 0, "America/New_York");
 const KEY = "0f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f";
@@ -33,7 +34,7 @@ const body = (overrides = {}) => ({
   fulfilment: {
     method: "onfarm",
     date: "2026-10-07",
-    onfarm: { window: "morning" },
+    onfarm: { window: MORNING },
   },
   claimedTotal: 5500,
   payment: card,
@@ -176,7 +177,10 @@ describe("POST /api/orders with a card", () => {
 
       assert.equal(saved.status, "paid");
       assert.equal(saved.paidAt, now.toISOString());
-      assert.equal(saved.fulfilment.state, "requested");
+      assert.equal(saved.fulfilment.state, "agreed", "booked by paying");
+      assert.deepEqual(saved.fulfilment.onfarm, {
+        window: MORNING, from: "09:00", to: "12:00",
+      });
       assert.deepEqual(saved.square, {
         squareOrderId: "SQO", customerId: "CUST",
       });
@@ -203,6 +207,7 @@ describe("POST /api/orders with a card", () => {
     const env = {
       ADMIN_EMAILS: "farm@x.com", SQUARE_ENV: "production",
       URL: "https://northfosterfarm.com", ACCOUNTS_ENABLED: "true",
+      PICKUP_SCHEDULE: SCHEDULE,
     };
 
     await run(body(), { stores, mail, env });
@@ -211,19 +216,20 @@ describe("POST /api/orders with a card", () => {
     const farm = sent.filter((m) => Array.isArray(m.to));
 
     assert.equal(customer.length, 1);
-    assert.equal(customer[0].subject, "Payment received");
-    assert.match(customer[0].text, /- Requested: Wednesday, October 7/);
+    assert.equal(customer[0].subject, "Your order is confirmed");
+    assert.match(customer[0].text,
+      /- When: Wednesday, October 7, 9 AM – noon/);
     assert.equal(farm.length, 1);
     assert.deepEqual(farm[0].to, ["farm@x.com"]);
     assert.match(farm[0].subject, /^New order NFF-.* — \$55, on-farm pickup$/);
     assert.match(farm[0].text, /Paid: \*\*\$55 by Visa ending 4242\*\*/);
     assert.match(farm[0].text,
       /app\.squareup\.com\/dashboard\/orders\/overview\/SQO/);
-    assert.match(farm[0].text, /bin\/nff orders confirm NFF-/);
+    assert.doesNotMatch(farm[0].text, /orders confirm/);
 
     const saved = await getOrder(stores, orderId(KEY, now));
 
-    assert.equal(saved.emails.paymentReceived.id, "m1");
+    assert.equal(saved.emails.orderConfirmed.id, "m1");
     assert.equal(saved.emails.farmOrderPlaced.id, "m2");
 
     await run(body(), { stores, mail, env });
@@ -342,7 +348,7 @@ describe("POST /api/orders with Venmo", () => {
       const { paypal, calls: ppCalls } = fakePaypal();
       const { square, calls: sqCalls } = fakeSquare();
       const { sent, mail } = mailbox();
-      const env = { ADMIN_EMAILS: "farm@x.com" };
+      const env = { ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE };
       const create = await run(body({
         payment: { method: "venmo", stage: "create" },
       }), { stores, paypal, square, mail, env });
@@ -421,7 +427,7 @@ describe("POST /api/orders with Venmo", () => {
       const stores = testStores();
       const { paypal } = fakePaypal();
       const { sent, mail } = mailbox();
-      const env = { ADMIN_EMAILS: "farm@x.com" };
+      const env = { ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE };
       const square = {
         createOrder: async () => {
           throw new SquareError("down", { retryable: false });
@@ -512,7 +518,8 @@ describe("POST /api/orders, the gate", () => {
       throw new SquareError("503", { retryable: true });
     };
     const res = await run(body(), {
-      stores, square, mail, env: { ADMIN_EMAILS: "farm@x.com" },
+      stores, square, mail,
+      env: { ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE },
     });
     const data = await res.json();
 

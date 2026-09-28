@@ -69,9 +69,11 @@ export const findCode = (value, codes) => {
 // `group` is the signed-in customer's discount group, never the
 // payload's: the server decides who gets it. `codes` is the list of
 // discount codes, on the server; the page, which has no list, passes
-// the entry it resolved as `code`.
+// the entry it resolved as `code`. `schedule` is the farm's parsed
+// pickup windows (lib/schedule.mjs): the functions read them from the
+// environment, the page from /api/dates.
 export const validateOrder = (payload, {
-  index, terms, now, group, codes, code,
+  index, terms, now, group, codes, code, schedule = [],
 }) => {
   const errors = {};
   const p = payload && typeof payload === "object" ? payload : {};
@@ -166,9 +168,7 @@ export const validateOrder = (payload, {
     const f = fulfilment.onfarm || {};
     const window = text(f.window, 20);
 
-    if (!["morning", "afternoon"].includes(window)) {
-      errors["onfarm.window"] = "Morning or afternoon?";
-    }
+    if (!window) errors["onfarm.window"] = "Choose a pickup time.";
     out.onfarm = { window };
   }
 
@@ -213,10 +213,28 @@ export const validateOrder = (payload, {
 
   // The chosen date must still be valid now, not when the page loaded.
   if (METHODS.includes(method)) {
-    const dates = datesFor(method, now, terms);
+    const dates = datesFor(method, now, terms, schedule);
     const date = text(fulfilment.date, 10);
+    const day = dates.find((d) => d.date === date);
+    // A pickup time the schedule no longer has is as stale as a closed
+    // date: 409 with the fresh list, so the page can offer the rest.
+    const gone = method === "onfarm" && day && out.onfarm.window
+      && !day.windows.some((w) => w.id === out.onfarm.window);
 
-    if (!dates.some((d) => d.date === date)) {
+    if (gone) {
+      const status = Object.keys(errors).length ? 422 : 409;
+
+      return {
+        ok: false,
+        status,
+        errors: {
+          ...errors,
+          "onfarm.window": "That pickup time is no longer available.",
+        },
+        dates,
+      };
+    }
+    if (!day) {
       const status = Object.keys(errors).length ? 422 : 409;
 
       return {
@@ -230,6 +248,13 @@ export const validateOrder = (payload, {
       };
     }
     out.date = date;
+
+    // The window's own times go on the record, so everything after
+    // (Square, the emails, the CLI) reads them without the schedule.
+    const w = method === "onfarm"
+      && day.windows.find((x) => x.id === out.onfarm.window);
+
+    if (w) out.onfarm = { window: w.id, from: w.from, to: w.to };
   }
 
   if (Object.keys(errors).length) return { ok: false, status: 422, errors };

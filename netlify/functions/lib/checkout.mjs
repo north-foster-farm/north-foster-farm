@@ -28,6 +28,7 @@ import { sendMail } from "./mail.mjs";
 import { joined, welcome } from "./news.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { announcePaid } from "./payments.mjs";
+import { pickupSchedule } from "./pickups.mjs";
 import {
   amendOrder, deleteCheckout, getCheckout, getCustomer, getOrder,
   moneyPatch, paymentsOf, saveCheckout, saveOrder, touchCustomer,
@@ -347,6 +348,19 @@ export const rescueCheckout = async (stores, checkout, {
     }, { paypal, ...rest });
 
   log.warn({ event: "venmo.rescued", id: saved.id, status: current.status });
+
+  // The customer approved while the page was open, but the farm may
+  // have dropped the pickup time since (W11d). The money is in, so the
+  // order stands; the farm hears, to give the time up or keep it.
+  const f = saved.fulfilment || {};
+  const lapsed = f.method === "onfarm" && !pickupSchedule(env).some((w) =>
+    w.date === f.date && w.id === (f.onfarm || {}).window);
+
+  if (lapsed) {
+    await alert(stores, "pickup.lapsed", {
+      id: saved.id, date: f.date, window: (f.onfarm || {}).window,
+    }, { env, mail: options.mail || sendMail, now });
+  }
 
   return saved;
 };

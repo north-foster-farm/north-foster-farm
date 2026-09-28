@@ -10,7 +10,7 @@
   "browserslist": "defaults",
   "scripts": {
     "lint": "npm run lint:scripts && npm run lint:styles",
-    "lint:scripts": "eslint 'assets/scripts/**/*.{js,mjs}' 'netlify/**/*.mjs' 'test/**/*.mjs' 'e2e/**/*.mjs' 'bin/grid/*.mjs' 'bin/postcss/*.js' bin/nff *.config.js playwright.config.mjs",
+    "lint:scripts": "eslint 'assets/scripts/**/*.{js,mjs}' 'netlify/**/*.mjs' 'test/**/*.mjs' 'e2e/**/*.mjs' 'bin/grid/*.mjs' bin/check-schedule.mjs 'bin/postcss/*.js' bin/nff *.config.js playwright.config.mjs",
     "lint:styles": "stylelint assets/styles/**/*.scss",
     "start": "bin/dev",
     "start:bind": "HUGO_BIND_TO_IP=true bin/dev",
@@ -18,6 +18,7 @@
     "test": "node --import ./test/setup.mjs --test test/",
     "deploy": "npm run lint && npm test && bin/prod",
     "check:grid": "node bin/grid/check.mjs public",
+    "check:schedule": "node bin/check-schedule.mjs",
     "e2e": "playwright test"
   },
   "devDependencies": {

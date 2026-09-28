@@ -89,22 +89,23 @@ describe("announcePaid", () => {
         null);
     });
 
-  it("tells an on-farm pickup its payment arrived, not that it is " +
-    "confirmed", async () => {
-    const stores = testStores();
-    const { sent, mail } = mailbox();
+  it("confirms an on-farm pickup the moment it is paid (W11d)",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
 
-    await saveOrder(stores, order("NFF-1", "onfarm"), now);
-    const paid = await announcePaid(stores, "NFF-1", { mail, env: {}, now });
+      await saveOrder(stores, order("NFF-1", "onfarm"), now);
+      const paid = await announcePaid(stores, "NFF-1", {
+        mail, env: {}, now,
+      });
 
-    assert.equal(sent.length, 1);
-    assert.equal(sent[0].subject, "Payment received");
-    assert.equal(paid.emails.paymentReceived.id, "m1");
-    assert.equal(paid.emails.orderConfirmed, undefined);
+      assert.equal(sent.length, 1);
+      assert.equal(sent[0].subject, "Your order is confirmed");
+      assert.equal(paid.emails.orderConfirmed.id, "m1");
 
-    await announcePaid(stores, "NFF-1", { mail, env: {}, now });
-    assert.equal(sent.length, 1);
-  });
+      await announcePaid(stores, "NFF-1", { mail, env: {}, now });
+      assert.equal(sent.length, 1);
+    });
 
   it("keeps the order open for the delivery reminder", async () => {
     const stores = testStores();

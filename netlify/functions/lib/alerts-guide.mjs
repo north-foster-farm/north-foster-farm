@@ -49,6 +49,14 @@ export const GUIDE = {
     action: "bin/nff orders show <id>, compare with the capture in " +
       "PayPal, and refund or charge the difference by hand.",
   },
+  "pickup.lapsed": {
+    means: "A Venmo payment approved on the order page was finished by " +
+      "the jobs after its pickup time had left the schedule. The order " +
+      "is paid and booked for that time.",
+    action: "Keep the time if you can be there. If not, bin/nff orders " +
+      "deny <id> --reason \"...\" and the customer picks another or " +
+      "cancels.",
+  },
   "jobs.errors": {
     means: "An order's work in the 15-minute run threw. The rest of the " +
       "run finished. The report lists the order and the step.",

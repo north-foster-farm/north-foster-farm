@@ -3,14 +3,13 @@ import { describe, it } from "node:test";
 
 import terms from "../data/delivery.json" with { type: "json" };
 import {
-  cancelOrder, confirmPickup, decideAddress, denyPickup, fulfilOrder,
-  listOrders, markAttempted, pickupRange, pickupsNeedingConfirmation,
+  cancelOrder, decideAddress, denyPickup, fulfilOrder, listOrders,
+  markAttempted,
   refundOrder, removeCustomer, removeOrder, resolveReturn, setCustomer,
   showCustomer, stockList, stockSet,
 } from "../netlify/functions/lib/admin.mjs";
 import { verifyToken } from "../netlify/functions/lib/auth.mjs";
 import { requestReturn } from "../netlify/functions/lib/account.mjs";
-import { announcePaid } from "../netlify/functions/lib/payments.mjs";
 import {
   getCustomer, getOrder, keptFee, openOrders, saveCustomer, saveOrder,
 } from "../netlify/functions/lib/records.mjs";
@@ -389,111 +388,26 @@ describe("orders from the CLI", () => {
   });
 });
 
-describe("an on-farm pickup window from the CLI", () => {
-  const requested = (id) => {
-    const o = order(id);
-
-    o.fulfilment.state = "requested";
-
-    return o;
-  };
-
-  it("confirm: agreed, and confirmed by whichever of paid and agreed " +
-    "comes second", async () => {
-    const stores = testStores();
-    const { sent, opts } = harness();
-
-    // Every order is paid when recorded, so agreeing confirms it.
-    await saveOrder(stores, requested("A"), now);
-    const agreed = await confirmPickup(stores, "A", opts);
-
-    assert.equal(agreed.fulfilment.state, "agreed");
-    assert.equal(agreed.fulfilment.agreedAt, now.toISOString());
-    assert.equal(sent.length, 1);
-    assert.equal(sent[0].subject, "Your order is confirmed");
-    assert.match(sent[0].text, /your pickup time is set/);
-
-    // The order's own announcement first: "Payment received", then
-    // confirmed on agreement.
-    await saveOrder(stores, requested("B"), now);
-    await announcePaid(stores, "B", opts);
-    assert.equal(sent.length, 2);
-    assert.equal(sent[1].subject, "Payment received");
-    const b = await confirmPickup(stores, "B", opts);
-
-    assert.equal(sent.length, 3);
-    assert.equal(sent[2].subject, "Your order is confirmed");
-    assert.equal(b.emails.orderConfirmed.id, "m3");
-
-    // Again is a no-op; a delivery has nothing to confirm.
-    await confirmPickup(stores, "B", opts);
-    assert.equal(sent.length, 3);
-    await saveOrder(stores, {
-      ...order("C"), fulfilment: { method: "delivery", date: "2026-10-08" },
-    }, now);
-    await assert.rejects(confirmPickup(stores, "C", opts), /Only an on-farm/);
-  });
-
-  it("confirm records the hours the farm will be there, inside the " +
-    "window", async () => {
-    const stores = testStores();
-    const { sent, opts } = harness();
-
-    assert.deepEqual(pickupRange("morning"), { from: 9, to: 11 });
-    assert.deepEqual(pickupRange("morning", { at: "9" }), { from: 9, to: 11 });
-    assert.deepEqual(pickupRange("afternoon", { at: 13, until: 17 }),
-      { from: 13, to: 17 });
-    assert.throws(() => pickupRange("morning", { at: 11 }), /9:00 to 12:00/);
-    assert.throws(() => pickupRange("morning", { at: 9, until: 10 }),
-      /at least 2 hours/);
-    assert.throws(() => pickupRange("morning", { at: "9.5" }), /whole/);
-    assert.throws(() => pickupRange("evening"), /Unknown pickup window/);
-
-    await saveOrder(stores, requested("A"), now);
-    const agreed = await confirmPickup(stores, "A", { ...opts, at: 10 });
-
-    assert.deepEqual(agreed.fulfilment.onfarm.confirmed, { from: 10, to: 12 });
-    assert.match(sent.at(-1).text,
-      /- When: Wednesday, October 7, 10 AM – 12 PM \(morning\)/);
-  });
-
-  it("lists the pickups waiting on the farm, oldest first", async () => {
-    const stores = testStores();
-    const { opts } = harness();
-    const older = { ...requested("B"), submittedAt: "2026-10-04T13:00:00Z" };
-    const asked = requested("C");
-
-    asked.question = { kind: "window", openedAt: "x", answeredAt: null };
-    await saveOrder(stores, requested("A"), now);
-    await saveOrder(stores, older, now);
-    await saveOrder(stores, asked, now);
-    await saveOrder(stores, order("D"), now); // Legacy: born agreed.
-
-    assert.deepEqual((await pickupsNeedingConfirmation(stores))
-      .map((o) => o.id), ["B", "A"]);
-    await confirmPickup(stores, "B", opts);
-    assert.deepEqual((await pickupsNeedingConfirmation(stores))
-      .map((o) => o.id), ["A"]);
-  });
-
-  it("deny: opens a question, pauses nothing else, and mails a week-long " +
+describe("a booked pickup time the farm can't keep (W11d)", () => {
+  it("deny: opens a question, keeps the booking, and mails a week-long " +
     "link to the order page", async () => {
     const stores = testStores();
     const { sent, opts } = harness();
     const env = { ACCOUNTS_ENABLED: "true", URL: "https://x" };
 
-    await saveOrder(stores, requested("A"), now);
+    await saveOrder(stores, { ...order("A"), fulfilment: {
+      ...order("A").fulfilment, state: "agreed" } }, now);
     const denied = await denyPickup(stores, "A", {
       ...opts, env, reason: "  We're at the market that morning.  ",
     });
 
-    assert.equal(denied.fulfilment.state, "requested");
+    assert.equal(denied.fulfilment.state, "agreed");
     assert.equal(denied.question.kind, "window");
     assert.equal(denied.question.reason, "We're at the market that morning.");
     assert.equal(denied.question.answeredAt, null);
     assert.equal(sent.length, 1);
-    assert.equal(sent[0].subject,
-      "Requested pickup time unavailable, please pick again");
+    assert.equal(sent[0].subject, "We can't make your pickup time");
+    assert.match(sent[0].text, /can't be here for your pickup at 9 AM – noon /);
     assert.match(sent[0].text,
       /Here's why: We're at the market that morning\./, "T2d");
     assert.ok(sent[0].text.includes("you can cancel your order for a " +
@@ -507,13 +421,6 @@ describe("an on-farm pickup window from the CLI", () => {
     assert.equal(v.ok, true, "still good six days on");
     assert.equal(v.email, "pat@example.com");
     assert.equal(v.next, "/account/orders/A/");
-
-    // Confirming after all closes the question, as the farm's answer.
-    const agreed = await confirmPickup(stores, "A", { ...opts, env });
-
-    assert.equal(agreed.fulfilment.state, "agreed");
-    assert.equal(agreed.question.answer, "confirmed");
-    assert.equal(agreed.question.by, "farm");
   });
 
   it("deny without accounts has no button, and each deny is its own " +
@@ -521,18 +428,22 @@ describe("an on-farm pickup window from the CLI", () => {
     const stores = testStores();
     const { sent, opts } = harness();
 
-    await saveOrder(stores, requested("A"), now);
+    await saveOrder(stores, order("A"), now);
     await assert.rejects(denyPickup(stores, "A", opts), /Say why/,
       "a reason is required (T2d)");
     assert.equal(sent.length, 0);
     await denyPickup(stores, "A", { ...opts, reason: "Frost." });
     assert.doesNotMatch(sent[0].text, /Reschedule or cancel:/);
-    assert.match(sent[0].text, /Please pick another day or window/);
+    assert.match(sent[0].text, /Please choose another day and time/);
 
     const later = new Date(now.getTime() + 60_000);
 
     await denyPickup(stores, "A", { ...opts, now: later, reason: "Rain." });
     assert.equal(sent.length, 2);
+    await saveOrder(stores, { ...order("B"), fulfilment: {
+      method: "scituate", date: "2026-10-17" } }, now);
+    await assert.rejects(denyPickup(stores, "B", { ...opts, reason: "x" }),
+      /Only an on-farm pickup/);
   });
 });
 

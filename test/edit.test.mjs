@@ -12,11 +12,14 @@ import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
+import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
 // Tuesday 6 October 2026, 09:00 ET; on-farm pickup Wednesday the 7th.
 const now = instant("2026-10-06", 9, 0, "America/New_York");
 const SKU = "NFF-CHK-WHL-0350-0400";
-const env = { ADMIN_EMAILS: "farm@example.com", URL: "https://x" };
+const env = {
+  ADMIN_EMAILS: "farm@example.com", URL: "https://x", PICKUP_SCHEDULE: SCHEDULE,
+};
 const customer = { email: "pat@example.com", name: "Pat Example" };
 const quiet = { sleep: async () => {} };
 
@@ -95,7 +98,7 @@ const newOrder = {
   },
   lines: [{ sku: SKU, qty: 2 }],
   fulfilment: {
-    method: "onfarm", date: "2026-10-07", onfarm: { window: "morning" },
+    method: "onfarm", date: "2026-10-07", onfarm: { window: MORNING },
   },
   claimedTotal: 5500,
   payment: { method: "card", sourceId: "cnon:tok" },

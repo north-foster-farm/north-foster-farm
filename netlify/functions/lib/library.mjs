@@ -58,15 +58,18 @@ export const order = (over = {}) => ({
   ...over,
 });
 
-const onfarm = (state, extra = {}) => ({
-  method: "onfarm", date: "2026-10-08", state,
-  onfarm: { window: "morning", phone: "401-555-0142", ...extra },
+// A pickup booked from the schedule, 9 to noon (W11d).
+const onfarm = (extra = {}) => ({
+  method: "onfarm", date: "2026-10-08", state: "agreed",
+  onfarm: {
+    window: "09:00-12:00", from: "09:00", to: "12:00",
+    phone: "401-555-0142", ...extra,
+  },
   delivery: null,
 });
 
-// An on-farm pickup the farm has agreed to, 9 to 11.
 export const pickup = (over = {}) => order({
-  fulfilment: onfarm("agreed", { confirmed: { from: 9, to: 11 } }),
+  fulfilment: onfarm(),
   payments: [{ ...card, method: "applepay", brand: null, last4: null }],
   ...over,
 });
@@ -90,9 +93,14 @@ const missed = (fee, over = {}, cause = "no-cooler", detail = "") => order({
 });
 
 // An on-farm window the farm has not agreed to yet.
-export const requested = (over = {}) => order({
-  fulfilment: onfarm("requested"),
-  payments: [{ ...card, method: "applepay", brand: null, last4: null }],
+// A booked pickup time the farm had to give up (`orders deny`): the
+// customer is to pick another.
+export const gaveUp = (over = {}) => pickup({
+  question: {
+    kind: "window", reason: "We're at the market that morning.",
+    openedAt: "2026-10-06T14:00:00.000Z", answeredAt: null, answer: null,
+    by: null,
+  },
   ...over,
 });
 
@@ -172,7 +180,7 @@ const REASONS = {
   "sold-out": ["sold out", {}],
   delay: ["processing delay", {}],
   weather: ["weather", {
-    fulfilment: onfarm("agreed", { confirmed: { from: 9, to: 11 } }),
+    fulfilment: onfarm(),
   }],
   emergency: ["farm emergency", {}],
   mistake: ["our mistake", {}],
@@ -225,23 +233,16 @@ export const library = [
   },
   {
     id: "order-confirmed-onfarm", name: "Order confirmed, on-farm pickup",
-    when: "Once an on-farm order is both paid and agreed", audience: C,
-    tags: ["paid", "pickup confirmed", "pickup", "wallet"],
+    when: "The moment an on-farm order is paid", audience: C,
+    tags: ["paid", "placed", "pickup", "wallet"],
     build: (links) => t.orderConfirmed(pickup(),
       { orderUrl: orderUrl(links), links }),
   },
   {
-    id: "payment-received", name: "Payment received, pickup to confirm",
-    when: "An on-farm order paid before the farm agreed to the window",
-    audience: C, tags: ["paid", "placed", "pickup", "wallet"],
-    build: (links) => t.paymentReceived(requested(),
-      { orderUrl: orderUrl(links), links }),
-  },
-  {
-    id: "pick-new-time", name: "Pick a new pickup time",
-    when: "The farm denied the window", audience: C,
+    id: "pick-new-time", name: "We can't make your pickup time",
+    when: "The farm can't keep a booked pickup time", audience: C,
     tags: ["pickup denied", "pickup"],
-    build: (links) => t.pickNewTime(requested(), {
+    build: (links) => t.pickNewTime(gaveUp(), {
       pickUrl: signIn(links), links,
     }),
   },
@@ -425,9 +426,9 @@ export const library = [
   },
   {
     id: "farm-order-placed-onfarm", name: "New order, on-farm pickup",
-    when: "An on-farm order is placed, with the confirm and deny commands",
-    audience: F, tags: ["placed", "paid", "pickup", "wallet"],
-    build: (links) => t.farmOrderPlaced(requested(), { squareUrl, links }),
+    when: "An on-farm order is placed and paid", audience: F,
+    tags: ["placed", "paid", "pickup", "wallet"],
+    build: (links) => t.farmOrderPlaced(pickup(), { squareUrl, links }),
   },
   {
     id: "farm-order-placed-dropsite", name: "New order, drop site",
@@ -444,10 +445,10 @@ export const library = [
     }),
   },
   {
-    id: "farm-pickup-changed", name: "Pickup time to confirm",
+    id: "farm-pickup-changed", name: "Pickup moved",
     when: "A customer moved an on-farm pickup", audience: F,
     tags: ["updated", "pickup"],
-    build: (links) => t.farmPickupChanged(requested(), { links }),
+    build: (links) => t.farmPickupChanged(pickup(), { links }),
   },
   {
     id: "farm-contact-message", name: "Message from the website",
@@ -519,8 +520,9 @@ export const library = [
       placed: 4, paidByCard: 3, paidByVenmo: 1, declined: 0, cancelled: 0,
       refunded: 0, open: 6, mailFailures: 0, runs: 96, jobErrors: 0,
       invariants: 0,
-    }, [requested()], {
+    }, [gaveUp()], {
       date: "2026-10-07", links, now: new Date("2026-10-07T12:00:00Z"),
+      schedule: { last: "2026-10-16", until: "2026-10-19" },
     }),
   },
   {
@@ -564,8 +566,6 @@ const LIBRARY = "James approved in the library on 2026-09-26.";
 const APPROVED = {
   "order-confirmed-delivery": "James\x27s rewrite of 2026-09-22, verbatim.",
   "order-confirmed-dropsite": LIBRARY,
-  "order-confirmed-onfarm": LIBRARY,
-  "payment-received": LIBRARY,
   "delivery-reminder": "James\x27s rewrite of 2026-09-22. Not yet seen: " +
     "the gate or door code line, shown only when one is given.",
   "order-changed": "James\x27s rewrite of 2026-09-22, and his opening " +
@@ -596,9 +596,14 @@ const T4 = "Removed items head the list under \"Removed\", as plain " +
 const T1 = "One cancellation email for every case, stating the " +
   "refund (T1a, 2026-09-28); \"nothing charged\" is gone (T1b).";
 const T2 = "The farm\x27s reason, from the list drafted for T2a.";
+const W11D = "W11d (2026-09-28): a pickup is booked by paying, from " +
+  "the farm\x27s schedule; no farm confirmation, and the window " +
+  "reads as its times (9 AM – noon).";
 const WAITING = {
-  "pick-new-time": `${LANDED}, with the pickup window as a token. ` +
-    "The farm\x27s reason is no longer sent.",
+  "order-confirmed-onfarm": `James approved it in the library on ` +
+    `2026-09-26. ${W11D}`,
+  "pick-new-time": `${W11D} Now the farm giving up a booked time; the ` +
+    "farm\x27s reason is sent again (T2d). Draft wording.",
   "order-changed-paid-more": `${LANDED}: each line says what was added, ` +
     "and the Total line what was paid.",
   "order-changed-refunded": `${T4} Its refund line he kept (T3).`,
@@ -633,11 +638,10 @@ const WAITING = {
   "order-cancelled-hold-fee-kept": `${C3} ${T1} Sent by the job that ` +
     "ends the hold, still to build (#193).",
   "order-cancelled-hold-full-refund": `${C3} ${T1} As above.`,
-  "farm-order-placed-onfarm": "He approved it on 2026-09-26; since then " +
-    "the second confirm example is the whole window (#159) and deny " +
-    "takes no reason.",
-  "farm-pickup-changed": "He approved it on 2026-09-26; since then the " +
-    "confirm and deny lines changed, as in New order, on-farm pickup.",
+  "farm-order-placed-onfarm": `He approved it on 2026-09-26. ${W11D} ` +
+    "The confirm and deny commands are gone from it.",
+  "farm-pickup-changed": `${W11D} Now a notice, "Pickup moved", with ` +
+    "nothing to run. Draft wording.",
   "farm-support": CARD,
   "farm-refund-needed": CARD,
   "farm-order-cancelled": "Checkout\x27s draft of 2026-09-28 (T1d): a " +
@@ -645,7 +649,8 @@ const WAITING = {
   "farm-return-request": CARD,
   "farm-square-out-of-sync": CARD,
   "farm-morning-report": `${LANDED}: the key under the table, and 🙈 ` +
-    "for outside limits.",
+    `for outside limits. ${W11D} Its pickups are now those waiting on ` +
+    "the customer, and it warns when the schedule runs short. Draft.",
   "news-invite": "His dictation of 2026-09-24, ending on his line for " +
     "the old list (W19, 2026-09-26) in place of \"If you didn\x27t " +
     "request this email, you can safely ignore it.\" Site sign-ups get " +

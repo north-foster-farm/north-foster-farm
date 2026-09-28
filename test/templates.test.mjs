@@ -6,7 +6,7 @@ import {
   farmMorningReport, farmOrderChanged, farmOrderPlaced, farmPickupChanged,
   farmRefundNeeded, farmReturnRequest, farmSquareOutOfSync, farmSupport,
   farmTomorrow, magicLink, missedDelivery, movedDelivery, orderCancelled,
-  orderChanged, orderConfirmed, paymentPhrase, paymentReceived,
+  orderChanged, orderConfirmed, paymentPhrase,
   pickNewTime, summaryLine,
 } from "../netlify/functions/lib/templates.mjs";
 
@@ -29,7 +29,8 @@ const order = (method = "delivery") => ({
   fulfilment: {
     method,
     date: "2026-10-08",
-    onfarm: method === "onfarm" ? { window: "morning" } : null,
+    onfarm: method === "onfarm"
+      ? { window: "09:00-12:00", from: "09:00", to: "12:00" } : null,
     delivery: method === "delivery" ? {
       address1: "1 Main St", address2: "", town: "Foster", state: "RI",
       zip: "02825", cooler: "Side porch", gate: "1234",
@@ -76,7 +77,7 @@ describe("the order details block", () => {
     const farm = orderConfirmed(order("onfarm"), { links });
 
     assert.match(farm.text, /Order type: \*\*On-farm pickup\*\*/);
-    assert.match(farm.text, /- When: Thursday, October 8, morning/);
+    assert.match(farm.text, /- When: Thursday, October 8, 9 AM – noon/);
     assert.match(farm.text, /- Where: 99 East Killingly Road, Foster, RI/);
     assert.doesNotMatch(farm.text, /Arrives:|Address:/);
 
@@ -142,7 +143,7 @@ describe("the site's look", () => {
 
 describe("the footer row", () => {
   it("links the orders page and a way to write, on every customer mail", () => {
-    for (const m of [paymentReceived(order("onfarm"), { links }),
+    for (const m of [orderConfirmed(order("onfarm"), { links }),
       orderConfirmed(order(), { links }),
       orderCancelled(order(), { links })]) {
       has(m.html, '<a href="https://x/account/" style="color:#186243">' +
@@ -183,7 +184,6 @@ describe("the greeting", () => {
   it("escapes what the customer typed", () => {
     const o = order("onfarm");
 
-    o.fulfilment.state = "requested";
     o.customer.name = "<b>Pat</b>";
     const m = pickNewTime(o);
 
@@ -202,127 +202,81 @@ describe("order confirmed", () => {
     assert.match(m.text, new RegExp(`View or edit this order: ${url}`));
   });
 
-  it("tells a pickup its time is set, with the hours the farm confirmed",
-    () => {
-      const m = orderConfirmed(order("onfarm"), { links });
+  it("tells a pickup its time is set, with its window's times", () => {
+    const m = orderConfirmed(order("onfarm"), { orderUrl: url, links });
 
-      has(m.text, "Thanks, Pat. Your payment of $62 came through and your " +
-        "pickup time is set, so your order is confirmed.");
-      assert.match(m.text, /- When: Thursday, October 8, morning/,
-        "a legacy order without confirmed hours keeps the window word");
-      assert.doesNotMatch(m.text, /not a booking|Requested:/);
+    has(m.text, "Thanks, Pat. Your payment of $62 came through and your " +
+      "pickup time is set, so your order is confirmed.");
+    assert.match(m.text, /- When: Thursday, October 8, 9 AM – noon\n/);
+    assert.doesNotMatch(m.text, /not a booking|Requested:/);
+    has(m.text, `View or edit this order: ${url}`);
+    has(m.text, `Reschedule pickup: ${url}`);
+    assert.doesNotMatch(orderConfirmed(order(), { orderUrl: url, links })
+      .text, /Reschedule pickup/, "a delivery has no pickup to move");
 
-      const o = order("onfarm");
+    // A record from before W11d: a fixed window's word, or the hours the
+    // farm confirmed inside it.
+    const legacy = order("onfarm");
 
-      o.fulfilment.state = "agreed";
-      o.fulfilment.onfarm.confirmed = { from: 9, to: 11 };
-      const set = orderConfirmed(o, { orderUrl: url, links });
-
-      assert.match(set.text,
-        /- When: Thursday, October 8, 9 – 11 AM \(morning\)/);
-      has(set.text, `View or edit this order: ${url}`);
-      has(set.text, `Reschedule pickup: ${url}`);
-      assert.doesNotMatch(orderConfirmed(order(), { orderUrl: url, links })
-        .text, /Reschedule pickup/, "a delivery has no pickup to move");
-
-      const late = order("onfarm");
-
-      late.fulfilment.state = "agreed";
-      late.fulfilment.onfarm = { window: "afternoon",
-        confirmed: { from: 11, to: 13 } };
-      assert.match(orderConfirmed(late, { links }).text,
-        /11 AM – 1 PM \(afternoon\)/);
-    });
+    legacy.fulfilment.onfarm = { window: "afternoon" };
+    assert.match(orderConfirmed(legacy, { links }).text,
+      /- When: Thursday, October 8, 1 – 5 PM\n/);
+    legacy.fulfilment.onfarm.confirmed = { from: 11, to: 13 };
+    assert.match(orderConfirmed(legacy, { links }).text,
+      /- When: Thursday, October 8, 11 AM – 1 PM\n/);
+  });
 });
 
-// An on-farm window the farm has not agreed to yet.
-const requested = () => {
-  const o = order("onfarm");
-
-  o.fulfilment.state = "requested";
-
-  return o;
-};
-
-describe("an on-farm pickup awaiting the farm", () => {
-  it("hears that the payment arrived and the window is being checked",
-    () => {
-      const m = paymentReceived(requested(), { orderUrl: url, links });
-
-      assert.equal(m.subject, "Payment received");
-      has(m.text, "Thanks, Pat. Your payment of $62 came through.\n" +
-        "We're checking the schedule to make sure we can accommodate your " +
-        "requested pick-up time, and will confirm it by Wednesday, " +
-        "October 7.");
-      assert.match(m.html, /came through\.<\/p><p>We're checking/,
-        "two paragraphs");
-      assert.match(m.text, /- Requested: Thursday, October 8, morning/);
-      has(m.text, `View or edit this order: ${url}`);
-    });
-
-  it("is sent back to pick again when the farm says no", () => {
-    const o = requested();
+describe("a booked pickup time (W11d)", () => {
+  it("is given up by the farm: the customer picks again or cancels", () => {
+    const o = order("onfarm");
     const pick = "https://x/api/auth/verify?token=abc";
+
+    o.question = { kind: "window", reason: "Frost.", answeredAt: null };
     const m = pickNewTime(o, { pickUrl: pick, links });
 
-    assert.equal(m.subject,
-      "Requested pickup time unavailable, please pick again");
+    assert.equal(m.subject, "We can't make your pickup time");
     has(m.text, "Hi Pat,");
-    has(m.text, "We won't be able to accommodate your requested pickup " +
-      "time of the morning on Thursday, October 8.");
-    has(m.text, "Please pick another day or window, and we'll be in touch " +
-      "to confirm. If rescheduling isn't an option, you can cancel your " +
-      "order for a full refund.");
+    has(m.text, "We're sorry, but we can't be here for your pickup at " +
+      "9 AM – noon on Thursday, October 8.");
+    has(m.text, "Here's why: Frost.");
+    has(m.text, "Please choose another day and time. If none of them " +
+      "works for you, you can cancel your order for a full refund.");
     has(m.text, `Reschedule or cancel: ${pick}`);
-    assert.doesNotMatch(m.text, /reminders are paused/,
-      "the pause is not disclosed");
-    assert.match(m.text, /- Requested: Thursday, October 8, morning/);
+    assert.doesNotMatch(m.text, /confirm|reminders are paused/);
+    assert.match(m.text, /- When: Thursday, October 8, 9 AM – noon/);
 
-    // The window is the order's, not a fixed word.
-    const later = requested();
+    // The window is the order's.
+    const later = order("onfarm");
 
-    later.fulfilment.onfarm.window = "afternoon";
+    later.fulfilment.onfarm = { window: "13:00-17:00", from: "13:00",
+      to: "17:00" };
     has(pickNewTime(later, { pickUrl: pick, links }).text,
-      "pickup time of the afternoon on Thursday, October 8.");
+      "your pickup at 1 – 5 PM on Thursday, October 8.");
 
     // Accounts off: the same words, no button.
     assert.doesNotMatch(pickNewTime(o, { links }).text,
       /Reschedule or cancel:/);
   });
 
-  it("gives the farm the confirm and deny commands on the new order", () => {
-    const m = farmOrderPlaced(requested(), { links });
+  it("gives the farm nothing to confirm on the new order", () => {
+    const m = farmOrderPlaced(order("onfarm"), { links });
 
-    has(m.text, "Pickup time: **Requested, not yet confirmed**");
-    has(m.text, "They asked for the morning, which runs 9:00 to 12:00. " +
-      "Confirming with no hours tells them you'll be there for the first " +
-      "two hours of it, 9:00 to 11:00:\n\n    bin/nff orders confirm " +
-      "NFF-2610-ABCD\n");
-    has(m.text, "10:00 to 12:00, then the whole window, 9:00 to 12:00:\n\n" +
-      "    bin/nff orders confirm NFF-2610-ABCD --at 10\n\n\n    bin/nff " +
-      "orders confirm NFF-2610-ABCD --at 9 --until 12\n");
-    has(m.text, "another day or window:\n\n    bin/nff orders deny " +
-      "NFF-2610-ABCD\n");
-    assert.ok(m.text.indexOf("Requested: Thursday")
-      < m.text.indexOf("Pickup time:"), "after the order details");
-    assert.ok(m.text.indexOf("Pickup time:")
-      < m.text.indexOf("Paid: **"), "before the paid line");
-    assert.doesNotMatch(farmOrderPlaced(order(), { links }).text,
-      /Pickup time:|orders confirm/);
+    has(m.text, "- When: Thursday, October 8, 9 AM – noon");
+    assert.doesNotMatch(m.text, /Pickup time:|Requested|orders confirm|deny/);
   });
 
   it("tells the farm when the customer moves the time", () => {
-    const m = farmPickupChanged(requested(), { links });
+    const m = farmPickupChanged(order("onfarm"), { links });
 
-    assert.equal(m.subject, "Pickup time to confirm: NFF-2610-ABCD");
+    assert.equal(m.subject, "Pickup moved: NFF-2610-ABCD");
     has(m.text, "Pat Example moved order NFF-2610-ABCD to a new pickup " +
-      "time. It needs confirming again.");
-    has(m.text, "Requested: **Thursday, October 8, morning**");
-    has(m.text, "\n    bin/nff orders confirm NFF-2610-ABCD\n");
+      "time.");
+    has(m.text, "Now: **Thursday, October 8, 9 AM – noon**");
+    assert.doesNotMatch(m.text, /orders confirm|confirming/);
     has(m.text, "View order: https://admin.example.com/orders/NFF-2610-ABCD");
     has(m.text, "Admin: https://admin.example.com");
   });
-
 });
 
 describe("the monitoring emails", () => {
@@ -332,58 +286,59 @@ describe("the monitoring emails", () => {
     invariants: 0,
   };
 
-  it("morning report: the day in numbers, then the pickups to decide",
-    () => {
-      const waiting = requested();
-      const denied = { ...requested(), id: "NFF-2610-EFGH", status: "paid" };
+  it("morning report: the day in numbers, the pickups waiting on the " +
+    "customer, and a schedule running short", () => {
+    const denied = { ...order("onfarm"), id: "NFF-2610-EFGH",
+      status: "paid" };
 
-      denied.question = { kind: "window", openedAt: "x", answeredAt: null };
-      const m = farmMorningReport(stats, [waiting, denied], {
-        date: "2026-10-06", links,
-      });
-
-      assert.equal(m.subject, "Morning report: Tuesday, October 6");
-      has(m.text, "Vital signs: the last 24 hours");
-      assert.match(m.text, /Orders placed\s+4\s+🫥\n/, "a plain number");
-      assert.match(m.text, /Paid by card or a wallet\s+3\s+🫥\n/);
-      assert.match(m.text, /Paid by Venmo\s+1\s+🫥\n/);
-      assert.match(m.text, /Payments declined\s+1\s+🐣\n/,
-        "a few declines are a healthy day");
-      assert.match(m.text, /Refunded\s+0\s+🫥\n/);
-      assert.match(m.text,
-        /Open orders, paid and not yet fulfilled\s+2\s+🫥\n/);
-      assert.match(m.text,
-        /Jobs runs \(one every 15 minutes is 96\)\s+96\s+🐣\n/);
-      assert.match(m.html, new RegExp("text-align:right[^>]*>4</td><td " +
-        "[^>]*text-align:center[^>]*>🫥"), "figures right, marks centred");
-      assert.doesNotMatch(m.text, /poll|Venmo check|invoice/i);
-      has(m.text, "These on-farm pickups are within two days and not " +
-        "confirmed, oldest order first.");
-      assert.match(m.text,
-        /Order\s+Customer\s+Requested\s+Waiting\s+Status\n/);
-      assert.match(m.text, new RegExp("NFF-2610-ABCD\\s+Pat Example\\s+" +
-        "Thursday, October 8, morning\\s+.*\\s+to confirm\\n"));
-      assert.match(m.text, new RegExp("NFF-2610-EFGH\\s+Pat Example\\s+" +
-        "Thursday, October 8, morning\\s+.*\\*\\*denied, not " +
-        "re-picked\\*\\*"));
-      assert.doesNotMatch(m.text, /\bunpaid\b/, "no Paid column");
-      has(m.text, "\n    bin/nff orders confirm <id>\n");
-      has(m.text, "\n    bin/nff orders confirm\n");
-      has(m.text, "Admin: https://admin.example.com");
-
-      const quiet = farmMorningReport({ ...stats, declined: 4 }, [], {
-        date: "2026-10-06", links, now: new Date("2026-10-06T12:00:00Z"),
-      });
-
-      has(quiet.text, "No pickups waiting on a decision.");
-      assert.match(quiet.text, /Payments declined\s+4\s+🙈\n/,
-        "many declines are worth a look");
+    denied.question = { kind: "window", openedAt: "2026-10-05T12:00:00Z",
+      answeredAt: null };
+    const m = farmMorningReport(stats, [denied], {
+      date: "2026-10-06", links, now: new Date("2026-10-06T12:00:00Z"),
+      schedule: { last: "2026-10-16", until: "2026-10-19" },
     });
+
+    assert.equal(m.subject, "Morning report: Tuesday, October 6");
+    has(m.text, "Vital signs: the last 24 hours");
+    assert.match(m.text, /Orders placed\s+4\s+🫥\n/, "a plain number");
+    assert.match(m.text, /Paid by card or a wallet\s+3\s+🫥\n/);
+    assert.match(m.text, /Paid by Venmo\s+1\s+🫥\n/);
+    assert.match(m.text, /Payments declined\s+1\s+🐣\n/,
+      "a few declines are a healthy day");
+    assert.match(m.text, /Refunded\s+0\s+🫥\n/);
+    assert.match(m.text,
+      /Open orders, paid and not yet fulfilled\s+2\s+🫥\n/);
+    assert.match(m.text,
+      /Jobs runs \(one every 15 minutes is 96\)\s+96\s+🐣\n/);
+    assert.match(m.html, new RegExp("text-align:right[^>]*>4</td><td " +
+        "[^>]*text-align:center[^>]*>🫥"), "figures right, marks centred");
+    assert.doesNotMatch(m.text, /poll|Venmo check|invoice/i);
+    has(m.text, "The pickup schedule's last window is on Friday, " +
+        "October 16; it must reach the week of Monday, October 19.");
+    has(m.text, "\n    bin/nff schedule set <file>\n");
+    has(m.text, "We couldn't keep these pickup times and the customer " +
+        "hasn't chosen another yet, oldest order first.");
+    assert.match(m.text, /Order\s+Customer\s+Was\s+Waiting\n/);
+    assert.match(m.text, new RegExp("NFF-2610-EFGH\\s+Pat Example\\s+" +
+        "Thursday, October 8, 9 AM – noon\\s+24 h"));
+    assert.doesNotMatch(m.text, /\bunpaid\b|orders confirm/);
+    has(m.text, "Admin: https://admin.example.com");
+
+    const quiet = farmMorningReport({ ...stats, declined: 4 }, [], {
+      date: "2026-10-06", links, now: new Date("2026-10-06T12:00:00Z"),
+      schedule: { last: "2026-10-23", until: "2026-10-19" },
+    });
+
+    has(quiet.text, "No pickups waiting on the customer.");
+    assert.doesNotMatch(quiet.text, /Pickup schedule/);
+    assert.match(quiet.text, /Payments declined\s+4\s+🙈\n/,
+      "many declines are worth a look");
+  });
 
   it("tomorrow: every order due, by method, with what to pack", () => {
     const delivery = { ...order(), status: "paid" };
     const drop = { ...order("scituate"), id: "NFF-2610-DROP" };
-    const farm = { ...requested(), id: "NFF-2610-FARM", status: "paid" };
+    const farm = { ...order("onfarm"), id: "NFF-2610-FARM", status: "paid" };
 
     delivery.fulfilment.delivery.notes = "Dog in the yard";
     delivery.customer.phone = "401-555-0100";
@@ -405,9 +360,10 @@ describe("the monitoring emails", () => {
     has(m.text, "\nDrop site, 10:00 – 11:00 AM (1)\n");
     has(m.text, "**NFF-2610-DROP**, Pat Example, paid");
     has(m.text, "\nOn-farm pickups (1)\n");
-    has(m.text, "**NFF-2610-FARM**, Pat Example, morning, NOT CONFIRMED, paid");
+    has(m.text, "**NFF-2610-FARM**, Pat Example, 9 AM – noon, paid");
 
-    // A confirmed pickup shows the hours; a delivery still unpaid from
+    // A pickup confirmed before W11d shows its hours; a delivery unpaid
+    // from
     // the invoice era is flagged, since nothing will pay it now.
     const legacy = { ...order(), status: "submitted", payment: undefined };
     const confirmedFarm = { ...order("onfarm"), id: "NFF-2610-CONF",
@@ -422,8 +378,7 @@ describe("the monitoring emails", () => {
 
     has(odd.text, "**NFF-2610-ABCD**, Pat Example, **UNPAID, past the " +
       "cutoff: it should have been cancelled; check it before loading**");
-    has(odd.text, "**NFF-2610-CONF**, Pat Example, 9 – 11 AM (morning), " +
-      "confirmed, paid");
+    has(odd.text, "**NFF-2610-CONF**, Pat Example, 9 – 11 AM, paid");
 
     const none = farmTomorrow([], { date: "2026-10-09", links });
 
@@ -439,7 +394,7 @@ describe("the monitoring emails", () => {
       [farmTomorrow([], { date: "2026-10-08", links }), "TOMORROW"],
       [farmAlert("mail.failed", {}, { links }), "SITE ALERT"],
       [farmOrderPlaced(order(), { links }), "NEW ORDER"],
-      [farmPickupChanged(requested(), { links }), "PICKUP TIME TO CONFIRM"],
+      [farmPickupChanged(order("onfarm"), { links }), "PICKUP MOVED"],
     ];
 
     for (const [m, tag] of tagged) {
@@ -448,7 +403,7 @@ describe("the monitoring emails", () => {
         `color:#5e5e5f">${tag.charAt(0)}${tag.slice(1).toLowerCase()}</p>`),
       m.subject);
     }
-    for (const m of [paymentReceived(order("onfarm"), { links }),
+    for (const m of [orderConfirmed(order("onfarm"), { links }),
       orderConfirmed(order(), { links })]) {
       assert.doesNotMatch(m.html,
         /letter-spacing:\.12em;text-transform:uppercase;color:#5e5e5f/,
@@ -775,7 +730,7 @@ describe("addresses and sign-in", () => {
   });
 
   it("carries the farm's contact details in every message", () => {
-    for (const m of [paymentReceived(order("onfarm")),
+    for (const m of [orderConfirmed(order("onfarm")),
       orderConfirmed(order())]) {
       assert.match(both(m), /sales@northfosterfarm.com/);
       assert.match(both(m), /\(401\) 578-3713/);
@@ -789,7 +744,6 @@ describe("where the order id belongs", () => {
   it("is out of every subject the customer reads, and in the body", () => {
     const customerMail = [
       orderConfirmed(o),
-      paymentReceived(o),
       deliveryReminder(o),
       orderCancelled(o),
       orderChanged(o),
@@ -930,7 +884,7 @@ describe("the farm's own notices", () => {
     const m = farmOrderPlaced(reachable("onfarm"), { links });
 
     assert.match(m.text, /Order type: \*\*On-farm pickup\*\*/);
-    assert.match(m.text, /- When: Thursday, October 8, morning/);
+    assert.match(m.text, /- When: Thursday, October 8, 9 AM – noon/);
     assert.doesNotMatch(m.text, /prefers a call|Cooler/);
   });
 

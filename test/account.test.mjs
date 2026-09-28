@@ -15,11 +15,15 @@ import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle } from "../netlify/functions/account.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
+import { AFTERNOON, SCHEDULE } from "./schedule-fixture.mjs";
 
 const TZ = "America/New_York";
 // Monday 5 October 2026, 09:00 ET; delivery Thursday the 8th.
 const now = instant("2026-10-05", 9, 0, TZ);
-const env = { ADMIN_EMAILS: "farm@example.com", URL: "https://x" };
+const env = {
+  ADMIN_EMAILS: "farm@example.com", URL: "https://x",
+  PICKUP_SCHEDULE: SCHEDULE,
+};
 
 // Born paid, by card through Square.
 const order = (id, method = "delivery", email = "pat@example.com") => ({
@@ -271,8 +275,8 @@ describe("changeOrder", () => {
     assert.ok(bad.errors["delivery.cooler"]);
   });
 
-  it("makes a moved pickup a new request, answers a denied window, and " +
-    "tells the farm", async () => {
+  it("books a moved pickup from the schedule, answers a time the farm " +
+    "gave up, and tells the farm (W11d)", async () => {
     const stores = testStores();
     const { sent, opts } = harness();
     const o = order("A", "onfarm");
@@ -295,13 +299,24 @@ describe("changeOrder", () => {
     assert.equal(same.order.question.answeredAt, null);
     assert.equal(sent.filter((m) => Array.isArray(m.to)).length, 0);
 
+    // A time the schedule doesn't offer is refused.
+    const gone = await changeOrder(stores, customerOf(), "A", {
+      onfarm: { window: "10:00-11:00" },
+    }, opts);
+
+    assert.equal(gone.status, 422);
+    assert.equal(gone.errors["onfarm.window"],
+      "That pickup time isn't available.");
+
     const moved = await changeOrder(stores, customerOf(), "A", {
-      onfarm: { window: "afternoon" },
+      onfarm: { window: AFTERNOON },
     }, opts);
 
     assert.equal(moved.ok, true, JSON.stringify(moved));
-    assert.equal(moved.order.fulfilment.state, "requested");
-    assert.equal(moved.order.fulfilment.agreedAt, null);
+    assert.equal(moved.order.fulfilment.state, "agreed", "booked as is");
+    assert.deepEqual(moved.order.fulfilment.onfarm, {
+      window: AFTERNOON, from: "13:00", to: "17:00",
+    });
     assert.equal(moved.order.question.answer, "reschedule");
     assert.ok(moved.order.question.answeredAt);
 
@@ -310,10 +325,10 @@ describe("changeOrder", () => {
 
     assert.match(customer.at(-1).subject, /updated/);
     assert.match(customer.at(-1).text,
-      /- Requested: Wednesday, October 7, afternoon/);
+      /- When: Wednesday, October 7, 1 – 5 PM/);
     assert.equal(farm.length, 1);
-    assert.match(farm[0].subject, /^Pickup time to confirm: A/);
-    assert.match(farm[0].text, /bin\/nff orders confirm A/);
+    assert.match(farm[0].subject, /^Pickup moved: A/);
+    assert.doesNotMatch(farm[0].text, /orders confirm/);
   });
 
   it("keeps a denied order open to change or cancel past the cutoff",
@@ -360,7 +375,7 @@ describe("changeOrder", () => {
 
       await saveOrder(stores, order("A", "onfarm"), now);
       const r = await changeOrder(stores, customerOf(), "A", {
-        onfarm: { window: "afternoon" },
+        onfarm: { window: AFTERNOON },
       }, {
         ...opts,
         square: { updateFulfilment: async () => { throw new Error("no"); } },

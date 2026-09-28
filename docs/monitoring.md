@@ -23,7 +23,8 @@ nobody.
 - **Run ledger.** Each jobs run's report in the jobs store, two days
   kept; `bin/nff jobs history`. Needs nothing.
 - **Morning report.** 8:00 daily, always: the last day in numbers,
-  then pickups to confirm. `ADMIN_EMAILS`.
+  a warning if the pickup schedule runs short, then pickups waiting on
+  the customer. `ADMIN_EMAILS`.
 - **Tomorrow.** 18:00 daily, always: every order due tomorrow by
   method, with what to pack and where to leave it. `ADMIN_EMAILS`.
 - **Checkout beacon.** The order page posts to `/api/health` when a
@@ -113,6 +114,12 @@ the order's total. The order is recorded as paid all the same.
 `bin/nff orders show <id>`, compare with the capture in PayPal, and
 refund or charge the difference by hand.
 
+**`pickup.lapsed`.** A Venmo payment approved on the order page was
+finished by the jobs after its pickup time had left the schedule
+(W11d). The order is paid and booked for that time. Keep the time if
+you can be there. If not, `bin/nff orders deny <id> --reason "..."`,
+and the customer picks another or cancels.
+
 **`jobs.errors`.** An order's work in the 15-minute run threw. The
 rest of the run finished. The report lists the order and the step.
 `bin/nff orders show <id>`; fix the record or the code.
@@ -161,9 +168,11 @@ variables in `.env.production` and the `--production` flag.
 hours, each with the range a healthy day falls in (orders placed,
 paid by card or a wallet, paid by Venmo, payments declined,
 cancellations, refunds, open orders paid and not yet fulfilled, mail
-failures, jobs runs, errors and violations); then the on-farm pickups
-within two days still waiting, each with its confirm command. This
-email also pings the *Alerts* check well.
+failures, jobs runs, errors and violations); a warning, with the
+command, when `PICKUP_SCHEDULE` doesn't reach the week after next
+(the next deploy would fail on it); then the on-farm pickups within
+two days whose time the farm gave up and the customer hasn't
+re-picked (W11d). This email also pings the *Alerts* check well.
 
 **Tomorrow**, 18:00: every order due the next day, grouped delivery,
 drop site, on-farm, each with customer and phone, and for a
