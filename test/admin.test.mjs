@@ -694,6 +694,15 @@ describe("an attempted delivery keeps its fee", () => {
     });
     assert.equal(keptFee(told), 0);
 
+    // An address outside the usual area keeps its $3 too (James, C9).
+    const far = delivered("D");
+
+    far.totals = { ...far.totals, deliveryFee: 800, areaFee: 300,
+      total: 2200 };
+    await saveOrder(stores, far, now);
+    assert.equal(keptFee(await markAttempted(stores, "D",
+      { cause: "customer", now })), 800);
+
     // A waived fee goes back with the rest.
     await refundOrder(stores, "C", opts);
     assert.deepEqual(calls, [["square.refund", "PAY-C", 1900]]);
