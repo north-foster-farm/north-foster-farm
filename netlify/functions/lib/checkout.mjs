@@ -81,7 +81,7 @@ export const completeOrder = async (stores, order, { square, payment }, {
   await mark(stores, "order", { id: order.id }, now);
 
   log.info({
-    event: "order.paid", order: saved, persistent: stores.persistent,
+    event: "order.paid", id: saved.id, persistent: stores.persistent,
   });
 
   return announcePaid(stores, order.id, { mail, env, now }) || saved;
