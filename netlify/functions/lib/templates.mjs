@@ -444,8 +444,8 @@ export const orderConfirmed = (order, {
   if (orderUrl) {
     // Draft wording.
     if (firstOrder) {
-      blocks.push(p("Placing this order made you an account with us. " +
-        "Sign in any time with a link we email you; there's no password."));
+      blocks.push(p("Your email address is your account with us. Sign " +
+        "in any time with a link we email you; there's no password."));
     }
     blocks.push(button("View or edit this order", orderUrl));
     if (order.fulfilment.method === "onfarm") {

@@ -105,9 +105,9 @@ test.describe("payments", () => {
     expect(receipt.text).toContain("Your payment of $7 came through and " +
       "your pickup time is set");
     expect(receipt.text).toContain("When:");
-    // A first order says once that it made an account (#114).
-    expect(receipt.text).toContain("Placing this order made you an " +
-      "account with us.");
+    // A first order says once that the email is an account (#114).
+    expect(receipt.text).toContain("Your email address is your account " +
+      "with us.");
 
     const farm = await waitForMail({
       // The subject is "New order <id>", a dash, then the total and how.

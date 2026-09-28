@@ -90,13 +90,16 @@ export const confirmOrder = async (stores, order, {
 
   const key = done ? `orderConfirmed-${now.getTime()}` : "orderConfirmed";
 
-  // The first order on an email is the one that made its account.
-  const others = (await ordersFor(stores, order.customer.email))
-    .filter((o) => o.id !== order.id);
+  // The account is said once (#114): in the first confirmation of the
+  // first order paid on this email. A checkout never paid for, or a
+  // sign-in without an order, does not count as one.
+  const paidBefore = !done && (await ordersFor(stores, order.customer.email))
+    .some((o) => o.id !== order.id && (o.status === "paid"
+      || o.status === "fulfilled" || paymentsOf(o).length > 0));
 
   return sendForOrder(stores, order, key, orderConfirmed(order, {
     orderUrl: orderUrlFor(env, order.id), links: mailLinks(env),
-    firstOrder: !others.length,
+    firstOrder: !done && !paidBefore,
   }), { mail, env, now });
 };
 

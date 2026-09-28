@@ -43,6 +43,9 @@ const order = (id, method = "delivery") => ({
   },
 });
 
+// The line about the account on a first order (#114).
+const SAID = /Your email address is your account with us\./;
+
 const mailbox = () => {
   const sent = [];
 
@@ -183,8 +186,30 @@ describe("confirmOrder and notifyFarm", () => {
       await confirmOrder(stores, await getOrder(stores, "NFF-2"),
         { mail, env, now });
 
-      assert.match(sent[0].text, /made you an account/);
-      assert.doesNotMatch(sent[1].text, /made you an account/);
+      assert.match(sent[0].text, SAID);
+      assert.doesNotMatch(sent[1].text, SAID);
+    });
+
+  it("says it once, and counts no order that was never paid",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+      const env = { ACCOUNTS_ENABLED: "true", URL: "https://x" };
+
+      // A checkout left unpaid on the same email.
+      await saveOrder(stores, {
+        ...order("NFF-0"), status: "abandoned", payment: null,
+      }, now);
+      await saveOrder(stores, order("NFF-1"), now);
+
+      const o = await confirmOrder(stores, await getOrder(stores, "NFF-1"),
+        { mail, env, now });
+
+      await confirmOrder(stores, o, {
+        mail, env, now: new Date(now.getTime() + 60_000), again: true,
+      });
+      assert.match(sent[0].text, SAID, "the unpaid one does not count");
+      assert.doesNotMatch(sent[1].text, SAID, "not again on a resend");
     });
 
   it("notifies the farm once per key, and not at all with nobody listed",
