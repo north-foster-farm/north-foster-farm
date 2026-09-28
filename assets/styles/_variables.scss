@@ -144,6 +144,15 @@ $headings-margin-bottom:      $spacer * 1.125;
 $headings-font-family:        Aller, sans-serif;
 $headings-font-weight:        bold;
 
+// Vertical rhythm in copy written in Markdown (.prose, #210). The
+// closer two blocks belong together, the less space between them:
+// each level about half the one above. Level 1, between paragraphs,
+// is Bootstrap's $paragraph-margin-bottom (1rem).
+$prose-lead-gap:              $spacer * 0.875; // 2: a heading to what it introduces
+$prose-item-gap:              $spacer * 0.375; // 3: one list item to the next
+$prose-item-line-height:      1.4;             // 4: lines inside one item
+$prose-sign-off-gap:          $spacer * 2.25;  // above a post's sign-off
+
 $small-font-size:             0.875em;
 
 // Buttons

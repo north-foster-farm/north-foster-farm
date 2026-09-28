@@ -7,7 +7,7 @@
           <time class="news-date d-block mb-4" datetime="{{ .Date.Format "2006-01-02" }}">
             {{ .Date | time.Format "January 2, 2006" }}
           </time>
-          {{ .Content }}
+          <div class="prose">{{ .Content }}</div>
           <nav class="news-nav d-flex justify-content-between gap-3 border-top pt-3 mt-5"
             aria-label="More news">
             {{/* Newer posts come earlier in the section's order, so

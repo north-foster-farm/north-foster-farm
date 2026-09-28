@@ -1,0 +1,31 @@
+// Copy written in Markdown: news posts, the policy pages, About. Each
+// layout wraps its .Content in .prose, and this is the only place
+// that spaces the headings, lists and paragraphs inside it (#210).
+// The four levels are tokens in _variables.scss.
+
+.prose {
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin-bottom: $prose-lead-gap;
+  }
+
+  li {
+    line-height: $prose-item-line-height;
+  }
+
+  li + li,
+  li > ul,
+  li > ol {
+    margin-top: $prose-item-gap;
+  }
+}
+
+// A post's sign-off (shortcodes/sign-off.html) stands apart from the
+// body, so it reads as a signature. Outside .prose too: the home
+// page's news card shows it.
+.sign-off {
+  margin-top: $prose-sign-off-gap;
+}
