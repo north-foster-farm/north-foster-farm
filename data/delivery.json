@@ -16,9 +16,6 @@
       "wholesale": { "label": "Wholesale", "percent": 20 }
     }
   },
-  "onFarm": {
-    "address": "99 East Killingly Road, Foster, RI 02825"
-  },
   "scituate": {
     "start": "2026-10-17",
     "weekday": 6,
@@ -27,6 +24,7 @@
     "opensHour": 10,
     "window": "10:00 – 11:00 AM",
     "location": "Village Green, 46 Institute Lane, North Scituate, RI 02857",
+    "town": "Scituate",
     "short": "46 Institute Ln, North Scituate, RI",
     "note": "The same corner of the lot where our tent sits in market season.",
     "datesToOffer": 2
@@ -36,7 +34,8 @@
     "cutoffWeekday": 3,
     "cutoffHour": 12,
     "window": "10:00 AM – 4:00 PM",
-    "datesToOffer": 2
+    "datesToOffer": 2,
+    "holdDays": 7
   },
   "holidays": [
     "2026-01-01", "2026-01-19", "2026-02-16", "2026-05-25", "2026-06-19",

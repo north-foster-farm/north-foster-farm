@@ -1,0 +1,12 @@
+{{- /* A part of the drop site's location in data/delivery.json
+  ("Village Green, 46 Institute Lane, North Scituate, RI 02857"):
+  partial "drop-site.html" "name" gives "Village Green", "street"
+  "46 Institute Lane", "locality" "North Scituate". The town
+  people call it by is its own fact, scituate.town ("Scituate"). */ -}}
+{{- $parts := split hugo.Data.delivery.scituate.location ", " -}}
+{{- $at := dict "name" 0 "street" 1 "locality" 2 -}}
+{{- $i := index $at . -}}
+{{- if not (isset $at .) -}}
+  {{- errorf "drop-site: no part %q" . -}}
+{{- end -}}
+{{- return index $parts $i -}}

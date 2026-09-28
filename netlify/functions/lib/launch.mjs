@@ -9,11 +9,7 @@ import email from "../../../data/emails/launch-email.json" with {
 };
 import company from "../../../data/company.json" with { type: "json" };
 import terms from "../../../data/delivery.json" with { type: "json" };
-
-const DAYS = [
-  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
-  "Saturday",
-];
+import { dayName } from "../../../assets/scripts/order/lib/zoned.mjs";
 
 const dollars = (n) => `$${n}`;
 
@@ -36,16 +32,16 @@ const tiers = money.bulkTiers;
 const { address } = company;
 
 export const FACTS = {
-  deliveryDay: DAYS[delivery.weekday],
+  deliveryDay: dayName(delivery.weekday),
   deliveryFrom: ends(delivery.window)[0],
   deliveryTo: ends(delivery.window)[1],
-  cutoff: `${hour(delivery.cutoffHour)} on ${DAYS[delivery.cutoffWeekday]}`,
+  cutoff: `${hour(delivery.cutoffHour)} on ${dayName(delivery.cutoffWeekday)}`,
   minimum: dollars(money.deliveryMinimum),
   fee: dollars(money.deliveryFee),
   feeWaivedAt: dollars(money.feeWaivedAt),
   farmAddress:
     `${address.street}, ${address.city}, ${address.state} ${address.zip}`,
-  dropDay: DAYS[scituate.weekday],
+  dropDay: dayName(scituate.weekday),
   dropWindow: ends(scituate.window).join(" to "),
   dropStart: monthDay(scituate.start),
   // The place without its state and ZIP, which the list knows.

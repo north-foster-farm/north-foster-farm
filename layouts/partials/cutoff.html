@@ -2,8 +2,7 @@
   partial "cutoff.html" "delivery" gives "Wednesday at noon". An hour of
   24 is the end of that day. Used by the cutoff shortcode. */ -}}
 {{- $terms := index hugo.Data.delivery . -}}
-{{- $days := slice "Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday" -}}
-{{- $day := index $days (int $terms.cutoffWeekday) -}}
+{{- $day := partial "weekday.html" $terms.cutoffWeekday -}}
 {{- $hour := int $terms.cutoffHour -}}
 {{- $words := "" -}}
 {{- if eq $hour 24 -}}

@@ -27,7 +27,7 @@ at level A. The site has not been formally assessed.
   fixing when you place your order, we say what and move you to it.
   The delivery cutoff countdown stays quiet for screen readers.
 - **Signing in.** There's no password. We email you a link, which
-  works once within 15 minutes.
+  works once within {{< fact "accounts" "signInLinkMinutes" >}} minutes.
 - **Video.** Our clips are short and silent. They play only while
   they're on screen, and not at all if your device asks for reduced
   motion or to save data. Every video has a pause button, and a video
@@ -51,6 +51,5 @@ at level A. The site has not been formally assessed.
 ## Feedback
 
 Tell us about any barrier you meet on this site: email
-[sales@northfosterfarm.com](mailto:sales@northfosterfarm.com), call or
-text [(401) 578-3713](tel:+14015783713), or use
+{{% company "email" %}}, call or text {{% company "phone" %}}, or use
 [the contact page](/contact/).

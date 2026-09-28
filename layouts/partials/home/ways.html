@@ -34,7 +34,7 @@
     "icon" "lot-location"
     "name" "Drop site"
     "badge" $dropBadge
-    "when" (printf "Saturdays, %s" (replace (replace $terms.scituate.window "–" "–\u2060") " " "\u00a0"))
+    "when" (printf "%ss, %s" (partial "weekday.html" hugo.Data.delivery.scituate.weekday) (replace (replace $terms.scituate.window "–" "–\u2060") " " "\u00a0"))
     "where" $terms.scituate.short
     "cost" "No minimum, no fee"
     "cta" "Shop for the drop site")
@@ -42,7 +42,7 @@
     "method" "delivery"
     "icon" "delivery"
     "name" "Delivery"
-    "when" (printf "Every Thursday, %s" (replace (replace $terms.delivery.window "–" "–\u2060") " " "\u00a0"))
+    "when" (printf "Every %s, %s" (partial "weekday.html" hugo.Data.delivery.delivery.weekday) (replace (replace $terms.delivery.window "–" "–\u2060") " " "\u00a0"))
     "where" "Most of central Rhode Island and parts of eastern Connecticut"
     "cost" (printf "$%v minimum, $%v fee" $money.deliveryMinimum $money.deliveryFee)
     "cta" "Shop for delivery")

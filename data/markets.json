@@ -20,7 +20,8 @@
       "opens": "2026-06-07",
       "closes": "2026-10-25",
       "lat": 41.80426,
-      "lng": -71.77252
+      "lng": -71.77252,
+      "nudge": -1
     },
     {
       "name": "Summer Market at Tilted Barn",

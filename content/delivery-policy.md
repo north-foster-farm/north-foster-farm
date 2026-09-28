@@ -18,12 +18,14 @@ every order.
 
 ## When we deliver
 
-- Deliveries run on Thursdays, roughly from
+- Deliveries run on {{< terms "days" >}}, roughly from
   {{< terms "window" "delivery" >}}. The window is approximate.
-- Order by {{< cutoff "delivery" >}} for that Thursday's delivery. After the
-  cutoff, the order page offers the Thursday after.
-- We don't deliver on a holiday. When one falls on a Thursday, such as
-  Thanksgiving, the order page skips that week.
+- Order by {{< cutoff "delivery" >}} for that {{< terms "day" >}}'s
+  delivery. After the cutoff, the order page offers the
+  {{< terms "day" >}} after.
+- We don't deliver on a holiday. When one falls on a
+  {{< terms "day" >}}, such as Thanksgiving, the order page skips that
+  week.
 
 ## What it costs
 
@@ -54,32 +56,32 @@ We email you as soon as it is.
 
 ## On delivery day
 
-Leave a cooler with ice outside on Thursday morning, somewhere easy to
-find. The order page asks where it will be, and for a phone number so
-we can reach you on the day. Add a gate or door code to your notes if
-we'll need one.
+Leave a cooler with ice outside on {{< terms "day" >}} morning,
+somewhere easy to find. The order page asks where it will be, and for
+a phone number so we can reach you on the day. Add a gate or door
+code to your notes if we'll need one.
 
 We email you a reminder the evening before.
 
 If we can't make it due to unforeseen circumstances, such as
 inclement weather, we'll notify you via email and postpone your
-delivery until the following Thursday. Alternatively, you can choose
-to pick up your order at the farm or drop site, or cancel your order
+delivery until the following {{< terms "day" >}}. Alternatively, you
+can choose to pick up your order at the farm or drop site, or cancel your order
 for a full refund.
 
 You don't need to be home. If there's no cooler where you told us, we
 can't get to that spot, or we can't find your address as you gave it,
 we'll try to reach you by phone, text or the doorbell. If we can't
-reach you, we won't leave your order. You can choose to have
-it delivered the following Thursday, pick it up at the farm or drop
-site, or cancel your order for a refund of your items. We hold your
-order for 7 days while you choose. If you haven't chosen by then, we
-cancel it, refund your items and email you to say so.
+reach you, we won't leave your order. You can choose to have it
+delivered the following {{< terms "day" >}}, pick it up at the farm or
+drop site, or cancel your order for a refund of your items. We hold
+your order for {{< terms "hold" >}} while you choose. If you haven't
+chosen by then, we cancel it, refund your items and email you to say so.
 
 If we couldn't complete a delivery because there was no cooler out, no
 access to the address you gave us, or no way to find the address as
 you gave it, we keep the delivery fee. A second delivery attempt the
-following Thursday is charged the fee again.
+following {{< terms "day" >}} is charged the fee again.
 
 Once it's delivered, it's in your care.
 
@@ -89,9 +91,9 @@ These are the towns we deliver to at the fees above. You may provide
 any other Rhode Island ZIP code that is *not* in our delivery area for
 {{< terms "outside-fee" >}} more. If we can't get to your address,
 we'll call, text, or email you. If we aren't able to get your order to
-you, we will hold your order for up to 7 days. You may also request a
-refund for the order in full. For anywhere else,
-[email us](mailto:sales@northfosterfarm.com) before you order.
+you, we will hold your order for up to {{< terms "hold" >}}. You may
+also request a refund for the order in full. For anywhere else,
+{{% company "email" "email us" %}} before you order.
 
 {{< delivery-area >}}
 
@@ -107,11 +109,12 @@ confirmed when you place your order. If something at the farm means we
 can't keep it, we'll cancel your order, refund it in full and email you
 to say so.
 
-**The drop site** in Scituate runs on Saturdays from
+**The drop site** in {{< terms "town" "scituate" >}} runs on
+{{< terms "days" "scituate" >}} from
 {{< terms "window" "scituate" >}}, {{< terms "starting" "scituate" >}}on
 the {{< terms "place" "scituate" >}}: the same corner of the lot where
 our tent sits in market season. Order by {{< cutoff "scituate" >}} for
-that Saturday.
+that {{< terms "day" "scituate" >}}.
 
 ## Changing or cancelling an order
 
@@ -120,7 +123,8 @@ to sign in; there's no password. Your account page lets you change
 the day, your pickup time, where we'll find your cooler and your
 notes, or cancel the order, until the cutoff:
 
-- **Delivery:** Wednesday at noon, the day before your Thursday.
+- **Delivery:** {{< cutoff "delivery" >}}, the day before your
+  {{< terms "day" >}}.
 - **Pickup and the drop site:** the end of the day before your pickup.
 
 To change what's in an order, cancel it and place a new one. After the
@@ -143,5 +147,4 @@ By placing an order, you agree to this policy.
 ## Contacting us
 
 If you have questions about this policy, email
-[sales@northfosterfarm.com](mailto:sales@northfosterfarm.com), or call
-or text [(401) 578-3713](tel:+14015783713).
+{{% company "email" %}}, or call or text {{% company "phone" %}}.

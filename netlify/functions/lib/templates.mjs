@@ -14,18 +14,30 @@
 // order }. Any of them may be null (accounts off, no admin URL) and
 // the row leaves it out.
 
+import accounts from "../../../data/accounts.json" with { type: "json" };
 import terms from "../../../data/delivery.json" with { type: "json" };
 import {
   pickupTimes, windowLabel,
 } from "../../../assets/scripts/order/lib/schedule.mjs";
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import {
-  addDays, label, today,
+  addDays, dayName, label, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { GUIDE, RUNBOOK_ALERTS } from "./alerts-guide.mjs";
 import { company } from "./company.mjs";
 import { between, methodName } from "./describe.mjs";
 import { keptFee, paymentsOf } from "./records.mjs";
+
+// The delivery day by name, and how long a missed delivery is
+// held for the customer to choose, from data/delivery.json.
+const DELIVERY_DAY = dayName(terms.delivery.weekday);
+const HOLD_DAYS = terms.delivery.holdDays;
+
+// A small count in words, as the emails write it: 7 is "seven".
+const inWords = (n) => [
+  "zero", "one", "two", "three", "four", "five", "six", "seven",
+  "eight", "nine", "ten",
+][n] || String(n);
 
 const escape = (s) => String(s)
   .replace(/&/g, "&amp;")
@@ -380,7 +392,8 @@ const orderType = (order) => {
       ]
       : [
         `When: ${when}, ${pickupWindow(order)}`,
-        `Where: ${terms.onFarm.address}`,
+        `Where: ${company.address.street}, ${company.address.city}, ` +
+          `${company.address.state} ${company.address.zip}`,
       ];
 
   return [p(`Order type: **${methodName(f.method)}**`), list(items)];
@@ -554,7 +567,7 @@ export const missedDelivery = (order, { pickUrl, links } = {}) => {
   const title = "We couldn't deliver your order";
   const fee = keptFee(order);
   const next = dayAfter(order.fulfilment.date, 7);
-  const hold = label(addDays(order.fulfilment.date, 7));
+  const hold = label(addDays(order.fulfilment.date, HOLD_DAYS));
   const items = dollars(order.totals.total - fee);
   const blocks = [
     p(`Hi ${firstName(order.customer)},`),
@@ -566,7 +579,8 @@ export const missedDelivery = (order, { pickUrl, links } = {}) => {
     blocks.push(
       p("Please choose what you'd like us to do:"),
       list([
-        `Deliver it next Thursday, ${next}, for another delivery fee ` +
+        `Deliver it next ${DELIVERY_DAY}, ${next}, for another ` +
+          "delivery fee " +
           `of ${dollars(fee)}`,
         "Have it ready for pickup at the farm or the drop site, at no " +
           "charge",
@@ -581,7 +595,7 @@ export const missedDelivery = (order, { pickUrl, links } = {}) => {
     blocks.push(
       p("Please choose what you'd like us to do:"),
       list([
-        `Deliver it next Thursday, ${next}, at no extra charge`,
+        `Deliver it next ${DELIVERY_DAY}, ${next}, at no extra charge`,
         "Have it ready for pickup at the farm or the drop site",
         `Cancel it for a full refund of ${dollars(order.totals.total)}`,
       ]),
@@ -596,18 +610,20 @@ export const missedDelivery = (order, { pickUrl, links } = {}) => {
 };
 
 // Our own miss or the weather's (C7): no fee, no choice asked for. We
-// have moved it to next Thursday; they may pick otherwise. Policy-pages'
-// draft of 2026-09-28, to approve; nothing sends this yet.
+// have moved it to the next delivery day; they may pick otherwise.
+// Policy-pages' draft of 2026-09-28, to approve; nothing sends this
+// yet.
 export const movedDelivery = (order, { pickUrl, links } = {}) => {
-  const title = "Your delivery is moved to next Thursday";
+  const title = `Your delivery is moved to next ${DELIVERY_DAY}`;
   const why = order.attempted && order.attempted.cause === "weather"
     ? "The weather kept us from delivering your order today"
     : "We weren't able to deliver your order today";
   const blocks = [
     p(`Hi ${firstName(order.customer)},`),
-    p(`${why}, so we've moved your delivery to next Thursday, ${
+    p(`${why}, so we've moved your delivery to next ${DELIVERY_DAY}, ${
       dayAfter(order.fulfilment.date, 7)}. You don't need to do anything.`),
-    p("If next Thursday doesn't suit you, you can choose another day, " +
+    p(`If next ${DELIVERY_DAY} doesn't suit you, you can choose ` +
+      "another day, " +
       "pick up at the farm or the drop site, or cancel for a full refund " +
       `of ${dollars(order.totals.total)}, delivery fee included.`),
   ];
@@ -658,8 +674,8 @@ export const orderCancelled = (order, {
     label(order.fulfilment.date)}`;
 
   if (by === "hold") {
-    blocks.push(p("We held your order for seven days and didn't hear " +
-      "from you, so we've cancelled it."));
+    blocks.push(p(`We held your order for ${inWords(HOLD_DAYS)} days and ` +
+      "didn't hear from you, so we've cancelled it."));
   } else if (by === "customer") {
     // After a missed delivery the miss prompted it, so no "as
     // requested" (C4, 2A and 2B).
@@ -717,7 +733,9 @@ export const addressDecision = (customer, decision, { links } = {}) => {
 };
 
 // The sign-in link.
-export const magicLink = (email, url, { minutes = 15, links } = {}) => {
+export const magicLink = (email, url, {
+  minutes = accounts.signInLinkMinutes, links,
+} = {}) => {
   const title = "Your secure sign-in link to North Foster Farm";
   const blocks = [
     p("Click the button below to sign in. This link expires in " +
@@ -734,7 +752,9 @@ export const magicLink = (email, url, { minutes = 15, links } = {}) => {
 // the new one, when it is asked to opt in again. A sign-up on the site
 // needs no click (W1). The wording is James's, on the pattern of the
 // sign-in email, ending on his line for the old list (W19).
-export const newsConfirm = (email, url, { days = 7, links } = {}) => {
+export const newsConfirm = (email, url, {
+  days = accounts.newsInviteDays, links,
+} = {}) => {
   const title = "Confirm your email for farm news from North Foster Farm";
   const blocks = [
     p("Click the button below to receive farm news from North Foster " +

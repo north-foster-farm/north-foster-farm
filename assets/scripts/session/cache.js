@@ -1,7 +1,9 @@
 // When a cached /api/me answer still counts. The server sets a stamp
 // cookie, nff_signed_in, at each sign-in and clears it at sign-out
 // (netlify/functions/lib/auth.mjs); an answer counts only under the
-// stamp it was fetched with, and for five minutes at most.
+// stamp it was fetched with, and for five minutes at most. The
+// privacy policy states this from data/accounts.json, which the
+// bundle can't read; test/facts.test.mjs holds the two equal.
 
 export const TTL = 5 * 60_000;
 

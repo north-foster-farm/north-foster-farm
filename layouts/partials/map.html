@@ -61,13 +61,13 @@
      the whole map. */}}
 {{ $places := slice }}
 {{ if $layers }}
-  {{ $farm := $terms.onFarm.address }}
+  {{ $address := partial "address.html" . }}
   {{ $places = $places | append (merge (partial "map/xy.html" hugo.Data.places.farm) (dict
-    "kind" "Our farm" "name" "North Foster Farm" "key" "Our farm"
-    "town" "Foster" "section" "pickup" "nudge" 1
+    "kind" "Our farm" "name" hugo.Data.company.name "key" "Our farm"
+    "town" $address.city "section" "pickup" "nudge" 1
     "when" (slice (dict "head" "Pick a time when you order" "line" "On-farm pickup"))
-    "where" $farm
-    "directions" (partial "address.html" .).directions
+    "where" $address.full
+    "directions" $address.directions
     "shop" (dict "label" "Shop for pickup" "href" (printf "%s?method=onfarm" $order)))) }}
 
   {{/* The drop site, and the Scituate market while it runs, one
@@ -93,10 +93,12 @@
         (dict "label" "Market Instagram" "href" (printf "https://www.instagram.com/%s/" .instagram)) }}
     {{ end }}
   {{ end }}
-  {{ $when = $when | append (dict "head" (printf "Saturdays, %s" $drop.window) "line" $dropLine) }}
+  {{ $when = $when | append (dict "head" (printf "%ss, %s" (partial "weekday.html" $drop.weekday) $drop.window) "line" $dropLine) }}
   {{ $places = $places | append (merge (partial "map/xy.html" hugo.Data.places.dropsite) (dict
-    "kind" $kind "name" "North Scituate Village Green" "key" "Drop site"
-    "town" "North Scituate" "section" "pickup"
+    "kind" $kind "key" "Drop site" "section" "pickup"
+    "name" (printf "%s %s" (partial "drop-site.html" "locality")
+      (partial "drop-site.html" "name"))
+    "town" (partial "drop-site.html" "locality")
     "when" $when
     "where" $drop.location
     "links" $links
@@ -109,7 +111,7 @@
       {{ $places = $places | append (merge (partial "map/xy.html" .) (dict
         "kind" "Farmers market" "name" .name "key" .name
         "section" "markets" "from" .opens "until" .closes
-        "nudge" (cond (eq .name "Foster Farmers Market") -1 0)
+        "nudge" (.nudge | default 0)
         "when" (slice (dict "head" .when "line" (partial "market/season.html" .)))
         "where" .where
         "links" (slice (dict "label" "Website" "href" .href)

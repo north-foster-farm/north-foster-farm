@@ -44,7 +44,7 @@
           <p>
             If <strong data-login-email></strong> is an address we know or
             can create an account for, a sign-in link is on its way. It works
-            once and expires in 15 minutes.
+            once and expires in {{ hugo.Data.accounts.signInLinkMinutes }} minutes.
           </p>
           <p class="mb-0 text-body-secondary">
             Nothing after a few minutes? Check spam, or

@@ -5,14 +5,22 @@
     {{< terms "waived-at" >}}            $150
     {{< terms "outside-fee" >}}          $3
     {{< terms "window" "delivery" >}}    10:00 AM to 4:00 PM
+    {{< terms "day" "delivery" >}}       Thursday
+    {{< terms "days" "scituate" >}}      Saturdays
+    {{< terms "hold" >}}                 7 days
     {{< terms "place" "onFarm" >}}       99 East Killingly Road, Foster
+    {{< terms "place" "scituate" >}}     Village Green, 46 Institute
+                                         Lane, North Scituate
+    {{< terms "town" "scituate" >}}      Scituate
     {{< terms "starting" "scituate" >}}  "starting October 17, " while
                                          that date is ahead, else ""
-  A place drops its state and ZIP code. */ -}}
+  A place drops its state and ZIP code. The farm's own address is in
+  data/company.json. */ -}}
 {{- $terms := hugo.Data.delivery -}}
 {{- $money := $terms.money -}}
 {{- $fact := .Get 0 -}}
-{{- $of := index $terms (.Get 1 | default "delivery") -}}
+{{- $key := .Get 1 | default "delivery" -}}
+{{- $of := index $terms $key -}}
 {{- if eq $fact "minimum" -}}
   ${{ $money.deliveryMinimum }}
 {{- else if eq $fact "fee" -}}
@@ -23,8 +31,20 @@
   ${{ $money.outsideAreaFee }}
 {{- else if eq $fact "window" -}}
   {{ replace $of.window " – " " to " }}
+{{- else if eq $fact "day" -}}
+  {{ partial "weekday.html" $of.weekday }}
+{{- else if eq $fact "days" -}}
+  {{ partial "weekday.html" $of.weekday }}s
+{{- else if eq $fact "hold" -}}
+  {{ $terms.delivery.holdDays }} days
 {{- else if eq $fact "place" -}}
-  {{ replaceRE `, [A-Z]{2} \d{5}$` "" (or $of.location $of.address) }}
+  {{- if eq $key "onFarm" -}}
+    {{ (partial "address.html" .).street }}, {{ hugo.Data.company.address.city }}
+  {{- else -}}
+    {{ replaceRE `, [A-Z]{2} \d{5}$` "" $of.location }}
+  {{- end -}}
+{{- else if eq $fact "town" -}}
+  {{ $of.town }}
 {{- else if eq $fact "starting" -}}
   {{- $start := time.AsTime $of.start $terms.timeZone -}}
   {{- if $start.After now }}starting {{ $start.Format "January 2" }}, {{ end -}}

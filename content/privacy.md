@@ -30,13 +30,15 @@ receive whatever you choose to send us.
 ### Accounts and sign-in links
 
 You don't need an account to order. To sign in, you enter your email address
-and we email you a link. There is no password. The link works once, within 15
-minutes. A link we send about a particular order, such as one asking you to
-pick a new pickup time, works for 7 days.
+and we email you a link. There is no password. The link works once, within
+{{< fact "accounts" "signInLinkMinutes" >}} minutes. A link we send about a
+particular order, such as one asking you to pick a new pickup time, works
+for {{< fact "accounts" "orderLinkDays" >}} days.
 
-Signing in keeps you signed in on that browser for 30 days, or until you sign
-out. Your account holds your name, phone number, delivery address and drop-off
-notes, the picture you chose, your email settings, your orders and the
+Signing in keeps you signed in on that browser for
+{{< fact "accounts" "sessionDays" >}} days, or until you sign out. Your
+account holds your name, phone number, delivery address and drop-off notes,
+the picture you chose, your email settings, your orders and the
 messages you have sent us from it.
 
 ### Farm news
@@ -46,7 +48,8 @@ tick "I want to get email from North Foster Farm" when you place an order, or
 turn farm news on in your account. The box starts unticked. Signing up adds
 you to the list at once. We send you a welcome email, not one asking you to
 confirm. If you were on our old mailing list, we email you an invitation
-instead, and you join only if you follow its link within 7 days. We add an
+instead, and you join only if you follow its link within
+{{< fact "accounts" "newsInviteDays" >}} days. We add an
 address only when its owner asks, and we record when and how you signed up.
 
 Resend keeps the list and sends the emails. Every farm news email has an
@@ -94,8 +97,8 @@ deletes log lines after 30 days.
 The site sets two cookies, and only when you sign in. One holds a random code
 that tells the site you're signed in, and scripts on the page can't read it.
 The other holds only the time you signed in. Scripts on the page read it to
-notice when you sign in or out. Both last 30 days, and signing out deletes
-both.
+notice when you sign in or out. Both last
+{{< fact "accounts" "sessionDays" >}} days, and signing out deletes both.
 
 Your browser also keeps:
 
@@ -105,7 +108,8 @@ Your browser also keeps:
   goes through or you change it.
 - a note that you've seen the delivery policy on the order form.
 - whether you turned off videos playing on their own.
-- for up to five minutes at a time, whether you're signed in and your account
+- for up to {{< fact "accounts" "sessionCacheMinutes" >}} minutes at a time,
+  whether you're signed in and your account
   details, so each page doesn't have to ask the site again. This is gone when
   you close the tab.
 - two random codes that PayPal's script stores when the payment buttons

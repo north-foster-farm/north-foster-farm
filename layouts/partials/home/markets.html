@@ -38,8 +38,10 @@
       {{ end }}
     </ul>
     <p class="places-note mb-0">
-      Between seasons, {{ $orderOnline }} for Thursday delivery, on-farm
-      pickup, or the Saturday drop site on the Village Green.
+      Between seasons, {{ $orderOnline }} for
+      {{ partial "weekday.html" hugo.Data.delivery.delivery.weekday }} delivery, on-farm pickup, or the
+      {{ partial "weekday.html" hugo.Data.delivery.scituate.weekday }} drop site on the
+      {{ partial "drop-site.html" "name" }}.
     </p>
   </div>
 </div>

@@ -23,8 +23,9 @@ const townFor = (zip, area) => {
   return null;
 };
 
-// "fees" is the delivery fee and what outside our area adds to it.
-export const answerFor = (zip, area, fees = { fee: 5, extra: 3 }) => {
+// "fees" is the delivery fee and what outside our area adds to it,
+// from the form's data attributes (data/delivery.json).
+export const answerFor = (zip, area, fees) => {
   const z = digitsOf(zip);
   const info = zipInfo(z, area);
 

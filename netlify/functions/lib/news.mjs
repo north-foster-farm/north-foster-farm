@@ -18,11 +18,12 @@ import { sendMail } from "./mail.mjs";
 import { allCustomers, getCustomer, saveCustomer } from "./records.mjs";
 import { mailLinks, siteUrl } from "./site.mjs";
 import { newsConfirm, newsWelcome } from "./templates.mjs";
+import accounts from "../../../data/accounts.json" with { type: "json" };
 
 const MINUTE = 60 * 1000;
 const DAY = 24 * 60 * MINUTE;
 
-export const CONFIRM_TTL = 7 * DAY;
+export const CONFIRM_TTL = accounts.newsInviteDays * DAY;
 export const REQUESTS_PER_WINDOW = 3;
 export const REQUEST_WINDOW = 15 * MINUTE;
 export const SYNC_KEY = "news/sync";

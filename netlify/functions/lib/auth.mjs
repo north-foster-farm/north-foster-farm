@@ -16,14 +16,17 @@ import {
 } from "./records.mjs";
 import { mailLinks, siteUrl } from "./site.mjs";
 import { magicLink } from "./templates.mjs";
+import accounts from "../../../data/accounts.json" with { type: "json" };
 
 const MINUTE = 60_000;
 
-export const LINK_TTL = 15 * MINUTE;
+// The lifetimes the privacy policy and the emails state, from
+// data/accounts.json (Q21b).
+export const LINK_TTL = accounts.signInLinkMinutes * MINUTE;
 // A link the farm puts in an email the customer may not open for
 // days, such as "Pick a new time" after a denied pickup window.
-export const LONG_LINK_TTL = 7 * 24 * 60 * MINUTE;
-export const SESSION_TTL = 30 * 24 * 60 * MINUTE;
+export const LONG_LINK_TTL = accounts.orderLinkDays * 24 * 60 * MINUTE;
+export const SESSION_TTL = accounts.sessionDays * 24 * 60 * MINUTE;
 export const LINKS_PER_WINDOW = 3;
 export const LINK_WINDOW = 15 * MINUTE;
 export const COOKIE = "nff_session";

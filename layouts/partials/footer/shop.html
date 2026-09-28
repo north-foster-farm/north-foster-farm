@@ -7,7 +7,7 @@
     <div class="container">
       <p class="touch-eyebrow">Shop</p>
       <h2 class="touch-title" id="shop-title">Ready to order?</h2>
-      <p class="touch-lead">Delivery on Thursdays, on-farm pickup, or our drop site in <span class="text-nowrap">Scituate</span>.</p>
+      <p class="touch-lead">Delivery on {{ partial "weekday.html" hugo.Data.delivery.delivery.weekday }}s, on-farm pickup, or our drop site in <span class="text-nowrap">{{ hugo.Data.delivery.scituate.town }}</span>.</p>
       <div class="touch-actions">
         <a class="btn btn-primary btn-lg" href="{{ relURL "order/" }}">Shop now</a>
       </div>
