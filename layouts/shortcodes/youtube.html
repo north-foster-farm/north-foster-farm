@@ -1,0 +1,21 @@
+{{/*
+  A YouTube embed the site's Content-Security-Policy allows.
+
+  Hugo's built-in shortcode positions its frame with inline styles,
+  which the policy blocks (style-src 'self'). This one uses Bootstrap's
+  ratio box instead and the no-cookie player host, which netlify.toml
+  names under frame-src.
+
+    {{< youtube ztXH8ILNNks >}}
+    {{< youtube id="ztXH8ILNNks" title="Why pasture-raised" >}}
+*/}}
+{{ $id := .Get "id" | default (.Get 0) }}
+{{ $title := .Get "title" | default "YouTube video" }}
+<div class="ratio ratio-16x9 rounded-3 overflow-hidden my-4">
+  <iframe src="https://www.youtube-nocookie.com/embed/{{ $id }}"
+    title="{{ $title }}"
+    loading="lazy"
+    allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allowfullscreen></iframe>
+</div>
