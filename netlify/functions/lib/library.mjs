@@ -72,16 +72,17 @@ export const pickup = (over = {}) => order({
 });
 
 // A delivery the farm could not leave, under $150 so it paid a $5 fee,
-// with `fee` cents of it kept (0: waived, or the farm's miss).
-const missed = (fee, over = {}) => order({
+// with `fee` cents of it kept (0: waived). `cause` is the customer's
+// miss unless given.
+const missed = (fee, over = {}, cause = "customer") => order({
   totals: {
     subtotal: 10400, discountTier: 100, discountAmount: 1000,
     discountLabel: "Bulk discount ($100+)", deliveryFee: 500, total: 9900,
   },
   payments: [{ ...card, amount: 9900 }],
   attempted: {
-    at: "2026-10-08T17:00:00.000Z", cause: fee ? "customer" : "farm",
-    fee, waived: !fee, note: "",
+    at: "2026-10-08T17:00:00.000Z", cause, fee, waived: !fee,
+    note: fee || cause !== "customer" ? "" : "First delivery; we'll let it go.",
   },
   ...over,
 });
@@ -284,13 +285,44 @@ export const library = [
     }),
   },
   {
-    id: "missed-delivery-no-fee", name: "Missed delivery, no fee kept",
-    when: "The farm marked a delivery attempted: its own miss, the " +
-      "weather's, or a waived one",
+    id: "missed-delivery-no-fee", name: "Missed delivery, fee waived",
+    when: "The farm marked a customer's miss and waived the fee",
     audience: C, tags: ["missed delivery", "delivery"],
     build: (links) => t.missedDelivery(missed(0), {
       pickUrl: signIn(links), links,
     }),
+  },
+  {
+    id: "moved-delivery-weather", name: "Delivery moved, weather",
+    when: "The weather stopped a delivery; moved to next Thursday",
+    audience: C, tags: ["missed delivery", "delivery", "weather"],
+    build: (links) => t.movedDelivery(missed(0, {}, "weather"), {
+      pickUrl: signIn(links), links,
+    }),
+  },
+  {
+    id: "moved-delivery-farm", name: "Delivery moved, our miss",
+    when: "The farm missed a delivery itself; moved to next Thursday",
+    audience: C, tags: ["missed delivery", "delivery"],
+    build: (links) => t.movedDelivery(missed(0, {}, "farm"), {
+      pickUrl: signIn(links), links,
+    }),
+  },
+  {
+    id: "order-cancelled-hold-fee-kept",
+    name: "Hold ran out, fee kept",
+    when: "Seven days after a customer's miss, with no choice made",
+    audience: C, tags: ["cancelled", "refunded", "missed delivery"],
+    build: (links) => t.orderCancelled(missed(500, { status: "cancelled" }),
+      { refunded: 9400, held: true, links }),
+  },
+  {
+    id: "order-cancelled-hold-full-refund",
+    name: "Hold ran out, fee waived",
+    when: "Seven days after a waived miss, with no choice made",
+    audience: C, tags: ["cancelled", "refunded", "missed delivery"],
+    build: (links) => t.orderCancelled(missed(0, { status: "cancelled" }),
+      { refunded: 9900, held: true, links }),
   },
   {
     id: "order-cancelled-missed-fee-kept",
@@ -497,8 +529,10 @@ const APPROVED = {
 const LANDED = "His rewrite of 2026-09-26, landed";
 const CARD = "Moved onto the farm card on 2026-09-26, after he asked " +
   "\"No template?\"; agent-written.";
-const C3 = "Policy-pages\x27 draft of 2026-09-27 for C3 (#192): it " +
-  "switches on the fee the missed delivery kept.";
+const C3 = "Policy-pages\x27 draft of 2026-09-28 for C3, C7 and C8 " +
+  "(#192): it switches on the fee the missed delivery kept.";
+const REASON = " The reason line is F1\x27s until James answers C6 " +
+  "(no cooler, no access, no address).";
 const T4 = "Removed items head the list under \"Removed\", as plain " +
   "lines (T4, 2026-09-28). Draft: the heading \"Your order now\" above " +
   "what is still coming.";
@@ -513,10 +547,17 @@ const WAITING = {
     "every order is paid when placed, so a customer cancelled without " +
     "a refund was charged.",
   "address-denied": `${LANDED}, verbatim.`,
-  "missed-delivery-fee-kept": `${C3} Not sent yet: redelivery's second ` +
-    "fee and the send itself wait on #193.",
-  "missed-delivery-no-fee": C3,
+  "missed-delivery-fee-kept": `${C3}${REASON} Not sent yet: the send, ` +
+    "the hold and redelivery\x27s second fee wait on #193.",
+  "missed-delivery-no-fee": `${C3}${REASON} Open: does a waived miss ` +
+    "get the same hold (policy-pages\x27 question 3)?",
+  "moved-delivery-weather": `${C3} Open: offer "another day" as well ` +
+    "as pickup or a refund (policy-pages\x27 question 4)?",
+  "moved-delivery-farm": C3,
   "order-cancelled-missed-fee-kept": C3,
+  "order-cancelled-hold-fee-kept": `${C3} Sent by the job that ends ` +
+    "the hold, still to build (#193).",
+  "order-cancelled-hold-full-refund": `${C3} As above.`,
   "order-cancelled-full-refund": `${C3} Would replace "Order cancelled ` +
     "and refunded\" for every full refund.",
   "farm-order-placed-onfarm": "He approved it on 2026-09-26; since then " +

@@ -4,10 +4,10 @@ import { describe, it } from "node:test";
 import {
   addressDecision, addressReview, deliveryReminder, farmAlert,
   farmMorningReport, farmOrderChanged, farmOrderPlaced, farmPickupChanged,
-  farmRefundNeeded,
-  farmReturnRequest, farmSquareOutOfSync, farmSupport, farmTomorrow,
-  magicLink, missedDelivery, orderCancelled, orderChanged, orderConfirmed,
-  paymentPhrase, paymentReceived, pickNewTime, summaryLine,
+  farmRefundNeeded, farmReturnRequest, farmSquareOutOfSync, farmSupport,
+  farmTomorrow, magicLink, missedDelivery, movedDelivery, orderCancelled,
+  orderChanged, orderConfirmed, paymentPhrase, paymentReceived,
+  pickNewTime, summaryLine,
 } from "../netlify/functions/lib/templates.mjs";
 
 const order = (method = "delivery") => ({
@@ -611,6 +611,9 @@ describe("order changed and cancelled", () => {
     has(m.text, "Today's delivery fee of $5 isn't refunded, whichever " +
       "you choose.");
     has(m.text, `Reschedule or cancel: ${pick}`);
+    has(m.text, "We'll hold your order until Thursday, October 15. If " +
+      "you haven't chosen by then, we'll cancel it and refund $62 for " +
+      "your items.");
   });
 
   it("promises everything back when the missed fee is waived", () => {
@@ -619,7 +622,30 @@ describe("order changed and cancelled", () => {
     has(m.text, "- Deliver it next Thursday, October 15, at no " +
       "extra charge");
     has(m.text, "- Cancel it for a full refund of $67");
-    assert.doesNotMatch(m.text, /isn't refunded|no cooler/);
+    has(m.text, "we'll cancel it and refund it in full.");
+    assert.doesNotMatch(m.text, /isn't refunded|fee/);
+  });
+
+  it("moves a farm or weather miss to next Thursday, fee and all", () => {
+    const weather = { ...attempted(0), attempted: { cause: "weather" } };
+    const w = movedDelivery(weather, { links });
+    const f = movedDelivery({ ...attempted(0),
+      attempted: { cause: "farm" } }, { links });
+
+    assert.equal(w.subject, "Your delivery is moved to next Thursday");
+    has(w.text, "The weather kept us from delivering your order today, so " +
+      "we've moved your delivery to next Thursday, October 15.");
+    has(f.text, "We weren't able to deliver your order today, so");
+    has(f.text, "cancel for a full refund of $67, delivery fee included.");
+  });
+
+  it("says why when the hold ran out", () => {
+    const m = orderCancelled(attempted(500),
+      { refunded: 6200, held: true, links });
+
+    has(m.text, "We couldn't deliver your order on Thursday, October 8, " +
+      "and we held it for seven days for you to choose what to do.");
+    has(m.text, "**A refund of $62 for your items is on its way.**");
   });
 
   it("states the refund that went out after a missed delivery", () => {
