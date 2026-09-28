@@ -19,7 +19,7 @@ const LANDED = {
 };
 
 // Drafts, to approve.
-const LEFT = "You're off the list. We won't send you Farm news.";
+const LEFT = "You're off the list. We won't send you farm news.";
 const NOT_LEFT = "That unsubscribe link isn't valid. Reply to any of our " +
   "emails and we'll take you off.";
 

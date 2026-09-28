@@ -126,7 +126,7 @@ describe("the confirmation request", () => {
       /^https:\/\/northfosterfarm.com\/api\/news\/confirm\?token=/);
     assert.equal(sent[0].to, "pat@example.com");
     assert.equal(sent[0].subject,
-      "Confirm your email for North Foster Farm news and updates");
+      "Confirm your email for farm news from North Foster Farm");
     assert.match(sent[0].text, /^Click the button below/m);
     assert.match(sent[0].text, /7 days/);
     assert.match(sent[0].text, new RegExp(tokenIn(r.url)));
@@ -244,7 +244,7 @@ describe("the invitation of an old list", () => {
       });
       assert.equal(sent.length, 1);
       assert.equal(sent[0].to, "new@example.com");
-      assert.match(sent[0].text, /news and updates from North Foster/);
+      assert.match(sent[0].text, /farm news from North Foster Farm/);
       assert.match(sent[0].text,
         /because you previously joined our mailing list\.$/m);
 
@@ -509,7 +509,7 @@ describe("the welcome email", () => {
 
     assert.equal(m.subject, "You're on the North Foster Farm list");
     assert.ok(m.text.includes("Hi Pat,\nThanks for signing up. You're on " +
-      "our Farm news list.\nAbout once a month, we'll email you what's " +
+      "our farm news list.\nAbout once a month, we'll email you what's " +
       "happening on the farm: what's in stock, where to find us, and news " +
       "from the pasture. Nothing else, and we never share your address." +
       `\nDon't want these after all? Unsubscribe here: ${url}\nOne click ` +
@@ -526,8 +526,8 @@ describe("the confirmation email", () => {
     });
 
     assert.equal(m.subject,
-      "Confirm your email for North Foster Farm news and updates");
-    assert.match(m.text, /^Click the button below to receive news and /m);
+      "Confirm your email for farm news from North Foster Farm");
+    assert.match(m.text, /^Click the button below to receive farm news /m);
     assert.match(m.text, /^This link expires in 7 days\. You're receiving /m);
     assert.match(m.text,
       /because you previously joined our mailing list\.$/m);

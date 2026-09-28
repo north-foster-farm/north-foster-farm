@@ -757,10 +757,10 @@ export const magicLink = (email, url, { minutes = 15, links } = {}) => {
 // needs no click (W1). The wording is James's, on the pattern of the
 // sign-in email, ending on his line for the old list (W19).
 export const newsConfirm = (email, url, { days = 7, links } = {}) => {
-  const title = "Confirm your email for North Foster Farm news and updates";
+  const title = "Confirm your email for farm news from North Foster Farm";
   const blocks = [
-    p("Click the button below to receive news and updates from North " +
-      "Foster Farm."),
+    p("Click the button below to receive farm news from North Foster " +
+      "Farm."),
     button("Sign up", url),
     p(`This link expires in ${days} days. You're receiving this ` +
       "message because you previously joined our mailing list."),
@@ -778,7 +778,7 @@ export const newsWelcome = (who, unsubscribeUrl, { links } = {}) => {
   const name = firstName(who);
   const blocks = [
     p(name ? `Hi ${name},` : "Hi,"),
-    p("Thanks for signing up. You're on our Farm news list."),
+    p("Thanks for signing up. You're on our farm news list."),
     p("About once a month, we'll email you what's happening on the " +
       "farm: what's in stock, where to find us, and news from the " +
       "pasture. Nothing else, and we never share your address."),

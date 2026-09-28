@@ -654,8 +654,8 @@ const WAITING = {
   "news-invite": "His dictation of 2026-09-24, ending on his line for " +
     "the old list (W19, 2026-09-26) in place of \"If you didn\x27t " +
     "request this email, you can safely ignore it.\" Site sign-ups get " +
-    "no email since W1. Open: \"farm news\" or \"news and updates\" " +
-    "(W14).",
+    "no email since W1. \"Farm news\" for the list, settled (W14, " +
+    "2026-09-28).",
   "news-launch-email": "Subject and preview text are his (2026-09-26). " +
     "The whole body is the email lane\x27s draft and waits on him (W18), " +
     "with \"much of Rhode Island\" (Q5). Draft: \"In the next few days " +
