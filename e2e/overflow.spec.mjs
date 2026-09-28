@@ -27,7 +27,7 @@ const TERMS = JSON.parse(readFileSync(
   new URL("../data/delivery.json", import.meta.url), "utf8",
 ));
 
-const WIDTHS = [390, 768, 1024, 1280];
+const WIDTHS = [375, 768, 992, 1440];
 
 // Not in the sitemap. /account/ is left out: signed out, it sends you
 // to /login/, and the signed-in test below covers it.
