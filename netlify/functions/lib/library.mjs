@@ -623,8 +623,8 @@ const WAITING = {
   "address-denied": `${LANDED}, verbatim.`,
   "missed-delivery-fee-kept": `${C3}${REASON} Not sent yet: the send, ` +
     "the hold and redelivery\x27s second fee wait on #193.",
-  "missed-delivery-no-fee": `${C3}${REASON} Open: does a waived miss ` +
-    "get the same hold (policy-pages\x27 question 3)?",
+  "missed-delivery-no-fee": `${C3}${REASON} A waived miss gets the ` +
+    "same seven-day hold (C8b).",
   "missed-delivery-no-access": `${C3}${REASON} The words in brackets ` +
     "are the farm\x27s --detail; without it the line goes without.",
   "missed-delivery-no-address": `${C3}${REASON} The address is the one ` +
