@@ -9,7 +9,7 @@ layout: "policy/single.html"
 pageScript: "zip-check"
 ---
 
-{{< delivery-check >}}
+{{< delivery-area-button >}}
 
 This policy covers delivery to an address you choose. Its last
 sections, on pickup, changes, cancellations and refunds, apply to
@@ -99,7 +99,7 @@ full. For anywhere else,
 
 {{< delivery-area >}}
 
-{{< delivery-map "policy" "nocheck" >}}
+{{< delivery-map "policy" >}}
 
 ## Pickup and the drop site
 

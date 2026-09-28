@@ -1,0 +1,11 @@
+{{/* One button at the top of a page, down to the section that lists
+     the delivery area, where the map and its ZIP check are (#221).
+     Button wording is a draft for James.
+
+     Params (named, optional):
+       href   Where the button points (default "#delivery-area")
+       label  The button's words (default "See every town we deliver to")
+*/}}
+<p class="my-4">
+  <a class="btn btn-primary" href="{{ .Get "href" | default "#delivery-area" }}">{{ .Get "label" | default "See every town we deliver to" }} <span class="delivery-cta-arrow" aria-hidden="true">{{ partial "svg.html" "icons/arrow-down" }}</span></a>
+</p>
