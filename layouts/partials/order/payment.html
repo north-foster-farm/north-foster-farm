@@ -23,6 +23,9 @@
         <p class="order-pay-soon" data-venmo-soon hidden><span class="visually-hidden">Venmo: </span>Coming soon</p>
       </div>
     </div>
+    {{/* Pay and place your order belongs to Card alone, so until Card
+         is chosen this says how to pay (PY1, #228). */}}
+    <p class="order-pay-hint">Choose Card, or pay with one of the buttons above.</p>
     <div class="order-pay-card" id="pay-card-panel">
       <div class="order-card-fields" data-card aria-label="Card details"></div>
       <p class="order-pay-loading" aria-hidden="true">Loading the card form…</p>

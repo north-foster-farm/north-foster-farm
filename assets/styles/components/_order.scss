@@ -1504,6 +1504,18 @@
     margin: 0;
   }
 
+  // Shown only while Card is on offer and not yet chosen.
+  .order-pay-hint {
+    display: none;
+    margin: 0.75rem 0 0;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+  }
+
+  .order-pay[data-pay-state="ready"][data-card-open="false"] .order-pay-hint {
+    display: block;
+  }
+
   .order-pay-error {
     margin: 0.75rem 0 0;
     font-weight: bold;
