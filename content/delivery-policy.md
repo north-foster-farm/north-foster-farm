@@ -55,8 +55,9 @@ We email you as soon as it is.
 ## On delivery day
 
 Leave a cooler with ice outside on Thursday morning, somewhere easy to
-find. The order page asks where it will be. Add a gate or door code to
-your notes if we'll need one.
+find. The order page asks where it will be, and for a phone number so
+we can reach you on the day. Add a gate or door code to your notes if
+we'll need one.
 
 We email you a reminder the evening before.
 
@@ -68,8 +69,8 @@ for a full refund.
 
 You don't need to be home. If there's no cooler where you told us, we
 can't get to that spot, or we can't find your address as you gave it,
-we'll try to reach you: we'll ring the doorbell and email you. If we
-can't reach you, we won't leave your order. You can choose to have
+we'll try to reach you by phone, text or the doorbell. If we can't
+reach you, we won't leave your order. You can choose to have
 it delivered the following Thursday, pick it up at the farm or drop
 site, or cancel your order for a refund of your items. We hold your
 order for 7 days while you choose. If you haven't chosen by then, we
@@ -90,9 +91,9 @@ Once it's delivered, it's in your care.
 These are the towns we deliver to at the fees above. You may provide
 any other Rhode Island ZIP code that is *not* in our delivery area for
 {{< terms "outside-fee" >}} more. If we can't get to your address,
-we'll email you. If we aren't able to get your order to you, we will hold your
-order for up to 7 days. You may also request a refund for the order in
-full. For anywhere else,
+we'll call, text, or email you. If we aren't able to get your order to
+you, we will hold your order for up to 7 days. You may also request a
+refund for the order in full. For anywhere else,
 [email us](mailto:sales@northfosterfarm.com) before you order.
 
 {{< delivery-area >}}
@@ -112,8 +113,9 @@ another day or window, or to cancel for a full refund.
 
 **The drop site** in Scituate runs on Saturdays from
 {{< terms "window" "scituate" >}}, {{< terms "starting" "scituate" >}}on
-the {{< terms "place" "scituate" >}}: the same corner of the lot where our tent sits in market
-season. Order by {{< cutoff "scituate" >}} for that Saturday.
+the {{< terms "place" "scituate" >}}: the same corner of the lot where
+our tent sits in market season. Order by {{< cutoff "scituate" >}} for
+that Saturday.
 
 ## Changing or cancelling an order
 
