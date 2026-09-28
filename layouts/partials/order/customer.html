@@ -50,5 +50,16 @@
         <div class="invalid-feedback" data-error-for="customer.contact"></div>
       </div>
     </div>
+    {{/* Farm news is opt-in only: the box starts unticked, and an
+         unticked box changes nothing on a record that already says
+         yes. The account page's settings tab has the same box. */}}
+    <div class="row">
+      <div class="col-sm-9 offset-sm-3">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="customer-marketing" name="customer.marketing" data-field="customer.marketing">
+          <label class="form-check-label" for="customer-marketing">Email me farm news and offers now and then</label>
+        </div>
+      </div>
+    </div>
   </div>
 </fieldset>

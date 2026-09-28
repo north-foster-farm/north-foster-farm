@@ -1,0 +1,53 @@
+// Farm news by email: the field and button in the footer and on the
+// news page. The note under them takes the tone of the answer (ok,
+// wait), like the ZIP check's.
+
+.news-signup {
+  max-width: 28rem;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.news-signup-label {
+  display: block;
+  margin-bottom: 0.375rem;
+  font-weight: bold;
+}
+
+.news-signup-row {
+  display: flex;
+  gap: 0.5rem;
+
+  .form-control {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .btn {
+    white-space: nowrap;
+  }
+}
+
+.news-signup-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--bs-secondary-color);
+
+  &[data-tone="ok"] {
+    color: var(--bs-success-text-emphasis);
+  }
+
+  &[data-tone="wait"] {
+    color: var(--bs-warning-text-emphasis);
+  }
+}
+
+// In the footer it sits above the farm line, on the footer's grey.
+footer .news-signup {
+  margin-bottom: 1.5rem;
+}
+
+// On the news page, after the list, with room above it.
+.news .news-signup {
+  margin-top: 3rem;
+}

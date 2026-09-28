@@ -135,6 +135,23 @@ describe("buildOrder", () => {
     assert.equal(o.service_charges, undefined);
   });
 
+  it("splits the outside-area fee onto its own invoice line", () => {
+    const o = buildOrder(order({
+      fulfilment: { method: "delivery", date: "2026-10-08", onfarm: null,
+        delivery: { address1: "1 Main St", address2: "", town: "Coventry",
+          zip: "02816", cooler: "Porch", notes: "", zipStatus: "unlisted" } },
+      totals: {
+        subtotal: 6000, discountTier: 50, discountAmount: 500,
+        deliveryFee: 800, areaFee: 300, total: 6300,
+      },
+    }), "CUST", cfg);
+
+    assert.deepEqual(
+      o.service_charges.map((c) => [c.name, c.amount_money.amount]),
+      [["Delivery fee", 500], ["Outside-area fee", 300]]
+    );
+  });
+
   it("schedules a morning on-farm pickup at 9:00 New York", () => {
     const o = buildOrder(order(), "CUST", cfg);
     const f = o.fulfillments[0];

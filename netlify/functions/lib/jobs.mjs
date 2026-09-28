@@ -35,6 +35,7 @@ import {
 import { alert, ping, readMark } from "./health.mjs";
 import { log } from "./log.mjs";
 import { adminEmails, sendMail } from "./mail.mjs";
+import { audienceConfigured, syncAudience } from "./news.mjs";
 import { pollUnpaid, sendForOrder } from "./payments.mjs";
 import {
   allOrders, amendOrder, getCustomer, needsAgreement, openOrders,
@@ -251,6 +252,10 @@ export const runJobs = async (stores, {
     () => venmoReport(stores, { env, mail, now }))) || [];
   report.tomorrow = await attempt(null, "tomorrowReport",
     () => tomorrowReport(stores, { env, mail, now }));
+  // Farm news: once a day the audience in Resend and the records are
+  // made to agree. Null when there is no audience to sync.
+  report.audience = await attempt(null, "audienceSync",
+    () => audienceSyncDaily(stores, { env, now, fetchImpl }));
 
   report.invariants = (await attempt(null, "invariants", async () =>
     checkInvariants(await openOrders(stores), now, prefs))) || [];
@@ -279,6 +284,32 @@ export const runJobs = async (stores, {
   return report;
 };
 
+// Farm news, once a day from AUDIENCE_SYNC_HOUR: the audience in Resend
+// and the records made to agree (lib/news.mjs). -> the counts, or null
+// when nothing was done this run.
+const AUDIENCE_SYNC_HOUR = 5;
+
+const audienceSyncDaily = async (stores, { env, now, fetchImpl }) => {
+  if (!audienceConfigured(env)) return null;
+  if (parts(now, tz).hour < AUDIENCE_SYNC_HOUR) return null;
+
+  const key = `news/sync/${today(now, tz)}`;
+
+  if (await stores.jobs.get(key)) return null;
+
+  const r = await syncAudience(stores, { env, now, fetchImpl });
+
+  await stores.jobs.set(key, { at: now.toISOString() });
+
+  return {
+    created: r.created.length,
+    resubscribed: r.resubscribed.length,
+    unsubscribed: r.unsubscribed.length,
+    optedOut: r.optedOut.length,
+    imported: r.imported.length,
+  };
+};
+
 // The report, in counts, for the ledger, the log and the heartbeat.
 export const summarize = (report) => ({
   at: report.at,
@@ -287,6 +318,7 @@ export const summarize = (report) => ({
     "bankTransferClosed", "muted", "pickupsToConfirm", "venmoReported",
   ].map((k) => [k, (report[k] || []).length])),
   tomorrow: report.tomorrow,
+  audience: report.audience || null,
   errors: report.errors,
   invariants: report.invariants,
 });

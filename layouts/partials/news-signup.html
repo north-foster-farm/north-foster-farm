@@ -1,0 +1,19 @@
+{{/*
+  Farm news by email: one field, one button, and a note under them
+  that is also where the answer appears. Opt-in only: the request
+  mails a confirmation, and only its link adds the address.
+  scripts/news/signup.js wires every form on the page.
+
+  Params:
+    id     Prefix for the field's id, unique on the page
+    class  Extra classes on the form (optional)
+*/}}
+{{ $id := .id | default "news" }}
+<form class="news-signup{{ with .class }} {{ . }}{{ end }}" data-news-signup novalidate>
+  <label class="news-signup-label" for="{{ $id }}-email">Farm news by email</label>
+  <div class="news-signup-row">
+    <input class="form-control" type="email" id="{{ $id }}-email" name="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required aria-describedby="{{ $id }}-note">
+    <button class="btn btn-primary" type="submit">Sign me up</button>
+  </div>
+  <p class="news-signup-note" id="{{ $id }}-note" data-news-note role="status" aria-live="polite">Now and then, never more. One click in the email we send confirms it.</p>
+</form>

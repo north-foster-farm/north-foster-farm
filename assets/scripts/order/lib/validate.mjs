@@ -67,6 +67,9 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
   const email = text(customer.email, 254).toLowerCase();
   const phone = text(customer.phone, 40);
   const contact = text(customer.contact, 10);
+  // The farm-news box. Only a ticked box means anything: it opts the
+  // customer in; unticked leaves the record as it was.
+  const marketing = customer.marketing === true;
 
   if (!firstName) {
     errors["customer.firstName"] = "Please enter your first name.";
@@ -119,9 +122,19 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
     errors["fulfilment.method"] = "Choose how you'd like to get your order.";
   }
 
-  const totals = computeTotals({ lines, method, index, money, group });
+  // The ZIP's status feeds the totals (an unlisted Rhode Island ZIP
+  // adds the outside-area fee) before the delivery block reads it.
+  const zipStatus = method === "delivery"
+    ? zipInfo((fulfilment.delivery || {}).zip, terms.area).status
+    : null;
+  const totals = computeTotals({
+    lines, method, index, money, group, zipStatus,
+  });
   const out = {
-    customer: { firstName, lastName, name, email, phone, contact }, method,
+    customer: {
+      firstName, lastName, name, email, phone, contact, marketing,
+    },
+    method,
   };
 
   if (method === "onfarm") {

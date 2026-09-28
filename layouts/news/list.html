@@ -1,0 +1,26 @@
+{{ define "main" }}
+  <section class="{{ .Type }}">
+    <div class="page container py-5">
+      <div class="row justify-content-center mb-5">
+        <div class="col text-column">
+          {{ partial "page-heading.html" . }}
+          {{ .Content }}
+          <ol class="list-unstyled news-list">
+            {{ range .Pages }}
+              <li class="news-item">
+                <time class="news-date" datetime="{{ .Date.Format "2006-01-02" }}">
+                  {{ .Date | time.Format "January 2, 2006" }}
+                </time>
+                <h2 class="news-item-title">
+                  <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+                </h2>
+                <p class="mb-0">{{ .Description }}</p>
+              </li>
+            {{ end }}
+          </ol>
+          {{ partial "news-signup.html" (dict "id" "news-page") }}
+        </div>
+      </div>
+    </div>
+  </section>
+{{ end }}

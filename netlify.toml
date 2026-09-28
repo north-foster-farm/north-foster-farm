@@ -85,6 +85,7 @@ framework = "#custom"
       font-src 'self';
       form-action 'self';
       frame-ancestors 'none';
+      frame-src https://www.youtube-nocookie.com;
       img-src 'self' data:;
       manifest-src 'self';
       script-src 'self';

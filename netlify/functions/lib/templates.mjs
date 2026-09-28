@@ -274,9 +274,10 @@ const totalsBlock = (order) => {
     );
   }
   if (order.fulfilment.method === "delivery") {
-    items.push(t.deliveryFee
-      ? `Delivery fee +${dollars(t.deliveryFee)}`
-      : "Delivery fee waived");
+    const base = t.deliveryFee - (t.areaFee || 0);
+
+    items.push(base ? `Delivery fee +${dollars(base)}` : "Delivery fee waived");
+    if (t.areaFee) items.push(`Outside-area fee +${dollars(t.areaFee)}`);
   }
   items.push(`Total ${dollars(t.total)}`);
 
@@ -730,6 +731,26 @@ export const magicLink = (email, url, { minutes = 15, links } = {}) => {
       `${minutes} minutes.`),
     button("Sign in", url),
     p("If you didn't request this email, you can safely ignore it."),
+    row([["Need help? Contact us", contactUrl(links)]]),
+  ];
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
+// Farm news: the one click that puts an address on the list. Sent to
+// anyone who asks on the site, and to the old list when it is asked
+// to opt in again. Nothing else is ever sent before that click.
+export const newsConfirm = (email, url, {
+  firstName = "", days = 7, links,
+} = {}) => {
+  const title = "Confirm your email for farm news";
+  const blocks = [
+    p(`${firstName ? `Hi ${firstName}, t` : "T"}his is the one click that ` +
+      `puts ${email} on the list for news and offers from North Foster ` +
+      "Farm, now and then. Nothing is sent until you do."),
+    button("Yes, sign me up", url),
+    p(`This link works for ${days} days. If you didn't ask for this, ` +
+      "ignore it and nothing happens."),
     row([["Need help? Contact us", contactUrl(links)]]),
   ];
 

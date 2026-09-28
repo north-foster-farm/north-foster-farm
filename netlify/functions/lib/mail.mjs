@@ -12,11 +12,23 @@
 //                        and sends nothing. For reading, in a browser,
 //                        what a local run of the CLI, the functions
 //                        or the jobs would have sent.
+//   MAIL_DRIVER=outbox   Writes each message to the jobs store under
+//                        outbox/<id> and sends nothing. The staging
+//                        toolbar reads them back (/api/staging/outbox).
+//                        The last OUTBOX_KEEP are kept.
 //
 // ADMIN_EMAILS is a comma-separated list for farm-side notices.
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+
+import { stores as defaultStores } from "./store.mjs";
+
+export const OUTBOX_PREFIX = "outbox/";
+export const OUTBOX_KEEP = 200;
+
+// Two messages in the same millisecond still list in the order sent.
+let seq = 0;
 
 export class MailError extends Error {
   constructor(message, { retryable = false, status = 0, detail = null } = {}) {
@@ -112,14 +124,50 @@ export const viaFile = async (message, env, now = new Date()) => {
   return { id: base, driver: "file" };
 };
 
+// One document per message, keyed by time so a listing is an inbox;
+// the oldest go once there are more than OUTBOX_KEEP.
+export const viaOutbox = async (message, env, stores, now = new Date()) => {
+  const { jobs } = stores || defaultStores(env);
+  seq += 1;
+
+  const id = `${now.toISOString().replace(/[:.]/g, "-")}-${
+    String(seq).padStart(4, "0")}`;
+
+  await jobs.set(`${OUTBOX_PREFIX}${id}`, {
+    id,
+    at: now.toISOString(),
+    to: message.to,
+    subject: message.subject,
+    text: message.text || "",
+    html: message.html || "",
+  });
+
+  const keys = (await jobs.list(OUTBOX_PREFIX)).map((k) => k.key);
+
+  for (const key of keys.slice(0, Math.max(0, keys.length - OUTBOX_KEEP))) {
+    await jobs.delete(key);
+  }
+  console.info(JSON.stringify({
+    event: "mail.outboxed", to: message.to, subject: message.subject, id,
+  }));
+
+  return { id, driver: "outbox" };
+};
+
 // The message is { to, subject, text, html, idempotencyKey? }.
 export const sendMail = async (message, {
   env = process.env,
   fetchImpl = globalThis.fetch,
+  stores,
 } = {}) => {
   if (!message.to || !message.subject) {
     throw new MailError("A message needs a recipient and a subject");
   }
+
+  // The drivers that send nothing come first: they are safe under
+  // test and are how staging and local runs read their mail.
+  if (env.MAIL_DRIVER === "outbox") return viaOutbox(message, env, stores);
+  if (env.MAIL_DRIVER === "file") return viaFile(message, env);
 
   // Under `node --test` (which sets NODE_TEST_CONTEXT) a real fetch is
   // a test reaching Resend: on 2026-09-22 the suite, run by the Netlify
@@ -129,7 +177,6 @@ export const sendMail = async (message, {
   const live = fetchImpl === globalThis.fetch;
 
   if (process.env.NODE_TEST_CONTEXT && live) return viaLog(message);
-  if (env.MAIL_DRIVER === "file") return viaFile(message, env);
 
   return mailConfigured(env)
     ? viaResend(message, env, fetchImpl)
