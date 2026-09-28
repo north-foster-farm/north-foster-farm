@@ -237,7 +237,9 @@ export class Payment {
     this.request = this.payments.paymentRequest({
       countryCode: "US",
       currencyCode: "USD",
-      total: { amount: money(this.form.amount()), label: "North Foster Farm" },
+      total: {
+        amount: money(this.form.amount()), label: this.form.contact.name,
+      },
     });
 
     await Promise.all([
@@ -399,7 +401,7 @@ export class Payment {
     if (!this.request) return;
     try {
       this.request.update({
-        total: { amount: money(cents), label: "North Foster Farm" },
+        total: { amount: money(cents), label: this.form.contact.name },
       });
     } catch {
       // The old amount is refused by the server anyway.

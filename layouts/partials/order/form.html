@@ -9,7 +9,7 @@
   "catalog" hugo.Data.catalog
   "terms" hugo.Data.delivery
   "codes" $codes
-  "contact" (dict "email" hugo.Data.company.email "phone" hugo.Data.company.phone)
+  "contact" (dict "name" hugo.Data.company.name "email" hugo.Data.company.email "phone" hugo.Data.company.phone)
 }}
 <script type="application/json" id="order-data">{{ $data | jsonify | safeJS }}</script>
 
