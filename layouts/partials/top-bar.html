@@ -27,10 +27,10 @@
     {{ $href = printf "%s#place-%s" (relURL "") (.place | urlize) }}
     {{ $away = false }}
   {{ end }}
-  <div class="top-bar" data-top-bar data-until="{{ .ends.Format "2006-01-02T15:04:05-07:00" }}">
+  <aside class="top-bar" aria-label="Next event" data-top-bar data-until="{{ .ends.Format "2006-01-02T15:04:05-07:00" }}">
     <a class="top-bar-link" href="{{ $href }}" {{- if $away }} target="_blank" rel="noopener" {{- end }}>
       <span class="d-sm-none">{{ .name }}, {{ $day.Format "Mon, Jan 2" }}</span>
       <span class="d-none d-sm-inline">{{ .name }} in {{ .address.city }}, {{ $day.Format "Monday, January 2" }}{{ $hours }}</span>
     </a>
-  </div>
+  </aside>
 {{ end }}
