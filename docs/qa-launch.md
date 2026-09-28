@@ -690,18 +690,18 @@ Manual: needs a signed-in customer whose record carries a group.
 
 ## Contact and pickup forms
 
-### FM-01 The phone is required for delivery only
+### FM-01 No way asks for a phone
 
-Automated: `forms.spec.mjs`, "On-farm pickup is the default; only
-delivery needs a phone" (both projects).
+Automated: `forms.spec.mjs`, "On-farm pickup is the default, and no
+way asks for a phone" (both projects).
 
-- **Scenario:** Finding 14: phone required for delivery, optional for
-  pickup and the drop site.
+- **Scenario:** PH1 (#228): the phone field and "Prefer text or call?"
+  are gone; email reaches every customer, delivery included.
 - **Setup:** 5 wings.
 - **Test:**
-  1. Read the phone label with Delivery, On-farm pickup, Scituate.
-- **Assert:** Delivery: no "(optional)", the field `required`. The
-  others: "(optional)" shown.
+  1. Read the Contact section.
+- **Assert:** On-farm pickup checked; no phone field, no text-or-call
+  row.
 - **Teardown:** None.
 
 ### FM-02 An empty delivery order names every field
@@ -714,28 +714,16 @@ missing field and sends nothing" (both projects). Tagged `@regression`.
 - **Test:**
   1. Open Card and press Place your order with every field empty.
 - **Assert:** "Please enter your first name.", "Please enter your last
-  name.", "That email address doesn't look right.", "Please enter a
-  phone number.", "Please enter your street address.", "Please enter
-  your town.", "Please enter a five-digit ZIP code.", "Tell us where the
+  name.", "That email address doesn't look right.", "Please enter
+  your street address.", "Please enter your town.", "Please enter a five-digit ZIP code.", "Tell us where the
   cooler will be."; first name marked invalid and focused; every field
   marked red is `aria-invalid="true"` (f27ed0e); no request to
   `/api/orders`.
 - **Teardown:** None.
 
-### FM-03 Pickup without a phone, and a bad phone
+### FM-03 Retired
 
-Automated: `forms.spec.mjs`, "on-farm pickup needs no phone, but a phone
-given must work" (both projects).
-
-- **Scenario:** An empty phone is fine for pickup; a wrong one is not.
-- **Setup:** 1 egg, On-farm pickup, a date, name and email.
-- **Test:**
-  1. Press Place your order with an empty card form.
-  2. Type `401555` as the phone; press again.
-- **Assert:** Step 1: no phone error, the card form's own error shows,
-  nothing sent. Step 2: "That phone number doesn't look right.", nothing
-  sent.
-- **Teardown:** None.
+The phone field it checked went with PH1 (#228).
 
 ### FM-04 Errors clear as fields are fixed
 
@@ -768,18 +756,9 @@ and left shows its error" (both projects).
 - **Assert:** "Please enter your first name." appears.
 - **Teardown:** None.
 
-### FM-06 The phone formats itself
+### FM-06 Retired
 
-Automated: `forms.spec.mjs`, "the phone formats itself and then offers
-text or call" (both projects).
-
-- **Scenario:** A usable number brings "Prefer text or call?".
-- **Setup:** 1 egg.
-- **Test:**
-  1. Type `4015550100`.
-- **Assert:** The field reads "(401) 555-0100"; the row is shown with
-  Text checked.
-- **Teardown:** None.
+The phone field it checked went with PH1 (#228).
 
 ### FM-07 The minimum warning is red and blocks
 
@@ -832,7 +811,7 @@ email" (both projects).
 - **Setup:** 1 egg; a unique email.
 - **Test:**
   1. Type the email; tick "I want to get email from North Foster Farm.";
-     move to the phone field.
+     move to the first name.
 - **Assert:** The box is ticked; no note under it; no request to
   `/api/news/`; no order is sent.
 - **Teardown:** None.
@@ -845,7 +824,7 @@ Manual: Safari's autofill cannot be driven from Playwright.
 - **Setup:** iPhone with a contact card; 1 egg, pickup.
 - **Test:**
   1. Press Place your order empty.
-  2. Autofill the name, email and phone from the keyboard bar.
+  2. Autofill the name and email from the keyboard bar.
 - **Assert:** Every filled field's error disappears without tapping into
   it; "Prefer text or call?" fades in without a jump.
 - **Teardown:** Clear the draft.
@@ -854,9 +833,9 @@ Manual: Safari's autofill cannot be driven from Playwright.
 
 Manual: automatable with the account spec's sign-in; not yet written.
 
-- **Scenario:** Name, email and phone arrive as plain text; a click makes
+- **Scenario:** Name and email arrive as plain text; a click makes
   one a field again.
-- **Setup:** Signed in as a customer with a name and phone (AO-01).
+- **Setup:** Signed in as a customer with a name (AO-01).
 - **Test:**
   1. Open `/order/`; click the email; change it; leave.
 - **Assert:** The details show as text under "Click on a field to edit
@@ -925,7 +904,7 @@ Automated: `payment.spec.mjs`, "a delivery paid by card is confirmed at
 once". Tagged `@regression`.
 
 - **Scenario:** Delivery needs no farm agreement.
-- **Setup:** 5 wings, Delivery, phone, 12 Test Road, Scituate, 02857,
+- **Setup:** 5 wings, Delivery, 12 Test Road, Scituate, 02857,
   cooler, first date.
 - **Test:**
   1. Pay with the approved card.

@@ -124,7 +124,7 @@ test.describe("payments", () => {
 
       emails.push(email);
       await order.open({ wings: 5 });
-      await order.contact({ first: "Drop", email, phone: "4015550100" });
+      await order.contact({ first: "Drop", email });
       await order.delivery({ address1: "12 Test Road", zip: "02857" });
       await order.firstDate("delivery");
       await order.openCard();
@@ -150,7 +150,7 @@ test.describe("payments", () => {
       expect(record.totals).toMatchObject({
         subtotal: 5000, discountAmount: 500, deliveryFee: 500, total: 5000,
       });
-      expect(record.customer.phone).toBeTruthy();
+      expect(record.customer.phone).toBeUndefined();
 
       const mail = await waitForMail({
         to: email, subject: "Your order is confirmed", since,

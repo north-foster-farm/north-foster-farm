@@ -1,6 +1,7 @@
 {{/* Horizontal layout: label column, field column. A signed-in
-     customer's name, email and phone arrive as plain text; a click
-     turns one into a field, and leaving it turns it back. */}}
+     customer's name and email arrive as plain text; a click turns
+     one into a field, and leaving it turns it back. No phone: email
+     reaches everyone, delivery included (PH1, #228). */}}
 <fieldset class="order-section order-details mb-5" id="details">
   <legend class="h2" tabindex="-1">Contact information</legend>
   <p class="order-section-hint">Click on a field to edit it.</p>
@@ -35,32 +36,6 @@
           <input class="form-check-input" type="checkbox" id="customer-marketing" name="customer.marketing" data-field="customer.marketing">
           <label class="form-check-label" for="customer-marketing">I want to get email from North Foster Farm.</label>
         </div>
-      </div>
-    </div>
-    <div class="row">
-      {{/* Required for delivery only (order-form.js toggles it). */}}
-      <label class="col-sm-3 col-form-label" for="customer-phone">Phone <span class="text-body-secondary" data-phone-optional hidden>(optional)</span></label>
-      <div class="col-sm-9">
-        <input class="form-control" type="tel" id="customer-phone" name="customer.phone" autocomplete="tel" inputmode="tel" data-field="customer.phone" data-prefill="phone" aria-describedby="err-customer-phone">
-        <div class="invalid-feedback" id="err-customer-phone" data-error-for="customer.phone"></div>
-      </div>
-    </div>
-    {{/* Shown once the phone number is one we could use
-         (order-form.js showContact), fading in when it appears. */}}
-    <div class="row order-contact-row" data-contact-row data-shown="false">
-      <span class="col-sm-3 col-form-label" id="customer-contact-label">Prefer text or call?</span>
-      <div class="col-sm-9">
-        <div class="order-radios" role="radiogroup" aria-labelledby="customer-contact-label" data-field="customer.contact">
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="customer.contact" id="contact-text" value="text" checked>
-            <label class="form-check-label" for="contact-text">Text</label>
-          </div>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="customer.contact" id="contact-call" value="call">
-            <label class="form-check-label" for="contact-call">Call</label>
-          </div>
-        </div>
-        <div class="invalid-feedback" data-error-for="customer.contact"></div>
       </div>
     </div>
   </div>

@@ -378,7 +378,6 @@ export class Payment {
         givenName: b.firstName,
         familyName: b.lastName,
         email: b.email,
-        phone: b.phone,
         countryCode: "US",
         ...(b.address1 ? {
           addressLines: [b.address1, b.address2].filter(Boolean),

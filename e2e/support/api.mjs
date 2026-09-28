@@ -25,7 +25,7 @@ export const eggOrder = async (request, {
   email, nonce = NONCE.ok, claimedTotal = 700, qty = 1, extra = {},
 } = {}) => ({
   customer: {
-    firstName: "QA", lastName: "Api", email, phone: "", contact: "text",
+    firstName: "QA", lastName: "Api", email,
     marketing: false,
   },
   lines: [{ sku: SKU.eggs, qty }],

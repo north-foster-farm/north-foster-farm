@@ -1170,23 +1170,6 @@
     max-width: 24rem;
   }
 
-  // "Prefer text or call?" is hidden until there is a phone number,
-  // and fades in when it appears (order-form.js showContact).
-  .order-contact-row {
-    transition:
-      opacity var(--order-base) ease,
-      transform var(--order-base) var(--order-ease);
-
-    &[data-shown="false"] {
-      display: none;
-    }
-
-    &.is-entering {
-      opacity: 0;
-      transform: translateY(-0.25rem);
-    }
-  }
-
   .order-radios {
     display: flex;
     flex-wrap: wrap;

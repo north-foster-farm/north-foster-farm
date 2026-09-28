@@ -336,7 +336,6 @@ class Account {
 
     qs(form, "[data-field='firstName']").value = c.firstName || "";
     qs(form, "[data-field='lastName']").value = c.lastName || "";
-    qs(form, "[data-field='phone']").value = c.phone || "";
     qs(form, "[data-field='marketing']").checked = c.marketing === true;
     document.getElementById("prof-email").value = c.email;
     for (const radio of all(form, "[data-field='avatar']")) {
@@ -392,7 +391,6 @@ class Account {
     const body = {
       firstName: qs(form, "[data-field='firstName']").value,
       lastName: qs(form, "[data-field='lastName']").value,
-      phone: qs(form, "[data-field='phone']").value,
       avatar: avatar ? avatar.value : null,
       marketing: qs(form, "[data-field='marketing']").checked,
       reminders: Object.fromEntries(all(form, "[data-reminder]")
@@ -685,7 +683,6 @@ class Account {
         const radio = qs(form, `[name='window'][value='${o.window}']`);
 
         if (radio) radio.checked = true;
-        qs(form, "[name='phone']").value = o.phone || "";
       }
     }
 
@@ -707,10 +704,7 @@ class Account {
       } else if (order.fulfilment.method === "onfarm") {
         const window = qs(form, "[name='window']:checked");
 
-        body.onfarm = {
-          window: window ? window.value : "",
-          phone: qs(form, "[name='phone']").value,
-        };
+        body.onfarm = { window: window ? window.value : "" };
       }
 
       const { ok, data } = await api(

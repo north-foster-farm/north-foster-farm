@@ -371,7 +371,8 @@ describe("changeOrder", () => {
 });
 
 describe("profile and address", () => {
-  it("updates the name in parts, the phone and a valid avatar", async () => {
+  it("updates the name in parts and a valid avatar; ignores a phone",
+    async () => {
     const stores = testStores();
     const ok = await updateProfile(stores, customerOf(), {
       firstName: " Patricia ", lastName: "Example", phone: "401-555-0100",
@@ -381,6 +382,7 @@ describe("profile and address", () => {
     assert.equal(ok.customer.firstName, "Patricia");
     assert.equal(ok.customer.lastName, "Example");
     assert.equal(ok.customer.name, "Patricia Example");
+    assert.equal(ok.customer.phone, "", "PH2: the profile has no phone");
     assert.equal(ok.customer.marketing, true);
     assert.equal(ok.customer.marketingAt, "2026-09-23T15:00:00.000Z");
     assert.equal(ok.customer.marketingSource, "account");
@@ -403,7 +405,7 @@ describe("profile and address", () => {
 
     assert.equal(bad.status, 422);
     assert.deepEqual(Object.keys(bad.errors).sort(),
-      ["avatar", "firstName", "lastName", "phone"]);
+      ["avatar", "firstName", "lastName"]);
   });
 
   it("turns the delivery reminder off and on", async () => {

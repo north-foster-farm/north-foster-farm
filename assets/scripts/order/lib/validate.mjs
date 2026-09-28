@@ -6,7 +6,6 @@ import { datesFor } from "./dates.mjs";
 import { computeTotals, meetsMinimum } from "./totals.mjs";
 
 export const METHODS = ["onfarm", "scituate", "delivery"];
-export const CONTACT = ["text", "call"];
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -14,12 +13,6 @@ const text = (value, max = 200) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";
 
 const digits = (value) => text(value).replace(/\D/g, "");
-
-export const phoneOk = (value) => {
-  const d = digits(value);
-
-  return d.length === 10 || (d.length === 11 && d.startsWith("1"));
-};
 
 // Approved ZIP passes; an unlisted ZIP with an in-state prefix warns
 // and flags the order; anything else is blocked. A state can limit
@@ -86,8 +79,6 @@ export const validateOrder = (payload, {
   // orders placed before the split all read it.
   const name = [firstName, lastName].filter(Boolean).join(" ");
   const email = text(customer.email, 254).toLowerCase();
-  const phone = text(customer.phone, 40);
-  const contact = text(customer.contact, 10);
   // The farm-news box. Only a ticked box means anything: it opts the
   // customer in; unticked leaves the record as it was.
   const marketing = customer.marketing === true;
@@ -98,18 +89,6 @@ export const validateOrder = (payload, {
   if (!lastName) errors["customer.lastName"] = "Please enter your last name.";
   if (!EMAIL.test(email)) {
     errors["customer.email"] = "That email address doesn't look right.";
-  }
-  // Delivery needs a phone for the driver; pickup and the drop site
-  // can do without. A number given must be one we could use.
-  if (!phone) {
-    if (fulfilment.method === "delivery") {
-      errors["customer.phone"] = "Please enter a phone number.";
-    }
-  } else if (!phoneOk(phone)) {
-    errors["customer.phone"] = "That phone number doesn't look right.";
-  }
-  if (!CONTACT.includes(contact)) {
-    errors["customer.contact"] = "Text or call?";
   }
 
   const lines = [];
@@ -157,7 +136,7 @@ export const validateOrder = (payload, {
   });
   const out = {
     customer: {
-      firstName, lastName, name, email, phone, contact, marketing,
+      firstName, lastName, name, email, marketing,
     },
     method,
   };

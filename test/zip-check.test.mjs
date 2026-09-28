@@ -31,7 +31,7 @@ describe("do we deliver to you", () => {
 
     assert.equal(near.tone, "wait");
     assert.match(near.text,
-      /\$3 more\. If we can.t get to your address, we.ll call/);
+      /\$3 more\. If we can.t get to your address, we.ll email you\./);
     assert.equal(far.tone, "no");
     assert.match(far.text, /outside our delivery area/);
     assert.match(far.text, /the drop site are open/);

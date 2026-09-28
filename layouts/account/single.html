@@ -95,20 +95,15 @@
             <h2 class="h4" id="acct-settings-h">Settings</h2>
             <form class="account-card" id="profile-form" novalidate>
               <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-6">
                   <label class="form-label" for="prof-first">First name</label>
                   <input class="form-control" type="text" id="prof-first" name="firstName" autocomplete="given-name" data-field="firstName" aria-describedby="err-prof-first">
                   <div class="invalid-feedback" id="err-prof-first" data-error-for="firstName"></div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
                   <label class="form-label" for="prof-last">Last name</label>
                   <input class="form-control" type="text" id="prof-last" name="lastName" autocomplete="family-name" data-field="lastName" aria-describedby="err-prof-last">
                   <div class="invalid-feedback" id="err-prof-last" data-error-for="lastName"></div>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label" for="prof-phone">Phone <span class="text-body-secondary">(optional)</span></label>
-                  <input class="form-control" type="tel" id="prof-phone" name="phone" autocomplete="tel" inputmode="tel" data-field="phone" aria-describedby="err-prof-phone">
-                  <div class="invalid-feedback" id="err-prof-phone" data-error-for="phone"></div>
                 </div>
                 <div class="col-12">
                   <label class="form-label" for="prof-email">Email</label>
@@ -268,12 +263,6 @@
           <label class="form-check-inline"><input class="form-check-input" type="radio" name="window" value="morning"> Morning</label>
           <label class="form-check-inline"><input class="form-check-input" type="radio" name="window" value="afternoon"> Afternoon</label>
           <div class="invalid-feedback" data-error-for="onfarm.window"></div>
-        </div>
-        <div class="col-md-6" data-onfarm>
-          <label class="form-label">Phone for the day
-            <input class="form-control" type="tel" name="phone" inputmode="tel">
-          </label>
-          <div class="invalid-feedback" data-error-for="onfarm.phone"></div>
         </div>
         <div class="col-12">
           <label class="form-label">Order notes

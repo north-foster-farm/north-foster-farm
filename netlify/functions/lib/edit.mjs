@@ -59,12 +59,9 @@ const fail = (status, errors, extra = {}) =>
 
 // The record as a payload, so a partial one from the page validates as
 // a whole order. The name and email are the record's: an edit never
-// moves an order to another person. The phone and the text-or-call can
-// change (delivery needs a phone).
+// moves an order to another person. The page no longer asks for a
+// phone (PH1), so an order's phone, if it has one, stays as it was.
 export const payloadFor = (order, body = {}) => {
-  const c = body.customer && typeof body.customer === "object"
-    ? body.customer
-    : {};
   const f = order.fulfilment;
   const next = body.fulfilment && typeof body.fulfilment === "object"
     ? body.fulfilment
@@ -80,8 +77,6 @@ export const payloadFor = (order, body = {}) => {
         || order.customer.name.split(/\s+/)[0],
       lastName: order.customer.lastName
         || order.customer.name.split(/\s+/).slice(1).join(" "),
-      phone: c.phone || order.customer.phone,
-      contact: c.contact || order.customer.contact,
     },
     fulfilment: {
       method,
@@ -184,8 +179,7 @@ const changedRecord = (order, next, change, key, now) => {
       agreedAt: was.agreedAt || null };
 
   return {
-    customer: { ...order.customer, phone: next.customer.phone,
-      contact: next.customer.contact },
+    customer: order.customer,
     lines: next.lines,
     totals: next.totals,
     code: next.code,

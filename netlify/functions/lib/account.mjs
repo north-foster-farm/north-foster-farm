@@ -9,9 +9,7 @@ import { randomBytes } from "node:crypto";
 import avatars from "../../../data/avatars.json" with { type: "json" };
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { datesFor } from "../../../assets/scripts/order/lib/dates.mjs";
-import {
-  phoneOk, zipInfo,
-} from "../../../assets/scripts/order/lib/validate.mjs";
+import { zipInfo } from "../../../assets/scripts/order/lib/validate.mjs";
 import { cancelOrder as cancelAndRefund } from "./admin.mjs";
 import { cutoffAt } from "./jobs.mjs";
 import { adminEmails, mailbox, sendMail } from "./mail.mjs";
@@ -74,8 +72,6 @@ export const publicOrder = (order, now = new Date()) => ({
   customer: {
     firstName: order.customer.firstName || "",
     lastName: order.customer.lastName || "",
-    phone: order.customer.phone || "",
-    contact: order.customer.contact || "",
   },
   fulfilment: order.fulfilment,
   notes: order.notes || "",
@@ -193,7 +189,7 @@ export const cancelOrder = async (stores, customer, id, {
 };
 
 // What can change without touching money: the date, the pickup
-// window and phone, the drop-off details, the notes.
+// window, the drop-off details, the notes.
 export const changeOrder = async (stores, customer, id, changes, {
   now = new Date(), env = process.env, mail = sendMail,
   square = { updateFulfilment: squareApi.updateFulfilment },
@@ -223,7 +219,6 @@ export const changeOrder = async (stores, customer, id, changes, {
 
   if (method === "onfarm" && c.onfarm && typeof c.onfarm === "object") {
     const window = text(c.onfarm.window, 20);
-    const phone = text(c.onfarm.phone, 40);
 
     if (c.onfarm.window !== undefined) {
       if (!["morning", "afternoon"].includes(window)) {
@@ -232,14 +227,6 @@ export const changeOrder = async (stores, customer, id, changes, {
         f.onfarm.window = window;
       }
     }
-    if (c.onfarm.phone !== undefined) {
-      if (!phoneOk(phone)) {
-        errors["onfarm.phone"] = "That phone number doesn't look right.";
-      } else {
-        f.onfarm.phone = phone;
-      }
-    }
-    if (c.onfarm.textOk !== undefined) f.onfarm.textOk = !!c.onfarm.textOk;
   }
 
   if (method === "delivery" && c.delivery && typeof c.delivery === "object") {
@@ -322,12 +309,6 @@ export const updateProfile = async (stores, customer, changes, {
     if (!patch.firstName) errors.firstName = "Please enter your first name.";
     if (!patch.lastName) errors.lastName = "Please enter your last name.";
     patch.name = `${patch.firstName} ${patch.lastName}`.trim();
-  }
-  if (c.phone !== undefined) {
-    patch.phone = text(c.phone, 40);
-    if (patch.phone && !phoneOk(patch.phone)) {
-      errors.phone = "That phone number doesn't look right.";
-    }
   }
   if (c.avatar !== undefined) {
     if (c.avatar !== null && !AVATARS.includes(c.avatar)) {
