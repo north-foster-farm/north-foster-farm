@@ -76,8 +76,12 @@ export const findCode = (value, codes) => {
 // `held`, for a paid order being changed, is { [sku]: qty } of what it
 // already holds: a line that sold out or was archived since may keep
 // up to that many, and never gain (6305650920).
+// `waive.minimum` lets a delivery under the minimum through: the
+// caller has checked the customer's pass (lib/passes.mjs, #182), and
+// the order says it used one in `flags.minimumWaived`.
 export const validateOrder = (payload, {
   index, terms, now, group, codes, code, schedule = [], held = {},
+  waive = {},
 }) => {
   const errors = {};
   const p = payload && typeof payload === "object" ? payload : {};
@@ -181,7 +185,10 @@ export const validateOrder = (payload, {
   if (method === "delivery") {
     const f = fulfilment.delivery || {};
 
-    if (!meetsMinimum(totals, money)) {
+    // A pass is used only when the order needs it.
+    if (!meetsMinimum(totals, money) && waive.minimum) {
+      out.minimumWaived = true;
+    } else if (!meetsMinimum(totals, money)) {
       errors["delivery.minimum"] =
         `Delivery orders are $${money.deliveryMinimum} or more after ` +
         "discounts. On-farm pickup and the drop site have no " +
@@ -290,6 +297,7 @@ export const validateOrder = (payload, {
       source: text(p.source, 100),
       flags: {
         zipUnlisted: !!(out.delivery && out.delivery.zipStatus === "unlisted"),
+        minimumWaived: !!out.minimumWaived,
         totalMismatch: Number(p.claimedTotal) !== totals.total,
       },
     },

@@ -96,6 +96,7 @@ export const publicOrder = (order, now = clock()) => ({
   totals: order.totals,
   // What the order page needs to open the order for a change (#160).
   code: order.code || null,
+  pass: order.pass || null,
   customer: {
     firstName: order.customer.firstName || "",
     lastName: order.customer.lastName || "",
