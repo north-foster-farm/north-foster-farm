@@ -9,3 +9,5 @@ type: "order"
 layout: "order/single.html"
 pageScript: "order"
 ---
+
+Pasture-raised, frozen, and packed by weight.
