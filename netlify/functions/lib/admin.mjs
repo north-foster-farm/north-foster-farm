@@ -378,7 +378,7 @@ export const cancelOrder = async (stores, id, {
         refunded: justNow || refundedTotal(order),
         refundedOn: justNow || !earlier.length ? null
           : earlier[earlier.length - 1].at,
-        by: source === "customer" ? "customer" : "farm",
+        by: ["customer", "hold"].includes(source) ? source : "farm",
         reason, reasonText, links: mailLinks(env),
       }), { mail, env, now });
   }

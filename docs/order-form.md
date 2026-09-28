@@ -453,7 +453,12 @@ fee (`creditOn` in lib/edit.mjs), so another delivery after a kept
 fee charges the fee again (C1) and a switch to pickup refunds none of
 it. The account page's Change panel moves the day only when the fee
 was waived. A reminder sent before the miss was for that trip, so the
-new day gets its own.
+new day gets its own. If the customer hasn't chosen by the end of
+`until` (C8), the next jobs run cancels the order (`source: "hold"`):
+stock back, everything refunded but the kept fee, and orderCancelled
+with its held-seven-days line. The question is answered `expired`
+only once the cancel has gone through, so a refund that fails is
+tried again next run, and `jobs history` counts each as `held`.
 
 The farm's or the weather's miss asks nothing (C7): the order moves
 to the next delivery day (a holiday pushes it a week further), Square's

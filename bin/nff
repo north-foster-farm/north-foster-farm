@@ -570,7 +570,8 @@ const run = async () => {
 
       out(`${r.at.slice(0, 16)}  ${bad ? "FAIL" : "ok  "}  reminded ${
         c.deliveryReminded ?? 0}  closed ${c.closed ?? 0}  synced ${
-        c.squareSynced ?? 0}  pickups ${c.pickupsToConfirm ?? 0}  swept ${
+        c.squareSynced ?? 0}  held ${c.holdsExpired ?? 0}  pickups ${
+        c.pickupsToConfirm ?? 0}  swept ${
         r.checkoutsSwept ?? 0}  signins ${r.authSwept ?? 0}  open ${
         c.squareOpen ?? 0}  profiles ${c.customersMade ?? 0}${
         (r.errors || []).map((e) => `\n    error ${e.id || "-"}: ${e.error}`)

@@ -10,6 +10,9 @@
 //   question    an order with an open question from the farm (a
 //               delivery it couldn't leave) is left alone: not closed,
 //               until the customer answers
+//   hold        a missed delivery nobody chose for by `question.until`
+//               is cancelled the day after: stock back, everything
+//               refunded but a kept fee, the customer told (C8)
 //   rescue      a Venmo checkout the customer approved but whose page
 //               never finished it (the tab closed) is captured and
 //               recorded, once the page has had ten minutes
@@ -44,6 +47,7 @@ import {
 import {
   addDays, instant, parts, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { cancelOrder } from "./admin.mjs";
 import { rescueCheckout, syncSquare } from "./checkout.mjs";
 import { finishEditVenmo } from "./edit.mjs";
 import { alert, ping, readCount, readMark } from "./health.mjs";
@@ -53,9 +57,10 @@ import { audienceConfigured, syncAudience } from "./news.mjs";
 import { sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
-  allOrders, dropMadeCustomer, getCustomer, getOrder, listCheckouts,
-  listMadeCustomers, openOrders, ordersFor, paymentsOf, questionOpen,
-  refundsOf, reminderPrefs, setStatus, sweepAuth, sweepCheckouts,
+  allOrders, amendOrder, answerQuestion, dropMadeCustomer, getCustomer,
+  getOrder, listCheckouts, listMadeCustomers, openOrders, ordersFor,
+  paymentsOf, questionOpen, refundsOf, reminderPrefs, setStatus, sweepAuth,
+  sweepCheckouts,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
@@ -97,6 +102,11 @@ export const cutoffAt = (order) => {
 export const deliveryReminderAt = (order) =>
   instant(addDays(order.fulfilment.date, -1), DELIVERY_REMINDER_HOUR, 0, tz);
 
+// A missed delivery's hold (C8) runs to the end of `until`.
+export const holdExpired = (order, now) => questionOpen(order)
+  && order.question.kind === "missed" && !!order.question.until
+  && today(now, tz) > order.question.until;
+
 // Every order's work is its own try: one that throws goes on the
 // report as an error and the run carries on. The run ends with the
 // invariant checks, a line in the ledger, an alert for anything that
@@ -114,9 +124,9 @@ export const runJobs = async (stores, {
 } = {}) => {
   const report = {
     at: now.toISOString(), deliveryReminded: [], closed: [], squareSynced: [],
-    muted: [], checkoutsRescued: [], checkoutsSwept: 0, authSwept: 0,
-    squareOpen: [], customersMade: [], pickupsToConfirm: [], tomorrow: null,
-    errors: [], invariants: [],
+    muted: [], holdsExpired: [], checkoutsRescued: [], checkoutsSwept: 0,
+    authSwept: 0, squareOpen: [], customersMade: [], pickupsToConfirm: [],
+    tomorrow: null, errors: [], invariants: [],
   };
   const opts = { env, mail, now };
   const fail = (id, step, error) => {
@@ -164,6 +174,22 @@ export const runJobs = async (stores, {
       if (synced.square) report.squareSynced.push(order.id);
     }
 
+    if (holdExpired(order, now)) {
+      // The question stays open until the cancel has gone through, so
+      // a refund that fails is tried again next run, by the same key.
+      await cancelOrder(stores, order.id, {
+        now, env, mail, square, paypal: paypal || undefined, fetchImpl,
+        source: "hold", key: `refund-hold-${order.id}`,
+        reason: `Order ${order.id}, not rescheduled after a missed delivery`,
+      });
+      await amendOrder(stores, order.id, {
+        question: answerQuestion(await getOrder(stores, order.id), "expired",
+          "jobs", now),
+      }, "question.expired", now);
+      report.holdsExpired.push(order.id);
+
+      return;
+    }
     if (questionOpen(order)) return;
 
     const isDelivery = order.fulfilment.method === "delivery";
@@ -468,8 +494,8 @@ export const sweepMadeCustomers = async (stores, {
 export const summarize = (report) => ({
   at: report.at,
   counts: Object.fromEntries([
-    "deliveryReminded", "closed", "squareSynced", "muted", "checkoutsRescued",
-    "pickupsToConfirm", "squareOpen", "customersMade",
+    "deliveryReminded", "closed", "squareSynced", "muted", "holdsExpired",
+    "checkoutsRescued", "pickupsToConfirm", "squareOpen", "customersMade",
   ].map((k) => [k, (report[k] || []).length])),
   squareCancelled: (report.squareOpen || []).filter((o) => o.cancelled)
     .length,

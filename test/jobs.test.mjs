@@ -251,6 +251,97 @@ describe("runJobs", () => {
     assert.deepEqual(again.deliveryReminded, []);
   });
 
+  it("cancels a missed delivery nobody chose for once its hold is out, " +
+    "keeping the fee (C8)", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const calls = [];
+    const square = {
+      refundPayment: async ({ squarePaymentId, amount, key }) => {
+        calls.push(["refund", squarePaymentId, amount, key]);
+
+        return { squareRefundId: "R", status: "PENDING", amount };
+      },
+      cancelFulfilment: async (id) => { calls.push(["cancelFulfilment", id]); },
+    };
+
+    await saveOrder(stores, {
+      ...order("A"),
+      attempted: { at: at("2026-10-08", 13).toISOString(),
+        date: "2026-10-08", cause: "no-cooler", fee: 500, waived: false },
+      question: { kind: "missed", reason: "", until: "2026-10-15",
+        openedAt: at("2026-10-08", 13).toISOString(), answeredAt: null,
+        answer: null, by: null },
+    }, placed);
+
+    const last = await runJobs(stores, {
+      ...opts, square, now: at("2026-10-15", 23, 50),
+    });
+
+    assert.deepEqual(last.holdsExpired, []);
+    assert.equal((await getOrder(stores, "A")).status, "paid");
+
+    const next = await runJobs(stores, {
+      ...opts, square, now: at("2026-10-16", 0, 10),
+    });
+    const a = await getOrder(stores, "A");
+
+    assert.deepEqual(next.holdsExpired, ["A"]);
+    assert.equal(a.status, "cancelled");
+    assert.equal(a.question.answer, "expired");
+    assert.deepEqual(calls, [
+      ["refund", "PAY-A", 700, "refund-hold-A-0"],
+      ["cancelFulfilment", "SQO"],
+    ]);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].text, /We held your order for seven days/);
+    assert.match(sent[0].text, /A refund of \$7 is on its way/);
+    assert.match(sent[0].text, /delivery fee of \$5 isn't refunded/);
+
+    const again = await runJobs(stores, {
+      ...opts, square, now: at("2026-10-16", 1),
+    });
+
+    assert.deepEqual(again.holdsExpired, []);
+    assert.equal(calls.length, 2);
+  });
+
+  it("tries an expired hold again when its refund fails", async () => {
+    const stores = testStores();
+    const { opts } = harness();
+    let up = false;
+    const square = {
+      refundPayment: async ({ amount }) => {
+        if (!up) throw new Error("Square is down");
+
+        return { squareRefundId: "R", status: "PENDING", amount };
+      },
+      cancelFulfilment: async () => {},
+    };
+
+    await saveOrder(stores, {
+      ...order("A"),
+      attempted: { at: "x", date: "2026-10-08", cause: "no-cooler",
+        fee: 0, waived: true },
+      question: { kind: "missed", until: "2026-10-15", answeredAt: null },
+    }, placed);
+
+    const down = await runJobs(stores, {
+      ...opts, square, now: at("2026-10-16", 9),
+    });
+
+    assert.equal(down.errors.length, 1);
+    assert.equal((await getOrder(stores, "A")).status, "paid");
+
+    up = true;
+    const fine = await runJobs(stores, {
+      ...opts, square, now: at("2026-10-16", 9, 15),
+    });
+
+    assert.deepEqual(fine.holdsExpired, ["A"]);
+    assert.equal((await getOrder(stores, "A")).refunds[0].amount, 1200);
+  });
+
   it("makes the Square copy of a Venmo order that lacks one", async () => {
     const stores = testStores();
     const { opts } = harness();
