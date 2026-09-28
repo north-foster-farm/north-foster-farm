@@ -443,11 +443,13 @@ delivery routes (nff-dashboard#24) will write the same record.
 Until the customer-facing flow (#193) lands, the rest of a miss is by
 hand, since `orders attempted` sends no email yet. Contact the
 customer and record the attempt, then either refund (`orders refund`,
-or `orders cancel --refund`; both keep a kept fee) or deliver the
-next Thursday outside the record, charging the fee again after a
-customer's miss. A customer's miss with no choice from them within
-seven days ends with `orders cancel <id> --refund` (C8): stock back,
-the kept fee stays, and the customer is emailed.
+or `orders cancel`, which refunds unless told `--no-refund`
+(W11a-1); both keep a kept fee) or deliver the next Thursday outside
+the record, charging the fee again after a customer's miss. A
+customer's miss with no choice from them within seven days ends with
+`orders cancel <id> --reason-text "..."` (C8; no `--reason` key fits
+a lapsed hold): stock back, the kept fee stays, and the customer is
+emailed.
 
 A customer who cancels from the account page is refunded and
 cancelled at once (T1d), and the farm is emailed "Cancelled: <id>".
