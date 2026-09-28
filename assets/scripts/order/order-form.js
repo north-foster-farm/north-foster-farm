@@ -171,6 +171,9 @@ export class OrderForm {
     // The signed-in customer's discount group, from /api/me. The server
     // applies it again from the session; this only shows it.
     this.group = null;
+    // Whether /api/me said so: the thank-you card then leaves out the
+    // line about the account the order made (#114).
+    this.isSignedIn = false;
   }
 
   start() {
@@ -211,6 +214,8 @@ export class OrderForm {
 
   signedIn(who) {
     if (!who.signedIn || !who.customer) return;
+
+    this.isSignedIn = true;
 
     const group = who.customer.discountGroup || null;
 
@@ -2449,6 +2454,10 @@ export class OrderForm {
       fill("orderId", data.orderId);
       fill("how", this.paidWith(data.payment));
       fill("when", this.when(data.fulfilment));
+
+      const account = qs(node, "[data-out='account']");
+
+      if (account) account.hidden = this.isSignedIn;
 
       const receipt = qs(node, "[data-out='receiptUrl']");
 

@@ -92,6 +92,26 @@ describe("the order details block", () => {
   });
 });
 
+describe("the account the first order makes (#114)", () => {
+  const url = "https://x/account/orders/NFF-2610-ABCD";
+  const said = /made you an account with us/;
+
+  it("says so once, above the sign-in button", () => {
+    const m = orderConfirmed(order(), { orderUrl: url, links,
+      firstOrder: true });
+
+    assert.match(m.text, said);
+    assert.ok(m.text.search(said) < m.text.indexOf("View or edit"));
+    assert.doesNotMatch(orderConfirmed(order(), { orderUrl: url, links })
+      .text, said);
+  });
+
+  it("says nothing while the account pages are off", () => {
+    assert.doesNotMatch(orderConfirmed(order(), { links, firstOrder: true })
+      .text, said);
+  });
+});
+
 describe("the site's look", () => {
   it("opens on the wordmark, not a repeat of the subject", () => {
     const m = orderConfirmed(order(), {
