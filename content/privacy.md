@@ -167,8 +167,8 @@ assets.
 When you're signed in, you can see your orders and change your name, phone
 number, address and email settings on your account page.
 
-You may email info@northfosterfarm.com to request access to, changes to, or
-deletion of your information. Square and PayPal keep their own records of
+You may email {{% company "email" %}} to request access to, changes
+to, or deletion of your information. Square and PayPal keep their own records of
 your payments under their own policies.
 
 We may delete your information at any time and for any reason, such as
@@ -181,6 +181,6 @@ By using our website, you consent to our privacy policy.
 ## Contacting us
 
 If you have questions regarding this privacy policy, you may email
-info@northfosterfarm.com.
+{{% company "email" %}}.
 
 Last updated September 26, 2026.

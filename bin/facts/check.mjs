@@ -72,6 +72,8 @@ export const knownFacts = () => {
     new RegExp(`\\(?${area}\\)?[-. ]?${exchange}[-. ]${line}`));
   add("phone", c, company.phone.plain);
   add("email", c, company.email);
+  const domain = company.email.split("@")[1];
+  add("email", c, `@${domain}`, new RegExp(`\\w@${escape(domain)}`));
   add("farm address", c, company.address.street);
   add("farm address", c, company.address.short);
   add("Venmo", c, `venmo.com/u/${company.venmo}`);
