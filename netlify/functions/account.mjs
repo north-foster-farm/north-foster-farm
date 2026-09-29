@@ -58,6 +58,7 @@ export const handle = async (req, {
   square,
   news,
   fetchImpl,
+  ip = "",
 } = {}) => {
   // Under maintenance the whole area answers with the message, reads
   // included, so a signed-in customer's pages show it (#267).
@@ -72,7 +73,7 @@ export const handle = async (req, {
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/+$/, "");
   const customer = session.customer;
-  const opts = { now, env, mail, square };
+  const opts = { now, env, mail, square, ip };
   // What the customer did while signed in counts as an interaction
   // (#189); only turning things off does not (lib/retention.mjs).
   const took = async (result, { leave = false } = {}) => {
@@ -180,7 +181,8 @@ export const handle = async (req, {
   return json(404, { error: "Not found." });
 };
 
-export default withLog("account", async (req) => handle(req));
+export default withLog("account", async (req, context) =>
+  handle(req, { ip: context && context.ip }));
 
 export const config = {
   path: ["/api/account/orders", "/api/account/orders/*", "/api/account/*"],
