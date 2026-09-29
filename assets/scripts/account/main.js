@@ -575,10 +575,16 @@ class Account {
       const day = order.keptFee
         ? "another delivery day (with another delivery fee)"
         : "another delivery day";
+      const ifUnanswered = `If we don't hear from you by then, we'll ` +
+        `cancel it and refund you${order.keptFee
+          ? `, though the delivery fee of ${dollars(order.keptFee)} ` +
+            "isn't refunded because we made the trip"
+          : " in full"}.`;
 
       pickup.textContent = "We couldn't deliver this order, so we're " +
         `holding it until ${label(q.until)}. Choose ${day} or a pickup ` +
-        `with Change items, or cancel it for a refund of ${dollars(back)}.`;
+        `with Change items, or cancel it for a refund of ${dollars(back)}. ` +
+        `${ifUnanswered}`;
       pickup.hidden = false;
     }
 

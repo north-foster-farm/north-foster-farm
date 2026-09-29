@@ -52,7 +52,9 @@ test.describe("a missed delivery", () => {
         "We couldn't deliver this order, so we're holding it until " +
         "Thursday, October 1. Choose another delivery day (with another " +
         "delivery fee) or a pickup with Change items, or cancel it for a " +
-        "refund of $56.",
+        "refund of $56. If we don't hear from you by then, we'll cancel " +
+        "it and refund you, though the delivery fee of $5 isn't " +
+        "refunded because we made the trip.",
       );
     });
 
@@ -75,7 +77,8 @@ test.describe("a missed delivery", () => {
 
       await expect(page.locator("[data-out='pickup']").first()).toContainText(
         "Choose another delivery day or a pickup with Change items, or " +
-        "cancel it for a refund of $61.",
+        "cancel it for a refund of $61. If we don't hear from you by " +
+        "then, we'll cancel it and refund you in full.",
       );
       await page.getByRole("button", { name: "Cancel order" }).first()
         .click();
