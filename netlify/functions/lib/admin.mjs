@@ -93,10 +93,10 @@ export const renameCustomer = async (stores, from, to, {
   for (const prefix of ["session/", "token/", "unsub/", "news/"]) {
     for (const { key } of await stores.auth.list(prefix)) {
       const value = await stores.auth.get(key);
+      const forOld = value && (normalizeEmail(value.email) === old
+        || (value.changeFrom && normalizeEmail(value.changeFrom) === old));
 
-      if (value && normalizeEmail(value.email) === old) {
-        auth.push({ key, value });
-      }
+      if (forOld) auth.push({ key, value });
     }
   }
 

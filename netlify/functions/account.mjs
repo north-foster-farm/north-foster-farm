@@ -46,6 +46,7 @@ export const handle = async (req, {
   now = new Date(),
   mail,
   square,
+  ip = "",
 } = {}) => {
   const session = await sessionFrom(stores, req, { now });
 
@@ -54,7 +55,7 @@ export const handle = async (req, {
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/+$/, "");
   const customer = session.customer;
-  const opts = { now, env, mail, square };
+  const opts = { now, env, mail, square, ip };
 
   if (req.method === "GET" && path === "/api/account/orders") {
     return answer(await listOrders(stores, customer, { now }));
@@ -115,7 +116,8 @@ export const handle = async (req, {
   return json(404, { error: "Not found." });
 };
 
-export default withLog(async (req) => handle(req));
+export default withLog(async (req, context) =>
+  handle(req, { ip: context && context.ip }));
 
 export const config = {
   path: ["/api/account/orders", "/api/account/orders/*", "/api/account/*"],

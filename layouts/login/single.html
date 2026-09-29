@@ -51,6 +51,19 @@
             <button type="button" class="btn btn-link p-0 align-baseline" id="login-again">try again</button>.
           </p>
         </div>
+
+        {{/* An email-change link (#240) lands here with #confirm=TOKEN
+             in the fragment, never the query string, so it never
+             reaches a server log. Following it only peeked; this
+             button's POST is what actually moves the account. Words
+             are drafts for James. */}}
+        <div class="account-card" id="login-confirm" role="status" aria-live="polite" hidden>
+          <h2 class="h4">Confirm your new email</h2>
+          <p>Change your sign-in email to <strong data-confirm-email></strong>?</p>
+          <div class="alert alert-danger" role="alert" data-confirm-error hidden></div>
+          <button type="button" class="btn btn-primary" id="login-confirm-submit">Confirm new email</button>
+          <button type="button" class="btn btn-link" id="login-confirm-cancel">Cancel</button>
+        </div>
       </div>
     </div>
   </section>

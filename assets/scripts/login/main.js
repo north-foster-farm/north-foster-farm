@@ -17,6 +17,22 @@ const ERRORS = {
     "with your old address and try again, or write us.",
 };
 
+// A change link's confirm step (#240): #confirm=TOKEN&email=NEW, read
+// from the fragment so the token never reaches a server log.
+const confirmStep = () => {
+  const panel = document.getElementById("login-confirm");
+
+  if (!panel || !location.hash.startsWith("#confirm=")) return null;
+
+  const params = new URLSearchParams(location.hash.slice(1));
+  const token = params.get("confirm");
+  const email = params.get("email") || "";
+
+  history.replaceState(null, "", location.pathname + location.search);
+
+  return token ? { panel, token, email } : null;
+};
+
 const start = () => {
   const form = document.getElementById("login-form");
 
@@ -34,6 +50,48 @@ const start = () => {
   if (reason && ERRORS[reason]) {
     notice.textContent = ERRORS[reason];
     notice.hidden = false;
+  }
+
+  const confirm = confirmStep();
+
+  if (confirm) {
+    form.hidden = true;
+
+    const { panel, token, email: newEmail } = confirm;
+    const panelError = panel.querySelector("[data-confirm-error]");
+    const confirmButton = document.getElementById("login-confirm-submit");
+
+    panel.querySelector("[data-confirm-email]").textContent = newEmail;
+    panel.hidden = false;
+
+    confirmButton.addEventListener("click", async () => {
+      confirmButton.disabled = true;
+      confirmButton.textContent = "Confirming…";
+      panelError.hidden = true;
+
+      const { data } = await api("/api/auth/verify", {
+        method: "POST",
+        body: { token },
+      });
+
+      if (data && data.ok) {
+        location.href = data.next || "/account/";
+
+        return;
+      }
+
+      confirmButton.disabled = false;
+      confirmButton.textContent = "Confirm new email";
+      panelError.textContent = (data && ERRORS[data.reason])
+        || "We couldn't change your email just now. Please try again.";
+      panelError.hidden = false;
+    });
+
+    document.getElementById("login-confirm-cancel")
+      .addEventListener("click", () => {
+        panel.hidden = true;
+        form.hidden = false;
+      });
   }
 
   const fail = (message) => {

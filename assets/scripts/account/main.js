@@ -155,7 +155,7 @@ class Account {
 
     params.delete("email");
     history.replaceState(null, "", location.pathname
-      + (params.size ? `?${params}` : "") + location.hash);
+      + (params.toString() ? `?${params}` : "") + location.hash);
     document.getElementById("email-change-sent").textContent =
       `Your email is now ${this.customer.email}. Sign in with it from ` +
       "now on.";

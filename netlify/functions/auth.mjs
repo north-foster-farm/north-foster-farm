@@ -7,8 +7,8 @@
 
 import {
   clearCookieHeader, clearStampHeader, cookieHeader, createSession,
-  endSession, publicCustomer, requestLink, safeNext, sameSite, sessionFrom,
-  stampHeader, verifyToken,
+  endSession, peekToken, publicCustomer, requestLink, safeNext, sameSite,
+  sessionFrom, stampHeader, verifyToken,
 } from "./lib/auth.mjs";
 import { finishEmailChange } from "./lib/email-change.mjs";
 import { json, readJson } from "./lib/http.mjs";
@@ -71,23 +71,23 @@ export const handle = async (req, {
   }
 
   if (path === "/api/auth/verify" && req.method === "GET") {
-    const result = await verifyToken(stores, url.searchParams.get("token"), {
-      now,
-    });
+    const token = url.searchParams.get("token");
+    // A change link is only peeked at here, never spent: a prefetch
+    // or a scanner following the emailed link must not move the
+    // account on its own (#240). The token travels on to the confirm
+    // step in the fragment, which the server never sees again, so it
+    // never reaches a log. A plain sign-in link still works in one GET.
+    const peek = await peekToken(stores, token, { now });
 
-    if (!result.ok) {
-      return redirect(`/login/?error=${result.reason}`);
+    if (!peek.ok) return redirect(`/login/?error=${peek.reason}`);
+    if (peek.changeFrom) {
+      return redirect(`/login/#confirm=${encodeURIComponent(token)}` +
+        `&email=${encodeURIComponent(peek.email)}`);
     }
 
-    // A link to a new address moves the account first (#240); the
-    // move ends the old address's sessions, so this one starts fresh.
-    if (result.changeFrom) {
-      const moved = await finishEmailChange(stores, result, {
-        now, env, mail, fetchImpl,
-      });
+    const result = await verifyToken(stores, token, { now });
 
-      if (!moved.ok) return redirect(`/login/?error=${moved.reason}`);
-    }
+    if (!result.ok) return redirect(`/login/?error=${result.reason}`);
 
     const session = await createSession(stores, result.email, {
       now, via: "link",
@@ -98,6 +98,47 @@ export const handle = async (req, {
       ["Set-Cookie", stampHeader(now)],
       ["Cache-Control", "no-store"],
     ]);
+  }
+
+  // The confirm step's button: only a POST spends a change token
+  // (#240), so the GET above can be prefetched safely.
+  if (path === "/api/auth/verify" && req.method === "POST") {
+    if (!sameSite(req)) return json(403, { error: "Cross-site request." });
+
+    const body = await readJson(req);
+
+    if (!body || typeof body.token !== "string") {
+      return json(400, { errors: { body: "Expected a JSON body." } });
+    }
+
+    const result = await verifyToken(stores, body.token, { now });
+
+    if (!result.ok) return json(200, { ok: false, reason: result.reason });
+
+    // A link to a new address moves the account first (#240); the
+    // move ends the old address's sessions, so this one starts fresh.
+    if (result.changeFrom) {
+      const moved = await finishEmailChange(stores, result, {
+        now, env, mail, fetchImpl,
+      });
+
+      if (!moved.ok) return json(200, { ok: false, reason: moved.reason });
+    }
+
+    const session = await createSession(stores, result.email, {
+      now, via: "link",
+    });
+    const headers = new Headers({
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+    });
+
+    headers.append("Set-Cookie", cookieHeader(session.id));
+    headers.append("Set-Cookie", stampHeader(now));
+
+    return new Response(JSON.stringify({
+      ok: true, next: safeNext(result.next),
+    }), { status: 200, headers });
   }
 
   if (path === "/api/auth/signout" && req.method === "POST") {

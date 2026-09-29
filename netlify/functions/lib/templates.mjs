@@ -767,11 +767,15 @@ export const emailChangeLink = (email, url, {
   return { subject: title, ...render(title, blocks, links) };
 };
 
-export const emailChanged = (from, to, { links } = {}) => {
+// Drafts: copy flagged that "farm news go there from now on" wasn't
+// true for a customer who never subscribed (#240), so the line only
+// mentions news when it actually moves.
+export const emailChanged = (from, to, { links, marketing = false } = {}) => {
   const title = `Your email with ${company.name} was changed`;
+  const moves = marketing ? "Order emails and farm news go" : "Order emails go";
   const blocks = [
-    p(`Your account now signs in with ${to}, not ${from}. Order ` +
-      "emails and farm news go there from now on."),
+    p(`Your account now signs in with ${to}, not ${from}. ` +
+      `${moves} there from now on.`),
     p("If you didn't make this change, contact us right away."),
     row([["Contact us", contactUrl(links)]]),
   ];

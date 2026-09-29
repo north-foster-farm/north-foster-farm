@@ -42,6 +42,21 @@ export const validEmail = (email) => EMAIL.test(normalizeEmail(email));
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const secret = () => randomBytes(32).toString("base64url");
 
+// A sliding-window hit counter in the auth store, shared by every
+// per-address, per-account and per-IP limit in this file and in
+// lib/email-change.mjs. -> { limited } and records the hit unless it
+// was already over.
+export const hit = async (stores, key, now, { windowMs, max }) => {
+  const rate = (await stores.auth.get(key)) || { times: [] };
+  const recent = rate.times.filter((t) => now - t < windowMs);
+
+  if (recent.length >= max) return { limited: true };
+
+  await stores.auth.set(key, { times: [...recent, now] });
+
+  return { limited: false };
+};
+
 // Only a same-site path may follow a sign-in, never another site.
 export const safeNext = (next) => {
   const s = String(next || "");
@@ -90,14 +105,11 @@ export const requestLink = async (stores, { email, next }, {
   if (!validEmail(address)) return { ok: false, reason: "invalid" };
 
   if (limit) {
-    const rateKey = `rate/${address}`;
-    const rate = (await stores.auth.get(rateKey)) || { times: [] };
-    const recent = rate.times.filter((t) => now.getTime() - t < LINK_WINDOW);
+    const limited = await hit(stores, `rate/${address}`, now.getTime(), {
+      windowMs: LINK_WINDOW, max: LINKS_PER_WINDOW,
+    });
 
-    if (recent.length >= LINKS_PER_WINDOW) {
-      return { ok: false, reason: "rate" };
-    }
-    await stores.auth.set(rateKey, { times: [...recent, now.getTime()] });
+    if (limited.limited) return { ok: false, reason: "rate" };
   }
 
   const token = secret();
@@ -126,27 +138,53 @@ export const requestLink = async (stores, { email, next }, {
   return { ok: true, url, email: address };
 };
 
-// Consumes a token. -> { ok: true, email, next } or { ok: false, reason }.
-export const verifyToken = async (stores, token, { now = new Date() } = {}) => {
+const lookupToken = async (stores, token) => {
   if (!token || typeof token !== "string" || token.length > 200) {
-    return { ok: false, reason: "invalid" };
+    return { reason: "invalid" };
   }
 
   const key = `token/${hash(token)}`;
   const found = await stores.auth.get(key);
 
-  if (!found) return { ok: false, reason: "unknown" };
+  return found ? { key, found } : { reason: "unknown" };
+};
 
-  await stores.auth.delete(key);
+const tokenResult = (found) => ({
+  ok: true,
+  email: found.email,
+  next: found.next || "/account/",
+  changeFrom: found.changeFrom || null,
+});
 
-  if (now.getTime() > found.expires) return { ok: false, reason: "expired" };
+// Reads a token without spending it, so a prefetch or a scanner
+// following the emailed link can't move the account on its own
+// (#240): the confirm step on /login/ peeks first and only a POST
+// consumes. -> the same shape as verifyToken, but the token still
+// works afterward.
+export const peekToken = async (stores, token, { now = new Date() } = {}) => {
+  const look = await lookupToken(stores, token);
 
-  return {
-    ok: true,
-    email: found.email,
-    next: found.next || "/account/",
-    changeFrom: found.changeFrom || null,
-  };
+  if (look.reason) return { ok: false, reason: look.reason };
+  if (now.getTime() > look.found.expires) {
+    return { ok: false, reason: "expired" };
+  }
+
+  return tokenResult(look.found);
+};
+
+// Consumes a token. -> { ok: true, email, next } or { ok: false, reason }.
+export const verifyToken = async (stores, token, { now = new Date() } = {}) => {
+  const look = await lookupToken(stores, token);
+
+  if (look.reason) return { ok: false, reason: look.reason };
+
+  await stores.auth.delete(look.key);
+
+  if (now.getTime() > look.found.expires) {
+    return { ok: false, reason: "expired" };
+  }
+
+  return tokenResult(look.found);
 };
 
 export const createSession = async (stores, email, {

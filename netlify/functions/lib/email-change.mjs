@@ -9,7 +9,8 @@
 
 import { renameCustomer } from "./admin.mjs";
 import {
-  normalizeEmail, requestLink, validEmail,
+  LINK_WINDOW, LINKS_PER_WINDOW, hit, normalizeEmail, requestLink,
+  validEmail,
 } from "./auth.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
@@ -24,10 +25,26 @@ const refuse = (email) => ({
   ok: false, status: 422, errors: { email },
 });
 
+const TOO_MANY = refuse("We've sent a few links already. Use the last " +
+  "one, or try again in a few minutes.");
+
+// Voids any change token still waiting for `from` (a stale one from an
+// earlier request, or one made moot by the move it's about to send),
+// so at most one can ever be followed.
+const voidChangeTokens = async (stores, from) => {
+  for (const { key } of await stores.auth.list("token/")) {
+    const value = await stores.auth.get(key);
+    const stale = value && value.changeFrom
+      && normalizeEmail(value.changeFrom) === from;
+
+    if (stale) await stores.auth.delete(key);
+  }
+};
+
 // POST /api/account/email { email }, from a live session. Drafts: the
 // customer sees these on the Settings tab.
 export const requestEmailChange = async (stores, customer, email, {
-  now = new Date(), env = process.env, mail = sendMail,
+  now = new Date(), env = process.env, mail = sendMail, ip = "",
 } = {}) => {
   const from = normalizeEmail(customer.email);
   const to = normalizeEmail(email);
@@ -41,14 +58,24 @@ export const requestEmailChange = async (stores, customer, email, {
       "Write us and we'll sort it out.");
   }
 
+  const limits = { windowMs: LINK_WINDOW, max: LINKS_PER_WINDOW };
+
+  if ((await hit(stores, `change-rate/${from}`, now.getTime(), limits))
+    .limited) {
+    return TOO_MANY;
+  }
+  if (ip && (await hit(stores, `change-ip/${ip}`, now.getTime(), limits))
+    .limited) {
+    return TOO_MANY;
+  }
+
+  await voidChangeTokens(stores, from);
+
   const sent = await requestLink(stores, { email: to, next: CHANGED_NEXT }, {
     now, env, mail, changeFrom: from,
   });
 
-  if (!sent.ok) {
-    return refuse("We've sent a few links already. Use the last one, " +
-      "or try again in a few minutes.");
-  }
+  if (!sent.ok) return TOO_MANY;
 
   return { ok: true, email: to };
 };
@@ -71,7 +98,15 @@ export const finishEmailChange = async (stores, { email, changeFrom }, {
       ...(fetchImpl ? { fetchImpl } : {}),
     });
   } catch (error) {
-    log.warn({ event: "email.change_refused", reason: error.message });
+    const [oldExists, newExists] = await Promise.all([
+      getCustomer(stores, changeFrom).then(Boolean),
+      getCustomer(stores, email).then(Boolean),
+    ]);
+
+    log.warn({
+      event: "email.change_refused", reason: error.message,
+      from: changeFrom, to: email, oldExists, newExists,
+    });
 
     return {
       ok: false,
@@ -95,10 +130,14 @@ export const finishEmailChange = async (stores, { email, changeFrom }, {
   }
 
   try {
+    const moved = await getCustomer(stores, report.to);
+
     await mail({
       to: report.from,
       idempotencyKey: `email-changed-${now.getTime()}`,
-      ...emailChanged(report.from, report.to, { links: mailLinks(env) }),
+      ...emailChanged(report.from, report.to, {
+        links: mailLinks(env), marketing: Boolean(moved && moved.marketing),
+      }),
     }, { env });
   } catch (error) {
     log.warn({ event: "email.change_notice_failed", error: error.message });
