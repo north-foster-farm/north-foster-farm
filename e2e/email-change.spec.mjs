@@ -65,7 +65,7 @@ test.describe("changing your own email", () => {
     await page.locator("#email-change-send").click();
   };
 
-  test("a link to the new address moves the account",
+  test("a link to the new address moves the account, only once confirmed",
     { tag: "@regression" }, async ({ page }) => {
       await signIn(page, from);
 
@@ -83,7 +83,30 @@ test.describe("changing your own email", () => {
 
       const mail = await waitForMail({ to, subject: CONFIRM, since: asked });
 
+      // Following the link only peeks at it: the confirm step shows,
+      // and nothing has moved yet (#240).
       await page.goto(linkIn(mail, VERIFY));
+      await expect(page).toHaveURL(/\/login\/#confirm=/);
+      await expect(page.locator("#login-confirm")).toBeVisible();
+      await expect(page.locator("[data-confirm-email]")).toHaveText(to);
+      expect(await customerRecord(from)).not.toBeNull();
+      expect(await customerRecord(to)).toBeNull();
+
+      // Reloading the same link is another bare GET: still nothing
+      // moved, and the confirm step still shows.
+      await page.goto(linkIn(mail, VERIFY));
+      await expect(page.locator("#login-confirm")).toBeVisible();
+      expect(await customerRecord(to)).toBeNull();
+
+      // Cancel backs out without confirming.
+      await page.locator("#login-confirm-cancel").click();
+      await expect(page.locator("#login-confirm")).toBeHidden();
+      await expect(page.locator("#login-form")).toBeVisible();
+      expect(await customerRecord(to)).toBeNull();
+
+      // The button is what actually moves it.
+      await page.goto(linkIn(mail, VERIFY));
+      await page.locator("#login-confirm-submit").click();
       await expect(page).toHaveURL(/\/account\/?#settings$/);
       await expect(page.locator("#account-email")).toHaveText(to);
       await expect(page.locator("#prof-email")).toHaveValue(to);
@@ -94,6 +117,11 @@ test.describe("changing your own email", () => {
       await waitForMail({ to: from, subject: CHANGED, since: asked });
       expect(await customerRecord(to)).not.toBeNull();
       expect(await customerRecord(from)).toBeNull();
+
+      // Spent: the same link no longer works.
+      await page.context().clearCookies();
+      await page.goto(linkIn(mail, VERIFY));
+      await expect(page).toHaveURL(/\/login\/\?error=unknown/);
     });
 
   test("the same address, a bad one and one with an account are refused",
@@ -138,9 +166,13 @@ test.describe("changing your own email", () => {
       // The new address signs in on its own before the link is used.
       await signIn(page, late);
       await page.context().clearCookies();
+
+      // The GET still only peeks: the confirm step shows, not knowing
+      // yet that the address was taken meanwhile.
       await page.goto(linkIn(mail, VERIFY));
-      await expect(page).toHaveURL(/\/login\/\?error=change-taken/);
-      await expect(page.locator("[data-login-notice]")).toContainText(
+      await expect(page.locator("#login-confirm")).toBeVisible();
+      await page.locator("#login-confirm-submit").click();
+      await expect(page.locator("[data-confirm-error]")).toContainText(
         "your email wasn't changed"
       );
       expect(await customerRecord(to)).not.toBeNull();
