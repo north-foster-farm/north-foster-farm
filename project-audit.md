@@ -392,13 +392,11 @@ of them get redone post-migration.
 - ~~Fold `static/_redirects` (`/privacy-policy` → `/privacy`) into
   `netlify.toml`~~ **in PR #69**, as a 301 to match what `_redirects`
   defaulted to.
-- **`/order-form.pdf` is deliberate — leave it exactly as it is.** It
-  is unlinked on purpose: a stopgap for not having e-commerce yet, and
-  the URL gets handed out directly. It is superseded and deleted when
-  e-comm ships, not before. Recorded here (James, 2026-07-30) because
-  an unreferenced file in `static/` reads like an orphan to every
-  audit pass that meets it — this one is not one. Do not link it, do
-  not delete it, do not re-flag it.
+- **`/order-form.pdf` was retired with the checkout launch (#150)**,
+  as planned: James kept it unlinked on purpose (2026-07-30) as the
+  stopgap before e-commerce, to be deleted when e-commerce shipped and
+  not before. Its URL was handed out directly, so it now redirects to
+  `/order/`.
 - ~~npm-vs-yarn decision~~ **in PR #76 — npm.** yarn 1 is EOL and the
   dashboard repo is npm. Done before the Tailwind migration rather
   than after, so that a broken build during the migration has one

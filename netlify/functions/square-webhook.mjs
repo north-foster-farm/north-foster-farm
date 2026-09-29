@@ -1,19 +1,20 @@
-// POST /api/square/webhook: Square tells us an invoice changed. The
+// POST /api/square/webhook: Square tells us something changed. The
 // signature is checked against SQUARE_WEBHOOK_SIGNATURE_KEY and the
-// notification URL Square was given, then the event is applied. A
-// missed or duplicate event is harmless: the scheduled poll asks
-// Square about every unpaid order, and marking an order paid twice
-// is a no-op.
+// notification URL Square was given, then the event is applied.
 //
-// Square retries on anything but a 2xx, so an unknown invoice (an
-// order placed before records existed, or a test) answers 200.
+// Payments are taken on the page, synchronously, so the only event
+// with work behind it is a refund made in the Square dashboard rather
+// than the CLI (`refund.updated`), which is noted on the order. Every
+// signed event is proof the webhook is alive and marks the health
+// record. Square retries on anything but a 2xx, so an unknown payment
+// (an order placed before records existed, or a test) answers 200.
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { mark } from "./lib/health.mjs";
 import { json } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
-import { applyInvoiceEvent } from "./lib/payments.mjs";
+import { applyRefundEvent } from "./lib/payments.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
@@ -39,7 +40,6 @@ export const handle = async (req, {
   stores = defaultStores(),
   env = process.env,
   now = new Date(),
-  mail,
 } = {}) => {
   const body = await req.text();
   const header = req.headers.get("x-square-hmacsha256-signature");
@@ -60,18 +60,15 @@ export const handle = async (req, {
     return json(400, { error: "Expected a Square event." });
   }
 
-  // Any signed event is proof the webhook is alive.
   await mark(stores, "webhook", { type: event.type }, now);
 
-  if (!event.type.startsWith("invoice.")) {
+  if (!event.type.startsWith("refund.")) {
     return json(200, { handled: false, reason: "ignored" });
   }
 
-  const result = await applyInvoiceEvent(stores, event, { env, now, mail });
+  const result = await applyRefundEvent(stores, event, { now });
 
-  log.info({
-    event: "square.webhook", type: event.type, ...result,
-  });
+  log.info({ event: "square.webhook", type: event.type, ...result });
 
   return json(200, result);
 };

@@ -1,7 +1,7 @@
 ---
 description: >
-  "Sign in to North Foster Farm to see your orders, pay invoices and
-  update your delivery address."
+  Sign in to North Foster Farm to see your orders and receipts and to
+  update your delivery address.
 slug: "login"
 title: "Sign in"
 type: "login"

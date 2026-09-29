@@ -1,0 +1,42 @@
+// A band above the footer: one centred statement on the tint, an
+// eyebrow over it, a line under it and a button or two. The home
+// page's "Get in touch" and the footer's "Shop now" share it, so the
+// two read as one voice. Not scoped to a page.
+
+.touch {
+  padding-block: 3.5rem;
+  background-color: var(--bs-success-bg-subtle);
+  text-align: center;
+}
+
+.touch-eyebrow {
+  margin-bottom: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: bold;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bs-green);
+}
+
+.touch-title {
+  max-width: 24ch;
+  margin: 0 auto 0.75rem;
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+  letter-spacing: -0.01em;
+}
+
+.touch-lead {
+  max-width: 36rem;
+  margin: 0 auto 1.75rem;
+  font-size: 1.25rem;
+  color: var(--bs-secondary-color);
+}
+
+// The buttons stay as wide as their words, like every button outside
+// the hero, side by side where they fit and wrapping where not.
+.touch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}

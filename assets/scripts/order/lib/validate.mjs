@@ -49,12 +49,35 @@ export const disallowedFor = (lines, state) => {
   return lines.filter((line) => !state.onlyGroups.includes(line.groupKey));
 };
 
+// The typed code, normalised: upper case, letters and digits only.
+export const normalizeCode = (value) =>
+  text(value, 40).toUpperCase().replace(/[^A-Z0-9-]/g, "");
+
+// The entry for a typed code, or null. Unknown codes are harmless:
+// the order goes through without one, and the page says so.
+export const findCode = (value, codes) => {
+  const wanted = normalizeCode(value);
+
+  if (!wanted) return null;
+
+  const found = (codes || []).find((c) => normalizeCode(c.code) === wanted);
+
+  return found ? { ...found, code: wanted } : null;
+};
+
 // Returns { ok: true, order } or { ok: false, status, errors, dates? }.
 // `group` is the signed-in customer's discount group, never the
-// payload's: the server decides who gets it.
-export const validateOrder = (payload, { index, terms, now, group }) => {
+// payload's: the server decides who gets it. `codes` is the list of
+// discount codes, on the server; the page, which has no list, passes
+// the entry it resolved as `code`. `schedule` is the farm's parsed
+// pickup windows (lib/schedule.mjs): the functions read them from the
+// environment, the page from /api/dates.
+export const validateOrder = (payload, {
+  index, terms, now, group, codes, code, schedule = [],
+}) => {
   const errors = {};
   const p = payload && typeof payload === "object" ? payload : {};
+  const discountCode = codes ? findCode(p.code, codes) : code || null;
   const customer = p.customer || {};
   const fulfilment = p.fulfilment || {};
   const money = terms.money;
@@ -67,6 +90,9 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
   const email = text(customer.email, 254).toLowerCase();
   const phone = text(customer.phone, 40);
   const contact = text(customer.contact, 10);
+  // The farm-news box. Only a ticked box means anything: it opts the
+  // customer in; unticked leaves the record as it was.
+  const marketing = customer.marketing === true;
 
   if (!firstName) {
     errors["customer.firstName"] = "Please enter your first name.";
@@ -75,8 +101,12 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
   if (!EMAIL.test(email)) {
     errors["customer.email"] = "That email address doesn't look right.";
   }
+  // Delivery needs a phone for the driver; pickup and the drop site
+  // can do without. A number given must be one we could use.
   if (!phone) {
-    errors["customer.phone"] = "Please enter a phone number.";
+    if (fulfilment.method === "delivery") {
+      errors["customer.phone"] = "Please enter a phone number.";
+    }
   } else if (!phoneOk(phone)) {
     errors["customer.phone"] = "That phone number doesn't look right.";
   }
@@ -119,18 +149,26 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
     errors["fulfilment.method"] = "Choose how you'd like to get your order.";
   }
 
-  const totals = computeTotals({ lines, method, index, money, group });
+  // The ZIP's status feeds the totals (an unlisted Rhode Island ZIP
+  // adds the outside-area fee) before the delivery block reads it.
+  const zipStatus = method === "delivery"
+    ? zipInfo((fulfilment.delivery || {}).zip, terms.area).status
+    : null;
+  const totals = computeTotals({
+    lines, method, index, money, group, code: discountCode, zipStatus,
+  });
   const out = {
-    customer: { firstName, lastName, name, email, phone, contact }, method,
+    customer: {
+      firstName, lastName, name, email, phone, contact, marketing,
+    },
+    method,
   };
 
   if (method === "onfarm") {
     const f = fulfilment.onfarm || {};
     const window = text(f.window, 20);
 
-    if (!["morning", "afternoon"].includes(window)) {
-      errors["onfarm.window"] = "Morning or afternoon?";
-    }
+    if (!window) errors["onfarm.window"] = "Choose a pickup time.";
     out.onfarm = { window };
   }
 
@@ -140,7 +178,7 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
     if (!meetsMinimum(totals, money)) {
       errors["delivery.minimum"] =
         `Delivery orders are $${money.deliveryMinimum} or more after ` +
-        "discounts. On-farm pickup and the Scituate drop site have no " +
+        "discounts. On-farm pickup and the drop site have no " +
         "minimum.";
     }
 
@@ -175,10 +213,28 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
 
   // The chosen date must still be valid now, not when the page loaded.
   if (METHODS.includes(method)) {
-    const dates = datesFor(method, now, terms);
+    const dates = datesFor(method, now, terms, schedule);
     const date = text(fulfilment.date, 10);
+    const day = dates.find((d) => d.date === date);
+    // A pickup time the schedule no longer has is as stale as a closed
+    // date: 409 with the fresh list, so the page can offer the rest.
+    const gone = method === "onfarm" && day && out.onfarm.window
+      && !day.windows.some((w) => w.id === out.onfarm.window);
 
-    if (!dates.some((d) => d.date === date)) {
+    if (gone) {
+      const status = Object.keys(errors).length ? 422 : 409;
+
+      return {
+        ok: false,
+        status,
+        errors: {
+          ...errors,
+          "onfarm.window": "That pickup time is no longer available.",
+        },
+        dates,
+      };
+    }
+    if (!day) {
       const status = Object.keys(errors).length ? 422 : 409;
 
       return {
@@ -192,6 +248,13 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
       };
     }
     out.date = date;
+
+    // The window's own times go on the record, so everything after
+    // (Square, the emails, the CLI) reads them without the schedule.
+    const w = method === "onfarm"
+      && day.windows.find((x) => x.id === out.onfarm.window);
+
+    if (w) out.onfarm = { window: w.id, from: w.from, to: w.to };
   }
 
   if (Object.keys(errors).length) return { ok: false, status: 422, errors };
@@ -216,6 +279,7 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
         squareVariationId: item.squareVariationId || null,
       })),
       totals,
+      code: totals.discountCode,
       notes: text(p.notes, 2000),
       source: text(p.source, 100),
       flags: {

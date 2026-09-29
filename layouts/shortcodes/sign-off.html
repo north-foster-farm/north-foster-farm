@@ -1,0 +1,6 @@
+{{- /* A post's sign-off, on its own line below the body:
+  {{< sign-off "James and Jim" >}}, printed after an em dash as the
+  old "The NFF team" was (#211). Set further from the body than
+  paragraphs are from each other, so it reads as a signature (#211);
+  the gap is the top level of the vertical rhythm in #210. */ -}}
+<p class="sign-off">— {{ .Get 0 }}</p>

@@ -1,0 +1,11 @@
+{{/* A time range the way the markets write it: "4:00 – 7:00 PM", or
+     "9:00 AM – 12:00 PM" across noon. Takes a date and "15:04"
+     start and end. */}}
+{{ $zone := "America/New_York" }}
+{{ $from := time.AsTime (printf "%sT%s:00" .date .start) $zone }}
+{{ $to := time.AsTime (printf "%sT%s:00" .date .end) $zone }}
+{{ $start := $from.Format "3:04" }}
+{{ if ne ($from.Format "PM") ($to.Format "PM") }}
+  {{ $start = $from.Format "3:04 PM" }}
+{{ end }}
+{{ return printf "%s – %s" $start ($to.Format "3:04 PM") }}

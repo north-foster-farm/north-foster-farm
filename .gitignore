@@ -2,6 +2,8 @@
 # -----
 *.bak
 *.env
+.env.*
+!.env.sample
 *.log
 .hugo_build.lock
 hugo_stats.json
@@ -17,6 +19,15 @@ public/
 resources/
 .netlify/
 
+# Each agent's notes and files, and its local instructions (the
+# bullpen: ~/Code/nff/docs/multi-agent-workflow.md). Never tracked.
+.ignored/
+CLAUDE.local.md
+
+# Playwright's run output (npm run e2e).
+test-results/
+playwright-report/
+
 # Vendored Hugo reference material. These are upstream snapshots, not
 # our code — 169 MB that would sit in history forever. Re-clone them
 # with the commands in docs/README.md. Ignoring them also protects them
@@ -26,3 +37,6 @@ docs/hugo-docs-source/
 
 # Written by the Netlify CLI when it serves functions locally.
 deno.lock
+
+# The originals James keeps beside the photos he exports for the site.
+assets/images/*_original

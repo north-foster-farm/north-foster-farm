@@ -1,0 +1,28 @@
+// The delivery map's ZIP field (#214): a bare input floating on the
+// map, bottom right, under the tag and the cards. No box around it;
+// its lift is the tag's, so the two read as one surface. At 1rem, so
+// a phone doesn't zoom in when it takes focus.
+
+.map-field {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 1;
+}
+
+.zip-check {
+  margin: 0;
+
+  .form-control {
+    width: 10.5rem;
+    font-size: 1rem;
+    font-variant-numeric: tabular-nums;
+    border-color: var(--bs-border-color-translucent);
+    box-shadow: $btn-lift-shadow;
+
+    // The lift would outrank Bootstrap's focus ring; wear both.
+    &:focus {
+      box-shadow: $btn-lift-shadow, $input-focus-box-shadow;
+    }
+  }
+}

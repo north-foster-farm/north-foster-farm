@@ -1,0 +1,28 @@
+{{/*
+  Directions in Google Maps and in Apple Maps, each with its mark,
+  both in a new tab.
+
+  Params:
+    to      Where to: an address on one line, "street, town, state
+            ZIP", or a name before one, which the maps apps match to
+            the place's listing
+    google  The place's Google Place ID (optional)
+    apple   The place's Apple Maps place ID (optional)
+
+  The URLs are the documented forms. Google's is maps/dir/?api=1 with
+  a destination and, optionally, destination_place_id; without the
+  slash before the query, maps/dir answers 404. Apple's is its unified
+  maps.apple.com/directions with a destination and, optionally,
+  destination-place-id. Both start from wherever the visitor is.
+*/}}
+{{ $g := dict "api" "1" "destination" .to }}
+{{ with .google }}{{ $g = merge $g (dict "destination_place_id" .) }}{{ end }}
+{{ $a := dict "destination" .to }}
+{{ with .apple }}{{ $a = merge $a (dict "destination-place-id" .) }}{{ end }}
+{{ $google := printf "https://www.google.com/maps/dir/?%s" (querify $g) }}
+{{ $apple := printf "https://maps.apple.com/directions?%s" (querify $a) }}
+<span class="directions">
+  <span class="directions-label">Directions</span>
+  <a class="directions-link" href="{{ $google }}" target="_blank" rel="noopener" aria-label="Directions in Google Maps">{{ partial "svg.html" "icons/google-maps" }}Google</a>
+  <a class="directions-link" href="{{ $apple }}" target="_blank" rel="noopener" aria-label="Directions in Apple Maps">{{ partial "svg.html" "icons/apple" }}Apple</a>
+</span>

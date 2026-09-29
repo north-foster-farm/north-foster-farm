@@ -55,6 +55,33 @@ export const readMark = async (stores, name) => {
   }
 };
 
+// A tally per day (`health/<name>/<day>`), for things worth counting
+// but not keeping: declined payments, say. Never throws.
+export const count = async (stores, name, now = new Date()) => {
+  const day = today(now, terms.timeZone);
+  const k = key(`${name}/${day}`);
+
+  try {
+    const current = (await stores.jobs.get(k)) || { n: 0 };
+
+    await stores.jobs.set(k, {
+      n: (current.n || 0) + 1, at: now.toISOString(),
+    });
+  } catch (error) {
+    log.warn({ event: "health.count_failed", name, error: String(error) });
+  }
+};
+
+export const readCount = async (stores, name, day) => {
+  try {
+    const record = await stores.jobs.get(key(`${name}/${day}`));
+
+    return record ? record.n || 0 : 0;
+  } catch {
+    return 0;
+  }
+};
+
 // Mail, kept as a rolling hour of failures beside the last success,
 // so the health check can tell "one bounce" from "Resend is down",
 // plus a count per day (two days kept) for the morning report.

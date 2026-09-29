@@ -201,6 +201,23 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .account-receipt-lines {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.25rem 1rem;
+    margin: 0 0 0.75rem;
+
+    dt {
+      font-weight: normal;
+      color: var(--bs-secondary-color);
+    }
+
+    dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+  }
+
   .account-totals {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -343,6 +360,92 @@
     .account-avatars {
       grid-template-columns: repeat(6, 1fr);
     }
+  }
+
+  // Settings in three groups, each under its heading and set apart by
+  // a rule, so a label sits closer to its field than one group to the
+  // next (#238).
+  .account-group + .account-group {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--bs-border-color-translucent);
+  }
+
+  .account-group-title {
+    margin: 0 0 1rem;
+    font-size: 1.0625rem;
+    font-weight: bold;
+  }
+
+  // The sign-in email reads as a value under its label, not a field.
+  .account-email-value {
+    padding-top: 0;
+  }
+
+  // What the last save did: "Saving…" with a spinner, "Saved 👍",
+  // which fades, or why it failed. It keeps a line's height empty, so
+  // the card doesn't jump.
+  .account-save {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 1.5em;
+    transition: opacity 0.6s ease;
+
+    &.is-fading {
+      opacity: 0;
+    }
+
+    &[data-save="failed"] {
+      color: var(--bs-danger-text-emphasis);
+    }
+  }
+
+
+  .account-save-spin {
+    display: none;
+    width: 0.85em;
+    height: 0.85em;
+    border: 2px solid currentcolor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: account-spin 0.8s linear infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation-duration: 2.4s;
+    }
+  }
+
+  .account-save[data-save="saving"] > .account-save-spin {
+    display: inline-block;
+  }
+
+  // Our receipt for a Venmo payment, under the table.
+  .account-receipt {
+    max-width: 26rem;
+    margin-top: 1rem;
+
+    &:focus {
+      outline: 0;
+    }
+  }
+
+  .account-receipt-title {
+    margin: 0 0 0.5rem;
+    font-weight: bold;
+  }
+
+  // James's line, once under every tab.
+  .account-contact {
+    margin: 2.5rem 0 0;
+    padding-top: 1rem;
+    border-top: 1px solid var(--bs-border-color-translucent);
+  }
+}
+
+@keyframes account-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 

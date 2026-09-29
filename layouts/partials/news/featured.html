@@ -1,0 +1,27 @@
+{{/*
+  A news post's featured image, for its row on the news page: the
+  `featured` front matter (a path under assets/, such as
+  "images/lily.jpg"), or else the post's first figure, or the poster
+  of its first video, whichever comes first. A cut-out figure
+  (frame="false") is passed over, since it does not crop to a
+  thumbnail. Returns false when the post has none; its row then shows
+  a leaf.
+*/}}
+{{ $src := .Params.featured }}
+{{ if not $src }}
+  {{ $pattern := `\{\{<\s*(?:figure\s[^>]*?\bsrc|video\s[^>]*?\bposter)="([^"]+)"[^>]*>` }}
+  {{ range findRESubmatch $pattern .RawContent -1 }}
+    {{ if and (not $src) (not (strings.Contains (index . 0) `frame="false"`)) }}
+      {{ $src = index . 1 }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+{{ $image := false }}
+{{ with $src }}
+  {{ with resources.Get . }}
+    {{ $image = . }}
+  {{ else }}
+    {{ errorf "news: featured image %q not found under assets/ (%s)" $src $.Path }}
+  {{ end }}
+{{ end }}
+{{ return $image }}

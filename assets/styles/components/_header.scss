@@ -1,34 +1,59 @@
-// One compact row: wordmark left, links right, everything on one
-// centre line. Plain media queries; colours from the theme.
+// One compact row: logo left, links right, everything on one centre
+// line, over a stripe of the brand green. Plain media queries; colours
+// from the theme.
+
+// The row's height and the whole header's, row and stripe, which the
+// home page's hero reserves above it.
+:root {
+  --header-row: 3.5rem;
+  --header-stripe: 4px;
+  --header-height: calc(var(--header-row) + var(--header-stripe));
+
+  @media (min-width: 768px) {
+    --header-row: 3.75rem;
+  }
+
+  @media (min-width: 992px) {
+    --header-row: 4rem;
+  }
+}
 
 header {
   font-family: Aller, sans-serif;
   background-color: var(--bs-body-bg);
 }
 
-.site-header-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  min-height: 3.5rem;
+// Bootstrap's navbar lays out the row; its padding and the brand's
+// spacing give way to the row's own.
+.site-navbar {
+  --bs-navbar-padding-y: 0;
+  --bs-navbar-brand-padding-y: 0;
+  --bs-navbar-brand-margin-end: 0;
 }
 
+.site-header-inner {
+  gap: 1rem;
+  min-height: var(--header-row);
+}
+
+// The hen in its arc, and beside it the wordmark once there is room
+// for it at a size that reads. A phone shows the hen alone; the link's
+// name says the farm's. The logo never gives up its width: the links
+// once slid under a squeezed wordmark (#227).
 .site-brand {
   display: flex;
   align-items: center;
-  flex: 0 1 auto;
-  min-width: 0;
+  flex: none;
+  gap: 0.625rem;
 
   svg {
     display: block;
-    width: 11rem;
-    max-width: 100%;
-    height: auto;
+    flex: none;
+    width: auto;
 
-    // The wordmark: the brand green, deepened but still green.
+    // The primary green.
     .black {
-      fill: #{shade-color($green, 40%)};
+      fill: var(--bs-primary);
       transition: opacity 0.07s ease;
     }
   }
@@ -36,33 +61,100 @@ header {
   &:hover svg .black {
     opacity: 0.75;
   }
+
+  @media (min-width: 992px) {
+    gap: 0.75rem;
+  }
+}
+
+// md fits the logo and all four links into a 720px container, so the
+// logo steps down there, hen and wordmark together.
+.site-mark svg {
+  height: 2.5rem;
+
+  @media (min-width: 768px) {
+    height: 2.25rem;
+  }
+
+  @media (min-width: 992px) {
+    height: 3rem;
+  }
+}
+
+.site-wordmark {
+  display: none;
+
+  @media (min-width: 576px) {
+    display: block;
+  }
+
+  svg {
+    height: 1rem;
+
+    @media (min-width: 768px) {
+      height: 0.8125rem;
+    }
+
+    @media (min-width: 992px) {
+      height: 1.25rem;
+    }
+  }
+}
+
+// The header's bottom edge: a thin band of the brand green.
+// Decoration only; it says nothing.
+.site-stripe {
+  height: var(--header-stripe);
+  background-color: var(--bs-primary);
 }
 
 .site-actions {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
+  gap: 0.75rem;
   height: 2.25rem;
 }
 
-// Text links: About, Sign in, and the Account menu button.
+// Text links: Sign in, Delivery, News, About, Contact, and the Account
+// menu button. The same hinge as every button: on hover a two-pixel
+// lift and the shadow underneath, as if raised on a pin, and a light
+// gray border. The border is there at rest, transparent, so the link
+// never changes size; the padding gives back its pixel. Nothing
+// changes on the face; a wash there read as an inset.
 .site-nav-link {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0;
-  border: 0;
+  height: 2rem;
+  padding: 0 calc(0.625rem - 1px);
+  border: 1px solid transparent;
+  border-radius: var(--bs-border-radius);
   background: none;
   font-size: 0.8125rem;
   font-weight: 600;
   line-height: 1;
   color: var(--bs-secondary-color);
   white-space: nowrap;
-  transition: color 0.07s ease;
+  text-decoration: none;
+  transform-origin: center bottom;
+  transition:
+    color 0.16s ease-out,
+    background-color 0.16s ease-out,
+    border-color 0.16s ease-out,
+    box-shadow 0.16s ease-out,
+    transform 0.16s ease-out;
 
   &:hover,
   &[aria-expanded="true"] {
     color: var(--bs-body-color);
+    border-color: $gray-100;
+    transform: translateY(-2px);
+    box-shadow: $btn-lift-shadow;
+  }
+
+  &:active {
+    transform: translateY(-1px);
+    box-shadow: $btn-press-shadow;
   }
 
   &[aria-current="page"] {
@@ -72,6 +164,164 @@ header {
   &[hidden] {
     display: none;
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    &:hover,
+    &:active {
+      transform: none;
+    }
+  }
+}
+
+// The toggle: three bars that fold into a cross while the menu is
+// open. The navbar shows it only below md, where the links fold away.
+// Its focus ring is for the keyboard alone, not left behind by a tap.
+.site-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--bs-border-radius);
+  background: none;
+  color: var(--bs-body-color);
+  transition:
+    background-color 0.16s ease-out,
+    border-color 0.16s ease-out,
+    box-shadow 0.16s ease-out,
+    transform 0.16s ease-out;
+
+  // The links' hover; the fixed size keeps the border from moving it.
+  &:hover {
+    border-color: $gray-100;
+    transform: translateY(-2px);
+    box-shadow: $btn-lift-shadow;
+  }
+
+  &:focus:not(:focus-visible, :hover) {
+    box-shadow: none;
+  }
+}
+
+.site-toggle-bars {
+  position: relative;
+  display: block;
+  width: 1.25rem;
+  height: 0.875rem;
+
+  span {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    border-radius: 1px;
+    background-color: currentcolor;
+    transition:
+      transform 0.2s ease-out,
+      opacity 0.16s ease-out,
+      top 0.2s ease-out;
+  }
+
+  span:nth-child(1) { top: 0; }
+  span:nth-child(2) { top: calc(50% - 1px); }
+  span:nth-child(3) { top: calc(100% - 2px); }
+
+  [aria-expanded="true"] & {
+    span:nth-child(1) {
+      top: calc(50% - 1px);
+      transform: rotate(45deg);
+    }
+
+    span:nth-child(2) {
+      opacity: 0;
+      transform: scaleX(0.4);
+    }
+
+    span:nth-child(3) {
+      top: calc(50% - 1px);
+      transform: rotate(-45deg);
+    }
+  }
+}
+
+// Below md, the phone menu: the buttons' easing, one link per line at
+// a size a thumb can hit.
+@media (max-width: 767.98px) {
+  .offcanvas.site-offcanvas {
+    --bs-offcanvas-width: min(20rem, 85vw);
+
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    transition: transform 0.2s ease-out;
+  }
+
+  // Closed, the panel is gone from the page, not only moved off it and
+  // hidden: iOS Safari 26 tints its bars from any fixed layer at least
+  // 80% as wide as the screen that touches its top or bottom, hidden
+  // or not, and this white panel is 82% of a 390px phone. The slide-in
+  // starts from off the screen, as it would have.
+  .offcanvas.site-offcanvas:not(.show, .showing, .hiding) {
+    display: none;
+  }
+
+  @starting-style {
+    .offcanvas.site-offcanvas.showing {
+      transform: translateX(100%);
+    }
+  }
+
+  .site-links {
+    gap: 0.25rem;
+
+    .site-nav-link {
+      height: 2.75rem;
+      padding: 0 calc(0.875rem - 1px);
+      font-size: 1rem;
+      gap: 0.625rem;
+    }
+  }
+}
+
+// From md up the navbar sets the menu in the row, and its links to
+// the row's right, beside search and Order.
+@media (min-width: 768px) {
+  .site-offcanvas {
+    align-items: flex-end;
+  }
+
+  .site-links {
+    align-items: center;
+  }
+}
+
+// Its backdrop veils the page in the panel's white, not black. iOS
+// Safari tints its status bar and toolbar with a full-width fixed
+// layer's colour, ignoring its opacity: a black backdrop boxed the
+// menu in black bands; a white one runs the panel on into the bars.
+// Bootstrap adds the backdrop beside the panel.
+.site-offcanvas ~ .offcanvas-backdrop {
+  background-color: var(--bs-body-bg);
+
+  &.show {
+    opacity: 0.7;
+  }
+}
+
+.site-menu-flat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+.site-offcanvas-rule {
+  margin: 0.5rem 0;
+  border-color: var(--bs-border-color);
 }
 
 .site-menu-icon {
@@ -84,7 +334,11 @@ header {
   }
 }
 
+// The caret centres on the x-height, not the cap height: the label is
+// mostly lower case, and centred on the capitals it read as high.
 .site-nav-caret {
+  position: relative;
+  top: 0.085em;
   display: inline-flex;
 
   svg {
@@ -101,6 +355,7 @@ header {
 // The Order link: a tight outline button in the dark green, last in
 // the row.
 .site-order {
+  position: relative;
   display: inline-flex;
   align-items: center;
   height: 2rem;
@@ -118,18 +373,16 @@ header {
     box-shadow 0.16s ease-out,
     transform 0.16s ease-out;
 
-  // The same quiet hover as every .btn: a wash of its own color, a
-  // lift and a shadow, never a fill.
+  // The same quiet hover as the links: a lift and a shadow, never a
+  // fill or a wash.
   &:hover {
-    background-color: color-mix(in srgb, currentcolor 20%, transparent);
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px -8px rgba($black, 0.45);
+    box-shadow: $btn-lift-shadow;
   }
 
   &:active {
-    background-color: color-mix(in srgb, currentcolor 30%, transparent);
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px -5px rgba($black, 0.4);
+    box-shadow: $btn-press-shadow;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -142,6 +395,223 @@ header {
   &.is-current {
     border-color: var(--bs-border-color);
     color: var(--bs-secondary-color);
+  }
+}
+
+// The cart count: a green disc pinned over the Order button's top
+// right corner, so the row never moves when it shows. In the phone
+// menu it sits after the word instead.
+.site-cart {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.3125rem;
+  border-radius: 50rem;
+  background-color: var(--bs-primary);
+  box-shadow: 0 0 0 2px var(--bs-body-bg);
+  color: $white;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  pointer-events: none;
+  transform: translate(50%, -50%);
+
+  &[hidden] {
+    display: none;
+  }
+
+  .site-links & {
+    position: static;
+    box-shadow: none;
+    transform: none;
+  }
+}
+
+// Order, and once the cart holds something, the cart half joined to its
+// right: one outline button in two parts. The pair lifts as one under
+// the pointer. The lift's transform makes the pair a stacking context,
+// which would hold the mini cart under the home page's hero; a layer
+// of its own at the dropdowns' level keeps the mini cart in front.
+.site-order-group {
+  position: relative;
+  z-index: $zindex-dropdown;
+  display: flex;
+  border-radius: var(--bs-border-radius);
+  transition:
+    box-shadow 0.16s ease-out,
+    transform 0.16s ease-out;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $btn-lift-shadow;
+  }
+
+  &:active {
+    transform: translateY(-1px);
+    box-shadow: $btn-press-shadow;
+  }
+
+  .site-order:hover,
+  .site-order:active {
+    transform: none;
+    box-shadow: none;
+  }
+
+  &:has(.site-cart-menu:not([hidden])) .site-order {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &:hover,
+    &:active {
+      transform: none;
+    }
+  }
+}
+
+.site-cart-menu {
+  display: flex;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+// The cart half: the cart icon, sharing Order's right edge, with the
+// count's disc on its corner.
+.site-cart-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2rem;
+  margin-left: -1.5px;
+  padding: 0;
+  border: 1.5px solid var(--bs-primary);
+  border-radius: 0 var(--bs-border-radius) var(--bs-border-radius) 0;
+  background: none;
+  color: var(--bs-primary);
+
+  .site-cart-icon svg {
+    display: block;
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  &[aria-expanded="true"] {
+    background-color: var(--bs-primary-bg-subtle);
+  }
+}
+
+// What the cart half opens: the lines, the subtotal, and the way to
+// checkout.
+.site-mini-cart {
+  width: min(20rem, calc(100vw - 2rem));
+  margin-top: 0.5rem;
+  padding: 1rem;
+  border-color: var(--bs-border-color-translucent);
+  box-shadow: var(--bs-box-shadow-sm);
+  font-size: $cart-font-size;
+
+  // Under 360 wide the checkout note needs a few more pixels to stay
+  // on one line (#207).
+  @media (max-width: 359.98px) {
+    padding-inline: 0.75rem;
+  }
+
+  // On a phone, the page's gutters and the order page cart's width
+  // (#203); mini-cart.js measures both as it opens.
+  @media (max-width: 575.98px) {
+    &[data-bs-popper] {
+      right: var(--mini-cart-right, 0);
+      width: var(--mini-cart-width, min(20rem, calc(100vw - 2rem)));
+    }
+  }
+}
+
+.site-mini-cart-lines {
+  max-height: 16rem;
+  margin: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+// A group's heading, then its lines under it, set in a little: the
+// order page's cart, spaced the same.
+.site-mini-cart-group + .site-mini-cart-group {
+  margin-top: $cart-group-gap;
+}
+
+.site-mini-cart-heading {
+  display: block;
+}
+
+.site-mini-cart-items {
+  display: grid;
+  gap: $cart-line-gap;
+  margin-top: $cart-line-gap;
+  padding-left: $cart-indent;
+}
+
+.site-mini-cart-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.75rem;
+  align-items: baseline;
+  line-height: $cart-line-height;
+}
+
+// Never wraps; the room above makes the ellipsis a last resort.
+.site-mini-cart-heading,
+.site-mini-cart-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.site-mini-cart-qty,
+.site-mini-cart-price {
+  color: var(--bs-secondary-color);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.site-mini-cart-price {
+  color: var(--bs-body-color);
+}
+
+.site-mini-cart-subtotal {
+  display: flex;
+  justify-content: space-between;
+  margin: 0.5rem 0 0.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--bs-border-color);
+}
+
+// Without it the subtotal reads as the final price.
+.site-mini-cart-note {
+  margin-bottom: 1rem;
+  color: var(--bs-secondary-color);
+  font-size: 0.8125rem;
+}
+
+.site-mini-cart-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  // Side by side, sharing the width; stacked when too narrow.
+  > .btn {
+    flex: 1 1 auto;
   }
 }
 
@@ -160,9 +630,44 @@ header {
     opacity: 1;
   }
 
+  // In the phone menu the account links stack like the others.
+  .site-menu-account & {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     transition: none;
   }
+}
+
+// Sign in: the site's outline button, green like Order (#238). On the
+// sign-in page it greys, as Order does on its own page. In the phone
+// menu it keeps its own width rather than the row's.
+.site-account .site-nav-link.site-signin {
+  padding-inline: 0.75rem;
+  border: 1.5px solid var(--bs-primary);
+  color: var(--bs-primary);
+
+  &[aria-current="page"] {
+    border-color: var(--bs-border-color);
+    color: var(--bs-secondary-color);
+  }
+
+  .site-menu-account & {
+    align-self: flex-start;
+    margin-top: 0.5rem;
+  }
+}
+
+// The customer's chicken before "Account", smaller than on the
+// settings page (#238).
+.site-account-chick {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-right: 0.125rem;
+  margin-left: -0.25rem;
 }
 
 .site-account-menu {
@@ -178,6 +683,33 @@ header {
     align-items: center;
     gap: 0.625rem;
     padding: 0.375rem 0.875rem;
+    transform-origin: center bottom;
+    transition:
+      color 0.16s ease-out,
+      box-shadow 0.16s ease-out,
+      transform 0.16s ease-out;
+
+    &:hover,
+    &:focus-visible {
+      background: none;
+      color: var(--bs-body-color);
+      transform: translateY(-2px);
+      box-shadow: $btn-lift-shadow;
+    }
+
+    &:active {
+      background: none;
+      color: var(--bs-body-color);
+      transform: translateY(-1px);
+      box-shadow: $btn-press-shadow;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      &:hover,
+      &:active {
+        transform: none;
+      }
+    }
   }
 
   .dropdown-divider {
@@ -186,15 +718,38 @@ header {
 }
 
 @media (min-width: 768px) {
+  // md is the tightest row: the logo, the Account menu and four links,
+  // search, and Order with its cart half, in a 720px container. The
+  // links sit shoulder to shoulder there, their padding the only space
+  // between them, and the wordmark steps down to fit; lg gives them
+  // back their room (#227).
   .site-header-inner {
-    min-height: 4.25rem;
-  }
-
-  .site-brand svg {
-    width: 15rem;
+    gap: 0.75rem;
   }
 
   .site-actions {
-    gap: 1.5rem;
+    gap: 0.5rem;
+  }
+
+  .site-links .site-nav-link {
+    padding-inline: calc(0.375rem - 1px);
+  }
+}
+
+@media (min-width: 992px) {
+  .site-header-inner {
+    gap: 1rem;
+  }
+
+  .site-actions {
+    gap: 0.875rem;
+  }
+
+  .site-links {
+    gap: 0.5rem;
+  }
+
+  .site-links .site-nav-link {
+    padding-inline: calc(0.625rem - 1px);
   }
 }

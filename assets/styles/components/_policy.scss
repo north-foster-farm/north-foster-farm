@@ -1,22 +1,63 @@
 .policy {
+  // flow-root keeps the heading, and so its rule, out from under a
+  // floated figure such as the about page's egg.
   h2 {
+    display: flow-root;
     margin-top: 2.25rem;
-    margin-bottom: 1rem;
     padding-bottom: 0.25rem;
     border-bottom: 1px solid var(--bs-border-color);
   }
 
   h3 {
     margin-top: 1.5rem;
-    margin-bottom: 1rem;
   }
 
   .text-column {
     max-width: 700px;
   }
 
-  // Markdown tables in the body copy.
+  // The opening paragraph with the map button to its right
+  // (shortcodes/delivery-area-button.html). Below 30rem the label
+  // wraps to two lines so the row holds on a phone; the two stack
+  // only when the column cannot give the paragraph 10rem beside the
+  // button, below about a 350px screen.
+  .policy-lead {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 1.5rem;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .policy-lead-text {
+    flex: 1 1 10rem;
+
+    > :last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .policy-lead-button {
+    flex: none;
+    white-space: nowrap;
+
+    @media (max-width: 29.98rem) {
+      max-width: 8rem;
+      white-space: normal;
+      text-wrap: balance;
+    }
+  }
+
+  // The About page's markets (shortcodes/markets.html): each market
+  // is a short stack of lines, set apart from the next like a
+  // paragraph.
+  .markets-list .market + .market {
+    margin-top: $paragraph-margin-bottom;
+  }
+
+  // Markdown tables in the body copy fill the column.
   table {
+    width: 100%;
     margin-bottom: 1.5rem;
     border-collapse: collapse;
 

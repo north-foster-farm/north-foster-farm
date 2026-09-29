@@ -1,0 +1,10 @@
+{{- /* A day of the week as a word, from data/delivery.json (Q21b):
+  partial "weekday.html" "delivery" gives the day that fulfilment runs,
+  "Thursday"; a number gives that day (0 is Sunday), so
+  partial "weekday.html" 3 gives "Wednesday". */ -}}
+{{- $days := slice "Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday" -}}
+{{- $n := . -}}
+{{- if eq (printf "%T" .) "string" -}}
+  {{- $n = (index hugo.Data.delivery .).weekday -}}
+{{- end -}}
+{{- return index $days (int $n) -}}

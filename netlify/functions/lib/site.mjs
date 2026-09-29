@@ -38,12 +38,12 @@ export const orderUrlFor = (env, id) =>
 // The links every email ends on. `orders` is null until accounts are
 // on; `admin` is the dashboard (ADMIN_URL, default the farm's) and
 // the farm's notices build their order and customer links under it;
-// `order` is the order form; `contact` falls back to the farm's
-// mailbox inside the templates when unset.
+// `order` is the order form; `contact` is the site's contact page
+// (CONTACT_URL overrides it).
 export const mailLinks = (env = process.env) => ({
   site: siteUrl(env),
   orders: accountUrlFor(env),
-  contact: env.CONTACT_URL || null,
+  contact: env.CONTACT_URL || `${siteUrl(env)}/contact/`,
   admin: (env.ADMIN_URL || "https://admin.northfosterfarm.com")
     .replace(/\/+$/, ""),
   order: `${siteUrl(env)}/order/`,

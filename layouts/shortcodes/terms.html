@@ -1,0 +1,74 @@
+{{- /* One fact from data/delivery.json, as words, so the policy never
+  restates a number the data owns (Q21b).
+    {{< terms "minimum" >}}              $40
+    {{< terms "fee" >}}                  $5
+    {{< terms "waived-at" >}}            $150
+    {{< terms "outside-fee" >}}          $3
+    {{< terms "window" "delivery" >}}    10:00 AM to 4:00 PM
+    {{< terms "day" "delivery" >}}       Thursday
+    {{< terms "days" "scituate" >}}      Saturdays
+    {{< terms "hold" >}}                 7 days
+    {{< terms "place" "onFarm" >}}       99 East Killingly Road, Foster
+    {{< terms "place" "scituate" >}}     Village Green, 46 Institute
+                                         Lane, North Scituate
+    {{< terms "town" "scituate" >}}      Scituate
+    {{< terms "starting" "scituate" >}}  "starting October 17, " while
+                                         that date is ahead, else ""
+    {{< terms "start" "scituate" >}}     October 17, always (for a dated
+                                         post)
+    {{< terms "cutoff-day" >}}           Wednesday
+    {{< terms "cutoff-hour" >}}          noon
+  A place drops its state and ZIP code. The farm's own address is in
+  data/company.json. A cutoff hour of 24 has no word that reads before
+  "on Wednesday"; use the cutoff shortcode for that. */ -}}
+{{- $terms := hugo.Data.delivery -}}
+{{- $money := $terms.money -}}
+{{- $fact := .Get 0 -}}
+{{- $key := .Get 1 | default "delivery" -}}
+{{- $of := index $terms $key -}}
+{{- if eq $fact "minimum" -}}
+  ${{ $money.deliveryMinimum }}
+{{- else if eq $fact "fee" -}}
+  ${{ $money.deliveryFee }}
+{{- else if eq $fact "waived-at" -}}
+  ${{ $money.feeWaivedAt }}
+{{- else if eq $fact "outside-fee" -}}
+  ${{ $money.outsideAreaFee }}
+{{- else if eq $fact "window" -}}
+  {{ replace $of.window " – " " to " }}
+{{- else if eq $fact "day" -}}
+  {{ partial "weekday.html" $of.weekday }}
+{{- else if eq $fact "days" -}}
+  {{ partial "weekday.html" $of.weekday }}s
+{{- else if eq $fact "hold" -}}
+  {{ $terms.delivery.holdDays }} days
+{{- else if eq $fact "place" -}}
+  {{- if eq $key "onFarm" -}}
+    {{ (partial "address.html" .).street }}, {{ hugo.Data.company.address.city }}
+  {{- else -}}
+    {{ replaceRE `, [A-Z]{2} \d{5}$` "" $of.location }}
+  {{- end -}}
+{{- else if eq $fact "town" -}}
+  {{ $of.town }}
+{{- else if eq $fact "starting" -}}
+  {{- $start := time.AsTime $of.start $terms.timeZone -}}
+  {{- if $start.After now }}starting {{ $start.Format "January 2" }}, {{ end -}}
+{{- else if eq $fact "start" -}}
+  {{ (time.AsTime $of.start $terms.timeZone).Format "January 2" }}
+{{- else if eq $fact "cutoff-day" -}}
+  {{ partial "weekday.html" $of.cutoffWeekday }}
+{{- else if eq $fact "cutoff-hour" -}}
+  {{- $hour := int $of.cutoffHour -}}
+  {{- if eq $hour 12 -}}
+    noon
+  {{- else if eq $hour 24 -}}
+    {{- errorf "terms: cutoff-hour 24 in %s; use the cutoff shortcode"
+      .Position -}}
+  {{- else if gt $hour 12 -}}
+    {{ sub $hour 12 }} PM
+  {{- else -}}
+    {{ $hour }} AM
+  {{- end -}}
+{{- else -}}
+  {{- errorf "terms: no fact %q in %s" $fact .Position -}}
+{{- end -}}

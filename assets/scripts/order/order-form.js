@@ -1,26 +1,47 @@
 import Tooltip from "bootstrap/js/dist/tooltip.js";
 
 import { indexCatalog } from "./lib/catalog.mjs";
+import { linkedMethod, withoutParam } from "./lib/query.mjs";
 import { summarize } from "./lib/summary.mjs";
 import {
   computeTotals, dollars, meetsMinimum, toCents,
 } from "./lib/totals.mjs";
 import {
-  disallowedFor, validateOrder, zipInfo,
+  disallowedFor, normalizeCode, phoneOk, validateOrder, zipInfo,
 } from "./lib/validate.mjs";
+import { pickupTimes, windowLabel } from "./lib/schedule.mjs";
 import { label } from "./lib/zoned.mjs";
 import { celebrate } from "./celebrate.js";
 import { DateLists } from "./date-lists.js";
 import { Draft } from "./draft.js";
 import { Errors } from "./errors.js";
+import { Lapsed } from "./lapsed.js";
+import { Payment } from "./pay.js";
 import { Pending } from "./pending.js";
 import { Stock } from "./stock.js";
 import { Submitter } from "./submit.js";
+import { announceCart } from "../cart-badge/announce.js";
 import { me } from "../session/session.js";
+import { api } from "../utils/api.js";
+import { setBusy as spin } from "../utils/busy-button.js";
 
-const RETRY_DELAYS = [5000, 15000, 45000, 120000, 300000];
-const AGREE_SEEN = "nff-delivery-policy-seen";
-const MAX_ATTEMPTS = 6;
+// A send that can't get through is tried once more this soon, while
+// the page still shows it being placed, and then not again (#154).
+const RETRY_DELAY = 3000;
+
+// The code that is a joke: the cart shows a discount growing by this
+// much a minute for as long as the page is open, and nothing else
+// changes. The server has never heard of it.
+const JOKE_CODE = "EGGBOI";
+const JOKE_PER_MINUTE = 4000;
+
+const sha256 = async (text) => {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+
+  return Array.from(new Uint8Array(digest),
+    (b) => b.toString(16).padStart(2, "0")).join("");
+};
 
 const qs = (root, selector) => root.querySelector(selector);
 const all = (root, selector) => Array.from(root.querySelectorAll(selector));
@@ -49,12 +70,33 @@ export class OrderForm {
     this.catalog = data.catalog;
     this.terms = data.terms;
     this.contact = data.contact;
+    // Discount codes, by hash; the plain codes stay on the server.
+    this.codes = data.codes || [];
+    this.code = null;
+    this.joke = null;
     this.index = indexCatalog(this.catalog);
     this.money = this.terms.money;
     this.errors = new Errors(form);
-    this.draft = new Draft();
+    // /order/?edit=<id> changes a paid order (startEdit): its own draft,
+    // so the cart the header reads is left alone, and its own endpoint.
+    const edit = new URLSearchParams(location.search).get("edit") || "";
+
+    this.editId = /^[A-Za-z0-9-]{1,32}$/.test(edit) ? edit : null;
+    this.editing = null;
+    this.draft = new Draft(this.editId ? { name: `nff-edit-${this.editId}` }
+      : {});
     this.dates = new DateLists(form, () => this.refresh());
-    this.submitter = new Submitter();
+    // A pickup time to select once its day's windows are drawn: a
+    // restored draft's, or the dialog's.
+    this.wantedWindow = null;
+    this.lapsed = new Lapsed(document.getElementById("order-lapsed"), {
+      onUse: (choice) => this.useLapsed(choice),
+      onOther: (method) => this.otherWay(method),
+    });
+    this.submitter = new Submitter(this.editId
+      ? { url: `/api/account/orders/${this.editId}/edit` }
+      : {});
+    this.saveButton = document.getElementById("order-save");
     this.stock = new Stock(form, {
       onChange: (notice) => this.stockMoved(notice),
       setQty: (input, n) => this.setQty(input, n),
@@ -62,16 +104,14 @@ export class OrderForm {
     this.stockNotice = document.getElementById("order-stock");
     this.cart = document.getElementById("order-cart");
     this.result = document.getElementById("order-result");
-    this.pending = new Pending(document.getElementById("order-pending"), {
-      max: MAX_ATTEMPTS,
-      onRetry: () => this.resume(this.draft.pending()),
-      onCancel: () => this.cancelRetries(),
-    });
+    this.pending = new Pending(document.getElementById("order-pending"));
     this.submitButton = document.getElementById("order-submit");
-    this.retryTimer = null;
+    this.payment = new Payment(document.getElementById("payment"), this);
     this.lastTotal = null;
-    this.lastCount = 0;
+    this.lastCount = null;
     this.busy = false;
+    // The quantity box with focus, which refresh() keeps open.
+    this.typing = null;
     // Which badges were lit at the last render, so a badge that turns
     // on can celebrate. Null until the first render, which never does.
     this.lit = null;
@@ -81,24 +121,29 @@ export class OrderForm {
   }
 
   start() {
-    this.wire();
+    if (this.editId) {
+      this.startEdit();
 
-    const pending = this.draft.pending();
-
-    if (pending) {
-      this.restore(pending.payload);
-      this.resume(pending);
-      this.pending.focus();
-    } else {
-      const draft = this.draft.load();
-
-      if (draft && draft.payload) this.restore(draft.payload);
+      return;
     }
 
+    this.wire();
+
+    // Nothing is retried in the background any more (#154); an order
+    // an older page left to retry is forgotten, its draft kept.
+    this.draft.clearPending();
+
+    const draft = this.draft.load();
+
+    if (draft && draft.payload) this.restore(draft.payload);
+
+    this.methodFromQuery();
     this.addFromQuery();
     this.dates.load();
+    this.applyCode({ quiet: true });
     this.refresh();
     this.stock.start();
+    this.payment.start();
 
     // A signed-in customer sees their discount group as they shop, and
     // their details arrive already filled in.
@@ -115,6 +160,99 @@ export class OrderForm {
     }).catch(() => {});
   }
 
+  // /order/?edit=<id>: the page opens one of the customer's paid orders
+  // for a change (#160), priced by the same code as a new order. What
+  // is paid shows under the total with the difference, which is all
+  // the payment section takes; with nothing to pay, Save changes sends
+  // it. An order that cannot be changed goes back to the account page.
+  async startEdit() {
+    this.wire();
+
+    const { ok, status, data } = await api("/api/account/orders");
+
+    if (status === 401) {
+      location.replace(`/login/?next=${encodeURIComponent(
+        location.pathname + location.search
+      )}`);
+
+      return;
+    }
+
+    const order = ok
+      ? (data.orders || []).find((o) => o.id === this.editId)
+      : null;
+
+    if (!order || !order.canChange) {
+      location.replace("/account/#orders");
+
+      return;
+    }
+
+    const sum = (list) => (list || []).reduce((s, x) => s + (x.amount || 0),
+      0);
+
+    this.editing = {
+      id: order.id, held: sum(order.payments) - sum(order.refunds),
+    };
+    for (const line of order.lines) this.stock.held[line.sku] = line.qty;
+
+    const who = await me().catch(() => ({}));
+    const customer = (who && who.customer) || {};
+
+    this.group = customer.discountGroup || null;
+
+    const saved = this.draft.load();
+
+    this.restore(saved ? saved.payload : {
+      customer: { ...order.customer, email: customer.email },
+      lines: order.lines.map(({ sku, qty }) => ({ sku, qty })),
+      fulfilment: order.fulfilment,
+      code: order.code,
+    });
+
+    const banner = document.getElementById("order-editing");
+
+    // Draft wording.
+    banner.textContent = `You're changing order ${order.id}. You pay ` +
+      "only the difference, or we refund it.";
+    banner.hidden = false;
+    for (const heading of document.querySelectorAll(
+      ".page-heading h1, [data-topbar-title]"
+    )) {
+      heading.textContent = "Change your order";
+    }
+    this.saveButton.addEventListener("click", (e) => this.submit(e));
+
+    this.dates.load();
+    this.applyCode({ quiet: true });
+    this.refresh();
+    this.stock.start();
+    this.payment.start();
+  }
+
+  // Under the total while changing a paid order: what is paid and the
+  // difference. With nothing to pay, Save changes stands in for the
+  // payment section.
+  renderEdit(total) {
+    if (!this.editing) return;
+
+    const box = qs(this.cart, "[data-edit-money]");
+    const diff = total - this.editing.held;
+
+    box.hidden = false;
+    qs(box, "[data-total='paid']").textContent = dollars(this.editing.held);
+    // Draft wording.
+    qs(box, "[data-total='due-label']").textContent = diff < 0
+      ? "To refund"
+      : "To pay";
+    qs(box, "[data-total='due']").textContent = dollars(Math.abs(diff));
+    this.payment.root.hidden = diff <= 0;
+    this.saveButton.hidden = diff > 0;
+    // The card's own Pay button shows only with the card chosen.
+    this.submitButton.hidden = diff <= 0
+      || this.payment.state.dataset.cardOpen !== "true";
+  }
+
   // Name, email and phone from the customer's record, shown as plain
   // text. A click turns one back into a field; leaving it, filled,
   // turns it into text again.
@@ -129,8 +267,57 @@ export class OrderForm {
       this.plain(input, true);
       any = true;
     }
+    this.formatPhone();
 
+    // A customer who already said yes to farm news sees the box ticked;
+    // it starts unticked for everyone else.
+    const news = qs(this.form, "[data-field='customer.marketing']");
+
+    if (news && customer.marketing === true && !news.checked) {
+      news.checked = true;
+      any = true;
+    }
+
+    this.showContact();
     if (any) this.draft.save(this.collect());
+  }
+
+  // The phone number as "(xxx) xxx-xxxx" while it is typed. A
+  // deletion that lands on a bracket or a dash takes the digit before
+  // it too, so backspace never fights the mask. A leading 1 is dropped.
+  formatPhone(deleting = false) {
+    const input = qs(this.form, "[data-field='customer.phone']");
+    const raw = input.value;
+    let digits = raw.replace(/\D/g, "");
+
+    if (digits.length === 11 && digits.startsWith("1")) {
+      digits = digits.slice(1);
+    }
+    if (deleting && /\D$/.test(raw)) digits = digits.slice(0, -1);
+    digits = digits.slice(0, 10);
+
+    const out = digits.length <= 3 ? (digits ? `(${digits}` : "")
+      : digits.length <= 6 ? `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+        : `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+
+    if (out !== raw) input.value = out;
+  }
+
+  // "Prefer text or call?" shows once the phone number is one we could
+  // use, and fades in when it appears.
+  showContact() {
+    const row = qs(this.form, "[data-contact-row]");
+    const phone = qs(this.form, "[data-field='customer.phone']");
+    const on = phoneOk(phone.value.trim());
+
+    if (row.dataset.shown === String(on)) return;
+    row.dataset.shown = String(on);
+    if (on) {
+      row.classList.add("is-entering");
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        row.classList.remove("is-entering");
+      }));
+    }
   }
 
   plain(input, on) {
@@ -140,23 +327,35 @@ export class OrderForm {
   }
 
   wire() {
-    this.form.addEventListener("input", () => this.changed());
+    this.form.addEventListener("input", () => {
+      this.changed();
+      this.revalidate();
+    });
     this.form.addEventListener("change", (e) => {
       this.changed();
-      if (e.target.name === "method") this.revealMethod();
+      this.revalidate();
+      if (e.target.name === "method" && !this.quietMethod) {
+        this.revealMethod();
+      }
     });
     this.form.addEventListener("submit", (e) => this.submit(e));
     this.form.addEventListener("click", (e) => this.step(e));
 
     // Blur normalises whatever was typed into a quantity box, and
     // turns an edited detail back into plain text.
+    this.form.addEventListener("focusin", (e) => {
+      if (e.target.matches("[data-qty]")) this.typing = e.target;
+    });
     this.form.addEventListener("focusout", (e) => {
       if (e.target.matches("[data-qty]")) {
+        this.typing = null;
         this.setQty(e.target, this.qty(e.target));
+        this.refresh();
       }
       if (e.target.matches("[data-prefill]") && e.target.value.trim()) {
         this.plain(e.target, true);
       }
+      this.revalidate(e.target);
     });
 
     // A click on a plain-text detail makes it a field again.
@@ -167,26 +366,173 @@ export class OrderForm {
       }
     });
 
-    // The delivery-policy note can be dismissed, and stays dismissed.
-    const agree = qs(this.form, "[data-agree]");
+    const phone = qs(this.form, "[data-field='customer.phone']");
 
-    agree.hidden = this.draft.flag(AGREE_SEEN);
-    qs(agree, "[data-agree-dismiss]").addEventListener("click", () => {
-      this.draft.setFlag(AGREE_SEEN);
-      agree.hidden = true;
+    phone.addEventListener("input", (e) => {
+      this.formatPhone((e.inputType || "").startsWith("delete"));
+      this.showContact();
     });
+    this.formatPhone();
+    this.showContact();
 
-    // Below xl the cart folds down to the total and the Next button.
-    qs(this.cart, "[data-cart-toggle]").addEventListener("click", () => {
+    // Below xl the cart folds down to the total row and the foot: the
+    // toggle, the way on and the nudge.
+    const cartToggle = qs(this.cart, "[data-cart-toggle]");
+
+    cartToggle.addEventListener("click", () => {
       this.setOpen(this.cart.dataset.open !== "true");
     });
+    // Escape folds it while it floats, and leaves the focus on the
+    // toggle that opens it again (#159).
+    this.cart.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || this.cart.dataset.stuck !== "true"
+        || this.cart.dataset.open !== "true") return;
+      e.preventDefault();
+      this.setOpen(false);
+      cartToggle.focus();
+    });
+    // A control the Tab key reaches under the floating cart scrolls up
+    // clear of it, never under the top bar (#159, WCAG 2.4.11). The
+    // cart's own are its own, and a scroller taller than the room is
+    // left where it is. The cart may grow once the bar sticks, so it
+    // looks again a frame later.
+    const clear = (el) => {
+      if (this.cart.dataset.stuck !== "true" || this.cart.contains(el)
+        || document.activeElement !== el) return;
+
+      const r = el.getBoundingClientRect();
+      const floor = this.cart.getBoundingClientRect().top;
+      const ceiling = bar ? Math.max(0, bar.getBoundingClientRect().bottom)
+        : 0;
+
+      if (r.height > (floor - ceiling) / 2) return;
+
+      const over = Math.min(r.bottom + 12 - floor, r.top - ceiling - 12);
+
+      if (over > 0) window.scrollBy({ top: over, behavior: "instant" });
+    };
+
+    document.addEventListener("focusin", (e) => {
+      clear(e.target);
+      requestAnimationFrame(() => requestAnimationFrame(
+        () => clear(e.target)
+      ));
+    });
+    qs(this.cart, "[data-checkout]").addEventListener("click", () => {
+      const target = document.getElementById("pickup");
+
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      qs(target, "legend").focus({ preventScroll: true });
+    });
+
+    // The total row's two controls (#203): the count folds the lines,
+    // the total unfolds the sums above it. Below xl only; the column
+    // shows both and its count and total are plain text.
+    const itemsToggle = qs(this.cart, "[data-cart-items-toggle]");
+    const moneyToggle = qs(this.cart, "[data-cart-money-toggle]");
+
+    itemsToggle.addEventListener("click", () => {
+      this.setPart("items", this.cart.dataset.items !== "open");
+    });
+    moneyToggle.addEventListener("click", () => {
+      this.setPart("money", this.cart.dataset.money !== "open");
+    });
+    // Settled, the cart shows everything and the two are plain text
+    // too (#203): stuckWatch below calls this when it settles.
+    const column = matchMedia("(min-width: 1200px)");
+    const folds = all(this.cart, ".order-cart-fold");
+    const plain = () => {
+      const still = column.matches || this.cart.dataset.stuck === "false";
+
+      itemsToggle.disabled = still;
+      moneyToggle.disabled = still;
+      // Folded, what the fold hides is out of the Tab order too, or the
+      // focus goes under the bar (#159). The column never folds.
+      const folded = !column.matches && this.cart.dataset.open === "false";
+
+      for (const fold of folds) fold.inert = folded;
+    };
+
+    this.plainTotals = plain;
+    column.addEventListener("change", plain);
+    plain();
+
+    this.wireShare();
+
+    // The header's total, once the cart has scrolled away, goes back
+    // to it (#203).
+    for (const button of all(this.form, "[data-to-cart]")) {
+      button.addEventListener("click", () => {
+        const heading = document.getElementById("order-cart-heading");
+
+        heading.scrollIntoView({ behavior: "smooth", block: "start" });
+        heading.focus({ preventScroll: true });
+      });
+    }
+
+    // Below xl the pane floats at the foot of the screen while its
+    // place in the page is further down, and settles into the flow
+    // after the last row. Floating it casts a shadow; settled it is
+    // flat and carries its heading. Sticky gives no event for this,
+    // so the rect says which.
+    // On a phone the cart may grow up to the top bar, wherever the bar
+    // is: until the page scrolls it to the top, it sits lower (#180).
+    let stuckTick = null;
+    const bar = document.querySelector(".order-topbar");
+    const stuckWatch = () => {
+      stuckTick = null;
+
+      const r = this.cart.getBoundingClientRect();
+      const below = matchMedia("(max-width: 1199.98px)").matches;
+      const floating = below && r.bottom > window.innerHeight - 13;
+      const barRect = bar ? bar.getBoundingClientRect() : null;
+      const barBottom = barRect ? barRect.bottom : 0;
+
+      // The phone bar casts its shadow only once stuck; at rest it
+      // lies flat under the header (O5).
+      if (bar) bar.dataset.stuck = String(barRect.top <= 0.5);
+      this.cart.style.setProperty(
+        "--cart-bar", `${Math.max(0, Math.round(barBottom))}px`
+      );
+      this.cart.dataset.stuck = String(floating);
+      // Settled, the cart is always open and its toggle fades. It
+      // stays open when it floats again: folding it then would shorten
+      // it, settle it and open it again, over and over.
+      if (below && !floating && this.cart.dataset.open === "false") {
+        this.setOpen(true);
+      }
+      // So are the lines and the sums, subtotal included (#203), and
+      // they too stay open when it floats again, for the same reason.
+      if (below && !floating) {
+        if (this.cart.dataset.items !== "open") this.setPart("items", true);
+        if (this.cart.dataset.money !== "open") this.setPart("money", true);
+      }
+      this.plainTotals();
+      // Scrolled past: the total bar takes over, and its total becomes
+      // a way back.
+      const passed = below && r.bottom < 60;
+
+      if (this.form.dataset.cartPassed !== String(passed)) {
+        this.form.dataset.cartPassed = String(passed);
+        for (const button of all(this.form, "[data-to-cart]")) {
+          button.inert = !passed;
+        }
+      }
+    };
+    const onScroll = () => {
+      if (stuckTick === null) stuckTick = requestAnimationFrame(stuckWatch);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    stuckWatch();
 
     // The list of lines scrolls once the cart would take half the
     // screen; the fades at its edges say there is more.
     qs(this.cart, "[data-cart-items]").addEventListener(
       "scroll", () => this.syncScroll(), { passive: true }
     );
-    qs(this.cart, ".order-cart-body").addEventListener(
+    qs(this.cart, ".order-cart-fold").addEventListener(
       "transitionend", () => this.syncScroll()
     );
     qs(this.cart, "[data-cart-more]").addEventListener("click", () => {
@@ -194,7 +540,17 @@ export class OrderForm {
 
       list.scrollBy({ top: list.clientHeight * 0.8, behavior: "smooth" });
     });
+    qs(this.cart, "[data-cart-more-top]").addEventListener("click", () => {
+      const list = qs(this.cart, "[data-cart-items]");
+
+      list.scrollBy({ top: -list.clientHeight * 0.8, behavior: "smooth" });
+    });
     window.addEventListener("resize", () => this.syncScroll());
+    // The cap follows the top bar on a phone, so the list also grows
+    // and shrinks as the page scrolls; recount what is beyond it.
+    new ResizeObserver(() => this.syncScroll()).observe(
+      qs(this.cart, "[data-cart-items]")
+    );
 
     // The × on a cart line takes every unit of that product out.
     this.cart.addEventListener("click", (e) => {
@@ -227,40 +583,146 @@ export class OrderForm {
       }
     });
 
-    qs(this.cart, "[data-checkout]").addEventListener("click", () => {
-      const target = document.getElementById("details");
-
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-      qs(target, "legend").focus({ preventScroll: true });
+    // The discount code: Apply, or Enter in the field.
+    qs(this.cart, "[data-code-apply]").addEventListener("click", () => {
+      this.applyCode();
+    });
+    qs(this.cart, "[data-field='code']").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        this.applyCode();
+      }
     });
 
-    // Keep the active category link in view as the list scrolls, and
-    // mark the category itself so its heading can show the chevron.
+    this.watchSections();
+  }
+
+  // The section on screen, named in three places: the sidebar's
+  // outline from lg up, the phone's sticky bar below lg, and the total
+  // bar from lg to xl. Bootstrap's spy only hears sections crossing a
+  // band, so a fast scroll left a stale name, and the last section,
+  // too short to reach the band, never lit (#204). This asks where
+  // each section is on every frame the page moves.
+  watchSections() {
+    const nav = document.getElementById("order-nav");
     const catalog = document.getElementById("order-catalog");
+    const titles = all(document, "[data-topbar-title]");
+    const bars = all(document, ".order-topbar, .order-total-bar");
+    const heading = document.querySelector(".page-heading h1");
+    const wide = window.matchMedia("(min-width: 992px)");
+    const xl = window.matchMedia("(min-width: 1200px)");
+    const sections = all(nav, "a")
+      .map((link) => ({
+        link, target: document.querySelector(link.hash),
+      }))
+      .filter(({ target }) => target);
+    let shown = null;
+    let tick = null;
 
-    catalog.addEventListener("activate.bs.scrollspy", (e) => {
-      const link = e.relatedTarget;
+    // Mark the link, its parent in the outline (Catalog, over a
+    // category) and the category, whose heading shows the chevron.
+    const mark = (link) => {
+      const parent = link.closest(".order-side-sub")
+        ?.closest(".nav-item").querySelector(":scope > .nav-link");
 
-      link.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      for (const a of all(nav, ".nav-link")) {
+        a.classList.toggle("active", a === link || a === parent);
+      }
       for (const cat of all(catalog, ".order-cat")) {
         cat.classList.toggle("is-active", `#${cat.id}` === link.hash);
       }
-    });
-    qs(catalog, ".order-cat").classList.add("is-active");
-
-    const retryNow = () => {
-      if (this.draft.pending() && !this.busy) this.resume(this.draft.pending());
+      if (wide.matches) {
+        link.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
     };
 
-    window.addEventListener("online", retryNow);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") retryNow();
-    });
+    const update = () => {
+      tick = null;
+
+      // A section is current once its top reaches the lower edge of
+      // whichever bar is stuck at the top, less a little so a jump to
+      // it lands inside it. The floating cart is at the foot of the
+      // screen, not at its place in the page, so it counts only once
+      // settled. From xl it is a column stuck beside the others and
+      // never counts.
+      const column = xl.matches;
+      const edge = bars.reduce((low, bar) => {
+        const r = bar.getBoundingClientRect();
+
+        return bar.offsetParent && getComputedStyle(bar).opacity !== "0"
+          && r.top <= 1 ? Math.max(low, r.bottom) : low;
+      }, 0);
+      const line = edge + 24;
+      const end = window.innerHeight + window.scrollY
+        >= document.documentElement.scrollHeight - 2;
+      let current = null;
+      let best = -Infinity;
+
+      for (const { link, target } of sections) {
+        if (target.dataset.stuck === "true") continue;
+        if (column && target.id === "order-cart") continue;
+        const top = target.getBoundingClientRect().top;
+
+        // On a tie the later link wins: a category over the catalog.
+        // At the foot of the page the last section on screen wins,
+        // since it may be too short ever to reach the line.
+        if ((top <= line || (end && top < window.innerHeight))
+          && (top >= best || end)) {
+          best = top;
+          current = link;
+        }
+      }
+
+      if (current && current !== shown) mark(current);
+      shown = current || shown;
+
+      const name = current
+        ? current.dataset.heading || current.textContent.trim()
+        : heading ? heading.textContent.trim() : "";
+
+      for (const title of titles) {
+        if (title.textContent !== name) title.textContent = name;
+      }
+    };
+    const onScroll = () => {
+      if (tick === null) tick = requestAnimationFrame(update);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    update();
   }
 
   changed() {
     this.refresh();
     this.draft.save(this.collect());
+    // A change after a payment attempt began means the next attempt
+    // must not reuse that attempt's keys (the order may differ).
+    this.draft.touch();
+  }
+
+  // /order/?method=onfarm (or scituate, delivery) chooses that way, as
+  // a click on its card would: the home page's off-season band and the
+  // map's pin cards. The link wins over a restored draft's way. An
+  // unknown value is ignored. The query is cleared, as ?add= is.
+  methodFromQuery() {
+    const radios = all(this.form, "[name='method']");
+    const method = linkedMethod(
+      location.search, radios.map((radio) => radio.value)
+    );
+
+    this.clearQuery("method");
+    if (!method || method === this.method()) return;
+
+    radios.find((radio) => radio.value === method).checked = true;
+    this.draft.save(this.collect());
+  }
+
+  clearQuery(name) {
+    if (!new URLSearchParams(location.search).has(name)) return;
+
+    history.replaceState(null, "", `${location.pathname}${
+      withoutParam(location.search, name)}${location.hash}`);
   }
 
   // /order/?add=SKU:qty,SKU:qty puts those items in the cart: the
@@ -285,7 +747,7 @@ export class OrderForm {
       if (!input) {
         const item = this.index.get(sku);
 
-        missing.push(item ? `${item.groupLabel}, ${item.label}` : sku);
+        missing.push(item ? `${item.groupName}, ${item.label}` : sku);
         continue;
       }
       this.setQty(input, Math.min(99, this.qty(input) + qty));
@@ -304,9 +766,7 @@ export class OrderForm {
     notice.classList.toggle("alert-warning", !added.length);
     notice.classList.toggle("alert-success", added.length > 0);
 
-    params.delete("add");
-    history.replaceState(null, "", `${location.pathname}${
-      params.toString() ? `?${params}` : ""}${location.hash}`);
+    this.clearQuery("add");
 
     if (added.length) {
       this.draft.save(this.collect());
@@ -326,13 +786,94 @@ export class OrderForm {
     this.changed();
   }
 
+  // The shared row (#203): the way and Add discount side by side; each
+  // opens over the whole row. A pick, Apply that takes, a tap or a
+  // focus outside the row, or Escape folds it back. Blur alone does
+  // not: a tap on Apply blurs the field on iOS before its click lands.
+  wireShare() {
+    const share = qs(this.cart, "[data-share]");
+    const input = qs(share, "[data-field='code']");
+
+    qs(share, "[data-way-toggle]").addEventListener("click", () => {
+      this.setShare("way");
+      (qs(share, "[data-way][aria-pressed='true']")
+        || qs(share, "[data-way]")).focus();
+    });
+    qs(share, "[data-code-toggle]").addEventListener("click", () => {
+      this.setShare("code");
+      input.focus();
+    });
+
+    share.addEventListener("click", (e) => {
+      const pick = e.target.closest("[data-way]");
+
+      if (!pick) return;
+
+      const radio = qs(
+        this.form, `[name='method'][value='${pick.dataset.way}']`
+      );
+
+      this.setShare("");
+      qs(share, "[data-way-toggle]").focus();
+      if (!radio || radio.checked) return;
+      radio.checked = true;
+      // As a click on its card would, less the scroll to its fields:
+      // the customer is in the cart, not at the section.
+      this.quietMethod = true;
+      radio.dispatchEvent(new Event("change", { bubbles: true }));
+      this.quietMethod = false;
+    });
+
+    const away = (e) => {
+      if (share.dataset.share && !share.contains(e.target)) {
+        this.setShare("");
+      }
+    };
+
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("focusin", away);
+    share.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || !share.dataset.share) return;
+
+      const was = share.dataset.share;
+
+      this.setShare("");
+      qs(share, was === "way" ? "[data-way-toggle]" : "[data-code-toggle]")
+        .focus();
+    });
+  }
+
+  // Opens one side of the shared row over the other, or neither ("").
+  setShare(open) {
+    const share = qs(this.cart, "[data-share]");
+
+    share.dataset.share = open;
+    qs(share, "[data-way-toggle]").setAttribute(
+      "aria-expanded", String(open === "way")
+    );
+    qs(share, "[data-code-toggle]").setAttribute(
+      "aria-expanded", String(open === "code")
+    );
+  }
+
+  // Folds or opens the lines or the sums, from the total row.
+  setPart(part, open) {
+    const toggle = qs(this.cart, `[data-cart-${part}-toggle]`);
+
+    this.cart.dataset[part] = open ? "open" : "closed";
+    toggle.setAttribute("aria-expanded", String(open));
+    if (part === "items" && open) this.syncScroll();
+  }
+
   // Folds or opens the cart (below xl; the column ignores it).
   setOpen(open) {
     this.cart.dataset.open = String(open);
     qs(this.cart, "[data-cart-toggle]").setAttribute(
       "aria-expanded", String(open)
     );
+    qs(this.cart, "[data-cart-word]").textContent = open ? "Hide" : "Expand";
     if (open) this.syncScroll();
+    if (this.plainTotals) this.plainTotals();
   }
 
   // Marks the scroller's wrapper with which edges have more beyond
@@ -342,15 +883,25 @@ export class OrderForm {
     const wrap = list.parentElement;
     const seen = list.scrollTop + list.clientHeight;
     const more = seen < list.scrollHeight - 1;
-    const below = all(list, ".order-cart-item").filter(
+    const items = all(list, ".order-cart-item");
+    const below = items.filter(
       (li) => li.offsetTop + li.offsetHeight > seen + 1
     ).length;
+    const above = items.filter(
+      (li) => li.offsetTop + li.offsetHeight <= list.scrollTop + 1
+    ).length;
     const button = qs(wrap, "[data-cart-more]");
+    const top = qs(wrap, "[data-cart-more-top]");
 
+    // The floor under the lines is three rows, or the list's own
+    // height when it is shorter: one item leaves no gap (#203).
+    wrap.style.setProperty("--cart-list-h", `${list.scrollHeight}px`);
     wrap.toggleAttribute("data-top", list.scrollTop > 0);
     wrap.toggleAttribute("data-more", more);
     button.hidden = !more || below === 0;
     button.textContent = `${below} more ↓`;
+    top.hidden = list.scrollTop <= 0 || above === 0;
+    top.textContent = `${above} more ↑`;
   }
 
   // Quantity controls.
@@ -417,7 +968,124 @@ export class OrderForm {
       index: this.index,
       money: this.money,
       group: this.group,
+      code: this.code,
+      zipStatus: this.zipStatus(),
     });
+  }
+
+  // Looks the typed code up by its hash. A known one becomes
+  // `this.code` and shows in the totals; the joke starts its clock;
+  // anything else is ignored by the server, and the note says so.
+  async applyCode({ quiet = false } = {}) {
+    const input = qs(this.cart, "[data-field='code']");
+    const note = qs(this.cart, "[data-code-note]");
+    const typed = normalizeCode(input.value);
+    const say = (text, tone) => {
+      note.textContent = text;
+      note.hidden = !text;
+      if (tone) {
+        note.dataset.tone = tone;
+      } else {
+        delete note.dataset.tone;
+      }
+    };
+
+    input.value = typed;
+    clearTimeout(this.noteTimer);
+    note.classList.remove("is-fading");
+
+    // Apply with the field empty takes the code off again.
+    if (!typed) {
+      this.stopJoke();
+      this.code = null;
+      say("");
+      this.refresh();
+
+      return;
+    }
+    // An accepted code leaves the field empty for the next one; the
+    // discount line says it is on, and the note says so for a while.
+    const accepted = (text) => {
+      const open = qs(this.cart, "[data-share]").dataset.share === "code";
+
+      input.value = "";
+      say(text, "good");
+      // Done with the field: the row folds back, and focus goes to
+      // the button that opens it.
+      if (open) {
+        this.setShare("");
+        qs(this.cart, "[data-code-toggle]").focus();
+      }
+      this.noteTimer = setTimeout(() => {
+        note.classList.add("is-fading");
+        this.noteTimer = setTimeout(() => {
+          say("");
+          note.classList.remove("is-fading");
+        }, 700);
+      }, 15_000);
+    };
+
+    if (typed === JOKE_CODE) {
+      this.code = null;
+      this.startJoke();
+      accepted("Code applied.");
+      this.refresh();
+
+      return;
+    }
+
+    const hash = await sha256(typed);
+    const found = this.codes.find((c) => c.hash === hash);
+
+    if (found) {
+      this.stopJoke();
+      this.code = { code: typed, label: found.label, off: found.off };
+      accepted(`Code applied: $${found.off} off.`);
+    } else if (!quiet) {
+      // The code that was on stays on.
+      say("Not a valid discount code.");
+    }
+    this.refresh();
+  }
+
+  startJoke() {
+    const row = document.createElement("div");
+    const dt = document.createElement("dt");
+    const dd = document.createElement("dd");
+    const since = Date.now();
+
+    row.className = "order-cart-row order-cart-credit order-cart-joke";
+    dt.textContent = `Discount (${JOKE_CODE}, ${
+      dollars(JOKE_PER_MINUTE)}/min)`;
+    row.appendChild(dt);
+    row.appendChild(dd);
+    qs(this.cart, "[data-total-row='fee']").before(row);
+
+    const tick = () => {
+      const minutes = (Date.now() - since) / 60_000;
+
+      dd.textContent = `−${dollars(Math.floor(minutes * JOKE_PER_MINUTE))}`;
+    };
+
+    tick();
+    this.joke = { row, timer: setInterval(tick, 1000) };
+  }
+
+  stopJoke() {
+    if (!this.joke) return;
+    clearInterval(this.joke.timer);
+    this.joke.row.remove();
+    this.joke = null;
+  }
+
+  // The delivery ZIP's status, for the outside-area fee. Null unless
+  // delivery is chosen, so the fee shows the moment it applies.
+  zipStatus() {
+    if (this.method() !== "delivery") return null;
+
+    return zipInfo(
+      qs(this.form, "[data-field='delivery.zip']").value, this.terms.area
+    ).status;
   }
 
   eligible(totals) {
@@ -430,10 +1098,15 @@ export class OrderForm {
     const method = this.method();
     const totals = this.totals();
 
+    this.renderWindows();
+
     for (const input of all(this.form, "[data-qty]")) {
       const qty = this.qty(input);
       const box = input.closest(".order-qty");
-      const state = qty > 0 ? "active" : "empty";
+      // A box being typed in stays open at 0 or blank: an empty box
+      // hides its stepper, which would blur the box and lose what the
+      // customer types after clearing it. Leaving it settles the state.
+      const state = qty > 0 || input === this.typing ? "active" : "empty";
 
       if (box.dataset.qtyState !== state) box.dataset.qtyState = state;
       qs(box, "[data-step='-1']").setAttribute(
@@ -445,8 +1118,109 @@ export class OrderForm {
       body.toggleAttribute("inert", body.dataset.methodBody !== method);
     }
 
+    // Delivery needs a phone for the driver; the rest can do without.
+    const phone = qs(this.form, "[data-field='customer.phone']");
+
+    phone.required = method === "delivery";
+    qs(this.form, "[data-phone-optional]").hidden = method === "delivery";
+
     this.renderCart(totals, method);
     this.renderZipNote();
+  }
+
+  // The chosen pickup day's windows, one radio each, from the farm's
+  // schedule (W11d). The time chosen carries over to a new day that
+  // has it; otherwise the day's first is chosen.
+  renderWindows() {
+    const box = qs(this.form, "[data-windows]");
+    const select = qs(this.form, "[data-dates='onfarm']");
+
+    if (!box || !select) return;
+
+    const lists = this.dates.lists;
+    const day = lists && (lists.onfarm || [])
+      .find((d) => d.date === select.value);
+    const windows = day ? day.windows : [];
+    const key = `${select.value} ${windows.map((w) => w.id).join(" ")}`;
+
+    if (box.dataset.key === key && !this.wantedWindow) return;
+
+    const checked = qs(box, "input:checked");
+    const current = this.wantedWindow || (checked && checked.value);
+    const pick = windows.some((w) => w.id === current) ? current
+      : windows[0] && windows[0].id;
+
+    box.dataset.key = key;
+    box.textContent = "";
+    if (!windows.length) {
+      const none = document.createElement("p");
+
+      none.className = "order-windows-none";
+      none.textContent = lists ? "No pickup times on this day."
+        : "Loading times…";
+      box.appendChild(none);
+    }
+    for (const w of windows) {
+      const node = document.getElementById("tpl-window").content
+        .cloneNode(true);
+      const input = qs(node, "input");
+      const text = qs(node, "label");
+
+      input.id = `onfarm-window-${w.id.replace(/\D/g, "")}`;
+      input.value = w.id;
+      input.checked = w.id === pick;
+      text.htmlFor = input.id;
+      text.textContent = w.label;
+      box.appendChild(node);
+    }
+    if (lists) this.wantedWindow = null;
+  }
+
+  // The dialog's choice, put on the form; the customer pays again with
+  // the same button (U1).
+  useLapsed({ method, date, window }) {
+    const select = qs(this.form, `[data-dates="${method}"]`);
+    const status = document.querySelector("[data-lapsed-status]");
+
+    if (select) select.value = date;
+    if (window) this.wantedWindow = window;
+    this.refresh();
+    this.errors.clear();
+    this.draft.save(this.collect());
+
+    const day = label(date);
+    const times = window && windowLabel(pickupTimes({ window }));
+
+    if (status) {
+      status.textContent = `${method === "onfarm"
+        ? `Pickup is now ${day}, ${times}`
+        : method === "scituate" ? `Drop-site pickup is now ${day}`
+          : `Delivery is now ${day}`}. Pay to place your order.`;
+      status.hidden = false;
+    }
+
+    const pay = [this.submitButton, this.saveButton]
+      .find((button) => !button.hidden)
+      || qs(document.getElementById("payment"), "legend");
+
+    pay.focus();
+  }
+
+  // The dialog's other way: to the choice of ways, which the customer
+  // makes themselves.
+  otherWay(method) {
+    const other = qs(this.form, `[name="method"]:not([value="${method}"])`);
+
+    document.getElementById("pickup").scrollIntoView({ block: "start" });
+    if (other) other.focus({ preventScroll: true });
+  }
+
+  // A 409: what was chosen lapsed. The fresh list goes on the form and
+  // the dialog offers it (U1, U3).
+  lapse(method, dates) {
+    this.dates.replace(method, dates);
+    this.lapsed.open(method, dates, this.submitButton.hidden ? null
+      : this.submitButton);
   }
 
   revealMethod() {
@@ -496,18 +1270,58 @@ export class OrderForm {
     }
     total.textContent = s.total;
     this.lastTotal = s.total;
+    this.total = totals.total;
+    this.payment.setAmount(this.amount());
+    this.submitLabel();
+    this.renderEdit(totals.total);
 
     qs(c, "[data-cart-toggle]").setAttribute(
       "aria-label", `${s.countText}, total ${s.total}. Show or hide the cart.`
     );
     qs(c, "[data-cart-count]").textContent = s.countText;
-    qs(c, "[data-checkout]").disabled = count === 0;
+    for (const el of all(this.form, "[data-total-bar-count]")) {
+      el.textContent = s.countText;
+    }
+    for (const el of all(this.form, "[data-total-bar-total]")) {
+      el.textContent = s.total;
+    }
+    for (const el of all(this.form, "[data-to-cart]")) {
+      el.setAttribute(
+        "aria-label", `${s.countText}, total ${s.total}. Go to the cart.`
+      );
+    }
+
+    // The shared row's button names the way the page holds; the cart
+    // never picks one of its own (#203).
+    let wayName = "";
+
+    for (const way of all(c, "[data-way]")) {
+      const on = way.dataset.way === method;
+
+      way.setAttribute("aria-pressed", String(on));
+      way.classList.toggle("btn-primary", on);
+      way.classList.toggle("btn-outline-primary", !on);
+      if (on) wayName = way.textContent.trim();
+    }
+    qs(c, "[data-way-name]").textContent = wayName || "Pickup or delivery";
+    // The header's Order link shows the same count; a change to a paid
+    // order is not the cart.
+    if (!this.editing) announceCart(count);
+
+    const short = qs(this.form, "[data-delivery-short]");
+
+    if (short.textContent !== s.deliveryShort) {
+      short.textContent = s.deliveryShort;
+    }
+    short.hidden = !s.deliveryShort;
+    qs(c, "[data-checkout]").disabled = count === 0
+      || (method === "delivery" && !s.eligible);
 
     // Empty, the cart folds away; the first item opens it. A fold the
     // customer chose stays until the cart empties again.
-    if (count === 0) {
+    if (count === 0 && this.lastCount !== 0) {
       this.setOpen(false);
-    } else if (this.lastCount === 0) {
+    } else if (count > 0 && !this.lastCount) {
       this.setOpen(true);
     }
     this.lastCount = count;
@@ -530,6 +1344,7 @@ export class OrderForm {
 
     if (nudge.textContent !== s.nudge) nudge.textContent = s.nudge;
     nudge.hidden = !s.nudge;
+    nudge.dataset.tone = s.nudgeTone || "";
   }
 
   // The cart's lines: each category, with its tiers indented beneath,
@@ -544,6 +1359,18 @@ export class OrderForm {
 
       return el;
     };
+
+    // Rebuilt only when the lines change: a render that follows a
+    // field's change event would otherwise replace the × under the
+    // pointer between press and release, and the click would be lost.
+    const key = JSON.stringify(s.groups);
+
+    if (key === this.itemsKey) {
+      this.syncScroll();
+
+      return;
+    }
+    this.itemsKey = key;
 
     for (const row of all(list, ".order-cart-group")) row.remove();
 
@@ -562,10 +1389,10 @@ export class OrderForm {
         remove.setAttribute(
           "aria-label", `Remove ${group.label}, ${item.label} from the cart`
         );
+        row.appendChild(remove);
         row.appendChild(make("span", "order-cart-item-name", item.label));
         row.appendChild(make("span", "order-cart-item-qty", item.qtyText));
         row.appendChild(make("span", "order-cart-item-sub", item.subtotal));
-        row.appendChild(remove);
         items.appendChild(row);
       }
       li.appendChild(items);
@@ -586,14 +1413,16 @@ export class OrderForm {
 
     if (info.status === "outside") {
       note.textContent = "That's outside our delivery area. On-farm pickup " +
-        "and the Scituate drop site are open to everyone.";
+        "and the drop site are open to everyone.";
       note.classList.add("text-danger-emphasis");
     } else if (info.status === "unlisted") {
-      note.textContent = "A little outside our usual area. We'll confirm " +
-        "before we charge you.";
+      note.textContent = "A little outside our usual area: delivery is " +
+        `$${this.money.outsideAreaFee} more. If we can't get to your ` +
+        "address, we'll call, text, or email you.";
     } else if (bad.length) {
-      note.textContent = "We can only deliver eggs to Connecticut for now. " +
-        "Remove the chicken, or choose pickup.";
+      note.textContent = "We can only deliver " +
+        `${info.state.onlyGroups.join(" and ")} to ${info.state.name} ` +
+        "for now. Remove the chicken, or choose pickup.";
       note.classList.add("text-danger-emphasis");
     } else if (info.state && info.state.note) {
       note.textContent = info.state.note;
@@ -611,8 +1440,11 @@ export class OrderForm {
       if (!el) return "";
       if (el.type === "checkbox") return el.checked;
       if (el.type === "radio" || el.getAttribute("role") === "radiogroup") {
-        const name = el.getAttribute("name") || qs(el, "input").name;
-        const checked = qs(this.form, `[name="${name}"]:checked`);
+        // A group drawn from the lists (the pickup times) may have no
+        // radios yet.
+        const first = el.getAttribute("name") ? el : qs(el, "input");
+        const checked = first
+          && qs(this.form, `[name="${first.name}"]:checked`);
 
         return checked ? checked.value : "";
       }
@@ -630,6 +1462,7 @@ export class OrderForm {
         email: value("customer.email"),
         phone: value("customer.phone"),
         contact: value("customer.contact"),
+        marketing: value("customer.marketing") === true,
       },
       lines: this.lines(),
       fulfilment: {
@@ -647,6 +1480,9 @@ export class OrderForm {
           notes: value("delivery.notes"),
         },
       },
+      code: this.code
+        ? this.code.code
+        : normalizeCode(qs(this.form, "[data-field='code']").value),
       claimedTotal: this.totals().total,
       website: qs(this.form, "[name='website']").value,
     };
@@ -679,7 +1515,9 @@ export class OrderForm {
     set("customer.lastName", c.lastName);
     set("customer.email", c.email);
     set("customer.phone", c.phone);
+    this.formatPhone();
     set("customer.contact", c.contact);
+    set("code", payload.code);
 
     for (const line of payload.lines || []) {
       const input = qs(this.form, `[data-qty="${line.sku}"]`);
@@ -688,7 +1526,8 @@ export class OrderForm {
     }
 
     if (f.method) set("fulfilment.method", f.method);
-    set("onfarm.window", o.window);
+    // The radios are drawn from the lists when they come.
+    this.wantedWindow = o.window || null;
 
     for (const key of [
       "address1", "address2", "town", "zip", "cooler", "notes",
@@ -703,48 +1542,200 @@ export class OrderForm {
       // date is still valid.
       if (select) select.value = f.date;
     }
+    this.showContact();
+  }
+
+  // What the payment section asks of the form (pay.js).
+
+  amount() {
+    return this.editing
+      ? Math.max(0, (this.total || 0) - this.editing.held)
+      : this.total || 0;
+  }
+
+  referenceId() {
+    return this.draft.key();
+  }
+
+  paymentReady() {
+    this.submitButton.disabled = false;
+    this.submitLabel();
+  }
+
+  // The customer's details for the card's verification, and the
+  // delivery address when there is one.
+  billing(payload) {
+    const c = payload.customer;
+    const d = payload.fulfilment.method === "delivery"
+      ? payload.fulfilment.delivery
+      : {};
+
+    return {
+      firstName: c.firstName, lastName: c.lastName, email: c.email,
+      phone: c.phone,
+      address1: d.address1 || "", address2: d.address2 || "",
+      town: d.town || "", zip: d.zip || "",
+      state: d.zip ? (zipInfo(d.zip, this.terms.area).state || {}).code : "",
+    };
+  }
+
+  // Validates now and returns the payload the server expects, with
+  // its key and attempt, or null after showing the errors. Nothing
+  // asynchronous: a wallet must tokenise inside its click.
+  check(payload) {
+    return validateOrder(payload, {
+      index: this.index, terms: this.terms, now: this.dates.now(),
+      group: this.group, code: this.code, schedule: this.dates.schedule(),
+    });
+  }
+
+  // Once errors are showing, each change clears the ones it fixes and
+  // rewords the ones it changes; leaving a field shows its own. Before
+  // the first attempt nothing is said while the customer fills in.
+  revalidate(left = null) {
+    if (this.busy || !this.errors.showing()) return;
+
+    const check = this.check(this.collect());
+
+    this.errors.update(check.ok ? {} : check.errors, left);
+    this.refresh();
+  }
+
+  prepare() {
+    if (this.busy) return null;
+
+    const payload = this.collect();
+    const check = this.check(payload);
+    const status = document.querySelector("[data-lapsed-status]");
+
+    if (status) status.hidden = true;
+    if (!check.ok) {
+      // Only the day or time lapsed: the dialog. Before the lists have
+      // come there is nothing to offer, so the errors say it.
+      if (check.status === 409 && this.dates.lists) {
+        this.lapse(payload.fulfilment.method, check.dates);
+
+        return null;
+      }
+      if (check.dates && this.dates.lists) {
+        this.dates.replace(payload.fulfilment.method, check.dates);
+      }
+      this.errors.show(check.errors);
+      this.refresh();
+
+      return null;
+    }
+
+    this.errors.clear();
+    this.payment.clearError();
+    payload.idempotencyKey = this.draft.key();
+    payload.attempt = this.draft.attempt();
+    this.draft.save(payload);
+
+    return payload;
+  }
+
+  // The same with one last look at stock. If the cart had to change,
+  // the customer sees why and decides again; nothing is sent.
+  async prepareAsync() {
+    const payload = this.prepare();
+
+    if (!payload) return null;
+
+    // The farm may have dropped the time since the page loaded: ask
+    // now, before a wallet or Venmo opens (UX's point 2). The server
+    // checks again whatever happens here.
+    if (await this.dates.refresh()) {
+      const again = this.check(payload);
+
+      if (!again.ok && again.status === 409) {
+        this.lapse(payload.fulfilment.method, again.dates);
+
+        return null;
+      }
+    }
+
+    this.moved = false;
+    await this.stock.refresh();
+    if (this.moved) return null;
+
+    return payload;
+  }
+
+  // A wallet's token, or the card's: send it.
+  pay(payload, source) {
+    return this.deliver({ ...payload, payment: source });
+  }
+
+  // Venmo's two steps. The first answers with the PayPal order the
+  // button pays; the second captures it and records the order.
+  async venmoCreate(payload) {
+    this.setBusy(true);
+
+    const outcome = await this.submitter.send({
+      ...payload, payment: { method: "venmo", stage: "create" },
+    });
+
+    this.setBusy(false);
+    if (outcome.kind === "ok" && outcome.data && outcome.data.paypalOrderId) {
+      this.draft.markAttempted();
+
+      return outcome.data.paypalOrderId;
+    }
+
+    this.settle(outcome, payload);
+    throw new Error(outcome.message || "Couldn't start the Venmo payment.");
+  }
+
+  venmoCapture(payload, paypalOrderId) {
+    return this.deliver({
+      ...payload, payment: { method: "venmo", stage: "capture", paypalOrderId },
+    });
   }
 
   // Submission and recovery.
 
+  // The main button: the card form.
   async submit(e) {
     e.preventDefault();
 
-    if (this.busy) return;
+    const payload = await this.prepareAsync();
 
-    const payload = this.collect();
-    const check = validateOrder(payload, {
-      index: this.index, terms: this.terms, now: this.dates.now(),
-      group: this.group,
-    });
-
-    if (!check.ok) {
-      if (check.dates) {
-        this.dates.replace(payload.fulfilment.method, check.dates);
-      }
-      this.errors.show(check.errors);
+    if (!payload) return;
+    // A change with nothing more to pay: no payment at all.
+    if (this.editing && this.amount() <= 0) {
+      await this.deliver(payload);
 
       return;
     }
 
-    // One last look at stock. If the cart had to change, the customer
-    // sees why and decides again; nothing is sent.
-    this.moved = false;
-    await this.stock.refresh();
-    if (this.moved) return;
+    let source;
 
-    this.errors.clear();
-    payload.idempotencyKey = this.draft.key();
-    this.draft.save(payload);
-    await this.deliver(payload, 0);
+    // Busy from here to the answer, so the spinner runs unbroken.
+    this.setBusy(true);
+    try {
+      source = await this.payment.tokenizeCard(payload);
+    } catch (error) {
+      this.setBusy(false);
+      this.payment.fail(error.message);
+
+      return;
+    }
+    await this.pay(payload, source);
   }
 
-  // `attempts` is how many have already failed.
-  async deliver(payload, attempts) {
+  // A send that can't get through goes once more, under the same keys,
+  // so it can't pay twice. If that one can't either, it stops.
+  async deliver(payload) {
     this.setBusy(true);
-    this.pending.sending(attempts + 1);
+    this.draft.markAttempted();
 
-    const outcome = await this.submitter.send(payload);
+    let outcome = await this.submitter.send(payload);
+
+    if (outcome.kind === "retry") {
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+      outcome = await this.submitter.send(payload);
+    }
 
     this.setBusy(false);
 
@@ -752,81 +1743,82 @@ export class OrderForm {
     case "ok":
       this.draft.clearPending();
       this.draft.clear();
+      if (this.editing) {
+        location.assign("/account/#orders");
+        break;
+      }
+      announceCart(0);
       this.succeed(outcome.data, payload);
       break;
+    case "retry":
+      // Draft wording.
+      this.fail(payload, "We couldn't reach our payment system.");
+      break;
+    default:
+      this.settle(outcome, payload);
+    }
+  }
+
+  // Every answer but success and retry: the customer decides again.
+  settle(outcome, payload) {
+    switch (outcome.kind) {
     case "invalid":
-      this.draft.clearPending();
-      this.pending.hide();
       if (outcome.stock) {
         this.stock.items = outcome.stock;
         this.stock.apply();
       }
+      if (outcome.errors.total) {
+        this.refresh();
+        this.payment.fail(outcome.errors.total);
+      }
       this.errors.show(outcome.errors);
       break;
     case "stale":
-      this.draft.clearPending();
-      this.pending.hide();
-      this.dates.replace(payload.fulfilment.method, outcome.dates);
-      this.errors.show({
-        "fulfilment.date": "That date just closed. Pick another from the " +
-            "updated list and try again.",
-      });
+      this.lapse(payload.fulfilment.method, outcome.dates);
       break;
-    case "retry":
-      this.defer(payload, attempts + 1);
+    case "declined":
+      // The next try is a new attempt: fresh keys for the processor.
+      this.draft.nextAttempt();
+      this.payment.fail(outcome.message);
+      break;
+    case "checkout":
+      this.draft.nextAttempt();
+      this.payment.fail(outcome.message);
+      break;
+    case "busy":
+      this.payment.fail(outcome.message);
       break;
     default:
-      this.draft.clearPending();
       this.fail(payload, outcome.message);
     }
   }
 
-  defer(payload, attempts) {
-    if (attempts >= MAX_ATTEMPTS) {
-      this.draft.clearPending();
-      this.fail(payload,
-        "We couldn't reach our payment system after several tries.");
-
-      return;
-    }
-
-    const delay = RETRY_DELAYS[Math.min(attempts - 1, RETRY_DELAYS.length - 1)];
-
-    this.draft.savePending(payload, attempts);
-    this.pending.waiting(attempts, delay);
-    // One submission at a time: the notice owns the next attempt.
-    this.submitButton.disabled = true;
-
-    clearTimeout(this.retryTimer);
-    this.retryTimer = setTimeout(
-      () => this.resume(this.draft.pending()), delay
-    );
-  }
-
-  resume(pending) {
-    if (!pending || this.busy) return;
-
-    clearTimeout(this.retryTimer);
-    this.deliver(pending.payload, pending.attempts);
-  }
-
-  // The customer stops the background retries. The form keeps their
-  // order and stays editable; the draft key is kept, so a later
-  // submission cannot duplicate anything an earlier try created.
-  cancelRetries() {
-    clearTimeout(this.retryTimer);
-    this.draft.clearPending();
-    this.pending.hide();
-    this.submitButton.disabled = false;
-    this.submitButton.focus();
-  }
-
+  // While an order is sent, the button that sent it spins its egg. A
+  // wallet or Venmo has no button of ours on show, so the notice says
+  // it instead. The busy flag and the form's pointer-events stop a
+  // second press; the button is not disabled, which would dim it.
   setBusy(busy) {
+    const shown = [this.submitButton, this.saveButton]
+      .find((button) => !button.hidden);
+
     this.busy = busy;
     this.form.classList.toggle("order-busy", busy);
-    this.submitButton.disabled = busy;
-    this.submitButton.textContent = busy
-      ? "Placing your order…"
+    this.submitButton.disabled = !busy && !this.payment.ready;
+    for (const button of [this.submitButton, this.saveButton]) {
+      spin(button, busy && button === shown);
+    }
+    if (busy && !shown) {
+      this.pending.sending();
+    } else {
+      this.pending.hide();
+    }
+  }
+
+  // The cart says the total; the button says what it does.
+  submitLabel() {
+    qs(this.submitButton, ".busy-button-idle").textContent = this.editing
+      // Draft wording.
+      ? `Pay ${dollars(this.amount())} and save`
       : "Place your order";
   }
 
@@ -839,10 +1831,12 @@ export class OrderForm {
       return `${day}, delivered to ${f.delivery.address1}.`;
     }
     if (f.method === "scituate") {
-      return `${day}, Scituate drop site, ${this.terms.scituate.window}.`;
+      return `${day}, ${this.terms.scituate.window}, at the drop site.`;
     }
     if (f.method === "onfarm" && f.onfarm) {
-      return `${day}, ${f.onfarm.window}, at the farm.`;
+      const times = pickupTimes(f.onfarm);
+
+      return `${day}, ${times ? windowLabel(times) : ""}, at the farm.`;
     }
 
     return day;
@@ -887,23 +1881,16 @@ export class OrderForm {
       fill("name", data.customer.firstName || data.customer.name);
       fill("email", data.customer.email);
       fill("total", dollars(data.totals.total));
-      // The number printed on the Square invoice, which is what a
-      // customer will quote; the order id stands in if it is missing.
-      fill("invoiceNumber", data.invoiceNumber || data.orderId);
-      // An on-farm window is a request the farm still has to agree
-      // to, so paying alone does not confirm that order.
-      if (data.fulfilment && data.fulfilment.method === "onfarm") {
-        fill("confirms", "The pickup time you chose is a request; we'll " +
-          "check the schedule and confirm it by email. Once we have your " +
-          "payment and your time is set, your order is confirmed.");
-      }
+      fill("orderId", data.orderId);
+      fill("how", this.paidWith(data.payment));
+      fill("when", this.when(data.fulfilment));
 
-      const link = qs(node, "[data-out='invoiceUrl']");
+      const receipt = qs(node, "[data-out='receiptUrl']");
 
-      if (data.invoiceUrl) {
-        link.href = data.invoiceUrl;
+      if (data.payment && data.payment.receiptUrl) {
+        receipt.href = data.payment.receiptUrl;
       } else {
-        link.parentElement.hidden = true;
+        receipt.parentElement.hidden = true;
       }
     } else {
       // Dropped silently by the server: show nothing that could be
@@ -914,6 +1901,23 @@ export class OrderForm {
 
     this.form.hidden = true;
     this.finish(node);
+  }
+
+  // "Visa ending 4242", "Apple Pay", "Venmo".
+  paidWith(payment) {
+    const p = payment || {};
+    const wallets = {
+      applepay: "Apple Pay", googlepay: "Google Pay", cashapp: "Cash App Pay",
+      venmo: "Venmo",
+    };
+
+    if (wallets[p.method]) return wallets[p.method];
+
+    const brand = String(p.brand || "card").toLowerCase()
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (ch) => ch.toUpperCase());
+
+    return p.last4 ? `${brand} ending ${p.last4}` : brand;
   }
 
   fail(payload, message) {

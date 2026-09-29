@@ -1,16 +1,13 @@
-<nav class="breadcrumb-divider-interpunct">
-  <ol class="breadcrumb justify-content-center mb-0">
+{{/* The footer's links, from config/_default/menus.toml. */}}
+<nav aria-label="Footer">
+  <ul class="dot-list" data-dot-list>
   {{ $currentPage := . }}
-  {{ $menu := print "footer" }}
-
   {{ range $menuItem := .Site.Menus.footer }}
-    {{ $options := dict
+    {{ partial "footer/menu-item.html" (dict
       "page" $currentPage
       "menuItem" $menuItem
-      "menu" $menu
-    }}
-
-    {{ partial "footer/menu-item.html" $options }}
+      "menu" "footer"
+    ) }}
   {{ end }}
-  </ol>
+  </ul>
 </nav>

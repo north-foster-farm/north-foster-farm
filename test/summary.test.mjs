@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import terms from "../data/delivery.json" with { type: "json" };
 import {
-  badges, feeCell, itemGroups, nudge, summarize,
+  badges, deliveryShort, feeCell, itemGroups, nudge, summarize,
 } from "../assets/scripts/order/lib/summary.mjs";
 import { computeTotals } from "../assets/scripts/order/lib/totals.mjs";
 
@@ -65,10 +65,41 @@ describe("badges", () => {
   });
 });
 
+describe("the Delivery card's warning", () => {
+  const need = "You need $40 or more in your cart to use this option.";
+
+  it("names the minimum on an empty cart", () => {
+    assert.equal(deliveryShort(at(0, "delivery"), money), need);
+  });
+
+  it("adds the gap once something is in the cart", () => {
+    assert.equal(deliveryShort(at(28, "delivery"), money),
+      `${need} Add $12 more.`);
+    assert.equal(deliveryShort(at(39.5, "delivery"), money),
+      `${need} Add $0.50 more.`);
+  });
+
+  it("says nothing from the minimum up", () => {
+    assert.equal(deliveryShort(at(40, "delivery"), money), "");
+    assert.equal(deliveryShort(at(120, "delivery"), money), "");
+  });
+
+  it("is only there while delivery is chosen", () => {
+    const summary = (method) => summarize({
+      totals: at(10, method), method, money, count: 1,
+    }).deliveryShort;
+
+    assert.equal(summary("delivery"), `${need} Add $30 more.`);
+    assert.equal(summary("onfarm"), "");
+    assert.equal(summary("scituate"), "");
+  });
+});
+
 describe("the nudge", () => {
   it("says nothing on an empty cart", () => {
     assert.equal(nudge(at(0), "", money), "");
-    assert.equal(nudge(at(0, "delivery"), "delivery", money), "");
+    assert.equal(nudge(at(0, "delivery"), "delivery", money),
+      "Delivery orders need a $40 minimum.");
   });
 
   it("names the next discount and the exact gap", () => {
@@ -149,6 +180,11 @@ describe("the fee cell", () => {
   it("is absent unless delivery is chosen", () => {
     assert.deepEqual(feeCell(at(60), "", money), { show: false });
     assert.deepEqual(feeCell(at(60), "onfarm", money), { show: false });
+  });
+
+  it("is absent on an empty cart", () => {
+    assert.deepEqual(feeCell(at(0, "delivery"), "delivery", money),
+      { show: false });
   });
 
   it("charges under $150 and says Free at $150 or more", () => {

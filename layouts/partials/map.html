@@ -1,0 +1,319 @@
+{{/*
+  The map, in two layers (#214). Rhode Island and the Connecticut
+  border towns as an inline SVG, from data/map.json (see bin/map/build).
+
+  Delivery: the ZIPs we deliver to shaded from data/delivery.json, the
+  file the order form checks, so the map cannot disagree with it: one
+  shade at the delivery fee, one at the fee outside our area. No place
+  pins. A tap on a town, or a ZIP in the field on the map, drops the one pin, dark
+  brand green whatever the answer, with a tag that says the rest: the
+  town, what we deliver there and the delivery price, or "No delivery"
+  and a way to the Places layer.
+
+  Places: a plain map and a blue pin for everywhere you can go: the
+  farm, the drop site, the markets in their season and the pop-ups to
+  come. Every pin looks the same; its card says what kind of place it
+  is. The drop site and the Scituate market are one place, so one pin
+  whose card lists both. The farm and the Foster market stand a little
+  apart at the whole map and in their true places once zoomed in. A
+  market shows from its "opens" to its "closes" date in
+  data/markets.json and a pop-up until its last date in
+  data/events.json: the build leaves out what has ended, and
+  scripts/map/ hides what ends before the next build.
+
+  scripts/map/ makes it answer, switches the layers, opens the cards
+  and zooms with the buttons, a pinch or a double click. Wording is a
+  draft for James (#138, #214).
+
+  Params:
+    id      Prefix for ids, unique on the page
+    check   Float a ZIP field on the map, Delivery layer only
+            (optional); the page then needs pageScript: "zip-check"
+    layers  Offer the Places layer beside Delivery (optional; the
+            delivery policy's map shows Delivery only)
+*/}}
+{{ $id := .id | default "map" }}
+{{ $layers := .layers }}
+{{ $map := hugo.Data.map }}
+{{ $terms := hugo.Data.delivery }}
+{{ $money := $terms.money }}
+{{ $zone := "America/New_York" }}
+{{ $today := now.Format "2006-01-02" }}
+{{ $order := relURL "order/" }}
+
+{{/* Every ZIP we deliver to, in either state, and those in a state
+     that takes only some groups (Connecticut, eggs). */}}
+{{ $ours := slice }}
+{{ $eggs := slice }}
+{{ range $terms.area.states }}
+  {{ $only := .onlyGroups }}
+  {{ range .towns }}
+    {{ $ours = $ours | append .zips }}
+    {{ if $only }}{{ $eggs = $eggs | append .zips }}{{ end }}
+  {{ end }}
+{{ end }}
+
+{{/* The places, each a pin and a card: what kind of place, its name,
+     when (one entry for each thing that happens there), where, its
+     links, and an action for the two ways to pick up an order. An
+     entry, and a place, with "until" goes when that day has passed;
+     one with "from" shows from that day. "nudge" moves a pin aside at
+     the whole map. */}}
+{{ $places := slice }}
+{{ if $layers }}
+  {{ $address := partial "address.html" . }}
+  {{ $places = $places | append (merge (partial "map/xy.html" hugo.Data.places.farm) (dict
+    "kind" "Our farm" "name" hugo.Data.company.name "key" "Our farm"
+    "town" $address.city "section" "pickup" "nudge" 1
+    "when" (slice (dict "head" "Pick a time when you order" "line" "On-farm pickup"))
+    "where" $address.full
+    "directions" $address.directions
+    "shop" (dict "label" "Shop for pickup" "href" (printf "%s?method=onfarm" $order)))) }}
+
+  {{/* The drop site, and the Scituate market while it runs, one
+       place. */}}
+  {{ $drop := $terms.scituate }}
+  {{ $dropStart := time.AsTime $drop.start $zone }}
+  {{ $dropLine := "Drop site pickup" }}
+  {{ if gt $dropStart.Unix now.Unix }}
+    {{ $dropLine = printf "%s, starting %s" $dropLine ($dropStart.Format "January 2") }}
+  {{ end }}
+  {{ $scituate := index hugo.Data.markets.markets 0 }}
+  {{ $when := slice }}
+  {{ $kind := "Drop site" }}
+  {{ $links := slice }}
+  {{ $until := "" }}
+  {{ with $scituate }}
+    {{ if ge .closes $today }}
+      {{ $when = $when | append (dict
+        "head" .when "line" (printf "%s, %s" .name (partial "market/season.html" .))
+        "from" .opens "until" .closes "alone" "Drop site") }}
+      {{ $kind = "Farmers market and drop site" }}
+      {{ $links = slice (dict "label" "Market website" "href" .href)
+        (dict "label" "Market Instagram" "href" (printf "https://www.instagram.com/%s/" .instagram)) }}
+    {{ end }}
+  {{ end }}
+  {{ $when = $when | append (dict "head" (printf "%ss, %s" (partial "weekday.html" $drop.weekday) $drop.window) "line" $dropLine) }}
+  {{ $places = $places | append (merge (partial "map/xy.html" hugo.Data.places.dropsite) (dict
+    "kind" $kind "key" "Drop site" "section" "pickup"
+    "name" (printf "%s %s" (partial "drop-site.html" "locality")
+      (partial "drop-site.html" "name"))
+    "town" (partial "drop-site.html" "locality")
+    "when" $when
+    "where" $drop.location
+    "links" $links
+    "also" (cond (gt (len $links) 0) $scituate.name "")
+    "shop" (dict "label" "Shop for the drop site" "href" (printf "%s?method=scituate" $order)))) }}
+
+  {{/* The other markets, while they run. */}}
+  {{ range after 1 hugo.Data.markets.markets }}
+    {{ if ge .closes $today }}
+      {{ $places = $places | append (merge (partial "map/xy.html" .) (dict
+        "kind" "Farmers market" "name" .name "key" .name
+        "section" "markets" "from" .opens "until" .closes
+        "nudge" (.nudge | default 0)
+        "when" (slice (dict "head" .when "line" (partial "market/season.html" .)))
+        "where" .where
+        "links" (slice (dict "label" "Website" "href" .href)
+          (dict "label" "Instagram" "href" (printf "https://www.instagram.com/%s/" .instagram))))) }}
+    {{ end }}
+  {{ end }}
+
+  {{/* Pop-ups to come, one place each, its dates in order. */}}
+  {{ $at := slice }}
+  {{ $dates := dict }}
+  {{ range sort hugo.Data.events.events "date" }}
+    {{ if and (eq .kind "pop-up") (ge .date $today) }}
+      {{ if not (index $dates .place) }}{{ $at = $at | append . }}{{ end }}
+      {{ $dates = merge $dates (dict .place ((index $dates .place | default slice) | append .)) }}
+    {{ end }}
+  {{ end }}
+  {{ range $at }}
+    {{ $when := slice }}
+    {{ $last := "" }}
+    {{ range $e := index $dates .place }}
+      {{ $day := time.AsTime $e.date $zone }}
+      {{ $hours := "" }}
+      {{ with $e.start }}{{ $hours = partial "map/hours.html" $e }}{{ end }}
+      {{ $when = $when | append (dict "head" ($day.Format "Monday, January 2") "line" $hours "until" $e.date) }}
+      {{ $last = $e.date }}
+    {{ end }}
+    {{ $a := .address }}
+    {{ $links := slice }}
+    {{ with .instagram }}
+      {{ $links = $links | append (dict "label" "Instagram" "href" (printf "https://www.instagram.com/%s/" .)) }}
+    {{ else }}
+      {{ with .href }}{{ $links = $links | append (dict "label" "Website" "href" .) }}{{ end }}
+    {{ end }}
+    {{ $places = $places | append (merge (partial "map/xy.html" .) (dict
+      "kind" "Pop-up" "name" .place "key" .place
+      "date" ((time.AsTime .date $zone).Format "Jan 2")
+      "section" "markets" "until" $last
+      "when" $when
+      "where" (printf "%s, %s, %s %s" $a.street $a.city $a.state $a.zip)
+      "links" $links)) }}
+  {{ end }}
+{{ end }}
+
+{{ $pin := "M0 0C-4-11-15-18-15-30a15 15 0 1 1 30 0C15-18 4-11 0 0Z" }}
+{{/* The tag's egg and hen, drawn in currentColor. */}}
+{{ $egg := partial "svg.html" "icons/eggs" }}
+{{ $hen := partial "svg.html" "search/hen" | replaceRE ` fill="[^"]*"` "" | safeHTML }}
+
+<div class="map" id="{{ $id }}" data-map data-layer="delivery">
+  <div class="map-view">
+    {{/* The layer switch and the zoom, above the map: the switch
+         changes the key beside it too. */}}
+    <div class="map-bar">
+      {{ if $layers }}
+        <div class="map-layers" role="tablist" aria-label="Map">
+          <button type="button" role="tab" id="{{ $id }}-tab-delivery" aria-selected="true" aria-controls="{{ $id }}-panel" data-map-layer="delivery">Delivery</button>
+          <button type="button" role="tab" id="{{ $id }}-tab-places" aria-selected="false" aria-controls="{{ $id }}-panel" tabindex="-1" data-map-layer="places">Places</button>
+        </div>
+      {{ end }}
+      <div class="map-zoom">
+        <button type="button" data-map-zoom="reset" aria-label="Show the whole map" hidden>
+          {{ partial "svg.html" "icons/globe" }}
+        </button>
+        <button type="button" data-map-zoom="out" aria-label="Zoom out" disabled>−</button>
+        <button type="button" data-map-zoom="in" aria-label="Zoom in">+</button>
+      </div>
+    </div>
+
+    <div class="map-frame" data-map-frame {{- if $layers }} id="{{ $id }}-panel" role="tabpanel" aria-labelledby="{{ $id }}-tab-delivery"{{ end }}>
+      {{/* A label, not a title: a title shows as the browser's own
+           tooltip and competes with the map's. */}}
+      <svg class="map-svg" viewBox="0 0 {{ $map.frame.width }} {{ $map.frame.height }}" role="group" aria-label="Map of Rhode Island and its Connecticut border{{ if $layers }}, showing where we deliver or where to find us{{ else }}, showing where we deliver{{ end }}" data-map-svg>
+        {{/* The ZIP goes after a "z": the minifier reads a bare 02825
+             in SVG as a number and drops the leading zero. */}}
+        <g class="map-zips">
+          {{ range $map.zips }}
+            {{ $class := "is-land" }}
+            {{ if in $ours .zip }}{{ $class = "is-ours" }}{{ else if eq .state "RI" }}{{ $class = "is-away" }}{{ end }}
+            {{ if in $eggs .zip }}{{ $class = "is-ours is-eggs" }}{{ end }}
+            <path class="map-zip {{ $class }}" data-zip="z{{ .zip }}" data-town="{{ .town }}" data-x="{{ .x }}" data-y="{{ .y }}" d="{{ .d }}"/>
+          {{ end }}
+        </g>
+        <path class="map-borders" d="{{ $map.borders }}"/>
+        {{/* The ZIP picked, outlined in dark green over a white
+             casing, and the pin dropped on it. */}}
+        <path class="map-pick-casing" data-map-pick hidden/>
+        <path class="map-pick" data-map-pick hidden/>
+        <g class="map-drop" data-map-drop hidden>
+          <g data-map-drop-at>
+            <g class="map-drop-fall">
+              <path class="map-drop-pin" d="{{ $pin }}"/>
+              <circle class="map-drop-dot" cy="-30" r="6"/>
+            </g>
+          </g>
+        </g>
+        {{ if $layers }}
+          {{/* The places' pins. data-map-pin is the pin's card. */}}
+          <g class="map-pins">
+            {{ range $i, $p := $places }}
+              <g class="map-pin" data-map-pin="{{ add $i 1 }}" data-map-slug="place-{{ $p.name | urlize }}" data-x="{{ $p.x }}" data-y="{{ $p.y }}" {{- with $p.nudge }} data-nudge="{{ . }}"{{ end }} {{- with $p.from }} data-from="{{ . }}"{{ end }} {{- with $p.until }} data-until="{{ . }}"{{ end }} transform="translate({{ $p.x }} {{ $p.y }})" tabindex="0" role="button" aria-pressed="false" aria-label="{{ $p.name }}">
+                <g class="map-pin-body">
+                  <path d="{{ $pin }}"/>
+                  <circle cy="-30" r="5.5"/>
+                </g>
+              </g>
+            {{ end }}
+          </g>
+        {{ end }}
+      </svg>
+
+      {{/* The tag over the dropped pin, and the same tag beside the
+           pointer over a town. scripts/map/ fills in the town, marks
+           what we don't deliver there and places it. The words are
+           for the eye; the ZIP check says them to a screen reader. */}}
+      <div class="map-tag" data-map-drop-tag data-fee="{{ $money.deliveryFee }}" data-extra="{{ $money.outsideAreaFee }}" hidden>
+        <span class="map-tag-town" data-map-drop-town aria-hidden="true"></span>
+        <span class="map-tag-row" aria-hidden="true">
+          <span class="map-tag-icon" data-map-drop-has="eggs">{{ $egg }}</span>
+          <span class="map-tag-icon" data-map-drop-has="hen">{{ $hen }}</span>
+          <span class="map-tag-fee" data-map-drop-fee></span>
+          <span class="map-tag-none" data-map-drop-none hidden>No delivery</span>
+        </span>
+        <a class="map-tag-link" href="{{ relURL "" }}#places" data-map-to-places hidden>See pickup spots</a>
+      </div>
+
+      {{/* The ZIP field, bare on the map, Delivery only. */}}
+      {{ if .check }}
+        <div class="map-field" data-map-for="delivery">
+          {{ partial "zip-check.html" (dict "id" (printf "%s-zip" $id)) }}
+        </div>
+      {{ end }}
+
+      {{ range $i, $p := $places }}
+        <div class="map-card" data-map-card="{{ add $i 1 }}" role="group" aria-label="{{ $p.name }}" hidden>
+          <button class="btn-close map-card-close" type="button" data-map-card-close aria-label="Close"></button>
+          <p class="map-card-kind" data-map-card-kind>{{ $p.kind }}</p>
+          <p class="map-card-name" tabindex="-1">{{ $p.name }}</p>
+          <ul class="map-card-when list-unstyled">
+            {{ range $p.when }}
+              <li {{- with .from }} data-from="{{ . }}"{{ end }} {{- with .until }} data-until="{{ . }}"{{ end }} {{- with .alone }} data-alone="{{ . }}"{{ end }}>
+                <strong>{{ .head }}</strong>
+                {{ with .line }}<span>{{ . }}</span>{{ end }}
+              </li>
+            {{ end }}
+          </ul>
+          <p class="map-card-where">{{ $p.where }}</p>
+          <p class="map-card-directions">{{ partial "directions.html" ($p.directions | default (dict "to" $p.where)) }}</p>
+          {{ with $p.links }}
+            <p class="map-card-links">
+              {{ range . }}<a href="{{ .href }}" target="_blank" rel="noopener">{{ .label }}</a>{{ end }}
+            </p>
+          {{ end }}
+          {{ with $p.shop }}
+            <a class="btn btn-primary btn-sm map-card-shop" href="{{ .href }}">{{ .label }}</a>
+          {{ end }}
+        </div>
+      {{ end }}
+    </div>
+  </div>
+
+  <div class="map-key">
+    {{/* Delivery: the two shades by price, then how the tag marks
+         what we deliver. */}}
+    <ul class="map-key-areas list-unstyled" data-map-for="delivery">
+      <li><span class="map-swatch is-ours" aria-hidden="true"></span>${{ $money.deliveryFee }} delivery</li>
+      <li><span class="map-swatch is-away" aria-hidden="true"></span>${{ add $money.deliveryFee $money.outsideAreaFee }} delivery</li>
+      <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon">{{ $egg }}</span><span class="map-tag-icon">{{ $hen }}</span></span>We deliver it</li>
+      <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon is-off">{{ $hen }}</span></span>Not delivered there</li>
+    </ul>
+
+    {{ if $layers }}
+      {{/* Places: every pin by name, a button that opens its card.
+           The Scituate market opens the drop site's pin. */}}
+      <nav class="map-places" aria-label="Places on the map" data-map-for="places" hidden>
+        {{ $heads := dict "pickup" "Pickup" "markets" "Markets and pop-ups" }}
+        {{ range $section := slice "pickup" "markets" }}
+          <p class="map-key-head">{{ index $heads $section }}</p>
+          <ul class="map-key-list list-unstyled">
+            {{ if eq $section "markets" }}
+              {{ range $i, $p := $places }}
+                {{ with $p.also }}
+                  {{ $market := index $p.when 0 }}
+                  <li data-from="{{ $market.from }}" data-until="{{ $market.until }}">
+                    <button class="map-key-show" type="button" data-map-show="{{ add $i 1 }}" aria-pressed="false">{{ . }}</button>
+                  </li>
+                {{ end }}
+              {{ end }}
+            {{ end }}
+            {{ range $i, $p := $places }}
+              {{ if eq $p.section $section }}
+                <li {{- with $p.from }} data-from="{{ . }}"{{ end }} {{- with $p.until }} data-until="{{ . }}"{{ end }}>
+                  <button class="map-key-show" type="button" data-map-show="{{ add $i 1 }}" aria-pressed="false">
+                    {{ $p.key }}
+                    {{ with $p.town }}<small>{{ . }}</small>{{ end }}
+                    {{ with $p.date }}<small>{{ . }}</small>{{ end }}
+                  </button>
+                </li>
+              {{ end }}
+            {{ end }}
+          </ul>
+        {{ end }}
+      </nav>
+    {{ end }}
+  </div>
+</div>

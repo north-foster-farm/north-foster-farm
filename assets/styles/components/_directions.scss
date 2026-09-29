@@ -1,0 +1,26 @@
+// Directions in Google Maps and in Apple Maps (partials/directions.html):
+// a label, then a link for each, led by its map's mark at about the
+// height of the text. The marks keep their own colors.
+
+.directions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.875rem;
+  align-items: center;
+}
+
+.directions-label {
+  color: var(--bs-secondary-color);
+}
+
+.directions-link {
+  display: inline-flex;
+  gap: 0.3125rem;
+  align-items: center;
+
+  svg {
+    flex: none;
+    width: auto;
+    height: 1.125em;
+  }
+}

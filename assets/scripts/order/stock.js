@@ -16,6 +16,9 @@ export class Stock {
     this.setQty = setQty || ((input, n) => { input.value = String(n); });
     this.items = null;
     this.timer = null;
+    // Packs a paid order being changed (?edit=) already holds: they
+    // count as available, so a line that sold out since can stay.
+    this.held = {};
   }
 
   start() {
@@ -63,34 +66,39 @@ export class Stock {
 
       if (!state) continue;
 
+      const held = this.held[sku] || 0;
+      const inStock = state.inStock || held > 0;
+      const available = state.available === null ? null
+        : state.available + held;
+
       const row = input.closest(".order-item");
       const note = row.querySelector("[data-stock-note]");
       const qty = parseInt(input.value, 10) || 0;
       const label = row.querySelector("label").textContent.trim();
       let text = "";
 
-      if (!state.inStock) {
+      if (!inStock) {
         row.dataset.stock = "out";
         text = "Sold out";
         if (qty > 0) {
           this.setQty(input, 0);
           changed.push(`${label} sold out and was removed`);
         }
-      } else if (state.available !== null && state.available <= 5) {
+      } else if (available !== null && available <= 5) {
         row.dataset.stock = "low";
-        text = state.available === 1 ? "1 left" : `${state.available} left`;
-        if (qty > state.available) {
-          this.setQty(input, state.available);
-          changed.push(`only ${state.available} of ${label} left`);
+        text = available === 1 ? "1 left" : `${available} left`;
+        if (qty > available) {
+          this.setQty(input, available);
+          changed.push(`only ${available} of ${label} left`);
         }
       } else {
         delete row.dataset.stock;
       }
 
       for (const button of row.querySelectorAll("[data-step]")) {
-        button.disabled = !state.inStock;
+        button.disabled = !inStock;
       }
-      input.disabled = !state.inStock;
+      input.disabled = !inStock;
       if (note && note.textContent !== text) note.textContent = text;
     }
 

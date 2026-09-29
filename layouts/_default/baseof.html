@@ -1,14 +1,18 @@
 <!DOCTYPE html>
-<html lang="en_US">
+<html lang="en-US">
   <head>
+    {{ block "head-extra" . }}{{ end }}
     {{ partial "head.html" . }}
   </head>
   <body>
+    <a class="visually-hidden-focusable btn btn-primary skip-link" href="#main">Skip to main content</a>
+    {{ partial "top-bar.html" . }}
     {{ partial "header.html" . }}
     {{ block "template" . }}{{ end }}
-    <main>
+    <main id="main">
       {{ block "main" . }}{{ end }}
     </main>
     {{ partial "footer.html" . }}
+    {{ partial "staging-toolbar.html" . }}
   </body>
 </html>

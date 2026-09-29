@@ -1,0 +1,86 @@
+// Farm news by email: the field and button in the footer and on the
+// news page. The line under them is empty until there is an answer,
+// and takes its tone (ok, wait, no).
+
+.news-signup {
+  max-width: 28rem;
+  margin: 0 auto;
+  text-align: left;
+}
+
+// The field and its button read as one control, so the field's focus
+// ring goes round both (#226): Bootstrap draws it on the field alone,
+// where it stops against the button.
+.news-signup .input-group:has(> .form-control:focus) {
+  border-radius: $input-border-radius;
+  box-shadow: $input-focus-box-shadow;
+
+  &:has(> .is-invalid) {
+    box-shadow: 0 0 $input-btn-focus-blur $input-btn-focus-width
+      rgba($form-feedback-invalid-color, $input-btn-focus-color-opacity);
+  }
+
+  > .form-control:focus {
+    box-shadow: none;
+  }
+}
+
+.news-signup-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--bs-secondary-color);
+
+  &:empty {
+    display: none;
+  }
+
+  &[data-tone="ok"] {
+    color: var(--bs-success-text-emphasis);
+  }
+
+  &[data-tone="wait"] {
+    color: var(--bs-warning-text-emphasis);
+  }
+
+  &[data-tone="no"] {
+    color: var(--bs-danger-text-emphasis);
+  }
+}
+
+.news-signup-heading {
+  max-width: 28rem;
+  margin: 0 auto 0.75rem;
+  font-size: $h5-font-size;
+  text-wrap: balance;
+}
+
+// In the footer it sits flush left under its question. "Yes" is
+// short, so the form narrows to keep the field near its old width
+// (#223).
+.site-footer {
+  .news-signup {
+    max-width: 21rem;
+    margin: 0;
+  }
+
+  .news-signup-heading {
+    margin-inline: 0;
+  }
+}
+
+// On the news page, at the seam between the newest post and the
+// archive: a rule above, generous space either side, nothing else
+// (#223). The space below keeps the first year's underline its
+// heading's, not a second rule closing a box.
+.news-inline-signup {
+  margin-top: 3rem;
+  padding: 2.25rem 0 1.5rem;
+  border-top: 1px solid var(--bs-border-color);
+  text-align: center;
+}
+
+.news .news-inline-signup-title {
+  margin: 0 0 1rem;
+  font-size: $h4-font-size;
+  text-wrap: balance;
+}
