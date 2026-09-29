@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  LINK_TTL, SESSION_TTL, createSession, requestLink, safeNext,
-  sessionFrom, verifyToken,
+  LINK_TTL, SESSION_TTL, createSession, hit, peekToken, requestLink,
+  safeNext, sessionFrom, verifyToken,
 } from "../netlify/functions/lib/auth.mjs";
 import { getCustomer } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
@@ -172,6 +172,61 @@ describe("verifyToken", () => {
   });
 });
 
+describe("peekToken", () => {
+  it("reads a token without spending it (#240)", async () => {
+    const stores = testStores();
+    const { mail } = mailbox();
+    const r = await requestLink(stores, {
+      email: "pat@example.com", next: "/account/orders/",
+    }, { now, env, mail });
+    const token = tokenIn(r.url);
+
+    assert.deepEqual(await peekToken(stores, token, { now }), {
+      ok: true, email: "pat@example.com", next: "/account/orders/",
+      changeFrom: null,
+    });
+    // Still there: a second peek reads the same thing.
+    assert.equal((await peekToken(stores, token, { now })).ok, true);
+    assert.equal((await verifyToken(stores, token, { now })).ok, true,
+      "peeking never spends it");
+  });
+
+  it("expires and refuses junk without deleting an expired token",
+    async () => {
+      const stores = testStores();
+      const { mail } = mailbox();
+      const r = await requestLink(stores, { email: "pat@example.com" }, {
+        now, env, mail,
+      });
+      const late = new Date(now.getTime() + LINK_TTL + 1);
+
+      assert.equal((await peekToken(stores, tokenIn(r.url), { now: late }))
+        .reason, "expired");
+      assert.equal((await peekToken(stores, "", { now })).reason, "invalid");
+    });
+});
+
+describe("hit", () => {
+  it("allows up to max, then refuses within the window", async () => {
+    const stores = testStores();
+    const opts = { windowMs: 1000, max: 2 };
+
+    assert.equal((await hit(stores, "k", 0, opts)).limited, false);
+    assert.equal((await hit(stores, "k", 100, opts)).limited, false);
+    assert.equal((await hit(stores, "k", 200, opts)).limited, true);
+    assert.equal((await hit(stores, "k", 1_200, opts)).limited, false,
+      "the first hit fell out of the window");
+  });
+
+  it("keeps separate keys apart", async () => {
+    const stores = testStores();
+    const opts = { windowMs: 1000, max: 1 };
+
+    assert.equal((await hit(stores, "a", 0, opts)).limited, false);
+    assert.equal((await hit(stores, "b", 0, opts)).limited, false);
+  });
+});
+
 describe("sessions", () => {
   it("create a customer record and read back from the cookie", async () => {
     const stores = testStores();
@@ -282,6 +337,40 @@ describe("the auth endpoints", () => {
 
     assert.equal(res.status, 302);
     assert.equal(res.headers.get("location"), "/login/?error=unknown");
+  });
+
+  it("also verifies a plain link by POST, sameSite only", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await handle(post("/api/auth/request", { email: "pat@example.com" }), {
+      stores, env, now, mail,
+    });
+
+    const token = tokenIn(sent[0].text.match(/https:\S+/)[0]);
+    const res = await handle(post("/api/auth/verify", { token }), {
+      stores, env, now,
+    });
+
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { ok: true, next: "/account/" });
+    assert.match(res.headers.get("set-cookie"), /^nff_session=/);
+
+    const cross = await handle(new Request("https://x/api/auth/verify", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json", Origin: "https://evil.example",
+      },
+      body: JSON.stringify({ token: "x" }),
+    }), { stores, env, now });
+
+    assert.equal(cross.status, 403);
+
+    const junk = await handle(post("/api/auth/verify", {}), {
+      stores, env, now,
+    });
+
+    assert.equal(junk.status, 400);
   });
 
   it("answers 200 to a rate-limited request and 422 to junk", async () => {

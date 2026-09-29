@@ -60,6 +60,12 @@ const seed = async () => {
   await stores.auth.set("session/s1", { email: OLD, expires: 1 });
   await stores.auth.set("session/s2", { email: "other@example.com" });
   await stores.auth.set("token/t1", { email: OLD, expires: 1 });
+  // A pending email-change link asked for from OLD, to a third
+  // address: its `email` is the destination, not OLD, so only
+  // `changeFrom` names OLD (#240).
+  await stores.auth.set("token/t2", {
+    email: "third@example.com", changeFrom: OLD, expires: 1,
+  });
   await stores.auth.set("unsub/u1", { email: OLD });
   await stores.auth.set("news/n1", { email: OLD });
   await stores.customers.set(`support/${OLD}/m1`, { message: "Hi" });
@@ -78,7 +84,7 @@ describe("customers rename (#238)", () => {
     assert.equal(report.apply, false);
     assert.deepEqual(report.orders.sort(), ["A", "B"]);
     assert.equal(report.sessionsEnded, 1);
-    assert.equal(report.signInLinksVoided, 1);
+    assert.equal(report.signInLinksVoided, 2);
     assert.equal(report.linksRepointed, 2);
     assert.equal(report.supportMessages, 1);
     assert.equal(report.resend, "moved");
@@ -108,6 +114,9 @@ describe("customers rename (#238)", () => {
     assert.equal(await stores.auth.get("session/s1"), null);
     assert.ok(await stores.auth.get("session/s2"));
     assert.equal(await stores.auth.get("token/t1"), null);
+    // The pending change link to a third address is voided too, even
+    // though it doesn't name OLD as `email` (#240).
+    assert.equal(await stores.auth.get("token/t2"), null);
     assert.equal((await stores.auth.get("unsub/u1")).email, NEW);
     assert.equal((await stores.auth.get("news/n1")).email, NEW);
     assert.equal(await stores.customers.get(`support/${OLD}/m1`), null);

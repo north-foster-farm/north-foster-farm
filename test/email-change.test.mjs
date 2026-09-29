@@ -138,7 +138,27 @@ describe("following the link (#240)", () => {
       assert.match(sent[0].subject, /was changed/);
       assert.match(sent[0].text, new RegExp(`signs in with ${NEW}`));
       assert.match(sent[0].text, /contact us right away/);
+      // Pat never subscribed to farm news, so the notice doesn't
+      // claim it will follow (copy's finding on #240).
+      assert.doesNotMatch(sent[0].text, /farm news/);
     });
+
+  it("mentions farm news moving only for a subscriber", async () => {
+    const stores = await seed();
+    const { sent, mail } = mailbox();
+    const { square, news } = outside();
+
+    await saveCustomer(stores, {
+      email: OLD, name: "Pat", avatar: "chick", marketing: true,
+    });
+
+    const r = await finishEmailChange(stores, {
+      email: NEW, changeFrom: OLD,
+    }, { now, env, mail, square, news });
+
+    assert.equal(r.ok, true);
+    assert.match(sent[0].text, /farm news/);
+  });
 
   it("refuses once the new address has an account of its own",
     async () => {
@@ -179,8 +199,45 @@ describe("the endpoints (#240)", () => {
     },
     body: JSON.stringify(body),
   });
+  const verifyPost = (token) => new Request("https://x/api/auth/verify", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "sec-fetch-site": "same-origin",
+    },
+    body: JSON.stringify({ token }),
+  });
 
-  it("ask on the account page, follow the link, arrive signed in",
+  it("a GET on a change link only peeks: it changes nothing", async () => {
+    const stores = await seed();
+    const { sent, mail } = mailbox();
+    const old = await createSession(stores, OLD, { now });
+
+    await account(post("/api/account/email", { email: NEW }, old.id),
+      { stores, env, now, mail });
+
+    const token = tokenIn(sent[0]);
+    const res = await auth(
+      new Request(`https://x/api/auth/verify?token=${token}`),
+      { stores, env, now, mail }
+    );
+
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.get("location"),
+      `/login/#confirm=${token}&email=${encodeURIComponent(NEW)}`);
+    assert.equal(res.headers.get("set-cookie"), null);
+    assert.ok(await getCustomer(stores, OLD));
+    assert.equal(await getCustomer(stores, NEW), null);
+    assert.ok(await stores.auth.get(`session/${old.id}`));
+
+    // The token still works: the GET didn't spend it.
+    const confirmed = await auth(verifyPost(token), { stores, env, now, mail,
+      fetchImpl: async () => { throw new Error("offline"); } });
+
+    assert.equal((await confirmed.json()).ok, true);
+  });
+
+  it("ask on the account page, confirm the link, arrive signed in",
     async () => {
       const stores = await seed();
       const { sent, mail } = mailbox();
@@ -193,25 +250,32 @@ describe("the endpoints (#240)", () => {
 
       // Square and Resend can't be reached here: the site's records
       // move all the same.
-      const res = await auth(new Request(
-        `https://x/api/auth/verify?token=${tokenIn(sent[0])}`
-      ), {
+      const res = await auth(verifyPost(tokenIn(sent[0])), {
         stores, env, now, mail,
         fetchImpl: async () => { throw new Error("offline"); },
       });
 
-      assert.equal(res.status, 302);
-      assert.equal(res.headers.get("location"),
-        "/account/?email=changed#settings");
+      assert.equal(res.status, 200);
+
+      const body = await res.json();
+
+      assert.equal(body.ok, true);
+      assert.equal(body.next, "/account/?email=changed#settings");
       assert.match(res.headers.get("set-cookie"), /^nff_session=/);
       assert.equal(await getCustomer(stores, OLD), null);
       assert.ok(await getCustomer(stores, NEW));
       assert.equal(await stores.auth.get(`session/${old.id}`), null,
         "the old session ended");
       assert.equal(sent[1].to, OLD);
+
+      // The token was spent: following it again fails.
+      const again = await auth(verifyPost(tokenIn(sent[0])),
+        { stores, env, now, mail });
+
+      assert.equal((await again.json()).reason, "unknown");
     });
 
-  it("send a refused move to the sign-in page, and change nothing",
+  it("send a refused move back as a reason, and change nothing",
     async () => {
       const stores = await seed();
       const { sent, mail } = mailbox();
@@ -221,11 +285,11 @@ describe("the endpoints (#240)", () => {
         { stores, env, now, mail });
       await saveCustomer(stores, { email: NEW, name: "Someone" });
 
-      const res = await auth(new Request(
-        `https://x/api/auth/verify?token=${tokenIn(sent[0])}`
-      ), { stores, env, now, mail });
+      const res = await auth(verifyPost(tokenIn(sent[0])),
+        { stores, env, now, mail });
 
-      assert.equal(res.headers.get("location"), "/login/?error=change-taken");
+      assert.deepEqual(await res.json(),
+        { ok: false, reason: "change-taken" });
       assert.equal(res.headers.get("set-cookie"), null);
       assert.ok(await getCustomer(stores, OLD));
       assert.ok(await stores.auth.get(`session/${old.id}`));
@@ -236,5 +300,66 @@ describe("the endpoints (#240)", () => {
       "nope"), { stores: await seed(), env, now });
 
     assert.equal(res.status, 401);
+  });
+
+  it("limits requests per account, even to different addresses",
+    async () => {
+      const stores = await seed();
+      const { mail } = mailbox();
+      const old = await createSession(stores, OLD, { now });
+      const ask = (to) => account(post("/api/account/email", { email: to },
+        old.id), { stores, env, now, mail });
+
+      assert.equal((await ask("a1@example.com")).status, 200);
+      assert.equal((await ask("a2@example.com")).status, 200);
+      assert.equal((await ask("a3@example.com")).status, 200);
+
+      const blocked = await ask("a4@example.com");
+
+      assert.equal(blocked.status, 422);
+      assert.match((await blocked.json()).errors.email,
+        /a few links already/);
+    });
+
+  it("limits requests per IP across accounts", async () => {
+    const stores = await seed();
+    const { mail } = mailbox();
+    const pat = await createSession(stores, OLD, { now });
+
+    await saveCustomer(stores, { email: "other@example.com", name: "O" });
+    const other = await createSession(stores, "other@example.com", { now });
+    const withIp = (session, to) => account(
+      post("/api/account/email", { email: to }, session),
+      { stores, env, now, mail, ip: "10.0.0.1" },
+    );
+
+    assert.equal((await withIp(pat.id, "b1@example.com")).status, 200);
+    assert.equal((await withIp(other.id, "b2@example.com")).status, 200);
+    assert.equal((await withIp(pat.id, "b3@example.com")).status, 200);
+
+    // The IP is shared, so a fourth request is blocked even though
+    // neither account has hit its own limit.
+    const blocked = await withIp(other.id, "b4@example.com");
+
+    assert.equal(blocked.status, 422);
+    assert.match((await blocked.json()).errors.email,
+      /a few links already/);
+  });
+
+  it("voids an earlier change link once a new one is sent", async () => {
+    const stores = await seed();
+    const { sent, mail } = mailbox();
+    const old = await createSession(stores, OLD, { now });
+
+    await account(post("/api/account/email", { email: NEW }, old.id),
+      { stores, env, now, mail });
+    const firstToken = tokenIn(sent[0]);
+
+    await account(post("/api/account/email",
+      { email: "later@example.com" }, old.id), { stores, env, now, mail });
+
+    const res = await auth(verifyPost(firstToken), { stores, env, now, mail });
+
+    assert.deepEqual(await res.json(), { ok: false, reason: "unknown" });
   });
 });
