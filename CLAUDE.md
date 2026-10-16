@@ -152,9 +152,12 @@ ES6 modules with explicit imports:
 ## Netlify Configuration
 
 Deployment configured in `netlify.toml`:
-- Build command: `npm run check:schedule && bin/prod && hugo --gc &&
-  npm run check:grid`. `check:grid` holds the built HTML to
-  Bootstrap's grid rules (see `bin/grid/check.mjs`). The build runs
+- Build command: `npm run check:env && npm run check:schedule &&
+  bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc && npm run
+  check:grid`. `check:grid` holds the built HTML to Bootstrap's grid
+  rules (see `bin/grid/check.mjs`). The local build plugin
+  `plugins/source-maps` then moves the source maps out of `public/`
+  into Blobs (`docs/monitoring.md`). The build runs
   no lint or tests: those run in GitHub Actions (`lint-and-test`,
   `.github/workflows/ci.yml`), which `staging` and `main` require
 - Hugo version: 0.164.0 (pinned; Node 26 via NODE_VERSION and .nvmrc)

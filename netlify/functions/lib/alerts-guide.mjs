@@ -62,6 +62,30 @@ export const GUIDE = {
       "bin/nff orders show <id> shows whether the edit is still pending. " +
       "If the customer does not retry, finish or undo it with them.",
   },
+  "client.payment_unavailable": {
+    means: "A customer's order page could not offer any way to pay, so " +
+      "it told them to email the order instead. The where field says " +
+      "why: checkout.config or checkout.init (/api/checkout/config " +
+      "failed or named no processor), square.load (Square's script " +
+      "would not load or start), or sdks.gone (neither the card nor " +
+      "Venmo came up). The square and paypal fields give each one's " +
+      "state and load time.",
+    action: "Open /order/ yourself. If it pays, it was the customer's " +
+      "network or a blocker: one alone needs nothing. If it does not, " +
+      "check Square status, then the log for the same minute and " +
+      "GET /api/checkout/config. bin/nff errors show maps the stack.",
+  },
+  "client.error": {
+    means: "Not an alert: logged at warn only, never emailed. Something " +
+      "on the order page threw or failed where the customer could " +
+      "carry on: the card field would not attach, PayPal would not load " +
+      "or render, a wallet would not tokenize, or an uncaught error. " +
+      "The where field names the place.",
+    action: "Query the log (event client.error) for a pattern: the same " +
+      "where from many browsers is ours to fix, one browser alone " +
+      "rarely is. bin/nff errors show maps the stack to the source " +
+      "line.",
+  },
   "mail.failed": {
     means: "An email could not be sent: to a customer or the farm about " +
       "an order, or a contact-form message to the farm. Any order and " +

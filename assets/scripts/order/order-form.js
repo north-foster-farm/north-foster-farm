@@ -18,6 +18,7 @@ import { Errors } from "./errors.js";
 import { Lapsed } from "./lapsed.js";
 import { Payment } from "./pay.js";
 import { Pending } from "./pending.js";
+import { crumb } from "./report.js";
 import { Stock } from "./stock.js";
 import { Submitter } from "./submit.js";
 import { announceCart } from "../cart-badge/announce.js";
@@ -1699,6 +1700,8 @@ export class OrderForm {
   async submit(e) {
     e.preventDefault();
 
+    crumb("pay.press");
+
     const payload = await this.prepareAsync();
 
     if (!payload) return;
@@ -1738,6 +1741,7 @@ export class OrderForm {
     }
 
     this.setBusy(false);
+    crumb(outcome.kind === "ok" ? "pay.ok" : "pay.failed");
 
     switch (outcome.kind) {
     case "ok":

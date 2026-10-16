@@ -166,8 +166,10 @@ SCSS import order, and where the site's data lives.
 
 ## Deployment
 
-Netlify builds `npm run check:schedule && bin/prod && hugo --gc &&
-npm run check:grid` and publishes `public/`. Branch deploys add
+Netlify builds `npm run check:env && npm run check:schedule &&
+bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc && npm run
+check:grid` and publishes `public/`, after the local build plugin
+`plugins/source-maps` has moved the source maps into Blobs. Branch deploys add
 Hugo's draft, future and expired flags.
 
 Work lands on `next`, which does not build. Promotion is a

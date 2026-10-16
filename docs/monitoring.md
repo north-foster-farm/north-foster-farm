@@ -45,6 +45,12 @@ sees, so a dead page and a silent failure both reach the phone.
 - **Deploy failures.** Netlify's "Deploy failed" email notification.
   Email only, not the phone, for now (step 4). Set in the Netlify UI,
   no code.
+- **Error reporter.** The order page reports its own errors to
+  `/api/health` (`assets/scripts/report.js`): `client.error` to the
+  log, `client.payment_unavailable` as an alert. Needs nothing; see
+  "Browser error reports" below.
+- **Deploy failures.** Netlify → Site configuration → Notifications:
+  "Deploy failed" by email. Set in the Netlify UI.
 
 ## Setting it up
 
@@ -232,6 +238,25 @@ free plan). The failing send is logged with the template name and the
 order or message id. Resend an order's email with `bin/nff` or from
 the order page once mail works; for a contact message, write back to
 its sender.
+**`client.payment_unavailable`.** A customer's order page could not
+offer any way to pay, so it told them to email the order instead. The
+`where` field says why: `checkout.config` or `checkout.init`
+(`/api/checkout/config` failed or named no processor), `square.load`
+(Square's script would not load or start), or `sdks.gone` (neither
+the card nor Venmo came up). The `square` and `paypal` fields give
+each one's state and load time. Open `/order/` yourself. If it pays,
+it was the customer's network or a blocker: one alone needs nothing.
+If it does not, check Square status, then the log for the same minute
+and `GET /api/checkout/config`. `bin/nff errors show` maps the stack.
+
+**`client.error`.** Not an alert: logged at `warn` only, never
+emailed. Something on the order page threw or failed where the
+customer could carry on: the card field would not attach, PayPal
+would not load or render, a wallet would not tokenize, or an uncaught
+error. The `where` field names the place. Query the log (`event:
+client.error`) for a pattern: the same `where` from many browsers is
+ours to fix, one browser alone rarely is. `bin/nff errors show` maps
+the stack to the source line.
 
 **`square.record_failed`.** A Venmo payment was captured but its
 Square order and external tender could not be made: for a new order,
@@ -387,13 +412,53 @@ context ride on every line. Every function is wrapped in
 `function.crashed` line with the function's name and the top of its
 stack, and an alert, before Netlify answers 500 as it always did.
 
+## Browser error reports
+
+`assets/scripts/report.js` is built on its own and loaded in the
+order page's `<head>`, before the order bundle, so a crash in the
+bundle is still caught. It hooks `window.onerror` and
+`unhandledrejection`, and `pay.js` reports each failure in its catch
+blocks under a fixed `where` name. A report goes by `sendBeacon` to
+`POST /api/health` and carries the `where`, the message, the first
+frames of the stack, the build's commit, the page's path, the last 20
+steps by name (`pay.load`, `square.ready`, `card.attach_failed`,
+`pay.press`, ...) and each SDK's state and load time. The server adds
+the browser's family and major version from the user agent and keeps
+nothing else of it. A page sends five reports at most, and each once.
+
+What fails decides the kind. Config, init, Square's script and both
+ways gone are `client.payment_unavailable`, an alert; everything else
+(the card field, PayPal, a wallet, an uncaught error) is
+`client.error`, logged at `warn`.
+
+**Source maps.** A production build minifies the scripts and writes
+each bundle's map beside it. After the build and before the upload,
+the local build plugin `plugins/source-maps` (`bin/maps/stash.mjs`)
+moves every map out of `public/` into the `maps` Blobs store under
+the commit (`<sha>/scripts/order/main.js.map`), so no map is ever
+served. It is a plugin because only plugins get the Blobs context.
+The deploy log says what it did: `[maps] N found, N removed from the
+site, N kept for <sha>`. Nothing in it can fail a deploy: a store
+that will not take the maps, or a minute gone by, costs the maps
+only, and every map is removed regardless. To read a stack, save the
+report's log line (the JSON from Axiom) to a file and run
+
+```
+bin/nff --production errors show report.json
+bin/nff --production errors show stack.txt --sha <commit>
+```
+
+It prints each frame as the original file, line and column, with the
+line of source. `-` reads the report from standard input.
+
 ## What is deliberately not here
 
 - A synthetic daily checkout. It would charge a real card every day.
   The QA guide's occasional $1 order does the job.
-- Stack-trace tracking (Sentry). The log has the events, the errors'
-  messages and, for an exception no handler caught, the top of its
-  stack; add Sentry if that proves too thin.
+- A hosted error tracker (Sentry). The log has the events, the
+  errors' messages and, for an exception no handler caught, the top
+  of its stack, and the order page reports its own errors to it with
+  private source maps; add one if that proves too thin.
 - Monitors scripted from `bin/nff`. The five are made by hand in
   UptimeRobot for now; scripting them through its API comes after
   launch.

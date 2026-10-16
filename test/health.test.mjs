@@ -417,6 +417,84 @@ describe("POST /api/health, the checkout beacon", () => {
     }
     assert.equal(sent.length, 1, "one alert an hour, however many beacons");
   });
+
+  const report = (kind, extra = {}) => new Request("https://x/api/health", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:143.0) " +
+        "Gecko/20100101 Firefox/143.0",
+    },
+    body: JSON.stringify({
+      kind, where: "square.load", message: "Could not load the SDK",
+      stack: "Error: Could not load\n    at x (https://x/s.js:1:2)",
+      build: "abc123", page: "/order/", crumbs: ["page.load", "pay.load"],
+      sdks: { square: { state: "failed", ms: 3000 } },
+      orderId: "NFF-1234", ...extra,
+    }),
+  });
+
+  it("alerts on a page that cannot take payment, with no order",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+      const { calls, fetchImpl } = fakeFetch();
+      const res = await handle(report("payment.unavailable"), {
+        stores, now, mail, fetchImpl,
+        env: {
+          ADMIN_EMAILS: "farm@x.com", HEALTHCHECKS_ALERT_URL: "https://hc/a",
+        },
+      });
+
+      assert.equal(res.status, 202);
+      assert.equal(sent.length, 1);
+      assert.equal(sent[0].subject, "Site alert: client.payment_unavailable");
+      assert.match(sent[0].text, /square\.load/);
+      assert.match(sent[0].text, /Firefox/);
+      assert.doesNotMatch(sent[0].text, /NFF-1234/);
+
+      const ping = JSON.parse(calls[0].body);
+
+      assert.equal(calls[0].url, "https://hc/a/fail");
+      assert.equal(ping.kind, "client.payment_unavailable");
+      assert.equal(ping.browserVersion, 143);
+      assert.equal("orderId" in ping, false);
+      assert.equal(JSON.stringify(ping).includes("Mozilla"), false,
+        "the user agent itself is not kept");
+    });
+
+  it("logs a client error at warn and alerts nobody", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const { calls, fetchImpl } = fakeFetch();
+    const lines = [];
+    const warn = log.warn;
+
+    log.warn = (line) => lines.push(line);
+    try {
+      const res = await handle(report("error", {
+        where: "card.attach", message: "x".repeat(500),
+      }), {
+        stores, now, mail, fetchImpl,
+        env: {
+          ADMIN_EMAILS: "farm@x.com", HEALTHCHECKS_ALERT_URL: "https://hc/a",
+        },
+      });
+
+      assert.equal(res.status, 202);
+    } finally {
+      log.warn = warn;
+    }
+    assert.equal(sent.length, 0);
+    assert.equal(calls.length, 0);
+    assert.equal(lines.length, 1);
+    assert.equal(lines[0].event, "client.error");
+    assert.equal(lines[0].where, "card.attach");
+    assert.equal(lines[0].message.length, 300);
+    assert.equal(lines[0].build, "abc123");
+    assert.deepEqual(lines[0].crumbs, ["page.load", "pay.load"]);
+    assert.equal("orderId" in lines[0], false);
+  });
 });
 
 // The lines a wrapped call shipped, read off a fake Axiom.

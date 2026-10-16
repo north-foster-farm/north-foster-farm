@@ -95,6 +95,11 @@ const USAGE = `Usage:
                                       limit: the farm email and the
                                       phone push (down, then up). Says
                                       what it reached
+  bin/nff errors show <file|-> [--sha <commit>]
+                                      a browser error report's stack
+                                      (its log line, or a bare stack
+                                      with --sha), mapped to the
+                                      source by the private maps
   bin/nff library [--staging]         James's approvals and rewrites
                                       from the email library, to port
   bin/nff library clear <id>          drop an email's, once ported
@@ -146,6 +151,7 @@ const [
   review,
   { mailLinks },
   sent,
+  sourcemaps,
   { checkSchedule },
   { alertTest },
 ] = await Promise.all([
@@ -163,6 +169,7 @@ const [
   import("../netlify/functions/lib/review.mjs"),
   import("../netlify/functions/lib/site.mjs"),
   import("../netlify/functions/lib/sent.mjs"),
+  import("../netlify/functions/lib/sourcemaps.mjs"),
   import("../assets/scripts/order/lib/schedule.mjs"),
   import("../netlify/functions/lib/health.mjs"),
 ]);
@@ -185,7 +192,7 @@ const words = [];
 
 // Flags that take a value: `--reason "..."` as well as `--reason=...`.
 const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
-  "to", "waive", "detail", "reason-text"];
+  "to", "waive", "detail", "reason-text", "sha"];
 const args = process.argv.slice(2);
 
 for (let i = 0; i < args.length; i += 1) {
@@ -454,6 +461,36 @@ const envCommand = async () => {
   return process.exit(1);
 };
 
+// A report as the log keeps it (one JSON line, from Axiom or the
+// console), or a bare stack and --sha. The maps are the context's:
+// --production for a production report.
+const errorsShow = async (file) => {
+  if (!file) throw new Error("Usage: bin/nff errors show <file|-> [--sha]");
+
+  const raw = readFileSync(file === "-" ? 0 : file, "utf8");
+  let report;
+
+  try {
+    report = JSON.parse(raw);
+  } catch {
+    report = { stack: raw };
+  }
+
+  const sha = flags.sha || report.build;
+
+  if (!sha) throw new Error("No build in the report: pass --sha <commit>.");
+  out(`${report.kind || report.event || "report"}  ${
+    report.where || ""}  build ${sha}`);
+  if (report.message) out(`  ${report.message}`);
+
+  const mapped = await sourcemaps.mapStack(report.stack, sha,
+    (key) => stores.maps.get(key));
+
+  if (!mapped.length) return out("No frames in the stack.");
+
+  return out(sourcemaps.formatMapped(mapped).join("\n"));
+};
+
 const run = async () => {
   if (group === "env") return envCommand();
   if (group === "library") return libraryReview();
@@ -695,6 +732,8 @@ const run = async () => {
 
     return undefined;
   }
+  case "errors show":
+    return errorsShow(rest[0]);
   default:
     console.error(USAGE);
     process.exit(1);

@@ -20,6 +20,7 @@
 //   venmoCapture(payload, paypalOrderId)
 
 import { venmoGate } from "./lib/venmo.mjs";
+import { crumb, reportError, reportUnavailable, sdk } from "./report.js";
 
 const qs = (root, selector) => root.querySelector(selector);
 
@@ -154,6 +155,7 @@ export class Payment {
 
     this.starting = this.init().catch((error) => {
       console.error(error);
+      reportUnavailable("checkout.init", error);
       this.setState("unavailable");
     });
 
@@ -165,9 +167,12 @@ export class Payment {
   }
 
   async init() {
+    crumb("pay.load");
+
     const res = await fetch("/api/checkout/config", { cache: "no-store" });
 
     this.config = res.ok ? await res.json() : {};
+    crumb(res.ok ? "config.ok" : "config.failed");
 
     const jobs = [];
 
@@ -175,6 +180,8 @@ export class Payment {
     if (this.config.paypal) jobs.push(this.initVenmo(this.config.paypal));
 
     if (!jobs.length) {
+      reportUnavailable("checkout.config", `No payment configured (HTTP ${
+        res.status}).`);
       this.setState("unavailable");
 
       return;
@@ -183,6 +190,8 @@ export class Payment {
     await Promise.all(jobs);
 
     if (!this.card && !this.venmo) {
+      reportUnavailable("sdks.gone", "Neither the card nor Venmo is " +
+        "available.");
       this.setState("unavailable");
 
       return;
@@ -196,14 +205,20 @@ export class Payment {
   // --- Square -------------------------------------------------------
 
   async initSquare(cfg) {
+    sdk("square", "loading");
     try {
       await loadScript(cfg.sdkUrl);
       this.payments = window.Square.payments(cfg.applicationId, cfg.locationId);
     } catch (error) {
       console.error(error);
+      sdk("square", "failed");
+      crumb("square.load_failed");
+      reportUnavailable("square.load", error);
 
       return;
     }
+    sdk("square", "ready");
+    crumb("square.ready");
 
     try {
       // The iframe cannot see our stylesheet, so the field is told
@@ -222,6 +237,7 @@ export class Payment {
         },
       });
       await this.card.attach(qs(this.root, "[data-card]"));
+      crumb("card.ready");
       this.setCardAvailable(true);
       this.setCardOpen(false);
       this.cardButton.addEventListener("click", () => {
@@ -230,6 +246,8 @@ export class Payment {
       });
     } catch (error) {
       console.error(error);
+      crumb("card.attach_failed");
+      reportError("card.attach", error);
       this.card = null;
       this.setCardAvailable(false);
     }
@@ -245,6 +263,7 @@ export class Payment {
     await Promise.all([
       this.initApplePay(), this.initGooglePay(), this.initCashAppPay(),
     ]);
+    crumb("wallets.ready");
     this.showWallets();
   }
 
@@ -326,6 +345,7 @@ export class Payment {
         const payload = this.form.prepare();
 
         if (error) {
+          reportError("cashapp.tokenize", error);
           this.fail(error.message || "Cash App Pay didn't go through.");
         } else if (payload) {
           this.finishWallet("cashapp", Promise.resolve(tokenResult), payload);
@@ -341,6 +361,7 @@ export class Payment {
   }
 
   async finishWallet(method, tokenising, payload) {
+    crumb("pay.press");
     this.setBusy(true);
 
     try {
@@ -348,6 +369,9 @@ export class Payment {
 
       if (!result || result.status !== "OK") {
         if (result && result.status === "Cancel") return;
+        // The status only: the SDK's own messages can quote the card.
+        reportError("wallet.tokenize", `${method}: ${
+          result ? result.status : "no result"}`);
         this.fail(tokenMessage(result));
 
         return;
@@ -355,6 +379,7 @@ export class Payment {
       this.clearError();
       await this.form.pay(payload, { method, sourceId: result.token });
     } catch (error) {
+      reportError("wallet.pay", error);
       this.fail(error.message || "The payment didn't go through.");
     } finally {
       this.setBusy(false);
@@ -419,13 +444,19 @@ export class Payment {
 
     container.inert = locked;
 
+    sdk("paypal", "loading");
     try {
       await loadScript(cfg.sdkUrl);
     } catch (error) {
       console.error(error);
+      sdk("paypal", "failed");
+      crumb("paypal.load_failed");
+      reportError("paypal.load", error);
 
       return;
     }
+    sdk("paypal", "ready");
+    crumb("paypal.ready");
 
     const paypal = window.paypal;
 
@@ -454,6 +485,7 @@ export class Payment {
         return this.form.venmoCreate(payload);
       },
       onApprove: async (data) => {
+        crumb("venmo.approve");
         this.setBusy(true);
         try {
           await this.form.venmoCapture(this.venmoPayload, data.orderID);
@@ -464,10 +496,12 @@ export class Payment {
         }
       },
       onCancel: () => {
+        crumb("venmo.cancel");
         this.setBusy(false);
       },
       onError: (error) => {
         console.error(error);
+        reportError("paypal.error", error);
         this.setBusy(false);
         this.fail("Venmo didn't go through. Try again, or pay another way.");
       },
@@ -481,12 +515,15 @@ export class Payment {
 
     try {
       await button.render(container);
+      crumb("venmo.ready");
       if (!locked) this.venmo = button;
       qs(cell, "[data-venmo-soon]").hidden = !locked;
       cell.hidden = false;
       this.showWallets();
     } catch (error) {
       console.error(error);
+      crumb("venmo.render_failed");
+      reportError("paypal.render", error);
       cell.hidden = true;
     }
   }
