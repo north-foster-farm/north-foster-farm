@@ -54,9 +54,13 @@ export const saveOrder = async (stores, order, now = new Date()) => {
   const record = order.history ? order : stamp(order, order.status, now);
 
   await stores.orders.set(orderKey(record.id), record);
-  await stores.orders.set(byEmailKey(record.customer.email, record.id), {
-    id: record.id, at: record.submittedAt,
-  });
+  // An order whose customer's details were deleted (lib/forget.mjs)
+  // has no email, and no index.
+  if (record.customer.email) {
+    await stores.orders.set(byEmailKey(record.customer.email, record.id), {
+      id: record.id, at: record.submittedAt,
+    });
+  }
   // A Square payment and a PayPal capture each name the order, for
   // the webhooks that speak of a refund.
   for (const paymentId of paymentIds(record)) {
@@ -283,7 +287,9 @@ export const deleteOrder = async (stores, id) => {
 
   await stores.orders.delete(orderKey(id));
   await stores.orders.delete(openKey(id));
-  await stores.orders.delete(byEmailKey(order.customer.email, id));
+  if (order.customer.email) {
+    await stores.orders.delete(byEmailKey(order.customer.email, id));
+  }
   for (const paymentId of paymentIds(order)) {
     await stores.orders.delete(byPaymentKey(paymentId));
   }

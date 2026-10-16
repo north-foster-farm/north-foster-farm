@@ -26,6 +26,11 @@ const USAGE = `Usage:
   bin/nff customers show <email>
   bin/nff customers set <email> name=.. phone=.. group=friends|none
   bin/nff customers delete <email>
+  bin/nff customers forget <email> [--apply]
+                                      delete a customer's details:
+                                      orders stay, re-pointed to the
+                                      deleted household; the rest goes.
+                                      Final. A dry run unless --apply
   bin/nff customers rename <old> <new> [--apply]
                                       a customer's email changed: the
                                       record, orders, links, the Resend
@@ -608,6 +613,10 @@ const run = async () => {
     return out(await admin.renameCustomer(stores, rest[0], rest[1], {
       apply: !!flags.apply,
     }));
+  case "customers forget":
+    return out(await admin.forgetCustomer(stores, rest[0], {
+      apply: !!flags.apply,
+    }));
   case "customers delete":
     await admin.removeCustomer(stores, rest[0]);
 
@@ -787,7 +796,8 @@ const run = async () => {
       out(`${r.at.slice(0, 16)}  ${bad ? "FAIL" : "ok  "}  reminded ${
         c.deliveryReminded ?? 0}  closed ${c.closed ?? 0}  synced ${
         c.squareSynced ?? 0}  pickups ${c.pickupsToConfirm ?? 0}  swept ${
-        r.checkoutsSwept ?? 0}  signins ${r.authSwept ?? 0}${
+        r.checkoutsSwept ?? 0}  signins ${r.authSwept ?? 0}  scrubbed ${
+        c.scrubbed ?? 0}${
         (r.errors || []).map((e) => `\n    error ${e.id || "-"}: ${e.error}`)
           .join("")}${(r.invariants || []).map((v) =>
         `\n    invariant ${v.rule}: ${v.id}`).join("")}`);

@@ -421,7 +421,7 @@ export const syncAudience = async (stores, {
   const report = {
     ok: true, at: now.toISOString(), dryRun,
     created: [], resubscribed: [], unsubscribed: [], optedOut: [],
-    imported: [],
+    imported: [], forgotten: [],
   };
   const call = async (method, path, body) => {
     if (dryRun) return null;
@@ -474,6 +474,12 @@ export const syncAudience = async (stores, {
   }
 
   for (const [email, contact] of byEmail) {
+    if (await stores.customers.get(forgottenKey(email))) {
+      await call("DELETE", contactPath(email));
+      if (!dryRun) await stores.customers.delete(forgottenKey(email));
+      report.forgotten.push(email);
+      continue;
+    }
     if (contact.unsubscribed) continue;
     if (!dryRun) {
       await optIn(stores, email, {
@@ -540,3 +546,32 @@ export const moveContact = async (from, to, {
 
   return "moved";
 };
+
+// One contact deleted, for a customer who deleted their details
+// (#189). -> "removed", "none" or "unconfigured"; with `apply` false
+// nothing is written.
+export const removeContact = async (email, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+  apply = false,
+} = {}) => {
+  if (!audienceConfigured(env)) return "unconfigured";
+
+  const address = normalizeEmail(email);
+  const found = (await listContacts(env, fetchImpl))
+    .find((c) => normalizeEmail(c.email) === address);
+
+  if (!found) return "none";
+  if (apply) {
+    await resend(env, fetchImpl, "DELETE", `/audiences/${
+      env.RESEND_AUDIENCE_ID}/contacts/${encodeURIComponent(address)}`);
+  }
+
+  return "removed";
+};
+
+// A deletion that could not reach Resend leaves this marker, the
+// address hashed, so the daily sync deletes the contact instead of
+// taking it for a sign-up and making a new record.
+export const forgottenKey = (email) =>
+  `forgotten/${hash(normalizeEmail(email))}`;

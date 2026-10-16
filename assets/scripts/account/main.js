@@ -5,6 +5,7 @@
 
 import { pickupTimes, windowLabel } from "../order/lib/schedule.mjs";
 import { dollars } from "../order/lib/totals.mjs";
+import { forgetCustomer } from "../order/draft.js";
 import { label } from "../order/lib/zoned.mjs";
 import { forget, showChick, signOut } from "../session/session.js";
 import { api } from "../utils/api.js";
@@ -172,6 +173,8 @@ class Account {
 
     document.getElementById("account-signout").addEventListener("click",
       signOut);
+    document.getElementById("account-delete").addEventListener("click",
+      () => this.deleteDetails());
 
     // The address saves once the street, town and ZIP are there; the
     // settings once both names are.
@@ -520,6 +523,30 @@ class Account {
     this.clearErrors(form);
     form.reset();
     this.say("Sent. We'll answer by email.");
+  }
+
+  // Deleting your details (#189). Final: the session ends with them,
+  // and the order draft forgets who you were.
+  async deleteDetails() {
+    const status = document.getElementById("account-delete-status");
+
+    if (!window.confirm("Delete your details? This can't be undone.")) return;
+
+    const { ok, data } = await api("/api/account/delete", {
+      method: "POST", body: { confirm: true },
+    });
+
+    if (!ok) {
+      status.textContent = (data && data.message) ||
+        "Something went wrong. Please try again.";
+      status.hidden = false;
+
+      return;
+    }
+
+    forget();
+    forgetCustomer();
+    location.href = "/";
   }
 
   // Orders and receipts

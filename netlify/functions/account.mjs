@@ -12,13 +12,19 @@
 //                                               avatar, reminders, marketing }
 //   PUT   /api/account/address                { address1, ..., zip, cooler }
 //   POST  /api/account/support                { subject, message, orderId }
+//   POST  /api/account/delete                 { confirm: true } deletes
+//                                             the customer's details
+//                                             and signs out (#189)
 
 import {
   cancelOrder, changeOrder, listOrders, requestReturn, saveAddress,
   sendSupport, updateProfile,
 } from "./lib/account.mjs";
 import { editOrder } from "./lib/edit.mjs";
-import { publicCustomer, sameSite, sessionFrom } from "./lib/auth.mjs";
+import {
+  clearCookieHeader, clearStampHeader, publicCustomer, sameSite, sessionFrom,
+} from "./lib/auth.mjs";
+import { forgetCustomer } from "./lib/forget.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
@@ -43,6 +49,8 @@ export const handle = async (req, {
   now = new Date(),
   mail,
   square,
+  news,
+  fetchImpl,
 } = {}) => {
   const session = await sessionFrom(stores, req, { now });
 
@@ -102,6 +110,29 @@ export const handle = async (req, {
 
   if (req.method === "POST" && path === "/api/account/support") {
     return answer(await sendSupport(stores, customer, body, opts));
+  }
+
+  if (req.method === "POST" && path === "/api/account/delete") {
+    if (body.confirm !== true) {
+      return json(422, { errors: { confirm: "Please confirm." } });
+    }
+
+    const result = await forgetCustomer(stores, customer.email, {
+      apply: true, env, now, ...(news ? { news } : {}),
+      ...(fetchImpl ? { fetchImpl } : {}),
+    });
+
+    if (!result.ok) return json(409, { message: result.message });
+
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: [
+        ["Content-Type", "application/json; charset=utf-8"],
+        ["Cache-Control", "no-store"],
+        ["Set-Cookie", clearCookieHeader()],
+        ["Set-Cookie", clearStampHeader()],
+      ],
+    });
   }
 
   return json(404, { error: "Not found." });

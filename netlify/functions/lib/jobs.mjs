@@ -38,6 +38,7 @@ import {
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { rescueCheckout, syncSquare } from "./checkout.mjs";
 import { finishEditVenmo } from "./edit.mjs";
+import { scrubOldOrders } from "./forget.mjs";
 import { alert, ping, readCount, readMark } from "./health.mjs";
 import { log } from "./log.mjs";
 import { adminEmails, sendMail } from "./mail.mjs";
@@ -99,7 +100,7 @@ export const runJobs = async (stores, {
   const report = {
     at: now.toISOString(), deliveryReminded: [], closed: [], squareSynced: [],
     muted: [], checkoutsRescued: [], checkoutsSwept: 0, authSwept: 0,
-    pickupsToConfirm: [],
+    pickupsToConfirm: [], scrubbed: [],
     tomorrow: null, errors: [], invariants: [],
   };
   const opts = { env, mail, now };
@@ -192,6 +193,8 @@ export const runJobs = async (stores, {
     () => sweepCheckouts(stores, now))) || 0;
   report.authSwept = (await attempt(null, "auth",
     () => sweepAuth(stores, now))) || 0;
+  report.scrubbed = (await attempt(null, "retention",
+    () => scrubDaily(stores, now))) || [];
   report.pickupsToConfirm = (await attempt(null, "morningReport",
     () => morningReport(stores, { env, mail, now, fetchImpl }))) || [];
   report.tomorrow = await attempt(null, "tomorrowReport",
@@ -228,6 +231,20 @@ export const runJobs = async (stores, {
   return report;
 };
 
+// Retention (#189), once a day: orders placed more than seven years
+// ago lose their customer's details (lib/forget.mjs). -> the ids.
+const scrubDaily = async (stores, now) => {
+  const key = `retention/${today(now, tz)}`;
+
+  if (await stores.jobs.get(key)) return [];
+
+  const ids = await scrubOldOrders(stores, now);
+
+  await stores.jobs.set(key, { at: now.toISOString(), scrubbed: ids.length });
+
+  return ids;
+};
+
 // Farm news, once a day from AUDIENCE_SYNC_HOUR: the audience in Resend
 // and the records made to agree (lib/news.mjs). -> the counts, or null
 // when nothing was done this run.
@@ -259,7 +276,7 @@ export const summarize = (report) => ({
   at: report.at,
   counts: Object.fromEntries([
     "deliveryReminded", "closed", "squareSynced", "muted", "checkoutsRescued",
-    "pickupsToConfirm",
+    "pickupsToConfirm", "scrubbed",
   ].map((k) => [k, (report[k] || []).length])),
   checkoutsSwept: report.checkoutsSwept || 0,
   authSwept: report.authSwept || 0,

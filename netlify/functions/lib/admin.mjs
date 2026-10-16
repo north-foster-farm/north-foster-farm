@@ -21,6 +21,8 @@ import { mailLinks } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import { addressDecision, orderCancelled } from "./templates.mjs";
 
+export { forgetCustomer } from "./forget.mjs";
+
 const need = (thing, what) => {
   if (!thing) throw new Error(`No such ${what}.`);
 

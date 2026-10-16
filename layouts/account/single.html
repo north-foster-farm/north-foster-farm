@@ -179,6 +179,13 @@
                    or why it failed; main.js sets data-save and the words. */}}
               <p class="form-text mt-3 mb-0 account-save" data-autosave aria-live="polite"><span class="account-save-spin" aria-hidden="true"></span><span data-save-text></span></p>
             </form>
+            {{/* Deleting your details (#189): one click and a confirm. */}}
+            <section class="account-card mt-4" aria-labelledby="prof-delete-h">
+              <h3 class="account-group-title" id="prof-delete-h">Delete your details</h3>
+              <p>This deletes your account: your name, email, phone and address. We keep your past orders for our records, with no name on them. It can't be undone.</p>
+              <button type="button" class="btn btn-outline-danger btn-sm" id="account-delete">Delete my details</button>
+              <p class="form-text mb-0 mt-2" id="account-delete-status" role="status" aria-live="polite" hidden></p>
+            </section>
           </section>
 
           <section class="account-section" id="acct-help" data-section="help" aria-labelledby="acct-help-h" hidden>
