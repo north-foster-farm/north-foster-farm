@@ -1,7 +1,9 @@
 const Autoprefixer = require("autoprefixer");
 const PurgeCSS = require("@fullhuman/postcss-purgecss");
+const hoverOnly = require("./bin/postcss/hover-only.js");
 
 const plugins = [
+  hoverOnly(),
   new Autoprefixer(),
   new PurgeCSS({
     content: ["./hugo_stats.json"],
@@ -52,7 +54,48 @@ const plugins = [
         "last",
         "data-on",
         "data-open",
+        // The account page's save line (#238).
+        "data-save",
+        "saving",
+        "saved",
+        "failed",
+        // The header's link to the page you are on.
+        "aria-current",
+        "page",
+        // The order cart's folds and its shared row (#203).
+        "data-items",
+        "data-money",
+        "closed",
+        "data-share",
+        "way",
+        "code",
         "readonly",
+        "data-pay-state",
+        "loading",
+        "ready",
+        "venmo-only",
+        "unavailable",
+        "good",
+        "warn",
+        "data-shown",
+        "data-stuck",
+        "data-card-open",
+        "data-cart-passed",
+        "data-busy",
+        "data-row-start",
+        "data-playing",
+        "data-idle",
+        "data-reveal",
+        "role",
+        "option",
+        "aria-selected",
+        "data-search-qty-state",
+        "data-search-cart",
+        "full",
+        "aria-pressed",
+        "data-layer",
+        "delivery",
+        "places",
       ];
     },
     safelist: {
@@ -73,8 +116,13 @@ const plugins = [
         "is-valid",
         "is-active",
         "is-bumped",
+        "is-entering",
+        "is-fading",
         // The account page marks the order an email linked to.
         "is-linked",
+        // The search palette's JavaScript: open, and a real photo.
+        "is-open",
+        "is-photo",
         // Applied by session.js: the header's account slot fades in.
         "is-ready",
         "order-busy",
@@ -86,6 +134,8 @@ const plugins = [
         "order-cart-item-name",
         "order-cart-item-qty",
         "order-cart-item-sub",
+        "order-cart-remove",
+        "order-cart-toggle-word",
         "order-chicks",
         "order-qty-tick",
         "form-control-plaintext",

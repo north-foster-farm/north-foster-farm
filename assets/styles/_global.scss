@@ -1,12 +1,31 @@
+// The brand green shows only past the page's ends: in a scroll bounce,
+// top and bottom, and behind a phone browser's bars. Browsers take
+// that color from body or html (Safari 26 from body first), so both
+// carry it, and the page between the header and the footer keeps the
+// white over it (the rest of body's children have their own colors,
+// or float). The theme-color meta in head/favicons.html and the web
+// manifest repeat it as hex.
+$page-root-bg: $green;
+
 html {
   height: 100vh;
+  background-color: $page-root-bg;
 }
 
 body {
   @extend .d-flex;
   @extend .flex-column;
 
+  // 100vh on a phone is the screen with the browser's bars hidden, so
+  // a short page scrolled by their height; svh is the screen with them.
   min-height: 100vh;
+  min-height: 100svh;
+  background-color: $page-root-bg;
+}
+
+body > main,
+body > .flex-grow-1 {
+  background-color: var(--bs-body-bg);
 }
 
 p {
@@ -31,8 +50,7 @@ svg {
 }
 
 .btn {
-  text-transform: uppercase;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.01em;
 }
 
 // One hover for every button: the fill shades a step, the button
@@ -41,13 +59,13 @@ svg {
 .btn:not(.btn-link) {
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px -8px rgba($black, 0.45);
+    box-shadow: $btn-lift-shadow;
   }
 
   &:active,
   &.active {
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px -5px rgba($black, 0.4);
+    box-shadow: $btn-press-shadow;
   }
 }
 
@@ -64,6 +82,12 @@ svg {
   --bs-btn-active-color: var(--bs-btn-color);
   --bs-btn-active-bg: color-mix(in srgb, currentcolor 30%, transparent);
   --bs-btn-active-border-color: var(--bs-btn-border-color);
+}
+
+// Orange type on white is 2.3:1; the deep shade meets AA's 4.5 on the
+// page and on both tints above (#197). The border stays orange.
+.btn-outline-secondary {
+  --bs-btn-color: var(--bs-secondary-text-emphasis);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -119,8 +143,8 @@ svg {
 // Links inside running text get a hairline underline. The green alone
 // sits just under the 3:1 contrast against body text that WCAG asks
 // of an undecorated link; the underline is the second cue. Buttons,
-// navigation and headings are untouched.
-main :is(p, li, dd, td, figcaption) a:not(.btn) {
+// navigation (.nav-item), breadcrumbs and headings are untouched.
+main :is(p, li:not(.breadcrumb-item, .nav-item), dd, td, figcaption) a:not(.btn) {
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.18em;
@@ -197,4 +221,53 @@ h6 {
   width: 1px;
   padding: 0;
   border: 0;
+}
+
+// The skip link (baseof.html): out of sight until a keyboard reaches
+// it, then a button over the page's top left corner.
+.skip-link:focus {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: $zindex-fixed + 1;
+}
+
+// iOS Safari zooms the page into any focused field under 16px, so on
+// a touch screen every field is at least that.
+@media (hover: none) and (pointer: coarse) {
+  .form-control,
+  .form-select {
+    font-size: 1rem;
+  }
+}
+
+// A quick second tap on a control is another tap, never a zoom: iOS
+// reads two fast taps as a double-tap zoom unless touch-action says
+// otherwise. The groups count as controls so a tap in their gaps
+// behaves the same. Pinch zoom still works everywhere; the map's own
+// gestures (.map-svg) narrow this further.
+a,
+button,
+input,
+select,
+textarea,
+label,
+summary,
+.btn,
+.order-qty,
+.search-palette-qty,
+.order-cart,
+.map-frame {
+  touch-action: manipulation;
+}
+
+// Chrome paints an autofilled field pale blue. The inset shadow covers
+// the tint and the fill colour keeps the text ours.
+.form-control:-webkit-autofill,
+.form-control:-webkit-autofill:hover,
+.form-control:-webkit-autofill:focus {
+  box-shadow: 0 0 0 1000px var(--bs-body-bg) inset;
+  -webkit-text-fill-color: var(--bs-body-color);
+  caret-color: var(--bs-body-color);
+  transition: background-color 9999s ease-in-out 0s;
 }

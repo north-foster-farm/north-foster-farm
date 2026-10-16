@@ -1,21 +1,24 @@
-// POST /api/square/webhook: Square tells us an invoice changed. The
+// POST /api/square/webhook: Square tells us something changed. The
 // signature is checked against SQUARE_WEBHOOK_SIGNATURE_KEY and the
-// notification URL Square was given, then the event is applied. A
-// missed or duplicate event is harmless: the scheduled poll asks
-// Square about every unpaid order, and marking an order paid twice
-// is a no-op.
+// notification URL Square was given, then the event is applied.
 //
-// Square retries on anything but a 2xx, so an unknown invoice (an
-// order placed before records existed, or a test) answers 200.
+// Payments are taken on the page, synchronously, so the only event
+// with work behind it is a refund made in the Square dashboard rather
+// than the CLI (`refund.updated`), which is noted on the order. Every
+// signed event is proof the webhook is alive and marks the health
+// record. Square retries on anything but a 2xx, so an unknown payment
+// (an order placed before records existed, or a test) answers 200. A
+// refused delivery is logged and may alert (lib/webhooks.mjs).
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { mark } from "./lib/health.mjs";
 import { json } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
-import { applyInvoiceEvent } from "./lib/payments.mjs";
+import { applyRefundEvent } from "./lib/payments.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
+import { rejected } from "./lib/webhooks.mjs";
 
 export const webhookUrl = (env = process.env) =>
   env.SQUARE_WEBHOOK_URL || `${siteUrl(env)}/api/square/webhook`;
@@ -24,28 +27,40 @@ export const webhookUrl = (env = process.env) =>
 export const signature = (key, url, body) =>
   createHmac("sha256", key).update(url + body).digest("base64");
 
-export const verified = (env, url, body, header) => {
+// -> null when the delivery is Square's, or why it is refused
+// (lib/webhooks.mjs).
+export const rejection = (env, url, body, header) => {
   const key = env.SQUARE_WEBHOOK_SIGNATURE_KEY;
 
-  if (!key || !header) return false;
+  if (!header) return "unsigned";
+  if (!key) return "unconfigured";
 
   const expected = Buffer.from(signature(key, url, body));
   const given = Buffer.from(String(header));
 
-  return expected.length === given.length && timingSafeEqual(expected, given);
+  return expected.length === given.length && timingSafeEqual(expected, given)
+    ? null
+    : "mismatch";
 };
+
+export const verified = (env, url, body, header) =>
+  rejection(env, url, body, header) === null;
 
 export const handle = async (req, {
   stores = defaultStores(),
   env = process.env,
   now = new Date(),
   mail,
+  fetchImpl,
 } = {}) => {
   const body = await req.text();
   const header = req.headers.get("x-square-hmacsha256-signature");
+  const reason = rejection(env, webhookUrl(env), body, header);
 
-  if (!verified(env, webhookUrl(env), body, header)) {
-    return json(401, { error: "Bad signature." });
+  if (reason) {
+    return rejected(stores, { provider: "square", reason, body }, {
+      env, now, mail, fetchImpl,
+    });
   }
 
   let event;
@@ -60,23 +75,21 @@ export const handle = async (req, {
     return json(400, { error: "Expected a Square event." });
   }
 
-  // Any signed event is proof the webhook is alive.
   await mark(stores, "webhook", { type: event.type }, now);
 
-  if (!event.type.startsWith("invoice.")) {
+  if (!event.type.startsWith("refund.")) {
     return json(200, { handled: false, reason: "ignored" });
   }
 
-  const result = await applyInvoiceEvent(stores, event, { env, now, mail });
+  const result = await applyRefundEvent(stores, event, { now });
 
-  log.info({
-    event: "square.webhook", type: event.type, ...result,
-  });
+  log.info({ event: "square.webhook", type: event.type, ...result });
 
   return json(200, result);
 };
 
-export default withLog(async (req) => handle(req));
+export default withLog("square-webhook", async (req) =>
+  handle(req));
 
 export const config = {
   path: "/api/square/webhook",

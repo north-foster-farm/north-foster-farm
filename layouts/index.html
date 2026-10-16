@@ -3,6 +3,14 @@
     {{ partial "home/hero.html" . }}
     {{ partial "home/how.html" . }}
     {{ partial "home/copy.html" . }}
+    {{/* The markets running now, each in its own season; the three
+         ways to buy while none is. */}}
+    {{ with partial "market-season.html" . }}
+      {{ partial "home/markets.html" . }}
+    {{ else }}
+      {{ partial "home/ways.html" . }}
+    {{ end }}
+    {{ partial "home/map.html" . }}
     {{ partial "home/contact.html" . }}
   </section>
 {{ end }}

@@ -1,0 +1,18 @@
+{{- /* The farm's email or phone from data/company.json as a Markdown
+  link, so a page never restates them (Q21b). Call it with % so the
+  link renders in the page and in its Markdown output:
+    {{% company "email" %}}   [sales@…](mailto:sales@…)
+    {{% company "phone" %}}   [(401) …](tel:+1401…)
+  A second argument is the link's text instead:
+    {{% company "email" "email us" %}} */ -}}
+{{- $company := hugo.Data.company -}}
+{{- $fact := .Get 0 -}}
+{{- $link := "" -}}
+{{- if eq $fact "email" -}}
+  {{- $link = printf "[%s](mailto:%s)" (.Get 1 | default $company.email) $company.email -}}
+{{- else if eq $fact "phone" -}}
+  {{- $link = printf "[%s](tel:%s)" (.Get 1 | default $company.phone.display) $company.phone.plain -}}
+{{- else -}}
+  {{- errorf "company: no fact %q in %s" $fact .Position -}}
+{{- end -}}
+{{- $link | safeHTML -}}

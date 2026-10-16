@@ -1,0 +1,160 @@
+// A post's date, in lists and under its title.
+.news-date {
+  font-size: $font-size-sm;
+  color: var(--bs-secondary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+// A post's header wherever it is shown in full, on its own page and on
+// home (#232): the title centered over the dateline, set like a display
+// heading in light italic, scaling down from 2.125rem at xl.
+.news-header {
+  margin-bottom: 2rem;
+}
+
+.news-header-title {
+  --news-title-tracking: -0.02em;
+
+  margin-bottom: 0.5rem;
+  letter-spacing: var(--news-title-tracking);
+
+  @include font-size(2.125rem);
+}
+
+.news-header-link {
+  color: inherit;
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+  }
+}
+
+.news {
+  .text-column {
+    max-width: 700px;
+  }
+
+  h2 {
+    margin-top: 2.25rem;
+  }
+
+  // The newest post, large above the list: its picture across the
+  // column, or a wide card in the pale green with the farm's mark.
+  .news-lead {
+    margin-bottom: 1rem;
+  }
+
+  .news-lead-image {
+    display: grid;
+    aspect-ratio: 4 / 3;
+    place-items: center;
+    overflow: hidden;
+    border-radius: var(--bs-border-radius-lg);
+    background-color: var(--bs-success-bg-subtle);
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  .news-lead-title {
+    margin: 0.25rem 0 0.5rem;
+    font-size: $h2-font-size;
+  }
+
+  // The list: a year heading wherever the year changes, then its posts,
+  // each a row with its picture on the left.
+  .news-year-title {
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    font-size: $h3-font-size;
+  }
+
+  .news-item {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+    padding: 1.25rem 0;
+    border-bottom: 1px solid var(--bs-border-color);
+
+    &:last-child {
+      border-bottom: 0;
+    }
+
+    @include media-breakpoint-up(sm) {
+      grid-template-columns: 12rem minmax(0, 1fr);
+      gap: 1.5rem;
+    }
+  }
+
+  // The picture, or a card of the same shape in the pale green with
+  // the farm's mark (#222).
+  .news-thumb {
+    display: grid;
+    aspect-ratio: 4 / 3;
+    place-items: center;
+    overflow: hidden;
+    border-radius: var(--bs-border-radius-lg);
+    background-color: var(--bs-success-bg-subtle);
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  // The farm's mark in the dark green, the same on every card, about
+  // a third of it: it marks a post without a picture and recedes.
+  .news-mark {
+    width: 28%;
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .black {
+      fill: var(--bs-primary);
+    }
+  }
+
+  .news-lead-image .news-mark {
+    width: 15%;
+  }
+
+  .news-item-title {
+    margin: 0.25rem 0 0.5rem;
+    font-size: $h4-font-size;
+  }
+
+  .news-item-title a,
+  .news-lead-title a,
+  .news-nav a,
+  .news-pager a {
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      text-decoration: underline;
+    }
+  }
+
+  .news-pager {
+    padding-top: 1rem;
+    border-top: 1px solid var(--bs-border-color);
+
+    &[hidden] {
+      display: none !important;
+    }
+  }
+}

@@ -1,7 +1,10 @@
 // The three date rules, computed at request time. Every function takes
 // `now` (a Date) and `terms` (data/delivery.json) and returns ISO dates
-// with labels, so the browser and the functions cannot disagree.
+// with labels, so the browser and the functions cannot disagree. On-farm
+// pickup also takes the farm's schedule (lib/schedule.mjs), the parsed
+// windows, which alone decides its days and times (W11d).
 
+import { bookable, windowLabel } from "./schedule.mjs";
 import {
   addDays, instant, label, today, weekday,
 } from "./zoned.mjs";
@@ -10,33 +13,31 @@ const isHoliday = (iso, terms) => terms.holidays.includes(iso);
 
 const entry = (iso, extra = {}) => ({ date: iso, label: label(iso), ...extra });
 
-// Every non-holiday weekday from tomorrow through the Friday of next
-// week.
-export const onFarmDates = (now, terms) => {
-  const start = addDays(today(now, terms.timeZone), 1);
-  let friday = today(now, terms.timeZone);
+// Every day in the schedule from tomorrow on, each with its windows
+// (W11d). No weekday, holiday or horizon rule: a day is offered if the
+// schedule has it.
+export const onFarmDates = (now, terms, schedule = []) =>
+  bookable(schedule, now, terms.timeZone).map(({ date, windows }) =>
+    entry(date, {
+      windows: windows.map((w) => ({ ...w, label: windowLabel(w) })),
+    }));
 
-  while (weekday(friday) !== 5) friday = addDays(friday, 1);
+// The last moment to order for a day: its `cutoffHour` on the
+// `cutoffWeekday` at or before it. Hour 24 is the end of that day.
+const cutoffOf = (iso, rules, timeZone) => {
+  const { cutoffHour, weekday: day, cutoffWeekday } = rules;
+  const back = (day - cutoffWeekday + 7) % 7;
 
-  const end = addDays(friday, 7);
-  const out = [];
-
-  for (let d = start; d <= end; d = addDays(d, 1)) {
-    const w = weekday(d);
-
-    if (w >= 1 && w <= 5 && !isHoliday(d, terms)) out.push(entry(d));
-  }
-
-  return out;
+  return instant(addDays(iso, -back), cutoffHour, 0, timeZone);
 };
 
 // The Wednesday-noon cutoff that governs a delivery Thursday.
-export const cutoffFor = (iso, terms) => {
-  const { cutoffHour, weekday: deliveryDay, cutoffWeekday } = terms.delivery;
-  const back = (deliveryDay - cutoffWeekday + 7) % 7;
+export const cutoffFor = (iso, terms) =>
+  cutoffOf(iso, terms.delivery, terms.timeZone);
 
-  return instant(addDays(iso, -back), cutoffHour, 0, terms.timeZone);
-};
+// The drop site's cutoff for its Saturday: the end of Friday.
+export const dropCutoffFor = (iso, terms) =>
+  cutoffOf(iso, terms.scituate, terms.timeZone);
 
 // The next delivery Thursdays whose cutoff has not passed. The cutoff
 // itself is inclusive: an order at exactly 12:00:00 still makes it.
@@ -60,8 +61,8 @@ export const deliveryDates = (now, terms, count) => {
   return out;
 };
 
-// The next Scituate Saturdays on or after the published start. The
-// current Saturday is still offered until its window opens.
+// The next Scituate Saturdays on or after the published start whose
+// cutoff has not passed (inclusive, as for delivery).
 export const scituateDates = (now, terms, count) => {
   const wanted = count || terms.scituate.datesToOffer;
   const { start, weekday: dropDay } = terms.scituate;
@@ -71,9 +72,11 @@ export const scituateDates = (now, terms, count) => {
 
   for (let i = 0; out.length < wanted && i < 120; i++) {
     if (weekday(d) === dropDay && !isHoliday(d, terms)) {
-      const opens = instant(d, terms.scituate.opensHour, 0, terms.timeZone);
+      const cutoff = dropCutoffFor(d, terms);
 
-      if (d > current || now.getTime() < opens.getTime()) out.push(entry(d));
+      if (now.getTime() <= cutoff.getTime()) {
+        out.push(entry(d, { cutoff: cutoff.toISOString() }));
+      }
     }
 
     d = addDays(d, 1);
@@ -82,12 +85,12 @@ export const scituateDates = (now, terms, count) => {
   return out;
 };
 
-export const allDates = (now, terms) => ({
+export const allDates = (now, terms, schedule) => ({
   now: now.toISOString(),
-  onfarm: onFarmDates(now, terms),
+  onfarm: onFarmDates(now, terms, schedule),
   scituate: scituateDates(now, terms),
   delivery: deliveryDates(now, terms),
 });
 
-export const datesFor = (method, now, terms) =>
-  allDates(now, terms)[method] || [];
+export const datesFor = (method, now, terms, schedule) =>
+  allDates(now, terms, schedule)[method] || [];

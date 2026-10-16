@@ -1,0 +1,17 @@
+{{/*
+  The order page's error reporter (assets/scripts/report.js, #246):
+  its own bundle, loaded here and not deferred, so it is listening
+  before the order bundle runs. data-build is the commit the deploy
+  was built from (Netlify's COMMIT_REF, passed in as HUGO_BUILD_SHA by
+  netlify.toml), which picks the source maps for a stack.
+*/}}
+{{ if eq .Params.pageScript "order" }}
+  {{ $reporter :=
+    resources.Get "scripts/report.js"
+    | js.Build (dict
+      "minify" hugo.IsProduction
+      "sourceMap" (cond hugo.IsProduction "external" ""))
+    | fingerprint "sha512"
+  }}
+  <script src="{{ $reporter.RelPermalink }}" integrity="{{ $reporter.Data.Integrity }}" data-build="{{ getenv "HUGO_BUILD_SHA" }}"></script>
+{{ end }}

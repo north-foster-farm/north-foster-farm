@@ -11,6 +11,7 @@
           "label": "Large",
           "name": "Eggs, Large",
           "price": 7,
+          "note": "in the carton within days of being laid",
           "inStock": true,
           "squareVariationId": "S7XJNPQUKY6JSYQOEYSL6FYS"
         },

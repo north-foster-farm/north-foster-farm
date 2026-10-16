@@ -1,13 +1,36 @@
+{{ $company := hugo.Data.company }}
+{{ $phone := partial "phone.html" . }}
+{{ $instagram := hugo.Data.socialMedia.instagram.url }}
 <div class="flex-grow-1"></div>
-<footer class="border-top border-white bg-light">
+{{ partial "footer/shop.html" . }}
+<footer class="site-footer">
   <div class="container">
-    <div class="row py-3">
-      <div class="col text-center">
-        {{ partial "social-media.html" . }}
-        {{ partial "footer/menu.html" . }}
-        {{ partial "footer/copyright.html" . }}
-        {{ partial "footer/scripts.html" . }}
+    <div class="row gy-4">
+      {{/* The farm: its links and ways to reach it, the APPPA mark
+           beside them as a credential. */}}
+      <div class="col-lg-8 footer-farm">
+        <a class="apppa-logo" href="https://www.apppa.org/" target="_blank" rel="noopener" title="American Pastured Poultry Producers Association">
+          {{ partial "svg.html" "apppa-logo" }}
+          <span class="visually-hidden">Member, American Pastured Poultry Producers Association</span>
+        </a>
+        <div class="footer-lists">
+          {{ partial "footer/menu.html" . }}
+          {{/* How to reach the farm, on one dotted line like the links. */}}
+          <ul class="dot-list footer-contact" data-dot-list>
+            <li><a href="{{ $phone.href }}">{{ $phone.display }}</a></li>
+            <li><a href="mailto:{{ $company.email }}">{{ $company.email }}</a></li>
+            <li><a href="{{ $instagram }}" target="_blank" rel="noopener" title="{{ $company.name }} on Instagram">@{{ path.Base $instagram }}</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="col-lg-4 footer-news">
+        <h2 class="news-signup-heading">Want occasional farm news by email?</h2>
+        {{ partial "news-signup.html" (dict "id" "news-footer" "button" "Yes") }}
       </div>
     </div>
+    <div class="footer-copyright">
+      {{ partial "footer/copyright.html" . }}
+    </div>
+    {{ partial "footer/scripts.html" . }}
   </div>
 </footer>

@@ -1,10 +1,92 @@
 {{ $money := hugo.Data.delivery.money }}
-{{ $deliveryTip := printf "Orders of $%v or more after discounts can be delivered on Thursdays. $%v fee, waived at $%v." $money.deliveryMinimum $money.deliveryFee $money.feeWaivedAt }}
+{{ $deliveryTip := printf "Orders of $%v or more after discounts can be delivered on %ss. $%v fee, waived at $%v." $money.deliveryMinimum (partial "weekday.html" "delivery") $money.deliveryFee $money.feeWaivedAt }}
 {{ $freeTip := printf "No delivery fee on orders of $%v or more." $money.feeWaivedAt }}
-{{/* Badges: the delivery pair, then the tiers, on one dotted line. */}}
-<aside class="order-cart" id="order-cart" aria-label="Your cart" data-open="true">
-  <div class="order-cart-body" id="order-cart-body">
+{{/* The ways, in the order the page lists them (#196), named as the
+     cart's switch names them. */}}
+{{ $ways := slice
+  (dict "value" "onfarm" "name" "On-farm pickup")
+  (dict "value" "scituate" "name" "Drop site")
+  (dict "value" "delivery" "name" "Delivery")
+}}
+{{/* The heading sits in the flow where the pane settles, so it
+     appears as the pane arrives; at xl the pane is a column with no
+     heading. The header's total scrolls back to it. */}}
+<h2 class="order-cart-heading h2" id="order-cart-heading" tabindex="-1">Cart</h2>
+{{/* One column, top to bottom: the lines, a rule, the sums, a rule,
+     the total row, a darker rule, the badges, the way and the code, a
+     rule, and the foot: the fold toggle, the way on, the nudge. The
+     two parts either side of the total row fold away together; the
+     total row and the foot are what stay. Below xl the total row's
+     count folds the lines, and its total unfolds the sums above it
+     (#203). From md to xl the lines take the left column, the sums to
+     the code the right, and the foot runs across both (order-form.js
+     and _order.scss). */}}
+<aside class="order-cart" id="order-cart" aria-labelledby="order-cart-heading" data-open="true" data-items="open" data-money="closed">
+  <div class="order-cart-fold" id="order-cart-body">
     <div class="order-cart-inner">
+      <div class="order-cart-list" id="order-cart-list">
+        <div class="order-cart-scroll">
+          <button type="button" class="order-cart-more order-cart-more-top" data-cart-more-top hidden></button>
+          <ul class="order-cart-items list-unstyled" data-cart-items>
+            <li class="order-cart-none">0 items</li>
+          </ul>
+          <button type="button" class="order-cart-more" data-cart-more hidden></button>
+        </div>
+        <hr class="order-cart-rule order-cart-rule-items">
+      </div>
+      <div class="order-cart-money" id="order-cart-money">
+        <div class="order-cart-money-inner">
+          <dl class="order-cart-lines">
+            <div class="order-cart-row">
+              <dt>Subtotal</dt>
+              <dd data-total="subtotal">$0</dd>
+            </div>
+            <div class="order-cart-row order-cart-credit" data-total-row="discount" hidden>
+              <dt data-total="discount-label">Bulk discount</dt>
+              <dd data-total="discount">&minus;$0</dd>
+            </div>
+            <div class="order-cart-row" data-total-row="fee" hidden>
+              <dt>Delivery fee</dt>
+              <dd data-total="fee">+$0</dd>
+            </div>
+          </dl>
+          <hr class="order-cart-rule">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{/* The count on the left, the total under the column of line
+       prices. Each is its own control: the count folds the lines, the
+       total unfolds the sums; the rest of the row is not a target. */}}
+  <div class="order-cart-total-row">
+    <button type="button" class="order-cart-disclose order-cart-count" aria-expanded="true" aria-controls="order-cart-list" data-cart-items-toggle>
+      <span data-cart-count>0 items</span>
+      {{ partial "order/cart-chevrons.html" . }}
+    </button>
+    <button type="button" class="order-cart-disclose order-cart-sum" aria-expanded="false" aria-controls="order-cart-money" data-cart-money-toggle>
+      {{ partial "order/cart-chevrons.html" . }}
+      <span class="order-cart-sum-label">Total</span>
+      <span class="order-cart-total" data-total="total">$0</span>
+    </button>
+  </div>
+  {{/* Changing a paid order: what is paid, and the difference to pay
+       or to get back. */}}
+  <dl class="order-cart-lines" data-edit-money hidden>
+    <div class="order-cart-row">
+      <dt>Paid</dt>
+      <dd data-total="paid">$0</dd>
+    </div>
+    <div class="order-cart-row">
+      <dt data-total="due-label">To pay</dt>
+      <dd data-total="due">$0</dd>
+    </div>
+  </dl>
+
+  <div class="order-cart-fold order-cart-after">
+    <div class="order-cart-inner">
+      <hr class="order-cart-rule order-cart-rule-dark">
+      {{/* Badges: the delivery pair, then the tiers, on one dotted line. */}}
       <ul class="order-badges list-unstyled" aria-label="What this order qualifies for">
         <li><button type="button" class="order-badge" data-badge="delivery" data-tip="{{ $deliveryTip }}">Delivery</button></li>
         <li><button type="button" class="order-badge" data-badge="free-delivery" data-tip="{{ $freeTip }}">Free delivery</button></li>
@@ -12,42 +94,44 @@
           <li><button type="button" class="order-badge" data-badge="tier-{{ .threshold }}" data-tip="${{ .off }} off orders of ${{ .threshold }} or more.">${{ .threshold }}+</button></li>
         {{ end }}
       </ul>
-
-      <div class="order-cart-scroll">
-        <ul class="order-cart-items list-unstyled" data-cart-items>
-          <li class="order-cart-none">0 items</li>
-        </ul>
-        <button type="button" class="order-cart-more" data-cart-more hidden></button>
+      {{/* One row shared by the way and the discount code (#203): two
+           buttons, half each. The way opens into a switch of the three
+           over the whole row; Add discount opens the field and Apply
+           over it. A pick, or a tap away, folds either back. */}}
+      <div class="order-cart-share" data-share="">
+        <button type="button" class="btn btn-sm btn-outline-primary order-cart-way" aria-expanded="false" aria-controls="order-cart-ways" data-way-toggle>
+          <span data-way-name>{{ (index $ways 0).name }}</span>
+          {{ partial "order/cart-chevrons.html" . }}
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary order-cart-add-code" aria-expanded="false" aria-controls="order-cart-code" data-code-toggle>Add discount</button>
+        <div class="btn-group order-cart-ways" id="order-cart-ways" role="group" aria-label="Pickup or delivery">
+          {{ range $ways }}
+            <button type="button" class="btn btn-sm btn-outline-primary" aria-pressed="false" data-way="{{ .value }}">{{ .name }}</button>
+          {{ end }}
+        </div>
+        {{/* A discount code. Known codes are checked on the server; the
+             page carries only their hashes, so it can say "applied" or
+             "unknown" without listing them. */}}
+        <div class="order-cart-code" id="order-cart-code">
+          <label class="visually-hidden" for="order-code">Discount code</label>
+          <input class="form-control form-control-sm order-cart-code-input" type="text" id="order-code" name="code" placeholder="Discount code" autocomplete="off" autocapitalize="characters" spellcheck="false" data-field="code" aria-describedby="order-code-note">
+          <button type="button" class="btn btn-sm btn-outline-primary" data-code-apply>Apply</button>
+        </div>
       </div>
-
-      <dl class="order-cart-lines">
-        <div class="order-cart-row">
-          <dt>Subtotal</dt>
-          <dd data-total="subtotal">$0</dd>
-        </div>
-        <div class="order-cart-row order-cart-credit" data-total-row="discount" hidden>
-          <dt data-total="discount-label">Bulk discount</dt>
-          <dd data-total="discount">&minus;$0</dd>
-        </div>
-        <div class="order-cart-row" data-total-row="fee" hidden>
-          <dt>Delivery fee</dt>
-          <dd data-total="fee">+$0</dd>
-        </div>
-      </dl>
+      <p class="order-cart-code-note" id="order-code-note" data-code-note aria-live="polite" hidden></p>
     </div>
   </div>
 
-  <div class="order-cart-foot">
+  <hr class="order-cart-rule order-cart-rule-end">
+  {{/* The foot: Hide or Expand on the left (below xl, where the cart
+       floats and folds), the way on at the right, the nudge under it. */}}
+  <div class="order-cart-end">
     <button class="order-cart-toggle" type="button" aria-expanded="true" aria-controls="order-cart-body" aria-label="Show or hide the cart details" data-cart-toggle>
-      <span data-cart-count>0 items</span>
-      <svg class="order-cart-caret" width="14" height="14" viewBox="0 0 12 12" aria-hidden="true">
-        <path d="M2 4.5 6 8.5 10 4.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <span class="order-cart-icon order-cart-icon-open" aria-hidden="true">{{ partial "svg.html" "icons/panel-open" }}</span>
+      <span class="order-cart-icon order-cart-icon-close" aria-hidden="true">{{ partial "svg.html" "icons/panel-close" }}</span>
+      <span class="order-cart-words"><span data-cart-word>Hide</span></span>
     </button>
-    <span class="order-cart-sum-label">Total</span>
-    <span class="order-cart-total" data-total="total">$0</span>
-    <button type="button" class="btn btn-primary order-cart-next" data-checkout disabled>Next</button>
+    <button type="button" class="btn btn-primary order-cart-next" data-checkout disabled>Continue to payment</button>
+    <p class="order-cart-nudge" data-nudge aria-live="polite" hidden></p>
   </div>
-
-  <p class="order-cart-nudge" data-nudge aria-live="polite" hidden></p>
 </aside>

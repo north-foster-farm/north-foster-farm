@@ -1,7 +1,8 @@
 // GET  /api/health   what the records say about the last hour, and
 //                    200 or 503 with it, for an outside pinger
-// POST /api/health   a beacon from the order page when a checkout
-//                    could not be completed; becomes an alert
+// POST /api/health   a beacon from the order page: a checkout that
+//                    could not be completed, or an error report from
+//                    assets/scripts/report.js (#246)
 //
 // The 503 rules are deliberately few: the jobs run is stale, or mail
 // has failed repeatedly with no success since. Everything else is
@@ -9,19 +10,23 @@
 
 import { runsSince } from "./lib/jobs.mjs";
 import { json, readJson } from "./lib/http.mjs";
+import { clientDetail } from "./lib/client-report.mjs";
 import { alert, readMark } from "./lib/health.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { openOrders } from "./lib/records.mjs";
-import { stores as defaultStores } from "./lib/store.mjs";
+import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 
 const MINUTE = 60_000;
 
 export const JOBS_STALE_AFTER = 45 * MINUTE;
 export const MAIL_FAILURES_FOR_ALARM = 3;
 
-// Beacons the order page may send, and the alert kind each becomes.
-const BEACONS = {
+// Beacons the order page may send, and the kind each becomes. Every
+// kind is an alert but client.error, which is logged at warn.
+export const BEACONS = {
   "checkout.failed": "client.checkout_failed",
+  "payment.unavailable": "client.payment_unavailable",
+  "error": "client.error",
 };
 
 // Per-instance, best effort.
@@ -100,6 +105,7 @@ export const snapshot = async (stores, {
       lastCreatedAt: order ? order.at : null,
       lastPaidAt: paid ? paid.at : null,
     },
+    context: deployContext(env) || null,
     log: !!(env.AXIOM_TOKEN && env.AXIOM_DATASET),
     heartbeat: !!env.HEALTHCHECKS_JOBS_URL,
   };
@@ -129,21 +135,30 @@ export const handle = async (req, {
 
   if (!kind) return json(400, { error: "Unknown beacon." });
 
-  const detail = {
+  // A checkout beacon names its order; an error report carries no
+  // order, only its own fields (#246, #258).
+  const checkout = () => ({
     message: String(body.message || "").slice(0, 300),
     status: Number(body.status) || null,
     attempts: Number(body.attempts) || null,
     orderId: String(body.orderId || "").slice(0, 40) || null,
     method: String(body.method || "").slice(0, 20) || null,
     page: String(body.page || "").slice(0, 200) || null,
-  };
+  });
+  const detail = kind === "client.checkout_failed" ? checkout()
+    : clientDetail(body, req.headers.get("user-agent"));
 
-  await alert(stores, kind, detail, { env, mail, now, fetchImpl });
+  // A client error is logged, never alerted.
+  if (kind === "client.error") {
+    log.warn({ event: kind, ...detail });
+  } else {
+    await alert(stores, kind, detail, { env, mail, now, fetchImpl });
+  }
 
   return json(202, { ok: true });
 };
 
-export default withLog(async (req, context) =>
+export default withLog("health", async (req, context) =>
   handle(req, { ip: context && context.ip }));
 
 export const config = {

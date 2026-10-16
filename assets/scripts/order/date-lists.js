@@ -38,6 +38,29 @@ export class DateLists {
     return new Date(Date.now() + this.offset);
   }
 
+  // The lists once, now; false if they couldn't be had. Before a
+  // payment goes out, so a pickup time the farm has since dropped is
+  // caught before a wallet opens (W11d).
+  async refresh() {
+    try {
+      const res = await fetch("/api/dates", { cache: "no-store" });
+
+      if (!res.ok) return false;
+      this.apply(await res.json());
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // The farm's pickup windows as the validator takes them, rebuilt from
+  // the lists: the page never holds the schedule itself.
+  schedule() {
+    return ((this.lists && this.lists.onfarm) || []).flatMap((d) =>
+      (d.windows || []).map((w) => ({ date: d.date, ...w })));
+  }
+
   async load() {
     try {
       const res = await fetch("/api/dates", { cache: "no-store" });
@@ -100,11 +123,10 @@ export class DateLists {
   replace(method, list) {
     const select = this.form.querySelector(`[data-dates="${method}"]`);
 
+    if (this.lists) this.lists[method] = list;
     if (select) this.fill(select, list);
-    if (method === "delivery" && this.lists) {
-      this.lists.delivery = list;
-      this.tick();
-    }
+    if (method === "delivery" && this.lists) this.tick();
+    this.onChange();
   }
 
   note(text, urgency = "") {

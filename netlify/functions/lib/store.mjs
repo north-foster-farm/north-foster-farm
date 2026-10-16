@@ -7,14 +7,41 @@
 // A store holds JSON documents by key and can list keys by prefix.
 // Keys use "/" to build small indexes: `order/<id>`, `open/<id>`,
 // `by-email/<email>/<id>`.
+//
+// `create(key, value)` writes only if the key is new and says whether
+// it did: Blobs' `onlyIfNew`, a conditional write the server decides,
+// so of two racing creates exactly one wins (#253).
 
 import { getStore } from "@netlify/blobs";
 
 export const STORES = ["orders", "customers", "auth", "stock", "jobs"];
 
-const wrap = (blobs) => ({
+// Netlify sets CONTEXT at build time only; a function sees nothing of
+// it (checked 2026-09-23). SITE_CONTEXT is a variable with a value
+// per context on Netlify (production, deploy-preview, branch-deploy,
+// dev) and is what the functions read. Only production uses the bare
+// store names. Every other context keeps its own data under a
+// prefixed name, so a preview's test order never lands beside a real
+// one, and the staging branch's data survives its deploys. The CLI
+// reaches a context's stores with --staging or --preview.
+// -> "production", "deploy-preview", "branch-deploy", "dev" or "".
+export const deployContext = (env = process.env) =>
+  env.SITE_CONTEXT || env.CONTEXT || "";
+
+export const storeName = (name, env = process.env) => {
+  const context = deployContext(env);
+
+  return context && context !== "production" ? `${context}-${name}` : name;
+};
+
+export const wrap = (blobs) => ({
   get: (key) => blobs.get(key, { type: "json" }),
   set: (key, value) => blobs.setJSON(key, value),
+  create: async (key, value) => {
+    const { modified } = await blobs.setJSON(key, value, { onlyIfNew: true });
+
+    return modified;
+  },
   delete: (key) => blobs.delete(key),
   // -> [{ key }] with the prefix kept, sorted by key.
   list: async (prefix) => {
@@ -33,6 +60,13 @@ export const memoryStore = (seed = new Map()) => ({
     : null),
   set: async (key, value) => {
     seed.set(key, JSON.parse(JSON.stringify(value)));
+  },
+  // Check and write with no await between them: atomic in one process.
+  create: async (key, value) => {
+    if (seed.has(key)) return false;
+    seed.set(key, JSON.parse(JSON.stringify(value)));
+
+    return true;
   },
   delete: async (key) => {
     seed.delete(key);
@@ -59,9 +93,9 @@ export const stores = (env = process.env) => {
       const onNetlify = !!(env.NETLIFY_BLOBS_CONTEXT
         || globalThis.netlifyBlobsContext);
       const options = onNetlify
-        ? { name, consistency: "strong" }
+        ? { name: storeName(name, env), consistency: "strong" }
         : {
-          name,
+          name: storeName(name, env),
           consistency: "strong",
           siteID: env.NETLIFY_SITE_ID,
           token: env.NETLIFY_AUTH_TOKEN,

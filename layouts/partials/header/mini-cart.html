@@ -1,0 +1,30 @@
+{{/* The cart half of the Order button, off the order page: hidden
+     until the cart holds something, then a cart with its count that
+     opens what is in it, a subtotal, and the way to checkout.
+     mini-cart.js fills the list each time it opens. Draft wording for
+     James (#173). */}}
+<div class="site-cart-menu dropdown" data-cart-menu hidden>
+  <button class="site-cart-toggle" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" aria-label="Your cart" data-cart-toggle>
+    <span class="site-cart-icon" aria-hidden="true">{{ partial "svg.html" "icons/cart" }}</span>
+    {{- partial "header/cart-badge.html" -}}
+  </button>
+  <div class="dropdown-menu dropdown-menu-end site-mini-cart" role="group" aria-label="Your cart">
+    <ul class="site-mini-cart-lines list-unstyled" data-mini-cart-lines></ul>
+    {{/* A group with its heading, and one line in it, which
+         mini-cart.js copies for each; here, not in the script, so the
+         build keeps their classes. The order page's cart is laid out
+         the same way (#207). */}}
+    <template data-mini-cart-group>
+      <li class="site-mini-cart-group"><b class="site-mini-cart-heading" data-mini-cart-heading></b><ul class="site-mini-cart-items list-unstyled" data-mini-cart-items></ul></li>
+    </template>
+    <template data-mini-cart-line>
+      <li class="site-mini-cart-line"><span class="site-mini-cart-name" data-mini-cart-label></span><span class="site-mini-cart-qty" data-mini-cart-qty></span><span class="site-mini-cart-price" data-mini-cart-price></span></li>
+    </template>
+    <p class="site-mini-cart-subtotal"><span>Subtotal</span> <span data-mini-cart-subtotal></span></p>
+    <p class="site-mini-cart-note">Delivery and discounts applied at checkout.</p>
+    <div class="site-mini-cart-actions">
+      <a class="btn btn-primary" href="{{ relURL "order/" }}#pickup">Check out</a>
+      <a class="btn btn-outline-primary" href="{{ relURL "order/" }}">Change your order</a>
+    </div>
+  </div>
+</div>

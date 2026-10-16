@@ -1,0 +1,49 @@
+{{- /*
+  /llms.txt, after the convention at https://llmstxt.org, built
+  entirely from the site's own content and data on every deploy
+  (Q21a). Nothing here is written for it: the summary is the home
+  page's description, each line a page's title and description, and
+  each link the page itself as Markdown (index.md beside its HTML,
+  from the same source; see the .markdown.md layouts). The pop-ups
+  are data/events.json, which no page carries as text.
+*/ -}}
+{{- define "partials/llms-line.html" -}}
+  {{- $link := .Permalink -}}
+  {{- with .OutputFormats.Get "markdown" }}{{ $link = .Permalink }}{{ end -}}
+  {{- return (printf "[%s](%s)" .Title $link) -}}
+{{- end -}}
+{{- $news := site.GetPage "/news" -}}
+# {{ site.Title }}
+
+> {{ chomp .Description }}
+
+## Pages
+{{ range slice "/order" "/delivery-policy" "/about" "/contact" }}
+{{- with site.GetPage . }}
+- {{ partial "llms-line.html" . }}: {{ chomp .Description }}
+{{- end }}
+{{- end }}
+- [{{ $news.Title }}]({{ $news.Permalink }}): {{ chomp $news.Description }}
+
+## News
+{{ range first 5 $news.RegularPages }}
+- {{ partial "llms-line.html" . }} ({{ .Date.Format "January 2, 2006" }}): {{ chomp .Description }}
+{{- end }}
+{{- $upcoming := where hugo.Data.events.events "date" "ge" (now.Format "2006-01-02") }}
+{{- with $upcoming }}
+
+## Pop-ups
+{{ range sort . "date" }}
+- {{ .name }}: {{ (time.AsTime .date).Format "Monday, January 2, 2006" }}, {{ (time.AsTime (print .date "T" .start ":00")).Format "3:04 PM" }} – {{ (time.AsTime (print .date "T" .end ":00")).Format "3:04 PM" }}, {{ .place }}, {{ .address.street }}, {{ .address.city }}, {{ .address.state }} {{ .address.zip }}
+{{- end }}
+{{- end }}
+
+## Optional
+{{ range slice "/accessibility" "/privacy" "/login" }}
+{{- with site.GetPage . }}
+- {{ partial "llms-line.html" . }}: {{ chomp .Description }}
+{{- end }}
+{{- end }}
+{{- range after 5 $news.RegularPages }}
+- {{ partial "llms-line.html" . }} ({{ .Date.Format "January 2, 2006" }}): {{ chomp .Description }}
+{{- end }}

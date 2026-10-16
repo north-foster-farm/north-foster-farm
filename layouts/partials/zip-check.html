@@ -1,0 +1,21 @@
+{{/*
+  The delivery map's ZIP field: a bare input that floats on the map,
+  bottom right, on the Delivery layer (#214). Typing a ZIP drops the
+  map's pin on it, whose tag gives the answer; a tap on a town puts
+  its ZIP here. The answer is checked against the same delivery area
+  the order form uses (data/delivery.json), with no request to the
+  server, and is said to screen readers only: the tag is for the eye.
+  scripts/zip-check/main.js wires every form on the page; a page that
+  uses this sets pageScript: "zip-check".
+
+  Params:
+    id  Prefix for the field's id, unique on the page
+*/}}
+{{ $id := .id | default "zip" }}
+{{ $money := hugo.Data.delivery.money }}
+<form class="zip-check" data-zip-check data-fee="{{ $money.deliveryFee }}" data-extra="{{ $money.outsideAreaFee }}" novalidate>
+  <script type="application/json" data-zip-area>{{ hugo.Data.delivery.area | jsonify | safeJS }}</script>
+  <label class="visually-hidden" for="{{ $id }}-input">ZIP code</label>
+  <input class="form-control" type="text" id="{{ $id }}-input" name="zip" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="Enter your ZIP" aria-describedby="{{ $id }}-result">
+  <p class="visually-hidden" id="{{ $id }}-result" data-zip-result role="status" aria-live="polite"></p>
+</form>
