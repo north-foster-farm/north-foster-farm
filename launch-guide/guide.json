@@ -1,5 +1,5 @@
 {
- "revision": 6,
+ "revision": 7,
  "updated": "2026-10-16",
  "notice": null,
  "phases": [
@@ -497,6 +497,36 @@
        "label": "Staging webhook signing secret",
        "secret": true,
        "placeholder": "whsec_…"
+      }
+     ]
+    },
+    {
+     "id": "rs-no-open-tracking",
+     "title": "Confirm open tracking is off",
+     "body": "Nothing in the code configures Resend's tracking (#189, James's decision on #244): sends carry no tracking fields and no template has a pixel. Open and click tracking are set per sending domain in Resend, not in code. Open **Domains**, the sending domain, and turn **Open Tracking** off; leave Click Tracking as you like.",
+     "minutes": 2,
+     "links": [
+      {
+       "label": "Resend domains",
+       "url": "https://resend.com/domains"
+      }
+     ],
+     "fields": [
+      {
+       "id": "rs_no_open_tracking",
+       "label": "Open tracking",
+       "secret": false,
+       "type": "choice",
+       "options": [
+        {
+         "value": "off",
+         "label": "Confirmed off"
+        },
+        {
+         "value": "not_yet",
+         "label": "Not yet"
+        }
+       ]
       }
      ]
     }
@@ -2191,6 +2221,19 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/244#issuecomment-6218895250"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-16",
+     "changed": "Landed: 50b38c7, d13037b.",
+     "summary": "Built and QA-passed (Sonnet). For your approval: the privacy page's retention paragraph, the tracking sentence, the reworded account-page sentence, the Account Settings delete control, and the three refusal messages shown when a deletion has to wait. Open questions below need your call.",
+     "look": [
+      {
+       "label": "#189",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/189"
+      }
+     ],
+     "text": "Privacy page, retention paragraph:\n\nYour account stays until you close it. Deleting your details takes one click in your account settings. Your orders stay in our records, with no name on them, for our own reporting. Seven years after an order, we remove your name, email address, phone number and street address from it. The order keeps what was bought, the prices, the date, how it reached you, and the town and ZIP code.\n\nPrivacy page, tracking sentence:\n\nWe never track whether you open our emails.\n\nAccount Settings, Delete your details:\n\nA \"Delete your details\" section: a button labelled \"Delete my details\" behind a browser confirm (\"Delete your details? This can't be undone.\"), calling POST /api/account/delete with { confirm: true }.\n\nRefusal messages (lib/forget.mjs, WAIT):\n\n- open order: “You have an order still to come. You can delete your details once it's delivered or picked up, or after you cancel it.”\n- return: “We're still working on a return for you. You can delete your details once it's settled.”\n- Venmo checkout: “A Venmo payment is under way. Try again in a day.”\n\nOpen questions:\n\n- Delete help and contact-page messages after seven years, same as orders, or leave them until the customer deletes their details, as today?\n- Delete the Square customer profile on \"delete my details\", or leave it (Square keeps the payments either way)?\n- State backup retention on the privacy page: how long do deleted details live on in the nightly backup (#267)?"
     }
    ]
   },
