@@ -16,8 +16,10 @@ nobody.
   when it ends well, and its `/fail` URL with the report when it does
   not. `HEALTHCHECKS_JOBS_URL`.
 - **Alerts.** `alert()` in `lib/health.mjs`: a farm email per failure
-  kind per hour, and a `/fail` ping to a second check.
-  `ADMIN_EMAILS`, `HEALTHCHECKS_ALERT_URL`.
+  kind per hour, and a `/fail` ping to a second check followed at once
+  by a success ping, so every alert pushes "down" then "up" and the
+  next one pushes again. `ADMIN_EMAILS`, `HEALTHCHECKS_ALERT_URL`.
+  `bin/nff alert test` proves both channels.
 - **Log.** Every JSON line the functions write, shipped per invocation
   to Axiom (`lib/log.mjs`). `AXIOM_TOKEN`, `AXIOM_DATASET`.
 - **Run ledger.** Each jobs run's report in the jobs store, two days
@@ -30,8 +32,9 @@ nobody.
 - **Checkout beacon.** The order page posts to `/api/health` when a
   checkout cannot complete; it becomes the `client.checkout_failed`
   alert. Needs nothing.
-- **Deploy failures.** Netlify → Site configuration → Notifications:
-  "Deploy failed" by email. Set in the Netlify UI.
+- **Deploy failures.** Netlify's "Deploy failed" email notification.
+  Email only, not the phone, for now (step 3). Set in the Netlify UI,
+  no code.
 
 ## Setting it up
 
@@ -49,9 +52,57 @@ nobody.
 2. **Axiom**, free plan. Create a dataset `nff-site` and an API token
    with ingest rights on it. On Netlify: `AXIOM_DATASET=nff-site`,
    `AXIOM_TOKEN=xaat-...`. Retention on the free plan is 30 days.
-3. **Netlify**: turn on the deploy-failed email notification.
+3. **Netlify**: Site configuration → Notifications → Deploy
+   notifications → *Email notification*, event "Deploy failed", to the
+   farm's address. Check one arrives on the Starter plan.
+
+   Netlify's deploy notifications have no branch or context filter:
+   each fires for every deploy of the site, staging's and previews'
+   included. So for launch the failed deploy goes by email only, and
+   nothing posts to Healthchecks. An HTTP POST to the *Alerts* check's
+   `/fail` would push James's phone for a failed staging deploy, and a
+   success ping on every deploy would satisfy the check's one-day
+   period and hide a morning report that stopped.
+
+   What that gives up: a failed production deploy does not buzz the
+   phone. It is not an outage, since a failed build publishes nothing
+   and the live site stays as it was, but the fix waits until the
+   email is read. After launch, if that is too slow: a small function
+   that receives Netlify's deploy webhook (JWS-signed), drops any
+   deploy whose `context` is not `production`, and posts `/fail` and
+   then the success ping to `HEALTHCHECKS_ALERT_URL`, as `alert()`
+   does. That gets a phone push for a failed production deploy only,
+   with staging kept off the phone and the morning report's watch
+   intact.
 4. Redeploy. `bin/nff health`, or a GET to `/api/health`, shows which
    pieces are configured under `log` and `heartbeat`.
+5. Prove the phone: `bin/nff --production alert test` (below).
+
+## Proving an alert reaches the phone
+
+`bin/nff alert test [--production|--staging]` raises one real alert,
+kind `alert.test`, through `alert()` itself: the farm email by
+`MAIL_DRIVER`, then `/fail` and the success ping to
+`HEALTHCHECKS_ALERT_URL`. It skips the hourly limit, so it can be run
+again at once, and leaves no mute behind. It refuses when
+`HEALTHCHECKS_ALERT_URL` or `ADMIN_EMAILS` is unset, since an alert
+there would reach nobody, and prints what it reached:
+
+```
+Alert test (alert.test) on production.
+  Email: sent to farm@... (MAIL_DRIVER resend).
+  Phone: /fail accepted by hc-ping.com; re-arm accepted.
+  A down push, then an up push, should reach the phone within a minute.
+```
+
+It exits 1 when either channel was not accepted. A driver other than
+`resend` or `outbox` (`log`, `file`, or none) only writes the email
+where nobody reads it, so the line says "logged only, not sent" and
+the exit is 1. With `--production`
+the phone gets a "down" and an "up" push within a minute, and a
+second run in the same hour pushes again. With `--staging` the email
+goes to the staging outbox and staging's checks have no phone
+attached, so nothing buzzes.
 
 ## Reading the health endpoint
 
@@ -76,7 +127,10 @@ signed delivery from Square or PayPal, whatever it carried.
 ## The alerts, and what to do
 
 Each alert is one email per kind per hour (later ones of the same
-kind are counted, not sent) and one `/fail` ping. The subject is
+kind are counted, not sent) and one `/fail` ping, then a success ping.
+Healthchecks pushes only when a check changes state, so without the
+second ping the *Alerts* check would stay down after the first alert
+of the day, and every later one would reach email only. The subject is
 `Site alert: <kind>`, and the body carries this section's entry for
 the kind, from `lib/alerts-guide.mjs`, with a button to this page.
 
@@ -191,6 +245,12 @@ rule and its order.
 
 **`jobs.crashed`.** The run itself threw before it could do its work.
 The log has the stack. This is the one that also stops the heartbeat.
+
+**`alert.test`.** Someone ran `bin/nff alert test`. Nothing is
+wrong. It went through the same path as a real alert, past the hourly
+limit, so this email and a down-then-up push on the phone prove both
+channels work. Nothing to do, if the phone buzzed too. If it did not,
+check the *Alerts* check's integrations in Healthchecks.
 
 **`function.crashed`.** A site function threw an exception nothing in
 it caught, so whoever called it got Netlify's bare 500. The alert

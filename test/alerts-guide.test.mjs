@@ -22,9 +22,11 @@ const sources = () => {
     .map((url) => ({ url, text: readFileSync(url, "utf8") }));
 };
 
-// Every call like alert(stores, "kind", ...) or alert(stores(), ...),
-// across lines, with its second argument as written.
-const CALL = /\balert\(\s*[A-Za-z_$][\w$.]*(?:\(\))?\s*,\s*([^\s,)]+)/g;
+// Every call like alert(stores, "kind", ...), alert(stores(), ...) or
+// raise(stores, ...), across lines, with its second argument as
+// written.
+const CALL =
+  /\b(?:alert|raise)\(\s*[A-Za-z_$][\w$.]*(?:\(\))?\s*,\s*([^\s,)]+)/g;
 const LITERAL = /^(["'])([a-z0-9_.-]+)\1$/;
 
 // The calls whose kind is a variable, each for a reason, by file. Any
@@ -32,6 +34,8 @@ const LITERAL = /^(["'])([a-z0-9_.-]+)\1$/;
 const VARIABLE_KINDS = {
   // The beacon's kind, from BEACONS, which the scan reads itself.
   "netlify/functions/health.mjs": ["kind"],
+  // The alert() wrapper, handing its own kind to raise().
+  "netlify/functions/lib/health.mjs": ["kind"],
 };
 
 const scan = () => {

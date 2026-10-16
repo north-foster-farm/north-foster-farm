@@ -74,6 +74,11 @@ const USAGE = `Usage:
   bin/nff jobs run
   bin/nff jobs history [--n=20]       the last runs: errors, invariants
   bin/nff health                      what /api/health would answer
+  bin/nff alert test [--production|--staging]
+                                      one real alert, past the hourly
+                                      limit: the farm email and the
+                                      phone push (down, then up). Says
+                                      what it reached
   bin/nff library [--staging]         James's approvals and rewrites
                                       from the email library, to port
   bin/nff library clear <id>          drop an email's, once ported
@@ -120,6 +125,7 @@ const [
   { mailLinks },
   sent,
   { checkSchedule },
+  { alertTest },
 ] = await Promise.all([
   import("../data/delivery.json", { with: { type: "json" } }),
   import("../netlify/functions/lib/admin.mjs"),
@@ -136,6 +142,7 @@ const [
   import("../netlify/functions/lib/site.mjs"),
   import("../netlify/functions/lib/sent.mjs"),
   import("../assets/scripts/order/lib/schedule.mjs"),
+  import("../netlify/functions/lib/health.mjs"),
 ]);
 
 process.env.SITE_CONTEXT = context ? CONTEXTS[context] : "dev";
@@ -525,6 +532,29 @@ const run = async () => {
   }
   case "health":
     return out(await snapshot(stores));
+  case "alert test": {
+    const r = await alertTest(stores);
+    const host = new URL(process.env.HEALTHCHECKS_ALERT_URL).host;
+
+    out(`Alert test (alert.test) on ${process.env.SITE_CONTEXT}.`);
+    if (r.delivered) {
+      out(`  Email: sent to ${r.to.join(", ")} (MAIL_DRIVER ${r.driver}).`);
+    } else if (r.status === "sent") {
+      out(`  Email: logged only, not sent (MAIL_DRIVER ${r.driver}; ` +
+        "resend or outbox delivers).");
+    } else {
+      out(`  Email: NOT sent: ${r.mailError || "no recipients"}.`);
+    }
+    out(`  Phone: /fail ${r.failed ? "accepted" : "NOT accepted"} by ${
+      host}; re-arm ${r.rearmed ? "accepted" : "NOT accepted"}.`);
+    out(r.failed && r.rearmed
+      ? "  A down push, then an up push, should reach the phone within a " +
+        "minute."
+      : "  The phone will not hear of this one.");
+    if (!r.delivered || !r.failed || !r.rearmed) process.exitCode = 1;
+
+    return undefined;
+  }
   default:
     console.error(USAGE);
     process.exit(1);

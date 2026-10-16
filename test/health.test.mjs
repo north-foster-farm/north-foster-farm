@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  alert, count, mark, noteMail, ping, readCount, readMark,
+  alert, alertTest, count, mark, noteMail, ping, raise, readCount, readMark,
 } from "../netlify/functions/lib/health.mjs";
 import { recordRun } from "../netlify/functions/lib/jobs.mjs";
 import {
@@ -222,6 +222,96 @@ describe("alerts", () => {
         mail: async () => { throw new Error("down"); },
         now, fetchImpl: fakeFetch().fetchImpl,
       }), "skipped");
+    });
+});
+
+describe("the phone channel (#248)", () => {
+  const env = {
+    ADMIN_EMAILS: "farm@x.com", HEALTHCHECKS_ALERT_URL: "https://hc/a",
+  };
+
+  it("re-arms the alert check with a success ping after each /fail",
+    async () => {
+      const { mail } = mailbox();
+      const { calls, fetchImpl } = fakeFetch();
+      const r = await raise(testStores(), "mail.failed", { id: "NFF-1" }, {
+        env, mail, now, fetchImpl,
+      });
+
+      assert.deepEqual(calls.map((c) => [c.method, c.url]), [
+        ["POST", "https://hc/a/fail"], ["GET", "https://hc/a"],
+      ]);
+      assert.equal(r.status, "sent");
+      assert.equal(r.failed, true);
+      assert.equal(r.rearmed, true);
+      assert.deepEqual(r.to, ["farm@x.com"]);
+    });
+
+  it("pings nothing when no alert check is set", async () => {
+    const { calls, fetchImpl } = fakeFetch();
+
+    await alert(testStores(), "mail.failed", {}, {
+      env: { ADMIN_EMAILS: "farm@x.com" }, mail: mailbox().mail, now,
+      fetchImpl,
+    });
+    assert.equal(calls.length, 0);
+  });
+
+  it("alert test goes past the hourly mute, every time", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const { calls, fetchImpl } = fakeFetch();
+
+    for (const at of [now, later(1)]) {
+      const r = await alertTest(stores, { env, mail, now: at, fetchImpl });
+
+      assert.equal(r.status, "sent");
+      assert.ok(r.failed && r.rearmed);
+    }
+    assert.equal(sent.length, 2, "the second in the hour is not muted");
+    assert.equal(sent[1].subject, "Site alert: alert.test");
+    assert.equal(calls.filter((c) => c.url.endsWith("/fail")).length, 2);
+    assert.equal(calls.filter((c) => c.method === "GET").length, 2);
+    assert.equal(await readMark(stores, "alert/alert.test"), null,
+      "and leaves no mute behind");
+  });
+
+  it("alert test counts an email delivered only by resend or outbox",
+    async () => {
+      const run = (driver) => alertTest(testStores(), {
+        env: { ...env, ...(driver ? { MAIL_DRIVER: driver } : {}) },
+        mail: mailbox().mail, now, fetchImpl: fakeFetch().fetchImpl,
+      });
+
+      for (const driver of ["resend", "outbox"]) {
+        const r = await run(driver);
+
+        assert.equal(r.delivered, true, driver);
+        assert.equal(r.driver, driver);
+      }
+      for (const driver of ["log", "file", undefined]) {
+        const r = await run(driver);
+
+        assert.equal(r.status, "sent", "the driver took it");
+        assert.equal(r.delivered, false, `${driver}: logged, not sent`);
+      }
+    });
+
+  it("alert test refuses without the alert check or a recipient",
+    async () => {
+      const { sent, mail } = mailbox();
+      const { calls, fetchImpl } = fakeFetch();
+
+      await assert.rejects(alertTest(testStores(), {
+        env: { ADMIN_EMAILS: "farm@x.com" }, mail, fetchImpl,
+      }), /HEALTHCHECKS_ALERT_URL/);
+      await assert.rejects(alertTest(testStores(), {
+        env: { HEALTHCHECKS_ALERT_URL: "https://hc/a" }, mail, fetchImpl,
+      }), /ADMIN_EMAILS/);
+      await assert.rejects(alertTest(testStores(), {
+        env: {}, mail, fetchImpl,
+      }), /HEALTHCHECKS_ALERT_URL, ADMIN_EMAILS/);
+      assert.equal(sent.length + calls.length, 0, "nothing went out");
     });
 });
 

@@ -146,6 +146,14 @@ export const GUIDE = {
     action: "The log has the stack (event jobs.crashed). Fix and " +
       "redeploy; the next run catches up.",
   },
+  "alert.test": {
+    means: "Someone ran bin/nff alert test. Nothing is wrong. It went " +
+      "through the same path as a real alert, past the hourly limit, " +
+      "so this email and a down-then-up push on the phone prove both " +
+      "channels work.",
+    action: "Nothing, if the phone buzzed too. If it did not, check the " +
+      "Alerts check's integrations in Healthchecks.",
+  },
   "function.crashed": {
     means: "A site function threw an exception nothing in it caught, " +
       "so whoever called it got Netlify's bare 500. The alert names " +
