@@ -109,6 +109,19 @@ describe("the Resend webhook", () => {
       true);
   });
 
+  it("answers 401, not a throw, with no Resend secret at all " +
+    "(staging with no Resend team, #251)", async () => {
+    const stores = testStores();
+    const body = JSON.stringify(event("contact.updated"));
+    const bare = {};
+
+    const res = await handle(request(body, sign(body)),
+      { stores, env: bare, now });
+
+    assert.equal(res.status, 401);
+    assert.deepEqual(await res.json(), { error: "Bad signature." });
+  });
+
   it("opts the record out at once on an unsubscribe", async () => {
     const stores = testStores();
     const body = JSON.stringify(event("contact.updated"));
