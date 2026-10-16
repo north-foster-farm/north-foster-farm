@@ -1,16 +1,22 @@
 // Private source maps (#246, option a). A production build minifies
 // the scripts, so a stack from the browser points into one long line.
 // The build writes each bundle's map beside it, and bin/maps/stash.mjs
-// moves every map out of public/ into the `maps` store under the
-// commit it was built from, so no map is ever served. A report
-// carries that commit (`build`); `bin/nff errors show` reads the maps
-// back and turns each frame into the original file and line, with
-// Node's own module.SourceMap.
+// moves every map out of public/ into that deploy's own `maps` store,
+// so no map is ever served. A build may write only to its deploy's
+// stores (Netlify refuses a site-wide one with a 401), so the maps
+// live as long as the deploy does. A report carries the commit
+// (`build`); `bin/nff errors show` finds the deploy that built it,
+// reads its maps and turns each frame into the original file and line,
+// with Node's own module.SourceMap.
 //
-// Keys: `<sha>/<path>.map`, the path as the site serves the script
-// without its fingerprint: scripts/order/main.js.map.
+// Keys: the path as the site serves the script without its
+// fingerprint, plus .map: scripts/order/main.js.map.
 
 import { SourceMap } from "node:module";
+
+import { getDeployStore } from "@netlify/blobs";
+
+export const MAPS_STORE = "maps";
 
 // A fingerprinted bundle is name.<sha512 hex>.js.
 const FINGERPRINT = /\.[0-9a-f]{32,}(\.js)$/;
@@ -30,7 +36,76 @@ export const mapPath = (url) => {
   return `${path.replace(FINGERPRINT, "$1")}.map`;
 };
 
-export const mapKey = (sha, path) => `${sha}/${path}`;
+// The parts of a build's Blobs context (NETLIFY_BLOBS_CONTEXT, base64
+// JSON). -> an object, empty when there is none. Never throws.
+export const blobsContext = (env = process.env) => {
+  try {
+    return env.NETLIFY_BLOBS_CONTEXT ? JSON.parse(Buffer.from(
+      env.NETLIFY_BLOBS_CONTEXT, "base64").toString("utf8")) : {};
+  } catch {
+    return {};
+  }
+};
+
+// One deploy's `maps` store, as { get, set } of JSON. Throws when an id
+// or the token is missing.
+export const deployMaps = ({ deployID, siteID, token, apiURL }) => {
+  const store = getDeployStore({
+    deployID, siteID, token, apiURL, name: MAPS_STORE,
+  });
+
+  return {
+    get: (key) => store.get(key, { type: "json" }),
+    set: (key, value) => store.setJSON(key, value),
+  };
+};
+
+// The deploy that built `sha`: the newest ready one whose commit is
+// it, on `branch` when one is given. Reads the Netlify API only.
+// -> { id, branch, context, createdAt } or null.
+export const findDeploy = async ({
+  sha, siteID, token, branch = null, pages = 5,
+  apiURL = "https://api.netlify.com", fetchImpl = globalThis.fetch,
+}) => {
+  const want = String(sha || "").toLowerCase();
+
+  if (want.length < 7) throw new Error("A commit needs 7 characters.");
+
+  const found = [];
+
+  for (let page = 1; page <= pages; page += 1) {
+    const url = new URL(`/api/v1/sites/${siteID}/deploys`, apiURL);
+
+    url.searchParams.set("per_page", "100");
+    url.searchParams.set("page", String(page));
+    if (branch) url.searchParams.set("branch", branch);
+
+    const res = await fetchImpl(url.toString(), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) throw new Error(`Netlify answered ${res.status}.`);
+
+    const deploys = await res.json();
+
+    for (const d of deploys) {
+      const ref = String(d.commit_ref || "").toLowerCase();
+
+      if (d.state === "ready" && ref && (ref.startsWith(want)
+        || want.startsWith(ref))) {
+        found.push(d);
+      }
+    }
+    if (found.length || deploys.length < 100) break;
+  }
+  found.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+
+  const d = found[0];
+
+  return d ? {
+    id: d.id, branch: d.branch, context: d.context, createdAt: d.created_at,
+  } : null;
+};
 
 // Each frame of a stack that names a script and a place in it, in
 // either V8's "at f (url:1:2)" or Safari's and Firefox's "f@url:1:2".
@@ -55,7 +130,7 @@ export const sourceName = (source) => {
 
 // -> [{ frame, source, row, col, name, text } | { frame, missing }],
 // one per frame. `load(key)` answers a map's JSON, or null.
-export const mapStack = async (stack, sha, load) => {
+export const mapStack = async (stack, load) => {
   const cache = new Map();
   const out = [];
 
@@ -67,7 +142,7 @@ export const mapStack = async (stack, sha, load) => {
       continue;
     }
 
-    const key = mapKey(sha, path);
+    const key = path;
 
     if (!cache.has(key)) {
       const payload = await load(key);

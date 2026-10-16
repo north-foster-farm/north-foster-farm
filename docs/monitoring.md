@@ -448,27 +448,42 @@ ways gone are `client.payment_unavailable`, an alert; everything else
 **Source maps.** A production build minifies the scripts and writes
 each bundle's map beside it. After the build and before the upload,
 the local build plugin `plugins/source-maps` (`bin/maps/stash.mjs`)
-moves every map out of `public/` into the `maps` Blobs store under
-the commit (`<sha>/scripts/order/main.js.map`), so no map is ever
-served. It is a plugin because only plugins get the Blobs context.
-The deploy log says what it did: `[maps] N found, N removed from the
-site, N kept for <sha>`, then, if any map was not kept, why. The same
-line is the plugin's status (`GET /api/v1/sites/<site>/plugin_runs/
-latest?packages[]=./plugins/source-maps`, its `summary`), and a JSON
-line before it (`"event":"maps.env"`, also the status's `text`) says
-whether the build had a Blobs context and a commit, and which store it
-wrote to, never a value. Nothing in it can fail a deploy: a store
-that will not take the maps, or a minute gone by, costs the maps
-only, and every map is removed regardless. To read a stack, save the
-report's log line (the JSON from Axiom) to a file and run
+moves every map out of `public/` into that deploy's own `maps` Blobs
+store (`deploy:<id>:maps`, keyed `scripts/order/main.js.map`), so no
+map is ever served. It is a plugin because only plugins get the Blobs
+context, and a deploy store because a build may write to no other
+(Netlify answers 401 for a site-wide store). The deploy log says what
+it did: `[maps] N found, N removed from the site, N kept for <sha>`,
+then, if any map was not kept, why. The same line is the plugin's
+status (`GET /api/v1/sites/<site>/plugin_runs/latest?packages[]=
+./plugins/source-maps`, its `summary`), and a JSON line before it
+(`"event":"maps.env"`, also the status's `text`) says whether the
+build had a Blobs context and a commit, never a value. Nothing in it
+can fail a deploy: a store that will not take the maps, or a minute
+gone by, costs the maps only, and every map is removed regardless.
+
+To read a stack, save the report's log line (the JSON from Axiom) to
+a file and run
 
 ```
 bin/nff --production errors show report.json
-bin/nff --production errors show stack.txt --sha <commit>
+bin/nff --staging errors show stack.txt --sha <commit>
+bin/nff --production errors show report.json --deploy <deploy id>
 ```
 
-It prints each frame as the original file, line and column, with the
-line of source. `-` reads the report from standard input.
+It finds the newest ready deploy of the report's commit on the
+context's branch (`main` for `--production`, `staging` for
+`--staging`; any branch with neither flag) through the Netlify API,
+reads that deploy's maps with the env file's `NETLIFY_SITE_ID` and
+`NETLIFY_AUTH_TOKEN`, and prints each frame as the original file,
+line and column, with the line of source. `--deploy` skips the
+lookup; `-` reads the report from standard input.
+
+The maps live as long as their deploy. The published deploy keeps
+them; Netlify deletes an unpublished deploy, and its stores with it,
+after its retention (30 days on the Starter plan). So a report from a
+build more than 30 days old that is no longer live cannot be mapped:
+`errors show` says no ready deploy built it.
 
 ## What is deliberately not here
 

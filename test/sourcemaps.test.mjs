@@ -1,15 +1,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { mkdtemp, mkdir, readdir, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
 import {
-  formatMapped, frames, mapPath, mapStack, sourceName,
+  findDeploy, formatMapped, frames, mapPath, mapStack, sourceName,
 } from "../netlify/functions/lib/sourcemaps.mjs";
-import { testStores } from "../netlify/functions/lib/store.mjs";
+import { memoryStore } from "../netlify/functions/lib/store.mjs";
 import { diagnose, run, stash, summary } from "../bin/maps/stash.mjs";
 
 const HEX = "e11b50ad".repeat(16);
@@ -51,19 +52,19 @@ describe("private source maps", () => {
   it("maps a stack to the source file and line", async () => {
     const asked = [];
     const mapped = await mapStack(`Error: no\n    at f (${BUNDLE}:1:12)\n` +
-      "    at g (https://x/scripts/other.js:1:1)", "abc123", async (key) => {
+      "    at g (https://x/scripts/other.js:1:1)", async (key) => {
       asked.push(key);
 
-      return key === "abc123/scripts/order/main.js.map" ? MAP : null;
+      return key === "scripts/order/main.js.map" ? MAP : null;
     });
 
-    assert.deepEqual(asked, ["abc123/scripts/order/main.js.map",
-      "abc123/scripts/other.js.map"]);
+    assert.deepEqual(asked, ["scripts/order/main.js.map",
+      "scripts/other.js.map"]);
     assert.equal(mapped[0].source, "assets/scripts/order/pay.js");
     assert.equal(mapped[0].row, 3);
     assert.equal(mapped[0].col, 5);
     assert.equal(mapped[0].text, "await this.card.attach(qs(this.root));");
-    assert.match(mapped[1].missing, /no map abc123\/scripts\/other\.js\.map/);
+    assert.match(mapped[1].missing, /no map scripts\/other\.js\.map/);
 
     const lines = formatMapped(mapped);
 
@@ -88,8 +89,8 @@ describe("private source maps", () => {
       await writeFile(join(dir, "scripts", "main.js.map"), "{}");
       await writeFile(join(dir, "scripts", "main.js"), "x");
 
-      const stores = { ...testStores(), persistent: true };
-      const r = await stash(dir, { env: { COMMIT_REF: "abc123" }, stores });
+      const store = memoryStore();
+      const r = await stash(dir, { env: { COMMIT_REF: "abc123" }, store });
 
       assert.deepEqual(r, {
         found: 2, kept: 2, removed: 2, sha: "abc123", reason: null,
@@ -98,7 +99,7 @@ describe("private source maps", () => {
       assert.deepEqual(await readdir(join(dir, "scripts")),
         ["main.js", "order"]);
       assert.deepEqual(
-        await stores.maps.get("abc123/scripts/order/main.js.map"), MAP);
+        await store.get("scripts/order/main.js.map"), MAP);
     });
 
   it("only removes them off Netlify or without a commit", async () => {
@@ -106,8 +107,7 @@ describe("private source maps", () => {
 
     await writeFile(join(dir, "a.js.map"), "{}");
 
-    const stores = testStores();
-    const r = await stash(dir, { env: { COMMIT_REF: "abc" }, stores });
+    const r = await stash(dir, { env: { COMMIT_REF: "abc" } });
 
     assert.deepEqual(r, {
       found: 1, kept: 0, removed: 1, sha: "abc",
@@ -115,7 +115,6 @@ describe("private source maps", () => {
     });
     assert.match(summary(r), /0 kept for abc\. no Blobs context/);
     assert.deepEqual(await readdir(dir), []);
-    assert.deepEqual(await stores.maps.list(""), []);
   });
 
   // A site with two maps, and a warn that records.
@@ -136,10 +135,10 @@ describe("private source maps", () => {
   it("removes every map when the store throws", async () => {
     const dir = await site();
     const { said, warn } = warnings();
-    const stores = { persistent: true, maps: {
+    const store = {
       set: async () => { throw new Error("MissingBlobsEnvironmentError"); },
-    } };
-    const r = await stash(dir, { env: { COMMIT_REF: "abc" }, stores, warn });
+    };
+    const r = await stash(dir, { env: { COMMIT_REF: "abc" }, store, warn });
 
     assert.deepEqual(r, {
       found: 2, kept: 0, removed: 2, sha: "abc",
@@ -152,27 +151,28 @@ describe("private source maps", () => {
   it("removes every map when the store cannot even be made", async () => {
     const dir = await site();
     const { said, warn } = warnings();
-    // A Blobs context with no site id or token: getStore() throws.
+    // A Blobs context with a deploy but no site id or token:
+    // getDeployStore() throws.
     const env = {
       COMMIT_REF: "abc",
-      NETLIFY_BLOBS_CONTEXT: Buffer.from("{}").toString("base64"),
+      NETLIFY_BLOBS_CONTEXT: Buffer.from(JSON.stringify({ deployID: "d1" }))
+        .toString("base64"),
     };
     const r = await stash(dir, { env, warn });
 
     assert.equal(r.removed, 2);
     assert.equal(r.kept, 0);
     assert.deepEqual(await readdir(dir), []);
+    assert.match(r.reason, /^no Blobs store: /);
     assert.equal(said.length > 0, true);
   });
 
   it("stops writing at the deadline and still removes them", async () => {
     const dir = await site();
     const { said, warn } = warnings();
-    const stores = { persistent: true, maps: {
-      set: () => new Promise(() => {}),
-    } };
+    const store = { set: () => new Promise(() => {}) };
     const r = await stash(dir, {
-      env: { COMMIT_REF: "abc" }, stores, warn, deadline: 50,
+      env: { COMMIT_REF: "abc" }, store, warn, deadline: 50,
     });
 
     assert.deepEqual(r, {
@@ -255,8 +255,8 @@ describe("private source maps", () => {
     assert.deepEqual(d, {
       event: "maps.env", blobsContext: true,
       blobsContextParts: ["apiURL", "deployID", "siteID", "token"],
-      blobsConfigured: true, commitRef: true, context: "branch-deploy",
-      siteContext: null, store: "branch-deploy-maps",
+      commitRef: true, context: "branch-deploy", siteContext: null,
+      store: "deploy:maps",
     });
     assert.equal(JSON.stringify(d).includes(secret), false);
     assert.equal(JSON.stringify(d).includes("s1"), false);
@@ -265,4 +265,109 @@ describe("private source maps", () => {
     assert.equal(diagnose({}).blobsContext, false);
     assert.equal(diagnose(null).error.length > 0, true);
   });
+
+  it("writes to this deploy's own maps store, as a build must",
+    async () => {
+      const seen = [];
+      const server = createServer((req, res) => {
+        req.resume();
+        req.on("end", () => {
+          seen.push(`${req.method} ${req.url}`);
+          res.setHeader("content-type", "application/json");
+          res.end(req.url.startsWith("/api/") ? JSON.stringify({
+            url: `http://127.0.0.1:${server.address().port}/signed`,
+          }) : "");
+        });
+      });
+
+      await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+      try {
+        const dir = await site();
+        const env = {
+          COMMIT_REF: "abc1234",
+          NETLIFY_BLOBS_CONTEXT: Buffer.from(JSON.stringify({
+            apiURL: `http://127.0.0.1:${server.address().port}`,
+            deployID: "d1", siteID: "s1", token: "t",
+          })).toString("base64"),
+        };
+        const r = await stash(dir, { env, warn: () => {} });
+
+        assert.equal(r.kept, 2, r.reason);
+        assert.deepEqual(seen.filter((l) => l.startsWith("PUT /api")), [
+          "PUT /api/v1/blobs/s1/deploy:d1:maps/a.js.map?region=auto",
+          "PUT /api/v1/blobs/s1/deploy:d1:maps/b.js.map?region=auto",
+        ]);
+      } finally {
+        server.close();
+      }
+    });
+
+  // The Netlify API's deploy list, as the fake answers it.
+  const deploysApi = (deploys) => {
+    const asked = [];
+    const fetchImpl = async (url, init) => {
+      asked.push({ url: new URL(url), auth: init.headers.Authorization });
+
+      const page = Number(new URL(url).searchParams.get("page"));
+
+      return {
+        ok: true, status: 200,
+        json: async () => deploys.slice((page - 1) * 100, page * 100),
+      };
+    };
+
+    return { asked, fetchImpl };
+  };
+
+  it("finds the newest ready deploy that built the commit", async () => {
+    const sha = "e006a11b2c3d4e5f60718293a4b5c6d7e8f90123";
+    const { asked, fetchImpl } = deploysApi([
+      { id: "new-fail", state: "error", commit_ref: sha,
+        created_at: "2026-10-16T12:00:00Z" },
+      { id: "older", state: "ready", commit_ref: sha, branch: "staging",
+        context: "branch-deploy", created_at: "2026-10-16T10:00:00Z" },
+      { id: "newer", state: "ready", commit_ref: sha, branch: "staging",
+        context: "branch-deploy", created_at: "2026-10-16T11:00:00Z" },
+      { id: "other", state: "ready", commit_ref: "d3946ad0000",
+        created_at: "2026-10-16T13:00:00Z" },
+    ]);
+    const d = await findDeploy({
+      sha: "e006a11", siteID: "s1", token: "t", branch: "staging",
+      fetchImpl,
+    });
+
+    assert.deepEqual(d, {
+      id: "newer", branch: "staging", context: "branch-deploy",
+      createdAt: "2026-10-16T11:00:00Z",
+    });
+    assert.equal(asked[0].url.pathname, "/api/v1/sites/s1/deploys");
+    assert.equal(asked[0].url.searchParams.get("branch"), "staging");
+    assert.equal(asked[0].auth, "Bearer t");
+  });
+
+  it("pages through the list, and says when no deploy built it",
+    async () => {
+      const filler = Array.from({ length: 150 }, (_, i) => ({
+        id: `f${i}`, state: "ready", commit_ref: "1111111aaaa",
+        created_at: "2026-10-01T00:00:00Z",
+      }));
+      const late = { id: "late", state: "ready", commit_ref: "abcdef12",
+        created_at: "2026-09-30T00:00:00Z" };
+      const { asked, fetchImpl } = deploysApi([...filler, late]);
+
+      assert.equal((await findDeploy({
+        sha: "abcdef12", siteID: "s", token: "t", fetchImpl,
+      })).id, "late");
+      assert.equal(asked.length, 2);
+      assert.equal(await findDeploy({
+        sha: "9999999", siteID: "s", token: "t", fetchImpl,
+      }), null);
+      await assert.rejects(findDeploy({
+        sha: "abc", siteID: "s", token: "t", fetchImpl,
+      }), /7 characters/);
+      await assert.rejects(findDeploy({
+        sha: "abcdef12", siteID: "s", token: "t",
+        fetchImpl: async () => ({ ok: false, status: 401 }),
+      }), /401/);
+    });
 });

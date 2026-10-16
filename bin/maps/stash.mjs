@@ -1,8 +1,9 @@
-// Moves every source map out of the built site and into the `maps`
-// Blobs store under the commit it was built from (#246; see
-// netlify/functions/lib/sourcemaps.mjs). Netlify runs it from the
-// local build plugin plugins/source-maps after the build, before the
-// upload, where the Blobs context exists (the build command has none).
+// Moves every source map out of the built site and into this deploy's
+// own `maps` Blobs store, keyed by the map's path (#246; see
+// netlify/functions/lib/sourcemaps.mjs). A build may write only to
+// its deploy's stores. Netlify runs it from the local build plugin
+// plugins/source-maps after the build, before the upload, where the
+// Blobs context exists (the build command has none).
 // Off Netlify, without a commit, or with a store that will not take
 // them, the maps are only removed. Nothing here fails a deploy: every
 // step is guarded, every map is removed whatever happened before, and
@@ -14,10 +15,9 @@
 import { readdir, readFile, unlink } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 
-import { mapKey } from "../../netlify/functions/lib/sourcemaps.mjs";
 import {
-  blobsConfigured, stores as makeStores, storeName,
-} from "../../netlify/functions/lib/store.mjs";
+  MAPS_STORE, blobsContext, deployMaps,
+} from "../../netlify/functions/lib/sourcemaps.mjs";
 
 export const DEADLINE = 60_000;
 
@@ -49,23 +49,19 @@ export const diagnose = (env = process.env) => {
     let parts = null;
 
     if (env.NETLIFY_BLOBS_CONTEXT) {
-      try {
-        const context = JSON.parse(Buffer.from(env.NETLIFY_BLOBS_CONTEXT,
-          "base64").toString("utf8"));
+      const context = blobsContext(env);
 
-        parts = Object.keys(context).filter((k) => !!context[k]).sort();
-      } catch {
-        parts = "unreadable";
-      }
+      parts = Object.keys(context).length
+        ? Object.keys(context).filter((k) => !!context[k]).sort()
+        : "unreadable";
     }
     Object.assign(out, {
       blobsContext: !!env.NETLIFY_BLOBS_CONTEXT,
       blobsContextParts: parts,
-      blobsConfigured: blobsConfigured(env),
       commitRef: !!env.COMMIT_REF,
       context: env.CONTEXT || null,
       siteContext: env.SITE_CONTEXT || null,
-      store: storeName("maps", env),
+      store: `deploy:${MAPS_STORE}`,
     });
   } catch (error) {
     out.error = message(error);
@@ -74,23 +70,28 @@ export const diagnose = (env = process.env) => {
   return out;
 };
 
-// The maps store, or null and why there is none to write to.
-const mapsStore = (env, stores) => {
+// This deploy's maps store, from the build's Blobs context, or null
+// and why there is none to write to.
+const mapsStore = (env) => {
   try {
-    const s = stores || makeStores(env);
+    const context = blobsContext(env);
 
-    if (s.persistent && s.maps) return { store: s.maps, reason: null };
+    if (!context.deployID) {
+      return { store: null, reason: "no Blobs context, so none kept" };
+    }
 
-    return { store: null, reason: "no Blobs context, so none kept" };
+    return { store: deployMaps(context), reason: null };
   } catch (error) {
     return { store: null, reason: `no Blobs store: ${message(error)}` };
   }
 };
 
 // -> { found, kept, removed, sha, reason }, the reason being the
-// first thing that cost any map, or null. Never throws.
+// first thing that cost any map, or null. `store` stands in for the
+// deploy's (tests). Never throws.
 export const stash = async (dir, {
-  env = process.env, stores, deadline = DEADLINE, warn: say = console.warn,
+  env = process.env, store: given, deadline = DEADLINE,
+  warn: say = console.warn,
 } = {}) => {
   const sha = env.COMMIT_REF || null;
   let reason = null;
@@ -111,7 +112,8 @@ export const stash = async (dir, {
   if (!sha) {
     if (files.length) reason = "no COMMIT_REF, so none kept";
   } else if (files.length) {
-    const found = mapsStore(env, stores);
+    const found = given === undefined ? mapsStore(env)
+      : { store: given, reason: given ? null : "no store, so none kept" };
 
     store = found.store;
     if (found.reason) warn(`[maps] ${found.reason}`);
@@ -132,7 +134,7 @@ export const stash = async (dir, {
       const map = JSON.parse(await readFile(file, "utf8"));
 
       await Promise.race([
-        store.set(mapKey(sha, path), map),
+        store.set(path, map),
         new Promise((resolve, reject) => {
           timer = setTimeout(() => reject(new Error("timed out")), left);
         }),

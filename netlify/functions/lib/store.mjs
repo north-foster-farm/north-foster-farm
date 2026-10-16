@@ -14,10 +14,7 @@
 
 import { getStore } from "@netlify/blobs";
 
-// `maps` holds the private source maps (lib/sourcemaps.mjs).
-export const STORES = [
-  "orders", "customers", "auth", "stock", "jobs", "maps",
-];
+export const STORES = ["orders", "customers", "auth", "stock", "jobs"];
 
 // Netlify sets CONTEXT at build time only; a function sees nothing of
 // it (checked 2026-09-23). SITE_CONTEXT is a variable with a value

@@ -95,11 +95,13 @@ const USAGE = `Usage:
                                       limit: the farm email and the
                                       phone push (down, then up). Says
                                       what it reached
-  bin/nff errors show <file|-> [--sha <commit>]
+  bin/nff errors show <file|-> [--sha <commit>] [--deploy <id>]
                                       a browser error report's stack
                                       (its log line, or a bare stack
                                       with --sha), mapped to the
-                                      source by the private maps
+                                      source by the maps of the deploy
+                                      that built it (--staging or
+                                      --production finds it)
   bin/nff library [--staging]         James's approvals and rewrites
                                       from the email library, to port
   bin/nff library clear <id>          drop an email's, once ported
@@ -192,7 +194,7 @@ const words = [];
 
 // Flags that take a value: `--reason "..."` as well as `--reason=...`.
 const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
-  "to", "waive", "detail", "reason-text", "sha"];
+  "to", "waive", "detail", "reason-text", "sha", "deploy"];
 const args = process.argv.slice(2);
 
 for (let i = 0; i < args.length; i += 1) {
@@ -462,10 +464,16 @@ const envCommand = async () => {
 };
 
 // A report as the log keeps it (one JSON line, from Axiom or the
-// console), or a bare stack and --sha. The maps are the context's:
-// --production for a production report.
+// console), or a bare stack and --sha. The maps are the deploy's that
+// built the report's commit, found on the context's branch (--staging,
+// --production), or the one --deploy names.
+const BRANCHES = { production: "main", staging: "staging" };
+
 const errorsShow = async (file) => {
-  if (!file) throw new Error("Usage: bin/nff errors show <file|-> [--sha]");
+  if (!file) {
+    throw new Error("Usage: bin/nff errors show <file|-> [--sha <commit>] " +
+      "[--deploy <id>]");
+  }
 
   const raw = readFileSync(file === "-" ? 0 : file, "utf8");
   let report;
@@ -477,14 +485,37 @@ const errorsShow = async (file) => {
   }
 
   const sha = flags.sha || report.build;
+  const siteID = process.env.NETLIFY_SITE_ID;
+  const token = process.env.NETLIFY_AUTH_TOKEN;
 
-  if (!sha) throw new Error("No build in the report: pass --sha <commit>.");
+  if (!siteID || !token) {
+    throw new Error("Needs NETLIFY_SITE_ID and NETLIFY_AUTH_TOKEN in the " +
+      "env file.");
+  }
+  if (!sha && typeof flags.deploy !== "string") {
+    throw new Error("No build in the report: pass --sha or --deploy.");
+  }
+
+  let deployID = typeof flags.deploy === "string" ? flags.deploy : null;
+
+  if (!deployID) {
+    const branch = BRANCHES[context] || null;
+    const deploy = await sourcemaps.findDeploy({ sha, siteID, token, branch });
+
+    if (!deploy) {
+      throw new Error(`No ready deploy of ${sha}${
+        branch ? ` on ${branch}` : ""}: its maps went with it, or pass ` +
+        "--deploy <id>.");
+    }
+    deployID = deploy.id;
+  }
   out(`${report.kind || report.event || "report"}  ${
-    report.where || ""}  build ${sha}`);
+    report.where || ""}  build ${sha || "?"}  deploy ${deployID}`);
   if (report.message) out(`  ${report.message}`);
 
-  const mapped = await sourcemaps.mapStack(report.stack, sha,
-    (key) => stores.maps.get(key));
+  const maps = sourcemaps.deployMaps({ deployID, siteID, token });
+  const mapped = await sourcemaps.mapStack(report.stack,
+    (key) => maps.get(key));
 
   if (!mapped.length) return out("No frames in the stack.");
 
