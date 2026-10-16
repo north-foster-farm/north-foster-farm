@@ -54,7 +54,7 @@ address only when its owner asks, and we record when and how you signed up.
 
 Resend keeps the list and sends the emails. Every farm news email has an
 unsubscribe link that takes you off the list in one click. You can also turn
-farm news off in your account.
+farm news off in your account. We never track whether you open our emails.
 
 Emails about your order are separate from farm news. We send a receipt when
 you pay, and a reminder the evening before a delivery. You can turn the
@@ -77,8 +77,14 @@ press Pay. If the payment doesn't go through, Square keeps that profile and
 the order is marked cancelled.
 
 If you start paying with Venmo and don't finish, we delete your order details
-within a day, and PayPal lets the unfinished payment expire. Orders and
-customer records are kept until you ask us to delete them.
+within a day, and PayPal lets the unfinished payment expire.
+
+Your account stays until you close it. Deleting your details takes one click
+in your account settings. Your orders stay in our records, with no name on
+them, for our own reporting. Seven years after an order, we remove your name,
+email address, phone number and street address from it. The order keeps what
+was bought, the prices, the date, how it reached you, and the town and ZIP
+code.
 
 ### Technical basics
 
@@ -166,8 +172,8 @@ assets.
 
 ## Accessing, changing, or deleting information
 
-When you're signed in, you can see your orders and change your name, phone
-number, address and email settings on your account page.
+When you're signed in, your account page lets you see your orders, change
+your name, phone number, address and email settings, and delete your details.
 
 You may email {{% company "email" %}} to request access to, changes
 to, or deletion of your information. Square and PayPal keep their own records of
@@ -185,4 +191,4 @@ By using our website, you consent to our privacy policy.
 If you have questions regarding this privacy policy, you may email
 {{% company "email" %}}.
 
-Last updated September 26, 2026.
+Last updated October 16, 2026.
