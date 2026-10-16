@@ -1,5 +1,5 @@
 {
- "revision": 3,
+ "revision": 4,
  "updated": "2026-10-16",
  "notice": null,
  "phases": [
@@ -908,7 +908,7 @@
     {
      "id": "env-files",
      "title": "Approve the samples and save the full files",
-     "body": "Below are the six files built from what you've entered. Each **.sample** file has the secrets left blank. It's committed to the repo, so read it and tick **Approve**. Each full file holds every value: save it in your password manager now, and in the project root in the next step.\n\n**Development** works once the fake payment drivers land (#265), and it gets its pickup schedule from `bin/nff` (#264). After that, a fresh clone needs only `cp .env.development.sample .env`.\n\nWhen all three samples are approved, export the report. Claude passes them to the agents to commit.",
+     "body": "Below are the six files built from what you've entered. Each **.sample** file has the secrets left blank. It's committed to the repo, so read it and tick **Approve**. Each full file holds every value: save it in your password manager now, and in the project root in the next step.\n\n**Development** works now: the fake payment drivers have landed (#265), and it gets its pickup schedule from `bin/nff` (#264). A fresh clone needs only `cp .env.development.sample .env`.\n\nWhen all three samples are approved, export the report. Claude passes them to the agents to commit.",
      "minutes": 20,
      "kind": "envfiles"
     },
@@ -955,14 +955,14 @@
      "title": "Empty the preview and local-development contexts",
      "body": "On Netlify, deploy previews and the **Local development** context still hold shared values. A linked `netlify dev` would hand real secrets to your Mac. Previews keep only `SITE_CONTEXT=deploy-preview` and a pickup schedule; Local development keeps nothing. Claude gives you the exact commands, names only.",
      "minutes": 10,
-     "blocked": "Waits on agents: the staging API must fail closed first (#255), and the exact list comes from #251."
+     "blocked": "Staging's API now fails closed with no token (#255). Waits on agents: the exact list comes from #251."
     },
     {
      "id": "env-clean",
      "title": "Retire the old shared credentials",
      "body": "Once staging runs on its new values:\n- **Square:** delete the old shared sandbox webhook subscription. Keep the old app only if production uses it.\n- **PayPal:** delete the old shared sandbox app.\n- **Axiom and Healthchecks:** delete the token and checks staging used to share.\n- **Resend:** delete the keys previews and staging used to share, but **not** production's `RESEND_READ_KEY` or its key at Resend. The live site reads it until P9, a week after launch.\n- **Your old Netlify token:** revoke it at Applications → Personal access tokens, once every env file, yours and the lanes', holds the new one.",
      "minutes": 20,
-     "blocked": "Waits on agents: #251's list, after staging works on its own values.",
+     "blocked": "Waits on agents: #251's list. Staging already works on its own values (#255).",
      "links": [
       {
        "label": "Netlify personal access tokens",
@@ -2223,6 +2223,22 @@
       }
      ],
      "text": "The order page reports its own errors to that log: what went wrong, on which page, and your browser and its version, but never your name, your contact details or your order."
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-16",
+     "changed": "#246 and #258 have landed: the browser reporter ships, and a test proves it scrubs emails and phone numbers before anything is logged.",
+     "summary": "The order page's error-report sentence, approved as drafted, is live on `next`. Nothing further to approve here.",
+     "look": [
+      {
+       "label": "#246",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/246"
+      },
+      {
+       "label": "#258",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/258"
+      }
+     ]
     }
    ]
   },
