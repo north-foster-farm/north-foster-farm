@@ -426,6 +426,20 @@ steps by name (`pay.load`, `square.ready`, `card.attach_failed`,
 the browser's family and major version from the user agent and keeps
 nothing else of it. A page sends five reports at most, and each once.
 
+**What a report may carry** is defined in one place,
+`assets/scripts/report/fields.mjs` (#258): the fields the browser
+sends, the fields the server keeps, the breadcrumb names and the
+scrubber. The reporter builds its body from that list, and the
+handler (`lib/client-report.mjs`) drops any key not on it, so a field
+cannot leave the browser by accident or be stored by the server. A
+thrown error can quote what the customer typed, so both sides replace
+anything shaped like an email address or a phone number in the
+message and the stack with `[email]` or `[phone]`. A report never
+carries a name, contact details or an order;
+`e2e/report-privacy.spec.mjs` forces every failure with a fake
+customer filled in and fails if any of it reaches `/api/health`. A new
+field goes in `fields.mjs` and nowhere else.
+
 What fails decides the kind. Config, init, Square's script and both
 ways gone are `client.payment_unavailable`, an alert; everything else
 (the card field, PayPal, a wallet, an uncaught error) is

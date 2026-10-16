@@ -428,7 +428,7 @@ describe("POST /api/health, the checkout beacon", () => {
     body: JSON.stringify({
       kind, where: "square.load", message: "Could not load the SDK",
       stack: "Error: Could not load\n    at x (https://x/s.js:1:2)",
-      build: "abc123", page: "/order/", crumbs: ["page.load", "pay.load"],
+      build: "abc1234", page: "/order/", crumbs: ["page.load", "pay.load"],
       sdks: { square: { state: "failed", ms: 3000 } },
       orderId: "NFF-1234", ...extra,
     }),
@@ -491,7 +491,7 @@ describe("POST /api/health, the checkout beacon", () => {
     assert.equal(lines[0].event, "client.error");
     assert.equal(lines[0].where, "card.attach");
     assert.equal(lines[0].message.length, 300);
-    assert.equal(lines[0].build, "abc123");
+    assert.equal(lines[0].build, "abc1234");
     assert.deepEqual(lines[0].crumbs, ["page.load", "pay.load"]);
     assert.equal("orderId" in lines[0], false);
   });

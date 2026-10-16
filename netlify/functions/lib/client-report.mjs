@@ -1,7 +1,11 @@
 // A browser error report (#246), as the /api/health handler keeps it:
 // a fixed list of fields, each trimmed, plus the browser's family and
 // major version worked out here from the user agent. The full user
-// agent is never kept.
+// agent is never kept. The fields are fields.mjs's (#258).
+
+import {
+  BUILD, CRUMBS, LIMITS, SDK_STATES, SENT, STORED, WHERES, allow, scrub,
+} from "../../../assets/scripts/report/fields.mjs";
 
 // Family, then the token whose version is the family's. Order matters:
 // Edge, Opera and Samsung's browser all say Chrome too, and every
@@ -30,30 +34,41 @@ export const browserOf = (ua) => {
 
 const text = (value, max) => String(value ?? "").slice(0, max) || null;
 
-const names = (list, max) => (Array.isArray(list) ? list : [])
-  .slice(-max).map((n) => String(n).slice(0, 40));
+// Scrubbed whole, then cut, as the reporter does.
+const clean = (value, max) => text(scrub(text(value, Infinity)), max);
 
-const sdkState = (s) => (s && typeof s === "object" ? {
-  state: text(s.state, 20),
-  ms: Number.isFinite(Number(s.ms)) && s.ms !== null
-    ? Math.round(Number(s.ms)) : null,
-} : null);
+// A name only if it has a name's shape: anything else is dropped.
+const named = (value, shape, max) => {
+  const v = text(value, max);
+
+  return v && shape.test(v) ? v : null;
+};
+
+const sdkState = (s) => (s && typeof s === "object"
+  && SDK_STATES.includes(s.state) ? {
+    state: s.state,
+    ms: s.ms !== null && Number.isFinite(Number(s.ms))
+      ? Math.round(Number(s.ms)) : null,
+  } : null);
 
 // The fields of a report, from the beacon's body and the request's
-// user agent. Anything else in the body is dropped.
-export const clientDetail = (body, ua) => {
-  const sdks = body && typeof body.sdks === "object" && body.sdks
-    ? body.sdks : {};
+// user agent: fields.mjs's lists, and nothing else (#258). Breadcrumbs
+// and SDK states are kept only by their known names, and the message
+// and stack are scrubbed again, whatever the browser did.
+export const clientDetail = (raw, ua) => {
+  const body = allow(raw, SENT);
+  const sdks = body.sdks && typeof body.sdks === "object" ? body.sdks : {};
 
-  return {
-    where: text(body.where, 40),
-    message: text(body.message, 300),
-    stack: text(body.stack, 2000),
-    build: text(body.build, 40),
-    page: text(body.page, 200),
-    crumbs: names(body.crumbs, 20),
+  return allow({
+    where: WHERES.includes(body.where) ? body.where : null,
+    message: clean(body.message, LIMITS.message),
+    stack: clean(body.stack, LIMITS.stack),
+    build: named(body.build, BUILD, LIMITS.build),
+    page: clean(body.page, LIMITS.page),
+    crumbs: (Array.isArray(body.crumbs) ? body.crumbs : [])
+      .filter((n) => CRUMBS.includes(n)).slice(-LIMITS.crumbs),
     square: sdkState(sdks.square),
     paypal: sdkState(sdks.paypal),
     ...browserOf(ua),
-  };
+  }, STORED);
 };

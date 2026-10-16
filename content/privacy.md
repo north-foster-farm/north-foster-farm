@@ -89,8 +89,10 @@ logs.
 The site's server code keeps a log of what it does, stored by Axiom. Netlify,
 which runs that code, also keeps them. Log lines name orders by number, not by
 customer. When something goes wrong with an order, the line may hold the order
-as it was sent, including your contact details, so we can put it right. Axiom
-deletes log lines after 30 days.
+as it was sent, including your contact details, so we can put it right. The
+order page reports its own errors to that log: what went wrong, on which page,
+and your browser and its version, but never your name, your contact details or
+your order. Axiom deletes log lines after 30 days.
 
 ### What your browser keeps
 
