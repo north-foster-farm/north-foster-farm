@@ -1,9 +1,9 @@
 # Staging
 
 A deploy that is not production keeps its own data, writes its email
-to an outbox instead of sending it, talks to the Square sandbox, and
-carries a toolbar for reading that outbox and running the jobs by
-hand. Production carries none of it.
+to an outbox instead of sending it and talks to the Square sandbox.
+The staging branch deploy also carries a toolbar for reading that
+outbox and running the jobs by hand. Production carries none of it.
 
 ## What decides
 
@@ -32,17 +32,19 @@ Unset means production: bare store names, no staging endpoints.
   location and application id, and `PAYPAL_ENV=sandbox` with the
   sandbox client id and secret, on the non-production contexts.
 - **The toolbar.** `layouts/partials/staging-toolbar.html` renders
-  only when the build-time `CONTEXT` is set and is not production.
-  Its stylesheet and script are built by Hugo only then, so the
-  production HTML, CSS and JS have no trace of it. (The build
+  only when the build-time `CONTEXT` is `branch-deploy`: on staging,
+  never on a deploy preview, a local build or production. Its
+  stylesheet and script are built by Hugo only then, so every other
+  build's HTML, CSS and JS have no trace of it. (The build
   environment cannot decide this: previews build with Hugo's
   production environment too. `getenv "CONTEXT"` is allowed in
   `hugo.toml`'s security settings for this.)
-- **The endpoints.** `netlify/functions/staging.mjs` answers 404 in
-  production, whatever the path. Off production it serves the outbox
-  and runs the jobs. `STAGING_TOKEN`, when set on those contexts, is
-  required as a bearer token or `?token=`; the toolbar asks for it
-  once and remembers it in the browser.
+- **The endpoints.** `netlify/functions/staging.mjs` exists only
+  where `STAGING_TOKEN` is set, on the branch deploy: in production,
+  and on any context without the token, every `/api/staging/*` path
+  answers 404 (#255). There it serves the outbox and runs the jobs,
+  and the token is required as a bearer token or `?token=`; the
+  toolbar asks for it once and remembers it in the browser.
 - **Links in mail.** A function cannot see its own deploy address
   either (`DEPLOY_PRIME_URL` is build-only), so off production the
   links in emails fall back to `URL`, which is production. `SITE_URL`
@@ -173,9 +175,10 @@ the limit as production does, which is how the limit itself is tested.
 On Netlify, `SITE_CONTEXT` with one value per context, named after
 the context (set 2026-09-23). Then, for the `deploy-preview`,
 `branch-deploy` and `dev`
-contexts only: `MAIL_DRIVER=outbox`, and `STAGING_TOKEN` if the
-outbox should not be open to anyone with the preview's address
-(magic links are in it). Leave production's `MAIL_DRIVER=resend`
+contexts only: `MAIL_DRIVER=outbox`. `STAGING_TOKEN` goes on the
+branch-deploy context alone: without it the staging API is a 404, so
+a preview, which has none, shows no outbox (magic links are in it).
+Leave production's `MAIL_DRIVER=resend`
 alone. Allow branch deploys for `staging` under Site configuration →
 Build & deploy → Branch deploys. Subscribe the Square sandbox
 webhook (`refund.updated`) to

@@ -2491,6 +2491,20 @@ Manual: James only; the suite never touches production.
 - **Assert:** No `#staging` element or staging script; 404.
 - **Teardown:** None.
 
+### ST-04 A deploy preview carries no staging code
+
+Automated: `staging-toolbar.spec.mjs`, "a deploy preview carries no
+toolbar", run with `E2E_BASE_URL` set to a deploy preview (#255).
+
+- **Scenario:** The toolbar is for the staging branch deploy alone, and
+  the staging API answers only where `STAGING_TOKEN` is set.
+- **Setup:** A pull request's deploy preview.
+- **Test:**
+  1. Open `/`; `GET /api/staging/info` without a token.
+- **Assert:** No `#staging` element or staging script; 404 once the
+  preview context holds no `STAGING_TOKEN` (#251).
+- **Teardown:** None.
+
 ## Regression list
 
 Run before every staging push that matters:

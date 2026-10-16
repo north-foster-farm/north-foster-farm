@@ -1,8 +1,9 @@
 // The staging toolbar's back end: the outbox of emails written instead
 // of sent (MAIL_DRIVER=outbox), and a trigger for the scheduled jobs,
 // which Netlify runs only on the production deploy. Answers only when
-// the deploy's SITE_CONTEXT is set and is not production; in production
-// every path here is a 404, so nothing staging-only is reachable.
+// the deploy's SITE_CONTEXT is set and is not production, and
+// STAGING_TOKEN is set there; anywhere else every path here is a 404,
+// so nothing staging-only is reachable.
 //
 //   GET    /api/staging/info          context, mail driver, Square env
 //   GET    /api/staging/outbox        the last messages, newest first
@@ -26,7 +27,11 @@
 //   POST   /api/staging/throw         throws, to prove the crash alert
 //                                     (only with STAGING_TOKEN set)
 //
-// STAGING_TOKEN, when set, is required as a bearer or ?token=.
+// STAGING_TOKEN is required as a bearer or ?token=. With none set the
+// API fails closed: a context that forgot it answers 404, as production
+// does, rather than opening the outbox and its magic links to anyone.
+
+import { timingSafeEqual } from "node:crypto";
 
 import { json, readJson } from "./lib/http.mjs";
 import { runJobs } from "./lib/jobs.mjs";
@@ -54,6 +59,15 @@ const tokenOf = (req) => {
   if (auth.startsWith("Bearer ")) return auth.slice(7).trim();
 
   return new URL(req.url).searchParams.get("token") || "";
+};
+
+// Compares in constant time, so the answer's timing says nothing about
+// how much of a guess was right.
+const sameToken = (given, expected) => {
+  const a = Buffer.from(String(given));
+  const b = Buffer.from(String(expected));
+
+  return a.length === b.length && timingSafeEqual(a, b);
 };
 
 const escape = (s) => String(s)
@@ -105,8 +119,10 @@ export const handle = async (req, {
   now = new Date(),
   run = runJobs,
 } = {}) => {
-  if (!staging(env)) return json(404, { error: "Not found." });
-  if (env.STAGING_TOKEN && tokenOf(req) !== env.STAGING_TOKEN) {
+  if (!staging(env) || !env.STAGING_TOKEN) {
+    return json(404, { error: "Not found." });
+  }
+  if (!sameToken(tokenOf(req), env.STAGING_TOKEN)) {
     return json(401, { error: "Staging token required." });
   }
 

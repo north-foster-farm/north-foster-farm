@@ -18,10 +18,18 @@ const message = {
   html: "<html><body><p>Click the link.</p></body></html>",
 };
 
+// Every staging context in these tests holds TOKEN, and every request
+// carries it unless a test says otherwise.
+const TOKEN = "s3cret";
+
 const req = (path, method = "GET", body, headers = {}) =>
   new Request(`https://x${path}`, {
     method,
-    headers: { "Content-Type": "application/json", ...headers },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${TOKEN}`,
+      ...headers,
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 
@@ -92,7 +100,9 @@ describe("the outbox driver", () => {
 });
 
 describe("the staging endpoints", () => {
-  const env = { CONTEXT: "deploy-preview", MAIL_DRIVER: "outbox" };
+  const env = {
+    CONTEXT: "deploy-preview", MAIL_DRIVER: "outbox", STAGING_TOKEN: TOKEN,
+  };
 
   it("answer only off production", async () => {
     assert.equal(staging({}), false);
@@ -110,17 +120,86 @@ describe("the staging endpoints", () => {
     }
   });
 
-  it("require the token when one is set, as a bearer or a query", async () => {
-    const stores = testStores();
-    const e = { ...env, STAGING_TOKEN: "s3cret" };
+  // Every route, so a new one cannot slip past the gate.
+  const routes = [
+    ["GET", "/api/staging/info"],
+    ["GET", "/api/staging/outbox"],
+    ["DELETE", "/api/staging/outbox"],
+    ["GET", "/api/staging/outbox/2026-01-01T00-00-0000"],
+    ["POST", "/api/staging/jobs/run"],
+    ["GET", "/api/staging/emails"],
+    ["GET", "/api/staging/emails/sign-in-link"],
+    ["PUT", "/api/staging/emails/sign-in-link/approval"],
+    ["DELETE", "/api/staging/emails/sign-in-link/approval"],
+    ["PUT", "/api/staging/emails/sign-in-link/rewrite"],
+    ["DELETE", "/api/staging/emails/sign-in-link/rewrite"],
+    ["POST", "/api/staging/throw"],
+    ["GET", "/api/staging/nothing-here"],
+  ];
+  // Throws by design, once past the gate (the crash alert's proof).
+  const THROWS = "/api/staging/throw";
+  const run = async () => ({ ran: [] });
+  const ask = (method, path, headers) => req(path, method,
+    ["POST", "PUT"].includes(method) ? {} : undefined, headers);
 
-    assert.equal((await handle(req("/api/staging/info"), { stores, env: e }))
-      .status, 401);
-    assert.equal((await handle(req("/api/staging/info", "GET", undefined,
-      { Authorization: "Bearer s3cret" }), { stores, env: e })).status, 200);
-    assert.equal((await handle(req("/api/staging/info?token=s3cret"),
-      { stores, env: e })).status, 200);
+  it("fail closed: every route is a 404 with no token set", async () => {
+    const open = { CONTEXT: "branch-deploy", MAIL_DRIVER: "outbox" };
+
+    for (const [method, path] of routes) {
+      for (const e of [open, { ...open, STAGING_TOKEN: "" }]) {
+        const res = await handle(ask(method, path), {
+          stores: testStores(), env: e, run,
+        });
+
+        assert.equal(res.status, 404, `${method} ${path}`);
+      }
+    }
   });
+
+  it("refuse every route without the right token", async () => {
+    for (const [method, path] of routes) {
+      for (const headers of [{ Authorization: "" },
+        { Authorization: "Bearer wrong" },
+        { Authorization: `Bearer ${TOKEN}x` }]) {
+        const res = await handle(ask(method, path, headers), {
+          stores: testStores(), env, run,
+        });
+
+        assert.equal(res.status, 401, `${method} ${path}`);
+      }
+    }
+  });
+
+  it("let every route through with the right token", async () => {
+    for (const [method, path] of routes) {
+      const answer = handle(ask(method, path), {
+        stores: testStores(), env, run,
+      });
+
+      if (path === THROWS) {
+        await assert.rejects(answer, /Staging proof/);
+        continue;
+      }
+
+      const res = await answer;
+
+      assert.notEqual(res.status, 401, `${method} ${path}`);
+      assert.notEqual(res.status, 403, `${method} ${path}`);
+    }
+  });
+
+  it("take the token as a bearer or a query", async () => {
+    const stores = testStores();
+    const bare = { Authorization: "" };
+
+    assert.equal((await handle(req("/api/staging/info", "GET", undefined,
+      bare), { stores, env })).status, 401);
+    assert.equal((await handle(req("/api/staging/info", "GET", undefined,
+      { Authorization: `Bearer ${TOKEN}` }), { stores, env })).status, 200);
+    assert.equal((await handle(req(`/api/staging/info?token=${TOKEN}`,
+      "GET", undefined, bare), { stores, env })).status, 200);
+  });
+
 
   it("describe the deploy", async () => {
     const res = await handle(req("/api/staging/info"), {
@@ -214,7 +293,10 @@ describe("the staging endpoints", () => {
 });
 
 describe("the email library", () => {
-  const env = { CONTEXT: "branch-deploy", SITE_URL: "https://staging.test" };
+  const env = {
+    CONTEXT: "branch-deploy", SITE_URL: "https://staging.test",
+    STAGING_TOKEN: TOKEN,
+  };
 
   it("is a 404 in production, like every staging path", async () => {
     for (const path of ["/api/staging/emails",
@@ -266,7 +348,10 @@ describe("the email library", () => {
 });
 
 describe("James's review in the library", () => {
-  const env = { CONTEXT: "branch-deploy", SITE_URL: "https://staging.test" };
+  const env = {
+    CONTEXT: "branch-deploy", SITE_URL: "https://staging.test",
+    STAGING_TOKEN: TOKEN,
+  };
   const ID = "address-denied";
   const call = async (stores, path, method = "GET", body) => {
     const res = await handle(req(path, method, body), { stores, env });
@@ -404,7 +489,10 @@ describe("James's review in the library", () => {
       });
       const b = await handle(req("/api/staging/emails"), {
         stores: testStores(),
-        env: { CONTEXT: "deploy-preview", SITE_URL: "https://other.test" },
+        env: {
+          CONTEXT: "deploy-preview", SITE_URL: "https://other.test",
+          STAGING_TOKEN: TOKEN,
+        },
       });
       const versions = async (res) => (await res.json()).emails
         .map((e) => e.version);

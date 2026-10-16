@@ -1,15 +1,16 @@
 {{/*
   The staging toolbar: the outbox of emails the site wrote instead of
   sending, and a trigger for the scheduled jobs. Rendered only when
-  Netlify's build-time CONTEXT is set and is not "production", so the
-  production HTML, CSS and JS carry no trace of it: the stylesheet and
-  the script below are built by Hugo only when this partial renders.
-  (hugo.Environment cannot decide this; previews build with the
-  production environment too.) The endpoints it calls refuse in
-  production as well. See docs/staging.md.
+  Netlify's build-time CONTEXT is "branch-deploy" (staging), never on a
+  deploy preview, a local build or production, so their HTML, CSS and
+  JS carry no trace of it: the stylesheet and the script below are
+  built by Hugo only when this partial renders. (hugo.Environment
+  cannot decide this; previews build with the production environment
+  too.) The endpoints it calls answer only where STAGING_TOKEN is set.
+  See docs/staging.md.
 */}}
 {{ $context := getenv "CONTEXT" }}
-{{ if and $context (ne $context "production") }}
+{{ if eq $context "branch-deploy" }}
   {{ $style := resources.Get "styles/staging.css" | fingerprint "sha512" }}
   {{ $script := resources.Get "scripts/staging/main.js" | js.Build (dict "minify" true) | fingerprint "sha512" }}
   <link rel="stylesheet" href="{{ $style.RelPermalink }}" integrity="{{ $style.Data.Integrity }}">
