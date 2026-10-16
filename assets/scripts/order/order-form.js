@@ -1669,7 +1669,10 @@ export class OrderForm {
   }
 
   // Venmo's two steps. The first answers with the PayPal order the
-  // button pays; the second captures it and records the order.
+  // button pays; the second captures it and records the order. A draft
+  // whose payment already went through (its answer was lost) gets the
+  // paid order instead and no PayPal order: it is done, and the button
+  // is told so with null, to stop without a word (#253).
   async venmoCreate(payload) {
     this.setBusy(true);
 
@@ -1682,6 +1685,11 @@ export class OrderForm {
       this.draft.markAttempted();
 
       return outcome.data.paypalOrderId;
+    }
+    if (outcome.kind === "ok" && outcome.data && outcome.data.orderId) {
+      this.paid(outcome.data, payload);
+
+      return null;
     }
 
     this.settle(outcome, payload);
@@ -1745,14 +1753,7 @@ export class OrderForm {
 
     switch (outcome.kind) {
     case "ok":
-      this.draft.clearPending();
-      this.draft.clear();
-      if (this.editing) {
-        location.assign("/account/#orders");
-        break;
-      }
-      announceCart(0);
-      this.succeed(outcome.data, payload);
+      this.paid(outcome.data, payload);
       break;
     case "retry":
       // Draft wording.
@@ -1761,6 +1762,19 @@ export class OrderForm {
     default:
       this.settle(outcome, payload);
     }
+  }
+
+  // The order is paid: the draft goes, and the page says so.
+  paid(data, payload) {
+    this.draft.clearPending();
+    this.draft.clear();
+    if (this.editing) {
+      location.assign("/account/#orders");
+
+      return;
+    }
+    announceCart(0);
+    this.succeed(data, payload);
   }
 
   // Every answer but success and retry: the customer decides again.

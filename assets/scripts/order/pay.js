@@ -16,7 +16,8 @@
 //   amount()             the total in cents, for the wallets' sheets
 //   billing()            the customer's details for card verification
 //   pay(payload, source) send { method, sourceId }
-//   venmoCreate(payload) -> the PayPal order id from our server
+//   venmoCreate(payload) -> the PayPal order id from our server, or
+//                        null when the order turned out paid already
 //   venmoCapture(payload, paypalOrderId)
 
 import { venmoGate } from "./lib/venmo.mjs";
@@ -482,7 +483,16 @@ export class Payment {
         this.venmoPayload = payload;
         this.clearError();
 
-        return this.form.venmoCreate(payload);
+        const id = await this.form.venmoCreate(payload);
+
+        // Paid already, and the page says so: PayPal is stopped the
+        // only way it can be, and onError keeps quiet.
+        if (!id) {
+          this.venmoSettled = true;
+          throw new Error("The order is already paid.");
+        }
+
+        return id;
       },
       onApprove: async (data) => {
         crumb("venmo.approve");
@@ -500,6 +510,12 @@ export class Payment {
         this.setBusy(false);
       },
       onError: (error) => {
+        if (this.venmoSettled) {
+          this.venmoSettled = false;
+          this.setBusy(false);
+
+          return;
+        }
         console.error(error);
         reportError("paypal.error", error);
         this.setBusy(false);
