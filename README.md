@@ -60,6 +60,13 @@ ln -sf .env.development .env
 Development needs no `PICKUP_SCHEDULE`: `bin/nff`, `npm test` and
 `npm run start:functions` make one up when `.env` has none.
 
+Development needs no payment account: with `SITE_CONTEXT=dev`,
+`SQUARE_ENV=fake` and `PAYPAL_ENV=fake`, `npm run start:functions`
+takes card and Venmo orders against fake drivers and stub SDKs, and
+nothing reaches Square or PayPal. A fake is refused on every other
+context. `docs/order-form.md`, "Local development", has the details
+and how to opt into a real sandbox instead.
+
 Netlify's variables come from the tracked samples
 (`.env.production.sample`, `.env.staging.sample`) and the filled-in
 file beside each:

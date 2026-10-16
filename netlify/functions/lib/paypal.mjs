@@ -10,6 +10,10 @@
 // key and attempt, so a retry returns what was already made.
 
 import { company } from "./company.mjs";
+import {
+  FAKE, FAKE_SDK_URLS, fakeAllowed, refusal,
+} from "./fake.mjs";
+import * as fake from "./fake-paypal.mjs";
 
 const HOSTS = {
   live: "https://api-m.paypal.com",
@@ -18,8 +22,11 @@ const HOSTS = {
 
 export const SDK_URL = "https://www.paypal.com/sdk/js";
 
-export const paypalEnv = (env = process.env) =>
-  (env.PAYPAL_ENV === "live" ? "live" : "sandbox");
+export const paypalEnv = (env = process.env) => {
+  if (env.PAYPAL_ENV === "live") return "live";
+
+  return env.PAYPAL_ENV === FAKE ? FAKE : "sandbox";
+};
 
 export class PayPalError extends Error {
   constructor(message, {
@@ -36,10 +43,31 @@ export class PayPalError extends Error {
   }
 }
 
-export const configured = (env = process.env) =>
-  !!(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET);
+// PAYPAL_ENV=fake: fake-paypal.mjs answers instead of PayPal, in local
+// development only (lib/fake.mjs). Anywhere else it throws, so no
+// order is taken without money.
+// -> true to use the fake; throws PayPalError when it is refused.
+export const isFake = (env = process.env) => {
+  if (env.PAYPAL_ENV !== FAKE) return false;
+  if (!fakeAllowed(env)) {
+    throw new PayPalError(refusal("PAYPAL_ENV"), { code: "FAKE_REFUSED" });
+  }
+
+  return true;
+};
+
+// A refused fake counts as not configured, so the jobs leave PayPal
+// alone and the page shows no Venmo button.
+export const configured = (env = process.env) => {
+  if (env.PAYPAL_ENV === FAKE) return fakeAllowed(env);
+
+  return !!(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET);
+};
 
 export const settings = (env = process.env) => {
+  if (isFake(env)) {
+    throw new PayPalError("PAYPAL_ENV=fake has no PayPal to call");
+  }
   if (!configured(env)) {
     throw new PayPalError("Missing PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET");
   }
@@ -59,8 +87,24 @@ export const venmoHidden = (env = process.env) =>
   !["", "0", "false"].includes((env.VENMO_HIDDEN || "").trim());
 
 // What the page needs to load the SDK: public. Null until the client
-// id is set, and then the Venmo button simply does not appear.
-export const clientConfig = (env = process.env) => (env.PAYPAL_CLIENT_ID
+// id is set, and then the Venmo button simply does not appear. A fake
+// gets the stub SDK, and null where it is refused.
+export const clientConfig = (env = process.env) => {
+  if (env.PAYPAL_ENV === FAKE) {
+    return fakeAllowed(env)
+      ? {
+        clientId: env.PAYPAL_CLIENT_ID || "fake-client",
+        env: FAKE,
+        hidden: venmoHidden(env),
+        sdkUrl: FAKE_SDK_URLS.paypal,
+      }
+      : null;
+  }
+
+  return liveConfig(env);
+};
+
+const liveConfig = (env) => (env.PAYPAL_CLIENT_ID
   ? {
     clientId: env.PAYPAL_CLIENT_ID,
     env: paypalEnv(env),
@@ -189,6 +233,8 @@ export const createOrder = async (order, key, {
   fetchImpl = globalThis.fetch,
   now = new Date(),
 } = {}) => {
+  if (isFake(env)) return fake.createOrder(order, key, { env });
+
   const cfg = settings(env);
   const data = await call(cfg, "/v2/checkout/orders", {
     intent: "CAPTURE",
@@ -240,6 +286,8 @@ export const getOrder = async (paypalOrderId, {
   fetchImpl = globalThis.fetch,
   now = new Date(),
 } = {}) => {
+  if (isFake(env)) return fake.getOrder(paypalOrderId, { env });
+
   const cfg = settings(env);
   const data = await call(
     cfg, `/v2/checkout/orders/${paypalOrderId}`, null,
@@ -263,6 +311,8 @@ export const captureOrder = async (paypalOrderId, key, {
   fetchImpl = globalThis.fetch,
   now = new Date(),
 } = {}) => {
+  if (isFake(env)) return fake.captureOrder(paypalOrderId, key, { env });
+
   const cfg = settings(env);
   let data;
 
@@ -301,6 +351,12 @@ export const refundCapture = async ({
   fetchImpl = globalThis.fetch,
   now = new Date(),
 } = {}) => {
+  if (isFake(env)) {
+    return fake.refundCapture({
+      paypalCaptureId, amount, key, note,
+    }, { env });
+  }
+
   const cfg = settings(env);
   const data = await call(cfg,
     `/v2/payments/captures/${paypalCaptureId}/refund`, {
@@ -322,6 +378,8 @@ export const verifyWebhook = async (headers, body, {
   fetchImpl = globalThis.fetch,
   now = new Date(),
 } = {}) => {
+  if (isFake(env)) return fake.verifyWebhook(headers, body, { env });
+
   const cfg = settings(env);
 
   if (!cfg.webhookId) return false;

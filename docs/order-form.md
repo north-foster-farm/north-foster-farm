@@ -231,8 +231,9 @@ Environment variables, set in Netlify, never in the repo:
 - `SQUARE_LOCATION_ID`: the location orders and payments belong to.
 - `SQUARE_APPLICATION_ID`: the app id the page hands the SDK. Public;
   sandbox and production ids differ, so one value per context.
-- `SQUARE_ENV`: `sandbox` (the default) or `production`. Picks the
-  API host, the SDK host and the dashboard links.
+- `SQUARE_ENV`: `sandbox` (the default), `production`, or `fake` for
+  local development (below). Picks the API host, the SDK host and the
+  dashboard links.
 - `SQUARE_VERSION`: optional, defaults to `2026-09-16`.
 - `SQUARE_WEBHOOK_SIGNATURE_KEY` and, if the registered URL is not the
   site's own `/api/square/webhook`, `SQUARE_WEBHOOK_URL`.
@@ -265,7 +266,8 @@ Venmo online is PayPal's. Environment variables, per context:
 
 - `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`: the PayPal Business
   app's credentials, sandbox and live pairs.
-- `PAYPAL_ENV`: `sandbox` (the default) or `live`.
+- `PAYPAL_ENV`: `sandbox` (the default), `live`, or `fake` for local
+  development (below).
 - `PAYPAL_WEBHOOK_ID`: the id of the webhook subscription, which the
   signature check needs.
 - `VENMO_HIDDEN`: unset normally. Set to `1`, the button shows only
@@ -731,13 +733,35 @@ issue #112 (the Venmo matching problem) closes with it.
 ## Local development
 
 `npm run start:functions` runs `netlify dev`, which starts the Hugo
-server and proxies the functions at <http://localhost:8888>. Put the
-Square sandbox credentials, `SQUARE_APPLICATION_ID` and, for Venmo,
-the PayPal sandbox pair in `.env.development` (ignored). Without them
-`/api/checkout/config` answers with nulls, the page says online
-payment is unavailable, and `/api/orders` answers `502` after
-validation, which is enough to exercise the form. The staging deploy
-(`docs/staging.md`) is where a payment is exercised end to end.
+server and proxies the functions at <http://localhost:8888>.
+
+**Fake payments, the default.** The development env file sets
+`SITE_CONTEXT=dev`, `SQUARE_ENV=fake` and `PAYPAL_ENV=fake` (#265).
+Then no call leaves the machine: `lib/fake-square.mjs` and
+`lib/fake-paypal.mjs` answer every call `lib/square.mjs` and
+`lib/paypal.mjs` would send, with the same arguments and the same
+answers, and `/api/checkout/config` points the page at stub SDKs that
+the local Hugo server publishes at `/scripts/fake-square.js` and
+`/scripts/fake-paypal.js` (`assets/scripts/fake/`). The card form is
+plain fields filled with a test card; 4000 0000 0000 0002 is declined
+with Square's `CARD_DECLINED`. The Venmo button approves at once and
+the capture follows. Orders, records and emails are otherwise real,
+so the whole flow, the account pages and `bin/nff` refunds run with
+no vendor account. `e2e/fake-payments.spec.mjs` places a card order
+and a Venmo order against `netlify dev`.
+
+A fake works only where the deploy context is `dev` (`lib/fake.mjs`).
+Anywhere else, production, staging, a preview or no context at all,
+`fake` is refused: every call throws (`FAKE_REFUSED`), the page is
+offered no payment, and the failure alerts like any other. No Netlify
+build is a Hugo server, so no deploy carries the stub SDKs either.
+
+**A real sandbox, by choice.** To try Square's or PayPal's own forms,
+put `SQUARE_ENV=sandbox` with a sandbox token, location and
+application id, or `PAYPAL_ENV=sandbox` with a sandbox client id and
+secret, in your own `.env`, never in the sample. The webhooks still
+cannot reach this machine. The staging deploy (`docs/staging.md`) is
+where a real payment is exercised end to end.
 
 ## Shipping scope
 

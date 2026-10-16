@@ -12,6 +12,10 @@
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { company } from "./company.mjs";
 import {
+  FAKE, FAKE_SDK_URLS, fakeAllowed, refusal,
+} from "./fake.mjs";
+import * as fake from "./fake-square.mjs";
+import {
   pickupTimes, windowLabel,
 } from "../../../assets/scripts/order/lib/schedule.mjs";
 import { instant } from "../../../assets/scripts/order/lib/zoned.mjs";
@@ -32,8 +36,24 @@ export const SDK_URLS = {
   sandbox: "https://sandbox.web.squarecdn.com/v1/square.js",
 };
 
-export const squareEnv = (env = process.env) =>
-  (env.SQUARE_ENV === "production" ? "production" : "sandbox");
+export const squareEnv = (env = process.env) => {
+  if (env.SQUARE_ENV === "production") return "production";
+
+  return env.SQUARE_ENV === FAKE ? FAKE : "sandbox";
+};
+
+// SQUARE_ENV=fake: fake-square.mjs answers instead of Square, in local
+// development only (lib/fake.mjs). Anywhere else it throws, so no
+// order is taken without money.
+// -> true to use the fake; throws SquareError when it is refused.
+export const isFake = (env = process.env) => {
+  if (env.SQUARE_ENV !== FAKE) return false;
+  if (!fakeAllowed(env)) {
+    throw new SquareError(refusal("SQUARE_ENV"), { code: "FAKE_REFUSED" });
+  }
+
+  return true;
+};
 
 // Where the farm opens an order in Square, for the links in its own
 // notices. Nothing when the record has no Square order (a Venmo
@@ -41,7 +61,7 @@ export const squareEnv = (env = process.env) =>
 export const dashboardUrl = (square, env = process.env) => {
   const base = DASHBOARDS[squareEnv(env)];
 
-  if (!square || !square.squareOrderId) return "";
+  if (!base || !square || !square.squareOrderId) return "";
 
   return `${base}/orders/overview/${square.squareOrderId}`;
 };
@@ -64,6 +84,10 @@ export class SquareError extends Error {
 }
 
 export const settings = (env = process.env) => {
+  if (isFake(env)) {
+    throw new SquareError("SQUARE_ENV=fake has no Square to call");
+  }
+
   const missing = ["SQUARE_ACCESS_TOKEN", "SQUARE_LOCATION_ID"]
     .filter((key) => !env[key]);
 
@@ -87,8 +111,24 @@ export const settings = (env = process.env) => {
 };
 
 // What the page needs to load the SDK: public, per deploy context.
-// Null until the application id is set.
-export const clientConfig = (env = process.env) => (env.SQUARE_APPLICATION_ID
+// Null until the application id is set. A fake gets the stub SDK, and
+// null where it is refused, so the page offers no card at all.
+export const clientConfig = (env = process.env) => {
+  if (env.SQUARE_ENV === FAKE) {
+    return fakeAllowed(env)
+      ? {
+        applicationId: env.SQUARE_APPLICATION_ID || "fake-application",
+        locationId: env.SQUARE_LOCATION_ID || "FAKE-LOCATION",
+        env: FAKE,
+        sdkUrl: FAKE_SDK_URLS.square,
+      }
+      : null;
+  }
+
+  return liveConfig(env);
+};
+
+const liveConfig = (env) => (env.SQUARE_APPLICATION_ID
   && env.SQUARE_LOCATION_ID
   ? {
     applicationId: env.SQUARE_APPLICATION_ID,
@@ -355,6 +395,8 @@ export const createOrder = async (order, key, {
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) => {
+  if (isFake(env)) return fake.createOrder(order, key, { env });
+
   const cfg = settings(env);
   const customerId = await findOrCreateCustomer(
     cfg, order.customer, key, fetchImpl
@@ -423,6 +465,8 @@ export const createChangeOrder = async (order, change, key, {
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) => {
+  if (isFake(env)) return fake.createChangeOrder(order, change, key, { env });
+
   const cfg = settings(env);
   const customerId = await findOrCreateCustomer(
     cfg, order.customer, key, fetchImpl
@@ -441,6 +485,8 @@ export const payZeroOrder = async (squareOrderId, key, {
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) => {
+  if (isFake(env)) return fake.payZeroOrder(squareOrderId, key, { env });
+
   const cfg = settings(env);
 
   await call(cfg, `/v2/orders/${squareOrderId}/pay`, {
@@ -481,6 +527,12 @@ export const createPayment = async ({
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) => {
+  if (isFake(env)) {
+    return fake.createPayment({
+      order, squareOrderId, customerId, key, source,
+    }, { env });
+  }
+
   const cfg = settings(env);
   const body = {
     idempotency_key: `${key}-payment`,
@@ -534,6 +586,8 @@ export const updateFulfilment = async (squareOrderId, order, {
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) => {
+  if (isFake(env)) return fake.updateFulfilment(squareOrderId, order, { env });
+
   const cfg = settings(env);
   const current = await currentOrder(cfg, squareOrderId, fetchImpl);
   const existing = (current.fulfillments || [])[0];
@@ -559,6 +613,8 @@ export const cancelFulfilment = async (squareOrderId, {
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) => {
+  if (isFake(env)) return fake.cancelFulfilment(squareOrderId, { env });
+
   const cfg = settings(env);
   const current = await currentOrder(cfg, squareOrderId, fetchImpl);
   const existing = (current.fulfillments || [])[0];
@@ -585,6 +641,8 @@ export const cancelOrder = async (squareOrderId, {
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) => {
+  if (isFake(env)) return fake.cancelOrder(squareOrderId, { env });
+
   const cfg = settings(env);
   const current = await currentOrder(cfg, squareOrderId, fetchImpl);
 
@@ -614,6 +672,12 @@ export const refundPayment = async ({
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) => {
+  if (isFake(env)) {
+    return fake.refundPayment({
+      squarePaymentId, amount, key, reason,
+    }, { env });
+  }
+
   const cfg = settings(env);
   const data = await call(cfg, "/v2/refunds", {
     idempotency_key: `${key}-refund`,
@@ -636,6 +700,8 @@ export const getPayment = async (squarePaymentId, {
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) => {
+  if (isFake(env)) return fake.getPayment(squarePaymentId, { env });
+
   const cfg = settings(env);
   const data = await call(
     cfg, `/v2/payments/${squarePaymentId}`, null, fetchImpl, "GET"
@@ -656,6 +722,8 @@ export const renameCustomerEmail = async (from, to, {
   fetchImpl = globalThis.fetch,
   apply = false,
 } = {}) => {
+  if (isFake(env)) return fake.renameCustomerEmail(from, to, { env, apply });
+
   const cfg = settings(env);
   const found = await call(cfg, "/v2/customers/search", {
     query: { filter: { email_address: { exact: from } } },
