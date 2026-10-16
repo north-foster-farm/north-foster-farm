@@ -1,5 +1,5 @@
 {
- "revision": 5,
+ "revision": 6,
  "updated": "2026-10-16",
  "notice": null,
  "phases": [
@@ -604,6 +604,26 @@
      ]
     },
     {
+     "id": "hc-backup",
+     "title": "Make the Backup check",
+     "body": "Add a check named **Backup**, period **1 day**, grace **2 hours** (the nightly export runs once; two hours covers a slow night). Copy its ping URL below. Leave it assigned to the ntfy integration in the next step, so a missed night reaches your phone.",
+     "minutes": 5,
+     "links": [
+      {
+       "label": "Healthchecks",
+       "url": "https://healthchecks.io/projects/"
+      }
+     ],
+     "fields": [
+      {
+       "id": "hc_prod_backup",
+       "label": "Backup check URL",
+       "secret": true,
+       "placeholder": "https://hc-ping.com/…"
+      }
+     ]
+    },
+    {
      "id": "hc-phone",
      "title": "Send production alerts to your iPhone with ntfy",
      "body": "1. Install **ntfy** from the App Store (free) and subscribe to a new topic. The topic works like a password, so use the long random name below.\n2. In Healthchecks, open **Integrations** and add **ntfy** with the same topic. Leave the server as `https://ntfy.sh` and set \"down\" to high priority.\n3. **New integrations attach to every check.** In the **Assigned Checks** column, click it and untick both staging checks.\n4. Press **Test!** on the ntfy row; your phone should buzz.\n\nIf you'd rather have alerts that repeat until you acknowledge them, Pushover does that for $4.99 once.",
@@ -775,7 +795,7 @@
     {
      "id": "bk-r2",
      "title": "Cloudflare R2: bucket and token",
-     "body": "1. In the Cloudflare dashboard, open **Storage & databases → R2** and complete the checkout to add R2. It may ask for a card; at this size it stays free.\n2. **Create bucket.** Name it like the B2 one, with location hint **Eastern North America (enam)** and the Standard storage class.\n3. In the bucket's **Settings → Object Lifecycle Rules → Add rule**: prefix `daily/`, delete after 30 days; prefix `monthly/`, delete after 365.\n4. On the R2 Overview page, under **Account Details**, choose **Manage** API Tokens, then **Create Account API token**. Choose **Object Read & Write**, limit it to the one bucket, and create. Copy the **Access Key ID**, the **Secret Access Key** (shown once) and the **S3 endpoint**, which looks like `https://<account id>.r2.cloudflarestorage.com`.",
+     "body": "1. In the Cloudflare dashboard, open **Storage & databases → R2** and complete the checkout to add R2. It may ask for a card; at this size it stays free.\n2. **Create bucket.** Name it like the B2 one, with location hint **Eastern North America (enam)** and the Standard storage class.\n3. In the bucket's **Settings → Object Lock**, turn it on and add a lock rule: Compliance mode, 90 days. Nothing can delete or overwrite a copy before then, even with the token below.\n4. In **Object Lifecycle Rules → Add rule**: prefix `daily/`, delete after 30 days; prefix `monthly/`, delete after 365.\n5. On the R2 Overview page, under **Account Details**, choose **Manage** API Tokens, then **Create Account API token**. Choose **Object Read & Write**, limit it to the one bucket, and create. Copy the **Access Key ID**, the **Secret Access Key** (shown once) and the **S3 endpoint**, which looks like `https://<account id>.r2.cloudflarestorage.com`.",
      "minutes": 15,
      "links": [
       {
@@ -1116,7 +1136,6 @@
      "id": "ld-export1",
      "title": "Take a backup just before",
      "minutes": 2,
-     "blocked": "Only if the backup export ships before launch (decision D-EXPORT).",
      "copy": [
       {
        "label": "Command",
@@ -1346,7 +1365,6 @@
      "id": "ld-export2",
      "title": "Take a backup just after",
      "minutes": 2,
-     "blocked": "Only if the backup export ships before launch.",
      "copy": [
       {
        "label": "Command",
@@ -2013,6 +2031,12 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6219560731"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-16",
+     "changed": "The export landed (251c46f): nightly, age-encrypted, to R2, with the Healthchecks alert and a restore rehearsal procedure in docs/backup.md.",
+     "summary": "One open question: R2 has no write-only token, so the export uses a bucket-scoped Read & Write token, with a bucket lock rule stopping deletes and the encryption making a read worthless. Do you accept that in place of the write-only token in the original decision?"
     }
    ]
   },
@@ -2811,6 +2835,17 @@
     }
    },
    {
+    "name": "HEALTHCHECKS_BACKUP_URL",
+    "group": "logs",
+    "comment": "Ping URL of the Backup check; a missed night trips it.",
+    "secret": true,
+    "envs": {
+     "production": {
+      "field": "hc_prod_backup"
+     }
+    }
+   },
+   {
     "name": "BACKUP_AGE_RECIPIENT",
     "group": "backup",
     "comment": "The age public key backups are encrypted to (age1...).",
@@ -2819,8 +2854,7 @@
      "production": {
       "field": "age_pub"
      }
-    },
-    "planned": true
+    }
    },
    {
     "name": "BACKUP_B2_ENDPOINT",
@@ -2879,8 +2913,7 @@
      "production": {
       "field": "r2_endpoint"
      }
-    },
-    "planned": true
+    }
    },
    {
     "name": "BACKUP_R2_BUCKET",
@@ -2891,8 +2924,7 @@
      "production": {
       "field": "r2_bucket"
      }
-    },
-    "planned": true
+    }
    },
    {
     "name": "BACKUP_R2_ACCESS_KEY_ID",
@@ -2903,8 +2935,7 @@
      "production": {
       "field": "r2_key_id"
      }
-    },
-    "planned": true
+    }
    },
    {
     "name": "BACKUP_R2_SECRET_ACCESS_KEY",
@@ -2915,8 +2946,7 @@
      "production": {
       "field": "r2_secret"
      }
-    },
-    "planned": true
+    }
    },
    {
     "name": "STAGING_TOKEN",
