@@ -50,25 +50,63 @@ export const GUIDE = {
     action: "If the site is up, look at the log for the same minute. If " +
       "many arrive, check Netlify status.",
   },
+  "order.edit_failed": {
+    means: "A customer's change to a paid order failed for a reason " +
+      "other than a decline: Square or PayPal would not take or refund " +
+      "the difference, or the record could not be written. The customer " +
+      "was told to try again in a minute. The edit's key was written " +
+      "first, so a retry finishes the same edit and never charges or " +
+      "refunds twice.",
+    action: "Check Square or PayPal status and the log (event " +
+      "order.edit_failed; the detail is the processor's answer). " +
+      "bin/nff orders show <id> shows whether the edit is still pending. " +
+      "If the customer does not retry, finish or undo it with them.",
+  },
   "mail.failed": {
-    means: "A customer or farm email could not be sent. The order and " +
-      "its record are fine; the email is not.",
+    means: "An email could not be sent: to a customer or the farm about " +
+      "an order, or a contact-form message to the farm. Any order and " +
+      "its record are fine; the email is not. A contact message is kept " +
+      "(messages/<id> in the customers store), and its writer was told " +
+      "it did not send.",
     action: "Check Resend status and the daily quota (100 on the free " +
-      "plan). The failing send is logged with the template name and " +
-      "order id; resend with bin/nff or from the order page once mail " +
-      "works.",
+      "plan). The failing send is logged with the template name and the " +
+      "order or message id. Resend an order's email with bin/nff or from " +
+      "the order page once mail works; for a contact message, write back " +
+      "to its sender.",
   },
   "square.record_failed": {
     means: "A Venmo payment was captured but its Square order and " +
-      "external tender could not be made. The order is recorded and " +
-      "the customer is fine; the Square dashboard does not show it yet.",
-    action: "The jobs try again every run (squareSynced in the report). " +
-      "If square.missing shows up in the invariants a day later, check " +
-      "SQUARE_ACCESS_TOKEN and Square status.",
+      "external tender could not be made: for a new order, or for the " +
+      "difference a customer paid by Venmo when changing one. The order " +
+      "is recorded and the customer is fine; the Square dashboard does " +
+      "not show that payment yet.",
+    action: "For a new order the jobs try again every run (squareSynced " +
+      "in the report); if square.missing shows up in the invariants a " +
+      "day later, check SQUARE_ACCESS_TOKEN and Square status. For a " +
+      "change, nothing retries: record the difference in Square by hand.",
+  },
+  "square.edit_failed": {
+    means: "A customer's change to a paid order went through and is " +
+      "recorded, but Square's fulfilment could not follow it, so what " +
+      "Square shows to pack or where is out of date. The order is " +
+      "flagged squareOutOfSync.",
+    action: "Pack from bin/nff orders show <id>, not from Square. Check " +
+      "Square status and the log (event square.update_failed), then fix " +
+      "the fulfilment in the Square dashboard by hand.",
+  },
+  "square.refund_failed": {
+    means: "A refund made in PayPal could not be repeated on the Square " +
+      "copy of the Venmo payment. The customer has the money back and " +
+      "the order records the refund; only Square's books disagree.",
+    action: "In the Square dashboard, refund the same amount on that " +
+      "Venmo payment so Square agrees with PayPal. Its tender is " +
+      "external, so no money moves. The alert names the order and the " +
+      "PayPal refund.",
   },
   "venmo.amount_mismatch": {
-    means: "PayPal captured a different amount than the order's total. " +
-      "The order is recorded as paid all the same.",
+    means: "PayPal captured a different amount than was asked: the " +
+      "order's total, or for a change to an order, the difference. The " +
+      "order is recorded as paid all the same.",
     action: "bin/nff orders show <id>, compare with the capture in " +
       "PayPal, and refund or charge the difference by hand.",
   },

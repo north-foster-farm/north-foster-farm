@@ -20,7 +20,7 @@ export const JOBS_STALE_AFTER = 45 * MINUTE;
 export const MAIL_FAILURES_FOR_ALARM = 3;
 
 // Beacons the order page may send, and the alert kind each becomes.
-const BEACONS = {
+export const BEACONS = {
   "checkout.failed": "client.checkout_failed",
 };
 
