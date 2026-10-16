@@ -51,5 +51,5 @@ at level A. The site has not been formally assessed.
 ## Feedback
 
 Tell us about any barrier you meet on this site: email
-{{% company "email" %}}, call or text {{% company "phone" %}}, or use
+{{% company "email-info" %}}, call or text {{% company "phone" %}}, or use
 [the contact page](/contact/).

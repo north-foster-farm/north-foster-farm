@@ -30,18 +30,22 @@ is the list of names the code reads; this is what to do with them.
 - **Write it down.** Note each rotation, its date and its reason in
   the issue that asked for it, or in a new one.
 
-## When to rotate
+## Incident response
 
-- **At once** on a leak, a lost laptop, or someone with access
-  leaving. Each section below says what counts as access.
-- **The Netlify personal access token** expires on Jan 1 and is
-  rotated every Jan 1 (decided 2026-10-16).
-- **Every other secret** every six months, on Jan 1 and Jul 1, or
-  yearly on Jan 1 if D-ROT says so. (Update this line once James
-  decides D-ROT in the launch guide.)
-- **Ping URLs, ids and the build hook** only on a leak.
+**Rotate the secret at once** on a suspected leak, a lost laptop, or
+someone with access leaving. Each section below says what counts as
+access for that secret. Do this before anything else; the schedule
+below is not a substitute for it.
 
-"On the schedule" below means this list.
+## Schedule
+
+- **Every secret rotates yearly, on January 1** (decided 2026-10-16;
+  replaces the six-month rule). The Netlify personal access token
+  already rotates every Jan 1.
+- **Ping URLs, ids and the build hook** rotate only on a leak, never
+  on the schedule.
+
+"On the schedule" below means January 1 each year.
 
 ## Where they live
 

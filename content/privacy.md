@@ -175,9 +175,9 @@ assets.
 When you're signed in, your account page lets you see your orders, change
 your name, phone number, address and email settings, and delete your details.
 
-You may email {{% company "email" %}} to request access to, changes
-to, or deletion of your information. Square and PayPal keep their own records of
-your payments under their own policies.
+You may email {{% company "email-info" %}} to request access to,
+changes to, or deletion of your information. Square and PayPal keep
+their own records of your payments under their own policies.
 
 We may delete your information at any time and for any reason, such as
 technical needs, legal concerns, or data loss.
@@ -189,6 +189,6 @@ By using our website, you consent to our privacy policy.
 ## Contacting us
 
 If you have questions regarding this privacy policy, you may email
-{{% company "email" %}}.
+{{% company "email-info" %}}.
 
 Last updated October 16, 2026.
