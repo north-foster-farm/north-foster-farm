@@ -272,6 +272,22 @@ for the reason (often a card that has closed). Refund again with
 `bin/nff orders refund <id>`, or pay the customer another way and
 tell them.
 
+**`webhook.rejected`.** Square, PayPal or Resend sent a webhook this
+site refused: its secret is not set here (`unconfigured`), its
+timestamp is too old (`stale`, Resend only), or it was signed and the
+signature did not verify (`mismatch`). Scanners send no signature, so
+a signed delivery that fails means a wrong secret, and the refunds,
+payment updates or unsubscribes it carried were dropped. An
+`unsigned` POST is only logged. Check the provider's secret on
+Netlify for this context: Square, `SQUARE_WEBHOOK_SIGNATURE_KEY` (and
+`SQUARE_WEBHOOK_URL`, the URL Square signs with); PayPal,
+`PAYPAL_WEBHOOK_ID` and the client id and secret; Resend,
+`RESEND_WEBHOOK_SECRET`. Compare it with the provider's webhook
+settings, set it, redeploy, then resend a test event from the
+provider. The log (`event: webhook.rejected`) has every refusal, with
+the provider, the reason, the body's size and the delivery id, never
+the body.
+
 **`pickup.lapsed`.** A Venmo payment approved on the order page was
 finished by the jobs after its pickup time had left the schedule
 (W11d). The order is paid and booked for that time. Keep the time if
@@ -362,14 +378,14 @@ before) and ships the invocation's lines to Axiom when it returns,
 with a 1.5-second cap; a failure to ship is swallowed. Query by
 `event` (`order.paid`, `payment.declined`, `order.failed`,
 `mail.failed`, `square.webhook`, `paypal.webhook`, `resend.webhook`,
-`jobs.run`, `alert`, `health.checked`, ...), by `id` for one order, or by
-`level: error`. The jobs run's full report is one `jobs.run` line
-every 15 minutes, so "when did it start" is a query for the first run
-whose `errors` is not empty. Deploy id and context ride on every
-line. Every function is wrapped in `withLog(name, handler)`, so an
-exception no handler caught is one `function.crashed` line with the
-function's name and the top of its stack, and an alert, before
-Netlify answers 500 as it always did.
+`webhook.rejected`, `jobs.run`, `alert`, `health.checked`, ...), by
+`id` for one order, or by `level: error`. The jobs run's full report
+is one `jobs.run` line every 15 minutes, so "when did it start" is a
+query for the first run whose `errors` is not empty. Deploy id and
+context ride on every line. Every function is wrapped in
+`withLog(name, handler)`, so an exception no handler caught is one
+`function.crashed` line with the function's name and the top of its
+stack, and an alert, before Netlify answers 500 as it always did.
 
 ## What is deliberately not here
 

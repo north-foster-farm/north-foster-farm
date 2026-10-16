@@ -605,25 +605,37 @@ describe("POST /api/paypal/webhook", () => {
       supplementary_data: { related_ids: { order_id: paypalOrderId } },
     }
   );
+  // Signed, to a context that can check it: `verify` stands in for
+  // PayPal's answer.
   const post = (body) => new Request("http://x/api/paypal/webhook", {
-    method: "POST", headers: { "Content-Type": "application/json" }, body,
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json", "paypal-transmission-sig": "sig",
+    },
+    body,
   });
+  const HOOK = {
+    PAYPAL_CLIENT_ID: "id", PAYPAL_CLIENT_SECRET: "s",
+    PAYPAL_WEBHOOK_ID: "WH",
+  };
   const yes = async () => true;
 
   it("refuses an unverified delivery and a bad body", async () => {
     const stores = testStores();
     const no = await webhook(post(completed()), {
-      stores, verify: async () => false, now,
+      stores, verify: async () => false, now, env: HOOK, mail: async () => {},
     });
 
     assert.equal(no.status, 401);
 
-    const bad = await webhook(post("{nope"), { stores, verify: yes, now });
+    const bad = await webhook(post("{nope"), {
+      stores, verify: yes, now, env: HOOK,
+    });
 
     assert.equal(bad.status, 400);
 
     const odd = await webhook(post(JSON.stringify({ x: 1 })), {
-      stores, verify: yes, now,
+      stores, verify: yes, now, env: HOOK,
     });
 
     assert.equal(odd.status, 400);
@@ -639,7 +651,7 @@ describe("POST /api/paypal/webhook", () => {
       await startVenmo(stores, order(), { key: KEY }, options);
 
       const res = await webhook(post(completed()), {
-        stores, verify: yes, now, env: {},
+        stores, verify: yes, now, env: HOOK,
       });
 
       assert.equal(res.status, 200);
@@ -656,7 +668,7 @@ describe("POST /api/paypal/webhook", () => {
         key: KEY, paypalOrderId: "PPO",
       }, options);
       const again = await webhook(post(completed()), {
-        stores, verify: yes, now, env: {},
+        stores, verify: yes, now, env: HOOK,
       });
 
       assert.deepEqual(await again.json(), {
@@ -733,7 +745,7 @@ describe("POST /api/paypal/webhook", () => {
     await venmoPaid(stores);
 
     const res = await webhook(post(refundEvent()), {
-      stores, verify: yes, now, square, env: {},
+      stores, verify: yes, now, square, env: HOOK,
     });
 
     assert.deepEqual(await res.json(), { handled: true, id: "NFF-2610-ABCD" });
@@ -751,7 +763,7 @@ describe("POST /api/paypal/webhook", () => {
     ]);
 
     const again = await webhook(post(refundEvent()), {
-      stores, verify: yes, now, square, env: {},
+      stores, verify: yes, now, square, env: HOOK,
     });
 
     assert.deepEqual(await again.json(), {
@@ -814,7 +826,7 @@ describe("POST /api/paypal/webhook", () => {
     }), now);
 
     const out = await applyEvent(early, JSON.parse(refundEvent()), {
-      now, square: none.square, env: {},
+      now, square: none.square, env: HOOK,
     });
 
     assert.deepEqual(out, { handled: true, id: "NFF-2610-ABCD" });

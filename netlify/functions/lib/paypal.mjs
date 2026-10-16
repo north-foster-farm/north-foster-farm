@@ -372,7 +372,15 @@ export const refundCapture = async ({
 };
 
 // PayPal signs each webhook delivery; the verification is a call back
-// to PayPal with the headers and the body as received. -> true/false.
+// to PayPal with the headers and the body as received. A delivery
+// with no signature is refused before any call, so a scanner's POST
+// costs PayPal nothing. -> true/false.
+export const SIGNATURE_HEADER = "paypal-transmission-sig";
+
+// Whether this context can check a delivery at all.
+export const webhookConfigured = (env = process.env) =>
+  configured(env) && (isFake(env) || !!env.PAYPAL_WEBHOOK_ID);
+
 export const verifyWebhook = async (headers, body, {
   env = process.env,
   fetchImpl = globalThis.fetch,
@@ -382,7 +390,7 @@ export const verifyWebhook = async (headers, body, {
 
   const cfg = settings(env);
 
-  if (!cfg.webhookId) return false;
+  if (!cfg.webhookId || !headers.get(SIGNATURE_HEADER)) return false;
 
   const get = (name) => headers.get(name) || "";
   let event;

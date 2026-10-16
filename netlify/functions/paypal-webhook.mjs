@@ -14,18 +14,22 @@
 //                               repeated on Square's copy.
 //
 // PayPal retries on anything but a 2xx, so an event about a payment
-// this site knows nothing of answers 200.
+// this site knows nothing of answers 200. A refused delivery is logged
+// and may alert (lib/webhooks.mjs).
 
 import { alert, mark } from "./lib/health.mjs";
 import { json } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
-import { verifyWebhook } from "./lib/paypal.mjs";
+import {
+  SIGNATURE_HEADER, verifyWebhook, webhookConfigured,
+} from "./lib/paypal.mjs";
 import { recordRefund } from "./lib/payments.mjs";
 import {
   checkoutByPayPal, orderByPayment, paymentsOf, refundsOf,
 } from "./lib/records.mjs";
 import * as squareApi from "./lib/square.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
+import { rejected } from "./lib/webhooks.mjs";
 
 const cents = (amount) => (amount && amount.value
   ? Math.round(Number(amount.value) * 100)
@@ -140,6 +144,18 @@ export const applyEvent = async (stores, event, options = {}) => {
   return { handled: false, reason: "ignored" };
 };
 
+// -> null when PayPal vouches for the delivery, or why it is refused
+// (lib/webhooks.mjs). The cheap checks first, so neither a scanner's
+// unsigned POST nor an unset secret costs a call to PayPal.
+export const rejection = async (headers, body, {
+  env = process.env, verify = verifyWebhook, ...options
+} = {}) => {
+  if (!headers.get(SIGNATURE_HEADER)) return "unsigned";
+  if (!webhookConfigured(env)) return "unconfigured";
+
+  return await verify(headers, body, { env, ...options }) ? null : "mismatch";
+};
+
 export const handle = async (req, {
   stores = defaultStores(),
   env = process.env,
@@ -149,9 +165,15 @@ export const handle = async (req, {
   ...options
 } = {}) => {
   const body = await req.text();
+  const reason = await rejection(req.headers, body, {
+    env, verify, fetchImpl, now,
+  });
 
-  if (!await verify(req.headers, body, { env, fetchImpl, now })) {
-    return json(401, { error: "Bad signature." });
+  if (reason) {
+    return rejected(stores, {
+      provider: "paypal", reason, body,
+      id: req.headers.get("paypal-transmission-id"),
+    }, { env, now, mail: options.mail, fetchImpl });
   }
 
   let event;

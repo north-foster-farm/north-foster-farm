@@ -11,7 +11,8 @@
 // One Resend account serves every environment, so each receives every
 // contact event; one outside this deploy's RESEND_AUDIENCE_ID is
 // ignored. Resend retries on anything but a 2xx, so an ignored event
-// answers 200.
+// answers 200. A refused delivery is logged and may alert
+// (lib/webhooks.mjs).
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
@@ -20,14 +21,16 @@ import { json } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { resendLeft } from "./lib/news.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
+import { rejected } from "./lib/webhooks.mjs";
 
 // Svix's own tolerance for a delivery's timestamp, either way.
 export const TOLERANCE = 5 * 60 * 1000;
 
 // The Svix signature: HMAC-SHA256 of "<id>.<timestamp>.<body>" under
 // the secret's base64 key, one or more "v1,<base64>" in the header.
-// -> true when one matches and the timestamp is fresh.
-export const verifyWebhook = (headers, body, {
+// -> null when one matches and the timestamp is fresh, or why the
+// delivery is refused (lib/webhooks.mjs).
+export const rejection = (headers, body, {
   env = process.env, now = new Date(),
 } = {}) => {
   const secret = env.RESEND_WEBHOOK_SECRET || "";
@@ -35,12 +38,13 @@ export const verifyWebhook = (headers, body, {
   const timestamp = headers.get("svix-timestamp");
   const signatures = headers.get("svix-signature");
 
-  if (!secret || !id || !timestamp || !signatures) return false;
+  if (!id || !timestamp || !signatures) return "unsigned";
+  if (!secret) return "unconfigured";
 
   const seconds = Number(timestamp);
 
   if (!Number.isFinite(seconds)
-    || Math.abs(now.getTime() - seconds * 1000) > TOLERANCE) return false;
+    || Math.abs(now.getTime() - seconds * 1000) > TOLERANCE) return "stale";
 
   const key = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
   const expected = createHmac("sha256", key)
@@ -52,8 +56,12 @@ export const verifyWebhook = (headers, body, {
 
     return version === "v1" && given.length === expected.length
       && timingSafeEqual(given, expected);
-  });
+  }) ? null : "mismatch";
 };
+
+// -> true when the delivery is Resend's.
+export const verifyWebhook = (headers, body, options) =>
+  rejection(headers, body, options) === null;
 
 const inAudience = (contact, env) => {
   const id = env.RESEND_AUDIENCE_ID;
@@ -90,12 +98,17 @@ export const handle = async (req, {
   stores = defaultStores(),
   env = process.env,
   now = new Date(),
-  verify = verifyWebhook,
+  check = rejection,
+  mail,
+  fetchImpl,
 } = {}) => {
   const body = await req.text();
+  const reason = check(req.headers, body, { env, now });
 
-  if (!verify(req.headers, body, { env, now })) {
-    return json(401, { error: "Bad signature." });
+  if (reason) {
+    return rejected(stores, {
+      provider: "resend", reason, body, id: req.headers.get("svix-id"),
+    }, { env, now, mail, fetchImpl });
   }
 
   let event;

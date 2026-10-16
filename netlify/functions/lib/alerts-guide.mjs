@@ -119,6 +119,22 @@ export const GUIDE = {
       "that has closed). Refund again with bin/nff orders refund <id>, " +
       "or pay the customer another way and tell them.",
   },
+  "webhook.rejected": {
+    means: "Square, PayPal or Resend sent a webhook this site refused: " +
+      "its secret is not set here (unconfigured), its timestamp is too " +
+      "old (stale, Resend only), or it was signed and the signature did " +
+      "not verify (mismatch). Scanners send no signature, so a signed " +
+      "delivery that fails means a wrong secret, and the refunds, " +
+      "payment updates or unsubscribes it carried were dropped. An " +
+      "unsigned POST is only logged.",
+    action: "Check the provider's secret on Netlify for this context: " +
+      "Square, SQUARE_WEBHOOK_SIGNATURE_KEY (and SQUARE_WEBHOOK_URL, the " +
+      "URL Square signs with); PayPal, PAYPAL_WEBHOOK_ID and the client " +
+      "id and secret; Resend, RESEND_WEBHOOK_SECRET. Compare it with the " +
+      "provider's webhook settings, set it, redeploy, then resend a " +
+      "test event from the provider. The log (event webhook.rejected) " +
+      "has every refusal.",
+  },
   "pickup.lapsed": {
     means: "A Venmo payment approved on the order page was finished by " +
       "the jobs after its pickup time had left the schedule. The order " +
