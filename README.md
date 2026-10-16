@@ -57,6 +57,30 @@ ln -sf .env.development .env
 --production` and `bin/nff --staging` read their own file and never
 `.env`, so reaching production takes the flag, not a relink.
 
+Development needs no `PICKUP_SCHEDULE`: `bin/nff`, `npm test` and
+`npm run start:functions` make one up when `.env` has none.
+
+Netlify's variables come from the tracked samples
+(`.env.production.sample`, `.env.staging.sample`) and the filled-in
+file beside each:
+
+```bash
+bin/nff env push --staging    # one env:set per key; never deletes
+bin/nff env check --staging   # sample, file and Netlify agree, by name
+```
+
+`push` sets every key the sample lists except those marked
+`# Local only:`, a key left empty in the sample as a secret, and reads
+the rest back. `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` and
+`RESEND_LOOKUP_KEY` are never pushed. `push` refuses, with nothing
+set, when a sample secret is a plain variable on Netlify: `env:set`
+can't convert it, so mark it secret in the Netlify UI or unset it
+first. `check` also fails on a value attached to `all` or to every
+branch deploy, or kept out of the builds scope, and prints names
+only. Every Netlify build runs `npm run check:env`, which fails when a
+key the context's sample lists is missing; a layout slip in the
+sample only warns.
+
 ## Checks
 
 ```bash

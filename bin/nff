@@ -13,6 +13,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadEnv } from "../netlify/functions/lib/env.mjs";
+import { devSchedule } from "./dev-schedule.mjs";
+import {
+  TARGETS, checkEnv, planPush, preflight, pushEnv, redact, remoteFor,
+  remoteVars,
+} from "./env/netlify.mjs";
+import { readSample, readValues, sampleFile } from "./env/sample.mjs";
 import { setSchedule } from "./schedule-env.mjs";
 
 const USAGE = `Usage:
@@ -71,6 +77,16 @@ const USAGE = `Usage:
                                       Netlify, and start a deploy with
                                       PICKUP_SCHEDULE_HOOK if the env
                                       file has one
+  bin/nff env push --staging|--production
+                                      set each key of .env.staging or
+                                      .env.production that the tracked
+                                      sample lists on Netlify, secrets as
+                                      secret, and read the rest back.
+                                      Never deletes; skips local-only keys
+  bin/nff env check --staging|--production
+                                      the sample, the env file and
+                                      Netlify, compared by name; fails on
+                                      a difference or a shared value
   bin/nff jobs run
   bin/nff jobs history [--n=20]       the last runs: errors, invariants
   bin/nff health                      what /api/health would answer
@@ -108,6 +124,12 @@ const context = Object.keys(CONTEXTS)
   .find((name) => process.argv.includes(`--${name}`)) || null;
 
 loadEnv(join(root, context ? `.env.${context}` : ".env"));
+
+// Development's pickup schedule is made up, from today (#264), so
+// .env needs none; a context's comes from `schedule set`.
+if (!context && !process.env.PICKUP_SCHEDULE) {
+  process.env.PICKUP_SCHEDULE = devSchedule();
+}
 
 const [
   { default: terms },
@@ -315,7 +337,125 @@ const mailLookup = async () => {
   return rows.length ? undefined : out("No emails.");
 };
 
+// The env file and its tracked sample, for env push and env check
+// (#264). Values stay in memory; every line printed names keys only.
+const envFiles = () => {
+  if (!["production", "staging"].includes(context)) {
+    throw new Error("Say which: --staging or --production.");
+  }
+
+  const file = `.env.${context}`;
+  const read = (name) => {
+    try {
+      return readFileSync(join(root, name), "utf8");
+    } catch {
+      throw new Error(`No ${name} in ${root}.`);
+    }
+  };
+
+  return {
+    file,
+    sample: readSample(read(sampleFile(context)), context),
+    local: readValues(read(file)),
+  };
+};
+
+// The Netlify CLI for env commands: its output is kept, and an error
+// shows it with every value blanked.
+const envNetlify = (values) => (args) => new Promise((resolve, reject) => {
+  const child = spawn("npx", ["netlify", ...args], {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: process.env,
+  });
+  let stdout = "";
+  let stderr = "";
+
+  child.stdout.on("data", (chunk) => { stdout += chunk; });
+  child.stderr.on("data", (chunk) => { stderr += chunk; });
+  child.on("error", reject);
+  child.on("close", (code) => (code === 0 ? resolve(stdout)
+    : reject(new Error(`netlify ${args[0]} ${args[1] || ""} failed (${
+      code}):\n${redact(`${stderr}${stdout}`, values).trim()}`))));
+});
+
+const envCommand = async () => {
+  const { file, sample, local } = envFiles();
+  const { context: target } = TARGETS[context];
+  const cli = envNetlify([...local.values.values()]);
+  const site = local.values.get("NETLIFY_SITE_ID")
+    || process.env.NETLIFY_SITE_ID;
+
+  if (!site) throw new Error(`No NETLIFY_SITE_ID in ${file}. Nothing done.`);
+
+  if (action === "push") {
+    const plan = planPush(sample, local, file);
+    const errors = plan.errors.length ? plan.errors
+      : preflight(plan, await remoteVars(cli, site));
+
+    if (errors.length) {
+      throw new Error(`Nothing set. Fix these first:\n  ${
+        errors.join("\n  ")}`);
+    }
+
+    const pushed = await pushEnv(cli, plan, target, site);
+
+    out(`Set ${pushed.set.length} keys on ${target} of site ${site}${
+      plan.skipped.length ? `; skipped ${plan.skipped.join(", ")}` : ""}.`);
+    if (pushed.error) {
+      const { name, message } = pushed.error;
+      const took = pushed.set.filter((n) => n !== name);
+
+      throw new Error(`Stopped at ${name}: ${message.startsWith("set, but")
+        ? message : `failed: ${message}`}\nSet: ${
+        took.join(", ") || "none"}.\n${
+        pushed.failed.length ? `Didn't read back: ${
+          pushed.failed.join(", ")}.\n` : ""}Not tried: ${
+        pushed.untried.join(", ") || "none"}. Push again once it's fixed.`);
+    }
+    if (pushed.failed.length) {
+      throw new Error(`These didn't read back: ${pushed.failed.join(", ")}.`);
+    }
+
+    // Secrets can't be read back: confirm them by name.
+    const remote = remoteFor(await remoteVars(cli, site), context);
+    const absent = plan.sets.filter((s) => s.secret && !remote.has(s.name))
+      .map((s) => s.name);
+
+    if (absent.length) {
+      throw new Error(`These secrets aren't on ${target}: ${
+        absent.join(", ")}.`);
+    }
+
+    return out("Every value read back, and every secret is there by name. " +
+      "Now `bin/nff env check` and a deploy.");
+  }
+
+  if (action === "check") {
+    const remote = remoteFor(await remoteVars(cli, site), context);
+    const { problems, unset } = checkEnv({
+      env: context, sample, local, remote, file,
+    });
+
+    if (!problems.length) {
+      return out(`${sampleFile(context)}, ${file} and ${target} agree on ${
+        sample.keys.length} keys, none shared.`);
+    }
+    for (const p of problems) console.error(`  ${p}`);
+    if (unset.length) {
+      console.error("Push never deletes. To clear those names, run:");
+      for (const u of unset) console.error(`  ${u}`);
+    }
+    throw new Error(`Env check: ${problems.length} problem${
+      problems.length === 1 ? "" : "s"}.`);
+  }
+
+  console.error(USAGE);
+
+  return process.exit(1);
+};
+
 const run = async () => {
+  if (group === "env") return envCommand();
   if (group === "library") return libraryReview();
   if (group === "mail") return mailLookup();
   if (group === "login" && action) return signIn(action, false);
