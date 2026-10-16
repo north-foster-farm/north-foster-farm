@@ -1,5 +1,5 @@
 {
- "revision": 2,
+ "revision": 3,
  "updated": "2026-10-16",
  "notice": null,
  "phases": [
@@ -631,9 +631,9 @@
     {
      "id": "hc-proof",
      "title": "Prove every alert reaches the phone (#248)",
-     "body": "Run each and watch your phone:\n1. `bin/nff --production alert test`: a push within a minute, and an email to the farm.\n2. Run it again straight away: it must push **again** (the fix in #248).\n3. `bin/nff --staging alert test`: **no** push.\n4. Ask Claude to force one failed deploy on staging: the deploy-failed notification pages you.",
+     "body": "Run each and watch your phone:\n1. `bin/nff --production alert test`: a push within a minute, and an email to the farm.\n2. Run it again straight away: it must push **again** (the fix in #248).\n3. `bin/nff --staging alert test`: **no** push.\n4. Ask Claude to force one failed deploy on staging: the deploy-failed email reaches you (D-NOTIFY).",
      "minutes": 10,
-     "blocked": "Waits on agents: `bin/nff alert test` (#248) and the new env files.",
+     "blocked": "Do this after the env push step: the alert test reads the new values. `bin/nff alert test` exists (c9e4de8).",
      "copy": [
       {
        "label": "Production test",
@@ -818,7 +818,7 @@
     {
      "id": "nf-pat",
      "title": "Make a new Netlify token that expires Jan 1, 2027",
-     "body": "Open **Applications → Personal access tokens → New access token**. Name it \"NFF bin/nff 2026\" and set **Expiration** to January 1, 2027. If only fixed choices are offered, take the nearest one that ends *before* Jan 1. Generate it and copy it.\n\nAlso copy the **Project ID** from Project configuration → General.\n\nRevoke your old token only after the new env files work (the Env files section).",
+     "body": "Open **Applications → Personal access tokens → New access token**. Name it \"NFF bin/nff 2026\" and set **Expiration** to January 1, 2027. If only fixed choices are offered, take the nearest one that ends *before* Jan 1. Generate it and copy it.\n\nAlso copy the **Project ID** from Project configuration → General.\n\nRevoke your old token only after the new env files work (the Env files section).\n\nFor staging's pickup schedule, copy `PICKUP_SCHEDULE_HOOK` from your current `.env.staging` if it has one. Otherwise open **Project configuration → Build & deploy → Build hooks → Add build hook**, name it \"staging schedule\", choose the `staging` branch, and copy its URL. Production gets none, on purpose.",
      "minutes": 5,
      "links": [
       {
@@ -841,24 +841,29 @@
        "id": "nf_site",
        "label": "Project ID (site ID)",
        "secret": false
+      },
+      {
+       "id": "stg_hook",
+       "label": "Staging build hook URL (PICKUP_SCHEDULE_HOOK)",
+       "secret": true,
+       "save": "Anyone with it can start builds. Also in your password manager, in the **NFF launch** folder.",
+       "placeholder": "https://api.netlify.com/build_hooks/…"
       }
      ]
     },
     {
      "id": "nf-notify",
-     "title": "Page your phone when a deploy fails",
-     "body": "Open **Project configuration → Notifications → Deploy notifications → Add notification → HTTP POST request**. Event: **Deploy failed**. URL: your *production alerts* check URL with `/fail` on the end. Save.",
+     "title": "Email yourself when a deploy fails",
+     "body": "Open **Project configuration → Notifications → Deploy notifications → Add notification → Email notification**. Event: **Deploy failed**. Your address. Save. Add no HTTP POST and no success notice.\n\nNetlify can't limit notifications to production, so a staging failure emails you too; a phone page for every staging failure would be noise. A small function that filters for production and pages you is optional, after launch.\n\n**Pending your decision (D-NOTIFY):** if you'd rather have the phone page now, say \"push now\" there.",
      "minutes": 5,
      "links": [
       {
        "label": "Deploy notifications",
        "url": "https://app.netlify.com/projects/north-foster-farm/configuration/notifications#deploy-notifications"
-      }
-     ],
-     "copy": [
+      },
       {
-       "label": "URL to notify (your production alerts URL + /fail)",
-       "value": "{hc_prod_alert}/fail"
+       "label": "#248, the proposal",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/248#issuecomment-6212825847"
       }
      ]
     },
@@ -880,13 +885,16 @@
     {
      "id": "gh-rules",
      "title": "Protect the staging and main branches",
-     "body": "This makes GitHub refuse any push to `staging` or `main` whose commit hasn't passed the tests. Releases stay a fast-forward of a commit already checked.\n1. Open the repository's **Settings → Rules → Rulesets → New ruleset → New branch ruleset**.\n2. Name it \"staging and main\", and set Enforcement status to **Active**.\n3. Leave the **Bypass list** empty. The agents push as you, so a bypass for admins would let them skip the check.\n4. **Target branches:** add `staging` and `main` by pattern.\n5. Tick **Restrict deletions** and **Block force pushes**.\n6. Tick **Require status checks to pass**, add `lint-and-test`, and leave \"up to date before merging\" off.\n7. Leave **Require a pull request** off: promotion is a fast-forward push, not a pull request.\n8. Create.\n\nLeave `next` unprotected, so lanes keep landing work. An emergency revert on `main` now goes through the tests first; `docs/rollback.md` will say so.",
+     "body": "**First, finish the rollback drill's part B, including B5.** Part B force-pushes `staging`, which these rules refuse once they're on (`docs/rollback.md`, PR #245). The `lint-and-test` check exists and has run on `next` (160452a).\n\nThis makes GitHub refuse any push to `staging` or `main` whose commit hasn't passed the tests. Releases stay a fast-forward of a commit already checked.\n1. Open the repository's **Settings → Rules → Rulesets → New ruleset → New branch ruleset**.\n2. Name it \"staging and main\", and set Enforcement status to **Active**.\n3. Leave the **Bypass list** empty, so administrators are included and nobody bypasses. The agents push as you, so a bypass for admins would let them skip the check.\n4. **Target branches:** add `staging` and `main` by pattern.\n5. **On:** Restrict deletions, Block force pushes, Require linear history.\n6. **On:** Require status checks to pass. Add `lint-and-test` with source **GitHub Actions**, and leave \"Require branches to be up to date before merging\" **off**.\n7. **Off:** Require a pull request before merging. Promotion is a fast-forward push, not a pull request.\n8. Create.\n\nLeave `next` unprotected, so lanes keep landing work. An emergency revert on `main` now goes through the tests first; `docs/rollback.md` says so.",
      "minutes": 10,
-     "blocked": "Waits on agents: the new lint-and-test check (#263) must have run once, and the rollback drill's part B must be done first.",
      "links": [
       {
        "label": "Rulesets",
        "url": "https://github.com/north-foster-farm/north-foster-farm/settings/rules"
+      },
+      {
+       "label": "docs/rollback.md (PR #245)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/docs/rollback-and-secrets/docs/rollback.md"
       }
      ]
     }
@@ -919,9 +927,8 @@
     {
      "id": "env-push",
      "title": "Send the staging and production values to Netlify",
-     "body": "In the project folder, push first, then check:\n```\nbin/nff env push --staging\nbin/nff env check --staging\nbin/nff env push --production\nbin/nff env check --production\n```\n`push` sets each value on its own context and marks secrets as secret. It skips local-only keys and never deletes anything. `check` lists, by name only, anything that still differs. Production's values match what it has today, so nothing changes for the live site.\n\n**Then, in the same sitting, for the staging token:** put the new value in GitHub (**Settings → Secrets and variables → Actions → STAGING_TOKEN → Update**), and ask Claude to rebuild staging. Until all three match, the staging jobs workflow fails.",
+     "body": "In the project folder, in this order:\n```\nbin/nff env push --staging\nbin/nff env check --staging\nnetlify env:unset STAGING_TOKEN --context production\nbin/nff env push --production\nbin/nff env check --production\n```\nThen ask Claude to deploy each context, staging and production.\n- **Push a context before its sample reaches a build there.** Every staging and production build first checks that each key its committed sample lists is set, so a sample that lands before its push fails that context's next build.\n- `push` sets each key the sample lists, marks secrets as secret, skips local-only keys and never deletes anything. If it refuses because a secret is a plain variable on Netlify, mark that key secret in the Netlify UI, or run the `env:unset` commands it prints, then push again.\n- `check` lists, by name only, anything that still differs. The `env:unset` lines it prints are yours to run; push never deletes.\n\nProduction's values match what it has today, so nothing changes for the live site.\n\n**Then, in the same sitting, for the staging token:** put the new value in GitHub (**Settings → Secrets and variables → Actions → STAGING_TOKEN → Update**), and ask Claude to rebuild staging. Until all three match, the staging jobs workflow fails.",
      "minutes": 15,
-     "blocked": "Waits on agents: `bin/nff env push` and `env check` (#264).",
      "links": [
       {
        "label": "GitHub Actions secrets",
@@ -932,6 +939,10 @@
       {
        "label": "Staging",
        "value": "bin/nff env push --staging && bin/nff env check --staging"
+      },
+      {
+       "label": "Remove production's empty STAGING_TOKEN",
+       "value": "netlify env:unset STAGING_TOKEN --context production"
       },
       {
        "label": "Production",
@@ -949,7 +960,7 @@
     {
      "id": "env-clean",
      "title": "Retire the old shared credentials",
-     "body": "Once staging runs on its new values:\n- **Square:** delete the old shared sandbox webhook subscription. Keep the old app only if production uses it.\n- **PayPal:** delete the old shared sandbox app.\n- **Axiom and Healthchecks:** delete the token and checks staging used to share.\n- **Resend:** delete the keys previews and staging used to share, but **not** production's `RESEND_READ_KEY` or its key at Resend. The live site reads it until P9, a week after launch.\n- **Netlify:** delete the empty `STAGING_TOKEN` name from production.\n- **Your old Netlify token:** revoke it at Applications → Personal access tokens, once every env file, yours and the lanes', holds the new one.",
+     "body": "Once staging runs on its new values:\n- **Square:** delete the old shared sandbox webhook subscription. Keep the old app only if production uses it.\n- **PayPal:** delete the old shared sandbox app.\n- **Axiom and Healthchecks:** delete the token and checks staging used to share.\n- **Resend:** delete the keys previews and staging used to share, but **not** production's `RESEND_READ_KEY` or its key at Resend. The live site reads it until P9, a week after launch.\n- **Your old Netlify token:** revoke it at Applications → Personal access tokens, once every env file, yours and the lanes', holds the new one.",
      "minutes": 20,
      "blocked": "Waits on agents: #251's list, after staging works on its own values.",
      "links": [
@@ -1224,7 +1235,7 @@
     {
      "id": "ld-resend-wh",
      "title": "Add production's Resend webhook",
-     "body": "Now that the new code is live:\n1. On the farm team, **Webhooks → Add Webhook**, with the URL below and the events `contact.updated` and `contact.deleted`.\n2. Open it and copy its **Signing Secret**. Your old Venmo inbound secret should already be in your password manager.\n3. Paste the new secret here, re-save `.env.production`, push, and ask Claude to redeploy production.",
+     "body": "Now that the new code is live:\n1. On the farm team, **Webhooks → Add Webhook**, with the URL below and the events `contact.updated` and `contact.deleted`.\n2. Open it and copy its **Signing Secret**. Your old Venmo inbound secret, today's production `RESEND_WEBHOOK_SECRET`, should already be in your password manager from before launch day. Keep it until P9.\n3. Paste the new secret here, re-save `.env.production`, push, and ask Claude to redeploy production.",
      "minutes": 10,
      "links": [
       {
@@ -1487,7 +1498,7 @@
     {
      "id": "pl-rest",
      "title": "The rest of the after-launch list",
-     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- PY-17's live proof, if you chose to do it later;\n- in November, check nothing still says the drop site starts October 17 (W10, #218);\n- delete the stray notes in the repo root (#159).\n\nTick this when you've told Claude your order.",
+     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- PY-17's live proof, if you chose to do it later;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159).\n\nTick this when you've told Claude your order.",
      "minutes": 5
     }
    ]
@@ -1920,6 +1931,24 @@
       }
      ],
      "recommendation": "Approve the subject and body. Write in feedback whether the hens line should match Instagram."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-16",
+     "changed": "The drop-site line's \", starting October 17\" now drops itself from midnight New York time on Oct 17 (6a3eec6), so the email can't go stale.",
+     "summary": "The drop-site line now depends on the send date:\n- **Before Oct 17:** \"- Back on Saturday mornings in Scituate, 10:00 to 11:00 AM, starting October 17\"\n- **From Oct 17:** \"- Back on Saturday mornings in Scituate, 10:00 to 11:00 AM\"\n\nStill yours to settle:\n- **The hens line.** The email says \"our hens, although slowing down, will continue to lay for us all year round.\" The Instagram post cut that to \"we have eggs all year round\" (W22). Should the email match?\n- **\"In the next few days you'll get one more email\"** assumed sending invitations in batches. With Resend Pro it can be one send (D-INVITE).",
+     "look": [
+      {
+       "label": "The email, rendered",
+       "url": "https://claude.ai/artifact/BsVLAgfh9GfXgLCTxKs3hk"
+      },
+      {
+       "label": "#153",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/153"
+      }
+     ],
+     "text": "Before Oct 17: - Back on Saturday mornings in Scituate, 10:00 to 11:00 AM, starting October 17\nFrom Oct 17: - Back on Saturday mornings in Scituate, 10:00 to 11:00 AM",
+     "recommendation": "Approve the subject and body. Write in feedback whether the hens line should match Instagram, and whether \"In the next few days\" stays."
     }
    ]
   },
@@ -2146,6 +2175,26 @@
    ]
   },
   {
+   "id": "D-NOTIFY",
+   "section": "rv-decide",
+   "title": "Failed deploys: email only, or a phone page now?",
+   "area": "#248",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-16",
+     "summary": "Netlify can't limit deploy notifications to production, so an HTTP POST to your alerts check would page your phone for staging failures too. For launch: one **email-only** \"Deploy failed\" notification, no HTTP POST and no success ping. A function that filters for production and pages you is optional, after launch. `bin/nff --production alert test` exists now (c9e4de8).",
+     "look": [
+      {
+       "label": "#248, the proposal",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/248#issuecomment-6212825847"
+      }
+     ],
+     "recommendation": "Email only for launch. Approve, or write \"push now\"."
+    }
+   ]
+  },
+  {
    "id": "R-DECIDED",
    "section": "rv-decide",
    "title": "What agents decided as recommended",
@@ -2161,6 +2210,19 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/233"
       }
      ]
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-16",
+     "changed": "Added a wording decision taken outside the review list: the privacy page's sentence on order-page error reports.",
+     "summary": "The order page's error-report sentence was **approved as drafted**. It is in `content/privacy.md` and lands with #258; it is not on staging yet.",
+     "look": [
+      {
+       "label": "#258",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/258"
+      }
+     ],
+     "text": "The order page reports its own errors to that log: what went wrong, on which page, and your browser and its version, but never your name, your contact details or your order."
     }
    ]
   },
@@ -2829,6 +2891,18 @@
       "field": "stg_token"
      }
     }
+   },
+   {
+    "name": "PICKUP_SCHEDULE_HOOK",
+    "group": "local",
+    "comment": "A staging build hook. bin/nff schedule set starts a deploy with it after setting the schedule.",
+    "secret": true,
+    "envs": {
+     "staging": {
+      "field": "stg_hook"
+     }
+    },
+    "local": true
    },
    {
     "name": "NETLIFY_SITE_ID",
