@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NFF Launch Guide</title>
+<style>
+:root {
+  --bg: #eef1ec;
+  --panel: #fbfcf9;
+  --ink: #1c2420;
+  --muted: #5b6a61;
+  --rule: #d3dbd2;
+  --field: #2f5d3a;
+  --field-ink: #ffffff;
+  --straw: #a8840f;
+  --straw-bg: #f6efd2;
+  --barn: #9b2c2c;
+  --barn-bg: #f7e3e1;
+  --sky: #2d5f86;
+  --code-bg: #e7ece5;
+  --done: #2f5d3a;
+  --focus: #2d5f86;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141a17; --panel: #1b231f; --ink: #e3e9e4; --muted: #9aaba0; --rule: #2e3a33;
+    --field: #6fae80; --field-ink: #0f1712; --straw: #d9b545; --straw-bg: #2d2814;
+    --barn: #e48a84; --barn-bg: #351c1b; --sky: #8cb9de; --code-bg: #232d28; --done: #6fae80;
+    --focus: #8cb9de; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141a17; --panel: #1b231f; --ink: #e3e9e4; --muted: #9aaba0; --rule: #2e3a33;
+  --field: #6fae80; --field-ink: #0f1712; --straw: #d9b545; --straw-bg: #2d2814;
+  --barn: #e48a84; --barn-bg: #351c1b; --sky: #8cb9de; --code-bg: #232d28; --done: #6fae80;
+  --focus: #8cb9de; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+h1, h2, h3 { font-family: "Iowan Old Style", "Charter", "Palatino Linotype", Georgia, serif; font-weight: 600; line-height: 1.2; }
+code, pre, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.86em; }
+a { color: var(--sky); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible, select:focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 2px;
+}
+button {
+  font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--rule);
+  background: var(--panel); color: var(--ink); padding: 5px 11px;
+}
+button.primary { background: var(--field); color: var(--field-ink); border-color: var(--field); }
+button.danger { color: var(--barn); border-color: var(--barn); }
+button.small { padding: 2px 8px; font-size: 13px; }
+button:disabled { opacity: .5; cursor: default; }
+input[type=text], input[type=password], textarea {
+  font: inherit; width: 100%; padding: 6px 8px; border: 1px solid var(--rule);
+  border-radius: 6px; background: var(--bg); color: var(--ink);
+}
+textarea { min-height: 70px; resize: vertical; }
+
+/* Layout */
+.top {
+  position: sticky; top: 0; z-index: 5; background: var(--panel);
+  border-bottom: 1px solid var(--rule); padding: 10px 16px 8px;
+}
+.top-row { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.top h1 { font-size: 20px; margin: 0; }
+.top .meta { color: var(--muted); font-size: 13px; }
+.top .actions { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+.phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+.phase-meter { font-size: 12.5px; color: var(--muted); cursor: pointer; background: none; border: 0; padding: 0; text-align: left; }
+.phase-meter strong { color: var(--ink); font-weight: 600; }
+.bar { height: 6px; background: var(--rule); border-radius: 3px; overflow: hidden; margin-top: 3px; }
+.bar > i { display: block; height: 100%; background: var(--field); width: 0; transition: width .3s; }
+.phase-meter.locked .bar > i { background: var(--muted); }
+
+.wrap { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 0; max-width: 1180px; margin: 0 auto; }
+nav.rail {
+  position: sticky; top: 98px; align-self: start; max-height: calc(100vh - 98px); overflow: auto;
+  padding: 16px 12px 40px 16px; font-size: 13.5px;
+}
+nav.rail .railbox > summary { font-size: 13px; color: var(--muted); cursor: pointer; font-weight: 600; }
+@media (min-width: 1001px) { nav.rail .railbox > summary { display: none; } }
+nav.rail h2 { font-size: 13px; color: var(--muted); font-family: inherit; font-weight: 600; margin: 16px 0 4px; }
+nav.rail a { display: grid; grid-template-columns: 1fr auto; gap: 6px; padding: 3px 6px; border-radius: 5px; color: var(--ink); text-decoration: none; }
+nav.rail a:hover { background: var(--code-bg); }
+nav.rail a .n { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+nav.rail a.complete .t { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--rule); }
+nav.rail a.complete .n { color: var(--done); }
+main { padding: 16px 16px 120px; min-width: 0; }
+
+.banner { border-radius: 8px; padding: 10px 14px; margin: 0 0 14px; border: 1px solid var(--rule); background: var(--panel); }
+.banner.warn { background: var(--straw-bg); border-color: var(--straw); }
+.banner.secret { background: var(--barn-bg); border-color: var(--barn); }
+.banner.ok { border-color: var(--field); }
+.banner p { margin: 4px 0; }
+
+section.sec { margin: 0 0 30px; scroll-margin-top: 110px; }
+section.sec > h2 { font-size: 22px; margin: 22px 0 4px; }
+.phase-head { font-family: "Iowan Old Style", "Charter", Georgia, serif; font-size: 28px; margin: 34px 0 2px; scroll-margin-top: 110px; }
+.phase-intro { color: var(--muted); margin: 0 0 8px; max-width: 70ch; }
+.sec-intro { color: var(--muted); margin: 0 0 10px; max-width: 72ch; }
+.sec-intro p { margin: 4px 0; }
+.sec-meter { font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
+
+/* Steps */
+.step { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; margin: 0 0 8px; }
+.step > header { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; padding: 10px 12px; }
+.step > header .tick { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--field); }
+.step > header button.title {
+  all: unset; cursor: pointer; font-weight: 600; line-height: 1.35;
+}
+.step > header button.title:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.step .tags { display: flex; gap: 6px; flex-wrap: wrap; justify-content: end; }
+.tag { font-size: 11.5px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--rule); color: var(--muted); white-space: nowrap; }
+.tag.blocked { border-color: var(--straw); color: var(--straw); background: var(--straw-bg); }
+.tag.secret { border-color: var(--barn); color: var(--barn); }
+.tag.when { border-color: var(--sky); color: var(--sky); }
+.step.done { border-color: color-mix(in srgb, var(--field) 40%, var(--rule)); }
+.step.done > header button.title { color: var(--muted); }
+.step .body { padding: 0 14px 14px 42px; display: none; }
+.step.open .body { display: block; }
+.body p, .body li { max-width: 74ch; }
+.body p { margin: 6px 0; }
+.body ul, .body ol { margin: 6px 0; padding-left: 20px; }
+.body pre { background: var(--code-bg); padding: 8px 10px; border-radius: 6px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+.body code { background: var(--code-bg); padding: 1px 4px; border-radius: 4px; }
+.body pre code { background: none; padding: 0; }
+.links { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.links a { font-size: 13.5px; border: 1px solid var(--rule); border-radius: 6px; padding: 3px 9px; text-decoration: none; background: var(--bg); }
+.copyrow { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px; align-items: center; margin: 6px 0; }
+.copyrow .label { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); }
+.copyrow .val { background: var(--code-bg); border-radius: 6px; padding: 5px 8px; overflow-x: auto; white-space: pre; font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+.fieldrow { margin: 10px 0; }
+.fieldrow label { display: block; font-weight: 600; font-size: 13.5px; }
+.fieldrow .save { font-size: 12.5px; color: var(--muted); margin: 2px 0 4px; }
+.fieldrow .inline { display: grid; grid-template-columns: minmax(0,1fr) auto auto auto; gap: 6px; }
+.fieldrow select { font: inherit; padding: 5px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink); }
+.fieldrow.secret label::after { content: " · secret"; color: var(--barn); font-weight: 400; }
+.notes { margin-top: 12px; }
+.notes summary { font-size: 13px; color: var(--muted); cursor: pointer; }
+.blocked-note { background: var(--straw-bg); border-left: 3px solid var(--straw); padding: 6px 10px; border-radius: 4px; margin: 8px 0; font-size: 14px; }
+
+/* Reviews */
+.rev { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; margin: 0 0 10px; }
+.rev > header { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 10px 12px; cursor: pointer; }
+.rev > header h3 { font-size: 16.5px; margin: 0; }
+.rev .area { font-size: 12.5px; color: var(--muted); }
+.rev .status { font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--rule); white-space: nowrap; align-self: start; }
+.rev .status.approved { border-color: var(--field); color: var(--field); }
+.rev .status.feedback { border-color: var(--straw); color: var(--straw); background: var(--straw-bg); }
+.rev .status.changed { border-color: var(--sky); color: var(--sky); }
+.rev .rbody { padding: 0 14px 14px; display: none; }
+.rev.open .rbody { display: block; }
+.revision { border-left: 3px solid var(--rule); padding: 2px 0 2px 12px; margin: 10px 0; }
+.revision.current { border-left-color: var(--field); }
+.revision h4 { margin: 4px 0; font-size: 13.5px; color: var(--muted); font-weight: 600; }
+.verbatim { background: var(--bg); border: 1px dashed var(--rule); border-radius: 6px; padding: 8px 10px; white-space: pre-wrap; font-size: 14px; }
+.past-fb { background: var(--straw-bg); padding: 6px 10px; border-radius: 6px; font-size: 14px; margin: 6px 0; white-space: pre-wrap; }
+.decide { display: grid; gap: 6px; margin-top: 10px; }
+.decide .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.rec { font-size: 14px; }
+
+/* Env files */
+.envfile { margin: 12px 0; }
+.envfile pre { max-height: 420px; overflow: auto; background: var(--code-bg); padding: 10px; border-radius: 6px; font-size: 12.5px; }
+.envfile .bar-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+.missing { color: var(--barn); font-size: 13px; }
+.missing.ok { color: var(--done); }
+
+/* Dialog */
+dialog { border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); color: var(--ink); width: min(760px, calc(100vw - 32px)); padding: 16px; }
+dialog::backdrop { background: rgba(0,0,0,.35); }
+dialog textarea { min-height: 300px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+dialog h2 { margin-top: 0; font-size: 20px; }
+.toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 6px 14px; border-radius: 6px; font-size: 13.5px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; }
+.toast.show { opacity: 1; }
+
+@media (max-width: 1000px) {
+  .wrap { grid-template-columns: minmax(0, 1fr); }
+  nav.rail { position: static; max-height: none; padding: 8px 16px 0; }
+  nav.rail .railin { columns: 2 220px; }
+  nav.rail h2 { break-after: avoid; }
+}
+@media (max-width: 560px) {
+  .phases { grid-template-columns: repeat(2, 1fr); }
+  .step .body { padding-left: 14px; }
+  nav.rail .railin { columns: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .bar > i { transition: none; } }
+</style>
+</head>
+<body>
+<div class="top" id="top">
+  <div class="top-row">
+    <h1>North Foster Farm launch guide</h1>
+    <span class="meta" id="dataMeta"></span>
+    <div class="actions">
+      <button class="small" id="btnUpdate" title="Fetch the latest steps and review items from GitHub">Check for updates</button>
+      <button class="small" id="btnReport">Export report for Claude</button>
+      <button class="small danger" id="btnSecrets">Export secrets</button>
+      <button class="small" id="btnImport">Import</button>
+    </div>
+  </div>
+  <div class="phases" id="phases"></div>
+</div>
+<div class="wrap">
+  <nav class="rail" id="rail" aria-label="Sections"></nav>
+  <main id="main"></main>
+</div>
+
+<dialog id="dlg">
+  <h2 id="dlgTitle"></h2>
+  <div id="dlgNote"></div>
+  <textarea id="dlgText" spellcheck="false"></textarea>
+  <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap">
+    <button class="primary" id="dlgCopy">Copy</button>
+    <button id="dlgDownload">Download file</button>
+    <button id="dlgApply" hidden>Import this</button>
+    <button id="dlgClose" style="margin-left:auto">Close</button>
+  </div>
+</dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script id="guide-data" type="application/json">{"revision": 2, "updated": "2026-10-16", "notice": null, "phases": [{"id": "review", "short": "Review", "title": "Review and approve", "intro": "Everything still waiting on your eyes or your decision. Approve each one, or send feedback. When agents change something in response, it comes back here as a new version, with your feedback shown beside it. **When every item is approved, the code freeze begins.**"}, {"id": "pre", "short": "Before launch", "title": "Before launch: accounts, keys and settings", "intro": "Work through these in any order. Each value you collect is saved here and goes into the env files at the end of this phase. Steps marked *Waits on agents* need a piece of code first; the note says which.\n\n**One rule protects the live site.** Production keeps the keys it has now. New, separate keys go to staging, and development gets fakes. If you ever do replace a production key, the order is: push it to Netlify, ask Claude to redeploy the live site, check it works, and only then revoke the old one. All of that must finish before the day-before rebuild on launch day."}, {"id": "launch", "short": "Launch day", "title": "Launch day", "gated": true, "intro": "In order, top to bottom. Start only after the code freeze and once every *Before launch* step is done. Allow about three hours, on a weekday morning."}, {"id": "post", "short": "After launch", "title": "After launch", "intro": "The checks over the following days, and the dates to remember."}], "sections": [{"id": "rv-look", "phase": "review", "title": "Look at staging", "steps": [], "intro": "Use your iPhone where it says so. Staging is the current build: https://staging--north-foster-farm.netlify.app/", "kind": "reviews"}, {"id": "rv-copy", "phase": "review", "title": "Words customers will read", "steps": [], "kind": "reviews"}, {"id": "rv-decide", "phase": "review", "title": "Decisions", "steps": [], "intro": "Each has a recommendation. Approving accepts the recommendation; to decide otherwise, write your answer and press **Send feedback**.", "kind": "reviews"}, {"id": "pre-ready", "phase": "pre", "title": "Get ready", "steps": [{"id": "pm-folder", "title": "Make a folder for this launch in your password manager", "body": "Create a folder (or vault) named **NFF launch**. Whenever this guide says to save something to your password manager, it goes there. Values you paste into this guide are also saved in this browser, so you can stop and come back later.\n\nThe guide has two exports at the top. **Export report for Claude** is safe to paste into the chat. **Export secrets** is a full backup of everything, including secrets. Save it as a secure note in the NFF launch folder, and never paste it anywhere else.", "minutes": 2}, {"id": "nf-plan", "title": "Check which Netlify plan the team is on", "body": "Open Usage & billing, then Billing details. Note whether it says **Starter** (the older plans) or a **credit-based** plan (Free, Personal or Pro).\n\nThis matters on the credit-based Free plan: a production deploy costs 15 of 300 monthly credits, and when credits run out, every site on the team is paused. Write the plan name below so Claude can check the launch fits.", "minutes": 2, "links": [{"label": "Netlify team billing", "url": "https://app.netlify.com/teams/"}], "fields": [{"id": "nf_plan", "label": "Plan name, as Netlify shows it", "secret": false}]}, {"id": "import-env", "title": "Bring in production's current values", "body": "Your current `.env` in the project folder is a production file: it holds the keys the live site uses. Open it in your editor, select everything, copy, and paste it into the box below. The guide reads each line and fills in the matching production fields further down: Square, PayPal, Resend, Axiom and Healthchecks. The pasted text itself isn't kept, only the values it fills in, and it never leaves this browser.\n\nAfterwards, open the steps below; each production field should already be filled. Anything still empty is a value your `.env` didn't have, and the step says where to get it.", "minutes": 5, "kind": "import"}, {"id": "settings", "title": "Confirm the mail addresses", "minutes": 3, "body": "Three plain values used in the staging and production files. The defaults come from your example files; change any that are wrong.", "fields": [{"id": "mail_from", "label": "Production sender (MAIL_FROM)", "secret": false, "default": "North Foster Farm <orders@mail.northfosterfarm.com>"}, {"id": "mail_reply_to", "label": "Reply-To address (MAIL_REPLY_TO)", "secret": false, "default": "orders@northfosterfarm.com", "save": "Check this against what production uses now."}, {"id": "admin_emails", "label": "Who gets the farm's notices (ADMIN_EMAILS)", "secret": false, "placeholder": "you@…, jim@…"}]}]}, {"id": "pre-square", "phase": "pre", "title": "Square", "steps": [{"id": "sq-log", "title": "Check why production's Square webhook has never succeeded", "body": "Production's health check shows no Square webhook delivery ever accepted. Either Square sends nothing, or every delivery fails the signature check. Find out which:\n1. Open the Developer Console and open your production app.\n2. In the left pane choose **Webhooks**, then **Logs**. At the top, choose **Production**.\n3. Look at the **Status code** column. That's what *our* server answered, not Square. **401** means the signature check rejected it; nothing listed means nothing was sent.\n4. Then open **Webhooks → Subscriptions** (Production). Check the notification URL is exactly `https://www.northfosterfarm.com/api/square/webhook`. The signature covers the URL character for character, so the bare domain, a trailing slash or `http` all break it.\n\nWrite what you found in the note on this step.", "minutes": 10, "links": [{"label": "Square Developer Console", "url": "https://developer.squareup.com/apps"}], "copy": [{"label": "Correct production webhook URL", "value": "https://www.northfosterfarm.com/api/square/webhook"}]}, {"id": "sq-prod", "title": "Check production's Square values", "body": "These came in from your `.env`. Production keeps them; nothing here is replaced. If any field is empty, get it from the Developer Console with the toggle set to **Production**:\n- **Credentials:** the Application ID (it starts `sq0idp-`) and the access token (**Show**). Never use **Replace**: it switches the old token off at once.\n- **Locations:** the website's location ID.\n- **Webhooks → Subscriptions:** open the production subscription, then **Show** the Signature Key.\n\nIf you fixed the subscription URL in the previous step, its signature key is unchanged.", "minutes": 5, "links": [{"label": "Square Developer Console", "url": "https://developer.squareup.com/apps"}], "fields": [{"id": "sq_prod_app", "label": "Production Application ID", "secret": false, "placeholder": "sq0idp-…"}, {"id": "sq_prod_loc", "label": "Production Location ID", "secret": false}, {"id": "sq_prod_token", "label": "Production access token", "secret": true, "save": "Also in your password manager, in the **NFF launch** folder as \"Square production token\"."}, {"id": "sq_prod_sig", "label": "Production webhook Signature Key", "secret": true, "save": "Also in your password manager, in the **NFF launch** folder."}]}, {"id": "sq-staging", "title": "Make a separate Square app for staging", "body": "Staging gets its own application, so nothing is shared with production or development.\n1. In the Developer Console, on Applications, create a new application named **NFF Staging**.\n2. Set the toggle to **Sandbox**. On **Credentials**, copy the **Sandbox application ID** and **Show** the **Sandbox Access token**.\n3. On **Locations** (Sandbox), copy the location ID.\n4. **Webhooks → Subscriptions → Sandbox → Add subscription.** Name it \"staging\", with the URL below. Choose the newest API version and tick `payment.created`, `payment.updated`, `refund.created`, `refund.updated` and `order.updated`. Save, open it, and **Show** the Signature Key.\n5. Optional: **Apple Pay → Add Sandbox Domain** for `staging--north-foster-farm.netlify.app`, if you want to try Apple Pay on staging (Safari only).\n\nNote: every app under one Square login shares the same sandbox data. That's why development gets its own login in the next step.", "minutes": 15, "links": [{"label": "Square Developer Console", "url": "https://developer.squareup.com/apps"}], "copy": [{"label": "Staging webhook URL", "value": "https://staging--north-foster-farm.netlify.app/api/square/webhook"}], "fields": [{"id": "sq_stg_app", "label": "Staging Sandbox application ID", "secret": false, "placeholder": "sandbox-sq0idb-…"}, {"id": "sq_stg_loc", "label": "Staging sandbox Location ID", "secret": false}, {"id": "sq_stg_token", "label": "Staging Sandbox access token", "secret": true, "save": "Also in your password manager, in the **NFF launch** folder as \"Square staging sandbox token\"."}, {"id": "sq_stg_sig", "label": "Staging webhook Signature Key", "secret": true, "save": "Also in your password manager, in the **NFF launch** folder."}]}, {"id": "sq-dev", "title": "Make a second Square developer login, for development", "body": "Development runs on fake payment drivers, so these values don't go into any env file. They're for the occasional real sandbox test on your Mac, and for the agents' browser tests later.\n1. Sign out of Square, then sign up as a developer with a different email. A Gmail plus-address such as `you+squaredev@gmail.com` lands in the same inbox. Square's acceptance of plus-addresses isn't confirmed; use another address if it refuses.\n2. Name the business \"NFF Development\" and the application **NFF Dev**. Don't activate the account for real payments.\n3. With the toggle on **Sandbox**, copy the Sandbox application ID, access token and location ID into your password manager under \"Square dev (second login)\".", "minutes": 15, "links": [{"label": "Square developer sign-up", "url": "https://squareup.com/signup?v=developers"}], "fields": [{"id": "sq_dev_login", "label": "Email used for the second login", "secret": false, "save": "So you remember which address it was."}]}]}, {"id": "pre-paypal", "phase": "pre", "title": "PayPal", "steps": [{"id": "pp-live", "title": "Check the live app's Client ID and Secret", "body": "These came in from your `.env`. If either is empty, sign in with the farm's PayPal business login, open **Apps & Credentials**, switch the toggle to **Live**, open the app the site uses, and copy the **Client ID** and **Secret**.", "minutes": 3, "links": [{"label": "PayPal developer dashboard", "url": "https://developer.paypal.com/dashboard/"}], "fields": [{"id": "pp_live_id", "label": "Live Client ID", "secret": false}, {"id": "pp_live_secret", "label": "Live Secret", "secret": true, "save": "Also in your password manager, in the **NFF launch** folder as \"PayPal live secret\"."}]}, {"id": "pp-live-wh", "title": "Add the live webhook (P2)", "body": "Still on the live app, scroll to **Live Webhooks** and choose **Add Webhook**. Paste the URL below, tick the events below, and save. The webhook appears in the list with an **ID**; copy it. PayPal never sends this ID in its messages, so this is the only place to get it.\n\nWithout this webhook, the site never hears about Venmo captures or refunds made in PayPal. Adding it before launch is harmless.", "minutes": 5, "links": [{"label": "PayPal developer dashboard", "url": "https://developer.paypal.com/dashboard/"}], "copy": [{"label": "Live webhook URL", "value": "https://www.northfosterfarm.com/api/paypal/webhook"}, {"label": "Event 1", "value": "PAYMENT.CAPTURE.COMPLETED"}, {"label": "Event 2", "value": "PAYMENT.CAPTURE.REFUNDED"}], "fields": [{"id": "pp_live_wh", "label": "Live Webhook ID", "secret": false}]}, {"id": "pp-sandbox", "title": "Make a sandbox app and webhook for staging", "body": "Switch the toggle to **Sandbox**, then **Create App** named **NFF Staging** (type Merchant), linked to a sandbox business account. Copy its Client ID and Secret. Then under **Sandbox Webhooks**, add the staging URL with the two events below, and copy its ID.\n\nUnder **Testing Tools → Sandbox Accounts**, open that business account and make sure it's a US account, so Venmo can appear. Save the sandbox buyer and seller logins (shown under **View/Edit Account**) in your password manager for testing.\n\nVenmo in the sandbox is limited, and PayPal's own docs disagree about it. That's why the real proof is the live $1 payment on launch day.", "minutes": 10, "links": [{"label": "PayPal developer dashboard", "url": "https://developer.paypal.com/dashboard/"}, {"label": "Sandbox test accounts", "url": "https://developer.paypal.com/dashboard/accounts"}], "copy": [{"label": "Staging webhook URL", "value": "https://staging--north-foster-farm.netlify.app/api/paypal/webhook"}, {"label": "Event 1", "value": "PAYMENT.CAPTURE.COMPLETED"}, {"label": "Event 2", "value": "PAYMENT.CAPTURE.REFUNDED"}], "fields": [{"id": "pp_stg_id", "label": "Staging (sandbox) Client ID", "secret": false}, {"id": "pp_stg_secret", "label": "Staging (sandbox) Secret", "secret": true, "save": "Also in your password manager, in the **NFF launch** folder."}, {"id": "pp_stg_wh", "label": "Staging (sandbox) Webhook ID", "secret": false}]}]}, {"id": "pre-resend", "phase": "pre", "title": "Resend", "steps": [{"id": "rs-pro", "title": "Upgrade the production team to Pro", "body": "Check the team name at the top left is the farm's. Open **Settings → Billing** and upgrade **Transactional** to **Pro** ($20 a month for 50,000 emails, no daily cap). Leave **Marketing** on Free while you have fewer than 1,000 contacts.\n\nOn the Audience page, note the number of contacts below.", "minutes": 5, "links": [{"label": "Resend billing", "url": "https://resend.com/settings/billing"}, {"label": "Resend audience", "url": "https://resend.com/audience"}], "fields": [{"id": "rs_contacts", "label": "Number of contacts", "secret": false}]}, {"id": "rs-team", "title": "Try making a free team for staging", "body": "Click the team name at the top left and create a new team called **NFF Staging**. If the dialog lets you pick the **Free** plan, create it. If it asks for a paid plan, cancel; staging then gets no Resend at all and you read its mail in the browser, as now. Record what happened below: it decides which keys go in the staging file.\n\n**If staging gets no team:** on the farm team, open **Webhooks** and delete the endpoint that points at staging (`staging--north-foster-farm.netlify.app/api/resend/webhook`). Do this only after the unsubscribe test in the review section is done.", "minutes": 5, "links": [{"label": "Resend webhooks", "url": "https://resend.com/webhooks"}], "fields": [{"id": "rs_stg_team", "label": "Staging team", "secret": false, "type": "choice", "options": [{"value": "yes", "label": "Created on the Free plan"}, {"value": "no", "label": "Not possible for free: staging has no Resend"}]}]}, {"id": "rs-prod-keys", "title": "Check production's Resend values", "body": "These came in from your `.env`; production keeps them. If one is empty, make it on the farm team under **API Keys → Create API Key** (shown once): the sending key with **Sending access** for `mail.northfosterfarm.com`, the audience key and the claude-lookup key with **Full access**. The audience ID is under **Audience → segments**: use the **More options (…)** menu to copy it.\n\nThe webhook secret here is the one the **live site** uses today, for Venmo's inbound mail. It stays until launch day, when the new farm-news webhook replaces it. Save a copy in your password manager now, as \"Resend old inbound secret\", until P9.", "minutes": 5, "links": [{"label": "Resend API keys", "url": "https://resend.com/api-keys"}, {"label": "Resend segments", "url": "https://resend.com/audience/segments"}], "fields": [{"id": "rs_prod_send", "label": "Production sending key", "secret": true, "placeholder": "re_…"}, {"id": "rs_prod_aud_key", "label": "Production audience key", "secret": true}, {"id": "rs_prod_aud_id", "label": "Farm-news audience (segment) ID", "secret": false}, {"id": "rs_lookup", "label": "claude-lookup key", "secret": true, "save": "Goes only in your local .env.production."}, {"id": "rs_prod_wh", "label": "Production webhook secret (today: the Venmo inbound one)", "secret": true}]}, {"id": "rs-stg-keys", "title": "Staging's Resend keys (only if the staging team exists)", "body": "Skip this step if staging has no Resend team.\n\nSwitch to the **NFF Staging** team. Add a test contact (your own address) to a new segment called \"Farm news (staging)\", and copy that segment's ID. Create one **Full access** key named \"NFF staging audience\". Then **Webhooks → Add Webhook** with the staging URL and the events `contact.updated` and `contact.deleted`. Open the webhook and copy its **Signing Secret**.", "minutes": 10, "links": [{"label": "Resend API keys", "url": "https://resend.com/api-keys"}, {"label": "Resend webhooks", "url": "https://resend.com/webhooks"}], "copy": [{"label": "Staging webhook URL", "value": "https://staging--north-foster-farm.netlify.app/api/resend/webhook"}], "fields": [{"id": "rs_stg_aud_id", "label": "Staging segment ID", "secret": false}, {"id": "rs_stg_aud_key", "label": "Staging audience key", "secret": true}, {"id": "rs_stg_wh", "label": "Staging webhook signing secret", "secret": true, "placeholder": "whsec_…"}]}]}, {"id": "pre-axiom", "phase": "pre", "title": "Axiom (logs)", "steps": [{"id": "ax-prod", "title": "Check production's Axiom token", "body": "It came in from your `.env`; production keeps it. If it's empty: **Settings → API tokens → New API token**, named \"NFF site production\", expiring **January 1, 2027**, permissions **Basic** (ingest only), dataset `nff-site`. Copy it; it isn't shown again.\n\nWhile you're in Settings, open **Datasets** and confirm `nff-site` keeps data for 30 days. The privacy page promises that.", "minutes": 3, "links": [{"label": "Axiom settings", "url": "https://app.axiom.co/"}], "fields": [{"id": "ax_prod", "label": "Production ingest token", "secret": true, "save": "Also in your password manager, in the **NFF launch** folder.", "placeholder": "xaat-…"}]}, {"id": "ax-stg", "title": "Make a staging dataset and its token", "body": "In **Datasets**, create **New dataset** named `nff-site-staging` (kind Events). Then make a second Basic token, \"NFF site staging\", with access only to that dataset and the same Jan 1, 2027 expiry.", "minutes": 5, "links": [{"label": "Axiom settings", "url": "https://app.axiom.co/"}], "fields": [{"id": "ax_stg", "label": "Staging ingest token", "secret": true}]}]}, {"id": "pre-hc", "phase": "pre", "title": "Healthchecks (alerts to your phone)", "steps": [{"id": "hc-prod", "title": "Check production's two check URLs", "body": "They came in from your `.env`; production keeps them. If either is empty, open the project, find the production **jobs** and **alerts** checks, and copy the URL under \"Keep this check up by making HTTP requests to this URL\" on each.", "minutes": 3, "links": [{"label": "Healthchecks", "url": "https://healthchecks.io/projects/"}], "fields": [{"id": "hc_prod_jobs", "label": "Production jobs check URL", "secret": true, "placeholder": "https://hc-ping.com/…"}, {"id": "hc_prod_alert", "label": "Production alerts check URL", "secret": true}]}, {"id": "hc-stg", "title": "Make two separate checks for staging", "body": "Add two checks named **staging jobs** (period 6 hours: staging's jobs run hours apart) and **staging alerts**. Copy their URLs. Staging checks must never reach your phone: in the next step, untick them from the phone integration.", "minutes": 5, "links": [{"label": "Healthchecks", "url": "https://healthchecks.io/projects/"}], "fields": [{"id": "hc_stg_jobs", "label": "Staging jobs check URL", "secret": true}, {"id": "hc_stg_alert", "label": "Staging alerts check URL", "secret": true}]}, {"id": "hc-phone", "title": "Send production alerts to your iPhone with ntfy", "body": "1. Install **ntfy** from the App Store (free) and subscribe to a new topic. The topic works like a password, so use the long random name below.\n2. In Healthchecks, open **Integrations** and add **ntfy** with the same topic. Leave the server as `https://ntfy.sh` and set \"down\" to high priority.\n3. **New integrations attach to every check.** In the **Assigned Checks** column, click it and untick both staging checks.\n4. Press **Test!** on the ntfy row; your phone should buzz.\n\nIf you'd rather have alerts that repeat until you acknowledge them, Pushover does that for $4.99 once.", "minutes": 10, "links": [{"label": "ntfy for iPhone", "url": "https://apps.apple.com/us/app/ntfy/id1625396347"}, {"label": "Healthchecks integrations", "url": "https://healthchecks.io/projects/"}], "fields": [{"id": "ntfy_topic", "label": "ntfy topic", "secret": true, "save": "Press Generate for a random topic. Save it in your password manager, in the **NFF launch** folder.", "generate": 12}]}, {"id": "hc-proof", "title": "Prove every alert reaches the phone (#248)", "body": "Run each and watch your phone:\n1. `bin/nff --production alert test`: a push within a minute, and an email to the farm.\n2. Run it again straight away: it must push **again** (the fix in #248).\n3. `bin/nff --staging alert test`: **no** push.\n4. Ask Claude to force one failed deploy on staging: the deploy-failed notification pages you.", "minutes": 10, "blocked": "Waits on agents: `bin/nff alert test` (#248) and the new env files.", "copy": [{"label": "Production test", "value": "bin/nff --production alert test"}, {"label": "Staging test (no push expected)", "value": "bin/nff --staging alert test"}]}]}, {"id": "pre-uptime", "phase": "pre", "title": "UptimeRobot (is the site up?)", "steps": [{"id": "ur-account", "title": "Make the account and connect your phone", "body": "Sign up on the Free plan, which allows business use. Install the UptimeRobot app on your iPhone, sign in, and allow notifications: that adds your phone as an alert contact.", "minutes": 5, "links": [{"label": "UptimeRobot", "url": "https://dashboard.uptimerobot.com/"}, {"label": "iPhone app", "url": "https://apps.apple.com/app/uptimerobot/id1104878581"}]}, {"id": "ur-monitors", "title": "Add the four monitors", "body": "For each row below, choose **+ Add New Monitor**. Pick the type shown and paste the URL. For keyword monitors, set the alert to fire when the keyword **does not exist**. Attach your phone as the alert contact, set the interval, and create.\n- **HTTP(s)**, `/`, every 5 minutes.\n- **Keyword**, `/order/`, keyword `id=\"order-form\"`, every 5 minutes.\n- **Keyword**, `/api/dates`, keyword `\"onfarm\":[`, every 5 minutes.\n- **Keyword**, `/api/health`, keyword `\"ok\":true`, every 15 minutes.\n\nThe fifth monitor waits for launch day.\n\n**Test:** edit the order-page monitor's keyword to something that isn't on the page. Wait for the \"down\" push, then put it back and wait for \"up\".", "minutes": 15, "copy": [{"label": "Home", "value": "https://www.northfosterfarm.com/"}, {"label": "Order page", "value": "https://www.northfosterfarm.com/order/"}, {"label": "Order keyword", "value": "id=\"order-form\""}, {"label": "Dates", "value": "https://www.northfosterfarm.com/api/dates"}, {"label": "Dates keyword", "value": "\"onfarm\":["}, {"label": "Health", "value": "https://www.northfosterfarm.com/api/health"}, {"label": "Health keyword", "value": "\"ok\":true"}]}]}, {"id": "pre-backup", "phase": "pre", "title": "Backups (Backblaze and Cloudflare)", "steps": [{"id": "bk-age", "title": "Make the encryption key on your Mac", "body": "Backups are encrypted before they leave the site. Only your private key can open them. In Terminal on your Mac (this downloads `age` with Homebrew):\n```\nbrew install age\nmkdir -p ~/Documents/nff-keys && cd ~/Documents/nff-keys\nage-keygen -o nff-backup-key.txt\nchmod 600 nff-backup-key.txt\n```\nIt prints `Public key: age1…`. Paste that public key below; it's safe to share. Then save the **whole file** `nff-backup-key.txt` in your password manager, and keep a second copy offline (a USB stick at the farm, or with Jim). **If the private key is lost, every backup is unreadable.**", "minutes": 5, "copy": [{"label": "Commands", "value": "brew install age && mkdir -p ~/Documents/nff-keys && cd ~/Documents/nff-keys && age-keygen -o nff-backup-key.txt && chmod 600 nff-backup-key.txt"}], "fields": [{"id": "age_pub", "label": "Public key", "secret": false, "placeholder": "age1…"}]}, {"id": "bk-b2", "title": "Backblaze B2: account, bucket and key", "body": "1. Sign up (no card needed). Choose region **US East**, which can't be changed later.\n2. **Buckets → Create a Bucket.** Name it something like `nff-backups-` plus a few random letters. Choose **Private**, leave **Object Lock off**, and create. Copy the bucket's **Endpoint**.\n3. **Lifecycle Settings → Use custom lifecycle rules.** Add two rules: prefix `daily/`, days from uploading to hiding 30, hiding to deleting 1; and prefix `monthly/`, 365 and 1.\n4. **Application Keys → Add a New Application Key.** Name it `nff-site`, allow access to that one bucket only, type **Read and Write**. Copy the **keyID** and the **applicationKey**; the second is shown only once.\n5. Optional: **Caps & Alerts**, with a $1 daily cap.", "minutes": 15, "links": [{"label": "Backblaze sign-up", "url": "https://www.backblaze.com/sign-up/cloud-storage"}, {"label": "Backblaze sign in", "url": "https://secure.backblaze.com/user_signin.htm"}], "fields": [{"id": "b2_endpoint", "label": "Endpoint", "secret": false, "save": "Add `https://` in front if the page shows it without.", "placeholder": "https://s3.us-east-005.backblazeb2.com"}, {"id": "b2_bucket", "label": "Bucket name", "secret": false}, {"id": "b2_key_id", "label": "keyID", "secret": false}, {"id": "b2_app_key", "label": "applicationKey", "secret": true, "save": "Also in your password manager, in the **NFF launch** folder."}]}, {"id": "bk-r2", "title": "Cloudflare R2: bucket and token", "body": "1. In the Cloudflare dashboard, open **Storage & databases → R2** and complete the checkout to add R2. It may ask for a card; at this size it stays free.\n2. **Create bucket.** Name it like the B2 one, with location hint **Eastern North America (enam)** and the Standard storage class.\n3. In the bucket's **Settings → Object Lifecycle Rules → Add rule**: prefix `daily/`, delete after 30 days; prefix `monthly/`, delete after 365.\n4. On the R2 Overview page, under **Account Details**, choose **Manage** API Tokens, then **Create Account API token**. Choose **Object Read & Write**, limit it to the one bucket, and create. Copy the **Access Key ID**, the **Secret Access Key** (shown once) and the **S3 endpoint**, which looks like `https://<account id>.r2.cloudflarestorage.com`.", "minutes": 15, "links": [{"label": "Cloudflare dashboard", "url": "https://dash.cloudflare.com/"}], "fields": [{"id": "r2_endpoint", "label": "S3 endpoint", "secret": false, "placeholder": "https://….r2.cloudflarestorage.com"}, {"id": "r2_bucket", "label": "Bucket name", "secret": false}, {"id": "r2_key_id", "label": "Access Key ID", "secret": false}, {"id": "r2_secret", "label": "Secret Access Key", "secret": true, "save": "Also in your password manager, in the **NFF launch** folder."}]}]}, {"id": "pre-netlify", "phase": "pre", "title": "Netlify and GitHub", "steps": [{"id": "nf-pat", "title": "Make a new Netlify token that expires Jan 1, 2027", "body": "Open **Applications → Personal access tokens → New access token**. Name it \"NFF bin/nff 2026\" and set **Expiration** to January 1, 2027. If only fixed choices are offered, take the nearest one that ends *before* Jan 1. Generate it and copy it.\n\nAlso copy the **Project ID** from Project configuration → General.\n\nRevoke your old token only after the new env files work (the Env files section).", "minutes": 5, "links": [{"label": "Netlify personal access tokens", "url": "https://app.netlify.com/user/applications#personal-access-tokens"}, {"label": "Project configuration", "url": "https://app.netlify.com/projects/north-foster-farm/configuration/general"}], "fields": [{"id": "nf_pat", "label": "New personal access token", "secret": true, "save": "Also in your password manager, in the **NFF launch** folder. It controls every site and DNS record, so treat it like a bank password."}, {"id": "nf_site", "label": "Project ID (site ID)", "secret": false}]}, {"id": "nf-notify", "title": "Page your phone when a deploy fails", "body": "Open **Project configuration → Notifications → Deploy notifications → Add notification → HTTP POST request**. Event: **Deploy failed**. URL: your *production alerts* check URL with `/fail` on the end. Save.", "minutes": 5, "links": [{"label": "Deploy notifications", "url": "https://app.netlify.com/projects/north-foster-farm/configuration/notifications#deploy-notifications"}], "copy": [{"label": "URL to notify (your production alerts URL + /fail)", "value": "{hc_prod_alert}/fail"}]}, {"id": "st-token", "title": "Make a new staging token", "body": "The staging token guards staging's back-office pages. Press **Generate** to make a new one. It goes into the staging file. Don't put it in GitHub yet: GitHub, Netlify and a staging rebuild have to change together, in the env push step.", "minutes": 2, "fields": [{"id": "stg_token", "label": "Staging token", "secret": true, "save": "Also in your password manager, in the **NFF launch** folder.", "generate": 24}]}, {"id": "gh-rules", "title": "Protect the staging and main branches", "body": "This makes GitHub refuse any push to `staging` or `main` whose commit hasn't passed the tests. Releases stay a fast-forward of a commit already checked.\n1. Open the repository's **Settings → Rules → Rulesets → New ruleset → New branch ruleset**.\n2. Name it \"staging and main\", and set Enforcement status to **Active**.\n3. Leave the **Bypass list** empty. The agents push as you, so a bypass for admins would let them skip the check.\n4. **Target branches:** add `staging` and `main` by pattern.\n5. Tick **Restrict deletions** and **Block force pushes**.\n6. Tick **Require status checks to pass**, add `lint-and-test`, and leave \"up to date before merging\" off.\n7. Leave **Require a pull request** off: promotion is a fast-forward push, not a pull request.\n8. Create.\n\nLeave `next` unprotected, so lanes keep landing work. An emergency revert on `main` now goes through the tests first; `docs/rollback.md` will say so.", "minutes": 10, "blocked": "Waits on agents: the new lint-and-test check (#263) must have run once, and the rollback drill's part B must be done first.", "links": [{"label": "Rulesets", "url": "https://github.com/north-foster-farm/north-foster-farm/settings/rules"}]}]}, {"id": "pre-env", "phase": "pre", "title": "Your env files", "steps": [{"id": "env-files", "title": "Approve the samples and save the full files", "body": "Below are the six files built from what you've entered. Each **.sample** file has the secrets left blank. It's committed to the repo, so read it and tick **Approve**. Each full file holds every value: save it in your password manager now, and in the project root in the next step.\n\n**Development** works once the fake payment drivers land (#265), and it gets its pickup schedule from `bin/nff` (#264). After that, a fresh clone needs only `cp .env.development.sample .env`.\n\nWhen all three samples are approved, export the report. Claude passes them to the agents to commit.", "minutes": 20, "kind": "envfiles"}, {"id": "env-place", "title": "Put the files in the project folder", "body": "Your current `.env` is the production file, so it moves.\n1. In the project folder, save the full production file as `.env.production`, and the full staging file as `.env.staging` (replacing the old one).\n2. Make `.env` the development file: `cp .env.development.sample .env` (once the samples are committed), or save the full development file as `.env`.\n3. Delete `.env.preview` if it exists; previews no longer get values.\n4. Ask Claude which lane checkouts under `~/Code/nff/lanes/` hold env files, and update them the same way.", "minutes": 10, "copy": [{"label": "Check what's there (names only)", "value": "ls -la .env*"}]}, {"id": "env-push", "title": "Send the staging and production values to Netlify", "body": "In the project folder, push first, then check:\n```\nbin/nff env push --staging\nbin/nff env check --staging\nbin/nff env push --production\nbin/nff env check --production\n```\n`push` sets each value on its own context and marks secrets as secret. It skips local-only keys and never deletes anything. `check` lists, by name only, anything that still differs. Production's values match what it has today, so nothing changes for the live site.\n\n**Then, in the same sitting, for the staging token:** put the new value in GitHub (**Settings → Secrets and variables → Actions → STAGING_TOKEN → Update**), and ask Claude to rebuild staging. Until all three match, the staging jobs workflow fails.", "minutes": 15, "blocked": "Waits on agents: `bin/nff env push` and `env check` (#264).", "links": [{"label": "GitHub Actions secrets", "url": "https://github.com/north-foster-farm/north-foster-farm/settings/secrets/actions"}], "copy": [{"label": "Staging", "value": "bin/nff env push --staging && bin/nff env check --staging"}, {"label": "Production", "value": "bin/nff env push --production && bin/nff env check --production"}]}, {"id": "env-contexts", "title": "Empty the preview and local-development contexts", "body": "On Netlify, deploy previews and the **Local development** context still hold shared values. A linked `netlify dev` would hand real secrets to your Mac. Previews keep only `SITE_CONTEXT=deploy-preview` and a pickup schedule; Local development keeps nothing. Claude gives you the exact commands, names only.", "minutes": 10, "blocked": "Waits on agents: the staging API must fail closed first (#255), and the exact list comes from #251."}, {"id": "env-clean", "title": "Retire the old shared credentials", "body": "Once staging runs on its new values:\n- **Square:** delete the old shared sandbox webhook subscription. Keep the old app only if production uses it.\n- **PayPal:** delete the old shared sandbox app.\n- **Axiom and Healthchecks:** delete the token and checks staging used to share.\n- **Resend:** delete the keys previews and staging used to share, but **not** production's `RESEND_READ_KEY` or its key at Resend. The live site reads it until P9, a week after launch.\n- **Netlify:** delete the empty `STAGING_TOKEN` name from production.\n- **Your old Netlify token:** revoke it at Applications → Personal access tokens, once every env file, yours and the lanes', holds the new one.", "minutes": 20, "blocked": "Waits on agents: #251's list, after staging works on its own values.", "links": [{"label": "Netlify personal access tokens", "url": "https://app.netlify.com/user/applications#personal-access-tokens"}]}]}, {"id": "pre-staging", "phase": "pre", "title": "Staging checks that need the new values", "steps": [{"id": "stg-qf2", "title": "Remove a leftover test order on staging (QF2)", "body": "Run these in the project folder (they use your staging file):", "minutes": 3, "copy": [{"label": "Commands", "value": "bin/nff --staging orders cancel NFF-2609-6FFP --reason mistake && bin/nff --staging orders delete NFF-2609-6FFP"}]}, {"id": "stg-chicks", "title": "Delete the stray chicks.jpg (Q14)", "body": "`static/images/chicks.jpg` is an untracked file no page uses. Delete it, or tick this if you'd rather keep it.", "minutes": 1}, {"id": "stg-final", "title": "Tell Claude the env is in place", "body": "Export the report and paste it to Claude. That starts qa's final staging pass (the signed-in checks, the outbox check and the remaining live checks), which has waited on these values.", "minutes": 2}]}, {"id": "pre-drill", "phase": "pre", "title": "Rollback rehearsal", "steps": [{"id": "drill-a", "title": "Rehearse undoing a release, on production (part A)", "body": "With the coordinator, about 20 minutes. Production's current version and the commit after it differ only in a GitHub workflow, so customers see no change. You publish an older deploy, lock publishing, check that a new build doesn't go live, republish and unlock. The steps are in `docs/rollback.md`. Pick a time below and tell Claude.\n\nThe drill must happen before about **Oct 26**, or be followed by a fresh build of the current production version the day before release.", "minutes": 20, "links": [{"label": "Netlify deploys", "url": "https://app.netlify.com/projects/north-foster-farm/deploys"}, {"label": "#250", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/250"}], "fields": [{"id": "drill_when", "label": "When you'll do it", "secret": false}]}, {"id": "drill-all", "title": "Confirm the whole drill is done (parts A–D)", "body": "Parts B (a revert on staging, with the coordinator), C (old code over new records, local) and D (listing the webhook registrations) are agent work. Tick this when Claude reports all four done; #237 has the same box.", "minutes": 2}]}, {"id": "ld-before", "phase": "launch", "title": "Before the release", "steps": [{"id": "ld-schedule", "title": "Set production's pickup schedule first", "body": "This comes first: the release build fails without it. The file at `~/Code/nff/pickup-schedule.txt` covers Oct 16 to Dec 31. Production's env file has no build hook on purpose, so setting it doesn't rebuild the old site; the release build picks it up.", "minutes": 3, "copy": [{"label": "Commands", "value": "bin/nff schedule check ~/Code/nff/pickup-schedule.txt && bin/nff schedule set ~/Code/nff/pickup-schedule.txt --production"}]}, {"id": "ld-rebuild", "title": "The day before: rebuild the current production version", "body": "Tell Claude \"rebuild the rollback target\". The coordinator triggers a fresh production build of ff6270c, the current invoice checkout, so Netlify keeps it 30 days as the place to roll back to. It carries production's values as they are now, which is why production keeps its keys. Paste the deploy ID; Claude also records it on #237.", "minutes": 5, "fields": [{"id": "deploy_rollback", "label": "Rollback deploy ID", "secret": false}]}, {"id": "ld-submitted", "title": "Check no old-style orders are open", "body": "Run this; it must print **No orders.** Settle any invoice orders it lists before releasing.", "minutes": 2, "copy": [{"label": "Command", "value": "bin/nff --production orders list --status=submitted"}]}, {"id": "ld-maillist", "title": "Check nothing went out by mistake before launch (#159)", "minutes": 2, "copy": [{"label": "Command", "value": "bin/nff --production mail list --since 2026-09-19"}]}, {"id": "ld-privacy", "title": "Confirm the privacy page's date", "body": "The privacy page's \"Last updated\" must be the release day. The agents change it on release day, inside the release build, the one edit allowed during the freeze. Confirm the date below, and check it on staging before saying \"release go\".", "minutes": 2, "links": [{"label": "Privacy on staging", "url": "https://staging--north-foster-farm.netlify.app/privacy/"}], "fields": [{"id": "release_date", "label": "Release date", "secret": false, "placeholder": "2026-10-…"}]}, {"id": "ld-export1", "title": "Take a backup just before", "minutes": 2, "blocked": "Only if the backup export ships before launch (decision D-EXPORT).", "copy": [{"label": "Command", "value": "bin/nff --production export"}]}, {"id": "ld-venmo", "title": "Hide Venmo until the live test passes", "body": "If you approved hiding Venmo (D-VENMO), choose **Hidden**, re-save `.env.production` and push. The old site ignores this setting, so pushing it now is safe.", "minutes": 3, "copy": [{"label": "Push", "value": "bin/nff env push --production"}], "fields": [{"id": "venmo_hidden", "label": "Venmo at release", "secret": false, "type": "choice", "options": [{"value": "1", "label": "Hidden until R3 passes"}, {"value": "0", "label": "Visible"}]}]}]}, {"id": "ld-release", "phase": "launch", "title": "Release", "steps": [{"id": "ld-go", "title": "Release", "body": "Tell Claude **\"release go\"**. The coordinator checks the built staging site has no draft markers left, then fast-forwards `main` to the exact commit staging has run and passed (no merge, no new commit). Netlify builds and publishes production. Watch the deploys page until it says **Published**, then paste the deploy ID; Claude records it on #237.", "minutes": 10, "links": [{"label": "Netlify deploys", "url": "https://app.netlify.com/projects/north-foster-farm/deploys"}], "fields": [{"id": "deploy_release", "label": "Release deploy ID", "secret": false}]}, {"id": "ld-smoke", "title": "Quick checks", "body": "Open each:\n- Home and order pages load.\n- Dates lists pickup days.\n- Checkout config shows an application ID starting `sq0idp-`, not `sandbox`.\n- Health shows `context` (the new code is live).\n- robots.txt allows crawling; the home page has no `noindex`, and its share image is `share-card.png`.\n- **No staging code in production:** view the order page's source and search for `staging`; there's no `#staging` element. And Staging info answers **404**.", "minutes": 10, "links": [{"label": "Home", "url": "https://www.northfosterfarm.com/"}, {"label": "Order", "url": "https://www.northfosterfarm.com/order/"}, {"label": "Dates", "url": "https://www.northfosterfarm.com/api/dates"}, {"label": "Checkout config", "url": "https://www.northfosterfarm.com/api/checkout/config"}, {"label": "Health", "url": "https://www.northfosterfarm.com/api/health"}, {"label": "robots.txt", "url": "https://www.northfosterfarm.com/robots.txt"}, {"label": "Staging info (expect 404)", "url": "https://www.northfosterfarm.com/api/staging/info"}]}, {"id": "ld-uptime5", "title": "Add UptimeRobot's fifth monitor", "body": "**Keyword** monitor, every 5 minutes, alerts when the keyword doesn't exist.", "minutes": 3, "copy": [{"label": "URL", "value": "https://www.northfosterfarm.com/api/checkout/config"}, {"label": "Keyword", "value": "\"applicationId\":\"sq0idp-"}]}, {"id": "ld-resend-wh", "title": "Add production's Resend webhook", "body": "Now that the new code is live:\n1. On the farm team, **Webhooks → Add Webhook**, with the URL below and the events `contact.updated` and `contact.deleted`.\n2. Open it and copy its **Signing Secret**. Your old Venmo inbound secret should already be in your password manager.\n3. Paste the new secret here, re-save `.env.production`, push, and ask Claude to redeploy production.", "minutes": 10, "links": [{"label": "Resend webhooks", "url": "https://resend.com/webhooks"}], "copy": [{"label": "URL", "value": "https://www.northfosterfarm.com/api/resend/webhook"}, {"label": "Push", "value": "bin/nff env push --production"}], "fields": [{"id": "rs_prod_wh_new", "label": "New production webhook signing secret", "secret": true, "placeholder": "whsec_…"}]}]}, {"id": "ld-pay", "phase": "launch", "title": "Prove payments with real money", "steps": [{"id": "ld-r3", "title": "A $1 Venmo payment (R3)", "body": "Open the order page with `?venmo`, which shows Venmo even while it's hidden. Order $1 and pay with the real Venmo app. Then refund it with `bin/nff --production orders refund <id>`. Check the order record, Square's copy and both webhooks agree. When it passes, set Venmo to **Visible** in *Before the release*, re-save `.env.production`, push, **and ask Claude to redeploy**: the setting does nothing until production rebuilds.", "minutes": 15, "links": [{"label": "Order page with Venmo", "url": "https://www.northfosterfarm.com/order/?venmo"}]}, {"id": "ld-160", "title": "Pay a Venmo difference (#160)", "body": "Edit a paid Venmo order upward, pay the difference, and confirm the record and Square both show two payments. Then refund.", "minutes": 10}, {"id": "ld-card", "title": "A real $7 card order", "body": "Order a dozen eggs by card on the live site, then refund it from the command line. Check the receipt email arrives and the order shows in Square.", "minutes": 10}, {"id": "ld-applepay", "title": "Register the domain for Apple Pay (P8)", "body": "Developer Console → production app → **Production** → **Apple Pay → Add Domain** → `www.northfosterfarm.com` → verify. The site already serves the file Square checks. Then on your iPhone in Safari, confirm Apple Pay appears at checkout.", "minutes": 10, "links": [{"label": "Square Developer Console", "url": "https://developer.squareup.com/apps"}], "copy": [{"label": "Domain", "value": "www.northfosterfarm.com"}]}, {"id": "ld-errphone", "title": "Check a broken checkout reaches your phone", "body": "In Firefox, open the order page with developer tools. Block requests to `web.squarecdn.com` (Network tab: right-click a request to it → Block URL), then reload. A \"payment unavailable\" alert should reach your phone within a minute. Unblock afterwards.", "minutes": 5}]}, {"id": "ld-mail", "phase": "launch", "title": "Email and the announcement", "steps": [{"id": "ld-unsub", "title": "Test the farm-news unsubscribe on production", "body": "Send yourself a broadcast from the farm team (a test segment with just you), unsubscribe through its link, and check Resend's webhook log shows **200** and your account shows farm news off. Then confirm the webhook shows as **enabled**.", "minutes": 10}, {"id": "ld-replyto", "title": "Check replies reach the right person (#186)", "body": "Reply to one real customer-message email from production, then check what was sent:", "minutes": 5, "copy": [{"label": "Command", "value": "bin/nff --production mail list"}]}, {"id": "ld-export2", "title": "Take a backup just after", "minutes": 2, "blocked": "Only if the backup export ships before launch.", "copy": [{"label": "Command", "value": "bin/nff --production export"}]}, {"id": "ld-announce", "title": "Post on Instagram and send the launch email", "body": "Post the approved carousel and the Story. Send the approved launch email from Fastmail to the old list.", "minutes": 20}]}, {"id": "post-next", "phase": "post", "title": "The next day", "steps": [{"id": "pd-news", "title": "Check the test contact didn't come back", "body": "After the first 05:00 sync, check `news-test@northfosterfarm.com` hasn't reappeared in Resend. If it has, delete the customer record and the contact again.", "minutes": 3, "copy": [{"label": "Show", "value": "bin/nff --production customers show news-test@northfosterfarm.com"}]}, {"id": "pd-report", "title": "Read the first morning report and evening manifest", "body": "The 08:00 report and the 18:00 manifest arrive by email. Also check the scheduled jobs ran every 15 minutes:", "minutes": 5, "copy": [{"label": "Command", "value": "bin/nff --production jobs history"}]}, {"id": "pd-invite", "title": "Invite the old mailing list", "body": "The day after the launch email: remove anyone who replied \"unsubscribe\" from your CSV, then do a dry run and the real send.", "minutes": 15, "copy": [{"label": "Dry run", "value": "bin/nff --production audience invite list.csv --dry-run"}, {"label": "Send", "value": "bin/nff --production audience invite list.csv"}]}, {"id": "pd-ios", "title": "Check the confirmation email in iOS Mail (D9)", "body": "Open the first farm-news confirmation in the iPhone's Mail app. The phone number in the footer should stay text-coloured, not turn into a blue link.", "minutes": 3}]}, {"id": "post-week", "phase": "post", "title": "A week later", "steps": [{"id": "pw-p9", "title": "Remove the old invoice checkout's hooks (P9)", "body": "Not before a week after launch, so a rollback still lands on a working checkout. Then: in Resend, delete the inbound webhook to `/api/venmo/inbound`; in Square, edit the production subscription and untick the `invoice.*` events.", "minutes": 10, "links": [{"label": "Resend webhooks", "url": "https://resend.com/webhooks"}, {"label": "Square Developer Console", "url": "https://developer.squareup.com/apps"}]}, {"id": "pw-keys", "title": "Delete the keys only the old site used", "body": "After P9: delete `RESEND_READ_KEY` from Netlify production and its key at Resend (the API keys page shows when each key was last used). Delete the old Venmo inbound secret from your password manager. Revoke anything else Claude lists as retired.", "minutes": 10}, {"id": "pw-thaw", "title": "End the freeze", "body": "Export the report and tell Claude launch is done. The agents then pick up the after-launch list in the next section.", "minutes": 2}]}, {"id": "post-later", "phase": "post", "title": "After launch, when you're ready", "steps": [{"id": "pl-held", "title": "Choose which held work to pull in", "body": "Built and reviewed, waiting on your word: #241 (cancel stale Square orders), #236 (tidy duplicate Square customers), #149 (cart sync across devices), #193, #165 (order CSV and receipts tab), #114, #182 (pass codes), #183 (ride-along), #161, #167, #191, #215, #235, #240. Tell Claude which to pull, in which order.", "minutes": 15, "links": [{"label": "#233 held list", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/233"}]}, {"id": "pl-236", "title": "Before turning on the Square customer tidy (#236)", "body": "When #236 lands: give the production Square token the **MERCHANT_PROFILE_READ** permission, run the check on staging and then production, and only then set `SQUARE_CUSTOMER_CLEANUP`. The same goes for `SQUARE_SWEEP_CANCEL` (#241): it reports only, until you turn it on.", "minutes": 10, "copy": [{"label": "Staging check", "value": "bin/nff jobs customers --staging"}, {"label": "Production check", "value": "bin/nff jobs customers --production"}]}, {"id": "pl-data", "title": "Answer the data-design questions", "body": "Nine questions about where the farm's data should live after launch: households or people, how Square profiles link, the catalog's home and more (#244). Retention (#189) is already in the review section. Also tell Claude to commit the dashboard's untracked `0053_orders_from_site.sql` to a branch before it's lost.", "minutes": 20, "links": [{"label": "The questions", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/244#issuecomment-6207718389"}]}, {"id": "pl-rest", "title": "The rest of the after-launch list", "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- PY-17's live proof, if you chose to do it later;\n- in November, check nothing still says the drop site starts October 17 (W10, #218);\n- delete the stray notes in the repo root (#159).\n\nTick this when you've told Claude your order.", "minutes": 5}]}, {"id": "post-dates", "phase": "post", "title": "Dates to remember", "steps": [{"id": "pq-jan", "title": "By Mon Dec 14: January 2027's pickup days", "body": "Builds start failing on Dec 21 if the schedule doesn't reach two weeks ahead. Tell Claude January's days and hours, and it writes the new file. Then check it, set it on staging and production, and ask Claude to redeploy both. Production's file has no build hook, so its redeploy is by hand.", "when": "Dec 14", "copy": [{"label": "Commands", "value": "bin/nff schedule check ~/Code/nff/pickup-schedule.txt && bin/nff schedule set ~/Code/nff/pickup-schedule.txt --staging && bin/nff schedule set ~/Code/nff/pickup-schedule.txt --production"}]}, {"id": "pq-rotate", "title": "Jan 1, 2027: rotate the Netlify token and the yearly secrets", "body": "Follow `docs/secrets.md`. The Netlify and Axiom tokens expire that day.", "when": "Jan 1"}, {"id": "pq-pos", "title": "When the point of sale starts: hide item notes on receipts", "body": "Square Dashboard → Settings → Account & Settings → Payments → Receipts → turn off **Show item notes**, so customers never see the reconciliation code."}]}], "reviews": [{"id": "R-204", "section": "rv-look", "title": "The sticky band on the order page, on your iPhone", "area": "#204, iPhone", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "On your iPhone, open the order page and scroll. The band of category buttons should sit **flat at rest** and only **show a shadow along its bottom edge once it sticks** to the top (25b1183). Also check the part-1 label as you scroll fast. The issue closes after this look.", "look": [{"label": "Order page on staging", "url": "https://staging--north-foster-farm.netlify.app/order/"}, {"label": "Before and after", "url": "https://claude.ai/artifact/5rXDoAknHhgYFWjejjbFa4"}, {"label": "#204", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/204"}], "recommendation": "Approve if the band looks right on the phone."}]}, {"id": "R-H14", "section": "rv-look", "title": "Safari's bar colour on the order page (H14)", "area": "#205, iPhone", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "On your iPhone in Safari, open the order page. The browser's bar at the top and bottom should show **brand green at the ends**, the same as on the home page and About (5e1cab8, 0ded44b).", "look": [{"label": "Order page on staging", "url": "https://staging--north-foster-farm.netlify.app/order/"}, {"label": "Home, to compare", "url": "https://staging--north-foster-farm.netlify.app/"}, {"label": "#205", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/205"}]}]}, {"id": "R-214", "section": "rv-look", "title": "The map, on phone and desktop", "area": "#214", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Check the home page map on both. Switch to the **Delivery** layer and try the floating **Enter your ZIP** field; switch to **Places**; then check the map on About. Note: Foster's last market is **Oct 25**. After that, the home band lists no markets, which is expected.", "look": [{"label": "Home map", "url": "https://staging--north-foster-farm.netlify.app/#map"}, {"label": "About", "url": "https://staging--north-foster-farm.netlify.app/about/"}, {"label": "#214", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/214"}]}]}, {"id": "R-232", "section": "rv-look", "title": "The news-post header", "area": "#232", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "The header is already live on staging, but **no approval is recorded**. It's a centred, light-italic title with no breadcrumbs, letter-spacing −0.02em (−0.05em was offered), and the home page shares the same header.", "look": [{"label": "News on staging", "url": "https://staging--north-foster-farm.netlify.app/news/"}, {"label": "Mock-ups", "url": "https://claude.ai/artifact/86UPztPacod8xNEqnpjEun"}, {"label": "#232", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/232"}], "recommendation": "Approve as built. The stale hold/232 branch is then deleted."}]}, {"id": "R-230", "section": "rv-look", "title": "Where the roast chicken photo goes", "area": "#230", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Option 1, the cooked-chicken photo beside How to buy on home, is built (5163122). You'd asked to see the placements first; all three are in the mock-ups. Drafts: credit \"Photo: @fussica\"; alt text \"One of our chickens, roasted in a pan with red onion and bay leaves\".", "look": [{"label": "Home on staging", "url": "https://staging--north-foster-farm.netlify.app/"}, {"label": "The three placements", "url": "https://claude.ai/artifact/5KwSNTFCGyZxGrjN8BMuZh"}, {"label": "#230", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/230"}], "recommendation": "Option 1. Approve, or write which option you want."}]}, {"id": "R-FT", "section": "rv-look", "title": "The footer (FT1–FT3)", "area": "#226, item 34", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "FT1: built as shown (ffaff73). FT2: two columns from 992px wide. FT3: on a phone, the order links come first and the sign-up after them.", "look": [{"label": "Footer mock-up", "url": "https://claude.ai/artifact/GKWaduR8DkvvY5eMPQVjUJ"}, {"label": "Any staging page", "url": "https://staging--north-foster-farm.netlify.app/"}]}]}, {"id": "R-203", "section": "rv-look", "title": "The cart chevrons", "area": "#203, item 21", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Your panel-open and panel-close files are byte-identical to the pill's icons. **Approve** means one drawing for all three, as it ships now. If you want separate drawings, write that in feedback and re-save the bare pair as `~/Code/nff/cart-chevron-open.svg` and `~/Code/nff/cart-chevron-close.svg`.", "look": [{"label": "Order page on staging", "url": "https://staging--north-foster-farm.netlify.app/order/"}, {"label": "#203", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/203"}], "recommendation": "One drawing for all three (approve)."}]}, {"id": "R-OP27", "section": "rv-look", "title": "The phone cart after the first Add (OP-27)", "area": "#159", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "On a phone-width screen (390px), the first **Add** opens the floating cart over about two-thirds of the catalog. Should the catalog row stay reachable without pressing Hide? This was never put on the blocker list.", "look": [{"label": "Order page on staging", "url": "https://staging--north-foster-farm.netlify.app/order/"}, {"label": "#159", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/159"}], "recommendation": "Approve to keep it as is for launch. Write feedback if it should change before launch."}]}, {"id": "R-234", "section": "rv-look", "title": "The unsubscribe test on staging", "area": "#234, item 30", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Do this now, while staging still has its Resend setup. In Resend, send a broadcast to the staging farm-news audience with your own address in it. Click its unsubscribe link and unsubscribe. Resend's webhook log should show **200**. Then sign in on staging with that address: account settings should show farm news off straight away (7af935b).", "look": [{"label": "Staging checks page", "url": "https://claude.ai/artifact/VYo8DiuG1sFv7ATcUi7Ca7"}, {"label": "Resend webhooks", "url": "https://resend.com/webhooks"}, {"label": "Staging account", "url": "https://staging--north-foster-farm.netlify.app/account/"}]}]}, {"id": "R-CHECKS", "section": "rv-look", "title": "The rest of the staging checks page", "area": "22 looks", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "The checks page has more looks than the items above. Go through the rest there: Add to Home Screen opens in Safari (B1); the order page's lead (Q3b); the floating and settled cart (O1a, O1b, O6–O8); the gap around the payment choices (PY1); the cart by keyboard; the hero (H5, H15, H16); the news tiles; About's where-to-find-us, video and photo alt text; both Sign out buttons; the sign-in email field skipping Tab; and, optionally, the September post. Approve when they all look right, or list what doesn't in feedback.", "look": [{"label": "Staging checks page", "url": "https://claude.ai/artifact/VYo8DiuG1sFv7ATcUi7Ca7"}]}]}, {"id": "R-W7b", "section": "rv-copy", "title": "The privacy page's cookie paragraph (W7b)", "area": "#146", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Your wording. qa's signed-out and signed-in browser runs both pass, and the account page's Sign out bug is fixed (#243).", "look": [{"label": "Privacy on staging", "url": "https://staging--north-foster-farm.netlify.app/privacy/"}, {"label": "#146", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/146"}], "text": "The site sets two cookies, and only when you sign in. One holds a random code that tells the site you're signed in, and scripts on the page can't read it. The other holds only the time you signed in. Scripts on the page read it to notice when you sign in or out. Both last 30 days, and signing out deletes both."}]}, {"id": "R-PPL", "section": "rv-copy", "title": "The PayPal storage line on the privacy page", "area": "#146, item 15", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Under \"What your browser keeps\". qa confirmed PayPal's `__paypal_storage__` appears only on the order page, once the payment section shows.", "look": [{"label": "Privacy on staging", "url": "https://staging--north-foster-farm.netlify.app/privacy/"}], "text": "…two random codes that PayPal's script stores when the payment buttons appear on the order page. They hold nothing about you.", "recommendation": "Approve as is."}]}, {"id": "R-MAIL", "section": "rv-copy", "title": "Privacy page contact: info@ or sales@", "area": "#146", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "On 09-26 you said info@ is a real inbox and the privacy page keeps it. An agent later switched it to sales@ (6ec7336), taking the address from the site's data file. **Approve** keeps sales@. To keep info@, write \"info@\" in feedback, and it's added as a second address.", "look": [{"label": "Privacy on staging", "url": "https://staging--north-foster-farm.netlify.app/privacy/"}]}]}, {"id": "R-157", "section": "rv-copy", "title": "The policy drafts", "area": "#157, item 33", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Read these four hardest. Also: W11c's planned proof (an Oct 1 delivery order) can't run any more, so qafix will propose a new one.", "look": [{"label": "Delivery policy", "url": "https://staging--north-foster-farm.netlify.app/delivery-policy/"}, {"label": "Accessibility", "url": "https://staging--north-foster-farm.netlify.app/accessibility/"}, {"label": "Contact", "url": "https://staging--north-foster-farm.netlify.app/contact/"}, {"label": "#157", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/157"}], "text": "Pickup: \"On-farm pickup is at 99 East Killingly Road, Foster, RI 02825. The order page shows the times we have open, from tomorrow on; the one you choose is confirmed when you place your order. If something at the farm means we can't keep it, we'll cancel your order, refund it in full and email you to say so.\"\n\nHold: \"We hold your order for 7 days while you choose. If you haven't chosen by then, we cancel it, refund your items and email you to say so.\"\n\nContact: \"Visits are by appointment. To pick up an order, choose on-farm pickup and a time on the order page. To visit, call, text or send us a message first.\"\n\nAccessibility: \"We aim to meet the Web Content Accessibility Guidelines (WCAG) 2.1 at level A. The site has not been formally assessed.\""}]}, {"id": "R-187", "section": "rv-copy", "title": "The 17 emails still to approve, and the stale records", "area": "#187, item 27", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Open the email library on staging and use the **To approve** filter: 45 emails, 28 approved. The 17 include the order-changed emails, the missed and moved delivery emails (with #193's late wording), the farm cards, the morning report, the news invite and the launch email. Approve or rewrite each **in the library**. Then answer here: should the stale review records in the staging store be cleared (\"clear them\") or kept (\"keep them\")?", "look": [{"label": "Email library on staging", "url": "https://staging--north-foster-farm.netlify.app/#emails"}, {"label": "#187", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/187"}], "recommendation": "Approve here once all 17 are done in the library; write \"clear them\" or \"keep them\" in the box."}]}, {"id": "R-W17", "section": "rv-copy", "title": "The launch email: subject, preview, body", "area": "#153, items 27–28", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Subject (W17): **Order our chicken and eggs online 🐓 🥚**. Preview: \"Enjoy chicken and eggs from the farm all year round by ordering online for delivery or pickup.\" Fastmail has no preview field, so the inbox shows the opening line instead.\n\nThree things to settle:\n- **The hens line.** The email says \"our hens, although slowing down, will continue to lay for us all year round.\" The Instagram post cut that to \"we have eggs all year round\" (W22). Should the email match? The September post keeps its line.\n- **\"Starting October 17\"** in the drop-site paragraph goes stale if the email goes out after Oct 17. Agents will make it date-aware unless you say otherwise.\n- **\"In the next few days you'll get one more email\"** assumed sending invitations in batches. With Resend Pro it can be one send.", "look": [{"label": "The email, rendered", "url": "https://claude.ai/artifact/BsVLAgfh9GfXgLCTxKs3hk"}, {"label": "#153", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/153"}], "recommendation": "Approve the subject and body. Write in feedback whether the hens line should match Instagram."}]}, {"id": "R-152", "section": "rv-copy", "title": "The Instagram post", "area": "#152, item 32", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Five slides: the sheep-with-broilers cover, broilers on grass, cooked.jpg (@fussica), the Tilted Barn tent, the winter tunnel. Slide 5's overlay is a draft: \"Our freezers are fully stocked, and we have eggs all year round.\" **Slide 4's whiteboard still shows July prices and a Fourth of July special:** say whether that's fine.", "look": [{"label": "The post", "url": "https://claude.ai/artifact/F4JxpayD1LcaDfpXftjKkX"}, {"label": "#152", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/152"}], "text": "Our freezers are full, and you can now order from us online, for delivery or pickup. 🐓 The markets are ending, but you can keep enjoying our whole chickens, breasts, thighs, drumsticks, wings, maple sausage, and eggs all year round.\n…\n📷 Slide 3: @fussica"}]}, {"id": "D-VENMO", "section": "rv-decide", "title": "Is Venmo hidden at launch?", "area": "#237, #151", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Two plans disagree. #237 sets `VENMO_HIDDEN` in production before the release, so Venmo shows \"Coming soon\" until your live $1 test (R3) passes, then unsets it. #151's plan says leave it visible from the start.", "recommendation": "Hidden until R3 passes (#237's plan): one real Venmo payment proves the live path before customers see it. Approve to accept, or write \"visible\"."}]}, {"id": "D-EXPORT", "section": "rv-decide", "title": "Does the backup export ship before launch?", "area": "#249, #244", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "You approved the encrypted export to Backblaze B2 and Cloudflare R2 (both $0 at your size, checked today). Its issue isn't filed yet, and it isn't stated whether it must be built before launch. Without it, the only copy of orders, consent records and pickup agreements is Netlify Blobs.", "recommendation": "Before launch, with exports just before and after the release deploy. Approve, or write \"after launch\"."}]}, {"id": "D-ROT", "section": "rv-decide", "title": "How often secrets rotate", "area": "#244", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "The Netlify token expires on Jan 1 and is rotated every Jan 1. Should **every other secret** follow the same yearly Jan 1 schedule, or rotate every six months as you said earlier?", "recommendation": "Yearly on Jan 1 for everything: one date to remember, and rotate early on any leak. Approve, or write \"six months\"."}]}, {"id": "D-QF1", "section": "rv-decide", "title": "The accessibility scan (QF1)", "area": "#197, item 7", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Land qafix's automated accessibility scan with Square's card frame and PayPal's Venmo frame left out (they're other companies' code), after a rescan of the payment and confirmation views. The baseline is then empty, and the new CI fails any change that adds a problem.", "look": [{"label": "#197", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/197"}], "recommendation": "Yes."}]}, {"id": "D-PY17", "section": "rv-decide", "title": "How to prove the Square-down path (PY-17)", "area": "#151, item 13", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "PY-17 proves that when Square is down, Venmo still works. (a) On staging, with a broken Square token and a Venmo sandbox payment: two staging builds, and staging is getting its own Square app anyway. (b) Accept the unit tests now and do the live proof after launch. Previews can't do it any more, since they'll have no payment keys. (c) A local run with the new fake payment drivers (#265).", "look": [{"label": "#151", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/151"}], "recommendation": "(c) once the fakes land, otherwise (b). Approve, or write a or b."}]}, {"id": "D-148", "section": "rv-decide", "title": "Resend's new Contacts and Segments: now or later?", "area": "#148", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Resend renamed Audiences to Segments in November 2025 and will retire the old API. #148 moves the site over. It's built and ready (hold/148). (a) After launch, as its milestone says. (b) In this release, as you said on 09-24; then a migration step joins launch day.", "look": [{"label": "#148", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/148"}], "recommendation": "(a) after launch: the old API still works, and launch day stays shorter. Approve, or write b."}]}, {"id": "D-MA2", "section": "rv-decide", "title": "The Aller font", "area": "#220, item 9", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "You have no licence of your own; a designer gave you the font. Aller is Dalton Maag's free family under its own free licence.", "look": [{"label": "#220", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/220"}], "recommendation": "Keep it on the site with the licence text beside the font files, take it out of email, and drop the font CORS header."}]}, {"id": "D-MA1", "section": "rv-decide", "title": "Where three files came from", "area": "#220, item 10", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Where did `delivery-flyer.jpg`, `icons/eggs.svg` and `icons/globe.svg` come from? If globe.svg is an Apple SF Symbols export, it's swapped for an openly licensed icon (Lucide or Tabler). Write what you know in feedback.", "recommendation": "If you're unsure about globe.svg, approve and it gets swapped."}]}, {"id": "D-164", "section": "rv-decide", "title": "Staging's scheduled jobs run 2–6 hours apart", "area": "#164", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Staging's jobs are triggered from GitHub, which delays them by hours, so staging's health check reads stale. Production uses Netlify's own scheduler and isn't affected.", "recommendation": "Accept it for staging. Approve, or write that you want a steadier trigger."}]}, {"id": "D-189", "section": "rv-decide", "title": "How long customer data is kept, and how deletion works", "area": "#189, item 6", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "This spec is needed before the final QA pass: how long orders, customer records and accounts are kept; how a customer asks for deletion, and who does it; what deletion reaches (Blobs, Resend contacts, Square customers). Tidy's map of where data lives is on #189.", "look": [{"label": "#189 and the data map", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/189"}], "recommendation": "Write \"draft it\" in feedback and Claude drafts a spec for your review; or write your spec there."}]}, {"id": "D-INVITE", "section": "rv-decide", "title": "Inviting the old Fastmail list: one send or batches", "area": "#153", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "The plan was files of at most 90 addresses, one per morning, because Free capped sending at 100 a day. On Resend Pro there's no daily cap.", "recommendation": "One send, the day after the launch email. Approve, or write \"batches\"."}]}, {"id": "D-WH", "section": "rv-decide", "title": "The production Resend webhook uses www", "area": "#237", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "#237 gives the webhook URL as `https://northfosterfarm.com/api/resend/webhook`. The bare domain answers with a redirect, which webhooks don't follow.", "recommendation": "Use `https://www.northfosterfarm.com/api/resend/webhook`."}]}, {"id": "R-DECIDED", "section": "rv-decide", "title": "What agents decided as recommended", "area": "#233", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Some smaller choices were settled under \"execute the spec\": the agent took its own recommendation, and you can overrule any of them. They're listed in #233's body under \"Decided as recommended\". Skim them; approve, or name any you'd overrule.", "look": [{"label": "#233", "url": "https://github.com/north-foster-farm/north-foster-farm/issues/233"}]}]}, {"id": "D-245", "section": "rv-decide", "title": "Read the rollback and secrets runbooks", "area": "PR #245", "revisions": [{"rev": 1, "date": "2026-10-16", "summary": "Two docs to read: `docs/rollback.md` (how to undo a release in seconds, and what that doesn't undo) and `docs/secrets.md` (every secret, where it lives, and how to rotate it). Approve to let them merge; agents will update the rotation dates to your decision.", "look": [{"label": "PR #245", "url": "https://github.com/north-foster-farm/north-foster-farm/pull/245"}]}]}], "env": {"headers": {"development": ["### .env.development.sample", "###", "### Environment variables for the development and test environments.", "###", "### !!! This file should not contain secrets, or values used in any production", "### !!! or staging environment!", "###", "### To set up environment: copy this file to .env in the root of the project."], "staging": ["### .env.staging.sample", "###", "### Environment variables for the staging environment (the staging branch", "### deploy, staging--north-foster-farm.netlify.app).", "###", "### !!! Secret values are left blank in the .sample. Keep the filled-in", "### !!! .env.staging in your password manager and the project root only.", "###", "### To set up environment: use this file to set up the environment on Netlify", "### (bin/nff env push --staging)."], "production": ["### .env.production.sample", "###", "### Environment variables for production (www.northfosterfarm.com).", "###", "### !!! Secret values are left blank in the .sample. Keep the filled-in", "### !!! .env.production in your password manager and the project root only.", "###", "### To set up environment: use this file to set up the environment on Netlify", "### (bin/nff env push --production)."]}, "groups": [{"id": "site", "title": "Site", "about": "Which deploy this is, and the address links in emails point at. Set per Netlify deploy context."}, {"id": "square", "title": "Square", "about": "Card, Apple Pay, Google Pay and Cash App Pay. Log in at developer.squareup.com/apps. Each environment has its own application: Credentials holds the IDs and token, Webhooks > Subscriptions the signature key. Development uses the fake driver."}, {"id": "paypal", "title": "PayPal (Venmo)", "about": "Venmo through PayPal. Log in at developer.paypal.com/dashboard, Apps & Credentials (Sandbox or Live toggle). Each environment has its own app; the webhook ID is listed under the app's webhooks. Development uses the fake driver."}, {"id": "mail", "title": "Mail", "about": "How email leaves the site: resend in production, the outbox on staging (read it in the browser), files on disk in development."}, {"id": "resend", "title": "Resend", "about": "Sends transactional email and keeps the farm-news contacts. Log in at resend.com/login. Keys are made at resend.com/api-keys and shown once; webhooks at resend.com/webhooks. Production and staging are separate teams, if staging has one at all. Simulated in development."}, {"id": "logs", "title": "Logs and alerts", "about": "Axiom keeps the log lines (app.axiom.co, Settings > API tokens, ingest-only tokens, one dataset per environment). Healthchecks pages James's phone (healthchecks.io; each check's ping URL is on its page). Not used in development."}, {"id": "backup", "title": "Backups", "about": "The nightly encrypted export, to two places: Backblaze B2 (secure.backblaze.com, Application Keys) and Cloudflare R2 (dash.cloudflare.com, R2 > Manage API tokens). Encrypted to an age public key; the private key never leaves James's password manager. Names are proposed until the export is built."}, {"id": "staging", "title": "Staging tools", "about": "Guards the staging back office (/api/staging) and lets the browser tests read the outbox. Also stored as the GitHub Actions secret STAGING_TOKEN."}, {"id": "local", "title": "Local tools", "about": "Read only by bin/nff and the browser tests on James's Mac. Never set on Netlify. The Netlify token is a personal access token (app.netlify.com/user/applications), expiring each Jan 1."}], "vars": [{"name": "SITE_CONTEXT", "group": "site", "comment": "Which deploy this is. Picks the Blobs store names (production uses the bare names) and turns staging behaviour on or off. bin/nff sets it from its flag.", "secret": false, "envs": {"development": {"value": "dev"}, "staging": {"value": "branch-deploy"}, "production": {"value": "production"}}}, {"name": "SITE_URL", "group": "site", "comment": "The site's own address. Links in emails start with it, and Square signs its webhooks against it.", "secret": false, "envs": {"development": {"value": "http://localhost:8888"}, "staging": {"value": "https://staging--north-foster-farm.netlify.app"}, "production": {"value": "https://www.northfosterfarm.com"}}}, {"name": "ACCOUNTS_ENABLED", "group": "site", "comment": "true puts account links (sign in, your orders) in emails.", "secret": false, "envs": {"development": {"value": "true"}, "staging": {"value": "true"}, "production": {"value": "true"}}}, {"name": "SQUARE_ENV", "group": "square", "comment": "Which Square to talk to: production, sandbox, or fake (no network, development and tests).", "secret": false, "envs": {"development": {"value": "fake"}, "staging": {"value": "sandbox"}, "production": {"value": "production"}}}, {"name": "SQUARE_APPLICATION_ID", "group": "square", "comment": "The application ID. Public: the order page's payment form uses it.", "secret": false, "envs": {"development": {"value": "sandbox-sq0idb-fake-application-id"}, "staging": {"field": "sq_stg_app"}, "production": {"field": "sq_prod_app"}}}, {"name": "SQUARE_LOCATION_ID", "group": "square", "comment": "The Square location the website's sales belong to.", "secret": false, "envs": {"development": {"value": "FAKELOCATION"}, "staging": {"field": "sq_stg_loc"}, "production": {"field": "sq_prod_loc"}}}, {"name": "SQUARE_ACCESS_TOKEN", "group": "square", "comment": "The application's access token (Credentials > Show). Replacing it switches the old one off at once.", "secret": true, "envs": {"development": {"value": "fake-square-access-token"}, "staging": {"field": "sq_stg_token"}, "production": {"field": "sq_prod_token"}}}, {"name": "SQUARE_WEBHOOK_SIGNATURE_KEY", "group": "square", "comment": "Checks that webhook calls really come from Square (Webhooks > Subscriptions > the subscription > Signature Key).", "secret": true, "envs": {"development": {"value": "fake-square-signature-key"}, "staging": {"field": "sq_stg_sig"}, "production": {"field": "sq_prod_sig"}}}, {"name": "PAYPAL_ENV", "group": "paypal", "comment": "Which PayPal to talk to: live, sandbox, or fake (development and tests).", "secret": false, "envs": {"development": {"value": "fake"}, "staging": {"value": "sandbox"}, "production": {"value": "live"}}}, {"name": "PAYPAL_CLIENT_ID", "group": "paypal", "comment": "The app's Client ID. Public: the Venmo button uses it.", "secret": false, "envs": {"development": {"value": "fake-paypal-client-id"}, "staging": {"field": "pp_stg_id"}, "production": {"field": "pp_live_id"}}}, {"name": "PAYPAL_CLIENT_SECRET", "group": "paypal", "comment": "The app's Secret.", "secret": true, "envs": {"development": {"value": "fake-paypal-client-secret"}, "staging": {"field": "pp_stg_secret"}, "production": {"field": "pp_live_secret"}}}, {"name": "PAYPAL_WEBHOOK_ID", "group": "paypal", "comment": "The webhook's ID, which PayPal needs to check each webhook call. Shown in the app's webhook list.", "secret": false, "envs": {"development": {"value": "FAKEWEBHOOKID"}, "staging": {"field": "pp_stg_wh"}, "production": {"field": "pp_live_wh"}}}, {"name": "VENMO_HIDDEN", "group": "paypal", "comment": "1 shows Venmo as Coming soon, except to a browser that opened the order page with ?venmo. Empty or 0 shows it.", "secret": false, "envs": {"development": {"value": ""}, "staging": {"value": ""}, "production": {"field": "venmo_hidden"}}}, {"name": "MAIL_DRIVER", "group": "mail", "comment": "resend sends for real; outbox keeps mail in the site's store to read in the browser; file writes each email to MAIL_OUT.", "secret": false, "envs": {"development": {"value": "file"}, "staging": {"value": "outbox"}, "production": {"value": "resend"}}}, {"name": "MAIL_OUT", "group": "mail", "comment": "The folder the file driver writes to.", "secret": false, "envs": {"development": {"value": ".ignored/outbox"}}}, {"name": "MAIL_FROM", "group": "mail", "comment": "The sender name and address.", "secret": false, "envs": {"development": {"value": "North Foster Farm <orders@mail.northfosterfarm.com>"}, "staging": {"value": "[STAGING] North Foster Farm <orders@mail.northfosterfarm.com>"}, "production": {"field": "mail_from"}}}, {"name": "MAIL_REPLY_TO", "group": "mail", "comment": "Where customers' replies go.", "secret": false, "envs": {"development": {"value": "orders@northfosterfarm.com"}, "staging": {"field": "mail_reply_to"}, "production": {"field": "mail_reply_to"}}}, {"name": "ADMIN_EMAILS", "group": "mail", "comment": "Who gets the farm's notices, alerts and the morning report; comma-separated.", "secret": false, "envs": {"development": {"value": "farm@example.com"}, "staging": {"field": "admin_emails"}, "production": {"field": "admin_emails"}}}, {"name": "RESEND_API_KEY", "group": "resend", "comment": "The sending key: Sending access, limited to the mail domain.", "secret": true, "envs": {"development": {"value": "re_fake_sending_key"}, "production": {"field": "rs_prod_send"}}}, {"name": "RESEND_AUDIENCE_ID", "group": "resend", "comment": "The farm-news contact list (Resend now calls it a segment).", "secret": false, "envs": {"staging": {"field": "rs_stg_aud_id", "when": {"field": "rs_stg_team", "equals": "yes"}}, "production": {"field": "rs_prod_aud_id"}}}, {"name": "RESEND_AUDIENCE_KEY", "group": "resend", "comment": "A full-access key for the nightly contact sync.", "secret": true, "envs": {"staging": {"field": "rs_stg_aud_key", "when": {"field": "rs_stg_team", "equals": "yes"}}, "production": {"field": "rs_prod_aud_key"}}}, {"name": "RESEND_WEBHOOK_SECRET", "group": "resend", "comment": "Checks that webhook calls (unsubscribes) really come from Resend: the webhook's Signing Secret.", "secret": true, "envs": {"development": {"value": "whsec_ZmFrZWZha2VmYWtlZmFrZWZha2VmYWtlZmFrZQ=="}, "staging": {"field": "rs_stg_wh", "when": {"field": "rs_stg_team", "equals": "yes"}}, "production": {"field": "rs_prod_wh_new", "fallback": "rs_prod_wh"}}}, {"name": "RESEND_LOOKUP_KEY", "group": "resend", "comment": "A full-access key (claude-lookup) that bin/nff --production mail uses to read what was sent.", "secret": true, "envs": {"production": {"field": "rs_lookup"}}, "local": true}, {"name": "AXIOM_TOKEN", "group": "logs", "comment": "Ingest-only token for this environment's dataset; expires Jan 1.", "secret": true, "envs": {"staging": {"field": "ax_stg"}, "production": {"field": "ax_prod"}}}, {"name": "AXIOM_DATASET", "group": "logs", "comment": "The dataset log lines go to.", "secret": false, "envs": {"staging": {"value": "nff-site-staging"}, "production": {"value": "nff-site"}}}, {"name": "HEALTHCHECKS_JOBS_URL", "group": "logs", "comment": "Ping URL of the jobs heartbeat check.", "secret": true, "envs": {"staging": {"field": "hc_stg_jobs"}, "production": {"field": "hc_prod_jobs"}}}, {"name": "HEALTHCHECKS_ALERT_URL", "group": "logs", "comment": "Ping URL of the alerts check; alerts post to its /fail.", "secret": true, "envs": {"staging": {"field": "hc_stg_alert"}, "production": {"field": "hc_prod_alert"}}}, {"name": "BACKUP_AGE_RECIPIENT", "group": "backup", "comment": "The age public key backups are encrypted to (age1...).", "secret": false, "envs": {"production": {"field": "age_pub"}}, "planned": true}, {"name": "BACKUP_B2_ENDPOINT", "group": "backup", "comment": "Backblaze's S3 endpoint for the bucket.", "secret": false, "envs": {"production": {"field": "b2_endpoint"}}, "planned": true}, {"name": "BACKUP_B2_BUCKET", "group": "backup", "comment": "The Backblaze bucket.", "secret": false, "envs": {"production": {"field": "b2_bucket"}}, "planned": true}, {"name": "BACKUP_B2_KEY_ID", "group": "backup", "comment": "The application key's keyID.", "secret": false, "envs": {"production": {"field": "b2_key_id"}}, "planned": true}, {"name": "BACKUP_B2_APPLICATION_KEY", "group": "backup", "comment": "The application key itself (shown once).", "secret": true, "envs": {"production": {"field": "b2_app_key"}}, "planned": true}, {"name": "BACKUP_R2_ENDPOINT", "group": "backup", "comment": "Cloudflare R2's S3 endpoint (https://<account id>.r2.cloudflarestorage.com).", "secret": false, "envs": {"production": {"field": "r2_endpoint"}}, "planned": true}, {"name": "BACKUP_R2_BUCKET", "group": "backup", "comment": "The R2 bucket.", "secret": false, "envs": {"production": {"field": "r2_bucket"}}, "planned": true}, {"name": "BACKUP_R2_ACCESS_KEY_ID", "group": "backup", "comment": "The R2 token's Access Key ID.", "secret": false, "envs": {"production": {"field": "r2_key_id"}}, "planned": true}, {"name": "BACKUP_R2_SECRET_ACCESS_KEY", "group": "backup", "comment": "The R2 token's Secret Access Key (shown once).", "secret": true, "envs": {"production": {"field": "r2_secret"}}, "planned": true}, {"name": "STAGING_TOKEN", "group": "staging", "comment": "A long random value. Also the GitHub Actions secret of the same name.", "secret": true, "envs": {"development": {"value": "dev-staging-token"}, "staging": {"field": "stg_token"}}}, {"name": "NETLIFY_SITE_ID", "group": "local", "comment": "The Project ID, so bin/nff can reach this site's records.", "secret": false, "envs": {"staging": {"field": "nf_site"}, "production": {"field": "nf_site"}}, "local": true}, {"name": "NETLIFY_AUTH_TOKEN", "group": "local", "comment": "James's personal access token; expires Jan 1. The same token sits in both local files: it's personal, not a site secret.", "secret": true, "envs": {"staging": {"field": "nf_pat"}, "production": {"field": "nf_pat"}}, "local": true}]}}</script>
+<script>
+(function () {
+  "use strict";
+  var STORE_KEY = "nff-launch-guide-v1";
+  var REMOTE = "https://raw.githubusercontent.com/north-foster-farm/north-foster-farm/launch-guide/launch-guide/guide.json";
+  var ENVS = ["development", "staging", "production"];
+  var ENV_FILE = { development: ".env.development", staging: ".env.staging", production: ".env.production" };
+
+  // ---------- state ----------
+  var state = load();
+  function blank() {
+    return { checks: {}, fields: {}, notes: {}, reviews: {}, samples: {}, open: {}, dataRevision: 0, remoteData: null };
+  }
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (raw) { var s = JSON.parse(raw); var b = blank(); for (var k in b) if (!(k in s)) s[k] = b[k]; return s; }
+    } catch (e) { /* storage unavailable */ }
+    return blank();
+  }
+  var saveTimer = null;
+  function save() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () {
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+      catch (e) { toast("Couldn't save to this browser's storage. Export your secrets now."); }
+    }, 150);
+  }
+
+  // ---------- data ----------
+  var embedded = JSON.parse(document.getElementById("guide-data").textContent);
+  var data = pickData();
+  function pickData() {
+    var r = state.remoteData;
+    if (r && r.revision > embedded.revision) return r;
+    return embedded;
+  }
+
+  // ---------- helpers ----------
+  function $(s, el) { return (el || document).querySelector(s); }
+  function h(tag, attrs, kids) {
+    var el = document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+      var v = attrs[k];
+      if (v == null || v === false) continue;
+      if (k === "class") el.className = v;
+      else if (k === "html") el.innerHTML = v;
+      else if (k === "text") el.textContent = v;
+      else if (k.slice(0, 2) === "on") el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v === true ? "" : v);
+    }
+    (kids || []).forEach(function (c) { if (c != null) el.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return el;
+  }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function safeUrl(u) { return /^https?:\/\//i.test(u) ? u : "#"; }
+  // A small, safe Markdown subset: paragraphs, lists, fenced code, `code`, **bold**, *em*, [links](https://...).
+  function md(src) {
+    if (!src) return "";
+    var lines = String(src).replace(/\r/g, "").split("\n");
+    var out = [], para = [], list = null, code = null;
+    function inline(t) {
+      t = esc(t);
+      t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
+      t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      t = t.replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>");
+      t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, function (m, l, u) {
+        return '<a href="' + u.replace(/"/g, "%22") + '" target="_blank" rel="noopener">' + l + "</a>";
+      });
+      return t;
+    }
+    function flushP() { if (para.length) { out.push("<p>" + inline(para.join(" ")) + "</p>"); para = []; } }
+    function flushL() { if (list) { out.push("<" + list.t + ">" + list.items.map(function (i) { return "<li>" + inline(i) + "</li>"; }).join("") + "</" + list.t + ">"); list = null; } }
+    lines.forEach(function (line) {
+      if (code !== null) {
+        if (/^```/.test(line)) { out.push("<pre><code>" + esc(code.join("\n")) + "</code></pre>"); code = null; }
+        else code.push(line);
+        return;
+      }
+      if (/^```/.test(line)) { flushP(); flushL(); code = []; return; }
+      var m;
+      if ((m = /^\s*[-*] (.*)$/.exec(line))) { flushP(); if (!list || list.t !== "ul") { flushL(); list = { t: "ul", items: [] }; } list.items.push(m[1]); return; }
+      if ((m = /^\s*\d+[.)] (.*)$/.exec(line))) { flushP(); if (!list || list.t !== "ol") { flushL(); list = { t: "ol", items: [] }; } list.items.push(m[1]); return; }
+      if (/^\s*$/.test(line)) { flushP(); flushL(); return; }
+      if (list && /^\s{2,}\S/.test(line)) { list.items[list.items.length - 1] += " " + line.trim(); return; }
+      flushL(); para.push(line.trim());
+    });
+    if (code !== null) out.push("<pre><code>" + esc(code.join("\n")) + "</code></pre>");
+    flushP(); flushL();
+    return out.join("");
+  }
+  var toastTimer;
+  function toast(msg) { var t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2200); }
+  function copy(text, what) {
+    function fallback() {
+      var ta = h("textarea", { style: "position:fixed;left:-9999px" }); ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); toast((what || "Text") + " copied"); } catch (e) { toast("Copy failed: select and copy by hand"); }
+      ta.remove();
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { toast((what || "Text") + " copied"); }, fallback);
+    else fallback();
+  }
+  function download(name, text) {
+    var a = h("a", { href: URL.createObjectURL(new Blob([text], { type: "text/plain" })), download: name });
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+
+  // ---------- model ----------
+  function allSteps() { var a = []; data.sections.forEach(function (s) { s.steps.forEach(function (st) { a.push(st); }); }); return a; }
+  function fieldDefs() { var m = {}; allSteps().forEach(function (st) { (st.fields || []).forEach(function (f) { m[f.id] = f; }); }); return m; }
+  function revState(item) {
+    var latest = item.revisions[item.revisions.length - 1];
+    var s = state.reviews[item.id] || {};
+    var d = (s.decisions || {})[latest.rev];
+    if (d && d.status === "approved") return "approved";
+    if (d && d.status === "feedback") return "feedback";
+    var anyPast = Object.keys(s.decisions || {}).length > 0;
+    return anyPast ? "changed" : "pending";
+  }
+  function reviewsIn(sec) { return data.reviews.filter(function (r) { return r.section === sec.id; }); }
+  function reviewsDone() { return data.reviews.filter(function (r) { return revState(r) === "approved"; }).length; }
+  function stepDone(st) {
+    if (st.kind === "envfiles") return ENVS.every(function (e) { return state.samples[e]; }) && !!state.checks[st.id];
+    return !!state.checks[st.id];
+  }
+  function sectionCount(sec) {
+    if (sec.kind === "reviews") { var rs = reviewsIn(sec); return { done: rs.filter(function (r) { return revState(r) === "approved"; }).length, total: rs.length }; }
+    return { done: sec.steps.filter(stepDone).length, total: sec.steps.length };
+  }
+  function phaseCount(pid) {
+    var d = 0, t = 0;
+    data.sections.forEach(function (s) { if (s.phase === pid) { var c = sectionCount(s); d += c.done; t += c.total; } });
+    return { done: d, total: t };
+  }
+  function freezeReached() { return data.reviews.length > 0 && reviewsDone() === data.reviews.length; }
+
+  // ---------- env generation ----------
+  function envValue(v, env, withSecrets) {
+    var spec = v.envs && v.envs[env];
+    if (!spec) return null;
+    if (spec.field) {
+      if (v.secret && !withSecrets) return "";
+      var fv = fieldVal(spec.field);
+      if (!fv && spec.fallback) fv = fieldVal(spec.fallback);
+      return fv;
+    }
+    return spec.value == null ? "" : String(spec.value);
+  }
+  function fieldVal(id) {
+    var val = state.fields[id];
+    if (val == null || val === "") { var d = fieldDefs()[id]; return d && d.default != null ? String(d.default) : ""; }
+    return String(val);
+  }
+  function applies(v, env) {
+    var spec = v.envs && v.envs[env];
+    if (!spec || v.planned) return false;
+    if (spec.when) return fieldVal(spec.when.field) === spec.when.equals;
+    return true;
+  }
+  function envFile(env, withSecrets) {
+    var e = data.env, lines = [];
+    var head = e.headers[env] || [];
+    head.forEach(function (l) { lines.push(l); });
+    var missing = [];
+    e.groups.forEach(function (g) {
+      var vars = e.vars.filter(function (v) { return v.group === g.id && applies(v, env); });
+      if (!vars.length) return;
+      lines.push("");
+      lines.push("## " + g.title);
+      lines.push("##");
+      wrap(g.about, 76).forEach(function (l) { lines.push("## " + l); });
+      vars.forEach(function (v) {
+        lines.push("");
+        lines.push("# " + v.name);
+        var c = (v.envs[env] && v.envs[env].comment) || v.comment;
+        wrap(c, 78).forEach(function (l) { lines.push("# " + l); });
+        if (v.local) lines.push("# Local only: bin/nff reads it. env push skips it; never set on Netlify.");
+        var val = envValue(v, env, withSecrets);
+        if (withSecrets && v.envs[env].field && !val && fieldDefs()[v.envs[env].field] && !fieldDefs()[v.envs[env].field].default) missing.push(v.name);
+        lines.push(v.name + "=" + quote(val));
+      });
+    });
+    return { text: lines.join("\n") + "\n", missing: missing };
+  }
+  function quote(v) {
+    if (v === "") return "";
+    if (/\n/.test(v)) return '"' + v.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n") + '"';
+    if (/[\s#"'$`\\]/.test(v)) return '"' + v.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
+    return v;
+  }
+  function wrap(text, w) {
+    if (!text) return [];
+    var words = String(text).split(/\s+/), out = [], line = "";
+    words.forEach(function (wd) { if ((line + " " + wd).trim().length > w) { if (line) out.push(line); line = wd; } else line = (line + " " + wd).trim(); });
+    if (line) out.push(line);
+    return out;
+  }
+
+  // ---------- render ----------
+  function render() {
+    renderPhases(); renderRail(); renderMain(); renderMeta();
+  }
+  function renderMeta() {
+    var src = data === embedded ? "built-in copy" : "GitHub";
+    $("#dataMeta").textContent = "Steps revision " + data.revision + " (" + src + ")" + (state.lastCheck ? ", checked " + new Date(state.lastCheck).toLocaleString() : "");
+  }
+  function renderPhases() {
+    var el = $("#phases"); el.textContent = "";
+    data.phases.forEach(function (p) {
+      var c = phaseCount(p.id), pct = c.total ? Math.round(100 * c.done / c.total) : 0;
+      var locked = p.id !== "review" && !freezeReached() && p.gated;
+      var b = h("button", { class: "phase-meter" + (locked ? " locked" : ""), onclick: function () { var t = document.getElementById("phase-" + p.id); if (t) t.scrollIntoView(); } }, [
+        h("strong", { text: p.short }), " " + c.done + " of " + c.total,
+        h("div", { class: "bar", "aria-hidden": "true" }, [h("i", { style: "width:" + pct + "%" })])
+      ]);
+      el.appendChild(b);
+    });
+  }
+  function renderRail() {
+    var nav = $("#rail"); nav.textContent = "";
+    var box = h("details", { class: "railbox" }, [h("summary", { text: "Sections" })]);
+    var narrow = window.matchMedia("(max-width: 1000px)").matches;
+    box.open = !narrow || !!state.railOpen;
+    box.addEventListener("toggle", function () { if (window.matchMedia("(max-width: 1000px)").matches) { state.railOpen = box.open; save(); } });
+    nav.appendChild(box);
+    var rail = h("div", { class: "railin" }); box.appendChild(rail);
+    data.phases.forEach(function (p) {
+      rail.appendChild(h("h2", { text: p.short }));
+      data.sections.filter(function (s) { return s.phase === p.id; }).forEach(function (s) {
+        var c = sectionCount(s);
+        rail.appendChild(h("a", { href: "#sec-" + s.id, class: c.done === c.total && c.total ? "complete" : "" }, [
+          h("span", { class: "t", text: s.title }), h("span", { class: "n", text: c.done + "/" + c.total })
+        ]));
+      });
+    });
+  }
+  function renderMain() {
+    var main = $("#main"), y = window.scrollY; main.textContent = ""; envPanels = [];
+    // Top banners
+    if (data.notice) main.appendChild(h("div", { class: "banner warn", html: md(data.notice) }));
+    if (freezeReached()) main.appendChild(h("div", { class: "banner ok", html: md("**Every review item is approved. The code freeze has begun.** From here, only env files, sample env files and the steps below change. Export your report so Claude can tell the agents.") }));
+    else main.appendChild(h("div", { class: "banner", html: md("**Start with the reviews.** When every review item is approved, the code freeze begins and the rest of this guide is yours to work through. Account setup in the pre-launch section can start any time: it doesn't depend on the freeze.") }));
+
+    data.phases.forEach(function (p) {
+      main.appendChild(h("h2", { class: "phase-head", id: "phase-" + p.id, text: p.title }));
+      if (p.intro) main.appendChild(h("div", { class: "phase-intro", html: md(p.intro) }));
+      data.sections.filter(function (s) { return s.phase === p.id; }).forEach(function (s) {
+        var c = sectionCount(s);
+        var sec = h("section", { class: "sec", id: "sec-" + s.id }, [
+          h("h2", { text: s.title }),
+          h("div", { class: "sec-meter", text: c.done + " of " + c.total + " done" }),
+          s.intro ? h("div", { class: "sec-intro", html: md(s.intro) }) : null
+        ]);
+        if (s.kind === "reviews") reviewsIn(s).forEach(function (r) { sec.appendChild(renderReview(r)); });
+        s.steps.forEach(function (st) { sec.appendChild(renderStep(st)); });
+        main.appendChild(sec);
+      });
+    });
+    window.scrollTo(0, y);
+  }
+
+  function renderStep(st) {
+    var done = stepDone(st);
+    var open = state.open[st.id] != null ? state.open[st.id] : false;
+    var el = h("article", { class: "step" + (done ? " done" : "") + (open ? " open" : ""), id: "st-" + st.id });
+    var tick = h("input", { type: "checkbox", class: "tick", "aria-label": "Done: " + st.title });
+    tick.checked = !!state.checks[st.id];
+    tick.addEventListener("change", function () { state.checks[st.id] = tick.checked; if (tick.checked) state.open[st.id] = false; save(); render(); });
+    var tags = h("div", { class: "tags" });
+    if (st.when) tags.appendChild(h("span", { class: "tag when", text: st.when }));
+    if (st.blocked) tags.appendChild(h("span", { class: "tag blocked", text: "Waits on agents" }));
+    if ((st.fields || []).some(function (f) { return f.secret; })) tags.appendChild(h("span", { class: "tag secret", text: "Secrets" }));
+    if (st.minutes) tags.appendChild(h("span", { class: "tag", text: "~" + st.minutes + " min" }));
+    var title = h("button", { class: "title", "aria-expanded": open ? "true" : "false", text: st.title, onclick: function () { state.open[st.id] = !el.classList.contains("open"); save(); el.classList.toggle("open"); title.setAttribute("aria-expanded", el.classList.contains("open")); } });
+    el.appendChild(h("header", null, [tick, title, tags]));
+    var body = h("div", { class: "body" });
+    if (st.blocked) body.appendChild(h("div", { class: "blocked-note", html: md(st.blocked) }));
+    if (st.body) body.appendChild(h("div", { html: md(st.body) }));
+    if (st.links && st.links.length) body.appendChild(h("div", { class: "links" }, st.links.map(function (l) { return h("a", { href: safeUrl(l.url), target: "_blank", rel: "noopener", text: l.label }); })));
+    (st.copy || []).forEach(function (c) {
+      var valEl = h("div", { class: "val" });
+      function current() { return String(c.value).replace(/\{([a-z0-9_]+)\}/g, function (m, k) { return fieldVal(k) || "(fill in the step above first)"; }); }
+      function upd() { valEl.textContent = current(); }
+      if (/\{[a-z0-9_]+\}/.test(c.value)) envPanels.push(upd);
+      upd();
+      body.appendChild(h("div", { class: "copyrow" }, [
+        h("span", { class: "label", text: c.label }), valEl,
+        h("button", { class: "small", text: "Copy", onclick: function () { copy(current(), c.label); } })
+      ]));
+    });
+    (st.fields || []).forEach(function (f) { body.appendChild(renderField(f)); });
+    if (st.after) body.appendChild(h("div", { html: md(st.after) }));
+    if (st.kind === "envfiles") body.appendChild(renderEnvFiles());
+    if (st.kind === "import") body.appendChild(renderImport());
+    var notes = h("details", { class: "notes" }, [h("summary", { text: state.notes[st.id] ? "Your note (saved)" : "Add a note or problem for Claude" })]);
+    var ta = h("textarea", { "aria-label": "Note on " + st.title }); ta.value = state.notes[st.id] || "";
+    ta.addEventListener("input", function () { state.notes[st.id] = ta.value; save(); });
+    notes.appendChild(ta); if (state.notes[st.id]) notes.open = true;
+    body.appendChild(notes);
+    el.appendChild(body);
+    return el;
+  }
+
+  function renderField(f) {
+    var row = h("div", { class: "fieldrow" + (f.secret ? " secret" : "") });
+    var id = "f-" + f.id;
+    row.appendChild(h("label", { for: id, text: f.label }));
+    if (f.save) row.appendChild(h("div", { class: "save", html: md(f.save) }));
+    if (f.type === "choice") {
+      var sel = h("select", { id: id });
+      sel.appendChild(h("option", { value: "", text: "Choose" }));
+      f.options.forEach(function (o) { var op = h("option", { value: o.value, text: o.label }); sel.appendChild(op); });
+      sel.value = state.fields[f.id] || "";
+      sel.addEventListener("change", function () { state.fields[f.id] = sel.value; save(); refreshEnvPanels(); });
+      row.appendChild(sel);
+      return row;
+    }
+    var input = h(f.multiline ? "textarea" : "input", { id: id, type: f.multiline ? null : (f.secret ? "password" : "text"), placeholder: f.placeholder || (f.default ? "Default: " + f.default : ""), autocomplete: "off", spellcheck: "false" });
+    input.value = state.fields[f.id] || "";
+    input.addEventListener("input", function () { state.fields[f.id] = input.value.trim() ? input.value.trim() : ""; save(); refreshEnvPanels(); });
+    var kids = [input];
+    if (f.generate) kids.push(h("button", { class: "small", type: "button", text: "Generate", onclick: function () {
+      if (input.value && !confirm("Replace the saved value with a new one?")) return;
+      var b = new Uint8Array(f.generate); crypto.getRandomValues(b);
+      input.value = Array.prototype.map.call(b, function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
+      state.fields[f.id] = input.value; save(); refreshEnvPanels(); toast("Generated and saved");
+    } }));
+    if (f.secret && !f.multiline) kids.push(h("button", { class: "small", type: "button", text: "Show", onclick: function (ev) { var show = input.type === "password"; input.type = show ? "text" : "password"; ev.target.textContent = show ? "Hide" : "Show"; } }));
+    kids.push(h("button", { class: "small", type: "button", text: "Copy", onclick: function () { copy(input.value, f.label); } }));
+    row.appendChild(h("div", { class: "inline" }, kids));
+    return row;
+  }
+
+  var envPanels = [];
+  function renderImport() {
+    var box = h("div");
+    var ta = h("textarea", { placeholder: "Paste the whole of your current .env here", "aria-label": "Your current .env", spellcheck: "false", style: "min-height:140px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px" });
+    var result = h("div", { class: "sec-intro", html: md(state.importSummary || "") });
+    var map = {};
+    data.env.vars.forEach(function (v) { var sp = v.envs && v.envs.production; if (sp && sp.field) map[v.name] = sp.fallback || sp.field; });
+    var btn = h("button", { class: "primary", text: "Fill in production fields", onclick: function () {
+      var filled = [], skipped = [], unknown = [];
+      ta.value.split(/\r?\n/).forEach(function (line) {
+        var m = /^\s*(?:export\s+)?([A-Z][A-Z0-9_]*)\s*=\s*(.*)$/.exec(line);
+        if (!m) return;
+        var key = m[1], val = m[2].trim();
+        if (/^".*"$/.test(val)) val = val.slice(1, -1).replace(/\\n/g, "\n").replace(/\\"/g, '"');
+        else if (/^'.*'$/.test(val)) val = val.slice(1, -1);
+        else val = val.replace(/\s+#.*$/, "");
+        if (!val) return;
+        var fid = map[key];
+        if (!fid) { unknown.push(key); return; }
+        if (state.fields[fid]) { skipped.push(key); return; }
+        state.fields[fid] = val; filled.push(key);
+      });
+      ta.value = "";
+      state.importSummary = "**Filled:** " + (filled.join(", ") || "none") + "\n\n**Already filled, left alone:** " + (skipped.join(", ") || "none") + "\n\n**Fixed in the new files, or no longer used** (left out): " + (unknown.join(", ") || "none");
+      save(); render(); toast("Filled " + filled.length + " production values");
+    } });
+    box.appendChild(ta); box.appendChild(h("div", { class: "decide" }, [h("div", { class: "btns" }, [btn])])); box.appendChild(result);
+    return box;
+  }
+  function refreshEnvPanels() { envPanels.forEach(function (fn) { fn(); }); }
+  function renderEnvFiles() {
+    var box = h("div");
+    ENVS.forEach(function (env) {
+      var wrapEl = h("div", { class: "envfile" });
+      var sTitle = h("h3", { text: ENV_FILE[env] + ".sample: secrets left blank, committed to the repo" });
+      var samplePre = h("pre"), fullPre = h("pre");
+      var approve = h("input", { type: "checkbox", id: "ap-" + env }); approve.checked = !!state.samples[env];
+      approve.addEventListener("change", function () { state.samples[env] = approve.checked ? envFile(env, false).text : false; save(); renderPhases(); renderRail(); });
+      var miss = h("div", { class: "missing" });
+      var showFull = h("button", { class: "small", text: "Show the full file" });
+      var fullWrap = h("div", { hidden: true }, [
+        h("div", { class: "banner secret", html: md("**This file holds secrets.** Save it in your password manager, and save it as `" + ENV_FILE[env] + "` in the project root (it's gitignored). Never paste it to Claude or into an issue.") }),
+        fullPre,
+        h("div", { class: "bar-row" }, [
+          h("button", { class: "small", text: "Copy " + ENV_FILE[env], onclick: function () { copy(envFile(env, true).text, ENV_FILE[env]); } }),
+          h("button", { class: "small", text: "Download " + ENV_FILE[env], onclick: function () { download(ENV_FILE[env], envFile(env, true).text); } })
+        ])
+      ]);
+      showFull.addEventListener("click", function () { fullWrap.hidden = !fullWrap.hidden; showFull.textContent = fullWrap.hidden ? "Show the full file" : "Hide the full file"; });
+      function upd() {
+        var s = envFile(env, false), f = envFile(env, true);
+        samplePre.textContent = s.text; fullPre.textContent = f.text;
+        miss.classList.toggle("ok", !f.missing.length);
+        miss.textContent = f.missing.length ? f.missing.length + " secret value" + (f.missing.length === 1 ? "" : "s") + " still empty: " + f.missing.join(", ") : "Every value is filled in.";
+        if (state.samples[env] && state.samples[env] !== s.text) { state.samples[env] = false; approve.checked = false; save(); }
+      }
+      envPanels.push(upd); upd();
+      wrapEl.appendChild(sTitle);
+      var planned = data.env.vars.filter(function (v) { return v.planned && v.envs && v.envs[env]; }).map(function (v) { return v.name; });
+      if (planned.length) wrapEl.appendChild(h("p", { class: "sec-intro", html: md("Not in the file yet, waiting on the code that reads them: " + planned.map(function (n) { return "`" + n + "`"; }).join(", ") + ". Your values for them are saved here.") }));
+      wrapEl.appendChild(samplePre);
+      wrapEl.appendChild(h("div", { class: "bar-row" }, [approve, h("label", { for: "ap-" + env, text: "Approve this sample for commit" }),
+        h("button", { class: "small", text: "Copy sample", onclick: function () { copy(envFile(env, false).text, ENV_FILE[env] + ".sample"); } })]));
+      wrapEl.appendChild(h("h3", { text: ENV_FILE[env] + ": every value, secrets included" }));
+      wrapEl.appendChild(miss);
+      wrapEl.appendChild(showFull);
+      wrapEl.appendChild(fullWrap);
+      box.appendChild(wrapEl);
+    });
+    return box;
+  }
+
+  function renderReview(item) {
+    var st = revState(item);
+    var label = { approved: "Approved", feedback: "Feedback sent", changed: "Changed: look again", pending: "Needs your look" }[st];
+    var open = state.open["r-" + item.id] != null ? state.open["r-" + item.id] : st !== "approved";
+    var el = h("article", { class: "rev" + (open ? " open" : ""), id: "rv-" + item.id });
+    var head = h("header", { tabindex: "0", role: "button", "aria-expanded": open ? "true" : "false" }, [
+      h("div", null, [h("h3", { text: item.title }), h("div", { class: "area", text: item.area || "" })]),
+      h("span", { class: "status " + st, text: label })
+    ]);
+    function toggle() { state.open["r-" + item.id] = !el.classList.contains("open"); save(); el.classList.toggle("open"); head.setAttribute("aria-expanded", el.classList.contains("open")); }
+    head.addEventListener("click", toggle);
+    head.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+    el.appendChild(head);
+    var body = h("div", { class: "rbody" });
+    var decisions = (state.reviews[item.id] || {}).decisions || {};
+    item.revisions.forEach(function (rv, i) {
+      var current = i === item.revisions.length - 1;
+      var r = h("div", { class: "revision" + (current ? " current" : "") }, [
+        h("h4", { text: (current ? "Current version" : "Earlier version") + " " + rv.rev + (rv.date ? ", " + rv.date : "") })
+      ]);
+      if (rv.changed) r.appendChild(h("div", { html: md("**What changed:** " + rv.changed) }));
+      if (rv.summary) r.appendChild(h("div", { html: md(rv.summary) }));
+      if (rv.text) r.appendChild(h("div", { class: "verbatim", text: rv.text }));
+      if (rv.look && rv.look.length) r.appendChild(h("div", { class: "links" }, rv.look.map(function (l) { return h("a", { href: safeUrl(l.url), target: "_blank", rel: "noopener", text: l.label }); })));
+      if (rv.recommendation) r.appendChild(h("div", { class: "rec", html: md("**Recommendation:** " + rv.recommendation) }));
+      var d = decisions[rv.rev];
+      if (d && d.status === "feedback") r.appendChild(h("div", { class: "past-fb", text: "Your feedback: " + d.comment }));
+      if (d && d.status === "approved" && !current) r.appendChild(h("div", { class: "past-fb", text: "You approved this version." }));
+      if (current) {
+        var ta = h("textarea", { placeholder: "Feedback, or what to change", "aria-label": "Feedback on " + item.title });
+        ta.value = (d && d.status === "feedback" ? d.comment : (state.reviews[item.id] || {}).draft) || "";
+        ta.addEventListener("input", function () { var s = state.reviews[item.id] = state.reviews[item.id] || { decisions: {} }; s.draft = ta.value; save(); });
+        var approveBtn = h("button", { class: "primary", text: d && d.status === "approved" ? "Approved" : "Approve", onclick: function () {
+          var s = state.reviews[item.id] = state.reviews[item.id] || { decisions: {} };
+          s.decisions = s.decisions || {};
+          if (d && d.status === "approved") delete s.decisions[rv.rev]; else s.decisions[rv.rev] = { status: "approved", at: new Date().toISOString(), comment: ta.value.trim() || undefined };
+          state.open["r-" + item.id] = false; save(); render();
+        } });
+        var fbBtn = h("button", { text: "Send feedback", onclick: function () {
+          if (!ta.value.trim()) { toast("Write your feedback first"); ta.focus(); return; }
+          var s = state.reviews[item.id] = state.reviews[item.id] || { decisions: {} };
+          s.decisions = s.decisions || {};
+          s.decisions[rv.rev] = { status: "feedback", at: new Date().toISOString(), comment: ta.value.trim() };
+          save(); render(); toast("Saved. Export the report so Claude can pass it on.");
+        } });
+        r.appendChild(h("div", { class: "decide" }, [ta, h("div", { class: "btns" }, [approveBtn, fbBtn])]));
+      }
+      body.appendChild(r);
+    });
+    el.appendChild(body);
+    return el;
+  }
+
+  // ---------- export / import ----------
+  function report() {
+    var defs = fieldDefs(), fields = {};
+    Object.keys(state.fields).forEach(function (k) { if (defs[k] && !defs[k].secret && state.fields[k]) fields[k] = state.fields[k]; });
+    var reviews = {};
+    data.reviews.forEach(function (r) {
+      var s = state.reviews[r.id]; var latest = r.revisions[r.revisions.length - 1].rev;
+      reviews[r.id] = { title: r.title, latestRevision: latest, status: revState(r), decisions: (s && s.decisions) || {} };
+    });
+    var steps = {};
+    allSteps().forEach(function (st) { if (state.checks[st.id] || state.notes[st.id]) steps[st.id] = { title: st.title, done: !!state.checks[st.id], note: state.notes[st.id] || undefined }; });
+    var samples = {};
+    ENVS.forEach(function (e) { samples[ENV_FILE[e] + ".sample"] = { approved: !!state.samples[e], text: envFile(e, false).text }; });
+    return JSON.stringify({
+      kind: "nff-launch-guide-report", exportedAt: new Date().toISOString(), dataRevision: data.revision,
+      freezeReached: freezeReached(),
+      progress: data.phases.map(function (p) { var c = phaseCount(p.id); return p.short + ": " + c.done + "/" + c.total; }),
+      reviews: reviews, steps: steps, nonSecretValues: fields, sampleEnvFiles: samples
+    }, null, 2);
+  }
+  function secretsDump() {
+    return JSON.stringify({ kind: "nff-launch-guide-secrets", exportedAt: new Date().toISOString(), WARNING: "Contains secrets. Never share with Claude or anyone. Keep in your password manager.", state: state }, null, 2);
+  }
+  function openDialog(title, note, text, filename, importMode) {
+    var d = $("#dlg"); $("#dlgTitle").textContent = title; $("#dlgNote").innerHTML = md(note);
+    var ta = $("#dlgText"); ta.value = text; ta.readOnly = !importMode;
+    $("#dlgCopy").hidden = !!importMode; $("#dlgDownload").hidden = !!importMode || !filename; $("#dlgApply").hidden = !importMode;
+    $("#dlgCopy").onclick = function () { copy(ta.value, title); };
+    $("#dlgDownload").onclick = function () { download(filename, ta.value); };
+    $("#dlgApply").onclick = function () {
+      try {
+        var obj = JSON.parse(ta.value);
+        if (obj.kind === "nff-launch-guide-secrets" && obj.state) { state = obj.state; var b = blank(); for (var k in b) if (!(k in state)) state[k] = b[k]; data = pickData(); save(); render(); d.close(); toast("Restored"); }
+        else toast("That isn't a secrets export from this guide");
+      } catch (e) { toast("That isn't valid JSON"); }
+    };
+    if (d.showModal) d.showModal(); else d.setAttribute("open", "");
+  }
+  $("#dlgClose").onclick = function () { $("#dlg").close(); };
+  $("#btnReport").onclick = function () {
+    openDialog("Report for Claude", "**Safe to share.** It holds your progress, review decisions and feedback, step notes, non-secret values and the sample env files, and **no secrets**. Copy it and paste it to Claude in the chat.", report(), "nff-launch-report.json");
+  };
+  $("#btnSecrets").onclick = function () {
+    openDialog("Secrets export", "**Never share this.** It's a full backup of this guide, secrets included. Save it in your password manager (as a secure note or attachment). Use **Import** to restore it in another browser.", secretsDump(), "nff-launch-guide-secrets.json");
+  };
+  $("#btnImport").onclick = function () {
+    openDialog("Import a secrets export", "Paste a **Secrets export** from this guide. It replaces everything saved in this browser.", "", null, true);
+  };
+
+  // ---------- remote updates ----------
+  function checkRemote(manual) {
+    var ctl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctl) ctl.abort(); }, 8000);
+    fetch(REMOTE + "?t=" + Date.now(), { cache: "no-store", signal: ctl && ctl.signal }).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    }).then(function (remote) {
+      clearTimeout(timer);
+      state.lastCheck = Date.now();
+      if (remote && remote.revision > (data.revision || 0) && Array.isArray(remote.sections) && Array.isArray(remote.reviews)) {
+        state.remoteData = remote; data = remote; save(); render();
+        toast("Updated to revision " + remote.revision);
+      } else { save(); renderMeta(); if (manual) toast("You have the latest steps"); }
+    }).catch(function () { clearTimeout(timer); if (manual) toast("Couldn't reach GitHub. Using the saved copy."); });
+  }
+  $("#btnUpdate").onclick = function () { checkRemote(true); };
+
+  render();
+  checkRemote(false);
+})();
+</script>
+</body>
+</html>
