@@ -1321,7 +1321,7 @@
     {
      "id": "ld-r3",
      "title": "A $1 Venmo payment (R3)",
-     "body": "Open the order page with `?venmo`, which shows Venmo even while it's hidden. Order $1 and pay with the real Venmo app. Then refund it with `bin/nff --production orders refund <id>`. Check the order record, Square's copy and both webhooks agree. When it passes, set Venmo to **Visible** in *Before the release*, re-save `.env.production`, push, **and ask Claude to redeploy**: the setting does nothing until production rebuilds.",
+     "body": "Open the order page with `?venmo`, which shows Venmo even while it's hidden. Order $1 and pay with the real Venmo app. Then refund it with `bin/nff --production orders refund <id>`. Check the order record, Square's copy and both webhooks agree. When it passes, set Venmo to **Visible** in *Before the release*, re-save `.env.production`, push, **and ask Claude to redeploy**: the setting does nothing until production rebuilds. If it fails, set Venmo back to **Hidden** in *Before the release*, re-save `.env.production`, push, ask Claude to rebuild, fix it on staging, and repeat this test.",
      "minutes": 15,
      "links": [
       {
@@ -1899,6 +1899,17 @@
        "url": "https://staging--north-foster-farm.netlify.app/privacy/"
       }
      ]
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-16",
+     "changed": "James decided on #267: both addresses stay, each for its own role. sales@ is for anything commercial (ordering, orders, pickup, delivery, order problems): the contact page, flyers and cards, and the reply-to on order and transactional email. info@ is for anything non-commercial: the privacy and accessibility pages, data deletion and export requests, press and legal. Both are shared inboxes reaching James and Jim. The privacy and accessibility pages now use info@; nothing else changed.",
+     "look": [
+      {
+       "label": "#267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6219841453"
+      }
+     ]
     }
    ]
   },
@@ -2035,6 +2046,17 @@
      "date": "2026-10-16",
      "summary": "Two plans disagree. #237 sets `VENMO_HIDDEN` in production before the release, so Venmo shows \"Coming soon\" until your live $1 test (R3) passes, then unsets it. #151's plan says leave it visible from the start.",
      "recommendation": "Hidden until R3 passes (#237's plan): one real Venmo payment proves the live path before customers see it. Approve to accept, or write \"visible\"."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-16",
+     "changed": "James decided on #267: Venmo launches visible at checkout. The first thing after the production deploy is a live production Venmo test; on failure, hide Venmo, rebuild, fix on staging, and repeat. #237 and the launch-day steps (ld-before, ld-release, ld-pay) now say this, in this order.",
+     "look": [
+      {
+       "label": "#267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6219841453"
+      }
+     ]
     }
    ]
   },
@@ -2081,6 +2103,17 @@
      "date": "2026-10-16",
      "summary": "The Netlify token expires on Jan 1 and is rotated every Jan 1. Should **every other secret** follow the same yearly Jan 1 schedule, or rotate every six months as you said earlier?",
      "recommendation": "Yearly on Jan 1 for everything: one date to remember, and rotate early on any leak. Approve, or write \"six months\"."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-16",
+     "changed": "James decided on #267: every secret rotates yearly, on January 1 (the Netlify token already does). This replaces the six-month rule. Every secret also rotates at once after any suspected leak; docs/secrets.md now puts that incident response first and the yearly schedule second.",
+     "look": [
+      {
+       "label": "#267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6219841453"
+      }
+     ]
     }
    ]
   },
