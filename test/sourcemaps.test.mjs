@@ -10,7 +10,7 @@ import {
   formatMapped, frames, mapPath, mapStack, sourceName,
 } from "../netlify/functions/lib/sourcemaps.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
-import { run, stash } from "../bin/maps/stash.mjs";
+import { diagnose, run, stash, summary } from "../bin/maps/stash.mjs";
 
 const HEX = "e11b50ad".repeat(16);
 const BUNDLE = `https://www.northfosterfarm.com/scripts/order/main.${HEX}.js`;
@@ -91,7 +91,9 @@ describe("private source maps", () => {
       const stores = { ...testStores(), persistent: true };
       const r = await stash(dir, { env: { COMMIT_REF: "abc123" }, stores });
 
-      assert.deepEqual(r, { found: 2, kept: 2, removed: 2, sha: "abc123" });
+      assert.deepEqual(r, {
+        found: 2, kept: 2, removed: 2, sha: "abc123", reason: null,
+      });
       assert.deepEqual(await readdir(join(dir, "scripts", "order")), []);
       assert.deepEqual(await readdir(join(dir, "scripts")),
         ["main.js", "order"]);
@@ -107,7 +109,11 @@ describe("private source maps", () => {
     const stores = testStores();
     const r = await stash(dir, { env: { COMMIT_REF: "abc" }, stores });
 
-    assert.deepEqual(r, { found: 1, kept: 0, removed: 1, sha: "abc" });
+    assert.deepEqual(r, {
+      found: 1, kept: 0, removed: 1, sha: "abc",
+      reason: "no Blobs context, so none kept",
+    });
+    assert.match(summary(r), /0 kept for abc\. no Blobs context/);
     assert.deepEqual(await readdir(dir), []);
     assert.deepEqual(await stores.maps.list(""), []);
   });
@@ -135,7 +141,10 @@ describe("private source maps", () => {
     } };
     const r = await stash(dir, { env: { COMMIT_REF: "abc" }, stores, warn });
 
-    assert.deepEqual(r, { found: 2, kept: 0, removed: 2, sha: "abc" });
+    assert.deepEqual(r, {
+      found: 2, kept: 0, removed: 2, sha: "abc",
+      reason: "Could not keep a.js.map: MissingBlobsEnvironmentError",
+    });
     assert.deepEqual(await readdir(dir), []);
     assert.equal(said.length, 2);
   });
@@ -166,7 +175,10 @@ describe("private source maps", () => {
       env: { COMMIT_REF: "abc" }, stores, warn, deadline: 50,
     });
 
-    assert.deepEqual(r, { found: 2, kept: 0, removed: 2, sha: "abc" });
+    assert.deepEqual(r, {
+      found: 2, kept: 0, removed: 2, sha: "abc",
+      reason: "Could not keep a.js.map: timed out",
+    });
     assert.match(said.join("\n"), /timed out/);
   });
 
@@ -227,5 +239,30 @@ describe("private source maps", () => {
     assert.equal(typeof plugin.onPostBuild, "function");
     assert.match(toml,
       /\[\[plugins\]\]\npackage = "\.\/plugins\/source-maps"\n/);
+  });
+
+  it("says what it could see of the build, and no value", () => {
+    const secret = "tok-SECRET-123";
+    const context = Buffer.from(JSON.stringify({
+      apiURL: "https://api.netlify.com", deployID: "d1", siteID: "s1",
+      token: secret, edgeURL: "",
+    })).toString("base64");
+    const d = diagnose({
+      NETLIFY_BLOBS_CONTEXT: context, COMMIT_REF: "abc", CONTEXT:
+        "branch-deploy",
+    });
+
+    assert.deepEqual(d, {
+      event: "maps.env", blobsContext: true,
+      blobsContextParts: ["apiURL", "deployID", "siteID", "token"],
+      blobsConfigured: true, commitRef: true, context: "branch-deploy",
+      siteContext: null, store: "branch-deploy-maps",
+    });
+    assert.equal(JSON.stringify(d).includes(secret), false);
+    assert.equal(JSON.stringify(d).includes("s1"), false);
+    assert.equal(diagnose({ NETLIFY_BLOBS_CONTEXT: "%%%" })
+      .blobsContextParts, "unreadable");
+    assert.equal(diagnose({}).blobsContext, false);
+    assert.equal(diagnose(null).error.length > 0, true);
   });
 });

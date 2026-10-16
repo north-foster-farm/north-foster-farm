@@ -15,7 +15,9 @@ import { readdir, readFile, unlink } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 
 import { mapKey } from "../../netlify/functions/lib/sourcemaps.mjs";
-import { stores as makeStores } from "../../netlify/functions/lib/store.mjs";
+import {
+  blobsConfigured, stores as makeStores, storeName,
+} from "../../netlify/functions/lib/store.mjs";
 
 export const DEADLINE = 60_000;
 
@@ -37,24 +39,65 @@ const walk = async (dir) => {
 
 const message = (error) => (error && error.message) || String(error);
 
-// The maps store, or null when there is none to write to.
-const mapsStore = (env, stores, warn) => {
+// What the run could see of its environment, for the deploy log: which
+// variables are set and which parts the Blobs context names, never a
+// value. -> a plain object. Never throws.
+export const diagnose = (env = process.env) => {
+  const out = { event: "maps.env" };
+
+  try {
+    let parts = null;
+
+    if (env.NETLIFY_BLOBS_CONTEXT) {
+      try {
+        const context = JSON.parse(Buffer.from(env.NETLIFY_BLOBS_CONTEXT,
+          "base64").toString("utf8"));
+
+        parts = Object.keys(context).filter((k) => !!context[k]).sort();
+      } catch {
+        parts = "unreadable";
+      }
+    }
+    Object.assign(out, {
+      blobsContext: !!env.NETLIFY_BLOBS_CONTEXT,
+      blobsContextParts: parts,
+      blobsConfigured: blobsConfigured(env),
+      commitRef: !!env.COMMIT_REF,
+      context: env.CONTEXT || null,
+      siteContext: env.SITE_CONTEXT || null,
+      store: storeName("maps", env),
+    });
+  } catch (error) {
+    out.error = message(error);
+  }
+
+  return out;
+};
+
+// The maps store, or null and why there is none to write to.
+const mapsStore = (env, stores) => {
   try {
     const s = stores || makeStores(env);
 
-    return s.persistent && s.maps ? s.maps : null;
-  } catch (error) {
-    warn(`[maps] No Blobs store: ${message(error)}`);
+    if (s.persistent && s.maps) return { store: s.maps, reason: null };
 
-    return null;
+    return { store: null, reason: "no Blobs context, so none kept" };
+  } catch (error) {
+    return { store: null, reason: `no Blobs store: ${message(error)}` };
   }
 };
 
-// -> { found, kept, removed, sha }. Never throws.
+// -> { found, kept, removed, sha, reason }, the reason being the
+// first thing that cost any map, or null. Never throws.
 export const stash = async (dir, {
-  env = process.env, stores, deadline = DEADLINE, warn = console.warn,
+  env = process.env, stores, deadline = DEADLINE, warn: say = console.warn,
 } = {}) => {
   const sha = env.COMMIT_REF || null;
+  let reason = null;
+  const warn = (line) => {
+    if (!reason) reason = line.replace(/^\[maps\] /, "");
+    say(line);
+  };
   let files = [];
 
   try {
@@ -63,7 +106,16 @@ export const stash = async (dir, {
     warn(`[maps] Could not read ${dir}: ${message(error)}`);
   }
 
-  const store = sha && files.length ? mapsStore(env, stores, warn) : null;
+  let store = null;
+
+  if (!sha) {
+    if (files.length) reason = "no COMMIT_REF, so none kept";
+  } else if (files.length) {
+    const found = mapsStore(env, stores);
+
+    store = found.store;
+    if (found.reason) warn(`[maps] ${found.reason}`);
+  }
   const stop = Date.now() + deadline;
   let kept = 0;
 
@@ -105,12 +157,12 @@ export const stash = async (dir, {
     }
   }
 
-  return { found: files.length, kept, removed, sha };
+  return { found: files.length, kept, removed, sha, reason };
 };
 
-export const summary = ({ found, kept, removed, sha }) =>
+export const summary = ({ found, kept, removed, sha, reason }) =>
   `[maps] ${found} found, ${removed} removed from the site, ${kept} kept${
-    sha ? ` for ${sha}` : " (no COMMIT_REF)"}.`;
+    sha ? ` for ${sha}` : " (no COMMIT_REF)"}.${reason ? ` ${reason}` : ""}`;
 
 // The whole run, guarded: -> the line to print. Never throws.
 export const run = async (dir, options = {}) => {

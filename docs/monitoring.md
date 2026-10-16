@@ -452,7 +452,12 @@ moves every map out of `public/` into the `maps` Blobs store under
 the commit (`<sha>/scripts/order/main.js.map`), so no map is ever
 served. It is a plugin because only plugins get the Blobs context.
 The deploy log says what it did: `[maps] N found, N removed from the
-site, N kept for <sha>`. Nothing in it can fail a deploy: a store
+site, N kept for <sha>`, then, if any map was not kept, why. The same
+line is the plugin's status (`GET /api/v1/sites/<site>/plugin_runs/
+latest?packages[]=./plugins/source-maps`, its `summary`), and a JSON
+line before it (`"event":"maps.env"`, also the status's `text`) says
+whether the build had a Blobs context and a commit, and which store it
+wrote to, never a value. Nothing in it can fail a deploy: a store
 that will not take the maps, or a minute gone by, costs the maps
 only, and every map is removed regardless. To read a stack, save the
 report's log line (the JSON from Axiom) to a file and run

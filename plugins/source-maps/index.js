@@ -45,10 +45,14 @@ const loadStash = () => import("../../bin/maps/stash.mjs");
 
 const onPostBuild = async ({ constants, utils }, load = loadStash) => {
   let line;
+  let env = { event: "maps.env" };
 
   try {
-    const { run } = await load();
+    const { diagnose, run } = await load();
 
+    env = diagnose(process.env);
+    // One line for the deploy log: what the run could see, no values.
+    console.log(JSON.stringify(env));
     line = await run(constants.PUBLISH_DIR);
   } catch (error) {
     line = `[maps] Stash failed (${(error && error.message) || error}); ` +
@@ -56,7 +60,9 @@ const onPostBuild = async ({ constants, utils }, load = loadStash) => {
   }
   console.log(line);
   try {
-    utils.status.show({ title: "Source maps", summary: line });
+    utils.status.show({
+      title: "Source maps", summary: line, text: JSON.stringify(env),
+    });
   } catch {
     // The log line is enough.
   }
