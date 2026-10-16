@@ -1,5 +1,5 @@
 {
- "revision": 4,
+ "revision": 5,
  "updated": "2026-10-16",
  "notice": null,
  "phases": [
@@ -2001,6 +2001,18 @@
      "date": "2026-10-16",
      "summary": "You approved the encrypted export to Backblaze B2 and Cloudflare R2 (both $0 at your size, checked today). Its issue isn't filed yet, and it isn't stated whether it must be built before launch. Without it, the only copy of orders, consent records and pickup agreements is Netlify Blobs.",
      "recommendation": "Before launch, with exports just before and after the release deploy. Approve, or write \"after launch\"."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-16",
+     "changed": "James decided on #267: the backup export ships before launch, scoped to the minimum.",
+     "summary": "Decided. Before launch: a nightly scheduled export of the order, customer and subscriber stores, encrypted with age to James's public key (he holds the private key; nothing that runs can decrypt), uploaded to one dedicated Cloudflare R2 bucket on the business's existing Cloudflare account with a write-only token scoped to that bucket, a Healthchecks dead-man's-switch alert when a night's export fails or doesn't arrive (with an entry in the alert guide), and one restore rehearsal before launch (download, decrypt, restore into a scratch environment, check the counts, write up the steps in `docs/`), with James taking part in the decryption step. After launch: a second copy in Backblaze B2 on a new business account (James's own B2 account stays personal), schema versioning of the export, and a recovery procedure on record for every store, including \"cannot be restored\" where that's the honest answer. Nothing further to approve here.",
+     "look": [
+      {
+       "label": "#267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6219560731"
+      }
+     ]
     }
    ]
   },
@@ -2143,6 +2155,18 @@
       }
      ],
      "recommendation": "Write \"draft it\" in feedback and Claude drafts a spec for your review; or write your spec there."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-16",
+     "changed": "James decided retention and deletion on #244; this is the basis for the #189 spec.",
+     "summary": "Decided. Order records are kept indefinitely for historical reporting. Personal details on an order are removed after seven years; the order keeps the date, line items, prices, totals, channel, drop site, town and ZIP, and loses the name, emails, phone and street address. A customer can delete their personal details at any time; their orders stay, re-pointed to a deleted-household record (Null Object pattern), and deletion is final (a returning customer starts a new household, with no restore or re-link). Data export (download everything NFF holds) is planned after deletion ships, not before. Quiet accounts are never deleted automatically; after one year without interaction the household is unsubscribed from marketing mail and sent one transactional notice about how to delete if they'd like to. Signing in, an action while signed in, a badge-scanned market sale, or a click on a link in an email resets the one-year clock; an unsubscribe click or a visit only to opt out, change settings or delete does not. Email open tracking stays off permanently in Resend and every template; click and conversion tracking are fine. Nothing open in retention itself; the #189 spec can proceed. Data export (step two) needs its own spec later.",
+     "look": [
+      {
+       "label": "#244",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/244#issuecomment-6218895250"
+      }
+     ]
     }
    ]
   },
