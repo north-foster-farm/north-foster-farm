@@ -111,9 +111,6 @@ export const ping = async (url, {
   ok = true, body = null, fetchImpl = globalThis.fetch,
 } = {}) => {
   if (!url) return false;
-  if (process.env.NODE_TEST_CONTEXT && fetchImpl === globalThis.fetch) {
-    return false;
-  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PING_TIMEOUT);

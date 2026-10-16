@@ -1,0 +1,48 @@
+name: CI
+
+# Lint and the unit tests, on every pull request, every push to the
+# branches that matter and on demand. The check is named lint-and-test:
+# lgtm-automerge waits on it, and branch protection on staging and main
+# requires it, so a fast-forward to a SHA that never passed is refused.
+#
+# The run holds no secret. Each step runs under env -i, which drops
+# every runner variable (GITHUB_TOKEN included), checkout leaves no
+# token in .git/config, and test/setup.mjs keeps an allowlist of
+# variables and closes the network for the suite.
+
+on:
+  pull_request:
+  push:
+    branches: [next, staging, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint-and-test:
+    name: lint-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: env -i PATH="$PATH" HOME="$HOME" npm run lint
+
+      - name: Test
+        run: env -i PATH="$PATH" HOME="$HOME" npm test

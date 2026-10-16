@@ -50,9 +50,6 @@ export const flush = async ({
   const lines = buffer.splice(0, buffer.length);
 
   if (!lines.length || !configured(env)) return 0;
-  if (process.env.NODE_TEST_CONTEXT && fetchImpl === globalThis.fetch) {
-    return 0;
-  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), SHIP_TIMEOUT);

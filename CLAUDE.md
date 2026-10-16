@@ -31,11 +31,14 @@ npm run lint                # All linters
 npm run lint:scripts        # ESLint for JS files
 npm run lint:styles         # Stylelint for SCSS
 
+# Lint and the unit tests; CI runs the same as `lint-and-test`
+npm run check
+
 # Production build. NETLIFY ONLY -- do not run this locally.
 # bin/prod installs Dart Sass into /opt/build/repo, a path that only
 # exists on the Netlify build image, so this fails on a dev machine.
-# Netlify runs it via `npm run deploy && hugo --gc`.
-npm run deploy
+# Netlify runs it via `bin/prod && hugo --gc`; it runs no tests.
+bin/prod
 ```
 
 To check a production build locally, run the linters and then
@@ -149,9 +152,11 @@ ES6 modules with explicit imports:
 ## Netlify Configuration
 
 Deployment configured in `netlify.toml`:
-- Build command: `npm run deploy && hugo --gc && npm run check:grid`
-  (the last step holds the built HTML to Bootstrap's grid rules;
-  see `bin/grid/check.mjs`)
+- Build command: `npm run check:schedule && bin/prod && hugo --gc &&
+  npm run check:grid`. `check:grid` holds the built HTML to
+  Bootstrap's grid rules (see `bin/grid/check.mjs`). The build runs
+  no lint or tests: those run in GitHub Actions (`lint-and-test`,
+  `.github/workflows/ci.yml`), which `staging` and `main` require
 - Hugo version: 0.164.0 (pinned; Node 26 via NODE_VERSION and .nvmrc)
 - Deploy previews build drafts/future/expired content
 - Custom redirects (e.g., `/venmo` → Venmo profile)

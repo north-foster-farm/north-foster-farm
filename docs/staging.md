@@ -114,15 +114,25 @@ looking at the page itself; the tab is back on reload.
 
 ## The staging branch
 
-`staging` is the branch that carries every open pull request in
-landing order, cherry-picked onto `main` and force-pushed whenever
-one changes, so the whole set can be exercised in one deployment.
-Its pull request is never merged. With branch deploys allowed for it
-on Netlify, it has the stable address
-`staging--north-foster-farm.netlify.app` (the `branch-deploy`
-context), which the Square and PayPal sandbox webhooks can be pointed
-at. Pull request previews stay for review; they share the
-`deploy-preview` stores.
+Work lands on `next`, which does not build. Every push to `next`
+runs the `lint-and-test` check (`.github/workflows/ci.yml`), and
+`staging` is fast-forwarded to a `next` commit that passed it, one
+batch at a time. `main` is fast-forwarded the same way to a `staging`
+commit once it has been reviewed here. Neither ever takes a merge
+commit or a rebase-merge: promotion moves a branch to a SHA already
+checked, so the commit that ships is the commit that was tested.
+
+Branch protection on `staging` and `main` requires `lint-and-test`
+and applies to admins, so a push to a commit with no passing check is
+refused. It does not require the branch to be up to date, which a
+fast-forward already is. `next` is left open for the lanes to push
+to.
+
+With branch deploys allowed for it on Netlify, `staging` has the
+stable address `staging--north-foster-farm.netlify.app` (the
+`branch-deploy` context), which the Square and PayPal sandbox webhooks
+can be pointed at. Pull request previews share the `deploy-preview`
+stores.
 
 ## Payments on staging
 

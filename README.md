@@ -60,16 +60,25 @@ ln -sf .env.development .env
 ## Checks
 
 ```bash
+npm run check           # lint, then the tests
 npm run lint            # both linters
 npm run lint:scripts    # ESLint, assets/scripts, netlify, test
 npm run lint:styles     # Stylelint, assets/styles
 npm test                # node:test: functions, CLI and build checks
 ```
 
-Lint and tests gate the deploy — Netlify runs both as part of the
-build, so a failure fails the deploy rather than shipping. The build
-also checks the pickup schedule (`npm run check:schedule`) and the
-built HTML against Bootstrap's grid (`npm run check:grid`).
+GitHub Actions runs lint and the tests as the `lint-and-test` check
+(`.github/workflows/ci.yml`) on every pull request, on every push to
+`next`, `staging` and `main`, and on demand. Branch protection on
+`staging` and `main` requires it, so a branch moves only to a commit
+that has already passed. The run holds no secret: each step runs under
+`env -i`, and `test/setup.mjs` keeps only an allowlist of variables
+and makes fetch, sockets and DNS throw for any host but this machine.
+A test that would reach a real service fails.
+
+The Netlify build runs no tests. It checks the pickup schedule
+(`npm run check:schedule`), builds, and holds the built HTML to
+Bootstrap's grid (`npm run check:grid`).
 
 Every fact the site repeats (prices, fees, hours, addresses, the
 farm's name) has one source in `data/` or site config, and templates
@@ -94,11 +103,11 @@ To check a production build locally:
 npm run lint && hugo --environment production
 ```
 
-Note what is missing there. **Do not run `npm run deploy` locally** —
-it calls `bin/prod`, which installs Dart Sass into `/opt/build/repo`, a
-path that exists only on the Netlify build image, so locally it dies at
-`mkdir`. Install Dart Sass yourself (`brew install sass/sass/sass`) and
-Hugo will find it on `PATH`. If it is absent, Hugo 0.164 stops with
+Note what is missing there. **Do not run `bin/prod` locally**: it
+installs Dart Sass into `/opt/build/repo`, a path that exists only on
+the Netlify build image, so locally it dies at `mkdir`. Install Dart
+Sass yourself (`brew install sass/sass/sass`) and Hugo will find it on
+`PATH`. If it is absent, Hugo 0.164 stops with
 `TOCSS-DART: failed to transform "/styles/main.scss"` instead of
 silently falling back to LibSass the way older versions did.
 
@@ -126,11 +135,18 @@ SCSS import order, and where the site's data lives.
 
 ## Deployment
 
-Netlify builds `npm run check:schedule && npm run deploy && hugo --gc
-&& npm run check:grid` and publishes `public/`.
-Every pull request gets a deploy preview built the same way production
-is, which is the safety net: a bad build fails the preview instead of
-the site.
+Netlify builds `npm run check:schedule && bin/prod && hugo --gc &&
+npm run check:grid` and publishes `public/`. Branch deploys add
+Hugo's draft, future and expired flags.
+
+Work lands on `next`, which does not build. Promotion is a
+fast-forward push, never a merge: `staging` moves to a `next` commit
+that passed `lint-and-test`, and `main` to a `staging` commit that has
+been reviewed (`docs/staging.md`). The `LGTM` label merges only pull
+requests into `next`: it waits for the check on the labeled head,
+rebase-merges that exact head, then runs `ci.yml` on `next`, since the
+rebased commits are new. A pull request into `staging` or `main` is
+refused; those branches move only by fast-forward.
 
 `netlify.toml` holds the build config, redirects, and security headers
 (CSP, HSTS, cache policy). It is the source of truth for all three, so
