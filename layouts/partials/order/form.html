@@ -15,7 +15,9 @@
 
 {{/* From xl up the form is `display: contents`, so its three parts
      are grid columns of .order-main: the catalog, the cart beside it,
-     and the sections that follow under the catalog. */}}
+     and the sections that follow under the catalog. An UptimeRobot
+     monitor keys on id="order-form" in the served page
+     (docs/monitoring.md): renaming it pages the farm. */}}
 <form id="order-form" class="order-form" novalidate data-version="{{ hugo.Data.catalog.version }}">
   {{/* Below lg the heading lives in this sticky bar and follows the
        scroll: the current section or category (order-form.js). It

@@ -5,13 +5,23 @@ when one fires. Everything here degrades to nothing when its variable
 is unset, so a preview or a local run monitors nothing and alerts
 nobody.
 
+Two services page the phone, and they watch from opposite sides.
+UptimeRobot looks at the site from outside: it fetches pages and
+functions and pushes when one stops answering as it should.
+Healthchecks only receives: the site pings it, and it pushes when a
+ping is a failure or stops coming. Neither can see what the other
+sees, so a dead page and a silent failure both reach the phone.
+
 ## The pieces
 
 - **Health endpoint.** `GET /api/health`
   (`netlify/functions/health.mjs`): the last hour from the records,
   200 or 503. Needs nothing.
-- **Outside pinger.** healthchecks.io HTTP checks every five minutes
-  on `/api/health`, `/order/` and `/api/dates`. Needs the account.
+- **Outside monitors.** UptimeRobot, free plan, on production `www`:
+  the home page, the order page and three functions, each fetched
+  every five or fifteen minutes and checked for a keyword (the table
+  below). Its app pushes "down" and "up". Needs the account; no
+  variable.
 - **Jobs heartbeat.** The 15-minute run pings a healthchecks check
   when it ends well, and its `/fail` URL with the report when it does
   not. `HEALTHCHECKS_JOBS_URL`.
@@ -33,26 +43,56 @@ nobody.
   checkout cannot complete; it becomes the `client.checkout_failed`
   alert. Needs nothing.
 - **Deploy failures.** Netlify's "Deploy failed" email notification.
-  Email only, not the phone, for now (step 3). Set in the Netlify UI,
+  Email only, not the phone, for now (step 4). Set in the Netlify UI,
   no code.
 
 ## Setting it up
 
-1. **healthchecks.io**, free plan. Create two checks:
+1. **UptimeRobot**, free plan, and its phone app. Monitors on
+   `https://www.northfosterfarm.com` (the apex answers 301, so it is
+   never the URL):
+
+   | URL | Type | Keyword (must exist) | Every |
+   |---|---|---|---|
+   | `/` | HTTP(s), status 200 | none | 5 min |
+   | `/order/` | Keyword | `id="order-form"` | 5 min |
+   | `/api/dates` | Keyword | `"onfarm":[` | 5 min |
+   | `/api/health` | Keyword | `"ok":true` | 15 min |
+   | `/api/checkout/config` | Keyword | `"applicationId":"sq0idp-` | 5 min |
+
+   - `id="order-form"` is the form in
+     `layouts/partials/order/form.html`; a comment there says a
+     monitor keys on it.
+   - `"onfarm":[` is in every `/api/dates` answer, in season or out
+     (`allDates` in `assets/scripts/order/lib/dates.mjs`), so it fails
+     only when the function or the schedule does.
+   - `/api/health` answers 503 with `"ok":false` when jobs are stale
+     or mail keeps failing; the keyword catches both.
+   - `"applicationId":"sq0idp-` is Square's production application id
+     prefix, so the config monitor also catches a sandbox id in
+     production (`sandbox-sq0idb-`). It goes on at the release, when
+     the in-page checkout reaches production.
+
+   Only the last three run a function, about 20,000 invocations a
+   month; the CDN serves `/` and `/order/`. Alert contact: the app's
+   push. Staging gets no monitors, so it never reaches the phone.
+2. **healthchecks.io**, free plan. It makes no HTTP checks of its own
+   and its free plan sends no SMS; it only receives pings. Two checks
+   per site, production's and staging's kept apart:
    - *Jobs*: period 15 minutes, grace 30 minutes. Its ping URL goes
      to Netlify as `HEALTHCHECKS_JOBS_URL`.
    - *Alerts*: period 1 day, grace 2 hours. Its ping URL goes to
      Netlify as `HEALTHCHECKS_ALERT_URL`. The morning report pings it
-     well once a day; every alert posts to its `/fail`. So it pages
-     on any alert, and also if the morning report itself stops.
-   Add three HTTP checks for `https://www.northfosterfarm.com/api/health`
-   (expects 200), `/order/` and `/api/dates`. Set the notification
-   channels: email plus a phone (the healthchecks app, Pushover, or
-   SMS).
-2. **Axiom**, free plan. Create a dataset `nff-site` and an API token
+     well once a day; every alert posts to its `/fail` and then pings
+     it well. So it pages on every alert, and also if the morning
+     report itself stops.
+   Attach a push integration (Pushover, ntfy, Telegram or Signal) to
+   production's two checks only, besides email. Staging's checks get
+   email at most, never a phone.
+3. **Axiom**, free plan. Create a dataset `nff-site` and an API token
    with ingest rights on it. On Netlify: `AXIOM_DATASET=nff-site`,
    `AXIOM_TOKEN=xaat-...`. Retention on the free plan is 30 days.
-3. **Netlify**: Site configuration → Notifications → Deploy
+4. **Netlify**: Site configuration → Notifications → Deploy
    notifications → *Email notification*, event "Deploy failed", to the
    farm's address. Check one arrives on the Starter plan.
 
@@ -74,9 +114,12 @@ nobody.
    does. That gets a phone push for a failed production deploy only,
    with staging kept off the phone and the morning report's watch
    intact.
-4. Redeploy. `bin/nff health`, or a GET to `/api/health`, shows which
+5. Redeploy. `bin/nff health`, or a GET to `/api/health`, shows which
    pieces are configured under `log` and `heartbeat`.
-5. Prove the phone: `bin/nff --production alert test` (below).
+6. Prove the phone: `bin/nff --production alert test` (below), and
+   break the `/order/` keyword for a minute (edit the monitor to
+   look for a word that is not there): the app pushes "down", then
+   "up" once it is put back.
 
 ## Proving an alert reaches the phone
 
@@ -122,7 +165,7 @@ It is 503 when the last jobs run is more than 45 minutes old (or
 none is recorded in a day), when the last run had errors, or when
 mail has failed three or more times in the last hour with no success
 since. Everything else is information. `webhook.lastAt` is the last
-signed delivery from Square or PayPal, whatever it carried.
+signed delivery from Square, PayPal or Resend, whatever it carried.
 
 ## The alerts, and what to do
 
@@ -332,8 +375,12 @@ Netlify answers 500 as it always did.
 
 - A synthetic daily checkout. It would charge a real card every day.
   The QA guide's occasional $1 order does the job.
-- Stack-trace tracking (Sentry). The log has the events and the
-  errors' messages; add Sentry if that proves too thin.
+- Stack-trace tracking (Sentry). The log has the events, the errors'
+  messages and, for an exception no handler caught, the top of its
+  stack; add Sentry if that proves too thin.
+- Monitors scripted from `bin/nff`. The five are made by hand in
+  UptimeRobot for now; scripting them through its API comes after
+  launch.
 - Anything on the dashboard's side. When the delivery route batch
   exists there, it should report to the same healthchecks account with
   the same shape: a heartbeat, a count of stops, and a fallback that
