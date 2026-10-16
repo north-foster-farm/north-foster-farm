@@ -186,6 +186,17 @@ export const GUIDE = {
     action: "The log has the stack (event jobs.crashed). Fix and " +
       "redeploy; the next run catches up.",
   },
+  "backup.failed": {
+    means: "The nightly backup export did not reach the R2 bucket: a " +
+      "BACKUP_ variable is unset or wrong, the store could not be " +
+      "read, or R2 refused the upload. The Backup check pushes too. " +
+      "Last night's copy is still in the bucket; tonight's is missing.",
+    action: "The error names the cause (and the log, event " +
+      "backup.failed). Fix the variable or the token, then take a copy " +
+      "now with bin/nff --production export. A Backup check that goes " +
+      "down with no alert means the run never started: check the " +
+      "function's schedule in Netlify.",
+  },
   "alert.test": {
     means: "Someone ran bin/nff alert test. Nothing is wrong. It went " +
       "through the same path as a real alert, past the hourly limit, " +

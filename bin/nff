@@ -8,7 +8,7 @@
 // lost on exit, which the banner says.
 
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -87,6 +87,15 @@ const USAGE = `Usage:
                                       the sample, the env file and
                                       Netlify, compared by name; fails on
                                       a difference or a shared value
+  bin/nff --production export [--label before-release] [--out <file>]
+                                      the backup export, now: encrypted
+                                      to BACKUP_AGE_RECIPIENT and put in
+                                      the R2 bucket, or with --out kept
+                                      in that file instead (docs/backup.md)
+  bin/nff restore <file.json> --scratch
+                                      a decrypted backup, into empty
+                                      scratch stores, counted back
+  bin/nff restore --clear --scratch   empty the scratch stores
   bin/nff jobs run
   bin/nff jobs history [--n=20]       the last runs: errors, invariants
   bin/nff health                      what /api/health would answer
@@ -156,6 +165,7 @@ const [
   sourcemaps,
   { checkSchedule },
   { alertTest },
+  backup,
 ] = await Promise.all([
   import("../data/delivery.json", { with: { type: "json" } }),
   import("../netlify/functions/lib/admin.mjs"),
@@ -174,9 +184,15 @@ const [
   import("../netlify/functions/lib/sourcemaps.mjs"),
   import("../assets/scripts/order/lib/schedule.mjs"),
   import("../netlify/functions/lib/health.mjs"),
+  import("../netlify/functions/lib/backup.mjs"),
 ]);
 
-process.env.SITE_CONTEXT = context ? CONTEXTS[context] : "dev";
+// --scratch: development's env, but stores of their own
+// (scratch-orders, ...), for the restore rehearsal (docs/backup.md).
+const scratch = !context && process.argv.includes("--scratch");
+
+process.env.SITE_CONTEXT = context ? CONTEXTS[context]
+  : scratch ? "scratch" : "dev";
 if (context === "production") console.error("[nff] Production.");
 
 // Emails from here go by MAIL_DRIVER, as on Netlify. Unset, every
@@ -194,7 +210,8 @@ const words = [];
 
 // Flags that take a value: `--reason "..."` as well as `--reason=...`.
 const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
-  "to", "waive", "detail", "reason-text", "sha", "deploy"];
+  "to", "waive", "detail", "reason-text", "sha", "deploy", "label",
+  "out"];
 const args = process.argv.slice(2);
 
 for (let i = 0; i < args.length; i += 1) {
@@ -522,10 +539,51 @@ const errorsShow = async (file) => {
   return out(sourcemaps.formatMapped(mapped).join("\n"));
 };
 
+// A copy before and after a release, or whenever: the nightly run's
+// export, labelled. No ping, so it never stands in for a missed night.
+const exportCommand = async () => {
+  const label = String(flags.label || "manual").replace(/[^a-z0-9-]/gi, "-");
+  const r = await backup.exportBackup(stores, {
+    label, upload: !flags.out,
+  });
+
+  if (flags.out) writeFileSync(flags.out, r.encrypted);
+  out(`Backup: ${r.counts.orders} orders, ${r.counts.customers} ` +
+    `customers (${r.counts.subscribers} subscribed), ${r.bytes} bytes, ` +
+    `encrypted.`);
+  out(flags.out ? `  Written to ${flags.out}.`
+    : `  In ${process.env.BACKUP_R2_BUCKET} as ${r.key}.`);
+};
+
+// The rehearsal's restore (docs/backup.md): never into production.
+const restoreCommand = async (file) => {
+  if (!scratch) throw new Error("Restore writes only with --scratch.");
+  if (flags.clear) {
+    for (const name of backup.BACKED_UP) {
+      for (const { key } of await stores[name].list("")) {
+        await stores[name].delete(key);
+      }
+    }
+
+    return out("Scratch stores emptied.");
+  }
+  if (!file) throw new Error("Usage: bin/nff restore <file.json> --scratch");
+
+  const r = await backup.restore(stores,
+    JSON.parse(readFileSync(file, "utf8")));
+  const same = JSON.stringify(r.expected) === JSON.stringify(r.found);
+
+  out({ expected: r.expected, found: r.found });
+  out(same ? "Restore: every count matches." : "Restore: counts DIFFER.");
+  if (!same) process.exitCode = 1;
+};
+
 const run = async () => {
   if (group === "env") return envCommand();
   if (group === "library") return libraryReview();
   if (group === "mail") return mailLookup();
+  if (group === "export") return exportCommand();
+  if (group === "restore") return restoreCommand(action);
   if (group === "login" && action) return signIn(action, false);
   if (group === "masquerade" && action) return signIn(action, true);
 

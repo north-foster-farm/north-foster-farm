@@ -30,6 +30,9 @@ sees, so a dead page and a silent failure both reach the phone.
   by a success ping, so every alert pushes "down" then "up" and the
   next one pushes again. `ADMIN_EMAILS`, `HEALTHCHECKS_ALERT_URL`.
   `bin/nff alert test` proves both channels.
+- **Backup heartbeat.** The nightly backup export (`docs/backup.md`)
+  pings a third check when its copy lands in R2, and `/fail` with
+  `backup.failed` when it does not. `HEALTHCHECKS_BACKUP_URL`.
 - **Log.** Every JSON line the functions write, shipped per invocation
   to Axiom (`lib/log.mjs`). `AXIOM_TOKEN`, `AXIOM_DATASET`.
 - **Run ledger.** Each jobs run's report in the jobs store, two days
@@ -84,7 +87,8 @@ sees, so a dead page and a silent failure both reach the phone.
    push. Staging gets no monitors, so it never reaches the phone.
 2. **healthchecks.io**, free plan. It makes no HTTP checks of its own
    and its free plan sends no SMS; it only receives pings. Two checks
-   per site, production's and staging's kept apart:
+   per site, production's and staging's kept apart, and production's
+   *Backup*:
    - *Jobs*: period 15 minutes, grace 30 minutes. Its ping URL goes
      to Netlify as `HEALTHCHECKS_JOBS_URL`.
    - *Alerts*: period 1 day, grace 2 hours. Its ping URL goes to
@@ -92,8 +96,11 @@ sees, so a dead page and a silent failure both reach the phone.
      well once a day; every alert posts to its `/fail` and then pings
      it well. So it pages on every alert, and also if the morning
      report itself stops.
+   - *Backup*: period 1 day, grace 2 hours. Its ping URL goes to
+     Netlify as `HEALTHCHECKS_BACKUP_URL`, production only, since
+     the nightly run is production's alone.
    Attach a push integration (Pushover, ntfy, Telegram or Signal) to
-   production's two checks only, besides email. Staging's checks get
+   production's three checks only, besides email. Staging's checks get
    email at most, never a phone.
 3. **Axiom**, free plan. Create a dataset `nff-site` and an API token
    with ingest rights on it. On Netlify: `AXIOM_DATASET=nff-site`,
@@ -329,6 +336,16 @@ rule and its order.
 
 **`jobs.crashed`.** The run itself threw before it could do its work.
 The log has the stack. This is the one that also stops the heartbeat.
+
+**`backup.failed`.** The nightly backup export did not reach the R2
+bucket: a `BACKUP_` variable is unset or wrong, the store could not
+be read, or R2 refused the upload. The *Backup* check pushes too.
+Last night's copy is still in the bucket; tonight's is missing. The
+error names the cause (and the log, `event: backup.failed`). Fix the
+variable or the token, then take a copy now with
+`bin/nff --production export`. A *Backup* check that goes down with
+no alert means the run never started: check the function's schedule
+in Netlify. `docs/backup.md` has the rest.
 
 **`alert.test`.** Someone ran `bin/nff alert test`. Nothing is
 wrong. It went through the same path as a real alert, past the hourly
