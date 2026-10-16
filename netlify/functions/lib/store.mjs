@@ -7,6 +7,10 @@
 // A store holds JSON documents by key and can list keys by prefix.
 // Keys use "/" to build small indexes: `order/<id>`, `open/<id>`,
 // `by-email/<email>/<id>`.
+//
+// `create(key, value)` writes only if the key is new and says whether
+// it did: Blobs' `onlyIfNew`, a conditional write the server decides,
+// so of two racing creates exactly one wins (#253).
 
 import { getStore } from "@netlify/blobs";
 
@@ -30,9 +34,14 @@ export const storeName = (name, env = process.env) => {
   return context && context !== "production" ? `${context}-${name}` : name;
 };
 
-const wrap = (blobs) => ({
+export const wrap = (blobs) => ({
   get: (key) => blobs.get(key, { type: "json" }),
   set: (key, value) => blobs.setJSON(key, value),
+  create: async (key, value) => {
+    const { modified } = await blobs.setJSON(key, value, { onlyIfNew: true });
+
+    return modified;
+  },
   delete: (key) => blobs.delete(key),
   // -> [{ key }] with the prefix kept, sorted by key.
   list: async (prefix) => {
@@ -51,6 +60,13 @@ export const memoryStore = (seed = new Map()) => ({
     : null),
   set: async (key, value) => {
     seed.set(key, JSON.parse(JSON.stringify(value)));
+  },
+  // Check and write with no await between them: atomic in one process.
+  create: async (key, value) => {
+    if (seed.has(key)) return false;
+    seed.set(key, JSON.parse(JSON.stringify(value)));
+
+    return true;
   },
   delete: async (key) => {
     seed.delete(key);

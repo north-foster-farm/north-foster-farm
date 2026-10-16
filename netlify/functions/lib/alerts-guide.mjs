@@ -19,6 +19,29 @@ export const GUIDE = {
       "failure is the processor or the network; a permanent one is " +
       "usually a bad token or application id.",
   },
+  "order.id_collision": {
+    means: "A customer's order turned up under another customer's " +
+      "order id. Nothing of the other order went back to them; they " +
+      "saw the failure card. Each id is reserved before the charge, so " +
+      "this should never happen. The stage says when it was caught: " +
+      "recording (the payment went through and the order could not be " +
+      "written), venmo (finishing a Venmo payment) or answer (just " +
+      "before the reply to the page). A squarePaymentId or " +
+      "paypalCaptureId in the alert is this customer's money, taken " +
+      "with no order recorded for it.",
+    action: "With a payment id: find it in Square (or the capture in " +
+      "PayPal), then refund it, or ask the customer what they ordered " +
+      "and record it by hand. Without one, nothing was charged. Either " +
+      "way tell the developers: a reservation failed (#253).",
+  },
+  "order.reserve_failed": {
+    means: "POST /api/orders could not reserve an order id in the " +
+      "orders store, so it stopped before any payment. Nothing was " +
+      "charged; the customer's page says to try again and retries.",
+    action: "Check Netlify status (Blobs). One alone is a blip. " +
+      "Several mean nobody can pay: look at the log (event " +
+      "order.reserve_failed) for the store's error.",
+  },
   "client.checkout_failed": {
     means: "The order page itself gave up: retries exhausted or a " +
       "permanent error. It carries the message the customer saw and the " +

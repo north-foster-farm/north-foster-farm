@@ -616,6 +616,17 @@ describe("the account endpoints", () => {
     assert.equal(cancel.status, 200);
     assert.equal((await cancel.json()).order.status, "cancelled");
 
+    // Old four-character ids and the six of #253 route alike.
+    for (const id of ["NFF-2609-K3WM", "NFF-2610-K3WM7Q"]) {
+      await saveOrder(stores, order(id), now);
+
+      const r = await handle(req(`/api/account/orders/${id}/cancel`, "POST",
+        {}, session.id), { stores, ...opts });
+
+      assert.equal(r.status, 200, id);
+      assert.equal((await r.json()).order.id, id);
+    }
+
     const missing = await handle(req("/api/account/orders/ZZZZZZ/cancel",
       "POST", {}, session.id), { stores, ...opts });
 

@@ -73,6 +73,77 @@ export const saveOrder = async (stores, order, now = new Date()) => {
 
 export const getOrder = (stores, id) => stores.orders.get(orderKey(id));
 
+// Whether a record was made by this submission. Every record from the
+// page carries its submission key; one without a key belongs to no
+// submission.
+export const belongsTo = (order, key) =>
+  !!(order && key && order.meta && order.meta.idempotencyKey === key);
+
+// --- Order ids -------------------------------------------------------
+//
+// An id is reserved before any processor is called (#253). `id/<id>`
+// holds the submission key that drew it, written create-only, and
+// `submission/<key>` points back at it, so a retry, even one in the
+// next month, finds the same id. A draw another submission holds is
+// passed over for the next. Reservations are never deleted, so an id
+// is never given out twice, even after its order is.
+
+export const idKey = (id) => `id/${id}`;
+export const submissionKey = (key) => `submission/${key}`;
+export const MAX_DRAWS = 8;
+
+// The record this submission made, if it made one. -> it, or null.
+export const orderForSubmission = async (stores, key) => {
+  const pointer = await stores.orders.get(submissionKey(key));
+
+  return pointer && pointer.id ? getOrder(stores, pointer.id) : null;
+};
+
+// `draw(n)` is the nth candidate id for this submission, the same on
+// every retry. -> the id, held by this submission alone.
+//
+// The read after each create is the verdict, not the create's own
+// answer: Blobs reports a failed conditional write that was not a 412
+// as written. A key that reads back empty means the store failed, and
+// that throws (the page retries) rather than pass the id over, which
+// would leave one submission holding two.
+export const reserveOrderId = async (stores, key, draw, now = new Date()) => {
+  const known = await stores.orders.get(submissionKey(key));
+
+  if (known && known.id) return known.id;
+
+  for (let n = 0; n < MAX_DRAWS; n++) {
+    const id = draw(n);
+
+    await stores.orders.create(idKey(id), { key, at: now.toISOString() });
+
+    const holder = await stores.orders.get(idKey(id));
+
+    if (!holder) throw new Error(`The reservation of ${id} did not stick.`);
+    if (holder.key !== key) continue;
+
+    // A record older than reservations is never written over either.
+    const record = await getOrder(stores, id);
+
+    if (record && !belongsTo(record, key)) continue;
+
+    await stores.orders.create(submissionKey(key), { id });
+
+    const pointer = await stores.orders.get(submissionKey(key));
+
+    if (!pointer || !pointer.id) {
+      throw new Error(`The pointer to ${id} did not stick.`);
+    }
+
+    // A twin request of this submission got there first with another
+    // of its own ids (only across a month's turn): the pointer wins,
+    // and the id drawn here stays reserved, unused.
+    return pointer.id;
+  }
+
+  throw new Error(`No free order id in ${MAX_DRAWS} draws.`);
+};
+
 // The money on an order: every payment and every refund, oldest first.
 // A record from before an order could be changed after paying
 // (2026-09-25) holds one `payment` and at most one `refund` instead;

@@ -295,6 +295,11 @@ describe("James's review in the library", () => {
 
       assert.deepEqual(tokens, ["NFF-2610-K3WM", "$94", "Dana Whitcomb",
         "Thursday, October 8", "9 – 11 AM"]);
+
+      // Ids since #253 have six characters; the old four still read.
+      assert.deepEqual(tokenize("Order NFF-2610-K3WM7Q and NFF-2609-K3WM.")
+        .filter((p) => p.token).map((p) => p.token),
+      ["NFF-2610-K3WM7Q", "NFF-2609-K3WM"]);
     });
 
   it("approves an email for its version, and withdraws it", async () => {

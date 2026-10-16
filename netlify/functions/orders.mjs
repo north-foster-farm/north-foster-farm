@@ -30,7 +30,7 @@ import { validateOrder } from "../../assets/scripts/order/lib/validate.mjs";
 import { parts } from "../../assets/scripts/order/lib/zoned.mjs";
 import { sessionFrom } from "./lib/auth.mjs";
 import {
-  METHODS, finishVenmo, payWithSquare, startVenmo,
+  METHODS, finishVenmo, ownRecord, payWithSquare, startVenmo,
 } from "./lib/checkout.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { alert, count } from "./lib/health.mjs";
@@ -38,7 +38,9 @@ import { log, withLog } from "./lib/log.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./lib/paypal.mjs";
 import { pickupSchedule } from "./lib/pickups.mjs";
-import { paymentsOf } from "./lib/records.mjs";
+import {
+  getOrder, orderForSubmission, paymentsOf, reserveOrderId,
+} from "./lib/records.mjs";
 import { DECLINE_MESSAGES as SQUARE_DECLINES } from "./lib/square.mjs";
 import { checkLines } from "./lib/stock.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
@@ -74,15 +76,23 @@ const exempt = (req, env) => {
     req.headers.get("x-staging-token") === env.STAGING_TOKEN;
 };
 
-// Human-readable, and the same for every retry of one submission.
-export const orderId = (key, now) => {
+// Human-readable, and the same for every retry of one submission:
+// `NFF-YYMM-` and six letters and digits, about a billion a month.
+// Ids before #253 had four, and stay valid everywhere (an id is only
+// ever looked up whole). `draw` is the nth candidate, for when an
+// earlier one is taken (lib/records.mjs, reserveOrderId).
+export const ID_LENGTH = 6;
+
+export const orderId = (key, now, draw = 0) => {
   const p = parts(now, terms.timeZone);
   const yymm = `${String(p.year).slice(2)}${String(p.month).padStart(2, "0")}`;
-  const hash = createHash("sha256").update(key).digest("hex");
+  const hash = createHash("sha256")
+    .update(draw ? `${key}#${draw}` : key)
+    .digest("hex");
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let tail = "";
 
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < ID_LENGTH; i++) {
     tail += alphabet[parseInt(hash.slice(i * 2, i * 2 + 2), 16) % 32];
   }
 
@@ -90,6 +100,7 @@ export const orderId = (key, now) => {
 };
 
 // What the page shows once the order is paid: the payment just taken.
+// Only ever this submission's own record (checked by `own` first).
 const paidResponse = (order) => {
   const p = paymentsOf(order).at(-1) || {};
 
@@ -115,6 +126,14 @@ const paidResponse = (order) => {
   });
 };
 
+// Another submission's record turned up (#253), and the farm has been
+// alerted. Not retryable, and no order id: the one at hand is someone
+// else's.
+const collided = () => json(502, {
+  retryable: false,
+  message: "Something went wrong taking your payment.",
+});
+
 export const handle = async (req, {
   stores = defaultStores(),
   mail = sendMail,
@@ -125,6 +144,7 @@ export const handle = async (req, {
   paypal,
   fetchImpl,
   sleep,
+  newId = orderId,
 } = {}) => {
   const payload = await readJson(req);
 
@@ -152,6 +172,26 @@ export const handle = async (req, {
   if (!KEY.test(key)) {
     return json(422, { errors: { idempotencyKey: "Missing submission key." } });
   }
+
+  // Nothing goes back to the page but this submission's own record;
+  // another's is refused and the farm alerted (#253).
+  const own = async (record) => {
+    try {
+      return paidResponse(await ownRecord(stores, record, key, {
+        stage: "answer", env, mail, now,
+      }));
+    } catch (error) {
+      if (error && error.name === "OrderCollisionError") return collided();
+      throw error;
+    }
+  };
+
+  // A submission already paid is answered with its record, whatever
+  // changed since (the stock, the date, a new attempt's fresh keys):
+  // it is never charged again.
+  const prior = await orderForSubmission(stores, key);
+
+  if (prior) return own(prior);
 
   const attempt = Number.isInteger(payload.attempt)
     && payload.attempt >= 1 && payload.attempt <= MAX_ATTEMPT
@@ -197,9 +237,9 @@ export const handle = async (req, {
   // differs (a price changed under them, a group they did not know
   // of) they see the new total and decide again; nothing is charged.
   if (result.order.flags.totalMismatch) {
+    // No id yet: one is reserved only for an order about to be paid.
     log.warn({
       event: "order.total_mismatch",
-      id: orderId(key, now),
       claimed: payload.claimedTotal,
       computed: result.order.totals.total,
     });
@@ -213,10 +253,36 @@ export const handle = async (req, {
     });
   }
 
+  // The id is this submission's before Square or PayPal hears of it, so
+  // two customers can never share one (#253).
+  let id;
+
+  try {
+    id = await reserveOrderId(stores, key, (n) => newId(key, now, n), now);
+  } catch (error) {
+    log.error({ event: "order.reserve_failed", error: String(error) });
+    await alert(stores, "order.reserve_failed", {
+      payment: method, error: String(error),
+    }, { env, mail, now });
+
+    return json(503, {
+      retryable: true,
+      message: "We couldn't reach our payment provider. Your order is " +
+        "saved on this device and will be retried.",
+    });
+  }
+
+  // Paid already, and the answer was lost: the page may have moved on
+  // to a new attempt, whose fresh keys would charge again. The record
+  // is the answer; nothing is charged twice.
+  const recorded = await getOrder(stores, id);
+
+  if (recorded) return own(recorded);
+
   // Every way is booked by paying: a window the schedule offers needs
   // no second yes from the farm (W11d).
   const order = {
-    id: orderId(key, now),
+    id,
     submittedAt: now.toISOString(),
     ...result.order,
     fulfilment: { ...result.order.fulfilment, state: "agreed" },
@@ -248,7 +314,7 @@ export const handle = async (req, {
           });
         }
 
-        return paidResponse(await finishVenmo(stores, order, {
+        return own(await finishVenmo(stores, order, {
           key, attempt, paypalOrderId,
         }, options));
       }
@@ -262,7 +328,7 @@ export const handle = async (req, {
       return json(422, { errors: { payment: "Enter your card details." } });
     }
 
-    return paidResponse(await payWithSquare(stores, order, {
+    return own(await payWithSquare(stores, order, {
       key, attempt, method, sourceId,
       verificationToken: payment.verificationToken
         ? String(payment.verificationToken)
@@ -289,6 +355,7 @@ export const handle = async (req, {
     if (error && error.name === "CheckoutError") {
       return json(409, { errors: { payment: error.message }, code });
     }
+    if (error && error.name === "OrderCollisionError") return collided();
 
     log.error({
       event: "order.failed",

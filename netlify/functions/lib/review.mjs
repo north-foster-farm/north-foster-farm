@@ -44,7 +44,7 @@ const literal = (s) => new RegExp(
 const RULES = [
   /https?:\/\/[^\s)]+/g,
   /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g,
-  /NFF-\d{4}-[A-Z0-9]{4}/g,
+  /NFF-\d{4}-[A-Z0-9]{4}(?:[A-Z0-9]{2})?/g,
   /[−-]?\$\d{1,3}(?:,\d{3})*(?:\.\d\d)?\+?/g,
   new RegExp(`(?:(?:${DAYS}), )?(?:${MONTHS}) \\d{1,2}(?:, \\d{4})?`, "g"),
   /\d{4}-\d\d-\d\d(?: \d\d:\d\d UTC)?/g,

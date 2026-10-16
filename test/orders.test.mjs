@@ -3,10 +3,13 @@ import { describe, it } from "node:test";
 
 import { handle, orderId } from "../netlify/functions/orders.mjs";
 import { createSession } from "../netlify/functions/lib/auth.mjs";
-import { attemptKey } from "../netlify/functions/lib/checkout.mjs";
+import {
+  OrderCollisionError, attemptKey, completeOrder, finishVenmo,
+} from "../netlify/functions/lib/checkout.mjs";
 import { readCount, readMark } from "../netlify/functions/lib/health.mjs";
 import {
-  getCheckout, getCustomer, getOrder, openOrders, saveCustomer,
+  getCheckout, getCustomer, getOrder, idKey, openOrders, reserveOrderId,
+  saveCustomer, saveOrder, submissionKey,
 } from "../netlify/functions/lib/records.mjs";
 import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
@@ -125,9 +128,11 @@ const mailbox = () => {
 
 const quiet = { sleep: async () => {} };
 
+// Fresh stores unless a test shares its own: a submission already paid
+// is answered with its record before anything is checked.
 const run = (payload, options = {}) => handle(post(payload), {
-  square: fakeSquare().square, paypal: fakePaypal().paypal, now, ...quiet,
-  ...options,
+  stores: testStores(), square: fakeSquare().square,
+  paypal: fakePaypal().paypal, now, ...quiet, ...options,
 });
 
 describe("orderId", () => {
@@ -135,8 +140,312 @@ describe("orderId", () => {
     const a = orderId(KEY, now);
 
     assert.equal(a, orderId(KEY, now));
-    assert.match(a, /^NFF-2610-[A-Z2-9]{4}$/);
+    assert.match(a, /^NFF-2610-[A-Z2-9]{6}$/);
     assert.notEqual(a, orderId("another-key-000000", now));
+  });
+
+  it("draws a different, equally stable id each time it is asked again",
+    () => {
+      const draws = [0, 1, 2].map((n) => orderId(KEY, now, n));
+
+      assert.equal(new Set(draws).size, 3);
+      assert.deepEqual(draws, [0, 1, 2].map((n) => orderId(KEY, now, n)));
+      for (const id of draws) assert.match(id, /^NFF-2610-[A-Z2-9]{6}$/);
+    });
+});
+
+// #253. Every draw of the stub is TAKEN for the first try, so two
+// submissions collide unless the reservation sends one of them on.
+const TAKEN = "NFF-2610-TAKEN2";
+const collide = (key, at, n) => (n === 0 ? TAKEN : orderId(key, at, n));
+const OTHER = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+const sam = (overrides = {}) => body({
+  idempotencyKey: OTHER,
+  customer: {
+    firstName: "Sam", lastName: "Okafor", email: "sam@example.com",
+    phone: "401-555-0199", contact: "text",
+  },
+  ...overrides,
+});
+// A Square that charges once per idempotency key, as the real one does.
+const charges = () => {
+  const { square, calls } = fakeSquare();
+
+  return {
+    square,
+    charged: () => new Set(calls.filter((c) => c[0] === "payment")
+      .map((c) => c[1])).size,
+  };
+};
+
+describe("POST /api/orders, two submissions drawing one id (#253)", () => {
+  it("gives the second a fresh id, charges each once, shows neither the " +
+    "other's order", async () => {
+    const stores = testStores();
+    const pat = charges();
+    const other = charges();
+    const first = await run(body(), {
+      stores, square: pat.square, newId: collide,
+    });
+    const a = await first.json();
+    const second = await run(sam(), {
+      stores, square: other.square, newId: collide,
+    });
+    const b = await second.json();
+
+    assert.equal(first.status, 200);
+    assert.equal(second.status, 200);
+    assert.equal(a.orderId, TAKEN);
+    assert.equal(b.orderId, orderId(OTHER, now, 1));
+    assert.equal(pat.charged(), 1);
+    assert.equal(other.charged(), 1);
+    assert.doesNotMatch(JSON.stringify(b), /pat@example\.com|Pat/);
+    assert.doesNotMatch(JSON.stringify(a), /sam@example\.com|Sam/);
+    assert.equal((await getOrder(stores, TAKEN)).customer.email,
+      "pat@example.com");
+    assert.equal((await getOrder(stores, b.orderId)).customer.email,
+      "sam@example.com");
+  });
+
+  it("lets exactly one of two racing submissions keep the id", async () => {
+    const stores = testStores();
+    const [x, y] = await Promise.all([
+      run(body(), { stores, newId: collide }),
+      run(sam(), { stores, newId: collide }),
+    ]);
+    const ids = [(await x.json()).orderId, (await y.json()).orderId];
+
+    assert.equal(ids.filter((id) => id === TAKEN).length, 1);
+    assert.equal(new Set(ids).size, 2);
+    assert.equal((await stores.orders.get(idKey(TAKEN))).key,
+      ids[0] === TAKEN ? KEY : OTHER);
+  });
+
+  it("answers a true retry with its own order and no second charge",
+    async () => {
+      const stores = testStores();
+      const pat = charges();
+
+      await setCount(stores, SKU, 6);
+      await run(sam(), { stores, newId: collide });
+
+      const once = await (await run(body(), {
+        stores, square: pat.square, newId: collide,
+      })).json();
+      const again = await (await run(body(), {
+        stores, square: pat.square, newId: collide,
+      })).json();
+
+      assert.equal(once.orderId, orderId(KEY, now, 1));
+      assert.deepEqual(again, once);
+      assert.equal(pat.charged(), 1, "one idempotency key, one charge");
+      assert.equal((await getCounts(stores))[SKU], 2, "two orders of two");
+
+      // In the next month the retry still finds its id.
+      const later = new Date(now.getTime() + 30 * 24 * 60 * 60_000);
+
+      assert.equal(await reserveOrderId(stores, KEY,
+        (n) => orderId(KEY, later, n), later), once.orderId);
+    });
+
+  it("passes over an id an older record holds without a reservation",
+    async () => {
+      const stores = testStores();
+
+      await saveOrder(stores, {
+        id: TAKEN, status: "paid", submittedAt: now.toISOString(),
+        customer: { email: "lee@example.com", name: "Lee" },
+        meta: { idempotencyKey: "an-older-submission-key" },
+      }, now);
+
+      const data = await (await run(body(), { stores, newId: collide }))
+        .json();
+
+      assert.equal(data.orderId, orderId(KEY, now, 1));
+      assert.doesNotMatch(JSON.stringify(data), /lee@example\.com/);
+    });
+
+  it("refuses, alerts and shows nothing when another's record turns up " +
+    "after the charge", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const env = { ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE };
+    const { square } = fakeSquare({
+      // The reservation was somehow lost, and Lee's order landed in
+      // between: the record must not be answered with.
+      pay: async (args) => {
+        await stores.orders.set(`order/${args.order.id}`, {
+          id: args.order.id, status: "paid",
+          customer: { email: "lee@example.com", name: "Lee" },
+          meta: { idempotencyKey: "someone-else-entirely" },
+        });
+
+        return { squarePaymentId: "PAY-PAT", status: "COMPLETED" };
+      },
+    });
+    const res = await run(body(), { stores, square, mail, env });
+    const data = await res.json();
+
+    assert.equal(res.status, 502);
+    assert.equal(data.retryable, false);
+    assert.equal(data.orderId, undefined);
+    assert.doesNotMatch(JSON.stringify(data), /lee@example\.com|Lee/);
+
+    const alerted = sent.find((m) =>
+      m.subject === "Site alert: order.id_collision");
+
+    assert.ok(alerted);
+    assert.match(alerted.text, /PAY-PAT/);
+    assert.equal((await getOrder(stores, orderId(KEY, now))).customer.email,
+      "lee@example.com", "Lee's record is untouched");
+  });
+});
+
+describe("POST /api/orders, a submission already paid (#253)", () => {
+  it("answers a new attempt with the order, charging nothing more",
+    async () => {
+      const stores = testStores();
+      const pat = charges();
+      const first = await (await run(body(), {
+        stores, square: pat.square,
+      })).json();
+      const res = await run(body({ attempt: 2 }), {
+        stores, square: pat.square,
+        now: new Date(now.getTime() + 60 * 60_000),
+      });
+
+      assert.equal(res.status, 200);
+      assert.deepEqual(await res.json(), first);
+      assert.equal(pat.charged(), 1);
+      assert.equal((await getOrder(stores, first.orderId)).payments.length,
+        1);
+    });
+
+  it("never starts or captures Venmo for it", async () => {
+    const stores = testStores();
+    const { paypal, calls } = fakePaypal();
+    const first = await (await run(body(), { stores })).json();
+
+    for (const stage of ["create", "capture"]) {
+      const res = await run(body({
+        attempt: 2, payment: { method: "venmo", stage, paypalOrderId: "PPO" },
+      }), { stores, paypal });
+
+      assert.equal(res.status, 200, stage);
+      assert.equal((await res.json()).orderId, first.orderId, stage);
+    }
+    assert.deepEqual(calls, []);
+  });
+
+  it("charges a double tap once", async () => {
+    const stores = testStores();
+    const pat = charges();
+    const [a, b] = await Promise.all([
+      run(body(), { stores, square: pat.square }),
+      run(body(), { stores, square: pat.square }),
+    ]);
+
+    assert.equal(a.status, 200);
+    assert.equal(b.status, 200);
+    assert.equal(pat.charged(), 1);
+  });
+});
+
+describe("POST /api/orders, when the reservation fails (#253)", () => {
+  const env = { ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE };
+
+  // Blobs answers { modified: true } for a conditional write that
+  // failed with anything but a 412; here the write is simply dropped.
+  const dropping = (stores, drop) => {
+    const real = stores.orders;
+
+    stores.orders = {
+      ...real,
+      create: async (k, v) => (drop(k) ? true : real.create(k, v)),
+    };
+
+    return () => { stores.orders = real; };
+  };
+
+  for (const [what, drop] of [
+    ["the id", (k) => k === idKey(orderId(KEY, now))],
+    ["the pointer", (k) => k.startsWith("submission/")],
+  ]) {
+    it(`answers 503 when ${what} does not stick, and the retry keeps one id`,
+      async () => {
+        const stores = testStores();
+        const pat = charges();
+        const { sent, mail } = mailbox();
+        const restore = dropping(stores, drop);
+        const res = await run(body(), {
+          stores, square: pat.square, mail, env,
+        });
+
+        assert.equal(res.status, 503);
+        assert.equal((await res.json()).retryable, true);
+        assert.equal(pat.charged(), 0);
+        assert.ok(sent.some((m) =>
+          m.subject === "Site alert: order.reserve_failed"));
+
+        restore();
+
+        const again = await (await run(body(), {
+          stores, square: pat.square,
+        })).json();
+
+        assert.equal(again.orderId, orderId(KEY, now));
+        assert.equal(pat.charged(), 1);
+        assert.equal((await stores.orders.list("order/")).length, 1);
+        assert.deepEqual(await stores.orders.get(submissionKey(KEY)), {
+          id: again.orderId,
+        });
+      });
+  }
+
+  it("answers 503 and charges nothing when every draw is taken",
+    async () => {
+      const stores = testStores();
+      const pat = charges();
+
+      for (let n = 0; n < 8; n++) {
+        await stores.orders.create(idKey(orderId(KEY, now, n)), { key: "x" });
+      }
+
+      const res = await run(body(), { stores, square: pat.square });
+
+      assert.equal(res.status, 503);
+      assert.equal(pat.charged(), 0);
+    });
+});
+
+describe("completeOrder and finishVenmo, on another's record", () => {
+  const theirs = (id) => ({
+    id, status: "paid", submittedAt: now.toISOString(),
+    customer: { email: "lee@example.com", name: "Lee" },
+    payments: [{ via: "venmo", paypalOrderId: "PPO" }],
+    meta: { idempotencyKey: "someone-else-entirely" },
+  });
+
+  it("throws rather than return it", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const env = { ADMIN_EMAILS: "farm@x.com" };
+
+    await saveOrder(stores, theirs("NFF-2610-ABCD"), now);
+    await assert.rejects(completeOrder(stores, {
+      id: "NFF-2610-ABCD", meta: { idempotencyKey: KEY },
+    }, { square: null, payment: { squarePaymentId: "PAY" } }, {
+      mail, env, now,
+    }), OrderCollisionError);
+
+    const { paypal, calls } = fakePaypal();
+
+    await assert.rejects(finishVenmo(stores, {
+      id: "NFF-2610-ABCD", meta: { idempotencyKey: KEY },
+    }, { key: KEY, paypalOrderId: "PPO" }, { paypal, mail, env, now }),
+    OrderCollisionError);
+    assert.deepEqual(calls, [], "nothing captured");
+    assert.ok(sent.some((m) => m.subject === "Site alert: order.id_collision"));
   });
 });
 
@@ -395,6 +704,46 @@ describe("POST /api/orders with Venmo", () => {
       assert.equal(await getCheckout(stores, KEY), null);
       assert.match(sent.find((m) => Array.isArray(m.to)).text,
         /Paid: \*\*\$55 by Venmo\*\*/);
+    });
+
+  it("reserves a fresh id before PayPal hears of a taken one (#253)",
+    async () => {
+      const stores = testStores();
+      const { paypal, calls: ppCalls } = fakePaypal();
+      const venmo = (stage) => sam({
+        payment: { method: "venmo", stage, paypalOrderId: "PPO" },
+      });
+
+      await run(body(), { stores, newId: collide });
+
+      const create = await (await run(venmo("create"), {
+        stores, paypal, newId: collide,
+      })).json();
+      const fresh = orderId(OTHER, now, 1);
+
+      assert.equal(create.orderId, fresh);
+      assert.deepEqual(ppCalls[0], ["create", attemptKey(OTHER, 1), fresh]);
+
+      const res = await run(venmo("capture"), {
+        stores, paypal, newId: collide,
+      });
+      const data = await res.json();
+
+      assert.equal(res.status, 200);
+      assert.equal(data.orderId, fresh);
+      assert.doesNotMatch(JSON.stringify(data), /pat@example\.com|Pat/);
+      assert.equal((await getOrder(stores, fresh)).customer.email,
+        "sam@example.com");
+      assert.equal((await getOrder(stores, TAKEN)).customer.email,
+        "pat@example.com");
+
+      // The page's retry of the capture answers with the same order.
+      const again = await (await run(venmo("capture"), {
+        stores, paypal, newId: collide,
+      })).json();
+
+      assert.equal(again.orderId, fresh);
+      assert.equal(ppCalls.filter((c) => c[0] === "capture").length, 1);
     });
 
   it("refuses a capture that names another PayPal order", async () => {

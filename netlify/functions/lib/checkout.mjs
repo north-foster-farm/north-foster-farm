@@ -30,7 +30,7 @@ import * as paypalApi from "./paypal.mjs";
 import { announcePaid } from "./payments.mjs";
 import { pickupSchedule } from "./pickups.mjs";
 import {
-  amendOrder, deleteCheckout, getCheckout, getCustomer, getOrder,
+  amendOrder, belongsTo, deleteCheckout, getCheckout, getCustomer, getOrder,
   moneyPatch, paymentsOf, saveCheckout, saveOrder, touchCustomer,
 } from "./records.mjs";
 import * as squareApi from "./square.mjs";
@@ -56,6 +56,28 @@ const SQUARE_KEYS = ["squareOrderId", "customerId"];
 const squareRecord = (created) =>
   Object.fromEntries(SQUARE_KEYS.map((k) => [k, created[k] || null]));
 
+// A record found under this submission's id must be this
+// submission's. One that is not is another customer's order: it is
+// never answered with, and the farm hears at once (#253). Reserving
+// the id first (reserveOrderId) means this should never fire.
+// -> the record. throws OrderCollisionError.
+export const ownRecord = async (stores, record, key, {
+  stage, payment, mail = sendMail, env = process.env, now = new Date(),
+} = {}) => {
+  if (belongsTo(record, key)) return record;
+
+  const detail = {
+    id: record && record.id, stage,
+    squarePaymentId: (payment && payment.squarePaymentId) || null,
+    paypalCaptureId: (payment && payment.paypalCaptureId) || null,
+  };
+
+  log.error({ event: "order.id_collision", ...detail });
+  await alert(stores, "order.id_collision", detail, { env, mail, now });
+
+  throw new OrderCollisionError(detail);
+};
+
 // The record, written once the money is in. A second write of the
 // same order (a retried request whose payment Square deduplicated)
 // finds the first and leaves it.
@@ -66,7 +88,10 @@ export const completeOrder = async (stores, order, { square, payment }, {
 } = {}) => {
   const existing = await getOrder(stores, order.id);
 
-  if (existing && existing.status === "paid") return existing;
+  if (existing) {
+    return ownRecord(stores, existing, order.meta && order.meta.idempotencyKey,
+      { stage: "recording", payment, mail, env, now });
+  }
 
   const at = now.toISOString();
   const saved = await saveOrder(stores, {
@@ -204,7 +229,9 @@ export const finishVenmo = async (stores, order, {
   const existing = await getOrder(stores, order.id);
 
   if (paymentsOf(existing).some((x) => x.paypalOrderId === paypalOrderId)) {
-    return existing;
+    return ownRecord(stores, existing, key, {
+      stage: "venmo", mail, env, now,
+    });
   }
 
   const checkout = await getCheckout(stores, key);
@@ -217,6 +244,9 @@ export const finishVenmo = async (stores, order, {
     throw new CheckoutError("The order changed after the Venmo payment " +
       "started. Start the payment again.", { code: "checkout.changed" });
   }
+  // The id is the one PayPal was given when the payment started, which
+  // the first request reserved.
+  order = { ...order, id: checkout.order.id };
 
   const k = attemptKey(key, checkout.attempt || attempt);
   const capture = await retry(
@@ -396,6 +426,17 @@ export const syncSquare = async (stores, order, {
     }),
   }, "square.recorded", now);
 };
+
+// A record that is not this submission's turned up where its own
+// should be. Money may have moved; the farm has been alerted.
+export class OrderCollisionError extends Error {
+  constructor(detail = {}) {
+    super(`Order ${detail.id} belongs to another submission.`);
+    this.name = "OrderCollisionError";
+    this.code = "order.id_collision";
+    this.detail = detail;
+  }
+}
 
 export class CheckoutError extends Error {
   constructor(message, { code = "checkout" } = {}) {

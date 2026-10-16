@@ -2,13 +2,16 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  CHECKOUT_TTL, OPEN, allOrders, amendOrder, byPaymentKey, checkoutByPayPal,
-  deleteCheckout, deleteOrder, getCheckout, getCustomer, getOrder,
-  moneyPatch, openOrders, orderByPayment, ordersFor, paidTotal, paymentRef,
-  paymentsOf, refundedTotal, refundsOf, saveCheckout, saveOrder, setStatus,
+  CHECKOUT_TTL, OPEN, allOrders, amendOrder, belongsTo, byPaymentKey,
+  checkoutByPayPal, deleteCheckout, deleteOrder, getCheckout, getCustomer,
+  getOrder, idKey, moneyPatch, openOrders, orderByPayment, ordersFor,
+  paidTotal, paymentRef, paymentsOf, refundedTotal, refundsOf,
+  reserveOrderId, saveCheckout, saveOrder, setStatus, submissionKey,
   sweepAuth, sweepCheckouts, touchCustomer,
 } from "../netlify/functions/lib/records.mjs";
-import { testStores } from "../netlify/functions/lib/store.mjs";
+import {
+  memoryStore, testStores, wrap,
+} from "../netlify/functions/lib/store.mjs";
 
 const now = new Date("2026-10-06T13:00:00Z");
 const later = new Date("2026-10-06T14:00:00Z");
@@ -28,6 +31,121 @@ const order = (id, email = "pat@example.com", at = "2026-10-06T13:00:00Z") => ({
     via: "square", method: "card", at, squarePaymentId: `PAY-${id}`,
     receiptUrl: "https://r/x", brand: "VISA", last4: "4242",
   },
+});
+
+describe("create-only writes (#253)", () => {
+  it("write a new key once, in memory and through Blobs' onlyIfNew",
+    async () => {
+      const mem = memoryStore();
+
+      assert.equal(await mem.create("id/A", { key: "k1" }), true);
+      assert.equal(await mem.create("id/A", { key: "k2" }), false);
+      assert.deepEqual(await mem.get("id/A"), { key: "k1" });
+
+      const seen = [];
+      const blobs = wrap({
+        setJSON: async (key, value, options) => {
+          seen.push([key, value, options]);
+
+          return { modified: seen.length === 1 };
+        },
+      });
+
+      assert.equal(await blobs.create("id/A", { key: "k1" }), true);
+      assert.equal(await blobs.create("id/A", { key: "k2" }), false);
+      assert.deepEqual(seen[0], ["id/A", { key: "k1" }, { onlyIfNew: true }]);
+    });
+});
+
+describe("order ids (#253)", () => {
+  const draws = (prefix) => (n) => `NFF-2610-${prefix}${n}`;
+
+  it("reserve the first free draw, and the same one on a retry",
+    async () => {
+      const stores = testStores();
+
+      assert.equal(await reserveOrderId(stores, "k1", draws("AAAAA"), now),
+        "NFF-2610-AAAAA0");
+      assert.equal(await reserveOrderId(stores, "k2", draws("AAAAA"), now),
+        "NFF-2610-AAAAA1");
+      assert.equal(await reserveOrderId(stores, "k1", draws("AAAAA"), now),
+        "NFF-2610-AAAAA0");
+      assert.deepEqual(await stores.orders.get(idKey("NFF-2610-AAAAA1")), {
+        key: "k2", at: now.toISOString(),
+      });
+      assert.deepEqual(await stores.orders.get(submissionKey("k2")), {
+        id: "NFF-2610-AAAAA1",
+      });
+    });
+
+  it("find a reservation whose pointer was never written", async () => {
+    const stores = testStores();
+
+    await stores.orders.create(idKey("NFF-2610-BBBBB0"), { key: "k1" });
+    assert.equal(await reserveOrderId(stores, "k1", draws("BBBBB"), now),
+      "NFF-2610-BBBBB0");
+  });
+
+  it("throw when a write reads back empty, rather than draw again",
+    async () => {
+      const stores = testStores();
+
+      stores.orders = { ...stores.orders, create: async () => true };
+      await assert.rejects(
+        reserveOrderId(stores, "k1", draws("DDDDD"), now), /did not stick/
+      );
+      assert.deepEqual(await stores.orders.list("id/"), []);
+    });
+
+  it("let the pointer win over a twin request's draw", async () => {
+    const stores = testStores();
+    const real = stores.orders;
+
+    // The twin's pointer lands between this request's two writes.
+    stores.orders = {
+      ...real,
+      create: async (k, v) => {
+        if (k === submissionKey("k1")) {
+          await real.create(k, { id: "NFF-2609-TWIN00" });
+        }
+
+        return real.create(k, v);
+      },
+    };
+    assert.equal(await reserveOrderId(stores, "k1", draws("EEEEE"), now),
+      "NFF-2609-TWIN00");
+  });
+
+  it("give up after the last draw, before anything is charged",
+    async () => {
+      const stores = testStores();
+
+      await reserveOrderId(stores, "k1", () => "NFF-2610-CCCCCC", now);
+      await assert.rejects(
+        reserveOrderId(stores, "k2", () => "NFF-2610-CCCCCC", now),
+        /No free order id/
+      );
+    });
+
+  it("tell a record's own submission from any other", () => {
+    assert.equal(belongsTo({ meta: { idempotencyKey: "k1" } }, "k1"), true);
+    assert.equal(belongsTo({ meta: { idempotencyKey: "k1" } }, "k2"), false);
+    assert.equal(belongsTo({ meta: {} }, undefined), false);
+    assert.equal(belongsTo(null, "k1"), false);
+  });
+
+  it("still find an old four-character id beside a new six", async () => {
+    const stores = testStores();
+
+    await saveOrder(stores, order("NFF-2609-K3WM"), now);
+    await saveOrder(stores, order("NFF-2610-K3WM7Q"), now);
+    assert.equal((await getOrder(stores, "NFF-2609-K3WM")).id,
+      "NFF-2609-K3WM");
+    assert.equal((await getOrder(stores, "NFF-2610-K3WM7Q")).id,
+      "NFF-2610-K3WM7Q");
+    assert.deepEqual((await ordersFor(stores, "pat@example.com"))
+      .map((o) => o.id).sort(), ["NFF-2609-K3WM", "NFF-2610-K3WM7Q"]);
+  });
 });
 
 describe("order records", () => {

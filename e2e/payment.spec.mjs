@@ -14,7 +14,7 @@ import {
   nff, orderRecord, teardown, waitForMail,
 } from "./support/staging.mjs";
 
-const ORDER_ID = /^NFF-\d{4}-[A-Z2-9]{4}$/;
+const ORDER_ID = /^NFF-\d{4}-[A-Z2-9]{6}$/;
 
 test.describe.configure({ mode: "serial" });
 

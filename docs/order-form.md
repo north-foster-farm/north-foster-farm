@@ -707,8 +707,17 @@ Flags that take a value accept both `--reason "..."` and
   redirects to `/order/`.
 - **HSTS raised to a year** in the same commit that touched the header
   block for `form-action`, as the audit asked.
-- **Order ids** are `NFF-YYMM-XXXX` with the tail derived from the
-  submission key, so a retry reuses the id.
+- **Order ids** are `NFF-YYMM-XXXXXX` with the tail derived from the
+  submission key, so a retry reuses the id. The id is reserved in the
+  orders store (`id/<id>`, create-only, holding the submission key)
+  before Square or PayPal is called; a draw another submission holds
+  is passed over for the next, and a record that is not this
+  submission's is never returned (`order.id_collision`, #253). A
+  submission already paid is answered with its record before
+  anything else, so a new attempt after a lost answer never charges
+  again. Ids
+  from before had four characters and stay valid: nothing parses the
+  tail.
 
 ## History
 
@@ -770,9 +779,14 @@ to the function log; Square's receipt still reaches the customer.
    must print "No orders." before the deploy: the code that would
    have chased those is gone, and the `legacy.unpaid` invariant will
    alert on any that remain. Settle them by hand first.
-5. **Prove it on staging.** One card payment, one decline, one Venmo
+5. **Venmo payments open across the deploy (#253).** One started
+   before it records under its old four-character id. If its page
+   then retries a capture that had already finished, the retry looks
+   for the new six-character id and answers 409 "Start again". The
+   order and the money are safe; the window is minutes.
+6. **Prove it on staging.** One card payment, one decline, one Venmo
    payment, a refund from the CLI, both webhooks; the QA guide has
    the steps.
-6. **Merge and deploy** per the branch rules, then place one real $7
+7. **Merge and deploy** per the branch rules, then place one real $7
    egg order on the live site, confirm the receipt and the Square
    order with its fulfilment, and refund it from the CLI.
