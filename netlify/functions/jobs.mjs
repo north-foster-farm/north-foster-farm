@@ -20,23 +20,28 @@ const answer = (status, body) => new Response(JSON.stringify(body), {
   status, headers: { "Content-Type": "application/json" },
 });
 
-export default withLog(async () => {
-  const s = stores();
-
+// It answers 500 rather than throwing, so withLog does not alert the
+// same crash a second time as function.crashed.
+export const handle = async ({
+  s = stores(), run = runJobs, env = process.env, mail, fetchImpl,
+} = {}) => {
   try {
-    return answer(200, await runJobs(s));
+    return answer(200, await run(s));
   } catch (error) {
     const message = String((error && error.message) || error);
 
     log.error({ event: "jobs.crashed", error: message, stack: error.stack });
-    await alert(s, "jobs.crashed", { error: message });
-    await ping(process.env.HEALTHCHECKS_JOBS_URL, {
-      ok: false, body: { crashed: message },
+    await alert(s, "jobs.crashed", { error: message },
+      { env, mail, fetchImpl });
+    await ping(env.HEALTHCHECKS_JOBS_URL, {
+      ok: false, body: { crashed: message }, fetchImpl,
     });
 
     return answer(500, { error: message });
   }
-});
+};
+
+export default withLog("jobs", () => handle());
 
 export const config = {
   schedule: "*/15 * * * *",

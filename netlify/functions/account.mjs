@@ -107,7 +107,7 @@ export const handle = async (req, {
   return json(404, { error: "Not found." });
 };
 
-export default withLog(async (req) => handle(req));
+export default withLog("account", async (req) => handle(req));
 
 export const config = {
   path: ["/api/account/orders", "/api/account/orders/*", "/api/account/*"],

@@ -80,12 +80,83 @@ export const flush = async ({
   }
 };
 
+const STACK_LINES = 12;
+const STACK_CHARS = 2000;
+
+// A stack short enough for a log line and an alert: the message and
+// the first frames, which name the file and line that threw.
+export const trimStack = (error) => String((error && error.stack)
+  || error).split("\n").slice(0, STACK_LINES).join("\n")
+  .slice(0, STACK_CHARS);
+
+// The alert for an exception no handler caught, through lib/health.mjs
+// (imported here when needed, since it logs through this module). Its
+// hourly limit is per function, so one noisy function cannot hide
+// another's crash. `options` are alert()'s, for the tests.
+export const alertCrash = async (detail, error, {
+  stores: given, ...options
+} = {}) => {
+  const [{ alert }, { stores }] = await Promise.all([
+    import("./health.mjs"), import("./store.mjs"),
+  ]);
+
+  const s = given || stores();
+
+  return alert(s, "function.crashed", detail, {
+    ...options, mute: `function.crashed/${detail.function}`,
+  });
+};
+
 // Wraps a function handler so its lines ship after it answers,
-// whatever happened inside.
-export const withLog = (handler) => async (req, context) => {
-  try {
-    return await handler(req, context);
-  } finally {
-    await flush();
-  }
+// whatever happened inside. An exception the handler did not catch is
+// logged as function.crashed with the function's name and a trimmed
+// stack, raises one alert (`onCrash`), and is thrown on unchanged, so
+// Netlify answers exactly as it would have. The report never fails
+// the request: a failing onCrash is logged and dropped.
+//
+//   withLog("orders", handler)
+//   withLog("orders", handler, { onCrash, flushImpl })
+export const withLog = (name, handler, {
+  onCrash = alertCrash,
+  flushImpl = flush,
+} = {}) => {
+  if (typeof name === "function") return withLog("unnamed", name, handler);
+
+  return async (req, context) => {
+    try {
+      return await handler(req, context);
+    } catch (error) {
+      let path = null;
+
+      try {
+        path = new URL(req.url).pathname;
+      } catch {
+        // A scheduled run has no request.
+      }
+
+      const detail = {
+        function: name,
+        error: String((error && error.message) || error).slice(0, 300),
+        method: (req && req.method) || null,
+        path,
+        stack: trimStack(error),
+      };
+
+      line("error", { event: "function.crashed", ...detail });
+      if (onCrash) {
+        try {
+          await onCrash(detail, error);
+        } catch (failure) {
+          line("error", {
+            event: "function.crash_alert_failed", function: name,
+            error: String(failure),
+          });
+        }
+      }
+
+      throw error;
+    } finally {
+      await flushImpl();
+    }
+  };
 };

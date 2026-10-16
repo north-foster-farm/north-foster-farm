@@ -82,7 +82,7 @@ export const handle = async (req, {
   return json(404, { error: "Not found." });
 };
 
-export default withLog((req) => handle(req));
+export default withLog("news", (req) => handle(req));
 
 export const config = {
   path: ["/api/news/*"],

@@ -395,7 +395,7 @@ export const handle = async (req, {
   }
 };
 
-export default withLog(async (req, context) =>
+export default withLog("orders", async (req, context) =>
   handle(req, { ip: context && context.ip }));
 
 export const config = {

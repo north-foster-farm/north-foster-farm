@@ -22,9 +22,9 @@ const sources = () => {
     .map((url) => ({ url, text: readFileSync(url, "utf8") }));
 };
 
-// Every call like alert(stores, "kind", ...), across lines: the
-// callee, and its second argument as written.
-const CALL = /\balert\(\s*[A-Za-z_$][\w$.]*\s*,\s*([^\s,)]+)/g;
+// Every call like alert(stores, "kind", ...) or alert(stores(), ...),
+// across lines, with its second argument as written.
+const CALL = /\balert\(\s*[A-Za-z_$][\w$.]*(?:\(\))?\s*,\s*([^\s,)]+)/g;
 const LITERAL = /^(["'])([a-z0-9_.-]+)\1$/;
 
 // The calls whose kind is a variable, each for a reason, by file. Any

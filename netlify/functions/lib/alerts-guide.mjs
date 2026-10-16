@@ -146,4 +146,15 @@ export const GUIDE = {
     action: "The log has the stack (event jobs.crashed). Fix and " +
       "redeploy; the next run catches up.",
   },
+  "function.crashed": {
+    means: "A site function threw an exception nothing in it caught, " +
+      "so whoever called it got Netlify's bare 500. The alert names " +
+      "the function, the path and the error, with the top of the stack. " +
+      "One is sent an hour for each function.",
+    action: "Read the stack in the alert or the log (event " +
+      "function.crashed, by function). If it is the order or payment " +
+      "path, check bin/nff orders list for an order that half happened. " +
+      "Fix and redeploy; a POST to /api/staging/throw on staging raises " +
+      "one on purpose.",
+  },
 };

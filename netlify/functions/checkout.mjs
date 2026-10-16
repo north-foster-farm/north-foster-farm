@@ -14,7 +14,7 @@ export const handle = async (req, { env = process.env } = {}) => json(200, {
   paypal: paypalConfig(env),
 });
 
-export default withLog(async (req) => handle(req));
+export default withLog("checkout", async (req) => handle(req));
 
 export const config = {
   path: "/api/checkout/config",

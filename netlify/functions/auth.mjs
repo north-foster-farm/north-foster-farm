@@ -120,7 +120,7 @@ export const handle = async (req, {
   return json(404, { error: "Not found." });
 };
 
-export default withLog(async (req, context) =>
+export default withLog("auth", async (req, context) =>
   handle(req, { ip: context && context.ip }));
 
 export const config = {

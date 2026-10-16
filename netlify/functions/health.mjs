@@ -144,7 +144,7 @@ export const handle = async (req, {
   return json(202, { ok: true });
 };
 
-export default withLog(async (req, context) =>
+export default withLog("health", async (req, context) =>
   handle(req, { ip: context && context.ip }));
 
 export const config = {

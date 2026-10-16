@@ -160,7 +160,7 @@ export const handle = async (req, {
   return json(200, { ok: true });
 };
 
-export default withLog(async (req, context) =>
+export default withLog("contact", async (req, context) =>
   handle(req, { ip: context && context.ip }));
 
 export const config = {

@@ -6,10 +6,12 @@ import {
 } from "../netlify/functions/lib/health.mjs";
 import { recordRun } from "../netlify/functions/lib/jobs.mjs";
 import {
-  configured, flush, log, pending,
+  alertCrash, configured, flush, log, pending, trimStack, withLog,
 } from "../netlify/functions/lib/log.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle, snapshot } from "../netlify/functions/health.mjs";
+import { handle as jobsHandle } from "../netlify/functions/jobs.mjs";
+import { handle as stagingHandle } from "../netlify/functions/staging.mjs";
 
 const now = new Date("2026-10-06T13:00:00Z");
 const later = (minutes) => new Date(now.getTime() + minutes * 60_000);
@@ -324,5 +326,211 @@ describe("POST /api/health, the checkout beacon", () => {
       });
     }
     assert.equal(sent.length, 1, "one alert an hour, however many beacons");
+  });
+});
+
+// The lines a wrapped call shipped, read off a fake Axiom.
+const shipped = () => {
+  const { calls, fetchImpl } = fakeFetch();
+  const flushImpl = () => flush({
+    env: { AXIOM_TOKEN: "t", AXIOM_DATASET: "d" }, fetchImpl,
+  });
+
+  return {
+    flushImpl,
+    lines: () => calls.flatMap((c) => JSON.parse(c.body)),
+  };
+};
+
+describe("an exception no handler caught", () => {
+  it("is logged as function.crashed, alerted once and thrown on",
+    async () => {
+      const boom = new Error("kaboom");
+      const crashes = [];
+      const ship = shipped();
+      const wrapped = withLog("orders", async () => {
+        throw boom;
+      }, {
+        onCrash: async (detail, error) => crashes.push({ detail, error }),
+        flushImpl: ship.flushImpl,
+      });
+
+      await assert.rejects(
+        wrapped(new Request("https://x/api/orders", { method: "POST" })),
+        (error) => error === boom
+      );
+      assert.equal(crashes.length, 1);
+      assert.equal(crashes[0].error, boom);
+      assert.equal(crashes[0].detail.function, "orders");
+      assert.equal(crashes[0].detail.path, "/api/orders");
+      assert.equal(crashes[0].detail.method, "POST");
+
+      const line = ship.lines().find((l) => l.event === "function.crashed");
+
+      assert.ok(line, "the crash is in the shipped lines");
+      assert.equal(line.level, "error");
+      assert.equal(line.function, "orders");
+      assert.equal(line.error, "kaboom");
+      assert.match(line.stack, /kaboom\n\s+at /);
+    });
+
+  it("leaves an answer alone, and reports nothing", async () => {
+    const crashes = [];
+    const wrapped = withLog("dates", async () => new Response("ok"), {
+      onCrash: async (d) => crashes.push(d), flushImpl: async () => 0,
+    });
+    const res = await wrapped(new Request("https://x/api/dates"));
+
+    assert.equal(await res.text(), "ok");
+    assert.equal(crashes.length, 0);
+  });
+
+  it("throws the same error when the alert itself fails", async () => {
+    const boom = new Error("first");
+    const wrapped = withLog("stock", async () => {
+      throw boom;
+    }, {
+      onCrash: async () => {
+        throw new Error("alert down");
+      },
+      flushImpl: async () => 0,
+    });
+
+    await assert.rejects(wrapped(new Request("https://x/api/stock")),
+      (error) => error === boom);
+  });
+
+  it("becomes one function.crashed alert email", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const env = { ADMIN_EMAILS: "farm@x.com" };
+    const wrapped = withLog("contact", async () => {
+      throw new Error("bad");
+    }, {
+      onCrash: (detail) => alert(stores, "function.crashed", detail, {
+        env, mail, now, fetchImpl: fakeFetch().fetchImpl,
+      }),
+      flushImpl: async () => 0,
+    });
+
+    await assert.rejects(wrapped(new Request("https://x/api/contact")));
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].subject, "Site alert: function.crashed");
+    assert.match(sent[0].text, /contact/);
+  });
+
+  it("is trimmed to the first frames", () => {
+    const error = new Error("deep");
+
+    error.stack = ["Error: deep", ...Array.from({ length: 40 },
+      (_, i) => `    at f${i} (file.mjs:${i}:1)`)].join("\n");
+    assert.equal(trimStack(error).split("\n").length, 12);
+    assert.equal(trimStack("plain"), "plain");
+  });
+
+  it("logs the one-argument form as \"unnamed\"", async () => {
+    const written = [];
+    const real = console.error;
+    const wrapped = withLog(async () => {
+      throw new Error("old way");
+    });
+
+    console.error = (text) => written.push(text);
+    try {
+      await assert.rejects(wrapped(new Request("https://x/api/old")),
+        /old way/);
+    } finally {
+      console.error = real;
+    }
+
+    const crash = written.map((t) => JSON.parse(t))
+      .find((l) => l.event === "function.crashed");
+
+    assert.equal(crash.function, "unnamed");
+    assert.equal(crash.path, "/api/old");
+  });
+
+  it("holds crashes for an hour per function, not across them",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+      const options = {
+        stores, env: { ADMIN_EMAILS: "farm@x.com" }, mail, now,
+        fetchImpl: fakeFetch().fetchImpl,
+      };
+
+      assert.equal(await alertCrash({ function: "news" }, null, options),
+        "sent");
+      assert.equal(await alertCrash({ function: "news" }, null, options),
+        "muted", "the same function, within the hour");
+      assert.equal(await alertCrash({ function: "orders" }, null, options),
+        "sent", "another function's crash still arrives");
+      assert.equal(sent.length, 2);
+      assert.ok(sent.every((m) => m.subject ===
+        "Site alert: function.crashed"));
+    });
+
+  it("is not alerted twice by the jobs run, which catches its own",
+    async () => {
+      const s = testStores();
+      const { sent, mail } = mailbox();
+      const hc = fakeFetch();
+      const crashes = [];
+      const env = {
+        ADMIN_EMAILS: "farm@x.com", HEALTHCHECKS_JOBS_URL: "https://hc/j",
+      };
+      const wrapped = withLog("jobs", () => jobsHandle({
+        s, env, mail, fetchImpl: hc.fetchImpl,
+        run: async () => {
+          throw new Error("run broke");
+        },
+      }), {
+        onCrash: async (d) => crashes.push(d), flushImpl: async () => 0,
+      });
+      const res = await wrapped();
+
+      assert.equal(res.status, 500);
+      assert.equal(crashes.length, 0, "no function.crashed");
+      assert.equal(sent.length, 1);
+      assert.equal(sent[0].subject, "Site alert: jobs.crashed");
+      assert.ok(hc.calls.some((c) => c.url === "https://hc/j/fail"));
+    });
+});
+
+describe("POST /api/staging/throw", () => {
+  const env = { SITE_CONTEXT: "deploy-preview" };
+  const post = (path = "/api/staging/throw", headers = {}) =>
+    new Request(`https://x${path}`, { method: "POST", headers });
+
+  it("is a 404 in production and wherever no token is set", async () => {
+    for (const e of [env, { SITE_CONTEXT: "production",
+      STAGING_TOKEN: "s3cret" }]) {
+      const res = await stagingHandle(post(), {
+        stores: testStores(), env: e,
+      });
+
+      assert.equal(res.status, 404);
+    }
+  });
+
+  it("refuses without the token", async () => {
+    const res = await stagingHandle(post(), {
+      stores: testStores(), env: { ...env, STAGING_TOKEN: "s3cret" },
+    });
+
+    assert.equal(res.status, 401);
+  });
+
+  it("throws with the token, for withLog to report", async () => {
+    const crashes = [];
+    const wrapped = withLog("staging", (req) => stagingHandle(req, {
+      stores: testStores(), env: { ...env, STAGING_TOKEN: "s3cret" },
+    }), { onCrash: async (d) => crashes.push(d), flushImpl: async () => 0 });
+
+    await assert.rejects(wrapped(post("/api/staging/throw",
+      { Authorization: "Bearer s3cret" })), /no handler caught/);
+    assert.equal(crashes.length, 1);
+    assert.equal(crashes[0].function, "staging");
+    assert.equal(crashes[0].path, "/api/staging/throw");
   });
 });

@@ -5,10 +5,11 @@
 import terms from "../../data/delivery.json" with { type: "json" };
 import { allDates } from "../../assets/scripts/order/lib/dates.mjs";
 import { json } from "./lib/http.mjs";
+import { withLog } from "./lib/log.mjs";
 import { pickupSchedule } from "./lib/pickups.mjs";
 
-export default async () =>
-  json(200, allDates(new Date(), terms, pickupSchedule()));
+export default withLog("dates", async () =>
+  json(200, allDates(new Date(), terms, pickupSchedule())));
 
 export const config = {
   path: "/api/dates",

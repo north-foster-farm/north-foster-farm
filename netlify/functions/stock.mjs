@@ -3,6 +3,7 @@
 // submits, so a cart never holds what just sold out.
 
 import { json } from "./lib/http.mjs";
+import { withLog } from "./lib/log.mjs";
 import { availability } from "./lib/stock.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
@@ -13,7 +14,7 @@ export const handle = async (req, {
   at: now.toISOString(), items: await availability(stores),
 });
 
-export default async (req) => handle(req);
+export default withLog("stock", async (req) => handle(req));
 
 export const config = {
   path: "/api/stock",

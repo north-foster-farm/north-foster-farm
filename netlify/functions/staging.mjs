@@ -23,6 +23,8 @@
 //                                     sample values as tokens
 //   DELETE /api/staging/emails/:id/rewrite   back to the code's wording
 //                                     (all four: lib/review.mjs)
+//   POST   /api/staging/throw         throws, to prove the crash alert
+//                                     (only with STAGING_TOKEN set)
 //
 // STAGING_TOKEN, when set, is required as a bearer or ?token=.
 
@@ -110,6 +112,15 @@ export const handle = async (req, {
 
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/$/, "");
+
+  // #256's proof that an uncaught exception is logged and alerted
+  // (withLog, function.crashed). Never without a token.
+  if (req.method === "POST" && path === "/api/staging/throw") {
+    if (!env.STAGING_TOKEN) return json(404, { error: "Not found." });
+    log.info({ event: "staging.throw" });
+
+    throw new Error("Staging proof: an exception no handler caught.");
+  }
 
   if (req.method === "GET" && path === "/api/staging/info") {
     return json(200, {
@@ -280,7 +291,7 @@ export const handle = async (req, {
   return json(404, { error: "Not found." });
 };
 
-export default withLog((req) => handle(req));
+export default withLog("staging", (req) => handle(req));
 
 export const config = {
   path: ["/api/staging/*"],

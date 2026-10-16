@@ -177,7 +177,8 @@ export const handle = async (req, {
   return json(200, result);
 };
 
-export default withLog(async (req) => handle(req));
+export default withLog("paypal-webhook", async (req) =>
+  handle(req));
 
 export const config = {
   path: "/api/paypal/webhook",

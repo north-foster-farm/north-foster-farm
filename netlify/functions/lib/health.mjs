@@ -136,25 +136,27 @@ export const ping = async (url, {
 // A failure on the critical path. `kind` is dotted and stable
 // (order.create_failed, mail.failed, jobs.errors, ...); `detail` is
 // what a person needs to act. Deduplicated per kind for an hour, so a
-// storm is one email. -> "sent" | "muted" | "skipped".
+// storm is one email. `mute` narrows that clock: function.crashed
+// keeps one per function. -> "sent" | "muted" | "skipped".
 export const alert = async (stores, kind, detail = {}, {
   env = process.env,
   mail = sendMail,
   now = new Date(),
   fetchImpl = globalThis.fetch,
+  mute = kind,
 } = {}) => {
   log.error({ event: "alert", kind, ...detail });
 
-  const last = await readMark(stores, `alert/${kind}`);
+  const last = await readMark(stores, `alert/${mute}`);
 
   if (last && now.getTime() - Date.parse(last.at) < ALERT_EVERY) {
-    await mark(stores, `alert/${kind}`, {
+    await mark(stores, `alert/${mute}`, {
       at: last.at, muted: (last.muted || 0) + 1, lastAt: now.toISOString(),
     }, now);
 
     return "muted";
   }
-  await mark(stores, `alert/${kind}`, { muted: 0 }, now);
+  await mark(stores, `alert/${mute}`, { muted: 0 }, now);
 
   const to = adminEmails(env);
   let sent = false;
