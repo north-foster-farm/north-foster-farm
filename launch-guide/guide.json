@@ -1,5 +1,5 @@
 {
- "revision": 16,
+ "revision": 17,
  "updated": "2026-10-17",
  "notice": null,
  "phases": [
@@ -2528,6 +2528,19 @@
       }
      ],
      "text": "Privacy page, retention paragraph:\n\nYour account stays until you close it. Deleting your details takes one click in your account settings. Your orders stay in our records, with no name on them, for our own reporting. Seven years after an order, we remove your name, email address, phone number and street address from it. The order keeps what was bought, the prices, the date, how it reached you, and the town and ZIP code.\n\nPrivacy page, tracking sentence:\n\nWe never track whether you open our emails.\n\nAccount Settings, Delete your details:\n\nA \"Delete your details\" section: a button labelled \"Delete my details\" behind a browser confirm (\"Delete your details? This can't be undone.\"), calling POST /api/account/delete with { confirm: true }.\n\nRefusal messages (lib/forget.mjs, WAIT):\n\n- open order: “You have an order still to come. You can delete your details once it's delivered or picked up, or after you cancel it.”\n- return: “We're still working on a return for you. You can delete your details once it's settled.”\n- Venmo checkout: “A Venmo payment is under way. Try again in a day.”\n\nOpen questions:\n\n- Delete help and contact-page messages after seven years, same as orders, or leave them until the customer deletes their details, as today?\n- Delete the Square customer profile on \"delete my details\", or leave it (Square keeps the payments either way)?\n- State backup retention on the privacy page: how long do deleted details live on in the nightly backup (#267)?"
+    },
+    {
+     "rev": 4,
+     "date": "2026-10-17",
+     "changed": "Your two answers on #267 are built (f41cf65 on `next`, on staging at the next promotion): messages are deleted seven years after they were sent, and Delete my details also deletes the Square customer profile. Nothing is live until the release.",
+     "summary": "For your approval: the new sentences on the privacy page and the account page, and the one new message, shown below.\n\n**How deletion works now.** The customer taps Delete my details and confirms. First we delete the Square customer profile that their own orders recorded (never one found by name or email; Square keeps the payments). If Square can't be reached, nothing is deleted and they see the message below to try again. Then everything else goes as before: the orders are scrubbed, the messages, sign-in records and Resend contact deleted, and the account closed. A help or contact message also goes seven years after it was sent, in the daily retention job, even for someone who never deletes their details. A message with no date is kept.\n\n**Not built: the household choice** (remove just me, delete the whole household, cancel). This site has no households yet: one account is one email. It belongs to the dashboard's households work, so I filed it there with your design notes (nff-dashboard#28). Question for you then: when the whole household is deleted, should the other members get an email? Recommendation: yes, one short note to each saying their household's details were deleted at a member's request, without naming who.",
+     "text": "Privacy page, retention paragraph (the last two sentences are new):\n\nYour account stays until you close it. Deleting your details takes one click in your account settings. Your orders stay in our records, with no name on them, for our own reporting. Seven years after an order, we remove your name, email address, phone number and street address from it. The order keeps what was bought, the prices, the date, how it reached you, and the town and ZIP code. Deleting your details also deletes the customer profile we made for you at Square, which keeps the payments themselves. We delete the messages you send us seven years after you send them, or when you delete your details.\n\nAccount page, Delete your details (new wording):\n\nThis deletes your account: your name, email, phone and address, and the customer profile we made for you at Square, which keeps the payments themselves. We keep your past orders for our records, with no name on them. It can't be undone.\n\nNew message, when Square can't be reached:\n\nWe couldn't reach our payment provider to delete your payment profile, so nothing was deleted. Please try again in a few minutes.",
+     "look": [
+      {
+       "label": "#267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
+      }
+     ]
     }
    ],
    "device": "any",
