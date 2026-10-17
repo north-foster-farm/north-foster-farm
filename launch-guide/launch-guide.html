@@ -245,7 +245,8 @@ dialog h2 { margin-top: 0; font-size: 20px; }
 <script>
 (function () {
   "use strict";
-  var STORE_KEY = "nff-launch-guide-v1";
+  var HOSTED = false;
+  var STORE_KEY = HOSTED ? "nff-launch-guide-hosted-v1" : "nff-launch-guide-v1";
   var REMOTE = "https://raw.githubusercontent.com/north-foster-farm/north-foster-farm/launch-guide/launch-guide/guide.json";
   var ENVS = ["development", "staging", "production"];
   var ENV_FILE = { development: ".env.development", staging: ".env.staging", production: ".env.production" };
@@ -267,7 +268,8 @@ dialog h2 { margin-top: 0; font-size: 20px; }
     clearTimeout(saveTimer);
     saveTimer = setTimeout(function () {
       try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
-      catch (e) { toast("Couldn't save to this browser's storage. Export your secrets now."); }
+      catch (e) { if (!HOSTED) toast("Couldn't save to this browser's storage. Export your secrets now."); }
+      if (HOSTED) queueSync();
     }, 150);
   }
   window.addEventListener("pagehide", function () { if (saveTimer) { clearTimeout(saveTimer); try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} } });
@@ -447,7 +449,7 @@ dialog h2 { margin-top: 0; font-size: 20px; }
   }
   function renderMeta() {
     var src = data === embedded ? "built-in copy" : "GitHub";
-    $("#dataMeta").textContent = "Steps revision " + data.revision + " (" + src + ")" + (state.lastCheck ? ", checked " + new Date(state.lastCheck).toLocaleString() : "");
+    $("#dataMeta").textContent = "Steps revision " + data.revision + " (" + src + ")" + (state.lastCheck ? ", checked " + new Date(state.lastCheck).toLocaleString() : "") + (HOSTED && syncStatus ? ". " + syncStatus : "");
   }
   function renderPhases() {
     var el = $("#phases"); el.textContent = "";
@@ -581,8 +583,9 @@ dialog h2 { margin-top: 0; font-size: 20px; }
     });
     (st.fields || []).forEach(function (f) { body.appendChild(renderField(f)); });
     if (st.after) body.appendChild(h("div", { html: md(st.after) }));
-    if (st.kind === "envfiles") body.appendChild(renderEnvFiles());
-    if (st.kind === "import") body.appendChild(renderImport());
+    if (HOSTED && (st.kind === "envfiles" || st.kind === "import")) body.appendChild(h("div", { class: "blocked-note", html: md("This part works with secrets, so it runs only in the copy of this guide on your Mac.") }));
+    else if (st.kind === "envfiles") body.appendChild(renderEnvFiles());
+    else if (st.kind === "import") body.appendChild(renderImport());
     var notes = h("details", { class: "notes" }, [h("summary", { text: state.notes[st.id] ? "Your note (saved)" : "Add a note or problem for Claude" })]);
     var ta = h("textarea", { "aria-label": "Note on " + st.title }); ta.value = state.notes[st.id] || "";
     ta.addEventListener("input", function () { state.notes[st.id] = ta.value; save(); });
@@ -593,6 +596,10 @@ dialog h2 { margin-top: 0; font-size: 20px; }
   }
 
   function renderField(f) {
+    if (HOSTED && f.secret) return h("div", { class: "fieldrow secret" }, [
+      h("label", { text: f.label }),
+      h("div", { class: "save", html: md("**Secret.** Enter it in the copy of this guide on your Mac. Secrets never go into this online copy.") })
+    ]);
     var row = h("div", { class: "fieldrow" + (f.secret ? " secret" : "") });
     var id = "f-" + f.id;
     row.appendChild(h("label", { for: id, text: f.label }));
@@ -767,6 +774,27 @@ dialog h2 { margin-top: 0; font-size: 20px; }
       reviews: reviews, steps: steps, nonSecretValues: fields, sampleEnvFiles: samples
     }, null, 2);
   }
+  // Merge another copy's report: ticks, notes, review decisions and non-secret values. Never secrets.
+  function mergeReport(rep) {
+    var n = 0, defs = fieldDefs();
+    Object.keys(rep.steps || {}).forEach(function (id) {
+      var x = rep.steps[id];
+      if (x.done && !state.checks[id]) { state.checks[id] = true; n++; }
+      if (x.note && x.note !== state.notes[id]) { state.notes[id] = state.notes[id] ? state.notes[id] + "\n\n" + x.note : x.note; n++; }
+    });
+    Object.keys(rep.reviews || {}).forEach(function (id) {
+      var dec = rep.reviews[id].decisions || {};
+      Object.keys(dec).forEach(function (rv) {
+        var s = state.reviews[id] = state.reviews[id] || { decisions: {} }; s.decisions = s.decisions || {};
+        var mine = s.decisions[rv], theirs = dec[rv];
+        if (!mine || (theirs.at && (!mine.at || theirs.at > mine.at))) { s.decisions[rv] = theirs; n++; }
+      });
+    });
+    Object.keys(rep.nonSecretValues || {}).forEach(function (k) {
+      if (defs[k] && !defs[k].secret && rep.nonSecretValues[k] !== state.fields[k]) { state.fields[k] = rep.nonSecretValues[k]; n++; }
+    });
+    return n;
+  }
   function secretsDump() {
     return JSON.stringify({ kind: "nff-launch-guide-secrets", exportedAt: new Date().toISOString(), WARNING: "Contains secrets. Never share with Claude or anyone. Keep in your password manager.", state: state }, null, 2);
   }
@@ -779,7 +807,9 @@ dialog h2 { margin-top: 0; font-size: 20px; }
     $("#dlgApply").onclick = function () {
       try {
         var obj = JSON.parse(ta.value);
-        if (obj.kind === "nff-launch-guide-secrets" && obj.state) { state = obj.state; var b = blank(); for (var k in b) if (!(k in state)) state[k] = b[k]; data = pickData(); save(); render(); d.close(); toast("Restored"); }
+        if (obj.kind === "nff-launch-guide-report") { var n = mergeReport(obj); data = pickData(); save(); render(); d.close(); toast("Merged " + n + " items of progress"); }
+        else if (HOSTED) toast("This online copy only takes a report export");
+        else if (obj.kind === "nff-launch-guide-secrets" && obj.state) { state = obj.state; var b = blank(); for (var k in b) if (!(k in state)) state[k] = b[k]; data = pickData(); save(); render(); d.close(); toast("Restored"); }
         else toast("That isn't a secrets export from this guide");
       } catch (e) { toast("That isn't valid JSON"); }
     };
@@ -793,7 +823,8 @@ dialog h2 { margin-top: 0; font-size: 20px; }
     openDialog("Secrets export", "**Never share this.** It's a full backup of this guide, secrets included. Save it in your password manager (as a secure note or attachment). Use **Import** to restore it in another browser.", secretsDump(), "nff-launch-guide-secrets.json");
   };
   $("#btnImport").onclick = function () {
-    openDialog("Import a secrets export", "Paste a **Secrets export** from this guide. It replaces everything saved in this browser.", "", null, true);
+    if (HOSTED) openDialog("Merge progress", "Paste a **report** exported from another copy of this guide. Its ticks, notes, review decisions and non-secret values are merged in.", "", null, true);
+    else openDialog("Import", "Paste a **Secrets export** from this guide to restore everything (it replaces what's saved in this browser), or a **report** exported from the online copy to merge its ticks, notes and review decisions.", "", null, true);
   };
 
   // ---------- remote updates ----------
@@ -828,6 +859,69 @@ dialog h2 { margin-top: 0; font-size: 20px; }
     themeLabel();
   };
   themeLabel();
+  // ---------- hosted: sync non-secret progress across devices ----------
+  var SYNC_KEYS = ["checks", "notes", "reviews"];
+  var syncRef = null, syncBusy = false, syncAgain = false, syncStatus = HOSTED ? "Connecting…" : "";
+  var deviceId = (function () { try { var d = localStorage.getItem("nff-launch-guide-device"); if (!d) { d = Math.random().toString(36).slice(2, 10); localStorage.setItem("nff-launch-guide-device", d); } return d; } catch (e) { return Math.random().toString(36).slice(2, 10); } })();
+  function syncPayload() {
+    var defs = fieldDefs(), out = { v: 1, updatedAt: state.syncAt || Date.now(), device: deviceId, fields: {} };
+    SYNC_KEYS.forEach(function (k) { out[k] = state[k]; });
+    Object.keys(state.fields).forEach(function (k) { if (defs[k] && !defs[k].secret && state.fields[k]) out.fields[k] = state.fields[k]; });
+    return out;
+  }
+  function applyRemote(d) {
+    var defs = fieldDefs();
+    SYNC_KEYS.forEach(function (k) { if (d[k]) state[k] = d[k]; });
+    var keep = {}; Object.keys(state.fields).forEach(function (k) { if (defs[k] && defs[k].secret) keep[k] = state.fields[k]; });
+    state.fields = Object.assign(keep, d.fields || {});
+    state.syncAt = d.updatedAt;
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
+  }
+  var syncTimer = null;
+  function queueSync() {
+    if (!syncRef || applying) return;
+    state.syncAt = Date.now();
+    clearTimeout(syncTimer); syncTimer = setTimeout(pushSync, 1000);
+  }
+  function pushSync() {
+    if (syncBusy) { syncAgain = true; return; }
+    syncBusy = true;
+    syncRef.set(syncPayload()).then(function () { setStatus("Synced across your devices"); }, function (e) {
+      setStatus(e && e.code === "quota_exceeded" ? "Sync is full: saved on this device only" : "Couldn't sync: saved on this device only");
+    }).then(function () { syncBusy = false; if (syncAgain) { syncAgain = false; pushSync(); } });
+  }
+  function setStatus(t) { syncStatus = t; renderMeta(); }
+  function editing() { var a = document.activeElement; return a && (a.tagName === "TEXTAREA" || a.tagName === "INPUT" || a.tagName === "SELECT"); }
+  var applying = false, deferred = null;
+  function takeRemote(d) {
+    if (!d || !d.updatedAt || d.updatedAt <= (state.syncAt || 0)) return;
+    if (editing()) { deferred = d; return; }
+    applying = true; applyRemote(d); render(); applying = false;
+  }
+  document.addEventListener("focusout", function () { setTimeout(function () { if (deferred && !editing()) { var d = deferred; deferred = null; takeRemote(d); } }, 50); });
+  function startSync() {
+    if (!window.claude || !window.claude.use) { setStatus("Saved on this device only"); return; }
+    window.claude.use("db").then(function (db) {
+      if (!db) { setStatus("Saved on this device only"); return; }
+      syncRef = db.doc("guide/progress");
+      syncRef.get().then(function (snap) {
+        var d = snap.exists ? snap.data() : null;
+        if (d && d.updatedAt > (state.syncAt || 0)) { applying = true; applyRemote(d); render(); applying = false; setStatus("Synced across your devices"); }
+        else if (state.syncAt) { pushSync(); }
+        else setStatus("Synced across your devices");
+        syncRef.onSnapshot(function (s2) {
+          if (!s2.exists || s2.metadata.hasPendingWrites) return;
+          var x = s2.data(); if (x.device !== deviceId) takeRemote(x);
+        }, function () { setStatus("Sync stopped: reload to reconnect"); });
+      }, function () { setStatus("Couldn't sync: saved on this device only"); });
+    }, function () { setStatus("Saved on this device only"); });
+  }
+  if (HOSTED) {
+    ["#btnSecrets"].forEach(function (sel) { var b = $(sel); if (b) b.hidden = true; });
+    $("#btnImport").title = "Merge a report exported from another copy of this guide";
+    startSync();
+  }
+
   render();
   checkRemote(false);
 })();
