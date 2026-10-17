@@ -53,7 +53,7 @@ const sign = (body, { id = "msg_1", at = now, key = KEY } = {}) => {
 };
 
 const request = (body, headers) =>
-  new Request("https://northfosterfarm.com/api/resend/webhook", {
+  new Request("https://www.northfosterfarm.com/api/resend/webhook", {
     method: "POST", headers, body,
   });
 
