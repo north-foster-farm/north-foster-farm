@@ -1,5 +1,5 @@
 {
- "revision": 8,
+ "revision": 9,
  "updated": "2026-10-16",
  "notice": null,
  "phases": [
@@ -1690,6 +1690,22 @@
       }
      ],
      "recommendation": "Approve as built. The stale hold/232 branch is then deleted."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-17",
+     "changed": "More room between the green stripe and the title, as you asked: the post page's top padding doubled, 1.5rem to 3rem, at every width. On `next`; on staging after the next promotion.",
+     "summary": "Open any post and look at the gap under the green stripe. Home's copy of the header is unchanged.",
+     "look": [
+      {
+       "label": "September post on staging",
+       "url": "https://staging--north-foster-farm.netlify.app/news/2026-09-22-september-update/"
+      },
+      {
+       "label": "#232",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/232"
+      }
+     ]
     }
    ]
   },
