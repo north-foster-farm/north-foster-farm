@@ -1,5 +1,5 @@
 {
- "revision": 10,
+ "revision": 11,
  "updated": "2026-10-17",
  "notice": null,
  "phases": [
@@ -410,38 +410,6 @@
      "type": "account"
     },
     {
-     "id": "rs-team",
-     "title": "Try making a free team for staging",
-     "body": "Click the team name at the top left and create a new team called **NFF Staging**. If the dialog lets you pick the **Free** plan, create it. If it asks for a paid plan, cancel; staging then gets no Resend at all and you read its mail in the browser, as now. Record what happened below: it decides which keys go in the staging file.\n\n**If staging gets no team:** on the farm team, open **Webhooks** and delete the endpoint that points at staging (`staging--north-foster-farm.netlify.app/api/resend/webhook`). Do this only after the unsubscribe test in the review section is done.",
-     "minutes": 5,
-     "links": [
-      {
-       "label": "Resend webhooks",
-       "url": "https://resend.com/webhooks"
-      }
-     ],
-     "fields": [
-      {
-       "id": "rs_stg_team",
-       "label": "Staging team",
-       "secret": false,
-       "type": "choice",
-       "options": [
-        {
-         "value": "yes",
-         "label": "Created on the Free plan"
-        },
-        {
-         "value": "no",
-         "label": "Not possible for free: staging has no Resend"
-        }
-       ]
-      }
-     ],
-     "device": "any",
-     "type": "account"
-    },
-    {
      "id": "rs-prod-keys",
      "title": "Check production's Resend values",
      "body": "These came in from your `.env`; production keeps them. If one is empty, make it on the farm team under **API Keys → Create API Key** (shown once): the sending key with **Sending access** for `mail.northfosterfarm.com`, the audience key and the claude-lookup key with **Full access**. The audience ID is under **Audience → segments**: use the **More options (…)** menu to copy it.\n\nThe webhook secret here is the one the **live site** uses today, for Venmo's inbound mail. It stays until launch day, when the new farm-news webhook replaces it. Save a copy in your password manager now, as \"Resend old inbound secret\", until P9.",
@@ -489,45 +457,18 @@
      "type": "account"
     },
     {
-     "id": "rs-stg-keys",
-     "title": "Staging's Resend keys (only if the staging team exists)",
-     "body": "Skip this step if staging has no Resend team.\n\nSwitch to the **NFF Staging** team. Add a test contact (your own address) to a new segment called \"Farm news (staging)\", and copy that segment's ID. Create one **Full access** key named \"NFF staging audience\". Then **Webhooks → Add Webhook** with the staging URL and the events `contact.updated` and `contact.deleted`. Open the webhook and copy its **Signing Secret**.",
-     "minutes": 10,
+     "id": "rs-stg-webhook",
+     "title": "Delete the Resend webhook that points at staging",
+     "body": "Staging sends no email and holds no Resend team, key, audience or webhook, so the farm team's endpoint for staging has to go. On the farm team, open **Webhooks** and delete the endpoint that points at `staging--north-foster-farm.netlify.app/api/resend/webhook`.\n\nDo this only after the unsubscribe test in the review section (R-234) is done: that test needs the endpoint. Then tell Claude it is gone, and Claude removes staging's `RESEND_AUDIENCE_ID`, `RESEND_AUDIENCE_KEY` and `RESEND_WEBHOOK_SECRET` from Netlify.",
+     "minutes": 3,
+     "blocked": "Waits on R-234, the unsubscribe test on staging. Do not delete the endpoint before that test passes.",
      "links": [
-      {
-       "label": "Resend API keys",
-       "url": "https://resend.com/api-keys"
-      },
       {
        "label": "Resend webhooks",
        "url": "https://resend.com/webhooks"
       }
      ],
-     "copy": [
-      {
-       "label": "Staging webhook URL",
-       "value": "https://staging--north-foster-farm.netlify.app/api/resend/webhook"
-      }
-     ],
-     "fields": [
-      {
-       "id": "rs_stg_aud_id",
-       "label": "Staging segment ID",
-       "secret": false
-      },
-      {
-       "id": "rs_stg_aud_key",
-       "label": "Staging audience key",
-       "secret": true
-      },
-      {
-       "id": "rs_stg_wh",
-       "label": "Staging webhook signing secret",
-       "secret": true,
-       "placeholder": "whsec_…"
-      }
-     ],
-     "device": "laptop",
+     "device": "any",
      "type": "account"
     },
     {
@@ -3094,13 +3035,6 @@
     "comment": "The farm-news contact list (Resend now calls it a segment).",
     "secret": false,
     "envs": {
-     "staging": {
-      "field": "rs_stg_aud_id",
-      "when": {
-       "field": "rs_stg_team",
-       "equals": "yes"
-      }
-     },
      "production": {
       "field": "rs_prod_aud_id"
      }
@@ -3112,13 +3046,6 @@
     "comment": "A full-access key for the nightly contact sync.",
     "secret": true,
     "envs": {
-     "staging": {
-      "field": "rs_stg_aud_key",
-      "when": {
-       "field": "rs_stg_team",
-       "equals": "yes"
-      }
-     },
      "production": {
       "field": "rs_prod_aud_key"
      }
@@ -3132,13 +3059,6 @@
     "envs": {
      "development": {
       "value": "whsec_ZmFrZWZha2VmYWtlZmFrZWZha2VmYWtlZmFrZQ=="
-     },
-     "staging": {
-      "field": "rs_stg_wh",
-      "when": {
-       "field": "rs_stg_team",
-       "equals": "yes"
-      }
      },
      "production": {
       "field": "rs_prod_wh_new",
@@ -3430,5 +3350,9 @@
     "label": "Tell Claude"
    }
   ]
+ },
+ "retired": {
+  "rs-team": "Retired 2026-10-17: staging sends no email and has no Resend team, key, audience or webhook.",
+  "rs-stg-keys": "Retired 2026-10-17: staging sends no email and has no Resend team, key, audience or webhook."
  }
 }
