@@ -43,6 +43,8 @@ const ALLOWED = [
     why: "sample records for the email previews, not facts" },
   { file: "content/privacy.md", text: "deletes log lines",
     why: "Axiom's own retention, not ours" },
+  { file: "content/privacy.md", text: "encrypted backups",
+    why: "how long a backup is kept (D-189), not the session length" },
   { file: "netlify/functions/lib/templates.mjs", text: "Jobs runs",
     why: "the jobs schedule in netlify.toml, not a customer fact" },
   { file: "content/about.md", text: "giant chicken suit",
