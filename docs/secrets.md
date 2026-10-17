@@ -115,10 +115,15 @@ sets every value; agents never see them.
 - **PayPal:** a sandbox app per environment, each with its own
   business account, credentials and webhooks. Staging's business
   account needs Venmo on and `buyer-country=US`.
-- **Resend:** a second team for staging only if it costs nothing
-  extra. Otherwise staging sends no email at all (its `MAIL_DRIVER`
-  is already the outbox) and holds no Resend sending key. Development
-  and previews get no Resend key either way.
+- **Resend:** production only (decided 2026-10-17). Staging sends no
+  email: its `MAIL_DRIVER` is the outbox, James reads the mail in its
+  email library, and it holds no Resend team, key, audience or
+  webhook. Development and previews get none either. The code
+  enforces it: `netlify/functions/lib/resend-guard.mjs` refuses any
+  call to Resend's API outside production, whatever the variables
+  say, and `test/resend-guard.test.mjs` fails if a module that calls
+  Resend skips the check. Delete the farm team's Resend webhook that
+  points at staging.
 - **Axiom:** a dataset and an ingest-only token each for production
   and staging.
 - **Healthchecks:** separate checks per environment. Staging's jobs

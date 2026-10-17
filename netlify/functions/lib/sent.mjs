@@ -3,6 +3,8 @@
 // RESEND_LOOKUP_KEY, which nothing else reads. Customer addresses are
 // masked unless the caller names one, and no body is ever returned.
 
+import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
+
 const API = "https://api.resend.com/emails";
 const PAGE = 100;
 // Resend allows two requests a second.
@@ -32,7 +34,8 @@ const recipients = (list, keep) => [].concat(list || [])
   .map(addressOf).filter(Boolean)
   .map((e) => (e === keep ? e : maskEmail(e)));
 
-const lookupKey = (env) => {
+export const lookupKey = (env) => {
+  if (!resendAllowed(env)) throw new Error(resendRefusal(env));
   if (!env.RESEND_LOOKUP_KEY) {
     throw new Error("RESEND_LOOKUP_KEY is not set in .env.production.");
   }

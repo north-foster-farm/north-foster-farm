@@ -22,6 +22,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
 import { stores as defaultStores } from "./store.mjs";
 
 export const OUTBOX_PREFIX = "outbox/";
@@ -221,6 +222,11 @@ export const sendMail = async (message, {
   // test and are how staging and local runs read their mail.
   if (env.MAIL_DRIVER === "outbox") return viaOutbox(message, env, stores);
   if (env.MAIL_DRIVER === "file") return viaFile(message, env);
+
+  // Resend is production's alone, even if staging is handed a key.
+  if (env.MAIL_DRIVER === "resend" && !resendAllowed(env)) {
+    throw new MailError(resendRefusal(env));
+  }
 
   return mailConfigured(env)
     ? viaResend(message, env, fetchImpl)

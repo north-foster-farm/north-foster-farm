@@ -15,6 +15,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { normalizeEmail, validEmail } from "./auth.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
+import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
 import { allCustomers, getCustomer, saveCustomer } from "./records.mjs";
 import { mailLinks, siteUrl } from "./site.mjs";
 import { newsConfirm, newsWelcome } from "./templates.mjs";
@@ -370,10 +371,15 @@ export const parseCsv = (content) => {
 // Resend names its contact fields first_name and last_name.
 /* eslint-disable camelcase */
 
+// Production only: elsewhere the audience counts as unconfigured, so
+// every caller skips it, and the call itself refuses as a second lock.
 export const audienceConfigured = (env = process.env) =>
-  !!(env.RESEND_AUDIENCE_ID && (env.RESEND_AUDIENCE_KEY || env.RESEND_API_KEY));
+  resendAllowed(env) && !!(env.RESEND_AUDIENCE_ID
+    && (env.RESEND_AUDIENCE_KEY || env.RESEND_API_KEY));
 
 const resend = async (env, fetchImpl, method, path, body) => {
+  if (!resendAllowed(env)) throw new Error(resendRefusal(env));
+
   const res = await fetchImpl(`https://api.resend.com${path}`, {
     method,
     headers: {
