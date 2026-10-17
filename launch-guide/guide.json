@@ -1,5 +1,5 @@
 {
- "revision": 14,
+ "revision": 15,
  "updated": "2026-10-17",
  "notice": null,
  "phases": [
@@ -1503,7 +1503,7 @@
     {
      "id": "pd-invite",
      "title": "Invite the old mailing list",
-     "body": "The day after the launch email: remove anyone who replied \"unsubscribe\" from your CSV, then do a dry run and the real send.",
+     "body": "One send, no batches. The day after the launch email, and only once Resend Pro is in place (the step **Upgrade the production team to Pro**): remove anyone who replied \"unsubscribe\" from your CSV, then do a dry run and the real send.",
      "minutes": 15,
      "copy": [
       {
@@ -1516,7 +1516,8 @@
       }
      ],
      "device": "laptop",
-     "type": "terminal"
+     "type": "terminal",
+     "blocked": "Waits on rs-pro, upgrading the production team to Resend Pro. If Pro is not in place the day after the launch email, do not send: wait until it is."
     },
     {
      "id": "pd-ios",
@@ -2543,6 +2544,12 @@
      "date": "2026-10-16",
      "summary": "The plan was files of at most 90 addresses, one per morning, because Free capped sending at 100 a day. On Resend Pro there's no daily cap.",
      "recommendation": "One send, the day after the launch email. Approve, or write \"batches\"."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-17",
+     "changed": "Decided on #267: one send, no batches, and only once Resend Pro is in place. The step Invite the old mailing list now says so and is marked as waiting on rs-pro.",
+     "summary": "If Pro is not done by the day after the launch email, the invite waits until it is. Approve to close the item."
     }
    ],
    "device": "any",
@@ -2559,6 +2566,12 @@
      "date": "2026-10-16",
      "summary": "#237 gives the webhook URL as `https://northfosterfarm.com/api/resend/webhook`. The bare domain answers with a redirect, which webhooks don't follow.",
      "recommendation": "Use `https://www.northfosterfarm.com/api/resend/webhook`."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-17",
+     "changed": "Approved on #267. Checked every place the production webhook URL appears: #237, the step Add production's Resend webhook (its copy value) and the docs all use `https://www.northfosterfarm.com/api/resend/webhook` or name only the path; the one bare-domain URL left was inside a unit test's fake request, now www too.",
+     "summary": "Nothing more to change. Use the www address when you add the webhook on launch day. Approve to close the item."
     }
    ],
    "device": "any",
