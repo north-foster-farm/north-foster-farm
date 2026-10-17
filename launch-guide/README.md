@@ -28,5 +28,9 @@ Then **increase the top-level `revision` by 1** and commit to this branch with a
 - **A variable marked `planned`** is left out of the env files. When the code that reads it lands, remove `planned` and use the variable names the code uses.
 - **Step, field and review ids are permanent.** James's saved progress is keyed on them, so never rename or reuse one.
 - **New review items** go in `reviews`, with `section` set to one of `rv-look`, `rv-copy` or `rv-decide`.
+- **Every step and review item carries two tags**, which James filters on (he often has only his phone):
+  - `device`: `phone` (best on the iPhone), `any` (phone or laptop) or `laptop` (needs the Mac: Terminal, a secret value, a desktop browser or dev tools, or sending a Resend broadcast).
+  - `type`: `look` (look and review), `decide`, `account` (setup in a web console), `terminal` (command line), `live` (live test) or `claude` (tell Claude).
+  - Set both on anything you add. When unsure, use `laptop`: hiding a phone-friendly item costs less than sending James to a step he can't finish.
 
 The guide is built from Python sources the voice assistant keeps. Small edits to `guide.json` directly are fine. For larger changes, ask the voice assistant on #244.

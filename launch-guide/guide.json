@@ -1,6 +1,6 @@
 {
- "revision": 9,
- "updated": "2026-10-16",
+ "revision": 10,
+ "updated": "2026-10-17",
  "notice": null,
  "phases": [
   {
@@ -62,7 +62,9 @@
      "id": "pm-folder",
      "title": "Make a folder for this launch in your password manager",
      "body": "Create a folder (or vault) named **NFF launch**. Whenever this guide says to save something to your password manager, it goes there. Values you paste into this guide are also saved in this browser, so you can stop and come back later.\n\nThe guide has two exports at the top. **Export report for Claude** is safe to paste into the chat. **Export secrets** is a full backup of everything, including secrets. Save it as a secure note in the NFF launch folder, and never paste it anywhere else.",
-     "minutes": 2
+     "minutes": 2,
+     "device": "any",
+     "type": "account"
     },
     {
      "id": "nf-plan",
@@ -81,14 +83,18 @@
        "label": "Plan name, as Netlify shows it",
        "secret": false
       }
-     ]
+     ],
+     "device": "any",
+     "type": "look"
     },
     {
      "id": "import-env",
      "title": "Bring in production's current values",
      "body": "Your current `.env` in the project folder is a production file: it holds the keys the live site uses. Open it in your editor, select everything, copy, and paste it into the box below. The guide reads each line and fills in the matching production fields further down: Square, PayPal, Resend, Axiom and Healthchecks. The pasted text itself isn't kept, only the values it fills in, and it never leaves this browser.\n\nAfterwards, open the steps below; each production field should already be filled. Anything still empty is a value your `.env` didn't have, and the step says where to get it.",
      "minutes": 5,
-     "kind": "import"
+     "kind": "import",
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "settings",
@@ -115,7 +121,9 @@
        "secret": false,
        "placeholder": "you@…, jim@…"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "decide"
     }
    ]
   },
@@ -140,7 +148,9 @@
        "label": "Correct production webhook URL",
        "value": "https://www.northfosterfarm.com/api/square/webhook"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "look"
     },
     {
      "id": "sq-prod",
@@ -177,7 +187,9 @@
        "secret": true,
        "save": "Also in your password manager, in the **NFF launch** folder."
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "sq-staging",
@@ -220,7 +232,9 @@
        "secret": true,
        "save": "Also in your password manager, in the **NFF launch** folder."
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "sq-dev",
@@ -240,7 +254,9 @@
        "secret": false,
        "save": "So you remember which address it was."
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     }
    ]
   },
@@ -272,7 +288,9 @@
        "secret": true,
        "save": "Also in your password manager, in the **NFF launch** folder as \"PayPal live secret\"."
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "pp-live-wh",
@@ -305,7 +323,9 @@
        "label": "Live Webhook ID",
        "secret": false
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "pp-sandbox",
@@ -353,7 +373,9 @@
        "label": "Staging (sandbox) Webhook ID",
        "secret": false
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     }
    ]
   },
@@ -383,7 +405,9 @@
        "label": "Number of contacts",
        "secret": false
       }
-     ]
+     ],
+     "device": "any",
+     "type": "account"
     },
     {
      "id": "rs-team",
@@ -413,7 +437,9 @@
         }
        ]
       }
-     ]
+     ],
+     "device": "any",
+     "type": "account"
     },
     {
      "id": "rs-prod-keys",
@@ -458,7 +484,9 @@
        "label": "Production webhook secret (today: the Venmo inbound one)",
        "secret": true
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "rs-stg-keys",
@@ -498,7 +526,9 @@
        "secret": true,
        "placeholder": "whsec_…"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "rs-no-open-tracking",
@@ -528,7 +558,9 @@
         }
        ]
       }
-     ]
+     ],
+     "device": "any",
+     "type": "look"
     }
    ]
   },
@@ -556,7 +588,9 @@
        "save": "Also in your password manager, in the **NFF launch** folder.",
        "placeholder": "xaat-…"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "ax-stg",
@@ -575,7 +609,9 @@
        "label": "Staging ingest token",
        "secret": true
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     }
    ]
   },
@@ -607,7 +643,9 @@
        "label": "Production alerts check URL",
        "secret": true
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "hc-stg",
@@ -631,7 +669,9 @@
        "label": "Staging alerts check URL",
        "secret": true
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "hc-backup",
@@ -651,7 +691,9 @@
        "secret": true,
        "placeholder": "https://hc-ping.com/…"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "hc-phone",
@@ -676,7 +718,9 @@
        "save": "Press Generate for a random topic. Save it in your password manager, in the **NFF launch** folder.",
        "generate": 12
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "hc-proof",
@@ -693,7 +737,9 @@
        "label": "Staging test (no push expected)",
        "value": "bin/nff --staging alert test"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "live"
     }
    ]
   },
@@ -716,7 +762,9 @@
        "label": "iPhone app",
        "url": "https://apps.apple.com/app/uptimerobot/id1104878581"
       }
-     ]
+     ],
+     "device": "phone",
+     "type": "account"
     },
     {
      "id": "ur-monitors",
@@ -752,7 +800,9 @@
        "label": "Health keyword",
        "value": "\"ok\":true"
       }
-     ]
+     ],
+     "device": "any",
+     "type": "account"
     }
    ]
   },
@@ -779,7 +829,9 @@
        "secret": false,
        "placeholder": "age1…"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "bk-b2",
@@ -820,7 +872,9 @@
        "secret": true,
        "save": "Also in your password manager, in the **NFF launch** folder."
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "bk-r2",
@@ -856,7 +910,9 @@
        "secret": true,
        "save": "Also in your password manager, in the **NFF launch** folder."
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     }
    ]
   },
@@ -899,7 +955,9 @@
        "save": "Anyone with it can start builds. Also in your password manager, in the **NFF launch** folder.",
        "placeholder": "https://api.netlify.com/build_hooks/…"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "nf-notify",
@@ -915,7 +973,9 @@
        "label": "#248, the proposal",
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/248#issuecomment-6212825847"
       }
-     ]
+     ],
+     "device": "any",
+     "type": "account"
     },
     {
      "id": "st-token",
@@ -930,7 +990,9 @@
        "save": "Also in your password manager, in the **NFF launch** folder.",
        "generate": 24
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "gh-rules",
@@ -946,7 +1008,9 @@
        "label": "docs/rollback.md (PR #245)",
        "url": "https://github.com/north-foster-farm/north-foster-farm/blob/docs/rollback-and-secrets/docs/rollback.md"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     }
    ]
   },
@@ -960,7 +1024,9 @@
      "title": "Approve the samples and save the full files",
      "body": "Below are the six files built from what you've entered. Each **.sample** file has the secrets left blank. It's committed to the repo, so read it and tick **Approve**. Each full file holds every value: save it in your password manager now, and in the project root in the next step.\n\n**Development** works now: the fake payment drivers have landed (#265), and it gets its pickup schedule from `bin/nff` (#264). A fresh clone needs only `cp .env.development.sample .env`.\n\nWhen all three samples are approved, export the report. Claude passes them to the agents to commit.",
      "minutes": 20,
-     "kind": "envfiles"
+     "kind": "envfiles",
+     "device": "laptop",
+     "type": "look"
     },
     {
      "id": "env-place",
@@ -972,7 +1038,9 @@
        "label": "Check what's there (names only)",
        "value": "ls -la .env*"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "env-push",
@@ -998,14 +1066,18 @@
        "label": "Production",
        "value": "bin/nff env push --production && bin/nff env check --production"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "env-contexts",
      "title": "Empty the preview and local-development contexts",
      "body": "On Netlify, deploy previews and the **Local development** context still hold shared values. A linked `netlify dev` would hand real secrets to your Mac. Previews keep only `SITE_CONTEXT=deploy-preview` and a pickup schedule; Local development keeps nothing. Claude gives you the exact commands, names only.",
      "minutes": 10,
-     "blocked": "Staging's API now fails closed with no token (#255). Waits on agents: the exact list comes from #251."
+     "blocked": "Staging's API now fails closed with no token (#255). Waits on agents: the exact list comes from #251.",
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "env-clean",
@@ -1018,7 +1090,9 @@
        "label": "Netlify personal access tokens",
        "url": "https://app.netlify.com/user/applications#personal-access-tokens"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     }
    ]
   },
@@ -1037,19 +1111,25 @@
        "label": "Commands",
        "value": "bin/nff --staging orders cancel NFF-2609-6FFP --reason mistake && bin/nff --staging orders delete NFF-2609-6FFP"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "stg-chicks",
      "title": "Delete the stray chicks.jpg (Q14)",
      "body": "`static/images/chicks.jpg` is an untracked file no page uses. Delete it, or tick this if you'd rather keep it.",
-     "minutes": 1
+     "minutes": 1,
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "stg-final",
      "title": "Tell Claude the env is in place",
      "body": "Export the report and paste it to Claude. That starts qa's final staging pass (the signed-in checks, the outbox check and the remaining live checks), which has waited on these values.",
-     "minutes": 2
+     "minutes": 2,
+     "device": "any",
+     "type": "claude"
     }
    ]
   },
@@ -1079,13 +1159,17 @@
        "label": "When you'll do it",
        "secret": false
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "live"
     },
     {
      "id": "drill-all",
      "title": "Confirm the whole drill is done (parts A–D)",
      "body": "Parts B (a revert on staging, with the coordinator), C (old code over new records, local) and D (listing the webhook registrations) are agent work. Tick this when Claude reports all four done; #237 has the same box.",
-     "minutes": 2
+     "minutes": 2,
+     "device": "any",
+     "type": "claude"
     }
    ]
   },
@@ -1104,7 +1188,9 @@
        "label": "Commands",
        "value": "bin/nff schedule check ~/Code/nff/pickup-schedule.txt && bin/nff schedule set ~/Code/nff/pickup-schedule.txt --production"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "ld-rebuild",
@@ -1117,7 +1203,9 @@
        "label": "Rollback deploy ID",
        "secret": false
       }
-     ]
+     ],
+     "device": "any",
+     "type": "claude"
     },
     {
      "id": "ld-submitted",
@@ -1129,7 +1217,9 @@
        "label": "Command",
        "value": "bin/nff --production orders list --status=submitted"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "ld-maillist",
@@ -1140,7 +1230,9 @@
        "label": "Command",
        "value": "bin/nff --production mail list --since 2026-09-19"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "ld-privacy",
@@ -1160,7 +1252,9 @@
        "secret": false,
        "placeholder": "2026-10-…"
       }
-     ]
+     ],
+     "device": "any",
+     "type": "look"
     },
     {
      "id": "ld-export1",
@@ -1171,7 +1265,9 @@
        "label": "Command",
        "value": "bin/nff --production export"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "ld-venmo",
@@ -1201,7 +1297,9 @@
         }
        ]
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "terminal"
     }
    ]
   },
@@ -1227,7 +1325,9 @@
        "label": "Release deploy ID",
        "secret": false
       }
-     ]
+     ],
+     "device": "any",
+     "type": "claude"
     },
     {
      "id": "ld-smoke",
@@ -1263,7 +1363,9 @@
        "label": "Staging info (expect 404)",
        "url": "https://www.northfosterfarm.com/api/staging/info"
       }
-     ]
+     ],
+     "device": "any",
+     "type": "look"
     },
     {
      "id": "ld-uptime5",
@@ -1279,7 +1381,9 @@
        "label": "Keyword",
        "value": "\"applicationId\":\"sq0idp-"
       }
-     ]
+     ],
+     "device": "any",
+     "type": "account"
     },
     {
      "id": "ld-resend-wh",
@@ -1309,7 +1413,9 @@
        "secret": true,
        "placeholder": "whsec_…"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     }
    ]
   },
@@ -1328,19 +1434,25 @@
        "label": "Order page with Venmo",
        "url": "https://www.northfosterfarm.com/order/?venmo"
       }
-     ]
+     ],
+     "device": "phone",
+     "type": "live"
     },
     {
      "id": "ld-160",
      "title": "Pay a Venmo difference (#160)",
      "body": "Edit a paid Venmo order upward, pay the difference, and confirm the record and Square both show two payments. Then refund.",
-     "minutes": 10
+     "minutes": 10,
+     "device": "phone",
+     "type": "live"
     },
     {
      "id": "ld-card",
      "title": "A real $7 card order",
      "body": "Order a dozen eggs by card on the live site, then refund it from the command line. Check the receipt email arrives and the order shows in Square.",
-     "minutes": 10
+     "minutes": 10,
+     "device": "any",
+     "type": "live"
     },
     {
      "id": "ld-applepay",
@@ -1358,13 +1470,17 @@
        "label": "Domain",
        "value": "www.northfosterfarm.com"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "ld-errphone",
      "title": "Check a broken checkout reaches your phone",
      "body": "In Firefox, open the order page with developer tools. Block requests to `web.squarecdn.com` (Network tab: right-click a request to it → Block URL), then reload. A \"payment unavailable\" alert should reach your phone within a minute. Unblock afterwards.",
-     "minutes": 5
+     "minutes": 5,
+     "device": "laptop",
+     "type": "live"
     }
    ]
   },
@@ -1377,7 +1493,9 @@
      "id": "ld-unsub",
      "title": "Test the farm-news unsubscribe on production",
      "body": "Send yourself a broadcast from the farm team (a test segment with just you), unsubscribe through its link, and check Resend's webhook log shows **200** and your account shows farm news off. Then confirm the webhook shows as **enabled**.",
-     "minutes": 10
+     "minutes": 10,
+     "device": "laptop",
+     "type": "live"
     },
     {
      "id": "ld-replyto",
@@ -1389,7 +1507,9 @@
        "label": "Command",
        "value": "bin/nff --production mail list"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "live"
     },
     {
      "id": "ld-export2",
@@ -1400,13 +1520,17 @@
        "label": "Command",
        "value": "bin/nff --production export"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "ld-announce",
      "title": "Post on Instagram and send the launch email",
      "body": "Post the approved carousel and the Story. Send the approved launch email from Fastmail to the old list.",
-     "minutes": 20
+     "minutes": 20,
+     "device": "phone",
+     "type": "live"
     }
    ]
   },
@@ -1425,7 +1549,9 @@
        "label": "Show",
        "value": "bin/nff --production customers show news-test@northfosterfarm.com"
       }
-     ]
+     ],
+     "device": "any",
+     "type": "look"
     },
     {
      "id": "pd-report",
@@ -1437,7 +1563,9 @@
        "label": "Command",
        "value": "bin/nff --production jobs history"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "look"
     },
     {
      "id": "pd-invite",
@@ -1453,13 +1581,17 @@
        "label": "Send",
        "value": "bin/nff --production audience invite list.csv"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "pd-ios",
      "title": "Check the confirmation email in iOS Mail (D9)",
      "body": "Open the first farm-news confirmation in the iPhone's Mail app. The phone number in the footer should stay text-coloured, not turn into a blue link.",
-     "minutes": 3
+     "minutes": 3,
+     "device": "phone",
+     "type": "look"
     }
    ]
   },
@@ -1482,19 +1614,25 @@
        "label": "Square Developer Console",
        "url": "https://developer.squareup.com/apps"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "pw-keys",
      "title": "Delete the keys only the old site used",
      "body": "After P9: delete `RESEND_READ_KEY` from Netlify production and its key at Resend (the API keys page shows when each key was last used). Delete the old Venmo inbound secret from your password manager. Revoke anything else Claude lists as retired.",
-     "minutes": 10
+     "minutes": 10,
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "pw-thaw",
      "title": "End the freeze",
      "body": "Export the report and tell Claude launch is done. The agents then pick up the after-launch list in the next section.",
-     "minutes": 2
+     "minutes": 2,
+     "device": "any",
+     "type": "claude"
     }
    ]
   },
@@ -1513,7 +1651,9 @@
        "label": "#233 held list",
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/233"
       }
-     ]
+     ],
+     "device": "any",
+     "type": "decide"
     },
     {
      "id": "pl-236",
@@ -1529,7 +1669,9 @@
        "label": "Production check",
        "value": "bin/nff jobs customers --production"
       }
-     ]
+     ],
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "pl-data",
@@ -1541,13 +1683,17 @@
        "label": "The questions",
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/244#issuecomment-6207718389"
       }
-     ]
+     ],
+     "device": "any",
+     "type": "decide"
     },
     {
      "id": "pl-rest",
      "title": "The rest of the after-launch list",
      "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- PY-17's live proof, if you chose to do it later;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159).\n\nTick this when you've told Claude your order.",
-     "minutes": 5
+     "minutes": 5,
+     "device": "any",
+     "type": "decide"
     }
    ]
   },
@@ -1566,18 +1712,24 @@
        "label": "Commands",
        "value": "bin/nff schedule check ~/Code/nff/pickup-schedule.txt && bin/nff schedule set ~/Code/nff/pickup-schedule.txt --staging && bin/nff schedule set ~/Code/nff/pickup-schedule.txt --production"
       }
-     ]
+     ],
+     "device": "any",
+     "type": "decide"
     },
     {
      "id": "pq-rotate",
      "title": "Jan 1, 2027: rotate the Netlify token and the yearly secrets",
      "body": "Follow `docs/secrets.md`. The Netlify and Axiom tokens expire that day.",
-     "when": "Jan 1"
+     "when": "Jan 1",
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "pq-pos",
      "title": "When the point of sale starts: hide item notes on receipts",
-     "body": "Square Dashboard → Settings → Account & Settings → Payments → Receipts → turn off **Show item notes**, so customers never see the reconciliation code."
+     "body": "Square Dashboard → Settings → Account & Settings → Payments → Receipts → turn off **Show item notes**, so customers never see the reconciliation code.",
+     "device": "any",
+     "type": "account"
     }
    ]
   }
@@ -1609,7 +1761,9 @@
      ],
      "recommendation": "Approve if the band looks right on the phone."
     }
-   ]
+   ],
+   "device": "phone",
+   "type": "look"
   },
   {
    "id": "R-H14",
@@ -1636,7 +1790,9 @@
       }
      ]
     }
-   ]
+   ],
+   "device": "phone",
+   "type": "look"
   },
   {
    "id": "R-214",
@@ -1663,7 +1819,9 @@
       }
      ]
     }
-   ]
+   ],
+   "device": "any",
+   "type": "look"
   },
   {
    "id": "R-232",
@@ -1707,7 +1865,9 @@
       }
      ]
     }
-   ]
+   ],
+   "device": "any",
+   "type": "look"
   },
   {
    "id": "R-230",
@@ -1751,7 +1911,9 @@
       }
      ]
     }
-   ]
+   ],
+   "device": "any",
+   "type": "look"
   },
   {
    "id": "R-FT",
@@ -1774,7 +1936,9 @@
       }
      ]
     }
-   ]
+   ],
+   "device": "any",
+   "type": "look"
   },
   {
    "id": "R-203",
@@ -1804,7 +1968,9 @@
      "changed": "Your #204 review replaces the cart chevrons with plain chevrons and reworks the cart controls, so this item is now covered by R-204. Nothing is built for it separately.",
      "summary": "Approve this to close it out; R-204 carries the work, and nothing gets built until you approve the joint recommendation there."
     }
-   ]
+   ],
+   "device": "any",
+   "type": "look"
   },
   {
    "id": "R-OP27",
@@ -1834,7 +2000,9 @@
      "changed": "Your #204 review replaces the phone cart after the first Add with plain chevrons and reworks the cart controls, so this item is now covered by R-204. Nothing is built for it separately.",
      "summary": "Approve this to close it out; R-204 carries the work, and nothing gets built until you approve the joint recommendation there."
     }
-   ]
+   ],
+   "device": "any",
+   "type": "look"
   },
   {
    "id": "R-234",
@@ -1861,7 +2029,9 @@
       }
      ]
     }
-   ]
+   ],
+   "device": "any",
+   "type": "live"
   },
   {
    "id": "R-CHECKS",
@@ -1897,7 +2067,9 @@
      ],
      "text": "Pasture-raised, processed, and packed in Rhode Island."
     }
-   ]
+   ],
+   "device": "laptop",
+   "type": "look"
   },
   {
    "id": "R-W7b",
@@ -1921,7 +2093,9 @@
      ],
      "text": "The site sets two cookies, and only when you sign in. One holds a random code that tells the site you're signed in, and scripts on the page can't read it. The other holds only the time you signed in. Scripts on the page read it to notice when you sign in or out. Both last 30 days, and signing out deletes both."
     }
-   ]
+   ],
+   "device": "any",
+   "type": "look"
   },
   {
    "id": "R-PPL",
@@ -1942,7 +2116,9 @@
      "text": "…two random codes that PayPal's script stores when the payment buttons appear on the order page. They hold nothing about you.",
      "recommendation": "Approve as is."
     }
-   ]
+   ],
+   "device": "any",
+   "type": "look"
   },
   {
    "id": "R-MAIL",
@@ -1972,7 +2148,9 @@
       }
      ]
     }
-   ]
+   ],
+   "device": "any",
+   "type": "look"
   },
   {
    "id": "R-157",
@@ -2004,7 +2182,9 @@
      ],
      "text": "Pickup: \"On-farm pickup is at 99 East Killingly Road, Foster, RI 02825. The order page shows the times we have open, from tomorrow on; the one you choose is confirmed when you place your order. If something at the farm means we can't keep it, we'll cancel your order, refund it in full and email you to say so.\"\n\nHold: \"We hold your order for 7 days while you choose. If you haven't chosen by then, we cancel it, refund your items and email you to say so.\"\n\nContact: \"Visits are by appointment. To pick up an order, choose on-farm pickup and a time on the order page. To visit, call, text or send us a message first.\"\n\nAccessibility: \"We aim to meet the Web Content Accessibility Guidelines (WCAG) 2.1 at level A. The site has not been formally assessed.\""
     }
-   ]
+   ],
+   "device": "any",
+   "type": "look"
   },
   {
    "id": "R-187",
@@ -2028,7 +2208,9 @@
      ],
      "recommendation": "Approve here once all 17 are done in the library; write \"clear them\" or \"keep them\" in the box."
     }
-   ]
+   ],
+   "device": "any",
+   "type": "look"
   },
   {
    "id": "R-W17",
@@ -2070,7 +2252,9 @@
      "text": "Before Oct 17: - Back on Saturday mornings in Scituate, 10:00 to 11:00 AM, starting October 17\nFrom Oct 17: - Back on Saturday mornings in Scituate, 10:00 to 11:00 AM",
      "recommendation": "Approve the subject and body. Write in feedback whether the hens line should match Instagram, and whether \"In the next few days\" stays."
     }
-   ]
+   ],
+   "device": "any",
+   "type": "look"
   },
   {
    "id": "R-152",
@@ -2094,7 +2278,9 @@
      ],
      "text": "Our freezers are full, and you can now order from us online, for delivery or pickup. 🐓 The markets are ending, but you can keep enjoying our whole chickens, breasts, thighs, drumsticks, wings, maple sausage, and eggs all year round.\n…\n📷 Slide 3: @fussica"
     }
-   ]
+   ],
+   "device": "any",
+   "type": "look"
   },
   {
    "id": "D-VENMO",
@@ -2119,7 +2305,9 @@
       }
      ]
     }
-   ]
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "D-EXPORT",
@@ -2151,7 +2339,9 @@
      "changed": "The export landed (251c46f): nightly, age-encrypted, to R2, with the Healthchecks alert and a restore rehearsal procedure in docs/backup.md.",
      "summary": "One open question: R2 has no write-only token, so the export uses a bucket-scoped Read & Write token, with a bucket lock rule stopping deletes and the encryption making a read worthless. Do you accept that in place of the write-only token in the original decision?"
     }
-   ]
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "D-ROT",
@@ -2176,7 +2366,9 @@
       }
      ]
     }
-   ]
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "D-QF1",
@@ -2196,7 +2388,9 @@
      ],
      "recommendation": "Yes."
     }
-   ]
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "D-PY17",
@@ -2216,7 +2410,9 @@
      ],
      "recommendation": "(c) once the fakes land, otherwise (b). Approve, or write a or b."
     }
-   ]
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "D-148",
@@ -2236,7 +2432,9 @@
      ],
      "recommendation": "(a) after launch: the old API still works, and launch day stays shorter. Approve, or write b."
     }
-   ]
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "D-MA2",
@@ -2256,7 +2454,9 @@
      ],
      "recommendation": "Keep it on the site with the licence text beside the font files, take it out of email, and drop the font CORS header."
     }
-   ]
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "D-MA1",
@@ -2270,7 +2470,9 @@
      "summary": "Where did `delivery-flyer.jpg`, `icons/eggs.svg` and `icons/globe.svg` come from? If globe.svg is an Apple SF Symbols export, it's swapped for an openly licensed icon (Lucide or Tabler). Write what you know in feedback.",
      "recommendation": "If you're unsure about globe.svg, approve and it gets swapped."
     }
-   ]
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "D-164",
@@ -2284,7 +2486,9 @@
      "summary": "Staging's jobs are triggered from GitHub, which delays them by hours, so staging's health check reads stale. Production uses Netlify's own scheduler and isn't affected.",
      "recommendation": "Accept it for staging. Approve, or write that you want a steadier trigger."
     }
-   ]
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "D-189",
@@ -2329,7 +2533,9 @@
      ],
      "text": "Privacy page, retention paragraph:\n\nYour account stays until you close it. Deleting your details takes one click in your account settings. Your orders stay in our records, with no name on them, for our own reporting. Seven years after an order, we remove your name, email address, phone number and street address from it. The order keeps what was bought, the prices, the date, how it reached you, and the town and ZIP code.\n\nPrivacy page, tracking sentence:\n\nWe never track whether you open our emails.\n\nAccount Settings, Delete your details:\n\nA \"Delete your details\" section: a button labelled \"Delete my details\" behind a browser confirm (\"Delete your details? This can't be undone.\"), calling POST /api/account/delete with { confirm: true }.\n\nRefusal messages (lib/forget.mjs, WAIT):\n\n- open order: “You have an order still to come. You can delete your details once it's delivered or picked up, or after you cancel it.”\n- return: “We're still working on a return for you. You can delete your details once it's settled.”\n- Venmo checkout: “A Venmo payment is under way. Try again in a day.”\n\nOpen questions:\n\n- Delete help and contact-page messages after seven years, same as orders, or leave them until the customer deletes their details, as today?\n- Delete the Square customer profile on \"delete my details\", or leave it (Square keeps the payments either way)?\n- State backup retention on the privacy page: how long do deleted details live on in the nightly backup (#267)?"
     }
-   ]
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "D-INVITE",
@@ -2343,7 +2549,9 @@
      "summary": "The plan was files of at most 90 addresses, one per morning, because Free capped sending at 100 a day. On Resend Pro there's no daily cap.",
      "recommendation": "One send, the day after the launch email. Approve, or write \"batches\"."
     }
-   ]
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "D-WH",
@@ -2357,7 +2565,9 @@
      "summary": "#237 gives the webhook URL as `https://northfosterfarm.com/api/resend/webhook`. The bare domain answers with a redirect, which webhooks don't follow.",
      "recommendation": "Use `https://www.northfosterfarm.com/api/resend/webhook`."
     }
-   ]
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "D-NOTIFY",
@@ -2377,7 +2587,9 @@
      ],
      "recommendation": "Email only for launch. Approve, or write \"push now\"."
     }
-   ]
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "R-DECIDED",
@@ -2425,7 +2637,9 @@
       }
      ]
     }
-   ]
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "D-245",
@@ -2444,7 +2658,9 @@
       }
      ]
     }
-   ]
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "R-WAYS",
@@ -2469,7 +2685,9 @@
      "text": "No off-season\nThree ways to get your order\nOn-farm pickup: Pick a time when you order; 99 E Killingly Rd, Foster, RI; No minimum, no fee\nDrop site: Saturdays, 10:00–11:00 AM; 46 Institute Ln, North Scituate, RI; No minimum, no fee\nDelivery: Every Thursday, 10:00 AM–4:00 PM; Most of central Rhode Island and parts of eastern Connecticut; $40 minimum, $5 fee",
      "recommendation": "Approve as it stands."
     }
-   ]
+   ],
+   "device": "any",
+   "type": "look"
   }
  ],
  "env": {
@@ -3165,6 +3383,51 @@
      }
     },
     "local": true
+   }
+  ]
+ },
+ "tags": {
+  "device": [
+   {
+    "id": "phone",
+    "label": "Phone",
+    "about": "Best done on your iPhone"
+   },
+   {
+    "id": "any",
+    "label": "Phone or laptop",
+    "about": "Fine on either"
+   },
+   {
+    "id": "laptop",
+    "label": "Laptop",
+    "about": "Needs your Mac: Terminal, secrets or a desktop browser"
+   }
+  ],
+  "type": [
+   {
+    "id": "look",
+    "label": "Look and review"
+   },
+   {
+    "id": "decide",
+    "label": "Decision"
+   },
+   {
+    "id": "account",
+    "label": "Account setup"
+   },
+   {
+    "id": "terminal",
+    "label": "Command line"
+   },
+   {
+    "id": "live",
+    "label": "Live test"
+   },
+   {
+    "id": "claude",
+    "label": "Tell Claude"
    }
   ]
  }
