@@ -1,5 +1,5 @@
 {
- "revision": 13,
+ "revision": 14,
  "updated": "2026-10-17",
  "notice": null,
  "phases": [
@@ -1627,6 +1627,14 @@
      "minutes": 5,
      "device": "any",
      "type": "decide"
+    },
+    {
+     "id": "pl-svgo",
+     "title": "Give the agents your svgo options",
+     "body": "Every new or replaced SVG goes through `svgo` with your preferred options (a standing rule from #267). Paste your options to Claude. Claude then commits them as the repo's svgo config with svgo pinned as a dev dependency, adds one command that optimizes a file in place, and adds a check that fails when an SVG under `assets/` or `static/` differs from its svgo output.\n\nUntil then the two new icons (globe and eggs) wait for the pass, and no options are guessed. Existing SVGs are only counted, never rewritten, until you say. Nothing about launch waits on this.",
+     "minutes": 3,
+     "device": "laptop",
+     "type": "claude"
     }
    ]
   },
@@ -2438,6 +2446,18 @@
        "url": "https://claude.ai/artifact/77tTz6o2XL5jHHCxkNLBMf"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-17",
+     "changed": "Settled on #267: both icons are replaced. The globe is Lucide's `globe` (ISC) and the eggs are Tabler's outline `eggs` (MIT), restyled to fit: the map tag and key draw the eggs as an outline at a heavier stroke beside the filled hen, and the search palette's card strokes it in the site's green. NOTICE and the provenance table are current. On `next`; on staging at the next promotion.",
+     "summary": "Look at both icons before and after, and at the key as built. The earlier question about where `eggs.svg` came from is answered by the swap. One thing waits: both new icons have not been through svgo yet, because your options are not in (see the step in the after-launch section). The email-signature `globe.png` will be rebuilt from the new globe by the signature builder.",
+     "look": [
+      {
+       "label": "Globe and eggs, before and after",
+       "url": "https://claude.ai/artifact/77tTz6o2XL5jHHCxkNLBMf"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -2454,6 +2474,12 @@
      "date": "2026-10-16",
      "summary": "Staging's jobs are triggered from GitHub, which delays them by hours, so staging's health check reads stale. Production uses Netlify's own scheduler and isn't affected.",
      "recommendation": "Accept it for staging. Approve, or write that you want a steadier trigger."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-17",
+     "changed": "Accepted on #267: staging's scheduled jobs stay on GitHub Actions. The site already depends on Actions for CI and the LGTM auto-merge, and so does the dashboard's `check`, so there is no new service.",
+     "summary": "The off-quarter cron stays, and so does the 6-hour period on staging's Healthchecks check. A missed evening run on staging is accepted. Approve to close the item."
     }
    ],
    "device": "any",
