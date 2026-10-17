@@ -1,5 +1,5 @@
 {
- "revision": 7,
+ "revision": 8,
  "updated": "2026-10-16",
  "notice": null,
  "phases": [
@@ -1718,6 +1718,22 @@
       }
      ],
      "recommendation": "Option 1. Approve, or write which option you want."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-17",
+     "changed": "The credit now links to her Instagram, with the address read from data and the link opening in a new tab. Alt text stays as you approved it. On `next`; on staging after the next promotion.",
+     "summary": "\"Photo: **@fussica**\" under the roast chicken links to https://www.instagram.com/fussica.",
+     "look": [
+      {
+       "label": "Home on staging",
+       "url": "https://staging--north-foster-farm.netlify.app/#how-to-buy"
+      },
+      {
+       "label": "#230",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/230"
+      }
+     ]
     }
    ]
   },
@@ -1765,6 +1781,12 @@
       }
      ],
      "recommendation": "One drawing for all three (approve)."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-17",
+     "changed": "Your #204 review replaces the cart chevrons with plain chevrons and reworks the cart controls, so this item is now covered by R-204. Nothing is built for it separately.",
+     "summary": "Approve this to close it out; R-204 carries the work, and nothing gets built until you approve the joint recommendation there."
     }
    ]
   },
@@ -1789,6 +1811,12 @@
       }
      ],
      "recommendation": "Approve to keep it as is for launch. Write feedback if it should change before launch."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-17",
+     "changed": "Your #204 review replaces the phone cart after the first Add with plain chevrons and reworks the cart controls, so this item is now covered by R-204. Nothing is built for it separately.",
+     "summary": "Approve this to close it out; R-204 carries the work, and nothing gets built until you approve the joint recommendation there."
     }
    ]
   },
@@ -1835,6 +1863,23 @@
        "url": "https://claude.ai/artifact/VYo8DiuG1sFv7ATcUi7Ca7"
       }
      ]
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-17",
+     "changed": "Three fixes from your iPhone notes are on `next` and reach staging with the next promotion: the order page's lead, the eggs' flavour note and the hero's outline.",
+     "summary": "- **The order page's lead (Q3b)** now reads exactly \"Pasture-raised, processed, and packed in Rhode Island.\" It breaks after \"processed,\" at 390, 360 and 320px, so the no-break span is gone.\n- **The eggs' note** (\"in the carton within days of being laid\") is deleted; nothing else rendered it.\n- **The hero's white outline** on \"chicken.\" is halved, 0.052em to 0.026em. Safari honors the same stroke order as Chrome, so one value serves both; it looks lighter in WebKit at iPhone 15 size too.\n\nLook once staging has them (the next promotion).",
+     "look": [
+      {
+       "label": "Order page on staging",
+       "url": "https://staging--north-foster-farm.netlify.app/order/"
+      },
+      {
+       "label": "Home on staging",
+       "url": "https://staging--north-foster-farm.netlify.app/"
+      }
+     ],
+     "text": "Pasture-raised, processed, and packed in Rhode Island."
     }
    ]
   },
@@ -2382,6 +2427,31 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/pull/245"
       }
      ]
+    }
+   ]
+  },
+  {
+   "id": "R-WAYS",
+   "section": "rv-copy",
+   "title": "The off-season band after October 25",
+   "area": "#137, #267",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-17",
+     "summary": "The markets end October 25, and the home page now swaps the market band for \"Three ways to get your order\" in the browser at midnight on October 26, whatever date the page was built. Its wording has been a draft since September 24 and nobody has approved it. The screenshots show it as a visitor sees it on October 26 at desktop and phone width.\n\n- The drop site has no \"Starting October 17\" badge by then.\n- Pickup reads \"Pick a time when you order\"; delivery reads Thursdays, 10:00 AM to 4:00 PM, $40 minimum, $5 fee, from the order form's own data.\n- The swap is on `next`; staging shows it after the next promotion, and only after October 26 on the real clock.",
+     "look": [
+      {
+       "label": "The band, desktop and phone",
+       "url": "https://claude.ai/artifact/EG2SwGmf4N71ez4zJR9NZ3"
+      },
+      {
+       "label": "#137",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/137"
+      }
+     ],
+     "text": "No off-season\nThree ways to get your order\nOn-farm pickup: Pick a time when you order; 99 E Killingly Rd, Foster, RI; No minimum, no fee\nDrop site: Saturdays, 10:00–11:00 AM; 46 Institute Ln, North Scituate, RI; No minimum, no fee\nDelivery: Every Thursday, 10:00 AM–4:00 PM; Most of central Rhode Island and parts of eastern Connecticut; $40 minimum, $5 fee",
+     "recommendation": "Approve as it stands."
     }
    ]
   }
