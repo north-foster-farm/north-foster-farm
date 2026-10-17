@@ -269,10 +269,17 @@ $map-place: $blue;
   height: 1.25rem;
   color: $primary;
 
+  // The hen is filled; the egg pair is a stroked outline (Tabler).
   svg {
     width: 100%;
     height: 100%;
     fill: currentcolor;
+  }
+
+  // A heavier stroke than the icon's own, to sit beside the hen's weight.
+  .map-egg {
+    fill: none;
+    stroke-width: 2.5;
   }
 
   &.is-off {

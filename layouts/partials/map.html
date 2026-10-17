@@ -157,7 +157,7 @@
 
 {{ $pin := "M0 0C-4-11-15-18-15-30a15 15 0 1 1 30 0C15-18 4-11 0 0Z" }}
 {{/* The tag's egg and hen, drawn in currentColor. */}}
-{{ $egg := partial "svg.html" "icons/eggs" }}
+{{ $egg := partial "svg.html" "icons/eggs" | replaceRE `^<svg ` `<svg class="map-egg" ` | safeHTML }}
 {{ $hen := partial "svg.html" "search/hen" | replaceRE ` fill="[^"]*"` "" | safeHTML }}
 
 <div class="map" id="{{ $id }}" data-map data-layer="delivery">
