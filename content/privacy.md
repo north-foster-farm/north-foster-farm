@@ -86,7 +86,8 @@ email address, phone number and street address from it. The order keeps what
 was bought, the prices, the date, how it reached you, and the town and ZIP
 code. Deleting your details also deletes the customer profile we made for you
 at Square, which keeps the payments themselves. We delete the messages you send
-us seven years after you send them, or when you delete your details.
+us seven years after you send them, or when you delete your details. Deleted
+details can remain in our encrypted backups for up to 30 days.
 
 ### Technical basics
 

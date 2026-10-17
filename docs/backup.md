@@ -6,7 +6,9 @@ with [age](https://age-encryption.org) to James's public key and puts
 it in a Cloudflare R2 bucket. Subscribers are customer records with
 `marketing`, so they travel with the customers. The site holds only
 the public key: nothing that runs can read a backup, and a leaked
-token yields ciphertext. Only James's private key opens one.
+token yields ciphertext. Only James's private key opens one. Copies
+are kept 30 days: that is how long deleted customer details can
+remain in them (the privacy page says so).
 
 The code is `netlify/functions/backup.mjs` and
 `netlify/functions/lib/backup.mjs`; the alert is `backup.failed` in
@@ -21,10 +23,13 @@ shapes and a recovery procedure for every store come after launch
    out of every repository, with a second copy somewhere offline;
    lose both and every backup is unreadable.
 2. **The bucket.** On the business's Cloudflare account: R2 → Create
-   bucket, a dedicated one (say `nff-backups`). Under its settings,
-   add a bucket lock rule (say 90 days) so nothing can delete or
-   overwrite a copy before then. Every key is unique to the second, so
-   the lock never blocks a night's upload.
+   bucket, a dedicated one (say `nff-backups`). Backups are kept 30
+   days (D-189, 2026-10-17), so two rules, both 30 days: under
+   Settings → Object Lock, a lock rule, so nothing can delete or
+   overwrite a copy before then; and an object lifecycle rule that
+   deletes every object older than 30 days. Every key is unique to the
+   second, so the lock never blocks a night's upload. A copy from
+   `export --label before-release` goes the same way after 30 days.
 3. **The token.** R2 → Manage API tokens → Create: permission *Object
    Read & Write*, applied to that bucket only. R2 offers no write-only
    permission; the lock stops deletes and the encryption makes reads

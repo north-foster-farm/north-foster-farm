@@ -133,7 +133,8 @@ sets every value; agents never see them.
   bucket-scoped *Object Read & Write* (James approved it 2026-10-17,
   D-EXPORT): R2 offers no write-only token, so a bucket lock rule
   stops deletes and overwrites, and the age encryption makes a read
-  worthless. `BACKUP_R2_SECRET_ACCESS_KEY` is a secret; the setup is
+  worthless. Copies are kept 30 days (D-189): the lock rule protects
+  each object for 30 days and a lifecycle rule deletes older ones. `BACKUP_R2_SECRET_ACCESS_KEY` is a secret; the setup is
   in `docs/backup.md`.
 - **`STAGING_TOKEN`:** staging only.
 - **`NETLIFY_AUTH_TOKEN`:** one per person, since Netlify cannot
