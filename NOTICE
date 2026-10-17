@@ -12,7 +12,7 @@ Lucide (https://lucide.dev), ISC License
 
 In assets/images/icons/: account (circle-user), arrow-down, calendar,
 cart (shopping-cart), changes (git-compare-arrows), chevron-down,
-chevron-right, chevrons-right, credit-card, lot-location (land-plot),
+chevron-right, chevrons-right, credit-card, globe, lot-location (land-plot),
 map-pin, orders (logs), panel-close (list-chevrons-down-up),
 panel-open (list-chevrons-up-down), receipt (file-text), sign
 (milestone), sign-out (log-out), tractor, wallet.
@@ -35,8 +35,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 Feather (https://feathericons.com), MIT License
 -----------------------------------------------
 
-Lucide's calendar, chevron-down, chevron-right, chevrons-right and
-log-out (our sign-out) derive from Feather.
+Lucide's calendar, chevron-down, chevron-right, chevrons-right, globe
+and log-out (our sign-out) derive from Feather.
 
 Copyright (c) 2013-present Cole Bemis
 

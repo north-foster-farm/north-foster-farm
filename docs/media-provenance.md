@@ -33,6 +33,7 @@ repository.
 | `assets/images/linus-featured.jpg` | James | | Byte for byte `~/Code/nff/linus-featured.jpg`, which James supplied. |
 | `assets/images/linus.jpg` | Unknown | | A tighter crop of the `linus-featured.jpg` scene (c1893a8, walkthrough finding 24); who cropped it is not recorded. About, egg mask. |
 | `assets/images/sunset.jpg` | James | | `~/Code/nff/sunset.jpg`, scaled from 4030 to 2400 wide. |
+| `assets/images/delivery-flyer.jpg` | James | | His original design (D-MA1, 2026-10-17). In production's tree, not on `next`. |
 | `assets/images/lily.jpg` | Unknown | | Metadata stripped; PR #67, the August post's hero and news thumbnail. |
 | `assets/images/scituate-market.jpg` | Unknown | | Metadata stripped; PR #67, August post. James on #192: not the farm's stand. |
 | `assets/images/mc-1.jpg` | Unknown | | Metadata stripped; the mobile coop, About (c1893a8, walkthrough finding 22). |
@@ -107,9 +108,9 @@ or named in an issue; the others an agent took from the set named.
 | `icons/search.svg`, `search-close.svg` | Tabler; James supplied | NOTICE | #142. |
 | `icons/leaves/*.svg` (ten) | Tabler; James supplied | NOTICE | #143, "I added 10". The five "b" leaves are mirrors of the "a" ones. News tiles. |
 | `icons/x.svg` | Tabler; an agent | NOTICE | 86c1ad5, #208. Search's close button. |
-| `icons/eggs.svg` | Unknown | | James's commit 57e89d5 ("new image files for general use"); one filled path that matches no icon set in the workspace. The map's egg tag. Waiting on James (MA1 on #233). |
-| `icons/globe.svg` | Unknown | | James's commit be0c1fe, beside the email-signature PNGs. Its fractional canvas suggests an SF Symbols export, unconfirmed; if so, Apple's terms bar it off Apple platforms. The map's whole-map button. Waiting on James (MA1 on #233). |
-| `static/email-signature/globe.png` | James (export); glyph Unknown | | Exported from Pixelmator Pro 2025-02-08 (be0c1fe); the glyph is `globe.svg`'s. Public URL, likely his email signature. |
+| `icons/eggs.svg` | Unknown | | James's commit 57e89d5 ("new image files for general use"); one filled path that matches no icon set in the workspace. Checked 2026-10-17 (D-MA1): not Lucide (lucide-static 1.59.0 has only a single outline `egg`), and Tabler's outline `eggs` does not match. The map's egg tag. Waiting on James; unchanged until he answers. |
+| `icons/globe.svg` | Lucide; an agent | NOTICE | Replaced 2026-10-17 (D-MA1) with Lucide's `globe`, lucide-static 1.59.0, ISC. The file before it was not Lucide: a filled outline on a 129.741 x 129.841 canvas, with the marks of an SF Symbols export (James's commit be0c1fe); Apple's terms bar those off Apple platforms. The map's whole-map button. |
+| `static/email-signature/globe.png` | James (export); glyph Unknown | | Exported from Pixelmator Pro 2025-02-08 (be0c1fe); the glyph is the old `globe.svg`'s, so probably SF Symbols. Public URL, likely his email signature; not changed, and James has not been asked about it. |
 
 ## Other organizations' marks
 
