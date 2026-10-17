@@ -1,5 +1,5 @@
 {
- "revision": 17,
+ "revision": 18,
  "updated": "2026-10-17",
  "notice": null,
  "phases": [
@@ -777,7 +777,7 @@
     {
      "id": "bk-b2",
      "title": "Backblaze B2: account, bucket and key",
-     "body": "1. Sign up (no card needed). Choose region **US East**, which can't be changed later.\n2. **Buckets → Create a Bucket.** Name it something like `nff-backups-` plus a few random letters. Choose **Private**, leave **Object Lock off**, and create. Copy the bucket's **Endpoint**.\n3. **Lifecycle Settings → Use custom lifecycle rules.** Add two rules: prefix `daily/`, days from uploading to hiding 30, hiding to deleting 1; and prefix `monthly/`, 365 and 1.\n4. **Application Keys → Add a New Application Key.** Name it `nff-site`, allow access to that one bucket only, type **Read and Write**. Copy the **keyID** and the **applicationKey**; the second is shown only once.\n5. Optional: **Caps & Alerts**, with a $1 daily cap.",
+     "body": "1. Sign up (no card needed). Choose region **US East**, which can't be changed later.\n2. **Buckets → Create a Bucket.** Name it something like `nff-backups-` plus a few random letters. Choose **Private**, leave **Object Lock off**, and create. Copy the bucket's **Endpoint**.\n3. **Lifecycle Settings → Use custom lifecycle rules.** Add one rule, with no prefix: days from uploading to hiding 30, hiding to deleting 1. That matches R2's 30 days (D-189).\n4. **Application Keys → Add a New Application Key.** Name it `nff-site`, allow access to that one bucket only, type **Read and Write**. Copy the **keyID** and the **applicationKey**; the second is shown only once.\n5. Optional: **Caps & Alerts**, with a $1 daily cap.",
      "minutes": 15,
      "links": [
       {
@@ -820,7 +820,7 @@
     {
      "id": "bk-r2",
      "title": "Cloudflare R2: bucket and token",
-     "body": "1. In the Cloudflare dashboard, open **Storage & databases → R2** and complete the checkout to add R2. It may ask for a card; at this size it stays free.\n2. **Create bucket.** Name it like the B2 one, with location hint **Eastern North America (enam)** and the Standard storage class.\n3. In the bucket's **Settings → Object Lock**, turn it on and add a lock rule: Compliance mode, 90 days. Nothing can delete or overwrite a copy before then, even with the token below.\n4. In **Object Lifecycle Rules → Add rule**: prefix `daily/`, delete after 30 days; prefix `monthly/`, delete after 365.\n5. On the R2 Overview page, under **Account Details**, choose **Manage** API Tokens, then **Create Account API token**. Choose **Object Read & Write**, limit it to the one bucket, and create. R2 has no write-only token, so this one can read; that is accepted (D-EXPORT): the lock rule from step 3 stops deletes and overwrites, and the age encryption makes a read worthless. Copy the **Access Key ID**, the **Secret Access Key** (shown once) and the **S3 endpoint**, which looks like `https://<account id>.r2.cloudflarestorage.com`.",
+     "body": "1. In the Cloudflare dashboard, open **Storage & databases → R2** and complete the checkout to add R2. It may ask for a card; at this size it stays free.\n2. **Create bucket.** Name it like the B2 one, with location hint **Eastern North America (enam)** and the Standard storage class.\n3. In the bucket's **Settings → Object Lock**, turn it on and add a lock rule: Compliance mode, 30 days. Nothing can delete or overwrite a copy before then, even with the token below.\n4. In **Object Lifecycle Rules → Add rule**: one rule, with no prefix, that deletes objects 30 days after they were created. Backups are kept 30 days (D-189), which is also how long deleted details can remain in them.\n5. On the R2 Overview page, under **Account Details**, choose **Manage** API Tokens, then **Create Account API token**. Choose **Object Read & Write**, limit it to the one bucket, and create. R2 has no write-only token, so this one can read; that is accepted (D-EXPORT): the lock rule from step 3 stops deletes and overwrites, and the age encryption makes a read worthless. Copy the **Access Key ID**, the **Secret Access Key** (shown once) and the **S3 endpoint**, which looks like `https://<account id>.r2.cloudflarestorage.com`.",
      "minutes": 15,
      "links": [
       {
@@ -2541,6 +2541,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
       }
      ]
+    },
+    {
+     "rev": 5,
+     "date": "2026-10-17",
+     "changed": "Your third answer on #267 is in (0052d05 and 5964969 on `next`, on staging at the next promotion; nothing is live until the release): backups are kept 30 days. That settles all three questions.",
+     "summary": "For your approval: one more sentence on the privacy page, shown below with the others from the last revision. The R2 step (**Cloudflare R2: bucket and token**) now sets the bucket lock and one lifecycle rule to 30 days, so set them that way when you create the bucket; the B2 step matches. The old rules used `daily/` and `monthly/` prefixes that the backup files don't have, so the single rule is also what makes the 30 days true. `docs/backup.md` and `docs/secrets.md` say the same.",
+     "text": "Privacy page, retention paragraph, the new last sentence:\n\nDeleted details can remain in our encrypted backups for up to 30 days."
     }
    ],
    "device": "any",
