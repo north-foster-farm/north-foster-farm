@@ -11,4 +11,4 @@ pageScript: "order"
 outputs: ["html", "markdown"]
 ---
 
-Pasture-raised, processed in Rhode Island, and packed by weight.
+Pasture-raised, processed, and packed in Rhode Island.
