@@ -1,5 +1,5 @@
 {
- "revision": 11,
+ "revision": 12,
  "updated": "2026-10-17",
  "notice": null,
  "phases": [
@@ -820,7 +820,7 @@
     {
      "id": "bk-r2",
      "title": "Cloudflare R2: bucket and token",
-     "body": "1. In the Cloudflare dashboard, open **Storage & databases → R2** and complete the checkout to add R2. It may ask for a card; at this size it stays free.\n2. **Create bucket.** Name it like the B2 one, with location hint **Eastern North America (enam)** and the Standard storage class.\n3. In the bucket's **Settings → Object Lock**, turn it on and add a lock rule: Compliance mode, 90 days. Nothing can delete or overwrite a copy before then, even with the token below.\n4. In **Object Lifecycle Rules → Add rule**: prefix `daily/`, delete after 30 days; prefix `monthly/`, delete after 365.\n5. On the R2 Overview page, under **Account Details**, choose **Manage** API Tokens, then **Create Account API token**. Choose **Object Read & Write**, limit it to the one bucket, and create. Copy the **Access Key ID**, the **Secret Access Key** (shown once) and the **S3 endpoint**, which looks like `https://<account id>.r2.cloudflarestorage.com`.",
+     "body": "1. In the Cloudflare dashboard, open **Storage & databases → R2** and complete the checkout to add R2. It may ask for a card; at this size it stays free.\n2. **Create bucket.** Name it like the B2 one, with location hint **Eastern North America (enam)** and the Standard storage class.\n3. In the bucket's **Settings → Object Lock**, turn it on and add a lock rule: Compliance mode, 90 days. Nothing can delete or overwrite a copy before then, even with the token below.\n4. In **Object Lifecycle Rules → Add rule**: prefix `daily/`, delete after 30 days; prefix `monthly/`, delete after 365.\n5. On the R2 Overview page, under **Account Details**, choose **Manage** API Tokens, then **Create Account API token**. Choose **Object Read & Write**, limit it to the one bucket, and create. R2 has no write-only token, so this one can read; that is accepted (D-EXPORT): the lock rule from step 3 stops deletes and overwrites, and the age encryption makes a read worthless. Copy the **Access Key ID**, the **Secret Access Key** (shown once) and the **S3 endpoint**, which looks like `https://<account id>.r2.cloudflarestorage.com`.",
      "minutes": 15,
      "links": [
       {
@@ -1631,7 +1631,7 @@
     {
      "id": "pl-rest",
      "title": "The rest of the after-launch list",
-     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- PY-17's live proof, if you chose to do it later;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159).\n\nTick this when you've told Claude your order.",
+     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- PY-17's live proof, if you chose to do it later;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159).\n\nTick this when you've told Claude your order.",
      "minutes": 5,
      "device": "any",
      "type": "decide"
@@ -2279,6 +2279,12 @@
      "date": "2026-10-16",
      "changed": "The export landed (251c46f): nightly, age-encrypted, to R2, with the Healthchecks alert and a restore rehearsal procedure in docs/backup.md.",
      "summary": "One open question: R2 has no write-only token, so the export uses a bucket-scoped Read & Write token, with a bucket lock rule stopping deletes and the encryption making a read worthless. Do you accept that in place of the write-only token in the original decision?"
+    },
+    {
+     "rev": 4,
+     "date": "2026-10-17",
+     "changed": "Recorded as approved on #267: the bucket-scoped Read & Write token with the bucket lock, in place of the write-only token. Step bk-r2 and docs/secrets.md now say so.",
+     "summary": "Nothing more to decide. Approve to close this item; the R2 step in Before launch is the only work left."
     }
    ],
    "device": "any",
@@ -2328,6 +2334,12 @@
       }
      ],
      "recommendation": "Yes."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-17",
+     "changed": "Deferred to after launch, as you decided on #267. It is now a line in the after-launch list (pl-rest), with no CI gate and no rescan work before launch. #197 moved to the After launch milestone.",
+     "summary": "Nothing is built for this before launch. Approve to close the item."
     }
    ],
    "device": "any",
