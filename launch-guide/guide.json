@@ -1,5 +1,5 @@
 {
- "revision": 15,
+ "revision": 16,
  "updated": "2026-10-17",
  "notice": null,
  "phases": [
@@ -903,7 +903,7 @@
     {
      "id": "nf-notify",
      "title": "Email yourself when a deploy fails",
-     "body": "Open **Project configuration → Notifications → Deploy notifications → Add notification → Email notification**. Event: **Deploy failed**. Your address. Save. Add no HTTP POST and no success notice.\n\nNetlify can't limit notifications to production, so a staging failure emails you too; a phone page for every staging failure would be noise. A small function that filters for production and pages you is optional, after launch.\n\n**Pending your decision (D-NOTIFY):** if you'd rather have the phone page now, say \"push now\" there.",
+     "body": "Open **Project configuration → Notifications → Deploy notifications → Add notification → Email notification**. Event: **Deploy failed**. Your address. Save. Add no HTTP POST and no success notice.\n\nNetlify can't limit notifications to production, so a staging failure emails you too; a phone page for every staging failure would be noise. A small function that filters for production deploy failures and pages your phone is approved for after launch (it is on the after-launch list).",
      "minutes": 5,
      "links": [
       {
@@ -1624,7 +1624,7 @@
     {
      "id": "pl-rest",
      "title": "The rest of the after-launch list",
-     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- Resend's Contacts and Segments (D-148, #148): built and held on `hold/148`; the old API still works, so launch day has no migration step;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159).\n\nTick this when you've told Claude your order.",
+     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- a function that filters for production deploy failures and pages your phone through the alerts check (D-NOTIFY, #248);\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- Resend's Contacts and Segments (D-148, #148): built and held on `hold/148`; the old API still works, so launch day has no migration step;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159).\n\nTick this when you've told Claude your order.",
      "minutes": 5,
      "device": "any",
      "type": "decide"
@@ -2594,6 +2594,12 @@
       }
      ],
      "recommendation": "Email only for launch. Approve, or write \"push now\"."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-17",
+     "changed": "Approved on #267. For launch: one email-only \"Deploy failed\" notification, with no HTTP POST and no success ping, which is the step Email yourself when a deploy fails. After launch, also approved: a function that filters for production deploy failures and pages your phone through the alerts check. It is now a line in the after-launch list (pl-rest).",
+     "summary": "Nothing more to decide. Approve to close the item."
     }
    ],
    "device": "any",
