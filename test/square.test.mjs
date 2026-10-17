@@ -3,7 +3,8 @@ import { describe, it } from "node:test";
 
 import {
   SquareError, buildOrder, cancelOrder, clientConfig, createOrder,
-  createPayment, dashboardUrl, e164, getPayment, refundPayment, settings,
+  createPayment, dashboardUrl, deleteCustomer, e164, getPayment,
+  refundPayment, settings,
 } from "../netlify/functions/lib/square.mjs";
 
 const env = {
@@ -242,6 +243,36 @@ describe("buildOrder", () => {
     );
     assert.match(f.delivery_details.note, /gate: 1234/);
     assert.match(f.delivery_details.note, /Dog in the yard/);
+  });
+});
+
+describe("deleteCustomer", () => {
+  it("deletes by id, and a profile already gone counts as gone", async () => {
+    const calls = [];
+    const impl = async (url, init) => {
+      calls.push({ url, method: init.method, body: init.body });
+
+      return calls.length === 1
+        ? new Response("{}", { status: 200 })
+        : new Response(JSON.stringify({ errors: [{ code: "NOT_FOUND" }] }),
+          { status: 404 });
+    };
+
+    assert.deepEqual(await deleteCustomer("CUST 1", { env, fetchImpl: impl }),
+      { deleted: true });
+    assert.deepEqual(await deleteCustomer("CUST1", { env, fetchImpl: impl }),
+      { deleted: false, gone: true });
+    assert.equal(calls[0].url,
+      "https://connect.squareupsandbox.com/v2/customers/CUST%201");
+    assert.equal(calls[0].method, "DELETE");
+    assert.equal(calls[0].body, undefined);
+  });
+
+  it("throws when Square fails for any other reason", async () => {
+    const impl = async () => new Response("{}", { status: 503 });
+
+    await assert.rejects(deleteCustomer("C", { env, fetchImpl: impl }),
+      { name: "SquareError", retryable: true });
   });
 });
 

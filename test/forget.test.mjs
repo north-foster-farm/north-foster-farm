@@ -4,8 +4,10 @@ import { describe, it } from "node:test";
 import { handle } from "../netlify/functions/account.mjs";
 import { createSession } from "../netlify/functions/lib/auth.mjs";
 import {
-  DELETED_HOUSEHOLD, forgetCustomer, scrubOldOrders, scrubOrder,
+  DELETED_HOUSEHOLD, deleteOldMessages, forgetCustomer, scrubOldOrders,
+  scrubOrder,
 } from "../netlify/functions/lib/forget.mjs";
+import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { forgottenKey, syncAudience } from "../netlify/functions/lib/news.mjs";
 import {
   getCustomer, getOrder, ordersFor, saveCustomer, saveOrder,
@@ -191,6 +193,121 @@ describe("forgetCustomer", () => {
     assert.ok(calls.some((c) => c.startsWith("DELETE")));
     assert.equal(await getCustomer(stores, PAT), null);
     assert.equal(await stores.customers.get(forgottenKey(PAT)), null);
+  });
+});
+
+// D-189 (#267): "Delete my details" also deletes the Square customer
+// profile, found only through the customerId the customer's own orders
+// recorded, never by name or email.
+describe("forgetCustomer and the Square profile", () => {
+  const withSquare = (id, customerId, extra) => ({
+    ...order(id, extra),
+    square: { squareOrderId: `SQ-${id}`, customerId },
+  });
+  const squareSpy = ({ fail = false } = {}) => {
+    const deleted = [];
+
+    return {
+      deleted,
+      deleteCustomer: async (id) => {
+        if (fail) {
+          throw new SquareError("Square 503 on /v2/customers",
+            { status: 503, retryable: true });
+        }
+        deleted.push(id);
+
+        return { deleted: true };
+      },
+    };
+  };
+  const seed = async () => {
+    const stores = testStores();
+
+    await saveCustomer(stores, customer());
+    await saveCustomer(stores, customer("sam@example.com"));
+    await saveOrder(stores, withSquare("A", "CUST-PAT"));
+    await saveOrder(stores, withSquare("A2", "CUST-PAT"));
+    await saveOrder(stores, withSquare("B", "CUST-SAM",
+      { email: "sam@example.com" }));
+
+    return stores;
+  };
+
+  it("counts the profiles on a dry run and deletes none", async () => {
+    const stores = await seed();
+    const square = squareSpy();
+    const r = await forgetCustomer(stores, PAT, {
+      news: news(), now, square,
+    });
+
+    assert.equal(r.squareProfiles, 1);
+    assert.deepEqual(square.deleted, []);
+  });
+
+  it("deletes each profile its own orders name, once, and no other",
+    async () => {
+      const stores = await seed();
+      const square = squareSpy();
+      const r = await forgetCustomer(stores, PAT, {
+        apply: true, news: news(), now, square,
+      });
+
+      assert.equal(r.ok, true);
+      assert.deepEqual(square.deleted, ["CUST-PAT"]);
+      assert.equal(await getCustomer(stores, PAT), null);
+      assert.equal((await getOrder(stores, "A")).customer.deleted, true);
+      assert.ok(await getCustomer(stores, "sam@example.com"));
+    });
+
+  it("changes nothing here when Square cannot be reached", async () => {
+    const stores = await seed();
+    const r = await forgetCustomer(stores, PAT, {
+      apply: true, news: news(), now, square: squareSpy({ fail: true }),
+    });
+
+    assert.equal(r.ok, false);
+    assert.match(r.message, /payment provider/);
+    assert.ok(await getCustomer(stores, PAT));
+    assert.equal((await getOrder(stores, "A")).customer.email, PAT);
+  });
+
+  it("never calls Square for a customer whose orders name no profile",
+    async () => {
+      const stores = testStores();
+      const square = squareSpy({ fail: true });
+
+      await saveCustomer(stores, customer());
+      await saveOrder(stores, order("A"));
+
+      const r = await forgetCustomer(stores, PAT, {
+        apply: true, news: news(), now, square,
+      });
+
+      assert.equal(r.ok, true);
+      assert.equal(r.squareProfiles, 0);
+    });
+});
+
+describe("deleteOldMessages", () => {
+  it("deletes messages and support notes over seven years old", async () => {
+    const stores = testStores();
+
+    await stores.customers.set("messages/old", {
+      email: PAT, at: "2019-10-15T12:00:00Z" });
+    await stores.customers.set("messages/new", {
+      email: PAT, at: "2019-10-17T12:00:00Z" });
+    await stores.customers.set(`support/${PAT}/old`, {
+      at: "2019-10-01T12:00:00Z" });
+    await stores.customers.set(`support/${PAT}/new`, {
+      at: "2026-10-01T12:00:00Z" });
+    await stores.customers.set(`support/${PAT}/undated`, { message: "hi" });
+
+    assert.deepEqual(await deleteOldMessages(stores, now),
+      ["messages/old", `support/${PAT}/old`]);
+    assert.deepEqual(await deleteOldMessages(stores, now), []);
+    assert.ok(await stores.customers.get("messages/new"));
+    assert.ok(await stores.customers.get(`support/${PAT}/new`));
+    assert.ok(await stores.customers.get(`support/${PAT}/undated`));
   });
 });
 

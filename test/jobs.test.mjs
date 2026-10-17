@@ -319,6 +319,20 @@ describe("runJobs", () => {
     assert.equal(await stores.orders.get("by-paypal/PPO-1"), null);
   });
 
+  it("deletes help and contact messages over seven years old, daily",
+    async () => {
+      const stores = testStores();
+      const { opts } = harness();
+
+      await stores.customers.set("messages/old", {
+        at: "2019-10-01T12:00:00Z" });
+      await stores.customers.set("messages/new", { at: placed.toISOString() });
+      await runJobs(stores, { ...opts, now: placed });
+
+      assert.equal(await stores.customers.get("messages/old"), null);
+      assert.ok(await stores.customers.get("messages/new"));
+    });
+
   it("rescues an approved Venmo checkout before the sweep", async () => {
     const stores = testStores();
     const { opts } = harness();

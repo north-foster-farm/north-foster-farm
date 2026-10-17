@@ -84,7 +84,9 @@ in your account settings. Your orders stay in our records, with no name on
 them, for our own reporting. Seven years after an order, we remove your name,
 email address, phone number and street address from it. The order keeps what
 was bought, the prices, the date, how it reached you, and the town and ZIP
-code.
+code. Deleting your details also deletes the customer profile we made for you
+at Square, which keeps the payments themselves. We delete the messages you send
+us seven years after you send them, or when you delete your details.
 
 ### Technical basics
 

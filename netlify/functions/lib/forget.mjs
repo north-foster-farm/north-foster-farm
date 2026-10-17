@@ -8,6 +8,13 @@
 //   new, empty account, and nothing re-links the old orders.
 // - Seven years after an order is placed, the jobs give it the same
 //   scrub, whether or not the account is still open.
+// - Deleting details also deletes the Square customer profile(s) the
+//   customer's own orders name (D-189, 2026-10-17): never one found by
+//   name or email, and Square keeps the payments. It happens first, so
+//   if Square cannot be reached nothing else is deleted and the
+//   customer can try again.
+// - A help or contact message is deleted seven years after it was
+//   sent, or at once when its sender deletes their details.
 //
 // A scrubbed order keeps its date, lines, prices, totals, payments,
 // how it was fulfilled, the drop site or pickup window, and the town,
@@ -21,6 +28,7 @@ import {
   OPEN, allOrders, byEmailKey, deleteCustomer, getCustomer, getOrder,
   listCheckouts, ordersFor, paymentsOf, saveOrder,
 } from "./records.mjs";
+import * as squareApi from "./square.mjs";
 
 export const SCRUB_AFTER_YEARS = 7;
 
@@ -125,6 +133,25 @@ export const scrubOldOrders = async (stores, now = new Date()) => {
   return done;
 };
 
+// Every help and contact message sent more than SCRUB_AFTER_YEARS ago:
+// the account page's support notes and the contact form's messages. A
+// record with no date is kept. -> the keys deleted, sorted.
+export const deleteOldMessages = async (stores, now = new Date()) => {
+  const cutoff = yearsBefore(now, SCRUB_AFTER_YEARS).toISOString();
+  const keys = [];
+
+  for (const prefix of ["messages/", "support/"]) {
+    for (const { key } of await stores.customers.list(prefix)) {
+      const message = await stores.customers.get(key);
+
+      if (message && message.at && message.at < cutoff) keys.push(key);
+    }
+  }
+  for (const key of keys) await stores.customers.delete(key);
+
+  return keys.sort();
+};
+
 // Why a deletion must wait, or null. The farm still needs to reach
 // the customer about an order being delivered or picked up, a return,
 // or a Venmo payment under way.
@@ -148,12 +175,21 @@ export const WAIT = {
   checkout: "A Venmo payment is under way. Try again in a day.",
 };
 
+export const SQUARE_DOWN = "We couldn't reach our payment provider to " +
+  "delete your payment profile, so nothing was deleted. Please try " +
+  "again in a few minutes.";
+
+// The Square customer profiles this customer's own orders recorded.
+const squareProfiles = (orders) => [...new Set(orders
+  .map((o) => o.square && o.square.customerId)
+  .filter(Boolean))];
+
 // Everything under the site's stores that names the address, and the
 // Resend contact. With `apply` false nothing is written and the report
 // says what would go. -> { ok, ... } or { ok: false, wait }.
 export const forgetCustomer = async (stores, rawEmail, {
   apply = false, env = process.env, fetchImpl = globalThis.fetch,
-  news = newsApi, now = new Date(),
+  news = newsApi, now = new Date(), square = squareApi,
 } = {}) => {
   const email = normalizeEmail(rawEmail);
   const customer = await getCustomer(stores, email);
@@ -162,6 +198,7 @@ export const forgetCustomer = async (stores, rawEmail, {
 
   if (wait) return { ok: false, wait, message: WAIT[wait] };
 
+  const profiles = squareProfiles(orders);
   const auth = [];
 
   for (const prefix of ["session/", "token/", "unsub/", "news/"]) {
@@ -192,6 +229,7 @@ export const forgetCustomer = async (stores, rawEmail, {
     supportMessages: support.length,
     contactMessages: messages.length,
     authRecords: auth.length,
+    squareProfiles: profiles.length,
   };
   const resend = async () => {
     try {
@@ -212,6 +250,19 @@ export const forgetCustomer = async (stores, rawEmail, {
     await resend();
 
     return report;
+  }
+
+  // First: if Square cannot be reached, nothing else is deleted.
+  try {
+    for (const id of profiles) {
+      await square.deleteCustomer(id, { env, fetchImpl });
+    }
+  } catch (error) {
+    log.error({
+      event: "customer.forget_square_failed", error: error.message,
+    });
+
+    return { ok: false, wait: "square", message: SQUARE_DOWN };
   }
 
   for (const order of orders) {

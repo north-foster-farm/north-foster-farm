@@ -38,7 +38,7 @@ import {
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { rescueCheckout, syncSquare } from "./checkout.mjs";
 import { finishEditVenmo } from "./edit.mjs";
-import { scrubOldOrders } from "./forget.mjs";
+import { deleteOldMessages, scrubOldOrders } from "./forget.mjs";
 import { alert, ping, readCount, readMark } from "./health.mjs";
 import { log } from "./log.mjs";
 import { adminEmails, sendMail } from "./mail.mjs";
@@ -232,15 +232,19 @@ export const runJobs = async (stores, {
 };
 
 // Retention (#189), once a day: orders placed more than seven years
-// ago lose their customer's details (lib/forget.mjs). -> the ids.
+// ago lose their customer's details, and help and contact messages
+// more than seven years old are deleted (lib/forget.mjs). -> the ids.
 const scrubDaily = async (stores, now) => {
   const key = `retention/${today(now, tz)}`;
 
   if (await stores.jobs.get(key)) return [];
 
   const ids = await scrubOldOrders(stores, now);
+  const messages = await deleteOldMessages(stores, now);
 
-  await stores.jobs.set(key, { at: now.toISOString(), scrubbed: ids.length });
+  await stores.jobs.set(key, {
+    at: now.toISOString(), scrubbed: ids.length, messages: messages.length,
+  });
 
   return ids;
 };

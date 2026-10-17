@@ -184,7 +184,8 @@ const call = async (cfg, path, body, fetchImpl, method = "POST") => {
         "Square-Version": cfg.version,
         "Content-Type": "application/json",
       },
-      body: method === "GET" ? undefined : JSON.stringify(body),
+      body: method === "GET" || method === "DELETE"
+        ? undefined : JSON.stringify(body),
     });
   } catch (error) {
     throw new SquareError(`Network error calling ${path}`, {
@@ -632,6 +633,31 @@ export const cancelFulfilment = async (squareOrderId, {
   }, fetchImpl, "PUT");
 
   return { id: squareOrderId, cancelled: true };
+};
+
+// Deletes a customer profile (#189, D-189). Only ever one an order's
+// own record names, never one found by name or email; Square keeps the
+// payments. A profile already gone counts as deleted, so a retry after
+// a half-finished deletion is safe.
+// -> { deleted: true } or { deleted: false, gone: true }.
+export const deleteCustomer = async (customerId, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  if (isFake(env)) return fake.deleteCustomer(customerId);
+
+  const cfg = settings(env);
+
+  try {
+    await call(cfg, `/v2/customers/${encodeURIComponent(customerId)}`,
+      undefined, fetchImpl, "DELETE");
+  } catch (error) {
+    if (error.status === 404) return { deleted: false, gone: true };
+
+    throw error;
+  }
+
+  return { deleted: true };
 };
 
 // An order whose payment was declined is cancelled so it does not sit

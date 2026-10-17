@@ -122,7 +122,10 @@ export const handle = async (req, {
       ...(fetchImpl ? { fetchImpl } : {}),
     });
 
-    if (!result.ok) return json(409, { message: result.message });
+    if (!result.ok) {
+      return json(result.wait === "square" ? 503 : 409,
+        { message: result.message });
+    }
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,

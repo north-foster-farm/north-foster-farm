@@ -80,6 +80,8 @@ export const cancelFulfilment = async (squareOrderId) => ({
   id: squareOrderId, cancelled: true,
 });
 
+export const deleteCustomer = async () => ({ deleted: true });
+
 export const cancelOrder = async (squareOrderId) => ({
   id: squareOrderId, cancelled: true,
 });
