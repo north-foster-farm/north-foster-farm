@@ -129,6 +129,12 @@ sets every value; agents never see them.
 - **Healthchecks:** separate checks per environment. Staging's jobs
   check needs a period of about 6 hours, since its jobs run every 2
   to 6 hours (#164).
+- **Backup export (Cloudflare R2):** production only. The token is
+  bucket-scoped *Object Read & Write* (James approved it 2026-10-17,
+  D-EXPORT): R2 offers no write-only token, so a bucket lock rule
+  stops deletes and overwrites, and the age encryption makes a read
+  worthless. `BACKUP_R2_SECRET_ACCESS_KEY` is a secret; the setup is
+  in `docs/backup.md`.
 - **`STAGING_TOKEN`:** staging only.
 - **`NETLIFY_AUTH_TOKEN`:** one per person, since Netlify cannot
   scope a token; e2e stops using it (#266).
