@@ -1,5 +1,5 @@
 {
- "revision": 12,
+ "revision": 13,
  "updated": "2026-10-17",
  "notice": null,
  "phases": [
@@ -1366,20 +1366,6 @@
    "title": "Prove payments with real money",
    "steps": [
     {
-     "id": "ld-r3",
-     "title": "A $1 Venmo payment (R3)",
-     "body": "Open the order page with `?venmo`, which shows Venmo even while it's hidden. Order $1 and pay with the real Venmo app. Then refund it with `bin/nff --production orders refund <id>`. Check the order record, Square's copy and both webhooks agree. When it passes, set Venmo to **Visible** in *Before the release*, re-save `.env.production`, push, **and ask Claude to redeploy**: the setting does nothing until production rebuilds. If it fails, set Venmo back to **Hidden** in *Before the release*, re-save `.env.production`, push, ask Claude to rebuild, fix it on staging, and repeat this test.",
-     "minutes": 15,
-     "links": [
-      {
-       "label": "Order page with Venmo",
-       "url": "https://www.northfosterfarm.com/order/?venmo"
-      }
-     ],
-     "device": "phone",
-     "type": "live"
-    },
-    {
      "id": "ld-160",
      "title": "Pay a Venmo difference (#160)",
      "body": "Edit a paid Venmo order upward, pay the difference, and confirm the record and Square both show two payments. Then refund.",
@@ -1417,11 +1403,17 @@
     },
     {
      "id": "ld-errphone",
-     "title": "Check a broken checkout reaches your phone",
-     "body": "In Firefox, open the order page with developer tools. Block requests to `web.squarecdn.com` (Network tab: right-click a request to it → Block URL), then reload. A \"payment unavailable\" alert should reach your phone within a minute. Unblock afterwards.",
-     "minutes": 5,
+     "title": "Check a broken checkout, then pay $1 by Venmo",
+     "body": "This proves two things on the live site: a broken Square reaches your phone, and Venmo still works when Square is down (PY-17).\n\n1. In Firefox, open the order page with developer tools. Block requests to `web.squarecdn.com` (Network tab: right-click a request to it → Block URL), then reload. A \"payment unavailable\" alert should reach your phone within a minute. Check that it does.\n2. With Square still blocked, on that same page add `?venmo` to the address, which shows Venmo even while it's hidden. Order $1 and pay by Venmo: scan the code with your phone and pay in the real Venmo app.\n3. Unblock `web.squarecdn.com`.\n4. Refund the $1 with `bin/nff --production orders refund <id>`. Check the order record, Square's copy and both webhooks agree.\n\nWhen it passes, set Venmo to **Visible** in *Before the release*, re-save `.env.production`, push, **and ask Claude to redeploy**: the setting does nothing until production rebuilds. If it fails, set Venmo back to **Hidden** in *Before the release*, re-save `.env.production`, push, ask Claude to rebuild, fix it on staging, and repeat this test.",
+     "minutes": 20,
      "device": "laptop",
-     "type": "live"
+     "type": "live",
+     "links": [
+      {
+       "label": "Order page with Venmo",
+       "url": "https://www.northfosterfarm.com/order/?venmo"
+      }
+     ]
     }
    ]
   },
@@ -1631,7 +1623,7 @@
     {
      "id": "pl-rest",
      "title": "The rest of the after-launch list",
-     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- PY-17's live proof, if you chose to do it later;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159).\n\nTick this when you've told Claude your order.",
+     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- Resend's Contacts and Segments (D-148, #148): built and held on `hold/148`; the old API still works, so launch day has no migration step;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159).\n\nTick this when you've told Claude your order.",
      "minutes": 5,
      "device": "any",
      "type": "decide"
@@ -2362,6 +2354,12 @@
       }
      ],
      "recommendation": "(c) once the fakes land, otherwise (b). Approve, or write a or b."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-17",
+     "changed": "Decided (b) with the live proof on launch day, as you said on #267. The unit tests are accepted now; no staging builds, and (c) with the fakes is optional, not a gate. The two launch-day steps are now one, with ld-r3's Visible and Hidden instructions kept.",
+     "summary": "On launch day, with `web.squarecdn.com` blocked, you check the alert reaches your phone, then pay $1 by Venmo on the same page with `?venmo`, refund it, and check the order record, Square and both webhooks agree. It is the step **Check a broken checkout, then pay $1 by Venmo** under Launch day. Approve to close this item."
     }
    ],
    "device": "any",
@@ -2384,6 +2382,12 @@
       }
      ],
      "recommendation": "(a) after launch: the old API still works, and launch day stays shorter. Approve, or write b."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-17",
+     "changed": "Decided (a), after launch, as you said on #267. `hold/148` stays held and launch day has no migration step. It is a line in the after-launch list (pl-rest), and #148 is already on the After launch milestone.",
+     "summary": "Nothing to do before launch. Approve to close the item."
     }
    ],
    "device": "any",
@@ -2422,6 +2426,18 @@
      "date": "2026-10-16",
      "summary": "Where did `delivery-flyer.jpg`, `icons/eggs.svg` and `icons/globe.svg` come from? If globe.svg is an Apple SF Symbols export, it's swapped for an openly licensed icon (Lucide or Tabler). Write what you know in feedback.",
      "recommendation": "If you're unsure about globe.svg, approve and it gets swapped."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-17",
+     "changed": "`delivery-flyer.jpg` is recorded as your original design. `icons/globe.svg` is not Lucide, as you suspected: it is a filled outline on a 129.741 by 129.841 canvas with the marks of an SF Symbols export. The map's whole-map button now uses Lucide's `globe` (ISC), drawn as a stroke like the search, close and pin icons (on `next`, on staging at the next promotion). `icons/eggs.svg` is untouched: it is neither Lucide nor Tabler's `eggs`.",
+     "summary": "Look at the before and after of the button. Two questions remain:\n- Where did `icons/eggs.svg` (the map's egg tag) come from?\n- `static/email-signature/globe.png`, your public email-signature glyph, still carries the old globe. Want it remade from the new one?",
+     "look": [
+      {
+       "label": "Globe, before and after",
+       "url": "https://claude.ai/artifact/77tTz6o2XL5jHHCxkNLBMf"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -3365,6 +3381,7 @@
  },
  "retired": {
   "rs-team": "Retired 2026-10-17: staging sends no email and has no Resend team, key, audience or webhook.",
-  "rs-stg-keys": "Retired 2026-10-17: staging sends no email and has no Resend team, key, audience or webhook."
+  "rs-stg-keys": "Retired 2026-10-17: staging sends no email and has no Resend team, key, audience or webhook.",
+  "ld-r3": "Merged into ld-errphone 2026-10-17 (D-PY17)."
  }
 }
