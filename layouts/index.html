@@ -4,11 +4,20 @@
     {{ partial "home/how.html" . }}
     {{ partial "home/copy.html" . }}
     {{/* The markets running now, each in its own season; the three
-         ways to buy while none is. */}}
+         ways to buy while none is. A page built in market season
+         also carries the ways band, hidden, and swaps the two on the
+         day after the last market closes (expiry.js), since the
+         build may be weeks old by then. */}}
     {{ with partial "market-season.html" . }}
-      {{ partial "home/markets.html" . }}
+      {{ $last := "" }}
+      {{ range . }}
+        {{ if gt .closes $last }}{{ $last = .closes }}{{ end }}
+      {{ end }}
+      {{ $ends := partial "market/ends.html" $last }}
+      {{ partial "home/markets.html" (dict "markets" . "ends" $ends) }}
+      {{ partial "home/ways.html" (dict "from" $ends) }}
     {{ else }}
-      {{ partial "home/ways.html" . }}
+      {{ partial "home/ways.html" (dict "from" "") }}
     {{ end }}
     {{ partial "home/map.html" . }}
     {{ partial "home/contact.html" . }}

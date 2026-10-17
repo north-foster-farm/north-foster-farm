@@ -1,0 +1,5 @@
+{{/* The moment a market's season is over, for data-hide-from and
+     data-show-from (see expiry.js): midnight, farm time, opening the
+     day after the date given (a "closes" in data/markets.json). */}}
+{{ $day := time.AsTime . hugo.Data.delivery.timeZone }}
+{{ return ($day.AddDate 0 0 1).Format "2006-01-02T15:04:05-07:00" }}

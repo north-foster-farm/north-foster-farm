@@ -460,7 +460,7 @@ test.describe("home", () => {
   test("the market band lists only the markets running", async ({ page }) => {
     await page.goto("/");
 
-    const band = page.locator(".places.home-band");
+    const band = page.locator(".places.home-band:not(.ways)");
 
     test.skip(await band.count() === 0, "built with no market running");
     const markets = (await import("../data/markets.json",
@@ -471,15 +471,50 @@ test.describe("home", () => {
       .map((m) => m.name);
 
     await expect(band.locator(".place-name")).toHaveText(running);
-    await expect(page.locator(".ways")).toHaveCount(0);
+    // The off-season band waits in the page, hidden, for the swap.
+    await expect(page.locator(".ways")).toBeHidden();
   });
+
+  // The page may be weeks old when the last market closes, so the
+  // browser swaps the bands itself, at midnight farm time on the day
+  // after the last close, with nothing left of the market band.
+  test("the market band gives way to the ways the day after the last close",
+    async ({ page }) => {
+      await page.goto("/");
+
+      const band = page.locator(".places.home-band:not(.ways)");
+      const ways = page.locator(".ways");
+
+      test.skip(await band.count() === 0, "built with no market running");
+      const markets = (await import("../data/markets.json",
+        { with: { type: "json" } })).default.markets;
+      const last = markets.map((m) => m.closes).sort().at(-1);
+      const ends = await band.getAttribute("data-hide-from");
+
+      const next = new Date(Date.parse(`${last}T12:00:00Z`) + 864e5)
+        .toISOString().slice(0, 10);
+
+      expect(ends).toMatch(new RegExp(`^${next}T00:00:00-0[45]:00$`));
+      expect(await ways.getAttribute("data-show-from")).toBe(ends);
+
+      await page.clock.setFixedTime(Date.parse(ends) - 1000);
+      await page.reload();
+      await expect(band).toBeVisible();
+      await expect(ways).toBeHidden();
+
+      await page.clock.setFixedTime(Date.parse(ends));
+      await page.reload();
+      await expect(band).toBeHidden();
+      await expect(ways).toBeVisible();
+      await expect(ways.locator(".place")).toHaveCount(3);
+    });
 
   // #137: while no market runs, the market band gives way to the three
   // ways to buy, every fact from data/delivery.json.
   test.describe("off-season band (#137)", () => {
     test.beforeEach(async ({ page }) => {
       await page.goto("/");
-      test.skip(await page.locator(".ways").count() === 0,
+      test.skip(!(await page.locator(".ways").isVisible()),
         "built while a market runs");
     });
 

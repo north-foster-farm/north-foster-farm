@@ -10,7 +10,12 @@
      footer and contact page carry the full one. The drop site's
      first Saturday is a badge by its name, not part of its line, so
      the badge can go once the day is over: the build leaves it out
-     after then, and expiry.js hides it in a page built before. */}}
+     after then, and expiry.js hides it in a page built before.
+
+     Built in market season, the band is hidden and carries `from`,
+     the moment the markets end (index.html); expiry.js shows it
+     then. Built after, `from` is empty and the band just shows. */}}
+{{ $from := .from }}
 {{ $terms := hugo.Data.delivery }}
 {{ $money := $terms.money }}
 {{ $address := hugo.Data.company.address }}
@@ -60,7 +65,7 @@
   {{ $srcset = $srcset | append (printf "%s %dw" $img.RelPermalink .) }}
 {{ end }}
 {{ $fallback := $tunnel.Resize "1600x jpg q82" }}
-<div class="places ways home-band border-bottom border-light">
+<div class="places ways home-band border-bottom border-light"{{ with $from }} hidden data-show-from="{{ . }}"{{ end }}>
   <img class="home-band-img" src="{{ $fallback.RelPermalink }}" srcset="{{ delimit $srcset ", " }}" sizes="100vw" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="" loading="lazy">
   <div class="home-band-overlay"></div>
   <div class="home-band-body container">
