@@ -23,15 +23,19 @@ import { deployContext } from "./store.mjs";
 
 const RESEND_MS = 4000;
 
-export const SUBJECT = `Your sign-in link for ${company.name} staging`;
+const SITE = `[STAGING] ${company.name}`;
+
+export const SUBJECT = `Your secure sign-in link to ${SITE}`;
 
 export const linkText = (url, minutes = LINK_TTL / 60_000) => [
-  `Follow this link to sign in to the ${company.name} staging site:`,
+  `Sign in to ${SITE}`,
+  "",
+  `Click the link below to finish signing into ${SITE}. The link ` +
+    `expires in ${minutes} minutes.`,
   "",
   url,
   "",
-  `It works once, for ${minutes} minutes. If you did not ask for it, you`,
-  "can ignore this message.",
+  "If you didn't request this email, you can safely ignore it.",
   "",
 ].join("\n");
 

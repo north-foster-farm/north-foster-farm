@@ -497,7 +497,17 @@ describe("the sign-in email", () => {
 
       const body = JSON.parse(calls[0].init.body);
 
+      assert.equal(body.subject,
+        "Your secure sign-in link to [STAGING] North Foster Farm");
       assert.equal(body.subject, SUBJECT);
+      assert.match(body.text, /^Sign in to \[STAGING\] North Foster Farm\n/);
+      assert.ok(body.text.includes(
+        "\nClick the link below to finish signing into " +
+        "[STAGING] North Foster Farm. The link expires in 15 minutes.\n",
+      ));
+      assert.ok(body.text.includes(
+        "\nIf you didn't request this email, you can safely ignore it.\n",
+      ));
       assert.deepEqual(body.to, ["pat@example.com"]);
       assert.equal(body.html, undefined);
       assert.match(body.text, /verify\?t=1/);
