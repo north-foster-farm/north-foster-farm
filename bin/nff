@@ -10,10 +10,12 @@
 import { spawn } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
 import { loadEnv } from "../netlify/functions/lib/env.mjs";
 import { devSchedule } from "./dev-schedule.mjs";
+import { deployAfterPush } from "./env/deploy.mjs";
 import {
   PREVIEW_ALLOWED, PREVIEW_CONTEXTS, TARGETS, checkEnv, planPush, preflight,
   previewLeaks, pushEnv, redact, remoteFor, remoteVars,
@@ -89,6 +91,10 @@ const USAGE = `Usage:
                                       sample lists on Netlify, secrets as
                                       secret, and read the rest back.
                                       Never deletes; skips local-only keys
+                                      Then asks "Deploy <context> now?
+                                      [Y/n]", or --allow-deploy goes
+                                      ahead; otherwise ends on a "not
+                                      live until deployed" line
   bin/nff env verify --staging|--production
                                       after a push and the deploy: one
                                       harmless call per service (Square,
@@ -442,6 +448,15 @@ const envVerify = async (file, local) => {
   return out(`Env verify: every credential tried in ${file} works.`);
 };
 
+const askLine = (question) => new Promise((resolve) => {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+
+  rl.question(question, (answer) => {
+    rl.close();
+    resolve(answer);
+  });
+});
+
 const envCommand = async () => {
   const { file, sample, local } = envFiles();
   const { context: target } = TARGETS[context];
@@ -493,8 +508,20 @@ const envCommand = async () => {
         absent.join(", ")}.`);
     }
 
-    return out("Every value read back, and every secret is there by name. " +
-      "Now `bin/nff env check` and a deploy.");
+    out("Every value read back, and every secret is there by name. " +
+      "Now `bin/nff env check`.");
+
+    const tty = process.stdin.isTTY && process.stdout.isTTY;
+    const lines = await deployAfterPush({
+      context,
+      hook: local.values.get("PICKUP_SCHEDULE_HOOK"),
+      allow: !!flags["allow-deploy"],
+      ask: tty ? askLine : null,
+    });
+
+    for (const line of lines) out(line);
+
+    return undefined;
   }
 
   if (action === "check") {

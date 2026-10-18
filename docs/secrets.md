@@ -177,6 +177,11 @@ the dev server.
   with `--secret` for each secret. It reads the other values back.
   Netlify never returns a secret, so secrets are checked by name
   only.
+  Nothing it sets is live until a deploy, so it then asks `Deploy
+  <context> now? [Y/n]` and posts the context's build hook
+  (`PICKUP_SCHEDULE_HOOK` in its env file), or does so without asking
+  on `--allow-deploy`. With no terminal, no hook or an answer of no,
+  it ends on a "NOT LIVE YET" line.
 - **`bin/nff env check --production|--staging`** compares the key
   names in the sample, the local file and the Netlify context, and
   fails on any difference. It also fails on any value attached to
