@@ -140,11 +140,8 @@
     {{ end }}
     {{ $a := .address }}
     {{ $links := slice }}
-    {{ with .instagram }}
-      {{ $links = $links | append (dict "label" "Instagram" "href" (printf "https://www.instagram.com/%s/" .)) }}
-    {{ else }}
-      {{ with .href }}{{ $links = $links | append (dict "label" "Website" "href" .) }}{{ end }}
-    {{ end }}
+    {{/* No Instagram on a pop-up's card (James, #214). */}}
+    {{ with .href }}{{ $links = $links | append (dict "label" "Website" "href" .) }}{{ end }}
     {{ $places = $places | append (merge (partial "map/xy.html" .) (dict
       "kind" "Pop-up" "name" .place "key" .place
       "date" ((time.AsTime .date $zone).Format "Jan 2")

@@ -6,7 +6,7 @@ import { expect, test } from "./support/order.mjs";
 
 // The event on staging today, and when it ends in the farm's zone. A
 // pop-up's link opens its card on the home page's map (M9 on #214),
-// in the same tab; the card carries its Instagram link.
+// in the same tab; the card has no Instagram link.
 const EVENT = {
   short: "Pop-up at The Village Family Fitness, Sun, Oct 18",
   long: "Pop-up at The Village Family Fitness in Warwick, Sunday, " +
@@ -70,8 +70,7 @@ test.describe("top bar (#139)", () => {
     await expect(card).toContainText("Pop-up");
     await expect(card).toContainText("The Village Family Fitness");
     await expect(card.getByRole("link", { name: "Instagram" }))
-      .toHaveAttribute("href",
-        "https://www.instagram.com/thevillagefitnessri/");
+      .toHaveCount(0);
   });
 
   test("every page carries it", async ({ page }) => {
