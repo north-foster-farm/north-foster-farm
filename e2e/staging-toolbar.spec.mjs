@@ -49,8 +49,12 @@ test.describe("staging toolbar", () => {
       });
       await page.reload();
       await page.locator("[data-staging-open]").click();
-      await page.locator("[data-staging-forget]").click();
-      await page.waitForLoadState("load");
+      // The click clears, then reloads. Waiting for "load" alone passes
+      // at once on the page being left, so wait for the new document.
+      await Promise.all([
+        page.waitForEvent("load"),
+        page.locator("[data-staging-forget]").click(),
+      ]);
 
       const kept = await page.evaluate(() => ({
         local: Object.keys(localStorage)
