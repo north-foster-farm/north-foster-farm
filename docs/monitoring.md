@@ -351,7 +351,10 @@ Netlify for this context: Square, `SQUARE_WEBHOOK_SIGNATURE_KEY` (and
 `PAYPAL_WEBHOOK_ID` and the client id and secret; Resend,
 `RESEND_WEBHOOK_SECRET`. Compare it with the provider's webhook
 settings, set it, redeploy, then resend a test event from the
-provider. The log (`event: webhook.rejected`) has every refusal, with
+provider. The alert reaches the developer's address and the phone like
+any other, and each provider mutes on its own for an hour, so a bad
+Square key never hides a bad PayPal one. The log
+(`event: webhook.rejected`) has every refusal, with
 the provider, the reason, the body's size and the delivery id, never
 the body.
 

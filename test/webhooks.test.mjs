@@ -167,9 +167,13 @@ describe("a refused webhook delivery", () => {
       if (alerts) {
         assert.equal(w.sent[0].to[0], "farm@example.com");
         assert.ok(!JSON.stringify(w.sent[0]).includes(MARKER));
-        assert.ok((await readMark(stores, `alert/${KIND}`)).at);
+        assert.ok(
+          (await readMark(stores, `alert/${KIND}.${provider}`)).at
+        );
       } else {
-        assert.equal(await readMark(stores, `alert/${KIND}`), null);
+        assert.equal(
+          await readMark(stores, `alert/${KIND}.${provider}`), null
+        );
       }
     });
   }
@@ -187,7 +191,7 @@ describe("a refused webhook delivery", () => {
       assert.equal(w.sent.length, 1);
       assert.deepEqual(w.rejections().map((r) => r.alert),
         [true, false, false, false, false]);
-      assert.equal((await readMark(stores, `alert/${KIND}`)).muted, 0,
+      assert.equal((await readMark(stores, `alert/${KIND}.square`)).muted, 0,
         "alert() was not even asked");
 
       await squareHook(post("/api/square/webhook", {
@@ -199,6 +203,21 @@ describe("a refused webhook delivery", () => {
 
       assert.equal(w.sent.length, 2, "an hour later it alerts again");
     });
+
+  it("alerts for each provider, not once for all", async (t) => {
+    const w = watch(t);
+    const stores = testStores();
+
+    await squareHook(post("/api/square/webhook", {
+      "x-square-hmacsha256-signature": "forged",
+    }), { env: SQUARE, stores, now, mail: w.mail });
+    await paypalHook(post("/api/paypal/webhook", PAYPAL_SIGNED), {
+      env: PAYPAL, stores, now, mail: w.mail,
+      fetchImpl: paypalApi(false).impl,
+    });
+
+    assert.equal(w.sent.length, 2, "Square's alert did not mute PayPal's");
+  });
 
   it("still lets a good delivery through", async () => {
     const stores = testStores();

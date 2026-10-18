@@ -36,11 +36,13 @@ export const SECRETS = {
   resend: "RESEND_WEBHOOK_SECRET",
 };
 
-let alertedAt = -Infinity;
+// Each provider has its own hour, here and in the alert's mute, so a
+// failing Square key never hides a PayPal one.
+const alertedAt = new Map();
 
-// For the tests: forget this instance's last alert.
+// For the tests: forget this instance's last alerts.
 export const resetGuard = () => {
-  alertedAt = -Infinity;
+  alertedAt.clear();
 };
 
 // Logs the refusal and, by reason, alerts; -> the same 401 as before.
@@ -56,16 +58,17 @@ export const rejected = async (stores, {
     deliveryId: id ? String(id).slice(0, 100) : null,
   };
   const alerting = ALERTING.has(reason);
-  const guarded = alerting && now.getTime() - alertedAt < ALERT_EVERY;
+  const guarded = alerting
+    && now.getTime() - (alertedAt.get(provider) ?? -Infinity) < ALERT_EVERY;
 
   log.warn({ event: KIND, ...detail, alert: alerting && !guarded });
 
   if (alerting && !guarded) {
-    alertedAt = now.getTime();
+    alertedAt.set(provider, now.getTime());
     try {
-      await alert(stores, "webhook.rejected", {
+      await alert(stores, KIND, {
         ...detail, check: SECRETS[provider],
-      }, { env, now, mail, fetchImpl });
+      }, { env, now, mail, fetchImpl, mute: `${KIND}.${provider}` });
     } catch (error) {
       log.error({ event: "webhook.alert_failed", error: String(error) });
     }
