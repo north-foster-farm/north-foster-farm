@@ -366,6 +366,11 @@ export class OrderForm {
     // toggle, the way on and the nudge.
     const cartToggle = qs(this.cart, "[data-cart-toggle]");
 
+    for (const type of ["pointerdown", "touchstart", "focusin", "keydown"]) {
+      this.cart.addEventListener(type, () => this.keepOpen(), {
+        passive: true,
+      });
+    }
     cartToggle.addEventListener("click", () => {
       this.setOpen(this.cart.dataset.open !== "true");
     });
@@ -1151,7 +1156,125 @@ export class OrderForm {
       button.closest(".order-item").focus();
     }
 
+    // The first item into an empty cart opens the pane on its own for
+    // a restored draft; an Add has its own say (added() below).
+    this.adding = next > was;
     this.changed();
+    if (this.adding) this.added(input.dataset.qty);
+    this.adding = false;
+  }
+
+  // The feedback for an Add (#267). The first of a browser session
+  // opens the pane on the lines, outlines the new line, shuts the pane
+  // after a few seconds and pulses the Hide/Show pill twice. Every
+  // later Add leaves the pane shut: the bar says what was added, the
+  // count ticks, the pill pulses once. Whatever the pane is doing,
+  // a screen reader hears it, and the focus stays where it is.
+  added(sku) {
+    const item = this.index.get(sku);
+
+    if (!item) return;
+
+    const name = `${item.groupName}, ${item.label}`;
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const floating = this.cart.dataset.stuck === "true";
+    const first = this.firstAdd();
+    const pill = qs(this.cart, "[data-cart-toggle]");
+    const live = qs(this.cart, "[data-cart-live]");
+
+    // A repeated name must be heard again: clear, then set.
+    live.textContent = "";
+    setTimeout(() => { live.textContent = `Added ${name} to cart`; }, 60);
+    pulse(qs(this.cart, "[data-cart-count]"), "is-ticked");
+
+    clearTimeout(this.addedTimer);
+    clearTimeout(this.closeTimer);
+    clearTimeout(this.outlineTimer);
+    for (const row of all(this.cart, ".order-cart-item.is-new")) {
+      row.classList.remove("is-new");
+    }
+
+    if (first && floating) {
+      this.setOpen(true);
+      this.setPart("items", true);
+      this.setPart("money", false);
+      // Once the pane has opened, the line is in reach: outline it and
+      // bring it into view inside the list.
+      setTimeout(() => this.outline(sku), reduced ? 0 : 260);
+      this.outlineTimer = setTimeout(() => {
+        for (const row of all(this.cart, ".order-cart-item.is-new")) {
+          row.classList.remove("is-new");
+        }
+      }, 3500);
+      this.closeTimer = setTimeout(() => {
+        this.setOpen(false);
+        this.pulsePill(pill, 2);
+      }, 3500);
+
+      return;
+    }
+
+    this.pulsePill(pill, 1);
+    if (!floating || this.cart.dataset.open === "true") return;
+
+    const box = qs(this.cart, "[data-cart-added-box]");
+
+    qs(box, "[data-cart-added]").textContent = `Added: ${name}`;
+    box.setAttribute("data-show", "");
+    this.addedTimer = setTimeout(() => box.removeAttribute("data-show"), 2600);
+  }
+
+  // True once per browser session; the session's own storage, so a new
+  // page keeps the count and a new visit starts it over.
+  firstAdd() {
+    const key = "nff-cart-first-add";
+
+    try {
+      if (sessionStorage.getItem(key)) return false;
+      sessionStorage.setItem(key, "1");
+
+      return true;
+    } catch {
+      const first = !this.addedBefore;
+
+      this.addedBefore = true;
+
+      return first;
+    }
+  }
+
+  // Outlines a line and scrolls the list, and only the list, to it.
+  outline(sku) {
+    const button = qs(this.cart, `[data-remove="${CSS.escape(sku)}"]`);
+    const row = button ? button.closest(".order-cart-item") : null;
+
+    if (!row) return;
+    row.classList.add("is-new");
+
+    const list = qs(this.cart, "[data-cart-items]");
+    const top = row.offsetTop - list.offsetTop;
+
+    if (top < list.scrollTop
+      || top + row.offsetHeight > list.scrollTop + list.clientHeight) {
+      list.scrollTop = Math.max(0, top - 8);
+    }
+  }
+
+  // The Hide/Show pill pulses `times` times; a reduced-motion browser's
+  // global rule cuts it to a blink of 1ms.
+  pulsePill(pill, times) {
+    pill.removeAttribute("data-pulse");
+    void pill.offsetWidth;
+    pill.setAttribute("data-pulse", String(times));
+    pill.addEventListener("animationend", () => {
+      pill.removeAttribute("data-pulse");
+    }, { once: true });
+  }
+
+  // The pane is the customer's once they touch it or focus in it: the
+  // timer that was to shut it lapses.
+  keepOpen() {
+    clearTimeout(this.closeTimer);
   }
 
   method() {
@@ -1536,7 +1659,7 @@ export class OrderForm {
     // customer chose stays until the cart empties again.
     if (count === 0 && this.lastCount !== 0) {
       this.setOpen(false);
-    } else if (count > 0 && !this.lastCount) {
+    } else if (count > 0 && !this.lastCount && !this.adding) {
       this.setOpen(true);
     }
     this.lastCount = count;

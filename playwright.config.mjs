@@ -35,6 +35,7 @@ const gate = token && host.includes("--") ? {
 // the sandbox: the phone project skips these.
 const desktopOnly = [
   "**/cart-layout.spec.mjs",
+  "**/cart-added.spec.mjs",
   "**/cart-panes.spec.mjs",
   "**/pricing.spec.mjs",
   "**/payment.spec.mjs",

@@ -523,6 +523,33 @@ Manual, on an iPhone: a spec cannot see Safari's chrome (#267).
   taller than the visible area. Every control is tappable.
 - **Teardown:** Clear the draft.
 
+### OP-30 The cart's word for an Add
+
+Partial: `cart-added.spec.mjs`. How the pulse and the slide look on an
+iPhone is manual (#267).
+
+- **Scenario:** The first Add of a browser session opens the phone cart
+  on the new line, outlines it, shuts the pane after three to four
+  seconds and pulses the Hide/Show pill twice. A later Add leaves the
+  pane shut: the bar says "Added: {item}", the count ticks and the pill
+  pulses once. A screen reader hears "Added {item} to cart" every time.
+- **Setup:** A phone-sized window, an empty cart, a fresh session.
+- **Test:**
+  1. Press Add on a row. Watch the pane, the new line and the pill.
+  2. Press Add on another row, and again on the first.
+  3. Press Add, then touch the pane before it shuts.
+  4. Reload and press Add again.
+  5. With reduced motion on, repeat 1 and 2.
+  6. Manual, with VoiceOver: press Add and listen.
+- **Assert:** One: the pane opens on the lines, one line is outlined, it
+  shuts in three to four seconds and the pill pulses twice. Two: the
+  pane stays shut, the bar names the item for a moment, the count ticks
+  and the pill pulses once. Three: the pane stays open. Four: the pane
+  stays shut (the session's first Add is spent). Five: no pulse and no
+  slide, only the states. Six: "Added {item} to cart", each time, with
+  the focus still on the item's control.
+- **Teardown:** Clear the draft.
+
 ## Pricing and discounts
 
 Wings are $10, eggs $7, thighs $12. Tiers: $5 off at $50, $10 at $100,

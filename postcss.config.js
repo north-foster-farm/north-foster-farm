@@ -83,6 +83,8 @@ const plugins = [
         "data-plain",
         "data-multi",
         "data-tight",
+        "data-pulse",
+        "data-show",
         "data-more",
         "data-top",
         "data-card-open",
@@ -124,6 +126,8 @@ const plugins = [
         "is-bumped",
         "is-entering",
         "is-fading",
+        "is-new",
+        "is-ticked",
         // Applied by the map's script to a town with a pin (#214).
         "has-pin",
         // The account page marks the order an email linked to.

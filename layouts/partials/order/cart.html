@@ -71,6 +71,13 @@
       </button>
     </div>
   </div>
+  {{/* The feedback for an Add (#267): the bar says what was added for a
+       moment while the pane is shut; the live region says it to a
+       screen reader on every Add. */}}
+  <div class="order-cart-added" data-cart-added-box>
+    <p class="order-cart-added-text" data-cart-added aria-hidden="true"></p>
+  </div>
+  <p class="visually-hidden" role="status" aria-live="polite" data-cart-live></p>
   {{/* Changing a paid order: what is paid, and the difference to pay
        or to get back. */}}
   <dl class="order-cart-lines" data-edit-money hidden>
