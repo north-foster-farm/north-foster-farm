@@ -1,5 +1,5 @@
 {
- "revision": 36,
+ "revision": 37,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -1083,21 +1083,156 @@
     },
     {
      "id": "gh-rules",
-     "title": "Protect the staging and main branches",
-     "body": "The `lint-and-test` check exists and has run on `next` (160452a).\n\nThis makes GitHub refuse any push to `staging` or `main` whose commit hasn't passed the tests. Releases stay a fast-forward of a commit already checked.\n1. Open the repository's **Settings → Rules → Rulesets → New ruleset → New branch ruleset**.\n2. Name it \"staging and main\", and set Enforcement status to **Active**.\n3. Leave the **Bypass list** empty, so administrators are included and nobody bypasses. The agents push as you, so a bypass for admins would let them skip the check.\n4. **Target branches:** add `staging` and `main` by pattern.\n5. **On:** Restrict deletions, Block force pushes, Require linear history.\n6. **On:** Require status checks to pass. Add `lint-and-test` with source **GitHub Actions**, and leave \"Require branches to be up to date before merging\" **off**.\n7. **Off:** Require a pull request before merging. Promotion is a fast-forward push, not a pull request.\n8. Create.\n\nLeave `next` unprotected, so lanes keep landing work. An emergency revert on `main` now goes through the tests first; `docs/rollback.md` says so.",
-     "minutes": 10,
+     "title": "Check the branch rules on GitHub",
+     "body": "The security lane applied these on 2026-10-18; you only confirm them. Open **Settings, Rules, Rulesets** in `north-foster-farm`. There should be two, both **Active**, both with an **empty Bypass list**:\n1. **fast-forward only: next, staging, main**: linear history, no force push, no deletion.\n2. **required checks: staging, main**: `lint-and-test`, `supply-chain` and `codeql`, each from GitHub Actions. `audit` joins when you answer the advisories decision.\n\n`next` requires no check, so lanes keep landing work. There is no pull-request rule on `main`, on purpose: GitHub's merge button cannot fast-forward, and a pull-request rule would reject the fast-forward push. `bin/nff promote main` checks your `LGTM` on the pull request instead. Whether to make GitHub enforce that with a second account is a decision below (D-SEC-REVIEWER). The full account is `docs/security.md`.",
+     "minutes": 5,
      "links": [
       {
        "label": "Rulesets",
        "url": "https://github.com/north-foster-farm/north-foster-farm/settings/rules"
       },
       {
-       "label": "docs/rollback.md (PR #245)",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/docs/rollback-and-secrets/docs/rollback.md"
+       "label": "docs/security.md (fast-forward only)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/security.md"
       }
      ],
      "device": "laptop",
      "type": "account"
+    }
+   ]
+  },
+  {
+   "id": "pre-security",
+   "title": "Security (GitHub and the audit)",
+   "phase": "pre",
+   "steps": [
+    {
+     "id": "sec-features",
+     "title": "Turn on GitHub's free security features",
+     "body": "Both repositories are public for good (decided 2026-10-18), so GitHub's free security features apply. They need owner rights. In **each** repository, open Settings, then Code security:\n1. **Secret scanning**, with **push protection**. Both are off today.\n2. **Private vulnerability reporting**, so an outsider writes to you and not to a public issue.\n3. In `nff-dashboard` only: **Dependabot alerts** and **Dependabot security updates**. They are off there, which is why it showed no alerts while `npm audit` finds several.\n4. Leave **CodeQL's default setup off** in both. A workflow scoped to `next`, `staging` and `main` does the scanning, and the default setup would scan every branch as well.\n\nDone when each setting reads Enabled.",
+     "minutes": 10,
+     "links": [
+      {
+       "label": "north-foster-farm, Code security",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/settings/security_analysis"
+      },
+      {
+       "label": "nff-dashboard, Code security",
+       "url": "https://github.com/north-foster-farm/nff-dashboard/settings/security_analysis"
+      }
+     ],
+     "device": "laptop",
+     "type": "account"
+    },
+    {
+     "id": "sec-audit-checks",
+     "title": "Make the two production-audit checks",
+     "body": "A daily workflow audits what is live for known vulnerabilities and pings a Healthchecks check: a plain ping when clean, a failure when not, which pages your phone through the account you already use. Make two checks, **Production audit** and **Dashboard production audit**, each with period **1 day** and grace **3 hours**, assigned to the ntfy integration. Then, in each repository, add the check's URL as an Actions secret named `PROD_AUDIT_PING_URL` (Settings, Secrets and variables, Actions, New repository secret).\n\nNothing runs until the workflow reaches `main`: the site's at launch, the dashboard's when its PR #30 merges, so the checks show \"new\" until then. Each URL goes in the **NFF launch** folder; the rotation log has its seed line.",
+     "minutes": 10,
+     "links": [
+      {
+       "label": "Healthchecks",
+       "url": "https://healthchecks.io/projects/"
+      },
+      {
+       "label": "north-foster-farm, Actions secrets",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/settings/secrets/actions"
+      },
+      {
+       "label": "nff-dashboard, Actions secrets",
+       "url": "https://github.com/north-foster-farm/nff-dashboard/settings/secrets/actions"
+      }
+     ],
+     "fields": [
+      {
+       "id": "hc_audit_site",
+       "label": "Production audit URL",
+       "secret": true,
+       "placeholder": "https://hc-ping.com/…",
+       "save": "Also in your password manager, in the **NFF launch** folder. Anyone with the URL can fake a clean day."
+      },
+      {
+       "id": "hc_audit_dash",
+       "label": "Dashboard production audit URL",
+       "secret": true,
+       "placeholder": "https://hc-ping.com/…",
+       "save": "Also in your password manager, in the **NFF launch** folder."
+      }
+     ],
+     "device": "laptop",
+     "type": "account"
+    },
+    {
+     "id": "sec-dash-vars",
+     "title": "Turn on the dashboard's daily sign-out check",
+     "body": "In `nff-dashboard`, open Settings, Secrets and variables, Actions, **Variables** (not Secrets) and add `SUPABASE_URL` and `SUPABASE_ANON_KEY`. Both are public: the app ships them to every visitor. The daily audit workflow then reads every table as a signed-out visitor and goes red if one returns a row, with counts only in the log.\n\nTo try it by hand first, in the dashboard's folder, with the two values in the environment: `npm run check:rls`.",
+     "minutes": 5,
+     "links": [
+      {
+       "label": "nff-dashboard, Actions variables",
+       "url": "https://github.com/north-foster-farm/nff-dashboard/settings/variables/actions"
+      }
+     ],
+     "device": "laptop",
+     "type": "account"
+    },
+    {
+     "id": "sec-migration",
+     "title": "Apply the dashboard's migration 0054 (after a backup)",
+     "body": "After the dashboard's PR #30 merges. The migration takes execute away from the signed-out role on four database functions and changes nothing else. Back up first, then push, in the dashboard's folder:\n```\nnode scripts/backup-db.mjs\nsupabase db push\n```\nThe file is `0054_revoke_anon_execute_on_definer_functions.sql`. Done when the push lists it and the daily sign-out check stays green.",
+     "minutes": 10,
+     "copy": [
+      {
+       "label": "Back up",
+       "value": "node scripts/backup-db.mjs"
+      },
+      {
+       "label": "Push",
+       "value": "supabase db push"
+      }
+     ],
+     "device": "laptop",
+     "type": "terminal"
+    },
+    {
+     "id": "sec-dash-rules",
+     "title": "Tighten the dashboard's branch rule (after PR #30)",
+     "body": "Only after PR #30 merges: a required check whose workflow is missing from a pull request's base can never report, so doing it sooner would stick every open pull request. In `nff-dashboard`, open Settings, Rules, Rulesets, **main: PR + green check only** and:\n1. Add the required checks `supply-chain` and `codeql` (source GitHub Actions).\n2. Turn on **Require linear history**.\n3. Change the bypass for Repository admin from **Always** to **Allow for pull requests only**.\n\nAdd `audit` to the required checks once you answer D-SEC-ADV.",
+     "minutes": 10,
+     "links": [
+      {
+       "label": "nff-dashboard, Rulesets",
+       "url": "https://github.com/north-foster-farm/nff-dashboard/settings/rules"
+      }
+     ],
+     "device": "laptop",
+     "type": "account"
+    },
+    {
+     "id": "sec-stranger",
+     "title": "Look at what a stranger can see",
+     "body": "In a private window, signed out of GitHub, open each repository's **Security** tab, then Code scanning. GitHub's API refuses anonymous callers, and the page's visibility could not be confirmed. If alerts show to everyone, an open alert is public the moment CodeQL raises it, so resolve one quickly; dismissing needs a reason and is your call. Tell Claude what you saw.",
+     "minutes": 5,
+     "links": [
+      {
+       "label": "north-foster-farm, Security",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/security"
+      },
+      {
+       "label": "nff-dashboard, Security",
+       "url": "https://github.com/north-foster-farm/nff-dashboard/security"
+      }
+     ],
+     "device": "any",
+     "type": "look"
+    },
+    {
+     "id": "sec-private-reports",
+     "title": "Read the two private security reports",
+     "body": "A secret scan of both repositories' whole history and a review of the functions against the OWASP Top 10 are done. Neither found a launch blocker, and the reports are private: they are in `~/Code/nff/incidents/`, never in a repository, an issue or this guide. Read the function review there; each open item has a recommendation. Tell Claude which you accept.",
+     "minutes": 15,
+     "device": "laptop",
+     "type": "look"
     }
    ]
   },
@@ -1123,7 +1258,7 @@
     {
      "id": "env-dev-set",
      "title": "Set DEV_NOTIFICATIONS_EMAIL in Netlify",
-     "body": "After the dev@ address works, set it on both contexts. It is an address, not a secret, so a plain variable is right. In the project folder:\n```\nnetlify env:set DEV_NOTIFICATIONS_EMAIL dev@northfosterfarm.com --context production --json\nnetlify env:set DEV_NOTIFICATIONS_EMAIL dev@northfosterfarm.com --context branch:staging --json\n```\nThen add `DEV_NOTIFICATIONS_EMAIL=dev@northfosterfarm.com` to your `.env.staging` and `.env.production` too, so `bin/nff env check` finds no difference. Use `--context`: `--scope` fails without saying so. Incident steps, rotation reminders and security alerts go to this address from the next deploy.",
+     "body": "After the dev@ address works, set it on both contexts. It is an address, not a secret, so a plain variable is right. In the project folder:\n```\nnetlify env:set DEV_NOTIFICATIONS_EMAIL dev@northfosterfarm.com --context production --json\nnetlify env:set DEV_NOTIFICATIONS_EMAIL dev+staging@northfosterfarm.com --context branch:staging --json\n```\nThen add `DEV_NOTIFICATIONS_EMAIL=dev+staging@northfosterfarm.com` to your `.env.staging` and `DEV_NOTIFICATIONS_EMAIL=dev@northfosterfarm.com` to your `.env.production` too, so `bin/nff env check` finds no difference. Use `--context`: `--scope` fails without saying so. Incident steps, rotation reminders and security alerts go to this address from the next deploy.",
      "minutes": 5,
      "copy": [
       {
@@ -1132,7 +1267,7 @@
       },
       {
        "label": "Staging",
-       "value": "bin/nff netlify env:set DEV_NOTIFICATIONS_EMAIL dev@northfosterfarm.com --context branch:staging --json"
+       "value": "bin/nff netlify env:set DEV_NOTIFICATIONS_EMAIL dev+staging@northfosterfarm.com --context branch:staging --json"
       }
      ],
      "device": "laptop",
@@ -1141,7 +1276,7 @@
     {
      "id": "env-notify-vars",
      "title": "Set the three notification addresses, and remove ADMIN_EMAILS",
-     "body": "`ADMIN_EMAILS` is gone. Its uses split three ways, and each address is required in production and staging:\n- `FARM_NOTIFICATIONS_EMAIL` = sales@northfosterfarm.com: the farm's notice of each new order, contact-form messages, the 8:00 morning report and the 18:00 tomorrow email. No alert goes there.\n- `DEV_NOTIFICATIONS_EMAIL` = dev@northfosterfarm.com: every alert, the maintenance flip notices, the session-end notice, the rotation reminder and the maintenance bypass's admin. Jim no longer hears the flips. An unset value fails the production build.\n- `ESCALATED_NOTIFICATIONS_EMAIL` = office@northfosterfarm.com: one message only, when \"orders not recorded\" has gone unacknowledged for an hour, and again every hour while the alert stays open. Jim gets nothing else.\n\nThe guide's env builder writes all three. Staging's farm and escalation addresses are dev@, so no staging mail reaches sales@ or office@. Check the `.env.production` and `.env.staging` you downloaded, then **delete the `ADMIN_EMAILS` line from both files and from Netlify** (the build and `env check` both fail while it exists anywhere; `env check` prints the unset command for a stray one on Netlify and never deletes). The two commands below do it. Then `bin/nff env push` and `env check`, as for the rest.",
+     "body": "`ADMIN_EMAILS` is gone. Its uses split three ways, and each address is required in production and staging:\n- `FARM_NOTIFICATIONS_EMAIL` = sales@northfosterfarm.com: the farm's notice of each new order, contact-form messages, the 8:00 morning report and the 18:00 tomorrow email. No alert goes there.\n- `DEV_NOTIFICATIONS_EMAIL` = dev@northfosterfarm.com: every alert, the maintenance flip notices, the session-end notice, the rotation reminder and the maintenance bypass's admin. Jim no longer hears the flips. An unset value fails the production build.\n- `ESCALATED_NOTIFICATIONS_EMAIL` = office@northfosterfarm.com: one message only, when \"orders not recorded\" has gone unacknowledged for an hour, and again every hour while the alert stays open. Jim gets nothing else.\n\nThe guide's env builder writes all three. Staging uses plus-addresses of dev@ for all three (`dev+staging@`, `dev+staging-farm@`, `dev+staging-escalated@`): Fastmail delivers each to dev@, and the tag in the address tells you which one it was, so no staging mail reaches sales@ or office@. `env check` does not enforce this, since it only compares what each context holds. Check the `.env.production` and `.env.staging` you downloaded, then **delete the `ADMIN_EMAILS` line from both files and from Netlify** (the build and `env check` both fail while it exists anywhere; `env check` prints the unset command for a stray one on Netlify and never deletes). The two commands below do it. Then `bin/nff env push` and `env check`, as for the rest.",
      "minutes": 10,
      "copy": [
       {
@@ -2234,7 +2369,7 @@
     {
      "id": "pl-rest",
      "title": "The rest of the after-launch list",
-     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- a function that filters for production deploy failures and pages your phone through the alerts check (D-NOTIFY, #248);\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- Resend's Contacts and Segments (D-148, #148): built and held on `hold/148`; the old API still works, so launch day has no migration step. **Switch maintenance mode on first, for the cutover** (`bin/nff --production maintenance on`, then off when it is checked), so no sign-up or order lands half in the old audience and half in the new;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159);\n- move both repositories (`north-foster-farm`, `nff-dashboard`) to your personal account and make them private. They are public today, which is why Netlify's free plan can host an organization repository. Plan it as one item:\n  - **GitHub Pro** (about $4 a month) is needed for branch protection and rulesets on private personal repositories, and for 3,000 Actions minutes;\n  - **Actions minutes:** staging's jobs every 15 minutes are about 2,900 runs a month, plus CI. Proposed: hourly staging jobs, or move them off Actions;\n  - **Anything that reads a repository without signing in breaks once it is private:** this guide's `raw.githubusercontent.com` fetch (moot if the dashboard version has replaced it) and image links in issues;\n  - **Re-link:** the Netlify sites, the GitHub apps (Netlify, Claude), the coordinator's and lanes' access, webhooks and the `STAGING_TOKEN` repository secret;\n  - **Order:** transfer, check redirects, make private, then re-link and check the deploys.\n- script the revert of a release as `bin/nff rollback revert` (branch, revert range, CI dispatch, watch, fast-forward, push). It stops on any failure and asks for your go before it pushes `main`;\n- the checkout lane's `Record-shape:` commit-trailer check in `lint-and-test` (`docs/rollback.md`), and the check that the rotation log has a seed line for every secret (`docs/secrets.md`).\n\nTick this when you've told Claude your order.\n- **Evaluate a scoped Square OAuth login** in place of the long-lived access token (your 10/18 note on #267). A research item, not built.\n- a switch that stops only the PayPal and Venmo path, so a leaked PayPal secret does not need the whole shop closed while Card keeps taking orders (`docs/secrets.md`, PayPal);\n- evaluate a scoped Square login (OAuth with the minimum permissions) instead of the all-powerful personal access token;\n- replace bin/nff's Blobs calls with the site's own admin API, behind an admin session or a scoped admin key, so the Netlify token can be deleted.",
+     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- a function that filters for production deploy failures and pages your phone through the alerts check (D-NOTIFY, #248);\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- Resend's Contacts and Segments (D-148, #148): built and held on `hold/148`; the old API still works, so launch day has no migration step. **Switch maintenance mode on first, for the cutover** (`bin/nff --production maintenance on`, then off when it is checked), so no sign-up or order lands half in the old audience and half in the new;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159);\n- revisit moving the repositories to your personal account and making them private when site revenue makes the cost a non-issue (decided 2026-10-18: they stay public and in the organization for now, because a private organization repository needs Netlify's $20 a month plan, and GitHub's code security costs extra on a private one). The standing rules that replace the old wait are in `docs/security.md`;\n- script the revert of a release as `bin/nff rollback revert` (branch, revert range, CI dispatch, watch, fast-forward, push). It stops on any failure and asks for your go before it pushes `main`;\n- the checkout lane's `Record-shape:` commit-trailer check in `lint-and-test` (`docs/rollback.md`), and the check that the rotation log has a seed line for every secret (`docs/secrets.md`).\n\nTick this when you've told Claude your order.\n- **Evaluate a scoped Square OAuth login** in place of the long-lived access token (your 10/18 note on #267). A research item, not built.\n- a switch that stops only the PayPal and Venmo path, so a leaked PayPal secret does not need the whole shop closed while Card keeps taking orders (`docs/secrets.md`, PayPal);\n- evaluate a scoped Square login (OAuth with the minimum permissions) instead of the all-powerful personal access token;\n- replace bin/nff's Blobs calls with the site's own admin API, behind an admin session or a scoped admin key, so the Netlify token can be deleted.",
      "minutes": 5,
      "device": "any",
      "type": "decide"
@@ -2624,6 +2759,23 @@
       {
        "label": "Any staging page",
        "url": "https://staging--north-foster-farm.netlify.app/"
+      }
+     ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-18",
+     "changed": "The gaps between the footer's rows are built to your numbers (#226, 06b5532, on `next`).",
+     "summary": "The sign-up to the APPPA logo, the logo to the page links and the page links to the contact line are 2.5 units apart. The contact line to the copyright is 2 units. One unit was the old uniform gap, but the old gaps were not uniform (32, 28, 12 and 16px), so **the build took a unit as 1.5rem**. That gives 60, 60, 60 and 48px, identical at 390px and 1440px.\n\n**Check:** open the two screenshots below, then a staging page on your phone. Done when the spacing reads right to you. If it is too much or too little, say what a unit should be and the numbers follow.",
+     "recommendation": "Approve 1.5rem as the unit, or give another.",
+     "look": [
+      {
+       "label": "Footer at 390px",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/ft-spacing/footer-390.png"
+      },
+      {
+       "label": "Footer at 1440px",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/ft-spacing/footer-1440.png"
       }
      ]
     }
@@ -3699,6 +3851,34 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/rollback.md"
       }
      ]
+    },
+    {
+     "rev": 7,
+     "date": "2026-10-18",
+     "changed": "The repositories stay public, so the old \"until they are private\" rules are standing rules. A new security page carries your dependency, remediation, code analysis and fast-forward decisions. Six small commits on `next`.",
+     "summary": "- [docs/security.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/security.md) (a5e5365, new): the standing public-repository rules and the revisit trigger, the dependency policy, remediation on events, Cases A and B, code analysis, and the rulesets with `bin/nff promote`. It follows what the security lane built.\n- [docs/rollback.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/rollback.md) (3e7a5c2): Cases A and B (a bad release we adopted, and an exploited flaw we have had a while), the incident rule without \"revisit when private\", and the revert reading the rulesets.\n- [docs/staging.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/staging.md) (f304449): the two rulesets and `bin/nff promote` replace the old branch protection paragraph.\n- [docs/secrets.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md) (3598400): Actions logs and artifacts hold counts only, as a standing rule, with no scan reports; the audit's ping URL joins the table.\n- [docs/monitoring.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/monitoring.md) (74724bb): the daily production audit heartbeat.\n- `docs/rotation-log.md` (62bcfad): a seed line for the audit's ping URL, which the rotation check requires.\n\nThe repository move to your personal account is gone from the after-launch list. The new decisions are D-SEC-ADV, D-SEC-REVIEWER, D-SEC-REPORTS and D-PREVIEWS.",
+     "look": [
+      {
+       "label": "docs/security.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/security.md"
+      },
+      {
+       "label": "docs/rollback.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/rollback.md"
+      },
+      {
+       "label": "docs/staging.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/staging.md"
+      },
+      {
+       "label": "docs/secrets.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md"
+      },
+      {
+       "label": "docs/monitoring.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/monitoring.md"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -3733,6 +3913,94 @@
      "date": "2026-10-18",
      "summary": "Your comment on #267 named two secrets that are swapped at once, with no 31-day overlap: `STAGING_TOKEN` and the maintenance secret. `docs/secrets.md` (rule 6) also lists `E2E_STAGING_TOKEN` there, because it is the same kind of secret: we generate it, only staging and the test suite hold it, and it opens only the staging back-office API. Keeping the old one 31 days would need code that accepts two values, for a token that unlocks nothing on production.\n\nThe swap is one sitting: Netlify's staging context, the GitHub secret, `.env.e2e-staging` and the password manager.",
      "recommendation": "Approve: swap `E2E_STAGING_TOKEN` at once, like the other two. Otherwise say which overlap you want, and the rule and the token's code change."
+    }
+   ]
+  },
+  {
+   "id": "D-SEC-ADV",
+   "section": "rv-decide",
+   "title": "The audit's seven open advisories",
+   "area": "#267, security",
+   "device": "any",
+   "type": "decide",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "summary": "The daily audit fails while an advisory has neither a fix in the lockfile nor a recorded exception, and a merge to `staging` or `main` is blocked until it clears. Lockfile updates fixed 13 of the site's 15 advisories (all six Dependabot alerts) and most of the dashboard's 53. Seven are left, and only you can accept an exception. Each is in build, lint or test tooling, never in the functions or the shipped site.\n\n**Site (2).**\n- `braces`, GHSA-vfj7-8cjw-p6xm, high. No release has a fix. It is reached only through `postcss-cli` and `stylelint`, with patterns from our own repository. **Accept.** The Tailwind migration removes both.\n- `postcss-selector-parser`, GHSA-rj75-hqrm-r3gf, moderate. The fix needs major bumps of build tooling the Tailwind migration deletes. It parses our own CSS at build time. **Accept.**\n\n**Dashboard (5).**\n- `vite` 5.4.21 and `esbuild`: four advisories, all about the development server, two Windows-only. Production is the static output of `vite build`. One major bump fixes all four: vite 6.4.3, which the build plugins accept. **Approve the bump** as a pull request of its own, or accept the four meanwhile.\n- `braces`, GHSA-vfj7-8cjw-p6xm, high: as on the site, through `stylelint`. **Accept.**\n- `vitest`, GHSA-82fw-gwwq-j7x9, moderate, test time only. 4.1.11 fixes it, but installing it pulls in packages under 7 days old (the newest, 2026-10-18), so the cooldown blocks it until 2026-10-25. **Wait;** Dependabot proposes it once the cooldown passes. Accept until then.\n\nAlso fixed, no decision needed: two `dompurify` advisories, one high `@modelcontextprotocol/sdk` advisory, and `qs` held at 6.16.0 by an override. All are in dashboard PR #30.\n\nEach exception is a short entry in `security/exceptions.json` (package, advisory, why, exposure, plan, and the fix you have looked at, so it comes back when a newer one ships). Answer here and the security lane opens the pull request. Once answered, `audit` joins the required checks and a promotion fails on an unresolved advisory.",
+     "recommendation": "Accept `braces` (site and dashboard) and `postcss-selector-parser`. Approve the vite 6.4.3 bump. Wait for `vitest` until 2026-10-25.",
+     "look": [
+      {
+       "label": "docs/security.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/security.md"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "D-SEC-REVIEWER",
+   "section": "rv-decide",
+   "title": "A second GitHub login to approve main",
+   "area": "#267, security",
+   "device": "any",
+   "type": "decide",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "summary": "GitHub holds one account, yours, and every agent uses it, so GitHub cannot enforce that you approved a release. Today `bin/nff promote main` checks the evidence on the pull request: it is open, its head is exactly the commit, your `LGTM` label went on after that commit was made, and the checks are green. It cannot tell who put the label there.\n\nTo make it real, add a reviewer account (a second GitHub login; a free one is enough), turn on a rule requiring a pull request with one approval from it on `main`, and give nobody a bypass. `promote` already fast-forwards to the approved commit. The cost is a login only you hold, and an approval click on every release.",
+     "recommendation": "Yes, before launch, since `main` deploys production. Otherwise say \"as is\", and the approval stays a check of the pull request's evidence.",
+     "look": [
+      {
+       "label": "docs/security.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/security.md"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "D-SEC-REPORTS",
+   "section": "rv-decide",
+   "title": "Where a full security scan report goes",
+   "area": "#267, security",
+   "device": "any",
+   "type": "decide",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "summary": "On a public repository, workflow logs and uploaded files can be read by anyone, so neither may hold a finding. The planned ZAP scans (a passive baseline on production, an active one on staging through the gate's machine credential) will write only a pass or fail count to the log. The full report has to go somewhere private. Two choices:\n- **Encrypted to your age key, in the private R2 bucket.** The runner encrypts before upload, as the backups do. Nothing readable leaves the runner, and the key that reads it stays on your Mac.\n- **Mailed to `DEV_NOTIFICATIONS_EMAIL`.** Simpler, but findings sit in a mailbox.\n\nThe same applies to any later audit's findings. Neither is built, and the scans are not yet either.",
+     "recommendation": "The encrypted file in R2. Say \"mail\" if you would rather have it in your inbox.",
+     "look": [
+      {
+       "label": "docs/security.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/security.md"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "D-PREVIEWS",
+   "section": "rv-decide",
+   "title": "Deploy previews are closed to everyone. Keep them so?",
+   "area": "#267, staging gate",
+   "device": "any",
+   "type": "decide",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "summary": "A deploy preview builds a pull request's code, so it holds no secret. The gate needs a sending key to mail its sign-in link, and the `GATE_*` values stay off previews for that reason. A preview is still behind the gate, but with no way to mail a link it is closed to everyone, you included. That fails safe. Reviewing a change then means looking at it on staging.\n\nTo make previews reviewable, a preview would need a sending key of its own, which code in an unreviewed pull request could read and misuse. The alternative is a gate sign-in that does not mail (for example, a token you hold), which is new work.",
+     "recommendation": "Keep previews closed and review on staging. Say \"open them\" to have the alternative designed.",
+     "look": [
+      {
+       "label": "docs/staging.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/staging.md"
+      }
+     ]
     }
    ]
   },
@@ -4070,6 +4338,12 @@
       }
      ],
      "recommendation": "Check with ten items first: it is the worst case."
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-18",
+     "changed": "The cart part of this check is superseded by cart round 2.",
+     "summary": "Check the order form and payment items above as before. Hold the cart items (the 58% cap, the \"N more\" strip, the badge line) until round 2 lands: the cap is now about 48%, the two toggles become one segmented control, and a guaranteed minimum replaces the cap on small screens. See D-CART4. Everything in R-ORDERS that is not the cart pane still stands."
     }
    ]
   },
@@ -4201,6 +4475,18 @@
       }
      ],
      "recommendation": "A. Pick A or B, and say raise the cap or trim the rows. Nothing is built until you pick."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-18",
+     "changed": "Decided: the segmented control (option A). The orders lane is building cart round 2.",
+     "summary": "You chose the segmented control on #267, with the fill sliding between the halves, so the two clips above are superseded and nothing is left to pick. Two more rules came with it:\n- **Small screens.** The pane keeps a guaranteed minimum of three item rows, the total row and \"Continue to payment\". Where that fits under the cap of about 48% of the screen, the cap applies. Where it does not, the pane grows, never past the visible area above Safari's toolbar: on an SE on its side it becomes a full-height sheet with its own scrolling list. This answers the known limit in R-ORDERS.\n- **Add-to-cart feedback.** The first add of a visit opens the pane, outlines the new line, closes it after three or four seconds and pulses the Hide/Show pill twice. Later adds leave it closed, show \"Added: item\" on the bar and pulse the pill once. Touching the pane keeps it open. Reduced motion gets no pulse and no slide.\n\nA review item with iPhone screenshots and two clips comes when round 2 lands on staging.",
+     "look": [
+      {
+       "label": "Your screenshot: the pane sits too high",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/cart-pane-gap-safari.png"
+      }
+     ]
     }
    ]
   },
@@ -4622,7 +4908,7 @@
       "value": "farm@example.com"
      },
      "staging": {
-      "value": "dev@northfosterfarm.com"
+      "value": "dev+staging-farm@northfosterfarm.com"
      },
      "production": {
       "value": "sales@northfosterfarm.com"
@@ -4639,7 +4925,7 @@
       "value": "dev@example.com"
      },
      "staging": {
-      "value": "dev@northfosterfarm.com"
+      "value": "dev+staging@northfosterfarm.com"
      },
      "production": {
       "value": "dev@northfosterfarm.com"
@@ -4656,7 +4942,7 @@
       "value": "office@example.com"
      },
      "staging": {
-      "value": "dev@northfosterfarm.com"
+      "value": "dev+staging-escalated@northfosterfarm.com"
      },
      "production": {
       "value": "office@northfosterfarm.com"
