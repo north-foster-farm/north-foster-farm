@@ -8,6 +8,12 @@
 //   contact.deleted   off the audience, so off the list here too;
 //                     left alone, the sync would add them back.
 //
+//   email.sent        checked against the ledger of messages our own
+//                     code sent; one it does not hold trips the send
+//                     breaker (lib/breaker.mjs)
+//   email.bounced,
+//   email.complained  counted toward the breaker's reputation limits
+//
 // One Resend account serves every environment, so each receives every
 // contact event; one outside this deploy's RESEND_AUDIENCE_ID is
 // ignored. Resend retries on anything but a 2xx, so an ignored event
@@ -16,6 +22,7 @@
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { onFeedback, onSent } from "./lib/breaker.mjs";
 import { mark } from "./lib/health.mjs";
 import { json } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
@@ -101,6 +108,7 @@ export const handle = async (req, {
   check = rejection,
   mail,
   fetchImpl,
+  wait,
 } = {}) => {
   const body = await req.text();
   const reason = check(req.headers, body, { env, now });
@@ -125,7 +133,11 @@ export const handle = async (req, {
 
   await mark(stores, "webhook", { type: event.type }, now);
 
-  const result = await applyEvent(stores, event, { env, now });
+  const result = event.type === "email.sent"
+    ? await onSent(stores, event, { env, now, fetchImpl, wait })
+    : event.type === "email.bounced" || event.type === "email.complained"
+      ? await onFeedback(stores, event, { env, now, fetchImpl })
+      : await applyEvent(stores, event, { env, now });
 
   log.info({ event: "resend.webhook", type: event.type, ...result });
 
