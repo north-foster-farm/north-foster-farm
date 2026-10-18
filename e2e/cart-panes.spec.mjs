@@ -1,13 +1,15 @@
 // The phone cart's panes (#267, orders' 778fd94 to 9c344db): the lines
-// and the sums take turns, neither passes 55% of the screen, and the
-// shared row's controls are one height whichever side shows. What a
-// spec cannot reach is on a real iPhone: the keyboard riding the cart
-// up (visualViewport), the notch's safe areas and how the glide feels.
+// and the sums take turns, the whole pane stays within 60% of the
+// screen either way, and the shared row's controls are one height
+// whichever side shows. What a spec cannot reach is on a real iPhone:
+// the keyboard riding the cart up (visualViewport), the notch's safe
+// areas and how the glide feels.
 // docs/qa-launch.md, OP-28.
 
 import { FULL_CART, OrderPage, expect, test } from "./support/order.mjs";
 
 const PHONE = { width: 390, height: 664 };
+const TALL = { width: 390, height: 844 };
 
 test.describe("cart panes on a phone", () => {
   test.use({ viewport: PHONE });
@@ -44,30 +46,41 @@ test.describe("cart panes on a phone", () => {
     await expect(cart).toHaveAttribute("data-money", "closed");
   });
 
-  test("neither pane passes 55% of the screen", async ({ page }) => {
-    const order = new OrderPage(page);
+  // The whole open pane, every row of it, not a part: the lines alone
+  // stayed under the cap while the pane took 70% (#267).
+  for (const size of [PHONE, TALL]) {
+    test(`the open pane fits 60% of a ${size.height}px screen`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(size);
 
-    await order.open(FULL_CART);
+      const order = new OrderPage(page);
 
-    const cart = order.cart;
-    const cap = PHONE.height * 0.55 + 1;
-    const items = cart.locator("[data-cart-items-toggle]");
-    const money = cart.locator("[data-cart-money-toggle]");
+      await order.open(FULL_CART);
 
-    for (const [toggle, pane] of [
-      [items, ".order-cart-list"], [money, ".order-cart-money"],
-    ]) {
-      if ((await toggle.getAttribute("aria-expanded")) !== "true") {
-        await toggle.click();
+      const cart = order.cart;
+      const cap = size.height * 0.6 + 1;
+      const items = cart.locator("[data-cart-items-toggle]");
+      const money = cart.locator("[data-cart-money-toggle]");
+      const hide = cart.locator("[data-cart-toggle]");
+
+      if ((await hide.getAttribute("aria-expanded")) !== "true") {
+        await hide.click();
       }
-      await page.waitForTimeout(400);
 
-      const b = await cart.locator(pane).boundingBox();
+      for (const toggle of [items, money]) {
+        if ((await toggle.getAttribute("aria-expanded")) !== "true") {
+          await toggle.click();
+        }
+        await page.waitForTimeout(500);
 
-      expect(b, pane).toBeTruthy();
-      expect(b.height, pane).toBeLessThanOrEqual(cap);
-    }
-  });
+        const b = await cart.boundingBox();
+
+        expect(b).toBeTruthy();
+        expect(b.height).toBeLessThanOrEqual(cap);
+      }
+    });
+  }
 
   test("the shared row's controls are all 36px tall", async ({ page }) => {
     const order = new OrderPage(page);

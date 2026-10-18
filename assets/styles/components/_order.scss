@@ -2027,16 +2027,15 @@
         box-shadow: 0 0 0 rgb(0 0 0 / 0%);
       }
 
-      // On a phone the parts under the lines take about 330px, so the
-      // cap is all of the screen under the top bar but a strip of the
-      // list, and the lines get what the parts under them leave: five
-      // or more rows on an iPhone with its toolbars showing (#180).
-      // The bar sits lower until the page scrolls it to the top;
-      // order-form.js keeps --cart-bar at its bottom edge.
+      // On a phone the whole open pane, every row of it, stays within
+      // 58% of the screen (James, #267): the page behind it stays in
+      // view, and the lines scroll in what the parts under them
+      // leave. The keyboard takes its share first.
       @media (max-width: 767.98px) {
-        --cart-top: max(var(--order-topbar-h), var(--cart-bar, 0px));
-
-        max-height: calc(100svh - var(--cart-top) - 3rem - var(--cart-kb, 0px));
+        max-height: min(
+          58svh,
+          calc(100svh - var(--order-topbar-h) - 3rem - var(--cart-kb, 0px))
+        );
       }
     }
 
@@ -2064,15 +2063,10 @@
   // Nothing from the sums to the badges is tapped, so they sit closer
   // and leave the height to the lines.
   @media (max-width: 767.98px) {
-    // Neither the lines nor the sums take more than 55% of the screen:
-    // the page behind the cart stays in view.
-    .order-cart-list,
-    .order-cart-money {
-      max-height: 55svh;
-    }
-
+    // The pane's own cap (above) decides the height; the lines give
+    // way to it down to a floor of two rows.
     .order-cart-scroll {
-      min-height: min(5.5rem, var(--cart-list-h, 5.5rem));
+      min-height: min(3.5rem, var(--cart-list-h, 3.5rem));
     }
 
     // The list is only as tall as its rows, so the floor is measured
