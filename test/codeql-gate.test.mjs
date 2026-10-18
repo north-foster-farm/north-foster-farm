@@ -18,6 +18,7 @@ const reply = (body, status = 200) => async (url) => ({
 
 const analysis = (extra = {}) => ({
   tool: { name: "CodeQL" }, error: "", ref: "refs/heads/next",
+  commit_sha: "abc",
   created_at: "2026-10-18T10:00:00Z", ...extra,
 });
 const alert = (level, state = "open") => ({
@@ -31,14 +32,19 @@ describe("findAnalysis", () => {
       analysis({ ref: "refs/heads/next" }),
       analysis({ ref: "refs/heads/bad", error: "boom" }),
       analysis({ tool: { name: "Other" }, ref: "refs/heads/other" }),
-    ]);
+    ], "abc");
 
     assert.equal(found.ref, "refs/heads/next");
   });
 
   it("is null when there is none to use", () => {
-    assert.equal(findAnalysis([]), null);
-    assert.equal(findAnalysis([analysis({ error: "boom" })]), null);
+    assert.equal(findAnalysis([], "abc"), null);
+    assert.equal(findAnalysis([analysis({ error: "boom" })], "abc"), null);
+  });
+
+  it("ignores an analysis of another commit", () => {
+    assert.equal(findAnalysis([analysis({ commit_sha: "other" })], "abc"),
+      null);
   });
 });
 

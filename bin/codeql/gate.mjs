@@ -45,11 +45,15 @@ const get = async (path, { env, fetchImpl, none }) => {
   return res.json();
 };
 
-// The newest clean CodeQL analysis in a list, or null. GitHub answers
-// 404 to the analyses query while a repository has none at all, which
-// is the first run: that is an empty list here, and nothing else is.
-export const findAnalysis = (analyses) => {
-  const clean = analyses.filter((a) => a.tool?.name === "CodeQL" && !a.error);
+// The newest clean CodeQL analysis of `sha` in a list, or null. The
+// API's own sha filter is ignored (checked 2026-10-18: it returns every
+// analysis, newest first), so the match is made here, over the latest
+// hundred. GitHub answers 404 to the query while a repository has no
+// analysis at all, which is the first run: `seen` reads that as an
+// empty list, and nothing else.
+export const findAnalysis = (analyses, sha) => {
+  const clean = analyses.filter((a) => a.tool?.name === "CodeQL"
+    && a.commit_sha === sha && !a.error);
 
   clean.sort((a, b) => String(b.created_at)
     .localeCompare(String(a.created_at)));
@@ -83,7 +87,7 @@ export const seen = async ({ env = process.env, fetchImpl = fetch,
     `/repos/${repo}/code-scanning/analyses?sha=${SHA}&tool_name=CodeQL`
       + "&per_page=100", { env, fetchImpl, none: [] });
 
-  return findAnalysis(analyses);
+  return findAnalysis(analyses, SHA);
 };
 
 export const check = async ({ env = process.env, fetchImpl = fetch } = {}) => {
