@@ -207,8 +207,11 @@ contexts only: `MAIL_DRIVER=outbox`. `GATE_TOOLBAR_EMAIL` and
 `STAGING_TOKEN` go on the branch-deploy context alone: without them
 the staging API is a 404, so a preview, which has neither, shows no
 outbox (magic links are in it). The gate's `GATE_RESEND_KEY` and
-`GATE_MAIL_FROM` go on the branch-deploy and deploy-preview contexts,
-and the allowlist is seeded with `bin/nff --staging gate allow add`
+`GATE_MAIL_FROM` go on the branch-deploy context alone: a preview
+builds pull-request code, so it holds no secret (docs/secrets.md,
+"Previews"). A preview is still gated, and with no sending key it
+mails no link, so it is closed to everyone, which fails safe. The
+allowlist is seeded with `bin/nff --staging gate allow add`
 before the first deploy that carries the gate. Leave production's `MAIL_DRIVER=resend`
 alone. Allow branch deploys for `staging` under Site configuration →
 Build & deploy → Branch deploys. Subscribe the Square sandbox
