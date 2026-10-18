@@ -28,6 +28,7 @@ import { keychainToken, tokenInFiles } from "./env/keychain.mjs";
 import { readSample, readValues, sampleFile } from "./env/sample.mjs";
 import { verifyEnv } from "./env/verify.mjs";
 import { setSchedule } from "./schedule-env.mjs";
+import { USAGE as PROMOTE_USAGE, promoteCommand } from "./promote.mjs";
 import { USAGE as SUPPLY_USAGE, supplyCommand } from "./supply/waive.mjs";
 
 const USAGE = `Usage:
@@ -141,6 +142,7 @@ const USAGE = `Usage:
 ${BREAKER_USAGE}
 ${GATE_USAGE}
 ${SUPPLY_USAGE}
+${PROMOTE_USAGE}
   bin/nff health                     what /api/health would answer
   bin/nff alert test [--production|--staging]
                                       one real alert, past the hourly
@@ -694,6 +696,9 @@ const run = async () => {
     return gateCommand(action, rest, {
       stores, flags, out, context: process.env.SITE_CONTEXT,
     });
+  }
+  if (group === "promote") {
+    return promoteCommand(action, rest, { flags, out });
   }
   if (group === "supply") {
     return supplyCommand(action, rest, { flags, out, root });
