@@ -872,15 +872,36 @@
     white-space: nowrap;
   }
 
-  .order-cart-way {
+  // One height for everything the shared row shows, so opening the
+  // field or the switch moves nothing: the two buttons, the three ways,
+  // the code field and Apply.
+  .order-cart-way,
+  .order-cart-add-code,
+  .order-cart-pick,
+  .order-cart-code-input,
+  .order-cart-apply {
+    box-sizing: border-box;
+    height: 2.25rem;
+    min-height: 0;
+    padding-block: 0;
+    line-height: 1;
+  }
+
+  .order-cart-way,
+  .order-cart-add-code,
+  .order-cart-pick,
+  .order-cart-apply {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .order-cart-way {
     gap: 0.375rem;
   }
 
   // The three ways, as one switch; the one the page holds is filled.
-  .order-cart-ways > [data-way] {
+  .order-cart-pick {
     flex: 1 1 auto;
     padding-inline: 0.5rem;
     white-space: nowrap;

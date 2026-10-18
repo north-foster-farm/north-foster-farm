@@ -104,7 +104,7 @@
         <button type="button" class="btn btn-sm btn-outline-primary order-cart-add-code" aria-expanded="false" aria-controls="order-cart-code" data-code-toggle>Add discount</button>
         <div class="btn-group order-cart-ways" id="order-cart-ways" role="group" aria-label="Pickup or delivery">
           {{ range $ways }}
-            <button type="button" class="btn btn-sm btn-outline-primary" aria-pressed="false" data-way="{{ .value }}">{{ .name }}</button>
+            <button type="button" class="btn btn-sm btn-outline-primary order-cart-pick" aria-pressed="false" data-way="{{ .value }}">{{ .name }}</button>
           {{ end }}
         </div>
         {{/* A discount code. Known codes are checked on the server; the
@@ -113,7 +113,7 @@
         <div class="order-cart-code" id="order-cart-code">
           <label class="visually-hidden" for="order-code">Discount code</label>
           <input class="form-control form-control-sm order-cart-code-input" type="text" id="order-code" name="code" placeholder="Discount code" autocomplete="off" autocapitalize="characters" spellcheck="false" data-field="code" aria-describedby="order-code-note">
-          <button type="button" class="btn btn-sm btn-outline-primary" data-code-apply>Apply</button>
+          <button type="button" class="btn btn-sm btn-outline-primary order-cart-apply" data-code-apply>Apply</button>
         </div>
       </div>
       <p class="order-cart-code-note" id="order-code-note" data-code-note aria-live="polite" hidden></p>
