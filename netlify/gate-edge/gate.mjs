@@ -8,7 +8,7 @@
 
 /* global Netlify */
 
-import { getStore } from "npm:@netlify/blobs@11.1.0";
+import { getStore } from "@netlify/blobs";
 
 import { gateRequest } from "../functions/lib/gate-edge.mjs";
 
