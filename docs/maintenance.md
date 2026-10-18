@@ -43,6 +43,27 @@ and `/api/checkout/config`; `/api/health`; the contact form; and
 A payment already under way when the switch flips finishes and is
 recorded: the check is made once, at the start of the request.
 
+## The admin bypass
+
+A signed-in admin goes through while customers are refused, so a real
+test order can prove a new token before the switch goes off (the
+rotation steps in `docs/secrets.md`). An admin is a session whose
+address is in `ADMIN_EMAILS` or `DEV_NOTIFICATIONS_EMAIL`. It is the
+session that counts: no URL parameter, header or cookie other than the
+signed-in session changes anything.
+
+For an admin, the order page, checkout and the account area work as
+usual, and `/api/me` carries no maintenance notice. An admin address
+can still ask for a sign-in link and spend it, so an admin with no
+session can sign in; the link goes only to that mailbox. Every other
+address is refused as before.
+
+Each request an admin sends through is logged as
+`maintenance.admin_pass` with its `area` (`order` or `account`) and a
+short hash of the admin's address. An order takes several requests (a
+Venmo one at least two), so count the order ids on the orders
+themselves; the log says that the door was used, and by whom.
+
 ## Flipping it
 
 From a terminal, with the context's flag (`--staging` or

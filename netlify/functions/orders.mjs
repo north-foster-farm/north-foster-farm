@@ -169,7 +169,7 @@ export const handle = async (req, {
   // through, because money has moved or is about to: a Venmo capture
   // the customer already approved, and the record of a submission
   // that was paid before the flip (checked below).
-  const closed = await gate(stores);
+  const closed = await gate(stores, { req, env, now, area: "order" });
   const capturing = !!payload.payment && payload.payment.method === "venmo"
     && payload.payment.stage === "capture";
 

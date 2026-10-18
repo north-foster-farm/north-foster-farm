@@ -143,6 +143,16 @@ export const verifyToken = async (stores, token, { now = new Date() } = {}) => {
   return { ok: true, email: found.email, next: found.next || "/account/" };
 };
 
+// Whose address a sign-in token carries, without spending it. Under
+// maintenance an admin's link still works.
+export const tokenEmail = async (stores, token) => {
+  if (!token || typeof token !== "string" || token.length > 200) return null;
+
+  const found = await stores.auth.get(`token/${hash(token)}`);
+
+  return found ? found.email : null;
+};
+
 export const createSession = async (stores, email, {
   now = new Date(),
   via = "link",

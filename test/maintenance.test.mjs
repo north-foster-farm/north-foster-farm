@@ -630,3 +630,142 @@ describe("the signed links", () => {
     );
   });
 });
+
+describe("the admin bypass", () => {
+  const adminCookie = async (stores, email = "james@example.com") => {
+    const session = await createSession(stores, email, { now });
+
+    return `nff_session=${session.id}`;
+  };
+  const watch = (t) => {
+    const lines = [];
+
+    t.mock.method(console, "warn", (text) => {
+      lines.push(JSON.parse(text));
+    });
+
+    return lines;
+  };
+
+  it("lets a signed-in admin order while customers are refused",
+    async (t) => {
+      const stores = testStores();
+      const fake = fakes();
+      const lines = watch(t);
+      const cookie = await adminCookie(stores);
+
+      await on(stores, mailbox().mail);
+
+      const customer = await order(stores, orderBody(), fake);
+      const admin = await ordersApi(post("/api/orders", orderBody(), {
+        cookie,
+      }), {
+        stores, env, now, square: fake.square, paypal: fake.paypal,
+        sleep: async () => {},
+      });
+
+      assert.equal(customer.status, 503);
+      assert.equal(admin.status, 200);
+      assert.ok(fake.calls.length > 0);
+
+      const passes = lines.filter((l) => l.event === "maintenance.admin_pass");
+
+      assert.equal(passes.length, 1);
+      assert.equal(passes[0].area, "order");
+      assert.doesNotMatch(JSON.stringify(passes[0]), /example\.com/);
+    });
+
+  it("does not trust a URL parameter, a header or a customer session",
+    async () => {
+      const stores = testStores();
+      const fake = fakes();
+      const { cookie } = await signedIn(stores);
+
+      await on(stores, mailbox().mail);
+
+      const res = await ordersApi(
+        post("/api/orders?admin=1&maintenance=off", orderBody(), {
+          cookie, "x-admin": "1",
+        }),
+        {
+          stores, env, now, square: fake.square, paypal: fake.paypal,
+          sleep: async () => {},
+        }
+      );
+
+      assert.equal(res.status, 503);
+      assert.deepEqual(fake.calls, []);
+    });
+
+  it("refuses an expired admin session", async () => {
+    const stores = testStores();
+    const cookie = await adminCookie(stores);
+    const later = new Date(now.getTime() + 365 * 24 * 60 * 60_000);
+
+    await on(stores, mailbox().mail);
+
+    const res = await accountApi(new Request("https://x/api/account/orders", {
+      headers: { cookie },
+    }), { stores, env, now: later });
+
+    assert.equal(res.status, 503);
+  });
+
+  it("shows an admin their own account", async () => {
+    const stores = testStores();
+    const cookie = await adminCookie(stores);
+
+    await on(stores, mailbox().mail);
+
+    const res = await account(stores, "GET", "/api/account/orders", null,
+      cookie);
+
+    assert.equal(res.status, 200);
+  });
+
+  it("leaves /api/me free of the notice for an admin only", async () => {
+    const stores = testStores();
+    const cookie = await adminCookie(stores);
+    const { cookie: customerCookie } = await signedIn(stores);
+    const me = async (headers) => (await authApi(
+      new Request("https://x/api/me", { headers }), { stores, env, now }
+    )).json();
+
+    await on(stores, mailbox().mail);
+
+    assert.equal((await me({ cookie })).maintenance, undefined);
+    assert.equal((await me({ cookie: customerCookie })).maintenance, true);
+  });
+
+  it("lets an admin address sign in, and no one else", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await on(stores, mailbox().mail);
+
+    const request = (email) => authApi(post("/api/auth/request", {
+      email, next: "/account/",
+    }), { stores, env, now, mail });
+
+    assert.equal((await request("James@Example.com")).status, 200);
+    assert.equal(sent.length, 1);
+    assert.equal((await request("pat@example.com")).status, 503);
+    assert.equal(sent.length, 1);
+  });
+
+  it("spends an admin's sign-in link under maintenance", async () => {
+    const stores = testStores();
+    const admin = await requestLink(stores, {
+      email: "james@example.com", next: "/account/",
+    }, { now, env, send: false });
+    const pat = await requestLink(stores, {
+      email: "pat@example.com", next: "/account/",
+    }, { now, env, send: false });
+    const verify = (r) => authApi(new Request(r.url), { stores, env, now });
+
+    await on(stores, mailbox().mail);
+
+    assert.equal((await verify(pat)).status, 503);
+    assert.equal((await verify(admin)).status, 302);
+  });
+});

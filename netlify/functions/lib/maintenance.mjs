@@ -23,7 +23,8 @@
 // and the epoch under MAINTENANCE_SECRET, which is the whole of the
 // authentication: whoever holds the link can flip.
 
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { cookieFrom, sessionKey } from "./auth.mjs";
 import { bothEmails, sendMail } from "./mail.mjs";
 import { json } from "./http.mjs";
 import { log } from "./log.mjs";
@@ -100,11 +101,50 @@ export const refusalPage = () => page(
   "Under maintenance", `<p>${escapeHtml(MESSAGE)}</p>`, 503
 );
 
-// -> a Response to return, or null when the request may go on.
-export const gate = async (stores, { html = false } = {}) => {
+export const isAdminAddress = (email, env = process.env) =>
+  typeof email === "string" && !!email
+  && bothEmails(env).some((a) => a.toLowerCase() === email.toLowerCase());
+
+// A signed-in admin (an ADMIN_EMAILS or DEV_NOTIFICATIONS_EMAIL
+// address) goes through while customers are refused, so a real test
+// order can prove a new token before the switch goes off. It is the
+// session that counts: no URL parameter or header can stand in. The
+// session is read as it is, without making a customer record.
+// -> the admin's address, or null.
+export const adminOf = async (stores, req, {
+  env = process.env, now = new Date(),
+} = {}) => {
+  const id = req ? cookieFrom(req) : null;
+
+  if (!id || !/^[A-Za-z0-9_-]{20,64}$/.test(id)) return null;
+
+  const session = await stores.auth.get(sessionKey(id));
+
+  if (!session || now.getTime() > session.expires) return null;
+
+  return isAdminAddress(session.email, env) ? session.email : null;
+};
+
+// -> a Response to return, or null when the request may go on. `req`
+// (with `env`, `now` and an `area` for the log) lets an admin through;
+// each pass is logged, with a hash for the admin, not the address.
+export const gate = async (stores, {
+  html = false, req = null, env = process.env, now = new Date(), area = "",
+} = {}) => {
   const state = await readState(stores);
 
   if (!state.on) return null;
+
+  const admin = await adminOf(stores, req, { env, now });
+
+  if (admin) {
+    log.warn({
+      event: "maintenance.admin_pass", area,
+      admin: createHash("sha256").update(admin).digest("hex").slice(0, 8),
+    });
+
+    return null;
+  }
 
   return html ? refusalPage() : refusal();
 };

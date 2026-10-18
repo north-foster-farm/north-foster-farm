@@ -7,12 +7,14 @@
 
 import {
   clearCookieHeader, clearStampHeader, cookieHeader, createSession,
-  endSession, publicCustomer, requestLink, safeNext, sameSite, sessionFrom,
-  stampHeader, verifyToken,
+  endSession, normalizeEmail, publicCustomer, requestLink, safeNext, sameSite,
+  sessionFrom, stampHeader, tokenEmail, verifyToken,
 } from "./lib/auth.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
-import { MESSAGE, gate, readState } from "./lib/maintenance.mjs";
+import {
+  MESSAGE, gate, isAdminAddress, readState,
+} from "./lib/maintenance.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
 // Per-instance, best effort, like the order handler's.
@@ -48,12 +50,14 @@ export const handle = async (req, {
   // Sign-in and sign-up are closed under maintenance (#267). The link
   // in an email is not spent: it works once maintenance ends.
   if (path === "/api/auth/request" && req.method === "POST") {
-    const closed = await gate(stores);
+    // An admin address may still ask for a link, so an admin with no
+    // session can get in to test; the link goes only to that mailbox.
+    const body = await readJson(req);
+    const admin = body && isAdminAddress(normalizeEmail(body.email), env);
+    const closed = admin ? null : await gate(stores);
 
     if (closed) return closed;
     if (!sameSite(req)) return json(403, { error: "Cross-site request." });
-
-    const body = await readJson(req);
 
     if (!body || typeof body !== "object") {
       return json(400, { errors: { body: "Expected a JSON body." } });
@@ -75,11 +79,14 @@ export const handle = async (req, {
   }
 
   if (path === "/api/auth/verify" && req.method === "GET") {
-    const closed = await gate(stores, { html: true });
+    const token = url.searchParams.get("token");
+    const closed = isAdminAddress(await tokenEmail(stores, token), env)
+      ? null
+      : await gate(stores, { html: true });
 
     if (closed) return closed;
 
-    const result = await verifyToken(stores, url.searchParams.get("token"), {
+    const result = await verifyToken(stores, token, {
       now,
     });
 
@@ -120,7 +127,11 @@ export const handle = async (req, {
     // Sessions survive maintenance; this tells the pages to show the
     // message instead of the account.
     const state = await readState(stores);
-    const closed = state.on ? { maintenance: true, message: MESSAGE } : {};
+    // An admin's pages stay open (the bypass in lib/maintenance.mjs).
+    const closed = state.on && !(session
+      && isAdminAddress(session.email, env))
+      ? { maintenance: true, message: MESSAGE }
+      : {};
 
     if (!session) return json(200, { signedIn: false, ...closed });
 

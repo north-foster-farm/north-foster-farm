@@ -55,7 +55,7 @@ export const handle = async (req, {
 } = {}) => {
   // Under maintenance the whole area answers with the message, reads
   // included, so a signed-in customer's pages show it (#267).
-  const closed = await gate(stores);
+  const closed = await gate(stores, { req, env, now, area: "account" });
 
   if (closed) return closed;
 
