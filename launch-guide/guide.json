@@ -1,5 +1,5 @@
 {
- "revision": 33,
+ "revision": 34,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -977,12 +977,34 @@
     {
      "id": "env-keychain",
      "title": "Put the Netlify token in the Keychain",
-     "body": "`bin/nff` reads the token from your Mac's Keychain and from no env file. Run this, then paste the new token when it asks (it stays out of your shell history):\n```\nsecurity add-generic-password -a nff -s nff-netlify-auth-token -U -w\n```\nThen check `bin/nff --production health` works, and revoke the old token in Netlify. Remove any `NETLIFY_AUTH_TOKEN` line from your `.env.*` files; `bin/nff env check` fails while one is there. The `netlify` CLI login is a separate token: run `netlify logout` and `netlify login` now, and again every Dec 1 to Jan 1.",
+     "body": "`bin/nff` reads the token from your Mac's Keychain and from no env file. Run this, then paste the new token when it asks (it stays out of your shell history):\n```\nsecurity add-generic-password -a nff -s nff-netlify-auth-token -U -w\n```\nThen check `bin/nff --production health` works, and revoke the old token in Netlify. Remove any `NETLIFY_AUTH_TOKEN` line from your `.env.*` files; `bin/nff env check` fails while one is there. The `netlify` CLI keeps its own login, which the next step retires.",
      "minutes": 5,
      "copy": [
       {
        "label": "Store the token",
        "value": "security add-generic-password -a nff -s nff-netlify-auth-token -U -w"
+      }
+     ],
+     "device": "laptop",
+     "type": "terminal"
+    },
+    {
+     "id": "env-cli-logout",
+     "title": "Log the Netlify CLI out for good",
+     "body": "The CLI's own login sits in a plain file, `~/Library/Preferences/netlify/config.json`, with the same full access as the token in your Keychain. `bin/nff` passes the Keychain token to every Netlify command, so the file is not needed.\n1. Run `bin/nff --production health` once to confirm the Keychain token works.\n2. Run `netlify logout`.\n3. Run `ls ~/Library/Preferences/netlify/config.json`. It should say the file does not exist.\n\nFrom here on, run any Netlify command as `bin/nff netlify ...`. It works after the logout. **Never run `netlify login`**; the yearly rotation changes the Keychain token only.",
+     "minutes": 3,
+     "copy": [
+      {
+       "label": "Check",
+       "value": "bin/nff --production health"
+      },
+      {
+       "label": "Log out",
+       "value": "netlify logout"
+      },
+      {
+       "label": "File gone?",
+       "value": "ls ~/Library/Preferences/netlify/config.json"
       }
      ],
      "device": "laptop",
@@ -1070,11 +1092,11 @@
      "copy": [
       {
        "label": "Production",
-       "value": "netlify env:set DEV_NOTIFICATIONS_EMAIL dev@northfosterfarm.com --context production --json"
+       "value": "bin/nff netlify env:set DEV_NOTIFICATIONS_EMAIL dev@northfosterfarm.com --context production --json"
       },
       {
        "label": "Staging",
-       "value": "netlify env:set DEV_NOTIFICATIONS_EMAIL dev@northfosterfarm.com --context branch:staging --json"
+       "value": "bin/nff netlify env:set DEV_NOTIFICATIONS_EMAIL dev@northfosterfarm.com --context branch:staging --json"
       }
      ],
      "device": "laptop",
@@ -1139,7 +1161,7 @@
       },
       {
        "label": "Remove production's empty STAGING_TOKEN",
-       "value": "netlify env:unset STAGING_TOKEN --context production"
+       "value": "bin/nff netlify env:unset STAGING_TOKEN --context production"
       },
       {
        "label": "Production",
@@ -1175,11 +1197,11 @@
      "copy": [
       {
        "label": "STAGING_TOKEN",
-       "value": "netlify env:unset STAGING_TOKEN --context production"
+       "value": "bin/nff netlify env:unset STAGING_TOKEN --context production"
       },
       {
        "label": "STAGING_REVIEWER_TOKEN",
-       "value": "netlify env:unset STAGING_REVIEWER_TOKEN --context production"
+       "value": "bin/nff netlify env:unset STAGING_REVIEWER_TOKEN --context production"
       }
      ],
      "device": "laptop",
@@ -1388,7 +1410,7 @@
      "copy": [
       {
        "label": "Revoke",
-       "value": "netlify env:unset STAGING_REVIEWER_TOKEN --context branch:staging"
+       "value": "bin/nff netlify env:unset STAGING_REVIEWER_TOKEN --context branch:staging"
       }
      ],
      "device": "laptop",
