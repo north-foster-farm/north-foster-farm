@@ -100,9 +100,9 @@ and Netlify's own `HUGO_*` and `NODE_VERSION`.
 
 There is no session or signing secret. Sign-in links, sessions and
 unsubscribe links are random 32-byte tokens in the `auth` Blobs store
-(`lib/auth.mjs`, `lib/news.mjs`). Links are stored hashed; sessions
-are stored under their raw id (`session/<id>`). Nothing to rotate,
-but anyone who can read Blobs can read live session ids.
+(`lib/auth.mjs`, `lib/news.mjs`). Links and sessions are stored under
+a hash of the token (`session/<sha256(id)>`), so reading Blobs gives
+no live id. Nothing to rotate.
 
 ## One set per environment (#251)
 
@@ -348,8 +348,10 @@ and recreate; update `.env.production`.
 
 There is no secret to rotate. To end every customer session (after a
 Blobs leak, say), delete every `session/` key in the production
-`auth` store; each customer signs in again by magic link. bin/nff has
-no command for this yet; `customers rename` ends one customer's.
+`auth` store (the daily sweep also deletes any session stored under
+a raw id, from before sessions were hashed); each customer signs in
+again by magic link. bin/nff has no command for this yet;
+`customers rename` ends one customer's.
 
 ## Known gaps (2026-10-16)
 
@@ -359,8 +361,6 @@ no command for this yet; `customers rename` ends one customer's.
 - The local `.env` is a production file (`SQUARE_ENV=production`)
   rather than a link to `.env.development`, as `.env.sample` says, and
   there is no `.env.production`; `RESEND_LOOKUP_KEY` sits in `.env`.
-- Sessions are stored under their raw id; hashing them as sign-in
-  links are hashed would keep a Blobs reader from using them.
 
 ## Out of scope
 

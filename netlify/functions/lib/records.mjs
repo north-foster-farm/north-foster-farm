@@ -377,13 +377,26 @@ export const sweepCheckouts = async (stores, now = new Date()) => {
 // it expires was ever deleted, so they piled up, and a sign-up never
 // confirmed kept its name and email. Nothing else in the auth store is
 // touched, and nothing still live (#189). -> how many.
+//
+// Sessions are stored under a hash of the id (lib/auth.mjs). One under
+// any other key was written before that, under its raw id, and is a
+// live id to anyone who can read Blobs: it is deleted whatever its
+// expiry, and its customer signs in again by link.
 export const AUTH_SWEPT = ["token/", "session/", "news/"];
+
+const HASHED_SESSION = /^session\/[0-9a-f]{64}$/;
 
 export const sweepAuth = async (stores, now = new Date()) => {
   let swept = 0;
 
   for (const prefix of AUTH_SWEPT) {
     for (const { key } of await stores.auth.list(prefix)) {
+      if (prefix === "session/" && !HASHED_SESSION.test(key)) {
+        await stores.auth.delete(key);
+        swept += 1;
+        continue;
+      }
+
       const found = await stores.auth.get(key);
 
       if (found && Number.isFinite(found.expires)

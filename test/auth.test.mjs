@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   LINK_TTL, SESSION_TTL, createSession, requestLink, safeNext,
-  sessionFrom, verifyToken,
+  endSession, sessionFrom, sessionKey, verifyToken,
 } from "../netlify/functions/lib/auth.mjs";
 import { getCustomer } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
@@ -184,6 +184,37 @@ describe("sessions", () => {
     assert.equal(found.customer.email, "pat@example.com");
     assert.ok(await getCustomer(stores, "pat@example.com"));
   });
+
+  it("are stored under a hash, never the id", async () => {
+    const stores = testStores();
+    const session = await createSession(stores, "pat@example.com", { now });
+    const keys = (await stores.auth.list("session/")).map((k) => k.key);
+
+    assert.deepEqual(keys, [sessionKey(session.id)]);
+    assert.ok(!keys[0].includes(session.id));
+    assert.match(keys[0], /^session\/[0-9a-f]{64}$/);
+  });
+
+  it("end by id, and a session under its raw id is not honored",
+    async () => {
+      const stores = testStores();
+      const session = await createSession(stores, "pat@example.com", { now });
+      const req = (id) => new Request("http://x/api/me", {
+        headers: { cookie: `nff_session=${id}` },
+      });
+
+      await stores.auth.set("session/legacyid-legacyid-legacyid", {
+        email: "pat@example.com", expires: now.getTime() + 60_000,
+      });
+
+      assert.equal(
+        await sessionFrom(stores, req("legacyid-legacyid-legacyid"), { now }),
+        null);
+
+      await endSession(stores, session.id);
+
+      assert.equal(await sessionFrom(stores, req(session.id), { now }), null);
+    });
 
   it("expire and ignore unknown ids", async () => {
     const stores = testStores();

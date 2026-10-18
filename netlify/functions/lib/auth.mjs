@@ -5,7 +5,7 @@
 //
 // Store layout (the `auth` store):
 //   token/<sha256(token)>   { email, expires, next }   one use, 15 min
-//   session/<id>            { email, createdAt, expires, via }
+//   session/<sha256(id)>    { email, createdAt, expires, via }
 //   rate/<email>            { times: [...] }             link requests
 
 import { createHash, randomBytes } from "node:crypto";
@@ -40,6 +40,11 @@ export const validEmail = (email) => EMAIL.test(normalizeEmail(email));
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const secret = () => randomBytes(32).toString("base64url");
+
+// Sessions, like links, are stored under a hash of the id, so reading
+// Blobs does not give a live session id. The id lives only in the
+// customer's cookie.
+export const sessionKey = (id) => `session/${hash(id)}`;
 
 // Only a same-site path may follow a sign-in, never another site.
 export const safeNext = (next) => {
@@ -146,7 +151,7 @@ export const createSession = async (stores, email, {
   const address = normalizeEmail(email);
 
   await ensureCustomer(stores, address, now);
-  await stores.auth.set(`session/${id}`, {
+  await stores.auth.set(sessionKey(id), {
     email: address,
     createdAt: now.toISOString(),
     expires: now.getTime() + SESSION_TTL,
@@ -189,11 +194,12 @@ export const sessionFrom = async (stores, req, { now = new Date() } = {}) => {
 
   if (!id || !/^[A-Za-z0-9_-]{20,64}$/.test(id)) return null;
 
-  const session = await stores.auth.get(`session/${id}`);
+  const key = sessionKey(id);
+  const session = await stores.auth.get(key);
 
   if (!session) return null;
   if (now.getTime() > session.expires) {
-    await stores.auth.delete(`session/${id}`);
+    await stores.auth.delete(key);
 
     return null;
   }
@@ -204,7 +210,7 @@ export const sessionFrom = async (stores, req, { now = new Date() } = {}) => {
 };
 
 export const endSession = async (stores, id) => {
-  if (id) await stores.auth.delete(`session/${id}`);
+  if (id) await stores.auth.delete(sessionKey(id));
 };
 
 // A state-changing request with a session must come from this site.

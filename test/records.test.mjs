@@ -9,6 +9,7 @@ import {
   reserveOrderId, saveCheckout, saveOrder, setStatus, submissionKey,
   sweepAuth, sweepCheckouts, touchCustomer,
 } from "../netlify/functions/lib/records.mjs";
+import { sessionKey } from "../netlify/functions/lib/auth.mjs";
 import {
   memoryStore, testStores, wrap,
 } from "../netlify/functions/lib/store.mjs";
@@ -387,9 +388,9 @@ describe("the auth sweep (#189)", () => {
 
       await put("token/dead", { email: "a@x.com", expires: past });
       await put("token/live", { email: "a@x.com", expires: future });
-      await put("session/dead", { email: "a@x.com", expires: past });
-      await put("session/live", { email: "a@x.com", expires: future });
-      await put("session/odd", { email: "a@x.com" });
+      await put(sessionKey("dead"), { email: "a@x.com", expires: past });
+      await put(sessionKey("live"), { email: "a@x.com", expires: future });
+      await put(sessionKey("odd"), { email: "a@x.com" });
       await put("unsub/old", { email: "a@x.com", expires: past });
       await put("rate/a@x.com", { times: [past] });
 
@@ -398,11 +399,27 @@ describe("the auth sweep (#189)", () => {
       const left = (await stores.auth.list("")).map((k) => k.key).sort();
 
       assert.deepEqual(left, [
-        "rate/a@x.com", "session/live", "session/odd", "token/live",
+        "rate/a@x.com", sessionKey("live"), sessionKey("odd"), "token/live",
         "unsub/old",
-      ]);
+      ].sort());
       assert.equal(await sweepAuth(stores, now), 0);
     });
+
+  it("ends a session stored under its raw id, live or not", async () => {
+    const stores = testStores();
+    const future = now.getTime() + 60_000;
+
+    await stores.auth.set("session/rawid_abc-123", {
+      email: "a@x.com", expires: future,
+    });
+    await stores.auth.set(sessionKey("kept"), {
+      email: "a@x.com", expires: future,
+    });
+
+    assert.equal(await sweepAuth(stores, now), 1);
+    assert.deepEqual((await stores.auth.list("session/")).map((k) => k.key),
+      [sessionKey("kept")]);
+  });
 });
 
 describe("customer records", () => {

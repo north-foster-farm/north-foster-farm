@@ -7,7 +7,7 @@ import { describe, it } from "node:test";
 import { handle as accountApi } from "../netlify/functions/account.mjs";
 import { handle as authApi } from "../netlify/functions/auth.mjs";
 import {
-  createSession, requestLink,
+  createSession, requestLink, sessionKey,
 } from "../netlify/functions/lib/auth.mjs";
 import { readMark } from "../netlify/functions/lib/health.mjs";
 import { runJobs } from "../netlify/functions/lib/jobs.mjs";
@@ -357,7 +357,7 @@ describe("the account area under maintenance", () => {
       await on(stores, mailbox().mail);
       await account(stores, "GET", "/api/account/orders", null, cookie);
 
-      assert.ok(await stores.auth.get(`session/${id}`));
+      assert.ok(await stores.auth.get(sessionKey(id)));
 
       await setState(stores, false, {
         by: "test", env, now, mail: mailbox().mail,
