@@ -162,6 +162,9 @@ framework = "#custom"
         https://*.paypal.com https://*.paypalobjects.com;"""
     # Google Pay opens a popup; the stricter value breaks it on iOS.
     Cross-Origin-Opener-Policy = "same-origin-allow-popups"
+    # Nothing on the site asks for these; the payment iframes keep
+    # their own rights, so `payment` is left alone.
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
     Referrer-Policy = "same-origin"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"
 
