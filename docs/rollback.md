@@ -35,10 +35,10 @@ production release on: publishing the previous deploy of the new site.
    and confirm an order page loads.
 5. **Write down what happened** in the gitignored `incidents/`
    directory at the repo root: what broke, the times, the deploy ids,
-   the orders affected. The repository is public, so the report is
-   written on disk and never pushed. A public issue says only that an
-   incident happened, with no customer or order detail. Revisit this
-   when the repository is private.
+   the orders affected. The repository is public for good, so the
+   report is written on disk and never pushed. A public issue says only
+   that an incident happened, with no customer or order detail
+   (`docs/security.md`).
 
 Step 2 is manual on purpose for launch: it needs the Mac, and looking
 in Square and PayPal for a payment with no order is done by hand, with
@@ -49,6 +49,40 @@ is post-launch work, not a blocker.
 
 A wrong word or a layout fault needs no maintenance mode; fix it
 forward and say nothing.
+
+## A bad dependency: two cases
+
+An exploited dependency calls for opposite moves depending on how it
+got here (James, 2026-10-18; the policy is in `docs/security.md`).
+
+**Case A: a bad release we adopted** (a hijacked or malicious
+version).
+
+1. Roll back, to a deploy built before the bad version entered the
+   lockfile. The "Rolling back" steps below apply; with the rule for
+   key changes, this is the deploy that also predates any key change.
+2. Revert the lockfile on `next` and pin away from the bad version.
+3. **Treat it as a leak.** Every secret the code could reach, at build
+   time or at run time, is rotated under the leak procedure in
+   `docs/secrets.md`: revoke at once, no overlap. That makes the
+   rolled-back deploy's keys dead, so it is a target only until the
+   new keys are live; then fix forward or revert on `main`.
+4. Write it up in `incidents/`.
+
+**Case B: an actively exploited flaw in a version we have had for a
+while.** Rolling back does not help, because earlier versions carry
+the flaw too.
+
+1. **Fix forward.** Adopt the patched release at once. The 7-day
+   cooldown is waived for that one package and version, with
+   `bin/nff supply waive <package> <version> --advisory GHSA-...
+   --reason "..."`, which records it and prints the line for the pull
+   request. The signature check still applies.
+2. **Contain the exposure** until the patch is live: maintenance mode
+   (`bin/nff --production maintenance on`), or switch off just the
+   affected feature if that is enough.
+3. The pull request to `main` still needs James's approval, and the
+   waiver is recorded in it and in `incidents/`.
 
 ## From the second release: two ways back
 
@@ -345,10 +379,12 @@ migration: the revert builds in minutes, and old code must not write
 records beside the new shape meanwhile
 (`bin/nff --production maintenance on`, off after the checks).
 
-Branch protection on `main` takes only a fast-forward to a commit that
-has passed `lint-and-test`, and binds admins too (`docs/staging.md`).
-So the revert is one commit on a branch, checked by CI, then
-fast-forwarded.
+The rulesets on `main` take only a fast-forward to a commit that has
+passed `lint-and-test`, `supply-chain` and `codeql`, and have no
+bypass (`docs/security.md`). So the revert is one commit on a branch,
+checked by CI, then fast-forwarded. A revert that touches a lockfile
+must also pass the `supply-chain` cooldown, so pinning back to an
+older version does.
 
 ```
 R=north-foster-farm/north-foster-farm
@@ -378,9 +414,9 @@ unlock, or publish the new deploy. To go forward again, revert the
 revert the same way.
 
 If the check cannot pass (GitHub Actions down), nobody can push around
-it. Only James can switch the rule off for `main` in the repository's
-settings, push, and switch it on again. Publishing the previous deploy
-needs none of this.
+it. Only James can switch the ruleset off in the repository's
+settings, push, switch it on again and write it up in `incidents/`.
+Publishing the previous deploy needs none of this.
 
 After launch, the revert is scripted as one command, `bin/nff
 rollback revert`: branch, revert range, CI dispatch, watch,
