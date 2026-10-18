@@ -4,6 +4,9 @@
 
 import { defineConfig, devices } from "@playwright/test";
 
+import { stagingEnv } from "./e2e/support/staging.mjs";
+import { MACHINE_COOKIE } from "./netlify/functions/lib/gate.mjs";
+
 const baseURL = process.env.E2E_BASE_URL
   || "https://staging--north-foster-farm.netlify.app";
 const host = new URL(baseURL).hostname;
@@ -14,6 +17,19 @@ const host = new URL(baseURL).hostname;
 if (!(host.includes("--") || host === "localhost" || host === "127.0.0.1")) {
   throw new Error(`Refusing to run against ${host}: not a staging deploy.`);
 }
+
+// A non-production deploy is behind the access gate (docs/staging.md).
+// The suite passes it with E2E_STAGING_TOKEN, as a cookie for the
+// deploy's own host: a header would reach every site the page calls,
+// the payment SDKs among them. Pages and the request fixture share it.
+const token = stagingEnv("E2E_STAGING_TOKEN");
+const gate = token && host.includes("--") ? {
+  cookies: [{
+    name: MACHINE_COOKIE, value: token, domain: host, path: "/",
+    httpOnly: true, secure: true, sameSite: "Lax", expires: -1,
+  }],
+  origins: [],
+} : undefined;
 
 // What only the wide layout needs, or what must not run twice against
 // the sandbox: the phone project skips these.
@@ -30,6 +46,7 @@ const desktopOnly = [
   "**/account.spec.mjs",
   "**/news.spec.mjs",
   "**/staging-toolbar.spec.mjs",
+  "**/gate.spec.mjs",
   "**/wording.spec.mjs",
   "**/favicon.spec.mjs",
   "**/contact-send.spec.mjs",
@@ -55,6 +72,7 @@ export default defineConfig({
   ],
   use: {
     baseURL,
+    storageState: gate,
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
     actionTimeout: 20_000,

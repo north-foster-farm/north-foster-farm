@@ -2,8 +2,9 @@
 
 A deploy that is not production keeps its own data, writes its email
 to an outbox instead of sending it and talks to the Square sandbox.
-The staging branch deploy also carries a toolbar for reading that
-outbox and running the jobs by hand. Production carries none of it.
+It is behind an access gate (below), and the staging branch deploy
+also carries a toolbar for reading that outbox and running the jobs by
+hand, for James alone. Production carries none of it.
 
 ## What decides
 
@@ -39,12 +40,12 @@ Unset means production: bare store names, no staging endpoints.
   environment cannot decide this: previews build with Hugo's
   production environment too. `getenv "CONTEXT"` is allowed in
   `hugo.toml`'s security settings for this.)
-- **The endpoints.** `netlify/functions/staging.mjs` exists only
-  where `STAGING_TOKEN` is set, on the branch deploy: in production,
-  and on any context without the token, every `/api/staging/*` path
-  answers 404 (#255). There it serves the outbox and runs the jobs,
-  and the token is required as a bearer token or `?token=`; the
-  toolbar asks for it once and remembers it in the browser.
+- **The endpoints.** `netlify/functions/staging.mjs` answers only off
+  production, and only where `GATE_TOOLBAR_EMAIL` or `STAGING_TOKEN`
+  is set: anywhere else every `/api/staging/*` path is a 404 (#255).
+  There it serves the outbox and runs the jobs, to the toolbar
+  owner's gate session (see "Who may use the toolbar") or, for the
+  jobs run and info only, to `STAGING_TOKEN` as a bearer.
 - **Links in mail.** A function cannot see its own deploy address
   either (`DEPLOY_PRIME_URL` is build-only), so off production the
   links in emails fall back to `URL`, which is production. `SITE_URL`
@@ -109,8 +110,7 @@ opens to a panel with:
   any undelivered submission, paid-order edit drafts, the dismissed
   delivery-policy note, the Venmo and farm news flags, the video
   preference and the sign-in cache) and every cookie a script can
-  reach, then reloads. Only the toolbar's own token and open state
-  stay. `assets/scripts/staging/reset.js` clears whole storages, so a
+  reach, then reloads. Only the toolbar's open state stays. `assets/scripts/staging/reset.js` clears whole storages, so a
   key added later is covered; `test/staging-reset.test.mjs` and the
   staging e2e check it.
 
@@ -203,10 +203,13 @@ sign as the deploy would read `SQUARE_WEBHOOK_SIGNATURE_KEY` and
 On Netlify, `SITE_CONTEXT` with one value per context, named after
 the context (set 2026-09-23). Then, for the `deploy-preview`,
 `branch-deploy` and `dev`
-contexts only: `MAIL_DRIVER=outbox`. `STAGING_TOKEN` goes on the
-branch-deploy context alone: without it the staging API is a 404, so
-a preview, which has none, shows no outbox (magic links are in it).
-Leave production's `MAIL_DRIVER=resend`
+contexts only: `MAIL_DRIVER=outbox`. `GATE_TOOLBAR_EMAIL` and
+`STAGING_TOKEN` go on the branch-deploy context alone: without them
+the staging API is a 404, so a preview, which has neither, shows no
+outbox (magic links are in it). The gate's `GATE_RESEND_KEY` and
+`GATE_MAIL_FROM` go on the branch-deploy and deploy-preview contexts,
+and the allowlist is seeded with `bin/nff --staging gate allow add`
+before the first deploy that carries the gate. Leave production's `MAIL_DRIVER=resend`
 alone. Allow branch deploys for `staging` under Site configuration →
 Build & deploy → Branch deploys. Subscribe the Square sandbox
 webhook (`refund.updated`) to
@@ -217,16 +220,77 @@ and the PayPal sandbox webhook (`PAYMENT.CAPTURE.COMPLETED`,
 with that subscription's id as `PAYPAL_WEBHOOK_ID` on the same
 contexts.
 
+## The access gate
+
+Staging, branch deploys and deploy previews are not public. An edge
+function (`netlify/gate-edge/gate.mjs`, installed at build time by
+`bin/install-gate.mjs` for those two build commands and never for
+production's) stops every request that has no gate session, and sends
+`X-Robots-Tag: noindex` on every response. A browser lands on a
+sign-in page; a script gets a bare 401.
+
+Signing in is by magic link. A visitor types an address at
+`/api/gate/signin`; if it is on the allowlist, a link comes to that
+mailbox and following it sets a session cookie for a year. An address
+off the list gets the same page and no email, so the list cannot be
+read off the answer. Requests are limited to 3 per address and 10 per
+IP in 15 minutes. Sessions and links are stored hashed.
+
+The allowlist is exact addresses and whole domains, in the `gate`
+store of each context:
+
+```
+bin/nff --staging gate allow list
+bin/nff --staging gate allow add pat@example.com
+bin/nff --staging gate allow add @example.com
+bin/nff --staging gate allow remove pat@example.com
+bin/nff --staging gate sessions end pat@example.com
+bin/nff --staging gate sessions end-all --yes
+```
+
+Removing an entry ends the sessions it let in. `--preview` reaches the
+previews' list, which is separate.
+
+The link is the one email staging really sends: a plain-text message
+through `GATE_RESEND_KEY`, a Resend key made for staging alone, from
+`GATE_MAIL_FROM`. The code refuses any recipient not on the allowlist,
+and asks the send breaker first with a ceiling of its own (6 an hour,
+20 a day, `data/gate.json`). A trip stops the gate's mail and alerts;
+`bin/nff breaker reset --staging` clears it after the key is replaced.
+Everything else stays on the outbox.
+
+Machines pass by credential, never by being public. Each way past the
+gate is a row of `EXEMPTIONS` in `netlify/functions/lib/gate-edge.mjs`
+and `docs/secrets.md`, and `test/gate.test.mjs` proves each stays
+closed without its credential:
+
+- the Square and PayPal sandbox webhooks, by their own signature
+  checks in the functions;
+- `/api/staging/jobs/run` and `/api/health`, by `STAGING_TOKEN`;
+- the end-to-end suite, by `E2E_STAGING_TOKEN`, as a header or the
+  `nff_gate_machine` cookie that `playwright.config.mjs` sets for the
+  deploy's host;
+- `/api/gate/*`, which is the sign-in itself.
+
+In production there is no gate: its build never installs the edge
+function, and the function and its logic return untouched for any
+context but `branch-deploy` and `deploy-preview`. Whether staging was
+indexed while it was public is checked in the issue, not here.
+
 ## Who may use the toolbar
 
-`STAGING_TOKEN` is James's. A reviewer gets `STAGING_REVIEWER_TOKEN`
-instead, which James can revoke without touching his own. It opens the
-signature previews and the deploy's info and nothing else: no email
-library, no inbox (it holds sign-in links and customers' addresses),
-no jobs run. The toolbar hides what the key in use does not open and
-names the key in its header; each request is logged by key name
-(`staging.key_used`), never by value. Which key opens what is
-`KEYS` in `netlify/functions/staging.mjs`, and
-`docs/secrets.md` lists it ('What the staging token unlocks'): a new
-toolbar feature updates both. Like `STAGING_TOKEN`, the reviewer's key
-goes on the `branch:staging` context alone and is optional there.
+Only James. The toolbar opens for a gate session whose address is
+`GATE_TOOLBAR_EMAIL` (a variable on the staging context, so the address
+is config and not code); the browser's cookie is the credential and
+nothing is typed. Anyone else who signs in gets the site and no
+toolbar: the endpoints answer 403 to their session and the toolbar
+stays hidden. Reviewers (Jim, design and marketing helpers) are added
+to the allowlist and see the site only.
+
+`STAGING_TOKEN` is for machines (Actions, health checks) and is never
+typed into a browser. It opens the jobs run, the info and the crash
+proof, and nothing that reads mail. `STAGING_REVIEWER_TOKEN` is
+retired. Each request is logged by key name (`staging.key_used`), never
+by value. Which way in opens what is `KEYS` in
+`netlify/functions/staging.mjs`, and `docs/secrets.md` lists it: a new
+toolbar feature updates both.

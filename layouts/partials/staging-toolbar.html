@@ -6,7 +6,8 @@
   JS carry no trace of it: the stylesheet and the script below are
   built by Hugo only when this partial renders. (hugo.Environment
   cannot decide this; previews build with the production environment
-  too.) The endpoints it calls answer only where STAGING_TOKEN is set.
+  too.) The endpoints it calls answer only to the gate session of the
+  address in GATE_TOOLBAR_EMAIL.
   See docs/staging.md.
 */}}
 {{ $context := getenv "CONTEXT" }}
@@ -24,8 +25,8 @@
         <button type="button" data-staging-hide title="Hide until the next page load" aria-label="Hide">×</button>
       </header>
       <div class="staging-body">
-        {{/* Each tool names the area the key in use must open
-          (STAGING_REVIEWER_TOKEN opens fewer; see staging.mjs KEYS). */}}
+        {{/* Each tool names the area the session must open
+          (see staging.mjs KEYS). */}}
         <div data-staging-scope="emails">
           <h2>Emails</h2>
           <p>
