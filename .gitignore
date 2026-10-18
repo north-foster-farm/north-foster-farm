@@ -19,6 +19,9 @@ node_modules/
 public/
 resources/
 .netlify/
+# Copied in at build time for non-production contexts only
+# (bin/install-gate.mjs); production never has it.
+netlify/edge-functions/
 
 # Each agent's notes and files, and its local instructions (the
 # bullpen: ~/Code/nff/docs/multi-agent-workflow.md). Never tracked.

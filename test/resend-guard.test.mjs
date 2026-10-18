@@ -110,12 +110,13 @@ describe("every file that names Resend's API checks the guard", () => {
   const naming = [...sources("netlify"), ...sources("bin")]
     .filter((f) => readFileSync(f, "utf8").includes("api.resend.com"));
 
-  it("finds the four modules that call it", () => {
+  it("finds the five modules that call it", () => {
     const names = naming.map((f) => f.slice(root.length + 1)).sort();
 
     assert.deepEqual(names, [
       "bin/env/verify.mjs",
       "netlify/functions/lib/breaker.mjs",
+      "netlify/functions/lib/gate-mail.mjs",
       "netlify/functions/lib/mail.mjs",
       "netlify/functions/lib/news.mjs",
     ]);
@@ -123,7 +124,9 @@ describe("every file that names Resend's API checks the guard", () => {
 
   for (const file of naming) {
     it(`${file.slice(root.length + 1)} imports it`, () => {
-      assert.match(readFileSync(file, "utf8"), /resendAllowed/);
+      // The gate's sign-in mail is the one send outside production, and
+      // keeps to the contexts the gate guards instead (lib/gate-mail.mjs).
+      assert.match(readFileSync(file, "utf8"), /resendAllowed|gateActive/);
     });
   }
 });
