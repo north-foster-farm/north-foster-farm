@@ -1,5 +1,5 @@
 {
- "revision": 18,
+ "revision": 19,
  "updated": "2026-10-17",
  "notice": null,
  "phases": [
@@ -982,6 +982,14 @@
      ],
      "device": "laptop",
      "type": "terminal"
+    },
+    {
+     "id": "env-oldsecret",
+     "title": "Save production's current Resend webhook secret",
+     "body": "Before anything is pushed or changed, save production's current `RESEND_WEBHOOK_SECRET` to the **NFF launch** folder in your password manager, labelled \"old Venmo inbound, keep until P9\". Copy it from your current `.env.production`. Launch day replaces it (the step **Add production's Resend webhook**), and the old site's rollback path needs the old value until P9.",
+     "minutes": 3,
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "env-push",
