@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 
 import { loadEnv } from "../netlify/functions/lib/env.mjs";
 import { devSchedule } from "./dev-schedule.mjs";
+import { runNetlify } from "./env/cli.mjs";
 import { deployAfterPush } from "./env/deploy.mjs";
 import {
   PREVIEW_ALLOWED, PREVIEW_CONTEXTS, TARGETS, checkEnv, envRunner, planPush,
@@ -90,6 +91,10 @@ const USAGE = `Usage:
                                       Netlify, and start a deploy with
                                       PICKUP_SCHEDULE_HOOK if the env
                                       file has one
+  bin/nff netlify <netlify args...>   the Netlify CLI with the
+                                      Keychain's token, for runbook
+                                      commands (env:set, api, blobs:*);
+                                      no netlify login needed
   bin/nff env push --staging|--production
                                       set each key of .env.staging or
                                       .env.production that the tracked
@@ -179,11 +184,27 @@ loadEnv(join(root, context ? `.env.${context}` : ".env"));
 // Blobs, needs it. A missing item stops here, saying so, rather than
 // falling back to memory stores that lose the work.
 delete process.env.NETLIFY_AUTH_TOKEN;
-if (context || process.argv.includes("--scratch")) {
+const passthrough = process.argv[2] === "netlify";
+
+if (context || passthrough || process.argv.includes("--scratch")) {
   try {
     process.env.NETLIFY_AUTH_TOKEN = keychainToken();
   } catch (error) {
     console.error(`[nff] ${error.message}`);
+    process.exit(1);
+  }
+}
+
+// `bin/nff netlify <args>`: the Netlify CLI itself, as the Keychain's
+// token, so the runbooks need no `netlify login` and the CLI's own
+// plaintext login can be removed. Everything after `netlify` goes to
+// it untouched.
+if (passthrough) {
+  try {
+    process.exit(await runNetlify(process.argv.slice(3),
+      process.env.NETLIFY_AUTH_TOKEN));
+  } catch (error) {
+    console.error(`[nff] netlify would not start: ${error.message}`);
     process.exit(1);
   }
 }

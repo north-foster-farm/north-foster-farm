@@ -305,7 +305,7 @@ describe("bin/nff env check", () => {
       "STAGING_TOKEN: on Netlify's branch:staging, not in the sample.",
     ]);
     assert.deepEqual(unset,
-      ["netlify env:unset STAGING_TOKEN --context branch:staging"]);
+      ["bin/nff netlify env:unset STAGING_TOKEN --context branch:staging"]);
   });
 
   it("fails on a value attached to all or to every branch", async () => {
@@ -392,7 +392,7 @@ describe("bin/nff env check", () => {
     assert.ok(problems.includes(
       "STAGING_REVIEWER_TOKEN: is staging only, yet in .env.production."));
     assert.deepEqual(unset,
-      ["netlify env:unset STAGING_TOKEN --context production"]);
+      ["bin/nff netlify env:unset STAGING_TOKEN --context production"]);
   });
 
   it("never puts a value in a problem", async () => {
@@ -522,9 +522,9 @@ describe("env push, refusing what it can't do", () => {
     assert.equal(problems.length, 1);
     assert.match(problems[0], /^SQUARE_ACCESS_TOKEN is a plain variable/);
     assert.match(problems[0], /Mark it secret in the Netlify UI/);
-    assert.ok(problems[0].includes("netlify env:unset SQUARE_ACCESS_TOKEN " +
-      "--context branch:staging; netlify env:unset SQUARE_ACCESS_TOKEN " +
-      "--context production"));
+    assert.ok(problems[0].includes("bin/nff netlify env:unset " +
+      "SQUARE_ACCESS_TOKEN --context branch:staging; bin/nff netlify " +
+      "env:unset SQUARE_ACCESS_TOKEN --context production"));
     assert.ok(!problems[0].includes("old"));
   });
 
@@ -553,7 +553,7 @@ describe("env push, refusing what it can't do", () => {
     const cli = netlify();
     const run = async (args) => {
       if (args[0] === "env:get" && args[1] === "SITE_URL") {
-        throw new Error("netlify env:get failed (1).");
+        throw new Error("bin/nff netlify env:get failed (1).");
       }
 
       return cli.run(args);
@@ -652,7 +652,7 @@ describe("env check, the rest of qa's cases", () => {
     assert.deepEqual(problems, ["VENMO_HIDDEN: empty in .env.staging, set " +
       "on Netlify's branch:staging."]);
     assert.deepEqual(unset,
-      ["netlify env:unset VENMO_HIDDEN --context branch:staging"]);
+      ["bin/nff netlify env:unset VENMO_HIDDEN --context branch:staging"]);
   });
 
   it("never suggests deleting a required key emptied locally",
@@ -740,10 +740,10 @@ describe("env check: previews and dev hold no production value (#251)", () => {
         "only SITE_CONTEXT and PICKUP_SCHEDULE.",
     ]);
     assert.deepEqual(r.unset, [
-      "netlify env:unset RESEND_AUDIENCE_KEY --context deploy-preview",
-      "netlify env:unset RESEND_WEBHOOK_SECRET --context dev",
-      "netlify env:unset RESEND_READ_KEY --context deploy-preview",
-      "netlify env:unset RESEND_READ_KEY --context dev",
+      "bin/nff netlify env:unset RESEND_AUDIENCE_KEY --context deploy-preview",
+      "bin/nff netlify env:unset RESEND_WEBHOOK_SECRET --context dev",
+      "bin/nff netlify env:unset RESEND_READ_KEY --context deploy-preview",
+      "bin/nff netlify env:unset RESEND_READ_KEY --context dev",
     ]);
   });
 

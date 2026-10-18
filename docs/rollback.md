@@ -23,7 +23,7 @@ production release on: publishing the previous deploy of the new site.
    live under `checkout/` in the `orders` store, and capture goes on
    during maintenance.
    ```
-   netlify blobs:list orders --prefix checkout/
+   bin/nff netlify blobs:list orders --prefix checkout/
    ```
    Note each key. Also look in Square and PayPal for a payment with no
    order record; each is refunded with `bin/nff` (below).
@@ -189,13 +189,13 @@ The site id is in `.netlify/state.json` of a linked checkout.
 4. **Pick the target**: the previous release's deploy, built after the
    last key change. Its id is on the release's issue.
    ```
-   netlify api listSiteDeploys \
+   bin/nff netlify api listSiteDeploys \
      --data '{"site_id":"<id>","branch":"main","per_page":5}' \
      | jq -r '.[] | [.id, .commit_ref[0:7], .published_at] | @tsv'
    ```
 5. **Publish it.**
    ```
-   netlify api restoreSiteDeploy \
+   bin/nff netlify api restoreSiteDeploy \
      --data '{"site_id":"<id>","deploy_id":"<target id>"}'
    ```
    Or, in the UI: Deploys, open the deploy, Publish deploy.
@@ -203,7 +203,7 @@ The site id is in `.netlify/state.json` of a linked checkout.
    not publish. Netlify's docs imply that publishing an old deploy
    does not lock by itself.
    ```
-   netlify api lockDeploy --data '{"deploy_id":"<target id>"}'
+   bin/nff netlify api lockDeploy --data '{"deploy_id":"<target id>"}'
    ```
    Or Deploys, Lock to stop auto publishing.
 7. **Confirm the target is live**: `/api/health` answers 200,
@@ -295,7 +295,7 @@ git log --grep '^Record-shape:' <old>..<new>
 2. Publish the release deploy (`restoreSiteDeploy` with its id), or
    the fix's deploy if one was built while locked.
 3. **Unlock auto publishing**:
-   `netlify api unlockDeploy --data '{"deploy_id":"<id>"}'`.
+   `bin/nff netlify api unlockDeploy --data '{"deploy_id":"<id>"}'`.
 4. **Check each webhook is still enabled**: PayPal, Square and
    Resend. A failing endpoint may have been disabled while the older
    code answered 404.

@@ -88,8 +88,8 @@ opens to a panel with:
   `NETLIFY_SITE_ID` in `.env.staging` and the Netlify token in the
   Keychain (`docs/secrets.md`, Netlify); without them they read an empty store in memory and say so. The
   Netlify CLI reads the same records from a linked checkout:
-  `netlify blobs:list branch-deploy-jobs --prefix library/`, then
-  `netlify blobs:get` or `blobs:delete` on each key. Farm news
+  `bin/nff netlify blobs:list branch-deploy-jobs --prefix library/`, then
+  `bin/nff netlify blobs:get` or `blobs:delete` on each key. Farm news
   rewrites go to the email lane, whose drafts they are.
 - **Inbox.** The outbox, newest first, refreshed every five seconds
   while open. A message opens in a new window as the HTML the

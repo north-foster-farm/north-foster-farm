@@ -27,9 +27,9 @@ yet written; it is after-launch work).
    `RESEND_WEBHOOK_SECRET` and its endpoint) are revoked once launch
    day's live checks pass.
 4. **A change on Netlify needs a deploy.** Functions read their
-   environment at deploy time. After `netlify env:set`, trigger a
+   environment at deploy time. After `bin/nff netlify env:set`, trigger a
    production deploy (Deploys → Trigger deploy, or
-   `netlify api createSiteBuild`) and wait for it to publish before
+   `bin/nff netlify api createSiteBuild`) and wait for it to publish before
    revoking the old value. What a key change means for a rollback is
    in `docs/rollback.md`.
 5. **New first, old last.** Create the replacement, set it, deploy,
@@ -44,7 +44,7 @@ yet written; it is after-launch work).
 8. **Every copy.** A secret often lives in two or three places (the
    table says which). Update them all in one sitting.
 9. **Set secrets as secret.** `bin/nff env push` does it; by hand,
-   `netlify env:set NAME value --context ctx --secret --json`.
+   `bin/nff netlify env:set NAME value --context ctx --secret --json`.
    `--scope` silently fails; leave scopes at the default.
 10. **Write it down.** Every rotation gets a line in
     `docs/rotation-log.md`: name, date, environment, reason
@@ -183,7 +183,7 @@ its own, previews get none, and development gets a fake in `.env`.
 - **`STAGING_TOKEN`, `STAGING_REVIEWER_TOKEN`:** staging only;
   production holds neither name, not even empty, and the build fails
   if it does (b60a03b). If either name exists in the production
-  context, unset it (`netlify env:unset NAME --context production`).
+  context, unset it (`bin/nff netlify env:unset NAME --context production`).
 - **`E2E_STAGING_TOKEN`:** staging only; the end-to-end suite's own
   token (`docs/staging.md`). The suite holds it and no Netlify token
   (#266). Until it is set on the staging context and saved in
@@ -317,7 +317,7 @@ test order prove the new token before it goes off.
 2. Developer Console → the app → Credentials → Production → Replace
    (beside the access token). Copy the new token.
 3. `bin/nff env push --production` after updating `.env.production`
-   (or `netlify env:set SQUARE_ACCESS_TOKEN <new> --context
+   (or `bin/nff netlify env:set SQUARE_ACCESS_TOKEN <new> --context
    production --secret --json`), then deploy.
 4. Update the password manager's copy.
 5. When the deploy is live, `bin/nff env verify --production`, then
@@ -539,7 +539,7 @@ on the schedule, and when someone with access leaves.
 
 **`STAGING_REVIEWER_TOKEN`** is for people James asks to look at the
 site. He can revoke it without touching his own key: unset it on
-Netlify's staging context (`netlify env:unset STAGING_REVIEWER_TOKEN
+Netlify's staging context (`bin/nff netlify env:unset STAGING_REVIEWER_TOKEN
 --context branch:staging`) and redeploy staging. The reviewer's
 access ends then, or on its expiry. It is absent whenever no reviewer
 has access. To issue one, generate a random value, set it on staging
@@ -601,10 +601,15 @@ Jan 1 window, and at once on a leak. A Netlify password reset revokes
 every PAT at once, so after one, mint a new token before the CLI is
 needed.
 
-**The `netlify` CLI login** is a separate token in
-`~/Library/Preferences/netlify/config.json`. It rotates on the same
-schedule (`netlify logout`, then `netlify login`) and is on the
-lost-laptop checklist beside the token.
+**The `netlify` CLI login** is retired. Its token sat in plain text in
+`~/Library/Preferences/netlify/config.json` with the same access as
+the Keychain token. Run `netlify logout` once and never `netlify
+login` again. `bin/nff` passes the Keychain token to the CLI through
+the child process's environment, and `bin/nff netlify <args>` runs any
+runbook command that way (`bin/nff netlify env:set ...`). A machine
+that still has a login file is a finding: it joins the lost-laptop
+checklist, to be revoked with the token. Run `netlify logout` there
+first.
 
 **After launch:** propose replacing bin/nff's Blobs calls with the
 site's own admin API, behind an admin session or a scoped admin key,
@@ -645,8 +650,10 @@ secret.
    `netlify` from a clean machine. For PayPal, keep it on for at
    least 9 hours after the secret is disabled (see PayPal).
 2. **Rotate, in this order, the blast radius:**
-   1. The Netlify personal access token and the `netlify` CLI login
-      (Netlify: revoke the token; `netlify logout`).
+   1. The Netlify personal access token (Netlify: revoke the token).
+      Any leftover `netlify` CLI login is the same access: revoke
+      its token too (`netlify logout` on a machine still holding
+      one). Use `bin/nff netlify ...` from the clean machine.
    2. Square (access token, webhook key) and PayPal (secret).
    3. Resend (sending key, audience key, webhook secret).
    4. Axiom, Healthchecks and the ntfy topic, the R2 token, the age

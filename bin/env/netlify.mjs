@@ -118,7 +118,7 @@ export const preflight = (plan, vars) => {
 
 // The commands that remove a variable from every context it has.
 const unsetAll = (v) => v.values.map((x) =>
-  `netlify env:unset ${v.name} --context ${x.context}`);
+  `bin/nff netlify env:unset ${v.name} --context ${x.context}`);
 
 // Sets each key on one context, then reads every non-secret back. It
 // stops at the first CLI failure. Netlify returns no secret's value,
@@ -357,7 +357,7 @@ export const checkEnv = ({ env, sample, local, remote, file }) => {
   const unset = [];
   const inSample = new Set([...sample.keys, ...sample.local]);
   const unsetOwn = (name) => unset.push(
-    `netlify env:unset ${name} --context ${context}`);
+    `bin/nff netlify env:unset ${name} --context ${context}`);
   const forbidden = (where, names) => {
     for (const name of stagingOnlyIn(env, names)) {
       problems.push(`${name}: is staging only, yet in ${where}.`);
@@ -459,7 +459,8 @@ export const previewLeaks = (vars) => {
 
       if (!reaches.length) continue;
 
-      const command = `netlify env:unset ${v.name} --context ${x.context}`;
+      const command = `bin/nff netlify env:unset ${v.name} ` +
+        `--context ${x.context}`;
 
       if (!PREVIEW_ALLOWED.has(v.name)) {
         problems.push(x.context === "all"
