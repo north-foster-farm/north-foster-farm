@@ -23,6 +23,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { guard, recordSend } from "./breaker.mjs";
 import { timedFetch } from "./http.mjs";
 import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
 import { stores as defaultStores } from "./store.mjs";
@@ -268,7 +269,23 @@ export const sendMail = async (message, {
     throw new MailError(resendRefusal(env));
   }
 
-  return mailConfigured(env)
-    ? viaResend(message, env, fetchImpl)
-    : viaLog(message);
+  if (!mailConfigured(env)) return viaLog(message);
+
+  // The send breaker (lib/breaker.mjs) says whether Resend may be
+  // called at all, and keeps what it refuses for `bin/nff breaker
+  // flush`.
+  const kept = stores || defaultStores(env);
+  const gate = await guard(kept, message, { env, fetchImpl });
+
+  if (!gate.allowed) {
+    throw new MailError(`Resend breaker: ${gate.reason}`, {
+      retryable: false, detail: { breaker: gate.reason },
+    });
+  }
+
+  const sent = await viaResend(message, env, fetchImpl);
+
+  await recordSend(kept, sent.id);
+
+  return sent;
 };
