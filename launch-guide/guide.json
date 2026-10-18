@@ -1,5 +1,5 @@
 {
- "revision": 27,
+ "revision": 28,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -1074,7 +1074,7 @@
     {
      "id": "env-push",
      "title": "Send the staging and production values to Netlify",
-     "body": "In the project folder, in this order:\n```\nbin/nff env push --staging\nbin/nff env check --staging\nnetlify env:unset STAGING_TOKEN --context production\nbin/nff env push --production\nbin/nff env check --production\n```\nThen ask Claude to deploy each context, staging and production.\n- **Push a context before its sample reaches a build there.** Every staging and production build first checks that each key its committed sample lists is set (`check:env`), so a sample that lands before its push fails that context's next build. Staging is failing this way now (see the first item in this guide).\n- **Production's first build fails the same check until production has been env pushed.** Run `bin/nff env push --production` and `bin/nff env check --production` before the release deploy, or the deploy fails and the old site stays up.\n- `push` sets each key the sample lists, marks secrets as secret, skips local-only keys and never deletes anything. If it refuses because a secret is a plain variable on Netlify, mark that key secret in the Netlify UI, or run the `env:unset` commands it prints, then push again.\n- `check` lists, by name only, anything that still differs. The `env:unset` lines it prints are yours to run; push never deletes.\n\nProduction's values match what it has today, so nothing changes for the live site.\n\nA push then offers **Deploy now?** and posts the context's build hook; add `--allow-deploy` to skip the question. The Netlify calls in the push have never run live, so the first staging push is the rehearsal: if it stops, tell Claude what it printed (it prints names, never values).\n\n**Then, in the same sitting, for the staging token:** put the new value in GitHub (**Settings → Secrets and variables → Actions → STAGING_TOKEN → Update**), and ask Claude to rebuild staging. Until all three match, the staging jobs workflow fails.",
+     "body": "In the project folder, in this order:\n```\nbin/nff env push --staging\nbin/nff env check --staging\nnetlify env:unset STAGING_TOKEN --context production\nbin/nff env push --production\nbin/nff env check --production\n```\nThen ask Claude to deploy each context, staging and production.\n- **Push a context before its sample reaches a build there.** Every staging and production build first checks that each key its committed sample lists is set (`check:env`), so a sample that lands before its push fails that context's next build. Staging failed this way until the optional keys were marked (the staging review item has the lists).\n- **Production's first build fails the same check until production has been env pushed.** Run `bin/nff env push --production` and `bin/nff env check --production` before the release deploy, or the deploy fails and the old site stays up.\n- `push` sets each key the sample lists, marks secrets as secret, skips local-only keys and never deletes anything. If it refuses because a secret is a plain variable on Netlify, mark that key secret in the Netlify UI, or run the `env:unset` commands it prints, then push again.\n- `check` lists, by name only, anything that still differs. The `env:unset` lines it prints are yours to run; push never deletes.\n\nProduction's values match what it has today, so nothing changes for the live site.\n\nA push then offers **Deploy now?** and posts the context's build hook; add `--allow-deploy` to skip the question. The Netlify calls in the push have never run live, so the first staging push is the rehearsal: if it stops, tell Claude what it printed (it prints names, never values).\n\n**Then, in the same sitting, for the staging token:** put the new value in GitHub (**Settings → Secrets and variables → Actions → STAGING_TOKEN → Update**), and ask Claude to rebuild staging. Until all three match, the staging jobs workflow fails.",
      "minutes": 15,
      "links": [
       {
@@ -1217,7 +1217,7 @@
     {
      "id": "env-clean",
      "title": "Retire the old shared credentials",
-     "body": "Once staging runs on its new values:\n- **Square:** delete the old shared sandbox webhook subscription. Keep the old app only if production uses it.\n- **PayPal:** delete the old shared sandbox app.\n- **Axiom and Healthchecks:** delete the token and checks staging used to share.\n- **Resend:** delete the keys previews and staging used to share, but **not** production's `RESEND_READ_KEY` or its key at Resend. The live site reads it until launch day's live checks pass (step pw-p9); the launch is fixed forward, with no week's hold.\n- **Your old Netlify token:** revoke it at Applications → Personal access tokens, once every env file, yours and the lanes', holds the new one.",
+     "body": "Once staging runs on its new values:\n- **Square:** delete the old shared sandbox webhook subscription. Keep the old app only if production uses it.\n- **PayPal:** delete the old shared sandbox app.\n- **Axiom and Healthchecks:** delete the token and checks staging used to share.\n- **Resend:** delete the keys previews and staging used to share, but **not** production's `RESEND_READ_KEY` or its key at Resend. The live site reads it until launch day's live checks pass (step pw-p9); the launch is fixed forward, with no week's hold.\n- **Your old Netlify token:** revoke it at Applications → Personal access tokens, once every env file, yours and the lanes', holds the new one.\n- **Production's context:** delete `STAGING_TOKEN` and `STAGING_REVIEWER_TOKEN` if either name exists, even empty. Production fails its build and `bin/nff env check` while it holds either (b60a03b).",
      "minutes": 20,
      "blocked": "Waits on agents: #251's list. Staging already works on its own values (#255).",
      "links": [
@@ -1885,7 +1885,7 @@
     {
      "id": "pl-rest",
      "title": "The rest of the after-launch list",
-     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- a function that filters for production deploy failures and pages your phone through the alerts check (D-NOTIFY, #248);\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- Resend's Contacts and Segments (D-148, #148): built and held on `hold/148`; the old API still works, so launch day has no migration step. **Switch maintenance mode on first, for the cutover** (`bin/nff --production maintenance on`, then off when it is checked), so no sign-up or order lands half in the old audience and half in the new;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159);\n- move both repositories (`north-foster-farm`, `nff-dashboard`) to your personal account and make them private. They are public today, which is why Netlify's free plan can host an organization repository. Plan it as one item:\n  - **GitHub Pro** (about $4 a month) is needed for branch protection and rulesets on private personal repositories, and for 3,000 Actions minutes;\n  - **Actions minutes:** staging's jobs every 15 minutes are about 2,900 runs a month, plus CI. Proposed: hourly staging jobs, or move them off Actions;\n  - **Anything that reads a repository without signing in breaks once it is private:** this guide's `raw.githubusercontent.com` fetch (moot if the dashboard version has replaced it) and image links in issues;\n  - **Re-link:** the Netlify sites, the GitHub apps (Netlify, Claude), the coordinator's and lanes' access, webhooks and the `STAGING_TOKEN` repository secret;\n  - **Order:** transfer, check redirects, make private, then re-link and check the deploys.\n\nTick this when you've told Claude your order.",
+     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- a function that filters for production deploy failures and pages your phone through the alerts check (D-NOTIFY, #248);\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- Resend's Contacts and Segments (D-148, #148): built and held on `hold/148`; the old API still works, so launch day has no migration step. **Switch maintenance mode on first, for the cutover** (`bin/nff --production maintenance on`, then off when it is checked), so no sign-up or order lands half in the old audience and half in the new;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159);\n- move both repositories (`north-foster-farm`, `nff-dashboard`) to your personal account and make them private. They are public today, which is why Netlify's free plan can host an organization repository. Plan it as one item:\n  - **GitHub Pro** (about $4 a month) is needed for branch protection and rulesets on private personal repositories, and for 3,000 Actions minutes;\n  - **Actions minutes:** staging's jobs every 15 minutes are about 2,900 runs a month, plus CI. Proposed: hourly staging jobs, or move them off Actions;\n  - **Anything that reads a repository without signing in breaks once it is private:** this guide's `raw.githubusercontent.com` fetch (moot if the dashboard version has replaced it) and image links in issues;\n  - **Re-link:** the Netlify sites, the GitHub apps (Netlify, Claude), the coordinator's and lanes' access, webhooks and the `STAGING_TOKEN` repository secret;\n  - **Order:** transfer, check redirects, make private, then re-link and check the deploys.\n\nTick this when you've told Claude your order.\n- **Evaluate a scoped Square OAuth login** in place of the long-lived access token (your 10/18 note on #267). A research item, not built.",
      "minutes": 5,
      "device": "any",
      "type": "decide"
@@ -1959,7 +1959,7 @@
   {
    "id": "R-STG-STALE",
    "section": "rv-look",
-   "title": "Staging has not deployed since a938114 (about 6:00 EDT on Oct 18)",
+   "title": "Staging deploys again (it stalled after a938114)",
    "area": "Netlify, staging",
    "revisions": [
     {
@@ -1974,6 +1974,19 @@
       }
      ],
      "recommendation": "Open the failed build's log and read its first line before changing anything."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-18",
+     "changed": "Fixed. Staging deploys again; the live build is f05aafb or later. The cause is confirmed.",
+     "summary": "Nothing for you to do. `check:env` was failing every staging build because the committed sample listed keys staging never held. The checkout lane marked the keys that really are optional for their context (bd364da), and staging built from f05aafb.\n\n**Keep this list in case a production build fails the same check.** The first line of `check:env` names the exact misses under \"Required for a staging build, and not set:\". Required on staging: `SITE_CONTEXT`, `SITE_URL`, `ACCOUNTS_ENABLED`, `SQUARE_ENV`, `SQUARE_APPLICATION_ID`, `SQUARE_LOCATION_ID`, `SQUARE_ACCESS_TOKEN`, `SQUARE_WEBHOOK_SIGNATURE_KEY`, `PAYPAL_ENV`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `MAIL_DRIVER`, `MAIL_FROM`, `MAIL_REPLY_TO`, `ADMIN_EMAILS`, `AXIOM_DATASET`, `STAGING_TOKEN`. Optional: `MAINTENANCE_SECRET`, `DEV_NOTIFICATIONS_EMAIL`, `E2E_STAGING_TOKEN`, `AXIOM_TOKEN`, both Healthchecks URLs, `STAGING_REVIEWER_TOKEN`, and `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS` everywhere. Production's list is the same shape; step **env-push** sets them all.",
+     "look": [
+      {
+       "label": "Netlify deploys",
+       "url": "https://app.netlify.com/projects/north-foster-farm/deploys"
+      }
+     ],
+     "recommendation": "No action. Look only if a production build fails."
     }
    ],
    "device": "laptop",
@@ -2638,6 +2651,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
       }
      ]
+    },
+    {
+     "rev": 5,
+     "date": "2026-10-18",
+     "changed": "New order: the staging token first, then the git rules, then the rest.",
+     "summary": "Read in this order; (a) to (k) above still stand.\n\n**1. `E2E_STAGING_TOKEN` (the only thing blocking qa).** The staging back-office API answers 404 without it, so no back-office spec can run: PY-01 to PY-18, AO and the maintenance rehearsal. The card path on a real sandbox charge (Card is now open by default) is unrun until then. Make a long random token, set `E2E_STAGING_TOKEN` on Netlify's branch:staging context, save it in `.env.e2e-staging` (qa never uses `.env.staging` for it) and in the password manager. **Recommend: do it first.** Step **env-e2e-token** has the details; the other specs pass (154 passed, 3 skipped, 0 failed on 6a726eb).\n\n**2. Allow git commits for the lanes.** Several lanes cannot `git add`, `commit` or `rebase --continue`, so finished work sits uncommitted. The script `/private/tmp/claude-501/-Users-james-Code-nff/707e073a-b931-4f62-b657-7756ba342c3c/scratchpad/add-allow-rules-2.py` adds the allow rules (git commit and the rest). Read it, then run it. **Recommend yes.**\n\n**3. The rest:** the lists above (a to k) and the review items R-ORDERS and R-TOOLBAR.",
+     "look": []
     }
    ],
    "device": "any",
@@ -3361,6 +3381,156 @@
    ],
    "device": "any",
    "type": "look"
+  },
+  {
+   "id": "R-ORDERS",
+   "section": "rv-look",
+   "title": "The order page and cart pane, on your iPhone",
+   "area": "#267, iPhone",
+   "device": "phone",
+   "type": "look",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "changed": "New. Eleven commits on `next`, 6ab69bd to 9c344db, from your two notes on #267.",
+     "summary": "**Check these on your iPhone, in portrait and in landscape. The keyboard and Dynamic Island behaviors were only simulated; the real device is the test.** Rotate to landscape on the order page, open Add discount with the keyboard up, tap \"N more\", and tick the news box.\n\n**Order form**\n- Name, email and phone are ordinary inputs at all times, prefilled when you are signed in. The click-to-edit code and its line are gone (6ab69bd).\n- News box: unticked \"Get news and updates from us?\", ticked \"Getting news and updates from us.\" Ticking sends chicks from the box; the footer and news-page buttons send them on a successful sign-up. None under reduced motion (d605d7b). A still cannot show the chicks.\n- Card is chosen when the page opens, so its fields and Pay button show. With no card payments on offer the Pay button hides; a page with Venmo only says \"Card payments aren't available right now. Pay with one of the buttons above instead.\" That last note was not exercised (db514d1).\n- On-farm pickup says \"By appointment\" (6a726eb).\n\n**Cart pane**\n- The next-discount note sits right-aligned under Continue to payment (778fd94).\n- Add discount, the way buttons, the code field and Apply are one height, 36px, and the cart does not shift (97c2244).\n- On a phone the lines and the sums take turns: opening one folds the other (d4af18c).\n- \"N more\" glides to the hidden row and stops (6dfec8d). The old overshoot could not be reproduced off a device.\n- **Keyboard (ddbc060, simulated only):** while the discount field is open the floating cart rides up by the keyboard's height, so the field stays above it.\n- Neither the lines nor the sums take more than 55% of the screen height (2b4c10d). The empty area under the last row in your screenshot looks like iOS's rubber-band bounce; I could not reproduce it. If the gap shows without a drag, it is a bug not yet found.\n- **Landscape (9c344db, emulated insets of 59px, not a real Dynamic Island):** the page padding is the larger of the gutter and the safe area, and the top bar bleeds out by the same amount. Portrait is unchanged.",
+     "look": [
+      {
+       "label": "Contact, before",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-before-form-contact.png"
+      },
+      {
+       "label": "Contact, after",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-form-contact.png"
+      },
+      {
+       "label": "News box ticked, before",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-before-form-contact-ticked.png"
+      },
+      {
+       "label": "News box ticked, after",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-form-contact-ticked.png"
+      },
+      {
+       "label": "Payment, first paint, before",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-before-form-payment-first-paint.png"
+      },
+      {
+       "label": "Payment, first paint, after",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-form-payment-first-paint.png"
+      },
+      {
+       "label": "On-farm pickup, before",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-before-form-onfarm-card.png"
+      },
+      {
+       "label": "On-farm pickup, after",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-form-onfarm-card.png"
+      },
+      {
+       "label": "Cart lines, portrait",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-portrait-items.png"
+      },
+      {
+       "label": "Cart sums, portrait",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-portrait-money.png"
+      },
+      {
+       "label": "Discount code, portrait",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-portrait-code.png"
+      },
+      {
+       "label": "Long cart, \"N more\" (iPhone 14)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-iphone14-long-more.png"
+      },
+      {
+       "label": "Long cart, lines (iPhone 14)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-iphone14-long-items.png"
+      },
+      {
+       "label": "Long cart, lines (14 Pro Max)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-iphone-max-long-items.png"
+      },
+      {
+       "label": "Keyboard, simulated",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-keyboard-sim.png"
+      },
+      {
+       "label": "Landscape, top",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-landscape-top.png"
+      },
+      {
+       "label": "Landscape, page top",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-landscape-page-top.png"
+      },
+      {
+       "label": "Landscape, end",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-landscape-end.png"
+      },
+      {
+       "label": "Order page on staging",
+       "url": "https://staging--north-foster-farm.netlify.app/order/"
+      },
+      {
+       "label": "#267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
+      }
+     ],
+     "recommendation": "Approve once the keyboard, the Dynamic Island and \"N more\" look right on the iPhone, portrait and landscape."
+    }
+   ]
+  },
+  {
+   "id": "R-TOOLBAR",
+   "section": "rv-look",
+   "title": "The staging toolbar, navigation and contact page",
+   "area": "#267, staging",
+   "device": "any",
+   "type": "look",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "changed": "New. Four commits on `next`: f22218b, 8425acb, c66c31f, e39afb8.",
+     "summary": "Check on staging once it has them.\n\n**1. Signatures have their own section.** Open the Staging tab. Under \"Signatures\" one button, \"Signature library\", shows the number of variants. Press it: a view opens like the email library, with the variants on the left and the chosen one previewed on the right. Copy, then paste into a mail draft: you get rich text. Open alone: a page with only the signature opens in a new tab. Close with the x or Escape. On a phone the list fills the screen, a tap opens the preview and the back arrow returns. The reviewer's key still opens it. Direct links: `#signatures` and `#signature=james`.\n**2. Reset to a first visit.** Under \"This browser\", press it. It signs you out, clears the cart and its choices, dismissed notes, the Venmo and farm news sign-up flags, the video preference, cookies and saved settings, then reloads. Afterward the farm news forms are back, the header shows Sign in and the order page is empty. Only the toolbar's own token stays. **Not verified:** the server sign-out and the staging reset test need the branch deploy, so this is the first real check.\n**3. No Delivery in the main navigation.** The header and the phone menu show News, About, Contact and the Account menu. Delivery stays in the footer and on the order page; `/delivery-policy/` loads.\n**4. Contact page (draft wording).** First paragraph: \"Get in touch by calling, texting, sending us an email, or sending us a message through the contact form.\" Visits: \"Visits are by appointment only. Contact us to set up a farm visit. To pick up an order at the farm, choose on-farm pickup on the order page.\"",
+     "look": [
+      {
+       "label": "Signatures section, desktop, light",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/toolbar-sigs-panel-desktop-light.png"
+      },
+      {
+       "label": "Signatures section, phone, dark",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/toolbar-sigs-panel-phone-dark.png"
+      },
+      {
+       "label": "Library, desktop, light",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/toolbar-sigs-list-desktop-light.png"
+      },
+      {
+       "label": "Library, desktop, dark",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/toolbar-sigs-list-desktop-dark.png"
+      },
+      {
+       "label": "Library list, phone, light",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/toolbar-sigs-list-phone-light.png"
+      },
+      {
+       "label": "Signature preview, phone, light",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/toolbar-sigs-read-phone-light.png"
+      },
+      {
+       "label": "Staging",
+       "url": "https://staging--north-foster-farm.netlify.app/contact/"
+      },
+      {
+       "label": "#267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
+      }
+     ],
+     "recommendation": "Approve if the library, the reset and the navigation work as described."
+    }
+   ]
   }
  ],
  "env": {
