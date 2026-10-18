@@ -9,14 +9,17 @@ is the list of names the code reads; this is what to do with them.
 
 - **Production keeps its keys through launch** (James, 2026-10-16).
   New, separate keys go to staging, and development gets fakes.
-  Nothing production uses today is revoked before the fresh `ff6270c`
-  build the day before the release (`docs/rollback.md`), and the old
-  checkout's Resend credentials stay until #237's P9 (below).
+  The old checkout's Resend credentials go once the release's live
+  checks pass (#237's P9, below). The launch is fixed forward, with
+  no rollback to the old checkout (`docs/rollback.md`).
 - **A change on Netlify needs a deploy.** Functions read their
   environment at deploy time. After `netlify env:set`, trigger a
   production deploy (Deploys → Trigger deploy, or
   `netlify api createSiteBuild`) and wait for it to publish before
-  revoking the old value.
+  revoking the old value. The previous deploy still holds the old
+  key, so after a rotation or a leak never publish a deploy built
+  before it; that new deploy is the rollback floor, and a rollback
+  past it reverts on `main` or fixes forward (`docs/rollback.md`).
 - **New first, old last.** Create the replacement, set it, deploy,
   prove it, then revoke the old one. Only the Square access token
   cannot work this way.
@@ -266,10 +269,9 @@ dashboard.
   --production mail` (`lib/sent.mjs:36`). Leaked, it reads every email
   the site has sent, with customer addresses. Create, update
   `.env.production`, delete the old.
-- **`RESEND_READ_KEY`**: read by no code in the release, but the old
-  invoice checkout's `venmo-inbound` reads received email with it,
-  and a rollback runs that code. Delete it from Netlify and Resend
-  after P9, not before, rather than rotate it.
+- **`RESEND_READ_KEY`**: read by no code in the release; only the old
+  invoice checkout's `venmo-inbound` read received email with it.
+  Delete it from Netlify and Resend after P9 rather than rotate it.
 - **`RESEND_WEBHOOK_SECRET`**: the endpoint's `whsec_` secret. Rotate
   in the dashboard or with `POST /webhooks/{id}/signing-secret/rotate`.
   For 24 hours Resend signs with both secrets, and
@@ -277,8 +279,7 @@ dashboard.
   the new one and deploy within the day. No downtime. Today
   production's value is the old Venmo inbound endpoint's secret. On
   launch day #237 replaces it with the `/api/resend/webhook`
-  endpoint's; James keeps the old value until P9, because a revert on
-  `main` would need it back (`docs/rollback.md`).
+  endpoint's, and the old value is not kept.
 
 Cadence: on the schedule; the lookup key also whenever the laptop
 changes hands.
