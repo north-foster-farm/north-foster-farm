@@ -1,3 +1,43 @@
+// A featured image that links to its post, in the lead and the list.
+// On hover the frame lifts as a button does, on the buttons' own
+// transition, and the picture zooms a little inside it from its top
+// edge. The frame clips the zoom, so its box never changes. Focus on
+// the post's title link does the same, since the image link is
+// skipped by keyboards (tabindex -1). Reduced motion drops the
+// movement and keeps the shadow.
+@mixin news-image-lifted {
+  transform: translateY(-2px);
+  box-shadow: $btn-lift-shadow;
+
+  img,
+  .news-mark {
+    transform: scale(1.04);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transform: none;
+
+    img,
+    .news-mark {
+      transform: none;
+    }
+  }
+}
+
+@mixin news-image-link {
+  transition: $btn-transition;
+
+  img,
+  .news-mark {
+    transition: transform 0.16s ease-out;
+    transform-origin: 50% 0;
+  }
+
+  &:hover {
+    @include news-image-lifted;
+  }
+}
+
 // A post's date, in lists and under its title.
 .news-date {
   font-size: $font-size-sm;
@@ -57,11 +97,17 @@
     border-radius: var(--bs-border-radius-lg);
     background-color: var(--bs-success-bg-subtle);
 
+    @include news-image-link;
+
     img {
       width: 100%;
       height: 100%;
       object-fit: cover;
     }
+  }
+
+  .news-lead:has(a:focus-visible) .news-lead-image {
+    @include news-image-lifted;
   }
 
   .news-lead-title {
@@ -105,11 +151,17 @@
     border-radius: var(--bs-border-radius-lg);
     background-color: var(--bs-success-bg-subtle);
 
+    @include news-image-link;
+
     img {
       width: 100%;
       height: 100%;
       object-fit: cover;
     }
+  }
+
+  .news-item:has(a:focus-visible) .news-thumb {
+    @include news-image-lifted;
   }
 
   // The farm's mark in the dark green, the same on every card, about
