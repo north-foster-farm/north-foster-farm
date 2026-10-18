@@ -7,6 +7,7 @@ import { pickupTimes, windowLabel } from "../order/lib/schedule.mjs";
 import { dollars } from "../order/lib/totals.mjs";
 import { forgetCustomer } from "../order/draft.js";
 import { label } from "../order/lib/zoned.mjs";
+import { forgetJoined, remember } from "../news/hide.js";
 import { forget, showChick, signOut } from "../session/session.js";
 import { api } from "../utils/api.js";
 
@@ -483,6 +484,10 @@ class Account {
     this.customer = data.customer;
     this.renderHead();
     forget();
+    // This browser's sign-up flag follows the account, so signing out
+    // after an opt-out shows the forms again.
+    if (data.customer && data.customer.marketing) remember();
+    else forgetJoined();
 
     return { ok: true };
   }

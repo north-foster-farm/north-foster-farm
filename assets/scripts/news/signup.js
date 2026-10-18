@@ -8,6 +8,8 @@
 import { api } from "../utils/api.js";
 import { looksLikeEmail } from "../utils/email.js";
 import { isBusy, whileBusy } from "../utils/busy-button.js";
+import { forget } from "../session/session.js";
+import { forgetJoined, remember, wireNewsHiding } from "./hide.js";
 
 const JOINED = "You're on the list. Thanks!";
 
@@ -71,6 +73,7 @@ export const wire = (form) => {
     if (ok) {
       say(note, JOINED, "ok");
       input.value = "";
+      remember();
     } else if (data && data.maintenance) {
       say(note, data.message, "wait");
     } else if (data && data.errors && data.errors.email) {
@@ -100,8 +103,13 @@ export const wireNewsSignup = () => {
       params.toString() ? `?${params}` : ""}`);
   };
 
+  // A page opened from an email link keeps its forms, so the answer
+  // under the field is seen; the next page hides them as usual.
+  if (!(landed && LANDED[landed]) && !token) wireNewsHiding();
+
   if (landed && LANDED[landed]) {
     say(note, LANDED[landed], landed === "confirmed" ? "ok" : "wait");
+    if (landed === "confirmed") remember();
     clean("news");
   }
 
@@ -109,6 +117,12 @@ export const wireNewsSignup = () => {
     clean("unsubscribe");
     api("/api/news/unsubscribe", { method: "POST", body: { token } })
       .catch(() => ({ ok: false }))
-      .then(({ ok }) => say(note, ok ? LEFT : NOT_LEFT, ok ? "ok" : "wait"));
+      .then(({ ok }) => {
+        if (ok) {
+          forgetJoined();
+          forget();
+        }
+        say(note, ok ? LEFT : NOT_LEFT, ok ? "ok" : "wait");
+      });
   }
 };

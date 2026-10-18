@@ -23,7 +23,7 @@
           {{ partial "page-heading.html" . }}
           {{ with $lead }}
             {{ partial "news/lead.html" . }}
-            <aside class="news-inline-signup" aria-labelledby="news-signup-title">
+            <aside class="news-inline-signup" data-news-block aria-labelledby="news-signup-title">
               <h2 class="news-inline-signup-title" id="news-signup-title">Farm news and updates, wrote good by a real farmer</h2>
               {{ partial "news-signup.html" (dict "id" "news-page") }}
             </aside>
