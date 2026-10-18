@@ -1556,8 +1556,12 @@
   // Payment: the card form the SDK mounts, and the wallet buttons
   // beside it. The states are set by scripts/order/pay.js.
 
+  // A layer of its own: the vendors' iframes carry z-indexes far above
+  // the page's, and loose in the page's stacking they drew over the
+  // sticky bars and the open menu as the page scrolled (#267).
   .order-pay {
     container-type: inline-size;
+    isolation: isolate;
     padding: 1rem 1.25rem;
     border: 1px solid var(--bs-border-color-translucent);
     border-radius: var(--order-radius);

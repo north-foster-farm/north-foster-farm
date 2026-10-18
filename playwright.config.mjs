@@ -85,6 +85,7 @@ export default defineConfig({
       name: "iphone",
       testMatch: [
         "**/overflow.spec.mjs", "**/a11y.spec.mjs", "**/keyboard.spec.mjs",
+        "**/payment-stacking.spec.mjs",
       ],
       use: { ...devices["iPhone 15"] },
     },
