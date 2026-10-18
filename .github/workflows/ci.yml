@@ -32,6 +32,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
@@ -43,6 +44,15 @@ jobs:
 
       - name: Lint
         run: env -i PATH="$PATH" HOME="$HOME" npm run lint
+
+      # A pull request checks its own commits; a push checks the commits
+      # it added (a release to staging or main: everything in it). A
+      # dispatched run has no base and checks against origin/main.
+      - name: Record shape
+        run: >
+          env -i PATH="$PATH" HOME="$HOME"
+          node bin/check-record-shape.mjs
+          "${{ github.event.pull_request.base.sha || github.event.before }}"
 
       - name: Test
         run: env -i PATH="$PATH" HOME="$HOME" npm test
