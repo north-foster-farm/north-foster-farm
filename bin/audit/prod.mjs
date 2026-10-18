@@ -53,6 +53,32 @@ export const ping = async (url, failed, body, fetchImpl = fetch) => {
   if (!res.ok) throw new Error(`ping answered HTTP ${res.status}`);
 };
 
+// Where production's commit lives: the deployed SHA when the live page
+// names it, else the tip of the fallback branch.
+const locate = async (env, fetchImpl) => {
+  const repo = env.GITHUB_REPOSITORY || "north-foster-farm/north-foster-farm";
+  const site = env.PROD_URL || "https://www.northfosterfarm.com/";
+  const sha = deployedSha(await get(site, fetchImpl));
+  const ref = sha || env.GITHUB_BRANCH || "main";
+
+  return {
+    sha,
+    ref,
+    raw: `https://raw.githubusercontent.com/${repo}/${ref}`,
+  };
+};
+
+// The commit's package.json and lockfile, in a directory of their own.
+const download = async (raw, fetchImpl) => {
+  const dir = mkdtempSync(join(tmpdir(), "prod-audit-"));
+
+  for (const file of ["package.json", "package-lock.json"]) {
+    writeFileSync(join(dir, file), await get(`${raw}/${file}`, fetchImpl));
+  }
+
+  return dir;
+};
+
 export const prodAudit = async ({
   env = process.env, fetchImpl = fetch, audit = npmAudit,
   exceptions = readExceptions(),
@@ -65,24 +91,14 @@ export const prodAudit = async ({
     return 1;
   }
 
-  const repo = env.GITHUB_REPOSITORY || "north-foster-farm/north-foster-farm";
-  const site = env.PROD_URL || "https://www.northfosterfarm.com/";
-  const sha = deployedSha(await get(site, fetchImpl));
-  const ref = sha || env.GITHUB_BRANCH || "main";
-  const raw = `https://raw.githubusercontent.com/${repo}/${ref}`;
-  const dir = mkdtempSync(join(tmpdir(), "prod-audit-"));
-
-  for (const file of ["package.json", "package-lock.json"]) {
-    writeFileSync(join(dir, file), await get(`${raw}/${file}`, fetchImpl));
-  }
-
+  const { sha, ref, raw } = await locate(env, fetchImpl);
+  const dir = await download(raw, fetchImpl);
   const findings = await collectFindings({
     lockfiles: [join(dir, "package-lock.json")], audit,
   });
   const result = evaluate(findings, exceptions);
-  const bad = incompleteExceptions(exceptions);
   const failed = Boolean(result.unresolved.length || result.reraised.length);
-  const counts = summary(result, bad).join("\n");
+  const counts = summary(result, incompleteExceptions(exceptions)).join("\n");
 
   console.log(`commit: ${sha ? "deployed" : "tip of main (no build marker)"}`);
   console.log(counts);
