@@ -409,7 +409,7 @@ under `MAIL_OUT` (default `.ignored/outbox`) instead, so a local
 where a browser can open them; `MAIL_DRIVER=outbox` (staging) keeps
 them in the jobs store. `node .ignored/render-all.mjs --open` renders
 every template from the sample order into `.ignored/rendered/` with
-an index page. `MAIL_REPLY_TO` and `ADMIN_EMAILS` (comma-separated)
+an index page. `MAIL_REPLY_TO` and `FARM_NOTIFICATIONS_EMAIL` (comma-separated)
 are optional. `lib/templates.mjs` holds every message as a pure
 function with tests: order confirmed, pick a new time (a booked time
 the farm gave up), delivery reminder, order changed, order cancelled,
@@ -430,14 +430,14 @@ pages it links to arrive with the dashboard's order views). A resolved
 return sends nothing: James answers those himself. Links point at
 `SITE_URL`, else Netlify's `DEPLOY_PRIME_URL`, else `URL`.
 
-The farm's own notice goes to every address in `ADMIN_EMAILS`:
+The farm's own notice goes to every address in `FARM_NOTIFICATIONS_EMAIL`:
 `farmOrderPlaced`, the moment the order is paid, since that is the
 moment it exists. It carries the fulfilment sentence, how to reach
 the customer, the drop-off details for a delivery, the lines, the
 totals, the line `Paid: $55 by Visa ending 4242` and a link to the
 order in the Square dashboard. It is recorded under the order's
 `emails`, like every other send, so a retried request never sends it
-twice; with `ADMIN_EMAILS` unset it is skipped.
+twice; with `FARM_NOTIFICATIONS_EMAIL` unset it is skipped.
 
 ## Refunds
 

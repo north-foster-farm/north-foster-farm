@@ -48,7 +48,7 @@ recorded: the check is made once, at the start of the request.
 A signed-in admin goes through while customers are refused, so a real
 test order can prove a new token before the switch goes off (the
 rotation steps in `docs/secrets.md`). An admin is a session whose
-address is in `ADMIN_EMAILS` or `DEV_NOTIFICATIONS_EMAIL`. It is the
+address is in `DEV_NOTIFICATIONS_EMAIL`. It is the
 session that counts: no URL parameter, header or cookie other than the
 signed-in session changes anything.
 
@@ -83,14 +83,14 @@ context's env file for the CLI), and whoever holds a link can flip.
 `bin/nff maintenance rotate` kills every link handed out so far. Ten
 wrong signatures lock an address out for ten minutes.
 
-Every flip that changes the state emails `ADMIN_EMAILS` (James and
-Jim) and writes a `maintenance.flipped` log line. Flipping to the
+Every flip that changes the state emails `DEV_NOTIFICATIONS_EMAIL` and
+writes a `maintenance.flipped` log line. Flipping to the
 state it is already in does nothing and says nothing.
 
 Maintenance does not end sessions. To sign every customer out, turn
 maintenance on, run `bin/nff sessions end-all` (it counts the
 sessions, asks you to type `end all`, or takes `--yes`), then turn it
-off. The developer (`DEV_NOTIFICATIONS_EMAIL`, else `ADMIN_EMAILS`)
+off. The developer (`DEV_NOTIFICATIONS_EMAIL`)
 gets an email each time it runs. Customers sign in again by magic
 link.
 

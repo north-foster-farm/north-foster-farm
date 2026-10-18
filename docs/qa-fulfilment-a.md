@@ -138,8 +138,8 @@ The farm can't keep a booked time:
 The morning report:
 
 - [ ] The first jobs run after 8:00 (the toolbar's "As 8:00 today")
-      sends "Morning report: <today>" to ADMIN_EMAILS, the vital signs
-      first, once that day. If the schedule doesn't reach the week
+      sends "Morning report: <today>" to FARM_NOTIFICATIONS_EMAIL, the
+      vital signs first, once that day. If the schedule doesn't reach the week
       after next, it says so first, with `bin/nff schedule set
       <file>`. Nothing opens a pickup question any more, so "Pickups
       waiting on the customer" never appears.

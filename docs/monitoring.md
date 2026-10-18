@@ -25,10 +25,10 @@ sees, so a dead page and a silent failure both reach the phone.
 - **Jobs heartbeat.** The 15-minute run pings a healthchecks check
   when it ends well, and its `/fail` URL with the report when it does
   not. `HEALTHCHECKS_JOBS_URL`.
-- **Alerts.** `alert()` in `lib/health.mjs`: a farm email per failure
-  kind per hour, and a `/fail` ping to a second check followed at once
-  by a success ping, so every alert pushes "down" then "up" and the
-  next one pushes again. `ADMIN_EMAILS`, `DEV_NOTIFICATIONS_EMAIL`,
+- **Alerts.** `alert()` in `lib/health.mjs`: a developer email per
+  failure kind per hour, and a `/fail` ping to a second check followed
+  at once by a success ping, so every alert pushes "down" then "up" and
+  the next one pushes again. `DEV_NOTIFICATIONS_EMAIL`,
   `HEALTHCHECKS_ALERT_URL`.
   `bin/nff alert test` proves both channels.
 - **Backup heartbeat.** The nightly backup export (`docs/backup.md`)
@@ -47,9 +47,10 @@ sees, so a dead page and a silent failure both reach the phone.
   kept; `bin/nff jobs history`. Needs nothing.
 - **Morning report.** 8:00 daily, always: the last day in numbers,
   a warning if the pickup schedule runs short, then pickups waiting on
-  the customer. `ADMIN_EMAILS`.
+  the customer. `FARM_NOTIFICATIONS_EMAIL`.
 - **Tomorrow.** 18:00 daily, always: every order due tomorrow by
-  method, with what to pack and where to leave it. `ADMIN_EMAILS`.
+  method, with what to pack and where to leave it.
+  `FARM_NOTIFICATIONS_EMAIL`.
 - **Checkout beacon.** The order page posts to `/api/health` when a
   checkout cannot complete; it becomes the `client.checkout_failed`
   alert. Needs nothing.
@@ -148,9 +149,9 @@ sees, so a dead page and a silent failure both reach the phone.
 message to `DEV_NOTIFICATIONS_EMAIL` (dev@), through the same sender
 the deploy-failed, alert and rotation notices use, and says whether it
 went. Run it once when the address is created, and again after any
-change to it or to the mail setup. It never falls back to
-`ADMIN_EMAILS`: a dev@ that does not work must not hide behind the
-farm's inbox.
+change to it or to the mail setup. Nothing falls back to the farm's
+address: a dev@ that does not work must not hide behind the farm's
+inbox.
 
 ```
 Developer mail test on production (MAIL_DRIVER resend).
@@ -169,13 +170,12 @@ mailbox.
 ## Proving an alert reaches the phone
 
 `bin/nff alert test [--production|--staging]` raises one real alert,
-kind `alert.test`, through `alert()` itself: the farm email by
+kind `alert.test`, through `alert()` itself: the developer email by
 `MAIL_DRIVER`, then `/fail` and the success ping to
 `HEALTHCHECKS_ALERT_URL`. It skips the hourly limit, so it can be run
 again at once, and leaves no mute behind. It refuses when
-`HEALTHCHECKS_ALERT_URL`, `ADMIN_EMAILS` or
-`DEV_NOTIFICATIONS_EMAIL` is unset, since an alert
-there would reach nobody, and prints what it reached:
+`HEALTHCHECKS_ALERT_URL` or `DEV_NOTIFICATIONS_EMAIL` is unset, since
+an alert there would reach nobody, and prints what it reached:
 
 ```
 Alert test (alert.test) on production.
@@ -223,30 +223,37 @@ of the day, and every later one would reach email only. The subject is
 `Site alert: <kind>`, and the body carries this section's entry for
 the kind, from `lib/alerts-guide.mjs`, with a button to this page.
 
-**Who hears what.** Two addresses: `ADMIN_EMAILS`, the farm, and
-`DEV_NOTIFICATIONS_EMAIL`, the developer (`dev@northfosterfarm.com`
-in production; unset, the developer's notices go to `ADMIN_EMAILS`
-so none is lost). Routing is the table `ALERT_AUDIENCE` in
-`lib/health.mjs`:
+**Who hears what.** Three addresses, one job each:
 
-- **Both.** Everything that touches a customer, an order or money:
-  `order.create_failed`, `order.reserve_failed`, `order.id_collision`,
-  `order.after_paid_failed`, `order.edit_failed`,
-  `payment.unreconciled`,
-  `square.record_failed`, `square.edit_failed`,
-  `square.refund_failed`, `refund.failed`, `venmo.amount_mismatch`,
-  `mail.failed`, `client.payment_unavailable`, `client.checkout_failed`
-  and `alert.test`. "Orders not recorded" is in this group. A kind
-  missing from the table also goes to both.
-- **Developer only.** What only a developer can fix or should read:
-  `jobs.errors`, `jobs.invariants`, `jobs.crashed`, `backup.failed`,
-  `function.crashed` and `webhook.rejected` (a rejected signature is
-  a security signal).
-- **Farm only.** `pickup.lapsed`, which the farm acts on.
+- `FARM_NOTIFICATIONS_EMAIL` (`sales@northfosterfarm.com`): the farm's
+  notice of each new order, the contact-form messages (reply-to the
+  writer), the morning report and the tomorrow email. No alert goes
+  here.
+- `DEV_NOTIFICATIONS_EMAIL` (`dev@northfosterfarm.com`): every alert,
+  the maintenance flips and the maintenance bypass admin, the yearly
+  rotation reminder (below) and the session-end notice. There is no
+  fallback: unset, nobody is told, and the production build and
+  `bin/nff env check` fail.
+- `ESCALATED_NOTIFICATIONS_EMAIL` (`office@northfosterfarm.com`): one
+  emergency, below, and nothing else.
 
-Maintenance flips email both. The morning report, the tomorrow email
-and the farm's order notices stay with `ADMIN_EMAILS`. The yearly
-rotation reminder goes to the developer's address (below).
+`alertRecipients` in `lib/health.mjs` returns the developer's address
+for every kind, so a new alert needs no entry. The farm used to hear
+`pickup.lapsed` and the order and money alerts; they now read as
+alerts in the developer's inbox, and the farm learns of a problem
+from James.
+
+**The escalation.** "Orders not recorded" is the one alert that can
+call for a rollback (`docs/rollback.md`). The detector raises the kind
+`orders.not_recorded` (the detector itself is not built yet; the
+escalation waits for it). The developer gets it like any alert. Left
+unacknowledged for an hour, the scheduled jobs email
+`ESCALATED_NOTIFICATIONS_EMAIL` a plain message: James hasn't
+responded, switch on maintenance mode, here is the signed ON link. It
+repeats every hour while the alert is open, and `acknowledge` in
+`lib/health.mjs` stops it. `escalate` is the only code that reads
+that address, and `test/rotation.test.mjs` raises every kind to prove
+nothing else reaches it.
 
 **`order.create_failed`.** `POST /api/orders` could not create the
 Square order or take the payment after retries, or a processor
