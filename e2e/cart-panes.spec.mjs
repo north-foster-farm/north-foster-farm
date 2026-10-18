@@ -82,6 +82,34 @@ test.describe("cart panes on a phone", () => {
     });
   }
 
+  test("the more pills never sit over a heading or a line", async ({
+    page,
+  }) => {
+    const order = new OrderPage(page);
+
+    await order.open(FULL_CART);
+
+    const cart = order.cart;
+    const list = cart.locator("[data-cart-items]");
+    const down = cart.locator("[data-cart-more]");
+    const up = cart.locator("[data-cart-more-top]");
+
+    const apart = async (pill) => {
+      const l = await list.boundingBox();
+      const p = await pill.boundingBox();
+
+      expect(p.y).toBeGreaterThanOrEqual(l.y + l.height - 1);
+    };
+
+    await expect(down).toBeVisible();
+    await apart(down);
+
+    await list.evaluate((el) => { el.scrollTop = 140; });
+    await expect(up).toBeVisible();
+    await apart(up);
+    await apart(down);
+  });
+
   test("the shared row's controls are all 36px tall", async ({ page }) => {
     const order = new OrderPage(page);
 

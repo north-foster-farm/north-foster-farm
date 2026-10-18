@@ -963,6 +963,11 @@ export class OrderForm {
     wrap.style.setProperty("--cart-list-h", `${list.scrollHeight}px`);
     wrap.toggleAttribute("data-top", list.scrollTop > 0);
     wrap.toggleAttribute("data-more", more);
+    // Room for the "more" pills above and below the rows, only while
+    // the rows overflow: the pills never sit on a heading or a line.
+    wrap.toggleAttribute(
+      "data-scroll", list.scrollHeight > list.clientHeight + 1
+    );
     button.hidden = !more || below === 0;
     button.textContent = `${below} more ↓`;
     top.hidden = list.scrollTop <= 0 || above === 0;

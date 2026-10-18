@@ -663,13 +663,24 @@
       transition: opacity var(--order-fast) ease;
     }
 
-    // "3 more ↓", centred on the bottom fade; a tap scrolls a screen.
+    // While the rows overflow, a strip under them is the pills' own:
+    // the rows end at the strip, so a pill never sits on a heading or
+    // a line, and the strip keeps its height as the list scrolls. The
+    // fade ends where the strip begins.
+    &[data-scroll] {
+      padding-bottom: $cart-more-strip;
+
+      &::after {
+        bottom: $cart-more-strip;
+      }
+    }
+
+    // "3 more ↓", at the strip's right; a tap scrolls a screen.
     .order-cart-more {
       position: absolute;
-      bottom: 0.5rem;
-      left: 50%;
+      right: 0;
+      bottom: 0.125rem;
       z-index: 2;
-      translate: -50% 0;
       padding: 0.2rem 0.625rem;
       border: 1px solid var(--bs-border-color);
       border-radius: 999px;
@@ -686,10 +697,11 @@
       }
     }
 
-    // "2 more ↑", its twin at the top once the list has scrolled.
+    // "2 more ↑", its twin at the strip's left once the list has
+    // scrolled.
     .order-cart-more-top {
-      top: 0.5rem;
-      bottom: auto;
+      right: auto;
+      left: 0;
     }
 
     &::before {
