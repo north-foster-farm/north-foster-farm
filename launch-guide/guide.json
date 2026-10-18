@@ -1,5 +1,5 @@
 {
- "revision": 22,
+ "revision": 23,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -155,7 +155,7 @@
     {
      "id": "sq-prod",
      "title": "Check production's Square values",
-     "body": "These came in from your `.env`. Production keeps them; nothing here is replaced. If any field is empty, get it from the Developer Console with the toggle set to **Production**:\n- **Credentials:** the Application ID (it starts `sq0idp-`) and the access token (**Show**). Never use **Replace** now: it switches the old token off at once. On a later rotation, switch maintenance mode on first (Jan 1 rotation step).\n- **Locations:** the website's location ID.\n- **Webhooks → Subscriptions:** open the production subscription, then **Show** the Signature Key.\n\nIf you fixed the subscription URL in the previous step, its signature key is unchanged.",
+     "body": "These came in from your `.env`. Production keeps them; nothing here is replaced. If any field is empty, get it from the Developer Console with the toggle set to **Production**:\n- **Credentials:** the Application ID (it starts `sq0idp-`) and the access token (**Show**). Never use **Replace** now: it switches the old token off at once. On a later rotation, switch maintenance mode on first (the December rotation step).\n- **Locations:** the website's location ID.\n- **Webhooks → Subscriptions:** open the production subscription, then **Show** the Signature Key.\n\nIf you fixed the subscription URL in the previous step, its signature key is unchanged.",
      "minutes": 5,
      "links": [
       {
@@ -513,7 +513,7 @@
     {
      "id": "ax-prod",
      "title": "Check production's Axiom token",
-     "body": "It came in from your `.env`; production keeps it. If it's empty: **Settings → API tokens → New API token**, named \"NFF site production\", expiring **January 1, 2027**, permissions **Basic** (ingest only), dataset `nff-site`. Copy it; it isn't shown again.\n\nWhile you're in Settings, open **Datasets** and confirm `nff-site` keeps data for 30 days. The privacy page promises that.",
+     "body": "It came in from your `.env`; production keeps it. If it's empty: **Settings → API tokens → New API token**, named \"NFF site production\", expiring **January 31, 2027**, permissions **Basic** (ingest only), dataset `nff-site`. Copy it; it isn't shown again.\n\nWhile you're in Settings, open **Datasets** and confirm `nff-site` keeps data for 30 days. The privacy page promises that.",
      "minutes": 3,
      "links": [
       {
@@ -536,7 +536,7 @@
     {
      "id": "ax-stg",
      "title": "Make a staging dataset and its token",
-     "body": "In **Datasets**, create **New dataset** named `nff-site-staging` (kind Events). Then make a second Basic token, \"NFF site staging\", with access only to that dataset and the same Jan 1, 2027 expiry.",
+     "body": "In **Datasets**, create **New dataset** named `nff-site-staging` (kind Events). Then make a second Basic token, \"NFF site staging\", with access only to that dataset and the same Jan 31, 2027 expiry.",
      "minutes": 5,
      "links": [
       {
@@ -864,8 +864,8 @@
    "steps": [
     {
      "id": "nf-pat",
-     "title": "Make a new Netlify token that expires Jan 1, 2027",
-     "body": "Open **Applications → Personal access tokens → New access token**. Name it \"NFF bin/nff 2026\" and set **Expiration** to January 1, 2027. If only fixed choices are offered, take the nearest one that ends *before* Jan 1. Generate it and copy it.\n\nAlso copy the **Project ID** from Project configuration → General.\n\nRevoke your old token only after the new env files work (the Env files section).\n\nFor staging's pickup schedule, copy `PICKUP_SCHEDULE_HOOK` from your current `.env.staging` if it has one. Otherwise open **Project configuration → Build & deploy → Build hooks → Add build hook**, name it \"staging schedule\", choose the `staging` branch, and copy its URL. Production gets none, on purpose.",
+     "title": "Make a new Netlify token that expires Jan 31, 2027",
+     "body": "Open **Applications → Personal access tokens → New access token**. Name it \"NFF bin/nff 2026\" and set **Expiration** to January 31, 2027. If only fixed choices are offered, take the nearest one that ends on or before Jan 31 and not before Jan 1. Generate it and copy it.\n\nAlso copy the **Project ID** from Project configuration → General.\n\nRevoke your old token only after the new env files work (the Env files section).\n\nFor staging's pickup schedule, copy `PICKUP_SCHEDULE_HOOK` from your current `.env.staging` if it has one. Otherwise open **Project configuration → Build & deploy → Build hooks → Add build hook**, name it \"staging schedule\", choose the `staging` branch, and copy its URL. Production gets none, on purpose.",
      "minutes": 5,
      "links": [
       {
@@ -960,6 +960,20 @@
    "phase": "pre",
    "title": "Your env files",
    "steps": [
+    {
+     "id": "env-dev-mail",
+     "title": "Make the dev@ address in Fastmail",
+     "body": "In Fastmail, add the address **dev@northfosterfarm.com** (an alias on your own mailbox is enough). It receives incident steps, rotation reminders and security alerts, kept apart from `ADMIN_EMAILS`, which carries the farm's notices. The site reads it as `DEV_NOTIFICATIONS_EMAIL`, set per environment; the checkout lane is adding that setting, and a later step will ask you to put it in Netlify and the env files. Send the address a test message to be sure it arrives.",
+     "minutes": 5,
+     "links": [
+      {
+       "label": "Fastmail aliases",
+       "url": "https://app.fastmail.com/settings/aliases"
+      }
+     ],
+     "device": "laptop",
+     "type": "account"
+    },
     {
      "id": "env-files",
      "title": "Approve the samples and save the full files",
@@ -1669,7 +1683,7 @@
     {
      "id": "pl-rest",
      "title": "The rest of the after-launch list",
-     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- a function that filters for production deploy failures and pages your phone through the alerts check (D-NOTIFY, #248);\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- Resend's Contacts and Segments (D-148, #148): built and held on `hold/148`; the old API still works, so launch day has no migration step. **Switch maintenance mode on first, for the cutover** (`bin/nff --production maintenance on`, then off when it is checked), so no sign-up or order lands half in the old audience and half in the new;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159).\n\nTick this when you've told Claude your order.",
+     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- a function that filters for production deploy failures and pages your phone through the alerts check (D-NOTIFY, #248);\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- Resend's Contacts and Segments (D-148, #148): built and held on `hold/148`; the old API still works, so launch day has no migration step. **Switch maintenance mode on first, for the cutover** (`bin/nff --production maintenance on`, then off when it is checked), so no sign-up or order lands half in the old audience and half in the new;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159);\n- move both repositories (`north-foster-farm`, `nff-dashboard`) to your personal account and make them private. They are public today, which is why Netlify's free plan can host an organization repository. Plan it as one item:\n  - **GitHub Pro** (about $4 a month) is needed for branch protection and rulesets on private personal repositories, and for 3,000 Actions minutes;\n  - **Actions minutes:** staging's jobs every 15 minutes are about 2,900 runs a month, plus CI. Proposed: hourly staging jobs, or move them off Actions;\n  - **Anything that reads a repository without signing in breaks once it is private:** this guide's `raw.githubusercontent.com` fetch (moot if the dashboard version has replaced it) and image links in issues;\n  - **Re-link:** the Netlify sites, the GitHub apps (Netlify, Claude), the coordinator's and lanes' access, webhooks and the `STAGING_TOKEN` repository secret;\n  - **Order:** transfer, check redirects, make private, then re-link and check the deploys.\n\nTick this when you've told Claude your order.",
      "minutes": 5,
      "device": "any",
      "type": "decide"
@@ -1705,9 +1719,9 @@
     },
     {
      "id": "pq-rotate",
-     "title": "Jan 1, 2027: rotate the Netlify token and the yearly secrets",
-     "body": "Follow `docs/secrets.md`. The Netlify and Axiom tokens expire that day.\n\n**Switch maintenance mode on first, for the Square token.** Square gives the old token no grace, so checkout fails between pressing Replace and the new deploy going live. Run `bin/nff --production maintenance on`, replace the token, set it on Netlify, deploy, check a payment, then run `bin/nff --production maintenance off`. Customers see the maintenance message instead of a failed payment. The other secrets rotate without downtime and need no maintenance mode.",
-     "when": "Jan 1",
+     "title": "Dec 1 to Jan 1: rotate the Netlify token and the yearly secrets",
+     "body": "Follow `docs/secrets.md`. Rotate every secret in the window, Dec 1 to Jan 1. The Netlify and Axiom tokens expire Jan 31, a month later, so a slip costs nothing. A reminder email arrives on Dec 1 with what is due, and weekly after that until the rotation log shows it done.\n\n**Switch maintenance mode on first, for the Square token, and do it in a quiet hour inside the window.** Square gives the old token no grace, so checkout fails between pressing Replace and the new deploy going live. Run `bin/nff --production maintenance on`, replace the token, set it on Netlify, deploy, check a payment, then run `bin/nff --production maintenance off`. Customers see the maintenance message instead of a failed payment. The other secrets rotate without downtime and need no maintenance mode.",
+     "when": "Dec 1",
      "device": "laptop",
      "type": "account",
      "copy": [
@@ -2459,6 +2473,17 @@
       {
        "label": "#267",
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6219841453"
+      }
+     ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-18",
+     "changed": "James amended the rule on #267: every secret and token rotates **between Dec 1 and Jan 1**, and every token that can expire is set to **expire Jan 31**, which leaves a month to rotate and a month of buffer. This replaces \"rotates on January 1\". The Netlify token (nf-pat) and the Axiom tokens (ax-prod, ax-stg) now expire Jan 31, 2027. The Square token rotates under maintenance mode, in a quiet hour inside the window. On Dec 1 each year a reminder email lists what is due, built from docs/rotation-log.md; it repeats weekly, with a louder one in the last week of December. docs/secrets.md follows in the single revision.",
+     "look": [
+      {
+       "label": "#267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
       }
      ]
     }
