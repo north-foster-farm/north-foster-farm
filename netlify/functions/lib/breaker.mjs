@@ -262,21 +262,26 @@ const hold = async (stores, message, now) => {
 // The send path asks before it calls Resend. Reserves the sends it
 // allows. Never throws: a store that cannot answer lets the mail go
 // (orders need the store too), and says so in the log.
+// The staging gate's sign-in links ask with options of their own:
+// `ceiling` ({ hour, day }) replaces data/breaker.json's; `keep:
+// false` drops what is refused, since a link held for a flush would be
+// dead by then; `open: false` refuses when the store cannot answer.
 // -> { allowed: true } or { allowed: false, reason }
 export const guard = async (stores, message, {
   env = process.env, now = new Date(), fetchImpl = globalThis.fetch,
+  ceiling: own = null, keep = true, open = true,
 } = {}) => {
   try {
     const n = recipients(message).length;
 
     if (await isTripped(stores)) {
-      await hold(stores, message, now);
+      if (keep) await hold(stores, message, now);
 
       return { allowed: false, reason: "tripped" };
     }
 
     const [used, ceiling] = await Promise.all([
-      counts(stores, now), limits(stores, now),
+      counts(stores, now), own || limits(stores, now),
     ]);
     const over = used.hour + n > ceiling.hour ? "hour"
       : used.day + n > ceiling.day ? "day" : null;
@@ -285,7 +290,7 @@ export const guard = async (stores, message, {
       await trip(stores, "volume", {
         window: over, used: used[over], limit: ceiling[over],
       }, { env, now, fetchImpl });
-      await hold(stores, message, now);
+      if (keep) await hold(stores, message, now);
 
       return { allowed: false, reason: "volume" };
     }
@@ -300,7 +305,9 @@ export const guard = async (stores, message, {
   } catch (error) {
     log.error({ event: "resend.breaker_unavailable", error: String(error) });
 
-    return { allowed: true };
+    return open
+      ? { allowed: true }
+      : { allowed: false, reason: "unavailable" };
   }
 };
 
