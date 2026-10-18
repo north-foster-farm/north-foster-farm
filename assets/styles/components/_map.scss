@@ -113,7 +113,7 @@ $map-place: $blue;
 
 // A place's pin: blue, outlined in white so it stands off the land. It
 // rises a little under the pointer, and while its card is open it
-// darkens and takes a dark outline.
+// brightens and glows.
 .map-pin {
   cursor: pointer;
   outline: none;
@@ -130,9 +130,18 @@ $map-place: $blue;
     fill: $white;
   }
 
-  &[aria-pressed="true"] path,
+  // Selected, a pin brightens and glows; it never darkens. Keyboard
+  // focus alone takes the dark outline.
+  &[aria-pressed="true"] {
+    filter: drop-shadow(0 0 5px rgba($map-place, 0.75))
+      drop-shadow(0 2px 2px rgba($black, 0.25));
+
+    path {
+      fill: tint-color($map-place, 35%);
+    }
+  }
+
   &:focus-visible path {
-    fill: shade-color($map-place, 25%);
     stroke: $gray-800;
     stroke-width: 3;
   }

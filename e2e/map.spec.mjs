@@ -609,11 +609,21 @@ test.describe("map (#138, #214)", () => {
       const pin = map(page).locator("[data-map-pin='1']");
       const card = map(page).locator("[data-map-card='1']");
 
+      const light = () => pin.locator("path").evaluate((el) => {
+        const [r, g, b] = getComputedStyle(el).fill.match(/\d+/g).map(Number);
+
+        return r + g + b;
+      });
+
       await pin.scrollIntoViewIfNeeded();
+      const idle = await light();
+
       await pin.focus();
       await page.keyboard.press("Enter");
       await expect(card).toBeVisible();
       await expect(pin).toHaveAttribute("aria-pressed", "true");
+      // The selected pin is brightened, never darkened (#214).
+      await expect.poll(light).toBeGreaterThan(idle);
       await expect(card.locator(".map-card-name")).toBeFocused();
       // One template: what kind of place, then its name.
       await expect(card.locator(".map-card-kind")).toHaveText("Our farm");
