@@ -19,6 +19,7 @@ if (!(host.includes("--") || host === "localhost" || host === "127.0.0.1")) {
 // the sandbox: the phone project skips these.
 const desktopOnly = [
   "**/cart-layout.spec.mjs",
+  "**/cart-panes.spec.mjs",
   "**/pricing.spec.mjs",
   "**/payment.spec.mjs",
   "**/recovery.spec.mjs",

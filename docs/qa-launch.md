@@ -460,6 +460,28 @@ Manual: a judgement for James.
   `.ignored/qa/2026-09-24-launch/phone-floating-cart-covers-catalog.png`.
 - **Teardown:** None.
 
+### OP-28 The phone cart's panes
+
+Partial: `cart-panes.spec.mjs`, three tests at 390 by 664 (778fd94 to
+9c344db). The keyboard, the notch and the feel of the glide are manual.
+
+- **Scenario:** On a phone the lines and the sums take turns, neither
+  passes 55% of the screen, and the shared row's controls are one
+  height, so nothing moves when the discount field opens.
+- **Setup:** `FULL_CART`, a phone-sized window.
+- **Test:**
+  1. Open the lines, then the sums, then the sums again.
+  2. Measure each open pane.
+  3. Measure Add discount, the three ways, the code field and Apply.
+  4. Manual, on an iPhone: tap the discount field; turn the phone
+     sideways; tap "N more" on a long cart.
+- **Assert:** Opening one folds the other. Each pane is 55% of the
+  screen or less. Every control is 36px tall. By hand: the cart rides
+  above the keyboard with the field in sight; the page clears the
+  notch in landscape; the list glides to the row that was hidden and
+  stops on it, with no overshoot.
+- **Teardown:** Clear the draft.
+
 ## Pricing and discounts
 
 Wings are $10, eggs $7, thighs $12. Tiers: $5 off at $50, $10 at $100,
