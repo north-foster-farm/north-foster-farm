@@ -6,9 +6,12 @@ import {
   cutoffFor, deliveryDates, dropCutoffFor, onFarmDates, scituateDates,
 } from "../assets/scripts/order/lib/dates.mjs";
 import {
-  checkSchedule, coverUntil, parseSchedule, pickupTimes, windowLabel,
+  checkSchedule, coverUntil, horizon, parseSchedule, pickupTimes,
+  windowLabel,
 } from "../assets/scripts/order/lib/schedule.mjs";
-import { instant, label } from "../assets/scripts/order/lib/zoned.mjs";
+import {
+  addDays, instant, label, weekday,
+} from "../assets/scripts/order/lib/zoned.mjs";
 
 // A wall-clock time in New York as an instant.
 const ny = (iso, hour = 9, minute = 0) =>
@@ -50,6 +53,80 @@ describe("on-farm pickup, from the farm's schedule (W11d)", () => {
 
   it("offers nothing without a schedule", () => {
     assert.deepEqual(onFarmDates(ny("2026-10-06"), terms), []);
+  });
+});
+
+describe("the pickup horizon: through next week's Saturday (#267)", () => {
+  // Monday to Friday, 9 to noon, from Oct 19 to Dec 31, without
+  // Thanksgiving and Christmas.
+  const skipped = ["2026-11-26", "2026-12-25"];
+  const lines = [];
+
+  for (let d = "2026-10-19"; d <= "2026-12-31"; d = addDays(d, 1)) {
+    if (weekday(d) % 6 && !skipped.includes(d)) {
+      lines.push(`${d} 09:00-12:00`);
+    }
+  }
+
+  const schedule = parseSchedule(lines.join("\n")).windows;
+  const offered = (iso, hour = 9, rows = schedule) =>
+    dates(onFarmDates(ny(iso, hour), terms, rows));
+  const ends = (iso) => offered(iso).at(-1);
+
+  it("runs from Monday to Friday of next week on a Sunday", () => {
+    const got = offered("2026-10-18");
+
+    assert.equal(got[0], "2026-10-19");
+    assert.equal(got.at(-1), "2026-10-30");
+    assert.equal(got.length, 10);
+  });
+
+  it("keeps the same end all week, then moves on Sunday", () => {
+    assert.equal(ends("2026-10-21"), "2026-10-30");
+    assert.equal(ends("2026-10-24"), "2026-10-30", "Saturday");
+    assert.equal(ends("2026-10-25"), "2026-11-06");
+  });
+
+  it("starts tomorrow, and the horizon is next Saturday", () => {
+    assert.equal(offered("2026-10-21")[0], "2026-10-22");
+    assert.equal(horizon(ny("2026-10-18"), "America/New_York"), "2026-10-31");
+    assert.equal(horizon(ny("2026-10-24"), "America/New_York"), "2026-10-31");
+    assert.equal(horizon(ny("2026-10-25"), "America/New_York"), "2026-11-07");
+  });
+
+  it("includes a Saturday when the schedule has one", () => {
+    const rows = parseSchedule("2026-10-19 09:00-12:00\n" +
+      "2026-10-31 09:00-12:00\n2026-11-01 09:00-12:00").windows;
+
+    assert.deepEqual(offered("2026-10-18", 9, rows),
+      ["2026-10-19", "2026-10-31"]);
+  });
+
+  it("uses farm time for today, not UTC", () => {
+    // 11 PM Saturday in New York is already Sunday in UTC.
+    assert.equal(ends("2026-10-24"), "2026-10-30");
+    assert.equal(dates(onFarmDates(ny("2026-10-24", 23, 30), terms,
+      schedule)).at(-1), "2026-10-30");
+  });
+
+  it("leaves out Thanksgiving and Christmas, which are not listed", () => {
+    const thanksgiving = offered("2026-11-22");
+
+    assert.ok(!thanksgiving.includes("2026-11-26"));
+    assert.equal(thanksgiving.at(-1), "2026-12-04");
+    assert.equal(thanksgiving.length, 9);
+
+    const christmas = offered("2026-12-20");
+
+    assert.ok(!christmas.includes("2026-12-25"));
+    assert.equal(christmas.at(-1), "2026-12-31");
+  });
+
+  it("is shorter where the schedule runs out", () => {
+    const short = parseSchedule(lines.slice(0, 6).join("\n")).windows;
+
+    assert.deepEqual(offered("2026-10-25", 9, short), ["2026-10-26"]);
+    assert.deepEqual(offered("2026-11-01", 9, short), []);
   });
 });
 

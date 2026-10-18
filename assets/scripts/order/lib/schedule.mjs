@@ -137,15 +137,25 @@ export const checkSchedule = (raw, { now = new Date(), timeZone }) => {
   return { ok: !errors.length, windows, errors, last };
 };
 
-// The windows a customer can book now: from tomorrow on, booking open
-// until midnight before (W11d-A). -> [{ date, windows: [...] }], each
-// date once.
+// The last day offered: the Saturday of the week after this one, weeks
+// starting on Sunday (James, #267). From Sunday Oct 18 or Wednesday
+// Oct 21 that is Oct 31; from Sunday Oct 25 it is Nov 7.
+export const horizon = (now, timeZone) => {
+  const day = today(now, timeZone);
+
+  return addDays(day, 13 - weekday(day));
+};
+
+// The windows a customer can book now: from tomorrow through the
+// horizon, booking open until midnight before (W11d-A).
+// -> [{ date, windows: [...] }], each date once.
 export const bookable = (windows, now, timeZone) => {
   const day = today(now, timeZone);
+  const end = horizon(now, timeZone);
   const out = [];
 
   for (const w of windows) {
-    if (w.date <= day) continue;
+    if (w.date <= day || w.date > end) continue;
 
     const last = out[out.length - 1];
     const entry = { id: w.id, from: w.from, to: w.to };
