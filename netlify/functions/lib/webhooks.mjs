@@ -66,7 +66,7 @@ export const rejected = async (stores, {
   if (alerting && !guarded) {
     alertedAt.set(provider, now.getTime());
     try {
-      await alert(stores, KIND, {
+      await alert(stores, "webhook.rejected", {
         ...detail, check: SECRETS[provider],
       }, { env, now, mail, fetchImpl, mute: `${KIND}.${provider}` });
     } catch (error) {
