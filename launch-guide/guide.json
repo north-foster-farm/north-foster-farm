@@ -1,5 +1,5 @@
 {
- "revision": 35,
+ "revision": 36,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -100,7 +100,7 @@
      "id": "settings",
      "title": "Confirm the mail addresses",
      "minutes": 3,
-     "body": "Three plain values used in the staging and production files. The defaults come from your example files; change any that are wrong.",
+     "body": "Two plain values used in the staging and production files. The defaults come from your example files; change any that are wrong.",
      "fields": [
       {
        "id": "mail_from",
@@ -114,12 +114,6 @@
        "secret": false,
        "default": "orders@northfosterfarm.com",
        "save": "Check this against what production uses now."
-      },
-      {
-       "id": "admin_emails",
-       "label": "Who gets the farm's notices (ADMIN_EMAILS)",
-       "secret": false,
-       "placeholder": "you@…, jim@…"
       }
      ],
      "device": "laptop",
@@ -1115,7 +1109,7 @@
     {
      "id": "env-dev-mail",
      "title": "Make the dev@ address in Fastmail (blocking)",
-     "body": "**Blocking launch gate:** deploy-failed, alert and rotation emails all go to this address, so the launch does not start without it and without the test two steps down.\n\nIn Fastmail, add the address **dev@northfosterfarm.com** (an alias on your own mailbox is enough). It receives incident steps, rotation reminders and security alerts, kept apart from `ADMIN_EMAILS`, which carries the farm's notices. The site reads it as `DEV_NOTIFICATIONS_EMAIL`, set per environment; a later step has you put it in Netlify and the env files. A plain test message from your own mail proves the alias only; the real test follows the setting.",
+     "body": "**Blocking launch gate:** deploy-failed, alert and rotation emails all go to this address, so the launch does not start without it and without the test two steps down.\n\nIn Fastmail, add the address **dev@northfosterfarm.com** (an alias on your own mailbox is enough). It receives incident steps, maintenance notices, rotation reminders and security alerts, kept apart from `FARM_NOTIFICATIONS_EMAIL`, which carries the farm's notices. The site reads it as `DEV_NOTIFICATIONS_EMAIL`, set per environment; a later step has you put it in Netlify and the env files. A plain test message from your own mail proves the alias only; the real test follows the setting.",
      "minutes": 5,
      "links": [
       {
@@ -1147,7 +1141,7 @@
     {
      "id": "env-notify-vars",
      "title": "Set the three notification addresses, and remove ADMIN_EMAILS",
-     "body": "`ADMIN_EMAILS` is gone. Its uses split three ways, and each address is required in production:\n- `FARM_NOTIFICATIONS_EMAIL` = sales@northfosterfarm.com: the farm's notice of each new order, and contact-form messages.\n- `DEV_NOTIFICATIONS_EMAIL` = dev@northfosterfarm.com: every alert, and the maintenance bypass's admin. An unset value fails the production build.\n- `ESCALATED_NOTIFICATIONS_EMAIL` = office@northfosterfarm.com: one message only, when \"orders not recorded\" has gone unacknowledged for an hour. Jim gets nothing else.\n\nSet all three in `.env.production` and `.env.staging`, staging with its own addresses and never production's, and **delete the `ADMIN_EMAILS` line from both files and from Netlify** (`env check` fails while it exists anywhere). Then `bin/nff env push` and `env check`, as for the rest.",
+     "body": "`ADMIN_EMAILS` is gone. Its uses split three ways, and each address is required in production and staging:\n- `FARM_NOTIFICATIONS_EMAIL` = sales@northfosterfarm.com: the farm's notice of each new order, contact-form messages, the 8:00 morning report and the 18:00 tomorrow email. No alert goes there.\n- `DEV_NOTIFICATIONS_EMAIL` = dev@northfosterfarm.com: every alert, the maintenance flip notices, the session-end notice, the rotation reminder and the maintenance bypass's admin. Jim no longer hears the flips. An unset value fails the production build.\n- `ESCALATED_NOTIFICATIONS_EMAIL` = office@northfosterfarm.com: one message only, when \"orders not recorded\" has gone unacknowledged for an hour, and again every hour while the alert stays open. Jim gets nothing else.\n\nThe guide's env builder writes all three. Staging's farm and escalation addresses are dev@, so no staging mail reaches sales@ or office@. Check the `.env.production` and `.env.staging` you downloaded, then **delete the `ADMIN_EMAILS` line from both files and from Netlify** (the build and `env check` both fail while it exists anywhere; `env check` prints the unset command for a stray one on Netlify and never deletes). The two commands below do it. Then `bin/nff env push` and `env check`, as for the rest.",
      "minutes": 10,
      "copy": [
       {
@@ -1160,8 +1154,7 @@
       }
      ],
      "device": "laptop",
-     "type": "terminal",
-     "blocked": "Waits on the email lane's split of ADMIN_EMAILS (the three names are read by the code once it lands, and the samples change with it)."
+     "type": "terminal"
     },
     {
      "id": "env-dev-test",
@@ -1275,7 +1268,7 @@
     {
      "id": "env-maint-secret",
      "title": "Set the maintenance secret",
-     "body": "Set `MAINTENANCE_SECRET` (any long random string, a different one per context) on staging and on production, in Netlify and in .env.staging and .env.production. In Netlify, add it as a secret value: for the staging branch deploy, and for Production. Confirm `ADMIN_EMAILS` holds you and Jim in both, since every flip emails them.\n\n**Recommendation:** the signed link alone is the authentication. A PIN on top is possible but not built. Without the secret only the command line (`bin/nff maintenance on|off`) can flip the switch; the phone links are dead.\n\n**Do the staging one first:** the staging rehearsal and qa's maintenance spec wait on it.",
+     "body": "Set `MAINTENANCE_SECRET` (any long random string, a different one per context) on staging and on production, in Netlify and in .env.staging and .env.production. In Netlify, add it as a secret value: for the staging branch deploy, and for Production. Every flip emails `DEV_NOTIFICATIONS_EMAIL` (dev@) only; Jim no longer hears them.\n\n**Recommendation:** the signed link alone is the authentication. A PIN on top is possible but not built. Without the secret only the command line (`bin/nff maintenance on|off`) can flip the switch; the phone links are dead.\n\n**Do the staging one first:** the staging rehearsal and qa's maintenance spec wait on it.",
      "minutes": 5,
      "links": [
       {
@@ -1785,7 +1778,7 @@
     {
      "id": "ld-maint",
      "title": "Prove production's maintenance switch",
-     "body": "Before any real-money check, test the switch once on production, so you know it works the moment you need it. It is also how you stop orders while a problem is fixed: the launch is fixed forward, with no rollback.\n1. Turn it **on**: `bin/nff --production maintenance on`. You and Jim get an email (ADMIN_EMAILS), for real.\n2. Open `/api/maintenance`: it says maintenance is on. In a private window, open the order page and an account page. Both show exactly the message below. Health still answers.\n3. Turn it **off**: `bin/nff --production maintenance off`. Another email. Reload the order page and confirm it works again.\n4. Keep the phone links: run `bin/nff --production maintenance links` and save the ON and OFF links on your phone. Whoever holds a link can flip the switch; `bin/nff --production maintenance rotate` kills every link handed out so far.\n\nDon't start the payment checks until the order page works again.",
+     "body": "Before any real-money check, test the switch once on production, so you know it works the moment you need it. It is also how you stop orders while a problem is fixed: the launch is fixed forward, with no rollback.\n1. Turn it **on**: `bin/nff --production maintenance on`. dev@ gets an email, for real.\n2. Open `/api/maintenance`: it says maintenance is on. In a private window, open the order page and an account page. Both show exactly the message below. Health still answers.\n3. Turn it **off**: `bin/nff --production maintenance off`. Another email. Reload the order page and confirm it works again.\n4. Keep the phone links: run `bin/nff --production maintenance links` and save the ON and OFF links on your phone. Whoever holds a link can flip the switch; `bin/nff --production maintenance rotate` kills every link handed out so far.\n\nDon't start the payment checks until the order page works again.",
      "minutes": 5,
      "links": [
       {
@@ -3690,10 +3683,58 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6254886816"
       }
      ]
+    },
+    {
+     "rev": 6,
+     "date": "2026-10-18",
+     "changed": "Both runbooks now match the built notification split. One small commit each, on `next`.",
+     "summary": "[docs/secrets.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md) is commit 85d4620 and [docs/rollback.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/rollback.md) is 79e48e1.\n\n- The escalation repeats every hour while the alert is open, not once. The alert is `orders.not_recorded`.\n- **Not built yet:** the detector that raises that alert, and any command or button that acknowledges it (an open item for the rollback design).\n- The morning report and the 18:00 email go to `FARM_NOTIFICATIONS_EMAIL`. The maintenance flips, the session-end notice and the rotation reminder go to dev@ only.\n- The build and `env check` fail on any `ADMIN_EMAILS`; `env check` prints the unset command and never deletes.\n- The escalation email's words are a draft; see the new item below.",
+     "look": [
+      {
+       "label": "docs/secrets.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md"
+      },
+      {
+       "label": "docs/rollback.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/rollback.md"
+      }
+     ]
     }
    ],
    "device": "any",
    "type": "decide"
+  },
+  {
+   "id": "D-ESC-WORDS",
+   "section": "rv-decide",
+   "title": "The escalation email's wording",
+   "area": "#267, rollback.md section 3",
+   "device": "phone",
+   "type": "decide",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "summary": "This is the one message Jim ever gets from the system. The email lane's draft (`escalation` in `lib/templates.mjs`), in full:\n\n**Subject:** Please switch on the order pause\n\n> James hasn't responded to an urgent problem with online orders: some payments may be going through without an order being saved.\n\n> To stop more orders from coming in until James can look, switch on maintenance mode with the button below. Customers will see a short notice that the site is under maintenance.\n\n**Button:** Switch on maintenance mode\n\nIt goes out an hour after the alert is raised and again every hour while the alert stays open. The detector that raises it is not built yet, so nothing sends it today.\n\nThe subject says \"order pause\" and the rest says \"maintenance mode\"; Jim sees both words.",
+     "recommendation": "Approve the body and button as drafted. Change the subject to \"Please switch on maintenance mode\", so the subject and the button use the same words. Add one line before the button: \"This message repeats every hour until someone responds.\" Write \"as is\" to keep the draft unchanged."
+    }
+   ]
+  },
+  {
+   "id": "D-E2E-SWAP",
+   "section": "rv-decide",
+   "title": "E2E_STAGING_TOKEN: swap at once, no overlap?",
+   "area": "#267, secrets.md rule 6",
+   "device": "any",
+   "type": "decide",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "summary": "Your comment on #267 named two secrets that are swapped at once, with no 31-day overlap: `STAGING_TOKEN` and the maintenance secret. `docs/secrets.md` (rule 6) also lists `E2E_STAGING_TOKEN` there, because it is the same kind of secret: we generate it, only staging and the test suite hold it, and it opens only the staging back-office API. Keeping the old one 31 days would need code that accepts two values, for a token that unlocks nothing on production.\n\nThe swap is one sitting: Netlify's staging context, the GitHub secret, `.env.e2e-staging` and the password manager.",
+     "recommendation": "Approve: swap `E2E_STAGING_TOKEN` at once, like the other two. Otherwise say which overlap you want, and the rule and the token's code change."
+    }
+   ]
   },
   {
    "id": "R-WAYS",
@@ -4572,26 +4613,26 @@
     }
    },
    {
-    "name": "ADMIN_EMAILS",
+    "name": "FARM_NOTIFICATIONS_EMAIL",
     "group": "mail",
-    "comment": "Who gets the farm's notices, alerts and the morning report; comma-separated.",
+    "comment": "The farm's address: each new order, the contact form, the 8:00 morning report and the 18:00 tomorrow email. No alerts. Not a secret.",
     "secret": false,
     "envs": {
      "development": {
       "value": "farm@example.com"
      },
      "staging": {
-      "field": "admin_emails"
+      "value": "dev@northfosterfarm.com"
      },
      "production": {
-      "field": "admin_emails"
+      "value": "sales@northfosterfarm.com"
      }
     }
    },
    {
     "name": "DEV_NOTIFICATIONS_EMAIL",
     "group": "mail",
-    "comment": "The developer's address: incident steps, rotation reminders and the alerts only a developer can act on. Not a secret.",
+    "comment": "The developer's address: every alert, the maintenance flip and session-end notices, and the rotation reminder. Not a secret.",
     "secret": false,
     "envs": {
      "development": {
@@ -4602,6 +4643,23 @@
      },
      "production": {
       "value": "dev@northfosterfarm.com"
+     }
+    }
+   },
+   {
+    "name": "ESCALATED_NOTIFICATIONS_EMAIL",
+    "group": "mail",
+    "comment": "Jim's address: one plain-language message, when \"orders not recorded\" stays unacknowledged. Nothing else. Not a secret.",
+    "secret": false,
+    "envs": {
+     "development": {
+      "value": "office@example.com"
+     },
+     "staging": {
+      "value": "dev@northfosterfarm.com"
+     },
+     "production": {
+      "value": "office@northfosterfarm.com"
      }
     }
    },
