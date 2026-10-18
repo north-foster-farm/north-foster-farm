@@ -15,7 +15,7 @@ import { handle as gateFunction, toolbarOwner }
 import {
   COOKIE, GATED, MACHINE_COOKIE, SESSION_TTL, addAllow, createSession,
   endSessions, gateActive, isAllowed, listAllow, parseEntry, removeAllow,
-  requestLink, sessionFor, sessionKey, verifyToken,
+  requestLink, sessionFor, sessionKey, sha256, verifyToken,
 } from "../netlify/functions/lib/gate.mjs";
 import {
   EXEMPTIONS, NOINDEX, gateRequest,
@@ -238,28 +238,34 @@ describe("asking for a link", () => {
       { ok: false, reason: "removed" });
   });
 
-  it("limits an address to three in fifteen minutes, listed or not",
-    async () => {
-      const store = memoryStore();
+  it("limits an address to three in fifteen minutes per requester, " +
+    "listed or not", async () => {
+    const store = memoryStore();
 
-      await addAllow(store, "pat@example.com", NOW);
+    await addAllow(store, "pat@example.com", NOW);
 
-      const issued = [];
+    const issued = [];
 
-      for (let i = 0; i < 5; i++) {
-        issued.push((await ask(store, "pat@example.com", `10.0.0.${i}`)).issue);
-      }
-      assert.deepEqual(issued, [true, true, true, false, false]);
-      // The count is kept for an address nobody listed, so the limit
-      // says nothing about the list.
-      for (let i = 0; i < 5; i++) {
-        await ask(store, "x@example.com", `9.9.9.${i}`);
-      }
-      assert.equal((await store.get("rate/address/x@example.com")).times.length,
-        5);
-      assert.equal((await ask(store, "pat@example.com", "8.8.8.8",
-        new Date(NOW.getTime() + 16 * 60_000))).issue, true);
-    });
+    for (let i = 0; i < 5; i++) {
+      issued.push((await ask(store, "pat@example.com", "10.0.0.1")).issue);
+    }
+    assert.deepEqual(issued, [true, true, true, false, false]);
+    // A stranger asking over and over for the same address cannot
+    // lock its owner out: the owner's own allowance is untouched.
+    assert.equal((await ask(store, "pat@example.com", "8.8.8.8")).issue,
+      true);
+    // The count is kept for an address nobody listed, so the limit
+    // says nothing about the list.
+    for (let i = 0; i < 5; i++) {
+      await ask(store, "x@example.com", "9.9.9.9");
+    }
+
+    const key = `rate/address/${await sha256("9.9.9.9")}/x@example.com`;
+
+    assert.equal((await store.get(key)).times.length, 5);
+    assert.equal((await ask(store, "pat@example.com", "10.0.0.1",
+      new Date(NOW.getTime() + 16 * 60_000))).issue, true);
+  });
 
   it("limits an IP to ten in fifteen minutes across addresses", async () => {
     const store = memoryStore();
@@ -387,7 +393,7 @@ describe("the gate's function", () => {
       assert.equal(calls.length, 0);
       for (let i = 0; i < 5; i++) {
         await run(stores, { email: "pat@example.com" }, {
-          fetchImpl, ip: `5.5.5.${i}`,
+          fetchImpl, ip: "5.5.5.5",
         });
       }
       assert.equal(calls.length, 3);

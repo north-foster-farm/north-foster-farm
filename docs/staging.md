@@ -233,8 +233,9 @@ Signing in is by magic link. A visitor types an address at
 `/api/gate/signin`; if it is on the allowlist, a link comes to that
 mailbox and following it sets a session cookie for a year. An address
 off the list gets the same page and no email, so the list cannot be
-read off the answer. Requests are limited to 3 per address and 10 per
-IP in 15 minutes. Sessions and links are stored hashed.
+read off the answer. Requests are limited to 3 per address from one
+IP and 10 per IP in 15 minutes, so a stranger cannot use up a listed
+person's allowance. Sessions and links are stored hashed.
 
 The allowlist is exact addresses and whole domains, in the `gate`
 store of each context:

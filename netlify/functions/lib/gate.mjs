@@ -14,7 +14,7 @@
 //   allow/<email | @domain>   { addedAt }        who may sign in
 //   token/<sha256(token)>     { email, next, expires }   one use
 //   session/<sha256(id)>      { email, createdAt, expires }
-//   rate/address/<email>      { times: [...] }   link requests
+//   rate/address/<sha256(ip)>/<email>   { times: [...] }   link requests
 //   rate/ip/<sha256(ip)>      { times: [...] }
 
 import gate from "../../../data/gate.json" with { type: "json" };
@@ -222,10 +222,15 @@ export const requestLink = async (store, { email, next, ip }, {
   now = new Date(),
 } = {}) => {
   const address = normalize(email);
-  const byAddress = validEmail(address)
-    && await limited(store, `rate/address/${address}`, gate.perAddress, now);
+  const ipKey = ip ? await sha256(ip) : "";
+  // Keyed on the address and the requester together, so a stranger who
+  // asks for a listed person's address over and over spends only the
+  // stranger's own allowance.
+  const byAddress = validEmail(address) && await limited(
+    store, `rate/address/${ipKey}/${address}`, gate.perAddress, now,
+  );
   const byIp = ip
-    ? await limited(store, `rate/ip/${await sha256(ip)}`, gate.perIp, now)
+    ? await limited(store, `rate/ip/${ipKey}`, gate.perIp, now)
     : false;
 
   if (byAddress || byIp || !(await isAllowed(store, address))) {
