@@ -62,9 +62,20 @@ const check = async (page, input, zip) => {
   await page.waitForTimeout(300);
 };
 
+// Places opens on its pins, an animation: wait for the view to rest.
 const places = async (page) => {
+  const svg = map(page).locator("[data-map-svg]");
+  let last = "";
+
   await map(page).getByRole("tab", { name: "Places" }).click();
   await expect(map(page)).toHaveAttribute("data-layer", "places");
+  await expect.poll(async () => {
+    const now = await svg.getAttribute("viewBox");
+    const rest = now === last;
+
+    last = now;
+    return rest;
+  }, { intervals: [300] }).toBe(true);
 };
 
 // Where each pin's tip stands on screen, and where its place is.
@@ -205,7 +216,6 @@ test.describe("map (#138, #214)", () => {
     const drawn = await pins.evaluateAll((els) => els.map((el) => ({
       n: el.dataset.mapPin,
       label: el.getAttribute("aria-label"),
-      fill: getComputedStyle(el.querySelector("path")).fill,
     })));
 
     expect(rows.slice(0, 2)).toMatchObject([
@@ -228,8 +238,11 @@ test.describe("map (#138, #214)", () => {
     const market = rows.find((r) => /^Scituate/.test(r.name));
 
     if (market) expect(market.n).toBe(drop.n);
-    expect(new Set(drawn.map((d) => d.fill)).size, "one pin color")
-      .toBe(1);
+    // Fills ease in as the layer shows: wait for them to rest.
+    await expect.poll(() => pins.evaluateAll((els) => new Set(
+      els.map((el) => getComputedStyle(el.querySelector("path")).fill)
+    ).size), "one pin color").toBe(1);
+    expect(drawn.length).toBeGreaterThan(0);
     await expect(map(page).locator(".map-key-n, .map-ig, [data-stack]"))
       .toHaveCount(0);
     await expect(map(page)).not.toContainText("Out of season");
@@ -320,10 +333,21 @@ test.describe("map (#138, #214)", () => {
         await expect(card).toBeVisible();
         await expect(pin).toHaveAttribute("aria-pressed", "true");
 
+        // A corner of the map the card, the zoom and the pins leave bare.
         const box = await svg.boundingBox();
+        const corner = await page.evaluate((b) => [
+          [b.x + b.width - 4, b.y + b.height - 4],
+          [b.x + b.width - 4, b.y + 4],
+          [b.x + 60, b.y + b.height - 4],
+        ].find(([x, y]) => {
+          const el = document.elementFromPoint(x, y);
 
-        await page.touchscreen.tap(box.x + box.width - 4,
-          box.y + box.height - 4);
+          return el && el.closest("[data-map-svg]")
+            && !el.closest("[data-map-pin]");
+        }), box);
+
+        expect(corner, "a bare corner").toBeTruthy();
+        await page.touchscreen.tap(...corner);
         await expect(card).toBeHidden();
       });
   });
@@ -676,10 +700,14 @@ test.describe("map (#138, #214)", () => {
     );
     await places(page);
 
+    // The fill eases in: wait for it.
+    await expect.poll(async () => (await fills()).join()).not.toBe(
+      await plain()
+    );
+
     const [fill] = await fills();
 
     expect(await fills()).toHaveLength(1);
-    expect(fill).not.toBe(await plain());
 
     const [r, , b] = fill.match(/\d+/g).map(Number);
 

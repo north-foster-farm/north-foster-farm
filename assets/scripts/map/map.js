@@ -21,6 +21,8 @@
 //   the ZIP picked.
 // - The top bar's link to a pop-up, #place-…, opens its card.
 //
+// Places opens on the pins and zooms out less far than Delivery.
+//
 // Both: it zooms with its buttons, a pinch (a trackpad's too), a
 // double click (not a double tap) or ctrl and the wheel, and pans with
 // a drag once zoomed. At full size a swipe still scrolls the page.
@@ -28,6 +30,10 @@
 // Wording is a draft for James (#138, #214).
 
 const MAX_ZOOM = 5;
+
+// Places has few pins, and the whole map leaves it empty: it zooms out
+// one level less far than Delivery does, to this (#214).
+const PLACES_MIN_ZOOM = 1.5;
 
 // Pins stand this tall on screen at any zoom and any width; the shape
 // is drawn 45 units tall and 30 wide.
@@ -151,8 +157,13 @@ const wire = (map) => {
 
   const zoom = () => W / view.w;
 
+  // The farthest out the layer goes: the whole map on Delivery, the
+  // pins on Places.
+  const minZoom = () => (layer() === "places" && pins.length
+    ? PLACES_MIN_ZOOM : 1);
+
   const clamp = (v) => {
-    const w = Math.min(W, Math.max(W / MAX_ZOOM, v.w));
+    const w = Math.min(W / minZoom(), Math.max(W / MAX_ZOOM, v.w));
     const h = w * (H / W);
 
     return {
@@ -161,6 +172,24 @@ const wire = (map) => {
       x: Math.min(W - w, Math.max(0, v.x)),
       y: Math.min(H - h, Math.max(0, v.y)),
     };
+  };
+
+  // The layer's farthest-out view: the whole map, or on Places the
+  // pins' middle at its farthest zoom.
+  const home = () => {
+    if (minZoom() === 1) return { x: 0, y: 0, w: W, h: H };
+
+    const xs = pins.map((p) => Number(p.dataset.x));
+    const ys = pins.map((p) => Number(p.dataset.y));
+    const w = W / minZoom();
+    const h = H / minZoom();
+
+    return clamp({
+      w,
+      h,
+      x: (Math.min(...xs) + Math.max(...xs)) / 2 - w / 2,
+      y: (Math.min(...ys) + Math.max(...ys)) / 2 - h / 2,
+    });
   };
 
   // A point in map units on screen, in pixels from the frame's corner.
@@ -243,10 +272,12 @@ const wire = (map) => {
         `translate(${dropAt.dataset.x} ${dropAt.dataset.y}) scale(${s})`);
     }
     zoomIn.disabled = k >= MAX_ZOOM - 0.01;
-    zoomOut.disabled = k <= 1.01;
-    reset.hidden = k <= 1.01;
+    const out = minZoom() + 0.01;
+
+    zoomOut.disabled = k <= out;
+    reset.hidden = k <= out;
     // Zoomed in, a drag pans the map; at full size it scrolls the page.
-    svg.style.touchAction = k > 1.01 ? "none" : "pan-y";
+    svg.style.touchAction = k > out ? "none" : "pan-y";
     place();
     placeTag();
   };
@@ -317,7 +348,7 @@ const wire = (map) => {
 
     zoomAbout(0.5, c.x, c.y, true);
   });
-  reset.addEventListener("click", () => go({ x: 0, y: 0, w: W, h: H }));
+  reset.addEventListener("click", () => go(home()));
 
   // A trackpad pinch arrives as the wheel with ctrl held.
   svg.addEventListener("wheel", (e) => {
@@ -371,6 +402,7 @@ const wire = (map) => {
     }
     if (name === "delivery") close();
     hideTip();
+    if (zoom() < minZoom()) go(home());
     apply();
   }
 
@@ -647,7 +679,7 @@ const wire = (map) => {
     const dy = e.clientY - startPoint.y;
 
     if (!dragging && Math.hypot(dx, dy) < SLOP) return;
-    if (zoom() <= 1.01) return;
+    if (zoom() <= minZoom() + 0.01) return;
     if (!dragging) svg.setPointerCapture(e.pointerId);
     dragging = true;
     go({
