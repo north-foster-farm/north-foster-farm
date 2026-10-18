@@ -103,8 +103,10 @@ export const KEYS = {
 const keyOf = (given, env) => Object.keys(KEYS)
   .find((name) => env[name] && sameToken(given, env[name])) || null;
 
-// Which area of the API a request is in.
-const areaOf = (method, path) => {
+// Which area of the API a request is in, or null for a path no area
+// owns. Deny by default: a null area is open only to the owner's key,
+// so a route added without an area here is closed to a reviewer.
+export const areaOf = (method, path) => {
   if (path === "/api/staging/info") return "info";
   if (path.startsWith("/api/staging/outbox")) return "inbox";
   if (path.startsWith("/api/staging/jobs")) return "jobs";
@@ -194,7 +196,7 @@ export const handle = async (req, {
   log.info({ event: "staging.key_used", key, method: req.method, path });
   const area = areaOf(req.method, path);
 
-  if (area && !can.includes(area)) {
+  if (area ? !can.includes(area) : key !== "STAGING_TOKEN") {
     return json(403, { error: "This key does not open that.", key });
   }
 

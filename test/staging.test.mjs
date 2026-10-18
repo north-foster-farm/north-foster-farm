@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
@@ -10,7 +11,9 @@ import {
 } from "../netlify/functions/lib/review.mjs";
 import { mailLinks } from "../netlify/functions/lib/site.mjs";
 import { storeName, testStores } from "../netlify/functions/lib/store.mjs";
-import { handle, KEYS, staging } from "../netlify/functions/staging.mjs";
+import {
+  areaOf, handle, KEYS, staging,
+} from "../netlify/functions/staging.mjs";
 
 const message = {
   to: "pat@example.com", subject: "Sign in to North Foster Farm",
@@ -243,8 +246,7 @@ describe("the staging endpoints", () => {
     it("opens no email library, outbox, jobs run or crash", async () => {
       for (const [method, path] of routes) {
         if (path.startsWith("/api/staging/signatures")
-          || path === "/api/staging/info"
-          || path === "/api/staging/nothing-here") continue;
+          || path === "/api/staging/info") continue;
 
         const res = await handle(as(REVIEWER, method, path),
           { stores: testStores(), env: both, run });
@@ -252,6 +254,35 @@ describe("the staging endpoints", () => {
         assert.equal(res.status, 403, `${method} ${path}`);
       }
       assert.deepEqual([...open], ["info", "signatures"]);
+    });
+
+    it("is denied a path no area owns, which the owner just misses",
+      async () => {
+        const path = "/api/staging/nothing-here";
+
+        assert.equal(areaOf("GET", path), null);
+        assert.equal((await handle(as(REVIEWER, "GET", path),
+          { stores: testStores(), env: both })).status, 403);
+        assert.equal((await handle(as(TOKEN, "GET", path),
+          { stores: testStores(), env: both })).status, 404);
+      });
+
+    it("has an area for every route staging.mjs serves", () => {
+      const source = readFileSync(new URL(
+        "../netlify/functions/staging.mjs", import.meta.url), "utf8");
+      const paths = [...new Set(source.match(
+        /"\/api\/staging\/[a-z0-9/_-]*"/g))]
+        .map((p) => p.slice(1, -1))
+        .filter((p) => p !== "/api/staging/e2e");
+
+      assert.ok(paths.length >= 6, paths.join());
+      for (const path of paths) {
+        const area = areaOf("POST", path.replace(/\/$/, ""));
+
+        assert.ok(area, `${path} has no area in areaOf`);
+        assert.ok(Object.values(KEYS).some((can) => can.includes(area)),
+          `${area} belongs to no key`);
+      }
     });
 
     it("is refused where only the owner's key is set, and the reverse",
