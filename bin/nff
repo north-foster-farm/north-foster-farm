@@ -28,6 +28,7 @@ import { keychainToken, tokenInFiles } from "./env/keychain.mjs";
 import { readSample, readValues, sampleFile } from "./env/sample.mjs";
 import { verifyEnv } from "./env/verify.mjs";
 import { setSchedule } from "./schedule-env.mjs";
+import { USAGE as SUPPLY_USAGE, supplyCommand } from "./supply/waive.mjs";
 
 const USAGE = `Usage:
   bin/nff customers list
@@ -139,7 +140,8 @@ const USAGE = `Usage:
   bin/nff maintenance rotate          kill every link handed out before
 ${BREAKER_USAGE}
 ${GATE_USAGE}
-  bin/nff health                      what /api/health would answer
+${SUPPLY_USAGE}
+  bin/nff health                     what /api/health would answer
   bin/nff alert test [--production|--staging]
                                       one real alert, past the hourly
                                       limit: the farm email and the
@@ -283,7 +285,7 @@ const words = [];
 // Flags that take a value: `--reason "..."` as well as `--reason=...`.
 const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
   "to", "waive", "detail", "reason-text", "sha", "deploy", "label",
-  "out", "count", "hours"];
+  "out", "count", "hours", "advisory", "file"];
 const args = process.argv.slice(2);
 
 for (let i = 0; i < args.length; i += 1) {
@@ -692,6 +694,9 @@ const run = async () => {
     return gateCommand(action, rest, {
       stores, flags, out, context: process.env.SITE_CONTEXT,
     });
+  }
+  if (group === "supply") {
+    return supplyCommand(action, rest, { flags, out, root });
   }
   if (group === "library") return libraryReview();
   if (group === "export") return exportCommand();
