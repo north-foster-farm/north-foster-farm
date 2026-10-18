@@ -46,6 +46,15 @@ export const test = base.extend({
   hideToolbar: [true, { option: true }],
   page: async ({ page, hideToolbar }, use) => {
     if (hideToolbar) {
+      // The toolbar's first request is refused (401), it asks for a
+      // token and sends the request again without reading the first
+      // answer, so the page never reaches "networkidle". Answered
+      // here with a 403 it neither asks nor waits.
+      await page.route("**/api/staging/**", (route) => route.fulfill({
+        status: 403,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Stubbed by the QA suite." }),
+      }));
       await page.addInitScript(() => {
         document.addEventListener("DOMContentLoaded", () => {
           const style = document.createElement("style");
