@@ -209,6 +209,28 @@ the dev server.
 
 After a push, deploy, as the rules say.
 
+### Agents may run the env tools
+
+An agent may run `env push`, `env check` and `env verify`, under two
+guarantees:
+
+1. **No value in any output, error paths included.** Values reach
+   Netlify in the body of an API request made inside the tool
+   (`envRunner` in `bin/env/netlify.mjs`), never on a command line,
+   where `ps` and shell history would show them; the Netlify CLI is
+   handed names and ids only. Every error is scrubbed of every value
+   in the env file and of the access token before it is printed, and
+   quotes none of Netlify's reply, which can echo a value.
+   `test/env-runner.test.mjs` proves it: a push that Netlify refuses,
+   and a network error that quotes a value, print none.
+2. **Agents never open or print the `.env.*` files.** Only the tools
+   read them. An agent that needs to know what a file holds runs
+   `env check` or `env verify`, which answer by name. (The samples,
+   `.env.*.sample`, hold no values and are open to read.)
+
+James still creates every credential. These rules are about who may
+run the tools, not who makes or sees values.
+
 ## Square
 
 **`SQUARE_ACCESS_TOKEN`.** The application's personal access token,

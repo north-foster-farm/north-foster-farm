@@ -151,6 +151,105 @@ export const redact = (text, values) => [...values]
   .sort((a, b) => b.length - a.length)
   .reduce((out, v) => out.split(v).join("[value]"), String(text));
 
+// The Netlify CLI for env commands, with the two that carry a value
+// done in-process over Netlify's API, so no value is ever on a command
+// line, where `ps` and shell history would show it. `env:set` and
+// `env:get` (the arguments pushEnv builds) are answered here; anything
+// else goes to `cli`, which only ever gets names and ids. Every error
+// is scrubbed of every value we hold and of the token, and quotes none
+// of Netlify's reply, which can echo a value.
+export const API = "https://api.netlify.com/api/v1";
+
+export const envRunner = ({
+  cli, token, values = [], fetchImpl = fetch,
+}) => {
+  const secrets = [...values, token];
+  const scrub = (text) => redact(text, secrets);
+  const headers = {
+    Authorization: `Bearer ${token}`, "Content-Type": "application/json",
+  };
+  let account = null;
+
+  const call = async (method, path, body) => {
+    let res;
+
+    try {
+      res = await fetchImpl(`${API}${path}`, {
+        method, headers, body: body === undefined ? undefined
+          : JSON.stringify(body),
+      });
+    } catch (error) {
+      // No `cause`: it would carry the unscrubbed message and stack.
+      // eslint-disable-next-line preserve-caught-error
+      throw new Error(scrub(`Netlify did not answer (${error.message}).`));
+    }
+    if (res.status === 404 && method === "GET") return null;
+    if (!res.ok) {
+      throw new Error(`Netlify answered ${res.status} to ${method} ${
+        path.replace(/\?.*/, "")}.`);
+    }
+
+    return res.status === 204 ? {} : res.json().catch(() => ({}));
+  };
+  const accountOf = async (site) => {
+    if (!account) {
+      const found = await call("GET", `/sites/${encodeURIComponent(site)}`);
+
+      account = found && (found["account_id"] || found["account_slug"]);
+      if (!account) throw new Error(`Site ${site} names no account.`);
+    }
+
+    return account;
+  };
+  const where = (ctx) => (ctx.startsWith("branch:")
+    ? { context: "branch", "context_parameter": ctx.slice(7) }
+    : { context: ctx });
+  const flag = (args, name) => args[args.indexOf(name) + 1];
+
+  return async (args) => {
+    if (args[0] !== "env:set" && args[0] !== "env:get") return cli(args);
+
+    try {
+      const [command, name] = args;
+      const site = flag(args, "--site");
+      const ctx = flag(args, "--context");
+      const acct = encodeURIComponent(await accountOf(site));
+      const path = `/accounts/${acct}/env/${encodeURIComponent(name)}?site_id=${
+        encodeURIComponent(site)}`;
+      const there = await call("GET", path);
+
+      if (command === "env:get") {
+        const x = there && there.values.find((v) => v.context
+          === where(ctx).context && v["context_parameter"]
+          === where(ctx)["context_parameter"]);
+
+        return x && !there["is_secret"] && x.value !== undefined
+          ? `${x.value}\n` : "";
+      }
+
+      const value = args[2];
+      const secret = args.includes("--secret");
+
+      if (there) {
+        await call("PATCH", path, { ...where(ctx), value });
+      } else {
+        await call("POST", path.replace(/\/env\/[^?]*/, "/env"), [{
+          key: name,
+          "is_secret": secret,
+          scopes: ["builds", "functions", "runtime",
+            ...(secret ? [] : ["post_processing"])],
+          values: [{ ...where(ctx), value }],
+        }]);
+      }
+
+      return "";
+    } catch (error) {
+      // eslint-disable-next-line preserve-caught-error
+      throw new Error(scrub(error.message));
+    }
+  };
+};
+
 // A value's context as `env:set` names it: production, branch-deploy,
 // deploy-preview, dev, all, or branch:<name>.
 const contextOf = (v) => (v.context === "branch"

@@ -17,8 +17,8 @@ import { loadEnv } from "../netlify/functions/lib/env.mjs";
 import { devSchedule } from "./dev-schedule.mjs";
 import { deployAfterPush } from "./env/deploy.mjs";
 import {
-  PREVIEW_ALLOWED, PREVIEW_CONTEXTS, TARGETS, checkEnv, planPush, preflight,
-  previewLeaks, pushEnv, redact, remoteFor, remoteVars,
+  PREVIEW_ALLOWED, PREVIEW_CONTEXTS, TARGETS, checkEnv, envRunner, planPush,
+  preflight, previewLeaks, pushEnv, redact, remoteFor, remoteVars,
 } from "./env/netlify.mjs";
 import { readSample, readValues, sampleFile } from "./env/sample.mjs";
 import { verifyEnv } from "./env/verify.mjs";
@@ -394,6 +394,8 @@ const mailLookup = async () => {
 
 // The env file and its tracked sample, for env push and env check
 // (#264). Values stay in memory; every line printed names keys only.
+let held = [];
+
 const envFiles = () => {
   if (!["production", "staging"].includes(context)) {
     throw new Error("Say which: --staging or --production.");
@@ -408,10 +410,16 @@ const envFiles = () => {
     }
   };
 
+  const local = readValues(read(file));
+
+  // Whatever is printed from here on is scrubbed of these, errors
+  // included (the catch at the foot of this file).
+  held = [...local.values.values(), process.env.NETLIFY_AUTH_TOKEN];
+
   return {
     file,
     sample: readSample(read(sampleFile(context)), context),
-    local: readValues(read(file)),
+    local,
   };
 };
 
@@ -463,7 +471,13 @@ const envCommand = async () => {
 
   if (action === "verify") return envVerify(file, local);
 
-  const cli = envNetlify([...local.values.values()]);
+  const secrets = [...local.values.values()];
+  const cli = envRunner({
+    cli: envNetlify(secrets),
+    token: local.values.get("NETLIFY_AUTH_TOKEN")
+      || process.env.NETLIFY_AUTH_TOKEN,
+    values: secrets,
+  });
   const site = local.values.get("NETLIFY_SITE_ID")
     || process.env.NETLIFY_SITE_ID;
 
@@ -947,6 +961,6 @@ const run = async () => {
 try {
   await run();
 } catch (error) {
-  console.error(error.message);
+  console.error(redact(error.message, held));
   process.exit(1);
 }
