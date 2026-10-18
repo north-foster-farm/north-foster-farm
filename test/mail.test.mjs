@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  NAME_MAX, adminEmails, mailConfigured, mailbox, sendMail,
+  NAME_MAX, devEmails, escalatedEmails, farmEmails, mailConfigured,
+  mailbox, sendMail,
 } from "../netlify/functions/lib/mail.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 
@@ -86,10 +87,16 @@ describe("mail configuration", () => {
     assert.equal(mailConfigured(live), true);
   });
 
-  it("splits the admin list", () => {
-    assert.deepEqual(adminEmails({ ADMIN_EMAILS: " a@x.com, b@x.com ,, " }),
+  it("splits each address list, with no fallback between them", () => {
+    assert.deepEqual(
+      farmEmails({ FARM_NOTIFICATIONS_EMAIL: " a@x.com, b@x.com ,, " }),
       ["a@x.com", "b@x.com"]);
-    assert.deepEqual(adminEmails({}), []);
+    assert.deepEqual(farmEmails({}), []);
+    assert.deepEqual(devEmails({ FARM_NOTIFICATIONS_EMAIL: "a@x.com" }), []);
+    assert.deepEqual(devEmails({ DEV_NOTIFICATIONS_EMAIL: "d@x.com" }),
+      ["d@x.com"]);
+    assert.deepEqual(escalatedEmails({ DEV_NOTIFICATIONS_EMAIL: "d@x.com" }),
+      []);
   });
 });
 

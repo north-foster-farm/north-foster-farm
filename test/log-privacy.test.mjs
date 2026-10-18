@@ -13,13 +13,18 @@ import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle as ordersApi } from "../netlify/functions/orders.mjs";
 import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
+const MAILS = {
+  FARM_NOTIFICATIONS_EMAIL: "farm@example.com",
+  DEV_NOTIFICATIONS_EMAIL: "dev@example.com",
+};
+
 const now = instant("2026-10-06", 9, 0, "America/New_York");
 const PERSONAL = [
   "pat.example@gmail.test", "Pat", "Examplesen", "401-555-0142",
   "17 Quiet Lane",
 ];
 const env = {
-  ADMIN_EMAILS: "farm@example.com",
+  ...MAILS,
   SITE_URL: "https://staging.example.com",
   PICKUP_SCHEDULE: SCHEDULE,
 };

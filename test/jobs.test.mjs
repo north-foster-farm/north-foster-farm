@@ -14,6 +14,11 @@ import { testStores } from "../netlify/functions/lib/store.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import { SCHEDULE } from "./schedule-fixture.mjs";
 
+const MAILS = {
+  FARM_NOTIFICATIONS_EMAIL: "farm@x.com",
+  DEV_NOTIFICATIONS_EMAIL: "dev@x.com",
+};
+
 const TZ = "America/New_York";
 const at = (iso, h, m = 0) => instant(iso, h, m, TZ);
 
@@ -228,7 +233,7 @@ describe("runJobs", () => {
     async () => {
       const stores = testStores();
       const { opts: base, sent } = harness();
-      const opts = { ...base, env: { ADMIN_EMAILS: "farm@x.com" } };
+      const opts = { ...base, env: { ...MAILS } };
       const unsent = { ...order("A"), emails: {} };
 
       await saveOrder(stores, unsent, placed);
@@ -314,7 +319,7 @@ describe("runJobs", () => {
 
     await saveOrder(stores, venmo("A"), placed);
     const r = await runJobs(stores, {
-      ...opts, square, env: { ADMIN_EMAILS: "farm@x.com" },
+      ...opts, square, env: { ...MAILS },
       now: at("2026-10-05", 10),
     });
 
@@ -418,7 +423,7 @@ describe("runJobs", () => {
     "waiting on the customer", async () => {
     const stores = testStores();
     const { sent, opts } = harness();
-    const env = { ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE };
+    const env = { ...MAILS, PICKUP_SCHEDULE: SCHEDULE };
     const waiting = order("A", "onfarm");
     const far = order("B", "onfarm");
     const delivery = order("C");
@@ -492,7 +497,7 @@ describe("runJobs", () => {
   it("sends tomorrow's manifest at 18:00, even when empty", async () => {
     const stores = testStores();
     const { sent, opts } = harness();
-    const env = { ADMIN_EMAILS: "farm@x.com" };
+    const env = { ...MAILS };
     const pickup = order("B", "onfarm"); // Wednesday the 7th.
 
     await saveOrder(stores, order("A"), placed); // Thursday the 8th.
@@ -552,7 +557,7 @@ describe("runJobs", () => {
         return { ok: true };
       };
       const env = {
-        ADMIN_EMAILS: "farm@x.com", HEALTHCHECKS_JOBS_URL: "https://hc/jobs",
+        ...MAILS, HEALTHCHECKS_JOBS_URL: "https://hc/jobs",
       };
 
       // Order B has no fulfilment, so its date cannot be read and its

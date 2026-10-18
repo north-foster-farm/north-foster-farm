@@ -18,6 +18,11 @@ import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import { Submitter } from "../assets/scripts/order/submit.js";
 import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
+const MAILS = {
+  FARM_NOTIFICATIONS_EMAIL: "farm@x.com",
+  DEV_NOTIFICATIONS_EMAIL: "dev@x.com",
+};
+
 const now = instant("2026-10-06", 9, 0, "America/New_York");
 const KEY = "0f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f";
 const SKU = "NFF-CHK-WHL-0350-0400";
@@ -270,7 +275,7 @@ describe("POST /api/orders, two submissions drawing one id (#253)", () => {
     "after the charge", async () => {
     const stores = testStores();
     const { sent, mail } = mailbox();
-    const env = { ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE };
+    const env = { ...MAILS, PICKUP_SCHEDULE: SCHEDULE };
     const { square } = fakeSquare({
       // The reservation was somehow lost, and Lee's order landed in
       // between: the record must not be answered with.
@@ -376,7 +381,7 @@ describe("POST /api/orders, a payment whose answer was lost (#268)", () => {
       const { square, calls } = withFind(() => lost({ amount: 9000 }));
       const res = await run(body({ attempt: 2 }), {
         stores, square,
-        env: { ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE },
+        env: { ...MAILS, PICKUP_SCHEDULE: SCHEDULE },
       });
       const data = await res.json();
 
@@ -464,7 +469,7 @@ describe("POST /api/orders, a submission already paid (#253)", () => {
 });
 
 describe("POST /api/orders, when the reservation fails (#253)", () => {
-  const env = { ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE };
+  const env = { ...MAILS, PICKUP_SCHEDULE: SCHEDULE };
 
   // Blobs answers { modified: true } for a conditional write that
   // failed with anything but a 412; here the write is simply dropped.
@@ -541,7 +546,7 @@ describe("completeOrder and finishVenmo, on another's record", () => {
   it("throws rather than return it", async () => {
     const stores = testStores();
     const { sent, mail } = mailbox();
-    const env = { ADMIN_EMAILS: "farm@x.com" };
+    const env = { ...MAILS };
 
     await saveOrder(stores, theirs("NFF-2610-ABCD"), now);
     await assert.rejects(completeOrder(stores, {
@@ -627,7 +632,7 @@ describe("POST /api/orders with a card", () => {
     const stores = testStores();
     const { sent, mail } = mailbox();
     const env = {
-      ADMIN_EMAILS: "farm@x.com", SQUARE_ENV: "production",
+      ...MAILS, SQUARE_ENV: "production",
       URL: "https://northfosterfarm.com", ACCOUNTS_ENABLED: "true",
       PICKUP_SCHEDULE: SCHEDULE,
     };
@@ -770,7 +775,7 @@ describe("POST /api/orders with Venmo", () => {
       const { paypal, calls: ppCalls } = fakePaypal();
       const { square, calls: sqCalls } = fakeSquare();
       const { sent, mail } = mailbox();
-      const env = { ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE };
+      const env = { ...MAILS, PICKUP_SCHEDULE: SCHEDULE };
       const create = await run(body({
         payment: { method: "venmo", stage: "create" },
       }), { stores, paypal, square, mail, env });
@@ -889,7 +894,7 @@ describe("POST /api/orders with Venmo", () => {
       const stores = testStores();
       const { paypal } = fakePaypal();
       const { sent, mail } = mailbox();
-      const env = { ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE };
+      const env = { ...MAILS, PICKUP_SCHEDULE: SCHEDULE };
       const square = {
         createOrder: async () => {
           throw new SquareError("down", { retryable: false });
@@ -981,7 +986,7 @@ describe("POST /api/orders, the gate", () => {
     };
     const res = await run(body(), {
       stores, square, mail,
-      env: { ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE },
+      env: { ...MAILS, PICKUP_SCHEDULE: SCHEDULE },
     });
     const data = await res.json();
 

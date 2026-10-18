@@ -8,7 +8,7 @@ import { adjust, getCounts, setCount } from "./stock.mjs";
 import { normalizeEmail, validEmail } from "./auth.mjs";
 import { company } from "./company.mjs";
 import { DELIVERING } from "./health.mjs";
-import { devEmails, devOrAdminEmails, sendMail } from "./mail.mjs";
+import { devEmails, sendMail } from "./mail.mjs";
 import * as newsApi from "./news.mjs";
 import { recordRefund, sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
@@ -477,7 +477,7 @@ export const endAllSessions = async (stores, {
 
   for (const key of keys) await stores.auth.delete(key);
 
-  const to = devOrAdminEmails(env);
+  const to = devEmails(env);
 
   if (to.length) {
     await mail({

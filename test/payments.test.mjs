@@ -16,6 +16,11 @@ import {
   handle, signature,
 } from "../netlify/functions/square-webhook.mjs";
 
+const MAILS = {
+  FARM_NOTIFICATIONS_EMAIL: "farm@x.com",
+  DEV_NOTIFICATIONS_EMAIL: "dev@x.com",
+};
+
 const now = new Date("2026-10-06T13:00:00Z");
 
 const order = (id, method = "delivery") => ({
@@ -64,7 +69,7 @@ describe("announcePaid", () => {
     async () => {
       const stores = testStores();
       const { sent, mail } = mailbox();
-      const env = { ADMIN_EMAILS: "farm@x.com, second@x.com" };
+      const env = { FARM_NOTIFICATIONS_EMAIL: "farm@x.com, second@x.com" };
 
       await saveOrder(stores, order("NFF-1"), now);
       const paid = await announcePaid(stores, "NFF-1", { mail, env, now });
@@ -141,7 +146,7 @@ describe("announcePaid", () => {
     await saveOrder(stores, order("NFF-1"), now);
 
     const paid = await announcePaid(stores, "NFF-1", {
-      mail, env: { ADMIN_EMAILS: "farm@x.com" }, now,
+      mail, env: { ...MAILS }, now,
     });
 
     assert.equal(paid.status, "paid");
@@ -185,7 +190,7 @@ describe("confirmOrder and notifyFarm", () => {
       o = await notifyFarm(stores, o, "hello", message, { mail, env: {}, now });
       assert.equal(sent.length, 0);
 
-      const env = { ADMIN_EMAILS: "farm@x.com" };
+      const env = { ...MAILS };
 
       o = await notifyFarm(stores, o, "hello", message, { mail, env, now });
       o = await notifyFarm(stores, o, "hello", message, { mail, env, now });
@@ -285,7 +290,7 @@ describe("refunds", () => {
 
     return {
       sent,
-      env: { ADMIN_EMAILS: "farm@x.com" },
+      env: { ...MAILS },
       mail: async (m) => {
         sent.push(m);
 

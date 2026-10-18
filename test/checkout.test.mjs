@@ -19,6 +19,11 @@ import {
   applyEvent, handle as webhook,
 } from "../netlify/functions/paypal-webhook.mjs";
 
+const MAILS = {
+  FARM_NOTIFICATIONS_EMAIL: "farm@x.com",
+  DEV_NOTIFICATIONS_EMAIL: "dev@x.com",
+};
+
 const now = new Date("2026-10-06T13:00:00Z");
 const KEY = "0f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f";
 
@@ -142,7 +147,7 @@ describe("completeOrder", () => {
     async () => {
       const stores = testStores();
       const { sent, mail } = mailbox();
-      const env = { ADMIN_EMAILS: "farm@x.com" };
+      const env = { ...MAILS };
 
       await setCount(stores, "NFF-CHK-WHL-0350-0400", 4);
       const first = await completeOrder(stores, order(), {
@@ -182,7 +187,7 @@ describe("completeOrder", () => {
     "order's own emails (T6, T7)", async () => {
     const stores = testStores();
     const { sent, mail } = mailbox();
-    const env = { ADMIN_EMAILS: "farm@x.com" };
+    const env = { ...MAILS };
     const boxed = order();
 
     boxed.customer = { ...boxed.customer, marketing: true };
@@ -257,7 +262,7 @@ describe("payWithSquare", () => {
       const saved = await payWithSquare(stores, order(), {
         key: KEY, attempt: 1, method: "card", sourceId: "tok",
       }, {
-        square: fakeSquare().square, mail, env: { ADMIN_EMAILS: "f@x.com" },
+        square: fakeSquare().square, mail, env: { ...MAILS },
         sleep: quiet.sleep, now,
       });
 
@@ -383,7 +388,7 @@ describe("startVenmo and finishVenmo", () => {
     async () => {
       const stores = testStores();
       const { sent, mail } = mailbox();
-      const env = { ADMIN_EMAILS: "farm@x.com" };
+      const env = { ...MAILS };
       const { paypal } = fakePaypal({ cap: () => capture(5900) });
       const options = {
         paypal, square: fakeSquare().square, mail, env, sleep: quiet.sleep,
@@ -460,7 +465,7 @@ describe("rescueCheckout", () => {
       const checkout = await kept(stores, paypal);
       const options = {
         paypal, square: fakeSquare().square, mail, sleep: quiet.sleep,
-        env: { ADMIN_EMAILS: "farm@x.com" },
+        env: { ...MAILS },
       };
 
       assert.equal(await rescueCheckout(stores, checkout, {
@@ -506,7 +511,7 @@ describe("rescueCheckout", () => {
     };
     // The 8th still has its morning: no alert.
     const kept = await rescueCheckout(stores, checkout, {
-      ...options, env: { ADMIN_EMAILS: "farm@x.com",
+      ...options, env: { ...MAILS,
         PICKUP_SCHEDULE: "2026-10-08 09:00-12:00" },
     });
 
@@ -519,7 +524,7 @@ describe("rescueCheckout", () => {
     await startVenmo(stores2, pickup, { key: KEY }, { paypal, ...quiet });
     const saved = await rescueCheckout(stores2,
       await getCheckout(stores2, KEY), {
-        ...options, env: { ADMIN_EMAILS: "farm@x.com",
+        ...options, env: { ...MAILS,
           PICKUP_SCHEDULE: "2026-10-08 13:00-17:00" },
       });
 
@@ -587,7 +592,7 @@ describe("recordOnSquare and syncSquare", () => {
     });
     const out = await recordOnSquare(stores, order(), attemptKey(KEY, 1),
       capture(), {
-        square, mail, env: { ADMIN_EMAILS: "farm@x.com" }, now,
+        square, mail, env: { ...MAILS }, now,
         sleep: quiet.sleep,
       });
 
@@ -901,7 +906,7 @@ describe("POST /api/paypal/webhook", () => {
     await venmoPaid(stores);
 
     const out = await applyEvent(stores, JSON.parse(refundEvent()), {
-      now, square, mail, env: { ADMIN_EMAILS: "farm@x.com" },
+      now, square, mail, env: { ...MAILS },
     });
     const saved = await getOrder(stores, "NFF-2610-ABCD");
 

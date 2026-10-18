@@ -32,7 +32,8 @@ const KEY = "0f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f";
 const SKU = "NFF-CHK-WHL-0350-0400";
 const SECRET = "test-maintenance-secret";
 const env = {
-  ADMIN_EMAILS: "james@example.com, jim@example.com",
+  DEV_NOTIFICATIONS_EMAIL: "james@example.com",
+  FARM_NOTIFICATIONS_EMAIL: "jim@example.com",
   SITE_URL: "https://staging.example.com",
   SITE_CONTEXT: "branch-deploy",
   MAINTENANCE_SECRET: SECRET,
@@ -152,7 +153,7 @@ describe("the switch", () => {
       await setState(stores, false, { by: "test", env, now, mail });
 
       assert.equal(sent.length, 2);
-      assert.deepEqual(sent[0].to, ["james@example.com", "jim@example.com"]);
+      assert.deepEqual(sent[0].to, ["james@example.com"]);
       assert.match(sent[0].subject, /ON/);
       assert.match(sent[0].subject, /branch-deploy/);
       assert.match(sent[1].subject, /OFF/);

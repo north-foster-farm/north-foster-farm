@@ -2,12 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  ALERT_AUDIENCE, alertRecipients, raise,
+  ESCALATING, acknowledge, alertRecipients, escalate, raise,
 } from "../netlify/functions/lib/health.mjs";
 import { runJobs } from "../netlify/functions/lib/jobs.mjs";
-import {
-  bothEmails, devOrAdminEmails,
-} from "../netlify/functions/lib/mail.mjs";
+import { escalatedEmails } from "../netlify/functions/lib/mail.mjs";
 import {
   parseRotationLog, reminderFor, rotationDaily, stillDue,
 } from "../netlify/functions/lib/rotation.mjs";
@@ -26,8 +24,9 @@ Name, date, environment, reason, who.
 `;
 
 const env = {
-  ADMIN_EMAILS: "farm@x.com, jim@x.com",
+  FARM_NOTIFICATIONS_EMAIL: "farm@x.com, other@x.com",
   DEV_NOTIFICATIONS_EMAIL: "dev@x.com",
+  ESCALATED_NOTIFICATIONS_EMAIL: "office@x.com",
 };
 
 // 8:30 in New York is 12:30 UTC in December.
@@ -202,16 +201,15 @@ describe("the reminder email", () => {
     assert.equal(sent.length, 0);
   });
 
-  it("falls back to the farm address while the developer's is unset",
-    async () => {
-      const { sent, mail } = mailbox();
+  it("does not fall back to the farm address", async () => {
+    const { sent, mail } = mailbox();
 
-      await rotationDaily(testStores(), {
-        env: { ADMIN_EMAILS: "farm@x.com" }, mail, now: at("2026-12-01"),
-        readLogText: log,
-      });
-      assert.deepEqual(sent[0].to, ["farm@x.com"]);
+    await rotationDaily(testStores(), {
+      env: { FARM_NOTIFICATIONS_EMAIL: "farm@x.com" },
+      mail, now: at("2026-12-01"), readLogText: log,
     });
+    assert.equal(sent.length, 0);
+  });
 
   it("tries again after a mail failure", async () => {
     const stores = testStores();
@@ -240,38 +238,35 @@ describe("the reminder email", () => {
 });
 
 describe("who hears an alert", () => {
-  it("sends order and money alerts to both, once each address", () => {
-    assert.deepEqual(alertRecipients("order.create_failed", env),
-      ["farm@x.com", "jim@x.com", "dev@x.com"]);
-    assert.deepEqual(alertRecipients("order.create_failed", {
-      ADMIN_EMAILS: "a@x.com", DEV_NOTIFICATIONS_EMAIL: "a@x.com",
-    }), ["a@x.com"]);
-  });
+  const kinds = ["order.create_failed", "payment.unreconciled",
+    "pickup.lapsed", "jobs.errors", "jobs.crashed", "backup.failed",
+    "webhook.rejected", "function.crashed", "jobs.invariants",
+    "mail.failed", "some.new_kind"];
 
-  it("sends technical alerts to the developer only", () => {
-    for (const kind of ["jobs.errors", "jobs.crashed", "backup.failed",
-      "webhook.rejected", "function.crashed", "jobs.invariants"]) {
+  it("sends every alert to the developer only", () => {
+    for (const kind of kinds) {
       assert.deepEqual(alertRecipients(kind, env), ["dev@x.com"], kind);
     }
   });
 
-  it("sends the farm's own alert to the farm only", () => {
-    assert.deepEqual(alertRecipients("pickup.lapsed", env),
-      ["farm@x.com", "jim@x.com"]);
+  it("has no fallback when the developer address is unset", () => {
+    const { DEV_NOTIFICATIONS_EMAIL, ...rest } = env;
+
+    assert.ok(DEV_NOTIFICATIONS_EMAIL);
+    for (const kind of kinds) {
+      assert.deepEqual(alertRecipients(kind, rest), [], kind);
+    }
   });
 
-  it("sends a kind nobody listed to both", () => {
-    assert.ok(!("some.new_kind" in ALERT_AUDIENCE));
-    assert.deepEqual(alertRecipients("some.new_kind", env),
-      ["farm@x.com", "jim@x.com", "dev@x.com"]);
-  });
+  it("never lets an alert reach the escalation address", async () => {
+    const { sent, mail } = mailbox();
 
-  it("keeps a developer alert when only the farm address is set", () => {
-    assert.deepEqual(
-      alertRecipients("jobs.errors", { ADMIN_EMAILS: "farm@x.com" }),
-      ["farm@x.com"]);
-    assert.deepEqual(devOrAdminEmails({}), []);
-    assert.deepEqual(bothEmails({}), []);
+    for (const kind of [...kinds, ...ESCALATING]) {
+      assert.ok(!alertRecipients(kind, env).includes("office@x.com"), kind);
+      await raise(testStores(), kind, {}, { env, mail });
+    }
+    assert.ok(sent.length);
+    for (const m of sent) assert.deepEqual(m.to, ["dev@x.com"], m.subject);
   });
 
   it("raises through those recipients", async () => {
@@ -279,8 +274,82 @@ describe("who hears an alert", () => {
 
     await raise(testStores(), "jobs.errors", { count: 1 }, { env, mail });
     await raise(testStores(), "order.create_failed", {}, { env, mail });
-    assert.deepEqual(sent.map((m) => m.to), [
-      ["dev@x.com"], ["farm@x.com", "jim@x.com", "dev@x.com"],
-    ]);
+    assert.deepEqual(sent.map((m) => m.to), [["dev@x.com"], ["dev@x.com"]]);
+  });
+});
+
+describe("the escalation", () => {
+  const kind = ESCALATING[0];
+  const t0 = new Date("2026-10-20T15:00:00Z");
+  const minutes = (n) => new Date(t0.getTime() + n * 60_000);
+
+  it("waits an hour, then mails the escalation address alone", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await raise(stores, kind, {}, { env, mail, now: t0 });
+    assert.deepEqual(sent.map((m) => m.to), [["dev@x.com"]]);
+    assert.deepEqual(await escalate(stores, { env, mail, now: minutes(59) }),
+      []);
+    assert.deepEqual(await escalate(stores, { env, mail, now: minutes(60) }),
+      [kind]);
+    assert.deepEqual(sent.at(-1).to, ["office@x.com"]);
+    assert.match(sent.at(-1).text, /James hasn't responded/);
+    assert.match(sent.at(-1).text, /maintenance mode/);
+    assert.doesNotMatch(sent.at(-1).text, new RegExp(kind));
+  });
+
+  it("repeats hourly until acknowledged, then stops", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await raise(stores, kind, {}, { env, mail, now: t0 });
+    await escalate(stores, { env, mail, now: minutes(60) });
+    assert.deepEqual(await escalate(stores, { env, mail, now: minutes(90) }),
+      []);
+    assert.deepEqual(await escalate(stores, { env, mail, now: minutes(120) }),
+      [kind]);
+    assert.equal(await acknowledge(stores, kind, minutes(121)), true);
+    assert.deepEqual(await escalate(stores, { env, mail, now: minutes(240) }),
+      []);
+    assert.equal(sent.filter((m) => m.to[0] === "office@x.com").length, 2);
+  });
+
+  it("is quiet when acknowledged inside the hour", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await raise(stores, kind, {}, { env, mail, now: t0 });
+    await acknowledge(stores, kind, minutes(30));
+    assert.deepEqual(await escalate(stores, { env, mail, now: minutes(90) }),
+      []);
+    assert.equal(sent.length, 1);
+  });
+
+  it("sends nothing for any other alert", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    for (const other of ["order.create_failed", "payment.unreconciled",
+      "jobs.errors", "function.crashed"]) {
+      await raise(stores, other, {}, { env, mail, now: t0 });
+    }
+    sent.length = 0;
+    assert.deepEqual(await escalate(stores, { env, mail, now: minutes(600) }),
+      []);
+    assert.equal(sent.length, 0);
+  });
+
+  it("sends nothing when the escalation address is unset", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const bare = { ...env, ESCALATED_NOTIFICATIONS_EMAIL: "" };
+
+    await raise(stores, kind, {}, { env: bare, mail, now: t0 });
+    sent.length = 0;
+    assert.deepEqual(
+      await escalate(stores, { env: bare, mail, now: minutes(120) }), []);
+    assert.equal(sent.length, 0);
+    assert.deepEqual(escalatedEmails({}), []);
   });
 });

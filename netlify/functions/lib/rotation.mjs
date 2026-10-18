@@ -20,7 +20,7 @@ import {
   parts, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { log } from "./log.mjs";
-import { devOrAdminEmails, sendMail } from "./mail.mjs";
+import { devEmails, sendMail } from "./mail.mjs";
 import { mailLinks } from "./site.mjs";
 import { rotationReminder } from "./templates.mjs";
 
@@ -123,7 +123,7 @@ export const rotationDaily = async (stores, {
   env = process.env, mail = sendMail, now = new Date(),
   readLogText = readRotationLog,
 } = {}) => {
-  const to = devOrAdminEmails(env);
+  const to = devEmails(env);
   const reminder = reminderFor(today(now, tz));
 
   if (!reminder || !to.length || parts(now, tz).hour < REMINDER_HOUR) {

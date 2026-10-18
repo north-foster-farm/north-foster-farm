@@ -21,7 +21,7 @@ const keys = async () => {
 
 const envFor = (recipient) => ({
   SITE_CONTEXT: "production",
-  ADMIN_EMAILS: "farm@x.com",
+  FARM_NOTIFICATIONS_EMAIL: "farm@x.com", DEV_NOTIFICATIONS_EMAIL: "dev@x.com",
   BACKUP_AGE_RECIPIENT: recipient,
   BACKUP_R2_ENDPOINT: "https://acct.r2.cloudflarestorage.com/",
   BACKUP_R2_BUCKET: "nff-backups",

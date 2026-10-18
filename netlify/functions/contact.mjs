@@ -6,7 +6,7 @@
 //
 // The message is kept under messages/<id> in the customers store (as
 // the account page's help form keeps support/...), then mailed to
-// ADMIN_EMAILS with reply-to set to the writer, so answering is a
+// FARM_NOTIFICATIONS_EMAIL with reply-to set to the writer, so answering is a
 // plain reply. An order number is checked against the writer's email
 // for the farm's benefit only; the writer is never told, so the form
 // cannot be used to learn whose an order is. A filled honeypot
@@ -19,7 +19,7 @@ import { normalizeEmail, sameSite, validEmail } from "./lib/auth.mjs";
 import { alert, noteMail } from "./lib/health.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
-import { adminEmails, mailbox, sendMail } from "./lib/mail.mjs";
+import { farmEmails, mailbox, sendMail } from "./lib/mail.mjs";
 import { getOrder } from "./lib/records.mjs";
 import { mailLinks } from "./lib/site.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
@@ -124,7 +124,7 @@ export const handle = async (req, {
 
   await stores.customers.set(key, record);
 
-  const to = adminEmails(env);
+  const to = farmEmails(env);
 
   if (!to.length) {
     log.warn({ event: "contact.unrouted", id });

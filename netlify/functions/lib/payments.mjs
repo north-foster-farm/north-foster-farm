@@ -3,7 +3,7 @@
 // The taking of the money is checkout.mjs.
 
 import { alert, mark, noteMail } from "./health.mjs";
-import { adminEmails, sendMail } from "./mail.mjs";
+import { farmEmails, sendMail } from "./mail.mjs";
 import { log } from "./log.mjs";
 import {
   FAILED_REFUND, amendOrder, getOrder, moneyPatch, orderByPayment,
@@ -74,7 +74,8 @@ export const sendForOrder = async (stores, order, key, message, {
   }
 };
 
-// The farm's own notice about an order, to ADMIN_EMAILS. Silent when
+// The farm's own notice about an order, to FARM_NOTIFICATIONS_EMAIL.
+// Silent when
 // nobody is listed, and recorded on the order like any other send, so
 // a retry never sends it twice.
 export const notifyFarm = async (stores, order, key, message, {
@@ -82,7 +83,7 @@ export const notifyFarm = async (stores, order, key, message, {
   env = process.env,
   now = new Date(),
 } = {}) => {
-  const to = adminEmails(env);
+  const to = farmEmails(env);
 
   if (!to.length) return order;
   if (order.emails && order.emails[key]) return order;

@@ -30,7 +30,7 @@ describe("the test environment", () => {
     assert.ok(Array.isArray(blockedHosts));
     assert.equal(process.env.MAIL_DRIVER, "log");
     assert.equal(process.env.RESEND_API_KEY, undefined);
-    assert.equal(process.env.ADMIN_EMAILS, undefined);
+    assert.equal(process.env.FARM_NOTIFICATIONS_EMAIL, undefined);
   });
 
   it("throws when a test fetches an outside host", async () => {

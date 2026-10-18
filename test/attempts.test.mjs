@@ -18,6 +18,11 @@ import { PayPalError } from "../netlify/functions/lib/paypal.mjs";
 import { findPaid } from "../netlify/functions/lib/square.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 
+const MAILS = {
+  FARM_NOTIFICATIONS_EMAIL: "farm@x.com",
+  DEV_NOTIFICATIONS_EMAIL: "dev@x.com",
+};
+
 const now = new Date("2026-10-06T13:00:00Z");
 const later = (ms) => new Date(now.getTime() + ms);
 const KEY = "0f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f";
@@ -221,7 +226,7 @@ describe("rescuing an earlier attempt", () => {
       const { paypal } = paypalWith(states);
       const options = {
         paypal, square: squareOk(), ...mailbox(), ...quiet,
-        env: { ADMIN_EMAILS: "farm@x.com" },
+        env: { ...MAILS },
       };
 
       await startVenmo(stores, order(), { key: KEY, attempt: 1 }, options);
@@ -272,7 +277,7 @@ describe("a later Venmo attempt, before it is paid", () => {
     const { paypal } = paypalWith(states);
     const options = {
       paypal, square: squareOk(), ...mailbox(), ...quiet,
-      env: { ADMIN_EMAILS: "farm@x.com" },
+      env: { ...MAILS },
     };
 
     await startVenmo(stores, order(), { key: KEY, attempt: 1 }, options);

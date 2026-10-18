@@ -41,9 +41,9 @@ import {
 import { announceNew, rescueCheckout, syncSquare } from "./checkout.mjs";
 import { finishEditVenmo } from "./edit.mjs";
 import { deleteOldMessages, scrubOldOrders } from "./forget.mjs";
-import { alert, ping, readCount, readMark } from "./health.mjs";
+import { alert, escalate, ping, readCount, readMark } from "./health.mjs";
 import { log } from "./log.mjs";
-import { adminEmails, sendMail } from "./mail.mjs";
+import { farmEmails, sendMail } from "./mail.mjs";
 import { audienceConfigured, syncAudience } from "./news.mjs";
 import { sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
@@ -216,6 +216,8 @@ export const runJobs = async (stores, {
     () => tomorrowReport(stores, { env, mail, now }));
   report.rotation = await attempt(null, "rotationReminder",
     () => rotationDaily(stores, { env, mail, now }));
+  report.escalated = (await attempt(null, "escalation",
+    () => escalate(stores, { env, mail, now }))) || [];
   // Farm news: once a day the audience in Resend and the records are
   // made to agree. Null when there is no audience to sync.
   report.audience = await attempt(null, "audienceSync",
@@ -425,7 +427,7 @@ export const funnel = async (stores, now, { since } = {}) => {
 const dailyReport = async (stores, {
   key, hour, list, build, onSent, always = false, env, mail, now,
 }) => {
-  const to = adminEmails(env);
+  const to = farmEmails(env);
 
   if (parts(now, tz).hour < hour || !to.length) return null;
   if (await stores.jobs.get(key)) return null;

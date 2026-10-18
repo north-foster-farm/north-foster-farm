@@ -7,7 +7,7 @@ import { testStores } from "../netlify/functions/lib/store.mjs";
 
 const env = {
   DEV_NOTIFICATIONS_EMAIL: "dev@x.test",
-  ADMIN_EMAILS: "farm@x.test",
+  FARM_NOTIFICATIONS_EMAIL: "farm@x.test",
   MAIL_DRIVER: "resend",
   SITE_CONTEXT: "production",
 };

@@ -13,6 +13,11 @@ import { handle, snapshot } from "../netlify/functions/health.mjs";
 import { handle as jobsHandle } from "../netlify/functions/jobs.mjs";
 import { handle as stagingHandle } from "../netlify/functions/staging.mjs";
 
+const MAILS = {
+  FARM_NOTIFICATIONS_EMAIL: "farm@x.com",
+  DEV_NOTIFICATIONS_EMAIL: "dev@x.com",
+};
+
 const now = new Date("2026-10-06T13:00:00Z");
 const later = (minutes) => new Date(now.getTime() + minutes * 60_000);
 
@@ -180,14 +185,14 @@ describe("alerts", () => {
       const { sent, mail } = mailbox();
       const { calls, fetchImpl } = fakeFetch();
       const env = {
-        ADMIN_EMAILS: "farm@x.com", HEALTHCHECKS_ALERT_URL: "https://hc/a",
+        ...MAILS, HEALTHCHECKS_ALERT_URL: "https://hc/a",
       };
 
       assert.equal(await alert(stores, "mail.failed", {
         id: "NFF-1", error: "Resend 500",
       }, { env, mail, now, fetchImpl }), "sent");
       assert.equal(sent.length, 1);
-      assert.deepEqual(sent[0].to, ["farm@x.com"]);
+      assert.deepEqual(sent[0].to, ["dev@x.com"]);
       assert.equal(sent[0].subject, "Site alert: mail.failed");
       assert.match(sent[0].text, /NFF-1/);
       assert.match(sent[0].text, /Resend 500/);
@@ -218,7 +223,7 @@ describe("alerts", () => {
         env: {}, mail: async () => {}, now, fetchImpl: fakeFetch().fetchImpl,
       }), "skipped");
       assert.equal(await alert(stores, "y", {}, {
-        env: { ADMIN_EMAILS: "a@b" },
+        env: { FARM_NOTIFICATIONS_EMAIL: "a@b" },
         mail: async () => { throw new Error("down"); },
         now, fetchImpl: fakeFetch().fetchImpl,
       }), "skipped");
@@ -227,7 +232,7 @@ describe("alerts", () => {
 
 describe("the phone channel (#248)", () => {
   const env = {
-    ADMIN_EMAILS: "farm@x.com", DEV_NOTIFICATIONS_EMAIL: "dev@x.com",
+    ...MAILS,
     HEALTHCHECKS_ALERT_URL: "https://hc/a",
   };
 
@@ -245,14 +250,14 @@ describe("the phone channel (#248)", () => {
       assert.equal(r.status, "sent");
       assert.equal(r.failed, true);
       assert.equal(r.rearmed, true);
-      assert.deepEqual(r.to, ["farm@x.com", "dev@x.com"]);
+      assert.deepEqual(r.to, ["dev@x.com"]);
     });
 
   it("pings nothing when no alert check is set", async () => {
     const { calls, fetchImpl } = fakeFetch();
 
     await alert(testStores(), "mail.failed", {}, {
-      env: { ADMIN_EMAILS: "farm@x.com" }, mail: mailbox().mail, now,
+      env: { ...MAILS }, mail: mailbox().mail, now,
       fetchImpl,
     });
     assert.equal(calls.length, 0);
@@ -304,14 +309,14 @@ describe("the phone channel (#248)", () => {
       const { calls, fetchImpl } = fakeFetch();
 
       await assert.rejects(alertTest(testStores(), {
-        env: { ADMIN_EMAILS: "farm@x.com" }, mail, fetchImpl,
+        env: { DEV_NOTIFICATIONS_EMAIL: "dev@x.com" }, mail, fetchImpl,
       }), /HEALTHCHECKS_ALERT_URL/);
       await assert.rejects(alertTest(testStores(), {
         env: { HEALTHCHECKS_ALERT_URL: "https://hc/a" }, mail, fetchImpl,
-      }), /ADMIN_EMAILS/);
+      }), /DEV_NOTIFICATIONS_EMAIL/);
       await assert.rejects(alertTest(testStores(), {
         env: {}, mail, fetchImpl,
-      }), /HEALTHCHECKS_ALERT_URL, ADMIN_EMAILS/);
+      }), /HEALTHCHECKS_ALERT_URL, DEV_NOTIFICATIONS_EMAIL/);
       assert.equal(sent.length + calls.length, 0, "nothing went out");
     });
 });
@@ -435,7 +440,7 @@ describe("POST /api/health, the checkout beacon", () => {
       kind: "checkout.failed", message: "We couldn't reach our payment " +
         "system after several tries.", method: "delivery", page: "/order/",
     }), {
-      stores, env: { ADMIN_EMAILS: "farm@x.com" }, now, mail,
+      stores, env: { ...MAILS }, now, mail,
       fetchImpl: fakeFetch().fetchImpl,
     });
 
@@ -455,7 +460,7 @@ describe("POST /api/health, the checkout beacon", () => {
     })).status, 400);
     for (let i = 0; i < 12; i += 1) {
       await handle(post({ kind: "checkout.failed" }), {
-        stores, env: { ADMIN_EMAILS: "farm@x.com" }, now, mail, ip: "1.2.3.4",
+        stores, env: { ...MAILS }, now, mail, ip: "1.2.3.4",
         fetchImpl: fakeFetch().fetchImpl,
       });
     }
@@ -486,7 +491,7 @@ describe("POST /api/health, the checkout beacon", () => {
       const res = await handle(report("payment.unavailable"), {
         stores, now, mail, fetchImpl,
         env: {
-          ADMIN_EMAILS: "farm@x.com", HEALTHCHECKS_ALERT_URL: "https://hc/a",
+          ...MAILS, HEALTHCHECKS_ALERT_URL: "https://hc/a",
         },
       });
 
@@ -521,7 +526,7 @@ describe("POST /api/health, the checkout beacon", () => {
       }), {
         stores, now, mail, fetchImpl,
         env: {
-          ADMIN_EMAILS: "farm@x.com", HEALTHCHECKS_ALERT_URL: "https://hc/a",
+          ...MAILS, HEALTHCHECKS_ALERT_URL: "https://hc/a",
         },
       });
 
@@ -615,7 +620,7 @@ describe("an exception no handler caught", () => {
   it("becomes one function.crashed alert email", async () => {
     const stores = testStores();
     const { sent, mail } = mailbox();
-    const env = { ADMIN_EMAILS: "farm@x.com" };
+    const env = { ...MAILS };
     const wrapped = withLog("contact", async () => {
       throw new Error("bad");
     }, {
@@ -667,7 +672,7 @@ describe("an exception no handler caught", () => {
       const stores = testStores();
       const { sent, mail } = mailbox();
       const options = {
-        stores, env: { ADMIN_EMAILS: "farm@x.com" }, mail, now,
+        stores, env: { ...MAILS }, mail, now,
         fetchImpl: fakeFetch().fetchImpl,
       };
 
@@ -689,7 +694,7 @@ describe("an exception no handler caught", () => {
       const hc = fakeFetch();
       const crashes = [];
       const env = {
-        ADMIN_EMAILS: "farm@x.com", HEALTHCHECKS_JOBS_URL: "https://hc/j",
+        ...MAILS, HEALTHCHECKS_JOBS_URL: "https://hc/j",
       };
       const wrapped = withLog("jobs", () => jobsHandle({
         s, env, mail, fetchImpl: hc.fetchImpl,

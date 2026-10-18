@@ -6,7 +6,7 @@ import { sessionKey } from "../netlify/functions/lib/auth.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 
 const env = {
-  ADMIN_EMAILS: "farm@x.com",
+  FARM_NOTIFICATIONS_EMAIL: "farm@x.com",
   DEV_NOTIFICATIONS_EMAIL: "dev@x.com",
   SITE_CONTEXT: "staging",
 };
@@ -54,14 +54,14 @@ describe("endAllSessions", () => {
     assert.match(sent[0].subject, /Every session was ended \(staging\)/);
   });
 
-  it("falls back to the farm's address", async () => {
+  it("does not fall back to the farm's address", async () => {
     const stores = testStores();
     const { sent, mail } = mailbox();
 
     await endAllSessions(stores, {
-      apply: true, env: { ADMIN_EMAILS: "farm@x.com" }, mail,
+      apply: true, env: { FARM_NOTIFICATIONS_EMAIL: "farm@x.com" }, mail,
     });
-    assert.equal(sent[0].to.join(), "farm@x.com");
+    assert.equal(sent.length, 0);
   });
 
   it("ends nothing quietly when no one is signed in", async () => {

@@ -7,9 +7,14 @@ import { orderKey } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { farmContactMessage } from "../netlify/functions/lib/templates.mjs";
 
+const MAILS = {
+  FARM_NOTIFICATIONS_EMAIL: "farm@example.com",
+  DEV_NOTIFICATIONS_EMAIL: "dev@example.com",
+};
+
 const now = new Date("2026-10-06T13:00:00Z");
 const env = {
-  URL: "https://northfosterfarm.com", ADMIN_EMAILS: "farm@example.com",
+  URL: "https://northfosterfarm.com", ...MAILS,
 };
 const good = {
   name: "Pat Example", email: " Pat@Example.com ",

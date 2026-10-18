@@ -19,10 +19,15 @@ import {
   handle as squareHook, signature,
 } from "../netlify/functions/square-webhook.mjs";
 
+const MAILS = {
+  FARM_NOTIFICATIONS_EMAIL: "farm@example.com",
+  DEV_NOTIFICATIONS_EMAIL: "dev@example.com",
+};
+
 const now = new Date("2026-10-16T12:00:00Z");
 const MARKER = "pat@example.com 401-555-0100";
 const body = JSON.stringify({ type: "refund.updated", note: MARKER });
-const FARM = { ADMIN_EMAILS: "farm@example.com" };
+const FARM = { ...MAILS };
 
 // The lines the handlers write, parsed, and the alert emails sent.
 const watch = (t) => {
@@ -165,7 +170,7 @@ describe("a refused webhook delivery", () => {
         "no line carries the body");
       assert.equal(w.sent.length, alerts ? 1 : 0);
       if (alerts) {
-        assert.equal(w.sent[0].to[0], "farm@example.com");
+        assert.equal(w.sent[0].to[0], "dev@example.com");
         assert.ok(!JSON.stringify(w.sent[0]).includes(MARKER));
         assert.ok(
           (await readMark(stores, `alert/${KIND}.${provider}`)).at

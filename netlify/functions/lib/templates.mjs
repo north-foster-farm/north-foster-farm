@@ -796,7 +796,8 @@ export const newsWelcome = (who, unsubscribeUrl, { links } = {}) => {
 
 // --- To the farm ---------------------------------------------------
 //
-// These are the farm's notice of an order. They go to ADMIN_EMAILS
+// These are the farm's notice of an order. They go to
+// FARM_NOTIFICATIONS_EMAIL
 // and carry the Admin link to the dashboard.
 
 const CONTACT_WORD = { text: "prefers a text", call: "prefers a call" };
@@ -1207,7 +1208,30 @@ export const farmAlert = (kind, detail = {}, { at, links } = {}) => {
   };
 };
 
-// Maintenance mode flipped, to the farm (James and Jim) on every flip.
+// The one message to ESCALATED_NOTIFICATIONS_EMAIL, in plain words
+// for someone who is not technical (a draft; the words are James's).
+export const escalation = ({ at, links, maintenanceOn } = {}) => {
+  const title = "Please switch on the order pause";
+  const blocks = [
+    p("James hasn't responded to an urgent problem with online " +
+      "orders: some payments may be going through without an order " +
+      "being saved."),
+    p("To stop more orders from coming in until James can look, " +
+      "switch on maintenance mode with the button below. Customers " +
+      "will see a short notice that the site is under maintenance."),
+  ];
+
+  if (maintenanceOn) {
+    blocks.push(button("Switch on maintenance mode", maintenanceOn));
+  }
+  blocks.push(row([["Sent", when(at ? at.toISOString() : null)]]));
+
+  return {
+    subject: title, ...render(title, blocks, links, { tag: "Urgent" }),
+  };
+};
+
+// Maintenance mode flipped, to the developer on every flip.
 export const maintenanceFlipped = (on, {
   by, at, links, context,
 } = {}) => {

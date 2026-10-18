@@ -14,7 +14,7 @@ import {
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { cancelOrder as cancelAndRefund } from "./admin.mjs";
 import { cutoffAt } from "./jobs.mjs";
-import { adminEmails, mailbox, sendMail } from "./mail.mjs";
+import { farmEmails, mailbox, sendMail } from "./mail.mjs";
 import { log } from "./log.mjs";
 import { joined, welcome } from "./news.mjs";
 import { notifyFarm, sendForOrder } from "./payments.mjs";
@@ -45,7 +45,7 @@ const shortId = () => randomBytes(6).toString("base64url");
 
 // Farm-side notice; never fails the customer's action.
 const tellFarm = async (message, { mail = sendMail, env = process.env }) => {
-  const to = adminEmails(env);
+  const to = farmEmails(env);
 
   if (!to.length) return null;
 

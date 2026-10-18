@@ -17,8 +17,13 @@
 //                        toolbar reads them back (/api/staging/outbox).
 //                        The last OUTBOX_KEEP are kept.
 //
-// ADMIN_EMAILS is a comma-separated list for farm-side notices.
-// DEV_NOTIFICATIONS_EMAIL is the same for the developer's.
+// Three comma-separated lists, and each message goes to one:
+//   FARM_NOTIFICATIONS_EMAIL       the farm's: new orders, contact
+//                                  messages, the daily reports.
+//   DEV_NOTIFICATIONS_EMAIL        the developer's: every alert,
+//                                  with no fallback.
+//   ESCALATED_NOTIFICATIONS_EMAIL  one emergency only (escalate in
+//                                  lib/health.mjs); nothing else.
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -55,23 +60,20 @@ const addresses = (value) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-export const adminEmails = (env = process.env) =>
-  addresses(env.ADMIN_EMAILS);
+// The farm's own notices: each new order, contact-form messages, the
+// daily reports.
+export const farmEmails = (env = process.env) =>
+  addresses(env.FARM_NOTIFICATIONS_EMAIL);
 
-// DEV_NOTIFICATIONS_EMAIL: where the developer's notices go, apart
-// from the farm's (incidents, rotations, security, failed jobs).
+// The developer's notices (alerts, rotations, security, failed jobs).
+// Unset means nobody: there is no fallback to the farm's address.
 export const devEmails = (env = process.env) =>
   addresses(env.DEV_NOTIFICATIONS_EMAIL);
 
-// Farm and developer together, each address once. For notices both
-// should see.
-export const bothEmails = (env = process.env) =>
-  [...new Set([...adminEmails(env), ...devEmails(env)])];
-
-// The developer's address; the farm's when none is set, so a notice
-// meant for the developer is never lost to a missing setting.
-export const devOrAdminEmails = (env = process.env) =>
-  (devEmails(env).length ? devEmails(env) : adminEmails(env));
+// The one emergency the farm's partner hears of; `escalate` in
+// lib/health.mjs is the only caller.
+export const escalatedEmails = (env = process.env) =>
+  addresses(env.ESCALATED_NOTIFICATIONS_EMAIL);
 
 export const NAME_MAX = 64;
 

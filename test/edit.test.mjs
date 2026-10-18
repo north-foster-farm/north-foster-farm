@@ -14,11 +14,16 @@ import { testStores } from "../netlify/functions/lib/store.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
+const MAILS = {
+  FARM_NOTIFICATIONS_EMAIL: "farm@example.com",
+  DEV_NOTIFICATIONS_EMAIL: "dev@example.com",
+};
+
 // Tuesday 6 October 2026, 09:00 ET; on-farm pickup Wednesday the 7th.
 const now = instant("2026-10-06", 9, 0, "America/New_York");
 const SKU = "NFF-CHK-WHL-0350-0400";
 const env = {
-  ADMIN_EMAILS: "farm@example.com", URL: "https://x", PICKUP_SCHEDULE: SCHEDULE,
+  ...MAILS, URL: "https://x", PICKUP_SCHEDULE: SCHEDULE,
 };
 const customer = { email: "pat@example.com", name: "Pat Example" };
 const quiet = { sleep: async () => {} };

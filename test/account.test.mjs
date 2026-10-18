@@ -17,11 +17,16 @@ import { handle } from "../netlify/functions/account.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import { AFTERNOON, SCHEDULE } from "./schedule-fixture.mjs";
 
+const MAILS = {
+  FARM_NOTIFICATIONS_EMAIL: "farm@example.com",
+  DEV_NOTIFICATIONS_EMAIL: "dev@example.com",
+};
+
 const TZ = "America/New_York";
 // Monday 5 October 2026, 09:00 ET; delivery Thursday the 8th.
 const now = instant("2026-10-05", 9, 0, TZ);
 const env = {
-  ADMIN_EMAILS: "farm@example.com", URL: "https://x",
+  ...MAILS, URL: "https://x",
   PICKUP_SCHEDULE: SCHEDULE,
 };
 

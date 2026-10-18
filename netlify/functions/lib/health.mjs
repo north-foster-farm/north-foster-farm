@@ -22,12 +22,11 @@
 
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
-import {
-  adminEmails, bothEmails, devEmails, devOrAdminEmails, sendMail,
-} from "./mail.mjs";
+import { devEmails, escalatedEmails, sendMail } from "./mail.mjs";
+import { links as maintenanceLinks, readState } from "./maintenance.mjs";
 import { log, scrub } from "./log.mjs";
 import { mailLinks } from "./site.mjs";
-import { farmAlert } from "./templates.mjs";
+import { escalation, farmAlert } from "./templates.mjs";
 
 const HOUR = 60 * 60_000;
 
@@ -35,29 +34,14 @@ export const ALERT_EVERY = HOUR;
 export const PING_TIMEOUT = 3000;
 export const MAIL_FAILURES_FOR_ALARM = 3;
 
-// Who an alert reaches. "farm" is ADMIN_EMAILS, "dev" is
-// DEV_NOTIFICATIONS_EMAIL (ADMIN_EMAILS while that is unset), "both"
-// is the two. The farm hears what touches a customer or an order; the
-// developer alone hears what only a developer can fix. A kind missing
-// here goes to both, so a new alert is never lost.
-export const ALERT_AUDIENCE = {
-  "pickup.lapsed": "farm",
-  "jobs.errors": "dev",
-  "jobs.invariants": "dev",
-  "jobs.crashed": "dev",
-  "backup.failed": "dev",
-  "function.crashed": "dev",
-  "webhook.rejected": "dev",
-};
+// Every alert goes to DEV_NOTIFICATIONS_EMAIL, and to nobody else:
+// there is no fallback when it is unset. The one escalation, below,
+// is the only mail that reaches ESCALATED_NOTIFICATIONS_EMAIL.
+export const alertRecipients = (kind, env = process.env) => devEmails(env);
 
-export const alertRecipients = (kind, env = process.env) => {
-  const audience = ALERT_AUDIENCE[kind] || "both";
-
-  if (audience === "farm") return adminEmails(env);
-  if (audience === "dev") return devOrAdminEmails(env);
-
-  return bothEmails(env);
-};
+// The alerts that escalate. "Orders not recorded" is a payment taken
+// with no order; the detector for it raises this kind.
+export const ESCALATING = ["orders.not_recorded"];
 
 const key = (name) => `health/${name}`;
 
@@ -195,6 +179,7 @@ export const raise = async (stores, kind, detail = {}, {
     };
   }
   if (dedupe) await mark(stores, `alert/${mute}`, { muted: 0 }, now);
+  if (ESCALATING.includes(kind)) await open(stores, kind, now);
 
   let sent = false;
   let mailError = null;
@@ -225,6 +210,71 @@ export const raise = async (stores, kind, detail = {}, {
   };
 };
 
+// An escalating alert stays open from its first raise until someone
+// acknowledges it; the next raise after that opens a new one.
+const open = async (stores, kind, now) => {
+  const current = await readMark(stores, `open/${kind}`);
+
+  if (current && !current.ackedAt) return;
+
+  await mark(stores, `open/${kind}`, { since: now.toISOString() }, now);
+};
+
+// Stops the escalation of `kind`. -> true when one was open.
+export const acknowledge = async (stores, kind, now = new Date()) => {
+  const current = await readMark(stores, `open/${kind}`);
+
+  if (!current || current.ackedAt) return false;
+
+  await mark(stores, `open/${kind}`, {
+    ...current, ackedAt: now.toISOString(),
+  }, now);
+
+  return true;
+};
+
+// The one mail to ESCALATED_NOTIFICATIONS_EMAIL: an escalating alert
+// still unacknowledged an hour after it was raised. It repeats every
+// hour while that holds. Run from the scheduled jobs. -> the kinds
+// escalated this run. Never throws.
+export const escalate = async (stores, {
+  env = process.env, mail = sendMail, now = new Date(),
+} = {}) => {
+  const to = escalatedEmails(env);
+  const sent = [];
+
+  if (!to.length) return sent;
+
+  for (const kind of ESCALATING) {
+    const record = await readMark(stores, `open/${kind}`);
+    const last = record && (record.escalatedAt || record.since);
+
+    if (!record || record.ackedAt) continue;
+    if (now.getTime() - Date.parse(last) < HOUR) continue;
+
+    try {
+      const state = await readState(stores);
+
+      await mail({
+        to,
+        idempotencyKey: `escalation-${kind}-${now.getTime()}`,
+        ...escalation({
+          at: now, links: mailLinks(env),
+          maintenanceOn: maintenanceLinks(env, state.epoch)?.on || null,
+        }),
+      }, { env });
+      await mark(stores, `open/${kind}`, {
+        ...record, escalatedAt: now.toISOString(),
+      }, now);
+      sent.push(kind);
+    } catch (error) {
+      log.error({ event: "escalation.failed", kind, error: String(error) });
+    }
+  }
+
+  return sent;
+};
+
 // -> "sent" | "muted" | "skipped".
 export const alert = async (stores, kind, detail = {}, options = {}) =>
   (await raise(stores, kind, detail, options)).status;
@@ -242,7 +292,6 @@ export const alertTest = async (stores, {
 } = {}) => {
   const missing = [
     !env.HEALTHCHECKS_ALERT_URL && "HEALTHCHECKS_ALERT_URL",
-    !adminEmails(env).length && "ADMIN_EMAILS",
     !devEmails(env).length && "DEV_NOTIFICATIONS_EMAIL",
   ].filter(Boolean);
 

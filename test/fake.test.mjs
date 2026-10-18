@@ -21,6 +21,11 @@ import { handle as orders, orderId } from "../netlify/functions/orders.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
+const MAILS = {
+  FARM_NOTIFICATIONS_EMAIL: "farm@example.com",
+  DEV_NOTIFICATIONS_EMAIL: "dev@example.com",
+};
+
 const KEY = "0123456789abcdef0123456789abcdef";
 const DEV = { SITE_CONTEXT: "dev", SQUARE_ENV: "fake", PAYPAL_ENV: "fake" };
 
@@ -363,7 +368,7 @@ describe("the development sample takes orders offline", () => {
     MAIL_DRIVER: "file",
     MAIL_OUT: out,
     MAIL_FROM: "North Foster Farm <orders@example.com>",
-    ADMIN_EMAILS: "farm@example.com",
+    ...MAILS,
     RESEND_API_KEY: "re_fake_development",
     RESEND_WEBHOOK_SECRET: "whsec_ZmFrZQ==",
     PICKUP_SCHEDULE: SCHEDULE,

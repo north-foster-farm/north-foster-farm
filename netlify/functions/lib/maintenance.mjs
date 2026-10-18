@@ -25,7 +25,7 @@
 
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { cookieFrom, sessionKey } from "./auth.mjs";
-import { bothEmails, sendMail } from "./mail.mjs";
+import { devEmails, sendMail } from "./mail.mjs";
 import { json } from "./http.mjs";
 import { log } from "./log.mjs";
 import { siteUrl, mailLinks } from "./site.mjs";
@@ -103,10 +103,10 @@ export const refusalPage = () => page(
 
 export const isAdminAddress = (email, env = process.env) =>
   typeof email === "string" && !!email
-  && bothEmails(env).some((a) => a.toLowerCase() === email.toLowerCase());
+  && devEmails(env).some((a) => a.toLowerCase() === email.toLowerCase());
 
-// A signed-in admin (an ADMIN_EMAILS or DEV_NOTIFICATIONS_EMAIL
-// address) goes through while customers are refused, so a real test
+// A signed-in admin (a DEV_NOTIFICATIONS_EMAIL address) goes through
+// while customers are refused, so a real test
 // order can prove a new token before the switch goes off. It is the
 // session that counts: no URL parameter or header can stand in. The
 // session is read as it is, without making a customer record.
@@ -197,7 +197,7 @@ export const setState = async (stores, on, {
     context: env.SITE_CONTEXT || env.CONTEXT || null,
   });
 
-  const to = bothEmails(env);
+  const to = devEmails(env);
 
   if (to.length) {
     try {
