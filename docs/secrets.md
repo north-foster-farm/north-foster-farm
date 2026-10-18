@@ -6,7 +6,7 @@ dashboard, the password manager and the ignored `.env.*` files, never
 here. `.env.sample` is the list of names the code reads; this is what
 to do with them. The dashboard's secrets follow the same rules and
 have their own page in its repository (`docs/secrets.md` there, not
-yet written; it is on hold until James says go).
+yet written; it is after-launch work).
 
 ## The rules
 
@@ -30,10 +30,8 @@ yet written; it is on hold until James says go).
    environment at deploy time. After `netlify env:set`, trigger a
    production deploy (Deploys → Trigger deploy, or
    `netlify api createSiteBuild`) and wait for it to publish before
-   revoking the old value. The previous deploy still holds the old
-   key, so after a rotation or a leak never publish a deploy built
-   before it; that new deploy is the rollback floor, and a rollback
-   past it reverts on `main` or fixes forward (`docs/rollback.md`).
+   revoking the old value. What a key change means for a rollback is
+   in `docs/rollback.md`.
 5. **New first, old last.** Create the replacement, set it, deploy,
    prove it, then revoke the old one. The Square access token is the
    exception (see Square), and it runs under maintenance mode.
@@ -51,7 +49,12 @@ yet written; it is on hold until James says go).
 10. **Write it down.** Every rotation gets a line in
     `docs/rotation-log.md`: name, date, environment, reason
     (`schedule`, `leak`, `lost device`, `access ended`) and who.
-    Names and dates only, never a value.
+    Names and dates only, never a value. The log covers every secret:
+    each name in the table below, and each secret name in
+    `.env.sample`, has a seed entry in it. A `lint-and-test` check
+    fails on any name without one, because the December reminder sees
+    only logged secrets, and an unlogged one would silently never
+    rotate.
 
 ## Schedule
 
@@ -105,6 +108,7 @@ of every row.
 | `STAGING_REVIEWER_TOKEN` | secret | staging only, while a reviewer has access | `.env.staging` | us |
 | `E2E_STAGING_TOKEN` | secret | staging; GitHub secret | `.env.e2e-staging` | us |
 | `MAINTENANCE_SECRET` | secret | each environment | env file | us |
+| `ESCALATION_EMAIL` | address (office@northfosterfarm.com), configuration | production; staging | env file | us |
 | `NETLIFY_AUTH_TOKEN` | secret | macOS Keychain only | password manager | Netlify |
 | `PICKUP_SCHEDULE_HOOK` | build hook URL | env file | password manager | Netlify |
 | `PAYPAL_*_EMAIL`, `_PASSWORD` | sandbox logins | `.env.staging` only | password manager | PayPal |
@@ -664,8 +668,15 @@ secret.
    (dev@northfosterfarm.com, per environment) takes the alerts only a
    developer can act on; `ADMIN_EMAILS` keeps the ones the farm acts
    on. "Orders not recorded" goes to both. The split, alert by alert,
-   is in `docs/monitoring.md`. A launch guide step has James create the
-   address in Fastmail.
+   is in `docs/monitoring.md`. Creating the address in Fastmail is a
+   blocking launch gate, followed by a test message sent through the
+   real notification path (the rotation reminder or the deploy-failed
+   sender) and confirmed received: deploy-failed, alert and rotation
+   emails all depend on it. `ESCALATION_EMAIL`
+   (office@northfosterfarm.com) is a second address with one purpose:
+   when a rollback-worthy alert goes unacknowledged for an hour it gets
+   one plain-language message with a signed link to switch maintenance
+   mode on, and nothing else (`docs/rollback.md`).
 5. **Customer data.** If details may be exposed, write down what and
    whose, and decide whether customers must be told. Rhode Island's
    breach rules may apply; that is a legal question for the time.
