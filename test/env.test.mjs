@@ -555,6 +555,14 @@ describe("env push, refusing what it can't do", () => {
     assert.ok(!s.local.includes("MAIL_FROM"));
   });
 
+  it("keeps an empty Public: key out of the secrets", () => {
+    const s = readSample(FIXTURE.replace("# The sender.",
+      "# The sender.\n# Public: not a secret."), "staging");
+
+    assert.ok(s.keys.includes("MAIL_FROM"));
+    assert.ok(!s.secrets.includes("MAIL_FROM"));
+  });
+
   it("names Netlify's answer that isn't JSON, quoting none of it",
     async () => {
       const run = async () => "Error: token sk_live_secret is bad";

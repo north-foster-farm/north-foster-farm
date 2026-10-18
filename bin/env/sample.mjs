@@ -13,12 +13,15 @@
 //
 // A key left empty in the staging or production sample is a secret:
 // its value lives in the ignored .env.staging or .env.production and
-// on Netlify, never in the repository.
+// on Netlify, never in the repository. "# Public:" marks an empty key
+// that is not (an application id, an address): its value is in the env
+// file and on Netlify as a plain variable.
 
 import { unquote } from "../../netlify/functions/lib/env.mjs";
 
 const NAME = /^[A-Z][A-Z0-9_]*$/;
 const LOCAL = /(^|[^a-z])Local only:/;
+const PUBLIC = /(^|[^a-z])Public:/;
 const EXPORT = /^export\s+/;
 
 // Never pushed, whatever a sample's comments say: the tools' own
@@ -32,7 +35,7 @@ export const ENVIRONMENTS = ["development", "staging", "production"];
 export const sampleFile = (env) => `.env.${env}.sample`;
 
 // Text -> { header, groups, entries, errors }. Each entry: { name,
-// group, purpose, local, value, line }. Errors name lines and keys,
+// group, purpose, local, public, value, line }. Errors name lines and keys,
 // never values.
 export const parseSample = (text) => {
   const header = [];
@@ -76,9 +79,10 @@ export const parseSample = (text) => {
       inAbout = false;
       if (block) {
         if (LOCAL.test(words)) block.local = true;
+        if (PUBLIC.test(words)) block.public = true;
         block.purpose.push(words);
       } else if (NAME.test(words)) {
-        block = { name: words, purpose: [], local: false };
+        block = { name: words, purpose: [], local: false, public: false };
       } else {
         errors.push(`Line ${at}: a comment outside a key's block.`);
       }
@@ -115,6 +119,7 @@ export const parseSample = (text) => {
         group: group ? group.title : null,
         purpose: block && block.name === name ? block.purpose : [],
         local: !!(block && block.name === name && block.local),
+        public: !!(block && block.name === name && block.public),
         value: unquote(bare.slice(eq + 1)),
         line: at,
       });
@@ -148,7 +153,7 @@ export const readSample = (text, env) => {
       if (!e.value) {
         if (env === "development") {
           errors.push(`${e.name} has no value; development needs one.`);
-        } else {
+        } else if (!e.public) {
           secrets.push(e.name);
         }
       }
