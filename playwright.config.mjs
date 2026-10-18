@@ -24,6 +24,7 @@ const desktopOnly = [
   "**/recovery.spec.mjs",
   "**/orders-api.spec.mjs",
   "**/rate-limit.spec.mjs",
+  "**/maintenance.spec.mjs",
   "**/account.spec.mjs",
   "**/news.spec.mjs",
   "**/staging-toolbar.spec.mjs",

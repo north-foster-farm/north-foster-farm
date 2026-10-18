@@ -103,6 +103,13 @@ const USAGE = `Usage:
   bin/nff restore --clear --scratch   empty the scratch stores
   bin/nff jobs run
   bin/nff jobs history [--n=20]       the last runs: errors, invariants
+  bin/nff maintenance status|on|off [--staging|--production]
+                                      the maintenance switch (#267): on
+                                      closes ordering, sign-in and the
+                                      account area; the farm is emailed
+  bin/nff maintenance links           the signed ON and OFF links for a
+                                      phone (needs MAINTENANCE_SECRET)
+  bin/nff maintenance rotate          kill every link handed out before
   bin/nff health                      what /api/health would answer
   bin/nff alert test [--production|--staging]
                                       one real alert, past the hourly
@@ -171,6 +178,7 @@ const [
   { checkSchedule },
   { alertTest },
   backup,
+  maintenance,
 ] = await Promise.all([
   import("../data/delivery.json", { with: { type: "json" } }),
   import("../netlify/functions/lib/admin.mjs"),
@@ -190,6 +198,7 @@ const [
   import("../assets/scripts/order/lib/schedule.mjs"),
   import("../netlify/functions/lib/health.mjs"),
   import("../netlify/functions/lib/backup.mjs"),
+  import("../netlify/functions/lib/maintenance.mjs"),
 ]);
 
 // --scratch: development's env, but stores of their own
@@ -830,6 +839,40 @@ const run = async () => {
     if (!r.delivered || !r.failed || !r.rearmed) process.exitCode = 1;
 
     return undefined;
+  }
+  case "maintenance status": {
+    const s = await maintenance.readState(stores);
+
+    return out(`Maintenance is ${s.on ? "ON" : "off"} on ${
+      process.env.SITE_CONTEXT}${s.at ? ` (since ${s.at} by ${s.by})` : ""}.`
+      + `${process.env.MAINTENANCE_SECRET ? "" : " MAINTENANCE_SECRET is not"
+        + " set, so there are no phone links."}`);
+  }
+  case "maintenance on":
+  case "maintenance off": {
+    const on = action === "on";
+    const r = await maintenance.setState(stores, on, { by: "bin/nff" });
+
+    return out(r.changed
+      ? `Maintenance is now ${on ? "ON" : "off"} on ${
+        process.env.SITE_CONTEXT}. The farm was emailed.`
+      : `Maintenance was already ${on ? "ON" : "off"}.`);
+  }
+  case "maintenance links": {
+    const s = await maintenance.readState(stores);
+    const l = maintenance.links(process.env, s.epoch);
+
+    if (!l) throw new Error("MAINTENANCE_SECRET is not set in this env file.");
+    out(`Open on the phone; each asks before it acts.\nON:  ${l.on}\nOFF: ${
+      l.off}`);
+
+    return undefined;
+  }
+  case "maintenance rotate": {
+    const s = await maintenance.rotate(stores);
+
+    return out(`Every earlier link is dead (epoch ${s.epoch}). Run ` +
+      "`maintenance links` for the new ones.");
   }
   case "errors show":
     return errorsShow(rest[0]);

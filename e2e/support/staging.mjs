@@ -47,6 +47,10 @@ const env = {
   SITE_CONTEXT: "branch-deploy",
 };
 
+// One value of that environment, for the specs that sign or log in as
+// the deploy's own secrets would (the maintenance rehearsal).
+export const stagingEnv = (name) => env[name] || "";
+
 // Whether the records and the outbox can be reached from here.
 export const backOffice = () => ({
   cli: existsSync(join(root, ".env.staging"))
