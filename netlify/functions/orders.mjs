@@ -422,8 +422,11 @@ export const handle = async (req, {
     }, { env, mail, now });
 
     // Outside production the answer carries the processor's own
-    // error, so a sandbox failure can be read from the response.
-    const sandbox = env.SQUARE_ENV !== "production";
+    // error, so a sandbox failure can be read from the response. Both
+    // must say so: a production deploy missing SQUARE_ENV is still
+    // production, and its customers get no processor detail.
+    const sandbox = env.SQUARE_ENV !== "production"
+      && deployContext(env) !== "production";
 
     return json(retryable ? 503 : 502, {
       retryable,

@@ -271,6 +271,28 @@ describe("POST /api/orders, two submissions drawing one id (#253)", () => {
       assert.doesNotMatch(JSON.stringify(data), /lee@example\.com/);
     });
 
+  it("shows the processor's error off production only, even with " +
+    "SQUARE_ENV missing", async () => {
+    const failing = () => fakeSquare({
+      pay: async () => {
+        throw new SquareError("processor said no", { retryable: false });
+      },
+    }).square;
+    const env = { ...MAILS, PICKUP_SCHEDULE: SCHEDULE };
+    const sandbox = await run(body(), {
+      square: failing(), env: { ...env, SQUARE_ENV: "sandbox" },
+    });
+    const bare = await run(body(), {
+      square: failing(),
+      env: { ...env, SITE_CONTEXT: "production" },
+    });
+
+    assert.equal(sandbox.status, 502);
+    assert.match((await sandbox.json()).detail.error, /processor said no/);
+    assert.equal(bare.status, 502);
+    assert.equal((await bare.json()).detail, undefined);
+  });
+
   it("refuses, alerts and shows nothing when another's record turns up " +
     "after the charge", async () => {
     const stores = testStores();
