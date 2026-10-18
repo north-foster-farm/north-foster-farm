@@ -19,7 +19,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  buildEnvironment, missingAtBuild, stagingOnlyIn,
+  buildEnvironment, isOptional, missingAtBuild, stagingOnlyIn,
 } from "./env/netlify.mjs";
 import { ENVIRONMENTS, readSample, sampleFile } from "./env/sample.mjs";
 
@@ -63,9 +63,12 @@ if (staged.length) {
   process.exit(1);
 }
 if (missing.length) {
-  for (const name of missing) {
-    console.error(`  ${name} is missing (bin/nff env push --${env}).`);
-  }
+  console.error(`Required for a ${env} build, and not set:`);
+  for (const name of missing) console.error(`  ${name}`);
+  console.error(`Fix: bin/nff env push --${env}. Not required here (a ${
+    env} build passes without them): ${
+    sample.keys.filter((n) => isOptional(sample, n)).join(", ") || "none"
+  }.`);
   console.error(`Env check: ${file} doesn't hold.`);
   process.exit(1);
 }

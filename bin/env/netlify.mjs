@@ -37,10 +37,18 @@ export const stagingOnlyIn = (env, names) => {
   return env === "production" ? STAGING_ONLY.filter((n) => held.has(n)) : [];
 };
 
-// May be absent: launch day unsets VENMO_HIDDEN to show the button,
-// and unset reads as shown (lib/paypal.mjs); STAGING_REVIEWER_TOKEN
-// exists only while a reviewer has access.
-export const OPTIONAL = new Set(["VENMO_HIDDEN", "STAGING_REVIEWER_TOKEN"]);
+// May be absent in every context: launch day unsets VENMO_HIDDEN to
+// show the button, and unset reads as shown (lib/paypal.mjs);
+// STAGING_REVIEWER_TOKEN exists only while a reviewer has access; the
+// previous Square key exists only during a swap. A sample marks more
+// with an "Optional:" line in the key's comment, for its context alone.
+export const OPTIONAL = new Set([
+  "VENMO_HIDDEN", "STAGING_REVIEWER_TOKEN",
+  "SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS",
+]);
+
+export const isOptional = (sample, name) => OPTIONAL.has(name)
+  || (sample.optional || []).includes(name);
 
 // Set by Netlify or by netlify.toml, never by a sample.
 export const NETLIFY_PROVIDED = new Set([
@@ -74,7 +82,7 @@ export const planPush = (sample, local, file) => {
 
     if (value === undefined) {
       errors.push(`${name} is in the sample but not in ${file}.`);
-    } else if (!value && OPTIONAL.has(name)) {
+    } else if (!value && isOptional(sample, name)) {
       skipped.push(name);
     } else if (!value) {
       errors.push(`${name} is empty in ${file}.`);
@@ -369,16 +377,16 @@ export const checkEnv = ({ env, sample, local, remote, file }) => {
 
     if (value === undefined) {
       problems.push(`${name}: in the sample, not in ${file}.`);
-    } else if (!value && OPTIONAL.has(name) && there) {
+    } else if (!value && isOptional(sample, name) && there) {
       problems.push(`${name}: empty in ${file}, set on Netlify's ${
         context}.`);
       if (there.own) unsetOwn(name);
-    } else if (!value && !OPTIONAL.has(name)) {
+    } else if (!value && !isOptional(sample, name)) {
       // Never a delete: the key is required, and the file is behind.
       problems.push(`${name}: empty in ${file}: fill it in.`);
     }
     if (!there) {
-      if (!OPTIONAL.has(name) || value) {
+      if (!isOptional(sample, name) || value) {
         problems.push(`${name}: not on Netlify's ${context} (env push).`);
       }
       continue;
@@ -487,5 +495,5 @@ export const buildEnvironment = ({ CONTEXT: context, BRANCH: branch }) => {
 // The build's check: every key the sample lists for this context is
 // in the environment and not empty. -> the missing names.
 export const missingAtBuild = (sample, environment) => sample.keys
-  .filter((name) => !OPTIONAL.has(name))
+  .filter((name) => !isOptional(sample, name))
   .filter((name) => !environment[name]);

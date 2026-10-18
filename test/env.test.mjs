@@ -455,7 +455,8 @@ describe("the build's env check", () => {
     const failed = run(["staging", fixture], short);
 
     assert.equal(failed.code, 1);
-    assert.match(failed.out, /SQUARE_ACCESS_TOKEN is missing/);
+    assert.match(failed.out,
+      /Required for a staging build[^]*SQUARE_ACCESS_TOKEN/);
     assert.ok(!failed.out.includes("fake-"));
 
     // A layout slip warns; it never fails a build whose keys are set.
@@ -606,6 +607,16 @@ describe("env push, refusing what it can't do", () => {
 
     assert.ok(s.keys.includes("MAIL_FROM"));
     assert.ok(!s.secrets.includes("MAIL_FROM"));
+  });
+
+  it("lets a sample's Optional: key be unset at build", () => {
+    const s = readSample(FIXTURE.replace("# The sender.",
+      "# The sender. Optional: unset, mail is logged."), "staging");
+
+    assert.ok(s.optional.includes("MAIL_FROM"));
+    assert.ok(!missingAtBuild(s, {}).includes("MAIL_FROM"));
+    assert.ok(missingAtBuild(readSample(FIXTURE, "staging"), {})
+      .includes("MAIL_FROM"));
   });
 
   it("names Netlify's answer that isn't JSON, quoting none of it",
