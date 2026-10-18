@@ -523,7 +523,7 @@ const paymentRecord = (payment) => {
 // throws SquareError { declined, code } when Square would not take
 // the card, { retryable } when Square could not be reached.
 export const createPayment = async ({
-  order, squareOrderId, customerId, key, source,
+  order, squareOrderId, customerId, key, source, amount = order.totals.total,
 }, {
   env = process.env,
   fetchImpl = globalThis.fetch,
@@ -537,7 +537,7 @@ export const createPayment = async ({
   const cfg = settings(env);
   const body = {
     idempotency_key: `${key}-payment`,
-    amount_money: money(order.totals.total),
+    amount_money: money(amount),
     order_id: squareOrderId,
     location_id: cfg.locationId,
     customer_id: customerId,

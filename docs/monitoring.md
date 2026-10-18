@@ -199,6 +199,15 @@ order.failed`; the `detail` is the processor's answer). A `retryable`
 failure is the processor or the network; a permanent one is usually a
 bad token or application id.
 
+**`order.after_paid_failed`.** The payment went through and the order
+was recorded, but a step after that failed: the customer record, the
+stock counts, the confirmation emails or the welcome. The customer saw
+their confirmation; the store or Resend was the problem. Open the
+order (`bin/nff orders show <id>`) and check what is missing: its
+lines against the stock counts (`stock set` puts one right), and its
+emails. Nothing resends a confirmation on its own, so if none went
+out, write to the customer.
+
 **`order.id_collision`.** A customer's order turned up under another
 customer's order id. Nothing of the other order went back to them;
 they saw the failure card. Each id is reserved before the charge, so

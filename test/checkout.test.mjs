@@ -212,6 +212,35 @@ describe("payWithSquare", () => {
       });
     });
 
+  it("answers with the paid record when a step after saving it fails",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+      const stock = stores.stock;
+
+      // A counted line, so the stock write after the record is reached,
+      // and a store that refuses it.
+      await setCount(stores, "NFF-CHK-WHL-0350-0400", 5);
+      stores.stock = {
+        ...stock,
+        get: (k) => stock.get(k),
+        set: async () => {
+          throw new Error("store down");
+        },
+      };
+
+      const saved = await payWithSquare(stores, order(), {
+        key: KEY, attempt: 1, method: "card", sourceId: "tok",
+      }, {
+        square: fakeSquare().square, mail, env: { ADMIN_EMAILS: "f@x.com" },
+        sleep: quiet.sleep, now,
+      });
+
+      assert.equal(saved.status, "paid");
+      assert.ok(sent.some((m) =>
+        m.subject === "Site alert: order.after_paid_failed"));
+    });
+
   it("records an unknown method as a card", async () => {
     const saved = await payWithSquare(testStores(), order(), {
       key: KEY, method: "sock", sourceId: "tok",
@@ -342,6 +371,7 @@ describe("startVenmo and finishVenmo", () => {
       }, options);
 
       assert.equal(saved.status, "paid");
+      assert.equal(saved.payments[0].amount, 5900, "what PayPal captured");
       assert.ok(sent.some((m) =>
         m.subject === "Site alert: venmo.amount_mismatch"));
     });

@@ -103,25 +103,41 @@ export const completeOrder = async (stores, order, { square, payment }, {
     refunds: [],
   }, now);
 
-  const before = await getCustomer(stores, order.customer.email);
-  const customer = await touchCustomer(stores, order.customer, now);
+  // The money is in and the record is written. Whatever fails from
+  // here is the farm's to finish (the alert says what), never a
+  // failure card for a customer who has just paid.
+  try {
+    const before = await getCustomer(stores, order.customer.email);
+    const customer = await touchCustomer(stores, order.customer, now);
 
-  await adjust(stores, order.lines, -1);
-  await mark(stores, "order", { id: order.id }, now);
+    await adjust(stores, order.lines, -1);
+    await mark(stores, "order", { id: order.id }, now);
 
-  log.info({
-    event: "order.paid", id: saved.id, persistent: stores.persistent,
-  });
+    log.info({
+      event: "order.paid", id: saved.id, persistent: stores.persistent,
+    });
 
-  const announced = await announcePaid(stores, order.id, { mail, env, now });
+    const announced = await announcePaid(stores, order.id, {
+      mail, env, now,
+    });
 
-  // The order box joins farm news once the order is placed (T7), and
-  // the welcome follows the confirmation (T6).
-  if (joined(before, customer)) {
-    await welcome(stores, customer, { env, mail, now });
+    // The order box joins farm news once the order is placed (T7), and
+    // the welcome follows the confirmation (T6).
+    if (joined(before, customer)) {
+      await welcome(stores, customer, { env, mail, now });
+    }
+
+    return announced || saved;
+  } catch (error) {
+    const detail = { id: saved.id, error: String(error && error.message) };
+
+    log.error({ event: "order.after_paid_failed", ...detail });
+    await alert(stores, "order.after_paid_failed", detail, {
+      env, mail, now,
+    });
+
+    return saved;
   }
-
-  return announced || saved;
 };
 
 // A card or a wallet, tokenised by the SDK. -> the paid record.
@@ -267,14 +283,18 @@ export const finishVenmo = async (stores, order, {
     }, { env, mail, now });
   }
 
+  // What PayPal says moved is what the record and Square's copy carry,
+  // so a mismatch is visible in every refund that follows.
+  const amount = capture.amount === null ? order.totals.total : capture.amount;
   const squareCopy = await recordOnSquare(stores, order, k, capture, {
-    square, env, fetchImpl, mail, now, sleep,
+    square, env, fetchImpl, mail, now, sleep, amount,
   });
   const saved = await completeOrder(stores, order, {
     square: squareCopy.square,
     payment: {
       via: "venmo",
       method: "venmo",
+      amount,
       squarePaymentId: squareCopy.squarePaymentId,
       receiptUrl: null,
       paypalOrderId,
@@ -294,7 +314,7 @@ export const finishVenmo = async (stores, order, {
 // `squareSync` in the jobs tries again.
 export const recordOnSquare = async (stores, order, k, capture, {
   square = squareApi, env = process.env, fetchImpl, mail = sendMail,
-  now = new Date(), sleep,
+  now = new Date(), sleep, amount = order.totals.total,
 } = {}) => {
   try {
     const created = await retry(
@@ -305,6 +325,7 @@ export const recordOnSquare = async (stores, order, k, capture, {
       squareOrderId: created.squareOrderId,
       customerId: created.customerId,
       key: k,
+      amount,
       source: {
         external: { source: "Venmo", sourceId: capture.paypalCaptureId },
       },
