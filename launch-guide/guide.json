@@ -1,5 +1,5 @@
 {
- "revision": 29,
+ "revision": 30,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -1050,8 +1050,8 @@
    "steps": [
     {
      "id": "env-dev-mail",
-     "title": "Make the dev@ address in Fastmail",
-     "body": "In Fastmail, add the address **dev@northfosterfarm.com** (an alias on your own mailbox is enough). It receives incident steps, rotation reminders and security alerts, kept apart from `ADMIN_EMAILS`, which carries the farm's notices. The site reads it as `DEV_NOTIFICATIONS_EMAIL`, set per environment; the checkout lane is adding that setting, and a later step will ask you to put it in Netlify and the env files. Send the address a test message to be sure it arrives.",
+     "title": "Make the dev@ address in Fastmail (blocking)",
+     "body": "**Blocking launch gate:** deploy-failed, alert and rotation emails all go to this address, so the launch does not start without it and without the test two steps down.\n\nIn Fastmail, add the address **dev@northfosterfarm.com** (an alias on your own mailbox is enough). It receives incident steps, rotation reminders and security alerts, kept apart from `ADMIN_EMAILS`, which carries the farm's notices. The site reads it as `DEV_NOTIFICATIONS_EMAIL`, set per environment; a later step has you put it in Netlify and the env files. A plain test message from your own mail proves the alias only; the real test follows the setting.",
      "minutes": 5,
      "links": [
       {
@@ -1079,6 +1079,15 @@
      ],
      "device": "laptop",
      "type": "terminal"
+    },
+    {
+     "id": "env-dev-test",
+     "title": "Prove dev@ through the real notification path (blocking)",
+     "body": "Once `DEV_NOTIFICATIONS_EMAIL` is set and staging has deployed with it, Claude sends one test message through the same sender that deploy-failed notices, alerts and the rotation reminder use, and tells you when it has gone. Check that it arrives in dev@ (look in spam too) and tell Claude. Repeat on production after the production value is set and deployed.\n\n**This blocks the launch.** Without it, a failed deploy, an alert or a rotation reminder could go nowhere and nobody would know.",
+     "minutes": 10,
+     "device": "any",
+     "type": "claude",
+     "blocked": "Waits on DEV_NOTIFICATIONS_EMAIL being set and deployed, and on the checkout lane naming the command that sends the test."
     },
     {
      "id": "env-files",
@@ -1364,6 +1373,14 @@
        "url": "https://staging--north-foster-farm.netlify.app/api/maintenance"
       }
      ]
+    },
+    {
+     "id": "mm-snapshot",
+     "title": "Prove a republished deploy keeps its old env (staging)",
+     "body": "The rollback runbook assumes that republishing an old deploy runs no build and serves the env values it was built with. Nobody has proved it. This test does, on staging, and it settles the first item in `docs/rollback.md` under *Not verified*. It needs Netlify access, so you run it or allow Claude to.\n1. Set a harmless staging value, for example `SNAPSHOT_TEST` to `one`, and build a deploy.\n2. Change it to `two`.\n3. Republish the older deploy with `restoreSiteDeploy`. That runs no build.\n4. Check which value its functions see, and whether auto publishing is now locked.\n5. Redeploy (a new build) and check that `two` shows. That is the other half: a **redeploy** uses today's values, a **republish** uses the old ones.\n6. Delete the test value.\n\nClaude records the result on #267 and in the runbook. Until it is recorded, the rule stands: never publish a deploy built before a key change. Before launch if it fits; in any case before the second production release.",
+     "minutes": 20,
+     "device": "laptop",
+     "type": "terminal"
     }
    ]
   },
@@ -1791,6 +1808,25 @@
    "title": "The next day",
    "steps": [
     {
+     "id": "pd-gate-onetap",
+     "title": "Gate: no second production release without the one-tap rollback",
+     "body": "**Blocking.** The first production release has no previous release of the new site to go back to, so it is fixed forward. From the second, a rollback exists, and the one-tap rollback must be built and rehearsed before that release ships. The coordinator does not fast-forward `main` for the second release until you have tapped it on staging and seen every step report.\n\nThe design comes first, for your approval. It covers the signed link, the detector for orders not recorded, the incident pages, `ESCALATION_EMAIL` (office@northfosterfarm.com: one plain-language message to Jim, sent when a rollback-worthy alert has gone unacknowledged for an hour, with the signed link to switch maintenance mode on) and the rule that Jim switches maintenance mode on and never rolls back. See [docs/rollback.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/rollback.md).\n\nFor #237, paste under *After the deploy*: \"Blocking for the second production release: the one-tap rollback is built and rehearsed.\"",
+     "minutes": 5,
+     "device": "any",
+     "type": "decide",
+     "blocked": "Blocks the second production release. Waits on your approval of the one-tap design.",
+     "links": [
+      {
+       "label": "#237",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/237"
+      },
+      {
+       "label": "#267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
+      }
+     ]
+    },
+    {
      "id": "pd-news",
      "title": "Check the test contact didn't come back",
      "body": "After the first 05:00 sync, check `news-test@northfosterfarm.com` hasn't reappeared in Resend. If it has, delete the customer record and the contact again.",
@@ -1916,7 +1952,7 @@
     {
      "id": "pl-rest",
      "title": "The rest of the after-launch list",
-     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- a function that filters for production deploy failures and pages your phone through the alerts check (D-NOTIFY, #248);\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- Resend's Contacts and Segments (D-148, #148): built and held on `hold/148`; the old API still works, so launch day has no migration step. **Switch maintenance mode on first, for the cutover** (`bin/nff --production maintenance on`, then off when it is checked), so no sign-up or order lands half in the old audience and half in the new;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159);\n- move both repositories (`north-foster-farm`, `nff-dashboard`) to your personal account and make them private. They are public today, which is why Netlify's free plan can host an organization repository. Plan it as one item:\n  - **GitHub Pro** (about $4 a month) is needed for branch protection and rulesets on private personal repositories, and for 3,000 Actions minutes;\n  - **Actions minutes:** staging's jobs every 15 minutes are about 2,900 runs a month, plus CI. Proposed: hourly staging jobs, or move them off Actions;\n  - **Anything that reads a repository without signing in breaks once it is private:** this guide's `raw.githubusercontent.com` fetch (moot if the dashboard version has replaced it) and image links in issues;\n  - **Re-link:** the Netlify sites, the GitHub apps (Netlify, Claude), the coordinator's and lanes' access, webhooks and the `STAGING_TOKEN` repository secret;\n  - **Order:** transfer, check redirects, make private, then re-link and check the deploys.\n\nTick this when you've told Claude your order.\n- **Evaluate a scoped Square OAuth login** in place of the long-lived access token (your 10/18 note on #267). A research item, not built.",
+     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- a function that filters for production deploy failures and pages your phone through the alerts check (D-NOTIFY, #248);\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- Resend's Contacts and Segments (D-148, #148): built and held on `hold/148`; the old API still works, so launch day has no migration step. **Switch maintenance mode on first, for the cutover** (`bin/nff --production maintenance on`, then off when it is checked), so no sign-up or order lands half in the old audience and half in the new;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159);\n- move both repositories (`north-foster-farm`, `nff-dashboard`) to your personal account and make them private. They are public today, which is why Netlify's free plan can host an organization repository. Plan it as one item:\n  - **GitHub Pro** (about $4 a month) is needed for branch protection and rulesets on private personal repositories, and for 3,000 Actions minutes;\n  - **Actions minutes:** staging's jobs every 15 minutes are about 2,900 runs a month, plus CI. Proposed: hourly staging jobs, or move them off Actions;\n  - **Anything that reads a repository without signing in breaks once it is private:** this guide's `raw.githubusercontent.com` fetch (moot if the dashboard version has replaced it) and image links in issues;\n  - **Re-link:** the Netlify sites, the GitHub apps (Netlify, Claude), the coordinator's and lanes' access, webhooks and the `STAGING_TOKEN` repository secret;\n  - **Order:** transfer, check redirects, make private, then re-link and check the deploys.\n- script the revert of a release as `bin/nff rollback revert` (branch, revert range, CI dispatch, watch, fast-forward, push). It stops on any failure and asks for your go before it pushes `main`;\n- the checkout lane's `Record-shape:` commit-trailer check in `lint-and-test` (`docs/rollback.md`), and the check that the rotation log has a seed line for every secret (`docs/secrets.md`).\n\nTick this when you've told Claude your order.\n- **Evaluate a scoped Square OAuth login** in place of the long-lived access token (your 10/18 note on #267). A research item, not built.",
      "minutes": 5,
      "device": "any",
      "type": "decide"
@@ -3300,6 +3336,26 @@
       {
        "label": "docs/rollback.md",
        "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/rollback.md"
+      },
+      {
+       "label": "#267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
+      }
+     ]
+    },
+    {
+     "rev": 4,
+     "date": "2026-10-18",
+     "changed": "Your rollback.md round 1 and secrets.md round 2 are applied, one commit each. They are on `next`.",
+     "summary": "Each doc is one commit on `next`: `docs/rollback.md` is 54c2f8a and\n`docs/secrets.md` is 6eff280. Sections that changed most come first.\n\n## docs/rollback.md\n\nChanged most:\n\n- **The one-tap rollback.** Four new points: if James is unreachable,\n  Jim switches maintenance mode on and never rolls back; a second\n  address, `ESCALATION_EMAIL` (office@northfosterfarm.com), that gets\n  one plain-language message and nothing else; the trigger (a\n  rollback-worthy alert unacknowledged for one hour sends it once and\n  repeats only while unacknowledged); and the hard gate (built and\n  rehearsed before the second production release).\n- **From the second release: two ways back.** A firm threshold replaces\n  \"a day or so\": revert on `main` once a rollback has been live 24\n  hours with no fix ready, or as soon as anything else must reach\n  production. Redeploy (a new build, today's values) and republish (no\n  build, the old values) are named apart. The env-snapshot assumption\n  now points to its test. The key-change rule says \"the yearly\n  rotation\" and points to `docs/secrets.md` for the window.\n- **The rehearsals.** The env-snapshot test on staging is the third:\n  set a harmless value, build, change it, republish the older deploy,\n  see which value its functions use and whether it locks.\n- **Rolling back.** New step 3 searches the release's commits for the\n  `Record-shape:` trailer and switches maintenance mode on first when\n  one is there; the write-up goes to `incidents/`; a closing step\n  watches the 24-hour clock. Steps renumbered.\n- **What a rollback does not undo.** Blobs now carries the trailer\n  rule, its `none` escape and the `lint-and-test` check (the checkout\n  lane is building the check; its paths and text go here when it\n  lands).\n\nChanged some:\n\n- **At launch: fix forward.** Step 5 writes to the gitignored\n  `incidents/` directory; a public issue says only that an incident\n  happened. A note records that step 2 stays manual for launch.\n- **Rolling forward.** Two explicit steps: unlock auto publishing, and\n  check each webhook (PayPal, Square, Resend) is still enabled.\n\nLight:\n\n- **Reverting on `main`.** The maintenance line keys on the trailer;\n  `bin/nff rollback revert` is a post-launch item that stops on any\n  failure and asks James before pushing `main`.\n- **Not verified.** The first item names the env-snapshot test.\n- **The rollback-floor rule** now lives here alone; the pointer to\n  `docs/secrets.md` for it is gone.\n\n## docs/secrets.md\n\nAll light:\n\n- **Intro.** The dashboard's secrets page reads \"after-launch work\".\n- **Rule 4.** The rollback-floor restatement is deleted; a bare\n  reference to `docs/rollback.md` remains beside secrets.md's own\n  point that a Netlify change needs a deploy.\n- **Rule 10.** The rotation log covers every secret, and a\n  `lint-and-test` check fails on any name without a seed entry.\n- **Where they live.** `ESCALATION_EMAIL` joins the table.\n- **Incident response, point 4.** Creating dev@ is a blocking launch\n  gate with a test send through the real notification path;\n  `ESCALATION_EMAIL` is described beside it.\n\n## Not done here\n\n- The check for the trailer and the rotation-log check are code, for\n  the checkout lane. Nothing in the docs claims either exists yet.\n- `ESCALATION_EMAIL` is not in the env samples or `env verify` until\n  the one-tap design is approved, so it is not in the guide's env\n  builder either.\n- #237's text is not edited (GitHub edits are denied to this lane). The\n  new guide step \"Gate: the one-tap rollback before the second\n  release\" holds the wording to paste there.",
+     "look": [
+      {
+       "label": "docs/rollback.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/rollback.md"
+      },
+      {
+       "label": "docs/secrets.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md"
       },
       {
        "label": "#267",
