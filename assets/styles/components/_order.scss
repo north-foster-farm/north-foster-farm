@@ -7,6 +7,8 @@
   --order-radius: var(--bs-border-radius);
   --order-shadow: var(--bs-box-shadow-sm);
   --order-topbar-h: 3rem;
+  --order-edge-l: var(--order-gutter);
+  --order-edge-r: var(--order-gutter);
   --order-ease: cubic-bezier(0.2, 0.8, 0.25, 1);
   --order-hover: 70ms;
   --order-fast: 140ms;
@@ -140,8 +142,9 @@
     justify-content: space-between;
     gap: 0.75rem;
     min-height: var(--order-topbar-h);
-    margin: 0 calc(-1 * var(--order-gutter)) 0.75rem;
-    padding: 0.375rem var(--order-gutter);
+    margin: 0 calc(-1 * var(--order-edge-r)) 0.75rem
+      calc(-1 * var(--order-edge-l));
+    padding: 0.375rem var(--order-edge-r) 0.375rem var(--order-edge-l);
     box-shadow: 0 0 0 transparent;
     clip-path: inset(0 0 -1rem);
     transition: box-shadow var(--order-base) ease;
@@ -1191,11 +1194,19 @@
     & {
       --order-topbar-h: 3.5rem;
       --order-gutter: 1.25rem;
+
+      // A phone turned sideways: clear of the notch and the Dynamic
+      // Island (viewport-fit=cover), the bar still bleeding to the
+      // glass.
+      --order-edge-l: max(var(--order-gutter), env(safe-area-inset-left, 0px));
+      --order-edge-r: max(
+        var(--order-gutter), env(safe-area-inset-right, 0px)
+      );
     }
 
     // Room at the sides, less of it on a phone.
     .order-page {
-      padding-inline: var(--order-gutter);
+      padding-inline: var(--order-edge-l) var(--order-edge-r);
     }
 
     @media (max-width: 575.98px) {
@@ -1209,7 +1220,7 @@
     .order-topbar {
       height: var(--order-topbar-h);
       margin-bottom: 1.25rem;
-      padding: 0 var(--order-gutter);
+      padding: 0 var(--order-edge-r) 0 var(--order-edge-l);
     }
 
     .order-cat + .order-cat {
