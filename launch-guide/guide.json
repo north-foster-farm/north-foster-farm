@@ -1,5 +1,5 @@
 {
- "revision": 20,
+ "revision": 21,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -13,7 +13,7 @@
    "id": "pre",
    "short": "Before launch",
    "title": "Before launch: accounts, keys and settings",
-   "intro": "Work through these in any order. Each value you collect is saved here and goes into the env files at the end of this phase. Steps marked *Waits on agents* need a piece of code first; the note says which.\n\n**One rule protects the live site.** Production keeps the keys it has now. New, separate keys go to staging, and development gets fakes. If you ever do replace a production key, the order is: push it to Netlify, ask Claude to redeploy the live site, check it works, and only then revoke the old one. All of that must finish before the day-before rebuild on launch day."
+   "intro": "Work through these in any order. Each value you collect is saved here and goes into the env files at the end of this phase. Steps marked *Waits on agents* need a piece of code first; the note says which.\n\n**One rule protects the live site.** Production keeps the keys it has now. New, separate keys go to staging, and development gets fakes. If you ever do replace a production key, the order is: push it to Netlify, ask Claude to redeploy the live site, check it works, and only then revoke the old one. All of that must finish before launch day."
   },
   {
    "id": "launch",
@@ -938,7 +938,7 @@
     {
      "id": "gh-rules",
      "title": "Protect the staging and main branches",
-     "body": "**First, finish the rollback drill's part B, including B5.** Part B force-pushes `staging`, which these rules refuse once they're on (`docs/rollback.md`, PR #245). The `lint-and-test` check exists and has run on `next` (160452a).\n\nThis makes GitHub refuse any push to `staging` or `main` whose commit hasn't passed the tests. Releases stay a fast-forward of a commit already checked.\n1. Open the repository's **Settings → Rules → Rulesets → New ruleset → New branch ruleset**.\n2. Name it \"staging and main\", and set Enforcement status to **Active**.\n3. Leave the **Bypass list** empty, so administrators are included and nobody bypasses. The agents push as you, so a bypass for admins would let them skip the check.\n4. **Target branches:** add `staging` and `main` by pattern.\n5. **On:** Restrict deletions, Block force pushes, Require linear history.\n6. **On:** Require status checks to pass. Add `lint-and-test` with source **GitHub Actions**, and leave \"Require branches to be up to date before merging\" **off**.\n7. **Off:** Require a pull request before merging. Promotion is a fast-forward push, not a pull request.\n8. Create.\n\nLeave `next` unprotected, so lanes keep landing work. An emergency revert on `main` now goes through the tests first; `docs/rollback.md` says so.",
+     "body": "The `lint-and-test` check exists and has run on `next` (160452a).\n\nThis makes GitHub refuse any push to `staging` or `main` whose commit hasn't passed the tests. Releases stay a fast-forward of a commit already checked.\n1. Open the repository's **Settings → Rules → Rulesets → New ruleset → New branch ruleset**.\n2. Name it \"staging and main\", and set Enforcement status to **Active**.\n3. Leave the **Bypass list** empty, so administrators are included and nobody bypasses. The agents push as you, so a bypass for admins would let them skip the check.\n4. **Target branches:** add `staging` and `main` by pattern.\n5. **On:** Restrict deletions, Block force pushes, Require linear history.\n6. **On:** Require status checks to pass. Add `lint-and-test` with source **GitHub Actions**, and leave \"Require branches to be up to date before merging\" **off**.\n7. **Off:** Require a pull request before merging. Promotion is a fast-forward push, not a pull request.\n8. Create.\n\nLeave `next` unprotected, so lanes keep landing work. An emergency revert on `main` now goes through the tests first; `docs/rollback.md` says so.",
      "minutes": 10,
      "links": [
       {
@@ -982,14 +982,6 @@
      ],
      "device": "laptop",
      "type": "terminal"
-    },
-    {
-     "id": "env-oldsecret",
-     "title": "Save production's current Resend webhook secret",
-     "body": "Before anything is pushed or changed, save production's current `RESEND_WEBHOOK_SECRET` to the **NFF launch** folder in your password manager, labelled \"old Venmo inbound, keep until P9\". Copy it from your current `.env.production`. Launch day replaces it (the step **Add production's Resend webhook**), and the old site's rollback path needs the old value until P9.",
-     "minutes": 3,
-     "device": "laptop",
-     "type": "account"
     },
     {
      "id": "env-push",
@@ -1083,42 +1075,24 @@
    ]
   },
   {
-   "id": "pre-drill",
+   "id": "pre-maint",
    "phase": "pre",
-   "title": "Rollback rehearsal",
+   "title": "Maintenance mode rehearsal",
    "steps": [
     {
-     "id": "drill-a",
-     "title": "Rehearse undoing a release, on production (part A)",
-     "body": "With the coordinator, about 20 minutes. Production's current version and the commit after it differ only in a GitHub workflow, so customers see no change. You publish an older deploy, lock publishing, check that a new build doesn't go live, republish and unlock. The steps are in `docs/rollback.md`. Pick a time below and tell Claude.\n\nThe drill must happen before about **Oct 26**, or be followed by a fresh build of the current production version the day before release.",
-     "minutes": 20,
-     "links": [
+     "id": "mm-rehearse",
+     "title": "Rehearse maintenance mode on staging",
+     "body": "This is the safety net that replaces rolling back. With it on, nobody can order, pay, sign in or change an account, and every page shows one message. Rehearse it on staging with Claude before the release.\n1. Turn staging's switch **on**: `<staging maintenance on>`, or the dashboard switch on your phone. Claude and Jim are notified.\n2. Open the order page and an account page. Each shows exactly the message below, and you can't order from either.\n3. Open the order page in a tab *before* you flip the switch, then flip it and, in that tab, try to check out, edit an order and cancel one. Each shows the message and nothing goes through.\n4. Claude runs the cases a page can't show: a payment made just before the flip still finishes its order, and a webhook that arrives while it is on is accepted.\n5. Turn it **off**: `<staging maintenance off>`. A signed-in tab carries on, still signed in.\n\nTell Claude when it passes.",
+     "minutes": 15,
+     "copy": [
       {
-       "label": "Netlify deploys",
-       "url": "https://app.netlify.com/projects/north-foster-farm/deploys"
-      },
-      {
-       "label": "#250",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/250"
+       "label": "The message",
+       "value": "Our site is currently under maintenance. Online ordering and account access are temporarily unavailable, but we'll be up and running again soon. We apologize for the inconvenience."
       }
      ],
-     "fields": [
-      {
-       "id": "drill_when",
-       "label": "When you'll do it",
-       "secret": false
-      }
-     ],
-     "device": "laptop",
-     "type": "live"
-    },
-    {
-     "id": "drill-all",
-     "title": "Confirm the whole drill is done (parts A–D)",
-     "body": "Parts B (a revert on staging, with the coordinator), C (old code over new records, local) and D (listing the webhook registrations) are agent work. Tick this when Claude reports all four done; #237 has the same box.",
-     "minutes": 2,
+     "blocked": "Waits on the checkout lane, which is building maintenance mode. The commands in angle brackets are placeholders until it lands.",
      "device": "any",
-     "type": "claude"
+     "type": "live"
     }
    ]
   },
@@ -1140,21 +1114,6 @@
      ],
      "device": "laptop",
      "type": "terminal"
-    },
-    {
-     "id": "ld-rebuild",
-     "title": "The day before: rebuild the current production version",
-     "body": "Tell Claude \"rebuild the rollback target\". The coordinator triggers a fresh production build of ff6270c, the current invoice checkout, so Netlify keeps it 30 days as the place to roll back to. It carries production's values as they are now, which is why production keeps its keys. Paste the deploy ID; Claude also records it on #237.",
-     "minutes": 5,
-     "fields": [
-      {
-       "id": "deploy_rollback",
-       "label": "Rollback deploy ID",
-       "secret": false
-      }
-     ],
-     "device": "any",
-     "type": "claude"
     },
     {
      "id": "ld-submitted",
@@ -1317,6 +1276,31 @@
      "type": "look"
     },
     {
+     "id": "ld-maint",
+     "title": "Prove production's maintenance switch",
+     "body": "Before any real-money check, test the switch once on production, so you know it works the moment you need it. It is also how you would stop orders while a problem is fixed: the launch is fixed forward, with no rollback.\n1. Turn it **on**: `<production maintenance on>`.\n2. In a private window, open the order page and an account page. Both show exactly the message below. Health still answers.\n3. Turn it **off**: `<production maintenance off>`. Reload the order page and confirm it works again.\n\nDon't start the payment checks until the order page works again.",
+     "minutes": 5,
+     "links": [
+      {
+       "label": "Order",
+       "url": "https://www.northfosterfarm.com/order/"
+      },
+      {
+       "label": "Health",
+       "url": "https://www.northfosterfarm.com/api/health"
+      }
+     ],
+     "copy": [
+      {
+       "label": "The message",
+       "value": "Our site is currently under maintenance. Online ordering and account access are temporarily unavailable, but we'll be up and running again soon. We apologize for the inconvenience."
+      }
+     ],
+     "blocked": "Waits on the checkout lane, which is building maintenance mode. The commands in angle brackets are placeholders until it lands.",
+     "device": "any",
+     "type": "live"
+    },
+    {
      "id": "ld-uptime5",
      "title": "Add UptimeRobot's fifth monitor",
      "body": "**Keyword** monitor, every 5 minutes, alerts when the keyword doesn't exist.",
@@ -1337,7 +1321,7 @@
     {
      "id": "ld-resend-wh",
      "title": "Add production's Resend webhook",
-     "body": "Now that the new code is live:\n1. On the farm team, **Webhooks → Add Webhook**, with the URL below and the events `contact.updated` and `contact.deleted`.\n2. Open it and copy its **Signing Secret**. Your old Venmo inbound secret, today's production `RESEND_WEBHOOK_SECRET`, should already be in your password manager from before launch day. Keep it until P9.\n3. Paste the new secret here, re-save `.env.production`, push, and ask Claude to redeploy production.",
+     "body": "Now that the new code is live:\n1. On the farm team, **Webhooks → Add Webhook**, with the URL below and the events `contact.updated` and `contact.deleted`.\n2. Open it and copy its **Signing Secret**. It replaces production's current `RESEND_WEBHOOK_SECRET`, which belonged to the old Venmo inbound; there is no need to keep the old value.\n3. Paste the new secret here, re-save `.env.production`, push, and ask Claude to redeploy production.",
      "minutes": 10,
      "links": [
       {
@@ -1422,6 +1406,32 @@
        "url": "https://www.northfosterfarm.com/order/?venmo"
       }
      ]
+    },
+    {
+     "id": "pw-p9",
+     "title": "Remove the old invoice checkout's hooks (P9)",
+     "body": "Once the live checks above have passed (the card order, Apple Pay, the broken-checkout test and the Venmo $1), the old invoice checkout has nothing left to do. The launch is fixed forward, with no rollback to it, so there is no reason to wait a week. Then: in Resend, delete the inbound webhook to `/api/venmo/inbound`; in Square, edit the production subscription and untick the `invoice.*` events.",
+     "minutes": 10,
+     "links": [
+      {
+       "label": "Resend webhooks",
+       "url": "https://resend.com/webhooks"
+      },
+      {
+       "label": "Square Developer Console",
+       "url": "https://developer.squareup.com/apps"
+      }
+     ],
+     "device": "laptop",
+     "type": "account"
+    },
+    {
+     "id": "pw-keys",
+     "title": "Delete the keys only the old site used",
+     "body": "Straight after P9: delete `RESEND_READ_KEY` from Netlify production and its key at Resend (the API keys page shows when each key was last used). If you saved an \"old Venmo inbound\" secret in your password manager, delete that too. Revoke anything else Claude lists as retired.",
+     "minutes": 10,
+     "device": "laptop",
+     "type": "account"
     }
    ]
   },
@@ -1542,32 +1552,6 @@
    "phase": "post",
    "title": "A week later",
    "steps": [
-    {
-     "id": "pw-p9",
-     "title": "Remove the old invoice checkout's hooks (P9)",
-     "body": "Not before a week after launch, so a rollback still lands on a working checkout. Then: in Resend, delete the inbound webhook to `/api/venmo/inbound`; in Square, edit the production subscription and untick the `invoice.*` events.",
-     "minutes": 10,
-     "links": [
-      {
-       "label": "Resend webhooks",
-       "url": "https://resend.com/webhooks"
-      },
-      {
-       "label": "Square Developer Console",
-       "url": "https://developer.squareup.com/apps"
-      }
-     ],
-     "device": "laptop",
-     "type": "account"
-    },
-    {
-     "id": "pw-keys",
-     "title": "Delete the keys only the old site used",
-     "body": "After P9: delete `RESEND_READ_KEY` from Netlify production and its key at Resend (the API keys page shows when each key was last used). Delete the old Venmo inbound secret from your password manager. Revoke anything else Claude lists as retired.",
-     "minutes": 10,
-     "device": "laptop",
-     "type": "account"
-    },
     {
      "id": "pw-thaw",
      "title": "End the freeze",
@@ -1879,6 +1863,22 @@
       {
        "label": "Footer mock-up",
        "url": "https://claude.ai/artifact/GKWaduR8DkvvY5eMPQVjUJ"
+      },
+      {
+       "label": "Any staging page",
+       "url": "https://staging--north-foster-farm.netlify.app/"
+      }
+     ]
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-18",
+     "changed": "Rebuilt as the two screenshots you approved: one centered column at every width, no side columns and no layout switch at a breakpoint.",
+     "summary": "The order is the sign-up and its Yes button, the APPPA logo, the page links, the contact line, then the copyright. Rows wrap, centered, as the width shrinks. The strip shows 390, 430, 600, 768, 1024, 1280 and 1440px; none scrolls sideways.\n\n- **The question's wording** is still \"Want occasional farm news by email?\" (W14, \"farm news\" everywhere). Your screenshots read \"Want occasional news and updates from North Foster Farm?\"; it is one of the questions under **Open for James**.\n- The panel's tint stays the site's green-grey, not the mock-up's plain grey.\n\nIt is on `next` and reaches staging with the next promotion.",
+     "look": [
+      {
+       "label": "The footer at seven widths",
+       "url": "https://raw.githubusercontent.com/north-foster-farm/north-foster-farm/launch-guide/launch-guide/feedback/ft-rev2-strip.png"
       },
       {
        "label": "Any staging page",
@@ -2285,6 +2285,22 @@
    ],
    "device": "any",
    "type": "look"
+  },
+  {
+   "id": "D-OPEN",
+   "section": "rv-decide",
+   "title": "Open for James",
+   "area": "Four things waiting on you",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "summary": "Everything agents are waiting on, in one place. Each has the choices and what I'd pick. Answer in the feedback box here; one line each is enough.\n\n**a) Previewing the site on another day (#267, item 1).** Three questions. The spec is `~/Code/nff/lanes/template/.ignored/date-preview-spec.md` and the mock-up is `~/Code/nff/lanes/template/.ignored/shots/date-preview-mock.png`.\n1. Is it view only, with no ordering while you preview? **Recommend yes.**\n2. Does the date field use farm time (New York), whatever your browser's zone? **Recommend yes.**\n3. Tier 2 costs about five templates. Build it, or stop at tier 1 plus the banner warning? **Recommend tier 1 first, then tier 2.**\n\n**b) Email signatures.** The Signatures panel is on staging's toolbar (`lane/template` 942c0f3). For James, Jim and \"The NFF team\":\n1. The role line under each name. Only you know it; no recommendation.\n2. Which email: sales@, info@ or their own. **Recommend sales@ for all three**, so replies reach the shared inbox.\n3. Which phone: the farm's or their own. **Recommend the farm's.**\n4. Any other variants, and any extra links (say what).\n5. Remake `globe.png` from the Lucide globe? **Recommend yes**: Lucide is open source, so its origin is known (rule #220).\n6. Then paste each signature into Fastmail and send yourself a message from Mac Safari, Mac Chrome and iPhone Safari, and say how each looks.\n\n**c) The footer's question.** Keep \"Want occasional farm news by email?\" (the site says \"farm news\" everywhere, W14), or use \"Want occasional news and updates from North Foster Farm?\" as in your screenshots. **Recommend keeping \"farm news\".**\n\n**d) Promote the waiting work.** These commits are done and wait for qa, then `next`, then staging: `lane/home` a44fb66 (footer), `lane/orders` 6a7c9bc (cart review items), `lane/email` c014bd0 and 16dc287 (launch post), `lane/checkout` 0029af3 (pickup days), `lane/template` 942c0f3 (signatures panel), `lane/pages` 938eb99 and 2b44814 (news URLs, hover). Wake qa and promote them? **Recommend yes, as one batch.**",
+     "look": []
+    }
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "D-VENMO",
@@ -2753,6 +2769,12 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/pull/245"
       }
      ]
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-18",
+     "changed": "You decided the launch is fixed forward, with no rollback to the invoice checkout. The runbooks lost everything that existed only for that.",
+     "summary": "- `docs/rollback.md` now opens with **At launch: fix forward** (maintenance mode on, fix, check, off). The publish-a-previous-deploy and revert-on-`main` paths stay for the second release on.\n- Gone: the day-before rebuild, the saved old Resend secret, the one-week P9 hold, and drill parts A, B and C. **Kept: part D** (listing the Square, PayPal and Resend webhook registrations), because the launch needs those commands whichever way a problem is fixed. What part A would have proved moved to **Not verified**, to be rehearsed before the second release.\n- **Still in force:** after a production key change, never publish a deploy built before it (`docs/rollback.md`, `docs/secrets.md`).\n- **New timing:** P9 and the old keys now come at the end of the launch-day payment checks, not a week later.\n- Round 1's earlier notes that only concerned the old site (the timing rule, launch slipping, the leak exception) lapse.\n\nCommitted on `lane/prod` as 4742ac1; it reaches `next` with the coordinator's next promotion."
     }
    ],
    "device": "any",
@@ -2780,6 +2802,95 @@
      ],
      "text": "No off-season\nThree ways to get your order\nOn-farm pickup: Pick a time when you order; 99 E Killingly Rd, Foster, RI; No minimum, no fee\nDrop site: Saturdays, 10:00–11:00 AM; 46 Institute Ln, North Scituate, RI; No minimum, no fee\nDelivery: Every Thursday, 10:00 AM–4:00 PM; Most of central Rhode Island and parts of eastern Connecticut; $40 minimum, $5 fee",
      "recommendation": "Approve as it stands."
+    }
+   ],
+   "device": "any",
+   "type": "look"
+  },
+  {
+   "id": "R-PICKUP",
+   "section": "rv-look",
+   "title": "Pickup days: only through next week's Saturday",
+   "area": "#267, order page",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "changed": "The on-farm pickup list ran to the end of the schedule, into December. It now stops at the Saturday of the following week.",
+     "summary": "Weeks start on Sunday. The list runs from the first available day through **next week's Saturday**, in farm time:\n\n- Sunday Oct 18: Monday Oct 19 through Friday Oct 30. Wednesday Oct 21 still ends Oct 30.\n- Sunday Oct 25: through Friday Nov 6.\n- The first day keeps its rule: tomorrow on, closed at midnight before.\n- The server checks the same limit, so an old tab cannot book a day past it.\n\n**The drop site and delivery do not share this list or horizon**, so they are unchanged. They each offer the next two Saturdays or Thursdays whose cutoff has not passed, so they never ran long. A horizon there would leave a single Thursday after Wednesday noon, so I did not apply it. Say if you want it anyway.\n\nThe change is commit 0029af3 on `lane/checkout`. Look on staging once it is promoted: the pickup select on the order page should end on Friday Oct 30 today.",
+     "look": [
+      {
+       "label": "Order page on staging",
+       "url": "https://staging--north-foster-farm.netlify.app/order/"
+      },
+      {
+       "label": "#267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
+      },
+      {
+       "label": "The list before the fix",
+       "url": "https://raw.githubusercontent.com/north-foster-farm/north-foster-farm/launch-guide/launch-guide/feedback/pickup-days-too-long.png"
+      }
+     ],
+     "recommendation": "Approve if the list ends where you expect."
+    }
+   ],
+   "device": "phone",
+   "type": "look"
+  },
+  {
+   "id": "R-NEWSURL",
+   "section": "rv-look",
+   "title": "News post addresses without the date",
+   "area": "#267",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "changed": "Item 2 of your 10/18 note on #267. A post's address is now its title, with no date in it.",
+     "summary": "`news/2026-09-22-september-update` is now `news/september-update`, and every post follows. Draft on `lane/pages` (commit 938eb99), not yet on `next` or staging.\n\n**The four reused titles**\n- June 2026: `news/june-update`\n- June 2025: `news/june-2025-update`\n- December 2025: `news/december-update`\n- December 2024: `news/december-2024-update`\n\n**Needs your yes: two titles change on the page.** The 2025 June post is now \"June 2025 Update\" and the 2024 December post \"December 2024 Update\", so no two posts share a title.\n\n**Nothing 404s.** All 18 old dated addresses redirect (301) to the new ones from `netlify.toml`, so past newsletters and search results still land. The sitemap, the news list and the home card read the new addresses. A check, `npm run check:news`, runs after the build and fails it on a repeated title or address, so the next reused title is caught before it ships.\n\n**One more:** the ordering-tour post (lane/email) takes `news/ordering-tour` when it lands here.",
+     "look": [
+      {
+       "label": "#267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
+      }
+     ],
+     "text": "June 2025 Update\nDecember 2024 Update",
+     "recommendation": "Approve the two new titles."
+    }
+   ],
+   "device": "any",
+   "type": "decide"
+  },
+  {
+   "id": "R-NEWSHOVER",
+   "section": "rv-look",
+   "title": "Hover on a post's picture",
+   "area": "#267",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "changed": "Item 3 of your 10/18 note on #267. The pictures that link to a post now respond to the pointer.",
+     "summary": "On hover the picture lifts 2 pixels with the buttons' shadow and, on the buttons' own timing (0.16 s, ease-out), zooms in a little from its top edge. Its frame clips the zoom and does not change size, so nothing around it moves. Tabbing to the post's title link does the same. With reduced motion on, it only casts the shadow. Draft on `lane/pages` (commit 2b44814), not yet on staging. In the frames, each pair is at rest, then hovered.\n\nIt covers the lead post and every row of the news list. The home page shows the post in full, with no picture that links to it, so nothing changed there.",
+     "look": [
+      {
+       "label": "Lead post, at rest",
+       "url": "https://raw.githubusercontent.com/north-foster-farm/north-foster-farm/launch-guide/launch-guide/feedback/news-hover-lead-rest.png"
+      },
+      {
+       "label": "Lead post, hovered",
+       "url": "https://raw.githubusercontent.com/north-foster-farm/north-foster-farm/launch-guide/launch-guide/feedback/news-hover-lead-hover.png"
+      },
+      {
+       "label": "List row, at rest",
+       "url": "https://raw.githubusercontent.com/north-foster-farm/north-foster-farm/launch-guide/launch-guide/feedback/news-hover-row-rest.png"
+      },
+      {
+       "label": "List row, hovered",
+       "url": "https://raw.githubusercontent.com/north-foster-farm/north-foster-farm/launch-guide/launch-guide/feedback/news-hover-row-hover.png"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -3509,6 +3620,13 @@
  "retired": {
   "rs-team": "Retired 2026-10-17: staging sends no email and has no Resend team, key, audience or webhook.",
   "rs-stg-keys": "Retired 2026-10-17: staging sends no email and has no Resend team, key, audience or webhook.",
-  "ld-r3": "Merged into ld-errphone 2026-10-17 (D-PY17)."
+  "ld-r3": "Merged into ld-errphone 2026-10-17 (D-PY17).",
+  "ld-rebuild": "Retired 2026-10-18: the launch is fixed forward, with no rollback to the invoice checkout (James, #267).",
+  "env-oldsecret": "Retired 2026-10-18: the launch is fixed forward, with no rollback to the invoice checkout (James, #267).",
+  "drill-a": "Retired 2026-10-18: the launch is fixed forward, with no rollback to the invoice checkout (James, #267).",
+  "drill-all": "Retired 2026-10-18: the launch is fixed forward, with no rollback to the invoice checkout (James, #267).",
+  "deploy_rollback": "Retired 2026-10-18: the launch is fixed forward, with no rollback to the invoice checkout (James, #267). (A field of a retired step.)",
+  "drill_when": "Retired 2026-10-18: the launch is fixed forward, with no rollback to the invoice checkout (James, #267). (A field of a retired step.)",
+  "pre-drill": "Retired 2026-10-18: the launch is fixed forward, with no rollback to the invoice checkout (James, #267). (A section; its place goes to pre-maint.)"
  }
 }
