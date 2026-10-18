@@ -1,5 +1,5 @@
 {
- "revision": 23,
+ "revision": 24,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -973,6 +973,24 @@
      ],
      "device": "laptop",
      "type": "account"
+    },
+    {
+     "id": "env-dev-set",
+     "title": "Set DEV_NOTIFICATIONS_EMAIL in Netlify",
+     "body": "After the dev@ address works, set it on both contexts. It is an address, not a secret, so a plain variable is right. In the project folder:\n```\nnetlify env:set DEV_NOTIFICATIONS_EMAIL dev@northfosterfarm.com --context production --json\nnetlify env:set DEV_NOTIFICATIONS_EMAIL dev@northfosterfarm.com --context branch:staging --json\n```\nThen add `DEV_NOTIFICATIONS_EMAIL=dev@northfosterfarm.com` to your `.env.staging` and `.env.production` too, so `bin/nff env check` finds no difference. Use `--context`: `--scope` fails without saying so. Incident steps, rotation reminders and security alerts go to this address from the next deploy.",
+     "minutes": 5,
+     "copy": [
+      {
+       "label": "Production",
+       "value": "netlify env:set DEV_NOTIFICATIONS_EMAIL dev@northfosterfarm.com --context production --json"
+      },
+      {
+       "label": "Staging",
+       "value": "netlify env:set DEV_NOTIFICATIONS_EMAIL dev@northfosterfarm.com --context branch:staging --json"
+      }
+     ],
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "env-files",
