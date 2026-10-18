@@ -2022,7 +2022,10 @@ export class OrderForm {
     // The farm's own address and number, from the page's data; only a
     // plain address or number becomes a link.
     if (/^[^\s@?&#:/]+@[^\s@?&#:/]+$/.test(this.contact.email)) {
-      mail.href = `mailto:${this.contact.email}?subject=` +
+      const address = encodeURIComponent(this.contact.email)
+        .replace("%40", "@");
+
+      mail.href = `mailto:${address}?subject=` +
         `${encodeURIComponent("Order from the website")}&body=` +
         `${encodeURIComponent(text)}`;
     }
