@@ -53,8 +53,8 @@ ${body}
 export const signInPage = ({ next = "/", message = "" } = {}) => shell(
   "Staging sign-in",
   `<h1>This site is not public yet</h1>
-<p>Enter your email address. If it is on the list, we will send you a
-link that signs you in on this device.</p>
+<p>Enter your email address. If authorized, you will receive a link.
+Click it to sign in.</p>
 ${message ? `<p role="alert"><strong>${escape(message)}</strong></p>` : ""}
 <form method="post" action="/api/gate/request">
   <label for="email">Email address</label>
@@ -64,16 +64,15 @@ ${message ? `<p role="alert"><strong>${escape(message)}</strong></p>` : ""}
     aria-hidden="true">
   <input type="hidden" name="next" value="${escape(next)}">
   <button type="submit">Send the link</button>
-</form>
-<p class="note">Sessions last a year on each device.</p>`
+</form>`
 );
 
 // The same page for every address, on the list or not.
 export const checkEmailPage = () => shell(
-  "Check your email",
-  `<h1>Check your email</h1>
-<p>If that address is on the list, a sign-in link is on its way. It works
-once, for ${LINK_MINUTES} minutes.</p>
+  "Use the link you received to sign in",
+  `<h1>Use the link you received to sign in</h1>
+<p>If authorized, you will receive a single-use link to sign in. The link
+expires after ${LINK_MINUTES} minutes.</p>
 <p class="note"><a href="/api/gate/signin">Use a different address</a></p>`
 );
 

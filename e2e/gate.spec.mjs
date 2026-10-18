@@ -37,7 +37,9 @@ test.describe("the access gate", () => {
       await page.getByLabel("Email address")
         .fill(`qa-gate-${Date.now().toString(36)}@example.com`);
       await page.getByRole("button", { name: "Send the link" }).click();
-      await expect(page.getByRole("heading", { name: "Check your email" }))
+      await expect(page.getByRole("heading", {
+        name: "Use the link you received to sign in",
+      }))
         .toBeVisible();
     });
 
