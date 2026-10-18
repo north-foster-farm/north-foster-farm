@@ -1,5 +1,6 @@
 ---
 title: "December Update"
+slug: "december-update"
 date: 2025-12-08
 description: >-
   Holiday demand is up, so we skip the December 14 pop-up to fill orders;

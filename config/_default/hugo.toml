@@ -65,6 +65,14 @@ timeZone = "America/New_York"
 [outputs]
   home = ["html", "llms"]
 
+# A post's address is its title, never its file's date: the title
+# makes the slug unless the post sets `slug`, and bin/check-news.mjs
+# fails the build when two posts would share one. The old dated
+# addresses redirect from netlify.toml.
+[permalinks]
+  [permalinks.page]
+    news = "/news/:slug/"
+
 [pagination]
   pagerSize = 10
 

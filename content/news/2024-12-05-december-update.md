@@ -1,5 +1,6 @@
 ---
-title: "December Update"
+title: "December 2024 Update"
+slug: "december-2024-update"
 date: 2024-12-05
 description: >-
   Back to the normal Saturday egg drop at the Scituate Rotary Farmers Market

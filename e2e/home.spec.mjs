@@ -390,7 +390,7 @@ test.describe("home", () => {
   // #136: the ordering tour lives at /news/<slug>/ and the home
   // page publishes it in full under a news eyebrow.
   test.describe("home news section (#136)", () => {
-    const POST = "/news/2026-10-18-ordering-tour/";
+    const POST = "/news/ordering-tour/";
 
     test("the post in full, linked to its own page", async ({ page }) => {
       await page.goto("/");

@@ -1,5 +1,6 @@
 ---
 title: "A Tour of Our New Ordering System"
+slug: "ordering-tour"
 date: 2026-10-18
 description: >-
   How ordering from the farm works: delivery, on-farm pickup, our drop

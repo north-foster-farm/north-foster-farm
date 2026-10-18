@@ -1,5 +1,6 @@
 ---
-title: "June Update"
+title: "June 2025 Update"
+slug: "june-2025-update"
 date: 2025-05-30
 description: >-
   The 2025 market season is here: find us Saturdays at the Scituate Rotary

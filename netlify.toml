@@ -1,6 +1,6 @@
 [build]
 publish = "public"
-command = "npm run check:env && npm run check:schedule && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc && npm run check:grid"
+command = "npm run check:env && npm run check:schedule && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc && npm run check:grid && npm run check:news"
 
 [build.environment]
 HUGO_VERSION = "0.164.0"
@@ -9,10 +9,10 @@ HUGO_ENV = "production"
 HUGO_ENABLEGITINFO = "true"
 
 [context.deploy-preview]
-command = "npm run check:env && npm run check:schedule && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL && npm run check:grid"
+command = "npm run check:env && npm run check:schedule && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL && npm run check:grid && npm run check:news"
 
 [context.branch-deploy]
-command = "npm run check:env && npm run check:schedule && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL && npm run check:grid"
+command = "npm run check:env && npm run check:schedule && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL && npm run check:grid && npm run check:news"
 
 # After the build, before the upload: the source maps go into Blobs,
 # out of the site (#246; docs/monitoring.md, "Source maps").
@@ -77,6 +77,123 @@ framework = "#custom"
   to = "https://venmo.com/u/northfosterfarm"
   status = 301
   force = false
+
+# News posts moved from dated addresses to their titles'. The
+# old ones are in past newsletters and search results, so each
+# leads to its post. bin/check-news.mjs holds the new ones unique.
+[[redirects]]
+  from = "/news/2024-09-12-new-farmers-market-schedule/"
+  to = "/news/update-new-farmers-market-schedule/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2024-10-12-mid-october-update/"
+  to = "/news/mid-october-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2024-11-09-mid-november-update/"
+  to = "/news/mid-november-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2024-11-21-thanksgiving-update/"
+  to = "/news/thanksgiving-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2024-12-05-december-update/"
+  to = "/news/december-2024-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-01-19-winter-update/"
+  to = "/news/winter-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-02-08-mid-winter-update/"
+  to = "/news/mid-winter-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-04-02-spring-update/"
+  to = "/news/spring-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-05-30-june-update/"
+  to = "/news/june-2025-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-09-24-fall-update/"
+  to = "/news/fall-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-10-02-weekly-schedule-update/"
+  to = "/news/weekly-schedule-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-10-23-mid-fall-update/"
+  to = "/news/mid-fall-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-11-11-late-fall-update/"
+  to = "/news/late-fall-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-12-08-december-update/"
+  to = "/news/december-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2026-02-10-2026-update/"
+  to = "/news/2026-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2026-06-01-june-update/"
+  to = "/news/june-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2026-07-29-august-update/"
+  to = "/news/august-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2026-09-22-september-update/"
+  to = "/news/ordering-tour/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2026-10-18-ordering-tour/"
+  to = "/news/ordering-tour/"
+  status = 301
+  force = true
 
 # The paper order form, retired when ordering moved onto the site. Its
 # URL was handed out directly, so it leads to the order page.

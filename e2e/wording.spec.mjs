@@ -12,7 +12,7 @@ const RETIRED = /invoices?\b|payment link|pay to confirm|scituate drop site/i;
 const PAGES = [
   "/", "/order/", "/login/", "/account/", "/delivery-policy/", "/privacy/",
   "/about/", "/contact/", "/news/", "/accessibility/",
-  "/news/2026-10-18-ordering-tour/",
+  "/news/ordering-tour/",
 ];
 
 test.describe("no retired words (#150)", () => {

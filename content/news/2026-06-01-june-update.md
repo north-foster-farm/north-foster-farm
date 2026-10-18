@@ -1,5 +1,6 @@
 ---
 title: "June Update"
+slug: "june-update"
 date: 2026-06-01
 description: >-
   The market season is here: pastured eggs and chicken in stock, chicks in the
