@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { handle as checkoutConfig } from "../netlify/functions/checkout.mjs";
+import { handle as ordersApi } from "../netlify/functions/orders.mjs";
 import { readMark } from "../netlify/functions/lib/health.mjs";
 import {
-  announcePaid, applyRefundEvent, confirmOrder, notifyFarm, recordRefund,
+  PAYMENTS_OFF, announcePaid, applyRefundEvent, confirmOrder, notifyFarm,
+  paymentsOff, recordRefund,
 } from "../netlify/functions/lib/payments.mjs";
 import {
   getOrder, openOrders, refundedTotal, saveOrder,
@@ -446,5 +449,44 @@ describe("POST /api/square/webhook", () => {
 
     assert.equal((await handle(post(empty, sig2), { stores, env })).status,
       400);
+  });
+});
+
+describe("payments switched off in previews", () => {
+  const preview = { CONTEXT: "deploy-preview" };
+
+  it("is true only where a preview or dev holds no processor", () => {
+    assert.equal(paymentsOff(preview), true);
+    assert.equal(paymentsOff({ CONTEXT: "dev" }), true);
+    assert.equal(paymentsOff({}), false);
+    assert.equal(paymentsOff({ CONTEXT: "production" }), false);
+    assert.equal(paymentsOff({ CONTEXT: "branch-deploy" }), false);
+    assert.equal(paymentsOff({ ...preview, SQUARE_ACCESS_TOKEN: "t" }), false);
+    assert.equal(paymentsOff({
+      ...preview, PAYPAL_CLIENT_ID: "c",
+    }), false);
+    assert.equal(paymentsOff({ ...preview, SQUARE_ENV: "fake" }), false);
+  });
+
+  it("answers an order with a plain 403, not a 502", async () => {
+    const res = await ordersApi(new Request("http://x/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idempotencyKey: "k".repeat(20) }),
+    }), { stores: testStores(), env: preview, ip: "203.0.113.50" });
+    const body = await res.json();
+
+    assert.equal(res.status, 403);
+    assert.equal(body.paymentsOff, true);
+    assert.equal(body.message, PAYMENTS_OFF);
+  });
+
+  it("tells the order page, which says so", async () => {
+    const res = await checkoutConfig(new Request("http://x"), {
+      env: preview,
+    });
+
+    assert.deepEqual(await res.json(), { square: null, paypal: null,
+      off: true });
   });
 });

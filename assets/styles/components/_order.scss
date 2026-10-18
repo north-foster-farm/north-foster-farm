@@ -1759,6 +1759,24 @@
     }
   }
 
+  // A preview takes no payment: say so, and nothing else about paying.
+  .order-pay-off {
+    display: none;
+    margin: 0;
+  }
+
+  .order-pay[data-pay-state="off"] {
+    .order-pay-card,
+    .order-pay-buttons,
+    .order-pay-unavailable {
+      display: none;
+    }
+
+    .order-pay-off {
+      display: block;
+    }
+  }
+
   .order-pay[data-pay-state="venmo-only"] .order-pay-card {
     display: none;
   }

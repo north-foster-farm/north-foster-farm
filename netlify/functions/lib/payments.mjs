@@ -10,8 +10,23 @@ import {
   paidTotal, paymentRef, paymentsOf, refundedTotal, refundsOf,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
-import { dashboardUrl } from "./square.mjs";
+import { clientConfig as paypalConfig } from "./paypal.mjs";
+import { clientConfig as squareConfig, dashboardUrl } from "./square.mjs";
+import { deployContext } from "./store.mjs";
 import { farmOrderPlaced, orderConfirmed } from "./templates.mjs";
+
+// A deploy preview, or `dev`, with no processor set up: payments are
+// switched off there (docs/secrets.md, "Previews"). The API and the
+// order page say so plainly, instead of failing on the first missing
+// key and alerting the farm. Never production or staging: a missing
+// key there is a real fault and stays one.
+export const PAYMENTS_OFF = "Payments are switched off in previews, so " +
+  "no order can be placed here. The live site takes orders.";
+
+export const paymentsOff = (env = process.env) =>
+  ["deploy-preview", "dev"].includes(deployContext(env))
+  && env.SQUARE_ENV !== "fake" && env.PAYPAL_ENV !== "fake"
+  && !squareConfig(env) && !paypalConfig(env) && !env.SQUARE_ACCESS_TOKEN;
 
 // Sends one templated email about an order and notes it on the order.
 // The recipient is the customer unless `to` says otherwise. Never

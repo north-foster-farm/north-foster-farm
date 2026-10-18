@@ -38,6 +38,7 @@ import { log, withLog } from "./lib/log.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./lib/paypal.mjs";
+import { PAYMENTS_OFF, paymentsOff } from "./lib/payments.mjs";
 import { pickupSchedule } from "./lib/pickups.mjs";
 import {
   getOrder, orderForSubmission, paymentsOf, reserveOrderId,
@@ -155,6 +156,14 @@ export const handle = async (req, {
     return json(400, { errors: { body: "Expected a JSON body." } });
   }
   if (payload.website) return new Response(null, { status: 204 });
+
+  // A preview takes no payment, so it takes no order: say so, rather
+  // than failing on the first missing key (a 502 and an alert).
+  if (paymentsOff(env)) {
+    return json(403, {
+      paymentsOff: true, message: PAYMENTS_OFF, error: PAYMENTS_OFF,
+    });
+  }
 
   // Maintenance (#267) refuses a new order. Two things still go
   // through, because money has moved or is about to: a Venmo capture

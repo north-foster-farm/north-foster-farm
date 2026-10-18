@@ -147,8 +147,10 @@ sets every value; agents never see them.
   scope a token. The e2e suite no longer uses it (#266).
 - **Previews** (after #255): `SITE_CONTEXT=deploy-preview` and
   `PICKUP_SCHEDULE`, `MAIL_DRIVER` unset so mail is logged, and
-  nothing else. A preview then shows no pay buttons and its order API
-  answers 502, but pages, the news sign-up, contact and health work.
+  nothing else. A preview then shows no pay buttons, only "Payments
+  are switched off in previews", and its order API answers 403 with
+  that message (`paymentsOff` in `lib/payments.mjs`), but pages, the
+  news sign-up, contact and health work.
 
 The order: make the new credentials, push them with `bin/nff env
 push`, confirm with `bin/nff env check`, then revoke the old shared

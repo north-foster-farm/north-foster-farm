@@ -175,6 +175,13 @@ export class Payment {
     this.config = res.ok ? await res.json() : {};
     crumb(res.ok ? "config.ok" : "config.failed");
 
+    if (this.config.off) {
+      crumb("config.off");
+      this.setState("off");
+
+      return;
+    }
+
     const jobs = [];
 
     if (this.config.square) jobs.push(this.initSquare(this.config.square));
