@@ -17,6 +17,11 @@
     max-width: 1040px;
   }
 
+  // Wraps without a one-word last line.
+  .order-lead {
+    text-wrap: pretty;
+  }
+
   .order-section legend {
     margin-bottom: 1rem;
   }
