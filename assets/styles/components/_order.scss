@@ -1689,15 +1689,15 @@
     margin: 0;
   }
 
-  // Shown only while Card is on offer and not yet chosen.
-  .order-pay-hint {
+  // Said where the card fields and the Pay button would be, when
+  // another way to pay is on offer but the card is not.
+  .order-pay-card-down {
     display: none;
-    margin: 0.75rem 0 0;
-    font-size: 0.875rem;
-    color: var(--bs-secondary-color);
+    margin: 1rem 0 0;
   }
 
-  .order-pay[data-pay-state="ready"][data-card-open="false"] .order-pay-hint {
+  .order-pay[data-pay-state="venmo-only"][data-card-open="false"]
+    .order-pay-card-down {
     display: block;
   }
 

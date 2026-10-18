@@ -114,10 +114,12 @@ export class Payment {
     this.state = qs(root, "[data-pay]");
     this.cardButton = qs(root, "[data-card-choose]");
     this.busy = false;
+    this.setCardOpen(true);
   }
 
-  // Card is one way among the buttons: chosen, its fields and the
-  // form's own Pay button appear under the grid.
+  // Card is one way among the buttons, and starts chosen: its fields
+  // and the form's own Pay button show under the grid until card
+  // payments turn out to be unavailable.
   setCardAvailable(on) {
     this.cardButton.hidden = !on;
     if (!on) this.setCardOpen(false);
@@ -165,6 +167,8 @@ export class Payment {
 
   setState(state) {
     this.state.dataset.payState = state;
+    // No card to pay with, so no Pay button to leave dead.
+    if (state !== "loading" && state !== "ready") this.setCardOpen(false);
   }
 
   async init() {
@@ -247,7 +251,6 @@ export class Payment {
       await this.card.attach(qs(this.root, "[data-card]"));
       crumb("card.ready");
       this.setCardAvailable(true);
-      this.setCardOpen(false);
       this.cardButton.addEventListener("click", () => {
         this.setCardOpen(true);
         this.card.focus("cardNumber").catch(() => {});
