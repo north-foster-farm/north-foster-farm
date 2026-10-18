@@ -25,6 +25,12 @@ resources/
 .ignored/
 CLAUDE.local.md
 
+# Incident reports (docs/rollback.md). They name orders and customers
+# and this repository is public, so they stay on disk. Only the README
+# that says so is tracked.
+incidents/*
+!incidents/README.md
+
 # Playwright's run output (npm run e2e).
 test-results/
 playwright-report/
