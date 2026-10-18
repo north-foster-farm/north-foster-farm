@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  keyboardInset, moreStop,
+  keyboardInset, moreStop, rowsFloor, visibleArea,
 } from "../assets/scripts/order/lib/cart-scroll.mjs";
 
 // Ten rows of 40px, 100px of view in a 400px list.
@@ -49,5 +49,55 @@ describe("keyboardInset", () => {
   it("is none for a toolbar's worth or no visual viewport", () => {
     assert.equal(keyboardInset(844, { offsetTop: 0, height: 790 }), 0);
     assert.equal(keyboardInset(844, null), 0);
+  });
+});
+
+describe("visibleArea", () => {
+  it("is the visual viewport's height, with no gap, when it fills", () => {
+    assert.deepEqual(
+      visibleArea(844, { offsetTop: 0, height: 844 }),
+      { height: 844, gap: 0 }
+    );
+  });
+
+  it("reads a toolbar under the visual viewport as a gap", () => {
+    assert.deepEqual(
+      visibleArea(844, { offsetTop: 0, height: 780 }),
+      { height: 780, gap: 64 }
+    );
+    assert.deepEqual(
+      visibleArea(844, { offsetTop: 20, height: 760 }),
+      { height: 760, gap: 64 }
+    );
+  });
+
+  it("leaves a keyboard's gap to keyboardInset", () => {
+    assert.deepEqual(
+      visibleArea(844, { offsetTop: 0, height: 520 }),
+      { height: 520, gap: 0 }
+    );
+  });
+
+  it("falls back to the layout height without a visual viewport", () => {
+    assert.deepEqual(visibleArea(700, null), { height: 700, gap: 0 });
+  });
+});
+
+describe("rowsFloor", () => {
+  const list = Array.from({ length: 6 }, (_, i) => ({
+    top: i * 30, bottom: i * 30 + 26,
+  }));
+
+  it("is three rows, the padding and the pills' strip", () => {
+    assert.equal(rowsFloor(list, 180, 8, 28), 94 + 28);
+  });
+
+  it("is the whole list when it holds three rows or fewer", () => {
+    assert.equal(rowsFloor(list.slice(0, 3), 86, 8, 28), 86);
+    assert.equal(rowsFloor(list.slice(0, 1), 26, 8, 28), 26);
+  });
+
+  it("is nothing for an empty list", () => {
+    assert.equal(rowsFloor([], 0, 8, 28), 0);
   });
 });

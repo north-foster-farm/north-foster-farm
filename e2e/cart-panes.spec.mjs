@@ -1,10 +1,12 @@
-// The phone cart's panes (#267, orders' 778fd94 to 9c344db): the lines
-// and the sums take turns, the whole pane stays within 60% of the
-// screen either way, and the shared row's controls are one height
-// whichever side shows. What a spec cannot reach is on a real iPhone:
-// the keyboard riding the cart up (visualViewport), the notch's safe
-// areas and how the glide feels.
-// docs/qa-launch.md, OP-28.
+// The phone cart's panes (#267): the count and the total are one
+// segmented control and the lines and the sums take turns, the whole
+// pane stays within 48% of the visible height unless the floor (three
+// rows, the total row and Continue) needs more, and the shared row's
+// controls are one height whichever side shows. What a spec cannot
+// reach is on a real iPhone: Safari's toolbar, the keyboard riding the
+// cart up (visualViewport), the notch's safe areas and how the glide
+// feels.
+// docs/qa-launch.md, OP-28 and OP-29.
 
 import { FULL_CART, OrderPage, expect, test } from "./support/order.mjs";
 
@@ -83,9 +85,11 @@ test.describe("cart panes on a phone", () => {
   });
 
   // The whole open pane, every row of it, not a part: the lines alone
-  // stayed under the cap while the pane took 70% (#267).
+  // stayed under the cap while the pane took 70% (#267). The cap is
+  // 48% of the visible height; it gives way only to the floor of three
+  // rows, the total row and Continue (order-form.js measureFloor).
   for (const size of [PHONE, TALL]) {
-    test(`the open pane fits 60% of a ${size.height}px screen`, async ({
+    test(`the open pane keeps to 48% of a ${size.height}px screen`, async ({
       page,
     }) => {
       await page.setViewportSize(size);
@@ -93,26 +97,97 @@ test.describe("cart panes on a phone", () => {
       const order = new OrderPage(page);
 
       await order.open(FULL_CART);
+      await page.evaluate(() => window.scrollTo(0, 400));
 
       const cart = order.cart;
-      const cap = size.height * 0.6 + 1;
-      const items = cart.locator("[data-cart-items-toggle]");
-      const money = cart.locator("[data-cart-money-toggle]");
       const hide = cart.locator("[data-cart-toggle]");
 
       if ((await hide.getAttribute("aria-expanded")) !== "true") {
         await hide.click();
       }
 
-      for (const toggle of [items, money]) {
-        await toggle.click();
+      for (const name of [/items?$/, /^Total/]) {
+        await cart.getByRole("tab", { name }).click();
         await page.waitForTimeout(500);
 
         const b = await cart.boundingBox();
+        const floor = await cart.evaluate(
+          (el) => parseFloat(el.style.getPropertyValue("--cart-min-h")) || 0
+        );
 
         expect(b).toBeTruthy();
-        expect(b.height).toBeLessThanOrEqual(cap);
+        expect(b.height).toBeLessThanOrEqual(
+          Math.max(size.height * 0.48, floor) + 1
+        );
       }
+    });
+  }
+
+  // Three rows, the total row and Continue, on every phone: when they
+  // do not fit the cap the pane grows, up to the visible area under the
+  // top bar and never past the foot of the screen (#267).
+  for (const size of [
+    PHONE, TALL, { width: 375, height: 667 }, { width: 667, height: 375 },
+  ]) {
+    test(`the pane keeps its floor at ${size.width}x${size.height}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(size);
+
+      const order = new OrderPage(page);
+
+      await order.open(FULL_CART);
+      await page.evaluate(() => window.scrollTo(0, 400));
+
+      const cart = order.cart;
+      const hide = cart.locator("[data-cart-toggle]");
+
+      if ((await hide.getAttribute("aria-expanded")) !== "true") {
+        await hide.click();
+      }
+      await cart.getByRole("tab", { name: /items?$/ }).click();
+      await page.waitForTimeout(600);
+
+      const box = async (locator) => locator.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+
+        return { top: r.top, bottom: r.bottom };
+      });
+      const pane = await box(cart);
+
+      expect(pane.bottom).toBeLessThanOrEqual(size.height);
+      expect(pane.top).toBeGreaterThanOrEqual(0);
+
+      // Whole and not clipped by the fold: the row's own box is what
+      // answers at its centre and at both its edges.
+      const rows = cart.locator(".order-cart-item");
+
+      for (let i = 0; i < 3; i += 1) {
+        const shown = await rows.nth(i).evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          const at = (y) => {
+            const hit = document.elementFromPoint(r.left + r.width / 2, y);
+
+            return !!hit && el.contains(hit);
+          };
+
+          return [r.top + 2, r.top + r.height / 2, r.bottom - 2].map(at);
+        });
+
+        expect(shown, `row ${i + 1} is not clipped`).toEqual(
+          [true, true, true]
+        );
+      }
+
+      for (const locator of [
+        cart.locator("[data-cart-seg]"), order.next,
+      ]) {
+        const b = await box(locator);
+
+        expect(b.top).toBeGreaterThanOrEqual(pane.top);
+        expect(b.bottom).toBeLessThanOrEqual(pane.bottom);
+      }
+      await order.next.click({ trial: true });
     });
   }
 

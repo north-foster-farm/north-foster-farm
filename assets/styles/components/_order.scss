@@ -1094,6 +1094,10 @@
     position: relative;
     display: grid;
     flex: 1 1 auto;
+
+    // The track reaches out by the padding, so the text still stands
+    // where it did: the total under the column of line prices.
+    margin-inline: -0.75rem;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     border-radius: 999px;
     background-color: $pill-bg;
@@ -1121,7 +1125,7 @@
     align-items: baseline;
     gap: 0.5rem;
     min-height: 2rem;
-    padding: 0 0.875rem;
+    padding: 0 0.75rem;
     border: 0;
     border-radius: 999px;
     background: none;
@@ -1155,6 +1159,7 @@
 
   // Settled, or in the column: no track, no fill, plain text.
   .order-cart-seg[data-plain] {
+    margin-inline: 0;
     background-color: transparent;
     box-shadow: none;
 
@@ -2136,14 +2141,31 @@
       }
 
       // On a phone the whole open pane, every row of it, stays within
-      // 58% of the screen (James, #267): the page behind it stays in
-      // view, and the lines scroll in what the parts under them
-      // leave. The keyboard takes its share first.
+      // 48% of the visible height (James, #267): the page behind it
+      // stays in view. The foot of the pane rests a small margin above
+      // the browser's toolbar, and never behind it: --cart-gap is the
+      // toolbar's share of the layout viewport and --cart-vis the
+      // height left to the page (order-form.js watchKeyboard). The
+      // cap gives way to a floor, three rows of the lines with the
+      // total row and Continue (--cart-min-h, measured), and the pane
+      // then grows up to the whole visible area: on a small screen it
+      // is a full-height sheet whose lines scroll, and what is under
+      // the total row (the badges, the way, the code) scrolls if the
+      // room is too short for it.
       @media (max-width: 767.98px) {
-        max-height: min(
-          58svh,
-          calc(100svh - var(--order-topbar-h) - 3rem - var(--cart-kb, 0px))
+        --cart-rest: max(
+          env(safe-area-inset-bottom, 0px),
+          var(--cart-gap, 0px)
         );
+
+        bottom: calc(0.5rem + var(--cart-rest) + var(--cart-kb, 0px));
+        max-height: min(
+          calc(var(--cart-vis, 100svh) - 1rem),
+          max(calc(var(--cart-vis, 100svh) * 0.48), var(--cart-min-h, 0px))
+        );
+
+        // Grown to a sheet, the pane rides over the top bar.
+        z-index: 36;
       }
     }
 
@@ -2172,33 +2194,51 @@
   // and leave the height to the lines.
   @media (max-width: 767.98px) {
     // The pane's own cap (above) decides the height; the lines give
-    // way to it down to a floor of two rows.
+    // way to it down to a floor of three rows, or the whole list when
+    // it is shorter (order-form.js measureFloor).
     .order-cart-scroll {
-      min-height: min(3.5rem, var(--cart-list-h, 3.5rem));
+      min-height: min(
+        var(--cart-scroll-min, 5.25rem),
+        var(--cart-list-h, 5.25rem)
+      );
     }
 
-    // The list is only as tall as its rows, so the floor is measured
-    // from them and never from the room it was given.
-    .order-cart-items {
+    // The fold around the lines keeps their floor: it clips, so the
+    // wrapper's own min-height alone is not enough.
+    .order-cart[data-open="true"][data-items="open"]
+      > .order-cart-fold:not(.order-cart-after) {
+      min-height: var(--cart-fold-min, 0);
+    }
+
+    // When the room is too short even for the floor (a phone on its
+    // side), the parts under the total row give way and scroll: the
+    // sheet still keeps the rows, the total and Continue.
+    .order-cart[data-tight] .order-cart-after {
       flex: 0 1 auto;
-      padding-bottom: 0.5rem;
-    }
+      min-height: 0;
 
-    .order-cart-rule {
-      margin: 0.5rem 0;
+      > .order-cart-inner {
+        overflow-y: auto;
+        overscroll-behavior: contain;
+      }
     }
+  }
 
-    .order-cart-lines {
-      row-gap: 0.125rem;
-      line-height: 1.4;
-    }
-
-    .order-cart-total {
-      line-height: 1.2;
+  // A phone turned sideways has the height for little else than the
+  // lines, the total and Continue: the badges (information only) and
+  // some of the room around the parts go, so the way and the code still
+  // show without scrolling where they can.
+  @media (max-width: 767.98px) and (max-height: 500px) {
+    .order-cart {
+      padding-block: 0.5rem;
     }
 
     .order-badges {
-      margin-bottom: 0.5rem;
+      display: none;
+    }
+
+    .order-cart-rule {
+      margin: 0.25rem 0;
     }
   }
 

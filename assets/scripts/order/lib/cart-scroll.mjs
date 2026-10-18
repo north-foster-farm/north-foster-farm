@@ -36,3 +36,33 @@ export const keyboardInset = (layoutHeight, visual, least = 120) => {
 
   return gap >= least ? Math.round(gap) : 0;
 };
+
+// The part of the screen the page can use, as the visual viewport sees
+// it: its height, and the gap between its foot and the layout
+// viewport's. A gap under a keyboard's worth is a browser toolbar that
+// covers the page's foot; the floating cart must sit above it.
+export const visibleArea = (layoutHeight, visual, least = 120) => {
+  if (!visual) return { height: layoutHeight, gap: 0 };
+
+  const gap = Math.max(0, layoutHeight - (visual.offsetTop + visual.height));
+
+  return {
+    height: Math.round(visual.height),
+    gap: gap < least ? Math.round(gap) : 0,
+  };
+};
+
+// The room the lines need at the least: from the top of the list to
+// the foot of its third row, the list's own padding, and the strip for
+// the "more" pills while the rows overflow. `rows` are { top, bottom }
+// in the list's space; `listHeight` is the list's scroll height.
+export const rowsFloor = (rows, listHeight, padding, strip, keep = 3) => {
+  if (!rows.length) return 0;
+
+  const last = rows[Math.min(keep, rows.length) - 1];
+
+  return Math.ceil(
+    Math.min(last.bottom + padding, listHeight)
+      + (rows.length > keep ? strip : 0)
+  );
+};

@@ -1,7 +1,9 @@
 import Tooltip from "bootstrap/js/dist/tooltip.js";
 
 import { indexCatalog } from "./lib/catalog.mjs";
-import { keyboardInset, moreStop } from "./lib/cart-scroll.mjs";
+import {
+  keyboardInset, moreStop, rowsFloor, visibleArea,
+} from "./lib/cart-scroll.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
 import { summarize } from "./lib/summary.mjs";
 import {
@@ -499,7 +501,11 @@ export class OrderForm {
 
       const r = this.cart.getBoundingClientRect();
       const below = matchMedia("(max-width: 1199.98px)").matches;
-      const floating = below && r.bottom > window.innerHeight - 13;
+      // The pane rests a margin and the toolbar's gap above the foot
+      // of the layout viewport (--cart-gap), the keyboard aside.
+      const rest = (parseFloat(getComputedStyle(this.cart).bottom) || 12)
+        - (this.keyboard || 0);
+      const floating = below && r.bottom > window.innerHeight - rest - 1;
       const barRect = bar ? bar.getBoundingClientRect() : null;
       const barBottom = barRect ? barRect.bottom : 0;
 
@@ -859,6 +865,11 @@ export class OrderForm {
   // the cart rides up by the keyboard's height (--cart-kb), so the
   // field stays in sight. The inset is read from the share row's state,
   // not from focus: a tap on Apply blurs the field before its click.
+  //
+  // A browser toolbar is the same kind of gap, smaller: the layout
+  // viewport reaches under it, so the cart rests --cart-gap above the
+  // foot, just clear of the toolbar, and its cap is a share of the
+  // visible height (--cart-vis), not of the screen's.
   watchKeyboard() {
     const visual = window.visualViewport;
     const share = qs(this.cart, "[data-share]");
@@ -868,8 +879,12 @@ export class OrderForm {
     const sync = () => {
       const inset = share.dataset.share === "code"
         ? keyboardInset(window.innerHeight, visual) : 0;
+      const area = visibleArea(window.innerHeight, visual);
 
+      this.keyboard = inset;
       this.cart.style.setProperty("--cart-kb", `${inset}px`);
+      this.cart.style.setProperty("--cart-gap", `${area.gap}px`);
+      this.cart.style.setProperty("--cart-vis", `${area.height}px`);
 
       // Settled in the page's flow, the cart does not ride: the page
       // scrolls the field above the keyboard instead.
@@ -886,7 +901,9 @@ export class OrderForm {
 
     visual.addEventListener("resize", sync);
     visual.addEventListener("scroll", sync);
+    window.addEventListener("resize", sync);
     this.syncKeyboard = sync;
+    sync();
   }
 
   // The "N more" buttons: the list glides to the row that was hidden,
@@ -1023,6 +1040,7 @@ export class OrderForm {
     // The floor under the lines is three rows, or the list's own
     // height when it is shorter: one item leaves no gap (#203).
     wrap.style.setProperty("--cart-list-h", `${list.scrollHeight}px`);
+    this.measureFloor(list, wrap);
     wrap.toggleAttribute("data-top", list.scrollTop > 0);
     wrap.toggleAttribute("data-more", more);
     // Room for the "more" pills above and below the rows, only while
@@ -1034,6 +1052,68 @@ export class OrderForm {
     button.textContent = `${below} more ↓`;
     top.hidden = list.scrollTop <= 0 || above === 0;
     top.textContent = `${above} more ↑`;
+  }
+
+  // The floor under the pane (#267): three rows of the lines, the total
+  // row and Continue. The lines' wrapper keeps the rows' room
+  // (--cart-scroll-min), and the pane's cap gives way to the whole
+  // floor (--cart-min-h), up to the visible area. Only measured while
+  // the lines show; a folded list keeps the last figure.
+  measureFloor(list, wrap) {
+    const fold = qs(this.cart, ".order-cart-fold");
+    const after = qs(this.cart, ".order-cart-after");
+
+    if (!list.offsetParent || this.cart.dataset.open !== "true") return;
+
+    const rows = all(list, ".order-cart-item").map((li) => ({
+      top: li.offsetTop - list.offsetTop,
+      bottom: li.offsetTop - list.offsetTop + li.offsetHeight,
+    }));
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const room = rowsFloor(
+      rows, list.scrollHeight,
+      parseFloat(getComputedStyle(list).paddingBottom) || 0, 1.75 * rem
+    );
+    // A fold clips what does not fit and the parts under the total row
+    // give way, so the floor is summed from the parts' own heights: the
+    // lines' floor, what shares their fold, the pane around the folds,
+    // and what is under the total row at its natural height.
+    const outer = (el) => {
+      const css = getComputedStyle(el);
+
+      return el.offsetHeight + parseFloat(css.marginTop)
+        + parseFloat(css.marginBottom);
+    };
+    const others = (box, ...but) => Array.from(box.children)
+      .filter((el) => !but.includes(el))
+      .reduce((n, el) => n + outer(el), 0);
+    const spacer = 0.3 * rem;
+    const listBox = wrap.parentElement;
+    const foldMin = room + others(wrap.parentElement, wrap)
+      + others(listBox.parentElement, listBox) + spacer;
+    const below = others(after.firstElementChild) + spacer;
+    const css = getComputedStyle(this.cart);
+    const pane = others(this.cart, fold, after)
+      + ["paddingTop", "paddingBottom", "borderTopWidth", "borderBottomWidth"]
+        .reduce((n, key) => n + parseFloat(css[key]), 0);
+    const set = (el, name, px) => {
+      const now = parseFloat(el.style.getPropertyValue(name));
+
+      if (!(Math.abs(now - px) < 1)) el.style.setProperty(name, `${px}px`);
+    };
+
+    set(wrap, "--cart-scroll-min", room);
+    set(this.cart, "--cart-fold-min", Math.ceil(foldMin));
+    set(this.cart, "--cart-min-h", Math.ceil(pane + foldMin + below));
+
+    // Too short for the floor itself: what is under the total row then
+    // scrolls, so the rows, the total and Continue keep their room.
+    const visible = parseFloat(this.cart.style.getPropertyValue("--cart-vis"))
+      || window.innerHeight;
+
+    this.cart.toggleAttribute(
+      "data-tight", pane + foldMin + below > visible - 1.01 * rem
+    );
   }
 
   // Quantity controls.

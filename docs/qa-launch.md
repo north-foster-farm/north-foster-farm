@@ -468,24 +468,59 @@ Manual: a judgement for James.
 
 ### OP-28 The phone cart's panes
 
-Partial: `cart-panes.spec.mjs`, three tests at 390 by 664 (778fd94 to
-9c344db). The keyboard, the notch and the feel of the glide are manual.
+Partial: `cart-panes.spec.mjs`. The keyboard, the notch, Safari's
+toolbar and the feel of the glide are manual (OP-29 for the toolbar).
 
-- **Scenario:** On a phone the lines and the sums take turns, neither
-  passes 55% of the screen, and the shared row's controls are one
-  height, so nothing moves when the discount field opens.
-- **Setup:** `FULL_CART`, a phone-sized window.
+- **Scenario:** On a phone the count and the total are one segmented
+  control. The lines and the sums take turns, one side always showing;
+  neither pane passes 48% of the visible height, unless the floor (three
+  rows, the total row and Continue) needs more, and then the pane grows
+  up to the visible area. The shared row's controls are one height, so
+  nothing moves when the discount field opens.
+- **Setup:** `FULL_CART`, a phone-sized window: 390 by 664, 390 by 844,
+  375 by 667 and 667 by 375.
 - **Test:**
-  1. Open the lines, then the sums, then the sums again.
-  2. Measure each open pane.
-  3. Measure Add discount, the three ways, the code field and Apply.
-  4. Manual, on an iPhone: tap the discount field; turn the phone
+  1. Tap "Total", then "N items", then the side already showing. Press
+     the arrow keys and Home and End with the focus on the control.
+  2. Measure each open pane at each size.
+  3. At each size, count the line rows whole in the list, and find the
+     total row and Continue.
+  4. Measure Add discount, the three ways, the code field and Apply.
+  5. Manual, on an iPhone: tap the discount field; turn the phone
      sideways; tap "N more" on a long cart.
-- **Assert:** Opening one folds the other. Each pane is 55% of the
-  screen or less. Every control is 36px tall. By hand: the cart rides
-  above the keyboard with the field in sight; the page clears the
-  notch in landscape; the list glides to the row that was hidden and
-  stops on it, with no overshoot.
+- **Assert:** The fill slides to the side showing, and the tab under it
+  is `aria-selected`; a second tap changes nothing. Each pane is 48% of
+  the visible height or less, or the floor's height. Three rows, the
+  total row and Continue are whole and on screen at every size. Every
+  control is 36px tall. By hand: the cart rides above the keyboard with
+  the field in sight; the page clears the notch in landscape; the list
+  glides to the row that was hidden and stops on it, with no overshoot.
+- **Teardown:** Clear the draft.
+
+### OP-29 The phone cart above Safari's toolbar
+
+Manual, on an iPhone: a spec cannot see Safari's chrome (#267).
+
+- **Scenario:** The open cart pane's foot sits just above Safari's
+  bottom toolbar, with a small margin, and never behind it. The toolbar
+  is translucent and the page runs under it, so a pane at the layout
+  viewport's foot would hide controls that cannot then be tapped.
+- **Setup:** An iPhone with Safari, on the order page with six items
+  and Delivery chosen. Repeat in both toolbar states (expanded, and
+  collapsed after scrolling down), in portrait and in landscape, and on
+  a small phone such as an SE.
+- **Test:**
+  1. Scroll the catalog so the cart floats; open "N items", then
+     "Total".
+  2. Scroll a little to collapse the toolbar, then back to expand it.
+  3. Turn the phone sideways and repeat.
+  4. In each state, tap every control in the pane: the tabs, each
+     row's ×, "N more", the way, Add discount, Hide and Continue.
+- **Assert:** The pane's foot is a small, even margin above the
+  toolbar's top edge in every state: no gap of a row's height, and no
+  overlap. The pane is about 48% of the visible height, or taller only
+  when three rows, the total row and Continue need it, and then no
+  taller than the visible area. Every control is tappable.
 - **Teardown:** Clear the draft.
 
 ## Pricing and discounts

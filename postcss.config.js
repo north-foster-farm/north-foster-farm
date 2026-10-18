@@ -82,6 +82,7 @@ const plugins = [
         "data-scroll",
         "data-plain",
         "data-multi",
+        "data-tight",
         "data-more",
         "data-top",
         "data-card-open",
