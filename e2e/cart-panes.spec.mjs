@@ -236,10 +236,37 @@ test.describe("cart panes on a phone", () => {
     await order.method("delivery");
     await expect(badges).toBeVisible();
 
-    // Two lines of 0.7rem text, not a run that wraps three or four.
-    const b = await badges.boundingBox();
+    // Two lines, lit or not, at 390 and at an SE's 375 (#267), and the
+    // text no larger than the "Next discount" note under Continue.
+    for (const width of [390, 375]) {
+      await page.setViewportSize({ width, height: 664 });
+      await page.evaluate(() => {
+        for (const el of document.querySelectorAll(".order-badge")) {
+          el.dataset.on = "true";
+        }
+      });
 
-    expect(b.height).toBeLessThan(2.5 * 0.7 * 16 * 1.4);
+      const seen = await badges.evaluate((ul) => {
+        const tops = new Set(
+          Array.from(ul.querySelectorAll("li"))
+            .filter((li) => li.offsetHeight)
+            .map((li) => Math.round(li.getBoundingClientRect().top))
+        );
+        const note = document.querySelector("[data-nudge]");
+
+        return {
+          lines: tops.size,
+          over: ul.scrollWidth - ul.clientWidth,
+          size: parseFloat(getComputedStyle(ul).fontSize),
+          note: parseFloat(getComputedStyle(note).fontSize),
+        };
+      });
+
+      expect(seen.lines, `${width}px lines`).toBe(2);
+      expect(seen.over, `${width}px overflow`).toBeLessThanOrEqual(0);
+      expect(seen.size).toBeLessThanOrEqual(seen.note);
+      expect(seen.size).toBeGreaterThan(0.7 * 16);
+    }
   });
 
   test("the shared row's controls are all 36px tall", async ({ page }) => {
