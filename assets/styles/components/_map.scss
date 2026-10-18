@@ -164,6 +164,12 @@ $map-place: $blue;
   pointer-events: none;
 }
 
+// Where we don't deliver the outline is a plain grey, never the green
+// that means yes.
+.map-pick[data-tone="no"] {
+  stroke: $gray-600;
+}
+
 .map-pick-casing {
   stroke: $white;
   stroke-width: 6;

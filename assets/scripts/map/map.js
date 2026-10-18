@@ -8,8 +8,9 @@
 //   egg and a hen (struck through where we don't deliver them) and the
 //   delivery price, or "No delivery" and a way to the Places layer.
 // - With a mouse, the pointer over a town shows the same tag.
-// - A second tap on that town, or a tap on water or on a neighbouring
-//   state, clears the check, the pin and the outline (M1).
+// - A second tap on that town, or a tap on water, clears the check,
+//   the pin and the outline (M1). A town we don't deliver to, in
+//   Connecticut or beyond, picks like any other, outlined in grey.
 //
 // Places:
 // - A pin, or its name in the list beside the map, opens a card with
@@ -548,7 +549,7 @@ const wire = (map) => {
 
   // Places: a tap on a pin opens its card; a tap anywhere else closes
   // one. Delivery: a tap on a town picks it, and a tap on the town
-  // picked, on water or on a neighbouring state clears the pick.
+  // picked or on water clears the pick.
   const tap = (target) => {
     if (layer() === "places") {
       const pin = target.closest("[data-map-pin]");
@@ -560,8 +561,7 @@ const wire = (map) => {
 
     const area = target.closest("[data-zip]");
 
-    if (!area || area.classList.contains("is-land")
-      || zipOf(area) === picked) {
+    if (!area || zipOf(area) === picked) {
       if (picked) check("", "");
       return;
     }
@@ -667,6 +667,7 @@ const wire = (map) => {
     for (const p of picks) {
       p.setAttribute("d", area.getAttribute("d"));
       p.removeAttribute("hidden");
+      p.dataset.tone = tone;
     }
     dropAt.dataset.x = area.dataset.x;
     dropAt.dataset.y = area.dataset.y;

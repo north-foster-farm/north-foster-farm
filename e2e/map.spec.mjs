@@ -459,6 +459,43 @@ test.describe("map (#138, #214)", () => {
       await expect(dropGroup(page)).toBeHidden();
     });
 
+  // A town we don't deliver to picks like any other, and its outline
+  // is grey: the green means yes (#214).
+  test("a town outside the area picks, outlined in grey",
+    async ({ page }) => {
+      await page.goto(HOME.path);
+
+      const land = map(page).locator(".map-zip.is-land").first();
+
+      await land.scrollIntoViewIfNeeded();
+
+      const zip = (await land.getAttribute("data-zip")).slice(1);
+      const hit = await land.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+
+        for (let i = 1; i < 10; i += 1) {
+          for (let j = 1; j < 10; j += 1) {
+            const x = r.x + r.width * i / 10;
+            const y = r.y + r.height * j / 10;
+
+            if (document.elementFromPoint(x, y) === el) return [x, y];
+          }
+        }
+        return null;
+      });
+
+      expect(hit, "a point on the shape").toBeTruthy();
+      await page.mouse.click(...hit);
+      await expect(page.locator(HOME.input)).toHaveValue(zip);
+
+      const pick = map(page).locator(".map-pick");
+
+      await expect(pick).toBeVisible();
+      await expect(pick).toHaveCSS("stroke", "rgb(94, 94, 95)");
+      await expect(map(page).locator("[data-map-drop-tag]"))
+        .toContainText("No delivery");
+    });
+
   test("a tap on a town runs the check and drops the pin",
     async ({ page }) => {
       await page.goto(HOME.path);
