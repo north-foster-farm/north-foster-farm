@@ -34,6 +34,12 @@ sees, so a dead page and a silent failure both reach the phone.
 - **Backup heartbeat.** The nightly backup export (`docs/backup.md`)
   pings a third check when its copy lands in R2, and `/fail` with
   `backup.failed` when it does not. `HEALTHCHECKS_BACKUP_URL`.
+- **Production audit heartbeat.** A daily workflow (`prod-audit.yml`)
+  audits the deployed lockfile for known vulnerabilities and pings a
+  check per repository: a plain ping when clean, `/fail` with the
+  findings in the body when not. Set the check to a period of one day
+  and a grace of three hours. `PROD_AUDIT_PING_URL`, an Actions secret.
+  The log is public and holds counts (`docs/security.md`).
 - **Log.** Every JSON line the functions write, shipped per invocation
   to Axiom (`lib/log.mjs`). `AXIOM_TOKEN`, `AXIOM_DATASET`. Every
   line is scrubbed first: fields that hold contact details (the
