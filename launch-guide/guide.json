@@ -1,5 +1,5 @@
 {
- "revision": 26,
+ "revision": 27,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -1074,7 +1074,7 @@
     {
      "id": "env-push",
      "title": "Send the staging and production values to Netlify",
-     "body": "In the project folder, in this order:\n```\nbin/nff env push --staging\nbin/nff env check --staging\nnetlify env:unset STAGING_TOKEN --context production\nbin/nff env push --production\nbin/nff env check --production\n```\nThen ask Claude to deploy each context, staging and production.\n- **Push a context before its sample reaches a build there.** Every staging and production build first checks that each key its committed sample lists is set, so a sample that lands before its push fails that context's next build.\n- `push` sets each key the sample lists, marks secrets as secret, skips local-only keys and never deletes anything. If it refuses because a secret is a plain variable on Netlify, mark that key secret in the Netlify UI, or run the `env:unset` commands it prints, then push again.\n- `check` lists, by name only, anything that still differs. The `env:unset` lines it prints are yours to run; push never deletes.\n\nProduction's values match what it has today, so nothing changes for the live site.\n\nA push then offers **Deploy now?** and posts the context's build hook; add `--allow-deploy` to skip the question. The Netlify calls in the push have never run live, so the first staging push is the rehearsal: if it stops, tell Claude what it printed (it prints names, never values).\n\n**Then, in the same sitting, for the staging token:** put the new value in GitHub (**Settings → Secrets and variables → Actions → STAGING_TOKEN → Update**), and ask Claude to rebuild staging. Until all three match, the staging jobs workflow fails.",
+     "body": "In the project folder, in this order:\n```\nbin/nff env push --staging\nbin/nff env check --staging\nnetlify env:unset STAGING_TOKEN --context production\nbin/nff env push --production\nbin/nff env check --production\n```\nThen ask Claude to deploy each context, staging and production.\n- **Push a context before its sample reaches a build there.** Every staging and production build first checks that each key its committed sample lists is set (`check:env`), so a sample that lands before its push fails that context's next build. Staging is failing this way now (see the first item in this guide).\n- **Production's first build fails the same check until production has been env pushed.** Run `bin/nff env push --production` and `bin/nff env check --production` before the release deploy, or the deploy fails and the old site stays up.\n- `push` sets each key the sample lists, marks secrets as secret, skips local-only keys and never deletes anything. If it refuses because a secret is a plain variable on Netlify, mark that key secret in the Netlify UI, or run the `env:unset` commands it prints, then push again.\n- `check` lists, by name only, anything that still differs. The `env:unset` lines it prints are yours to run; push never deletes.\n\nProduction's values match what it has today, so nothing changes for the live site.\n\nA push then offers **Deploy now?** and posts the context's build hook; add `--allow-deploy` to skip the question. The Netlify calls in the push have never run live, so the first staging push is the rehearsal: if it stops, tell Claude what it printed (it prints names, never values).\n\n**Then, in the same sitting, for the staging token:** put the new value in GitHub (**Settings → Secrets and variables → Actions → STAGING_TOKEN → Update**), and ask Claude to rebuild staging. Until all three match, the staging jobs workflow fails.",
      "minutes": 15,
      "links": [
       {
@@ -1893,7 +1893,7 @@
     {
      "id": "pl-svgo",
      "title": "Give the agents your svgo options",
-     "body": "Every new or replaced SVG goes through `svgo` with your preferred options (a standing rule from #267). Paste your options to Claude. Claude then commits them as the repo's svgo config with svgo pinned as a dev dependency, adds one command that optimizes a file in place, and adds a check that fails when an SVG under `assets/` or `static/` differs from its svgo output.\n\nUntil then the two new icons (globe and eggs) wait for the pass, and no options are guessed. Existing SVGs are only counted, never rewritten, until you say. Nothing about launch waits on this.",
+     "body": "Every new or replaced SVG goes through `svgo` with your preferred options (a standing rule from #267). Paste your options to Claude. Claude then commits them as the repo's svgo config with svgo pinned as a dev dependency, adds one command that optimizes a file in place, and adds a check that fails when an SVG under `assets/` or `static/` differs from its svgo output.\n\nUntil then the new globe icon waits for the pass, and no options are guessed. Existing SVGs are only counted, never rewritten, until you say. Nothing about launch waits on this.",
      "minutes": 3,
      "device": "laptop",
      "type": "claude"
@@ -1956,6 +1956,29 @@
   }
  ],
  "reviews": [
+  {
+   "id": "R-STG-STALE",
+   "section": "rv-look",
+   "title": "Staging has not deployed since a938114 (about 6:00 EDT on Oct 18)",
+   "area": "Netlify, staging",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "changed": "New. Every change since a938114 is on `next`, but none of it is on staging, so the reviews below may show old pages.",
+     "summary": "**This is a deduction; nobody can see Netlify's log.** Since e3839bb committed the three `.env.*.sample` files, every staging build runs `check:env` first, and it fails because staging was never env pushed. Netlify's last good staging deploy carries build a938114; `next` and `staging` are at bd364da.\n\n**What to do:**\n1. In Netlify, open **Deploys** and the latest failed staging build. The first line from `check:env` names the exact misses, under \"Required for a staging build, and not set:\".\n2. Set those names on the staging context. The likeliest gaps: `ACCOUNTS_ENABLED`, `AXIOM_DATASET`, `STAGING_TOKEN`, `ADMIN_EMAILS`, `MAIL_FROM`, `MAIL_REPLY_TO`, `SITE_CONTEXT`, `SITE_URL`. `SITE_CONTEXT` may sit on the branch-deploy scope; the build only needs it present. Or run step **env-push** for staging, which sets them all.\n3. Then **Deploys, Trigger deploy, Clear cache and deploy site**, on the staging branch.\n\n**Required on staging:** `SITE_CONTEXT`, `SITE_URL`, `ACCOUNTS_ENABLED`, `SQUARE_ENV`, `SQUARE_APPLICATION_ID`, `SQUARE_LOCATION_ID`, `SQUARE_ACCESS_TOKEN`, `SQUARE_WEBHOOK_SIGNATURE_KEY`, `PAYPAL_ENV`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `MAIL_DRIVER`, `MAIL_FROM`, `MAIL_REPLY_TO`, `ADMIN_EMAILS`, `AXIOM_DATASET`, `STAGING_TOKEN`.\n**Optional on staging** (the checkout lane marked them so): `MAINTENANCE_SECRET`, `DEV_NOTIFICATIONS_EMAIL`, `E2E_STAGING_TOKEN`, `AXIOM_TOKEN`, both Healthchecks URLs, `STAGING_REVIEWER_TOKEN`. `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS` is optional everywhere now.\n\n**Two other causes, less likely:** `check:schedule` needs `PICKUP_SCHEDULE` to reach the Saturday of next week (Oct 31 now, Nov 7 from Oct 25), and the schedule runs to Dec 31, so that should pass; and Netlify build minutes ([#229](https://github.com/north-foster-farm/north-foster-farm/issues/229)). The failed build's log tells which.",
+     "look": [
+      {
+       "label": "Netlify deploys",
+       "url": "https://app.netlify.com/projects/north-foster-farm/deploys"
+      }
+     ],
+     "recommendation": "Open the failed build's log and read its first line before changing anything."
+    }
+   ],
+   "device": "laptop",
+   "type": "look"
+  },
   {
    "id": "R-204",
    "section": "rv-look",
@@ -2864,6 +2887,38 @@
       {
        "label": "Globe and eggs, before and after",
        "url": "https://claude.ai/artifact/77tTz6o2XL5jHHCxkNLBMf"
+      }
+     ]
+    },
+    {
+     "rev": 4,
+     "date": "2026-10-18",
+     "changed": "Your 10/18 note on #267, in commit ea17549 on `next`. The map key's words changed: \"We deliver it\" is now \"Available for delivery\", and \"Not delivered there\" is now \"Unavailable for delivery\". The eggs icon is the original filled pair again, on the map's tags and key and on the search palette's eggs card; it comes from your own banner design for the market stall. The Tabler swap (757574b) is reverted and the Tabler credit is out of NOTICE. The Lucide globe stays.",
+     "summary": "Look at the key, the whole map and the search card. No screen-reader label carried the old phrases; the key's icons are decorative and hidden from readers. `e2e/map.spec.mjs` checks the new words.\n- Key: before, outlined eggs, \"We deliver it\", \"Not delivered there\". After, filled eggs, \"Available for delivery\", \"Unavailable for delivery\".\n- Search, \"eggs\": before, outlined eggs in green. After, the filled pair in green.\nThe svgo pass now waits on the globe alone.",
+     "look": [
+      {
+       "label": "Map key, before",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/dma1-before-key.png"
+      },
+      {
+       "label": "Map key, after",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/dma1-after-key.png"
+      },
+      {
+       "label": "Whole map, before",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/dma1-before-map.png"
+      },
+      {
+       "label": "Whole map, after",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/dma1-after-map.png"
+      },
+      {
+       "label": "Search, before",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/dma1-before-search.png"
+      },
+      {
+       "label": "Search, after",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/dma1-after-search.png"
       }
      ]
     }
