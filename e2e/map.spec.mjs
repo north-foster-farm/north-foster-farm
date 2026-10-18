@@ -174,7 +174,8 @@ test.describe("map (#138, #214)", () => {
     const rows = map(page).locator(".map-key-areas li");
 
     await expect(rows).toHaveText([
-      "$5 delivery", "$8 delivery", "We deliver it", "Not delivered there",
+      "$5 delivery", "$8 delivery", "Available for delivery",
+      "Unavailable for delivery",
     ]);
     await expect(rows.nth(3).locator(".map-tag-icon.is-off")).toHaveCount(1);
     await expect(map(page).locator(".map-swatch.is-eggs")).toHaveCount(0);
