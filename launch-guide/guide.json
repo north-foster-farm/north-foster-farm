@@ -1,5 +1,5 @@
 {
- "revision": 34,
+ "revision": 35,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -131,32 +131,6 @@
      "body": "Every account that can reach a secret needs two-factor sign-in, with its recovery codes saved in the **NFF launch** folder of your password manager. Check each, and turn it on where it is off: **Netlify, GitHub, Square, PayPal, Resend, Cloudflare, Axiom, Healthchecks, UptimeRobot, Fastmail.** Any second factor works; an authenticator app or a security key is better than a text message.\n\nTick this when all ten are done. Claude cannot see any of them.",
      "minutes": 25,
      "device": "any",
-     "type": "account"
-    },
-    {
-     "id": "vendor-checks",
-     "title": "Four vendor questions the docs could not settle",
-     "body": "Claude read the vendors' pages for the secrets runbook ([docs/secrets.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md)) and found no answer to these. Each is a thing to look at in the vendor's own dashboard; write the answer to Claude, which records it with the date.\n1. **Square:** in Developer Console → Credentials, does the production token show an expiry date? (James's reading: none.) On the *sandbox* token, click Replace, keep the old value a minute, and try one read-only call with it. Does it still answer, and for how long? This decides whether the production rotation can overlap.\n2. **PayPal:** in Apps & Credentials → Live → the app, can you add a second secret and disable one? Does PayPal say anything about ending tokens already issued (they last about 9 hours)? If you can, ask PayPal.\n3. **Axiom:** open each of the two tokens. Does it show ingest on one dataset and nothing else? What retention does each dataset show (the docs here say 30 days)?\n4. **Resend:** does the audience key show **Full access**? (The API needs it to edit contacts.) Is there really no daily sending limit on your plan?\n\nAnything you cannot answer stays listed as open in the doc.",
-     "minutes": 15,
-     "links": [
-      {
-       "label": "Square Developer Console",
-       "url": "https://developer.squareup.com/apps"
-      },
-      {
-       "label": "PayPal apps & credentials",
-       "url": "https://developer.paypal.com/dashboard/applications/live"
-      },
-      {
-       "label": "Axiom API tokens",
-       "url": "https://app.axiom.co/settings/api-tokens"
-      },
-      {
-       "label": "Resend API keys",
-       "url": "https://resend.com/api-keys"
-      }
-     ],
-     "device": "laptop",
      "type": "account"
     }
    ]
@@ -452,7 +426,7 @@
     {
      "id": "rs-pro",
      "title": "Upgrade the production team to Pro",
-     "body": "Check the team name at the top left is the farm's. Open **Settings → Billing** and upgrade **Transactional** to **Pro** ($20 a month for 50,000 emails, no daily cap). Leave **Marketing** on Free while you have fewer than 1,000 contacts.\n\nOn the Audience page, note the number of contacts below.",
+     "body": "Check the team name at the top left is the farm's. Open **Settings → Billing** and upgrade **Transactional** to **Pro** ($20 a month for 50,000 emails, no daily cap). Leave **Marketing** on Free while you have fewer than 1,000 contacts.\n\nOn the Audience page, note the number of contacts below.\n\nWhile you are on Resend's pricing page, check whether Pro has a daily sending limit as well as the monthly one. The runbook assumes there is none; tell Claude what it says and it will record the answer with the date.",
      "minutes": 5,
      "links": [
       {
@@ -575,6 +549,60 @@
      ],
      "device": "any",
      "type": "look"
+    },
+    {
+     "id": "rs-breaker-keys",
+     "title": "Check the Resend keys and webhook the send breaker needs",
+     "body": "The send breaker (a launch blocker) stops all email and deletes the sending key if mail goes out that our code did not send, or too much of it. It needs three things in Resend.\n1. **API Keys:** `RESEND_AUDIENCE_KEY` shows **Full access**. The breaker deletes the sending key with it, so this gates the rehearsal below.\n2. **Webhooks:** the `/api/resend/webhook` endpoint has `email.sent`, `email.bounced` and `email.complained` ticked.\n3. **The sending key's name:** Resend's key list cannot say which key is which, so the breaker finds it by name. Type the sending key's name below; it goes into `RESEND_SENDING_KEY_NAME` in `.env.production`.\n\nDone when, after the env push and deploy, `bin/nff breaker status --production` prints \"Not tripped.\" and no warning about sends that never came back.",
+     "minutes": 10,
+     "links": [
+      {
+       "label": "Resend API keys",
+       "url": "https://resend.com/api-keys"
+      },
+      {
+       "label": "Resend webhooks",
+       "url": "https://resend.com/webhooks"
+      }
+     ],
+     "copy": [
+      {
+       "label": "Status",
+       "value": "bin/nff breaker status --production"
+      }
+     ],
+     "fields": [
+      {
+       "id": "rs_key_name",
+       "label": "The sending key's name in Resend (RESEND_SENDING_KEY_NAME)",
+       "secret": false
+      }
+     ],
+     "device": "laptop",
+     "type": "account"
+    },
+    {
+     "id": "rs-breaker-proof",
+     "title": "See the breaker trip, and the alert reach your phone",
+     "body": "Both gate launch. The breaker's alert goes out through Healthchecks and ntfy, never through Resend, so it still reaches you when mail is the thing that failed.\n1. Run the rehearsal test, with a stubbed Resend and never the real key. It must pass, in particular \"trips at once, deletes the sending key, alerts without Resend\".\n2. Run `bin/nff alert test --production`. It sends the same down push and up push the breaker sends. **Done when a down push, then an up push, reach your iPhone through ntfy.**\n3. Read `bin/nff breaker status` and `bin/nff breaker reset` once, so the first real trip is not the first time you see them.",
+     "minutes": 10,
+     "copy": [
+      {
+       "label": "Rehearsal test",
+       "value": "node --test test/breaker.test.mjs"
+      },
+      {
+       "label": "Alert test",
+       "value": "bin/nff alert test --production"
+      },
+      {
+       "label": "Breaker help",
+       "value": "bin/nff breaker status"
+      }
+     ],
+     "device": "laptop",
+     "type": "live",
+     "blocked": "Waits on rs-breaker-keys, and on the env push and deploy that carry the breaker."
     }
    ]
   },
@@ -626,6 +654,20 @@
      ],
      "device": "laptop",
      "type": "account"
+    },
+    {
+     "id": "ax-checks",
+     "title": "Two Axiom checks, on your phone",
+     "body": "The runbook still hedges on two Axiom facts. Open **Settings → API tokens** and look.\n1. Open each of the two tokens. Does it show **ingest on one dataset and nothing else**? Done when both do.\n2. Open **Datasets** and each dataset's settings. What **retention** does it show? The runbook says 30 days.\n\nTell Claude the answers; it removes the hedge from `docs/secrets.md` or records what you found.",
+     "minutes": 5,
+     "links": [
+      {
+       "label": "Axiom API tokens",
+       "url": "https://app.axiom.co/settings/api-tokens"
+      }
+     ],
+     "device": "phone",
+     "type": "look"
     }
    ]
   },
@@ -1031,7 +1073,7 @@
     {
      "id": "st-token",
      "title": "Make a new staging token",
-     "body": "The staging token guards staging's back-office pages. Press **Generate** to make a new one. It goes into the staging file. Don't put it in GitHub yet: GitHub, Netlify and a staging rebuild have to change together, in the env push step.",
+     "body": "The staging token is for **machines only**: the Staging jobs workflow and health checks. You never type it into a browser, and the old \"Staging token\" prompt is gone. Press **Generate** to make a new one. It goes into the staging file. Don't put it in GitHub yet: GitHub, Netlify and a staging rebuild have to change together, in the env push step. A swap later is at once, with no overlap.",
      "minutes": 2,
      "fields": [
       {
@@ -1101,6 +1143,25 @@
      ],
      "device": "laptop",
      "type": "terminal"
+    },
+    {
+     "id": "env-notify-vars",
+     "title": "Set the three notification addresses, and remove ADMIN_EMAILS",
+     "body": "`ADMIN_EMAILS` is gone. Its uses split three ways, and each address is required in production:\n- `FARM_NOTIFICATIONS_EMAIL` = sales@northfosterfarm.com: the farm's notice of each new order, and contact-form messages.\n- `DEV_NOTIFICATIONS_EMAIL` = dev@northfosterfarm.com: every alert, and the maintenance bypass's admin. An unset value fails the production build.\n- `ESCALATED_NOTIFICATIONS_EMAIL` = office@northfosterfarm.com: one message only, when \"orders not recorded\" has gone unacknowledged for an hour. Jim gets nothing else.\n\nSet all three in `.env.production` and `.env.staging`, staging with its own addresses and never production's, and **delete the `ADMIN_EMAILS` line from both files and from Netlify** (`env check` fails while it exists anywhere). Then `bin/nff env push` and `env check`, as for the rest.",
+     "minutes": 10,
+     "copy": [
+      {
+       "label": "Remove from production",
+       "value": "bin/nff netlify env:unset ADMIN_EMAILS --context production"
+      },
+      {
+       "label": "Remove from staging",
+       "value": "bin/nff netlify env:unset ADMIN_EMAILS --context branch:staging"
+      }
+     ],
+     "device": "laptop",
+     "type": "terminal",
+     "blocked": "Waits on the email lane's split of ADMIN_EMAILS (the three names are read by the code once it lands, and the samples change with it)."
     },
     {
      "id": "env-dev-test",
@@ -1192,7 +1253,7 @@
     {
      "id": "env-prod-names",
      "title": "Production must not hold the staging names",
-     "body": "The build and `bin/nff env check` fail if production holds `STAGING_TOKEN` or `STAGING_REVIEWER_TOKEN`, even empty. If either exists there, remove it:\n```\nnetlify env:unset STAGING_TOKEN --context production\nnetlify env:unset STAGING_REVIEWER_TOKEN --context production\n```",
+     "body": "The build and `bin/nff env check` fail if production holds `STAGING_TOKEN` or any of the gate's names (`GATE_RESEND_KEY`, `GATE_MAIL_FROM`, `GATE_TOOLBAR_EMAIL`), even empty. `STAGING_REVIEWER_TOKEN` is retired and must not exist anywhere. If any of them is on production, remove it:\n```\nbin/nff netlify env:unset STAGING_TOKEN --context production\n```",
      "minutes": 2,
      "copy": [
       {
@@ -1200,8 +1261,12 @@
        "value": "bin/nff netlify env:unset STAGING_TOKEN --context production"
       },
       {
-       "label": "STAGING_REVIEWER_TOKEN",
+       "label": "STAGING_REVIEWER_TOKEN (if it exists anywhere)",
        "value": "bin/nff netlify env:unset STAGING_REVIEWER_TOKEN --context production"
+      },
+      {
+       "label": "GATE_RESEND_KEY",
+       "value": "bin/nff netlify env:unset GATE_RESEND_KEY --context production"
       }
      ],
      "device": "laptop",
@@ -1261,6 +1326,66 @@
      "type": "account"
     },
     {
+     "id": "gate-key",
+     "title": "Gate: make the staging-only Resend key, and set its three values",
+     "body": "Staging and every preview now sit behind an access gate: a visitor signs in by an emailed link, from an allowlist. It is a launch blocker, and **the staging build fails until these three are set.**\n1. In Resend, make a new **sending** key just for staging (Sending access, limited to the mail domain). **Never production's key.** Save it below.\n2. The sender of the link: a name and an address on the domain Resend has verified, written `Name <address>`.\n3. Your own address. Only a gate session with this address opens the staging toolbar.\n\nThey reach Netlify with the env push, like the rest. The link is the one email staging really sends; the code sends only to addresses on the allowlist, under the breaker's own low ceiling. Resend keys do not expire, so this one rotates Dec 1 to Jan 1 with the rest.",
+     "minutes": 10,
+     "links": [
+      {
+       "label": "Resend API keys",
+       "url": "https://resend.com/api-keys"
+      }
+     ],
+     "fields": [
+      {
+       "id": "gate_key",
+       "label": "Staging-only Resend sending key (GATE_RESEND_KEY)",
+       "secret": true,
+       "save": "Also in your password manager, in the **NFF launch** folder."
+      },
+      {
+       "id": "gate_from",
+       "label": "Sender of the sign-in link (GATE_MAIL_FROM)",
+       "secret": false,
+       "placeholder": "North Foster Farm Staging <address on the verified domain>"
+      },
+      {
+       "id": "gate_toolbar",
+       "label": "Your address (GATE_TOOLBAR_EMAIL)",
+       "secret": false,
+       "placeholder": "you@…"
+      }
+     ],
+     "device": "laptop",
+     "type": "account"
+    },
+    {
+     "id": "gate-allow",
+     "title": "Gate: put yourself, Jim and anyone else on the allowlist",
+     "body": "Do this before staging first gets the gate, or nobody can sign in. Add each address (or a whole domain, written `@example.com`). Yours, Jim's, and anyone else you name: design and marketing helpers see the site and never the toolbar. Previews keep a separate list (`--preview`); add the same people there if they will look at previews.\n\nCheck with `list`. Removing an address ends its sessions. To end every session: `bin/nff --staging gate sessions end-all`.",
+     "minutes": 5,
+     "copy": [
+      {
+       "label": "Add an address",
+       "value": "bin/nff --staging gate allow add you@example.com"
+      },
+      {
+       "label": "Add a domain",
+       "value": "bin/nff --staging gate allow add @example.com"
+      },
+      {
+       "label": "List",
+       "value": "bin/nff --staging gate allow list"
+      },
+      {
+       "label": "Previews' list",
+       "value": "bin/nff --preview gate allow add you@example.com"
+      }
+     ],
+     "device": "laptop",
+     "type": "terminal"
+    },
+    {
      "id": "env-tokens-in",
      "title": "Tell the coordinator the staging tokens are in",
      "body": "Once `STAGING_TOKEN` is in `.env.staging` and `E2E_STAGING_TOKEN` is in `.env.e2e-staging`, say **\"tokens are in\"** to the coordinator. Until then the checkout lane can prove nothing live on staging. It takes two minutes.",
@@ -1289,7 +1414,7 @@
     {
      "id": "env-where",
      "title": "Where each value lives",
-     "body": "The **NFF launch** folder in your password manager is the master copy of every value, and the only one you can read back. Netlify holds the values the site needs and the env files hold your working copies; none of those replaces the master.\n- **Square, PayPal, Axiom, Healthchecks:** Netlify (production and staging contexts), your env files, the master copy.\n- **Netlify token:** your Mac's Keychain and the master copy only; in no env file.\n- **Staging keys:** `STAGING_TOKEN` and `E2E_STAGING_TOKEN` on staging only; the reviewer key too, while a reviewer has access. Never on production.\n- **Resend:** production only; no staging team, key, audience or webhook. `RESEND_READ_KEY` and the old inbound secret go after launch day's live checks.\n- **R2 backup token (`BACKUP_R2_*`):** Netlify production and the master copy.\n- **Backup encryption key (age):** the private key lives on your Mac in `~/Documents/nff-keys` and never on Netlify. Backed up in the master copy, plus a second copy offline (a USB stick at the farm, or with Jim). Only the public key is on Netlify.\n- **Backup check ping URL:** Netlify production, the master copy.\n- **ntfy topic:** works like a password. Your iPhone, Healthchecks, the master copy.\n- **`DEV_NOTIFICATIONS_EMAIL`:** configuration, not a secret. Netlify per environment and the env files.\n- **`MAINTENANCE_SECRET`:** Netlify (a secret value) and the env files, a different one per context, and the master copy. Without it only the command line flips the switch.\n\nUntil #251 is done, previews and local development still hold some shared values (step env-contexts). Delete this note when they don't.",
+     "body": "The **NFF launch** folder in your password manager is the master copy of every value, and the only one you can read back. Netlify holds the values the site needs and the env files hold your working copies; none of those replaces the master.\n- **Square, PayPal, Axiom, Healthchecks:** Netlify (production and staging contexts), your env files, the master copy.\n- **Netlify token:** your Mac's Keychain and the master copy only; in no env file.\n- **Staging keys:** `STAGING_TOKEN`, `E2E_STAGING_TOKEN` and the access gate's `GATE_RESEND_KEY`, `GATE_MAIL_FROM` and `GATE_TOOLBAR_EMAIL` on staging only. Never on production.\n- **Resend:** production only; no staging team, key, audience or webhook. `RESEND_READ_KEY` and the old inbound secret go after launch day's live checks.\n- **R2 backup token (`BACKUP_R2_*`):** Netlify production and the master copy.\n- **Backup encryption key (age):** the private key lives on your Mac in `~/Documents/nff-keys` and never on Netlify. Backed up in the master copy, plus a second copy offline (a USB stick at the farm, or with Jim). Only the public key is on Netlify.\n- **Backup check ping URL:** Netlify production, the master copy.\n- **ntfy topic:** works like a password. Your iPhone, Healthchecks, the master copy.\n- **`DEV_NOTIFICATIONS_EMAIL`:** configuration, not a secret. Netlify per environment and the env files.\n- **`MAINTENANCE_SECRET`:** Netlify (a secret value) and the env files, a different one per context, and the master copy. Without it only the command line flips the switch.\n\nUntil #251 is done, previews and local development still hold some shared values (step env-contexts). Delete this note when they don't.",
      "minutes": 3,
      "device": "any",
      "type": "look"
@@ -1297,7 +1422,7 @@
     {
      "id": "env-clean",
      "title": "Retire the old shared credentials",
-     "body": "Once staging runs on its new values:\n- **Square:** delete the old shared sandbox webhook subscription. Keep the old app only if production uses it.\n- **PayPal:** delete the old shared sandbox app.\n- **Axiom and Healthchecks:** delete the token and checks staging used to share.\n- **Resend:** delete the keys previews and staging used to share, but **not** production's `RESEND_READ_KEY` or its key at Resend. The live site reads it until launch day's live checks pass (step pw-p9); the launch is fixed forward, with no week's hold.\n- **Your old Netlify token:** revoke it at Applications → Personal access tokens, once every env file, yours and the lanes', holds the new one.\n- **Production's context:** delete `STAGING_TOKEN` and `STAGING_REVIEWER_TOKEN` if either name exists, even empty. Production fails its build and `bin/nff env check` while it holds either (b60a03b).",
+     "body": "Once staging runs on its new values:\n- **Square:** delete the old shared sandbox webhook subscription. Keep the old app only if production uses it.\n- **PayPal:** delete the old shared sandbox app.\n- **Axiom and Healthchecks:** delete the token and checks staging used to share.\n- **Resend:** delete the keys previews and staging used to share, but **not** production's `RESEND_READ_KEY` or its key at Resend. The live site reads it until launch day's live checks pass (step pw-p9); the launch is fixed forward, with no week's hold.\n- **Your old Netlify token:** revoke it at Applications → Personal access tokens, once every env file, yours and the lanes', holds the new one.\n- **Production's context:** delete `STAGING_TOKEN`, the gate's names and the retired `STAGING_REVIEWER_TOKEN` if any exists, even empty. Production fails its build and `bin/nff env check` while it holds one (b60a03b).",
      "minutes": 20,
      "blocked": "Waits on agents: #251's list. Staging already works on its own values (#255).",
      "links": [
@@ -1403,23 +1528,9 @@
      "type": "claude"
     },
     {
-     "id": "stg-reviewer",
-     "title": "Try the reviewer key on the staging toolbar",
-     "body": "The reviewer key lets someone look at staging without your own. It is revocable by you alone, expires Jan 31, and rotates Dec 1 to Jan 1. Its scope is a draft from the checkout lane: the signature previews and Info, and nothing else. The email library holds sign-in links, so it is **not** open to the reviewer, and neither are the inbox, the jobs run, the crash test and the order limit (the table is in the [secrets doc](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md)).\n\nTo check it: make a random value, set it as `STAGING_REVIEWER_TOKEN` on staging, redeploy, and enter it in the staging toolbar. The header must name the key in use (never the value) and hide the panels above. Then revoke it:\n```\nnetlify env:unset STAGING_REVIEWER_TOKEN --context branch:staging\n```\nand redeploy staging. Tell Claude if a panel showed that should not have. Nobody has seen this in a browser yet.",
-     "minutes": 15,
-     "copy": [
-      {
-       "label": "Revoke",
-       "value": "bin/nff netlify env:unset STAGING_REVIEWER_TOKEN --context branch:staging"
-      }
-     ],
-     "device": "laptop",
-     "type": "terminal"
-    },
-    {
      "id": "stg-actions-runs",
      "title": "Delete the public Staging jobs runs",
-     "body": "The repository is public, so its workflow logs are too. Eight earlier Staging jobs runs printed order ids (no emails or names). The checkout lane lists their ids in `lanes/checkout/.ignored/runs-ids.txt` and has deleted nothing. Review them in GitHub → Actions → Staging jobs, and delete each (… → Delete workflow run).\n\nThe scheduled workflow on `main` still prints full reports until the release lands there; delete any run it makes before then too. From the release on, every workflow prints counts only.",
+     "body": "The repository is public, so its workflow logs are too. These eight Staging jobs runs printed order ids (no emails or names). Open each and delete it (… → Delete workflow run); tick it off here. Do it before launch; there is no need to wait for the repository move.\n\n- [ ] [Run 39096233466](https://github.com/north-foster-farm/north-foster-farm/actions/runs/39096233466)\n- [ ] [Run 36970246778](https://github.com/north-foster-farm/north-foster-farm/actions/runs/36970246778)\n- [ ] [Run 36784910597](https://github.com/north-foster-farm/north-foster-farm/actions/runs/36784910597)\n- [ ] [Run 36526185423](https://github.com/north-foster-farm/north-foster-farm/actions/runs/36526185423)\n- [ ] [Run 36467484048](https://github.com/north-foster-farm/north-foster-farm/actions/runs/36467484048)\n- [ ] [Run 36323820118](https://github.com/north-foster-farm/north-foster-farm/actions/runs/36323820118)\n- [ ] [Run 36249351997](https://github.com/north-foster-farm/north-foster-farm/actions/runs/36249351997)\n- [ ] [Run 36233556979](https://github.com/north-foster-farm/north-foster-farm/actions/runs/36233556979)\n\nThe scheduled workflow on `main` still prints full reports until the release lands there; delete any run it makes before then too. From the release on, every workflow prints counts only. The step after the release checks that.",
      "minutes": 10,
      "links": [
       {
@@ -1604,6 +1715,20 @@
      ],
      "device": "any",
      "type": "claude"
+    },
+    {
+     "id": "ld-actions-main",
+     "title": "Check the main workflow stopped printing full reports",
+     "body": "The repository is public. Once the release is on `main`, open the next Staging jobs run in GitHub → Actions and read its log: it must show counts and outcomes only, no order ids, names or emails. If it prints more, tell Claude before anything else runs, and delete that run.",
+     "minutes": 3,
+     "links": [
+      {
+       "label": "Actions",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/actions"
+      }
+     ],
+     "device": "any",
+     "type": "look"
     },
     {
      "id": "ld-smoke",
@@ -1929,6 +2054,24 @@
      "type": "look"
     },
     {
+     "id": "pd-declare",
+     "title": "Tell the breaker about the invitation first",
+     "body": "The old list is large and some addresses bounce, so the invitation would trip the breaker at its normal ceiling by design. Declare the send before the first batch, then check it is listed:\n`bin/nff breaker declare --count 90 --hours 3 --note \"launch invitations\" --production`\nDone when `bin/nff breaker status --production` lists it under Declared. Skip it and the batch trips the breaker at 25 an hour. Declare again for each morning's batch, with that batch's count.",
+     "minutes": 3,
+     "copy": [
+      {
+       "label": "Declare",
+       "value": "bin/nff breaker declare --count 90 --hours 3 --note \"launch invitations\" --production"
+      },
+      {
+       "label": "Check",
+       "value": "bin/nff breaker status --production"
+      }
+     ],
+     "device": "laptop",
+     "type": "terminal"
+    },
+    {
      "id": "pd-invite",
      "title": "Invite the old mailing list",
      "body": "One send, no batches. The day after the launch email, and only once Resend Pro is in place (the step **Upgrade the production team to Pro**): remove anyone who replied \"unsubscribe\" from your CSV, then do a dry run and the real send.",
@@ -1967,6 +2110,78 @@
      "title": "End the freeze",
      "body": "Export the report and tell Claude launch is done. The agents then pick up the after-launch list in the next section.",
      "minutes": 2,
+     "device": "any",
+     "type": "claude"
+    }
+   ]
+  },
+  {
+   "id": "post-qa",
+   "title": "Post-launch QA: the checks the docs left open",
+   "phase": "post",
+   "steps": [
+    {
+     "id": "qa-sq-token",
+     "title": "Square: does the old token die on Replace, and does it expire?",
+     "body": "Both answers are open in `docs/secrets.md` (Square). On the **sandbox** token (no customer is affected): click Replace, keep the old value a minute, and try one read-only call with it. Does it still answer, and for how long? Then open the production token in Developer Console → Credentials: does it show an expiry date? Tell Claude, which records the result with the date. This decides whether the production rotation can overlap.",
+     "when": "Early November",
+     "links": [
+      {
+       "label": "Square Developer Console",
+       "url": "https://developer.squareup.com/apps"
+      }
+     ],
+     "device": "laptop",
+     "type": "account"
+    },
+    {
+     "id": "qa-pp-secret",
+     "title": "PayPal: a second secret, a disable control, and ending a token",
+     "body": "Open in `docs/secrets.md` (PayPal). In Apps & Credentials → Live → the app: can you add a second secret and disable one? Then, with a **sandbox** app, mint a token, disable the secret, and call the API with the token: does it still work? That tells you whether a leak leaves a stolen token alive for its roughly nine hours. Tell Claude, which records the answer.",
+     "when": "Early November",
+     "links": [
+      {
+       "label": "PayPal apps & credentials",
+       "url": "https://developer.paypal.com/dashboard/applications/live"
+      }
+     ],
+     "device": "laptop",
+     "type": "account"
+    },
+    {
+     "id": "qa-restore",
+     "title": "Restore from backups on a schedule, every path proven automatically",
+     "body": "`docs/backup.md` has only a one-off manual rehearsal. Your rule: restore regularly, and prove every restoration path works, automatically. Monthly, and once in each rotation window, a run fetches a recent backup, decrypts it, restores into scratch stores, compares counts and clears them. The paths: the online private key; the **offline copy** (the agents propose how a test can use an offline key without bringing it online, or a short manual step with the rest automated); production and staging backups; and `restore-db.mjs` for the dashboard's Supabase if it is in scope. A failure alerts you through healthchecks.io and each run appends to the rehearsal record. Pick the offline-key option when the proposal arrives.",
+     "when": "Before the first rotation window",
+     "device": "any",
+     "type": "decide"
+    },
+    {
+     "id": "qa-revoke-reminder",
+     "title": "The December reminder also lists pending revocations",
+     "body": "The reminder job emails what is due from the rotation log. The 31-day rule adds a second list: each rotation whose old credential is still waiting to be revoked. Tell Claude when you want it built; it must land before Dec 1.",
+     "when": "Before Dec 1",
+     "device": "any",
+     "type": "claude"
+    },
+    {
+     "id": "qa-cli",
+     "title": "The Netlify CLI login stays gone",
+     "body": "Tracked beside the pre-launch step that retires it (`env-cli-logout`). Two weeks after launch, run the check: the file must not exist. If it does, run `netlify logout`. Any runbook command goes through `bin/nff netlify`.",
+     "when": "Two weeks after launch",
+     "copy": [
+      {
+       "label": "File gone?",
+       "value": "ls ~/Library/Preferences/netlify/config.json"
+      }
+     ],
+     "device": "laptop",
+     "type": "terminal"
+    },
+    {
+     "id": "qa-dash-secrets",
+     "title": "Write the dashboard's own secrets page",
+     "body": "The dashboard's secrets (the Supabase service key, VAPID) follow the same rules, with their own rotation log and a place in the lost-laptop checklist. Its `docs/secrets.md` is not started; the dashboard is on hold. Tell Claude when to begin.",
      "device": "any",
      "type": "claude"
     }
@@ -2026,7 +2241,7 @@
     {
      "id": "pl-rest",
      "title": "The rest of the after-launch list",
-     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- a function that filters for production deploy failures and pages your phone through the alerts check (D-NOTIFY, #248);\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- Resend's Contacts and Segments (D-148, #148): built and held on `hold/148`; the old API still works, so launch day has no migration step. **Switch maintenance mode on first, for the cutover** (`bin/nff --production maintenance on`, then off when it is checked), so no sign-up or order lands half in the old audience and half in the new;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159);\n- move both repositories (`north-foster-farm`, `nff-dashboard`) to your personal account and make them private. They are public today, which is why Netlify's free plan can host an organization repository. Plan it as one item:\n  - **GitHub Pro** (about $4 a month) is needed for branch protection and rulesets on private personal repositories, and for 3,000 Actions minutes;\n  - **Actions minutes:** staging's jobs every 15 minutes are about 2,900 runs a month, plus CI. Proposed: hourly staging jobs, or move them off Actions;\n  - **Anything that reads a repository without signing in breaks once it is private:** this guide's `raw.githubusercontent.com` fetch (moot if the dashboard version has replaced it) and image links in issues;\n  - **Re-link:** the Netlify sites, the GitHub apps (Netlify, Claude), the coordinator's and lanes' access, webhooks and the `STAGING_TOKEN` repository secret;\n  - **Order:** transfer, check redirects, make private, then re-link and check the deploys.\n- script the revert of a release as `bin/nff rollback revert` (branch, revert range, CI dispatch, watch, fast-forward, push). It stops on any failure and asks for your go before it pushes `main`;\n- the checkout lane's `Record-shape:` commit-trailer check in `lint-and-test` (`docs/rollback.md`), and the check that the rotation log has a seed line for every secret (`docs/secrets.md`).\n\nTick this when you've told Claude your order.\n- **Evaluate a scoped Square OAuth login** in place of the long-lived access token (your 10/18 note on #267). A research item, not built.",
+     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- a function that filters for production deploy failures and pages your phone through the alerts check (D-NOTIFY, #248);\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- Resend's Contacts and Segments (D-148, #148): built and held on `hold/148`; the old API still works, so launch day has no migration step. **Switch maintenance mode on first, for the cutover** (`bin/nff --production maintenance on`, then off when it is checked), so no sign-up or order lands half in the old audience and half in the new;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159);\n- move both repositories (`north-foster-farm`, `nff-dashboard`) to your personal account and make them private. They are public today, which is why Netlify's free plan can host an organization repository. Plan it as one item:\n  - **GitHub Pro** (about $4 a month) is needed for branch protection and rulesets on private personal repositories, and for 3,000 Actions minutes;\n  - **Actions minutes:** staging's jobs every 15 minutes are about 2,900 runs a month, plus CI. Proposed: hourly staging jobs, or move them off Actions;\n  - **Anything that reads a repository without signing in breaks once it is private:** this guide's `raw.githubusercontent.com` fetch (moot if the dashboard version has replaced it) and image links in issues;\n  - **Re-link:** the Netlify sites, the GitHub apps (Netlify, Claude), the coordinator's and lanes' access, webhooks and the `STAGING_TOKEN` repository secret;\n  - **Order:** transfer, check redirects, make private, then re-link and check the deploys.\n- script the revert of a release as `bin/nff rollback revert` (branch, revert range, CI dispatch, watch, fast-forward, push). It stops on any failure and asks for your go before it pushes `main`;\n- the checkout lane's `Record-shape:` commit-trailer check in `lint-and-test` (`docs/rollback.md`), and the check that the rotation log has a seed line for every secret (`docs/secrets.md`).\n\nTick this when you've told Claude your order.\n- **Evaluate a scoped Square OAuth login** in place of the long-lived access token (your 10/18 note on #267). A research item, not built.\n- a switch that stops only the PayPal and Venmo path, so a leaked PayPal secret does not need the whole shop closed while Card keeps taking orders (`docs/secrets.md`, PayPal);\n- evaluate a scoped Square login (OAuth with the minimum permissions) instead of the all-powerful personal access token;\n- replace bin/nff's Blobs calls with the site's own admin API, behind an admin session or a scoped admin key, so the Netlify token can be deleted.",
      "minutes": 5,
      "device": "any",
      "type": "decide"
@@ -2063,7 +2278,7 @@
     {
      "id": "pq-rotate",
      "title": "Dec 1 to Jan 1: rotate the Netlify token and the yearly secrets",
-     "body": "Follow `docs/secrets.md`. Rotate every secret in the window, Dec 1 to Jan 1. The Netlify and Axiom tokens expire Jan 31, a month later, so a slip costs nothing. A reminder email arrives on Dec 1 with what is due, and weekly after that until the rotation log shows it done.\n\n**Switch maintenance mode on first, for the Square token, and do it in a quiet hour inside the window.** Square gives the old token no grace, so checkout fails between pressing Replace and the new deploy going live. Run `bin/nff --production maintenance on`, replace the token, set it on Netlify, deploy, check a payment, then run `bin/nff --production maintenance off`. Customers see the maintenance message instead of a failed payment. The other secrets rotate without downtime and need no maintenance mode.",
+     "body": "Follow `docs/secrets.md`. Rotate every secret in the window, Dec 1 to Jan 1. The Netlify and Axiom tokens expire Jan 31, a month later, so a slip costs nothing. A reminder email arrives on Dec 1 with what is due, and weekly after that until the rotation log shows it done.\n\n**Switch maintenance mode on first, for the Square token, and do it in a quiet hour inside the window.** Square gives the old token no grace, so checkout fails between pressing Replace and the new deploy going live. Run `bin/nff --production maintenance on`, replace the token, set it on Netlify, deploy, check a payment, then run `bin/nff --production maintenance off`. Customers see the maintenance message instead of a failed payment. The other secrets rotate without downtime and need no maintenance mode.\n\n**Keep each old credential 31 days after the new one is live** (or until its own Jan 31 expiry, whichever is first), then revoke it, and log both dates in `docs/rotation-log.md` (the second line has reason `revoked`). Exceptions: the staging tokens and the maintenance secret are swapped at once, and a leak revokes at once. The age key's old private key (both copies) is kept the same 31 days so the 30-day backup window stays readable, then destroyed.",
      "when": "Dec 1",
      "device": "laptop",
      "type": "account",
@@ -2081,7 +2296,7 @@
     {
      "id": "pq-sq-swap",
      "title": "Swapping the Square webhook key, and removing the old",
-     "body": "Once the site accepts two webhook keys (the checkout lane's build), a swap has no gap: set the old value as `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS`, the new one as `SQUARE_WEBHOOK_SIGNATURE_KEY`, deploy, and check a delivery verifies.\n\n**Then remove `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS` and deploy again.** The swap is safe only if the old key is gone afterward. On a leak, skip the overlap and remove the old key at once. Steps: [docs/secrets.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md).",
+     "body": "Once the site accepts two webhook keys (the checkout lane's build), a swap has no gap: set the old value as `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS`, the new one as `SQUARE_WEBHOOK_SIGNATURE_KEY`, deploy, and check a delivery verifies.\n\n**Then, 31 days later, remove `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS` and deploy again.** The swap is safe only if the old key is gone afterward. On a leak, skip the overlap and remove the old key at once. Steps: [docs/secrets.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md).",
      "minutes": 10,
      "device": "laptop",
      "type": "terminal"
@@ -3455,6 +3670,26 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
       }
      ]
+    },
+    {
+     "rev": 5,
+     "date": "2026-10-18",
+     "changed": "Your round 2 on #267 is applied to both runbooks, one commit each, on `next`. They reach staging with the coordinator's next promotion.",
+     "summary": "[docs/secrets.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md) is commit 55122fd (with `docs/rotation-log.md`) and [docs/rollback.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/rollback.md) is aaababe. The full section-by-section table is on #267.\n\n**secrets.md, rewritten:** The rules (a new rule: every routine rotation keeps the old credential 31 days, with the exceptions you set); Where they live (gate key and the three notification addresses in, the reviewer token and `ADMIN_EMAILS` out); Resend (the send breaker, and a leaked key as an outage risk); Staging (rebuilt around the access gate, shorter); Incident response (no nine-hour rule, the gate's sessions and key, the incident record in the gitignored `incidents/` folder, the three-address split).\n**Changed some:** PayPal (leak steps: disable, watch, maintenance only until the new secret is live); Backups (the age key's old half kept 31 days; automated restore testing); One set per environment; Schedule; Square; Axiom; Netlify; Sessions.\n**No change:** Known gaps, Out of scope.\n\n**rollback.md:** the rule for key changes now separates the overlap (an older deploy still works) from a leak or a revoked credential (it holds a dead key); the one-tap rollback uses `ESCALATED_NOTIFICATIONS_EMAIL` and writes its record to `incidents/`.\n\n**Not in code yet:** the reminder job's list of pending revocations (before Dec 1), and the `ADMIN_EMAILS` split (the email lane is on it; `docs/monitoring.md` and `docs/maintenance.md` still name it until then).",
+     "look": [
+      {
+       "label": "docs/secrets.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md"
+      },
+      {
+       "label": "docs/rollback.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/rollback.md"
+      },
+      {
+       "label": "Round 2 summary on #267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6254886816"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -3741,6 +3976,59 @@
       }
      ],
      "recommendation": "Approve once the keyboard, the Dynamic Island and \"N more\" look right on the iPhone, portrait and landscape."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-18",
+     "changed": "The phone cart pane is capped at 58% of the screen, the \"N more\" pills have their own strip, and the badge line shows only for delivery (b4e4d1f, 02b82e8, 4dabd6d, on `next`). Your two screenshots on #267 were the faults.",
+     "summary": "Open the cart on /order with 1, 4 and 10 items, in portrait and in landscape, with On-farm pickup and then Delivery. **Done when:**\n1. The open pane, every row of it, takes no more than about 60% of the screen in portrait (it is 58%; 43 to 49% with one item), and the lines scroll inside what is left.\n2. The \"N more\" pills sit in their own strip under the lines: \"N more\" for what is above at the left and for what is below at the right, never on a heading or a line.\n3. The badge line is gone on On-farm pickup and the drop site, and under Delivery reads on two lines: \"Delivery · Free delivery\" and \"Bulk discount: $50+ · $100+ · $150+ · $200+\".\n\nThe screenshots are 390 by 664 in portrait, 844 by 390 in landscape and 667 by 375 for an iPhone SE on its side; the ones ending -delivery show the Delivery state. **A known limit, ruled on in the decision item:** with ten items the lines get about two rows in portrait, and on the SE on its side they get none.",
+     "look": [
+      {
+       "label": "Portrait, 1 items",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/portrait-1.png"
+      },
+      {
+       "label": "Portrait, 4 items",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/portrait-4.png"
+      },
+      {
+       "label": "Portrait, 10 items",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/portrait-10.png"
+      },
+      {
+       "label": "Landscape, 1 items",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/landscape-1.png"
+      },
+      {
+       "label": "Landscape, 4 items",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/landscape-4.png"
+      },
+      {
+       "label": "Landscape, 10 items",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/landscape-10.png"
+      },
+      {
+       "label": "SE on its side, 1 items",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/landscape-se-1.png"
+      },
+      {
+       "label": "SE on its side, 4 items",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/landscape-se-4.png"
+      },
+      {
+       "label": "SE on its side, 10 items",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/landscape-se-10.png"
+      },
+      {
+       "label": "Portrait, 10 items, Delivery",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/portrait-10-delivery.png"
+      },
+      {
+       "label": "SE on its side, 10 items, Delivery",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/landscape-se-10-delivery.png"
+      }
+     ],
+     "recommendation": "Check with ten items first: it is the worst case."
     }
    ]
   },
@@ -3819,6 +4107,82 @@
       }
      ],
      "recommendation": "Approve if staging looks right. Keep both calls as built unless you say otherwise."
+    }
+   ]
+  },
+  {
+   "id": "R-VENMO-HDR",
+   "section": "rv-look",
+   "title": "Venmo and the card form under the sticky header",
+   "area": "#267, iPhone",
+   "device": "phone",
+   "type": "look",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "changed": "A fix for Venmo drawing over the sticky header (4d11844, on staging). The lane could not reproduce the fault headless, so the real phone is the test.",
+     "summary": "On staging, open the order page on your iPhone, scroll the payment section up under the sticky header, and open the menu. **Done when nothing from Venmo, Apple Pay, Google Pay or the card form draws over the header or the menu.** Also pull past the top and bottom edges and check iOS's overscroll shows nothing odd.\n\nIf it still draws over, send a screenshot. The cause is then likely something PayPal mounts outside the section.",
+     "look": [
+      {
+       "label": "Order page on staging",
+       "url": "https://staging--north-foster-farm.netlify.app/order/"
+      }
+     ],
+     "recommendation": "Approve if the header stays on top."
+    }
+   ]
+  },
+  {
+   "id": "D-CART4",
+   "section": "rv-decide",
+   "title": "The cart: how it switches between items and the subtotal",
+   "area": "#267, order page (item 4)",
+   "device": "phone",
+   "type": "decide",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "summary": "**Today** (clip below) the item count and the Total are two toggles. One folds the lines, the other opens the sums above the Total row, and the pane's height jumps with each tap. Both options keep a fixed-height stage, so the pane never changes height, and meet four requirements: one obvious tap target per pane; no height jump; a 0.22 second fade or slide that is off under reduced motion; the open pane named and the other one a tap away. **Neither is built in the site.** The clips are throwaway prototypes injected into the page, with the taps shown as red dots.\n\n**A, a segmented Total row.** The Total row becomes a two-segment switch, \"10 items\" and \"Total $94\", the open one filled white. The lines and the sums cross-fade in the stage above it. Both panes are always one tap away, and the fill shows the state.\n\n**B, one swap button.** The row reads \"10 items   Total $94   [Subtotal >]\"; the one button names the other pane, and on the sums it becomes \"[< Items]\" while the label changes to \"Subtotal\". The stage slides sideways. One target only and the clearest wording, but a label, not a fill, says which pane is open.\n\n**A second ruling:** with ten items the lines get about two rows in portrait, because the rows that never give way (total row, badges or way and code, Hide and Continue, the nudge) take about 330px of the 385px the cap allows. On an SE on its side the lines have no room at all under the cap. Say which fix: raise the cap, or trim those rows.",
+     "look": [
+      {
+       "label": "Today (clip)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/today.mp4"
+      },
+      {
+       "label": "Option A (clip)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/option-A.mp4"
+      },
+      {
+       "label": "Option B (clip)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/option-B.mp4"
+      }
+     ],
+     "recommendation": "A. Pick A or B, and say raise the cap or trim the rows. Nothing is built until you pick."
+    }
+   ]
+  },
+  {
+   "id": "R-GATE",
+   "section": "rv-look",
+   "title": "The staging access gate, signing in on your iPhone",
+   "area": "#267, staging",
+   "device": "phone",
+   "type": "look",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "changed": "New. The gate landed on `next` as 703bf89 to f5063ba. It is a launch blocker: staging, branch deploys and previews were open to anyone with the address, and the old \"Staging token\" prompt only ever protected the toolbar.",
+     "summary": "After the gate's values are set (gate-key) and your address is on the allowlist (gate-allow), and staging has rebuilt, check on your iPhone and keep a screenshot of each. **Done when:**\n1. An anonymous visit (a private tab) is blocked and shows the sign-in page.\n2. The emailed link signs you in, and a second visit stays signed in.\n3. An address that is not on the list gets the same \"Check your email\" page and **no mail arrives**.\n4. No \"Staging token\" prompt exists anywhere, and cancelling or ignoring one is no longer a thing.\n5. The toolbar shows for you only. Have Jim sign in: he sees the site and no toolbar.\n6. The Square and PayPal sandbox webhooks still arrive (a sandbox payment records), and the Staging jobs workflow still runs.\n\nThe checkout lane also reports whether staging was indexed by search engines in the months it was public; every non-production page now says not to index.",
+     "look": [
+      {
+       "label": "Staging",
+       "url": "https://staging--north-foster-farm.netlify.app/"
+      }
+     ],
+     "recommendation": "Approve once all six hold."
     }
    ]
   }
@@ -4278,6 +4642,17 @@
     }
    },
    {
+    "name": "RESEND_SENDING_KEY_NAME",
+    "group": "resend",
+    "comment": "The sending key's name in Resend, which the send breaker uses to find the key. Not a secret.",
+    "secret": false,
+    "envs": {
+     "production": {
+      "field": "rs_key_name"
+     }
+    }
+   },
+   {
     "name": "RESEND_WEBHOOK_SECRET",
     "group": "resend",
     "comment": "Checks that webhook calls (unsubscribes) really come from Resend: the webhook's Signing Secret.",
@@ -4491,6 +4866,39 @@
     }
    },
    {
+    "name": "GATE_RESEND_KEY",
+    "group": "staging",
+    "comment": "The access gate's own Resend sending key, made for staging and never production's. Sends the sign-in link and nothing else. Rotated Dec 1 to Jan 1.",
+    "secret": true,
+    "envs": {
+     "staging": {
+      "field": "gate_key"
+     }
+    }
+   },
+   {
+    "name": "GATE_MAIL_FROM",
+    "group": "staging",
+    "comment": "The sender of the sign-in link, on a verified domain. Public: not a secret.",
+    "secret": false,
+    "envs": {
+     "staging": {
+      "field": "gate_from"
+     }
+    }
+   },
+   {
+    "name": "GATE_TOOLBAR_EMAIL",
+    "group": "staging",
+    "comment": "The one address whose gate session opens the staging toolbar (yours). Public: not a secret.",
+    "secret": false,
+    "envs": {
+     "staging": {
+      "field": "gate_toolbar"
+     }
+    }
+   },
+   {
     "name": "PICKUP_SCHEDULE_HOOK",
     "group": "local",
     "comment": "A staging build hook. bin/nff schedule set starts a deploy with it after setting the schedule.",
@@ -4578,6 +4986,8 @@
   "drill-all": "Retired 2026-10-18: the launch is fixed forward, with no rollback to the invoice checkout (James, #267).",
   "deploy_rollback": "Retired 2026-10-18: the launch is fixed forward, with no rollback to the invoice checkout (James, #267). (A field of a retired step.)",
   "drill_when": "Retired 2026-10-18: the launch is fixed forward, with no rollback to the invoice checkout (James, #267). (A field of a retired step.)",
-  "pre-drill": "Retired 2026-10-18: the launch is fixed forward, with no rollback to the invoice checkout (James, #267). (A section; its place goes to pre-maint.)"
+  "pre-drill": "Retired 2026-10-18: the launch is fixed forward, with no rollback to the invoice checkout (James, #267). (A section; its place goes to pre-maint.)",
+  "vendor-checks": "Retired 2026-10-18: its four questions moved. Axiom: ax-checks. Resend: rs-breaker-keys and the Pro step. Square and PayPal: post-launch QA (qa-sq-token, qa-pp-secret).",
+  "stg-reviewer": "Retired 2026-10-18: STAGING_REVIEWER_TOKEN is gone. Reviewers sign in through the staging access gate and see the site only, never the toolbar (gate-key, gate-allow, R-GATE)."
  }
 }
