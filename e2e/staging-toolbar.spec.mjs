@@ -1,5 +1,5 @@
 // The staging toolbar itself: on the staging branch deploy only, and
-// polite about a wrong token. docs/qa-launch.md, "Staging".
+// for the owner's gate session alone. docs/qa-launch.md, "Staging".
 
 import { expect, test } from "./support/order.mjs";
 
@@ -22,21 +22,37 @@ test.describe("staging toolbar", () => {
     expect(await page.locator("script[src*='staging']").count()).toBe(0);
   });
 
-  test("the Staging tab is on the page, and the endpoints want a token",
+  // The toolbar opens for the owner's gate session alone. The suite's
+  // machine cookie passes the gate but is not that session, so for it
+  // the page carries no toolbar and the staging API refuses.
+  test("the suite's machine gets no toolbar, and the API refuses",
     async ({ page, request, baseURL }) => {
       test.skip(!branch(baseURL), "only on a branch deploy");
       await page.goto("/");
-      await expect(page.locator("#staging")).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      await expect(page.locator("#staging")).toBeHidden();
       expect((await request.get("/api/staging/info")).status()).toBe(401);
+      expect((await request.get("/api/staging/outbox")).status()).toBe(401);
     });
 
   // A page after the reset is the page a stranger gets: nothing the
   // site keeps in the browser survives, and the farm news forms,
   // hidden for someone on the list, are back (#267).
+  //
+  // The button is the owner's: this runs only with the owner's gate
+  // session cookie in E2E_GATE_SESSION (the nff_gate cookie's value,
+  // from a browser signed in as GATE_TOOLBAR_EMAIL).
   test("Reset to a first visit leaves a fresh browser",
     async ({ page, context, baseURL }) => {
       test.skip(!branch(baseURL), "only on a branch deploy");
+      test.skip(!process.env.E2E_GATE_SESSION,
+        "needs the toolbar owner's gate session");
       await context.addCookies([
+        {
+          name: "nff_gate", value: process.env.E2E_GATE_SESSION,
+          domain: new URL(baseURL).hostname, path: "/",
+          httpOnly: true, secure: true, sameSite: "Lax",
+        },
         { name: "nff_signed_in", value: "1", url: baseURL },
       ]);
       await page.goto("/about/");
@@ -67,26 +83,5 @@ test.describe("staging toolbar", () => {
 
       expect(kept).toEqual({ local: [], session: false, cookie: "" });
       await expect(page.locator("footer [data-news-block]")).toBeVisible();
-    });
-
-  test("a wrong token is asked for once, not in a loop",
-    async ({ page, baseURL }) => {
-      test.skip(!branch(baseURL), "only on a branch deploy");
-      let prompts = 0;
-
-      // Replaces the fixture's handler: answer every prompt wrongly.
-      page.removeAllListeners("dialog");
-      page.on("dialog", async (dialog) => {
-        prompts += 1;
-        if (prompts > 20) {
-          await dialog.dismiss();
-        } else {
-          await dialog.accept("wrong-token");
-        }
-      });
-      await page.goto("/");
-      await page.locator("[data-staging-open]").click().catch(() => {});
-      await page.waitForTimeout(6_000);
-      expect(prompts, "prompts in six seconds").toBeLessThanOrEqual(2);
     });
 });

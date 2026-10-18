@@ -22,6 +22,12 @@ A deploy preview takes no payments (3a82919: the order page says so and
 specs that never reach the card form apply; OP-11 and the payment cases
 wait for staging.
 
+Staging sits behind the access gate (`docs/staging.md`). The suite
+passes it with `E2E_STAGING_TOKEN` from `.env.e2e-staging`, sent as the
+`nff_gate_machine` cookie for the deploy's host; without it every page
+answers 401 and the suite can prove nothing, except `gate.spec.mjs`,
+which runs as a stranger.
+
 The suite runs against the staging branch deploy and refuses any host
 without `--` in its name, so production is out of reach. Each test opens
 a fresh browser (empty `localStorage`) with the staging toolbar hidden,
@@ -1379,7 +1385,8 @@ Manual: automatable; not yet written.
 
 ### AO-09 The morning report and the manifest
 
-Manual: needs the toolbar's token (or `STAGING_TOKEN`) for the jobs.
+Manual: needs the toolbar (James's gate session) or `STAGING_TOKEN` for the
+jobs.
 
 - **Scenario:** The daily reports the farm lives by.
 - **Setup:** A paid on-farm order for tomorrow.
@@ -2503,29 +2510,32 @@ on staging 2026-09-25 (c1b1ff6). The wording is a draft for James.
 
 ## Staging
 
-### ST-01 The toolbar and its token
+### ST-01 The toolbar is the owner's alone
 
-Automated: `staging-toolbar.spec.mjs`, "the Staging tab is on the page,
-and the endpoints want a token".
+Automated: `staging-toolbar.spec.mjs`, "the suite's machine gets no
+toolbar, and the API refuses".
 
-- **Scenario:** The toolbar is on staging, and its endpoints are gated.
-- **Setup:** Toolbar not hidden.
+- **Scenario:** The toolbar opens for the gate session of
+  `GATE_TOOLBAR_EMAIL` and nobody else; the suite's machine cookie
+  passes the gate but is not that session.
+- **Setup:** Toolbar not hidden; the machine cookie only.
 - **Test:**
-  1. Open `/`; `GET /api/staging/info` without a token.
-- **Assert:** `#staging` visible; 401.
+  1. Open `/`; `GET /api/staging/info` and `/api/staging/outbox`.
+- **Assert:** `#staging` stays hidden; both 401.
 - **Teardown:** None.
 
-### ST-02 A wrong token is asked for once
+### ST-02 Reset to a first visit
 
-Automated: `staging-toolbar.spec.mjs`, "a wrong token is asked for once,
-not in a loop". Passed on staging 2026-09-25, since b139b44 (finding D5).
+Automated: `staging-toolbar.spec.mjs`, "Reset to a first visit leaves a
+fresh browser". Runs only with the owner's `nff_gate` cookie value in
+`E2E_GATE_SESSION`; otherwise it skips.
 
-- **Scenario:** A reviewer who types the wrong token can still use the
-  page.
-- **Setup:** Toolbar shown; every prompt answered with a wrong token.
+- **Scenario:** The toolbar's reset leaves the browser as a stranger's.
+- **Setup:** The owner's gate session; seeded storage and cookies.
 - **Test:**
-  1. Open `/`; open the panel; wait six seconds.
-- **Assert:** Two prompts at most.
+  1. Open the panel; press Reset to a first visit.
+- **Assert:** No site storage or cookie survives; the news forms are
+  back.
 - **Teardown:** None.
 
 ### ST-03 Production carries no staging code
