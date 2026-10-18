@@ -2019,11 +2019,17 @@ export class OrderForm {
 
     qs(node, "[data-out='message']").textContent = message;
     qs(node, "[data-out='summary']").textContent = text;
-    mail.href = `mailto:${this.contact.email}?subject=` +
-      `${encodeURIComponent("Order from the website")}&body=` +
-      `${encodeURIComponent(text)}`;
+    // The farm's own address and number, from the page's data; only a
+    // plain address or number becomes a link.
+    if (/^[^\s@?&#:/]+@[^\s@?&#:/]+$/.test(this.contact.email)) {
+      mail.href = `mailto:${this.contact.email}?subject=` +
+        `${encodeURIComponent("Order from the website")}&body=` +
+        `${encodeURIComponent(text)}`;
+    }
     mail.textContent = this.contact.email;
-    phone.href = `tel:${this.contact.phone.plain}`;
+    if (/^\+?\d+$/.test(this.contact.phone.plain)) {
+      phone.href = `tel:${this.contact.phone.plain}`;
+    }
     phone.textContent = this.contact.phone.display;
 
     copy.addEventListener("click", async () => {

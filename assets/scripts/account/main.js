@@ -203,9 +203,12 @@ class Account {
     profile.addEventListener("change", (e) => {
       if (e.target.dataset.field !== "avatar") return;
 
-      qs(document, "#account-avatar use").setAttribute(
-        "href", `#avatar-${e.target.value}`
-      );
+      // The radio's value names a sprite; nothing else is a fragment.
+      if (/^[\w-]+$/.test(e.target.value)) {
+        qs(document, "#account-avatar use").setAttribute(
+          "href", `#avatar-${e.target.value}`
+        );
+      }
       showChick(document, e.target.value);
       this.saving(profile, "avatar", () => this.saveAvatar(e.target.value));
     });

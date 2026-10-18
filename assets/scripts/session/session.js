@@ -67,7 +67,7 @@ export const showChick = (root, avatar) => {
   for (const chick of root.querySelectorAll("[data-account-chick]")) {
     // An <svg> has no `hidden` property; the attribute works.
     chick.toggleAttribute("hidden", !avatar);
-    if (avatar) {
+    if (avatar && /^[\w-]+$/.test(avatar)) {
       chick.querySelector("use").setAttribute("href", `#avatar-${avatar}`);
     }
   }
