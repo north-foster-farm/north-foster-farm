@@ -658,6 +658,35 @@ test.describe("map (#138, #214)", () => {
 
   // A name in the directory opens the same card. Markets and pop-ups
   // have no shop button, and their links are labeled.
+  // The pin's town is outlined while its card is open (#214).
+  test("the selected pin's town is outlined", async ({ page }) => {
+    await page.goto(HOME.path);
+    await places(page);
+
+    const town = map(page).locator(".map-town");
+
+    await expect(town).toBeHidden();
+    await map(page).locator("[data-map-pin='1']").scrollIntoViewIfNeeded();
+    await map(page).locator("[data-map-pin='1']").focus();
+    await page.keyboard.press("Enter");
+    await expect(town).toBeVisible();
+    expect(await town.getAttribute("d")).toBeTruthy();
+    await page.keyboard.press("Escape");
+    await expect(town).toBeHidden();
+
+    // Every pin stands in a town of the map.
+    const count = await map(page).locator("[data-map-pin]").count();
+
+    for (let n = 1; n <= count; n += 1) {
+      const pin = map(page).locator(`[data-map-pin='${n}']`);
+
+      await pin.focus();
+      await page.keyboard.press("Enter");
+      await expect(town, `pin ${n}`).toBeVisible();
+      await page.keyboard.press("Escape");
+    }
+  });
+
   test("a name in the directory opens the same card", async ({ page }) => {
     await page.goto(HOME.path);
     await places(page);

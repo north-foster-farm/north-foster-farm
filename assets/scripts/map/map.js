@@ -16,6 +16,8 @@
 // - A pin, or its name in the list beside the map, opens a card with
 //   the details. The farm and the Foster market stand apart at the
 //   whole map. A place, or a line on its card, past its date goes.
+// - The selected pin's town is outlined in blue, as Delivery outlines
+//   the ZIP picked.
 // - The top bar's link to a pop-up, #place-…, opens its card.
 //
 // Both: it zooms with its buttons, a pinch (a trackpad's too), a
@@ -109,6 +111,7 @@ const wire = (map) => {
   const pins = [...map.querySelectorAll("[data-map-pin]")];
   const pinOf = (n) => map.querySelector(`[data-map-pin="${n}"]`);
   const picks = [...map.querySelectorAll("[data-map-pick]")];
+  const towns = [...map.querySelectorAll("[data-map-town]")];
   const form = map.querySelector("[data-zip-check]");
   const full = svg.viewBox.baseVal;
   const W = full.width;
@@ -394,11 +397,36 @@ const wire = (map) => {
     }
   };
 
+  // The ZIP shape a pin stands in, found once, by its tip.
+  const shapes = [...svg.querySelectorAll(".map-zip")];
+  const homes = new Map();
+  const homeOf = (pin) => {
+    if (!homes.has(pin)) {
+      const at = new DOMPoint(Number(pin.dataset.x), Number(pin.dataset.y));
+
+      homes.set(pin, shapes.find((s) => s.isPointInFill(at)) || null);
+    }
+
+    return homes.get(pin);
+  };
+
+  const outline = (home) => {
+    for (const t of towns) {
+      if (home) {
+        t.setAttribute("d", home.getAttribute("d"));
+        t.removeAttribute("hidden");
+      } else {
+        t.setAttribute("hidden", "");
+      }
+    }
+  };
+
   function close() {
     if (!open) return;
     open.hidden = true;
     open = null;
     pressed(null);
+    outline(null);
     // The selected pin painted last; back in its place.
     for (const pin of pins) pin.parentNode.append(pin);
   }
@@ -417,6 +445,7 @@ const wire = (map) => {
     open = card;
     card.hidden = false;
     pressed(String(n));
+    outline(homeOf(pin));
     // SVG paints in source order: the selected pin goes on top.
     pin.parentNode.append(pin);
     if (centreOn && zoom() > 1.01) {

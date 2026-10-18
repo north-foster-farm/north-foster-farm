@@ -188,6 +188,11 @@
              casing, and the pin dropped on it. */}}
         <path class="map-pick-casing" data-map-pick hidden/>
         <path class="map-pick" data-map-pick hidden/>
+        {{ if $layers }}
+          {{/* Places: the town of the pin selected, outlined. */}}
+          <path class="map-town-casing" data-map-town hidden/>
+          <path class="map-town" data-map-town hidden/>
+        {{ end }}
         <g class="map-drop" data-map-drop hidden>
           <g data-map-drop-at>
             <g class="map-drop-fall">
