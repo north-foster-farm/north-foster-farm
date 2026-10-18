@@ -422,7 +422,9 @@ const dailyReport = async (stores, {
         event: "mail.failed", template: key, error: String(error.message),
       });
 
-      return null;
+      // The run's error, so the heartbeat and the jobs.errors alert
+      // see a report that never went out.
+      throw error;
     }
     if (onSent) await onSent(items);
   }
