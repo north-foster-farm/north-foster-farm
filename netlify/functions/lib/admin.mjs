@@ -7,7 +7,8 @@ import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import { adjust, getCounts, setCount } from "./stock.mjs";
 import { normalizeEmail, validEmail } from "./auth.mjs";
 import { company } from "./company.mjs";
-import { devOrAdminEmails, sendMail } from "./mail.mjs";
+import { DELIVERING } from "./health.mjs";
+import { devEmails, devOrAdminEmails, sendMail } from "./mail.mjs";
 import * as newsApi from "./news.mjs";
 import { recordRefund, sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
@@ -20,7 +21,8 @@ import {
 import { mailLinks } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import {
-  addressDecision, orderCancelled, sessionsEnded,
+  addressDecision, devMailTest as devMailTestMessage, orderCancelled,
+  sessionsEnded,
 } from "./templates.mjs";
 
 export { forgetCustomer } from "./forget.mjs";
@@ -489,6 +491,47 @@ export const endAllSessions = async (stores, {
   }
 
   return { count: keys.length, ended: true, notified: to.length > 0 };
+};
+
+// `bin/nff mail test-dev`: one real message to DEV_NOTIFICATIONS_EMAIL
+// alone (no fallback to the farm's address, which would hide a dev@
+// that does not work), sent the way the deploy-failed, alert and
+// rotation notices are. Names and counts only, never an address.
+// -> { variable, count, driver, delivered, error }
+export const devMailTest = async (stores, {
+  env = process.env, mail = sendMail, now = new Date(),
+} = {}) => {
+  const to = devEmails(env);
+  const driver = env.MAIL_DRIVER || "log";
+
+  if (!to.length) {
+    return {
+      variable: "DEV_NOTIFICATIONS_EMAIL", count: 0, driver,
+      delivered: false, error: "not set",
+    };
+  }
+
+  try {
+    await mail({
+      to,
+      idempotencyKey: `dev-mail-test-${now.getTime()}`,
+      ...devMailTestMessage({
+        at: now, context: env.SITE_CONTEXT || env.CONTEXT || "",
+      }),
+    }, { env, stores });
+  } catch (error) {
+    return {
+      variable: "DEV_NOTIFICATIONS_EMAIL", count: to.length, driver,
+      delivered: false, error: error.status
+        ? `the mail service answered ${error.status}`
+        : "the send was refused",
+    };
+  }
+
+  return {
+    variable: "DEV_NOTIFICATIONS_EMAIL", count: to.length, driver,
+    delivered: DELIVERING.includes(driver), error: null,
+  };
 };
 
 export const stockList = (stores) => getCounts(stores);

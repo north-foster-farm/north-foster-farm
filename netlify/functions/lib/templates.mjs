@@ -1252,6 +1252,26 @@ export const sessionsEnded = ({ count, by, at, context } = {}) => {
   };
 };
 
+// `bin/nff mail test-dev`: one message through the path the developer's
+// notices take, to prove the address is live.
+export const devMailTest = ({ at, context } = {}) => {
+  const title = `Developer notices test${
+    context && context !== "production" ? ` (${context})` : ""}`;
+  const blocks = [
+    p("This is a test of the address that receives deploy-failed, " +
+      "alert and rotation notices. Nothing is wrong. If you can read " +
+      "this, those notices will reach you."),
+    table(["Field", "Value"], [
+      ["Context", context || "unknown"],
+      ["At", when(at ? at.toISOString() : null)],
+    ]),
+  ];
+
+  return {
+    subject: title, ...render(title, blocks, undefined, { tag: "Test" }),
+  };
+};
+
 // The yearly secret rotation, to the developer: Dec 1, then weekly
 // while the rotation log shows something not yet rotated this window.
 // `final` is the loud one in the last week of December.

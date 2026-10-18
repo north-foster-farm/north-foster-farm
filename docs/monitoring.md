@@ -142,6 +142,30 @@ sees, so a dead page and a silent failure both reach the phone.
    look for a word that is not there): the app pushes "down", then
    "up" once it is put back.
 
+## Proving the developer address works
+
+`bin/nff mail test-dev [--production|--staging]` sends one real
+message to `DEV_NOTIFICATIONS_EMAIL` (dev@), through the same sender
+the deploy-failed, alert and rotation notices use, and says whether it
+went. Run it once when the address is created, and again after any
+change to it or to the mail setup. It never falls back to
+`ADMIN_EMAILS`: a dev@ that does not work must not hide behind the
+farm's inbox.
+
+```
+Developer mail test on production (MAIL_DRIVER resend).
+  Sent to DEV_NOTIFICATIONS_EMAIL (1 address). Check the inbox.
+```
+
+It prints variable names and a count, never an address. It exits 1,
+with the reason, when the variable is unset, when the mail service
+refuses the send (the line gives its HTTP status), or when
+`MAIL_DRIVER` is not `resend` or `outbox`, which only write the
+message where nobody reads it. "Sent" means the mail service accepted
+it. Open dev@ in Fastmail and confirm it arrived. With `--staging` the
+message goes to the staging outbox (`/api/staging/outbox`), not to a
+mailbox.
+
 ## Proving an alert reaches the phone
 
 `bin/nff alert test [--production|--staging]` raises one real alert,

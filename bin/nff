@@ -136,6 +136,12 @@ const USAGE = `Usage:
                                       limit: the farm email and the
                                       phone push (down, then up). Says
                                       what it reached
+  bin/nff mail test-dev [--production|--staging]
+                                      one real message to
+                                      DEV_NOTIFICATIONS_EMAIL, the way
+                                      deploy-failed, alert and rotation
+                                      notices go. Says sent or failed,
+                                      never an address
   bin/nff errors show <file|-> [--sha <commit>] [--deploy <id>]
                                       a browser error report's stack
                                       (its log line, or a bare stack
@@ -896,6 +902,24 @@ const run = async () => {
         "minute."
       : "  The phone will not hear of this one.");
     if (!r.delivered || !r.failed || !r.rearmed) process.exitCode = 1;
+
+    return undefined;
+  }
+  case "mail test-dev": {
+    const r = await admin.devMailTest(stores);
+    const where = process.env.SITE_CONTEXT || "this context";
+
+    out(`Developer mail test on ${where} (MAIL_DRIVER ${r.driver}).`);
+    if (r.delivered) {
+      out(`  Sent to ${r.variable} (${r.count} address${
+        r.count === 1 ? "" : "es"}). Check the inbox.`);
+    } else if (!r.error) {
+      out(`  Logged only, not sent: MAIL_DRIVER ${r.driver} writes the ` +
+        "message where nobody reads it (resend or outbox delivers).");
+    } else {
+      out(`  FAILED: ${r.variable} ${r.error}.`);
+    }
+    if (!r.delivered) process.exitCode = 1;
 
     return undefined;
   }
