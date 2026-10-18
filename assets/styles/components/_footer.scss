@@ -1,29 +1,23 @@
-// The footer (#226): the farm's links and ways to reach it beside the
-// APPPA mark, the news sign-up in a second column from lg up (under
-// them below lg), and the copyright on a thin line under both. Set
-// flush left, so each group has an edge.
+// The footer (#226, R-FT): one centered column at every width, the
+// news sign-up first, then the APPPA mark, the farm's links, how to
+// reach it, and the copyright. Rows wrap, centered, as the width
+// shrinks; nothing changes layout at a breakpoint.
 .site-footer {
   padding-block: 2.25rem 1.25rem;
   color: $navbar-light-color;
+  text-align: center;
   background-color: $footer-bg;
 
-  .footer-farm {
-    display: flex;
-    gap: 1.25rem;
-    align-items: flex-start;
+  .footer-news {
+    margin-bottom: 2rem;
   }
 
-  // A narrower gap keeps the links on one line beside the mark at xl.
   .dot-list {
     --dot-gap: 1.25rem;
-
-    justify-content: flex-start;
   }
 
   .footer-copyright {
-    padding-top: 1rem;
-    margin-top: 2rem;
-    border-top: 1px solid var(--bs-border-color);
+    margin-top: 1rem;
   }
 
   a {
@@ -41,7 +35,9 @@
   }
 
   .apppa-logo {
-    flex: none;
+    display: block;
+    width: fit-content;
+    margin: 0 auto 1.75rem;
 
     svg {
       display: block;

@@ -54,18 +54,11 @@
   text-wrap: balance;
 }
 
-// In the footer it sits flush left under its question. "Yes" is
-// short, so the form narrows to keep the field near its old width
-// (#223).
-.site-footer {
-  .news-signup {
-    max-width: 21rem;
-    margin: 0;
-  }
-
-  .news-signup-heading {
-    margin-inline: 0;
-  }
+// In the footer it is centered under its question. "Yes" is short,
+// so the form narrows to keep the field near its old width (#223).
+.site-footer .news-signup {
+  max-width: 21rem;
+  margin-inline: auto;
 }
 
 // On the news page, at the seam between the newest post and the
