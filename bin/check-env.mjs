@@ -19,7 +19,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  buildEnvironment, isOptional, missingAtBuild, stagingOnlyIn,
+  buildEnvironment, isOptional, missingAtBuild, retiredIn, stagingOnlyIn,
 } from "./env/netlify.mjs";
 import { ENVIRONMENTS, readSample, sampleFile } from "./env/sample.mjs";
 
@@ -55,6 +55,17 @@ for (const error of sample.errors) {
   console.error(`Env check: warning, ${file}: ${error}`);
 }
 
+const retired = retiredIn([...sample.keys, ...sample.local,
+  ...Object.keys(process.env)]);
+
+if (retired.length) {
+  for (const name of retired) {
+    console.error(`  ${name} is retired: unset it, and drop it from the ` +
+      "sample. Use FARM_, DEV_ and ESCALATED_NOTIFICATIONS_EMAIL.");
+  }
+  console.error("Env check: a retired key is still set.");
+  process.exit(1);
+}
 if (staged.length) {
   for (const name of staged) {
     console.error(`  ${name} is staging only: unset it on production.`);

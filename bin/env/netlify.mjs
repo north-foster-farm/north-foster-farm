@@ -34,6 +34,17 @@ export const STAGING_ONLY = [
   "STAGING_TOKEN", "GATE_RESEND_KEY", "GATE_MAIL_FROM", "GATE_TOOLBAR_EMAIL",
 ];
 
+// Names that no longer exist anywhere. Their presence in a sample, an
+// env file or Netlify is the failure, whatever the value: ADMIN_EMAILS
+// became FARM_, DEV_ and ESCALATED_NOTIFICATIONS_EMAIL.
+export const RETIRED = ["ADMIN_EMAILS"];
+
+export const retiredIn = (names) => {
+  const held = new Set(names);
+
+  return RETIRED.filter((n) => held.has(n));
+};
+
 export const stagingOnlyIn = (env, names) => {
   const held = new Set(names);
 
@@ -366,6 +377,19 @@ export const checkEnv = ({ env, sample, local, remote, file }) => {
     }
   };
 
+  const retired = (where, names) => {
+    for (const name of retiredIn(names)) {
+      problems.push(`${name}: is retired, yet in ${where}. Use ${
+        "FARM_, DEV_ and ESCALATED_NOTIFICATIONS_EMAIL"}.`);
+    }
+  };
+
+  retired("the sample", inSample);
+  retired(file, local.values.keys());
+  retired(`Netlify's ${context}`, remote.keys());
+  for (const name of retiredIn(remote.keys())) {
+    if (remote.get(name).own) unsetOwn(name);
+  }
   forbidden("the sample", inSample);
   forbidden(file, local.values.keys());
   forbidden(`Netlify's ${context}`, remote.keys());
@@ -413,7 +437,7 @@ export const checkEnv = ({ env, sample, local, remote, file }) => {
 
   for (const name of local.values.keys()) {
     if (!inSample.has(name) && !ignored.has(name)
-      && !stagingOnlyIn(env, [name]).length) {
+      && !stagingOnlyIn(env, [name]).length && !retiredIn([name]).length) {
       problems.push(`${name}: in ${file}, not in the sample.`);
     }
   }
@@ -421,7 +445,7 @@ export const checkEnv = ({ env, sample, local, remote, file }) => {
   for (const [name, there] of remote) {
     if (inSample.has(name) && !sample.local.includes(name)) continue;
     if (ignored.has(name) || netlifyOwn(name)) continue;
-    if (stagingOnlyIn(env, [name]).length) continue;
+    if (stagingOnlyIn(env, [name]).length || retiredIn([name]).length) continue;
 
     problems.push(sample.local.includes(name)
       ? `${name}: local only, yet on Netlify's ${context}.`

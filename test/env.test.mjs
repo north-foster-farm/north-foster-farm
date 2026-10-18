@@ -500,6 +500,63 @@ describe("the build's env check", () => {
       assert.equal(run({ ...full, STAGING_TOKEN: "x" }, "staging").code, 0);
     });
 
+  it("fails the build while ADMIN_EMAILS is set", () => {
+    const script = join(here, "../bin/check-env.mjs");
+    const fixture = join(here, "fixtures/.env.staging.sample");
+    const full = Object.fromEntries(filled().values);
+    const run = (env) => spawnSync(process.execPath,
+      [script, "production", fixture],
+      { env: { PATH: process.env.PATH, ...env }, encoding: "utf8" });
+
+    assert.equal(run(full).status, 0);
+
+    const failed = run({ ...full, ADMIN_EMAILS: "x@x.com" });
+
+    assert.equal(failed.status, 1);
+    assert.match(`${failed.stdout}${failed.stderr}`,
+      /ADMIN_EMAILS is retired/);
+  });
+
+  it("holds ADMIN_EMAILS out of every sample, and requires the three", () => {
+    for (const which of ["", ".development", ".staging", ".production"]) {
+      const text = readFileSync(join(here, `../.env${which}.sample`),
+        "utf8");
+      const names = parseSample(text).entries.map((e) => e.name);
+
+      assert.ok(!names.includes("ADMIN_EMAILS"), which);
+      for (const name of ["FARM_NOTIFICATIONS_EMAIL",
+        "DEV_NOTIFICATIONS_EMAIL", "ESCALATED_NOTIFICATIONS_EMAIL"]) {
+        assert.ok(names.includes(name), `${which}: ${name}`);
+      }
+    }
+    for (const which of ["staging", "production"]) {
+      const sample = readSample(readFileSync(
+        join(here, `../.env.${which}.sample`), "utf8"), which);
+
+      for (const name of ["FARM_NOTIFICATIONS_EMAIL",
+        "DEV_NOTIFICATIONS_EMAIL", "ESCALATED_NOTIFICATIONS_EMAIL"]) {
+        assert.ok(!sample.optional.includes(name), `${which}: ${name}`);
+      }
+    }
+  });
+
+  it("reports ADMIN_EMAILS in a file or on Netlify as retired", async () => {
+    const cli = netlify([{ key: "ADMIN_EMAILS", "is_secret": false,
+      values: [{ context: "production", value: "x@x.com" }] }]);
+    const local = filled();
+
+    local.values.set("ADMIN_EMAILS", "x@x.com");
+
+    const { problems } = checkEnv({
+      env: "production", sample: staging(), local,
+      remote: remoteFor(await remoteVars(cli.run, "SITE"), "production"),
+      file: FILE,
+    });
+
+    assert.equal(problems.filter((p) => /ADMIN_EMAILS: is retired/.test(p))
+      .length, 2);
+  });
+
   it("keeps staging keys out of production's tracked sample", () => {
     const text = readFileSync(join(here, "../.env.production.sample"),
       "utf8");

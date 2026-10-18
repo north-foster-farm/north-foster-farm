@@ -1007,7 +1007,7 @@ const run = async () => {
 
     return out(`Ended ${r.count}. ${r.notified
       ? "The developer was emailed."
-      : "No DEV_NOTIFICATIONS_EMAIL or ADMIN_EMAILS, so no email."}`);
+      : "No DEV_NOTIFICATIONS_EMAIL, so no email."}`);
   }
   case "errors show":
     return errorsShow(rest[0]);
