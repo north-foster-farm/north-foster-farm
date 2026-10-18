@@ -25,7 +25,7 @@ const MINUTE = 60_000;
 export const PRODUCTION_SETTINGS = [
   ["MAIL_DRIVER", "resend"],
   ["SQUARE_ENV", "production"],
-  ["PAYPAL_ENV", "production"],
+  ["PAYPAL_ENV", "live"],
 ];
 
 export const JOBS_STALE_AFTER = 45 * MINUTE;

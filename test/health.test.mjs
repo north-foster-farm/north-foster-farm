@@ -335,8 +335,28 @@ describe("GET /api/health", () => {
       assert.equal(res.status, 503);
       assert.deepEqual(s.problems, [
         "MAIL_DRIVER is log, not resend",
-        "PAYPAL_ENV is sandbox, not production",
+        "PAYPAL_ENV is sandbox, not live",
       ]);
+    });
+
+  it("is 200 when production is set the way paypal.mjs reads it",
+    async () => {
+      const stores = testStores();
+
+      await recordRun(stores, run(later(-10)), later(-10));
+      await noteMail(stores, true, later(-3));
+      const res = await handle(new Request("https://x/api/health"), {
+        stores,
+        now,
+        env: {
+          SITE_CONTEXT: "production", MAIL_DRIVER: "resend",
+          SQUARE_ENV: "production", PAYPAL_ENV: "live",
+        },
+      });
+      const s = await res.json();
+
+      assert.equal(res.status, 200, JSON.stringify(s));
+      assert.deepEqual(s.problems, []);
     });
 
   it("is 200 with the picture when the run is fresh and mail is fine",
