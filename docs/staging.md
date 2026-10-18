@@ -128,11 +128,13 @@ commit once it has been reviewed here. Neither ever takes a merge
 commit or a rebase-merge: promotion moves a branch to a SHA already
 checked, so the commit that ships is the commit that was tested.
 
-Branch protection on `staging` and `main` requires `lint-and-test`
-and applies to admins, so a push to a commit with no passing check is
-refused. It does not require the branch to be up to date, which a
-fast-forward already is. `next` is left open for the lanes to push
-to.
+Two rulesets, with no bypass actor, enforce it (`docs/security.md`).
+All three branches take fast-forwards only: linear history, no force
+push, no deletion. `staging` and `main` also require `lint-and-test`,
+`supply-chain` and `codeql`, so a push to a commit with no passing
+check is refused. `next` requires no check, so the lanes can push to
+it. `bin/nff promote staging|main` makes the two promotions and
+refuses anything that is not a fast-forward of a commit that passed.
 
 With branch deploys allowed for it on Netlify, `staging` has the
 stable address `staging--north-foster-farm.netlify.app` (the
@@ -164,8 +166,8 @@ to run late or twice, but a day with no run between 18:00 and midnight
 gets no delivery reminder and no manifest; start one from the
 workflow's Run workflow button when that matters. It needs the repository
 secret `STAGING_TOKEN`, the same value as on Netlify. The repository
-and its Actions logs are public, so the step writes the response to a
-file and prints only the HTTP status and counts
+and its Actions logs are public for good, so the step writes the
+response to a file and prints only the HTTP status and counts
 (`bin/staging-jobs-summary.mjs`), never the report, which can name
 orders and customers. The toolbar's Jobs buttons still run them on
 demand.
