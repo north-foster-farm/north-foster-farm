@@ -24,14 +24,21 @@
         <button type="button" data-staging-hide title="Hide until the next page load" aria-label="Hide">×</button>
       </header>
       <div class="staging-body">
-        <h2>Emails</h2>
-        <p>
-          <button type="button" class="staging-action" data-staging-library-open>Email library</button>
-          <span class="staging-muted" data-staging-library-count></span>
-        </p>
-        <h2>Signatures</h2>
-        <p class="staging-muted" data-staging-signatures-note>Loading…</p>
-        <ol class="staging-signatures" data-staging-signatures></ol>
+        {{/* Each tool names the area the key in use must open
+          (STAGING_REVIEWER_TOKEN opens fewer; see staging.mjs KEYS). */}}
+        <div data-staging-scope="emails">
+          <h2>Emails</h2>
+          <p>
+            <button type="button" class="staging-action" data-staging-library-open>Email library</button>
+            <span class="staging-muted" data-staging-library-count></span>
+          </p>
+        </div>
+        <div data-staging-scope="signatures">
+          <h2>Signatures</h2>
+          <p class="staging-muted" data-staging-signatures-note>Loading…</p>
+          <ol class="staging-signatures" data-staging-signatures></ol>
+        </div>
+        <div data-staging-scope="inbox">
         <h2>Inbox</h2>
         <p class="staging-muted" data-staging-empty>Nothing yet. Every email the site would send lands here instead.</p>
         <ol class="staging-list" data-staging-list></ol>
@@ -39,6 +46,8 @@
           <button type="button" class="staging-action" data-staging-refresh>Refresh</button>
           <button type="button" class="staging-action" data-staging-clear>Clear</button>
         </p>
+        </div>
+        <div data-staging-scope="jobs">
         <h2>Jobs</h2>
         <p>
           <button type="button" class="staging-action" data-staging-run="">Run now</button>
@@ -46,6 +55,7 @@
           <button type="button" class="staging-action" data-staging-run="18:00">As 18:00 today</button>
         </p>
         <label><input type="checkbox" data-staging-reset> Send today's reports again</label>
+        </div>
         <h2>Cart</h2>
         <p>
           <button type="button" class="staging-action" data-staging-forget>Reset to a first visit</button>

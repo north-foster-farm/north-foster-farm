@@ -85,6 +85,36 @@ const sameToken = (given, expected) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 
+// The keys the API accepts, each by the name of the variable that
+// holds it, and the areas each opens. The reviewer's key is James's to
+// revoke without touching his own. It opens no email library, whose
+// emails carry sign-in links, no outbox, which holds customers' mail,
+// and no jobs run, which can send and close orders: reviewers look at
+// the site and the signatures. Every new area is listed in
+// docs/secrets.md, "What the staging token unlocks".
+export const KEYS = {
+  STAGING_TOKEN: ["info", "inbox", "jobs", "emails", "signatures",
+    "throw"],
+  STAGING_REVIEWER_TOKEN: ["info", "signatures"],
+};
+
+// The name of the key a given token is, or null. The owner's first,
+// and a key that isn't set matches nothing, not even an empty guess.
+const keyOf = (given, env) => Object.keys(KEYS)
+  .find((name) => env[name] && sameToken(given, env[name])) || null;
+
+// Which area of the API a request is in.
+const areaOf = (method, path) => {
+  if (path === "/api/staging/info") return "info";
+  if (path.startsWith("/api/staging/outbox")) return "inbox";
+  if (path.startsWith("/api/staging/jobs")) return "jobs";
+  if (path.startsWith("/api/staging/emails")) return "emails";
+  if (path.startsWith("/api/staging/signatures")) return "signatures";
+  if (method === "POST" && path === "/api/staging/throw") return "throw";
+
+  return null;
+};
+
 const escape = (s) => String(s)
   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -148,20 +178,29 @@ export const handle = async (req, {
     return json(done.status, done.body);
   }
 
-  if (!staging(env) || !env.STAGING_TOKEN) {
+  if (!staging(env) || !(env.STAGING_TOKEN || env.STAGING_REVIEWER_TOKEN)) {
     return json(404, { error: "Not found." });
   }
-  if (!sameToken(tokenOf(req), env.STAGING_TOKEN)) {
-    return json(401, { error: "Staging token required." });
-  }
+
+  const key = keyOf(tokenOf(req), env);
+
+  if (!key) return json(401, { error: "Staging token required." });
 
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/$/, "");
+  const can = KEYS[key];
+
+  // Every use is logged by the key's name, never its value.
+  log.info({ event: "staging.key_used", key, method: req.method, path });
+  const area = areaOf(req.method, path);
+
+  if (area && !can.includes(area)) {
+    return json(403, { error: "This key does not open that.", key });
+  }
 
   // #256's proof that an uncaught exception is logged and alerted
   // (withLog, function.crashed). Never without a token.
   if (req.method === "POST" && path === "/api/staging/throw") {
-    if (!env.STAGING_TOKEN) return json(404, { error: "Not found." });
     log.info({ event: "staging.throw" });
 
     throw new Error("Staging proof: an exception no handler caught.");
@@ -169,6 +208,8 @@ export const handle = async (req, {
 
   if (req.method === "GET" && path === "/api/staging/info") {
     return json(200, {
+      key,
+      can,
       context: deployContext(env),
       mailDriver: env.MAIL_DRIVER || "log",
       squareEnv: env.SQUARE_ENV || "sandbox",

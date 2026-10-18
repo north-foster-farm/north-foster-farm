@@ -38,8 +38,9 @@ export const stagingOnlyIn = (env, names) => {
 };
 
 // May be absent: launch day unsets VENMO_HIDDEN to show the button,
-// and unset reads as shown (lib/paypal.mjs).
-export const OPTIONAL = new Set(["VENMO_HIDDEN"]);
+// and unset reads as shown (lib/paypal.mjs); STAGING_REVIEWER_TOKEN
+// exists only while a reviewer has access.
+export const OPTIONAL = new Set(["VENMO_HIDDEN", "STAGING_REVIEWER_TOKEN"]);
 
 // Set by Netlify or by netlify.toml, never by a sample.
 export const NETLIFY_PROVIDED = new Set([

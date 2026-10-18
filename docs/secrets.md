@@ -78,6 +78,7 @@ production's value is set on every context. *Local*: no Netlify copy.
 | `HEALTHCHECKS_JOBS_URL` | ping URL | own | per env | healthchecks.io |
 | `HEALTHCHECKS_ALERT_URL` | ping URL | own | per env | healthchecks.io |
 | `STAGING_TOKEN` | secret | off prod; GitHub | staging; GitHub | us |
+| `STAGING_REVIEWER_TOKEN` | secret | staging only | staging only | us |
 | `E2E_STAGING_TOKEN` | secret | off prod; GitHub | staging; GitHub | us |
 | `NETLIFY_AUTH_TOKEN` | secret | local | local, one per person | Netlify |
 | `PICKUP_SCHEDULE_HOOK` | build hook URL | local | local | Netlify |
@@ -140,7 +141,8 @@ sets every value; agents never see them.
   worthless. Copies are kept 30 days (D-189): the lock rule protects
   each object for 30 days and a lifecycle rule deletes older ones. `BACKUP_R2_SECRET_ACCESS_KEY` is a secret; the setup is
   in `docs/backup.md`.
-- **`STAGING_TOKEN`:** staging only.
+- **`STAGING_TOKEN`, `STAGING_REVIEWER_TOKEN`:** staging only; the
+  build fails if production holds either name.
 - **`E2E_STAGING_TOKEN`:** staging only; the end-to-end suite's own
   token (`docs/staging.md`). The suite holds it and no Netlify token.
 - **`NETLIFY_AUTH_TOKEN`:** one per person, since Netlify cannot
@@ -357,18 +359,51 @@ none is stored here.
 
 ## Staging
 
-**`STAGING_TOKEN`**: guards `/api/staging/*` (the outbox, with its
-magic links, and the jobs run) and lifts the order limit off
-production (`orders.mjs:73`, `staging.mjs:107`). Production holds the
-name with no value and answers 404 there anyway. Leaked, someone reads
-staging's outbox and signs in as a staging customer. Generate a new
-random value and set it in one sitting on Netlify (each context that
-holds it; after #251, staging alone), as the GitHub repository secret
-(`gh secret set STAGING_TOKEN`), and in `.env.staging`; redeploy
-staging; re-enter it in the staging toolbar. Until the GitHub secret
-matches, the Staging jobs workflow fails. Cadence: on the schedule,
-and when someone leaves the bullpen or a reviewer no longer needs
-staging.
+Two keys open the staging toolbar's back end, `/api/staging/*`:
+James's `STAGING_TOKEN` and a reviewer's `STAGING_REVIEWER_TOKEN`.
+Production holds neither, not even an empty name, and answers 404
+there anyway. The production build and `bin/nff env check` fail if
+the name appears in production's environment, the production sample
+or `.env.production`. Both keys expire Jan 31 and are rotated Dec 1
+to Jan 1.
+
+**`STAGING_TOKEN`** is James's, the only key with open-ended access
+to staging. Leaked, someone reads staging's outbox and signs in as a
+staging customer. Generate a new random value and set it in one
+sitting on Netlify (each context that holds it; after #251, staging
+alone), as the GitHub repository secret (`gh secret set
+STAGING_TOKEN`), and in `.env.staging`; redeploy staging; re-enter it
+in the staging toolbar. Until the GitHub secret matches, the Staging
+jobs workflow fails. Cadence: on the schedule, and when someone with
+access leaves.
+
+**`STAGING_REVIEWER_TOKEN`** is for people James asks to look at the
+site. He can revoke it without touching his own key: unset it on
+Netlify's staging context (`netlify env:unset STAGING_REVIEWER_TOKEN
+--context branch:staging`) and redeploy staging. The reviewer's
+access ends then, or on its expiry. It is absent whenever no
+reviewer has access. To issue one, generate a random value, set it on
+staging as a secret, put it in `.env.staging`, redeploy, and give it
+to the reviewer; the toolbar asks for it once. The toolbar's header
+names the key in use, and every request is logged by the key's
+variable name, never its value (`staging.key_used`).
+
+### What the staging token unlocks
+
+| Area | `STAGING_TOKEN` | Reviewer's |
+| --- | --- | --- |
+| Email library: every email built from sample data, with its sign-in link templates; approve and rewrite | yes | no |
+| Inbox: every email staging sent instead of sending, with real sign-in links and customers' addresses; clear it | yes | no |
+| Jobs run: the scheduled jobs now, or as of 8:00 or 18:00 today (the date preview), and send today's reports again | yes | no |
+| Signature previews: copy-ready email signatures | yes | yes |
+| Info: the deploy's context, mail driver and Square environment, and the key in use | yes | yes |
+| Crash test: throws on purpose to prove the alert | yes | no |
+| Order limit: lifted for a request carrying the key | yes | no |
+
+The cart reset acts on the browser alone and needs no key. Each new
+toolbar feature adds a row here and decides in `KEYS`
+(`netlify/functions/staging.mjs`) which key opens it; the reviewer's
+default is nothing.
 
 ## Netlify
 

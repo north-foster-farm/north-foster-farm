@@ -104,6 +104,10 @@ const tab = qs("[data-staging-open]");
 const list = qs("[data-staging-list]");
 const empty = qs("[data-staging-empty]");
 const out = qs("[data-staging-out]");
+// The areas the key in use opens, from /api/staging/info. A reviewer's
+// key opens fewer tools, and the rest are hidden, not left to fail.
+let can = [];
+const allowed = (area) => can.includes(area);
 const NO_TOKEN = "No token, or a wrong one. Refresh asks again.";
 let seen = "";
 let timer = null;
@@ -153,6 +157,7 @@ const renderInbox = (messages) => {
 
 const poll = async () => {
   clearTimeout(timer);
+  if (!allowed("inbox")) return;
 
   const { ok, status, data } = await api("/api/staging/outbox");
 
@@ -207,7 +212,6 @@ const signatures = mountSignatures({
 
 const boot = async () => {
   store("sessionStorage", HIDDEN, null);
-  library.fromHash();
 
   root.hidden = false;
   const info = await api("/api/staging/info");
@@ -215,17 +219,20 @@ const boot = async () => {
   let text = "endpoints refused: SITE_CONTEXT is not set for this deploy";
 
   if (info.ok) {
+    can = info.data.can || [];
     text = `${info.data.context} · mail ${info.data.mailDriver} · Square ${
-      info.data.squareEnv}`;
+      info.data.squareEnv} · key ${info.data.key}`;
   } else if (info.status === 401) {
-    text = "no token";
+    text = "no token: reload to enter it";
   }
   qs("[data-staging-info]").textContent = text;
-  show(!!store("localStorage", KEY.open));
-  if (info.ok) {
-    library.counted();
-    signatures.load();
+  for (const el of root.querySelectorAll("[data-staging-scope]")) {
+    el.hidden = !allowed(el.dataset.stagingScope);
   }
+  if (allowed("emails")) library.fromHash();
+  show(!!store("localStorage", KEY.open));
+  if (allowed("emails")) library.counted();
+  if (allowed("signatures")) signatures.load();
 };
 
 // Capture, so a click lets the handler under it ask for the token.

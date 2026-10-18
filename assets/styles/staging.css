@@ -134,9 +134,8 @@
   color: var(--stg-muted);
 }
 
-.staging-body h2 + h2,
-.staging-body p + h2,
-.staging-body ol + h2 {
+.staging-body > * + h2,
+.staging-body > * + [data-staging-scope] {
   margin-top: 1rem;
 }
 

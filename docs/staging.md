@@ -159,8 +159,12 @@ it: runs have come two to six hours apart (#164). The jobs are safe
 to run late or twice, but a day with no run between 18:00 and midnight
 gets no delivery reminder and no manifest; start one from the
 workflow's Run workflow button when that matters. It needs the repository
-secret `STAGING_TOKEN`, the same value as on Netlify. The toolbar's
-Jobs buttons still run them on demand.
+secret `STAGING_TOKEN`, the same value as on Netlify. The repository
+and its Actions logs are public, so the step writes the response to a
+file and prints only the HTTP status and counts
+(`bin/staging-jobs-summary.mjs`), never the report, which can name
+orders and customers. The toolbar's Jobs buttons still run them on
+demand.
 
 ## The order limit
 
@@ -208,3 +212,17 @@ and the PayPal sandbox webhook (`PAYMENT.CAPTURE.COMPLETED`,
 `https://staging--north-foster-farm.netlify.app/api/paypal/webhook`,
 with that subscription's id as `PAYPAL_WEBHOOK_ID` on the same
 contexts.
+
+## Who may use the toolbar
+
+`STAGING_TOKEN` is James's. A reviewer gets `STAGING_REVIEWER_TOKEN`
+instead, which James can revoke without touching his own. It opens the
+signature previews and the deploy's info and nothing else: no email
+library, no inbox (it holds sign-in links and customers' addresses),
+no jobs run. The toolbar hides what the key in use does not open and
+names the key in its header; each request is logged by key name
+(`staging.key_used`), never by value. Which key opens what is
+`KEYS` in `netlify/functions/staging.mjs`, and
+`docs/secrets.md` lists it ('What the staging token unlocks'): a new
+toolbar feature updates both. Like `STAGING_TOKEN`, the reviewer's key
+goes on the `branch:staging` context alone and is optional there.

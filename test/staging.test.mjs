@@ -10,7 +10,7 @@ import {
 } from "../netlify/functions/lib/review.mjs";
 import { mailLinks } from "../netlify/functions/lib/site.mjs";
 import { storeName, testStores } from "../netlify/functions/lib/store.mjs";
-import { handle, staging } from "../netlify/functions/staging.mjs";
+import { handle, KEYS, staging } from "../netlify/functions/staging.mjs";
 
 const message = {
   to: "pat@example.com", subject: "Sign in to North Foster Farm",
@@ -209,8 +209,95 @@ describe("the staging endpoints", () => {
     });
 
     assert.deepEqual(await res.json(), {
+      key: "STAGING_TOKEN", can: KEYS.STAGING_TOKEN,
       context: "deploy-preview", mailDriver: "outbox", squareEnv: "sandbox",
       siteUrl: null,
+    });
+  });
+
+  describe("the reviewer's key", () => {
+    const REVIEWER = "r3viewer";
+    const both = { ...env, STAGING_REVIEWER_TOKEN: REVIEWER };
+    const as = (token, method, path) => ask(method, path,
+      { Authorization: `Bearer ${token}` });
+    const open = new Set(["info", "signatures"]);
+
+    it("opens the signatures and the info, and names itself", async () => {
+      const info = await handle(as(REVIEWER, "GET", "/api/staging/info"),
+        { stores: testStores(), env: both });
+
+      assert.equal(info.status, 200);
+
+      const body = await info.json();
+
+      assert.equal(body.key, "STAGING_REVIEWER_TOKEN");
+      assert.deepEqual(body.can, ["info", "signatures"]);
+
+      const sigs = await handle(
+        as(REVIEWER, "GET", "/api/staging/signatures"),
+        { stores: testStores(), env: both });
+
+      assert.equal(sigs.status, 200);
+    });
+
+    it("opens no email library, outbox, jobs run or crash", async () => {
+      for (const [method, path] of routes) {
+        if (path.startsWith("/api/staging/signatures")
+          || path === "/api/staging/info"
+          || path === "/api/staging/nothing-here") continue;
+
+        const res = await handle(as(REVIEWER, method, path),
+          { stores: testStores(), env: both, run });
+
+        assert.equal(res.status, 403, `${method} ${path}`);
+      }
+      assert.deepEqual([...open], ["info", "signatures"]);
+    });
+
+    it("is refused where only the owner's key is set, and the reverse",
+      async () => {
+        const res = await handle(as(REVIEWER, "GET", "/api/staging/info"),
+          { stores: testStores(), env });
+
+        assert.equal(res.status, 401);
+
+        const only = { CONTEXT: "deploy-preview",
+          STAGING_REVIEWER_TOKEN: REVIEWER };
+
+        for (const token of ["", TOKEN]) {
+          const denied = await handle(as(token, "GET", "/api/staging/info"),
+            { stores: testStores(), env: only });
+
+          assert.equal(denied.status, 401);
+        }
+        assert.equal((await handle(as(REVIEWER, "GET", "/api/staging/info"),
+          { stores: testStores(), env: only })).status, 200);
+      });
+
+    it("never opens the end-to-end path", async () => {
+      const res = await handle(as(REVIEWER, "POST", "/api/staging/e2e"),
+        { stores: testStores(), env: { ...both, E2E_STAGING_TOKEN: "e2e" } });
+
+      assert.equal(res.status, 401);
+    });
+
+    it("logs each use by the key's name, never its value", async (t) => {
+      const lines = [];
+
+      t.mock.method(console, "info", (text) => lines.push(String(text)));
+      await handle(as(REVIEWER, "GET", "/api/staging/info"),
+        { stores: testStores(), env: both });
+      await handle(as(TOKEN, "GET", "/api/staging/info"),
+        { stores: testStores(), env: both });
+
+      const used = lines.filter((l) => l.includes("staging.key_used"));
+
+      assert.equal(used.length, 2);
+      assert.ok(used[0].includes("STAGING_REVIEWER_TOKEN"));
+      assert.ok(used[1].includes("STAGING_TOKEN"));
+      for (const line of lines) {
+        assert.ok(!line.includes(REVIEWER) && !line.includes(TOKEN));
+      }
     });
   });
 
