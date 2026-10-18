@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 
 import { loadEnv } from "../netlify/functions/lib/env.mjs";
 import { USAGE as BREAKER_USAGE, breakerCommand } from "./breaker.mjs";
+import { USAGE as GATE_USAGE, gateCommand } from "./gate.mjs";
 import { devSchedule } from "./dev-schedule.mjs";
 import { runNetlify } from "./env/cli.mjs";
 import { deployAfterPush } from "./env/deploy.mjs";
@@ -137,6 +138,7 @@ const USAGE = `Usage:
                                       phone (needs MAINTENANCE_SECRET)
   bin/nff maintenance rotate          kill every link handed out before
 ${BREAKER_USAGE}
+${GATE_USAGE}
   bin/nff health                      what /api/health would answer
   bin/nff alert test [--production|--staging]
                                       one real alert, past the hourly
@@ -685,6 +687,11 @@ const run = async () => {
   if (group === "env") return envCommand();
   if (group === "breaker") {
     return breakerCommand(action, { stores, flags, out, root });
+  }
+  if (group === "gate") {
+    return gateCommand(action, rest, {
+      stores, flags, out, context: process.env.SITE_CONTEXT,
+    });
   }
   if (group === "library") return libraryReview();
   if (group === "export") return exportCommand();
