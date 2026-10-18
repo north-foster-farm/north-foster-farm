@@ -2,11 +2,25 @@ version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/"
+    target-branch: "next"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "08:00"
       timezone: "America/New_York"
+    # No release is adopted until it has been public for 7 days. This
+    # covers version updates; security updates ignore the cooldown, and
+    # the CI check (bin/supply/check-cooldown.mjs) holds the same line
+    # for whatever a lockfile resolves.
+    cooldown:
+      default-days: 7
+    # One weekly PR for minor and patch updates. A major version stays
+    # its own PR, because it waits for James's approval.
+    groups:
+      npm-weekly:
+        update-types:
+          - "minor"
+          - "patch"
     # The Bootstrap + SCSS stack is scheduled for deletion by the
     # Tailwind migration, so updates to it are noise: the PRs pile up
     # unmerged and the packages leave the tree either way. Drop these
@@ -18,3 +32,19 @@ updates:
       - dependency-name: "stylelint"
       - dependency-name: "stylelint-config-standard-scss"
       - dependency-name: "stylelint-scss"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "next"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "America/New_York"
+    cooldown:
+      default-days: 7
+    groups:
+      actions-weekly:
+        update-types:
+          - "minor"
+          - "patch"
