@@ -31,6 +31,28 @@ const rows = (list) => list.evaluate((ul) => {
   return [...byTop.values()];
 });
 
+// James, 2026-10-18 (#267): the delivery policy has no link in the main
+// navigation. The page, its footer link and the order page's links stay.
+test.describe("the delivery policy's links (#267)", () => {
+  const policy = "a[href$='/delivery-policy/']";
+
+  test("not in the main navigation, in the footer and on the order page",
+    async ({ page }) => {
+      for (const width of [1280, 390]) {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto("/");
+        await expect(page.locator(`nav[aria-label='Main'] ${policy}`))
+          .toHaveCount(0);
+        await expect(page.locator(`nav[aria-label='Footer'] ${policy}`))
+          .toHaveCount(1);
+      }
+      await page.goto("/order/");
+      expect(await page.locator(`main ${policy}`).count())
+        .toBeGreaterThan(0);
+      expect((await page.request.get("/delivery-policy/")).ok()).toBe(true);
+    });
+});
+
 test.describe("footer (#141)", () => {
   test("the links, then how to reach the farm, then the copyright",
     async ({ page, request }) => {

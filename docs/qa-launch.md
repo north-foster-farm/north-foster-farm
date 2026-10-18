@@ -2226,6 +2226,22 @@ at any width" (both projects). "More room above" is by eye: checked at
   every other item has one; at least one line wraps.
 - **Teardown:** None.
 
+### AR-19b No Delivery link in the main navigation (#267)
+
+Automated: `footer.spec.mjs`, "not in the main navigation, in the
+footer and on the order page".
+
+- **Scenario:** The header's links no longer include the delivery
+  policy (James, 2026-10-18); the order page covers delivery.
+- **Setup:** Home page at 1280 and 390; open the phone menu.
+- **Test:**
+  1. Read the header's links in the row and in the phone menu.
+  2. Read the footer's links; open the order page and read its links.
+- **Assert:** The header has News, About, Contact and the Account menu,
+  no Delivery. The footer still links Delivery, and the order page
+  links the delivery policy. `/delivery-policy/` loads.
+- **Teardown:** None.
+
 ### AR-20 The search palette opens and closes (#142)
 
 Automated: `search.spec.mjs`, "cmd/ctrl K opens it, arrows move,

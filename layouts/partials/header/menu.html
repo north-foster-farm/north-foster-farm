@@ -2,10 +2,10 @@
 {{ $onLogin := eq .RelPermalink (relURL "login/") }}
 {{ $ctx := dict "onLogin" $onLogin }}
 {{ $accounts := .Site.Params.features.accounts }}
-{{/* The text links, in row order. Delivery points at the policy page
-     until the delivery page exists. */}}
+{{/* The text links, in row order. The delivery policy has no link
+     here: the order page and the home page cover delivery, and the
+     policy stays in the footer's links and on the order page (#267). */}}
 {{ $links := slice
-  (dict "name" "Delivery" "path" "delivery-policy/")
   (dict "name" "News" "path" "news/")
   (dict "name" "About" "path" "about/")
   (dict "name" "Contact" "path" "contact/")
