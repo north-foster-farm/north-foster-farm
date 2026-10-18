@@ -3,9 +3,10 @@
 // Reads one env file from the repo root: .env (linked to
 // .env.development) with no flag, or .env.production, .env.staging or
 // .env.preview when that flag is given. Off Netlify the records live
-// in the site's Blobs stores only when NETLIFY_SITE_ID and
-// NETLIFY_AUTH_TOKEN are set; otherwise everything is in memory and
-// lost on exit, which the banner says.
+// in the site's Blobs stores only with a context flag (or --scratch)
+// and a NETLIFY_SITE_ID; the token is read from the macOS Keychain
+// (bin/env/keychain.mjs), never an env file. Otherwise everything is
+// in memory and lost on exit, which the banner says.
 
 import { spawn } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -20,6 +21,7 @@ import {
   PREVIEW_ALLOWED, PREVIEW_CONTEXTS, TARGETS, checkEnv, envRunner, planPush,
   preflight, previewLeaks, pushEnv, redact, remoteFor, remoteVars,
 } from "./env/netlify.mjs";
+import { keychainToken, tokenInFiles } from "./env/keychain.mjs";
 import { readSample, readValues, sampleFile } from "./env/sample.mjs";
 import { verifyEnv } from "./env/verify.mjs";
 import { setSchedule } from "./schedule-env.mjs";
@@ -162,6 +164,21 @@ const context = Object.keys(CONTEXTS)
 
 loadEnv(join(root, context ? `.env.${context}` : ".env"));
 
+// The Netlify token comes from the Keychain and nowhere else (#267):
+// not from an env file, not from the shell. Development runs on
+// memory stores and never looks; a context, or --scratch's stores in
+// Blobs, needs it. A missing item stops here, saying so, rather than
+// falling back to memory stores that lose the work.
+delete process.env.NETLIFY_AUTH_TOKEN;
+if (context || process.argv.includes("--scratch")) {
+  try {
+    process.env.NETLIFY_AUTH_TOKEN = keychainToken();
+  } catch (error) {
+    console.error(`[nff] ${error.message}`);
+    process.exit(1);
+  }
+}
+
 // Development's pickup schedule is made up, from today (#264), so
 // .env needs none; a context's comes from `schedule set`.
 if (!context && !process.env.PICKUP_SCHEDULE) {
@@ -262,7 +279,7 @@ const kv = (pairs) => Object.fromEntries(pairs.map((p) => {
 }));
 
 if (!stores.persistent) {
-  console.error("[nff] No NETLIFY_SITE_ID/NETLIFY_AUTH_TOKEN: using memory " +
+  console.error("[nff] No NETLIFY_SITE_ID or Keychain token: using memory " +
     "stores. Nothing here persists.");
 }
 
@@ -439,8 +456,7 @@ const envCommand = async () => {
   const secrets = [...local.values.values()];
   const cli = envRunner({
     cli: envNetlify(secrets),
-    token: local.values.get("NETLIFY_AUTH_TOKEN")
-      || process.env.NETLIFY_AUTH_TOKEN,
+    token: process.env.NETLIFY_AUTH_TOKEN,
     values: secrets,
   });
   const site = local.values.get("NETLIFY_SITE_ID")
@@ -509,6 +525,8 @@ const envCommand = async () => {
     const found = checkEnv({
       env: context, sample, local, remote, file,
     });
+
+    found.problems.push(...tokenInFiles(root));
     const leaks = previewLeaks(vars);
     const problems = [...found.problems, ...leaks.problems];
     const unset = [...found.unset, ...leaks.unset];
@@ -559,8 +577,8 @@ const errorsShow = async (file) => {
   const token = process.env.NETLIFY_AUTH_TOKEN;
 
   if (!siteID || !token) {
-    throw new Error("Needs NETLIFY_SITE_ID and NETLIFY_AUTH_TOKEN in the " +
-      "env file.");
+    throw new Error("Needs NETLIFY_SITE_ID in the env file and the " +
+      "Keychain's Netlify token (a context flag reads it).");
   }
   if (!sha && typeof flags.deploy !== "string") {
     throw new Error("No build in the report: pass --sha or --deploy.");

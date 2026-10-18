@@ -78,8 +78,8 @@ bin/nff env check --staging   # sample, file and Netlify agree, by name
 
 `push` sets every key the sample lists except those marked
 `# Local only:`, a key left empty in the sample as a secret, and reads
-the rest back. `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` are never
-pushed. `push` refuses, with nothing
+the rest back. `NETLIFY_SITE_ID` is never pushed, and `NETLIFY_AUTH_TOKEN` is in
+no env file: it lives in the macOS Keychain. `push` refuses, with nothing
 set, when a sample secret is a plain variable on Netlify: `env:set`
 can't convert it, so mark it secret in the Netlify UI or unset it
 first. `check` also fails on a value attached to `all` or to every

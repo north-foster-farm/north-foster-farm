@@ -80,7 +80,7 @@ production's value is set on every context. *Local*: no Netlify copy.
 | `STAGING_TOKEN` | secret | off prod; GitHub | staging; GitHub | us |
 | `STAGING_REVIEWER_TOKEN` | secret | staging only | staging only | us |
 | `E2E_STAGING_TOKEN` | secret | off prod; GitHub | staging; GitHub | us |
-| `NETLIFY_AUTH_TOKEN` | secret | local | local, one per person | Netlify |
+| `NETLIFY_AUTH_TOKEN` | secret | Keychain | Keychain, one per person | Netlify |
 | `PICKUP_SCHEDULE_HOOK` | build hook URL | local | local | Netlify |
 | `PAYPAL_*_EMAIL`, `_PASSWORD` | sandbox logins | local | local | PayPal |
 
@@ -145,8 +145,9 @@ sets every value; agents never see them.
   build fails if production holds either name.
 - **`E2E_STAGING_TOKEN`:** staging only; the end-to-end suite's own
   token (`docs/staging.md`). The suite holds it and no Netlify token.
-- **`NETLIFY_AUTH_TOKEN`:** one per person, since Netlify cannot
-  scope a token. The e2e suite no longer uses it (#266).
+- **`NETLIFY_AUTH_TOKEN`:** in the macOS Keychain, in no env file;
+  one per person, since Netlify cannot scope a token. The e2e suite
+  no longer uses it (#266).
 - **Previews** (after #255): `SITE_CONTEXT=deploy-preview` and
   `PICKUP_SCHEDULE`, `MAIL_DRIVER` unset so mail is logged, and
   nothing else. A preview then shows no pay buttons, only "Payments
@@ -407,19 +408,31 @@ default is nothing.
 
 ## Netlify
 
-**`NETLIFY_AUTH_TOKEN`**: a personal access token, local only, for
-bin/nff to reach Blobs. A PAT carries every
-permission its owner has on Netlify: every site, every env var, DNS,
-deploys, and every order and customer in Blobs. The worst leak here.
+**`NETLIFY_AUTH_TOKEN`**: a personal access token for bin/nff to
+reach Blobs. A PAT carries every permission its owner has on Netlify:
+every site, every env var, DNS, deploys, and every order and customer
+in Blobs. The worst leak here, so it lives once, in the macOS
+Keychain, and in no `.env.*` file. bin/nff reads it from there when
+given `--staging`, `--production`, `--preview` or `--scratch`;
+bare development runs on fakes and never looks. If the item is
+missing bin/nff says so and stops. `bin/nff env check` fails if any
+`.env.*` file or sample sets the name.
+
+Store it once, or replace it (the command asks for the value, so it
+stays out of the shell's history):
+
+```
+security add-generic-password -a nff -s nff-netlify-auth-token -U -w
+```
 
 User settings → Applications → Personal access tokens → New access
-token, expiring on the next Jan 1. Put it in each `.env.*`, run
-`bin/nff --production health`, then Revoke the old one. No downtime;
-nothing on Netlify reads it. Cadence: every Jan 1, before the old
-token expires, and at once on a leak. A Netlify password reset
-revokes every PAT at once, so after one, mint a new token before the
-CLI is needed. The `netlify` CLI's own login is a separate token in
-`~/Library/Preferences/netlify/config.json`; `netlify logout` and
+token, expiring on the next Jan 1. Run the command above with the new
+value, run `bin/nff --production health`, then Revoke the old one. No
+downtime; nothing on Netlify reads it. Cadence: every Jan 1, before
+the old token expires, and at once on a leak. A Netlify password
+reset revokes every PAT at once, so after one, mint a new token before
+the CLI is needed. The `netlify` CLI's own login is a separate token
+in `~/Library/Preferences/netlify/config.json`; `netlify logout` and
 `login` replace it.
 
 **`PICKUP_SCHEDULE_HOOK`**: a build hook URL. Leaked, anyone can

@@ -85,8 +85,8 @@ opens to a panel with:
   to `APPROVED` in `library.mjs` and each rewrite as a diff against
   the code's text, and `bin/nff library clear <id> --staging` drops
   an email's records once they are in. Both need
-  `NETLIFY_SITE_ID` and `NETLIFY_AUTH_TOKEN` in `.env.staging`;
-  without them they read an empty store in memory and say so. The
+  `NETLIFY_SITE_ID` in `.env.staging` and the Netlify token in the
+  Keychain (`docs/secrets.md`, Netlify); without them they read an empty store in memory and say so. The
   Netlify CLI reads the same records from a linked checkout:
   `netlify blobs:list branch-deploy-jobs --prefix library/`, then
   `netlify blobs:get` or `blobs:delete` on each key. Farm news

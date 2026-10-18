@@ -553,7 +553,7 @@ It finds the newest ready deploy of the report's commit on the
 context's branch (`main` for `--production`, `staging` for
 `--staging`; any branch with neither flag) through the Netlify API,
 reads that deploy's maps with the env file's `NETLIFY_SITE_ID` and
-`NETLIFY_AUTH_TOKEN`, and prints each frame as the original file,
+the Keychain's Netlify token, and prints each frame as the original file,
 line and column, with the line of source. `--deploy` skips the
 lookup; `-` reads the report from standard input.
 

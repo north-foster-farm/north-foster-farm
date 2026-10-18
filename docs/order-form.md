@@ -592,7 +592,7 @@ bundle) asks `/api/me` once per five minutes, cached in
 `bin/nff` is the farm's admin surface; there are no admin pages. It
 reads one env file from the repo root, each complete, with the keys
 `.env.sample` names. `--production` reads `.env.production`:
-`NETLIFY_SITE_ID` and `NETLIFY_AUTH_TOKEN` (a personal access token)
+`NETLIFY_SITE_ID`, with the Netlify token read from the Keychain,
 to reach the site's Blobs stores, the production Square token and
 location, the live PayPal pair, the mail variables
 (`MAIL_DRIVER=resend`, `RESEND_API_KEY`, `MAIL_FROM`,
