@@ -327,12 +327,9 @@ context and `.env.staging`, without maintenance mode.
 
 **`SQUARE_WEBHOOK_SIGNATURE_KEY`.** The subscription's HMAC key.
 Leaked, it lets someone forge refund events onto orders. The swap has
-no gap once `square-webhook.mjs` accepts either of two keys, the
+no gap because `square-webhook.mjs` accepts either of two keys, the
 current one and an optional `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS`
-(James's decision, 2026-10-18; the checkout lane is building it with
-tests). Until that lands, deliveries answer 401 between the key change
-and the deploy, and Square retries them for up to 24 hours, so nothing
-is lost.
+(James's decision, 2026-10-18; landed in 91599b4, with tests).
 
 1. In the Developer Console (Webhooks → the subscription), or with
    `UpdateWebhookSubscriptionSignatureKey`, make the new key.
@@ -625,10 +622,9 @@ There is no secret to rotate. To end every customer session, run
 session, asks for confirmation (or takes `--yes`), and emails
 `DEV_NOTIFICATIONS_EMAIL` when it runs; each customer signs in again
 by magic link. Run it with maintenance mode on, so accounts are
-closed while it happens, and off after. (The command is the checkout
-lane's to build, and later becomes a button in the admin dashboard;
-until it exists, delete every `session/` key in the production `auth`
-store by hand.) `customers rename` ends one customer's.
+closed while it happens, and off after. (The command landed in
+07eafda; it later becomes a button in the admin dashboard.)
+`customers rename` ends one customer's.
 
 ## Incident response
 
