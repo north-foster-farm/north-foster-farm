@@ -1,5 +1,5 @@
 {
- "revision": 30,
+ "revision": 31,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -360,7 +360,7 @@
     {
      "id": "pp-live-wh",
      "title": "Add the live webhook (P2)",
-     "body": "Still on the live app, scroll to **Live Webhooks** and choose **Add Webhook**. Paste the URL below, tick the events below, and save. The webhook appears in the list with an **ID**; copy it. PayPal never sends this ID in its messages, so this is the only place to get it.\n\nWithout this webhook, the site never hears about Venmo captures or refunds made in PayPal. Adding it before launch is harmless.",
+     "body": "Still on the live app, scroll to **Live Webhooks** and choose **Add Webhook**. Paste the URL below, tick the events below, and save. The webhook appears in the list with an **ID**; copy it. PayPal never sends this ID in its messages, so this is the only place to get it.\n\nWithout this webhook, the site never hears about Venmo captures or refunds made in PayPal. Adding it before launch is harmless.\n\n**Do this before the release.** Subscribe it to exactly those two events. Then set the ID on Netlify's production context as `PAYPAL_WEBHOOK_ID` (it is not a secret), deploy (a change to Netlify's environment applies only to a new deploy; see `docs/secrets.md`) and confirm it with `bin/nff env verify --production`. The live Venmo check cannot pass without it: the webhook is what finishes a Venmo payment when the browser is closed.",
      "minutes": 5,
      "links": [
       {
@@ -1083,11 +1083,21 @@
     {
      "id": "env-dev-test",
      "title": "Prove dev@ through the real notification path (blocking)",
-     "body": "Once `DEV_NOTIFICATIONS_EMAIL` is set and staging has deployed with it, Claude sends one test message through the same sender that deploy-failed notices, alerts and the rotation reminder use, and tells you when it has gone. Check that it arrives in dev@ (look in spam too) and tell Claude. Repeat on production after the production value is set and deployed.\n\n**This blocks the launch.** Without it, a failed deploy, an alert or a rotation reminder could go nowhere and nobody would know.",
+     "body": "Once `DEV_NOTIFICATIONS_EMAIL` is set and staging has deployed with it, the command `bin/nff mail test-dev` sends one test message through the same sender that deploy-failed notices, alerts and the rotation reminder use, and tells you when it has gone. Check that it arrives in dev@ (look in spam too) and tell Claude. Repeat on production after the production value is set and deployed.\n\n**This blocks the launch.** Without it, a failed deploy, an alert or a rotation reminder could go nowhere and nobody would know.",
      "minutes": 10,
      "device": "any",
      "type": "claude",
-     "blocked": "Waits on DEV_NOTIFICATIONS_EMAIL being set and deployed, and on the checkout lane naming the command that sends the test."
+     "blocked": "Waits on DEV_NOTIFICATIONS_EMAIL being set and deployed.",
+     "copy": [
+      {
+       "label": "Staging",
+       "value": "bin/nff mail test-dev --staging"
+      },
+      {
+       "label": "Production",
+       "value": "bin/nff mail test-dev --production"
+      }
+     ]
     },
     {
      "id": "env-files",
@@ -1214,7 +1224,7 @@
     {
      "id": "env-e2e-token",
      "title": "Make the end-to-end test token",
-     "body": "**Blocks qa's back-office runs** (payment, account, news, contact-send, edit-order, orders-api cleanup, maintenance): staging answers 404 to them until this is set. Press **Generate**, then:\n- set it as `E2E_STAGING_TOKEN` on Netlify's staging context (the env push does it);\n- save it in `.env.e2e-staging` (qa never uses `.env.staging` for it);\n- save it in the password manager, and as the GitHub repository secret of the same name, if the workflow needs it.\n\nIt is staging only; production must not hold the name. The suite no longer needs a Netlify token (#266).",
+     "body": "**Blocks qa's back-office runs** (payment, account, news, contact-send, edit-order, orders-api cleanup, maintenance): staging answers 404 to them until this is set. Press **Generate**, then:\n- set it as `E2E_STAGING_TOKEN` on Netlify's staging context (the env push does it);\n- save it in `.env.e2e-staging` (qa never uses `.env.staging` for it);\n- save it in the password manager, and as the GitHub repository secret of the same name, if the workflow needs it.\n\nIt is staging only; production must not hold the name. The suite no longer needs a Netlify token (#266).\n\n**The checkout lane needs the staging token too.** Its live checks for the rate-limit bypass (#164 item 4) and the hand run of AO-17 (#160) cannot run without it: `.env.staging` must hold `STAGING_TOKEN=<value>` and `.env.e2e-staging` must hold `E2E_STAGING_TOKEN=<value>`. Both files are ignored by git. Never paste a value into a chat.",
      "minutes": 5,
      "fields": [
       {
@@ -1227,6 +1237,14 @@
      ],
      "device": "laptop",
      "type": "account"
+    },
+    {
+     "id": "env-tokens-in",
+     "title": "Tell the coordinator the staging tokens are in",
+     "body": "Once `STAGING_TOKEN` is in `.env.staging` and `E2E_STAGING_TOKEN` is in `.env.e2e-staging`, say **\"tokens are in\"** to the coordinator. Until then the checkout lane can prove nothing live on staging. It takes two minutes.",
+     "minutes": 2,
+     "device": "any",
+     "type": "claude"
     },
     {
      "id": "env-blockers",
@@ -1297,6 +1315,62 @@
      "minutes": 1,
      "device": "laptop",
      "type": "terminal"
+    },
+    {
+     "id": "stg-jobs-clock",
+     "title": "Pick the staging jobs clock (#164)",
+     "body": "GitHub's schedule ran staging's jobs 12 times in 36 hours, two to six hours apart. Production runs every fifteen minutes. A day with no evening run on staging skips the delivery reminder and the next day's manifest.\n\n- **Worker** (recommended): a Cloudflare Worker with a `*/15 * * * *` trigger makes one POST to staging's jobs endpoint, with the staging token kept as a Worker secret. Cloudflare runs triggers on time. Claude writes the few lines and a doc section; you create the Worker and set the secret (about ten minutes). You already have the Cloudflare account for backups. The GitHub workflow stays as the by-hand button.\n- **Accept GitHub:** no work, but #164 stays unmet by design and is recorded as an accepted gap.\n- **Mac:** a launchd job running `bin/nff jobs run --staging`. Free, but only while the Mac is awake.",
+     "minutes": 2,
+     "fields": [
+      {
+       "id": "jobs_clock",
+       "label": "Staging jobs clock",
+       "secret": false,
+       "type": "choice",
+       "options": [
+        {
+         "value": "worker",
+         "label": "Cloudflare Worker"
+        },
+        {
+         "value": "github",
+         "label": "Accept GitHub's schedule"
+        },
+        {
+         "value": "mac",
+         "label": "A job on my Mac"
+        }
+       ]
+      }
+     ],
+     "device": "any",
+     "type": "decide"
+    },
+    {
+     "id": "stg-square-down",
+     "title": "Accept the Square-down path on its unit tests (#151)",
+     "body": "The path: PayPal captured the money and Square then fails. Unit tests cover it. Forcing it on staging means breaking staging's Square token on Netlify for a few minutes.\n\n**Recommended: accept the unit tests.** The failure branch does not depend on anything the sandbox adds, and breaking the token risks a staging run in flight.",
+     "minutes": 1,
+     "fields": [
+      {
+       "id": "square_down",
+       "label": "Square-down path",
+       "secret": false,
+       "type": "choice",
+       "options": [
+        {
+         "value": "accept",
+         "label": "Accept the unit tests"
+        },
+        {
+         "value": "force",
+         "label": "Force it on staging"
+        }
+       ]
+      }
+     ],
+     "device": "any",
+     "type": "decide"
     },
     {
      "id": "stg-final",
@@ -1464,6 +1538,14 @@
      ],
      "device": "laptop",
      "type": "terminal"
+    },
+    {
+     "id": "ld-trailer",
+     "title": "Add the Record-shape commit to the release",
+     "body": "CI refuses a push to `main` whose commits touch the store or record code unless one of them carries a `Record-shape:` line. This release touches that code, so without the commit the fast-forward fails. Before \"release go\", the coordinator adds one commit to the release range: empty, with the line `Record-shape: none` if no stored record changed shape, or a description of what changed if one did. You or the coordinator make that statement, never a lane. Tell the coordinator which it is. The paths and the rules are in [docs/rollback.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/rollback.md).",
+     "minutes": 2,
+     "device": "any",
+     "type": "claude"
     },
     {
      "id": "ld-venmo",
@@ -1675,14 +1757,6 @@
    "title": "Prove payments with real money",
    "steps": [
     {
-     "id": "ld-160",
-     "title": "Pay a Venmo difference (#160)",
-     "body": "Edit a paid Venmo order upward, pay the difference, and confirm the record and Square both show two payments. Then refund.",
-     "minutes": 10,
-     "device": "phone",
-     "type": "live"
-    },
-    {
      "id": "ld-card",
      "title": "A real $7 card order",
      "body": "Order a dozen eggs by card on the live site, then refund it from the command line. Check the receipt email arrives and the order shows in Square.",
@@ -1713,7 +1787,7 @@
     {
      "id": "ld-errphone",
      "title": "Check a broken checkout, then pay $1 by Venmo",
-     "body": "This proves two things on the live site: a broken Square reaches your phone, and Venmo still works when Square is down (PY-17).\n\n1. In Firefox, open the order page with developer tools. Block requests to `web.squarecdn.com` (Network tab: right-click a request to it → Block URL), then reload. A \"payment unavailable\" alert should reach your phone within a minute. Check that it does.\n2. With Square still blocked, on that same page add `?venmo` to the address, which shows Venmo even while it's hidden. Order $1 and pay by Venmo: scan the code with your phone and pay in the real Venmo app.\n3. Unblock `web.squarecdn.com`.\n4. Refund the $1 with `bin/nff --production orders refund <id>`. Check the order record, Square's copy and both webhooks agree.\n\nWhen it passes, set Venmo to **Visible** in *Before the release*, re-save `.env.production`, push, **and ask Claude to redeploy**: the setting does nothing until production rebuilds. If it fails, set Venmo back to **Hidden** in *Before the release*, re-save `.env.production`, push, ask Claude to rebuild, fix it on staging, and repeat this test.",
+     "body": "This proves two things on the live site: a broken Square reaches your phone, and Venmo still works when Square is down (PY-17).\n\n1. In Firefox, open the order page with developer tools. Block requests to `web.squarecdn.com` (Network tab: right-click a request to it → Block URL), then reload. A \"payment unavailable\" alert should reach your phone within a minute. Check that it does.\n2. With Square still blocked, on that same page add `?venmo` to the address, which shows Venmo even while it's hidden. Order $1 and pay by Venmo: scan the code with your phone and pay in the real Venmo app.\n3. Unblock `web.squarecdn.com`.\n4. Refund the $1 with `bin/nff --production orders refund <id>`. Check the order record, Square's copy and both webhooks agree.\n\nWhen it passes, set Venmo to **Visible** in *Before the release*, re-save `.env.production`, push, **and ask Claude to redeploy**: the setting does nothing until production rebuilds. If it fails, set Venmo back to **Hidden** in *Before the release*, re-save `.env.production`, push, ask Claude to rebuild, fix it on staging, and repeat this test.\n\nAlso check, in Square's dashboard, that the $1 refund shows **Completed**, not Pending. Sandbox left Venmo refunds pending (#164 item 1), so production is the first place this shows. The order id for the refund is on the success card.",
      "minutes": 20,
      "device": "laptop",
      "type": "live",
@@ -1723,6 +1797,14 @@
        "url": "https://www.northfosterfarm.com/order/?venmo"
       }
      ]
+    },
+    {
+     "id": "ld-160",
+     "title": "Pay a Venmo difference (#160)",
+     "body": "Do this after the $1 Venmo payment above has passed. Place a small order paid by card, open Change items, add one item and pay the difference with Venmo. Check that the order shows the new total and \"You paid $X more\", and that Square and PayPal both show the extra amount. Then refund both the same way as the $1 order.",
+     "minutes": 10,
+     "device": "phone",
+     "type": "live"
     },
     {
      "id": "pw-p9",
@@ -2721,6 +2803,18 @@
      "changed": "Coming: the opening gets reframed like the post. Nothing to review in this revision.",
      "summary": "Your answer on #267: yes, the email's opening follows the post. It will not read as an announcement, because ordering has been running in soft launch and this is a tour of the system. Facts stay current, as the post's do. The email lane is writing it. **A before and after of the opening comes back here as the next revision. Don't approve this item until it does.** Nothing is sent or scheduled.",
      "look": []
+    },
+    {
+     "rev": 5,
+     "date": "2026-10-18",
+     "changed": "The opening is recast as a tour, like the post (a483fcb on `next`).",
+     "summary": "**Before:** \"You can now order from us online. This summer was the first we sold our chicken ... the order page has everything we bring to market, from eggs by the dozen to whole chickens, sausage, and every cut in between.\"\n\n**After:** \"Ordering from the farm online has been open for a few weeks now. This summer was the first we sold our chicken, and we're grateful to everyone who tried it. Now you can keep buying from us after the market season ends. Here's a tour of how it works. The order page has eggs by the dozen, whole chickens, cuts, and sausage. What's in stock changes as we go, and the page always shows what's available now. Choose what you'd like, say how you want to get it, and pay on the page. We email you to confirm your order.\"\n\n- \"Everything we bring to market\" is gone; it read as a stock claim.\n- The subject and preview you approved are unchanged. Fastmail has no preview field, so the inbox now shows the body's first words.\n- The hens paragraph loses its second sentence, since the opening says it.\n- The body stays a draft until you approve its wording. After you hand over your Tour post and About page, the opening needs a refit to your words.\n- Noticed, not changed: the post says on-farm pickup is \"9 AM to 1 PM or 1 to 5 PM\", but the order page has morning 9 to 12 and afternoon 1 to 5. The email says \"Pick a time when you order\" and avoids the question.",
+     "look": [
+      {
+       "label": "Side by side, before and after",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/rw17-rev5.png"
+      }
+     ]
     }
    ],
    "device": "any",
