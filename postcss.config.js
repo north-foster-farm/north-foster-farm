@@ -118,6 +118,8 @@ const plugins = [
         "is-bumped",
         "is-entering",
         "is-fading",
+        // Applied by the map's script to a town with a pin (#214).
+        "has-pin",
         // The account page marks the order an email linked to.
         "is-linked",
         // The search palette's JavaScript: open, and a real photo.
