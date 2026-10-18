@@ -26,6 +26,17 @@ export const ignoredNames = (env) => new Set([
   ...(env === "production" ? ["RESEND_READ_KEY"] : []),
 ]);
 
+// Names that open the staging toolbar (docs/secrets.md, "Staging").
+// Production holds none of them, not even as an empty name: their
+// presence is the failure, whatever the value.
+export const STAGING_ONLY = ["STAGING_TOKEN", "STAGING_REVIEWER_TOKEN"];
+
+export const stagingOnlyIn = (env, names) => {
+  const held = new Set(names);
+
+  return env === "production" ? STAGING_ONLY.filter((n) => held.has(n)) : [];
+};
+
 // May be absent: launch day unsets VENMO_HIDDEN to show the button,
 // and unset reads as shown (lib/paypal.mjs).
 export const OPTIONAL = new Set(["VENMO_HIDDEN"]);
@@ -338,6 +349,18 @@ export const checkEnv = ({ env, sample, local, remote, file }) => {
   const inSample = new Set([...sample.keys, ...sample.local]);
   const unsetOwn = (name) => unset.push(
     `netlify env:unset ${name} --context ${context}`);
+  const forbidden = (where, names) => {
+    for (const name of stagingOnlyIn(env, names)) {
+      problems.push(`${name}: is staging only, yet in ${where}.`);
+    }
+  };
+
+  forbidden("the sample", inSample);
+  forbidden(file, local.values.keys());
+  forbidden(`Netlify's ${context}`, remote.keys());
+  for (const name of stagingOnlyIn(env, remote.keys())) {
+    if (remote.get(name).own) unsetOwn(name);
+  }
 
   for (const name of sample.keys) {
     const value = local.values.get(name);
@@ -378,7 +401,8 @@ export const checkEnv = ({ env, sample, local, remote, file }) => {
   }
 
   for (const name of local.values.keys()) {
-    if (!inSample.has(name) && !ignored.has(name)) {
+    if (!inSample.has(name) && !ignored.has(name)
+      && !stagingOnlyIn(env, [name]).length) {
       problems.push(`${name}: in ${file}, not in the sample.`);
     }
   }
@@ -386,6 +410,7 @@ export const checkEnv = ({ env, sample, local, remote, file }) => {
   for (const [name, there] of remote) {
     if (inSample.has(name) && !sample.local.includes(name)) continue;
     if (ignored.has(name) || netlifyOwn(name)) continue;
+    if (stagingOnlyIn(env, [name]).length) continue;
 
     problems.push(sample.local.includes(name)
       ? `${name}: local only, yet on Netlify's ${context}.`

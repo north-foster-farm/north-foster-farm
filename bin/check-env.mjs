@@ -18,7 +18,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { buildEnvironment, missingAtBuild } from "./env/netlify.mjs";
+import {
+  buildEnvironment, missingAtBuild, stagingOnlyIn,
+} from "./env/netlify.mjs";
 import { ENVIRONMENTS, readSample, sampleFile } from "./env/sample.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -45,6 +47,7 @@ if (!existsSync(resolve(root, file))) {
 
 const sample = readSample(readFileSync(resolve(root, file), "utf8"), env);
 const missing = missingAtBuild(sample, process.env);
+const staged = stagingOnlyIn(env, Object.keys(process.env));
 
 // A layout slip in the sample is James's to tidy, not a reason to
 // stop a deploy whose keys are all there.
@@ -52,6 +55,13 @@ for (const error of sample.errors) {
   console.error(`Env check: warning, ${file}: ${error}`);
 }
 
+if (staged.length) {
+  for (const name of staged) {
+    console.error(`  ${name} is staging only: unset it on production.`);
+  }
+  console.error("Env check: production holds a staging key.");
+  process.exit(1);
+}
 if (missing.length) {
   for (const name of missing) {
     console.error(`  ${name} is missing (bin/nff env push --${env}).`);

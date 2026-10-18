@@ -11,7 +11,8 @@ import { fileURLToPath } from "node:url";
 import { devSchedule, weekdaySchedule } from "../bin/dev-schedule.mjs";
 import {
   buildEnvironment, checkEnv, missingAtBuild, planPush, preflight,
-  previewLeaks, pushEnv, redact, remoteFor, remoteVars,
+  previewLeaks, pushEnv, redact, remoteFor, remoteVars, STAGING_ONLY,
+  stagingOnlyIn,
 } from "../bin/env/netlify.mjs";
 import { parseSample, readSample, readValues } from "../bin/env/sample.mjs";
 import { checkSchedule } from "../assets/scripts/order/lib/schedule.mjs";
@@ -379,6 +380,21 @@ describe("bin/nff env check", () => {
           "the sample."));
     });
 
+  it("fails production on a staging key, whatever its value", async () => {
+    const prod = remoteFor([{ name: "STAGING_TOKEN", secret: true,
+      values: [{ context: "production", value: "" }] }], "production");
+    const { problems, unset } = checkEnv({ env: "production",
+      sample: staging(), local: filled({ STAGING_REVIEWER_TOKEN: "" }),
+      file: ".env.production", remote: prod });
+
+    assert.ok(problems.includes(
+      "STAGING_TOKEN: is staging only, yet in Netlify's production."));
+    assert.ok(problems.includes(
+      "STAGING_REVIEWER_TOKEN: is staging only, yet in .env.production."));
+    assert.deepEqual(unset,
+      ["netlify env:unset STAGING_TOKEN --context production"]);
+  });
+
   it("never puts a value in a problem", async () => {
     const cli = await pushed();
 
@@ -457,6 +473,38 @@ describe("the build's env check", () => {
     assert.equal(warned.code, 0, warned.out);
     assert.match(warned.out, /warning, .*drop the export/);
     assert.match(warned.out, /warning, .*a comment outside a key's block/);
+  });
+
+  it("fails a production build that holds a staging key, even empty",
+    () => {
+      const script = join(here, "../bin/check-env.mjs");
+      const fixture = join(here, "fixtures/.env.staging.sample");
+      const full = Object.fromEntries(filled().values);
+      const run = (env, which = "production") => {
+        const r = spawnSync(process.execPath, [script, which, fixture],
+          { env: { PATH: process.env.PATH, ...env }, encoding: "utf8" });
+
+        return { code: r.status, out: `${r.stdout}${r.stderr}` };
+      };
+
+      assert.equal(run(full).code, 0);
+      for (const name of STAGING_ONLY) {
+        const failed = run({ ...full, [name]: "" });
+
+        assert.equal(failed.code, 1);
+        assert.match(failed.out, new RegExp(`${name} is staging only`));
+      }
+
+      // Staging is where they belong.
+      assert.equal(run({ ...full, STAGING_TOKEN: "x" }, "staging").code, 0);
+    });
+
+  it("keeps staging keys out of production's tracked sample", () => {
+    const text = readFileSync(join(here, "../.env.production.sample"),
+      "utf8");
+    const names = parseSample(text).entries.map((e) => e.name);
+
+    assert.deepEqual(stagingOnlyIn("production", names), []);
   });
 });
 
