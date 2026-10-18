@@ -16,6 +16,7 @@ $map-place: $blue;
 // lands with the map a little below the top of the window.
 .map {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2rem;
   align-items: start;
   scroll-margin-top: 1.5rem;
@@ -393,12 +394,13 @@ $map-place: $blue;
 
 .map-key-areas {
   display: grid;
-  grid-template-columns: repeat(2, max-content);
+  grid-template-columns: repeat(2, minmax(0, max-content));
   gap: 0.75rem 1.5rem;
   margin-bottom: 1.25rem;
 
   li {
     display: flex;
+    min-width: 0;
     gap: 0.5rem;
     align-items: center;
   }
