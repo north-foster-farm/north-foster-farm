@@ -33,8 +33,19 @@ production release on: publishing the previous deploy of the new site.
 4. **Check production** with the live checks from the launch guide,
    then turn maintenance off (`bin/nff --production maintenance off`)
    and confirm an order page loads.
-5. **Say what happened** on the issue that tracks the incident: what
-   broke, the times, the deploy ids, the orders affected.
+5. **Write down what happened** in the gitignored `incidents/`
+   directory at the repo root: what broke, the times, the deploy ids,
+   the orders affected. The repository is public, so the report is
+   written on disk and never pushed. A public issue says only that an
+   incident happened, with no customer or order detail. Revisit this
+   when the repository is private.
+
+Step 2 is manual on purpose for launch: it needs the Mac, and looking
+in Square and PayPal for a payment with no order is done by hand, with
+James at his desk for the whole launch. Catching "payment
+taken, no order" early belongs to the planned detector (below); the
+order page's health relies on the telemetry already decided. Hardening
+is post-launch work, not a blocker.
 
 A wrong word or a layout fault needs no maintenance mode; fix it
 forward and say nothing.
@@ -56,24 +67,34 @@ manual steps.
 | Undo | Publish the release deploy again | Revert the revert |
 
 Publish a previous deploy first. It is the fast path, it touches
-nothing in git and no branch rule applies to it. Revert on `main` only
-when the rollback has to outlive a lock (more than a day or so), when
-the old deploy has been deleted, or when the deploy was built before a
-key changed.
+nothing in git and no branch rule applies to it. Revert on `main`
+(or unlock) once the rollback has been live 24 hours with no fix
+ready, or as soon as anything else must reach production, whichever
+comes first: the lock blocks every publish from `main`. Revert on
+`main` earlier when the old deploy has been deleted or was built
+before a key changed.
+
+Two words, kept apart. A **redeploy** runs a new build, with today's
+env values. **Republishing** an old deploy (`restoreSiteDeploy`) runs
+no build and serves what was built then.
 
 Netlify's word on env vars: "Each deploy ... uses the environment
 variable values that were set at the time of deployment"
 (docs.netlify.com/build/functions/environment-variables). So a
-republished deploy carries its own snapshot, not today's values. This
-is inferred for a restored deploy; the docs do not say it outright.
+republished deploy should carry its own snapshot, not today's values.
+This is inferred for a restored deploy; the docs do not say it
+outright. The env-snapshot test (see "The rehearsals") proves it on
+staging before the second production release, and before launch if it
+fits. Until its result is recorded on #267 and here, the rule below
+stands.
 
 **The rule for key changes.** Netlify applies an env change only to a
-new build. After a production key changes (the yearly January 1
-rotation or a leak), the previous deploy, the instant rollback target,
-still holds the old, revoked key. Never publish a deploy built before
-a key change. Roll back past one by reverting on `main`, which builds
-with current values, or fix forward. The deploy built after a
-rotation is the new rollback floor (`docs/secrets.md`).
+new build. After a production key changes (the yearly rotation, see
+`docs/secrets.md`, or a leak), the previous deploy, the instant
+rollback target, still holds the old, revoked key. Never publish a
+deploy built before a key change. Roll back past one by reverting on
+`main`, which builds with current values, or fix forward. The deploy
+built after a key change is the new rollback floor.
 
 ## The one-tap rollback (designed 2026-10-18, not built)
 
@@ -123,6 +144,27 @@ design is the open item. What he has decided:
   jobs stopped). Every alert and rollback email carries the relevant
   information or a link to the right page.
 
+- **If James is unreachable, Jim switches on maintenance mode** and
+  waits for James. Jim never rolls back.
+- **A second address, the escape valve.** The env var
+  `ESCALATION_EMAIL` holds `office@northfosterfarm.com`. It is separate
+  from `DEV_NOTIFICATIONS_EMAIL` (`dev@`), which keeps the full
+  technical stream for James alone. The escalation address gets one
+  kind of message and nothing else, in plain, non-technical language:
+  James has not responded, switch on maintenance mode, here is the
+  signed ON link. Jim is a non-technical partner, and more would make
+  a bad situation worse.
+- **Trigger.** A detector alert ("payment taken, no order", or any
+  alert that would call for a rollback) left unacknowledged for one
+  hour sends the escalation message once. It repeats only while the
+  alert is still unacknowledged, and James acknowledging it stops it.
+  The variable goes into `docs/secrets.md`, the env samples and
+  `env verify` (code for a lane, after the design).
+- **Hard gate.** The one-tap rollback must be built and rehearsed
+  before the second production release. It is a blocking step in the
+  launch guide and in the post-deploy checklist (#237): that release
+  cannot ship without it.
+
 Nothing here is written down elsewhere yet beyond the issue comment;
 the design document is the first deliverable.
 
@@ -135,33 +177,45 @@ The site id is in `.netlify/state.json` of a linked checkout.
    reach production within the hour: payments failing, orders not
    recorded, the order page not loading. A wrong word or a layout
    fault is fixed forward. Put maintenance mode on first if
-   customers could be hurt while you decide.
+   customers could be hurt while you decide
+   (`bin/nff --production maintenance on`).
 2. **Look at what is in flight**, as in "At launch" step 2.
-3. **Pick the target**: the previous release's deploy, built after the
+3. **Search the release's commits for `Record-shape:`**
+   (`git log --grep 'Record-shape:' <previous release>..<release>`).
+   If any commit carries a trailer other than `Record-shape: none`,
+   the release changed a stored record: switch maintenance mode on
+   before publishing the older deploy, so old code never writes
+   beside new-shaped records, and leave it on until the checks pass.
+4. **Pick the target**: the previous release's deploy, built after the
    last key change. Its id is on the release's issue.
    ```
    netlify api listSiteDeploys \
      --data '{"site_id":"<id>","branch":"main","per_page":5}' \
      | jq -r '.[] | [.id, .commit_ref[0:7], .published_at] | @tsv'
    ```
-4. **Publish it.**
+5. **Publish it.**
    ```
    netlify api restoreSiteDeploy \
      --data '{"site_id":"<id>","deploy_id":"<target id>"}'
    ```
    Or, in the UI: Deploys, open the deploy, Publish deploy.
-5. **Lock auto publishing**, so the next push to `main` builds but does
+6. **Lock auto publishing**, so the next push to `main` builds but does
    not publish. Netlify's docs imply that publishing an old deploy
    does not lock by itself.
    ```
    netlify api lockDeploy --data '{"deploy_id":"<target id>"}'
    ```
    Or Deploys, Lock to stop auto publishing.
-6. **Confirm the target is live**: `/api/health` answers 200,
+7. **Confirm the target is live**: `/api/health` answers 200,
    `/api/checkout/config` shows the production application id
    (`sq0idp-`), and `/order/` loads. Do not place an order.
-7. **Tell the channels.** Post on the incident issue: what broke, the
-   time, the deploy ids.
+8. **Write it down** in the gitignored `incidents/` directory: what
+   broke, the time, the deploy ids. A public issue says only that an
+   incident happened.
+9. **Watch the clock.** Once the rollback has been live 24 hours with
+   no fix ready, or as soon as anything else must reach production,
+   unlock or revert on `main` (below). The lock blocks every publish
+   from `main`.
 
 ## What a rollback does not undo
 
@@ -171,8 +225,16 @@ outside the deploy stays.
 - **Blobs.** The stores are site-wide: both versions read and write
   the same `orders`, `customers`, `auth`, `stock` and `jobs`. A
   release that changed a record's shape leaves records the older code
-  must still read; check the release notes for any such change before
-  publishing.
+  must still read. Any commit that changes the shape of a stored
+  record (Blobs keys, record fields, a data migration) carries a
+  trailer, `Record-shape: <what changed>`, or `Record-shape: none`
+  where the commit touches the store code but changes no shape, so the
+  check cannot be met silently. A `lint-and-test` check fails when a
+  commit range touches the store or record-shape code and no commit
+  in it carries the trailer (the checkout lane builds it; its text
+  and paths go here when it lands). Before publishing an older
+  deploy, search the release's commits for the trailer (Rolling back,
+  step 3); maintenance mode goes on first when it is there.
 - **Webhooks.** PayPal, Square and Resend keep sending to the same
   URLs. An endpoint the older code lacks answers 404; PayPal retries,
   and Resend may disable an endpoint that keeps failing. After
@@ -194,14 +256,17 @@ outside the deploy stays.
 1. Every order from the rollback window is settled.
 2. Publish the release deploy (`restoreSiteDeploy` with its id), or
    the fix's deploy if one was built while locked.
-3. Unlock: `netlify api unlockDeploy --data '{"deploy_id":"<id>"}'`.
-4. Check `/api/health`, and run one card order in the style of the
+3. **Unlock auto publishing**:
+   `netlify api unlockDeploy --data '{"deploy_id":"<id>"}'`.
+4. **Check each webhook is still enabled**: PayPal, Square and
+   Resend. A failing endpoint may have been disabled while the older
+   code answered 404.
+5. Check `/api/health`, and run one card order in the style of the
    launch guide's live checks.
-5. Check the Resend and PayPal webhooks are enabled.
 
 Republishing an older release deploy brings back its env snapshot.
-If an env var changed after it was built, trigger a fresh deploy
-instead.
+If an env var changed after it was built, redeploy (a new build, with
+today's values) instead.
 
 ## Reverting on `main` instead
 
@@ -209,9 +274,10 @@ For a rollback that has to last, when the deploy is gone, or when it
 was built before a key change. Ask James before pushing to `main`; it
 auto-deploys.
 
-Switch maintenance mode on first when the release changed a record's
-shape, and for any data migration: the revert builds in minutes, and
-old code must not write records beside the new shape meanwhile
+Switch maintenance mode on first when the release carries a
+`Record-shape:` trailer (other than `none`), and for any data
+migration: the revert builds in minutes, and old code must not write
+records beside the new shape meanwhile
 (`bin/nff --production maintenance on`, off after the checks).
 
 Branch protection on `main` takes only a fast-forward to a commit that
@@ -251,15 +317,33 @@ it. Only James can switch the rule off for `main` in the repository's
 settings, push, and switch it on again. Publishing the previous deploy
 needs none of this.
 
+After launch, the revert is scripted as one command, `bin/nff
+rollback revert`: branch, revert range, CI dispatch, watch,
+fast-forward, push. It stops on any failure and asks James for his go
+before it pushes `main`. It is tracked under After launch and does not
+block anything.
+
 ## The rehearsals
 
-The launch rehearsals are two, both before launch:
+The launch rehearsals are three, all before launch (the third before
+the second production release at the latest, before launch if it
+fits):
 
 - **Maintenance mode, on staging** (a launch guide step): the open-tab
   case, a payment made just before the switch is flipped, and a
   webhook arriving while it is on. The checkout lane's tests cover
   every blocked and allowed path.
 - **The webhook registrations, in the sandbox** (agent work, below).
+- **The env-snapshot test, on staging** (a launch guide step; it needs
+  Netlify access, so it is James or a tool run he allows). Set a
+  harmless staging env value and build a deploy. Change the value.
+  Republish the older deploy with `restoreSiteDeploy`, which runs no
+  build. Check which value its functions see, and whether the
+  republish locks auto publishing. Then redeploy and check that the
+  new value shows, the other half of the redeploy versus republish
+  distinction. Record the result on #267 and here, and remove the
+  first "Not verified" item. The rule for key changes stays until
+  then.
 
 The drill that rehearsed rolling back to the invoice checkout is
 retired: its parts A (publish a deploy of `ff6270c` on production),
@@ -281,10 +365,11 @@ result on #244.
 
 These were to be settled by the retired drill. They stay open until
 the one-tap rollback is built and rehearsed on the new site, before
-the second production release:
+the second production release. The first is settled sooner, by the
+env-snapshot test above:
 
 - That a restored deploy's functions use their build-time env, and
-  that `restoreSiteDeploy` does not lock.
+  that `restoreSiteDeploy` does not lock (the env-snapshot test).
 - How long a publish takes, call to first good `curl`.
 - PayPal's and Resend's retry and disable rules for a failing
   endpoint.
