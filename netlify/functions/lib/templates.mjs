@@ -1224,7 +1224,13 @@ export const escalation = ({ at, links, maintenanceOn } = {}) => {
   if (maintenanceOn) {
     blocks.push(button("Switch on maintenance mode", maintenanceOn));
   }
-  blocks.push(row([["Sent", when(at ? at.toISOString() : null)]]));
+  // A plain line: `row` makes each pair a link, and a time is no URL.
+  const sent = when(at ? at.toISOString() : null);
+
+  blocks.push({
+    text: `\nSent: ${sent}`,
+    html: `<p style="margin:24px 0 0">Sent: ${escape(sent)}</p>`,
+  });
 
   return {
     subject: title, ...render(title, blocks, links, { tag: "Urgent" }),

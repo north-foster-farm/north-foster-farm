@@ -249,14 +249,31 @@ export const viaOutbox = async (message, env, stores, now = new Date()) => {
   return { id, driver: "outbox" };
 };
 
+// A header is one line. A customer's name or address in a subject, a
+// recipient or a Reply-To must not carry a line break into it, so any
+// that arrives (a name typed with one, a template that prints it) is a
+// space by the time a driver sees the message.
+const oneLine = (value) => String(value)
+  .replace(/[\r\n\u2028\u2029]+/g, " ").trim();
+
+export const headerSafe = (message) => ({
+  ...message,
+  to: Array.isArray(message.to) ? message.to.map(oneLine)
+    : message.to && oneLine(message.to),
+  subject: message.subject && oneLine(message.subject),
+  ...(message.replyTo ? { replyTo: oneLine(message.replyTo) } : {}),
+});
+
 // The message is { to, subject, text, html, idempotencyKey?, replyTo? }.
 // `replyTo` overrides MAIL_REPLY_TO for one message, so the farm
 // answers a customer's note by replying to it.
-export const sendMail = async (message, {
+export const sendMail = async (raw, {
   env = process.env,
   fetchImpl = globalThis.fetch,
   stores,
 } = {}) => {
+  const message = headerSafe(raw);
+
   if (!message.to || !message.subject) {
     throw new MailError("A message needs a recipient and a subject");
   }
