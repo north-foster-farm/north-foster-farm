@@ -1,5 +1,5 @@
 {
- "revision": 28,
+ "revision": 29,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -158,6 +158,37 @@
      ],
      "device": "laptop",
      "type": "account"
+    }
+   ]
+  },
+  {
+   "id": "pre-writing",
+   "phase": "pre",
+   "title": "Your writing, before the code freeze",
+   "steps": [
+    {
+     "id": "wr-tour",
+     "title": "Rewrite \"A Tour of Our New Ordering System\" in your voice",
+     "body": "You said it reads stiff. **You write it; agents don't draft another version.** Keep the same format, the same content and the same sections, and change the words. The post is `content/news/2026-10-18-ordering-tour.md` (live copy: [staging](https://staging--north-foster-farm.netlify.app/news/2026-10-18-ordering-tour/)). Hand your text to Claude when it's done. Agents then only fit it in: links, shortcodes and data tokens such as `last-market`, and they tell you if your text makes any fact wrong. **This gates the code freeze.**",
+     "minutes": 45,
+     "device": "any",
+     "type": "writing"
+    },
+    {
+     "id": "wr-about",
+     "title": "Rewrite the About page in your voice",
+     "body": "Same terms as the post: same format and content, rewritten by you, no agent draft. The page is [About](https://staging--north-foster-farm.netlify.app/about/) (`content/about.md`). Hand your text to Claude; agents fit links, shortcodes and data tokens and flag anything that no longer matches the facts. **This gates the code freeze.**",
+     "minutes": 30,
+     "device": "any",
+     "type": "writing"
+    },
+    {
+     "id": "wr-policies",
+     "title": "Read all the policy pages and edit them lightly",
+     "body": "Read each page through and make light edits. The policy pages are these three:\n- **Privacy policy:** [https://staging--north-foster-farm.netlify.app/privacy/](https://staging--north-foster-farm.netlify.app/privacy/) (`content/privacy.md`). The review item *Two changes to the privacy page* has two lines waiting on your approval; read the page with those in mind.\n- **Delivery policy:** [https://staging--north-foster-farm.netlify.app/delivery-policy/](https://staging--north-foster-farm.netlify.app/delivery-policy/) (`content/delivery-policy.md`)\n- **Accessibility statement:** [https://staging--north-foster-farm.netlify.app/accessibility/](https://staging--north-foster-farm.netlify.app/accessibility/) (`content/accessibility.md`)\n\nSend Claude your edits as text, or say which lines to change. **This gates the code freeze.**",
+     "minutes": 40,
+     "device": "any",
+     "type": "writing"
     }
    ]
   },
@@ -2075,6 +2106,75 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/214"
       }
      ]
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-18",
+     "changed": "Your 10/17 review of the map, as two design reviews (A the places list and cards, B the area right of the map). Mock-ups only; nothing is built.",
+     "summary": "Two design reviews, each made twice without either pass seeing the other, then merged. **Nothing is built. Every word is a draft. Build waits for your yes.** The mock-ups below are 1280 and 1500 wide, with the phone (390) noted under each area. Open them on a laptop.\n\n## A. The places list and the cards\n\nYou said the list \"seems to have no real design language at all.\" What the passes agreed on:\n- The card leaves the map and opens in its row in the list, one open at a time. The map keeps only pins, the town outline and the tint, so no card hides another pin (today the farm's card covers the drop site's pin).\n- One card, one order, for the farm, the drop site, markets and pop-ups: when, where, directions, links (only where there are any), then the shop button (the farm and the drop site only). A card omits a part and never reorders one. The kind line and the repeated name go, and so does the tiny close button; tapping the row closes it.\n- Chosen means lighter, never darker: the row gets a pale wash, a 3px left bar and a filled pin glyph; the pin turns a brighter blue and is drawn last; the town gets the blue outline.\n- Hovering a row lifts its pin and hovering a pin lights its row. The list scrolls inside its column.\n- Keyboard and screen readers: rows are buttons; Enter or Space opens, Escape closes and returns to the row.\n\n**Phone (390):** the list sits right under the map, and a pin tap opens its row there, scrolling it into view only if needed. No sheet over the map: at 358 by 380 a sheet would cover half of it. At 390 by 844 the map and the first rows share one screen.\n\nWhere the two passes differed, I chose: phone row, not a sheet; a pin glyph in a small circle on each row; the town on the second line, then the day (\"Foster; North Scituate · Saturdays\"); 36px direction chips; small labels (When, Where, Directions, More); a violet-leaning blue tint for towns.\n\n**Questions A1 to A4.**\n- **A1. The card opens in the list, not on the map.** This departs from \"opens its card\" if you pictured it on the map. *Recommend yes* (nothing hidden, one design, works on a phone). If no: the floating card, restyled to the same template and kept clear of other pins.\n- **A2. A small pin glyph in a circle on every row.** *Recommend keep.* It points to the pin and sorts nothing, so it is not a swatch. If it reads as one to you, drop it; the wash and the bar still tie the row to its pin.\n- **A3. The tint for towns with a pin is violet-leaning blue (#e4e6f4), not pure blue.** *Recommend yes*: a plain pale blue reads as a lake beside the water.\n- **A4. Row wording: the town, then the day.** *Recommend as drafted.*\n\n## B. The area right of the map, on both tabs\n\nYou called the Delivery key the one that \"makes me scratch my head,\" with \"so much empty space below it,\" and asked for the column 35 to 50% narrower with the map nearer the center. What the passes agreed on:\n- A column stays beside the map on both tabs, the same width and top edge, so switching tabs moves nothing. It starts level with the top of the map, not the toggle (today it sits about 60px high, which is half of why it looks adrift).\n- The key is a bordered card with the map's border and radius, so the two read as a pair. The Places list sits in the same card. The card is only as tall as its content; the space below reads as margin beside a map, not a hole.\n- Two labeled groups in the key, since it has two independent parts: the shading (price) and the icons (what we deliver). Your wording in the rows is unchanged.\n- The toggle is alone above the map; the zoom buttons sit on the map, top right, stacked. No result card, no legend on the map, and the legend stays on Delivery only.\n\n**Phone (390):** under 992px the card goes under the map. The key becomes two side-by-side groups about 110px tall; the ZIP field and zoom stay on the map; the tag and the key fit one screen.\n\nWhere the passes differed, I chose: a 300px column (not 288px); the map capped at 608px so the whole block fits a 768px laptop window; the heading stays centered; the key heads \"Shading\" and \"Icons\"; not sticky.\n\n**Questions B1 to B4.**\n- **B1. The column is 300px, which is 32% narrower than today's 442 at 1280, not 35%.** *Recommend yes.* At 288px (35%) the longest name, \"The Village Family Fitness,\" wraps. One value to change if you want the number. **The decision that matters most:** is a column about 300px wide, with the map and the column centered, the \"narrower and more central\" you meant?\n- **B2. The key's two heads: \"Shading\" and \"Icons.\"** *Recommend as drafted.* Alternative: \"Delivery price\" and \"What we deliver.\"\n- **B3. Zoom buttons top right of the map, stacked.** *Recommend yes.*\n- **B4. No empty-space fix beyond the card and the narrowing.** *Recommend yes*: filling the column would mean adding the prose you cut.\n\n## A separate small bug: the Village card's \"Website\"\n\nOn the Village Family Fitness pop-up card, \"Website\" goes to the venue's Instagram page: `data/events.json` holds an Instagram URL as `href`, and the template labels any `href` \"Website.\" Your rule is no Instagram on a pop-up card. *Recommend:* remove the link for this event now (the mock-ups show the card without it), add an `href` only when the venue has a real website, and never show an instagram.com `href` on a pop-up. Needs nothing from you unless you know the venue's website.\n\n**To approve:** a yes or a change on A1 to A4 and B1 to B4.",
+     "look": [
+      {
+       "label": "A: farm card, 1280",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/r214-places-farm-1280.png"
+      },
+      {
+       "label": "A: farm card, 1500",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/r214-places-farm-1500.png"
+      },
+      {
+       "label": "A: pop-up card, 1280",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/r214-places-popup-1280.png"
+      },
+      {
+       "label": "A: market card, 1280",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/r214-places-market-1280.png"
+      },
+      {
+       "label": "A: drop site card, 1280",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/r214-places-drop-1280.png"
+      },
+      {
+       "label": "A: keyboard focus, 1280",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/r214-places-keyboard-1280.png"
+      },
+      {
+       "label": "A: farm card, phone",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/r214-places-farm-390.png"
+      },
+      {
+       "label": "A: pop-up card, phone",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/r214-places-popup-390.png"
+      },
+      {
+       "label": "A and B: Places, none open, 1280",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/r214-places-1280.png"
+      },
+      {
+       "label": "A and B: Places, none open, 1500",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/r214-places-1500.png"
+      },
+      {
+       "label": "A and B: Places, phone",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/r214-places-390.png"
+      },
+      {
+       "label": "B: Delivery with the key, 1280",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/r214-delivery-1280.png"
+      },
+      {
+       "label": "B: Delivery with the key, 1500",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/r214-delivery-1500.png"
+      },
+      {
+       "label": "B: Delivery with the key, phone",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/r214-delivery-390.png"
+      },
+      {
+       "label": "#214",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/214"
+      }
+     ],
+     "recommendation": "Yes to A1 to A4 and B1 to B4 as drafted. Remove the Village card's Instagram link now."
     }
    ],
    "device": "any",
@@ -2578,6 +2678,13 @@
      ],
      "text": "[PHOTO 1: the order page on a laptop, assets/images/online-ordering.png]\n\nYou can now order from us online. This summer was the first we sold our chicken, and we're grateful to everyone who tried it. Now you can keep buying from us after the market season ends: the order page at https://www.northfosterfarm.com/order/ has everything we bring to market, from eggs by the dozen to whole chickens, sausage, and every cut in between.\n\nThere are three ways to get your order:\n\nDELIVERY\n- We deliver every week on Thursday, between 10:00 AM and 4:00 PM\n- Order by noon on Wednesday\n- As affordable as possible: $40 minimum, $5 fee, free on orders of $150 or more\n\nON-FARM PICKUP\n- Pick a time when you order\n- No fee, no minimum\n- 99 East Killingly Road, Foster, RI 02825\n\nDROP SITE\n- Back on Saturday mornings in Scituate, 10:00 to 11:00 AM\n- Village Green, 46 Institute Lane, North Scituate, in the same corner of the lot where our tent sits in market season\n- Pick up your order for free\n\nDo we deliver to you? Check your ZIP code on the map at https://www.northfosterfarm.com/#map. We deliver across much of Rhode Island, and just over the line in Connecticut, where we can deliver eggs only for now. Our delivery policy lists every town, along with our bulk discounts, from $5 off orders of $50 up to $20 off orders of $200: https://www.northfosterfarm.com/delivery-policy/\n\nYou don't need an account to order. If you'd like one, there's no password: type the email you order with at https://www.northfosterfarm.com/login/ and we'll send you a link that signs you in. Signed-in customers can see past orders and receipts, change or cancel an order in progress, and keep a delivery address on file.\n\nOur hens, although slowing down, will continue to lay for us all year round. What's in stock changes as we go, and the order page always shows what's available now.\n\nThis is the first version of our online ordering system, and we want to hear how it works for you. Just reply to this email if you run into any problems.\n\nOne last thing: we're moving farm news to a new list, and it only goes to people who ask for it. This is the last update we'll send to this one. In the next few days you'll get one more email from us, with a Sign up button. Click it within a week and you're on the new list; ignore it and you won't hear from us again. You can also sign up any time at https://www.northfosterfarm.com/news/, or tick the email box when you place an order.\n\n— James and Jim\n\n---\n\nYou're getting this because you joined the North Foster Farm email list. Reply with \"unsubscribe\" and we won't send you the sign-up email either. Follow along on Instagram at https://www.instagram.com/northfosterfarm",
      "recommendation": "Approve the subject and body, or mark up the changes. Answer the opening question in R-POST."
+    },
+    {
+     "rev": 4,
+     "date": "2026-10-18",
+     "changed": "Coming: the opening gets reframed like the post. Nothing to review in this revision.",
+     "summary": "Your answer on #267: yes, the email's opening follows the post. It will not read as an announcement, because ordering has been running in soft launch and this is a tour of the system. Facts stay current, as the post's do. The email lane is writing it. **A before and after of the opening comes back here as the next revision. Don't approve this item until it does.** Nothing is sent or scheduled.",
+     "look": []
     }
    ],
    "device": "any",
@@ -3377,6 +3484,13 @@
      "summary": "A draft from the checkout lane. A preview holds no payment keys, so its order page shows this in place of the pay buttons, and the order API answers 403 with it.",
      "text": "\"Payments are switched off in previews.\"",
      "recommendation": "Approve as is; it is for you and the agents, never customers."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-18",
+     "changed": "Approved by you on #267: the wording from 3a82919 stays as it is.",
+     "summary": "You first asked to remove \"Payments are switched off in previews,\" then kept it once you saw that it appears where the payment buttons normally sit. Change nothing. Approve to close the item.",
+     "look": []
     }
    ],
    "device": "any",
@@ -3529,6 +3643,33 @@
       }
      ],
      "recommendation": "Approve if the library, the reset and the navigation work as described."
+    }
+   ]
+  },
+  {
+   "id": "R-214-ITEMS",
+   "section": "rv-look",
+   "title": "The map: your ten changes from 10/17",
+   "area": "#214 items 1 to 10",
+   "device": "laptop",
+   "type": "look",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "changed": "New. All ten are on `next` (b425b44, 6a557b7, 9402511, 8ebef13, 13c739a, 5a46ce1, 37b7a85, 242bf25, b7e15f1, cc3fc4f). None of the design reviews A or B (see R-214) is built.",
+     "summary": "Each item, before and after:\n1. **Toggle alone above the map; zoom inside it** (b425b44, with item 2). Before: the switch and the zoom buttons shared a bar above the map. After: the switch is alone above the map and the zoom is a column of buttons on the map's top left.\n2. **Zoom buttons** (same commit as 1).\n3. **ZIP box** (6a557b7). Before: 10.5rem wide. After: five digits wide once it has focus or a value, and 10.5rem only while empty and idle so \"Enter your ZIP\" reads. *See call 1.*\n4. **An out-of-area ZIP** (9402511). Before: a town outside the area could not be tapped, and its typed ZIP was outlined green. After: tapping or typing it drops the pin with \"No delivery\" and a grey outline. Green stays for ours and the rest of Rhode Island.\n5. **No Instagram on the pop-up card** (8ebef13). Before: the card carried an Instagram link. After: a website link only if the event has one. Markets keep theirs. (The Village card's \"Website\" is its Instagram URL: see the end of R-214.)\n6. **Brighter active pin** (13c739a). Before: dark blue with a dark outline. After: lighter blue with a soft blue glow.\n7. **Town outline on selection** (5a46ce1). Before: none. After: the town's ZIP shape is outlined dark blue over white.\n8. **Blue tint for towns with a pin** (242bf25, which fixed 37b7a85 losing the tint to PurgeCSS). After: towns with a pin are a pale blue on Places.\n9. **One less zoom-out level** (b7e15f1). Before: Places opened on the whole map. After: Places opens on the pins at 1.5x and zooms out no further; Delivery still shows the whole map. *See call 2.*\n10. **Scrolling places list** (cc3fc4f). Before: the list ran below the map when long. After: on a wide screen it ends where the map does and scrolls. The phone is unchanged.\n\n**Two calls for you.**\n- **1. Item 3, the ZIP box.** A box that fits five characters and the placeholder \"Enter your ZIP\" cannot both hold. Built: narrow once you type or focus, wide only while empty. *Recommend keep.* If you want it narrow always, the placeholder shrinks to \"ZIP\" or goes: say which.\n- **2. Item 9, \"one level.\"** Read as: the farthest-out zoom on Places goes from 1x to 1.5x. A full button step is 2x and would cut off pins. *Recommend keep.* If you meant a full step, say so.\n\n**To see before and after yourself** (the home lane's screenshot script was refused by the classifier, so the images don't exist yet). In Terminal, run these two, which write the whole map block at 1280 wide and 390 wide into `~/Code/nff/lanes/home/.ignored/r214/`, named `before-` or `after-` and the scenario:\n\n`! cd ~/Code/nff/lanes/home && node .ignored/r214-shots.mjs 8138 before delivery zipout places pin pin4`\n\n`! cd ~/Code/nff/lanes/home && node .ignored/r214-shots.mjs 8137 after delivery zipout places pin pin4`\n\nScenarios: delivery, zipout (a Connecticut ZIP typed), places, pin (first pin open), pin4 (the pop-up open). Port 8138 serves the before (origin/next at ebf952e) and 8137 the after. If a port is dead, run `python3 -m http.server PORT` in `.ignored/build-before` (8138) or `.ignored/build` (8137) inside the home lane folder first. Then tell Claude the images are there, and the home lane attaches them here. Or skip them and judge on staging once it has the commits.",
+     "look": [
+      {
+       "label": "Home map on staging",
+       "url": "https://staging--north-foster-farm.netlify.app/#map"
+      },
+      {
+       "label": "#214 status comment",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/214#issuecomment-6250143936"
+      }
+     ],
+     "recommendation": "Approve if staging looks right. Keep both calls as built unless you say otherwise."
     }
    ]
   }
@@ -4271,6 +4412,10 @@
    {
     "id": "claude",
     "label": "Tell Claude"
+   },
+   {
+    "id": "writing",
+    "label": "Writing"
    }
   ]
  },
