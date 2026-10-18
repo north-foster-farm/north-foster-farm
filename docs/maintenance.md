@@ -87,6 +87,13 @@ Every flip that changes the state emails `ADMIN_EMAILS` (James and
 Jim) and writes a `maintenance.flipped` log line. Flipping to the
 state it is already in does nothing and says nothing.
 
+Maintenance does not end sessions. To sign every customer out, turn
+maintenance on, run `bin/nff sessions end-all` (it counts the
+sessions, asks you to type `end all`, or takes `--yes`), then turn it
+off. The developer (`DEV_NOTIFICATIONS_EMAIL`, else `ADMIN_EMAILS`)
+gets an email each time it runs. Customers sign in again by magic
+link.
+
 The admin dashboard's switch is a follow-up (the dashboard is on
 hold). It needs only to read and write the same document, or to open
 the same signed links.

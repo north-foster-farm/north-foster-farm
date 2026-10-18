@@ -1231,6 +1231,27 @@ export const maintenanceFlipped = (on, {
   };
 };
 
+// Every customer session ended at once, to the developer. A run that
+// nobody meant is the thing this email exists to reveal.
+export const sessionsEnded = ({ count, by, at, context } = {}) => {
+  const title = `Every session was ended${
+    context && context !== "production" ? ` (${context})` : ""}`;
+  const blocks = [
+    p("Every customer is signed out. Each signs in again by magic " +
+      "link. If you did not run this, treat it as an incident " +
+      "(docs/secrets.md)."),
+    table(["Field", "Value"], [
+      ["Sessions ended", String(count)],
+      ["Run by", by || "unknown"],
+      ["At", when(at ? at.toISOString() : null)],
+    ]),
+  ];
+
+  return {
+    subject: title, ...render(title, blocks, undefined, { tag: "Security" }),
+  };
+};
+
 // The yearly secret rotation, to the developer: Dec 1, then weekly
 // while the rotation log shows something not yet rotated this window.
 // `final` is the loud one in the last week of December.

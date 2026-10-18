@@ -7,7 +7,7 @@ import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import { adjust, getCounts, setCount } from "./stock.mjs";
 import { normalizeEmail, validEmail } from "./auth.mjs";
 import { company } from "./company.mjs";
-import { sendMail } from "./mail.mjs";
+import { devOrAdminEmails, sendMail } from "./mail.mjs";
 import * as newsApi from "./news.mjs";
 import { recordRefund, sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
@@ -19,7 +19,9 @@ import {
 } from "./records.mjs";
 import { mailLinks } from "./site.mjs";
 import * as squareApi from "./square.mjs";
-import { addressDecision, orderCancelled } from "./templates.mjs";
+import {
+  addressDecision, orderCancelled, sessionsEnded,
+} from "./templates.mjs";
 
 export { forgetCustomer } from "./forget.mjs";
 
@@ -458,6 +460,36 @@ export const resolveReturn = async (stores, id, returnId, {
 };
 
 // Stock
+
+// Sessions
+
+// Deletes every session, then tells the developer. Customers sign in
+// again by magic link. With `apply` false it only counts.
+export const endAllSessions = async (stores, {
+  apply = false, by = "bin/nff", env = process.env, mail = sendMail,
+  now = new Date(),
+} = {}) => {
+  const keys = (await stores.auth.list("session/")).map((e) => e.key);
+
+  if (!apply) return { count: keys.length, ended: false };
+
+  for (const key of keys) await stores.auth.delete(key);
+
+  const to = devOrAdminEmails(env);
+
+  if (to.length) {
+    await mail({
+      to,
+      idempotencyKey: `sessions-ended-${now.getTime()}`,
+      ...sessionsEnded({
+        count: keys.length, by, at: now,
+        context: env.SITE_CONTEXT || env.CONTEXT || "",
+      }),
+    }, { env, stores });
+  }
+
+  return { count: keys.length, ended: true, notified: to.length > 0 };
+};
 
 export const stockList = (stores) => getCounts(stores);
 

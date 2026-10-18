@@ -42,6 +42,9 @@ const USAGE = `Usage:
                                       contact and the Square customer
                                       move; sessions end. A dry run
                                       unless --apply
+  bin/nff sessions end-all [--yes]    end every customer session; asks
+                                      first unless --yes, and emails
+                                      the developer
   bin/nff address approve|deny <email>
   bin/nff orders list [--open] [--status=paid] [--email=x]
   bin/nff orders show <id>
@@ -929,6 +932,25 @@ const run = async () => {
 
     return out(`Every earlier link is dead (epoch ${s.epoch}). Run ` +
       "`maintenance links` for the new ones.");
+  }
+  case "sessions end-all": {
+    const where = process.env.SITE_CONTEXT || "this";
+    const { count } = await admin.endAllSessions(stores);
+
+    out(`${count} session${count === 1 ? "" : "s"} on ${where}.`);
+    if (!flags.yes) {
+      const answer = await askLine(
+        `End every session on ${where}? Type "end all" to go ahead: `
+      );
+
+      if (answer.trim() !== "end all") return out("Nothing changed.");
+    }
+
+    const r = await admin.endAllSessions(stores, { apply: true });
+
+    return out(`Ended ${r.count}. ${r.notified
+      ? "The developer was emailed."
+      : "No DEV_NOTIFICATIONS_EMAIL or ADMIN_EMAILS, so no email."}`);
   }
   case "errors show":
     return errorsShow(rest[0]);
