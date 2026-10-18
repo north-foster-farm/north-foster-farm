@@ -17,6 +17,11 @@ npx playwright show-report
 bin/nff --staging orders list
 ```
 
+A deploy preview takes no payments (3a82919: the order page says so and
+`POST /api/orders` answers 403 `paymentsOff`), so on a preview only the
+specs that never reach the card form apply; OP-11 and the payment cases
+wait for staging.
+
 The suite runs against the staging branch deploy and refuses any host
 without `--` in its name, so production is out of reach. Each test opens
 a fresh browser (empty `localStorage`) with the staging toolbar hidden,
