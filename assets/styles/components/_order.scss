@@ -844,14 +844,6 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .order-cart-none {
-    color: var(--bs-secondary-color);
-
-    &[hidden] {
-      display: none;
-    }
-  }
-
   .order-cart-lines {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -1028,6 +1020,11 @@
     }
   }
 
+  // The chevron points down when folded and up when open.
+  [aria-expanded="true"] > .order-cart-icon {
+    rotate: 180deg;
+  }
+
   // The total row's two controls: only the count, the word Total and
   // the amount take a tap, each with its chevrons on the side facing
   // the middle. In the column they are plain text.
@@ -1044,7 +1041,7 @@
     white-space: nowrap;
 
     > .order-cart-icon {
-      align-self: center;
+      align-self: baseline;
     }
 
     &:disabled {
@@ -1067,10 +1064,12 @@
   .order-cart-toggle {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.375rem;
+    min-width: 6.25rem;
     max-width: 10rem;
     height: 2.25rem;
-    padding: 0 1rem 0 0.75rem;
+    padding: 0 0.875rem;
     overflow: hidden;
     border: 1px solid var(--bs-border-color-translucent);
     border-radius: 999px;
@@ -1095,29 +1094,6 @@
   }
 
 
-
-  // The icon says what a press does: open when folded, close when open.
-  [aria-expanded="true"] > .order-cart-icon-open,
-  [aria-expanded="false"] > .order-cart-icon-close {
-    display: none;
-  }
-
-  // An unseen "Expand" shares the word's cell, so the pill is as wide
-  // as the longer word whichever shows, and doesn't move when it flips.
-  .order-cart-words {
-    display: inline-grid;
-    justify-items: start;
-
-    > *,
-    &::after {
-      grid-area: 1 / 1;
-    }
-
-    &::after {
-      content: "Expand";
-      visibility: hidden;
-    }
-  }
 
   // The gap after it goes too: the margin takes it back.
   .order-cart[data-stuck="false"] .order-cart-toggle {

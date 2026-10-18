@@ -1400,7 +1400,6 @@ export class OrderForm {
       list.appendChild(li);
     }
 
-    qs(list, ".order-cart-none").hidden = s.groups.length > 0;
     this.syncScroll();
   }
 

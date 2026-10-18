@@ -27,9 +27,7 @@
       <div class="order-cart-list" id="order-cart-list">
         <div class="order-cart-scroll">
           <button type="button" class="order-cart-more order-cart-more-top" data-cart-more-top hidden></button>
-          <ul class="order-cart-items list-unstyled" data-cart-items>
-            <li class="order-cart-none">0 items</li>
-          </ul>
+          <ul class="order-cart-items list-unstyled" data-cart-items></ul>
           <button type="button" class="order-cart-more" data-cart-more hidden></button>
         </div>
         <hr class="order-cart-rule order-cart-rule-items">
@@ -127,8 +125,7 @@
        floats and folds), the way on at the right, the nudge under it. */}}
   <div class="order-cart-end">
     <button class="order-cart-toggle" type="button" aria-expanded="true" aria-controls="order-cart-body" aria-label="Show or hide the cart details" data-cart-toggle>
-      <span class="order-cart-icon order-cart-icon-open" aria-hidden="true">{{ partial "svg.html" "icons/panel-open" }}</span>
-      <span class="order-cart-icon order-cart-icon-close" aria-hidden="true">{{ partial "svg.html" "icons/panel-close" }}</span>
+      {{ partial "order/cart-chevrons.html" . }}
       <span class="order-cart-words"><span data-cart-word>Hide</span></span>
     </button>
     <button type="button" class="btn btn-primary order-cart-next" data-checkout disabled>Continue to payment</button>
