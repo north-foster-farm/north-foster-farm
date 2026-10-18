@@ -10,8 +10,8 @@ import { fileURLToPath } from "node:url";
 
 import { devSchedule, weekdaySchedule } from "../bin/dev-schedule.mjs";
 import {
-  buildEnvironment, checkEnv, missingAtBuild, planPush, preflight, pushEnv,
-  redact, remoteFor, remoteVars,
+  buildEnvironment, checkEnv, missingAtBuild, planPush, preflight,
+  previewLeaks, pushEnv, redact, remoteFor, remoteVars,
 } from "../bin/env/netlify.mjs";
 import { parseSample, readSample, readValues } from "../bin/env/sample.mjs";
 import { checkSchedule } from "../assets/scripts/order/lib/schedule.mjs";
@@ -635,5 +635,84 @@ describe("development's pickup schedule", () => {
     assert.equal(result.ok, true, result.errors.join("; "));
     assert.equal(weekdaySchedule("2026-10-03", "2026-10-05"),
       "2026-10-05 09:00-12:00 13:00-17:00");
+  });
+});
+
+describe("env check: previews and dev hold no production value (#251)", () => {
+  const v = (name, ...contexts) => ({
+    name, secret: true,
+    values: contexts.map(([context, value]) => ({ context, value })),
+  });
+
+  it("passes when previews hold only the context name and schedule", () => {
+    const r = previewLeaks([
+      v("SITE_CONTEXT", ["production", "production"],
+        ["deploy-preview", "deploy-preview"], ["dev", "dev"]),
+      v("PICKUP_SCHEDULE", ["deploy-preview", "2026-10-19 09:00-12:00"]),
+      v("RESEND_AUDIENCE_KEY", ["production"]),
+      v("SQUARE_ACCESS_TOKEN", ["production"], ["branch:staging"]),
+      v("HUGO_VERSION", ["all", "0.164"]),
+      v("NETLIFY_BUILD_DEBUG", ["all", "1"]),
+    ]);
+
+    assert.deepEqual(r, { problems: [], unset: [] });
+  });
+
+  it("names every other value on deploy-preview or dev", () => {
+    const r = previewLeaks([
+      v("RESEND_AUDIENCE_KEY", ["production"], ["deploy-preview"]),
+      v("RESEND_WEBHOOK_SECRET", ["dev"]),
+      v("RESEND_READ_KEY", ["deploy-preview"], ["dev"]),
+    ]);
+
+    assert.deepEqual(r.problems, [
+      "RESEND_AUDIENCE_KEY: has a value on Netlify's deploy-preview, which " +
+        "may hold only SITE_CONTEXT and PICKUP_SCHEDULE.",
+      "RESEND_WEBHOOK_SECRET: has a value on Netlify's dev, which may " +
+        "hold only SITE_CONTEXT and PICKUP_SCHEDULE.",
+      "RESEND_READ_KEY: has a value on Netlify's deploy-preview, which " +
+        "may hold only SITE_CONTEXT and PICKUP_SCHEDULE.",
+      "RESEND_READ_KEY: has a value on Netlify's dev, which may hold " +
+        "only SITE_CONTEXT and PICKUP_SCHEDULE.",
+    ]);
+    assert.deepEqual(r.unset, [
+      "netlify env:unset RESEND_AUDIENCE_KEY --context deploy-preview",
+      "netlify env:unset RESEND_WEBHOOK_SECRET --context dev",
+      "netlify env:unset RESEND_READ_KEY --context deploy-preview",
+      "netlify env:unset RESEND_READ_KEY --context dev",
+    ]);
+  });
+
+  it("flags a value attached to all, which reaches both", () => {
+    const r = previewLeaks([
+      v("AXIOM_TOKEN", ["all"]),
+      v("PICKUP_SCHEDULE", ["all", "2026-10-19 09:00-12:00"]),
+    ]);
+
+    assert.deepEqual(r.problems, [
+      "AXIOM_TOKEN: attached to all, so production's value reaches " +
+        "deploy-preview and dev.",
+      "PICKUP_SCHEDULE: attached to all, so production's value reaches " +
+        "deploy-preview and dev.",
+    ]);
+  });
+
+  it("flags a SITE_CONTEXT that says production", () => {
+    const r = previewLeaks([
+      v("SITE_CONTEXT", ["deploy-preview", "production"], ["dev", "dev"]),
+    ]);
+
+    assert.deepEqual(r.problems, ["SITE_CONTEXT: says production on " +
+      "deploy-preview."]);
+  });
+
+  it("leaves other contexts and Netlify's own names alone", () => {
+    const r = previewLeaks([
+      v("SQUARE_ACCESS_TOKEN", ["production"], ["branch-deploy"],
+        ["branch:staging"]),
+      v("CONTEXT", ["deploy-preview", "x"]),
+    ]);
+
+    assert.deepEqual(r, { problems: [], unset: [] });
   });
 });

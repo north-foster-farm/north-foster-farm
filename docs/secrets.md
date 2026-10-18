@@ -179,7 +179,12 @@ the dev server.
   names in the sample, the local file and the Netlify context, and
   fails on any difference. It also fails on any value attached to
   several contexts or to "all", which is how sharing happens on
-  Netlify. It prints names, never values.
+  Netlify. It also proves that no production value reaches a
+  preview: `deploy-preview` and `dev` may hold `SITE_CONTEXT` and
+  `PICKUP_SCHEDULE` and nothing else, and nothing attached to "all"
+  may reach them. Netlify never returns a secret, so the proof is by
+  name, and it prints the `netlify env:unset` commands that clear a
+  leak. It prints names, never values.
 - **`npm run check:env`** runs in the Netlify build, beside
   `check:schedule`, and fails the build when a key the sample lists
   for that context is missing.

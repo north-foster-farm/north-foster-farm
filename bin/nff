@@ -15,8 +15,8 @@ import { fileURLToPath } from "node:url";
 import { loadEnv } from "../netlify/functions/lib/env.mjs";
 import { devSchedule } from "./dev-schedule.mjs";
 import {
-  TARGETS, checkEnv, planPush, preflight, pushEnv, redact, remoteFor,
-  remoteVars,
+  PREVIEW_ALLOWED, PREVIEW_CONTEXTS, TARGETS, checkEnv, planPush, preflight,
+  previewLeaks, pushEnv, redact, remoteFor, remoteVars,
 } from "./env/netlify.mjs";
 import { readSample, readValues, sampleFile } from "./env/sample.mjs";
 import { setSchedule } from "./schedule-env.mjs";
@@ -91,7 +91,10 @@ const USAGE = `Usage:
   bin/nff env check --staging|--production
                                       the sample, the env file and
                                       Netlify, compared by name; fails on
-                                      a difference or a shared value
+                                      a difference, a shared value, or
+                                      any value on deploy-preview or dev
+                                      beyond SITE_CONTEXT and the
+                                      pickup schedule
   bin/nff --production export [--label before-release] [--out <file>]
                                       the backup export, now: encrypted
                                       to BACKUP_AGE_RECIPIENT and put in
@@ -471,14 +474,20 @@ const envCommand = async () => {
   }
 
   if (action === "check") {
-    const remote = remoteFor(await remoteVars(cli, site), context);
-    const { problems, unset } = checkEnv({
+    const vars = await remoteVars(cli, site);
+    const remote = remoteFor(vars, context);
+    const found = checkEnv({
       env: context, sample, local, remote, file,
     });
+    const leaks = previewLeaks(vars);
+    const problems = [...found.problems, ...leaks.problems];
+    const unset = [...found.unset, ...leaks.unset];
 
     if (!problems.length) {
       return out(`${sampleFile(context)}, ${file} and ${target} agree on ${
-        sample.keys.length} keys, none shared.`);
+        sample.keys.length} keys, none shared. ${
+        PREVIEW_CONTEXTS.join(" and ")} hold only ${
+        [...PREVIEW_ALLOWED].join(" and ")}: no production value.`);
     }
     for (const p of problems) console.error(`  ${p}`);
     if (unset.length) {

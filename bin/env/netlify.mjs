@@ -297,6 +297,59 @@ export const checkEnv = ({ env, sample, local, remote, file }) => {
   return { problems, unset };
 };
 
+// What deploy previews and `dev` may hold (#251, #255): the context
+// name and the pickup schedule, nothing else. The repository is
+// public, so a preview of any branch runs code anyone can write, with
+// whatever its context holds. A preview then has no payment keys, no
+// Resend keys and no webhook secrets, and the API says so (lib/site
+// and orders.mjs: payments off).
+export const PREVIEW_CONTEXTS = ["deploy-preview", "dev"];
+export const PREVIEW_ALLOWED = new Set(["SITE_CONTEXT", "PICKUP_SCHEDULE"]);
+
+// Every variable that reaches a preview or `dev` context beyond
+// PREVIEW_ALLOWED: a value of its own there, or one attached to "all",
+// which reaches every context, production's included. Netlify returns
+// no secret's value, so the proof is by name: a name outside the list
+// has no business in those contexts. SITE_CONTEXT must not say
+// production. -> { problems, unset }, names only; unset are the
+// commands James runs, since nothing here deletes.
+export const previewLeaks = (vars) => {
+  const problems = [];
+  const unset = [];
+
+  for (const v of vars) {
+    if (netlifyOwn(v.name)) continue;
+
+    for (const x of v.values) {
+      const reaches = x.context === "all" ? PREVIEW_CONTEXTS
+        : PREVIEW_CONTEXTS.filter((c) => c === x.context);
+
+      if (!reaches.length) continue;
+
+      const command = `netlify env:unset ${v.name} --context ${x.context}`;
+
+      if (!PREVIEW_ALLOWED.has(v.name)) {
+        problems.push(x.context === "all"
+          ? `${v.name}: attached to all, so production's value reaches ${
+            reaches.join(" and ")}.`
+          : `${v.name}: has a value on Netlify's ${x.context}, which may ` +
+            "hold only SITE_CONTEXT and PICKUP_SCHEDULE.");
+        unset.push(command);
+      } else if (v.name === "SITE_CONTEXT" && x.value === "production") {
+        problems.push(`SITE_CONTEXT: says production on ${
+          x.context === "all" ? reaches.join(" and ") : x.context}.`);
+        unset.push(command);
+      } else if (x.context === "all") {
+        problems.push(`${v.name}: attached to all, so production's value ` +
+          `reaches ${reaches.join(" and ")}.`);
+        unset.push(command);
+      }
+    }
+  }
+
+  return { problems, unset };
+};
+
 // A Netlify build's CONTEXT and BRANCH -> the sample it answers to, or
 // null for a preview or another branch.
 export const buildEnvironment = ({ CONTEXT: context, BRANCH: branch }) => {
