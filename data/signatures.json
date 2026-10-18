@@ -1,0 +1,37 @@
+{
+  "draft": "Placeholder variants. James has not yet given the roles, addresses, phones or links; anything null shows as a bracketed gap in the staging toolbar's Signatures panel until he does. See #267.",
+  "shared": {
+    "logo": "logo-horizontal.png",
+    "globe": "globe.png",
+    "instagram": {
+      "image": "instagram.png",
+      "url": "https://instagram.com/northfosterfarm"
+    }
+  },
+  "variants": [
+    {
+      "id": "james",
+      "label": "James",
+      "name": "James",
+      "role": null,
+      "email": null,
+      "phone": null
+    },
+    {
+      "id": "jim",
+      "label": "Jim",
+      "name": "Jim",
+      "role": null,
+      "email": null,
+      "phone": null
+    },
+    {
+      "id": "team",
+      "label": "The NFF team",
+      "name": "The NFF team",
+      "role": null,
+      "email": null,
+      "phone": null
+    }
+  ]
+}

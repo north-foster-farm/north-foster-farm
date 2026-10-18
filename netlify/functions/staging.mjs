@@ -24,6 +24,10 @@
 //                                     sample values as tokens
 //   DELETE /api/staging/emails/:id/rewrite   back to the code's wording
 //                                     (all four: lib/review.mjs)
+//   GET    /api/staging/signatures    the email signatures (lib/signatures
+//                                     .mjs): id, label, html, text and
+//                                     the fields still missing
+//   GET    /api/staging/signatures/:id  one as a bare page, for Select All
 //   POST   /api/staging/throw         throws, to prove the crash alert
 //                                     (only with STAGING_TOKEN set)
 //
@@ -43,6 +47,9 @@ import {
   tokenize, versionFor, withdrawApproval,
 } from "./lib/review.mjs";
 import { mailLinks } from "./lib/site.mjs";
+import {
+  alone, entry as signature, library as signatures, render,
+} from "./lib/signatures.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 import terms from "../../data/delivery.json" with { type: "json" };
 import { today } from "../../assets/scripts/order/lib/zoned.mjs";
@@ -280,6 +287,26 @@ export const handle = async (req, {
     }
 
     return new Response(m.html, {
+      status: 200,
+      headers: {
+        ...MESSAGE_HEADERS, "Content-Type": "text/html; charset=utf-8",
+      },
+    });
+  }
+
+  if (req.method === "GET" && path === "/api/staging/signatures") {
+    return json(200, { signatures: signatures(env) });
+  }
+
+  if (req.method === "GET" && path.startsWith("/api/staging/signatures/")) {
+    const v = signature(decodeURIComponent(
+      path.slice("/api/staging/signatures/".length)
+    ));
+
+    if (!v) return json(404, { error: "No such signature." });
+
+    // Nothing but the signature, so Select All and Copy takes only it.
+    return new Response(alone(render(v, env).html), {
       status: 200,
       headers: {
         ...MESSAGE_HEADERS, "Content-Type": "text/html; charset=utf-8",

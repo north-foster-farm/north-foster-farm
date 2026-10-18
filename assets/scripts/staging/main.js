@@ -11,6 +11,7 @@
 // #email=<id> link, even when the toolbar is hidden.
 
 import { mountLibrary } from "./library.js";
+import { mountSignatures } from "./signatures.js";
 
 const root = document.getElementById("staging");
 const qs = (sel) => root.querySelector(sel);
@@ -197,6 +198,13 @@ const library = mountLibrary({
   onOpen: () => { root.hidden = false; },
 });
 
+const signatures = mountSignatures({
+  root,
+  api,
+  aloneUrl: (id) => `/api/staging/signatures/${encodeURIComponent(id)}${
+    token() ? `?token=${encodeURIComponent(token())}` : ""}`,
+});
+
 const boot = async () => {
   store("sessionStorage", HIDDEN, null);
   library.fromHash();
@@ -214,7 +222,10 @@ const boot = async () => {
   }
   qs("[data-staging-info]").textContent = text;
   show(!!store("localStorage", KEY.open));
-  if (info.ok) library.counted();
+  if (info.ok) {
+    library.counted();
+    signatures.load();
+  }
 };
 
 // Capture, so a click lets the handler under it ask for the token.

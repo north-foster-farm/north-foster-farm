@@ -29,6 +29,9 @@
           <button type="button" class="staging-action" data-staging-library-open>Email library</button>
           <span class="staging-muted" data-staging-library-count></span>
         </p>
+        <h2>Signatures</h2>
+        <p class="staging-muted" data-staging-signatures-note>Loading…</p>
+        <ol class="staging-signatures" data-staging-signatures></ol>
         <h2>Inbox</h2>
         <p class="staging-muted" data-staging-empty>Nothing yet. Every email the site would send lands here instead.</p>
         <ol class="staging-list" data-staging-list></ol>
@@ -129,6 +132,22 @@
           <span class="staging-item-subject"></span>
           <span class="staging-item-tags"><span class="staging-badge"></span></span>
         </a>
+      </li>
+    </template>
+    {{/* One signature: a preview of exactly what Copy puts on the
+      clipboard, and the Open alone page that holds nothing else. */}}
+    <template data-staging-signature>
+      <li class="staging-signature">
+        <div class="staging-signature-head">
+          <strong class="staging-signature-label"></strong>
+          <span class="staging-badge staging-signature-gap" data-approval="to approve" hidden></span>
+        </div>
+        <iframe class="staging-signature-frame" title="The signature as mail shows it" sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
+        <p class="staging-signature-actions">
+          <button type="button" class="staging-action staging-primary" data-signature-copy>Copy</button>
+          <a class="staging-action staging-link" data-signature-alone target="_blank" rel="noopener">Open alone</a>
+          <span class="staging-muted" data-signature-said role="status"></span>
+        </p>
       </li>
     </template>
     <template data-staging-token><span class="staging-token" contenteditable="false"></span></template>

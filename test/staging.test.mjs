@@ -129,6 +129,8 @@ describe("the staging endpoints", () => {
     ["POST", "/api/staging/jobs/run"],
     ["GET", "/api/staging/emails"],
     ["GET", "/api/staging/emails/sign-in-link"],
+    ["GET", "/api/staging/signatures"],
+    ["GET", "/api/staging/signatures/james"],
     ["PUT", "/api/staging/emails/sign-in-link/approval"],
     ["DELETE", "/api/staging/emails/sign-in-link/approval"],
     ["PUT", "/api/staging/emails/sign-in-link/rewrite"],
