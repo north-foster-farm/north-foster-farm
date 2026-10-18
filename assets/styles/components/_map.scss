@@ -420,6 +420,13 @@ $map-place-tint: tint-color($blue, 82%);
   }
 }
 
+// Beside the map, the list ends where the map does (scripts/map/ sets
+// its max-height) and scrolls past that.
+.map-places {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .map-key-areas {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, max-content));

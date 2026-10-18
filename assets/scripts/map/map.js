@@ -21,7 +21,8 @@
 //   the ZIP picked.
 // - The top bar's link to a pop-up, #place-…, opens its card.
 //
-// Places opens on the pins and zooms out less far than Delivery.
+// Places opens on the pins and zooms out less far than Delivery, and
+// its list beside the map scrolls when it runs longer than the map.
 //
 // Both: it zooms with its buttons, a pinch (a trackpad's too), a
 // double click (not a double tap) or ctrl and the wheel, and pans with
@@ -117,6 +118,7 @@ const wire = (map) => {
   const tabs = [...map.querySelectorAll("[data-map-layer]")];
   const pins = [...map.querySelectorAll("[data-map-pin]")];
   const pinOf = (n) => map.querySelector(`[data-map-pin="${n}"]`);
+  const list = map.querySelector(".map-places");
   const picks = [...map.querySelectorAll("[data-map-pick]")];
   const towns = [...map.querySelectorAll("[data-map-town]")];
   const form = map.querySelector("[data-zip-check]");
@@ -374,6 +376,24 @@ const wire = (map) => {
     zoomAbout(2, p.x, p.y, true);
   });
 
+  // The list beside the map ends where the map does, and scrolls. On a
+  // phone it sits below the map and the page scrolls instead.
+  const side = matchMedia("(min-width: 992px)");
+  const fitList = () => {
+    if (!list) return;
+    if (list.hidden || !side.matches) {
+      list.style.removeProperty("max-height");
+      return;
+    }
+    list.style.maxHeight = `${Math.max(0, frame.getBoundingClientRect().bottom
+      - list.getBoundingClientRect().top)}px`;
+  };
+
+  if (list && "ResizeObserver" in window) {
+    new ResizeObserver(fitList).observe(frame);
+  }
+  addEventListener("resize", fitList);
+
   // Layers.
 
   const layer = () => map.dataset.layer;
@@ -403,6 +423,7 @@ const wire = (map) => {
     if (name === "delivery") close();
     hideTip();
     if (zoom() < minZoom()) go(home());
+    fitList();
     apply();
   }
 
@@ -482,6 +503,16 @@ const wire = (map) => {
     card.hidden = false;
     pressed(String(n));
     outline(homeOf(pin));
+    // The card's name in the list, brought into view in the list alone.
+    const row = list && list.querySelector(`[data-map-show="${n}"]`);
+
+    if (row && list.scrollHeight > list.clientHeight) {
+      const at = row.getBoundingClientRect();
+      const box = list.getBoundingClientRect();
+
+      if (at.top < box.top) list.scrollTop += at.top - box.top;
+      else if (at.bottom > box.bottom) list.scrollTop += at.bottom - box.bottom;
+    }
     // SVG paints in source order: the selected pin goes on top.
     pin.parentNode.append(pin);
     if (centreOn && zoom() > 1.01) {

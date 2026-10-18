@@ -714,6 +714,39 @@ test.describe("map (#138, #214)", () => {
     expect(b, "blue").toBeGreaterThan(r);
   });
 
+  // Beside the map, a list longer than the map scrolls (#214).
+  test("the places list scrolls when it outruns the map",
+    async ({ page }) => {
+      await page.goto(HOME.path);
+      await places(page);
+
+      const list = map(page).locator(".map-places");
+      const wide = await page.evaluate(() => matchMedia("(min-width: 992px)")
+        .matches);
+
+      test.skip(!wide, "the list sits below the map on a phone");
+      await list.scrollIntoViewIfNeeded();
+      await list.evaluate((el) => {
+        const ul = el.querySelector("ul:last-of-type");
+
+        for (let i = 0; i < 12; i += 1) {
+          ul.append(ul.firstElementChild.cloneNode(true));
+        }
+        dispatchEvent(new Event("resize"));
+      });
+
+      const [box, frame] = await Promise.all([
+        list.boundingBox(),
+        map(page).locator("[data-map-frame]").boundingBox(),
+      ]);
+
+      expect(box.y + box.height, "ends with the map")
+        .toBeLessThanOrEqual(frame.y + frame.height + 1);
+      await expect(list).toHaveCSS("overflow-y", "auto");
+      expect(await list.evaluate((el) => el.scrollHeight > el.clientHeight),
+        "it scrolls").toBe(true);
+    });
+
   // The pin's town is outlined while its card is open (#214).
   test("the selected pin's town is outlined", async ({ page }) => {
     await page.goto(HOME.path);
