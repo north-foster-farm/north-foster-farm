@@ -49,7 +49,6 @@ const seed = () => ({
     "nff-news": "joined",
     "nff:autoplay": "off",
     "nff-me": "{}",
-    "staging.token": "secret",
     "staging.open": "1",
   }),
   session: bag({ "nff-me": "{}", "staging.hidden": "1" }),
@@ -72,14 +71,13 @@ describe("Reset to a first visit (#267)", () => {
     assert.equal(cookies.held.size, 0);
   });
 
-  it("keeps only the toolbar's token and open state", async () => {
+  it("keeps only the toolbar's open state", async () => {
     const { local, session, cookies } = seed();
 
     await forgetEverything({
       local: () => local, session: () => session, jar: cookies,
       signOut: async () => {},
     });
-    assert.equal(local.getItem("staging.token"), "secret");
     assert.equal(local.getItem("staging.open"), "1");
   });
 

@@ -12,11 +12,11 @@
 // - the sign-in itself, ended on the server, which also clears the
 //   session cookie scripts cannot touch.
 //
-// What stays is the toolbar's own state (STAY), or the next click would
-// ask for the token again. Filters and form values live in the page and
+// What stays is the toolbar's own state (STAY), or the toolbar would
+// close. Filters and form values live in the page and
 // the address, so the reload that follows drops them.
 
-export const STAY = ["staging.token", "staging.open"];
+export const STAY = ["staging.open"];
 
 // `bag` is a function: even reading window.localStorage can throw.
 const wipe = (bag) => {

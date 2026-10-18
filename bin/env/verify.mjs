@@ -174,7 +174,7 @@ const r2 = async (v, fetchImpl) => {
 // Keys with no harmless call, named so they aren't mistaken for passes.
 const UNCHECKED = [
   "SQUARE_WEBHOOK_SIGNATURE_KEY", "RESEND_WEBHOOK_SECRET",
-  "MAINTENANCE_SECRET", "STAGING_TOKEN", "STAGING_REVIEWER_TOKEN",
+  "MAINTENANCE_SECRET", "STAGING_TOKEN", "GATE_RESEND_KEY",
   "E2E_STAGING_TOKEN",
   "BACKUP_AGE_RECIPIENT",
 ];

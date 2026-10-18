@@ -33,6 +33,7 @@ HEALTHCHECKS_BACKUP_URL | 2026-10-18 | production | seed | checkout agent
 ntfy topic | 2026-10-18 | production | seed | checkout agent
 PICKUP_SCHEDULE_HOOK | 2026-10-18 | production | seed | checkout agent
 STAGING_REVIEWER_TOKEN | 2026-10-18 | staging | seed | checkout agent
+GATE_RESEND_KEY | 2026-10-18 | staging | seed | checkout agent
 age private key | 2026-10-18 | production | seed | prod agent
 STAGING_TOKEN | 2026-10-18 | staging | seed | prod agent
 E2E_STAGING_TOKEN | 2026-10-18 | staging | seed | prod agent

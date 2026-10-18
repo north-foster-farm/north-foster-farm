@@ -15,6 +15,7 @@
 // list; nobody else is ever written to.
 
 import { guard } from "./breaker.mjs";
+import { company } from "./company.mjs";
 import { MAIL_CEILING, LINK_TTL, gateActive, isAllowed } from "./gate.mjs";
 import { timedFetch } from "./http.mjs";
 import { log } from "./log.mjs";
@@ -22,10 +23,10 @@ import { deployContext } from "./store.mjs";
 
 const RESEND_MS = 4000;
 
-export const SUBJECT = "Your sign-in link for North Foster Farm staging";
+export const SUBJECT = `Your sign-in link for ${company.name} staging`;
 
 export const linkText = (url, minutes = LINK_TTL / 60_000) => [
-  "Follow this link to sign in to the North Foster Farm staging site:",
+  `Follow this link to sign in to the ${company.name} staging site:`,
   "",
   url,
   "",

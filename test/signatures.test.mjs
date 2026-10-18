@@ -1,16 +1,31 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { describe, it } from "node:test";
 
 import {
   alone, library, missing, render, entry,
 } from "../netlify/functions/lib/signatures.mjs";
+import { COOKIE } from "../netlify/functions/lib/gate.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle } from "../netlify/functions/staging.mjs";
 
-const env = { CONTEXT: "branch-deploy", STAGING_TOKEN: "s3cret",
+const ID = "owner-session-id-0123456789abcdef";
+const env = { CONTEXT: "branch-deploy", GATE_TOOLBAR_EMAIL: "jim@example.com",
   URL: "https://farm.example" };
+// A store holding the toolbar owner's live gate session.
+const signed = () => {
+  const stores = testStores();
+
+  stores.gate.data.set("allow/jim@example.com", {});
+  stores.gate.data.set(`session/${createHash("sha256").update(ID)
+    .digest("hex")}`, {
+    email: "jim@example.com", expires: Date.now() + 86_400_000,
+  });
+
+  return stores;
+};
 const ask = (path) => new Request(`https://x${path}`, {
-  headers: { Authorization: "Bearer s3cret" },
+  headers: { Cookie: `${COOKIE}=${ID}` },
 });
 
 describe("email signatures", () => {
@@ -48,14 +63,14 @@ describe("email signatures", () => {
 describe("the signatures routes", () => {
   it("list them and serve one bare page", async () => {
     const list = await handle(ask("/api/staging/signatures"), {
-      stores: testStores(), env,
+      stores: signed(), env,
     });
 
     assert.equal(list.status, 200);
     assert.ok((await list.json()).signatures.length > 0);
 
     const page = await handle(ask("/api/staging/signatures/james"), {
-      stores: testStores(), env,
+      stores: signed(), env,
     });
     const body = await page.text();
 
@@ -64,7 +79,7 @@ describe("the signatures routes", () => {
     assert.match(body, /<\/table><\/body><\/html>$/);
 
     const none = await handle(ask("/api/staging/signatures/nobody"), {
-      stores: testStores(), env,
+      stores: signed(), env,
     });
 
     assert.equal(none.status, 404);
@@ -72,7 +87,7 @@ describe("the signatures routes", () => {
 
   it("are a 404 in production", async () => {
     const res = await handle(ask("/api/staging/signatures"), {
-      stores: testStores(),
+      stores: signed(),
       env: { CONTEXT: "production", STAGING_TOKEN: "s3cret" },
     });
 

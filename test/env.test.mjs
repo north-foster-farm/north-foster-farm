@@ -384,13 +384,13 @@ describe("bin/nff env check", () => {
     const prod = remoteFor([{ name: "STAGING_TOKEN", secret: true,
       values: [{ context: "production", value: "" }] }], "production");
     const { problems, unset } = checkEnv({ env: "production",
-      sample: staging(), local: filled({ STAGING_REVIEWER_TOKEN: "" }),
+      sample: staging(), local: filled({ GATE_RESEND_KEY: "" }),
       file: ".env.production", remote: prod });
 
     assert.ok(problems.includes(
       "STAGING_TOKEN: is staging only, yet in Netlify's production."));
     assert.ok(problems.includes(
-      "STAGING_REVIEWER_TOKEN: is staging only, yet in .env.production."));
+      "GATE_RESEND_KEY: is staging only, yet in .env.production."));
     assert.deepEqual(unset,
       ["bin/nff netlify env:unset STAGING_TOKEN --context production"]);
   });

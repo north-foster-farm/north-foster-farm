@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+
+import { COOKIE } from "../netlify/functions/lib/gate.mjs";
 
 import {
   OUTBOX_KEEP, OUTBOX_PREFIX, sendMail,
@@ -10,7 +13,9 @@ import {
   clear, diffLines, joined, pending, standing, tokenize, versionOf,
 } from "../netlify/functions/lib/review.mjs";
 import { mailLinks } from "../netlify/functions/lib/site.mjs";
-import { storeName, testStores } from "../netlify/functions/lib/store.mjs";
+import {
+  storeName, testStores as plainStores,
+} from "../netlify/functions/lib/store.mjs";
 import {
   areaOf, handle, KEYS, staging,
 } from "../netlify/functions/staging.mjs";
@@ -21,16 +26,38 @@ const message = {
   html: "<html><body><p>Click the link.</p></body></html>",
 };
 
-// Every staging context in these tests holds TOKEN, and every request
-// carries it unless a test says otherwise.
+// Every staging context in these tests names OWNER as the toolbar's
+// owner, and every request carries OWNER's gate session unless a test
+// says otherwise. TOKEN is the machine token.
 const TOKEN = "s3cret";
+const OWNER = "james@example.com";
+const SESSION = "owner-session-id-0123456789abcdef";
+const hash = (v) => createHash("sha256").update(v).digest("hex");
+
+// Stores with the owner and a reviewer on the allowlist, and a live
+// session for each.
+const seed = (stores, id, email) => {
+  stores.gate.data.set(`allow/${email}`, { addedAt: "2026-10-18" });
+  stores.gate.data.set(`session/${hash(id)}`, {
+    email, createdAt: "2026-10-18", expires: Date.now() + 86_400_000,
+  });
+};
+const testStores = () => {
+  const stores = plainStores();
+
+  seed(stores, SESSION, OWNER);
+  seed(stores, "reviewer-session-id-0123456789abc", "jim@example.com");
+
+  return stores;
+};
+const cookie = (id) => ({ Cookie: `${COOKIE}=${id}`, Authorization: "" });
 
 const req = (path, method = "GET", body, headers = {}) =>
   new Request(`https://x${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${TOKEN}`,
+      ...cookie(SESSION),
       ...headers,
     },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -105,6 +132,7 @@ describe("the outbox driver", () => {
 describe("the staging endpoints", () => {
   const env = {
     CONTEXT: "deploy-preview", MAIL_DRIVER: "outbox", STAGING_TOKEN: TOKEN,
+    GATE_TOOLBAR_EMAIL: OWNER,
   };
 
   it("answer only off production", async () => {
@@ -147,25 +175,27 @@ describe("the staging endpoints", () => {
   const ask = (method, path, headers) => req(path, method,
     ["POST", "PUT"].includes(method) ? {} : undefined, headers);
 
-  it("fail closed: every route is a 404 with no token set", async () => {
-    const open = { CONTEXT: "branch-deploy", MAIL_DRIVER: "outbox" };
+  it("fail closed: every route is a 404 with no way in configured",
+    async () => {
+      const open = { CONTEXT: "branch-deploy", MAIL_DRIVER: "outbox" };
 
-    for (const [method, path] of routes) {
-      for (const e of [open, { ...open, STAGING_TOKEN: "" }]) {
-        const res = await handle(ask(method, path), {
-          stores: testStores(), env: e, run,
-        });
+      for (const [method, path] of routes) {
+        for (const e of [open, { ...open, STAGING_TOKEN: "" }]) {
+          const res = await handle(ask(method, path), {
+            stores: testStores(), env: e, run,
+          });
 
-        assert.equal(res.status, 404, `${method} ${path}`);
+          assert.equal(res.status, 404, `${method} ${path}`);
+        }
       }
-    }
-  });
+    });
 
-  it("refuse every route without the right token", async () => {
+  it("refuse every route with no session and no token", async () => {
     for (const [method, path] of routes) {
-      for (const headers of [{ Authorization: "" },
-        { Authorization: "Bearer wrong" },
-        { Authorization: `Bearer ${TOKEN}x` }]) {
+      for (const headers of [{ Cookie: "", Authorization: "" },
+        { Cookie: `${COOKIE}=${"x".repeat(32)}`, Authorization: "" },
+        { Cookie: "", Authorization: "Bearer wrong" },
+        { Cookie: "", Authorization: `Bearer ${TOKEN}x` }]) {
         const res = await handle(ask(method, path, headers), {
           stores: testStores(), env, run,
         });
@@ -175,7 +205,7 @@ describe("the staging endpoints", () => {
     }
   });
 
-  it("let every route through with the right token", async () => {
+  it("let every route through for the owner's session", async () => {
     for (const [method, path] of routes) {
       const answer = handle(ask(method, path), {
         stores: testStores(), env, run,
@@ -193,143 +223,164 @@ describe("the staging endpoints", () => {
     }
   });
 
-  it("take the token as a bearer or a query", async () => {
-    const stores = testStores();
-    const bare = { Authorization: "" };
+  describe("a signed-in reviewer", () => {
+    const reviewer = cookie("reviewer-session-id-0123456789abc");
 
-    assert.equal((await handle(req("/api/staging/info", "GET", undefined,
-      bare), { stores, env })).status, 401);
-    assert.equal((await handle(req("/api/staging/info", "GET", undefined,
-      { Authorization: `Bearer ${TOKEN}` }), { stores, env })).status, 200);
-    assert.equal((await handle(req(`/api/staging/info?token=${TOKEN}`,
-      "GET", undefined, bare), { stores, env })).status, 200);
+    it("is refused every route, the toolbar's included", async () => {
+      for (const [method, path] of routes) {
+        const res = await handle(ask(method, path, reviewer), {
+          stores: testStores(), env, run,
+        });
+
+        assert.equal(res.status, 403, `${method} ${path}`);
+        assert.deepEqual(await res.json(),
+          { error: "This session does not open that." });
+      }
+    });
+
+    it("is refused when no toolbar owner is configured", async () => {
+      const res = await handle(ask("GET", "/api/staging/info", reviewer), {
+        stores: testStores(), env: { ...env, GATE_TOOLBAR_EMAIL: "" },
+      });
+
+      assert.equal(res.status, 403);
+    });
+
+    it("does not become the owner by case or spacing", async () => {
+      const res = await handle(ask("GET", "/api/staging/info", reviewer), {
+        stores: testStores(),
+        env: { ...env, GATE_TOOLBAR_EMAIL: " JIM@example.com " },
+      });
+
+      assert.equal(res.status, 200, "the same address, written otherwise");
+    });
+
+    it("loses the toolbar with the allowlist", async () => {
+      const stores = testStores();
+
+      stores.gate.data.delete("allow/james@example.com");
+
+      const res = await handle(ask("GET", "/api/staging/info"),
+        { stores, env });
+
+      assert.equal(res.status, 401);
+    });
   });
 
+  describe("the machine token", () => {
+    const bearer = { Cookie: "", Authorization: `Bearer ${TOKEN}` };
 
-  it("describe the deploy", async () => {
+    it("opens the jobs run, the info and the crash proof only",
+      async () => {
+        for (const [method, path] of routes) {
+          if (path === THROWS) continue;
+
+          const res = await handle(ask(method, path, bearer),
+            { stores: testStores(), env, run });
+          const machine = ["/api/staging/info", "/api/staging/jobs/run"]
+            .includes(path);
+
+          if (machine) assert.equal(res.status, 200, path);
+          else assert.equal(res.status, 403, path);
+        }
+        await assert.rejects(handle(ask("POST", THROWS, bearer),
+          { stores: testStores(), env }), /Staging proof/);
+      });
+
+    it("opens no email library, outbox or signatures", async () => {
+      for (const path of ["/api/staging/outbox", "/api/staging/emails",
+        "/api/staging/signatures"]) {
+        const res = await handle(ask("GET", path, bearer),
+          { stores: testStores(), env });
+
+        assert.equal(res.status, 403, path);
+      }
+    });
+
+    it("is not taken as a query", async () => {
+      const res = await handle(req(`/api/staging/info?token=${TOKEN}`,
+        "GET", undefined, { Cookie: "", Authorization: "" }),
+      { stores: testStores(), env });
+
+      assert.equal(res.status, 401);
+    });
+
+    it("is refused where it is not set, whatever is sent", async () => {
+      const res = await handle(ask("GET", "/api/staging/info",
+        { Cookie: "", Authorization: "Bearer " }),
+      { stores: testStores(), env: { ...env, STAGING_TOKEN: "" } });
+
+      assert.equal(res.status, 401);
+    });
+
+    it("never opens the end-to-end path", async () => {
+      const res = await handle(ask("POST", "/api/staging/e2e", bearer), {
+        stores: testStores(), env: { ...env, E2E_STAGING_TOKEN: "e2e" },
+      });
+
+      assert.equal(res.status, 401);
+    });
+  });
+
+  it("describes the deploy to the owner", async () => {
     const res = await handle(req("/api/staging/info"), {
       stores: testStores(), env: { ...env, SQUARE_ENV: "sandbox" },
     });
 
     assert.deepEqual(await res.json(), {
-      key: "STAGING_TOKEN", can: KEYS.STAGING_TOKEN,
+      key: "gate session", can: KEYS["gate session"],
       context: "deploy-preview", mailDriver: "outbox", squareEnv: "sandbox",
       siteUrl: null,
     });
   });
 
-  describe("the reviewer's key", () => {
-    const REVIEWER = "r3viewer";
-    const both = { ...env, STAGING_REVIEWER_TOKEN: REVIEWER };
-    const as = (token, method, path) => ask(method, path,
-      { Authorization: `Bearer ${token}` });
-    const open = new Set(["info", "signatures"]);
+  it("has an area for every route staging.mjs serves", () => {
+    const source = readFileSync(new URL(
+      "../netlify/functions/staging.mjs", import.meta.url), "utf8");
+    const paths = [...new Set(source.match(
+      /"\/api\/staging\/[a-z0-9/_-]*"/g))]
+      .map((p) => p.slice(1, -1))
+      .filter((p) => p !== "/api/staging/e2e");
 
-    it("opens the signatures and the info, and names itself", async () => {
-      const info = await handle(as(REVIEWER, "GET", "/api/staging/info"),
-        { stores: testStores(), env: both });
+    assert.ok(paths.length >= 6, paths.join());
+    for (const path of paths) {
+      const area = areaOf("POST", path.replace(/\/$/, ""));
 
-      assert.equal(info.status, 200);
+      assert.ok(area, `${path} has no area in areaOf`);
+      assert.ok(KEYS["gate session"].includes(area),
+        `${area} belongs to no key`);
+    }
+  });
 
-      const body = await info.json();
+  it("is denied to a machine on a path no area owns", async () => {
+    const path = "/api/staging/nothing-here";
 
-      assert.equal(body.key, "STAGING_REVIEWER_TOKEN");
-      assert.deepEqual(body.can, ["info", "signatures"]);
+    assert.equal(areaOf("GET", path), null);
+    assert.equal((await handle(ask("GET", path,
+      { Cookie: "", Authorization: `Bearer ${TOKEN}` }),
+    { stores: testStores(), env })).status, 403);
+    assert.equal((await handle(ask("GET", path),
+      { stores: testStores(), env })).status, 404);
+  });
 
-      const sigs = await handle(
-        as(REVIEWER, "GET", "/api/staging/signatures"),
-        { stores: testStores(), env: both });
+  it("logs each use by the key's name, never its value", async (t) => {
+    const lines = [];
 
-      assert.equal(sigs.status, 200);
-    });
+    t.mock.method(console, "info", (text) => lines.push(String(text)));
+    await handle(ask("GET", "/api/staging/info"),
+      { stores: testStores(), env });
+    await handle(ask("GET", "/api/staging/info",
+      { Cookie: "", Authorization: `Bearer ${TOKEN}` }),
+    { stores: testStores(), env });
 
-    it("opens no email library, outbox, jobs run or crash", async () => {
-      for (const [method, path] of routes) {
-        if (path.startsWith("/api/staging/signatures")
-          || path === "/api/staging/info") continue;
+    const used = lines.filter((l) => l.includes("staging.key_used"));
 
-        const res = await handle(as(REVIEWER, method, path),
-          { stores: testStores(), env: both, run });
-
-        assert.equal(res.status, 403, `${method} ${path}`);
-      }
-      assert.deepEqual([...open], ["info", "signatures"]);
-    });
-
-    it("is denied a path no area owns, which the owner just misses",
-      async () => {
-        const path = "/api/staging/nothing-here";
-
-        assert.equal(areaOf("GET", path), null);
-        assert.equal((await handle(as(REVIEWER, "GET", path),
-          { stores: testStores(), env: both })).status, 403);
-        assert.equal((await handle(as(TOKEN, "GET", path),
-          { stores: testStores(), env: both })).status, 404);
-      });
-
-    it("has an area for every route staging.mjs serves", () => {
-      const source = readFileSync(new URL(
-        "../netlify/functions/staging.mjs", import.meta.url), "utf8");
-      const paths = [...new Set(source.match(
-        /"\/api\/staging\/[a-z0-9/_-]*"/g))]
-        .map((p) => p.slice(1, -1))
-        .filter((p) => p !== "/api/staging/e2e");
-
-      assert.ok(paths.length >= 6, paths.join());
-      for (const path of paths) {
-        const area = areaOf("POST", path.replace(/\/$/, ""));
-
-        assert.ok(area, `${path} has no area in areaOf`);
-        assert.ok(Object.values(KEYS).some((can) => can.includes(area)),
-          `${area} belongs to no key`);
-      }
-    });
-
-    it("is refused where only the owner's key is set, and the reverse",
-      async () => {
-        const res = await handle(as(REVIEWER, "GET", "/api/staging/info"),
-          { stores: testStores(), env });
-
-        assert.equal(res.status, 401);
-
-        const only = { CONTEXT: "deploy-preview",
-          STAGING_REVIEWER_TOKEN: REVIEWER };
-
-        for (const token of ["", TOKEN]) {
-          const denied = await handle(as(token, "GET", "/api/staging/info"),
-            { stores: testStores(), env: only });
-
-          assert.equal(denied.status, 401);
-        }
-        assert.equal((await handle(as(REVIEWER, "GET", "/api/staging/info"),
-          { stores: testStores(), env: only })).status, 200);
-      });
-
-    it("never opens the end-to-end path", async () => {
-      const res = await handle(as(REVIEWER, "POST", "/api/staging/e2e"),
-        { stores: testStores(), env: { ...both, E2E_STAGING_TOKEN: "e2e" } });
-
-      assert.equal(res.status, 401);
-    });
-
-    it("logs each use by the key's name, never its value", async (t) => {
-      const lines = [];
-
-      t.mock.method(console, "info", (text) => lines.push(String(text)));
-      await handle(as(REVIEWER, "GET", "/api/staging/info"),
-        { stores: testStores(), env: both });
-      await handle(as(TOKEN, "GET", "/api/staging/info"),
-        { stores: testStores(), env: both });
-
-      const used = lines.filter((l) => l.includes("staging.key_used"));
-
-      assert.equal(used.length, 2);
-      assert.ok(used[0].includes("STAGING_REVIEWER_TOKEN"));
-      assert.ok(used[1].includes("STAGING_TOKEN"));
-      for (const line of lines) {
-        assert.ok(!line.includes(REVIEWER) && !line.includes(TOKEN));
-      }
-    });
+    assert.equal(used.length, 2);
+    assert.ok(used[0].includes("gate session"));
+    assert.ok(used[1].includes("STAGING_TOKEN"));
+    for (const line of lines) {
+      assert.ok(!line.includes(SESSION) && !line.includes(TOKEN));
+    }
   });
 
   it("list, show and clear the outbox", async () => {
@@ -415,7 +466,7 @@ describe("the staging endpoints", () => {
 describe("the email library", () => {
   const env = {
     CONTEXT: "branch-deploy", SITE_URL: "https://staging.test",
-    STAGING_TOKEN: TOKEN,
+    STAGING_TOKEN: TOKEN, GATE_TOOLBAR_EMAIL: OWNER,
   };
 
   it("is a 404 in production, like every staging path", async () => {
@@ -470,7 +521,7 @@ describe("the email library", () => {
 describe("James's review in the library", () => {
   const env = {
     CONTEXT: "branch-deploy", SITE_URL: "https://staging.test",
-    STAGING_TOKEN: TOKEN,
+    STAGING_TOKEN: TOKEN, GATE_TOOLBAR_EMAIL: OWNER,
   };
   const ID = "address-denied";
   const call = async (stores, path, method = "GET", body) => {
@@ -611,7 +662,7 @@ describe("James's review in the library", () => {
         stores: testStores(),
         env: {
           CONTEXT: "deploy-preview", SITE_URL: "https://other.test",
-          STAGING_TOKEN: TOKEN,
+          STAGING_TOKEN: TOKEN, GATE_TOOLBAR_EMAIL: OWNER,
         },
       });
       const versions = async (res) => (await res.json()).emails
@@ -674,7 +725,7 @@ describe("the e2e endpoint (#266)", () => {
   const E2E = "e2e-s3cret";
   const env = {
     CONTEXT: "deploy-preview", MAIL_DRIVER: "outbox",
-    STAGING_TOKEN: TOKEN, E2E_STAGING_TOKEN: E2E,
+    STAGING_TOKEN: TOKEN, GATE_TOOLBAR_EMAIL: OWNER, E2E_STAGING_TOKEN: E2E,
     URL: "https://staging.example.test",
   };
   const op = (body, token = E2E, method = "POST") => req(
@@ -708,7 +759,7 @@ describe("the e2e endpoint (#266)", () => {
     assert.equal((await ask(stores, { op: "outboxList" })).status, 200);
 
     const toolbar = await handle(req("/api/staging/outbox", "GET", undefined, {
-      Authorization: `Bearer ${E2E}`,
+      Cookie: "", Authorization: `Bearer ${E2E}`,
     }), { stores, env });
 
     assert.equal(toolbar.status, 401);

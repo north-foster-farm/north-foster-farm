@@ -26,10 +26,13 @@ export const ignoredNames = (env) => new Set([
   ...(env === "production" ? ["RESEND_READ_KEY"] : []),
 ]);
 
-// Names that open the staging toolbar (docs/secrets.md, "Staging").
+// Names that belong to staging alone: its machine token and the access
+// gate's (docs/secrets.md, "Staging").
 // Production holds none of them, not even as an empty name: their
 // presence is the failure, whatever the value.
-export const STAGING_ONLY = ["STAGING_TOKEN", "STAGING_REVIEWER_TOKEN"];
+export const STAGING_ONLY = [
+  "STAGING_TOKEN", "GATE_RESEND_KEY", "GATE_MAIL_FROM", "GATE_TOOLBAR_EMAIL",
+];
 
 export const stagingOnlyIn = (env, names) => {
   const held = new Set(names);
@@ -39,11 +42,10 @@ export const stagingOnlyIn = (env, names) => {
 
 // May be absent in every context: launch day unsets VENMO_HIDDEN to
 // show the button, and unset reads as shown (lib/paypal.mjs);
-// STAGING_REVIEWER_TOKEN exists only while a reviewer has access; the
-// previous Square key exists only during a swap. A sample marks more
+// the previous Square key exists only during a swap. A sample marks more
 // with an "Optional:" line in the key's comment, for its context alone.
 export const OPTIONAL = new Set([
-  "VENMO_HIDDEN", "STAGING_REVIEWER_TOKEN",
+  "VENMO_HIDDEN",
   "SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS",
 ]);
 

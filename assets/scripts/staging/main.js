@@ -3,7 +3,10 @@
 // production markup never carries it. Two tools: the outbox, where
 // every email the site would have sent lands under MAIL_DRIVER=outbox,
 // and the jobs trigger, since scheduled functions run only on the
-// production deploy.
+// production deploy. It opens only for James's gate session: the
+// browser's cookie is the credential, so there is nothing to type, and
+// for anyone else the first request is refused and the toolbar never
+// appears.
 //
 // States: open, collapsed to a tab (remembered per browser), or hidden
 // for this view only: a refresh always brings it back (James, #206).
@@ -16,7 +19,7 @@ import { mountSignatures } from "./signatures.js";
 
 const root = document.getElementById("staging");
 const qs = (sel) => root.querySelector(sel);
-const KEY = { open: "staging.open", token: "staging.token" };
+const KEY = { open: "staging.open" };
 // Hiding was once kept for the tab, which left no way back (#206).
 const HIDDEN = "staging.hidden";
 
@@ -36,36 +39,12 @@ const store = (name, key, value) => {
   return value;
 };
 
-const token = () => store("localStorage", KEY.token) || "";
-
-// A 401 asks for the token once until the next click in the toolbar;
-// otherwise a wrong answer is asked again by the retry and by every
-// poll, in a loop. A token the server refuses is forgotten.
-let asked = false;
-
 const api = async (path, { method = "GET", body } = {}) => {
   const res = await fetch(path, {
     method,
-    headers: {
-      ...(body ? { "Content-Type": "application/json" } : {}),
-      ...(token() ? { Authorization: `Bearer ${token()}` } : {}),
-    },
+    headers: body ? { "Content-Type": "application/json" } : {},
     body: body ? JSON.stringify(body) : undefined,
   });
-
-  if (res.status === 401 && !asked) {
-    asked = true;
-    store("localStorage", KEY.token, null);
-
-    const given = prompt("Staging token:");
-
-    if (given) {
-      store("localStorage", KEY.token, given.trim());
-
-      return api(path, { method, body });
-    }
-  }
-
   const type = res.headers.get("content-type") || "";
   const data = type.includes("json") ? await res.json() : await res.text();
 
@@ -89,11 +68,11 @@ const tab = qs("[data-staging-open]");
 const list = qs("[data-staging-list]");
 const empty = qs("[data-staging-empty]");
 const out = qs("[data-staging-out]");
-// The areas the key in use opens, from /api/staging/info. A reviewer's
-// key opens fewer tools, and the rest are hidden, not left to fail.
+// The areas the session opens, from /api/staging/info; the rest are
+// hidden, not left to fail.
 let can = [];
 const allowed = (area) => can.includes(area);
-const NO_TOKEN = "No token, or a wrong one. Refresh asks again.";
+const SIGNED_OUT = "Your gate session has ended. Reload to sign in again.";
 let seen = "";
 let timer = null;
 
@@ -107,10 +86,8 @@ const show = (open) => {
 };
 
 const openMessage = (id) => {
-  const url = `/api/staging/outbox/${encodeURIComponent(id)}${
-    token() ? `?token=${encodeURIComponent(token())}` : ""}`;
-
-  window.open(url, "_blank", "noopener");
+  window.open(`/api/staging/outbox/${encodeURIComponent(id)}`, "_blank",
+    "noopener");
 };
 
 const renderInbox = (messages) => {
@@ -147,9 +124,9 @@ const poll = async () => {
   const { ok, status, data } = await api("/api/staging/outbox");
 
   if (ok) renderInbox(data.messages || []);
-  if (ok && out.textContent === NO_TOKEN) say("");
+  if (ok && out.textContent === SIGNED_OUT) say("");
   if (status === 401) {
-    say(NO_TOKEN);
+    say(SIGNED_OUT);
   } else if (!panel.hidden) {
     timer = setTimeout(poll, 5000);
   }
@@ -191,27 +168,23 @@ const library = mountLibrary({
 const signatures = mountSignatures({
   root,
   api,
-  aloneUrl: (id) => `/api/staging/signatures/${encodeURIComponent(id)}${
-    token() ? `?token=${encodeURIComponent(token())}` : ""}`,
+  aloneUrl: (id) => `/api/staging/signatures/${encodeURIComponent(id)}`,
   onOpen: () => { root.hidden = false; },
 });
 
 const boot = async () => {
   store("sessionStorage", HIDDEN, null);
 
-  root.hidden = false;
   const info = await api("/api/staging/info");
 
-  let text = "endpoints refused: SITE_CONTEXT is not set for this deploy";
+  // Not James's session: the toolbar is not for this visitor, and the
+  // page carries no sign of it.
+  if (!info.ok) return;
 
-  if (info.ok) {
-    can = info.data.can || [];
-    text = `${info.data.context} · mail ${info.data.mailDriver} · Square ${
-      info.data.squareEnv} · key ${info.data.key}`;
-  } else if (info.status === 401) {
-    text = "no token: reload to enter it";
-  }
-  qs("[data-staging-info]").textContent = text;
+  root.hidden = false;
+  can = info.data.can || [];
+  qs("[data-staging-info]").textContent = `${info.data.context} · mail ${
+    info.data.mailDriver} · Square ${info.data.squareEnv}`;
   for (const el of root.querySelectorAll("[data-staging-scope]")) {
     el.hidden = !allowed(el.dataset.stagingScope);
   }
@@ -224,8 +197,6 @@ const boot = async () => {
   }
 };
 
-// Capture, so a click lets the handler under it ask for the token.
-root.addEventListener("click", () => { asked = false; }, true);
 tab.addEventListener("click", () => show(true));
 qs("[data-staging-collapse]").addEventListener("click", () => show(false));
 qs("[data-staging-forget]").addEventListener("click", async () => {

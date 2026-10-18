@@ -1,9 +1,17 @@
 // The staging toolbar's back end: the outbox of emails written instead
 // of sent (MAIL_DRIVER=outbox), and a trigger for the scheduled jobs,
 // which Netlify runs only on the production deploy. Answers only when
-// the deploy's SITE_CONTEXT is set and is not production, and
-// STAGING_TOKEN is set there; anywhere else every path here is a 404,
-// so nothing staging-only is reachable.
+// the deploy's SITE_CONTEXT is set and is not production; anywhere
+// else every path here is a 404, so nothing staging-only is reachable.
+//
+// Two ways in, neither typed into a browser:
+//
+//   a gate session (lib/gate.mjs) whose address is GATE_TOOLBAR_EMAIL,
+//   James's, opens every area: the toolbar uses it, by cookie. Another
+//   address that signed in gets 403 and no toolbar.
+//
+//   STAGING_TOKEN, as a bearer, is for machines: the jobs workflow, a
+//   health check. It opens only the "machine" areas below.
 //
 //   GET    /api/staging/info          context, mail driver, Square env
 //   GET    /api/staging/outbox        the last messages, newest first
@@ -36,15 +44,16 @@
 //   POST   /api/staging/throw         throws, to prove the crash alert
 //                                     (only with STAGING_TOKEN set)
 //
-// STAGING_TOKEN is required as a bearer or ?token=. With none set the
-// API fails closed: a context that forgot it answers 404, as production
-// does, rather than opening the outbox and its magic links to anyone.
-// The same holds for /e2e and E2E_STAGING_TOKEN, the one token of the
+// With neither GATE_TOOLBAR_EMAIL nor STAGING_TOKEN set the API fails
+// closed: a context that forgot them answers 404, as production does,
+// rather than opening the outbox and its magic links to anyone. The
+// same holds for /e2e and E2E_STAGING_TOKEN, the one token of the
 // test suite; the two never open each other's paths.
 
 import { timingSafeEqual } from "node:crypto";
 
 import { runOp } from "./lib/e2e.mjs";
+import { COOKIE, cookieValue, sessionFor } from "./lib/gate.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { runJobs } from "./lib/jobs.mjs";
 import { entry, library } from "./lib/library.mjs";
@@ -71,9 +80,7 @@ export const staging = (env = process.env) => {
 const tokenOf = (req) => {
   const auth = req.headers.get("authorization") || "";
 
-  if (auth.startsWith("Bearer ")) return auth.slice(7).trim();
-
-  return new URL(req.url).searchParams.get("token") || "";
+  return auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
 };
 
 // Compares in constant time, so the answer's timing says nothing about
@@ -85,27 +92,41 @@ const sameToken = (given, expected) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 
-// The keys the API accepts, each by the name of the variable that
-// holds it, and the areas each opens. The reviewer's key is James's to
-// revoke without touching his own. It opens no email library, whose
-// emails carry sign-in links, no outbox, which holds customers' mail,
-// and no jobs run, which can send and close orders: reviewers look at
-// the site and the signatures. Every new area is listed in
-// docs/secrets.md, "What the staging token unlocks".
+// What each way in opens, by the areas below. The machine token opens
+// the areas a workflow needs, none that read customers' mail (the
+// outbox and the email library carry sign-in links) or show the
+// toolbar. Every new area is listed in docs/secrets.md.
+const AREAS = ["info", "inbox", "jobs", "emails", "signatures", "throw"];
+
 export const KEYS = {
-  STAGING_TOKEN: ["info", "inbox", "jobs", "emails", "signatures",
-    "throw"],
-  STAGING_REVIEWER_TOKEN: ["info", "signatures"],
+  "gate session": AREAS,
+  STAGING_TOKEN: ["info", "jobs", "throw"],
 };
 
-// The name of the key a given token is, or null. The owner's first,
-// and a key that isn't set matches nothing, not even an empty guess.
-const keyOf = (given, env) => Object.keys(KEYS)
-  .find((name) => env[name] && sameToken(given, env[name])) || null;
+// Who is asking -> { key } (a name of KEYS), { refused: 401 | 403 }.
+// The toolbar owner's gate session first; a session of anyone else is
+// a refusal of its own, not a try at the token.
+const whoIs = async (req, env, stores, now) => {
+  const given = tokenOf(req);
+
+  if (given && env.STAGING_TOKEN && sameToken(given, env.STAGING_TOKEN)) {
+    return { key: "STAGING_TOKEN" };
+  }
+
+  const session = await sessionFor(stores.gate,
+    cookieValue(req.headers, COOKIE), now);
+
+  if (!session) return { refused: 401 };
+
+  return env.GATE_TOOLBAR_EMAIL
+    && session.email === String(env.GATE_TOOLBAR_EMAIL).trim().toLowerCase()
+    ? { key: "gate session" }
+    : { refused: 403 };
+};
 
 // Which area of the API a request is in, or null for a path no area
-// owns. Deny by default: a null area is open only to the owner's key,
-// so a route added without an area here is closed to a reviewer.
+// owns. Deny by default: a null area is open only to the owner's session,
+// so a route added without an area here is closed to a machine.
 export const areaOf = (method, path) => {
   if (path === "/api/staging/info") return "info";
   if (path.startsWith("/api/staging/outbox")) return "inbox";
@@ -126,8 +147,7 @@ const page = (m) => {
   const bar = `<div style="font:13px system-ui,sans-serif;padding:8px 12px;` +
     `background:#ffe02b;color:#1d1c1b">` +
     `<strong>${escape(m.subject)}</strong> · to ${escape(to)} · ${
-      escape(m.at)} · <a href="?format=text${
-      m.token ? `&amp;token=${encodeURIComponent(m.token)}` : ""}">text</a>` +
+      escape(m.at)} · <a href="?format=text">text</a>` +
     `</div>`;
   const html = m.html || `<pre>${escape(m.text)}</pre>`;
 
@@ -180,13 +200,18 @@ export const handle = async (req, {
     return json(done.status, done.body);
   }
 
-  if (!staging(env) || !(env.STAGING_TOKEN || env.STAGING_REVIEWER_TOKEN)) {
+  if (!staging(env) || !(env.STAGING_TOKEN || env.GATE_TOOLBAR_EMAIL)) {
     return json(404, { error: "Not found." });
   }
 
-  const key = keyOf(tokenOf(req), env);
+  const who = await whoIs(req, env, stores, now);
 
-  if (!key) return json(401, { error: "Staging token required." });
+  if (who.refused === 401) return json(401, { error: "Sign in required." });
+  if (who.refused) {
+    return json(403, { error: "This session does not open that." });
+  }
+
+  const { key } = who;
 
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/$/, "");
@@ -196,7 +221,7 @@ export const handle = async (req, {
   log.info({ event: "staging.key_used", key, method: req.method, path });
   const area = areaOf(req.method, path);
 
-  if (area ? !can.includes(area) : key !== "STAGING_TOKEN") {
+  if (area ? !can.includes(area) : key !== "gate session") {
     return json(403, { error: "This key does not open that.", key });
   }
 
@@ -255,7 +280,7 @@ export const handle = async (req, {
       });
     }
 
-    return new Response(page({ ...m, token: tokenOf(req) }), {
+    return new Response(page(m), {
       status: 200,
       headers: { ...headers, "Content-Type": "text/html; charset=utf-8" },
     });
