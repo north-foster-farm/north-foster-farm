@@ -16,7 +16,8 @@
 // - A pin, or its name in the list beside the map, opens a card with
 //   the details. The farm and the Foster market stand apart at the
 //   whole map. A place, or a line on its card, past its date goes.
-// - The selected pin's town is outlined in blue, as Delivery outlines
+// - A town with a pin in it is tinted blue, and the selected pin's town
+//   is outlined in blue, as Delivery outlines
 //   the ZIP picked.
 // - The top bar's link to a pop-up, #place-…, opens its card.
 //
@@ -409,6 +410,9 @@ const wire = (map) => {
 
     return homes.get(pin);
   };
+
+  // A town with a place in it takes a tint on the Places layer.
+  for (const pin of pins) homeOf(pin)?.classList.add("has-pin");
 
   const outline = (home) => {
     for (const t of towns) {

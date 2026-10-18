@@ -658,6 +658,34 @@ test.describe("map (#138, #214)", () => {
 
   // A name in the directory opens the same card. Markets and pop-ups
   // have no shop button, and their links are labeled.
+  // Towns with a pin in them are tinted on Places only (#214).
+  test("towns with a pin are tinted blue on Places", async ({ page }) => {
+    await page.goto(HOME.path);
+
+    const tinted = map(page).locator(".map-zip.has-pin");
+    const fills = () => tinted.evaluateAll((els) => [...new Set(
+      els.map((el) => getComputedStyle(el).fill)
+    )]);
+    const plain = () => map(page).locator(".map-zip.is-land:not(.has-pin)")
+      .first().evaluate((el) => getComputedStyle(el).fill);
+
+    expect(await tinted.count()).toBeGreaterThan(0);
+    await map(page).scrollIntoViewIfNeeded();
+    expect(await fills(), "no tint on Delivery").not.toContain(
+      await plain()
+    );
+    await places(page);
+
+    const [fill] = await fills();
+
+    expect(await fills()).toHaveLength(1);
+    expect(fill).not.toBe(await plain());
+
+    const [r, , b] = fill.match(/\d+/g).map(Number);
+
+    expect(b, "blue").toBeGreaterThan(r);
+  });
+
   // The pin's town is outlined while its card is open (#214).
   test("the selected pin's town is outlined", async ({ page }) => {
     await page.goto(HOME.path);

@@ -11,6 +11,7 @@ $map-land: #f3f1ea;
 $map-away: #e9dfc8;
 $map-ours: tint-color($green, 58%);
 $map-place: $blue;
+$map-place-tint: tint-color($blue, 82%);
 
 // A link to the map (the delivery policy's "See where we deliver")
 // lands with the map a little below the top of the window.
@@ -591,6 +592,15 @@ $map-place: $blue;
 
   .map-zip.is-land {
     stroke: $map-land;
+  }
+
+  // A town with a place in it, tinted to ground its pin.
+  .map-zip.has-pin {
+    fill: $map-place-tint;
+  }
+
+  .map-zip.is-land.has-pin {
+    stroke: $map-place-tint;
   }
 }
 
