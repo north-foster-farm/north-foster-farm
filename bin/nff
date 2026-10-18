@@ -15,6 +15,7 @@ import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
 import { loadEnv } from "../netlify/functions/lib/env.mjs";
+import { USAGE as BREAKER_USAGE, breakerCommand } from "./breaker.mjs";
 import { devSchedule } from "./dev-schedule.mjs";
 import { runNetlify } from "./env/cli.mjs";
 import { deployAfterPush } from "./env/deploy.mjs";
@@ -135,6 +136,7 @@ const USAGE = `Usage:
   bin/nff maintenance links           the signed ON and OFF links for a
                                       phone (needs MAINTENANCE_SECRET)
   bin/nff maintenance rotate          kill every link handed out before
+${BREAKER_USAGE}
   bin/nff health                      what /api/health would answer
   bin/nff alert test [--production|--staging]
                                       one real alert, past the hourly
@@ -279,7 +281,7 @@ const words = [];
 // Flags that take a value: `--reason "..."` as well as `--reason=...`.
 const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
   "to", "waive", "detail", "reason-text", "sha", "deploy", "label",
-  "out"];
+  "out", "count", "hours"];
 const args = process.argv.slice(2);
 
 for (let i = 0; i < args.length; i += 1) {
@@ -681,6 +683,9 @@ const restoreCommand = async (file) => {
 
 const run = async () => {
   if (group === "env") return envCommand();
+  if (group === "breaker") {
+    return breakerCommand(action, { stores, flags, out, root });
+  }
   if (group === "library") return libraryReview();
   if (group === "export") return exportCommand();
   if (group === "restore") return restoreCommand(action);
