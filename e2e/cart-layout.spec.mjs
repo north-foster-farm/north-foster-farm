@@ -259,20 +259,14 @@ test.describe("cart below xl", () => {
 
 test.describe("contact form spacing", () => {
   for (const size of WIDTHS) {
-    test(`${size.width}px: heading to hint is 0.375rem, and each label sits ` +
-      "with its own field", async ({ page }) => {
+    test(`${size.width}px: each label sits with its own field`, async ({
+      page,
+    }) => {
       await page.setViewportSize(size);
 
       const order = new OrderPage(page);
 
       await order.open({ eggs: 1 });
-
-      const legend = page.locator("#details legend");
-      const hint = page.locator("#details .order-section-hint");
-
-      expect(await legend.evaluate((el) => getComputedStyle(el).marginBottom))
-        .toBe("6px");
-      expect(await hint.getAttribute("style") || "").not.toContain("-12px");
 
       const first = await box(page.locator("label[for='customer-first-name']"));
       const firstField = await box(page.locator("#customer-first-name"));

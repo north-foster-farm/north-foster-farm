@@ -862,13 +862,13 @@ Manual: Safari's autofill cannot be driven from Playwright.
 
 Manual: automatable with the account spec's sign-in; not yet written.
 
-- **Scenario:** Name, email and phone arrive as plain text; a click makes
-  one a field again.
+- **Scenario:** Name, email and phone arrive filled in, as ordinary
+  fields.
 - **Setup:** Signed in as a customer with a name and phone (AO-01).
 - **Test:**
   1. Open `/order/`; click the email; change it; leave.
-- **Assert:** The details show as text under "Click on a field to edit
-  it."; the clicked one becomes a field and returns to text on leaving.
+- **Assert:** All three are inputs throughout, with no "Click on a field
+  to edit it." line; the edited email stays an input on leaving.
 - **Teardown:** Sign out; delete the customer.
 
 ### FM-13 A date that closes while the page is open

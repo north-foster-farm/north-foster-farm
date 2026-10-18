@@ -26,22 +26,6 @@
     margin-bottom: 1rem;
   }
 
-  // A hint sits tight under its heading. The legend floats and the
-  // hint clears it, so the gap is the legend's margin alone.
-  .order-section legend:has(+ .order-section-hint) {
-    margin-bottom: 0.375rem;
-  }
-
-  .order-section-hint {
-    margin: 0 0 1rem;
-    font-size: 0.875rem;
-    color: var(--bs-secondary-color);
-
-    &[hidden] {
-      display: none;
-    }
-  }
-
   // Layout: sidebar and main column from lg up; from xl the main
   // column is itself a grid with the cart beside the catalog.
 
@@ -1275,27 +1259,6 @@
 
   .order-section {
     margin-top: 4rem;
-  }
-
-  // The horizontal form layout itself is shared with the sign-in page
-  // and lives at the end of this file; only the click-to-edit look of
-  // a signed-in customer's details is the order page's.
-  .order-hform {
-    // A click slides the text in from the edge as the field appears
-    // around it; leaving slides it back. Same height either way.
-    [data-prefill] {
-      transition:
-        padding var(--order-base) var(--order-ease),
-        border-color 0.075s ease-in-out,
-        box-shadow 0.075s ease-in-out;
-    }
-
-    .form-control-plaintext {
-      cursor: pointer;
-      padding: 0.4rem 0;
-      border-width: 1px;
-      border-radius: var(--order-radius);
-    }
   }
 
   // Narrower than the column, name and email alike. The cap is on what

@@ -254,9 +254,8 @@ export class OrderForm {
       || this.payment.state.dataset.cardOpen !== "true";
   }
 
-  // Name, email and phone from the customer's record, shown as plain
-  // text. A click turns one back into a field; leaving it, filled,
-  // turns it into text again.
+  // Name, email and phone from the customer's record, filled in as
+  // ordinary fields.
   prefill(customer) {
     let any = false;
 
@@ -265,7 +264,6 @@ export class OrderForm {
 
       if (!value) continue;
       if (!input.value) input.value = value;
-      this.plain(input, true);
       any = true;
     }
     this.formatPhone();
@@ -321,12 +319,6 @@ export class OrderForm {
     }
   }
 
-  plain(input, on) {
-    input.classList.toggle("form-control-plaintext", on);
-    input.classList.toggle("form-control", !on);
-    input.readOnly = on;
-  }
-
   wire() {
     this.form.addEventListener("input", () => {
       this.changed();
@@ -342,8 +334,7 @@ export class OrderForm {
     this.form.addEventListener("submit", (e) => this.submit(e));
     this.form.addEventListener("click", (e) => this.step(e));
 
-    // Blur normalises whatever was typed into a quantity box, and
-    // turns an edited detail back into plain text.
+    // Blur normalises whatever was typed into a quantity box.
     this.form.addEventListener("focusin", (e) => {
       if (e.target.matches("[data-qty]")) this.typing = e.target;
     });
@@ -353,18 +344,7 @@ export class OrderForm {
         this.setQty(e.target, this.qty(e.target));
         this.refresh();
       }
-      if (e.target.matches("[data-prefill]") && e.target.value.trim()) {
-        this.plain(e.target, true);
-      }
       this.revalidate(e.target);
-    });
-
-    // A click on a plain-text detail makes it a field again.
-    this.form.addEventListener("click", (e) => {
-      if (e.target.matches("[data-prefill][readonly]")) {
-        this.plain(e.target, false);
-        e.target.focus();
-      }
     });
 
     const phone = qs(this.form, "[data-field='customer.phone']");
