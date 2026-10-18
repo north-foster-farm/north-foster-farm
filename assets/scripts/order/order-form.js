@@ -415,11 +415,20 @@ export class OrderForm {
     const itemsToggle = qs(this.cart, "[data-cart-items-toggle]");
     const moneyToggle = qs(this.cart, "[data-cart-money-toggle]");
 
+    // On a phone the two take turns: opening one folds the other.
+    const narrow = matchMedia("(max-width: 767.98px)");
+
     itemsToggle.addEventListener("click", () => {
-      this.setPart("items", this.cart.dataset.items !== "open");
+      const open = this.cart.dataset.items !== "open";
+
+      this.setPart("items", open);
+      if (open && narrow.matches) this.setPart("money", false);
     });
     moneyToggle.addEventListener("click", () => {
-      this.setPart("money", this.cart.dataset.money !== "open");
+      const open = this.cart.dataset.money !== "open";
+
+      this.setPart("money", open);
+      if (open && narrow.matches) this.setPart("items", false);
     });
     // Settled, the cart shows everything and the two are plain text
     // too (#203): stuckWatch below calls this when it settles.
@@ -523,11 +532,6 @@ export class OrderForm {
       const list = qs(this.cart, "[data-cart-items]");
 
       list.scrollBy({ top: list.clientHeight * 0.8, behavior: "smooth" });
-    });
-    qs(this.cart, "[data-cart-more-top]").addEventListener("click", () => {
-      const list = qs(this.cart, "[data-cart-items]");
-
-      list.scrollBy({ top: -list.clientHeight * 0.8, behavior: "smooth" });
     });
     window.addEventListener("resize", () => this.syncScroll());
     // The cap follows the top bar on a phone, so the list also grows
