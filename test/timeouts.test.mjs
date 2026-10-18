@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
 
-import { ORDER_BUDGET_MS, retry } from "../netlify/functions/lib/http.mjs";
+import {
+  MONEY_FLOOR_MS, ORDER_BUDGET_MS, retry,
+} from "../netlify/functions/lib/http.mjs";
 import { MailError, sendMail } from "../netlify/functions/lib/mail.mjs";
 import * as paypal from "../netlify/functions/lib/paypal.mjs";
 import * as square from "../netlify/functions/lib/square.mjs";
@@ -54,14 +56,14 @@ describe("Square calls", () => {
     const started = Date.now();
 
     await assert.rejects(
-      payment(impl, { deadline: Date.now() + 400 }),
+      payment(impl, { deadline: Date.now() + MONEY_FLOOR_MS + 300 }),
       (e) => e.name === "SquareError" && e.retryable === true
         && e.code === "timeout" && e.declined === false
-        && /\/v2\/payments did not answer in 0\.\d s/.test(e.message)
+        && /\/v2\/payments did not answer in 2\.\d s/.test(e.message)
     );
     assert.equal(signals.length, 1);
     assert.ok(signals[0] instanceof AbortSignal);
-    assert.ok(Date.now() - started < 2000);
+    assert.ok(Date.now() - started < 4000);
   });
 
   it("are not started with the request's time spent", async () => {
@@ -74,9 +76,34 @@ describe("Square calls", () => {
     assert.equal(called, 0);
   });
 
+  it("do not start a payment under its floor, though another call " +
+    "would start", async () => {
+    let paymentCalls = 0;
+    let otherCalls = 0;
+    const left = { deadline: Date.now() + MONEY_FLOOR_MS - 500 };
+
+    await assert.rejects(
+      payment(async () => { paymentCalls += 1; }, left),
+      (e) => e.retryable === true && e.code === "timeout"
+        && /No time left/.test(e.message)
+    );
+    assert.equal(paymentCalls, 0, "no card is sent with so little time");
+
+    await square.cancelOrder("SQO", {
+      env: sqEnv, ...left,
+      fetchImpl: async () => {
+        otherCalls += 1;
+
+        return new Response(JSON.stringify({ order: { state: "COMPLETED" } }),
+          { status: 200 });
+      },
+    });
+    assert.equal(otherCalls, 1, "a call that moves no money is still made");
+  });
+
   it("read a stalled body as a timeout, not a declined payment", async () => {
     await assert.rejects(
-      payment(stalledBody(), { deadline: Date.now() + 400 }),
+      payment(stalledBody(), { deadline: Date.now() + MONEY_FLOOR_MS + 300 }),
       (e) => e.retryable === true && e.declined === false
         && e.code === "timeout"
     );
@@ -124,12 +151,37 @@ describe("PayPal calls", () => {
     await assert.rejects(
       paypal.captureOrder("PP-1", KEY, {
         env: ppEnv, fetchImpl: impl, now: new Date(),
-        deadline: Date.now() + 500,
+        deadline: Date.now() + MONEY_FLOOR_MS + 300,
       }),
       (e) => e.retryable === true && e.code === "timeout"
         && /capture did not answer/.test(e.message)
     );
     assert.equal(seen.length, 2);
+  });
+});
+
+describe("PayPal's capture", () => {
+  beforeEach(() => paypal.forgetTokens());
+
+  it("is not started under its floor", async () => {
+    const seen = [];
+    const impl = async (url) => {
+      seen.push(new URL(url).pathname);
+
+      return new Response(JSON.stringify({
+        "access_token": "t", "expires_in": 3600,
+      }), { status: 200 });
+    };
+
+    await assert.rejects(
+      paypal.captureOrder("PP-1", KEY, {
+        env: ppEnv, fetchImpl: impl, now: new Date(),
+        deadline: Date.now() + MONEY_FLOOR_MS - 500,
+      }),
+      (e) => e.retryable === true && e.code === "timeout"
+        && /No time left/.test(e.message)
+    );
+    assert.deepEqual(seen, ["/v1/oauth2/token"], "only the token was asked");
   });
 });
 

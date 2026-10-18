@@ -2,6 +2,7 @@
 // later one is paid (#268): a lost answer after a taken payment must
 // never lead to a second charge.
 
+/* eslint-disable camelcase -- Square names its fields its way */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -13,6 +14,8 @@ import {
   CHECKOUT_TTL, checkoutByPayPal, checkoutsFor, deleteCheckout, getCheckout,
   getOrder, sweepCheckouts,
 } from "../netlify/functions/lib/records.mjs";
+import { PayPalError } from "../netlify/functions/lib/paypal.mjs";
+import { findPaid } from "../netlify/functions/lib/square.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 
 const now = new Date("2026-10-06T13:00:00Z");
@@ -61,11 +64,13 @@ const squareOk = () => ({
 // says how each ended, by id.
 const paypalWith = (states = {}) => {
   const calls = [];
+  let made = 0;
   const paypal = {
     createOrder: async (o, k) => {
       calls.push(["create", k]);
+      made += 1;
 
-      return { paypalOrderId: `PPO-${calls.length}` };
+      return { paypalOrderId: `PPO-${made}` };
     },
     getOrder: async (id) => {
       calls.push(["get", id]);
@@ -167,11 +172,14 @@ describe("rescuing an earlier attempt", () => {
   it("records the order when the earlier attempt is the one PayPal " +
     "captured", async () => {
     const stores = testStores();
-    const { paypal } = paypalWith({ "PPO-1": "COMPLETED" });
+    const states = {};
+    const { paypal } = paypalWith(states);
     const options = { paypal, square: squareOk(), ...mailbox(), ...quiet };
 
     await startVenmo(stores, order(), { key: KEY, attempt: 1 }, options);
     await startVenmo(stores, order(), { key: KEY, attempt: 2 }, options);
+    // Only now does PayPal say the first was paid.
+    states["PPO-1"] = "COMPLETED";
 
     const first = await checkoutByPayPal(stores, "PPO-1");
     const saved = await rescueCheckout(stores, first, {
@@ -209,7 +217,8 @@ describe("rescuing an earlier attempt", () => {
   it("alerts the farm when the earlier attempt was captured too",
     async () => {
       const stores = testStores();
-      const { paypal } = paypalWith({ "PPO-1": "COMPLETED" });
+      const states = {};
+      const { paypal } = paypalWith(states);
       const options = {
         paypal, square: squareOk(), ...mailbox(), ...quiet,
         env: { ADMIN_EMAILS: "farm@x.com" },
@@ -220,6 +229,7 @@ describe("rescuing an earlier attempt", () => {
       await finishVenmo(stores, order(), {
         key: KEY, attempt: 2, paypalOrderId: "PPO-2",
       }, options);
+      states["PPO-1"] = "COMPLETED";
 
       const first = await checkoutByPayPal(stores, "PPO-1");
 
@@ -228,4 +238,211 @@ describe("rescuing an earlier attempt", () => {
       }), null);
       assert.ok(await readMark(stores, "alert/payment.unreconciled"));
     });
+});
+
+describe("a later Venmo attempt, before it is paid", () => {
+  it("records an earlier attempt PayPal already captured, and starts " +
+    "no new payment", async () => {
+    const stores = testStores();
+    const states = {};
+    const { paypal, calls } = paypalWith(states);
+    const options = { paypal, square: squareOk(), ...mailbox(), ...quiet };
+
+    await startVenmo(stores, order(), { key: KEY, attempt: 1 }, options);
+    // The capture went through; the answer, and the record, were lost.
+    states["PPO-1"] = "COMPLETED";
+
+    const edited = order({ notes: "Gate code 1234" });
+    const out = await startVenmo(stores, edited, { key: KEY, attempt: 2 },
+      options);
+
+    assert.equal(out.paypalOrderId, undefined);
+    assert.equal(out.paid.status, "paid");
+    assert.equal(out.paid.payments[0].paypalOrderId, "PPO-1");
+    assert.equal(out.paid.notes, "", "the order that was paid is kept");
+    assert.equal(calls.filter((c) => c[0] === "create").length, 1,
+      "no second PayPal order");
+    assert.equal((await getOrder(stores, "NFF-2610-ABCD")).status, "paid");
+  });
+
+  it("starts the new payment when the earlier one was not paid",
+    async () => {
+      const stores = testStores();
+      const { paypal, calls } = paypalWith({ "PPO-1": "APPROVED" });
+      const options = { paypal, square: squareOk(), ...mailbox(), ...quiet };
+
+      await startVenmo(stores, order(), { key: KEY, attempt: 1 }, options);
+
+      const out = await startVenmo(stores, order(), { key: KEY, attempt: 2 },
+        options);
+
+      assert.equal(out.paypalOrderId, "PPO-2");
+      assert.ok(calls.some((c) => c[0] === "get" && c[1] === "PPO-1"));
+      assert.equal(await getOrder(stores, "NFF-2610-ABCD"), null);
+    });
+
+  it("passes over an earlier order PayPal has forgotten", async () => {
+    const stores = testStores();
+    const { paypal } = paypalWith();
+    const options = { paypal, square: squareOk(), ...mailbox(), ...quiet };
+
+    await startVenmo(stores, order(), { key: KEY, attempt: 1 }, options);
+
+    const gone = {
+      ...paypal,
+      getOrder: async () => {
+        throw new PayPalError("PayPal 404", { status: 404 });
+      },
+    };
+    const out = await startVenmo(stores, order(), { key: KEY, attempt: 2 },
+      { ...options, paypal: gone });
+
+    assert.equal(out.paypalOrderId, "PPO-2");
+  });
+
+  it("starts nothing when PayPal cannot say", async () => {
+    const stores = testStores();
+    const { paypal, calls } = paypalWith();
+    const options = { paypal, square: squareOk(), ...mailbox(), ...quiet };
+
+    await startVenmo(stores, order(), { key: KEY, attempt: 1 }, options);
+
+    const down = {
+      ...paypal,
+      getOrder: async () => {
+        throw new PayPalError("PayPal 503", { status: 503, retryable: true });
+      },
+    };
+
+    await assert.rejects(
+      startVenmo(stores, order(), { key: KEY, attempt: 2 },
+        { ...options, paypal: down }),
+      (e) => e.retryable === true
+    );
+    assert.equal(calls.filter((c) => c[0] === "create").length, 1);
+    assert.equal((await getCheckout(stores, KEY)).attempt, 1);
+  });
+
+  it("does not ask on the first attempt", async () => {
+    const stores = testStores();
+    const { paypal, calls } = paypalWith();
+
+    await startVenmo(stores, order(), { key: KEY, attempt: 1 },
+      { paypal, ...quiet });
+    assert.ok(!calls.some((c) => c[0] === "get"));
+  });
+});
+
+describe("findPaid", () => {
+  const sq = {
+    SQUARE_ACCESS_TOKEN: "tok", SQUARE_LOCATION_ID: "LOC",
+    SQUARE_ENV: "sandbox",
+  };
+  const ID = "NFF-2610-ABCD";
+  // Square answers each path from a list of pages, in turn.
+  const host = ({ pages, payment }) => {
+    const calls = [];
+    let page = 0;
+    const impl = async (url, init) => {
+      const path = new URL(url).pathname;
+
+      calls.push({
+        path, method: init.method, body: init.body ? JSON.parse(init.body)
+          : null,
+      });
+
+      if (path === "/v2/orders/search") {
+        return new Response(JSON.stringify(pages[page++] || {}),
+          { status: 200 });
+      }
+
+      return new Response(JSON.stringify({ payment }), { status: 200 });
+    };
+
+    return { impl, calls };
+  };
+  const completed = {
+    id: "PAY-1", status: "COMPLETED", receipt_url: "https://r",
+    amount_money: { amount: 6000, currency: "USD" },
+    card_details: { card: { card_brand: "VISA", last_4: "4242" } },
+  };
+  const find = (impl, extra = {}) => findPaid(order(), {
+    env: sq, fetchImpl: impl, now, ...extra,
+  });
+
+  it("finds the payment on the order with this reference", async () => {
+    const { impl, calls } = host({
+      pages: [{ orders: [
+        { id: "O-OTHER", reference_id: "NFF-2610-ZZZZ",
+          tenders: [{ payment_id: "PAY-X" }] },
+        { id: "O-1", reference_id: ID, customer_id: "C-1",
+          tenders: [{ id: "T-1", payment_id: "PAY-1" }] },
+      ] }],
+      payment: completed,
+    });
+    const found = await find(impl);
+
+    assert.equal(found.squarePaymentId, "PAY-1");
+    assert.equal(found.squareOrderId, "O-1");
+    assert.equal(found.customerId, "C-1");
+    assert.equal(found.amount, 6000);
+    assert.equal(found.last4, "4242");
+    assert.equal(found.external, false);
+
+    const search = calls[0];
+
+    assert.equal(search.body.location_ids[0], "LOC");
+    assert.equal(search.body.query.filter.date_time_filter.created_at
+      .start_at, "2026-10-04T13:00:00.000Z", "two days back");
+    assert.equal(calls[1].path, "/v2/payments/PAY-1");
+    assert.equal(calls[1].method, "GET");
+  });
+
+  it("reads on through the pages, and ends without a payment", async () => {
+    const { impl, calls } = host({
+      pages: [
+        { orders: [{ id: "O-A", reference_id: "x" }], cursor: "c1" },
+        { orders: [{ id: "O-B", reference_id: ID, tenders: [] }] },
+      ],
+    });
+
+    assert.equal(await find(impl), null);
+    assert.equal(calls.length, 2);
+    assert.equal(calls[1].body.cursor, "c1");
+  });
+
+  it("ignores an order with a payment that is not complete", async () => {
+    const { impl } = host({
+      pages: [{ orders: [{ id: "O-1", reference_id: ID,
+        tenders: [{ payment_id: "PAY-1" }] }] }],
+      payment: { ...completed, status: "FAILED" },
+    });
+
+    assert.equal(await find(impl), null);
+  });
+
+  it("marks money that came through Venmo", async () => {
+    const { impl } = host({
+      pages: [{ orders: [{ id: "O-1", reference_id: ID,
+        tenders: [{ payment_id: "PAY-1" }] }] }],
+      payment: { ...completed, source_type: "EXTERNAL" },
+    });
+
+    assert.equal((await find(impl)).external, true);
+  });
+
+  it("does not guess when there are more orders than it can read",
+    async () => {
+      const page = { orders: [], cursor: "more" };
+      const { impl } = host({ pages: [page, page, page, page, page] });
+
+      await assert.rejects(find(impl), (e) => e.name === "SquareError"
+        && e.retryable === false && e.code === "search.too_many");
+    });
+
+  it("is answered by the fake as nothing paid", async () => {
+    assert.equal(await findPaid(order(), {
+      env: { SQUARE_ENV: "fake", SITE_CONTEXT: "dev" },
+    }), null);
+  });
 });

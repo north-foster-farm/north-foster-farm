@@ -72,6 +72,9 @@ export const createPayment = async ({ order, key, source }) => {
   };
 };
 
+// Nothing is remembered here, so nothing was paid before.
+export const findPaid = async () => null;
+
 export const updateFulfilment = async (squareOrderId) => ({
   id: squareOrderId, version: null,
 });

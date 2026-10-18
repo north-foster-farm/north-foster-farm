@@ -14,7 +14,7 @@ import {
   FAKE, FAKE_SDK_URLS, fakeAllowed, refusal,
 } from "./fake.mjs";
 import * as fake from "./fake-paypal.mjs";
-import { timedFetch, timedOut } from "./http.mjs";
+import { MONEY_FLOOR_MS, timedFetch, timedOut } from "./http.mjs";
 
 const HOSTS = {
   live: "https://api-m.paypal.com",
@@ -209,6 +209,7 @@ const call = async (cfg, path, body, {
   }, {
     cap: path.endsWith("/capture") ? CAPTURE_MS : CALL_MS,
     deadline: cfg.deadline,
+    floor: path.endsWith("/capture") ? MONEY_FLOOR_MS : undefined,
     name: path,
     fail: (message, options) => new PayPalError(message, options),
   });

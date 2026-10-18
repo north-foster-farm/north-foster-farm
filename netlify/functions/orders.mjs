@@ -326,11 +326,16 @@ export const handle = async (req, {
       const stage = String(payment.stage || "");
 
       if (stage === "create") {
-        const { paypalOrderId } = await startVenmo(stores, order, {
+        const started = await startVenmo(stores, order, {
           key, attempt,
         }, options);
 
-        return json(200, { orderId: order.id, paypalOrderId });
+        // An earlier attempt of this submission was paid after all.
+        if (started.paid) return own(started.paid);
+
+        return json(200, {
+          orderId: order.id, paypalOrderId: started.paypalOrderId,
+        });
       }
       if (stage === "capture") {
         const paypalOrderId = String(payment.paypalOrderId || "");

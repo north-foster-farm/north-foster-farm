@@ -87,6 +87,7 @@ const fakeSquare = ({ pay } = {}) => {
 
       return { id, cancelled: true };
     },
+    findPaid: async () => null,
   };
 
   return { square, calls };
@@ -298,6 +299,117 @@ describe("POST /api/orders, two submissions drawing one id (#253)", () => {
     assert.match(alerted.text, /PAY-PAT/);
     assert.equal((await getOrder(stores, orderId(KEY, now))).customer.email,
       "lee@example.com", "Lee's record is untouched");
+  });
+});
+
+// #268. The first attempt's charge went through and its answer was
+// lost: no record, and the page tries again with fresh keys.
+describe("POST /api/orders, a payment whose answer was lost (#268)", () => {
+  const lost = (extra = {}) => ({
+    squarePaymentId: "PAY-LOST", status: "COMPLETED",
+    receiptUrl: "https://sq/lost", brand: "VISA", last4: "1111",
+    wallet: null, squareOrderId: "SQO-LOST", customerId: "CUST-LOST",
+    amount: 5500, external: false, ...extra,
+  });
+  const withFind = (find) => {
+    const { square, calls } = fakeSquare();
+    const searched = [];
+
+    square.findPaid = async (order) => {
+      searched.push(order.id);
+
+      return find(order);
+    };
+
+    return { square, calls, searched };
+  };
+
+  it("records the payment found and charges nothing again", async () => {
+    const stores = testStores();
+    const { square, calls, searched } = withFind(() => lost());
+    const res = await run(body({ attempt: 2 }), { stores, square });
+    const data = await res.json();
+
+    assert.equal(res.status, 200);
+    assert.equal(data.status, "paid");
+    assert.equal(data.payment.last4, "1111");
+    assert.deepEqual(calls, [], "no Square order, no payment");
+    assert.deepEqual(searched, [data.orderId]);
+
+    const saved = await getOrder(stores, data.orderId);
+
+    assert.equal(saved.payments.length, 1);
+    assert.equal(saved.payments[0].squarePaymentId, "PAY-LOST");
+    assert.equal(saved.square.squareOrderId, "SQO-LOST");
+
+    // And a third try is answered from the record, not searched again.
+    const again = await run(body({ attempt: 3 }), { stores, square });
+
+    assert.equal(again.status, 200);
+    assert.deepEqual(calls, []);
+    assert.equal(searched.length, 1);
+  });
+
+  it("does not search on the first attempt", async () => {
+    const { square, calls, searched } = withFind(() => lost());
+    const res = await run(body(), { square });
+
+    assert.equal(res.status, 200);
+    assert.deepEqual(searched, []);
+    assert.equal(calls.filter((c) => c[0] === "payment").length, 1);
+  });
+
+  it("charges as usual when Square holds no payment", async () => {
+    const stores = testStores();
+    const { square, calls, searched } = withFind(() => null);
+    const res = await run(body({ attempt: 2 }), { stores, square });
+
+    assert.equal(res.status, 200);
+    assert.equal(searched.length, 1);
+    assert.deepEqual(calls.map((c) => c[0]), ["order", "payment"]);
+    assert.equal(calls[1][1], attemptKey(KEY, 2));
+  });
+
+  it("charges nothing and tells the farm when the amount differs",
+    async () => {
+      const stores = testStores();
+      const { square, calls } = withFind(() => lost({ amount: 9000 }));
+      const res = await run(body({ attempt: 2 }), {
+        stores, square,
+        env: { ADMIN_EMAILS: "farm@x.com", PICKUP_SCHEDULE: SCHEDULE },
+      });
+      const data = await res.json();
+
+      assert.equal(res.status, 409);
+      assert.match(data.errors.payment, /do not pay again/);
+      assert.deepEqual(calls, []);
+      assert.equal(await getOrder(stores, orderId(KEY, now)), null);
+      assert.ok(await readMark(stores, "alert/payment.unreconciled"));
+    });
+
+  it("charges nothing when the payment found came through Venmo",
+    async () => {
+      const stores = testStores();
+      const { square, calls } = withFind(() => lost({ external: true }));
+      const res = await run(body({ attempt: 2 }), { stores, square });
+
+      assert.equal(res.status, 409);
+      assert.deepEqual(calls, []);
+      assert.ok(await readMark(stores, "alert/payment.unreconciled"));
+    });
+
+  it("charges nothing when Square cannot say", async () => {
+    const stores = testStores();
+    const { square, calls } = withFind(() => {
+      throw new SquareError("Square 503", { retryable: true });
+    });
+    const res = await run(body({ attempt: 2 }), { stores, square });
+    const data = await res.json();
+
+    assert.equal(res.status, 503);
+    assert.equal(data.retryable, true);
+    assert.deepEqual(calls, []);
+    assert.equal(await getOrder(stores, orderId(KEY, now)), null);
   });
 });
 

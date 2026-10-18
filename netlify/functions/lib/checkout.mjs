@@ -30,8 +30,9 @@ import * as paypalApi from "./paypal.mjs";
 import { announcePaid } from "./payments.mjs";
 import { pickupSchedule } from "./pickups.mjs";
 import {
-  amendOrder, belongsTo, deleteCheckout, getCheckout, getCustomer, getOrder,
-  moneyPatch, paymentsOf, saveCheckout, saveOrder, touchCustomer,
+  amendOrder, belongsTo, checkoutsFor, deleteCheckout, getCheckout,
+  getCustomer, getOrder, moneyPatch, paymentsOf, saveCheckout, saveOrder,
+  touchCustomer,
 } from "./records.mjs";
 import * as squareApi from "./square.mjs";
 import { adjust } from "./stock.mjs";
@@ -154,6 +155,17 @@ export const payWithSquare = async (stores, order, {
   const fetchImpl = options.fetchImpl;
   const { deadline } = options;
   const until = deadline || 0;
+
+  // A later attempt has fresh keys, so Square would not know that an
+  // earlier one took the money. It is asked first.
+  if (attempt > 1) {
+    const found = await retry(() => square.findPaid(order, {
+      env, fetchImpl, deadline, now: options.now,
+    }), { sleep, until });
+
+    if (found) return recordFound(stores, order, found, method, options);
+  }
+
   const created = await retry(
     () => square.createOrder(order, k, { env, fetchImpl, deadline }),
     { sleep, until }
@@ -201,9 +213,60 @@ export const payWithSquare = async (stores, order, {
   }, options);
 };
 
+// Square holds a payment for this order id that no record answers for:
+// an earlier attempt took the money and its answer was lost. The order
+// is recorded from it and not charged again. A payment that is not
+// what this order now asks (another amount, because the cart changed
+// between tries; or money that came through Venmo) is left for the
+// farm, and still not charged again. -> the paid record.
+// throws CheckoutError { code: "payment.unreconciled" }.
+const recordFound = async (stores, order, found, method, options) => {
+  const env = options.env || process.env;
+  const now = options.now || new Date();
+  const mail = options.mail || sendMail;
+  const detail = {
+    id: order.id, squarePaymentId: found.squarePaymentId,
+    squareOrderId: found.squareOrderId, paid: found.amount,
+    total: order.totals.total,
+  };
+
+  if (found.external || found.amount !== order.totals.total) {
+    log.error({ event: "payment.unreconciled", ...detail });
+    await alert(stores, "payment.unreconciled", {
+      ...detail,
+      why: found.external
+        ? "Square holds a payment for this order that came through Venmo"
+        : "Square holds a payment for this order id for another amount " +
+          "than the order now totals",
+    }, { env, mail, now });
+
+    throw new CheckoutError("We found a payment for this order already, " +
+      "and we will sort it out with you by email. Please do not pay " +
+      "again.", { code: "payment.unreconciled" });
+  }
+
+  log.warn({ event: "payment.reconciled", ...detail });
+
+  return completeOrder(stores, order, {
+    square: squareRecord(found),
+    payment: {
+      via: "square",
+      method: METHODS[method] ? method : "card",
+      squarePaymentId: found.squarePaymentId,
+      receiptUrl: found.receiptUrl,
+      brand: found.brand,
+      last4: found.last4,
+      wallet: found.wallet,
+    },
+  }, options);
+};
+
 // The first half of a Venmo payment: the PayPal order the button will
-// pay, and the validated order kept until the money arrives.
-// -> { paypalOrderId }
+// pay, and the validated order kept until the money arrives. A later
+// attempt first asks PayPal about the attempts before it: one the
+// customer paid, whose answer was lost, is recorded instead of paid
+// for again.
+// -> { paypalOrderId }, or { paid } with the record of that payment.
 export const startVenmo = async (stores, order, { key, attempt = 1 }, {
   paypal = paypalApi,
   sleep,
@@ -214,6 +277,38 @@ export const startVenmo = async (stores, order, { key, attempt = 1 }, {
   const now = options.now || new Date();
   const fetchImpl = options.fetchImpl;
   const { deadline } = options;
+
+  if (attempt > 1) {
+    for (const prior of await checkoutsFor(stores, key)) {
+      if (prior.edit || !prior.paypalOrderId) continue;
+
+      let seen;
+
+      try {
+        seen = await retry(() => paypal.getOrder(prior.paypalOrderId, {
+          env, fetchImpl, now, deadline,
+        }), { sleep, until: deadline || 0 });
+      } catch (error) {
+        // PayPal forgets an order nobody approved: nothing was paid.
+        if (error && error.status === 404) continue;
+        throw error;
+      }
+
+      if (seen.status === "COMPLETED") {
+        log.warn({
+          event: "payment.reconciled", id: prior.order.id,
+          paypalOrderId: prior.paypalOrderId,
+        });
+
+        return {
+          paid: await finishVenmo(stores, prior.order, {
+            key, attempt: prior.attempt, paypalOrderId: prior.paypalOrderId,
+          }, { paypal, sleep, ...options }),
+        };
+      }
+    }
+  }
+
   const { paypalOrderId } = await retry(
     () => paypal.createOrder(order, k, { env, fetchImpl, now, deadline }),
     { sleep, until: deadline || 0 }

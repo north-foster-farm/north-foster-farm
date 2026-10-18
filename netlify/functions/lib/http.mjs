@@ -24,8 +24,12 @@ export const readJson = async (req) => {
 // shortens the next and a retry is not begun that cannot finish.
 export const ORDER_BUDGET_MS = 8000;
 
-// Under this much time left a call is not started.
-const MIN_CALL_MS = 300;
+// Under this much time left a call is not started. A call that moves
+// money has a floor of its own (`floor`): started with less, it would
+// almost surely be cut off after the card was sent, leaving a payment
+// nobody has an answer for. Refused, it charges nothing at all.
+export const MIN_CALL_MS = 300;
+export const MONEY_FLOOR_MS = 2000;
 
 // The time one outbound call may take: its own cap, or what is left of
 // the request's `deadline` (a Date.now() value) if that is less.
@@ -42,11 +46,11 @@ export const timedOut = (error) => !!error
 // acted, which is why a payment is always sent under an idempotency key.
 // -> the response, or throws.
 export const timedFetch = async (fetchImpl, url, init, {
-  cap, deadline, name, fail,
+  cap, deadline, name, fail, floor = MIN_CALL_MS,
 }) => {
   const ms = allow(cap, deadline);
 
-  if (ms < MIN_CALL_MS) {
+  if (ms < floor) {
     throw fail(`No time left to call ${name}`, {
       retryable: true, code: "timeout", detail: "request budget spent",
     });

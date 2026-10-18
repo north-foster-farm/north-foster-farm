@@ -75,6 +75,7 @@ const fakeSquare = ({ pay, create } = {}) => {
 
       return { id, cancelled: true };
     },
+    findPaid: async () => null,
   };
 
   return { square, calls };

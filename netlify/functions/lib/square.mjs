@@ -15,7 +15,7 @@ import {
   FAKE, FAKE_SDK_URLS, fakeAllowed, refusal,
 } from "./fake.mjs";
 import * as fake from "./fake-square.mjs";
-import { timedFetch, timedOut } from "./http.mjs";
+import { MONEY_FLOOR_MS, timedFetch, timedOut } from "./http.mjs";
 import {
   pickupTimes, windowLabel,
 } from "../../../assets/scripts/order/lib/schedule.mjs";
@@ -193,6 +193,7 @@ const call = async (cfg, path, body, fetchImpl, method = "POST") => {
   }, {
     cap: path === "/v2/payments" ? PAYMENT_MS : CALL_MS,
     deadline: cfg.deadline,
+    floor: path === "/v2/payments" ? MONEY_FLOOR_MS : undefined,
     name: path,
     fail: (message, options) => new SquareError(message, options),
   });
@@ -591,6 +592,80 @@ export const createPayment = async ({
   }
 
   return paymentRecord(payment);
+};
+
+// Whether Square already holds money for an order id. A submission's
+// first charge may have gone through with its answer lost (the
+// function died before the record was written); the next attempt
+// carries fresh idempotency keys and would charge again, so it asks
+// here first. Square cannot search orders by reference_id, so the
+// recent orders at the location are read and matched on it.
+//
+// -> null when nothing was paid, else { squareOrderId, customerId,
+// amount, external, ...paymentRecord }. throws SquareError when Square
+// could not say: the caller must not charge on a guess.
+export const FIND_WINDOW = 48 * 60 * 60_000;
+export const FIND_PAGES = 4;
+
+export const findPaid = async (order, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+  deadline,
+  now = new Date(),
+} = {}) => {
+  if (isFake(env)) return fake.findPaid(order, { env });
+
+  const cfg = { ...settings(env), deadline };
+  const since = new Date(now.getTime() - FIND_WINDOW).toISOString();
+  let cursor;
+
+  for (let page = 0; page < FIND_PAGES; page++) {
+    const data = await call(cfg, "/v2/orders/search", {
+      location_ids: [cfg.locationId],
+      query: {
+        filter: {
+          state_filter: { states: ["OPEN", "COMPLETED"] },
+          date_time_filter: { created_at: { start_at: since } },
+        },
+        sort: { sort_field: "CREATED_AT", sort_order: "DESC" },
+      },
+      limit: 500,
+      cursor,
+    }, fetchImpl);
+
+    for (const found of data.orders || []) {
+      const tender = found.reference_id === order.id
+        && (found.tenders || []).find((t) => t.payment_id || t.id);
+
+      if (!tender) continue;
+
+      const id = tender.payment_id || tender.id;
+      const paid = await call(
+        cfg, `/v2/payments/${id}`, null, fetchImpl, "GET"
+      );
+      const payment = paid.payment || {};
+
+      if (!["COMPLETED", "APPROVED"].includes(payment.status)) continue;
+
+      return {
+        ...paymentRecord(payment),
+        squareOrderId: found.id,
+        customerId: found.customer_id || null,
+        amount: payment.amount_money ? payment.amount_money.amount : null,
+        // Money that came through Venmo, noted on Square as a tender.
+        external: payment.source_type === "EXTERNAL",
+      };
+    }
+
+    cursor = data.cursor;
+    if (!cursor) return null;
+  }
+
+  // A busier location than the window and the pages cover: not knowing
+  // is not "unpaid".
+  throw new SquareError("Too many orders to search for a payment", {
+    retryable: false, code: "search.too_many",
+  });
 };
 
 // Square's copy of the fulfilment is what the farm packs from, so a
