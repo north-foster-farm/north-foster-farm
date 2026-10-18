@@ -227,7 +227,8 @@ describe("alerts", () => {
 
 describe("the phone channel (#248)", () => {
   const env = {
-    ADMIN_EMAILS: "farm@x.com", HEALTHCHECKS_ALERT_URL: "https://hc/a",
+    ADMIN_EMAILS: "farm@x.com", DEV_NOTIFICATIONS_EMAIL: "dev@x.com",
+    HEALTHCHECKS_ALERT_URL: "https://hc/a",
   };
 
   it("re-arms the alert check with a success ping after each /fail",
@@ -244,7 +245,7 @@ describe("the phone channel (#248)", () => {
       assert.equal(r.status, "sent");
       assert.equal(r.failed, true);
       assert.equal(r.rearmed, true);
-      assert.deepEqual(r.to, ["farm@x.com"]);
+      assert.deepEqual(r.to, ["farm@x.com", "dev@x.com"]);
     });
 
   it("pings nothing when no alert check is set", async () => {

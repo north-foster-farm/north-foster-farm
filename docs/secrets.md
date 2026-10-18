@@ -93,7 +93,7 @@ sit in `.env.staging` only and are not in `.env.sample`.
 
 The rest of `.env.sample` is configuration, not secret:
 `ACCOUNTS_ENABLED`, `ADMIN_EMAILS`, `ADMIN_URL`, `AXIOM_DATASET`,
-`CONTACT_URL`, `MAIL_*`, `NETLIFY_SITE_ID`, `PAYPAL_ENV`,
+`CONTACT_URL`, `DEV_NOTIFICATIONS_EMAIL`, `MAIL_*`, `NETLIFY_SITE_ID`, `PAYPAL_ENV`,
 `PICKUP_SCHEDULE`, `RESEND_AUDIENCE_ID`, `SITE_CONTEXT`, `SITE_URL`,
 `SQUARE_ENV`, `SQUARE_VERSION`, `SQUARE_WEBHOOK_URL`, `VENMO_HIDDEN`,
 and Netlify's own `HUGO_*` and `NODE_VERSION`.

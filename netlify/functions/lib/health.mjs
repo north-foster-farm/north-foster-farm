@@ -22,7 +22,9 @@
 
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
-import { adminEmails, sendMail } from "./mail.mjs";
+import {
+  adminEmails, bothEmails, devEmails, devOrAdminEmails, sendMail,
+} from "./mail.mjs";
 import { log } from "./log.mjs";
 import { mailLinks } from "./site.mjs";
 import { farmAlert } from "./templates.mjs";
@@ -32,6 +34,30 @@ const HOUR = 60 * 60_000;
 export const ALERT_EVERY = HOUR;
 export const PING_TIMEOUT = 3000;
 export const MAIL_FAILURES_FOR_ALARM = 3;
+
+// Who an alert reaches. "farm" is ADMIN_EMAILS, "dev" is
+// DEV_NOTIFICATIONS_EMAIL (ADMIN_EMAILS while that is unset), "both"
+// is the two. The farm hears what touches a customer or an order; the
+// developer alone hears what only a developer can fix. A kind missing
+// here goes to both, so a new alert is never lost.
+export const ALERT_AUDIENCE = {
+  "pickup.lapsed": "farm",
+  "jobs.errors": "dev",
+  "jobs.invariants": "dev",
+  "jobs.crashed": "dev",
+  "backup.failed": "dev",
+  "function.crashed": "dev",
+  "webhook.rejected": "dev",
+};
+
+export const alertRecipients = (kind, env = process.env) => {
+  const audience = ALERT_AUDIENCE[kind] || "both";
+
+  if (audience === "farm") return adminEmails(env);
+  if (audience === "dev") return devOrAdminEmails(env);
+
+  return bothEmails(env);
+};
 
 const key = (name) => `health/${name}`;
 
@@ -157,7 +183,7 @@ export const raise = async (stores, kind, detail = {}, {
   log.error({ event: "alert", kind, ...detail });
 
   const last = dedupe ? await readMark(stores, `alert/${mute}`) : null;
-  const to = adminEmails(env);
+  const to = alertRecipients(kind, env);
 
   if (last && now.getTime() - Date.parse(last.at) < ALERT_EVERY) {
     await mark(stores, `alert/${mute}`, {
@@ -216,6 +242,7 @@ export const alertTest = async (stores, {
   const missing = [
     !env.HEALTHCHECKS_ALERT_URL && "HEALTHCHECKS_ALERT_URL",
     !adminEmails(env).length && "ADMIN_EMAILS",
+    !devEmails(env).length && "DEV_NOTIFICATIONS_EMAIL",
   ].filter(Boolean);
 
   if (missing.length) {

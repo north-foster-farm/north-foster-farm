@@ -28,7 +28,8 @@ sees, so a dead page and a silent failure both reach the phone.
 - **Alerts.** `alert()` in `lib/health.mjs`: a farm email per failure
   kind per hour, and a `/fail` ping to a second check followed at once
   by a success ping, so every alert pushes "down" then "up" and the
-  next one pushes again. `ADMIN_EMAILS`, `HEALTHCHECKS_ALERT_URL`.
+  next one pushes again. `ADMIN_EMAILS`, `DEV_NOTIFICATIONS_EMAIL`,
+  `HEALTHCHECKS_ALERT_URL`.
   `bin/nff alert test` proves both channels.
 - **Backup heartbeat.** The nightly backup export (`docs/backup.md`)
   pings a third check when its copy lands in R2, and `/fail` with
@@ -141,7 +142,8 @@ kind `alert.test`, through `alert()` itself: the farm email by
 `MAIL_DRIVER`, then `/fail` and the success ping to
 `HEALTHCHECKS_ALERT_URL`. It skips the hourly limit, so it can be run
 again at once, and leaves no mute behind. It refuses when
-`HEALTHCHECKS_ALERT_URL` or `ADMIN_EMAILS` is unset, since an alert
+`HEALTHCHECKS_ALERT_URL`, `ADMIN_EMAILS` or
+`DEV_NOTIFICATIONS_EMAIL` is unset, since an alert
 there would reach nobody, and prints what it reached:
 
 ```
@@ -189,6 +191,30 @@ second ping the *Alerts* check would stay down after the first alert
 of the day, and every later one would reach email only. The subject is
 `Site alert: <kind>`, and the body carries this section's entry for
 the kind, from `lib/alerts-guide.mjs`, with a button to this page.
+
+**Who hears what.** Two addresses: `ADMIN_EMAILS`, the farm, and
+`DEV_NOTIFICATIONS_EMAIL`, the developer (`dev@northfosterfarm.com`
+in production; unset, the developer's notices go to `ADMIN_EMAILS`
+so none is lost). Routing is the table `ALERT_AUDIENCE` in
+`lib/health.mjs`:
+
+- **Both.** Everything that touches a customer, an order or money:
+  `order.create_failed`, `order.reserve_failed`, `order.id_collision`,
+  `order.after_paid_failed`, `order.edit_failed`,
+  `square.record_failed`, `square.edit_failed`,
+  `square.refund_failed`, `refund.failed`, `venmo.amount_mismatch`,
+  `mail.failed`, `client.payment_unavailable`, `client.checkout_failed`
+  and `alert.test`. "Orders not recorded" is in this group. A kind
+  missing from the table also goes to both.
+- **Developer only.** What only a developer can fix or should read:
+  `jobs.errors`, `jobs.invariants`, `jobs.crashed`, `backup.failed`,
+  `function.crashed` and `webhook.rejected` (a rejected signature is
+  a security signal).
+- **Farm only.** `pickup.lapsed`, which the farm acts on.
+
+Maintenance flips email both. The morning report, the tomorrow email
+and the farm's order notices stay with `ADMIN_EMAILS`. The yearly
+rotation reminder goes to the developer's address (below).
 
 **`order.create_failed`.** `POST /api/orders` could not create the
 Square order or take the payment after retries, or a processor
@@ -404,6 +430,22 @@ store (`run/<time>`, two days kept). It needs the Netlify Blobs
 variables in `.env.production` and the `--production` flag.
 
 ## The daily emails
+
+**Rotation reminder**, 8:00 on Dec 1 and on each following Dec 8, 15,
+22 and 29, to `DEV_NOTIFICATIONS_EMAIL`: the secrets still due. It is
+a step of the 15-minute jobs (`lib/rotation.mjs`, the `rotation` entry
+of the run report), not a separate schedule. Every secret rotates
+between Dec 1 and Jan 1 (`docs/secrets.md`, "Schedule"); the email
+lists each name and environment in `docs/rotation-log.md` whose latest
+rotation is dated before Dec 1, and the file is bundled into the
+function by `included_files` in `netlify.toml`. The Dec 1 email always
+goes. Later ones go only while the log still shows something due, and
+the Dec 29 one, in the last week of the month, is titled FINAL
+REMINDER. A run that missed a day sends it at the next. The log's line
+format is name, date (YYYY-MM-DD), environment, reason, who, split by
+`|` or `,`; a line without a date second is skipped. A missing log
+makes the email say so. Each send is recorded in the jobs store under
+`rotation/<date>`, so a repeat run sends nothing.
 
 **Morning report**, 8:00: the site's vital signs for the last 24
 hours, each with the range a healthy day falls in (orders placed,

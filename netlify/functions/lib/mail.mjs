@@ -18,6 +18,7 @@
 //                        The last OUTBOX_KEEP are kept.
 //
 // ADMIN_EMAILS is a comma-separated list for farm-side notices.
+// DEV_NOTIFICATIONS_EMAIL is the same for the developer's.
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -44,11 +45,29 @@ export class MailError extends Error {
 export const mailConfigured = (env = process.env) =>
   env.MAIL_DRIVER === "resend" && !!env.RESEND_API_KEY && !!env.MAIL_FROM;
 
-export const adminEmails = (env = process.env) =>
-  String(env.ADMIN_EMAILS || "")
+const addresses = (value) =>
+  String(value || "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+
+export const adminEmails = (env = process.env) =>
+  addresses(env.ADMIN_EMAILS);
+
+// DEV_NOTIFICATIONS_EMAIL: where the developer's notices go, apart
+// from the farm's (incidents, rotations, security, failed jobs).
+export const devEmails = (env = process.env) =>
+  addresses(env.DEV_NOTIFICATIONS_EMAIL);
+
+// Farm and developer together, each address once. For notices both
+// should see.
+export const bothEmails = (env = process.env) =>
+  [...new Set([...adminEmails(env), ...devEmails(env)])];
+
+// The developer's address; the farm's when none is set, so a notice
+// meant for the developer is never lost to a missing setting.
+export const devOrAdminEmails = (env = process.env) =>
+  (devEmails(env).length ? devEmails(env) : adminEmails(env));
 
 export const NAME_MAX = 64;
 

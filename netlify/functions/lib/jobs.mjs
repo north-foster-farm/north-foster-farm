@@ -23,6 +23,8 @@
 //               method, with what to pack and where it goes
 //   audience    once a day from 05:00: the farm-news audience in Resend
 //               and the records made to agree
+//   rotation    8:00 on Dec 1 and weekly after, to the developer: the
+//               secrets the rotation log shows as due (lib/rotation.mjs)
 //   health      each run ends with invariant checks, a ledger line,
 //               alerts for what went wrong, and a heartbeat ping
 
@@ -50,6 +52,7 @@ import {
   paymentsOf, questionOpen, refundsOf, reminderPrefs, setStatus,
   sweepAuth, sweepCheckouts,
 } from "./records.mjs";
+import { rotationDaily } from "./rotation.mjs";
 import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
 import {
   deliveryReminder, farmMorningReport, farmTomorrow,
@@ -101,7 +104,7 @@ export const runJobs = async (stores, {
     at: now.toISOString(), deliveryReminded: [], closed: [], squareSynced: [],
     muted: [], checkoutsRescued: [], checkoutsSwept: 0, authSwept: 0,
     pickupsToConfirm: [], scrubbed: [],
-    tomorrow: null, errors: [], invariants: [],
+    tomorrow: null, rotation: null, errors: [], invariants: [],
   };
   const opts = { env, mail, now };
   const fail = (id, step, error) => {
@@ -199,6 +202,8 @@ export const runJobs = async (stores, {
     () => morningReport(stores, { env, mail, now, fetchImpl }))) || [];
   report.tomorrow = await attempt(null, "tomorrowReport",
     () => tomorrowReport(stores, { env, mail, now }));
+  report.rotation = await attempt(null, "rotationReminder",
+    () => rotationDaily(stores, { env, mail, now }));
   // Farm news: once a day the audience in Resend and the records are
   // made to agree. Null when there is no audience to sync.
   report.audience = await attempt(null, "audienceSync",
@@ -285,6 +290,7 @@ export const summarize = (report) => ({
   checkoutsSwept: report.checkoutsSwept || 0,
   authSwept: report.authSwept || 0,
   tomorrow: report.tomorrow,
+  rotation: report.rotation || null,
   audience: report.audience || null,
   errors: report.errors,
   invariants: report.invariants,

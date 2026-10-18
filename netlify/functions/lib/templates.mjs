@@ -1231,6 +1231,53 @@ export const maintenanceFlipped = (on, {
   };
 };
 
+// The yearly secret rotation, to the developer: Dec 1, then weekly
+// while the rotation log shows something not yet rotated this window.
+// `final` is the loud one in the last week of December.
+export const rotationReminder = ({
+  due = [], start, final = false, logFound = true, links,
+} = {}) => {
+  const year = Number(start.slice(0, 4));
+  const title = final
+    ? `FINAL REMINDER: rotate the secrets by Jan 1, ${year + 1}`
+    : `Secrets are due for rotation: Dec 1 to Jan 1, ${year + 1}`;
+  const blocks = [
+    p(final
+      ? "**The window closes in days.** Everything below is still " +
+        "unrotated in the log. Rotate it now, in the quiet hour " +
+        "docs/secrets.md names, and log each rotation."
+      : "**Every secret rotates between Dec 1 and Jan 1.** Tokens that " +
+        "can expire are set to expire Jan 31. Log each rotation in " +
+        "docs/rotation-log.md as you go; this reminder repeats weekly " +
+        "for what the log still shows as due."),
+  ];
+
+  if (!logFound) {
+    blocks.push(p("docs/rotation-log.md was not found, so the list " +
+      "below is empty. Work from the table in docs/secrets.md."));
+  }
+  if (due.length) {
+    blocks.push(
+      heading("Last rotated before Dec 1"),
+      table(["Secret", "Environment", "Last rotated", "Why"],
+        due.map((e) => [e.name, e.environment, e.date, e.reason]))
+    );
+  } else {
+    blocks.push(p("The log lists nothing as rotated yet. Check " +
+      "docs/secrets.md for the full set."));
+  }
+  blocks.push(
+    p("Ping URLs, ids and the build hook rotate only on a leak: skip " +
+      "them. The Square token rotates under maintenance mode."),
+    adminFooter(links)
+  );
+
+  return {
+    subject: title,
+    ...render(title, blocks, links, { tag: "Rotation" }),
+  };
+};
+
 // Every morning at 8:00: the site's vital signs for the last day, then
 // whatever waits on the farm. Sent even when nothing does, so its
 // absence is a signal.

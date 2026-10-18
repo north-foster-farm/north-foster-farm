@@ -24,7 +24,7 @@
 // authentication: whoever holds the link can flip.
 
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { adminEmails, sendMail } from "./mail.mjs";
+import { bothEmails, sendMail } from "./mail.mjs";
 import { json } from "./http.mjs";
 import { log } from "./log.mjs";
 import { siteUrl, mailLinks } from "./site.mjs";
@@ -157,7 +157,7 @@ export const setState = async (stores, on, {
     context: env.SITE_CONTEXT || env.CONTEXT || null,
   });
 
-  const to = adminEmails(env);
+  const to = bothEmails(env);
 
   if (to.length) {
     try {
