@@ -110,6 +110,29 @@ test.describe("cart panes on a phone", () => {
     await apart(down);
   });
 
+  test("the badges show only for a delivery, on two lines", async ({
+    page,
+  }) => {
+    const order = new OrderPage(page);
+
+    await order.open(FULL_CART);
+
+    const badges = order.cart.locator(".order-badges");
+
+    await expect(badges).toBeHidden();
+
+    await order.method("scituate");
+    await expect(badges).toBeHidden();
+
+    await order.method("delivery");
+    await expect(badges).toBeVisible();
+
+    // Two lines of 0.7rem text, not a run that wraps three or four.
+    const b = await badges.boundingBox();
+
+    expect(b.height).toBeLessThan(2.5 * 0.7 * 16 * 1.4);
+  });
+
   test("the shared row's controls are all 36px tall", async ({ page }) => {
     const order = new OrderPage(page);
 

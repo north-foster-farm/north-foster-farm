@@ -1374,6 +1374,9 @@ export class OrderForm {
       if (on) wayName = way.textContent.trim();
     }
     qs(c, "[data-way-name]").textContent = wayName || "Pickup or delivery";
+    // The delivery badges and the bulk tiers read as delivery terms:
+    // on a pickup they are noise (#267).
+    qs(c, ".order-badges").hidden = method !== "delivery";
     // The header's Order link shows the same count; a change to a paid
     // order is not the cart.
     if (!this.editing) announceCart(count);
