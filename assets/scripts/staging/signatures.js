@@ -1,20 +1,41 @@
-// The Signatures panel: every email signature variant, previewed as a
-// mail app will show it, with a Copy button that puts exactly that
-// signature on the clipboard (rich HTML with plain text beside it) and
-// an Open alone link to a page holding nothing else, for Select All
-// and Copy where the Clipboard API is refused (#267). The variants and
-// their HTML come from /api/staging/signatures; nothing here sends
-// mail.
+// The signature library: every email signature variant listed in a
+// sidebar, the open one previewed as a mail app will show it, with a
+// Copy button that puts exactly that signature on the clipboard (rich
+// HTML with plain text beside it) and an Open alone link to a page
+// holding nothing else, for Select All and Copy where the Clipboard API
+// is refused (#267). It is a view of its own, apart from the email
+// library, though it borrows that view's look. The variants and their
+// HTML come from /api/staging/signatures; nothing here sends mail.
+//
+// #signature=<id> on any page opens the library at that variant;
+// #signatures opens it at the top.
 
 const PREVIEW = (html) => `<!doctype html><meta charset="utf-8">` +
   `<base target="_blank"><body style="margin:12px;background:#fff">${html}`;
 
-export const mountSignatures = ({ root, api, aloneUrl }) => {
-  const list = root.querySelector("[data-staging-signatures]");
-  const note = root.querySelector("[data-staging-signatures-note]");
-  const item = root.querySelector("[data-staging-signature]");
+const HINT = "Copy puts this signature on the clipboard as rich text, " +
+  "with plain text beside it.";
 
-  const copy = async (s, said) => {
+const NARROW = "(max-width: 47.99rem)";
+
+export const mountSignatures = ({ root, api, aloneUrl, onOpen }) => {
+  const qs = (sel) => root.querySelector(sel);
+  const box = qs("[data-staging-sigs]");
+  const list = qs("[data-staging-sigs-list]");
+  const empty = qs("[data-staging-sigs-empty]");
+  const summary = qs("[data-staging-sigs-summary]");
+  const count = qs("[data-staging-sigs-count]");
+  const reader = qs("[data-staging-sigs-reader]");
+  const frame = qs("[data-staging-sigs-frame]");
+  const name = qs("[data-staging-sigs-name]");
+  const gap = qs("[data-staging-sigs-gap]");
+  const said = qs("[data-signature-said]");
+  const alone = qs("[data-signature-alone]");
+  const item = qs("[data-staging-sigs-item]");
+  let signatures = null;
+  let current = null;
+
+  const copy = async (s) => {
     try {
       await navigator.clipboard.write([new ClipboardItem({
         "text/html": new Blob([s.html], { type: "text/html" }),
@@ -26,37 +47,108 @@ export const mountSignatures = ({ root, api, aloneUrl }) => {
     }
   };
 
-  const draw = (signatures) => {
+  const drawList = () => {
     list.replaceChildren();
     for (const s of signatures) {
       const li = item.content.firstElementChild.cloneNode(true);
-      const gap = li.querySelector(".staging-signature-gap");
-      const said = li.querySelector("[data-signature-said]");
+      const a = li.querySelector("a");
+      const badge = li.querySelector(".staging-badge");
 
-      li.querySelector(".staging-signature-label").textContent = s.label;
-      li.querySelector("iframe").srcdoc = PREVIEW(s.html);
-      if (s.missing.length) {
-        gap.textContent = `placeholder: ${s.missing.join(", ")}`;
-        gap.hidden = false;
+      a.href = `#signature=${encodeURIComponent(s.id)}`;
+      a.dataset.id = s.id;
+      if (current && current.id === s.id) {
+        a.setAttribute("aria-current", "true");
       }
-      li.querySelector("[data-signature-copy]")
-        .addEventListener("click", () => copy(s, said));
-      li.querySelector("[data-signature-alone]").href = aloneUrl(s.id);
+      li.querySelector(".staging-item-name").textContent = s.label;
+      if (s.missing.length) {
+        badge.textContent = "has placeholders";
+        badge.hidden = false;
+      }
       list.appendChild(li);
     }
+    summary.textContent = `${signatures.length} variants`;
+  };
+
+  const read = (id) => {
+    const s = signatures && signatures.find((x) => x.id === id);
+
+    if (!s) return;
+    current = s;
+    name.textContent = s.label;
+    frame.srcdoc = PREVIEW(s.html);
+    said.textContent = HINT;
+    gap.hidden = !s.missing.length;
+    gap.textContent = `placeholder: ${s.missing.join(", ")}`;
+    alone.href = aloneUrl(s.id);
+    reader.hidden = false;
+    box.classList.add("staging-reading");
+    drawList();
   };
 
   const load = async () => {
+    if (signatures) return;
+
     const { ok, data } = await api("/api/staging/signatures");
 
-    if (!ok) {
-      note.textContent = "The signatures could not be loaded.";
-
-      return;
-    }
-    draw(data.signatures);
-    note.textContent = "Bracketed gaps are details James has not given yet.";
+    empty.hidden = ok;
+    if (!ok) return;
+    signatures = data.signatures;
+    count.textContent = `${signatures.length} variants`;
+    drawList();
   };
 
-  return { load };
+  const open = async (id = null) => {
+    onOpen();
+    box.hidden = false;
+    document.documentElement.classList.add("staging-library-open");
+    await load();
+    if (!signatures) return;
+    if (id) read(id);
+    else if (!current && !window.matchMedia(NARROW).matches) {
+      read(signatures[0].id);
+    }
+  };
+
+  const close = () => {
+    box.hidden = true;
+    document.documentElement.classList.remove("staging-library-open");
+    if (/^#signatures?\b/.test(location.hash)) {
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+  };
+
+  const fromHash = () => {
+    const m = location.hash.match(/^#signature=([^&]+)/);
+
+    if (m) open(decodeURIComponent(m[1]));
+    else if (location.hash === "#signatures") open();
+  };
+
+  list.addEventListener("click", (ev) => {
+    const a = ev.target.closest("a[data-id]");
+
+    if (!a) return;
+    ev.preventDefault();
+    history.replaceState(null, "", a.getAttribute("href"));
+    read(a.dataset.id);
+  });
+  qs("[data-signature-copy]").addEventListener("click", () => {
+    if (current) copy(current);
+  });
+  qs("[data-staging-sigs-back]").addEventListener("click", () => {
+    current = null;
+    reader.hidden = true;
+    box.classList.remove("staging-reading");
+    history.replaceState(null, "", "#signatures");
+    drawList();
+  });
+  qs("[data-staging-sigs-open]").addEventListener("click", () => open());
+  qs("[data-staging-sigs-close]").addEventListener("click", close);
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && !box.hidden) close();
+  });
+  window.addEventListener("hashchange", fromHash);
+
+  // The count on the toolbar's button, without opening anything.
+  return { fromHash, counted: load };
 };

@@ -559,7 +559,7 @@ there. A test fails on a workflow that prints such output.
 | Email library: every email built from sample data, with its sign-in link templates; approve and rewrite | yes | no |
 | Inbox: every email staging sent instead of sending, with real sign-in links and customers' addresses; clear it | yes | no |
 | Jobs run: the scheduled jobs now, or as of 8:00 or 18:00 today (the date preview), and send today's reports again | yes | no |
-| Signature previews: copy-ready email signatures | yes | yes |
+| Signature library: its own toolbar view of copy-ready email signatures (`/api/staging/signatures`) | yes | yes |
 | Info: the deploy's context, mail driver and Square environment, and the key in use | yes | yes |
 | Crash test: throws on purpose to prove the alert | yes | no |
 | Order limit: lifted for a request carrying the key | yes | no |

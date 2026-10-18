@@ -208,6 +208,7 @@ const signatures = mountSignatures({
   api,
   aloneUrl: (id) => `/api/staging/signatures/${encodeURIComponent(id)}${
     token() ? `?token=${encodeURIComponent(token())}` : ""}`,
+  onOpen: () => { root.hidden = false; },
 });
 
 const boot = async () => {
@@ -232,7 +233,10 @@ const boot = async () => {
   if (allowed("emails")) library.fromHash();
   show(!!store("localStorage", KEY.open));
   if (allowed("emails")) library.counted();
-  if (allowed("signatures")) signatures.load();
+  if (allowed("signatures")) {
+    signatures.fromHash();
+    signatures.counted();
+  }
 };
 
 // Capture, so a click lets the handler under it ask for the token.

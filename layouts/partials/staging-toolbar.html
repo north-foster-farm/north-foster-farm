@@ -35,8 +35,10 @@
         </div>
         <div data-staging-scope="signatures">
           <h2>Signatures</h2>
-          <p class="staging-muted" data-staging-signatures-note>Loading…</p>
-          <ol class="staging-signatures" data-staging-signatures></ol>
+          <p>
+            <button type="button" class="staging-action" data-staging-sigs-open>Signature library</button>
+            <span class="staging-muted" data-staging-sigs-count></span>
+          </p>
         </div>
         <div data-staging-scope="inbox">
         <h2>Inbox</h2>
@@ -144,20 +146,45 @@
         </a>
       </li>
     </template>
-    {{/* One signature: a preview of exactly what Copy puts on the
-      clipboard, and the Open alone page that holds nothing else. */}}
-    <template data-staging-signature>
-      <li class="staging-signature">
-        <div class="staging-signature-head">
-          <strong class="staging-signature-label"></strong>
-          <span class="staging-badge staging-signature-gap" data-approval="to approve" hidden></span>
+    {{/* The signature library: its own view beside the email library,
+      with the variants listed and the open one previewed exactly as
+      Copy puts it on the clipboard, and the Open alone page that holds
+      nothing else (#267). #signatures or #signature=<id> opens it. */}}
+    <div class="staging-library" data-staging-sigs hidden>
+      <aside class="staging-shelf" aria-label="Signature library">
+        <header class="staging-shelf-head">
+          <strong>Signatures</strong>
+          <span class="staging-muted" data-staging-sigs-summary></span>
+          <button type="button" class="staging-icon" data-staging-sigs-close title="Close the signatures" aria-label="Close">×</button>
+        </header>
+        <div class="staging-shelf-list" data-staging-sigs-shelf>
+          <p class="staging-muted staging-pad" data-staging-sigs-empty hidden>The signatures could not be loaded.</p>
+          <ol class="staging-sigs-list" data-staging-sigs-list></ol>
         </div>
-        <iframe class="staging-signature-frame" title="The signature as mail shows it" sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
-        <p class="staging-signature-actions">
+      </aside>
+      <section class="staging-reader" data-staging-sigs-reader aria-label="Signature" hidden>
+        <header class="staging-reader-head">
+          <button type="button" class="staging-icon staging-back" data-staging-sigs-back title="Back to the signatures" aria-label="Back to the signatures">‹</button>
+          <div class="staging-reader-title">
+            <strong data-staging-sigs-name></strong>
+          </div>
           <button type="button" class="staging-action staging-primary" data-signature-copy>Copy</button>
           <a class="staging-action staging-link" data-signature-alone target="_blank" rel="noopener">Open alone</a>
-          <span class="staging-muted" data-signature-said role="status"></span>
+        </header>
+        <p class="staging-reader-meta">
+          <span class="staging-badge" data-approval="to approve" data-staging-sigs-gap hidden></span>
+          <span class="staging-muted" data-signature-said role="status">Copy puts this signature on the clipboard as rich text, with plain text beside it.</span>
         </p>
+        <iframe class="staging-frame" data-staging-sigs-frame title="The signature as mail shows it" sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
+      </section>
+    </div>
+    <template data-staging-sigs-item>
+      <li>
+        <a class="staging-item" href="#">
+          <span class="staging-item-name"></span>
+          <span class="staging-item-subject"></span>
+          <span class="staging-item-tags"><span class="staging-badge" data-approval="to approve" hidden></span></span>
+        </a>
       </li>
     </template>
     <template data-staging-token><span class="staging-token" contenteditable="false"></span></template>
