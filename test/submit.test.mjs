@@ -17,6 +17,13 @@ afterEach(() => {
 });
 
 describe("what the page makes of an answer", () => {
+  it("shows maintenance's 503 and does not retry it (#267)", async () => {
+    answer(503, { maintenance: true, message: "Under maintenance." });
+    assert.deepEqual(await send(), {
+      kind: "failed", message: "Under maintenance.",
+    });
+  });
+
   it("retries a 503 and a lost connection", async () => {
     answer(503, { retryable: true });
     assert.equal((await send()).kind, "retry");

@@ -18,6 +18,8 @@
 // the server gives a bot; a customer who gets one was not served, so
 // it is never taken for success.
 
+import { announce } from "../utils/maintenance.js";
+
 export class Submitter {
   // A change to a paid order posts to its own endpoint (?edit=), which
   // answers in the same shapes.
@@ -75,6 +77,13 @@ export class Submitter {
           "here. Wait a few minutes and try again; your order is saved on " +
           "this page.",
       };
+    }
+    // Maintenance (#267) is a 503 that is not transient: waiting and
+    // resending would only be refused again.
+    if (res.status === 503 && data.maintenance) {
+      announce(data.message);
+
+      return { kind: "failed", message: data.message };
     }
     if (res.status === 503 || data.retryable === true) {
       return { kind: "retry" };

@@ -71,6 +71,8 @@ export const wire = (form) => {
     if (ok) {
       say(note, JOINED, "ok");
       input.value = "";
+    } else if (data && data.maintenance) {
+      say(note, data.message, "wait");
     } else if (data && data.errors && data.errors.email) {
       setInvalid(true);
       say(note, data.errors.email, "no");

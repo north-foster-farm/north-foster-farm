@@ -123,6 +123,14 @@ class Account {
   async start() {
     const me = await api("/api/me");
 
+    // Maintenance keeps sessions but closes the account: the message
+    // stands in for the page (#267).
+    if (me.ok && me.data.maintenance) {
+      this.loading.textContent = me.data.message;
+      this.loading.hidden = false;
+
+      return;
+    }
     if (!me.ok || !me.data.signedIn) {
       // Come back to where they were headed, not just the account
       // page, so a link to one order survives signing in.

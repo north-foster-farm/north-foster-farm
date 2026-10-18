@@ -70,8 +70,9 @@ const start = () => {
     submit.textContent = "Email me a sign-in link";
 
     if (!ok) {
-      fail((data && data.errors && data.errors.email)
-        || "We couldn't send a link just now. Please try again.");
+      fail((data && data.maintenance && data.message)
+        || (data && data.errors && data.errors.email)
+        ||"We couldn't send a link just now. Please try again.");
 
       return;
     }
