@@ -1965,7 +1965,12 @@ export class OrderForm {
       }
     });
 
-    console.error(JSON.stringify({ event: "order.undeliverable", payload }));
+    // The key, never the payload: it holds the customer's details, and
+    // the console is read by whoever sits down at the machine (#258).
+    console.error(JSON.stringify({
+      event: "order.undeliverable",
+      idempotencyKey: payload && payload.meta && payload.meta.idempotencyKey,
+    }));
     // Tell the farm a checkout could not complete. A beacon survives
     // the page being closed; nothing here can fail the customer.
     try {
