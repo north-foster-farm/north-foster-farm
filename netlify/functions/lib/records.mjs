@@ -371,12 +371,13 @@ export const sweepCheckouts = async (stores, now = new Date()) => {
   return swept;
 };
 
-// Sign-in links and sessions (lib/auth.mjs) past their own `expires`
-// are dead: a link is refused and a session ends when next read. Only
-// a session read after it expires was ever deleted, so they piled up.
-// Nothing else in the auth store is touched, and nothing still live
-// (#189). -> how many.
-export const AUTH_SWEPT = ["token/", "session/"];
+// Sign-in links, sessions (lib/auth.mjs) and unconfirmed farm-news
+// sign-ups (lib/news.mjs) past their own `expires` are dead: a link is
+// refused and a session ends when next read. Only a session read after
+// it expires was ever deleted, so they piled up, and a sign-up never
+// confirmed kept its name and email. Nothing else in the auth store is
+// touched, and nothing still live (#189). -> how many.
+export const AUTH_SWEPT = ["token/", "session/", "news/"];
 
 export const sweepAuth = async (stores, now = new Date()) => {
   let swept = 0;
