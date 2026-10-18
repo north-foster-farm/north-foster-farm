@@ -392,8 +392,8 @@ test.describe("map (#138, #214)", () => {
       await expect(dropGroup(page)).toBeHidden();
     });
 
-  // Lincoln lies on the map's top edge. The zoom sits above the map
-  // since #214, so the tag has only the frame to keep inside.
+  // Lincoln lies on the map's top edge. The zoom sits over the map's
+  // top left since #214, clear of the tag at Lincoln.
   test("the tag keeps inside the frame", async ({ page }) => {
     await page.goto(HOME.path);
     await check(page, HOME.input, "02865");
@@ -409,8 +409,10 @@ test.describe("map (#138, #214)", () => {
     expect(tag.x + tag.width).toBeLessThanOrEqual(frame.x + frame.width);
     expect(tag.y + tag.height)
       .toBeLessThanOrEqual(frame.y + frame.height);
-    expect(zoom.y + zoom.height, "the zoom above the map")
-      .toBeLessThanOrEqual(frame.y);
+    expect(zoom.y, "the zoom inside the map").toBeGreaterThanOrEqual(frame.y);
+    expect(zoom.x).toBeGreaterThanOrEqual(frame.x);
+    expect(tag.x >= zoom.x + zoom.width || tag.y >= zoom.y + zoom.height,
+      "the tag clear of the zoom").toBe(true);
   });
 
   test("a second tap on the town picked clears it; so does water",
