@@ -1,6 +1,7 @@
 import Tooltip from "bootstrap/js/dist/tooltip.js";
 
 import { indexCatalog } from "./lib/catalog.mjs";
+import { moreStop } from "./lib/cart-scroll.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
 import { summarize } from "./lib/summary.mjs";
 import {
@@ -529,9 +530,10 @@ export class OrderForm {
       "transitionend", () => this.syncScroll()
     );
     qs(this.cart, "[data-cart-more]").addEventListener("click", () => {
-      const list = qs(this.cart, "[data-cart-items]");
-
-      list.scrollBy({ top: list.clientHeight * 0.8, behavior: "smooth" });
+      this.scrollMore(1);
+    });
+    qs(this.cart, "[data-cart-more-top]").addEventListener("click", () => {
+      this.scrollMore(-1);
     });
     window.addEventListener("resize", () => this.syncScroll());
     // The cap follows the top bar on a phone, so the list also grows
@@ -829,6 +831,44 @@ export class OrderForm {
       qs(share, was === "way" ? "[data-way-toggle]" : "[data-code-toggle]")
         .focus();
     });
+  }
+
+  // The "N more" buttons: the list glides to the row that was hidden,
+  // landing on it exactly. A drive of our own, not the browser's smooth
+  // scroll, which overshot on iOS and snapped back.
+  scrollMore(dir) {
+    const list = qs(this.cart, "[data-cart-items]");
+    const rows = all(list, ".order-cart-item").map((li) => ({
+      top: li.offsetTop - list.offsetTop,
+      bottom: li.offsetTop - list.offsetTop + li.offsetHeight,
+    }));
+    const to = moreStop(rows, {
+      top: list.scrollTop, height: list.clientHeight,
+      full: list.scrollHeight,
+    }, dir);
+    const from = list.scrollTop;
+
+    cancelAnimationFrame(this.glide);
+    if (to === from) return;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      list.scrollTop = to;
+
+      return;
+    }
+
+    const began = performance.now();
+    const span = Math.min(420, 160 + Math.abs(to - from) * 0.8);
+    const stop = () => cancelAnimationFrame(this.glide);
+    const step = (now) => {
+      const t = Math.min(1, (now - began) / span);
+
+      list.scrollTop = from + (to - from) * (1 - (1 - t) ** 3);
+      if (t < 1) this.glide = requestAnimationFrame(step);
+    };
+
+    list.addEventListener("touchstart", stop, { once: true, passive: true });
+    list.addEventListener("wheel", stop, { once: true, passive: true });
+    this.glide = requestAnimationFrame(step);
   }
 
   // Opens one side of the shared row over the other, or neither ("").

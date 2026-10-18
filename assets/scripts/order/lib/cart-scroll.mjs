@@ -1,0 +1,38 @@
+// Where the cart's "N more" buttons take its list, and how much of the
+// screen's foot the keyboard covers. Pure, so the tests can reach them.
+
+// Rows are { top, bottom } in the list's own scroll space; `view` is
+// { top, height, full } (scrollTop, clientHeight, scrollHeight). Down:
+// the first row not fully in view goes to the top edge. Up: the
+// earliest row within four fifths of a screen above does. Never past
+// either end.
+export const moreStop = (rows, view, dir) => {
+  const max = Math.max(0, view.full - view.height);
+  let top = view.top;
+
+  if (dir > 0) {
+    const next = rows.find((row) => row.bottom > view.top + view.height + 1);
+
+    if (next) top = next.top;
+  } else {
+    const reach = view.top - view.height * 0.8 - 1;
+    const prev = rows.find(
+      (row) => row.top >= reach && row.top < view.top - 1
+    );
+
+    top = prev ? prev.top : 0;
+  }
+
+  return Math.min(max, Math.max(0, Math.round(top)));
+};
+
+// Safari on iOS keeps the layout viewport at full height under the
+// keyboard and shrinks only the visual one. The gap under the visual
+// viewport is the keyboard. A gap under a toolbar's worth is not one.
+export const keyboardInset = (layoutHeight, visual, least = 120) => {
+  if (!visual) return 0;
+
+  const gap = layoutHeight - (visual.offsetTop + visual.height);
+
+  return gap >= least ? Math.round(gap) : 0;
+};
