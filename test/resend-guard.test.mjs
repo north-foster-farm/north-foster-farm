@@ -108,7 +108,7 @@ describe("every file that names Resend's API checks the guard", () => {
   }).filter((e) => e.isFile() && /\.(mjs|js)$|^nff$/.test(e.name))
     .map((e) => join(e.parentPath, e.name));
   const naming = [...sources("netlify"), ...sources("bin")]
-    .filter((f) => readFileSync(f, "utf8").includes("api.resend.com"));
+    .filter((f) => readFileSync(f, "utf8").match(/api\.resend\.com/));
 
   it("finds the five modules that call it", () => {
     const names = naming.map((f) => f.slice(root.length + 1)).sort();

@@ -39,7 +39,7 @@ const readJson = (path, fallback) => {
 };
 
 const fetchRecord = async (name, fetchImpl) => {
-  const url = `${REGISTRY}/${name.replace("/", "%2F")}`;
+  const url = `${REGISTRY}/${name.replace(/\//g, "%2F")}`;
 
   for (let attempt = 1; ; attempt++) {
     try {

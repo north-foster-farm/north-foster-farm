@@ -75,7 +75,7 @@ test.describe("payments", () => {
       /, \d.* (AM|PM|noon), at the farm\.$/
     );
     await expect(card.locator("[data-out='receiptUrl']")).toHaveAttribute(
-      "href", /^https:\/\/.*squareup(sandbox)?\.com\//
+      "href", /^https:\/\/([\w-]+\.)*squareup(sandbox)?\.com\//
     );
     // The header's cart count goes with the cart (#166).
     await expect(page.locator(".site-order [data-cart-badge]")).toBeHidden();

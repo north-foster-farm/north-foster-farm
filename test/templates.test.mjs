@@ -674,7 +674,7 @@ describe("addresses and sign-in", () => {
       assert.match(m.subject, /Address to review: Pat Example/);
       has(m.text, "Pat Example (pat@example.com) saved an address " +
         "outside of the published delivery area.");
-      assert.doesNotMatch(m.html, /admin.example.com\/customers/,
+      assert.doesNotMatch(m.html, /admin\.example\.com\/customers/,
         "no link to a dashboard page without the customer (T5b)");
       assert.match(m.text, /Location: \*\*5 Far Rd, Nowhere, MA 01234\*\*/);
       has(m.text, "View location in Maps: https://maps.apple.com/?address=" +

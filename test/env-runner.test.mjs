@@ -167,6 +167,6 @@ describe("env push over the API, with no value in a command line", () => {
       "branch:staging", "--site", "SITE"]), "sandbox\n");
     assert.equal(await run(["env:get", "SQUARE_ACCESS_TOKEN", "--context",
       "branch:staging", "--site", "SITE"]), "");
-    assert.ok(API.startsWith("https://api.netlify.com"));
+    assert.equal(new URL(API).origin, "https://api.netlify.com");
   });
 });

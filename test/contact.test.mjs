@@ -225,7 +225,7 @@ describe("farmContactMessage", () => {
     });
 
     assert.match(m.html, /&lt;script&gt;x&lt;\/script&gt; &amp; more/);
-    assert.doesNotMatch(m.html, /<script>/);
+    assert.doesNotMatch(m.html, /<script>/i);
     assert.match(m.text, /<script>x<\/script> & more/);
   });
 });
