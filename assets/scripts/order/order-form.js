@@ -1,7 +1,7 @@
 import Tooltip from "bootstrap/js/dist/tooltip.js";
 
 import { indexCatalog } from "./lib/catalog.mjs";
-import { moreStop } from "./lib/cart-scroll.mjs";
+import { keyboardInset, moreStop } from "./lib/cart-scroll.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
 import { summarize } from "./lib/summary.mjs";
 import {
@@ -452,6 +452,7 @@ export class OrderForm {
     plain();
 
     this.wireShare();
+    this.watchKeyboard();
 
     // The header's total, once the cart has scrolled away, goes back
     // to it (#203).
@@ -833,6 +834,41 @@ export class OrderForm {
     });
   }
 
+  // The keyboard covers the foot of the layout viewport on iOS, and
+  // the floating cart sits at that foot: while the code field is open
+  // the cart rides up by the keyboard's height (--cart-kb), so the
+  // field stays in sight. The inset is read from the share row's state,
+  // not from focus: a tap on Apply blurs the field before its click.
+  watchKeyboard() {
+    const visual = window.visualViewport;
+    const share = qs(this.cart, "[data-share]");
+
+    if (!visual) return;
+
+    const sync = () => {
+      const inset = share.dataset.share === "code"
+        ? keyboardInset(window.innerHeight, visual) : 0;
+
+      this.cart.style.setProperty("--cart-kb", `${inset}px`);
+
+      // Settled in the page's flow, the cart does not ride: the page
+      // scrolls the field above the keyboard instead.
+      const field = qs(share, "[data-field='code']");
+
+      if (inset && this.cart.dataset.stuck !== "true"
+        && document.activeElement === field) {
+        const over = field.getBoundingClientRect().bottom + 12
+          - (visual.offsetTop + visual.height);
+
+        if (over > 0) window.scrollBy({ top: over, behavior: "instant" });
+      }
+    };
+
+    visual.addEventListener("resize", sync);
+    visual.addEventListener("scroll", sync);
+    this.syncKeyboard = sync;
+  }
+
   // The "N more" buttons: the list glides to the row that was hidden,
   // landing on it exactly. A drive of our own, not the browser's smooth
   // scroll, which overshot on iOS and snapped back.
@@ -876,6 +912,7 @@ export class OrderForm {
     const share = qs(this.cart, "[data-share]");
 
     share.dataset.share = open;
+    if (this.syncKeyboard) this.syncKeyboard();
     qs(share, "[data-way-toggle]").setAttribute(
       "aria-expanded", String(open === "way")
     );

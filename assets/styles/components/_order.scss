@@ -542,7 +542,10 @@
   .order-cart {
     container: cart / inline-size;
     position: sticky;
-    bottom: 0.75rem;
+
+    // --cart-kb: the keyboard's height while the code field is open
+    // (order-form.js watchKeyboard); the cart rides above it.
+    bottom: calc(0.75rem + var(--cart-kb, 0px));
     z-index: 30;
     display: flex;
     flex-direction: column;
@@ -2016,9 +2019,9 @@
       // The bar sits lower until the page scrolls it to the top;
       // order-form.js keeps --cart-bar at its bottom edge.
       @media (max-width: 767.98px) {
-        max-height: calc(
-          100svh - max(var(--order-topbar-h), var(--cart-bar, 0px)) - 3rem
-        );
+        --cart-top: max(var(--order-topbar-h), var(--cart-bar, 0px));
+
+        max-height: calc(100svh - var(--cart-top) - 3rem - var(--cart-kb, 0px));
       }
     }
 
