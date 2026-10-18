@@ -8,8 +8,11 @@ import { expectBusy, expectIdle, holdRequests } from "./support/busy.mjs";
 import { expect, test } from "./support/order.mjs";
 
 const HEADING = "Contact";
-const LEAD = "Call, text, email, message us on Instagram, or use our " +
-  "contact form.";
+const LEAD = "Get in touch by calling, texting, sending us an email, or " +
+  "sending us a message through the contact form.";
+const NOTE = "Visits are by appointment only. Contact us to set up a " +
+  "farm visit. To pick up an order at the farm, choose on-farm pickup " +
+  "on the order page.";
 const LIMITED = "There have been too many messages from here. Wait a " +
   "few minutes and send it again; what you wrote is still here.";
 
@@ -90,11 +93,14 @@ test.describe("contact (#140)", () => {
       await expect(ways.nth(2))
         .toHaveAttribute("href", /instagram\.com\/northfosterfarm$/);
       await expect(page.locator(".contact-rail .contact-note"))
-        .toContainText("by appointment");
+        .toHaveText(NOTE);
+      await expect(page.locator(".contact-note a"))
+        .toHaveAttribute("href", /\/order\/$/);
 
-      await page.locator(".contact .lead a").click();
-      await expect(page).toHaveURL(/#contact-form$/);
-      await expect(page.locator("#contact-form")).toBeInViewport();
+      // The lead names the form without linking it: the form sits
+      // directly below (#267).
+      await expect(page.locator(".contact .lead a")).toHaveCount(0);
+      await expect(page.locator("#contact-form")).toBeVisible();
 
       // The honeypot is there for bots only.
       const bot = page.locator("#contact-website");

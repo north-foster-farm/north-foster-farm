@@ -2093,8 +2093,8 @@ three cases. The real function (c47e66d) is AR-15 and AR-16.
   a choice of the customer's own orders.
 - **Setup:** `/contact/`.
 - **Test:**
-  1. Read the heading, the lead and the ways to reach the farm; follow
-     "contact form".
+  1. Read the heading, the lead, the ways to reach the farm and the
+     note under them.
   2. At 390, compare the ways and the form.
   3. Send empty; send with `you@farm`, then add `.com`.
   4. Send a good message while the answer is held; press again;
@@ -2103,9 +2103,13 @@ three cases. The real function (c47e66d) is AR-15 and AR-16.
   6. Signed out; signed in with no orders; signed in with two orders,
      picking the older; signed in with seven, picking one, then typing
      `QA5`, then `Sep`, then Enter in the filter.
-- **Assert:** "Don't be a chicken. Talk to us." and James's lead; call
-  or text, email, Instagram and the farm, with "by appointment"; the
-  link lands on the form; the honeypot is hidden and out of the tab
+- **Assert:** "Don't be a chicken. Talk to us." and the lead "Get in
+  touch by calling, texting, sending us an email, or sending us a
+  message through the contact form." with no link in it (#267); call
+  or text, email, Instagram and the farm; the note "Visits are by
+  appointment only. Contact us to set up a farm visit. To pick up an
+  order at the farm, choose on-farm pickup on the order page." with the
+  order page linked; the form sits directly below; the honeypot is hidden and out of the tab
   order. On a phone the form sits under the ways. Empty: "Tell us your
   name.", "Enter your email address, so we can answer.", "Write us a
   message first.", Name focused, nothing sent. A bad address is named

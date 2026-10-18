@@ -10,11 +10,11 @@ pageScript: "contact"
 # The page's two lines of prose, Markdown, read by the HTML and by its
 # Markdown twin for llms.txt (Q21a).
 lead: >-
-  Call, text, email, message us on Instagram, or use our
-  [contact form](#contact-form).
+  Get in touch by calling, texting, sending us an email, or sending us
+  a message through the contact form.
 note: >-
-  Visits are by appointment. To pick up an order, choose on-farm pickup
-  and a time on the [order page](/order/). To visit, call, text or send
-  us a message first.
+  Visits are by appointment only. Contact us to set up a farm visit. To
+  pick up an order at the farm, choose on-farm pickup on the
+  [order page](/order/).
 outputs: ["html", "markdown"]
 ---
