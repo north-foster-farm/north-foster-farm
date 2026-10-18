@@ -2049,6 +2049,13 @@
   // Nothing from the sums to the badges is tapped, so they sit closer
   // and leave the height to the lines.
   @media (max-width: 767.98px) {
+    // Neither the lines nor the sums take more than 55% of the screen:
+    // the page behind the cart stays in view.
+    .order-cart-list,
+    .order-cart-money {
+      max-height: 55svh;
+    }
+
     .order-cart-scroll {
       min-height: min(5.5rem, var(--cart-list-h, 5.5rem));
     }
