@@ -228,13 +228,11 @@ outside the deploy stays.
   must still read. Any commit that changes the shape of a stored
   record (Blobs keys, record fields, a data migration) carries a
   trailer, `Record-shape: <what changed>`, or `Record-shape: none`
-  where the commit touches the store code but changes no shape, so the
-  check cannot be met silently. A `lint-and-test` check fails when a
-  commit range touches the store or record-shape code and no commit
-  in it carries the trailer (the checkout lane builds it; its text
-  and paths go here when it lands). Before publishing an older
-  deploy, search the release's commits for the trailer (Rolling back,
-  step 3); maintenance mode goes on first when it is there.
+  where the commit touches the store code but changes no shape. The
+  trailer needs a value, so the check cannot be met by accident.
+  Before publishing an older deploy, search the release's commits for
+  it (Rolling back, step 3); maintenance mode goes on first when a
+  trailer says anything but `none`. See "The record-shape check".
 - **Webhooks.** PayPal, Square and Resend keep sending to the same
   URLs. An endpoint the older code lacks answers 404; PayPal retries,
   and Resend may disable an endpoint that keeps failing. After
@@ -250,6 +248,46 @@ outside the deploy stays.
   endpoint the older code lacks.
 - **Square and PayPal.** Payments, Square customers and Square orders
   stay. Refund them with `bin/nff` from a checkout of `next`.
+
+## The record-shape check
+
+`lint-and-test` runs `bin/check-record-shape.mjs`. If the commits in
+the checked range touch any of these paths (`SHAPE_PATHS` in the
+script; change them there), at least one commit in the range must
+carry the trailer:
+
+- `netlify/functions/lib/store.mjs` (stores and keys)
+- `netlify/functions/lib/records.mjs` (order and customer records and
+  their indexes)
+- `netlify/functions/lib/checkout.mjs`, `edit.mjs`, `account.mjs`,
+  `admin.mjs`, `forget.mjs`, `backup.mjs` and `stock.mjs` (the code
+  that writes, rewrites, restores or removes them)
+- `netlify/migrations/` and `bin/migrations/` (neither exists yet)
+
+The range depends on the event:
+
+- **Pull request:** the PR's commits, merge commits skipped. A miss
+  fails the run.
+- **Push to `main`:** the commits that push added. A release is the
+  whole batch, so one trailer anywhere in it passes. A miss fails
+  the run, and the push that fast-forwards `main` is the one that
+  fails. The release that first puts these files on `main` needs
+  one: cut it with an empty commit that says `Record-shape: none`
+  when no shape changed, or what changed when one did. James or the
+  coordinator makes that statement, not a lane.
+- **Push to `next` or `staging`:** the same range, but a warning
+  annotation only, because work lands there in batches long before a
+  release.
+- **A run with no usable base** (dispatched, a new branch, a
+  force-push whose old tip is gone) checks against `origin/main`.
+  A run from a person's shell is strict.
+
+To read the trailers a release carries, before an older deploy goes
+up:
+
+```
+git log --grep '^Record-shape:' <old>..<new>
+```
 
 ## Rolling forward
 
