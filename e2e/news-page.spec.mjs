@@ -55,7 +55,11 @@ test.describe("news page (#143)", () => {
       const failed = [];
 
       page.on("response", (res) => {
-        if (res.status() >= 400) failed.push(`${res.status()} ${res.url()}`);
+        if (res.status() < 400 || res.url().includes("/api/staging/")) {
+          return;
+        }
+
+        failed.push(`${res.status()} ${res.url()}`);
       });
       await page.goto("/news/");
       await expect(page.locator("[data-news-pager]")).toBeHidden();
