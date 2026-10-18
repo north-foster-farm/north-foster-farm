@@ -27,6 +27,7 @@ import {
 import { forgetCustomer } from "./lib/forget.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
+import { gate } from "./lib/maintenance.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
 // Ownership is checked by the logic; the route only shapes the id.
@@ -52,6 +53,12 @@ export const handle = async (req, {
   news,
   fetchImpl,
 } = {}) => {
+  // Under maintenance the whole area answers with the message, reads
+  // included, so a signed-in customer's pages show it (#267).
+  const closed = await gate(stores);
+
+  if (closed) return closed;
+
   const session = await sessionFrom(stores, req, { now });
 
   if (!session) return json(401, { error: "Please sign in." });

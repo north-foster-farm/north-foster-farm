@@ -36,6 +36,7 @@ import { json, readJson } from "./lib/http.mjs";
 import { alert, count } from "./lib/health.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { sendMail } from "./lib/mail.mjs";
+import { gate } from "./lib/maintenance.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./lib/paypal.mjs";
 import { pickupSchedule } from "./lib/pickups.mjs";
 import {
@@ -152,9 +153,18 @@ export const handle = async (req, {
     return json(400, { errors: { body: "Expected a JSON body." } });
   }
   if (payload.website) return new Response(null, { status: 204 });
+
+  // Maintenance (#267) refuses a new order. Two things still go
+  // through, because money has moved or is about to: a Venmo capture
+  // the customer already approved, and the record of a submission
+  // that was paid before the flip (checked below).
+  const closed = await gate(stores);
+  const capturing = !!payload.payment && payload.payment.method === "venmo"
+    && payload.payment.stage === "capture";
+
   // A customer can reach the limit through a run of declines, so it is
   // said plainly: a silent answer here read as a placed order.
-  if (!exempt(req, env) && rateLimited(ip, now.getTime())) {
+  if (!closed && !exempt(req, env) && rateLimited(ip, now.getTime())) {
     return new Response(JSON.stringify({
       message: "There have been too many tries from here. Wait a few " +
         "minutes and try again; your order is saved on this page.",
@@ -192,6 +202,7 @@ export const handle = async (req, {
   const prior = await orderForSubmission(stores, key);
 
   if (prior) return own(prior);
+  if (closed && !capturing) return closed;
 
   const attempt = Number.isInteger(payload.attempt)
     && payload.attempt >= 1 && payload.attempt <= MAX_ATTEMPT

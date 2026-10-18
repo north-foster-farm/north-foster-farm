@@ -12,6 +12,7 @@ import {
 } from "./lib/auth.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
+import { MESSAGE, gate, readState } from "./lib/maintenance.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
 // Per-instance, best effort, like the order handler's.
@@ -44,7 +45,12 @@ export const handle = async (req, {
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/+$/, "");
 
+  // Sign-in and sign-up are closed under maintenance (#267). The link
+  // in an email is not spent: it works once maintenance ends.
   if (path === "/api/auth/request" && req.method === "POST") {
+    const closed = await gate(stores);
+
+    if (closed) return closed;
     if (!sameSite(req)) return json(403, { error: "Cross-site request." });
 
     const body = await readJson(req);
@@ -69,6 +75,10 @@ export const handle = async (req, {
   }
 
   if (path === "/api/auth/verify" && req.method === "GET") {
+    const closed = await gate(stores, { html: true });
+
+    if (closed) return closed;
+
     const result = await verifyToken(stores, url.searchParams.get("token"), {
       now,
     });
@@ -107,10 +117,15 @@ export const handle = async (req, {
 
   if (path === "/api/me" && req.method === "GET") {
     const session = await sessionFrom(stores, req, { now });
+    // Sessions survive maintenance; this tells the pages to show the
+    // message instead of the account.
+    const state = await readState(stores);
+    const closed = state.on ? { maintenance: true, message: MESSAGE } : {};
 
-    if (!session) return json(200, { signedIn: false });
+    if (!session) return json(200, { signedIn: false, ...closed });
 
     return json(200, {
+      ...closed,
       signedIn: true,
       via: session.via,
       customer: publicCustomer(session.customer),

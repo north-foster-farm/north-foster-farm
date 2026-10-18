@@ -17,6 +17,7 @@ import { sameSite } from "./lib/auth.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { sendMail } from "./lib/mail.mjs";
+import { gate } from "./lib/maintenance.mjs";
 import { confirmSubscribe, subscribe, unsubscribe } from "./lib/news.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
@@ -30,7 +31,12 @@ export const handle = async (req, {
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/+$/, "");
 
+  // Sign-ups are closed under maintenance, the confirm link included
+  // (it is not spent); unsubscribing is not (#267).
   if (req.method === "POST" && path === "/api/news/subscribe") {
+    const closed = await gate(stores);
+
+    if (closed) return closed;
     if (!sameSite(req)) return json(403, { error: "Cross-site request." });
 
     const body = await readJson(req);
@@ -52,6 +58,10 @@ export const handle = async (req, {
   }
 
   if (req.method === "GET" && path === "/api/news/confirm") {
+    const closed = await gate(stores, { html: true });
+
+    if (closed) return closed;
+
     const r = await confirmSubscribe(stores, url.searchParams.get("token"),
       { now });
     const status = r.ok ? "confirmed"

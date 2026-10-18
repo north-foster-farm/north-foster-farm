@@ -1207,6 +1207,30 @@ export const farmAlert = (kind, detail = {}, { at, links } = {}) => {
   };
 };
 
+// Maintenance mode flipped, to the farm (James and Jim) on every flip.
+export const maintenanceFlipped = (on, {
+  by, at, links, context,
+} = {}) => {
+  const title = `Maintenance mode is ${on ? "ON" : "OFF"}`
+    + `${context && context !== "production" ? ` (${context})` : ""}`;
+  const blocks = [
+    p(on
+      ? "Ordering, checkout, sign-in and the account area are closed. " +
+        "Customers see the maintenance message; nothing they submit goes " +
+        "through. Payments and webhooks already under way still finish."
+      : "Ordering, sign-in and the account area are open again."),
+    table(["Field", "Value"], [
+      ["Flipped by", by || "unknown"],
+      ["At", when(at ? at.toISOString() : null)],
+    ]),
+    adminFooter(links),
+  ];
+
+  return {
+    subject: title, ...render(title, blocks, links, { tag: "Maintenance" }),
+  };
+};
+
 // Every morning at 8:00: the site's vital signs for the last day, then
 // whatever waits on the farm. Sent even when nothing does, so its
 // absence is a signal.
