@@ -82,6 +82,11 @@ describe("seen", () => {
       })).ref, "refs/heads/next");
     });
 
+  it("finds none, and scans, while the repository has no analyses (404)",
+    async () => {
+      assert.equal(await seen({ env: ENV, fetchImpl: reply([], 404) }), null);
+    });
+
   it("fails when GitHub will not answer, rather than scan blind",
     async () => {
       await assert.rejects(seen({ env: ENV, fetchImpl: reply([], 403) }),

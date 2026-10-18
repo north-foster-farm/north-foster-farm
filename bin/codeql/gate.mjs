@@ -31,7 +31,7 @@ const run = promisify(execFile);
 const API = "https://api.github.com";
 const BLOCKING = ["critical", "high"];
 
-const get = async (path, { env, fetchImpl }) => {
+const get = async (path, { env, fetchImpl, none }) => {
   const res = await fetchImpl(`${API}${path}`, {
     headers: {
       accept: "application/vnd.github+json",
@@ -39,12 +39,15 @@ const get = async (path, { env, fetchImpl }) => {
     },
   });
 
+  if (res.status === 404 && none !== undefined) return none;
   if (!res.ok) throw new Error(`GitHub answered ${res.status} for ${path}`);
 
   return res.json();
 };
 
-// The newest clean CodeQL analysis of `sha`, or null.
+// The newest clean CodeQL analysis in a list, or null. GitHub answers
+// 404 to the analyses query while a repository has none at all, which
+// is the first run: that is an empty list here, and nothing else is.
 export const findAnalysis = (analyses) => {
   const clean = analyses.filter((a) => a.tool?.name === "CodeQL" && !a.error);
 
@@ -78,7 +81,7 @@ export const seen = async ({ env = process.env, fetchImpl = fetch,
 
   const analyses = await get(
     `/repos/${repo}/code-scanning/analyses?sha=${SHA}&tool_name=CodeQL`
-      + "&per_page=100", { env, fetchImpl });
+      + "&per_page=100", { env, fetchImpl, none: [] });
 
   return findAnalysis(analyses);
 };
