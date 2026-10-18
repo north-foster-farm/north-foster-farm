@@ -72,7 +72,7 @@ nothing in git and no branch rule applies to it. Revert on `main`
 ready, or as soon as anything else must reach production, whichever
 comes first: the lock blocks every publish from `main`. Revert on
 `main` earlier when the old deploy has been deleted or was built
-before a key changed.
+before a key whose old credential is revoked.
 
 Two words, kept apart. A **redeploy** runs a new build, with today's
 env values. **Republishing** an old deploy (`restoreSiteDeploy`) runs
@@ -89,12 +89,24 @@ fits. Until its result is recorded on #267 and here, the rule below
 stands.
 
 **The rule for key changes.** Netlify applies an env change only to a
-new build. After a production key changes (the yearly rotation, see
-`docs/secrets.md`, or a leak), the previous deploy, the instant
-rollback target, still holds the old, revoked key. Never publish a
-deploy built before a key change. Roll back past one by reverting on
-`main`, which builds with current values, or fix forward. The deploy
-built after a key change is the new rollback floor.
+new build. After a production key changes, the previous deploy, the
+instant rollback target, still holds the old key. Whether that key
+still works depends on why it changed (`docs/secrets.md`, rule 6):
+
+- **After a routine rotation, a deploy built before it works for the
+  31 days of the overlap,** or until the old credential's own Jan 31
+  expiry, whichever is first. Within that window the previous deploy
+  is a safe target. The window and its end date are in the rotation
+  log, which has a `revoked` line once the old credential is gone.
+- **After a leak, or once the old credential is revoked, it holds a
+  dead key.** Never publish a deploy built before that change. Roll
+  back past one by reverting on `main`, which builds with current
+  values, or fix forward. A secret we generate ourselves
+  (`STAGING_TOKEN`, `MAINTENANCE_SECRET`) has no overlap, so any
+  deploy built before its change is already past the floor.
+
+The deploy built after a key change is the new rollback floor, and
+the floor moves up to it the day the old credential is revoked.
 
 ## The one-tap rollback (designed 2026-10-18, not built)
 
@@ -104,35 +116,36 @@ a previous release of the new site to go back to. Design first, with
 James's approval before anything is built; the exact signed-link
 design is the open item. What he has decided:
 
-- **Rollbacks don't wait for a human.** Admins are told as early as
-  possible, and no stage has a human bottleneck except the one tap
-  that starts it.
+- **Rollbacks don't wait for a human.** James is told, at
+  `DEV_NOTIFICATIONS_EMAIL`, as early as possible, and no stage has a
+  human bottleneck except the one tap that starts it.
 - **James starts it, with one tap** from an email or the admin
   dashboard. Jim does not get the option unless a reason comes up.
   The tap is bound to James's identity: a bare emailed link is not
   enough. The expected shape is a signed, single-use, short-lived link
   that opens a dashboard page behind his existing sign-in, with one
   "Roll back now" button.
-- **Everything after the tap is automatic, and admins are told at
+- **Everything after the tap is automatic, and James is told at
   each step:** (1) snapshot the work in flight, meaning Venmo
   checkouts awaiting capture and any payment Square or PayPal
   confirmed with no matching order; (2) re-publish the target; (3)
   lock auto publishing; (4) verify the target is live (health,
   checkout config and the order page); (5) email affected customers
   from sales@ with a template James approves in advance, and email
-  admins the same list with what to do about each order (refund, fill
-  in, or re-order); (6) write the incident record where agents and
-  admins can read it. If any step fails, alert loudly and stop; never
-  retry a publish in a loop.
+  James the same list with what to do about each order (refund, fill
+  in, or re-order); (6) write the incident record, in the gitignored
+  `incidents/` folder and, once the dashboard pages exist, there,
+  never on a public issue. If any step fails, alert loudly and stop;
+  never retry a publish in a loop.
 - **No automatic detection starts a rollback.** Healthchecks,
   UptimeRobot and Axiom alerts stay as they are. The one exception is
   a dedicated detector for "orders not being recorded", a payment
   confirmed by Square or PayPal with no matching order record. It
-  never starts a rollback; it pushes James's phone (ntfy), emails the
-  admins and the alerts check, and repeats until acknowledged, with
-  the payment ids, the rollback link and the incident page in every
-  alert. The design proposes the reconciliation window and how to
-  handle false positives.
+  never starts a rollback; it pushes James's phone (ntfy), emails
+  `DEV_NOTIFICATIONS_EMAIL` and the alerts check, and repeats until
+  acknowledged, with the payment ids, the rollback link and the
+  incident page in every alert. The design proposes the reconciliation
+  window and how to handle false positives.
 - **Incident pages in the admin dashboard.** General pages for a bad
   deploy with an unknown cause: what a rollback does and doesn't undo;
   plain answers to "Do card payments work right now?", "Venmo?",
@@ -147,19 +160,23 @@ design is the open item. What he has decided:
 - **If James is unreachable, Jim switches on maintenance mode** and
   waits for James. Jim never rolls back.
 - **A second address, the escape valve.** The env var
-  `ESCALATION_EMAIL` holds `office@northfosterfarm.com`. It is separate
-  from `DEV_NOTIFICATIONS_EMAIL` (`dev@`), which keeps the full
-  technical stream for James alone. The escalation address gets one
-  kind of message and nothing else, in plain, non-technical language:
-  James has not responded, switch on maintenance mode, here is the
-  signed ON link. Jim is a non-technical partner, and more would make
-  a bad situation worse.
-- **Trigger.** A detector alert ("payment taken, no order", or any
-  alert that would call for a rollback) left unacknowledged for one
-  hour sends the escalation message once. It repeats only while the
-  alert is still unacknowledged, and James acknowledging it stops it.
-  The variable goes into `docs/secrets.md`, the env samples and
-  `env verify` (code for a lane, after the design).
+  `ESCALATED_NOTIFICATIONS_EMAIL` holds `office@northfosterfarm.com`.
+  It is separate from `DEV_NOTIFICATIONS_EMAIL` (`dev@`), which takes
+  every other alert, the full technical stream, for James alone. The
+  escalation address receives exactly one kind of message, for the
+  "orders not recorded" emergency only, in plain, non-technical
+  language: James has not responded, switch on maintenance mode, here
+  is the signed ON link. Jim is a non-technical partner and gets
+  nothing else from the system, since more would make a bad situation
+  worse. A test proves that no alert except this escalation can reach
+  the address.
+- **Trigger.** An "orders not recorded" alert (a payment taken, no
+  order), left unacknowledged for one hour, sends the escalation
+  message once. It repeats only while the alert is still
+  unacknowledged, and James acknowledging it stops it. The variable
+  is in `docs/secrets.md`, the env samples and `env verify`, and is
+  required in production; staging has its own value, never
+  production's.
 - **Hard gate.** The one-tap rollback must be built and rehearsed
   before the second production release. It is a blocking step in the
   launch guide and in the post-deploy checklist (#237): that release
