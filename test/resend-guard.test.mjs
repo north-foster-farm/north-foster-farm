@@ -117,10 +117,11 @@ describe("every file that names Resend's API checks the guard", () => {
   const naming = [...sources("netlify"), ...sources("bin")]
     .filter((f) => readFileSync(f, "utf8").includes("api.resend.com"));
 
-  it("finds the three modules that call it", () => {
+  it("finds the four modules that call it", () => {
     const names = naming.map((f) => f.slice(root.length + 1)).sort();
 
     assert.deepEqual(names, [
+      "bin/env/verify.mjs",
       "netlify/functions/lib/mail.mjs",
       "netlify/functions/lib/news.mjs",
       "netlify/functions/lib/sent.mjs",

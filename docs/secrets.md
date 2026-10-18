@@ -187,6 +187,17 @@ the dev server.
   may reach them. Netlify never returns a secret, so the proof is by
   name, and it prints the `netlify env:unset` commands that clear a
   leak. It prints names, never values.
+- **`bin/nff env verify --production|--staging`** is the only proof
+  that a value is right, since Netlify never returns a secret. Run
+  it after `env push` and the deploy. It reads the env file and makes
+  one harmless, read-only call per service: Square (the location),
+  PayPal (a login, then the webhook), Resend (production only: the
+  domains, and the audience's contacts), Axiom (an ingest of
+  nothing) and R2 (a one-object listing). Healthchecks URLs are
+  checked for shape only, since any ping is recorded as a success.
+  It reports by name, `ok` or `FAILED`, never a value or a service's
+  answer, and lists the keys no call can check (signing secrets,
+  tokens the site itself issues).
 - **`npm run check:env`** runs in the Netlify build, beside
   `check:schedule`, and fails the build when a key the sample lists
   for that context is missing.

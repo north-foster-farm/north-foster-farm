@@ -19,6 +19,7 @@ import {
   previewLeaks, pushEnv, redact, remoteFor, remoteVars,
 } from "./env/netlify.mjs";
 import { readSample, readValues, sampleFile } from "./env/sample.mjs";
+import { verifyEnv } from "./env/verify.mjs";
 import { setSchedule } from "./schedule-env.mjs";
 
 const USAGE = `Usage:
@@ -88,6 +89,11 @@ const USAGE = `Usage:
                                       sample lists on Netlify, secrets as
                                       secret, and read the rest back.
                                       Never deletes; skips local-only keys
+  bin/nff env verify --staging|--production
+                                      after a push and the deploy: one
+                                      harmless call per service (Square,
+                                      PayPal, Resend, Axiom, R2), by
+                                      name, pass or fail
   bin/nff env check --staging|--production
                                       the sample, the env file and
                                       Netlify, compared by name; fails on
@@ -421,9 +427,27 @@ const envNetlify = (values) => (args) => new Promise((resolve, reject) => {
       code}):\n${redact(`${stderr}${stdout}`, values).trim()}`))));
 });
 
+// After a push and the deploy: one harmless call per service, by name
+// (bin/env/verify.mjs). Reads the env file only, never Netlify.
+const envVerify = async (file, local) => {
+  const r = await verifyEnv(context, local.values);
+
+  for (const line of r.lines) out(line);
+  out(`Not checked, no harmless call exists: ${r.unchecked.join(", ")}.`);
+  if (r.failed) {
+    throw new Error(`Env verify: ${r.failed} credential${
+      r.failed === 1 ? "" : "s"} in ${file} failed.`);
+  }
+
+  return out(`Env verify: every credential tried in ${file} works.`);
+};
+
 const envCommand = async () => {
   const { file, sample, local } = envFiles();
   const { context: target } = TARGETS[context];
+
+  if (action === "verify") return envVerify(file, local);
+
   const cli = envNetlify([...local.values.values()]);
   const site = local.values.get("NETLIFY_SITE_ID")
     || process.env.NETLIFY_SITE_ID;
