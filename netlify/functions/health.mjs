@@ -4,9 +4,12 @@
 //                    could not be completed, or an error report from
 //                    assets/scripts/report.js (#246)
 //
-// The 503 rules are deliberately few: the jobs run is stale, or mail
-// has failed repeatedly with no success since. Everything else is
-// reported, not judged; the alerts carry the judgment.
+// The 503 rules are deliberately few: the jobs run is stale, mail has
+// failed repeatedly with no success since, or production is pointed at
+// a sandbox or a mail driver nobody reads (each of those fails without
+// a sound otherwise: orders are taken and the emails are only logged).
+// Everything else is reported, not judged; the alerts carry the
+// judgment.
 
 import { runsSince } from "./lib/jobs.mjs";
 import { json, readJson } from "./lib/http.mjs";
@@ -17,6 +20,13 @@ import { openOrders } from "./lib/records.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 
 const MINUTE = 60_000;
+
+// What production must be set to; anything else answers 503.
+export const PRODUCTION_SETTINGS = [
+  ["MAIL_DRIVER", "resend"],
+  ["SQUARE_ENV", "production"],
+  ["PAYPAL_ENV", "production"],
+];
 
 export const JOBS_STALE_AFTER = 45 * MINUTE;
 export const MAIL_FAILURES_FOR_ALARM = 3;
@@ -79,6 +89,13 @@ export const snapshot = async (stores, {
   if (mailFails.length >= MAIL_FAILURES_FOR_ALARM && !mailOkSince) {
     problems.push(`${mailFails.length} mail failures in the last hour, ` +
       "none sent since");
+  }
+  if (deployContext(env) === "production") {
+    for (const [name, want] of PRODUCTION_SETTINGS) {
+      if ((env[name] || "") !== want) {
+        problems.push(`${name} is ${env[name] || "unset"}, not ${want}`);
+      }
+    }
   }
 
   return {

@@ -316,6 +316,29 @@ describe("the phone channel (#248)", () => {
 });
 
 describe("GET /api/health", () => {
+  it("is 503 when production points at a sandbox or logs its mail",
+    async () => {
+      const stores = testStores();
+
+      await recordRun(stores, run(later(-10)), later(-10));
+      await noteMail(stores, true, later(-3));
+      const res = await handle(new Request("https://x/api/health"), {
+        stores,
+        now,
+        env: {
+          SITE_CONTEXT: "production", MAIL_DRIVER: "log",
+          SQUARE_ENV: "production", PAYPAL_ENV: "sandbox",
+        },
+      });
+      const s = await res.json();
+
+      assert.equal(res.status, 503);
+      assert.deepEqual(s.problems, [
+        "MAIL_DRIVER is log, not resend",
+        "PAYPAL_ENV is sandbox, not production",
+      ]);
+    });
+
   it("is 200 with the picture when the run is fresh and mail is fine",
     async () => {
       const stores = testStores();
