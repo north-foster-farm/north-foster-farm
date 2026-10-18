@@ -46,13 +46,16 @@ jobs:
         run: env -i PATH="$PATH" HOME="$HOME" npm run lint
 
       # A pull request checks its own commits; a push checks the commits
-      # it added (a release to staging or main: everything in it). A
-      # dispatched run has no base and checks against origin/main.
+      # it added (a release to main: everything in it). A dispatched run
+      # has no base and checks against origin/main. Only a pull request
+      # and a push to main fail; next and staging get a warning.
       - name: Record shape
         run: >
           env -i PATH="$PATH" HOME="$HOME"
           node bin/check-record-shape.mjs
           "${{ github.event.pull_request.base.sha || github.event.before }}"
+          --event "${{ github.event_name }}"
+          --ref "${{ github.ref }}"
 
       - name: Test
         run: env -i PATH="$PATH" HOME="$HOME" npm test
