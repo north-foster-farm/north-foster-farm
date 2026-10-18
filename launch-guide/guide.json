@@ -1,5 +1,5 @@
 {
- "revision": 21,
+ "revision": 22,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -155,7 +155,7 @@
     {
      "id": "sq-prod",
      "title": "Check production's Square values",
-     "body": "These came in from your `.env`. Production keeps them; nothing here is replaced. If any field is empty, get it from the Developer Console with the toggle set to **Production**:\n- **Credentials:** the Application ID (it starts `sq0idp-`) and the access token (**Show**). Never use **Replace**: it switches the old token off at once.\n- **Locations:** the website's location ID.\n- **Webhooks → Subscriptions:** open the production subscription, then **Show** the Signature Key.\n\nIf you fixed the subscription URL in the previous step, its signature key is unchanged.",
+     "body": "These came in from your `.env`. Production keeps them; nothing here is replaced. If any field is empty, get it from the Developer Console with the toggle set to **Production**:\n- **Credentials:** the Application ID (it starts `sq0idp-`) and the access token (**Show**). Never use **Replace** now: it switches the old token off at once. On a later rotation, switch maintenance mode on first (Jan 1 rotation step).\n- **Locations:** the website's location ID.\n- **Webhooks → Subscriptions:** open the production subscription, then **Show** the Signature Key.\n\nIf you fixed the subscription URL in the previous step, its signature key is unchanged.",
      "minutes": 5,
      "links": [
       {
@@ -1012,6 +1012,26 @@
      "type": "terminal"
     },
     {
+     "id": "env-maint-secret",
+     "title": "Set the maintenance secret",
+     "body": "Set `MAINTENANCE_SECRET` (any long random string, a different one per context) on staging and on production, in Netlify and in .env.staging and .env.production. In Netlify, add it as a secret value: for the staging branch deploy, and for Production. Confirm `ADMIN_EMAILS` holds you and Jim in both, since every flip emails them.\n\n**Recommendation:** the signed link alone is the authentication. A PIN on top is possible but not built. Without the secret only the command line (`bin/nff maintenance on|off`) can flip the switch; the phone links are dead.\n\n**Do the staging one first:** the staging rehearsal and qa's maintenance spec wait on it.",
+     "minutes": 5,
+     "links": [
+      {
+       "label": "GitHub Actions secrets",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/settings/secrets/actions"
+      }
+     ],
+     "copy": [
+      {
+       "label": "Make a random string (don't share it)",
+       "value": "openssl rand -hex 32"
+      }
+     ],
+     "device": "laptop",
+     "type": "terminal"
+    },
+    {
      "id": "env-contexts",
      "title": "Empty the preview and local-development contexts",
      "body": "On Netlify, deploy previews and the **Local development** context still hold shared values. A linked `netlify dev` would hand real secrets to your Mac. Previews keep only `SITE_CONTEXT=deploy-preview` and a pickup schedule; Local development keeps nothing. Claude gives you the exact commands, names only.",
@@ -1082,17 +1102,35 @@
     {
      "id": "mm-rehearse",
      "title": "Rehearse maintenance mode on staging",
-     "body": "This is the safety net that replaces rolling back. With it on, nobody can order, pay, sign in or change an account, and every page shows one message. Rehearse it on staging with Claude before the release.\n1. Turn staging's switch **on**: `<staging maintenance on>`, or the dashboard switch on your phone. Claude and Jim are notified.\n2. Open the order page and an account page. Each shows exactly the message below, and you can't order from either.\n3. Open the order page in a tab *before* you flip the switch, then flip it and, in that tab, try to check out, edit an order and cancel one. Each shows the message and nothing goes through.\n4. Claude runs the cases a page can't show: a payment made just before the flip still finishes its order, and a webhook that arrives while it is on is accepted.\n5. Turn it **off**: `<staging maintenance off>`. A signed-in tab carries on, still signed in.\n\nTell Claude when it passes.",
+     "body": "This is the safety net that replaces rolling back. With it on, nobody can order, pay, sign in or change an account, and every page shows one message. Rehearse it on staging with Claude before the release. Set staging's secret first (\"Set the maintenance secret\" above); without it only the commands work, not the phone links.\n1. Turn staging's switch **on**: `bin/nff --staging maintenance on`. The notice goes to staging's outbox (Claude reads it there), not to a real inbox.\n2. Open `/api/maintenance` on staging: it says maintenance is on. Open the order page and an account page. Each shows exactly the message below, and you can't order from either.\n3. Open the order page in a tab *before* you flip the switch, then flip it and, in that tab, try to check out, edit an order and cancel one. Each shows the message and nothing goes through.\n4. Claude runs the cases a page can't show: an open tab, a payment made just before the flip (it still finishes its order), a Square webhook that arrives while it is on (accepted), the flip notices and the phone links.\n5. **Venmo, by hand:** start a sandbox Venmo payment, leave PayPal's window open, turn maintenance on, then approve. The capture still finishes, because the money has moved.\n6. **On your phone:** run `bin/nff --staging maintenance links`. It prints an ON and an OFF link. Open the ON link: it shows a confirm page and flips nothing until you tap its button (so a link preview can't flip it). Tap, check the order page, then use the OFF link.\n7. Turn it **off** with `bin/nff --staging maintenance off` if it is still on. A signed-in tab carries on, still signed in.\n\nTell Claude when it passes.",
      "minutes": 15,
      "copy": [
+      {
+       "label": "Staging on",
+       "value": "bin/nff --staging maintenance on"
+      },
+      {
+       "label": "Staging off",
+       "value": "bin/nff --staging maintenance off"
+      },
+      {
+       "label": "Phone links (staging)",
+       "value": "bin/nff --staging maintenance links"
+      },
       {
        "label": "The message",
        "value": "Our site is currently under maintenance. Online ordering and account access are temporarily unavailable, but we'll be up and running again soon. We apologize for the inconvenience."
       }
      ],
-     "blocked": "Waits on the checkout lane, which is building maintenance mode. The commands in angle brackets are placeholders until it lands.",
+     "blocked": "Waits on MAINTENANCE_SECRET being set on staging (the step before this section). Claude's staging rehearsal and qa's maintenance spec wait on it too.",
      "device": "any",
-     "type": "live"
+     "type": "live",
+     "links": [
+      {
+       "label": "Status",
+       "url": "https://staging--north-foster-farm.netlify.app/api/maintenance"
+      }
+     ]
     }
    ]
   },
@@ -1240,7 +1278,7 @@
     {
      "id": "ld-smoke",
      "title": "Quick checks",
-     "body": "Open each:\n- Home and order pages load.\n- Dates lists pickup days.\n- Checkout config shows an application ID starting `sq0idp-`, not `sandbox`.\n- Health shows `context` (the new code is live).\n- robots.txt allows crawling; the home page has no `noindex`, and its share image is `share-card.png`.\n- **No staging code in production:** view the order page's source and search for `staging`; there's no `#staging` element. And Staging info answers **404**.",
+     "body": "Open each:\n- Home and order pages load.\n- Dates lists pickup days.\n- Checkout config shows an application ID starting `sq0idp-`, not `sandbox`.\n- Health answers 200 with no `problems`, and shows `context` (the new code is live). It answers 503 unless production's `PAYPAL_ENV` is `live`, `SQUARE_ENV` is `production` and `MAIL_DRIVER` is `resend`. Its PayPal test used to ask for `production` and would have failed a correct setup; fixed in a6b9eb9, landing on `next`.\n- robots.txt allows crawling; the home page has no `noindex`, and its share image is `share-card.png`.\n- **No staging code in production:** view the order page's source and search for `staging`; there's no `#staging` element. And Staging info answers **404**.",
      "minutes": 10,
      "links": [
       {
@@ -1278,7 +1316,7 @@
     {
      "id": "ld-maint",
      "title": "Prove production's maintenance switch",
-     "body": "Before any real-money check, test the switch once on production, so you know it works the moment you need it. It is also how you would stop orders while a problem is fixed: the launch is fixed forward, with no rollback.\n1. Turn it **on**: `<production maintenance on>`.\n2. In a private window, open the order page and an account page. Both show exactly the message below. Health still answers.\n3. Turn it **off**: `<production maintenance off>`. Reload the order page and confirm it works again.\n\nDon't start the payment checks until the order page works again.",
+     "body": "Before any real-money check, test the switch once on production, so you know it works the moment you need it. It is also how you stop orders while a problem is fixed: the launch is fixed forward, with no rollback.\n1. Turn it **on**: `bin/nff --production maintenance on`. You and Jim get an email (ADMIN_EMAILS), for real.\n2. Open `/api/maintenance`: it says maintenance is on. In a private window, open the order page and an account page. Both show exactly the message below. Health still answers.\n3. Turn it **off**: `bin/nff --production maintenance off`. Another email. Reload the order page and confirm it works again.\n4. Keep the phone links: run `bin/nff --production maintenance links` and save the ON and OFF links on your phone. Whoever holds a link can flip the switch; `bin/nff --production maintenance rotate` kills every link handed out so far.\n\nDon't start the payment checks until the order page works again.",
      "minutes": 5,
      "links": [
       {
@@ -1288,15 +1326,30 @@
       {
        "label": "Health",
        "url": "https://www.northfosterfarm.com/api/health"
+      },
+      {
+       "label": "Maintenance status",
+       "url": "https://www.northfosterfarm.com/api/maintenance"
       }
      ],
      "copy": [
+      {
+       "label": "Production on",
+       "value": "bin/nff --production maintenance on"
+      },
+      {
+       "label": "Production off",
+       "value": "bin/nff --production maintenance off"
+      },
+      {
+       "label": "Phone links (production)",
+       "value": "bin/nff --production maintenance links"
+      },
       {
        "label": "The message",
        "value": "Our site is currently under maintenance. Online ordering and account access are temporarily unavailable, but we'll be up and running again soon. We apologize for the inconvenience."
       }
      ],
-     "blocked": "Waits on the checkout lane, which is building maintenance mode. The commands in angle brackets are placeholders until it lands.",
      "device": "any",
      "type": "live"
     },
@@ -1616,7 +1669,7 @@
     {
      "id": "pl-rest",
      "title": "The rest of the after-launch list",
-     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- a function that filters for production deploy failures and pages your phone through the alerts check (D-NOTIFY, #248);\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- Resend's Contacts and Segments (D-148, #148): built and held on `hold/148`; the old API still works, so launch day has no migration step;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159).\n\nTick this when you've told Claude your order.",
+     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- a function that filters for production deploy failures and pages your phone through the alerts check (D-NOTIFY, #248);\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- Resend's Contacts and Segments (D-148, #148): built and held on `hold/148`; the old API still works, so launch day has no migration step. **Switch maintenance mode on first, for the cutover** (`bin/nff --production maintenance on`, then off when it is checked), so no sign-up or order lands half in the old audience and half in the new;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159).\n\nTick this when you've told Claude your order.",
      "minutes": 5,
      "device": "any",
      "type": "decide"
@@ -1653,10 +1706,20 @@
     {
      "id": "pq-rotate",
      "title": "Jan 1, 2027: rotate the Netlify token and the yearly secrets",
-     "body": "Follow `docs/secrets.md`. The Netlify and Axiom tokens expire that day.",
+     "body": "Follow `docs/secrets.md`. The Netlify and Axiom tokens expire that day.\n\n**Switch maintenance mode on first, for the Square token.** Square gives the old token no grace, so checkout fails between pressing Replace and the new deploy going live. Run `bin/nff --production maintenance on`, replace the token, set it on Netlify, deploy, check a payment, then run `bin/nff --production maintenance off`. Customers see the maintenance message instead of a failed payment. The other secrets rotate without downtime and need no maintenance mode.",
      "when": "Jan 1",
      "device": "laptop",
-     "type": "account"
+     "type": "account",
+     "copy": [
+      {
+       "label": "Maintenance on",
+       "value": "bin/nff --production maintenance on"
+      },
+      {
+       "label": "Maintenance off",
+       "value": "bin/nff --production maintenance off"
+      }
+     ]
     },
     {
      "id": "pq-pos",
@@ -2290,12 +2353,19 @@
    "id": "D-OPEN",
    "section": "rv-decide",
    "title": "Open for James",
-   "area": "Four things waiting on you",
+   "area": "Waiting on you",
    "revisions": [
     {
      "rev": 1,
      "date": "2026-10-18",
      "summary": "Everything agents are waiting on, in one place. Each has the choices and what I'd pick. Answer in the feedback box here; one line each is enough.\n\n**a) Previewing the site on another day (#267, item 1).** Three questions. The spec is `~/Code/nff/lanes/template/.ignored/date-preview-spec.md` and the mock-up is `~/Code/nff/lanes/template/.ignored/shots/date-preview-mock.png`.\n1. Is it view only, with no ordering while you preview? **Recommend yes.**\n2. Does the date field use farm time (New York), whatever your browser's zone? **Recommend yes.**\n3. Tier 2 costs about five templates. Build it, or stop at tier 1 plus the banner warning? **Recommend tier 1 first, then tier 2.**\n\n**b) Email signatures.** The Signatures panel is on staging's toolbar (`lane/template` 942c0f3). For James, Jim and \"The NFF team\":\n1. The role line under each name. Only you know it; no recommendation.\n2. Which email: sales@, info@ or their own. **Recommend sales@ for all three**, so replies reach the shared inbox.\n3. Which phone: the farm's or their own. **Recommend the farm's.**\n4. Any other variants, and any extra links (say what).\n5. Remake `globe.png` from the Lucide globe? **Recommend yes**: Lucide is open source, so its origin is known (rule #220).\n6. Then paste each signature into Fastmail and send yourself a message from Mac Safari, Mac Chrome and iPhone Safari, and say how each looks.\n\n**c) The footer's question.** Keep \"Want occasional farm news by email?\" (the site says \"farm news\" everywhere, W14), or use \"Want occasional news and updates from North Foster Farm?\" as in your screenshots. **Recommend keeping \"farm news\".**\n\n**d) Promote the waiting work.** These commits are done and wait for qa, then `next`, then staging: `lane/home` a44fb66 (footer), `lane/orders` 6a7c9bc (cart review items), `lane/email` c014bd0 and 16dc287 (launch post), `lane/checkout` 0029af3 (pickup days), `lane/template` 942c0f3 (signatures panel), `lane/pages` 938eb99 and 2b44814 (news URLs, hover). Wake qa and promote them? **Recommend yes, as one batch.**",
+     "look": []
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-18",
+     "changed": "Two new items (e, f), and (d) is done.",
+     "summary": "(a), (b) and (c) above are still open. (d) is done: `next` and staging are at 4dfd7f4, with the pickup horizon, the #204 fixes, the footer, the ordering-tour post, the hover, the signatures panel, the rollback docs and maintenance mode. The news addresses are the one piece still waiting (f).\n\n**e) A secret for maintenance mode.** Set `MAINTENANCE_SECRET` (any long random string) on staging and on production, in Netlify and in `.env.staging` and `.env.production`, and confirm `ADMIN_EMAILS` holds you and Jim in both. The step is in \"Your env files\". **Recommend:** the signed link alone is the authentication; a PIN on top is possible but not built. Without the secret only the command line flips the switch. The staging rehearsal and qa's maintenance spec wait on the staging secret.\n\n**f) News addresses without dates are not on `next` yet.** They clash with the ordering-tour post in `docs/qa-launch.md`, `e2e/home.spec.mjs`, `e2e/news-page.spec.mjs` and `e2e/wording.spec.mjs`. The pages lane fixed the clashes in its working folder (the post gets the address `/news/ordering-tour/`, and the old September-update address points to it), but the permission check refused its `git add` and `git rebase --continue`, and refused the coordinator's attempt in another folder. Nothing was worked around. Either allow it, or run this in `~/Code/nff/lanes/pages`:\n```\ngit add -A docs e2e content netlify.toml\ngit rebase --continue\ngit fetch && git rebase origin/next\nnpm run check\nnpm run check:news\ngit push origin HEAD:next\n```\nThen staging should follow `next`. **Recommend yes.**",
      "look": []
     }
    ],
