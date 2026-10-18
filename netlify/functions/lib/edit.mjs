@@ -491,11 +491,11 @@ export const finishEditVenmo = async (stores, {
   id, key, attempt = 1, paypalOrderId,
 }, options = {}) => {
   const order = await getOrder(stores, id);
-  const checkout = await getCheckout(stores, key);
+  const checkout = await getCheckout(stores, key, paypalOrderId);
 
   // Finished already, by a lost first try or by the jobs.
   if (paymentsOf(order).some((p) => p.paypalOrderId === paypalOrderId)) {
-    if (checkout) await deleteCheckout(stores, key);
+    if (checkout) await deleteCheckout(stores, key, paypalOrderId);
 
     return order;
   }
@@ -516,7 +516,7 @@ export const finishEditVenmo = async (stores, {
     charge: captureVenmo(paypalOrderId),
   }, options);
 
-  await deleteCheckout(stores, key);
+  await deleteCheckout(stores, key, paypalOrderId);
 
   return saved;
 };

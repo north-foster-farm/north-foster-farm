@@ -44,6 +44,20 @@ export const GUIDE = {
       "and record it by hand. Without one, nothing was charged. Either " +
       "way tell the developers: a reservation failed (#253).",
   },
+  "payment.unreconciled": {
+    means: "Money was taken for an order that could not be settled on " +
+      "its own, and the customer was not charged again. Either a " +
+      "payment turned up in Square for an order id whose record was " +
+      "never written, but for another amount than the order now " +
+      "totals (the customer changed the cart between tries), or " +
+      "PayPal captured a Venmo payment for an order that was already " +
+      "recorded as paid another way. The alert says which.",
+    action: "Find the order id in Square (the order's reference id) " +
+      "and the payment in Square or PayPal. If the payment is good " +
+      "and the order should stand, record the order by hand; if the " +
+      "customer paid twice, refund the extra payment (bin/nff refunds " +
+      "or the processor's dashboard) and write to them.",
+  },
   "order.reserve_failed": {
     means: "POST /api/orders could not reserve an order id in the " +
       "orders store, so it stopped before any payment. Nothing was " +

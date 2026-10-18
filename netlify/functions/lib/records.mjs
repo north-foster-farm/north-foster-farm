@@ -303,38 +303,96 @@ export const deleteOrder = async (stores, id) => {
 // keyed by the submission key. `paypalOrderId` is indexed so a
 // PAYMENT.CAPTURE.COMPLETED webhook can find it. Deleted once the
 // order is recorded; swept by the jobs after CHECKOUT_TTL.
+//
+// `checkout/<key>` is the latest attempt. A new attempt does not
+// overwrite the one before: that one is moved to `checkout/<key>~<n>`
+// (n its attempt), still indexed by its PayPal order, so a payment
+// captured for it is found by the jobs, the webhook and the
+// reconciliation before a new attempt is paid (#268). An archived
+// checkout is an ordinary checkout under another key to the sweep.
 
 export const CHECKOUT_TTL = 24 * 60 * 60_000;
 
 export const checkoutKey = (key) => `checkout/${key}`;
 export const byPayPalKey = (paypalOrderId) => `by-paypal/${paypalOrderId}`;
+export const archivedKey = (key, attempt) => `${key}~${attempt || 1}`;
+
+// The key a stored checkout lives under: its own, or its archive's.
+const holderOf = (checkout) => (checkout.archived
+  ? archivedKey(checkout.key, checkout.attempt) : checkout.key);
+
+const indexCheckout = async (stores, checkout) => {
+  if (!checkout.paypalOrderId) return;
+
+  await stores.orders.set(byPayPalKey(checkout.paypalOrderId), {
+    key: checkout.key, holder: holderOf(checkout),
+  });
+};
 
 export const saveCheckout = async (stores, checkout) => {
-  await stores.orders.set(checkoutKey(checkout.key), checkout);
-  if (checkout.paypalOrderId) {
-    await stores.orders.set(byPayPalKey(checkout.paypalOrderId), {
-      key: checkout.key,
-    });
+  const current = await stores.orders.get(checkoutKey(checkout.key));
+
+  // Another attempt, or another payment: the one before is kept.
+  if (current && current.paypalOrderId !== checkout.paypalOrderId) {
+    const kept = { ...current, archived: true };
+
+    await stores.orders.set(checkoutKey(holderOf(kept)), kept);
+    await indexCheckout(stores, kept);
   }
+
+  await stores.orders.set(checkoutKey(checkout.key), checkout);
+  await indexCheckout(stores, checkout);
 
   return checkout;
 };
 
-export const getCheckout = (stores, key) =>
-  stores.orders.get(checkoutKey(key));
+// The latest checkout of a submission, or the one that made this
+// PayPal order when `paypalOrderId` names an earlier attempt's.
+export const getCheckout = async (stores, key, paypalOrderId = null) => {
+  const latest = await stores.orders.get(checkoutKey(key));
 
-export const checkoutByPayPal = async (stores, paypalOrderId) => {
-  const ref = await stores.orders.get(byPayPalKey(paypalOrderId));
+  if (!paypalOrderId || !latest || latest.paypalOrderId === paypalOrderId) {
+    return latest;
+  }
 
-  return ref ? getCheckout(stores, ref.key) : null;
+  return (await checkoutByPayPal(stores, paypalOrderId, key)) || latest;
 };
 
-export const deleteCheckout = async (stores, key) => {
-  const checkout = await getCheckout(stores, key);
+// Every attempt of a submission that is still kept, latest first.
+export const checkoutsFor = async (stores, key) => {
+  const found = [];
+  const latest = await stores.orders.get(checkoutKey(key));
+
+  if (latest) found.push(latest);
+
+  for (const { key: k } of await stores.orders.list(
+    checkoutKey(`${key}~`)
+  )) {
+    const checkout = await stores.orders.get(k);
+
+    if (checkout) found.push(checkout);
+  }
+
+  return found.sort((x, y) => (y.attempt || 1) - (x.attempt || 1));
+};
+
+// `key` limits the answer to one submission's checkouts.
+export const checkoutByPayPal = async (stores, paypalOrderId, key = null) => {
+  const ref = await stores.orders.get(byPayPalKey(paypalOrderId));
+
+  if (!ref || (key && ref.key !== key)) return null;
+
+  return stores.orders.get(checkoutKey(ref.holder || ref.key));
+};
+
+// The latest checkout of the submission, or with `paypalOrderId` the
+// one that made that payment. -> whether one was there.
+export const deleteCheckout = async (stores, key, paypalOrderId = null) => {
+  const checkout = await getCheckout(stores, key, paypalOrderId);
 
   if (!checkout) return false;
 
-  await stores.orders.delete(checkoutKey(key));
+  await stores.orders.delete(checkoutKey(holderOf(checkout)));
   if (checkout.paypalOrderId) {
     await stores.orders.delete(byPayPalKey(checkout.paypalOrderId));
   }

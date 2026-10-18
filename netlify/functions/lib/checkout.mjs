@@ -257,7 +257,8 @@ export const finishVenmo = async (stores, order, {
     });
   }
 
-  const checkout = await getCheckout(stores, key);
+  // The latest attempt's, or the earlier one that made this payment.
+  const checkout = await getCheckout(stores, key, paypalOrderId);
 
   if (!checkout || checkout.paypalOrderId !== paypalOrderId) {
     throw new CheckoutError("That payment doesn't match this order. " +
@@ -313,7 +314,7 @@ export const finishVenmo = async (stores, order, {
     },
   }, { mail, env, now });
 
-  await deleteCheckout(stores, key);
+  await deleteCheckout(stores, key, paypalOrderId);
 
   return saved;
 };
@@ -397,6 +398,30 @@ export const rescueCheckout = async (stores, checkout, {
 
   if (!["APPROVED", "COMPLETED"].includes(current.status)) return null;
   if (now.getTime() - since < PAGE_GRACE) return null;
+
+  // A new attempt was paid another way, and this payment was never
+  // captured: it is dropped by the sweep, and never captured now. One
+  // PayPal did capture is a second payment for the order, and the farm
+  // is told to refund it.
+  const recorded = checkout.edit
+    ? null : await getOrder(stores, checkout.order.id);
+
+  if (recorded && !paymentsOf(recorded)
+    .some((p) => p.paypalOrderId === checkout.paypalOrderId)) {
+    if (current.status === "COMPLETED") {
+      log.error({
+        event: "payment.unreconciled", id: recorded.id,
+        paypalOrderId: checkout.paypalOrderId, why: "second payment",
+      });
+      await alert(stores, "payment.unreconciled", {
+        id: recorded.id, paypalOrderId: checkout.paypalOrderId,
+        why: "PayPal captured a payment for an order that was already " +
+          "recorded as paid another way",
+      }, { env, mail: options.mail || sendMail, now });
+    }
+
+    return null;
+  }
 
   // A change to a paid order (lib/edit.mjs) finishes as a change; the
   // jobs hand in its finish, since edit.mjs builds on this file.

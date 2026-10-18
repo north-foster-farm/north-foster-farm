@@ -232,6 +232,7 @@ so none is lost). Routing is the table `ALERT_AUDIENCE` in
 - **Both.** Everything that touches a customer, an order or money:
   `order.create_failed`, `order.reserve_failed`, `order.id_collision`,
   `order.after_paid_failed`, `order.edit_failed`,
+  `payment.unreconciled`,
   `square.record_failed`, `square.edit_failed`,
   `square.refund_failed`, `refund.failed`, `venmo.amount_mismatch`,
   `mail.failed`, `client.payment_unavailable`, `client.checkout_failed`
@@ -277,6 +278,18 @@ no order recorded for it. With a payment id: find it in Square (or
 the capture in PayPal), then refund it, or ask the customer what they
 ordered and record it by hand. Without one, nothing was charged.
 Either way tell the developers: a reservation failed (#253).
+
+**`payment.unreconciled`.** Money was taken for an order that could
+not be settled on its own, and the customer was not charged again.
+Either a payment turned up in Square for an order id whose record was
+never written, but for another amount than the order now totals (the
+customer changed the cart between tries), or PayPal captured a Venmo
+payment for an order that was already recorded as paid another way.
+The alert says which. Find the order id in Square (the order's
+reference id) and the payment in Square or PayPal. If the payment is
+good and the order should stand, record the order by hand; if the
+customer paid twice, refund the extra payment (`bin/nff refunds` or
+the processor's dashboard) and write to them.
 
 **`order.reserve_failed`.** `POST /api/orders` could not reserve an
 order id in the orders store, so it stopped before any payment.
