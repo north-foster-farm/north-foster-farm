@@ -14,7 +14,10 @@ export const handle = async ({
 } = {}) => {
   const result = await nightly(s, { env, fetchImpl, mail, now });
 
-  return new Response(JSON.stringify(result), {
+  // A failure's detail is in the log and the alert, not in the answer.
+  const body = result.error ? { error: "The backup failed." } : result;
+
+  return new Response(JSON.stringify(body), {
     status: result.error ? 500 : 200,
     headers: { "Content-Type": "application/json" },
   });

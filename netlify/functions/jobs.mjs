@@ -37,7 +37,8 @@ export const handle = async ({
       ok: false, body: { crashed: message }, fetchImpl,
     });
 
-    return answer(500, { error: message });
+    // The detail is in the log and the alert; the answer carries none.
+    return answer(500, { error: "The scheduled run failed." });
   }
 };
 

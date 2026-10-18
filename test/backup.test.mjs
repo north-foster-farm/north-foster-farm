@@ -155,7 +155,9 @@ describe("the nightly run", () => {
       });
 
       assert.equal(res.status, 500);
-      assert.match((await res.json()).error, /R2 answered 403: denied/);
+      assert.deepEqual(await res.json(), { error: "The backup failed." });
+      assert.match(sent[0].text, /R2 answered 403: denied/,
+        "the detail goes to the farm's alert, not the answer");
       assert.deepEqual(sent.map((m) => m.subject),
         ["Site alert: backup.failed"]);
       assert.ok(calls.some((c) => c.url === "https://hc/backup/fail"));
