@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   NAME_MAX, adminEmails, mailConfigured, mailbox, sendMail,
 } from "../netlify/functions/lib/mail.mjs";
+import { testStores } from "../netlify/functions/lib/store.mjs";
 
 const EMAIL = "pat@example.com";
 
@@ -124,6 +125,42 @@ describe("sendMail", () => {
       assert.equal(readFileSync(join(dir, files[0]), "utf8"), "<p>hello</p>");
       assert.match(readFileSync(join(dir, files[1]), "utf8"),
         /^To: pat@example.com\nSubject: Hi there: order X\n\nhello\n$/);
+    });
+
+  it("sends Resend's own Idempotency-Key header when the message has a " +
+    "key, and none otherwise", async () => {
+    const seen = [];
+    const fetchImpl = async (url, init) => {
+      seen.push(init.headers);
+
+      return new Response(JSON.stringify({ id: "email_1" }), { status: 200 });
+    };
+
+    await sendMail(message, { env: live, fetchImpl });
+    await sendMail({ ...message, idempotencyKey: undefined },
+      { env: live, fetchImpl });
+
+    assert.equal(seen[0]["Idempotency-Key"], "k-1");
+    assert.equal(seen[1]["Idempotency-Key"], undefined);
+  });
+
+  it("outboxes the same key once, as Resend would send it once",
+    async () => {
+      const stores = testStores();
+      const env = { MAIL_DRIVER: "outbox", SITE_CONTEXT: "branch-deploy" };
+      const first = await sendMail(message, { env, stores });
+      const again = await sendMail(message, { env, stores });
+      const other = await sendMail({ ...message, idempotencyKey: "k-2" },
+        { env, stores });
+      const plain = await sendMail({ ...message, idempotencyKey: undefined },
+        { env, stores });
+      const plain2 = await sendMail({ ...message, idempotencyKey: undefined },
+        { env, stores });
+
+      assert.equal(again.id, first.id);
+      assert.notEqual(other.id, first.id);
+      assert.notEqual(plain.id, plain2.id, "no key, no dedupe");
+      assert.equal((await stores.jobs.list("outbox/")).length, 4);
     });
 
   it("posts to Resend with the sender, reply-to and reference id", async () => {

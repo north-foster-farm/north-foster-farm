@@ -287,6 +287,13 @@ payment for an order that was already recorded as paid another way,
 or a customer changed the cart after a Venmo payment that was recorded
 as it was paid. The alert says which.
 
+Order emails go once: each carries a stable key per order and
+template, which Resend (its `Idempotency-Key` header, kept 24 h) and
+the staging outbox answer without sending again. Two writers noting
+`emails` on one order at the same moment can still drop one note
+(`amendOrder` reads, then writes); the next run then resends, and the
+key makes that harmless within a day.
+
 A lost answer that is reconciled cleanly raises no alert, only the log
 event `payment.reconciled`. The first one in production, check by
 hand: the order is recorded, Square holds the one payment and no

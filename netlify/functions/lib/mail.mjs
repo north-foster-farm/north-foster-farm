@@ -28,6 +28,8 @@ import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
 import { stores as defaultStores } from "./store.mjs";
 
 export const OUTBOX_PREFIX = "outbox/";
+// A note of each keyed message, so the same key is not outboxed twice.
+const OUTBOX_KEYS = "outbox-key/";
 export const OUTBOX_KEEP = 200;
 
 // Two messages in the same millisecond still list in the order sent.
@@ -124,6 +126,10 @@ const viaResend = async (message, env, fetchImpl) => {
     headers: {
       "Authorization": `Bearer ${env.RESEND_API_KEY}`,
       "Content-Type": "application/json",
+      // Resend answers the same key within 24 h with the first send's
+      // response and sends nothing more.
+      ...(message.idempotencyKey
+        ? { "Idempotency-Key": message.idempotencyKey } : {}),
     },
     body: JSON.stringify({
       from: env.MAIL_FROM,
@@ -199,6 +205,18 @@ export const viaFile = async (message, env, now = new Date()) => {
 // the oldest go once there are more than OUTBOX_KEEP.
 export const viaOutbox = async (message, env, stores, now = new Date()) => {
   const { jobs } = stores || defaultStores(env);
+
+  // The same key is the same message, as Resend treats it: the one
+  // already outboxed is answered, not written again.
+  const keyed = message.idempotencyKey
+    ? `${OUTBOX_KEYS}${message.idempotencyKey}` : null;
+  const known = keyed && await jobs.get(keyed);
+
+  // Unless it has been cleared since (a test clears the outbox).
+  if (known && await jobs.get(`${OUTBOX_PREFIX}${known.id}`)) {
+    return { id: known.id, driver: "outbox" };
+  }
+
   seq += 1;
 
   const id = `${now.toISOString().replace(/[:.]/g, "-")}-${
@@ -213,6 +231,8 @@ export const viaOutbox = async (message, env, stores, now = new Date()) => {
     text: message.text || "",
     html: message.html || "",
   });
+
+  if (keyed) await jobs.set(keyed, { id, at: now.toISOString() });
 
   const keys = (await jobs.list(OUTBOX_PREFIX)).map((k) => k.key);
 
