@@ -1,5 +1,5 @@
 {
- "revision": 32,
+ "revision": 33,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -4109,7 +4109,7 @@
    {
     "name": "VENMO_HIDDEN",
     "group": "paypal",
-    "comment": "1 shows Venmo as Coming soon, except to a browser that opened the order page with ?venmo. Empty or 0 shows it.",
+    "comment": "1 shows Venmo as Coming soon, except to a browser that opened the order page with ?venmo. Empty or 0 shows it. Production leaves it empty; setting it to 1 is the kill switch.",
     "secret": false,
     "envs": {
      "development": {
@@ -4119,11 +4119,8 @@
       "value": ""
      },
      "production": {
-      "field": "venmo_hidden"
+      "value": ""
      }
-    },
-    "production": {
-     "value": ""
     }
    },
    {
