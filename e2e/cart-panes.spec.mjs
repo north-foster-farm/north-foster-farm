@@ -14,7 +14,7 @@ const TALL = { width: 390, height: 844 };
 test.describe("cart panes on a phone", () => {
   test.use({ viewport: PHONE });
 
-  test("opening the lines folds the sums, and the reverse", async ({
+  test("the count and the total are tabs that take turns", async ({
     page,
   }) => {
     const order = new OrderPage(page);
@@ -22,28 +22,64 @@ test.describe("cart panes on a phone", () => {
     await order.open(FULL_CART);
 
     const cart = order.cart;
-    const items = cart.locator("[data-cart-items-toggle]");
-    const money = cart.locator("[data-cart-money-toggle]");
+    const items = cart.getByRole("tab", { name: /items?$/ });
+    const money = cart.getByRole("tab", { name: /^Total/ });
 
-    // Start from both folded, then open each in turn.
-    for (const toggle of [items, money]) {
-      if ((await toggle.getAttribute("aria-expanded")) === "true") {
-        await toggle.click();
-      }
-    }
-    await expect(cart).toHaveAttribute("data-items", "closed");
-    await expect(cart).toHaveAttribute("data-money", "closed");
-
-    await items.click();
+    await expect(cart.getByRole("tablist", { name: "Cart view" }))
+      .toBeVisible();
+    await expect(items).toHaveAttribute("aria-selected", "true");
+    await expect(money).toHaveAttribute("aria-selected", "false");
     await expect(cart).toHaveAttribute("data-items", "open");
     await expect(cart).toHaveAttribute("data-money", "closed");
 
     await money.click();
+    await expect(money).toHaveAttribute("aria-selected", "true");
+    await expect(items).toHaveAttribute("aria-selected", "false");
     await expect(cart).toHaveAttribute("data-money", "open");
     await expect(cart).toHaveAttribute("data-items", "closed");
 
+    // One side is always showing: a second tap on it changes nothing.
     await money.click();
-    await expect(cart).toHaveAttribute("data-money", "closed");
+    await expect(cart).toHaveAttribute("data-money", "open");
+
+    // Arrows move the pick and the focus; only the pick is a tab stop.
+    await money.focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(items).toBeFocused();
+    await expect(items).toHaveAttribute("aria-selected", "true");
+    await expect(items).toHaveAttribute("tabindex", "0");
+    await expect(money).toHaveAttribute("tabindex", "-1");
+    await page.keyboard.press("End");
+    await expect(money).toBeFocused();
+    await expect(cart).toHaveAttribute("data-money", "open");
+  });
+
+  test("the fill slides under the side that shows", async ({ page }) => {
+    const order = new OrderPage(page);
+
+    await order.open(FULL_CART);
+
+    const cart = order.cart;
+    const fill = cart.locator(".order-cart-seg-fill");
+    const seg = cart.locator("[data-cart-seg]");
+    const half = async () => {
+      const f = await fill.boundingBox();
+      const t = await seg.boundingBox();
+
+      return { left: f.x - t.x, width: f.width, track: t.width };
+    };
+
+    const left = await half();
+
+    expect(left.left).toBeCloseTo(0, 0);
+    expect(left.width).toBeCloseTo(left.track / 2, 0);
+
+    await cart.getByRole("tab", { name: /^Total/ }).click();
+    await page.waitForTimeout(600);
+
+    const right = await half();
+
+    expect(right.left).toBeCloseTo(right.track / 2, 0);
   });
 
   // The whole open pane, every row of it, not a part: the lines alone
@@ -69,9 +105,7 @@ test.describe("cart panes on a phone", () => {
       }
 
       for (const toggle of [items, money]) {
-        if ((await toggle.getAttribute("aria-expanded")) !== "true") {
-          await toggle.click();
-        }
+        await toggle.click();
         await page.waitForTimeout(500);
 
         const b = await cart.boundingBox();

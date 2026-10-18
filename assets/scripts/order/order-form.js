@@ -410,27 +410,45 @@ export class OrderForm {
       qs(target, "legend").focus({ preventScroll: true });
     });
 
-    // The total row's two controls (#203): the count folds the lines,
-    // the total unfolds the sums above it. Below xl only; the column
-    // shows both and its count and total are plain text.
+    // The total row's two controls (#203, #267): one segmented control.
+    // On a phone it is a pair of tabs that take turns, one always
+    // showing; from md the two fold their own parts. Below xl only; the
+    // column shows both and its count and total are plain text.
     const itemsToggle = qs(this.cart, "[data-cart-items-toggle]");
     const moneyToggle = qs(this.cart, "[data-cart-money-toggle]");
-
-    // On a phone the two take turns: opening one folds the other.
+    const seg = qs(this.cart, "[data-cart-seg]");
     const narrow = matchMedia("(max-width: 767.98px)");
+    const other = { items: "money", money: "items" };
+    const pick = (part) => {
+      this.setPart(part, true);
+      this.setPart(other[part], false);
+    };
 
     itemsToggle.addEventListener("click", () => {
-      const open = this.cart.dataset.items !== "open";
-
-      this.setPart("items", open);
-      if (open && narrow.matches) this.setPart("money", false);
+      if (narrow.matches) return pick("items");
+      this.setPart("items", this.cart.dataset.items !== "open");
     });
     moneyToggle.addEventListener("click", () => {
-      const open = this.cart.dataset.money !== "open";
-
-      this.setPart("money", open);
-      if (open && narrow.matches) this.setPart("items", false);
+      if (narrow.matches) return pick("money");
+      this.setPart("money", this.cart.dataset.money !== "open");
     });
+    // Tabs: the arrows move the pick and the focus with it.
+    seg.addEventListener("keydown", (e) => {
+      if (!narrow.matches || seg.hasAttribute("data-plain")) return;
+
+      const keys = {
+        ArrowLeft: "items", ArrowUp: "items", Home: "items",
+        ArrowRight: "money", ArrowDown: "money", End: "money",
+      };
+      const part = keys[e.key];
+
+      if (!part) return;
+      e.preventDefault();
+      pick(part);
+      (part === "items" ? itemsToggle : moneyToggle).focus();
+    });
+    narrow.addEventListener("change", () => this.syncSeg());
+    this.syncSeg();
     // Settled, the cart shows everything and the two are plain text
     // too (#203): stuckWatch below calls this when it settles.
     const column = matchMedia("(min-width: 1200px)");
@@ -440,6 +458,8 @@ export class OrderForm {
 
       itemsToggle.disabled = still;
       moneyToggle.disabled = still;
+      seg.toggleAttribute("data-plain", still);
+      this.syncSeg();
       // Folded, what the fold hides is out of the Tab order too, or the
       // focus goes under the bar (#159). The column never folds.
       const folded = !column.matches && this.cart.dataset.open === "false";
@@ -923,11 +943,53 @@ export class OrderForm {
 
   // Folds or opens the lines or the sums, from the total row.
   setPart(part, open) {
-    const toggle = qs(this.cart, `[data-cart-${part}-toggle]`);
-
     this.cart.dataset[part] = open ? "open" : "closed";
-    toggle.setAttribute("aria-expanded", String(open));
+    this.syncSeg();
     if (part === "items" && open) this.syncScroll();
+  }
+
+  // Dresses the total row's two controls for what they are at this
+  // width: on a phone tabs (aria-selected, one tab stop, the panes
+  // above as their panels), from md buttons that fold a part
+  // (aria-expanded), and a fill that slides only for the tabs.
+  syncSeg() {
+    const narrow = matchMedia("(max-width: 767.98px)").matches;
+    const seg = qs(this.cart, "[data-cart-seg]");
+    const parts = {
+      items: [qs(this.cart, "[data-cart-items-toggle]"), "order-cart-list"],
+      money: [qs(this.cart, "[data-cart-money-toggle]"), "order-cart-money"],
+    };
+
+    seg.toggleAttribute("data-multi", !narrow);
+    if (narrow) {
+      seg.setAttribute("role", "tablist");
+      seg.setAttribute("aria-label", "Cart view");
+    } else {
+      seg.removeAttribute("role");
+      seg.removeAttribute("aria-label");
+    }
+
+    for (const [part, [button, panelId]] of Object.entries(parts)) {
+      const open = this.cart.dataset[part] === "open";
+      const panel = document.getElementById(panelId);
+
+      button.dataset.on = String(open);
+      if (narrow) {
+        button.setAttribute("role", "tab");
+        button.setAttribute("aria-selected", String(open));
+        button.tabIndex = open ? 0 : -1;
+        button.removeAttribute("aria-expanded");
+        panel.setAttribute("role", "tabpanel");
+        panel.setAttribute("aria-labelledby", button.id);
+      } else {
+        button.removeAttribute("role");
+        button.removeAttribute("aria-selected");
+        button.removeAttribute("tabindex");
+        button.setAttribute("aria-expanded", String(open));
+        panel.removeAttribute("role");
+        panel.removeAttribute("aria-labelledby");
+      }
+    }
   }
 
   // Folds or opens the cart (below xl; the column ignores it).

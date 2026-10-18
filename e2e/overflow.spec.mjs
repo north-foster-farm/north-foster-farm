@@ -123,7 +123,7 @@ for (const width of WIDTHS) {
       await order.open(FULL_CART);
       // Unfold the sums where they fold (below xl).
       if (await money.isEnabled()
-        && await money.getAttribute("aria-expanded") === "false") {
+        && await order.cart.getAttribute("data-money") !== "open") {
         await money.click();
       }
       await fits(page, width, "/order/, cart open");

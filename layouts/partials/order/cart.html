@@ -55,18 +55,21 @@
   </div>
 
   {{/* The count on the left, the total under the column of line
-       prices. Each is its own control: the count folds the lines, the
-       total unfolds the sums; the rest of the row is not a target. */}}
+       prices: one segmented control (#267). On a phone it is a pair of
+       tabs, and the fill slides to the one that shows its view above;
+       from md the two fold their parts independently, so they read as
+       buttons (order-form.js syncSeg). */}}
   <div class="order-cart-total-row">
-    <button type="button" class="order-cart-disclose order-cart-count" aria-expanded="true" aria-controls="order-cart-list" data-cart-items-toggle>
-      <span data-cart-count>0 items</span>
-      {{ partial "order/cart-chevrons.html" . }}
-    </button>
-    <button type="button" class="order-cart-disclose order-cart-sum" aria-expanded="false" aria-controls="order-cart-money" data-cart-money-toggle>
-      {{ partial "order/cart-chevrons.html" . }}
-      <span class="order-cart-sum-label">Total</span>
-      <span class="order-cart-total" data-total="total">$0</span>
-    </button>
+    <div class="order-cart-seg" data-cart-seg>
+      <span class="order-cart-seg-fill" aria-hidden="true"></span>
+      <button type="button" class="order-cart-disclose order-cart-count" id="order-cart-tab-items" aria-expanded="true" aria-controls="order-cart-list" data-cart-items-toggle>
+        <span data-cart-count>0 items</span>
+      </button>
+      <button type="button" class="order-cart-disclose order-cart-sum" id="order-cart-tab-money" aria-expanded="false" aria-controls="order-cart-money" data-cart-money-toggle>
+        <span class="order-cart-sum-label">Total</span>
+        <span class="order-cart-total" data-total="total">$0</span>
+      </button>
+    </div>
   </div>
   {{/* Changing a paid order: what is paid, and the difference to pay
        or to get back. */}}
