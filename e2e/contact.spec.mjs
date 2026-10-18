@@ -9,7 +9,7 @@ import { expect, test } from "./support/order.mjs";
 
 const HEADING = "Contact";
 const LEAD = "Get in touch by calling, texting, sending us an email, or " +
-  "sending us a message through the contact form.";
+  "leaving us a message through the contact form below.";
 const NOTE = "Visits are by appointment only. Contact us to set up a " +
   "farm visit. To pick up an order at the farm, choose on-farm pickup " +
   "on the order page.";

@@ -2105,8 +2105,8 @@ three cases. The real function (c47e66d) is AR-15 and AR-16.
      picking the older; signed in with seven, picking one, then typing
      `QA5`, then `Sep`, then Enter in the filter.
 - **Assert:** "Don't be a chicken. Talk to us." and the lead "Get in
-  touch by calling, texting, sending us an email, or sending us a
-  message through the contact form." with no link in it (#267); call
+  touch by calling, texting, sending us an email, or leaving us a
+  message through the contact form below." with no link in it (#267); call
   or text, email, Instagram and the farm; the note "Visits are by
   appointment only. Contact us to set up a farm visit. To pick up an
   order at the farm, choose on-farm pickup on the order page." with the
