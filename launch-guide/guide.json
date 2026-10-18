@@ -1,5 +1,5 @@
 {
- "revision": 24,
+ "revision": 25,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -412,7 +412,7 @@
     {
      "id": "rs-prod-keys",
      "title": "Check production's Resend values",
-     "body": "These came in from your `.env`; production keeps them. If one is empty, make it on the farm team under **API Keys → Create API Key** (shown once): the sending key with **Sending access** for `mail.northfosterfarm.com`, the audience key and the claude-lookup key with **Full access**. The audience ID is under **Audience → segments**: use the **More options (…)** menu to copy it.\n\nThe webhook secret here is the one the **live site** uses today, for Venmo's inbound mail. It stays until launch day, when the new farm-news webhook replaces it. Save a copy in your password manager now, as \"Resend old inbound secret\", until P9.",
+     "body": "These came in from your `.env`; production keeps them. If one is empty, make it on the farm team under **API Keys → Create API Key** (shown once): the sending key with **Sending access** for `mail.northfosterfarm.com`, the audience key and the claude-lookup key with **Full access**. The audience ID is under **Audience → segments**: use the **More options (…)** menu to copy it.\n\nThe webhook secret here is the one the **live site** uses today, for Venmo's inbound mail. It stays until launch day's live checks pass (step pw-p9), when the new farm-news webhook replaces it. Save a copy in your password manager now, as \"Resend old inbound secret\", until then. Resend is production only: there is no staging team, key, audience or webhook.",
      "minutes": 5,
      "links": [
       {
@@ -630,7 +630,8 @@
        "id": "hc_prod_backup",
        "label": "Backup check URL",
        "secret": true,
-       "placeholder": "https://hc-ping.com/…"
+       "placeholder": "https://hc-ping.com/…",
+       "save": "Also in your password manager, in the **NFF launch** folder. Anyone with the URL can fake a good night."
       }
      ],
      "device": "laptop",
@@ -755,7 +756,7 @@
     {
      "id": "bk-age",
      "title": "Make the encryption key on your Mac",
-     "body": "Backups are encrypted before they leave the site. Only your private key can open them. In Terminal on your Mac (this downloads `age` with Homebrew):\n```\nbrew install age\nmkdir -p ~/Documents/nff-keys && cd ~/Documents/nff-keys\nage-keygen -o nff-backup-key.txt\nchmod 600 nff-backup-key.txt\n```\nIt prints `Public key: age1…`. Paste that public key below; it's safe to share. Then save the **whole file** `nff-backup-key.txt` in your password manager, and keep a second copy offline (a USB stick at the farm, or with Jim). **If the private key is lost, every backup is unreadable.**",
+     "body": "Backups are encrypted before they leave the site. Only your private key can open them. In Terminal on your Mac (this downloads `age` with Homebrew):\n```\nbrew install age\nmkdir -p ~/Documents/nff-keys && cd ~/Documents/nff-keys\nage-keygen -o nff-backup-key.txt\nchmod 600 nff-backup-key.txt\n```\nIt prints `Public key: age1…`. Paste that public key below; it's safe to share. Then save the **whole file** `nff-backup-key.txt` in your password manager, and keep a second copy offline (a USB stick at the farm, or with Jim). The private key never goes on Netlify or into a repository. **If the private key is lost, every backup is unreadable.**",
      "minutes": 5,
      "copy": [
       {
@@ -1064,18 +1065,35 @@
      "type": "terminal"
     },
     {
+     "id": "env-blockers",
+     "title": "Launch blockers still open in code",
+     "body": "These four block launch. Agents build them; you only check the list is closed. Each sits in the milestone **Launch: checkout and the autumn refresh**.\n- **#251, one set of credentials per environment, previews none.** The big one. Waits on the clean-up of the preview and local contexts (step env-contexts) and on the new `bin/nff env check` proof.\n- **#255, close the staging API when no token is set.** Landed on `next` as 2e7be30: with no `STAGING_TOKEN`, every `/api/staging/*` route answers 404, and staging works with its token. Left: confirm a deploy preview shows no staging toolbar (the issue's done-when), and tick it once staging has the change.\n- **#266, e2e must stop using `NETLIFY_AUTH_TOKEN`.** No test run, CI or staging, may hold the personal access token. Not built. The issue still sits in After launch; D-OPEN has the command that moves it.\n- **Hash sessions at rest.** Store sessions under a hash of the id, as sign-in links already are, so whoever can read Blobs cannot use a live session id. Move or end existing sessions, with tests for both. No issue yet; D-OPEN has the command that files it.\n\nAlso before launch: a deploy preview shows a plain \"payments are switched off in previews\" message, not a raw 5xx, on the order page and on any other page that would show a raw error.",
+     "minutes": 2,
+     "blocked": "Code from the checkout lane: #251, #266, session hashing and the preview message.",
+     "device": "any",
+     "type": "claude"
+    },
+    {
      "id": "env-contexts",
-     "title": "Empty the preview and local-development contexts",
-     "body": "On Netlify, deploy previews and the **Local development** context still hold shared values. A linked `netlify dev` would hand real secrets to your Mac. Previews keep only `SITE_CONTEXT=deploy-preview` and a pickup schedule; Local development keeps nothing. Claude gives you the exact commands, names only.",
+     "title": "Launch blocker: empty the preview and local-development contexts",
+     "body": "**This blocks launch.** Today every branch's deploy preview holds production's `RESEND_AUDIENCE_KEY`, `RESEND_WEBHOOK_SECRET` and `RESEND_READ_KEY`, and the repository is public. A linked `netlify dev` would also hand real secrets to your Mac.\n\nEmpty the **Deploy Previews** and **Local development** contexts of every production value, those three and any other. Previews keep only `SITE_CONTEXT=deploy-preview` and a pickup schedule; Local development keeps nothing. Claude gives you the exact commands, names only.\n\n**Proof:** run `bin/nff env check` and it must report both contexts clean. If the check does not cover them yet, the checkout lane adds it (#251); it lands before this step is ticked.",
      "minutes": 10,
-     "blocked": "Staging's API now fails closed with no token (#255). Waits on agents: the exact list comes from #251.",
+     "blocked": "The clean-up commands and the `bin/nff env check` proof come from the checkout lane (#251).",
      "device": "laptop",
      "type": "account"
     },
     {
+     "id": "env-where",
+     "title": "Where each value lives",
+     "body": "The **NFF launch** folder in your password manager is the master copy of every value, and the only one you can read back. Netlify holds the values the site needs and the env files hold your working copies; none of those replaces the master.\n- **Square, PayPal, Axiom, Healthchecks, Netlify token:** Netlify (production and staging contexts), your env files, the master copy.\n- **Resend:** production only; no staging team, key, audience or webhook. `RESEND_READ_KEY` and the old inbound secret go after launch day's live checks.\n- **R2 backup token (`BACKUP_R2_*`):** Netlify production and the master copy.\n- **Backup encryption key (age):** the private key lives on your Mac in `~/Documents/nff-keys` and never on Netlify. Backed up in the master copy, plus a second copy offline (a USB stick at the farm, or with Jim). Only the public key is on Netlify.\n- **Backup check ping URL:** Netlify production, the master copy.\n- **ntfy topic:** works like a password. Your iPhone, Healthchecks, the master copy.\n- **`DEV_NOTIFICATIONS_EMAIL`:** configuration, not a secret. Netlify per environment and the env files.\n- **`MAINTENANCE_SECRET`:** Netlify (a secret value) and the env files, a different one per context, and the master copy. Without it only the command line flips the switch.\n\nUntil #251 is done, previews and local development still hold some shared values (step env-contexts). Delete this note when they don't.",
+     "minutes": 3,
+     "device": "any",
+     "type": "look"
+    },
+    {
      "id": "env-clean",
      "title": "Retire the old shared credentials",
-     "body": "Once staging runs on its new values:\n- **Square:** delete the old shared sandbox webhook subscription. Keep the old app only if production uses it.\n- **PayPal:** delete the old shared sandbox app.\n- **Axiom and Healthchecks:** delete the token and checks staging used to share.\n- **Resend:** delete the keys previews and staging used to share, but **not** production's `RESEND_READ_KEY` or its key at Resend. The live site reads it until P9, a week after launch.\n- **Your old Netlify token:** revoke it at Applications → Personal access tokens, once every env file, yours and the lanes', holds the new one.",
+     "body": "Once staging runs on its new values:\n- **Square:** delete the old shared sandbox webhook subscription. Keep the old app only if production uses it.\n- **PayPal:** delete the old shared sandbox app.\n- **Axiom and Healthchecks:** delete the token and checks staging used to share.\n- **Resend:** delete the keys previews and staging used to share, but **not** production's `RESEND_READ_KEY` or its key at Resend. The live site reads it until launch day's live checks pass (step pw-p9); the launch is fixed forward, with no week's hold.\n- **Your old Netlify token:** revoke it at Applications → Personal access tokens, once every env file, yours and the lanes', holds the new one.",
      "minutes": 20,
      "blocked": "Waits on agents: #251's list. Staging already works on its own values (#255).",
      "links": [
@@ -2399,6 +2417,18 @@
      "changed": "Two new items (e, f), and (d) is done.",
      "summary": "(a), (b) and (c) above are still open. (d) is done: `next` and staging are at 4dfd7f4, with the pickup horizon, the #204 fixes, the footer, the ordering-tour post, the hover, the signatures panel, the rollback docs and maintenance mode. The news addresses are the one piece still waiting (f).\n\n**e) A secret for maintenance mode.** Set `MAINTENANCE_SECRET` (any long random string) on staging and on production, in Netlify and in `.env.staging` and `.env.production`, and confirm `ADMIN_EMAILS` holds you and Jim in both. The step is in \"Your env files\". **Recommend:** the signed link alone is the authentication; a PIN on top is possible but not built. Without the secret only the command line flips the switch. The staging rehearsal and qa's maintenance spec wait on the staging secret.\n\n**f) News addresses without dates are not on `next` yet.** They clash with the ordering-tour post in `docs/qa-launch.md`, `e2e/home.spec.mjs`, `e2e/news-page.spec.mjs` and `e2e/wording.spec.mjs`. The pages lane fixed the clashes in its working folder (the post gets the address `/news/ordering-tour/`, and the old September-update address points to it), but the permission check refused its `git add` and `git rebase --continue`, and refused the coordinator's attempt in another folder. Nothing was worked around. Either allow it, or run this in `~/Code/nff/lanes/pages`:\n```\ngit add -A docs e2e content netlify.toml\ngit rebase --continue\ngit fetch && git rebase origin/next\nnpm run check\nnpm run check:news\ngit push origin HEAD:next\n```\nThen staging should follow `next`. **Recommend yes.**",
      "look": []
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-18",
+     "changed": "Item g: two GitHub edits an agent was not allowed to make.",
+     "summary": "**g) Move #266 to the launch milestone and file the session-hashing blocker.** #251 and #255 already sit in the launch milestone; #266 is in After launch. The permission check refused the edit, so run these (the second files the session-hashing item, which has no issue yet):\n```\ngh issue edit 266 --milestone \"Launch: checkout and the autumn refresh\" --add-label \"lane: checkout\"\ngh issue create --title \"Hash sessions at rest\" --milestone \"Launch: checkout and the autumn refresh\" --label \"lane: checkout\" --body \"Store sessions under a hash of the id, as sign-in links are, so whoever can read Blobs cannot use a live session id. Move existing sessions in a migration, or end them (customers sign in again by link). Tests for both. Remove it from Known gaps in docs/secrets.md. A launch blocker (James, #267).\"\n```\n**Recommend yes.**",
+     "look": [
+      {
+       "label": "#267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
+      }
+     ]
     }
    ],
    "device": "any",
