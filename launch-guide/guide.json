@@ -1,5 +1,5 @@
 {
- "revision": 25,
+ "revision": 26,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -124,6 +124,40 @@
      ],
      "device": "laptop",
      "type": "decide"
+    },
+    {
+     "id": "acct-2fa",
+     "title": "Turn on two-factor sign-in everywhere",
+     "body": "Every account that can reach a secret needs two-factor sign-in, with its recovery codes saved in the **NFF launch** folder of your password manager. Check each, and turn it on where it is off: **Netlify, GitHub, Square, PayPal, Resend, Cloudflare, Axiom, Healthchecks, UptimeRobot, Fastmail.** Any second factor works; an authenticator app or a security key is better than a text message.\n\nTick this when all ten are done. Claude cannot see any of them.",
+     "minutes": 25,
+     "device": "any",
+     "type": "account"
+    },
+    {
+     "id": "vendor-checks",
+     "title": "Four vendor questions the docs could not settle",
+     "body": "Claude read the vendors' pages for the secrets runbook ([docs/secrets.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md)) and found no answer to these. Each is a thing to look at in the vendor's own dashboard; write the answer to Claude, which records it with the date.\n1. **Square:** in Developer Console → Credentials, does the production token show an expiry date? (James's reading: none.) On the *sandbox* token, click Replace, keep the old value a minute, and try one read-only call with it. Does it still answer, and for how long? This decides whether the production rotation can overlap.\n2. **PayPal:** in Apps & Credentials → Live → the app, can you add a second secret and disable one? Does PayPal say anything about ending tokens already issued (they last about 9 hours)? If you can, ask PayPal.\n3. **Axiom:** open each of the two tokens. Does it show ingest on one dataset and nothing else? What retention does each dataset show (the docs here say 30 days)?\n4. **Resend:** does the audience key show **Full access**? (The API needs it to edit contacts.) Is there really no daily sending limit on your plan?\n\nAnything you cannot answer stays listed as open in the doc.",
+     "minutes": 15,
+     "links": [
+      {
+       "label": "Square Developer Console",
+       "url": "https://developer.squareup.com/apps"
+      },
+      {
+       "label": "PayPal apps & credentials",
+       "url": "https://developer.paypal.com/dashboard/applications/live"
+      },
+      {
+       "label": "Axiom API tokens",
+       "url": "https://app.axiom.co/settings/api-tokens"
+      },
+      {
+       "label": "Resend API keys",
+       "url": "https://resend.com/api-keys"
+      }
+     ],
+     "device": "laptop",
+     "type": "account"
     }
    ]
   },
@@ -442,15 +476,23 @@
        "secret": false
       },
       {
-       "id": "rs_lookup",
-       "label": "claude-lookup key",
-       "secret": true,
-       "save": "Goes only in your local .env.production."
-      },
-      {
        "id": "rs_prod_wh",
        "label": "Production webhook secret (today: the Venmo inbound one)",
        "secret": true
+      }
+     ],
+     "device": "laptop",
+     "type": "account"
+    },
+    {
+     "id": "rs-lookup-delete",
+     "title": "Delete the claude-lookup key",
+     "body": "The lookup command is gone from the code, so the key it used is not needed. In Resend → API Keys, delete **claude-lookup**. Then delete its `RESEND_LOOKUP_KEY` line from `.env.production`, and from your password manager. To see what the site sent, use Resend's own log.",
+     "minutes": 3,
+     "links": [
+      {
+       "label": "Resend API keys",
+       "url": "https://resend.com/api-keys"
       }
      ],
      "device": "laptop",
@@ -883,7 +925,7 @@
        "id": "nf_pat",
        "label": "New personal access token",
        "secret": true,
-       "save": "Also in your password manager, in the **NFF launch** folder. It controls every site and DNS record, so treat it like a bank password."
+       "save": "Also in your password manager, in the **NFF launch** folder. It controls every site and DNS record, so treat it like a bank password. It goes in the macOS Keychain (next step) and in no env file."
       },
       {
        "id": "nf_site",
@@ -900,6 +942,20 @@
      ],
      "device": "laptop",
      "type": "account"
+    },
+    {
+     "id": "env-keychain",
+     "title": "Put the Netlify token in the Keychain",
+     "body": "`bin/nff` reads the token from your Mac's Keychain and from no env file. Run this, then paste the new token when it asks (it stays out of your shell history):\n```\nsecurity add-generic-password -a nff -s nff-netlify-auth-token -U -w\n```\nThen check `bin/nff --production health` works, and revoke the old token in Netlify. Remove any `NETLIFY_AUTH_TOKEN` line from your `.env.*` files; `bin/nff env check` fails while one is there. The `netlify` CLI login is a separate token: run `netlify logout` and `netlify login` now, and again every Dec 1 to Jan 1.",
+     "minutes": 5,
+     "copy": [
+      {
+       "label": "Store the token",
+       "value": "security add-generic-password -a nff -s nff-netlify-auth-token -U -w"
+      }
+     ],
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "nf-notify",
@@ -995,12 +1051,11 @@
     },
     {
      "id": "env-files",
-     "title": "Approve the samples and save the full files",
-     "body": "Below are the six files built from what you've entered. Each **.sample** file has the secrets left blank. It's committed to the repo, so read it and tick **Approve**. Each full file holds every value: save it in your password manager now, and in the project root in the next step.\n\n**Development** works now: the fake payment drivers have landed (#265), and it gets its pickup schedule from `bin/nff` (#264). A fresh clone needs only `cp .env.development.sample .env`.\n\nWhen all three samples are approved, export the report. Claude passes them to the agents to commit.",
+     "title": "Save the full env files",
+     "body": "Each full file holds every value: save each in your password manager now, and in the project root in the next step. The three committed **.sample** files hold no secrets; approving them is a review item (**R-SAMPLES**), not part of this step.\n\n**Development** works now: the fake payment drivers have landed (#265), and it gets its pickup schedule from `bin/nff` (#264). A fresh clone needs only `cp .env.development.sample .env`.",
      "minutes": 20,
-     "kind": "envfiles",
      "device": "laptop",
-     "type": "look"
+     "type": "terminal"
     },
     {
      "id": "env-place",
@@ -1019,7 +1074,7 @@
     {
      "id": "env-push",
      "title": "Send the staging and production values to Netlify",
-     "body": "In the project folder, in this order:\n```\nbin/nff env push --staging\nbin/nff env check --staging\nnetlify env:unset STAGING_TOKEN --context production\nbin/nff env push --production\nbin/nff env check --production\n```\nThen ask Claude to deploy each context, staging and production.\n- **Push a context before its sample reaches a build there.** Every staging and production build first checks that each key its committed sample lists is set, so a sample that lands before its push fails that context's next build.\n- `push` sets each key the sample lists, marks secrets as secret, skips local-only keys and never deletes anything. If it refuses because a secret is a plain variable on Netlify, mark that key secret in the Netlify UI, or run the `env:unset` commands it prints, then push again.\n- `check` lists, by name only, anything that still differs. The `env:unset` lines it prints are yours to run; push never deletes.\n\nProduction's values match what it has today, so nothing changes for the live site.\n\n**Then, in the same sitting, for the staging token:** put the new value in GitHub (**Settings → Secrets and variables → Actions → STAGING_TOKEN → Update**), and ask Claude to rebuild staging. Until all three match, the staging jobs workflow fails.",
+     "body": "In the project folder, in this order:\n```\nbin/nff env push --staging\nbin/nff env check --staging\nnetlify env:unset STAGING_TOKEN --context production\nbin/nff env push --production\nbin/nff env check --production\n```\nThen ask Claude to deploy each context, staging and production.\n- **Push a context before its sample reaches a build there.** Every staging and production build first checks that each key its committed sample lists is set, so a sample that lands before its push fails that context's next build.\n- `push` sets each key the sample lists, marks secrets as secret, skips local-only keys and never deletes anything. If it refuses because a secret is a plain variable on Netlify, mark that key secret in the Netlify UI, or run the `env:unset` commands it prints, then push again.\n- `check` lists, by name only, anything that still differs. The `env:unset` lines it prints are yours to run; push never deletes.\n\nProduction's values match what it has today, so nothing changes for the live site.\n\nA push then offers **Deploy now?** and posts the context's build hook; add `--allow-deploy` to skip the question. The Netlify calls in the push have never run live, so the first staging push is the rehearsal: if it stops, tell Claude what it printed (it prints names, never values).\n\n**Then, in the same sitting, for the staging token:** put the new value in GitHub (**Settings → Secrets and variables → Actions → STAGING_TOKEN → Update**), and ask Claude to rebuild staging. Until all three match, the staging jobs workflow fails.",
      "minutes": 15,
      "links": [
       {
@@ -1045,6 +1100,42 @@
      "type": "terminal"
     },
     {
+     "id": "env-verify",
+     "title": "Prove the pushed values work",
+     "body": "After each push and deploy, in the project folder:\n```\nbin/nff env verify --staging\nbin/nff env verify --production\n```\nIt makes one harmless, read-only call per service and prints `ok` or `FAILED` by name, never a value. A key shown as unchecked (a signing secret) cannot be proved this way. Claude may run it for you; it never opens the env files.",
+     "minutes": 5,
+     "copy": [
+      {
+       "label": "Staging",
+       "value": "bin/nff env verify --staging"
+      },
+      {
+       "label": "Production",
+       "value": "bin/nff env verify --production"
+      }
+     ],
+     "device": "laptop",
+     "type": "terminal"
+    },
+    {
+     "id": "env-prod-names",
+     "title": "Production must not hold the staging names",
+     "body": "The build and `bin/nff env check` fail if production holds `STAGING_TOKEN` or `STAGING_REVIEWER_TOKEN`, even empty. If either exists there, remove it:\n```\nnetlify env:unset STAGING_TOKEN --context production\nnetlify env:unset STAGING_REVIEWER_TOKEN --context production\n```",
+     "minutes": 2,
+     "copy": [
+      {
+       "label": "STAGING_TOKEN",
+       "value": "netlify env:unset STAGING_TOKEN --context production"
+      },
+      {
+       "label": "STAGING_REVIEWER_TOKEN",
+       "value": "netlify env:unset STAGING_REVIEWER_TOKEN --context production"
+      }
+     ],
+     "device": "laptop",
+     "type": "terminal"
+    },
+    {
      "id": "env-maint-secret",
      "title": "Set the maintenance secret",
      "body": "Set `MAINTENANCE_SECRET` (any long random string, a different one per context) on staging and on production, in Netlify and in .env.staging and .env.production. In Netlify, add it as a secret value: for the staging branch deploy, and for Production. Confirm `ADMIN_EMAILS` holds you and Jim in both, since every flip emails them.\n\n**Recommendation:** the signed link alone is the authentication. A PIN on top is possible but not built. Without the secret only the command line (`bin/nff maintenance on|off`) can flip the switch; the phone links are dead.\n\n**Do the staging one first:** the staging rehearsal and qa's maintenance spec wait on it.",
@@ -1062,7 +1153,40 @@
       }
      ],
      "device": "laptop",
-     "type": "terminal"
+     "type": "terminal",
+     "fields": [
+      {
+       "id": "maint_stg",
+       "label": "Staging maintenance secret",
+       "secret": true,
+       "generate": 32,
+       "save": "Also in your password manager, in the **NFF launch** folder."
+      },
+      {
+       "id": "maint_prod",
+       "label": "Production maintenance secret",
+       "secret": true,
+       "generate": 32,
+       "save": "Also in your password manager, in the **NFF launch** folder."
+      }
+     ]
+    },
+    {
+     "id": "env-e2e-token",
+     "title": "Make the end-to-end test token",
+     "body": "**Blocks qa's back-office runs** (payment, account, news, contact-send, edit-order, orders-api cleanup, maintenance): staging answers 404 to them until this is set. Press **Generate**, then:\n- set it as `E2E_STAGING_TOKEN` on Netlify's staging context (the env push does it);\n- save it in `.env.e2e-staging` (qa never uses `.env.staging` for it);\n- save it in the password manager, and as the GitHub repository secret of the same name, if the workflow needs it.\n\nIt is staging only; production must not hold the name. The suite no longer needs a Netlify token (#266).",
+     "minutes": 5,
+     "fields": [
+      {
+       "id": "e2e_token",
+       "label": "E2E staging token",
+       "secret": true,
+       "generate": 32,
+       "save": "Also in your password manager, in the **NFF launch** folder, and in `.env.e2e-staging`."
+      }
+     ],
+     "device": "laptop",
+     "type": "account"
     },
     {
      "id": "env-blockers",
@@ -1085,7 +1209,7 @@
     {
      "id": "env-where",
      "title": "Where each value lives",
-     "body": "The **NFF launch** folder in your password manager is the master copy of every value, and the only one you can read back. Netlify holds the values the site needs and the env files hold your working copies; none of those replaces the master.\n- **Square, PayPal, Axiom, Healthchecks, Netlify token:** Netlify (production and staging contexts), your env files, the master copy.\n- **Resend:** production only; no staging team, key, audience or webhook. `RESEND_READ_KEY` and the old inbound secret go after launch day's live checks.\n- **R2 backup token (`BACKUP_R2_*`):** Netlify production and the master copy.\n- **Backup encryption key (age):** the private key lives on your Mac in `~/Documents/nff-keys` and never on Netlify. Backed up in the master copy, plus a second copy offline (a USB stick at the farm, or with Jim). Only the public key is on Netlify.\n- **Backup check ping URL:** Netlify production, the master copy.\n- **ntfy topic:** works like a password. Your iPhone, Healthchecks, the master copy.\n- **`DEV_NOTIFICATIONS_EMAIL`:** configuration, not a secret. Netlify per environment and the env files.\n- **`MAINTENANCE_SECRET`:** Netlify (a secret value) and the env files, a different one per context, and the master copy. Without it only the command line flips the switch.\n\nUntil #251 is done, previews and local development still hold some shared values (step env-contexts). Delete this note when they don't.",
+     "body": "The **NFF launch** folder in your password manager is the master copy of every value, and the only one you can read back. Netlify holds the values the site needs and the env files hold your working copies; none of those replaces the master.\n- **Square, PayPal, Axiom, Healthchecks:** Netlify (production and staging contexts), your env files, the master copy.\n- **Netlify token:** your Mac's Keychain and the master copy only; in no env file.\n- **Staging keys:** `STAGING_TOKEN` and `E2E_STAGING_TOKEN` on staging only; the reviewer key too, while a reviewer has access. Never on production.\n- **Resend:** production only; no staging team, key, audience or webhook. `RESEND_READ_KEY` and the old inbound secret go after launch day's live checks.\n- **R2 backup token (`BACKUP_R2_*`):** Netlify production and the master copy.\n- **Backup encryption key (age):** the private key lives on your Mac in `~/Documents/nff-keys` and never on Netlify. Backed up in the master copy, plus a second copy offline (a USB stick at the farm, or with Jim). Only the public key is on Netlify.\n- **Backup check ping URL:** Netlify production, the master copy.\n- **ntfy topic:** works like a password. Your iPhone, Healthchecks, the master copy.\n- **`DEV_NOTIFICATIONS_EMAIL`:** configuration, not a secret. Netlify per environment and the env files.\n- **`MAINTENANCE_SECRET`:** Netlify (a secret value) and the env files, a different one per context, and the master copy. Without it only the command line flips the switch.\n\nUntil #251 is done, previews and local development still hold some shared values (step env-contexts). Delete this note when they don't.",
      "minutes": 3,
      "device": "any",
      "type": "look"
@@ -1141,6 +1265,34 @@
      "minutes": 2,
      "device": "any",
      "type": "claude"
+    },
+    {
+     "id": "stg-reviewer",
+     "title": "Try the reviewer key on the staging toolbar",
+     "body": "The reviewer key lets someone look at staging without your own. It is revocable by you alone, expires Jan 31, and rotates Dec 1 to Jan 1. Its scope is a draft from the checkout lane: the signature previews and Info, and nothing else. The email library holds sign-in links, so it is **not** open to the reviewer, and neither are the inbox, the jobs run, the crash test and the order limit (the table is in the [secrets doc](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md)).\n\nTo check it: make a random value, set it as `STAGING_REVIEWER_TOKEN` on staging, redeploy, and enter it in the staging toolbar. The header must name the key in use (never the value) and hide the panels above. Then revoke it:\n```\nnetlify env:unset STAGING_REVIEWER_TOKEN --context branch:staging\n```\nand redeploy staging. Tell Claude if a panel showed that should not have. Nobody has seen this in a browser yet.",
+     "minutes": 15,
+     "copy": [
+      {
+       "label": "Revoke",
+       "value": "netlify env:unset STAGING_REVIEWER_TOKEN --context branch:staging"
+      }
+     ],
+     "device": "laptop",
+     "type": "terminal"
+    },
+    {
+     "id": "stg-actions-runs",
+     "title": "Delete the public Staging jobs runs",
+     "body": "The repository is public, so its workflow logs are too. Eight earlier Staging jobs runs printed order ids (no emails or names). The checkout lane lists their ids in `lanes/checkout/.ignored/runs-ids.txt` and has deleted nothing. Review them in GitHub → Actions → Staging jobs, and delete each (… → Delete workflow run).\n\nThe scheduled workflow on `main` still prints full reports until the release lands there; delete any run it makes before then too. From the release on, every workflow prints counts only.",
+     "minutes": 10,
+     "links": [
+      {
+       "label": "Actions runs",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/actions"
+      }
+     ],
+     "device": "laptop",
+     "type": "account"
     }
    ]
   },
@@ -1328,7 +1480,7 @@
     {
      "id": "ld-smoke",
      "title": "Quick checks",
-     "body": "Open each:\n- Home and order pages load.\n- Dates lists pickup days.\n- Checkout config shows an application ID starting `sq0idp-`, not `sandbox`.\n- Health answers 200 with no `problems`, and shows `context` (the new code is live). It answers 503 unless production's `PAYPAL_ENV` is `live`, `SQUARE_ENV` is `production` and `MAIL_DRIVER` is `resend`. Its PayPal test used to ask for `production` and would have failed a correct setup; fixed in a6b9eb9, landing on `next`.\n- robots.txt allows crawling; the home page has no `noindex`, and its share image is `share-card.png`.\n- **No staging code in production:** view the order page's source and search for `staging`; there's no `#staging` element. And Staging info answers **404**.",
+     "body": "Open each:\n- Home and order pages load.\n- Dates lists pickup days.\n- Checkout config shows an application ID starting `sq0idp-`, not `sandbox`.\n- Health answers 200 with no `problems`, and shows `context` (the new code is live). It answers 503 unless production's `PAYPAL_ENV` is `live`, `SQUARE_ENV` is `production` and `MAIL_DRIVER` is `resend`. Its PayPal test used to ask for `production` and would have failed a correct setup; fixed in a6b9eb9, landing on `next`.\n- Everyone signed in at the deploy is signed out once, because sessions are now stored hashed (#269). Mention it in the launch email if you like.\n- robots.txt allows crawling; the home page has no `noindex`, and its share image is `share-card.png`.\n- **No staging code in production:** view the order page's source and search for `staging`; there's no `#staging` element. And Staging info answers **404**.",
      "minutes": 10,
      "links": [
       {
@@ -1362,6 +1514,20 @@
      ],
      "device": "any",
      "type": "look"
+    },
+    {
+     "id": "ld-sessions",
+     "title": "End the old sessions",
+     "body": "Right after the deploy, run this so sessions stored the old way end at once; otherwise the daily sweep ends them:\n```\nbin/nff jobs run --production\n```",
+     "minutes": 2,
+     "copy": [
+      {
+       "label": "Run the jobs",
+       "value": "bin/nff jobs run --production"
+      }
+     ],
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "ld-maint",
@@ -1770,6 +1936,14 @@
        "value": "bin/nff --production maintenance off"
       }
      ]
+    },
+    {
+     "id": "pq-sq-swap",
+     "title": "Swapping the Square webhook key, and removing the old",
+     "body": "Once the site accepts two webhook keys (the checkout lane's build), a swap has no gap: set the old value as `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS`, the new one as `SQUARE_WEBHOOK_SIGNATURE_KEY`, deploy, and check a delivery verifies.\n\n**Then remove `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS` and deploy again.** The swap is safe only if the old key is gone afterward. On a leak, skip the overlap and remove the old key at once. Steps: [docs/secrets.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md).",
+     "minutes": 10,
+     "device": "laptop",
+     "type": "terminal"
     },
     {
      "id": "pq-pos",
@@ -2429,6 +2603,18 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
       }
      ]
+    },
+    {
+     "rev": 4,
+     "date": "2026-10-18",
+     "changed": "Items h to k: what round 1 of the runbooks leaves for you.",
+     "summary": "**h) The dashboard's `docs/secrets.md` is not started.** You put the dashboard on hold. It will cover the Supabase service key, VAPID, the same Dec 1 to Jan 1 rotation and Jan 31 expiry, its own rotation log, two-factor, and its place in the lost-laptop list. Waiting for your go.\n**i) A note, not a fix: maintenance mode shows who is an admin.** While it is on, an admin address asking for a sign-in link gets the link and any other address gets the 503, so someone could learn whether an address is an admin's. Low risk; the bypass is by design. Accept or ask for a change.\n**j) Leave the \"check your email to confirm\" note unbuilt.** Site sign-ups opt in at once, so nothing is pending; only the invite flow is, and the page cannot see it. Recommend leaving it.\n**k) The four vendor questions** (step vendor-checks) and the open items listed at the end of [docs/secrets.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md).\n**Recommend yes** to h to k as stated.",
+     "look": [
+      {
+       "label": "#267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -2918,6 +3104,26 @@
      "date": "2026-10-18",
      "changed": "You decided the launch is fixed forward, with no rollback to the invoice checkout. The runbooks lost everything that existed only for that.",
      "summary": "- `docs/rollback.md` now opens with **At launch: fix forward** (maintenance mode on, fix, check, off). The publish-a-previous-deploy and revert-on-`main` paths stay for the second release on.\n- Gone: the day-before rebuild, the saved old Resend secret, the one-week P9 hold, and drill parts A, B and C. **Kept: part D** (listing the Square, PayPal and Resend webhook registrations), because the launch needs those commands whichever way a problem is fixed. What part A would have proved moved to **Not verified**, to be rehearsed before the second release.\n- **Still in force:** after a production key change, never publish a deploy built before it (`docs/rollback.md`, `docs/secrets.md`).\n- **New timing:** P9 and the old keys now come at the end of the launch-day payment checks, not a week later.\n- Round 1's earlier notes that only concerned the old site (the timing rule, launch slipping, the leak exception) lapse.\n\nCommitted on `lane/prod` as 4742ac1; it reaches `next` with the coordinator's next promotion."
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-18",
+     "changed": "Your round 1 is applied to both runbooks, one commit each, plus a new rotation log. They are on `next` and reach staging with the coordinator's next promotion.",
+     "summary": "[docs/secrets.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md) is commit 2de3df8, [docs/rollback.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/rollback.md) is 877f936, and `docs/rotation-log.md` (19 seed lines) is in the first. Section by section, with the sections that changed most first:\n**secrets.md, rewritten:** The rules (ten, most important first); Where they live (the table as the final state, new rows); Square (grace period and expiry researched; steps under maintenance mode with the admin bypass; the webhook swap); PayPal (two secrets, the 9-hour token, maintenance mode on a leak); Staging (plain words, the reviewer key, public Actions logs, what the token unlocks); Incident response (a real procedure, by blast radius).\n**Changed some:** Schedule (Dec 1 to Jan 1, expiry Jan 31, the reminder); Resend; Axiom; Netlify (Keychain, CLI login); Sessions (the end-all command); Known gaps (empty at launch); One set per environment.\n**New:** Accounts; Alerts on failed webhook signatures; Backups; the open-questions list.\n**Light:** Pushing and checking env; healthchecks.io (ntfy topic); Out of scope (UptimeRobot); Vendor references.\n**rollback.md:** The one-tap rollback is a new section (heavy); the maintenance commands replace placeholders (light); reverting on `main` gets a maintenance line (light). Nothing else changed.\n**Weak points:** five questions no source settled (Square's grace period, PayPal's second secret and token ending, Axiom's ingest-only wording and retention, Resend's audience-key permission). The full summary, with a table per doc, is in `lanes/prod/.ignored/round1-summary.md`.",
+     "look": [
+      {
+       "label": "docs/secrets.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md"
+      },
+      {
+       "label": "docs/rollback.md",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/rollback.md"
+      },
+      {
+       "label": "#267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -3034,6 +3240,68 @@
        "url": "https://raw.githubusercontent.com/north-foster-farm/north-foster-farm/launch-guide/launch-guide/feedback/news-hover-row-hover.png"
       }
      ]
+    }
+   ],
+   "device": "any",
+   "type": "look"
+  },
+  {
+   "id": "R-PRIVACY",
+   "section": "rv-copy",
+   "title": "Two changes to the privacy page",
+   "area": "#146, #267",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "summary": "One review, two lines. Nobody edits `content/privacy.md` until you approve.\n1. **Logs no longer hold contact details.** The site scrubs every log record now (26b0501): contact fields are removed, emails become a short hash, phones are masked. The page's current line is no longer true.\n2. **A line under \"What your browser keeps\"** for the farm-news forms that hide for subscribers (2c17b51).",
+     "look": [
+      {
+       "label": "Privacy on staging",
+       "url": "https://staging--north-foster-farm.netlify.app/privacy/"
+      }
+     ],
+     "text": "**Before (logs):** \"When something goes wrong with an order, the line may hold the order as it was sent, including your contact details, so we can put it right.\"\n\n**After (logs):** \"Log lines never hold your contact details: your name, email address, phone number and address are removed before a line is written.\"\n\n**New, under What your browser keeps:** \"If you sign up for farm news, this browser remembers that you did, so it can hide the sign-up forms. That note holds no personal information and never your email address. It stays until you unsubscribe or turn farm news off.\"",
+     "recommendation": "Approve both. Retention (30 days) stays as written until you confirm Axiom's setting."
+    }
+   ],
+   "device": "any",
+   "type": "look"
+  },
+  {
+   "id": "R-SAMPLES",
+   "section": "rv-look",
+   "title": "The three committed env sample files",
+   "area": "#264, #267",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "summary": "`.env.production.sample`, `.env.staging.sample` and `.env.development.sample` are committed (the checkout lane, e3839bb) and hold no secrets. Read each and approve, or say what is wrong. A key left empty in the staging or production sample is a secret, except one marked `# Public:`. Saving the full files stays a laptop step (**env-files**).",
+     "look": [
+      {
+       "label": "The samples on next",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/tree/next"
+      }
+     ],
+     "recommendation": "Approve once the key names look right to you; the check script already fails on a missing or extra name."
+    }
+   ],
+   "device": "any",
+   "type": "look"
+  },
+  {
+   "id": "R-PREVIEWS",
+   "section": "rv-copy",
+   "title": "What a deploy preview says about payments",
+   "area": "#251, #255",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-18",
+     "summary": "A draft from the checkout lane. A preview holds no payment keys, so its order page shows this in place of the pay buttons, and the order API answers 403 with it.",
+     "text": "\"Payments are switched off in previews.\"",
+     "recommendation": "Approve as is; it is for you and the agents, never customers."
     }
    ],
    "device": "any",
@@ -3172,6 +3440,23 @@
      },
      "production": {
       "value": "true"
+     }
+    }
+   },
+   {
+    "name": "MAINTENANCE_SECRET",
+    "group": "site",
+    "comment": "Signs the phone links that flip maintenance mode. A different value per context.",
+    "secret": true,
+    "envs": {
+     "development": {
+      "value": "dev-maintenance-secret"
+     },
+     "staging": {
+      "field": "maint_stg"
+     },
+     "production": {
+      "field": "maint_prod"
      }
     }
    },
@@ -3425,6 +3710,23 @@
     }
    },
    {
+    "name": "DEV_NOTIFICATIONS_EMAIL",
+    "group": "mail",
+    "comment": "The developer's address: incident steps, rotation reminders and the alerts only a developer can act on. Not a secret.",
+    "secret": false,
+    "envs": {
+     "development": {
+      "value": "dev@example.com"
+     },
+     "staging": {
+      "value": "dev@northfosterfarm.com"
+     },
+     "production": {
+      "value": "dev@northfosterfarm.com"
+     }
+    }
+   },
+   {
     "name": "RESEND_API_KEY",
     "group": "resend",
     "comment": "The sending key: Sending access, limited to the mail domain.",
@@ -3474,18 +3776,6 @@
       "fallback": "rs_prod_wh"
      }
     }
-   },
-   {
-    "name": "RESEND_LOOKUP_KEY",
-    "group": "resend",
-    "comment": "A full-access key (claude-lookup) that bin/nff --production mail uses to read what was sent.",
-    "secret": true,
-    "envs": {
-     "production": {
-      "field": "rs_lookup"
-     }
-    },
-    "local": true
    },
    {
     "name": "AXIOM_TOKEN",
@@ -3672,6 +3962,20 @@
     }
    },
    {
+    "name": "E2E_STAGING_TOKEN",
+    "group": "staging",
+    "comment": "The end-to-end suite's own token. Also the GitHub Actions secret of the same name, and in .env.e2e-staging.",
+    "secret": true,
+    "envs": {
+     "development": {
+      "value": "dev-e2e-token"
+     },
+     "staging": {
+      "field": "e2e_token"
+     }
+    }
+   },
+   {
     "name": "PICKUP_SCHEDULE_HOOK",
     "group": "local",
     "comment": "A staging build hook. bin/nff schedule set starts a deploy with it after setting the schedule.",
@@ -3694,21 +3998,6 @@
      },
      "production": {
       "field": "nf_site"
-     }
-    },
-    "local": true
-   },
-   {
-    "name": "NETLIFY_AUTH_TOKEN",
-    "group": "local",
-    "comment": "James's personal access token; expires Jan 1. The same token sits in both local files: it's personal, not a site secret.",
-    "secret": true,
-    "envs": {
-     "staging": {
-      "field": "nf_pat"
-     },
-     "production": {
-      "field": "nf_pat"
      }
     },
     "local": true
