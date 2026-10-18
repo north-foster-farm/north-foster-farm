@@ -21,13 +21,13 @@ export const GUIDE = {
   },
   "order.after_paid_failed": {
     means: "The payment went through and the order was recorded, but a " +
-      "step after that failed: the customer record, the stock counts, " +
-      "the confirmation emails or the welcome. The customer saw their " +
-      "confirmation; the store or Resend was the problem.",
+      "step after that failed: the customer record or the stock " +
+      "counts. The customer saw their confirmation; the store was the " +
+      "problem. The emails are not part of this: they go after the " +
+      "answer, and the jobs send any that did not.",
     action: "Open the order (bin/nff orders show <id>) and check what is " +
       "missing: its lines against the stock counts (stock set puts one " +
-      "right), and its emails. Nothing resends a confirmation on its " +
-      "own, so if none went out, write to the customer.",
+      "right), and the customer's record.",
   },
   "order.id_collision": {
     means: "A customer's order turned up under another customer's " +
@@ -51,12 +51,19 @@ export const GUIDE = {
       "never written, but for another amount than the order now " +
       "totals (the customer changed the cart between tries), or " +
       "PayPal captured a Venmo payment for an order that was already " +
-      "recorded as paid another way. The alert says which.",
+      "recorded as paid another way, or a customer changed the cart " +
+      "after a Venmo payment that was recorded as it was paid. The " +
+      "alert says which. A lost answer that is reconciled cleanly " +
+      "raises no alert, only the log event payment.reconciled; the " +
+      "first one in production, check by hand (the order, the one " +
+      "Square payment, no second charge): Square's order search " +
+      "cannot be tested against a payment seconds old.",
     action: "Find the order id in Square (the order's reference id) " +
       "and the payment in Square or PayPal. If the payment is good " +
       "and the order should stand, record the order by hand; if the " +
-      "customer paid twice, refund the extra payment (bin/nff refunds " +
-      "or the processor's dashboard) and write to them.",
+      "customer paid twice, refund the extra payment (in Square or " +
+      "PayPal; bin/nff orders refund works on a recorded order) and " +
+      "write to them.",
   },
   "order.reserve_failed": {
     means: "POST /api/orders could not reserve an order id in the " +

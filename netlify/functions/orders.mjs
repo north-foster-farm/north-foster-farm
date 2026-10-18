@@ -30,7 +30,7 @@ import { validateOrder } from "../../assets/scripts/order/lib/validate.mjs";
 import { parts } from "../../assets/scripts/order/lib/zoned.mjs";
 import { sessionFrom } from "./lib/auth.mjs";
 import {
-  METHODS, finishVenmo, ownRecord, payWithSquare, startVenmo,
+  METHODS, announceNew, finishVenmo, ownRecord, payWithSquare, startVenmo,
 } from "./lib/checkout.mjs";
 import { json, ORDER_BUDGET_MS, readJson } from "./lib/http.mjs";
 import { alert, count } from "./lib/health.mjs";
@@ -152,6 +152,10 @@ export const handle = async (req, {
   // The request ends here, well inside Netlify's 10 s: every call to
   // a processor shares it (lib/http.mjs).
   deadline = Date.now() + ORDER_BUDGET_MS,
+  // Where the emails of a paid order are sent from, once the record is
+  // written: the platform's waitUntil for the real function, so they go
+  // after the answer; here they are awaited, which tests rely on.
+  after = (work) => work,
 } = {}) => {
   const payload = await readJson(req);
 
@@ -196,6 +200,14 @@ export const handle = async (req, {
   if (!KEY.test(key)) {
     return json(422, { errors: { idempotencyKey: "Missing submission key." } });
   }
+
+  // The emails wait on the answer, not the other way round (#268); the
+  // jobs send any that this does not.
+  const announce = async (record) => {
+    await after(announceNew(stores, record, { mail, env, now }));
+
+    return record;
+  };
 
   // Nothing goes back to the page but this submission's own record;
   // another's is refused and the farm alerted (#253).
@@ -331,7 +343,7 @@ export const handle = async (req, {
         }, options);
 
         // An earlier attempt of this submission was paid after all.
-        if (started.paid) return own(started.paid);
+        if (started.paid) return own(await announce(started.paid));
 
         return json(200, {
           orderId: order.id, paypalOrderId: started.paypalOrderId,
@@ -346,9 +358,9 @@ export const handle = async (req, {
           });
         }
 
-        return own(await finishVenmo(stores, order, {
+        return own(await announce(await finishVenmo(stores, order, {
           key, attempt, paypalOrderId,
-        }, options));
+        }, options)));
       }
 
       return json(422, { errors: { payment: "Which Venmo step?" } });
@@ -360,12 +372,12 @@ export const handle = async (req, {
       return json(422, { errors: { payment: "Enter your card details." } });
     }
 
-    return own(await payWithSquare(stores, order, {
+    return own(await announce(await payWithSquare(stores, order, {
       key, attempt, method, sourceId,
       verificationToken: payment.verificationToken
         ? String(payment.verificationToken)
         : undefined,
-    }, options));
+    }, options)));
   } catch (error) {
     const retryable = !!(error && error.retryable);
     const declined = !!(error && error.declined);
@@ -428,7 +440,16 @@ export const handle = async (req, {
 };
 
 export default withLog("orders", async (req, context) =>
-  handle(req, { ip: context && context.ip }));
+  handle(req, {
+    ip: context && context.ip,
+    // Sent after the answer where the platform can; where it cannot,
+    // the jobs send them within the quarter hour.
+    after: (work) => {
+      if (context && typeof context.waitUntil === "function") {
+        context.waitUntil(work);
+      }
+    },
+  }));
 
 export const config = {
   path: "/api/orders",

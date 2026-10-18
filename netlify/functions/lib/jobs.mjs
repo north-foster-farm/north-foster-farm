@@ -38,7 +38,7 @@ import {
 import {
   addDays, instant, parts, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
-import { rescueCheckout, syncSquare } from "./checkout.mjs";
+import { announceNew, rescueCheckout, syncSquare } from "./checkout.mjs";
 import { finishEditVenmo } from "./edit.mjs";
 import { deleteOldMessages, scrubOldOrders } from "./forget.mjs";
 import { alert, ping, readCount, readMark } from "./health.mjs";
@@ -101,9 +101,9 @@ export const runJobs = async (stores, {
   fetchImpl = globalThis.fetch,
 } = {}) => {
   const report = {
-    at: now.toISOString(), deliveryReminded: [], closed: [], squareSynced: [],
-    muted: [], checkoutsRescued: [], checkoutsSwept: 0, authSwept: 0,
-    pickupsToConfirm: [], scrubbed: [],
+    at: now.toISOString(), announced: [], deliveryReminded: [], closed: [],
+    squareSynced: [], muted: [], checkoutsRescued: [], checkoutsSwept: 0,
+    authSwept: 0, pickupsToConfirm: [], scrubbed: [],
     tomorrow: null, rotation: null, errors: [], invariants: [],
   };
   const opts = { env, mail, now };
@@ -152,6 +152,14 @@ export const runJobs = async (stores, {
       if (synced.square) report.squareSynced.push(order.id);
     }
 
+    // The emails of a paid order are sent after the answer that took
+    // the payment (lib/checkout.mjs announceNew); one that never went
+    // out, for any reason, goes now.
+    if (!sent(order, "orderConfirmed")) {
+      await announceNew(stores, order, opts);
+      report.announced.push(order.id);
+    }
+
     if (questionOpen(order)) return;
 
     const isDelivery = order.fulfilment.method === "delivery";
@@ -188,7 +196,11 @@ export const runJobs = async (stores, {
           ...opts, paypal, square, fetchImpl, finishEdit: finishEditVenmo,
         }));
 
-      if (saved) report.checkoutsRescued.push(saved.id);
+      if (saved) {
+        report.checkoutsRescued.push(saved.id);
+        await attempt(saved.id, "announce",
+          () => announceNew(stores, saved, opts));
+      }
     }
   }
 
@@ -284,8 +296,8 @@ const audienceSyncDaily = async (stores, { env, now, fetchImpl }) => {
 export const summarize = (report) => ({
   at: report.at,
   counts: Object.fromEntries([
-    "deliveryReminded", "closed", "squareSynced", "muted", "checkoutsRescued",
-    "pickupsToConfirm", "scrubbed",
+    "announced", "deliveryReminded", "closed", "squareSynced", "muted",
+    "checkoutsRescued", "pickupsToConfirm", "scrubbed",
   ].map((k) => [k, (report[k] || []).length])),
   checkoutsSwept: report.checkoutsSwept || 0,
   authSwept: report.authSwept || 0,

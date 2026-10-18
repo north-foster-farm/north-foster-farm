@@ -291,6 +291,39 @@ record is still written, with `square: null`, the farm is alerted
 every run until it takes. A captured amount that is not the order's
 total is recorded all the same and alerted (`venmo.amount_mismatch`).
 
+### A lost answer never charges twice (#268)
+
+Netlify ends a function at 10 s. If it died after Square or PayPal took
+the money and before the record was written, the page saw a failure
+and no record existed. Four parts keep the retry from charging again:
+
+- **A short request.** Every outbound call carries a timeout, and the
+  calls of one request share a deadline of 8 s (`lib/http.mjs`,
+  `ORDER_BUDGET_MS`). A call that moves money (Square's payment,
+  PayPal's capture) is not started with under 2 s left, so a late
+  request charges nothing rather than leaving a payment nobody can
+  answer for. A call that times out is a retryable error, never a
+  decline.
+- **No mail in the request.** The record is written, then the answer
+  goes. The confirmation, the farm's notice and the news welcome
+  (`announceNew`) are sent after the answer (`waitUntil`) and, for any
+  that did not go, by the jobs: a paid order without
+  `emails.orderConfirmed` is announced on the next run.
+- **Ask before paying again.** A later attempt (`attempt` over 1) has
+  fresh idempotency keys, so Square cannot recognize it. Before paying,
+  `square.findPaid` reads the location's orders of the last two days,
+  matches `reference_id` to the order id and, for a completed payment,
+  records the order from it and answers success: nothing is charged.
+  A payment for another amount, or one noted from Venmo, is not
+  recorded and not charged again; the farm gets `payment.unreconciled`.
+  If Square cannot say, nothing is charged and the page retries. A
+  Venmo attempt asks PayPal about the checkouts kept from the attempts
+  before it, and finishes one already captured.
+- **Keep the attempts.** A new Venmo attempt moves the checkout it
+  would overwrite to `checkout/<key>~<attempt>`, still indexed by its
+  PayPal order, so the jobs, the webhook and the check above find a
+  payment captured for any attempt. The sweep drops them after a day.
+
 `POST /api/paypal/webhook` (`netlify/functions/paypal-webhook.mjs`)
 verifies each delivery with PayPal (`verify-webhook-signature`) and
 handles two events. `PAYMENT.CAPTURE.COMPLETED` finds the checkout by

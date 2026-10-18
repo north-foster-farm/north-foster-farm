@@ -265,6 +265,45 @@ describe("a later Venmo attempt, before it is paid", () => {
     assert.equal((await getOrder(stores, "NFF-2610-ABCD")).status, "paid");
   });
 
+  it("tells the farm when the cart changed after the payment, and " +
+    "answers with the order that was paid", async () => {
+    const stores = testStores();
+    const states = {};
+    const { paypal } = paypalWith(states);
+    const options = {
+      paypal, square: squareOk(), ...mailbox(), ...quiet,
+      env: { ADMIN_EMAILS: "farm@x.com" },
+    };
+
+    await startVenmo(stores, order(), { key: KEY, attempt: 1 }, options);
+    states["PPO-1"] = "COMPLETED";
+
+    // An unchanged cart (only a note differs) raises nothing.
+    const same = await startVenmo(stores, order({ notes: "Gate" }),
+      { key: KEY, attempt: 2 }, options);
+
+    assert.equal(same.paid.totals.total, 6000);
+    assert.equal(await readMark(stores, "alert/payment.unreconciled"), null);
+
+    const stores2 = testStores();
+
+    await startVenmo(stores2, order(), { key: KEY, attempt: 1 }, options);
+    states["PPO-2"] = "COMPLETED";
+
+    const bigger = order({
+      totals: { ...order().totals, total: 9000, subtotal: 9500 },
+    });
+    const out = await startVenmo(stores2, bigger, { key: KEY, attempt: 2 },
+      options);
+
+    assert.equal(out.paid.totals.total, 6000, "what they paid for");
+    assert.equal(out.paid.payments[0].amount, 6000);
+
+    const raised = await readMark(stores2, "alert/payment.unreconciled");
+
+    assert.ok(raised, "the farm is told");
+  });
+
   it("starts the new payment when the earlier one was not paid",
     async () => {
       const stores = testStores();

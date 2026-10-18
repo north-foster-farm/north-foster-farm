@@ -25,7 +25,7 @@ import { retry } from "./http.mjs";
 import { alert, mark } from "./health.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
-import { joined, welcome } from "./news.mjs";
+import { welcome } from "./news.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { announcePaid } from "./payments.mjs";
 import { pickupSchedule } from "./pickups.mjs";
@@ -108,27 +108,22 @@ export const completeOrder = async (stores, order, { square, payment }, {
   // here is the farm's to finish (the alert says what), never a
   // failure card for a customer who has just paid.
   try {
-    const before = await getCustomer(stores, order.customer.email);
-    const customer = await touchCustomer(stores, order.customer, now);
+    await touchCustomer(stores, order.customer, now);
 
     await adjust(stores, order.lines, -1);
     await mark(stores, "order", { id: order.id }, now);
+    await mark(stores, "paid", {
+      id: order.id, via: payment && payment.via,
+    }, now);
 
     log.info({
       event: "order.paid", id: saved.id, persistent: stores.persistent,
     });
 
-    const announced = await announcePaid(stores, order.id, {
-      mail, env, now,
-    });
-
-    // The order box joins farm news once the order is placed (T7), and
-    // the welcome follows the confirmation (T6).
-    if (joined(before, customer)) {
-      await welcome(stores, customer, { env, mail, now });
-    }
-
-    return announced || saved;
+    // No email goes from here: the request ends as soon as the record
+    // is written. announceNew sends them, after the answer or from the
+    // jobs, whichever comes first.
+    return saved;
   } catch (error) {
     const detail = { id: saved.id, error: String(error && error.message) };
 
@@ -140,6 +135,54 @@ export const completeOrder = async (stores, order, { square, payment }, {
     return saved;
   }
 };
+
+// The emails of a freshly paid order, kept out of the request that took
+// the payment so the answer is as short as it can be (#268). They are
+// sent after the answer where the platform allows, and by the jobs for
+// every paid order that has none yet, so a lost send is retried. Each
+// goes once however often this runs: the order notes what was sent.
+// Never throws. -> the record.
+//
+// The confirmation and the farm's notice (announcePaid), then, for an
+// order box ticked on this order (T7), the farm news welcome (T6).
+export const announceNew = async (stores, order, {
+  mail = sendMail,
+  env = process.env,
+  now = new Date(),
+} = {}) => {
+  try {
+    let current = await announcePaid(stores, order.id, { mail, env, now })
+      || await getOrder(stores, order.id) || order;
+
+    const customer = await getCustomer(stores, current.customer.email);
+
+    if (!(current.emails && current.emails.welcome)
+      && joinedBy(customer, current)
+      && await welcome(stores, customer, { env, mail, now })) {
+      current = await amendOrder(stores, current.id, {
+        emails: {
+          ...(current.emails || {}),
+          welcome: { at: now.toISOString() },
+        },
+      }, "mail.welcome", now);
+    }
+
+    return current;
+  } catch (error) {
+    log.error({
+      event: "order.announce_failed", id: order.id,
+      error: String(error && error.message),
+    });
+
+    return order;
+  }
+};
+
+// The customer joined farm news by ticking the box on this order: the
+// opt-in was written at the moment the order was paid.
+const joinedBy = (customer, order) => !!customer
+  && customer.marketing === true && customer.marketingSource === "order"
+  && customer.marketingAt === order.paidAt;
 
 // A card or a wallet, tokenised by the SDK. -> the paid record.
 // throws SquareError { declined, code } or { retryable }.
@@ -299,6 +342,21 @@ export const startVenmo = async (stores, order, { key, attempt = 1 }, {
           event: "payment.reconciled", id: prior.order.id,
           paypalOrderId: prior.paypalOrderId,
         });
+
+        // The order that was paid is the one recorded. If the cart
+        // changed since, the customer is answered with what they paid
+        // for, and the farm hears that it is not what the page now
+        // holds.
+        if (prior.order.totals.total !== order.totals.total
+          || JSON.stringify(prior.order.lines)
+            !== JSON.stringify(order.lines)) {
+          await alert(stores, "payment.unreconciled", {
+            id: prior.order.id, paypalOrderId: prior.paypalOrderId,
+            paid: prior.order.totals.total, total: order.totals.total,
+            why: "The customer changed the cart after paying with Venmo; " +
+              "the order recorded is the one that was paid for",
+          }, { env, mail: options.mail || sendMail, now });
+        }
 
         return {
           paid: await finishVenmo(stores, prior.order, {

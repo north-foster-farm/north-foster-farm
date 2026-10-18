@@ -39,6 +39,11 @@ const order = (id, method = "delivery") => ({
     } : null,
   },
   square: { squareOrderId: "SQO", customerId: "CUST" },
+  // Announced when it was paid; the jobs announce one that never was.
+  emails: {
+    orderConfirmed: { at: placed.toISOString() },
+    farmOrderPlaced: { at: placed.toISOString() },
+  },
   payment: {
     via: "square", method: "card", at: placed.toISOString(),
     squarePaymentId: `PAY-${id}`, receiptUrl: "https://sq/receipt",
@@ -217,6 +222,36 @@ describe("runJobs", () => {
 
       assert.deepEqual(still.closed, []);
       assert.deepEqual(closed.closed, ["A"]);
+    });
+
+  it("sends the emails of a paid order that never went out, once (#268)",
+    async () => {
+      const stores = testStores();
+      const { opts: base, sent } = harness();
+      const opts = { ...base, env: { ADMIN_EMAILS: "farm@x.com" } };
+      const unsent = { ...order("A"), emails: {} };
+
+      await saveOrder(stores, unsent, placed);
+      await saveOrder(stores, order("B"), placed);
+
+      const first = await runJobs(stores, {
+        ...opts, now: at("2026-10-05", 10),
+      });
+
+      assert.deepEqual(first.announced, ["A"]);
+      assert.equal(first.errors.length, 0);
+      assert.deepEqual(
+        sent.map((m) => m.subject).filter((s) => /confirmed|New order/.test(s))
+          .length, 2, "the customer's and the farm's");
+      assert.ok((await getOrder(stores, "A")).emails.orderConfirmed);
+
+      const again = await runJobs(stores, {
+        ...opts, now: at("2026-10-05", 10, 15),
+      });
+
+      assert.deepEqual(again.announced, []);
+      assert.equal(sent.filter((m) => /confirmed|^New order/.test(m.subject))
+        .length, 2, "no order email is sent twice");
     });
 
   it("makes the Square copy of a Venmo order that lacks one", async () => {

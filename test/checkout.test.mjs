@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  CheckoutError, PAGE_GRACE, attemptKey, completeOrder, finishVenmo,
-  payWithSquare, recordOnSquare, rescueCheckout, startVenmo, syncSquare,
+  CheckoutError, PAGE_GRACE, announceNew, attemptKey, completeOrder,
+  finishVenmo, payWithSquare, recordOnSquare, rescueCheckout, startVenmo,
+  syncSquare,
 } from "../netlify/functions/lib/checkout.mjs";
 import { readMark } from "../netlify/functions/lib/health.mjs";
 import { PayPalError } from "../netlify/functions/lib/paypal.mjs";
@@ -158,9 +159,15 @@ describe("completeOrder", () => {
       assert.equal((await getCounts(stores))["NFF-CHK-WHL-0350-0400"], 2);
       assert.equal((await readMark(stores, "order")).id, "NFF-2610-ABCD");
       assert.equal((await readMark(stores, "paid")).via, "square");
+      assert.equal(sent.length, 0, "the request that pays sends no email");
+
+      // The emails follow, after the answer or from the jobs, once.
+      await announceNew(stores, first, { mail, env, now });
       assert.equal(sent.length, 2);
       assert.equal(sent[0].subject, "Your order is confirmed");
       assert.match(sent[1].subject, /^New order/);
+      await announceNew(stores, first, { mail, env, now });
+      assert.equal(sent.length, 2, "each goes once");
 
       const again = await completeOrder(stores, order(), {
         square: null, payment: { via: "square" },
@@ -179,13 +186,30 @@ describe("completeOrder", () => {
     const boxed = order();
 
     boxed.customer = { ...boxed.customer, marketing: true };
-    await completeOrder(stores, boxed, {
+    const saved = await completeOrder(stores, boxed, {
       square: { squareOrderId: "SQO" }, payment: { via: "square" },
     }, { mail, env, now });
 
+    assert.equal(sent.length, 0);
+    await announceNew(stores, saved, { mail, env, now });
     assert.equal(sent.length, 3);
     assert.equal(sent[2].subject, "You're on the North Foster Farm list");
     assert.equal(sent[2].to, boxed.customer.email);
+
+    // Sent once: a second run (the jobs after the page's own) adds none.
+    await announceNew(stores, saved, { mail, env, now });
+    assert.equal(sent.length, 3);
+
+    // A customer who was already on the list gets no second welcome.
+    const stores2 = testStores();
+    const second = mailbox();
+    const plain = order();
+    const done = await completeOrder(stores2, plain, {
+      square: { squareOrderId: "SQO" }, payment: { via: "square" },
+    }, { mail: second.mail, env, now });
+
+    await announceNew(stores2, done, { mail: second.mail, env, now });
+    assert.equal(second.sent.length, 2, "no box ticked, no welcome");
   });
 });
 
@@ -453,6 +477,9 @@ describe("rescueCheckout", () => {
       assert.deepEqual(calls.find((c) => c[0] === "capture"),
         ["capture", attemptKey(KEY, 1), "PPO"]);
       assert.equal(await getCheckout(stores, KEY), null);
+      assert.ok(!sent.some((m) => m.to === "pat@example.com"),
+        "the request that rescues sends none: the jobs announce next");
+      await announceNew(stores, saved, { mail, env: options.env, now });
       assert.ok(sent.some((m) => m.to === "pat@example.com"),
         "the customer hears, late");
     });
