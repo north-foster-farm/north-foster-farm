@@ -2,6 +2,13 @@
 // news sign-up first, then the APPPA mark, the farm's links, how to
 // reach it, and the copyright. Rows wrap, centered, as the width
 // shrinks; nothing changes layout at a breakpoint.
+
+// Vertical rhythm: one unit is 1.5rem, the old uniform gap between
+// groups. Sign-up, logo and links each sit 2.5 units from the next
+// group; the contact line sits 2 units above the copyright.
+$footer-gap: 3.75rem;
+$footer-gap-copyright: 3rem;
+
 .site-footer {
   padding-block: 2.25rem 1.25rem;
   color: $navbar-light-color;
@@ -9,7 +16,7 @@
   background-color: $footer-bg;
 
   .footer-news {
-    margin-bottom: 2rem;
+    margin-bottom: $footer-gap;
   }
 
   .dot-list {
@@ -17,7 +24,7 @@
   }
 
   .footer-copyright {
-    margin-top: 1rem;
+    margin-top: $footer-gap-copyright;
   }
 
   a {
@@ -30,14 +37,14 @@
 
   // The links read a little larger than the contact line under them.
   nav .dot-list {
-    margin-bottom: 0.75rem;
+    margin-bottom: $footer-gap;
     font-size: 1.0625rem;
   }
 
   .apppa-logo {
     display: block;
     width: fit-content;
-    margin: 0 auto 1.75rem;
+    margin: 0 auto $footer-gap;
 
     svg {
       display: block;
