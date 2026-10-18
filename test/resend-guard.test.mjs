@@ -10,7 +10,6 @@ import {
 import {
   resendAllowed,
 } from "../netlify/functions/lib/resend-guard.mjs";
-import { lookupKey } from "../netlify/functions/lib/sent.mjs";
 
 // Staging never sends email (decided 2026-10-17): it reads its mail from
 // the outbox driver, and nothing in a staging deploy may reach Resend's
@@ -19,7 +18,6 @@ import { lookupKey } from "../netlify/functions/lib/sent.mjs";
 const live = {
   MAIL_DRIVER: "resend",
   RESEND_API_KEY: "re_test",
-  RESEND_LOOKUP_KEY: "re_lookup",
   RESEND_AUDIENCE_ID: "aud_1",
   RESEND_AUDIENCE_KEY: "re_audience",
   MAIL_FROM: "North Foster Farm <orders@example.com>",
@@ -70,10 +68,6 @@ describe("Resend is for production alone", () => {
         }), "unconfigured");
         assert.equal(calls.length, 0);
       });
-
-      it("will not hand out the lookup key", () => {
-        assert.throws(() => lookupKey(env), /production/);
-      });
     });
   }
 
@@ -86,7 +80,6 @@ describe("Resend is for production alone", () => {
       assert.equal(out.driver, "resend");
       assert.deepEqual(calls, ["https://api.resend.com/emails"]);
       assert.equal(audienceConfigured(env), true);
-      assert.equal(lookupKey(env), "re_lookup");
     });
   }
 
@@ -117,14 +110,13 @@ describe("every file that names Resend's API checks the guard", () => {
   const naming = [...sources("netlify"), ...sources("bin")]
     .filter((f) => readFileSync(f, "utf8").includes("api.resend.com"));
 
-  it("finds the four modules that call it", () => {
+  it("finds the three modules that call it", () => {
     const names = naming.map((f) => f.slice(root.length + 1)).sort();
 
     assert.deepEqual(names, [
       "bin/env/verify.mjs",
       "netlify/functions/lib/mail.mjs",
       "netlify/functions/lib/news.mjs",
-      "netlify/functions/lib/sent.mjs",
     ]);
   });
 

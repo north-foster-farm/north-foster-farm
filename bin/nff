@@ -141,12 +141,6 @@ const USAGE = `Usage:
   bin/nff library [--staging]         James's approvals and rewrites
                                       from the email library, to port
   bin/nff library clear <id>          drop an email's, once ported
-  bin/nff --production mail list [--since 2026-09-19] [--to <email>]
-                                      what Resend sent and how it
-                                      ended; addresses masked unless
-                                      --to names one
-  bin/nff --production mail show <id> [--to <email>]
-                                      one email's headers, no body
 
   --production, --staging, --preview  act on that deploy context's
                                       data; with none, on the dev
@@ -188,7 +182,6 @@ const [
   { library },
   review,
   { mailLinks },
-  sent,
   sourcemaps,
   { checkSchedule },
   { alertTest },
@@ -208,7 +201,6 @@ const [
   import("../netlify/functions/lib/library.mjs"),
   import("../netlify/functions/lib/review.mjs"),
   import("../netlify/functions/lib/site.mjs"),
-  import("../netlify/functions/lib/sent.mjs"),
   import("../netlify/functions/lib/sourcemaps.mjs"),
   import("../assets/scripts/order/lib/schedule.mjs"),
   import("../netlify/functions/lib/health.mjs"),
@@ -363,33 +355,6 @@ const libraryReview = async () => {
   }
 
   return items.length ? undefined : out("Nothing waits to be ported.");
-};
-
-// What Resend sent from production (lib/sent.mjs). Only production
-// sends through Resend, and only .env.production holds the key.
-const mailLookup = async () => {
-  if (context !== "production") {
-    throw new Error("Mail is read from production's Resend: add"
-      + " --production.");
-  }
-
-  const to = typeof flags.to === "string" ? flags.to : undefined;
-
-  if (action === "show") return out(await sent.showSent(rest[0], { to }));
-  if (action !== "list") {
-    console.error(USAGE);
-    process.exit(1);
-  }
-
-  const since = typeof flags.since === "string" ? flags.since : undefined;
-  const rows = await sent.listSent({ since, to });
-
-  for (const r of rows) {
-    out(`${r.at.slice(0, 16)}  ${r.lastEvent.padEnd(10)}${r.id}  ${
-      r.to.join(", ")}\n      ${r.subject}`);
-  }
-
-  return rows.length ? undefined : out("No emails.");
 };
 
 // The env file and its tracked sample, for env push and env check
@@ -669,7 +634,6 @@ const restoreCommand = async (file) => {
 const run = async () => {
   if (group === "env") return envCommand();
   if (group === "library") return libraryReview();
-  if (group === "mail") return mailLookup();
   if (group === "export") return exportCommand();
   if (group === "restore") return restoreCommand(action);
   if (group === "login" && action) return signIn(action, false);

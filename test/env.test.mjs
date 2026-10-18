@@ -531,14 +531,11 @@ describe("env push, refusing what it can't do", () => {
         "Netlify.\n", "")
       .replace("# A personal access token.",
         "# A personal access token (Local only: never on Netlify).")
-      .concat("\n# NETLIFY_SITE_ID\n# The site.\nNETLIFY_SITE_ID=abc\n",
-        "\n# RESEND_LOOKUP_KEY\n# Reads what Resend sent.\n",
-        "RESEND_LOOKUP_KEY=\n");
+      .concat("\n# NETLIFY_SITE_ID\n# The site.\nNETLIFY_SITE_ID=abc\n");
     const s = readSample(text, "staging");
 
     assert.deepEqual(s.errors, []);
-    assert.deepEqual(s.local, ["NETLIFY_AUTH_TOKEN", "NETLIFY_SITE_ID",
-      "RESEND_LOOKUP_KEY"]);
+    assert.deepEqual(s.local, ["NETLIFY_AUTH_TOKEN", "NETLIFY_SITE_ID"]);
 
     const unmarked = readSample(FIXTURE.replace(
       "# Local only: bin/nff reads it. env push skips it; never set on " +

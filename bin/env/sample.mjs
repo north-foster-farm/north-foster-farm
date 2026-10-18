@@ -27,7 +27,7 @@ const EXPORT = /^export\s+/;
 // Never pushed, whatever a sample's comments say: the tools' own
 // credentials and Netlify's own pointer, read only on James's Mac.
 export const NEVER_PUSHED = new Set([
-  "NETLIFY_AUTH_TOKEN", "NETLIFY_SITE_ID", "RESEND_LOOKUP_KEY",
+  "NETLIFY_AUTH_TOKEN", "NETLIFY_SITE_ID",
 ]);
 
 // The environments that have a sample, and the file each is in.
