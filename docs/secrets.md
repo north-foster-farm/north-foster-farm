@@ -169,18 +169,28 @@ production and each with its own value in staging, never
 production's:
 
 - `FARM_NOTIFICATIONS_EMAIL` (sales@northfosterfarm.com): the farm's
-  notice of each new order and the contact form's messages, with
-  reply-to the writer.
-- `DEV_NOTIFICATIONS_EMAIL` (dev@northfosterfarm.com): every alert,
-  the rotation reminder, and the maintenance bypass's admin address.
-  Unset, the production build and `bin/nff env check` fail; there is
-  no fallback.
+  notice of each new order, the contact form's messages (reply-to the
+  writer), the 8:00 morning report and the 18:00 tomorrow email. No
+  alert goes there.
+- `DEV_NOTIFICATIONS_EMAIL` (dev@northfosterfarm.com): every alert of
+  every kind, with no fallback, plus the maintenance flip notices,
+  the session-end notice, the rotation reminder and the maintenance
+  bypass's admin address. Jim no longer hears the flips. Unset, the
+  production build and `bin/nff env check` fail.
 - `ESCALATED_NOTIFICATIONS_EMAIL` (office@northfosterfarm.com): one
   message only, the "orders not recorded" escalation below. Jim gets
   nothing else from the system.
 
-`ADMIN_EMAILS` is gone. `bin/nff env check` fails if the name appears
-in any environment or sample.
+All three are required in production and staging. The staging and
+development samples hold their own values: staging's are blank in the
+sample and filled in `.env.staging`; development uses example.com
+addresses.
+
+`ADMIN_EMAILS` is gone. The build and `bin/nff env check` both fail
+if the name is present in any sample, env file or Netlify context
+(production and staging builds read their own sample; `env check`
+also reads the local file and Netlify). For a stray `ADMIN_EMAILS` on
+Netlify, `env check` prints the unset command; it never deletes.
 
 The rest of `.env.sample` is configuration, not secret:
 `ACCOUNTS_ENABLED`, `ADMIN_URL`, `AXIOM_DATASET`, `CONTACT_URL`,
@@ -911,14 +921,20 @@ secret.
    - Axiom: token use. GitHub: secrets and workflow runs.
 4. **Notifications go to three addresses, and no others.**
    `DEV_NOTIFICATIONS_EMAIL` (dev@northfosterfarm.com) takes every
-   alert except one, and the maintenance bypass's admin address is
-   the same. `FARM_NOTIFICATIONS_EMAIL` (sales@northfosterfarm.com)
-   takes the farm's notice of each new order and the contact form's
-   messages. `ESCALATED_NOTIFICATIONS_EMAIL`
-   (office@northfosterfarm.com) takes one message: "orders not
-   recorded", left unacknowledged for an hour, in plain
-   language, that James has not responded, to switch on maintenance
-   mode, with the signed link (`docs/rollback.md`, section 3). Jim
+   alert of every kind, with no fallback; the maintenance flip
+   notices, the session-end notice, the rotation reminder and the
+   maintenance bypass's admin address go there too, and only there.
+   `FARM_NOTIFICATIONS_EMAIL` (sales@northfosterfarm.com) takes the
+   farm's notice of each new order, the contact form's messages, the
+   8:00 morning report and the 18:00 tomorrow email, but no alert.
+   `ESCALATED_NOTIFICATIONS_EMAIL` (office@northfosterfarm.com) takes
+   one message: "orders not recorded" (`orders.not_recorded`), in
+   plain language, that James has not responded, to switch on
+   maintenance mode, with the current epoch's signed ON link, built
+   when the message is sent. It goes out after the alert has been
+   unacknowledged for an hour and again every hour while the alert
+   stays open; acknowledging it stops it
+   (`docs/rollback.md`, section 3). Jim
    gets nothing else from the system. The alert-by-alert split is in
    `docs/monitoring.md`. Creating dev@ in Fastmail is a blocking
    launch gate, followed by a test message sent through the real
