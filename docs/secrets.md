@@ -27,34 +27,64 @@ yet written; it is after-launch work).
    `RESEND_WEBHOOK_SECRET` and its endpoint) are revoked once launch
    day's live checks pass.
 4. **A change on Netlify needs a deploy.** Functions read their
-   environment at deploy time. After `bin/nff netlify env:set`, trigger a
-   production deploy (Deploys → Trigger deploy, or
-   `bin/nff netlify api createSiteBuild`) and wait for it to publish before
-   revoking the old value. What a key change means for a rollback is
-   in `docs/rollback.md`.
+   environment at deploy time. After `bin/nff env push`, trigger a
+   production deploy (Deploys → Trigger deploy, or `bin/nff netlify
+   api createSiteBuild`) and wait for it to publish before revoking
+   the old value. What a key change means for a rollback is in
+   `docs/rollback.md`.
 5. **New first, old last.** Create the replacement, set it, deploy,
-   prove it, then revoke the old one. The Square access token is the
-   exception (see Square), and it runs under maintenance mode.
-6. **Maintenance mode first** when a key that moves money (Square,
+   prove it, then revoke the old one, on the schedule in rule 6. The
+   Square access token is the exception (see Square), and it runs
+   under maintenance mode.
+6. **A routine rotation keeps the old credential for 31 days.** One
+   rule for every key. The old credential stays valid for 31 days
+   after the new one is live, or until its own Jan 31 expiry,
+   whichever comes first, and is then revoked or destroyed. Both
+   dates go in the rotation log (rule 11), and the December reminder
+   also lists revocations still pending. Each vendor section points
+   here and states only what differs. Within the overlap a deploy
+   built before the rotation still works; the rollback floor that
+   follows from it is `docs/rollback.md`'s to state.
+   - **A leak is not routine: revoke at once,** with no overlap. The
+     one exception is the age private key, which cannot be revoked:
+     the old one is kept only to decrypt existing backups (Backups).
+   - **Secrets we generate ourselves are swapped at once,** with no
+     overlap and no code to accept two values: `STAGING_TOKEN`,
+     `E2E_STAGING_TOKEN` and `MAINTENANCE_SECRET`. For a staging
+     token, set the new value on Netlify's staging context, the
+     GitHub secret, its env file and the password manager in one
+     sitting. For `MAINTENANCE_SECRET` the only cost is that James's
+     old phone link stops working; the new link goes in the password
+     manager. They are low in sensitivity or easily re-entered, and an
+     overlap would need code to accept two values.
+   - **A vendor that cannot overlap** is named in its own section as
+     the exception: Square's Replace (no documented grace period) and
+     Resend's webhook secret (a 24-hour window of its own).
+7. **Maintenance mode first** when a key that moves money (Square,
    PayPal) or the Netlify token may be in someone else's hands, and
-   for any step that has no overlap. `bin/nff --production
-   maintenance on` and `off` (`docs/maintenance.md`).
-7. **One value per context.** Set each value on its own context, never
+   for any step that has no overlap, except where a section says
+   otherwise (PayPal). `bin/nff --production maintenance on` and
+   `off` (`docs/maintenance.md`).
+8. **One value per context.** Set each value on its own context, never
    on "all", and never copy one context's value to another.
-8. **Every copy.** A secret often lives in two or three places (the
+9. **Every copy.** A secret often lives in two or three places (the
    table says which). Update them all in one sitting.
-9. **Set secrets as secret.** `bin/nff env push` does it; by hand,
-   `bin/nff netlify env:set NAME value --context ctx --secret --json`.
-   `--scope` silently fails; leave scopes at the default.
-10. **Write it down.** Every rotation gets a line in
+10. **Set secrets as secret.** `bin/nff env push` does it; by hand,
+    `bin/nff netlify env:set NAME value --context ctx --secret
+    --json`. `--scope` silently fails; leave scopes at the default.
+    Every Netlify command goes through `bin/nff netlify`, which
+    carries the Keychain token (see Netlify).
+11. **Write it down.** Every rotation gets a line in
     `docs/rotation-log.md`: name, date, environment, reason
-    (`schedule`, `leak`, `lost device`, `access ended`) and who.
-    Names and dates only, never a value. The log covers every secret:
-    each name in the table below, and each secret name in
-    `.env.sample`, has a seed entry in it. A `lint-and-test` check
-    fails on any name without one, because the December reminder sees
-    only logged secrets, and an unlogged one would silently never
-    rotate.
+    (`schedule`, `leak`, `lost device`, `access ended`) and who. When
+    the old credential is revoked, a second line with reason
+    `revoked` records that date, so a pending revocation is a
+    rotation with no `revoked` line after it. Names and dates only,
+    never a value. The log covers every secret: each name in the
+    table below, and each secret name in `.env.sample`, has a seed
+    entry in it. A `lint-and-test` check fails on any name without
+    one, because the December reminder sees only logged secrets, and
+    an unlogged one would silently never rotate.
 
 ## Schedule
 
@@ -63,16 +93,23 @@ yet written; it is after-launch work).
 - **Every credential that can expire is set to expire on Jan 31** of
   the next year: a month to rotate, a month of buffer, so a missed
   rotation shows as an expired token rather than going unnoticed.
-  That covers the Netlify personal access token, the Axiom tokens and
-  `STAGING_REVIEWER_TOKEN`. The Square access token cannot expire (see
-  Square) and still rotates in the window.
+  That covers the Netlify personal access token and the Axiom tokens.
+  The Square access token cannot expire (see Square) and still rotates
+  in the window. Resend keys do not expire, so the staging gate's key
+  and the others rotate by the calendar alone.
+- **The 31-day overlap** (rule 6) puts the revocation of an old
+  credential up to 31 days after its rotation, or at its Jan 31
+  expiry if that comes first. A rotation made on Dec 20 is revoked
+  Jan 20; one made on Jan 1 is revoked Jan 31.
 - **Ping URLs, ids and the build hook** rotate only on a leak.
 - **The reminder.** On Dec 1 the scheduled jobs email
   `DEV_NOTIFICATIONS_EMAIL` what is still due, read from the rotation
   log, then weekly, then one louder email in the last week of
   December (`netlify/functions/lib/rotation.mjs`; the job is in
-  `docs/monitoring.md`). A secret missing from the log is invisible to
-  it, which is why the log is seeded with every secret.
+  `docs/monitoring.md`). It also lists each rotation whose old
+  credential is still waiting to be revoked; that part is to be built
+  before Dec 1. A secret missing from the log is invisible to it,
+  which is why the log is seeded with every secret.
 - **Quiet hours.** The Square token rotates under maintenance mode,
   in a quiet hour inside the window.
 - **Vendor sources.** Re-check every source under "Vendor references"
@@ -105,10 +142,12 @@ of every row.
 | `BACKUP_R2_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY` | secret | production only | env file | Cloudflare |
 | The age private key | secret | James's Mac only; never Netlify | offline copy | us |
 | `STAGING_TOKEN` | secret | staging; GitHub secret | `.env.staging` | us |
-| `STAGING_REVIEWER_TOKEN` | secret | staging only, while a reviewer has access | `.env.staging` | us |
+| `GATE_RESEND_KEY` | secret | staging | `.env.staging` | Resend |
 | `E2E_STAGING_TOKEN` | secret | staging; GitHub secret | `.env.e2e-staging` | us |
 | `MAINTENANCE_SECRET` | secret | each environment | env file | us |
-| `ESCALATION_EMAIL` | address (office@northfosterfarm.com), configuration | production; staging | env file | us |
+| `FARM_NOTIFICATIONS_EMAIL` | address (sales@northfosterfarm.com), configuration | each environment | env file | us |
+| `DEV_NOTIFICATIONS_EMAIL` | address (dev@northfosterfarm.com), configuration | each environment | env file | us |
+| `ESCALATED_NOTIFICATIONS_EMAIL` | address (office@northfosterfarm.com), configuration | each environment | env file | us |
 | `NETLIFY_AUTH_TOKEN` | secret | macOS Keychain only | password manager | Netlify |
 | `PICKUP_SCHEDULE_HOOK` | build hook URL | env file | password manager | Netlify |
 | `PAYPAL_*_EMAIL`, `_PASSWORD` | sandbox logins | `.env.staging` only | password manager | PayPal |
@@ -125,13 +164,33 @@ share one set of Square, PayPal and Axiom values. Delete this note with
 are public: the order page receives them. The sandbox PayPal logins
 sit in `.env.staging` only and are not in `.env.sample`.
 
+The three notification addresses are configuration, each required in
+production and each with its own value in staging, never
+production's:
+
+- `FARM_NOTIFICATIONS_EMAIL` (sales@northfosterfarm.com): the farm's
+  notice of each new order and the contact form's messages, with
+  reply-to the writer.
+- `DEV_NOTIFICATIONS_EMAIL` (dev@northfosterfarm.com): every alert,
+  the rotation reminder, and the maintenance bypass's admin address.
+  Unset, the production build and `bin/nff env check` fail; there is
+  no fallback.
+- `ESCALATED_NOTIFICATIONS_EMAIL` (office@northfosterfarm.com): one
+  message only, the "orders not recorded" escalation below. Jim gets
+  nothing else from the system.
+
+`ADMIN_EMAILS` is gone. `bin/nff env check` fails if the name appears
+in any environment or sample.
+
 The rest of `.env.sample` is configuration, not secret:
-`ACCOUNTS_ENABLED`, `ADMIN_EMAILS`, `ADMIN_URL`, `AXIOM_DATASET`,
-`CONTACT_URL`, `DEV_NOTIFICATIONS_EMAIL` (dev@northfosterfarm.com),
-`MAIL_*`, `NETLIFY_SITE_ID`, `PAYPAL_ENV`, `PICKUP_SCHEDULE`,
-`RESEND_AUDIENCE_ID`, `SITE_CONTEXT`, `SITE_URL`, `SQUARE_ENV`,
-`SQUARE_VERSION`, `SQUARE_WEBHOOK_URL`, `VENMO_HIDDEN`, and
-Netlify's own `HUGO_*` and `NODE_VERSION`.
+`ACCOUNTS_ENABLED`, `ADMIN_URL`, `AXIOM_DATASET`, `CONTACT_URL`,
+`GATE_MAIL_FROM` and `GATE_TOOLBAR_EMAIL` (staging only; see
+Staging), `MAIL_*`, `NETLIFY_SITE_ID`, `PAYPAL_ENV`,
+`PICKUP_SCHEDULE`, `RESEND_AUDIENCE_ID`, `RESEND_SENDING_KEY_NAME`
+(the sending key's name in Resend, which the send breaker uses to find
+it), `SITE_CONTEXT`, `SITE_URL`, `SQUARE_ENV`, `SQUARE_VERSION`,
+`SQUARE_WEBHOOK_URL`, `VENMO_HIDDEN`, and Netlify's own `HUGO_*` and
+`NODE_VERSION`.
 
 **Launch blocker: previews and `dev` hold no production value.** Every
 value on `deploy-preview` and `dev` is removed except `SITE_CONTEXT`
@@ -159,15 +218,18 @@ its own, previews get none, and development gets a fake in `.env`.
 - **PayPal:** a sandbox app per environment, each with its own
   business account, credentials and webhooks. Staging's business
   account needs Venmo on and `buyer-country=US`.
-- **Resend:** production only (decided 2026-10-17). Staging sends no
-  email: its `MAIL_DRIVER` is the outbox, James reads the mail in its
-  email library, and it holds no Resend team, key, audience or
-  webhook. Development and previews get none either. The code
-  enforces it: `netlify/functions/lib/resend-guard.mjs` refuses any
-  call to Resend's API outside production, whatever the variables
-  say, and `test/resend-guard.test.mjs` fails if a module that calls
-  Resend skips the check. Delete the farm team's Resend webhook that
-  points at staging.
+- **Resend:** production only (decided 2026-10-17), with one
+  exception. Staging sends no email: its `MAIL_DRIVER` is the outbox,
+  James reads the mail in its email library, and it holds no audience
+  or webhook. The exception, approved 2026-10-18, is the access
+  gate's sign-in link (Staging): it goes through a staging-only
+  sending key, `GATE_RESEND_KEY`, never production's. Development and
+  previews send none. The code enforces it:
+  `netlify/functions/lib/resend-guard.mjs` refuses any call to
+  Resend's API outside production, whatever the variables say, except
+  the gate's own send, and `test/resend-guard.test.mjs` fails if a
+  module that calls Resend skips the check. Delete the farm team's
+  Resend webhook that points at staging.
 - **Axiom:** a dataset and an ingest token each for production and
   staging.
 - **Healthchecks:** separate checks per environment. Staging's jobs
@@ -180,10 +242,12 @@ its own, previews get none, and development gets a fake in `.env`.
   worthless. Copies are kept 30 days (D-189): the lock rule protects
   each object for 30 days and a lifecycle rule deletes older ones.
   The setup is in `docs/backup.md`.
-- **`STAGING_TOKEN`, `STAGING_REVIEWER_TOKEN`:** staging only;
-  production holds neither name, not even empty, and the build fails
-  if it does (b60a03b). If either name exists in the production
-  context, unset it (`bin/nff netlify env:unset NAME --context production`).
+- **`STAGING_TOKEN` and the gate's variables (`GATE_RESEND_KEY`,
+  `GATE_MAIL_FROM`, `GATE_TOOLBAR_EMAIL`):** staging only; production
+  holds none of these names, not even empty, and the build fails if
+  it does (b60a03b). `STAGING_REVIEWER_TOKEN` is retired and must not
+  exist anywhere. If a name exists in the production context, unset
+  it (`bin/nff netlify env:unset NAME --context production`).
 - **`E2E_STAGING_TOKEN`:** staging only; the end-to-end suite's own
   token (`docs/staging.md`). The suite holds it and no Netlify token
   (#266). Until it is set on the staging context and saved in
@@ -195,7 +259,9 @@ its own, previews get none, and development gets a fake in `.env`.
   draft for James), and its order API answers 403 with it
   (`paymentsOff` in `lib/payments.mjs`), but pages, the news sign-up,
   contact and health work. Fork pull requests need approval before
-  they build (the site's untrusted-deploy setting is `review`).
+  they build (the site's untrusted-deploy setting is `review`). Previews
+  sit behind the same access gate as staging, with a separate
+  allowlist (`docs/staging.md`).
 
 The order: make the new credentials, push them with `bin/nff env
 push`, confirm with `bin/nff env check` and `env verify`, then revoke
@@ -299,12 +365,14 @@ rotates in the Dec 1 to Jan 1 window.
 documentation does not say what happens to the old token when
 Replace issues a new one, and no source found settles it (searched
 2026-10-18). Treat the old token as dead the moment Replace is
-clicked. **Open, to check before the first rotation:** James replaces
-the sandbox token (no customer is affected) and, with the old value
-kept for a minute, makes one read-only call with it (for example
-`bin/nff --staging health` before updating the env file, or a
-`GET /v2/locations`). If it still answers, record the minutes it
-stays valid here, with the date, and the steps may use it.
+clicked. This is the exception to the 31-day overlap (rule 6), so the
+rotation runs under maintenance mode. **Open, post-launch QA, to
+check before Dec 1:** James replaces the sandbox token (no customer
+is affected) and, with the old value kept for a minute, makes one
+read-only call with it (for example `bin/nff --staging health`
+before updating the env file, or a `GET /v2/locations`). If it still
+answers, record the minutes it stays valid here, with the date, and
+the steps may use it.
 
 Checkout fails from the Replace until the new deploy is live, card
 and Venmo alike, since a Venmo payment is recorded on the Square
@@ -340,9 +408,9 @@ current one and an optional `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS`
 2. Set the old value as `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS` and
    the new one as `SQUARE_WEBHOOK_SIGNATURE_KEY`; deploy.
 3. Check a delivery verifies.
-4. **Remove `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS`** and deploy. The
-   swap is safe only if the old key is gone afterward; on a leak,
-   skip step 2 and remove the old key at once.
+4. **Remove `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS`** and deploy, 31
+   days later (rule 6). The swap is safe only if the old key is gone
+   afterward; on a leak, skip step 2 and remove the old key at once.
 
 Signature failures page James (see "Alerts", below).
 
@@ -363,10 +431,11 @@ enabled). The swap has an overlap because an app can hold two
 secrets, each enabled or disabled, a disabled one re-enabled until
 deleted (PayPal's engineering post on credential rotation, below).
 That post is old and PayPal's current docs do not describe the
-feature, so **open:** before the first rotation, James confirms in
-Apps & Credentials → Live → the app that the page offers a second
-secret and a disable control. No maintenance mode is needed for the
-swap, since both secrets work at once.
+feature, so **open, post-launch QA, to check before Dec 1:** James
+confirms in Apps & Credentials → Live → the app that the page offers
+a second secret and a disable control, and records the result here.
+No maintenance mode is needed for a routine swap, since both secrets
+work at once.
 
 1. Add a second secret to the app.
 2. `bin/nff env push --production` with the new one in
@@ -374,20 +443,30 @@ swap, since both secrets work at once.
    bearer token (`lib/paypal.mjs:98`), which a warm function otherwise
    keeps for its lifetime.
 3. `bin/nff env verify --production` (one read-only PayPal call).
-4. Disable the old secret, then, a day later, delete it.
+4. Thirty-one days later (rule 6), disable the old secret, then, a
+   day later, delete it.
 
-*On a leak, the old secret is disabled first, so maintenance mode
-goes on first.* A stolen secret may already have minted bearer tokens,
-and PayPal's documents say an access token is valid for the seconds
-its response states (`expires_in`; the REST guide's sample shows
-31668, about 8.8 hours). **Open:** PayPal's current REST documents
-describe no call that ends an existing token, and none was found
-(searched 2026-10-18). James asks PayPal, or tests with a sandbox app
-(mint a token, disable the secret, call the API with the token), and
-records the answer here. Until then the leak procedure keeps
-maintenance mode on for at least 9 hours after disabling the secret,
-and watches PayPal's activity page for refunds and payouts the farm
-did not make.
+**On a leak:**
+
+1. Disable the old secret in PayPal at once.
+2. Watch PayPal's account activity for refunds, payouts and captures
+   the farm did not make, for the access token's lifetime. A stolen
+   secret may already have minted bearer tokens, which work against
+   PayPal's API directly, and PayPal's documents say a token is valid
+   for the seconds its response states (`expires_in`; the REST
+   guide's sample shows 31668, about 8.8 hours). Look in Activity on
+   the Business account and in the REST app's dashboard. No current
+   REST document describes a call that ends an existing token
+   (searched 2026-10-18); **open,** James asks PayPal or tests it
+   with a sandbox app (mint a token, disable the secret, call the
+   API with the token) and records the answer here.
+3. Switch maintenance mode on only until the new secret is deployed
+   and verified, a matter of minutes. Closing the shop for the
+   token's lifetime would protect nothing, since the stolen token is
+   used against PayPal directly, and it would turn away card orders
+   all day. A switch that stops only the PayPal and Venmo path, so
+   that Card keeps taking orders, does not exist yet; it is an
+   after-launch item.
 
 **`PAYPAL_WEBHOOK_ID`.** Not a secret: the subscription's id, which
 `verify-webhook-signature` needs (`lib/paypal.mjs:338`). It changes
@@ -410,19 +489,25 @@ emails"); only a sending key can be limited to one domain (Resend's
 create-key reference, below).
 
 - **`RESEND_API_KEY`**: sending access for the domain. Leaked, it
-  sends mail as the farm. James's reading is that Pro has no daily
-  quota (not checked against Resend's pricing page), so the real harm
-  is the domain's reputation: spam placed in inboxes. Watch Resend's
-  sent log, bounces and complaints. Create, set on Netlify
-  (production only), deploy, delete the old. No downtime.
+  sends mail as the farm, and the harm is two: the domain's
+  reputation, with spam placed in inboxes, and an outage. Pro has a
+  monthly send limit even without a daily one, so a spammer can use it
+  up and stop order confirmations and alerts. The "no daily quota"
+  reading is James's and unchecked: verify it on Resend's pricing page
+  at the Pro upgrade and record it under Vendor references. The send
+  breaker (below) is the leak detection. Create, set on Netlify
+  (production only), deploy, and delete the old after 31 days (rule
+  6). No downtime.
 - **`RESEND_AUDIENCE_KEY`**: the key the newsletter sync uses
   (`lib/news.mjs:380`). It needs `full_access`: only that permission
   can create, update and delete contacts, so it cannot be a sending
   key. **A known, accepted risk:** a leak exposes every contact in
   the audience and lets someone edit or delete them. **Open:** James
   confirms the key shows "Full access" in Resend → API Keys (the
-  dashboard is the source; the documents do not list contacts by name).
-  Same swap steps as the sending key.
+  dashboard is the source; the documents do not list contacts by
+  name). The breaker depends on it, since it deletes the sending key
+  with this one, so the check gates the breaker's rehearsal. Same
+  swap steps as the sending key.
 - **`RESEND_READ_KEY`**: read by no code in the release; only the old
   invoice checkout's `venmo-inbound` read received email with it.
   Delete it from Netlify and Resend once launch day's live checks
@@ -431,7 +516,9 @@ create-key reference, below).
   in the dashboard or with `POST /webhooks/{id}/signing-secret/rotate`.
   For 24 hours Resend signs with both secrets, and
   `resend-webhook.mjs:49` accepts any matching `v1` signature, so set
-  the new one and deploy within the day. No downtime. On launch day
+  the new one and deploy within the day. This is the exception to the
+  31-day overlap (rule 6): the vendor's window is 24 hours. No
+  downtime. On launch day
   #237 replaces the old Venmo inbound endpoint's value with the
   `/api/resend/webhook` endpoint's; the old one is revoked after the
   live checks pass, with the old endpoint.
@@ -440,8 +527,76 @@ create-key reference, below).
   Resend and its line in `.env.production`; to see what was sent, use
   Resend's dashboard.
 
-Cadence: on the schedule. After a leak, check the sent log, new or
-deleted keys and new or deleted webhooks.
+- **`GATE_RESEND_KEY`**: the staging access gate's own sending key
+  (Staging), made for staging alone and never production's. It sends
+  the sign-in link and nothing else, to allowlisted addresses. It is
+  vendor-issued, so a routine rotation keeps the old key 31 days
+  (rule 6), and Resend keys do not expire, so only the calendar
+  rotates it, Dec 1 to Jan 1. It has a row in the table and the
+  rotation log, and a place in the incident order. The send breaker
+  covers it with a ceiling of its own.
+- **Cadence:** on the schedule. After a leak, check new or deleted
+  keys and new or deleted webhooks, and read what the breaker
+  recorded.
+
+### The send breaker
+
+Nobody watches a sent log; the code does
+(`netlify/functions/lib/breaker.mjs`, thresholds in
+`data/breaker.json`), and shuts sending down before damage, even when
+the cause is harmless. It is the leak detection for both sending keys.
+
+What it needs from Resend, once:
+
+1. Webhooks → the `/api/resend/webhook` endpoint: tick `email.sent`,
+   `email.bounced` and `email.complained`, beside the contact events
+   already there.
+2. API Keys → `RESEND_AUDIENCE_KEY` shows "Full access".
+3. `RESEND_SENDING_KEY_NAME` is set to the sending key's name in
+   Resend, since the key list cannot say which key is which.
+
+What trips it:
+
+| Trip | When | Why this number |
+| --- | --- | --- |
+| Foreign send | any `email.sent` whose message id our send path did not record | the key is in use outside our code |
+| Volume, hour | more than 25 sends in a UTC hour | normal is a handful an hour |
+| Volume, day | more than 100 sends in a UTC day | normal is a few dozen |
+| Bounces | 3 or more and 10% or more of the last two hours' sends, over at least 10 sends | Resend asks senders to stay under 4% |
+| Complaints | 2 in the last two hours | a handful of sends a day makes any complaint a lot |
+
+The gate's mail has its own ceiling, 6 an hour and 20 a day
+(`data/gate.json`). A planned bulk send is declared first: `bin/nff
+breaker declare --count 90 --hours 3 --note "launch invitations"`
+raises both ceilings for those hours and no longer. A send bigger than
+declared still trips.
+
+When it trips, the stop flag is written to the jobs store, so every
+function instance stops sending at once. Orders keep being taken and
+their emails are held, not lost. The sending key is deleted through
+Resend's API with the audience key. The phone is alerted through
+Healthchecks (a down push, then an up push), a channel that does not
+use Resend, and the incident is kept.
+
+After a trip:
+
+1. `bin/nff breaker status --production`: what tripped it, and whether
+   the key was deleted and the phone alerted.
+2. Find the cause. A foreign send means the key leaked: also rotate
+   the audience key. Resend's dashboard shows what was sent.
+3. Make a new sending key, set `RESEND_API_KEY`, deploy.
+4. `bin/nff breaker reset --yes --production`. It writes the incident
+   to `incidents/`; add the cause to it.
+5. `bin/nff breaker flush --production --dry-run`, then without
+   `--dry-run`, sends the held mail. Sign-in links and anything over
+   72 hours old are not sent.
+
+It never resets itself. Mail sent from Resend's dashboard or any tool
+other than this code trips the foreign-send check, and a launch
+invitation to the old list can bounce past 10%; both trip by design.
+If the webhook is not subscribed to `email.sent`, foreign sends go
+unseen: `bin/nff breaker status` warns when sends over 15 minutes old
+never came back.
 
 ## Axiom
 
@@ -455,9 +610,10 @@ dataset and nothing else; this page then drops the hedge. A leaked
 ingest token lets someone write junk into the logs and nothing more.
 
 Rotate with Settings → API tokens → the token → Regenerate, or
-`POST /v2/tokens/{id}/regenerate` with `existingTokenExpiresAt` set a
-day out, which keeps the old token alive while the deploy lands. Set,
-deploy, `env verify`. Logs are lost only for a failed swap.
+`POST /v2/tokens/{id}/regenerate` with `existingTokenExpiresAt` set 31
+days out, or at Jan 31 if that is sooner (rule 6), which keeps the
+old token alive after the deploy lands. Set, deploy, `env verify`.
+Logs are lost only for a failed swap.
 
 *Expiry.* A token created without `expiresAt` never expires (Axiom's
 create-token reference), so set every token to expire Jan 31 of the
@@ -505,73 +661,141 @@ and does not only log (30c08b1, 3e48b67; `docs/monitoring.md`).
 **`BACKUP_R2_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY`.** The nightly
 export's bucket-scoped token (see "One set per environment"). Rotate
 in Cloudflare → R2 → Manage API tokens: create the new token, push,
-deploy, `env verify`, delete the old. A leaked token can read and
-write backups but not delete or overwrite them (bucket lock), and a
-read yields only age-encrypted files.
+deploy, `env verify`, and delete the old after 31 days (rule 6). A
+leaked token can read and write backups but not delete or overwrite
+them (bucket lock), and a read yields only age-encrypted files.
 
 **The age private key** decrypts every backup. It lives on James's
 Mac, never on Netlify, with a second copy offline; lose both and every
 backup is unreadable (`docs/backup.md`). Only the public key
-(`BACKUP_AGE_RECIPIENT`) is on the site. A leaked private key does not
-expose past backups to anyone without the files, but with the bucket
-token it opens them: make a new key pair, change
-`BACKUP_AGE_RECIPIENT`, and re-encrypt nothing (old copies expire in
-30 days). Replace it also on the schedule.
+(`BACKUP_AGE_RECIPIENT`) is on the site. To replace it, on the
+schedule or on a leak, make a new key pair, change
+`BACKUP_AGE_RECIPIENT`, and re-encrypt nothing. A private key cannot
+be revoked, so rule 6 reads differently here: **keep the old private
+key, both copies, for 31 days after the change,** so the 30-day
+backup window stays readable (a December rotation would otherwise
+leave the most recent backups unreadable), then destroy both. After a
+leak the old key is kept for the same purpose only, to decrypt the
+existing backups, and nothing else uses it. A leaked private key does
+not expose past backups to anyone without the files, but with the
+bucket token it opens them.
+
+*Restore testing.* Today `docs/backup.md` has a one-off manual
+rehearsal. After launch, restoring is tested on a schedule and every
+restoration path is proven automatically (a post-launch QA item in the
+launch guide): monthly, and once in each rotation window, a run
+fetches a recent backup, decrypts it, restores into scratch stores,
+compares counts and clears them. The paths are the online private key,
+the offline copy, production and staging backups, and `restore-db.mjs`
+for the dashboard's Supabase if it is in scope. The offline copy needs
+a design that lets a test use it without bringing it online, or a short
+manual step with the rest automated. A failure alerts James through
+healthchecks.io, and each run appends to the rehearsal record.
 
 ## Staging
 
-Two keys open the staging toolbar's back end, `/api/staging/*`:
-James's `STAGING_TOKEN` and a reviewer's `STAGING_REVIEWER_TOKEN`.
-Production holds neither, not even an empty name, and answers 404
-there anyway. The production build and `bin/nff env check` fail if
-the name appears in production's environment, the production sample
-or `.env.production`. Both keys expire Jan 31 and are rotated Dec 1
-to Jan 1.
+Staging, every branch deploy and every deploy preview sit behind an
+access gate (`docs/staging.md`). It runs at Netlify's edge and is never
+active in production: its build does not install it, and a test fails
+if it could run there. A visitor signs in by an emailed link, from an
+allowlist of exact addresses and whole domains, and a session lasts a
+year. Every non-production response carries `X-Robots-Tag: noindex`.
 
-**`STAGING_TOKEN`** is James's, the only key with open-ended access
-to staging. Leaked, someone reads staging's outbox and signs in as a
-staging customer. Generate a new random value and set it in one
-sitting on Netlify's staging context, as the GitHub repository secret
-(`gh secret set STAGING_TOKEN`), in `.env.staging` and in the password
-manager; redeploy staging; re-enter it in the staging toolbar. Until
-the GitHub secret matches, the Staging jobs workflow fails. Cadence:
-on the schedule, and when someone with access leaves.
+Production holds none of the staging names below, not even an empty
+one, and answers 404 to the staging API anyway. The production build
+and `bin/nff env check` fail if one appears in production's
+environment, the production sample or `.env.production`.
 
-**`STAGING_REVIEWER_TOKEN`** is for people James asks to look at the
-site. He can revoke it without touching his own key: unset it on
-Netlify's staging context (`bin/nff netlify env:unset STAGING_REVIEWER_TOKEN
---context branch:staging`) and redeploy staging. The reviewer's
-access ends then, or on its expiry. It is absent whenever no reviewer
-has access. To issue one, generate a random value, set it on staging
-as a secret, put it in `.env.staging`, redeploy, and give it to the
-reviewer; the toolbar asks for it once. The toolbar's header names the
-key in use, and every request is logged by the key's variable name,
-never its value (`staging.key_used`). Whether the toolbar behaves as
-described is a staging check in the launch guide.
+**The gate's variables,** set on the staging context with `bin/nff env
+push --staging`. The staging build fails until all three are set:
+
+- `GATE_RESEND_KEY`: a Resend sending key made for staging alone,
+  never production's (Resend). It sends the sign-in link and nothing
+  else, and the code refuses any recipient not on the allowlist. A
+  leak lets someone send mail as the gate to the allowlist only; the
+  breaker's low ceiling bounds it.
+- `GATE_MAIL_FROM`: the sender of the link, on a domain verified in
+  that Resend account. Configuration.
+- `GATE_TOOLBAR_EMAIL`: James's address, the only one whose session
+  opens the toolbar. Configuration, never a literal in code.
+
+**The allowlist and sessions** live in the staging stores and are run
+from the CLI (previews keep a separate list, `--preview`):
+
+```
+bin/nff --staging gate allow add|remove|list <email|@domain>
+bin/nff --staging gate sessions end <email>
+bin/nff --staging gate sessions end-all
+```
+
+Removing an address from the allowlist ends its sessions. Ending every
+session is part of the incident rotation (Incident response). James
+seeds the allowlist before staging first gets the gate, with his own
+address, Jim's and any others he names; reviewers get the site only,
+never the toolbar.
+
+**Staging sends no email,** with exactly one exception: the gate's
+sign-in links. One plain-text template, no other mail path, the
+staging-only key, a recipient check against the allowlist and the
+send breaker's own ceiling. Everything else stays on the outbox.
+
+**Machine access** passes the gate by credential or signature, never
+by being public. Each exemption below is a row of `EXEMPTIONS` in
+`netlify/functions/lib/gate-edge.mjs`, and `test/gate.test.mjs` proves
+each stays closed without its credential:
+
+| Way past the gate | Credential |
+| --- | --- |
+| Square and PayPal sandbox webhooks | their own signature checks (`SQUARE_WEBHOOK_SIGNATURE_KEY`, `PAYPAL_WEBHOOK_ID`) |
+| `/api/staging/jobs/run` and `/api/health` | `STAGING_TOKEN`, as a header |
+| The end-to-end suite | `E2E_STAGING_TOKEN`, as a header or the `nff_gate_machine` cookie |
+| `/api/gate/*` | none: it is the sign-in itself |
+
+**`STAGING_TOKEN`** is for machines only: the Staging jobs workflow
+and health checks. It is never typed into a browser, and there is no
+"Staging token" prompt. It opens the jobs run, the info and the crash
+proof, and nothing that reads mail. Leaked, someone can run staging's
+jobs. A swap is at once, with no overlap (rule 6): the new random
+value goes on Netlify's staging context, the GitHub secret (`gh secret
+set STAGING_TOKEN`), `.env.staging` and the password manager in one
+sitting, and staging is redeployed. Until the GitHub secret matches,
+the Staging jobs workflow fails. It expires Jan 31 and is rotated on
+the schedule, and when someone with access leaves. `E2E_STAGING_TOKEN`
+is swapped the same way, with `.env.e2e-staging` for its env file.
+
+`STAGING_REVIEWER_TOKEN` is retired; the name must not exist. If it
+does anywhere, unset it (`bin/nff netlify env:unset
+STAGING_REVIEWER_TOKEN --context branch:staging`).
 
 **The repository is public, so its Actions logs are public.** Every
 workflow prints counts and outcomes only: never sign-in links, outbox
 contents, customer emails, names or order details. The Staging jobs
-runs that printed order ids are listed for James to delete; the
-workflow on `main` still prints full reports until the release lands
-there. A test fails on a workflow that prints such output.
+runs that printed order ids are deleted by James (a launch guide step
+lists them); the workflow on `main` still prints full reports until
+the release lands there, and James confirms it stopped once it has. A
+test fails on a workflow that prints such output.
 
-### What the staging token unlocks
+### What opens the toolbar
 
-| Area | `STAGING_TOKEN` | Reviewer's |
+The toolbar's back end, `/api/staging/*`, is James's alone. It opens
+for a gate session whose address is `GATE_TOOLBAR_EMAIL`; the browser's
+cookie is the credential and nothing is typed.
+
+| Area | Gate session (James) | `STAGING_TOKEN` |
 | --- | --- | --- |
 | Email library: every email built from sample data, with its sign-in link templates; approve and rewrite | yes | no |
 | Inbox: every email staging sent instead of sending, with real sign-in links and customers' addresses; clear it | yes | no |
-| Jobs run: the scheduled jobs now, or as of 8:00 or 18:00 today (the date preview), and send today's reports again | yes | no |
-| Signature library: its own toolbar view of copy-ready email signatures (`/api/staging/signatures`) | yes | yes |
+| Jobs run: the scheduled jobs now, or as of 8:00 or 18:00 today (the date preview), and send today's reports again | yes | yes |
+| Signature library: copy-ready email signatures | yes | no |
 | Info: the deploy's context, mail driver and Square environment, and the key in use | yes | yes |
-| Crash test: throws on purpose to prove the alert | yes | no |
-| Order limit: lifted for a request carrying the key | yes | no |
+| Crash test: throws on purpose to prove the alert | yes | yes |
 
-The browser reset acts on the browser alone and needs no key. Each new
+`E2E_STAGING_TOKEN` opens `/api/staging/e2e` and lifts the order limit
+for a request carrying it, and nothing else. The browser reset acts on
+the browser alone and needs no key. Each new
 toolbar feature adds a row here and decides in `KEYS`
-(`netlify/functions/staging.mjs`) which key opens it; the reviewer's
-default is nothing.
+(`netlify/functions/staging.mjs`) which way in opens it; the default
+for a token is nothing.
 
 ## Netlify
 
@@ -596,8 +820,9 @@ security add-generic-password -a nff -s nff-netlify-auth-token -U -w
 User settings → Applications → Personal access tokens → New access
 token, **expiring Jan 31 of next year**. Run the command above with
 the new value, run `bin/nff --production health`, then Revoke the old
-one. No downtime; nothing on Netlify reads it. Rotate in the Dec 1 to
-Jan 1 window, and at once on a leak. A Netlify password reset revokes
+one 31 days later, or at its Jan 31 expiry if sooner (rule 6). No
+downtime; nothing on Netlify reads it. Rotate in the Dec 1 to Jan 1
+window, and revoke at once on a leak. A Netlify password reset revokes
 every PAT at once, so after one, mint a new token before the CLI is
 needed.
 
@@ -621,12 +846,16 @@ recreate; update `.env.production` and the password manager.
 
 **`MAINTENANCE_SECRET`** signs the phone links that flip maintenance
 mode (`docs/maintenance.md`). Whoever holds a link can flip it.
-`bin/nff maintenance rotate` kills every link handed out; set a new
-value the same way as any other secret.
+`bin/nff maintenance rotate` kills every link handed out. It is
+swapped at once, with no overlap (rule 6): set the new value in every
+copy in one sitting. The only cost is that James's old phone link
+stops working; the new link goes in the password manager.
 
 ## Sessions
 
-There is no secret to rotate. To end every customer session, run
+There is no secret to rotate. The staging gate's sessions are a
+separate store: `bin/nff --staging gate sessions end-all` ends them
+(Staging). To end every customer session, run
 `bin/nff sessions end-all --production|--staging`. It deletes every
 session, asks for confirmation (or takes `--yes`), and emails
 `DEV_NOTIFICATIONS_EMAIL` when it runs; each customer signs in again
@@ -642,51 +871,64 @@ access leaving. Do this before anything else; the schedule is not a
 substitute. Each section above says what counts as access for that
 secret.
 
-1. **Maintenance mode first** when a money key (Square, PayPal) or the
-   Netlify token may be in someone else's hands: `bin/nff --production
-   maintenance on`. Keep it on until the new keys are live and
-   checked, then off. If bin/nff itself cannot run (the laptop is the
-   thing lost), use a signed phone link from another device, or
-   `netlify` from a clean machine. For PayPal, keep it on for at
-   least 9 hours after the secret is disabled (see PayPal).
-2. **Rotate, in this order, the blast radius:**
+1. **Maintenance mode first** when Square or the Netlify token may be
+   in someone else's hands: `bin/nff --production maintenance on`.
+   Keep it on until the new keys are live and checked, then off. If
+   bin/nff itself cannot run (the laptop is the thing lost), use a
+   signed phone link from another device, or `bin/nff netlify ...`
+   from a clean machine. PayPal is handled differently, since
+   closing the shop protects nothing against a stolen secret (see
+   PayPal).
+2. **Rotate, in this order, the blast radius. A leak means revoke at
+   once, with no overlap** (rule 6):
    1. The Netlify personal access token (Netlify: revoke the token).
       Any leftover `netlify` CLI login is the same access: revoke
       its token too (`netlify logout` on a machine still holding
       one). Use `bin/nff netlify ...` from the clean machine.
    2. Square (access token, webhook key) and PayPal (secret).
-   3. Resend (sending key, audience key, webhook secret).
+   3. Resend (sending key, audience key, webhook secret) and the
+      staging gate's `GATE_RESEND_KEY`.
    4. Axiom, Healthchecks and the ntfy topic, the R2 token, the age
-      key, the staging tokens, `MAINTENANCE_SECRET`, the build hook.
+      key (the old private key is kept only to decrypt existing
+      backups), `STAGING_TOKEN` and `E2E_STAGING_TOKEN`,
+      `MAINTENANCE_SECRET`, the build hook.
    5. If access to Blobs is suspected, end every customer session
-      (Sessions, above).
+      (Sessions, above), and the staging gate's
+      (`bin/nff --staging gate sessions end-all`).
    6. Change passwords and reset two-factor for the accounts on the
       laptop or in the browser (Accounts, above), and sign out all
       sessions on each.
 3. **Check what the leaked key did,** and record it in the incident
-   record:
+   record. The record lives in the gitignored `incidents/` folder at
+   the repository root (`docs/rollback.md`, section 1), never on a
+   public issue:
    - Square: refunds, payments, customer exports.
    - PayPal: refunds, payouts, new webhooks or apps.
-   - Resend: the sent log, new or deleted keys and webhooks, bounces
-     and complaints.
+   - Resend: what the breaker recorded (`bin/nff breaker status`),
+     Resend's own log of what was sent, new or deleted keys and
+     webhooks, bounces and complaints.
    - Netlify: the audit log, env changes, deploys, build hooks.
    - Axiom: token use. GitHub: secrets and workflow runs.
-4. **Alerts go to the developer address.** `DEV_NOTIFICATIONS_EMAIL`
-   (dev@northfosterfarm.com, per environment) takes the alerts only a
-   developer can act on; `ADMIN_EMAILS` keeps the ones the farm acts
-   on. "Orders not recorded" goes to both. The split, alert by alert,
-   is in `docs/monitoring.md`. Creating the address in Fastmail is a
-   blocking launch gate, followed by a test message sent through the
-   real notification path (the rotation reminder or the deploy-failed
-   sender) and confirmed received: deploy-failed, alert and rotation
-   emails all depend on it. `ESCALATION_EMAIL`
-   (office@northfosterfarm.com) is a second address with one purpose:
-   when a rollback-worthy alert goes unacknowledged for an hour it gets
-   one plain-language message with a signed link to switch maintenance
-   mode on, and nothing else (`docs/rollback.md`).
+4. **Notifications go to three addresses, and no others.**
+   `DEV_NOTIFICATIONS_EMAIL` (dev@northfosterfarm.com) takes every
+   alert except one, and the maintenance bypass's admin address is
+   the same. `FARM_NOTIFICATIONS_EMAIL` (sales@northfosterfarm.com)
+   takes the farm's notice of each new order and the contact form's
+   messages. `ESCALATED_NOTIFICATIONS_EMAIL`
+   (office@northfosterfarm.com) takes one message: "orders not
+   recorded", left unacknowledged for an hour, in plain
+   language, that James has not responded, to switch on maintenance
+   mode, with the signed link (`docs/rollback.md`, section 3). Jim
+   gets nothing else from the system. The alert-by-alert split is in
+   `docs/monitoring.md`. Creating dev@ in Fastmail is a blocking
+   launch gate, followed by a test message sent through the real
+   notification path (`bin/nff mail test-dev`, the rotation reminder
+   or the deploy-failed sender) and confirmed received: deploy-failed,
+   alert and rotation emails all depend on it.
 5. **Customer data.** If details may be exposed, write down what and
-   whose, and decide whether customers must be told. Rhode Island's
-   breach rules may apply; that is a legal question for the time.
+   whose in the incident record, and decide whether customers must be
+   told. Rhode Island's breach rules may apply; that is a legal
+   question for the time.
 6. **Log every incident rotation** in `docs/rotation-log.md` with
    reason `leak`, `lost device` or `access ended`.
 

@@ -8,7 +8,9 @@ dated before Dec 1, so a secret with no line here is never reminded.
 
 Reason is `seed`, `schedule`, `leak`, `lost device` or `access ended`.
 A `seed` line stands for a secret whose last change is not recorded; it
-counts as due in the first window.
+counts as due in the first window. A routine rotation leaves the old
+credential valid for 31 days (`docs/secrets.md`, rule 6); the day it
+is revoked gets a second line, with reason `revoked`.
 
 name | date | environment | reason | who
 --- | --- | --- | --- | ---
@@ -32,7 +34,6 @@ HEALTHCHECKS_ALERT_URL | 2026-10-18 | staging | seed | checkout agent
 HEALTHCHECKS_BACKUP_URL | 2026-10-18 | production | seed | checkout agent
 ntfy topic | 2026-10-18 | production | seed | checkout agent
 PICKUP_SCHEDULE_HOOK | 2026-10-18 | production | seed | checkout agent
-STAGING_REVIEWER_TOKEN | 2026-10-18 | staging | seed | checkout agent
 GATE_RESEND_KEY | 2026-10-18 | staging | seed | checkout agent
 age private key | 2026-10-18 | production | seed | prod agent
 STAGING_TOKEN | 2026-10-18 | staging | seed | prod agent
