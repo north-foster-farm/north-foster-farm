@@ -30,6 +30,41 @@ test.describe("staging toolbar", () => {
       expect((await request.get("/api/staging/info")).status()).toBe(401);
     });
 
+  // A page after the reset is the page a stranger gets: nothing the
+  // site keeps in the browser survives, and the farm news forms,
+  // hidden for someone on the list, are back (#267).
+  test("Reset to a first visit leaves a fresh browser",
+    async ({ page, context, baseURL }) => {
+      test.skip(!branch(baseURL), "only on a branch deploy");
+      await context.addCookies([
+        { name: "nff_signed_in", value: "1", url: baseURL },
+      ]);
+      await page.goto("/about/");
+      await page.evaluate(() => {
+        localStorage.setItem("nff-news", "joined");
+        localStorage.setItem("nff-venmo", "1");
+        localStorage.setItem("nff-order-draft", "{}");
+        localStorage.setItem("nff:autoplay", "off");
+        sessionStorage.setItem("nff-me", "seeded");
+      });
+      await page.reload();
+      await page.locator("[data-staging-open]").click();
+      await page.locator("[data-staging-forget]").click();
+      await page.waitForLoadState("load");
+
+      const kept = await page.evaluate(() => ({
+        local: Object.keys(localStorage)
+          .filter((k) => !k.startsWith("staging.")),
+        // The new page caches who is signed in again, as a first visit
+        // does; the seeded value must be gone.
+        session: sessionStorage.getItem("nff-me") === "seeded",
+        cookie: document.cookie,
+      }));
+
+      expect(kept).toEqual({ local: [], session: false, cookie: "" });
+      await expect(page.locator("footer [data-news-block]")).toBeVisible();
+    });
+
   test("a wrong token is asked for once, not in a loop",
     async ({ page, baseURL }) => {
       test.skip(!branch(baseURL), "only on a branch deploy");

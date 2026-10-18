@@ -103,12 +103,16 @@ opens to a panel with:
   send. Each daily report sends once per day; tick "Send today's
   reports again" to have them go again. The run's report shows
   under the buttons.
-- **Cart.** Reset to a first visit removes every `nff-` key in this
-  browser's localStorage but the sign-in cache: the cart draft and
+- **This browser.** Reset to a first visit leaves the browser as a
+  stranger's first load finds it (#267). It signs out on the server,
+  clears all of localStorage and sessionStorage (the cart draft and
   any undelivered submission, paid-order edit drafts, the dismissed
-  delivery-policy note and a remembered Venmo buyer. Then it
-  reloads, so the order page shows what a new visitor sees (#206).
-  Sign-in is left alone.
+  delivery-policy note, the Venmo and farm news flags, the video
+  preference and the sign-in cache) and every cookie a script can
+  reach, then reloads. Only the toolbar's own token and open state
+  stay. `assets/scripts/staging/reset.js` clears whole storages, so a
+  key added later is covered; `test/staging-reset.test.mjs` and the
+  staging e2e check it.
 
 Collapse folds the panel back to the tab and is remembered per
 browser. Hide removes the toolbar until the next page load, for

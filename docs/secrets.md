@@ -564,7 +564,7 @@ there. A test fails on a workflow that prints such output.
 | Crash test: throws on purpose to prove the alert | yes | no |
 | Order limit: lifted for a request carrying the key | yes | no |
 
-The cart reset acts on the browser alone and needs no key. Each new
+The browser reset acts on the browser alone and needs no key. Each new
 toolbar feature adds a row here and decides in `KEYS`
 (`netlify/functions/staging.mjs`) which key opens it; the reviewer's
 default is nothing.

@@ -11,6 +11,7 @@
 // #email=<id> link, even when the toolbar is hidden.
 
 import { mountLibrary } from "./library.js";
+import { forgetEverything } from "./reset.js";
 import { mountSignatures } from "./signatures.js";
 
 const root = document.getElementById("staging");
@@ -19,22 +20,6 @@ const KEY = { open: "staging.open", token: "staging.token" };
 // Hiding was once kept for the tab, which left no way back (#206).
 const HIDDEN = "staging.hidden";
 
-// What the cart and the order page remember, all in localStorage
-// under "nff-": the cart draft and a submission not yet delivered
-// (order/draft.js), a paid order's edit draft, nff-edit-<id> and its
-// -pending (order-form.js), the dismissed delivery-policy note
-// (order-form.js) and a Venmo buyer (order/pay.js). The prefix catches
-// a key added later. Kept: nff-me, the sign-in cache
-// (session/session.js, in sessionStorage anyway), and nff:autoplay.
-const SIGN_IN = "nff-me";
-const cartKeys = () => {
-  try {
-    return Object.keys(localStorage)
-      .filter((k) => k.startsWith("nff-") && k !== SIGN_IN);
-  } catch {
-    return [];
-  }
-};
 // `name` names the storage ("localStorage"), so a browser that blocks
 // it throws inside the try: even reading window.localStorage can.
 const store = (name, key, value) => {
@@ -243,8 +228,8 @@ const boot = async () => {
 root.addEventListener("click", () => { asked = false; }, true);
 tab.addEventListener("click", () => show(true));
 qs("[data-staging-collapse]").addEventListener("click", () => show(false));
-qs("[data-staging-forget]").addEventListener("click", () => {
-  for (const k of cartKeys()) store("localStorage", k, null);
+qs("[data-staging-forget]").addEventListener("click", async () => {
+  await forgetEverything();
   window.location.reload();
 });
 qs("[data-staging-hide]").addEventListener("click", () => {
