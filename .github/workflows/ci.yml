@@ -88,3 +88,27 @@ jobs:
       # on a package with no attestation that James has not approved.
       - name: Cooldown and attestations
         run: env -i PATH="$PATH" HOME="$HOME" npm run check:supply
+
+  # npm audit over the lockfile and the GitHub advisory database over
+  # the Actions in use, set against security/exceptions.json. It fails
+  # while a known vulnerability has neither an update nor a recorded
+  # exception, and branch rules require it on staging and main, so
+  # nothing vulnerable is promoted. The log is public: counts only. The
+  # token is the run's own, to lift the advisory API's rate limit.
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Audit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: npm run check:audit
