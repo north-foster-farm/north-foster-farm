@@ -138,6 +138,7 @@ of every row.
 | `RESEND_READ_KEY` | secret, old | production, until launch day's live checks pass | none | Resend |
 | `AXIOM_TOKEN` | secret | production; staging | env file | Axiom |
 | `HEALTHCHECKS_JOBS_URL`, `_ALERT_URL`, `_BACKUP_URL` | ping URLs | each environment (backup: production only) | env file | healthchecks.io |
+| `PROD_AUDIT_PING_URL` | ping URL | GitHub Actions secret, in each repository | password manager | healthchecks.io |
 | The ntfy topic | secret name | Healthchecks' channel and James's phone | password manager | us |
 | `BACKUP_R2_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY` | secret | production only | env file | Cloudflare |
 | The age private key | secret | James's Mac only; never Netlify | offline copy | us |
@@ -642,7 +643,9 @@ before he approves.
 
 ## healthchecks.io
 
-**`HEALTHCHECKS_JOBS_URL`, `_ALERT_URL`, `_BACKUP_URL`**: ping URLs
+**`HEALTHCHECKS_JOBS_URL`, `_ALERT_URL`, `_BACKUP_URL`** and
+**`PROD_AUDIT_PING_URL`** (a GitHub Actions secret, one check per
+repository, for the daily production audit): ping URLs
 with the check's UUID in them, which is immutable. Leaked, someone can
 ping a check well and hide an outage, or post `/fail` and page James.
 To replace one, create a new check with the same period, grace and
@@ -777,9 +780,11 @@ is swapped the same way, with `.env.e2e-staging` for its env file.
 does anywhere, unset it (`bin/nff netlify env:unset
 STAGING_REVIEWER_TOKEN --context branch:staging`).
 
-**The repository is public, so its Actions logs are public.** Every
+**The repository is public, and stays so (`docs/security.md`), so its
+Actions logs and artifacts are public.** This is a standing rule. Every
 workflow prints counts and outcomes only: never sign-in links, outbox
-contents, customer emails, names or order details. The Staging jobs
+contents, customer emails, names, order details or a scan's findings,
+and uploads no report. The Staging jobs
 runs that printed order ids are deleted by James (a launch guide step
 lists them); the workflow on `main` still prints full reports until
 the release lands there, and James confirms it stopped once it has. A
