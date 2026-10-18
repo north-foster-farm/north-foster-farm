@@ -2,6 +2,8 @@
 
 James follows a local page, `launch-guide.html`, from now until after launch. On load it fetches `launch-guide/guide.json` from this branch (raw.githubusercontent.com). If the file's `revision` is higher than the copy built into the page, the page switches to it. Everything James types is saved in his browser only.
 
+**Agents change data only.** Add, update and remove entries in `guide.json` (steps, review items, revisions, tags), and nothing else. Never edit `launch-guide.html` here or the copy on James's Mac: the page is built from a source the voice assistant keeps, and a hand edit would be overwritten without anyone noticing. If the page itself needs a change, ask on #267.
+
 **This branch never holds values.** No secrets, no customer or personal data: only steps, review items and variable names. It is not merged anywhere.
 
 ## When you change something James reviews
