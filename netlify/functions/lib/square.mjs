@@ -15,6 +15,7 @@ import {
   FAKE, FAKE_SDK_URLS, fakeAllowed, refusal,
 } from "./fake.mjs";
 import * as fake from "./fake-square.mjs";
+import { timedFetch, timedOut } from "./http.mjs";
 import {
   pickupTimes, windowLabel,
 } from "../../../assets/scripts/order/lib/schedule.mjs";
@@ -173,27 +174,38 @@ export const DECLINE_MESSAGES = {
   AMOUNT_TOO_HIGH: "That's over the limit for one payment.",
 };
 
+// The longest one call may take: a card can need a few seconds at the
+// bank, everything else answers fast. `cfg.deadline`, when set, is the
+// request's own end (lib/http.mjs) and cuts either short.
+export const CALL_MS = 3500;
+export const PAYMENT_MS = 6000;
+
 const call = async (cfg, path, body, fetchImpl, method = "POST") => {
-  let res;
+  const res = await timedFetch(fetchImpl, `${cfg.host}${path}`, {
+    method,
+    headers: {
+      "Authorization": `Bearer ${cfg.token}`,
+      "Square-Version": cfg.version,
+      "Content-Type": "application/json",
+    },
+    body: method === "GET" || method === "DELETE"
+      ? undefined : JSON.stringify(body),
+  }, {
+    cap: path === "/v2/payments" ? PAYMENT_MS : CALL_MS,
+    deadline: cfg.deadline,
+    name: path,
+    fail: (message, options) => new SquareError(message, options),
+  });
 
-  try {
-    res = await fetchImpl(`${cfg.host}${path}`, {
-      method,
-      headers: {
-        "Authorization": `Bearer ${cfg.token}`,
-        "Square-Version": cfg.version,
-        "Content-Type": "application/json",
-      },
-      body: method === "GET" || method === "DELETE"
-        ? undefined : JSON.stringify(body),
-    });
-  } catch (error) {
-    throw new SquareError(`Network error calling ${path}`, {
-      retryable: true, detail: String(error),
-    });
-  }
+  // A body that stalls is a call that timed out, not an empty answer:
+  // an empty one would read as a payment Square did not make.
+  const data = await res.json().catch((error) => {
+    if (!timedOut(error)) return {};
 
-  const data = await res.json().catch(() => ({}));
+    throw new SquareError(`${path} did not finish answering`, {
+      retryable: true, code: "timeout", detail: String(error),
+    });
+  });
 
   if (!res.ok) {
     const errors = Array.isArray(data.errors) ? data.errors : [];
@@ -395,10 +407,11 @@ const findOrCreateCustomer = async (cfg, customer, key, fetchImpl) => {
 export const createOrder = async (order, key, {
   env = process.env,
   fetchImpl = globalThis.fetch,
+  deadline,
 } = {}) => {
   if (isFake(env)) return fake.createOrder(order, key, { env });
 
-  const cfg = settings(env);
+  const cfg = { ...settings(env), deadline };
   const customerId = await findOrCreateCustomer(
     cfg, order.customer, key, fetchImpl
   );
@@ -527,6 +540,7 @@ export const createPayment = async ({
 }, {
   env = process.env,
   fetchImpl = globalThis.fetch,
+  deadline,
 } = {}) => {
   if (isFake(env)) {
     return fake.createPayment({
@@ -534,7 +548,7 @@ export const createPayment = async ({
     }, { env });
   }
 
-  const cfg = settings(env);
+  const cfg = { ...settings(env), deadline };
   const body = {
     idempotency_key: `${key}-payment`,
     amount_money: money(amount),
@@ -561,8 +575,15 @@ export const createPayment = async ({
   }
 
   const data = await call(cfg, "/v2/payments", body, fetchImpl);
-  const payment = data.payment || {};
+  const payment = data.payment;
 
+  // No payment in a 200 is an answer that did not arrive whole, not a
+  // decline: the customer is not told to try another card.
+  if (!payment) {
+    throw new SquareError("Square answered without a payment", {
+      retryable: true, detail: data,
+    });
+  }
   if (payment.status !== "COMPLETED" && payment.status !== "APPROVED") {
     throw new SquareError(`Payment ${payment.status || "missing"}`, {
       declined: true, code: payment.status || "UNKNOWN", detail: payment,
@@ -666,10 +687,11 @@ export const deleteCustomer = async (customerId, {
 export const cancelOrder = async (squareOrderId, {
   env = process.env,
   fetchImpl = globalThis.fetch,
+  deadline,
 } = {}) => {
   if (isFake(env)) return fake.cancelOrder(squareOrderId, { env });
 
-  const cfg = settings(env);
+  const cfg = { ...settings(env), deadline };
   const current = await currentOrder(cfg, squareOrderId, fetchImpl);
 
   if (current.state && current.state !== "OPEN") {

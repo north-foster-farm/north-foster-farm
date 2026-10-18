@@ -23,6 +23,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { timedFetch } from "./http.mjs";
 import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
 import { stores as defaultStores } from "./store.mjs";
 
@@ -113,37 +114,37 @@ export const mailbox = (name, email) => {
   return `${display} <${email}>`;
 };
 
-const viaResend = async (message, env, fetchImpl) => {
-  let res;
+// Resend answers in a second; one that takes longer is not waited for
+// (an alert sent from the order path must not eat the request).
+export const RESEND_MS = 4000;
 
-  try {
-    res = await fetchImpl("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: env.MAIL_FROM,
-        to: Array.isArray(message.to) ? message.to : [message.to],
-        "reply_to": message.replyTo || env.MAIL_REPLY_TO || undefined,
-        subject: message.subject,
-        text: message.text,
-        html: message.html,
-        headers: message.idempotencyKey || message.headers
-          ? {
-            ...message.headers,
-            ...(message.idempotencyKey
-              ? { "X-Entity-Ref-ID": message.idempotencyKey } : {}),
-          }
-          : undefined,
-      }),
-    });
-  } catch (error) {
-    throw new MailError("Network error calling Resend", {
-      retryable: true, detail: String(error),
-    });
-  }
+const viaResend = async (message, env, fetchImpl) => {
+  const res = await timedFetch(fetchImpl, "https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: env.MAIL_FROM,
+      to: Array.isArray(message.to) ? message.to : [message.to],
+      "reply_to": message.replyTo || env.MAIL_REPLY_TO || undefined,
+      subject: message.subject,
+      text: message.text,
+      html: message.html,
+      headers: message.idempotencyKey || message.headers
+        ? {
+          ...message.headers,
+          ...(message.idempotencyKey
+            ? { "X-Entity-Ref-ID": message.idempotencyKey } : {}),
+        }
+        : undefined,
+    }),
+  }, {
+    cap: RESEND_MS,
+    name: "Resend",
+    fail: (text, options) => new MailError(text, options),
+  });
 
   const data = await res.json().catch(() => ({}));
 

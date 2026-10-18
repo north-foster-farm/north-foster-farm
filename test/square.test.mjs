@@ -462,9 +462,11 @@ describe("createPayment", () => {
 
     const empty = fakeFetch({ "/v2/payments": {} });
 
+    // A 200 without a payment is an answer that did not arrive whole,
+    // which may have charged the card: never a decline.
     await assert.rejects(
       createPayment(args(), { env, fetchImpl: empty.impl }),
-      (e) => e.declined === true && e.code === "UNKNOWN"
+      (e) => e.retryable === true && e.declined === false
     );
   });
 

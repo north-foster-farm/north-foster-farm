@@ -152,8 +152,11 @@ export const payWithSquare = async (stores, order, {
   const k = attemptKey(key, attempt);
   const env = options.env || process.env;
   const fetchImpl = options.fetchImpl;
+  const { deadline } = options;
+  const until = deadline || 0;
   const created = await retry(
-    () => square.createOrder(order, k, { env, fetchImpl }), { sleep }
+    () => square.createOrder(order, k, { env, fetchImpl, deadline }),
+    { sleep, until }
   );
   let paid;
 
@@ -164,13 +167,15 @@ export const payWithSquare = async (stores, order, {
       customerId: created.customerId,
       key: k,
       source: { sourceId, verificationToken },
-    }, { env, fetchImpl }), { sleep });
+    }, { env, fetchImpl, deadline }), { sleep, until });
   } catch (error) {
     // A declined card leaves an open order behind in Square; close it
     // so the dashboard does not show an order nobody paid for.
     if (error && error.declined) {
       try {
-        await square.cancelOrder(created.squareOrderId, { env, fetchImpl });
+        await square.cancelOrder(created.squareOrderId, {
+          env, fetchImpl, deadline,
+        });
       } catch (cancelError) {
         log.warn({
           event: "square.cancel_failed", id: order.id,
@@ -208,8 +213,10 @@ export const startVenmo = async (stores, order, { key, attempt = 1 }, {
   const env = options.env || process.env;
   const now = options.now || new Date();
   const fetchImpl = options.fetchImpl;
+  const { deadline } = options;
   const { paypalOrderId } = await retry(
-    () => paypal.createOrder(order, k, { env, fetchImpl, now }), { sleep }
+    () => paypal.createOrder(order, k, { env, fetchImpl, now, deadline }),
+    { sleep, until: deadline || 0 }
   );
 
   await saveCheckout(stores, {
@@ -265,9 +272,12 @@ export const finishVenmo = async (stores, order, {
   order = { ...order, id: checkout.order.id };
 
   const k = attemptKey(key, checkout.attempt || attempt);
+  const { deadline } = options;
   const capture = await retry(
-    () => paypal.captureOrder(paypalOrderId, k, { env, fetchImpl, now }),
-    { sleep }
+    () => paypal.captureOrder(paypalOrderId, k, {
+      env, fetchImpl, now, deadline,
+    }),
+    { sleep, until: deadline || 0 }
   );
 
   if (capture.amount !== null && capture.amount !== order.totals.total) {
@@ -287,7 +297,7 @@ export const finishVenmo = async (stores, order, {
   // so a mismatch is visible in every refund that follows.
   const amount = capture.amount === null ? order.totals.total : capture.amount;
   const squareCopy = await recordOnSquare(stores, order, k, capture, {
-    square, env, fetchImpl, mail, now, sleep, amount,
+    square, env, fetchImpl, mail, now, sleep, amount, deadline,
   });
   const saved = await completeOrder(stores, order, {
     square: squareCopy.square,
@@ -314,11 +324,14 @@ export const finishVenmo = async (stores, order, {
 // `squareSync` in the jobs tries again.
 export const recordOnSquare = async (stores, order, k, capture, {
   square = squareApi, env = process.env, fetchImpl, mail = sendMail,
-  now = new Date(), sleep, amount = order.totals.total,
+  now = new Date(), sleep, amount = order.totals.total, deadline,
 } = {}) => {
+  const until = deadline || 0;
+
   try {
     const created = await retry(
-      () => square.createOrder(order, k, { env, fetchImpl }), { sleep }
+      () => square.createOrder(order, k, { env, fetchImpl, deadline }),
+      { sleep, until }
     );
     const paid = await retry(() => square.createPayment({
       order,
@@ -329,7 +342,7 @@ export const recordOnSquare = async (stores, order, k, capture, {
       source: {
         external: { source: "Venmo", sourceId: capture.paypalCaptureId },
       },
-    }, { env, fetchImpl }), { sleep });
+    }, { env, fetchImpl, deadline }), { sleep, until });
 
     return {
       square: squareRecord(created), squarePaymentId: paid.squarePaymentId,

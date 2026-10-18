@@ -32,7 +32,7 @@ import { sessionFrom } from "./lib/auth.mjs";
 import {
   METHODS, finishVenmo, ownRecord, payWithSquare, startVenmo,
 } from "./lib/checkout.mjs";
-import { json, readJson } from "./lib/http.mjs";
+import { json, ORDER_BUDGET_MS, readJson } from "./lib/http.mjs";
 import { alert, count } from "./lib/health.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { sendMail } from "./lib/mail.mjs";
@@ -149,6 +149,9 @@ export const handle = async (req, {
   fetchImpl,
   sleep,
   newId = orderId,
+  // The request ends here, well inside Netlify's 10 s: every call to
+  // a processor shares it (lib/http.mjs).
+  deadline = Date.now() + ORDER_BUDGET_MS,
 } = {}) => {
   const payload = await readJson(req);
 
@@ -314,7 +317,9 @@ export const handle = async (req, {
       attempt,
     },
   };
-  const options = { env, mail, now, fetchImpl, sleep, square, paypal };
+  const options = {
+    env, mail, now, fetchImpl, sleep, square, paypal, deadline,
+  };
 
   try {
     if (method === "venmo") {

@@ -14,6 +14,7 @@ import {
   FAKE, FAKE_SDK_URLS, fakeAllowed, refusal,
 } from "./fake.mjs";
 import * as fake from "./fake-paypal.mjs";
+import { timedFetch, timedOut } from "./http.mjs";
 
 const HOSTS = {
   live: "https://api-m.paypal.com",
@@ -139,6 +140,20 @@ export const DECLINE_MESSAGES = {
 // instance serves many requests before it is recycled.
 const tokens = new Map();
 
+// The longest one call may take; `cfg.deadline`, when set, is the
+// request's own end (lib/http.mjs) and cuts either short.
+export const CALL_MS = 3500;
+export const CAPTURE_MS = 6000;
+
+// A body that stalls is a call that timed out, not an empty answer.
+const readBody = (res, path) => res.json().catch((error) => {
+  if (!timedOut(error)) return {};
+
+  throw new PayPalError(`${path} did not finish answering`, {
+    retryable: true, code: "timeout", detail: String(error),
+  });
+});
+
 const token = async (cfg, fetchImpl, now) => {
   const cached = tokens.get(cfg.clientId);
 
@@ -146,26 +161,22 @@ const token = async (cfg, fetchImpl, now) => {
     return cached.value;
   }
 
-  let res;
-
-  try {
-    res = await fetchImpl(`${cfg.host}/v1/oauth2/token`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Basic ${Buffer.from(
-          `${cfg.clientId}:${cfg.secret}`
-        ).toString("base64")}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: "grant_type=client_credentials",
-    });
-  } catch (error) {
-    throw new PayPalError("Network error getting a PayPal token", {
-      retryable: true, detail: String(error),
-    });
-  }
-
-  const data = await res.json().catch(() => ({}));
+  const res = await timedFetch(fetchImpl, `${cfg.host}/v1/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Basic ${Buffer.from(
+        `${cfg.clientId}:${cfg.secret}`
+      ).toString("base64")}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: "grant_type=client_credentials",
+  }, {
+    cap: CALL_MS,
+    deadline: cfg.deadline,
+    name: "/v1/oauth2/token",
+    fail: (message, options) => new PayPalError(message, options),
+  });
+  const data = await readBody(res, "/v1/oauth2/token");
 
   if (!res.ok || !data.access_token) {
     throw new PayPalError(`PayPal ${res.status} on /v1/oauth2/token`, {
@@ -187,25 +198,21 @@ const call = async (cfg, path, body, {
   fetchImpl, now, requestId, method = "POST",
 }) => {
   const bearer = await token(cfg, fetchImpl, now);
-  let res;
-
-  try {
-    res = await fetchImpl(`${cfg.host}${path}`, {
-      method,
-      headers: {
-        "Authorization": `Bearer ${bearer}`,
-        "Content-Type": "application/json",
-        ...(requestId ? { "PayPal-Request-Id": requestId } : {}),
-      },
-      body: method === "GET" ? undefined : JSON.stringify(body || {}),
-    });
-  } catch (error) {
-    throw new PayPalError(`Network error calling ${path}`, {
-      retryable: true, detail: String(error),
-    });
-  }
-
-  const data = await res.json().catch(() => ({}));
+  const res = await timedFetch(fetchImpl, `${cfg.host}${path}`, {
+    method,
+    headers: {
+      "Authorization": `Bearer ${bearer}`,
+      "Content-Type": "application/json",
+      ...(requestId ? { "PayPal-Request-Id": requestId } : {}),
+    },
+    body: method === "GET" ? undefined : JSON.stringify(body || {}),
+  }, {
+    cap: path.endsWith("/capture") ? CAPTURE_MS : CALL_MS,
+    deadline: cfg.deadline,
+    name: path,
+    fail: (message, options) => new PayPalError(message, options),
+  });
+  const data = await readBody(res, path);
 
   if (!res.ok) {
     const issue = Array.isArray(data.details) && data.details[0];
@@ -232,10 +239,11 @@ export const createOrder = async (order, key, {
   env = process.env,
   fetchImpl = globalThis.fetch,
   now = new Date(),
+  deadline,
 } = {}) => {
   if (isFake(env)) return fake.createOrder(order, key, { env });
 
-  const cfg = settings(env);
+  const cfg = { ...settings(env), deadline };
   const data = await call(cfg, "/v2/checkout/orders", {
     intent: "CAPTURE",
     purchase_units: [{
@@ -285,10 +293,11 @@ export const getOrder = async (paypalOrderId, {
   env = process.env,
   fetchImpl = globalThis.fetch,
   now = new Date(),
+  deadline,
 } = {}) => {
   if (isFake(env)) return fake.getOrder(paypalOrderId, { env });
 
-  const cfg = settings(env);
+  const cfg = { ...settings(env), deadline };
   const data = await call(
     cfg, `/v2/checkout/orders/${paypalOrderId}`, null,
     { fetchImpl, now, method: "GET" }
@@ -310,10 +319,11 @@ export const captureOrder = async (paypalOrderId, key, {
   env = process.env,
   fetchImpl = globalThis.fetch,
   now = new Date(),
+  deadline,
 } = {}) => {
   if (isFake(env)) return fake.captureOrder(paypalOrderId, key, { env });
 
-  const cfg = settings(env);
+  const cfg = { ...settings(env), deadline };
   let data;
 
   try {
@@ -322,7 +332,9 @@ export const captureOrder = async (paypalOrderId, key, {
   } catch (error) {
     if (error.code !== "ORDER_ALREADY_CAPTURED") throw error;
 
-    const current = await getOrder(paypalOrderId, { env, fetchImpl, now });
+    const current = await getOrder(paypalOrderId, {
+      env, fetchImpl, now, deadline,
+    });
 
     if (!current.capture) throw error;
 
