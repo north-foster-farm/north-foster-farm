@@ -10,13 +10,15 @@ production release on: publishing the previous deploy of the new site.
 
 ## At launch: fix forward
 
-1. **Stop the damage.** Turn maintenance mode on for production
-   (`<maintenance on>`: the command and the dashboard switch are the
-   checkout lane's, see `docs/maintenance.md` once it lands). It
-   blocks ordering, checkout, the account area, sign-in, sign-up and
-   farm-news sign-ups, on the server, and it shows customers one
-   message. Webhooks, Venmo capture, the scheduled jobs and admin
-   access keep running, so money already in flight still settles.
+1. **Stop the damage.** Turn maintenance mode on for production:
+   `bin/nff --production maintenance on`, or from a phone the signed
+   ON link that `bin/nff maintenance links` prints
+   (`docs/maintenance.md`). It blocks ordering, checkout, the account
+   area, sign-in, sign-up and farm-news sign-ups, on the server, and
+   it shows customers one message. Webhooks, Venmo capture, the
+   scheduled jobs and admin access keep running, so money already in
+   flight still settles. A signed-in admin still gets through, to
+   prove the fix.
 2. **Look at what is in flight.** Venmo checkouts waiting for capture
    live under `checkout/` in the `orders` store, and capture goes on
    during maintenance.
@@ -29,8 +31,8 @@ production release on: publishing the previous deploy of the new site.
    coordinator fast-forwards `main` after James's go. The usual path
    applies, including `lint-and-test`.
 4. **Check production** with the live checks from the launch guide,
-   then turn maintenance off (`<maintenance off>`) and confirm an
-   order page loads.
+   then turn maintenance off (`bin/nff --production maintenance off`)
+   and confirm an order page loads.
 5. **Say what happened** on the issue that tracks the incident: what
    broke, the times, the deploy ids, the orders affected.
 
@@ -40,9 +42,9 @@ forward and say nothing.
 ## From the second release: two ways back
 
 From the second production release, production has a previous release
-of the new site to go back to. The one-tap rollback designed on
-2026-10-18 (#267) automates the publish path below; until it is
-built, these are the manual steps.
+of the new site to go back to. The one-tap rollback (next section)
+automates the publish path below; until it is built, these are the
+manual steps.
 
 | | Publish a previous deploy | Revert on `main` |
 | --- | --- | --- |
@@ -72,6 +74,57 @@ still holds the old, revoked key. Never publish a deploy built before
 a key change. Roll back past one by reverting on `main`, which builds
 with current values, or fix forward. The deploy built after a
 rotation is the new rollback floor (`docs/secrets.md`).
+
+## The one-tap rollback (designed 2026-10-18, not built)
+
+James's direction on #267 (comment 6246673085). It is post-launch work,
+built before the second production release, when production first has
+a previous release of the new site to go back to. Design first, with
+James's approval before anything is built; the exact signed-link
+design is the open item. What he has decided:
+
+- **Rollbacks don't wait for a human.** Admins are told as early as
+  possible, and no stage has a human bottleneck except the one tap
+  that starts it.
+- **James starts it, with one tap** from an email or the admin
+  dashboard. Jim does not get the option unless a reason comes up.
+  The tap is bound to James's identity: a bare emailed link is not
+  enough. The expected shape is a signed, single-use, short-lived link
+  that opens a dashboard page behind his existing sign-in, with one
+  "Roll back now" button.
+- **Everything after the tap is automatic, and admins are told at
+  each step:** (1) snapshot the work in flight, meaning Venmo
+  checkouts awaiting capture and any payment Square or PayPal
+  confirmed with no matching order; (2) re-publish the target; (3)
+  lock auto publishing; (4) verify the target is live (health,
+  checkout config and the order page); (5) email affected customers
+  from sales@ with a template James approves in advance, and email
+  admins the same list with what to do about each order (refund, fill
+  in, or re-order); (6) write the incident record where agents and
+  admins can read it. If any step fails, alert loudly and stop; never
+  retry a publish in a loop.
+- **No automatic detection starts a rollback.** Healthchecks,
+  UptimeRobot and Axiom alerts stay as they are. The one exception is
+  a dedicated detector for "orders not being recorded", a payment
+  confirmed by Square or PayPal with no matching order record. It
+  never starts a rollback; it pushes James's phone (ntfy), emails the
+  admins and the alerts check, and repeats until acknowledged, with
+  the payment ids, the rollback link and the incident page in every
+  alert. The design proposes the reconciliation window and how to
+  handle false positives.
+- **Incident pages in the admin dashboard.** General pages for a bad
+  deploy with an unknown cause: what a rollback does and doesn't undo;
+  plain answers to "Do card payments work right now?", "Venmo?",
+  "Are emails going out?", "Can customers sign in?"; step-by-step
+  recovery; how to roll forward. Scenario pages for the likeliest and
+  worst cases (agents propose the list; start from orders not
+  recorded, card payments failing, Venmo failing, the order page
+  down, emails not sending, a bad price or stock count, the scheduled
+  jobs stopped). Every alert and rollback email carries the relevant
+  information or a link to the right page.
+
+Nothing here is written down elsewhere yet beyond the issue comment;
+the design document is the first deliverable.
 
 ## Rolling back
 
@@ -155,6 +208,11 @@ instead.
 For a rollback that has to last, when the deploy is gone, or when it
 was built before a key change. Ask James before pushing to `main`; it
 auto-deploys.
+
+Switch maintenance mode on first when the release changed a record's
+shape, and for any data migration: the revert builds in minutes, and
+old code must not write records beside the new shape meanwhile
+(`bin/nff --production maintenance on`, off after the checks).
 
 Branch protection on `main` takes only a fast-forward to a commit that
 has passed `lint-and-test`, and binds admins too (`docs/staging.md`).
