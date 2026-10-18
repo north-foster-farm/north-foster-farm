@@ -14,7 +14,10 @@
   margin: 0;
 
   .form-control {
-    width: 10.5rem;
+    // Five digits and no more once it holds or takes any; empty and
+    // idle, wide enough for its placeholder. It grows from the right
+    // corner, where the field sits.
+    width: calc(5ch + 2.5rem);
     font-size: 1rem;
     font-variant-numeric: tabular-nums;
     border-color: var(--bs-border-color-translucent);
@@ -23,6 +26,10 @@
     // The lift would outrank Bootstrap's focus ring; wear both.
     &:focus {
       box-shadow: $btn-lift-shadow, $input-focus-box-shadow;
+    }
+
+    &:placeholder-shown:not(:focus) {
+      width: 10.5rem;
     }
   }
 }
