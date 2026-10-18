@@ -78,6 +78,7 @@ production's value is set on every context. *Local*: no Netlify copy.
 | `HEALTHCHECKS_JOBS_URL` | ping URL | own | per env | healthchecks.io |
 | `HEALTHCHECKS_ALERT_URL` | ping URL | own | per env | healthchecks.io |
 | `STAGING_TOKEN` | secret | off prod; GitHub | staging; GitHub | us |
+| `E2E_STAGING_TOKEN` | secret | off prod; GitHub | staging; GitHub | us |
 | `NETLIFY_AUTH_TOKEN` | secret | local | local, one per person | Netlify |
 | `PICKUP_SCHEDULE_HOOK` | build hook URL | local | local | Netlify |
 | `PAYPAL_*_EMAIL`, `_PASSWORD` | sandbox logins | local | local | PayPal |
@@ -140,8 +141,10 @@ sets every value; agents never see them.
   each object for 30 days and a lifecycle rule deletes older ones. `BACKUP_R2_SECRET_ACCESS_KEY` is a secret; the setup is
   in `docs/backup.md`.
 - **`STAGING_TOKEN`:** staging only.
+- **`E2E_STAGING_TOKEN`:** staging only; the end-to-end suite's own
+  token (`docs/staging.md`). The suite holds it and no Netlify token.
 - **`NETLIFY_AUTH_TOKEN`:** one per person, since Netlify cannot
-  scope a token; e2e stops using it (#266).
+  scope a token. The e2e suite no longer uses it (#266).
 - **Previews** (after #255): `SITE_CONTEXT=deploy-preview` and
   `PICKUP_SCHEDULE`, `MAIL_DRIVER` unset so mail is logged, and
   nothing else. A preview then shows no pay buttons and its order API
@@ -325,10 +328,9 @@ staging.
 ## Netlify
 
 **`NETLIFY_AUTH_TOKEN`**: a personal access token, local only, for
-bin/nff and the e2e suite to reach Blobs. A PAT carries every
+bin/nff to reach Blobs. A PAT carries every
 permission its owner has on Netlify: every site, every env var, DNS,
-deploys, and every order and customer in Blobs, including live
-session ids. The worst leak here.
+deploys, and every order and customer in Blobs. The worst leak here.
 
 User settings → Applications → Personal access tokens → New access
 token, expiring on the next Jan 1. Put it in each `.env.*`, run

@@ -15,7 +15,7 @@ import {
 test.describe.configure({ mode: "serial" });
 
 test.describe("contact messages (#140)", () => {
-  test.skip(!backOffice().cli, BACK_OFFICE_MISSING);
+  test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
 
   const email = uniqueEmail("contact");
   const tag = email.split("-").pop().split("@")[0];

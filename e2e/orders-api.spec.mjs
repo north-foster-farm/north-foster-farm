@@ -12,7 +12,7 @@ import {
 test.describe("orders API", () => {
   test("a declined card answers 402 with the customer's words and " +
     "records nothing", async ({ request }) => {
-    test.skip(!backOffice().cli, BACK_OFFICE_MISSING);
+    test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
 
     const email = uniqueEmail("api-decline");
     const { status, body } = await postOrder(request, await eggOrder(

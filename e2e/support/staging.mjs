@@ -1,26 +1,19 @@
 // The staging deploy's back office, for setup, assertions and
-// teardown: the outbox (every email the deploy would have sent) and
-// the records, through `bin/nff --staging`.
+// teardown: the outbox (every email the deploy would have sent), the
+// records, the contact messages and the maintenance switch.
 //
-// The outbox is read through /api/staging/outbox when STAGING_TOKEN is
-// in the environment. Without it, it is read straight from the jobs
-// store with the CLI's own credentials (NETLIFY_SITE_ID and
-// NETLIFY_AUTH_TOKEN in `.env.staging`), the same way `bin/nff --staging`
-// reaches the orders. Nothing here can reach production: the store
-// names carry the branch-deploy prefix and the CLI runs with
-// --staging.
+// All of it goes through POST /api/staging/e2e with E2E_STAGING_TOKEN,
+// a token of the suite's own that opens nothing else (netlify/functions
+// lib/e2e.mjs). The deploy reaches its own stores. No Netlify personal
+// access token and no Blobs credentials are in this suite's hands
+// (#266). Nothing here can reach production: the endpoint answers only
+// on a non-production deploy.
 
-import { execFile } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
-
-import { OUTBOX_PREFIX } from "../../netlify/functions/lib/mail.mjs";
-import { stores } from "../../netlify/functions/lib/store.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const exec = promisify(execFile);
 
 export const BASE_URL = process.env.E2E_BASE_URL
   || "https://staging--north-foster-farm.netlify.app";
@@ -39,44 +32,74 @@ const readEnv = (file) => {
   return out;
 };
 
-// The process's own variables win, then .env.staging, which is
-// complete: .env is the developer's own and never read here.
+// The process's own variables win, then `.env.e2e-staging`, a file of
+// the suite's few values (E2E_STAGING_TOKEN and what a spec signs with).
+// `.env.staging`, the CLI's file with the Netlify token in it, is never
+// read here.
 const env = {
-  ...readEnv(join(root, ".env.staging")),
+  ...readEnv(join(root, ".env.e2e-staging")),
   ...process.env,
-  SITE_CONTEXT: "branch-deploy",
 };
 
 // One value of that environment, for the specs that sign or log in as
 // the deploy's own secrets would (the maintenance rehearsal).
 export const stagingEnv = (name) => env[name] || "";
 
-// Whether the records and the outbox can be reached from here.
-export const backOffice = () => ({
-  cli: existsSync(join(root, ".env.staging"))
-    && !!(env.NETLIFY_SITE_ID && env.NETLIFY_AUTH_TOKEN),
-  outbox: !!env.STAGING_TOKEN
-    || !!(env.NETLIFY_SITE_ID && env.NETLIFY_AUTH_TOKEN),
-});
+// Whether the back office can be reached from here.
+export const backOffice = () => ({ ready: !!env.E2E_STAGING_TOKEN });
 
 // Off production, X-Staging-Token skips the /api/orders rate limit
 // (docs/staging.md, "The order limit"), so the suite leaves the limit
-// to a person testing by hand from the same machine. Empty without
-// STAGING_TOKEN, and never sent where the limit itself is tested.
+// to a person testing by hand from the same machine. Empty without the
+// token, and never sent where the limit itself is tested.
 export const orderLimitHeaders = () => (
-  env.STAGING_TOKEN ? { "X-Staging-Token": env.STAGING_TOKEN } : {}
+  env.E2E_STAGING_TOKEN ? { "X-Staging-Token": env.E2E_STAGING_TOKEN } : {}
 );
 
-export const BACK_OFFICE_MISSING = "Needs .env.staging in the " +
-  "checkout root (the bin/nff --staging credentials), or STAGING_TOKEN " +
-  "for the outbox.";
+export const BACK_OFFICE_MISSING = "Needs E2E_STAGING_TOKEN, in the " +
+  "environment or in .env.e2e-staging in the checkout root.";
 
-let jobsStore = null;
+// Netlify Blobs answers a 502 now and then; one of those should not
+// strand a paid test order, so a call is retried on it.
+const TRANSIENT = new Set([502, 503, 504]);
 
-const jobs = () => {
-  jobsStore = jobsStore || stores(env).jobs;
+// One op on the deploy -> its answer. Throws with the deploy's message
+// unless `allowFail`, which answers null.
+export const op = async (name, args = {}, {
+  allowFail = false, tries = 3,
+} = {}) => {
+  for (let attempt = 1; ; attempt += 1) {
+    let res;
 
-  return jobsStore;
+    try {
+      res = await fetch(`${BASE_URL}/api/staging/e2e`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.E2E_STAGING_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ op: name, ...args }),
+      });
+    } catch (error) {
+      if (attempt < tries) {
+        await new Promise((r) => setTimeout(r, 2_000 * attempt));
+        continue;
+      }
+      if (allowFail) return null;
+      throw new Error(`e2e ${name}: ${error.message}`, { cause: error });
+    }
+
+    if (res.ok) return res.json();
+    if (attempt < tries && TRANSIENT.has(res.status)) {
+      await new Promise((r) => setTimeout(r, 2_000 * attempt));
+      continue;
+    }
+    if (allowFail) return null;
+
+    const detail = await res.text();
+
+    throw new Error(`e2e ${name}: ${res.status} ${detail}`);
+  }
 };
 
 // Outbox ids start with the send time, colons and dots made dashes.
@@ -89,31 +112,9 @@ const toList = (to) => (Array.isArray(to) ? to : [to]).map(
 // Every message since `since` (a Date), oldest first, with its body.
 export const outbox = async ({ since = new Date(0) } = {}) => {
   const floor = idAt(since);
+  const { messages } = await op("outboxList");
 
-  if (env.STAGING_TOKEN) {
-    const headers = { Authorization: `Bearer ${env.STAGING_TOKEN}` };
-    const res = await fetch(`${BASE_URL}/api/staging/outbox`, { headers });
-    const { messages } = await res.json();
-    const recent = messages.filter((m) => m.id >= floor).reverse();
-
-    return Promise.all(recent.map(async (m) => {
-      const one = `${BASE_URL}/api/staging/outbox/${encodeURIComponent(m.id)}`;
-      const html = await (await fetch(one, { headers })).text();
-      const text = await (await fetch(`${one}?format=text`, { headers }))
-        .text();
-
-      return { ...m, key: null, html, text };
-    }));
-  }
-
-  const keys = (await jobs().list(OUTBOX_PREFIX))
-    .map((k) => k.key)
-    .filter((key) => key.slice(OUTBOX_PREFIX.length) >= floor);
-  const found = await Promise.all(keys.map(async (key) => ({
-    key, ...(await jobs().get(key)),
-  })));
-
-  return found.filter((m) => m.id);
+  return messages.filter((m) => m.id >= floor).reverse();
 };
 
 // Waits for a message matching { to, subject } (a string to contain or
@@ -148,29 +149,11 @@ export const mailTo = async (to, since) => {
 };
 
 // Removes this run's messages: every one to `to`, or whose subject
-// contains `subject`. Only possible with the store credentials; with
-// the token alone the outbox can only be emptied whole, which would
-// take other people's mail with it, so it is left.
-export const clearMail = async ({ to, subject, since } = {}) => {
-  if (env.STAGING_TOKEN && !(env.NETLIFY_SITE_ID && env.NETLIFY_AUTH_TOKEN)) {
-    return 0;
-  }
-
-  const wanted = to ? String(to).toLowerCase() : null;
-  let removed = 0;
-
-  for (const m of await outbox({ since })) {
-    const hit = (wanted && toList(m.to).includes(wanted))
-      || (subject && m.subject.includes(subject));
-
-    if (hit && m.key) {
-      await jobs().delete(m.key);
-      removed += 1;
-    }
-  }
-
-  return removed;
-};
+// contains `subject`, sent since `since` (a Date). -> how many.
+export const clearMail = async ({ to, subject, since } = {}) =>
+  (await op("outboxClear", {
+    to, subject, floor: since ? idAt(since) : undefined,
+  })).removed;
 
 // The first link in an email whose text or href matches `pattern`.
 export const linkIn = (message, pattern) => {
@@ -180,38 +163,88 @@ export const linkIn = (message, pattern) => {
   return hrefs.find((href) => pattern.test(href)) || null;
 };
 
-// Netlify Blobs answers a 502 now and then; one of those should not
-// strand a paid test order, so the CLI is retried on it.
-const TRANSIENT = /\b(502|503|504)\b|internal error|ECONNRESET|ETIMEDOUT/;
+// A few things the specs did through the CLI, answered in its words:
+// `nff(["orders", "list", "--email=a@b.c"])`, `["orders", "show", id]`
+// (JSON), `["login", email]` (the link), `["maintenance", "on"|"off"|
+// "status"|"links"]` and the rest of the forms in `FORMS` below. A form
+// not listed throws, so a spec cannot quietly reach for more.
+const flag = (args, name) => (args.find((a) => a.startsWith(`--${name}=`))
+  || "").slice(name.length + 3);
 
-// `bin/nff --staging ...args` -> stdout. Throws with stderr on a
-// non-zero exit unless `allowFail`.
-export const nff = async (args, { allowFail = false, tries = 3 } = {}) => {
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      const { stdout } = await exec(join(root, "bin", "nff"),
-        ["--staging", ...args], { cwd: root, timeout: 90_000 });
+const FORMS = {
+  "orders list": async (args) => {
+    const { orders } = await op("ordersList", { email: flag(args, "email") });
 
-      return stdout;
-    } catch (error) {
-      const detail = error.stderr || error.message;
+    return orders.length
+      ? orders.map((o) => `${o.id}  ${o.status}`).join("\n")
+      : "No orders.";
+  },
+  "orders show": async ([, , id]) =>
+    JSON.stringify((await op("orderShow", { id })).order),
+  "orders cancel": async ([, , id, ...rest]) => {
+    await op("orderCancel", { id, reasonText: flag(rest, "reason-text") });
 
-      if (attempt < tries && TRANSIENT.test(detail)) {
-        await new Promise((r) => setTimeout(r, 2_000 * attempt));
-        continue;
-      }
-      if (allowFail) return error.stdout || "";
-      throw new Error(`bin/nff --staging ${args.join(" ")}: ${detail}`, {
-        cause: error,
-      });
-    }
+    return `Cancelled ${id}.`;
+  },
+  "orders refund": async ([, , id, ...rest]) => {
+    await op("orderRefund", { id, reason: flag(rest, "reason") });
+
+    return `Refunded ${id}.`;
+  },
+  "orders delete": async ([, , id]) => {
+    await op("orderDelete", { id });
+
+    return `Deleted ${id}.`;
+  },
+  "customers show": async ([, , email]) =>
+    JSON.stringify(await op("customerShow", { email })),
+  "customers delete": async ([, , email]) => {
+    await op("customerDelete", { email });
+
+    return `Deleted ${email}.`;
+  },
+  login: async ([, email]) => (await op("login", { email })).url,
+  "maintenance status": async () => `Maintenance is ${
+    (await op("maintenanceStatus")).on ? "ON" : "off"}.`,
+  "maintenance on": async () => {
+    await op("maintenanceSet", { on: true });
+
+    return "Maintenance is now ON.";
+  },
+  "maintenance off": async () => {
+    await op("maintenanceSet", { on: false });
+
+    return "Maintenance is now off.";
+  },
+  "maintenance links": async () => {
+    const { links } = await op("maintenanceLinks");
+
+    if (!links) throw new Error("MAINTENANCE_SECRET is not set.");
+
+    return `ON:  ${links.on}\nOFF: ${links.off}`;
+  },
+};
+
+// -> stdout. Throws on failure unless `allowFail`, which answers "".
+export const nff = async (args, { allowFail = false } = {}) => {
+  const form = FORMS[args.slice(0, 2).join(" ")] || FORMS[args[0]];
+
+  if (!form) throw new Error(`e2e nff: no such form: ${args.join(" ")}`);
+
+  try {
+    return await form(args);
+  } catch (error) {
+    if (allowFail) return "";
+    throw new Error(`e2e ${args.join(" ")}: ${error.message}`, {
+      cause: error,
+    });
   }
 };
 
 export const orderRecord = async (id) =>
   JSON.parse(await nff(["orders", "show", id]));
 
-// -> the customer record (`customers show` prints { customer, orders }),
+// -> the customer record (`customers show` answers { customer, orders }),
 // or null when there is none.
 export const customerRecord = async (email) => {
   const out = await nff(["customers", "show", email], { allowFail: true });
@@ -267,21 +300,10 @@ export const deleteCustomer = (email) =>
   nff(["customers", "delete", email], { allowFail: true });
 
 // The contact page's messages (messages/<id> in the customers store)
-// from one address. The CLI has no messages command yet (#167), so
-// they are read and removed with its credentials, like the outbox.
-export const contactMessages = async (email) => {
-  const wanted = String(email).toLowerCase();
-  const customers = stores(env).customers;
-  const keys = (await customers.list("messages/")).map((k) => k.key);
-  const found = await Promise.all(keys.map(async (key) => ({
-    key, ...(await customers.get(key)),
-  })));
-
-  return found.filter((m) => m.email === wanted);
-};
+// from one address.
+export const contactMessages = async (email) =>
+  (await op("messagesList", { email })).messages;
 
 export const deleteContactMessages = async (email) => {
-  const customers = stores(env).customers;
-
-  for (const m of await contactMessages(email)) await customers.delete(m.key);
+  await op("messagesDelete", { email });
 };

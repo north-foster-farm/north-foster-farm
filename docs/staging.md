@@ -169,6 +169,26 @@ production, a request with the header `X-Staging-Token: <STAGING_TOKEN>`
 skips it, so the QA suite sends the header and leaves the limit to a
 person testing by hand on the same machine. A request without it meets
 the limit as production does, which is how the limit itself is tested.
+The end-to-end suite sends `E2E_STAGING_TOKEN` instead, which skips it
+the same way.
+
+## The end-to-end suite's access (#266)
+
+`e2e/` reaches staging's records, outbox and maintenance switch only
+through `POST /api/staging/e2e` (`lib/e2e.mjs`), with
+`E2E_STAGING_TOKEN`. The deploy runs each step against its own
+stores, so the suite holds no Netlify personal access token and no
+Blobs credentials, and a CI run needs none. The token opens that path
+and the order-limit exemption and nothing else; `STAGING_TOKEN` (the
+toolbar and the jobs workflow) does not open the path, and this one
+does not open the toolbar's. Both are 404 on production and wherever
+they are unset.
+
+Set `E2E_STAGING_TOKEN` on Netlify's `branch:staging` context and
+give the same value to the suite: in the environment, or in
+`.env.e2e-staging` (ignored) at the checkout root. The two specs that
+sign as the deploy would read `SQUARE_WEBHOOK_SIGNATURE_KEY` and
+`SQUARE_WEBHOOK_URL` from the same place and skip without them.
 
 ## Setting it up
 

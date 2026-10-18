@@ -551,3 +551,121 @@ describe("James's review in the library", () => {
     }
   });
 });
+
+describe("the e2e endpoint (#266)", () => {
+  const E2E = "e2e-s3cret";
+  const env = {
+    CONTEXT: "deploy-preview", MAIL_DRIVER: "outbox",
+    STAGING_TOKEN: TOKEN, E2E_STAGING_TOKEN: E2E,
+    URL: "https://staging.example.test",
+  };
+  const op = (body, token = E2E, method = "POST") => req(
+    "/api/staging/e2e", method, body, { Authorization: `Bearer ${token}` }
+  );
+  const ask = async (stores, body, token) => {
+    const res = await handle(op(body, token), { stores, env });
+
+    return { status: res.status, body: await res.json() };
+  };
+
+  it("is a 404 on production and with no e2e token set", async () => {
+    for (const e of [{ ...env, CONTEXT: "production" },
+      { ...env, E2E_STAGING_TOKEN: "" }]) {
+      const res = await handle(op({ op: "outboxList" }), {
+        stores: testStores(), env: e,
+      });
+
+      assert.equal(res.status, 404);
+    }
+  });
+
+  it("opens to its own token only, and shuts the toolbar's out", async () => {
+    const stores = testStores();
+
+    for (const token of ["", "wrong", TOKEN]) {
+      assert.equal((await ask(stores, { op: "outboxList" }, token)).status,
+        401, token);
+    }
+
+    assert.equal((await ask(stores, { op: "outboxList" })).status, 200);
+
+    const toolbar = await handle(req("/api/staging/outbox", "GET", undefined, {
+      Authorization: `Bearer ${E2E}`,
+    }), { stores, env });
+
+    assert.equal(toolbar.status, 401);
+
+    const get = await handle(op(undefined, E2E, "GET"), { stores, env });
+
+    assert.equal(get.status, 405);
+  });
+
+  it("refuses an unknown op", async () => {
+    const r = await ask(testStores(), { op: "dropEverything" });
+
+    assert.equal(r.status, 400);
+  });
+
+  it("reads and removes records, mail and messages", async () => {
+    const stores = testStores();
+
+    await stores.customers.set("messages/m1", {
+      email: "pat@example.com", message: "Hi",
+    });
+    await stores.customers.set("messages/m2", {
+      email: "lee@example.com", message: "Hi",
+    });
+    await sendMail({ ...message, to: "pat@example.com" }, {
+      env: { MAIL_DRIVER: "outbox" }, stores,
+    });
+
+    const listed = await ask(stores, { op: "messagesList",
+      email: "Pat@Example.com" });
+
+    assert.deepEqual(listed.body.messages.map((m) => m.key), ["messages/m1"]);
+    assert.equal((await ask(stores, { op: "outboxList" }))
+      .body.messages.length, 1);
+
+    assert.equal((await ask(stores, { op: "outboxClear",
+      to: "pat@example.com", floor: "9999" })).body.removed, 0);
+    assert.equal((await ask(stores, { op: "outboxClear",
+      to: "pat@example.com" })).body.removed, 1);
+    assert.equal((await ask(stores, { op: "messagesDelete",
+      email: "pat@example.com" })).body.removed, 1);
+    assert.equal((await stores.customers.list("messages/")).length, 1);
+  });
+
+  it("mints a sign-in link without mailing it", async () => {
+    const stores = testStores();
+    const r = await ask(stores, { op: "login", email: "pat@example.com" });
+
+    assert.equal(r.status, 200);
+    assert.match(r.body.url, /\/api\/auth\/verify\?token=/);
+    assert.equal((await stores.jobs.list(OUTBOX_PREFIX)).length, 0);
+    assert.equal((await ask(stores, { op: "login", email: "nope" })).status,
+      400);
+  });
+
+  it("flips the maintenance switch and reports it", async () => {
+    const stores = testStores();
+
+    assert.equal((await ask(stores, { op: "maintenanceStatus" })).body.on,
+      false);
+    assert.equal((await ask(stores, { op: "maintenanceSet", on: true }))
+      .body.changed, true);
+    assert.equal((await ask(stores, { op: "maintenanceStatus" })).body.on,
+      true);
+    await ask(stores, { op: "maintenanceSet", on: false });
+    assert.equal((await ask(stores, { op: "maintenanceLinks" })).body.links,
+      null, "no MAINTENANCE_SECRET, no links");
+  });
+
+  it("answers 404 for a record that is not there", async () => {
+    const stores = testStores();
+
+    assert.equal((await ask(stores, { op: "orderShow", id: "NFF-0000-XXXXXX" }))
+      .status, 404);
+    assert.deepEqual((await ask(stores, { op: "ordersList",
+      email: "none@example.com" })).body.orders, []);
+  });
+});

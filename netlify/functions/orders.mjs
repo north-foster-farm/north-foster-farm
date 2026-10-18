@@ -66,15 +66,17 @@ const rateLimited = (ip, now) => {
   return recent.length > RATE.max;
 };
 
-// Off production, a request carrying the staging token as X-Staging-Token
-// skips the limit, so the QA suite and a person testing by hand can share
-// one address. Without the header staging keeps the limit, so it can
-// still be tested; in production the header means nothing.
+// Off production, a request carrying the staging token (the toolbar's,
+// or the e2e suite's own) as X-Staging-Token skips the limit, so the QA
+// suite and a person testing by hand can share one address. Without the
+// header staging keeps the limit, so it can still be tested; in
+// production the header means nothing.
 const exempt = (req, env) => {
   const context = deployContext(env);
+  const given = req.headers.get("x-staging-token");
 
-  return !!env.STAGING_TOKEN && !!context && context !== "production" &&
-    req.headers.get("x-staging-token") === env.STAGING_TOKEN;
+  return !!given && !!context && context !== "production" &&
+    [env.STAGING_TOKEN, env.E2E_STAGING_TOKEN].includes(given);
 };
 
 // Human-readable, and the same for every retry of one submission:

@@ -10,7 +10,7 @@ import {
 } from "./support/staging.mjs";
 
 test.describe("farm news", () => {
-  test.skip(!backOffice().cli, BACK_OFFICE_MISSING);
+  test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
 
   test("the footer sign-up joins at once and sends a welcome",
     { tag: "@regression" }, async ({ page }) => {

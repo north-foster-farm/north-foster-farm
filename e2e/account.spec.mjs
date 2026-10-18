@@ -16,7 +16,7 @@ const SIGN_IN = "Your secure sign-in link to North Foster Farm";
 test.describe.configure({ mode: "serial" });
 
 test.describe("accounts", () => {
-  test.skip(!backOffice().cli, BACK_OFFICE_MISSING);
+  test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
 
   const email = uniqueEmail("account");
   let orderId;
@@ -111,7 +111,7 @@ test.describe("accounts", () => {
 // AO-04: three links per address per 15 minutes. The fourth request is
 // answered like the others, and the links already sent still work.
 test.describe("sign-in links are rate limited", () => {
-  test.skip(!backOffice().cli, BACK_OFFICE_MISSING);
+  test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
 
   const email = uniqueEmail("links");
   let since;

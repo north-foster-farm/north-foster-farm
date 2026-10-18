@@ -31,7 +31,7 @@ test.describe.configure({ mode: "serial" });
 test.describe("rate limit", () => {
   test.skip(!process.env.E2E_LOCKOUT,
     "Locks this address out for ten minutes; set E2E_LOCKOUT=1.");
-  test.skip(!backOffice().cli, BACK_OFFICE_MISSING);
+  test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
 
   const made = [];
   const emails = [];
@@ -107,7 +107,7 @@ const CONTACT_MESSAGE = "There have been too many messages from here. " +
 test.describe("contact rate limit", () => {
   test.skip(!process.env.E2E_LOCKOUT,
     "Locks this address out for ten minutes; set E2E_LOCKOUT=1.");
-  test.skip(!backOffice().cli, BACK_OFFICE_MISSING);
+  test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
 
   const email = uniqueEmail("contact-limit");
   const started = new Date();

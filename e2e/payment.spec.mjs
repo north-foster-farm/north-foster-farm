@@ -19,7 +19,7 @@ const ORDER_ID = /^NFF-\d{4}-[A-Z2-9]{6}$/;
 test.describe.configure({ mode: "serial" });
 
 test.describe("payments", () => {
-  test.skip(!backOffice().cli, BACK_OFFICE_MISSING);
+  test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
 
   const made = [];
   const emails = [];

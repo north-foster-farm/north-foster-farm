@@ -28,15 +28,23 @@
 //                                     .mjs): id, label, html, text and
 //                                     the fields still missing
 //   GET    /api/staging/signatures/:id  one as a bare page, for Select All
+//   POST   /api/staging/e2e          { op, ...args } the end-to-end
+//                                     suite's records, mail and
+//                                     maintenance switch (lib/e2e.mjs);
+//                                     opens only to E2E_STAGING_TOKEN,
+//                                     never to STAGING_TOKEN
 //   POST   /api/staging/throw         throws, to prove the crash alert
 //                                     (only with STAGING_TOKEN set)
 //
 // STAGING_TOKEN is required as a bearer or ?token=. With none set the
 // API fails closed: a context that forgot it answers 404, as production
 // does, rather than opening the outbox and its magic links to anyone.
+// The same holds for /e2e and E2E_STAGING_TOKEN, the one token of the
+// test suite; the two never open each other's paths.
 
 import { timingSafeEqual } from "node:crypto";
 
+import { runOp } from "./lib/e2e.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { runJobs } from "./lib/jobs.mjs";
 import { entry, library } from "./lib/library.mjs";
@@ -126,6 +134,20 @@ export const handle = async (req, {
   now = new Date(),
   run = runJobs,
 } = {}) => {
+  if (new URL(req.url).pathname.replace(/\/$/, "") === "/api/staging/e2e") {
+    if (!staging(env) || !env.E2E_STAGING_TOKEN) {
+      return json(404, { error: "Not found." });
+    }
+    if (!sameToken(tokenOf(req), env.E2E_STAGING_TOKEN)) {
+      return json(401, { error: "E2E token required." });
+    }
+    if (req.method !== "POST") return json(405, { error: "POST." });
+
+    const done = await runOp(stores, await readJson(req), env);
+
+    return json(done.status, done.body);
+  }
+
   if (!staging(env) || !env.STAGING_TOKEN) {
     return json(404, { error: "Not found." });
   }

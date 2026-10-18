@@ -19,7 +19,7 @@ const UPDATED = "Your order is updated";
 test.describe.configure({ mode: "serial" });
 
 test.describe("changing a paid order", () => {
-  test.skip(!backOffice().cli, BACK_OFFICE_MISSING);
+  test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
 
   const email = uniqueEmail("edit");
   let orderId;

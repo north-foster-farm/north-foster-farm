@@ -5,9 +5,10 @@
 //   E2E_MAINTENANCE=1 npx playwright test e2e/maintenance.spec.mjs \
 //     --project=desktop
 //
-// Needs .env.staging (bin/nff --staging) and STAGING_TOKEN. The phone
-// links and the Square webhook run when MAINTENANCE_SECRET and
-// SQUARE_WEBHOOK_SIGNATURE_KEY are in .env.staging and on the deploy.
+// Needs E2E_STAGING_TOKEN. The phone links run when the deploy holds
+// MAINTENANCE_SECRET, and the Square webhook when
+// SQUARE_WEBHOOK_SIGNATURE_KEY is in the environment (or
+// .env.e2e-staging) as well as on the deploy.
 // The switch is turned off again whatever happens. Venmo cannot be
 // scripted (PayPal's own approval); docs/maintenance.md has the steps.
 
@@ -16,7 +17,7 @@ import { createHmac } from "node:crypto";
 import { eggOrder, postOrder } from "./support/api.mjs";
 import { expect, test, uniqueEmail } from "./support/order.mjs";
 import {
-  BACK_OFFICE_MISSING, BASE_URL, backOffice, clearMail, closeOrder, nff,
+  BACK_OFFICE_MISSING, BASE_URL, backOffice, clearMail, closeOrder, nff, op,
   stagingEnv, teardown, waitForMail,
 } from "./support/staging.mjs";
 
@@ -31,7 +32,7 @@ test.describe("maintenance mode", () => {
   test.describe.configure({ mode: "serial" });
   test.skip(!process.env.E2E_MAINTENANCE,
     "Flips staging's maintenance switch; set E2E_MAINTENANCE=1.");
-  test.skip(!backOffice().cli, BACK_OFFICE_MISSING);
+  test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
 
   test.afterAll(async () => {
     await flip("off");
@@ -133,7 +134,7 @@ test.describe("maintenance mode", () => {
     async ({ request }) => {
       const key = stagingEnv("SQUARE_WEBHOOK_SIGNATURE_KEY");
 
-      test.skip(!key, "No SQUARE_WEBHOOK_SIGNATURE_KEY in .env.staging.");
+      test.skip(!key, "No SQUARE_WEBHOOK_SIGNATURE_KEY in the environment.");
 
       const url = stagingEnv("SQUARE_WEBHOOK_URL")
         || `${BASE_URL}/api/square/webhook`;
@@ -166,8 +167,8 @@ test.describe("maintenance mode", () => {
   });
 
   test("the phone links ask first, then flip", async ({ page }) => {
-    test.skip(!stagingEnv("MAINTENANCE_SECRET"),
-      "No MAINTENANCE_SECRET in .env.staging.");
+    test.skip(!(await op("maintenanceLinks")).links,
+      "The deploy holds no MAINTENANCE_SECRET.");
 
     await flip("off");
 
