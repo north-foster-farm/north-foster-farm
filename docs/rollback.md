@@ -169,14 +169,24 @@ design is the open item. What he has decided:
   is the signed ON link. Jim is a non-technical partner and gets
   nothing else from the system, since more would make a bad situation
   worse. A test proves that no alert except this escalation can reach
-  the address.
-- **Trigger.** An "orders not recorded" alert (a payment taken, no
-  order), left unacknowledged for one hour, sends the escalation
-  message once. It repeats only while the alert is still
-  unacknowledged, and James acknowledging it stops it. The variable
-  is in `docs/secrets.md`, the env samples and `env verify`, and is
-  required in production; staging has its own value, never
+  the address (`test/rotation.test.mjs`, "never lets an alert reach
+  the escalation address").
+- **Trigger.** The alert is `orders.not_recorded` (a payment taken,
+  no order). The escalation sends its message an hour after the alert
+  is raised, and again every hour while it is unacknowledged. The
+  variable is in `docs/secrets.md`, the env samples and `env check`,
+  and is required in production; staging has its own value, never
   production's.
+- **Not built yet.** The detector that raises `orders.not_recorded`
+  does not exist, so the escalation has nothing to watch. The
+  acknowledgement is `acknowledge` in `lib/health.mjs`, but no CLI
+  command or dashboard button calls it. Build one with the detector,
+  or the escalation cannot be stopped short of the next alert after
+  a restart. This is an open item for the rollback design.
+- **Wording.** The message is a draft, `escalation` in
+  `lib/templates.mjs`: "James hasn't responded to an urgent problem
+  with online orders", with a "Switch on maintenance mode" button.
+  James approves the words before launch.
 - **Hard gate.** The one-tap rollback must be built and rehearsed
   before the second production release. It is a blocking step in the
   launch guide and in the post-deploy checklist (#237): that release
