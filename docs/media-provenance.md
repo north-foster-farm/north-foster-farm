@@ -32,12 +32,12 @@ repository.
 | `assets/images/chickens.jpg` | James or Jim | | iPhone 13 Pro Max, 2024. Unused on the site; kept for the Instagram questions on #192. |
 | `assets/images/linus-featured.jpg` | James | | Byte for byte `~/Code/nff/linus-featured.jpg`, which James supplied. |
 | `assets/images/linus.jpg` | Unknown | | A tighter crop of the `linus-featured.jpg` scene (c1893a8, walkthrough finding 24); who cropped it is not recorded. About, egg mask. |
-| `assets/images/sunset.jpg` | James | | `~/Code/nff/sunset.jpg`, scaled from 4030 to 2400 wide. |
+| `assets/images/sunset.jpg` | James | | `~/Code/nff/sunset.jpg`, scaled from 4030 to 2400 wide. Unused since James removed it from the ordering-tour post and the launch email (2026-10-17). |
 | `assets/images/delivery-flyer.jpg` | James | | His original design (D-MA1, 2026-10-17). In production's tree, not on `next`. |
 | `assets/images/lily.jpg` | Unknown | | Metadata stripped; PR #67, the August post's hero and news thumbnail. |
 | `assets/images/scituate-market.jpg` | Unknown | | Metadata stripped; PR #67, August post. James on #192: not the farm's stand. |
 | `assets/images/mc-1.jpg` | Unknown | | Metadata stripped; the mobile coop, About (c1893a8, walkthrough finding 22). |
-| `assets/images/online-ordering.png` | Unknown | | A screenshot of deploy-preview-106 set in a MacBook frame (f76da25); who composited it is not recorded. September post, launch email. A stopgap until James's photo of the site on the laptop. |
+| `assets/images/online-ordering.png` | Unknown | | A screenshot of deploy-preview-106 set in a MacBook frame (f76da25); who composited it is not recorded. Ordering-tour post, launch email. A stopgap until James's photo of the site on the laptop. |
 
 Photos in `~/Code/nff/`, not in the repository; EXIF and location
 stripped, but their `*.jpg_original` backups still hold GPS and are

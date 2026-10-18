@@ -1897,15 +1897,15 @@ map's check", which passes on the phone since 7e757ac put the check
 above the map when stacked (#159). The invoice wording on `/` is
 AO-13's.
 
-- **Scenario:** The September post lives at `/news/<slug>/` and is shown
-  in full on the home page.
+- **Scenario:** The ordering-tour post lives at `/news/<slug>/` and is
+  shown in full on the home page.
 - **Setup:** Home page; the post page; the news list.
 - **Test:**
   1. Read the home section; press Check your ZIP code.
   2. Open the post; open the news list.
-- **Assert:** "News and updates"; "September Update" linking to
-  `/news/2026-09-22-september-update/`; "September 22, 2026" dated
-  `2026-09-22`; a "Check your ZIP code" link in the Delivery list, with
+- **Assert:** "News and updates"; "A Tour of Our New Ordering System"
+  linking to `/news/2026-10-18-ordering-tour/`; "October 18, 2026" dated
+  `2026-10-18`; a "Check your ZIP code" link in the Delivery list, with
   no "Do we deliver to you?" card and no ZIP check in the card (#211);
   "More news and updates", an outline button to `/news/`, below the
   card; the text no wider than 600px and, from 992 up, 52px of padding

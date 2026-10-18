@@ -147,7 +147,7 @@ test.describe("news page (#143)", () => {
     });
 
   test("captions sit plainly under framed photos", async ({ page }) => {
-    for (const path of ["/about/", "/news/2026-09-22-september-update/"]) {
+    for (const path of ["/about/", "/news/2026-10-18-ordering-tour/"]) {
       await page.goto(path);
 
       const captions = page.locator("main figcaption");

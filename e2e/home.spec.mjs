@@ -387,10 +387,10 @@ test.describe("home", () => {
       });
   });
 
-  // #136: the September update lives at /news/<slug>/ and the home
+  // #136: the ordering tour lives at /news/<slug>/ and the home
   // page publishes it in full under a news eyebrow.
   test.describe("home news section (#136)", () => {
-    const POST = "/news/2026-09-22-september-update/";
+    const POST = "/news/2026-10-18-ordering-tour/";
 
     test("the post in full, linked to its own page", async ({ page }) => {
       await page.goto("/");
@@ -400,13 +400,13 @@ test.describe("home", () => {
       await expect(card.locator(".home-eyebrow"))
         .toHaveText("News and updates");
       await expect(card.locator(".news-header-link"))
-        .toHaveText("September Update");
+        .toHaveText("A Tour of Our New Ordering System");
       await expect(card.locator(".news-header-link"))
         .toHaveAttribute("href", new RegExp(`${POST}$`));
       await expect(card.locator(".news-header time"))
-        .toHaveAttribute("datetime", "2026-09-22");
+        .toHaveAttribute("datetime", "2026-10-18");
       await expect(card.locator(".news-header time"))
-        .toHaveText("September 22, 2026");
+        .toHaveText("October 18, 2026");
 
       // Since #211 the ZIP check is a plain link under Delivery.
       await expect(card.getByRole("link", { name: "Check your ZIP code" }))
@@ -439,7 +439,8 @@ test.describe("home", () => {
         await page.goto(POST);
         await expect(page.locator("link[rel='canonical']"))
           .toHaveAttribute("href", new RegExp(`${POST}$`));
-        await expect(page.locator("h1")).toHaveText("September Update");
+        await expect(page.locator("h1"))
+          .toHaveText("A Tour of Our New Ordering System");
         await expect(page.locator("main")
           .getByRole("link", { name: "Check your ZIP code" }))
           .toHaveAttribute("href", /\/#map$/);
