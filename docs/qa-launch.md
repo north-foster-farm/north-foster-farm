@@ -839,10 +839,11 @@ email" (both projects).
   the list when the order is placed, and ticking it asks for nothing.
 - **Setup:** 1 egg; a unique email.
 - **Test:**
-  1. Type the email; tick "I want to get email from North Foster Farm.";
-     move to the phone field.
-- **Assert:** The box is ticked; no note under it; no request to
-  `/api/news/`; no order is sent.
+  1. Type the email; tick "Get news and updates from us?"; move to the
+     phone field.
+- **Assert:** The box is ticked and its label reads "Getting news and
+  updates from us."; chicks hop out of it (none under reduced motion);
+  no note under it; no request to `/api/news/`; no order is sent.
 - **Teardown:** None.
 
 ### FM-11 Autofill on an iPhone

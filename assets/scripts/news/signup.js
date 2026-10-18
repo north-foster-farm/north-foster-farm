@@ -8,6 +8,7 @@
 import { api } from "../utils/api.js";
 import { looksLikeEmail } from "../utils/email.js";
 import { isBusy, whileBusy } from "../utils/busy-button.js";
+import { celebrate } from "../order/celebrate.js";
 import { forget } from "../session/session.js";
 import { forgetJoined, remember, wireNewsHiding } from "./hide.js";
 
@@ -74,6 +75,7 @@ export const wire = (form) => {
       say(note, JOINED, "ok");
       input.value = "";
       remember();
+      celebrate(button);
     } else if (data && data.maintenance) {
       say(note, data.message, "wait");
     } else if (data && data.errors && data.errors.email) {

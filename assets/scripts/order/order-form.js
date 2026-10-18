@@ -330,6 +330,9 @@ export class OrderForm {
       if (e.target.name === "method" && !this.quietMethod) {
         this.revealMethod();
       }
+      if (e.target.name === "customer.marketing" && e.target.checked) {
+        celebrate(e.target);
+      }
     });
     this.form.addEventListener("submit", (e) => this.submit(e));
     this.form.addEventListener("click", (e) => this.step(e));
