@@ -1,5 +1,6 @@
 // POST /api/square/webhook: Square tells us something changed. The
-// signature is checked against SQUARE_WEBHOOK_SIGNATURE_KEY and the
+// signature is checked against SQUARE_WEBHOOK_SIGNATURE_KEY (or, during
+// a key swap, SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS) and the
 // notification URL Square was given, then the event is applied.
 //
 // Payments are taken on the page, synchronously, so the only event
@@ -30,17 +31,26 @@ export const signature = (key, url, body) =>
 // -> null when the delivery is Square's, or why it is refused
 // (lib/webhooks.mjs).
 export const rejection = (env, url, body, header) => {
-  const key = env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+  const keys = [
+    env.SQUARE_WEBHOOK_SIGNATURE_KEY,
+    env.SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS,
+  ].filter(Boolean);
 
   if (!header) return "unsigned";
-  if (!key) return "unconfigured";
+  if (!keys.length) return "unconfigured";
 
-  const expected = Buffer.from(signature(key, url, body));
   const given = Buffer.from(String(header));
 
-  return expected.length === given.length && timingSafeEqual(expected, given)
-    ? null
-    : "mismatch";
+  // Either key passes, so a swap leaves no gap: set the new key as
+  // the current one, the old as PREVIOUS, then drop PREVIOUS.
+  const match = keys.some((key) => {
+    const expected = Buffer.from(signature(key, url, body));
+
+    return expected.length === given.length
+      && timingSafeEqual(expected, given);
+  });
+
+  return match ? null : "mismatch";
 };
 
 export const verified = (env, url, body, header) =>

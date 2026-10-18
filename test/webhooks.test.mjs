@@ -208,6 +208,34 @@ describe("a refused webhook delivery", () => {
 
     assert.equal(res.status, 200);
   });
+
+  describe("during a Square key swap", () => {
+    const swap = { ...SQUARE, SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS: "old" };
+    const deliver = (key, env) => squareHook(post("/api/square/webhook", {
+      "x-square-hmacsha256-signature": signature(key, SQUARE_URL, body),
+    }), { env, stores: testStores(), now });
+
+    it("accepts a signature from either key", async () => {
+      assert.equal((await deliver("k", swap)).status, 200);
+      assert.equal((await deliver("old", swap)).status, 200);
+    });
+
+    it("refuses any other key", async () => {
+      assert.equal((await deliver("other", swap)).status, 401);
+    });
+
+    it("refuses the old key once PREVIOUS is removed", async () => {
+      assert.equal((await deliver("old", SQUARE)).status, 401);
+    });
+
+    it("accepts the previous key alone while the new is unset",
+      async () => {
+        const only = { ...FARM, SQUARE_WEBHOOK_URL: SQUARE_URL,
+          SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS: "old" };
+
+        assert.equal((await deliver("old", only)).status, 200);
+      });
+  });
 });
 
 describe("PayPal's verification", () => {
