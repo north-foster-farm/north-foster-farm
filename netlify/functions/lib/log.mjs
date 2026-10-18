@@ -10,16 +10,66 @@
 //
 // Under `node --test` nothing is shipped, like sendMail.
 
+import { createHash } from "node:crypto";
+
 const buffer = [];
 
 const SHIP_TIMEOUT = 1500;
 
+// Logs name an order by its id and carry no one's contact details
+// (#267). Every record is scrubbed on its way in, so it holds for each
+// call site, present and future: a field that holds personal data is
+// replaced, an email address anywhere in a string becomes a short hash
+// (the same address always hashes the same, so a trail can be
+// followed), and a phone number becomes a tag. A name or street typed
+// into free text cannot be found by a pattern; the fields that carry
+// them are the ones listed here.
+const REMOVED = "[removed]";
+
+const PERSONAL = new Set([
+  "email", "mail", "firstname", "lastname", "fullname", "phone", "tel",
+  "mobile", "address", "address1", "address2", "street", "street1",
+  "street2", "line1", "line2", "city", "town", "postal", "postalcode",
+  "customer", "payer", "recipient", "recipients", "to", "from", "replyto",
+  "note", "notes", "instructions", "text", "html", "subject", "token",
+  "authorization", "cookie",
+]);
+
+const EMAIL = /[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g;
+const PHONE = /[+(]?\d[\d\s().-]{8,}\d/g;
+const DEPTH = 8;
+
+const tagEmail = (address) => `[email:${
+  createHash("sha256").update(address.toLowerCase()).digest("hex")
+    .slice(0, 8)}]`;
+
+const scrubText = (text) => text
+  .replace(EMAIL, tagEmail)
+  .replace(PHONE, (m) => (m.replace(/\D/g, "").length >= 10 ? "[phone]" : m));
+
+export const scrub = (value, depth = 0) => {
+  if (typeof value === "string") return scrubText(value);
+  if (!value || typeof value !== "object") return value;
+  if (depth >= DEPTH) return REMOVED;
+  if (value instanceof Error) {
+    return scrub({ message: value.message, stack: value.stack }, depth + 1);
+  }
+  if (Array.isArray(value)) return value.map((v) => scrub(v, depth + 1));
+
+  return Object.fromEntries(Object.entries(value).map(([key, v]) => [
+    key,
+    PERSONAL.has(key.toLowerCase().replace(/[^a-z0-9]/g, ""))
+      ? REMOVED
+      : scrub(v, depth + 1),
+  ]));
+};
+
 const line = (level, fields) => {
-  const record = {
+  const record = scrub({
     _time: new Date().toISOString(),
     level,
     ...(fields && typeof fields === "object" ? fields : { message: fields }),
-  };
+  });
   const out = level === "error" ? console.error
     : level === "warn" ? console.warn : console.info;
 

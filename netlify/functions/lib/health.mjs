@@ -25,7 +25,7 @@ import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
 import {
   adminEmails, bothEmails, devEmails, devOrAdminEmails, sendMail,
 } from "./mail.mjs";
-import { log } from "./log.mjs";
+import { log, scrub } from "./log.mjs";
 import { mailLinks } from "./site.mjs";
 import { farmAlert } from "./templates.mjs";
 
@@ -215,7 +215,8 @@ export const raise = async (stores, kind, detail = {}, {
 
   const url = env.HEALTHCHECKS_ALERT_URL;
   const failed = await ping(url, {
-    ok: false, body: { kind, ...detail, at: now.toISOString() }, fetchImpl,
+    ok: false, body: scrub({ kind, ...detail, at: now.toISOString() }),
+    fetchImpl,
   });
   const rearmed = url ? await ping(url, { fetchImpl }) : false;
 

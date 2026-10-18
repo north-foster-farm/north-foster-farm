@@ -35,7 +35,14 @@ sees, so a dead page and a silent failure both reach the phone.
   pings a third check when its copy lands in R2, and `/fail` with
   `backup.failed` when it does not. `HEALTHCHECKS_BACKUP_URL`.
 - **Log.** Every JSON line the functions write, shipped per invocation
-  to Axiom (`lib/log.mjs`). `AXIOM_TOKEN`, `AXIOM_DATASET`.
+  to Axiom (`lib/log.mjs`). `AXIOM_TOKEN`, `AXIOM_DATASET`. Every
+  line is scrubbed first: fields that hold contact details (the
+  customer, addresses, phone, notes, mail text) are removed, an email
+  address in any string becomes `[email:<hash>]` (one address, one
+  hash), and a phone number becomes `[phone]`. Lines name an order by
+  id. The alert pings to Healthchecks are scrubbed the same way.
+  `test/log-privacy.test.mjs` fails when a failed order logs any of
+  it. A name typed into free text cannot be found by pattern.
 - **Run ledger.** Each jobs run's report in the jobs store, two days
   kept; `bin/nff jobs history`. Needs nothing.
 - **Morning report.** 8:00 daily, always: the last day in numbers,
