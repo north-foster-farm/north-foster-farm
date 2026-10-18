@@ -1,5 +1,5 @@
 {
- "revision": 31,
+ "revision": 32,
  "updated": "2026-10-18",
  "notice": null,
  "phases": [
@@ -1549,35 +1549,11 @@
     },
     {
      "id": "ld-venmo",
-     "title": "Hide Venmo until the live test passes",
-     "body": "If you approved hiding Venmo (D-VENMO), choose **Hidden**, re-save `.env.production` and push. The old site ignores this setting, so pushing it now is safe.",
-     "minutes": 3,
-     "copy": [
-      {
-       "label": "Push",
-       "value": "bin/nff env push --production"
-      }
-     ],
-     "fields": [
-      {
-       "id": "venmo_hidden",
-       "label": "Venmo at release",
-       "secret": false,
-       "type": "choice",
-       "options": [
-        {
-         "value": "1",
-         "label": "Hidden until R3 passes"
-        },
-        {
-         "value": "0",
-         "label": "Visible"
-        }
-       ]
-      }
-     ],
+     "title": "Leave VENMO_HIDDEN empty",
+     "body": "You decided (V1, #192) that Venmo launches **live** for everyone. Nothing to set: production's `VENMO_HIDDEN` stays empty, and the env builder writes it that way. Launching live is the test, and the setting is the safety net: if Venmo misbehaves after the release, set `VENMO_HIDDEN=1` on the production context and redeploy. The button then greys out with \"Coming soon\".",
+     "minutes": 1,
      "device": "laptop",
-     "type": "terminal"
+     "type": "look"
     }
    ]
   },
@@ -1757,6 +1733,22 @@
    "title": "Prove payments with real money",
    "steps": [
     {
+     "id": "ld-errphone",
+     "title": "Right after the deploy: pay $1 by Venmo, then refund it",
+     "body": "Venmo is live for every customer from the moment the release publishes, so this is the first thing you do after it. It proves two things on the live site: a broken Square reaches your phone, and Venmo still works when Square is down (PY-17).\n\n1. In Firefox, open the order page with developer tools. Block requests to `web.squarecdn.com` (Network tab: right-click a request to it, then Block URL), then reload. A \"payment unavailable\" alert should reach your phone within a minute. Check that it does.\n2. With Square still blocked, order $1 and pay by Venmo: scan the code with your phone and pay in the real Venmo app.\n3. Unblock `web.squarecdn.com`.\n4. Refund the $1 with `bin/nff --production orders refund <id>`. The id is on the success card. Check the order record, Square's copy and both webhooks agree.\n5. In Square's dashboard, open the refund and check it shows **Completed**, not Pending. Sandbox left Venmo refunds pending (#164 item 1), so production is the first place this shows.\n\nIf anything fails, set `VENMO_HIDDEN=1` on the production context and ask Claude to redeploy: the button greys out until production rebuilds. Fix it on staging, then repeat this test. When it passes there is nothing to switch on; Venmo was already live.",
+     "minutes": 20,
+     "device": "laptop",
+     "type": "live"
+    },
+    {
+     "id": "ld-160",
+     "title": "Pay a Venmo difference (#160)",
+     "body": "Do this after the $1 Venmo payment before it has passed. Place a small order paid by card, open Change items, add one item and pay the difference with Venmo. Check that the order shows the new total and \"You paid $X more\", and that Square and PayPal both show the extra amount. Then refund both the same way as the $1 order.",
+     "minutes": 10,
+     "device": "phone",
+     "type": "live"
+    },
+    {
      "id": "ld-card",
      "title": "A real $7 card order",
      "body": "Order a dozen eggs by card on the live site, then refund it from the command line. Check the receipt email arrives and the order shows in Square.",
@@ -1783,28 +1775,6 @@
      ],
      "device": "laptop",
      "type": "account"
-    },
-    {
-     "id": "ld-errphone",
-     "title": "Check a broken checkout, then pay $1 by Venmo",
-     "body": "This proves two things on the live site: a broken Square reaches your phone, and Venmo still works when Square is down (PY-17).\n\n1. In Firefox, open the order page with developer tools. Block requests to `web.squarecdn.com` (Network tab: right-click a request to it → Block URL), then reload. A \"payment unavailable\" alert should reach your phone within a minute. Check that it does.\n2. With Square still blocked, on that same page add `?venmo` to the address, which shows Venmo even while it's hidden. Order $1 and pay by Venmo: scan the code with your phone and pay in the real Venmo app.\n3. Unblock `web.squarecdn.com`.\n4. Refund the $1 with `bin/nff --production orders refund <id>`. Check the order record, Square's copy and both webhooks agree.\n\nWhen it passes, set Venmo to **Visible** in *Before the release*, re-save `.env.production`, push, **and ask Claude to redeploy**: the setting does nothing until production rebuilds. If it fails, set Venmo back to **Hidden** in *Before the release*, re-save `.env.production`, push, ask Claude to rebuild, fix it on staging, and repeat this test.\n\nAlso check, in Square's dashboard, that the $1 refund shows **Completed**, not Pending. Sandbox left Venmo refunds pending (#164 item 1), so production is the first place this shows. The order id for the refund is on the success card.",
-     "minutes": 20,
-     "device": "laptop",
-     "type": "live",
-     "links": [
-      {
-       "label": "Order page with Venmo",
-       "url": "https://www.northfosterfarm.com/order/?venmo"
-      }
-     ]
-    },
-    {
-     "id": "ld-160",
-     "title": "Pay a Venmo difference (#160)",
-     "body": "Do this after the $1 Venmo payment above has passed. Place a small order paid by card, open Change items, add one item and pay the difference with Venmo. Check that the order shows the new total and \"You paid $X more\", and that Square and PayPal both show the extra amount. Then refund both the same way as the $1 order.",
-     "minutes": 10,
-     "device": "phone",
-     "type": "live"
     },
     {
      "id": "pw-p9",
@@ -2922,6 +2892,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6219841453"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-18",
+     "changed": "The launch-day steps now follow your V1 decision (#192): Venmo launches live.",
+     "summary": "Earlier steps still described hiding Venmo until the live test passed. They are fixed.\n- *Before the release*: leave `VENMO_HIDDEN` empty. There is no choice to make.\n- *Prove payments*: the $1 Venmo payment, its CLI refund and the check that Square shows the refund **Completed** now come first, right after the release deploy.\n- If Venmo misbehaves: set `VENMO_HIDDEN=1` on production and redeploy. The button greys out as \"Coming soon\".",
+     "look": []
     }
    ],
    "device": "any",
@@ -4144,6 +4121,9 @@
      "production": {
       "field": "venmo_hidden"
      }
+    },
+    "production": {
+     "value": ""
     }
    },
    {
