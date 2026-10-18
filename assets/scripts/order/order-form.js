@@ -520,7 +520,11 @@ export class OrderForm {
       this.cart.style.setProperty(
         "--cart-bar", `${Math.max(0, Math.round(barBottom))}px`
       );
-      this.cart.dataset.stuck = String(floating);
+      if (this.cart.dataset.stuck !== String(floating)) {
+        this.cart.dataset.stuck = String(floating);
+        // The cap and what gives way to it apply only while it floats.
+        this.syncScroll();
+      }
       // Settled, the cart is always open and its toggle fades. It
       // stays open when it floats again: folding it then would shorten
       // it, settle it and open it again, over and over.
@@ -1096,7 +1100,18 @@ export class OrderForm {
     const listBox = wrap.parentElement;
     const foldMin = room + others(wrap.parentElement, wrap)
       + others(listBox.parentElement, listBox) + spacer;
-    const below = others(after.firstElementChild) + spacer;
+    // What is under the total row: the badges are information only and
+    // the first to go when the cap has no room for them, so the floor
+    // counts the rest (the way, the code) and the badges at their last
+    // seen height.
+    const badges = qs(after, ".order-badges");
+
+    if (badges.offsetHeight && !this.cart.hasAttribute("data-squeezed")) {
+      this.badgesH = outer(badges);
+    }
+
+    const extra = badges.hidden ? 0 : this.badgesH || 40;
+    const below = others(after.firstElementChild, badges) + spacer;
     const css = getComputedStyle(this.cart);
     const pane = others(this.cart, fold, after)
       + ["paddingTop", "paddingBottom", "borderTopWidth", "borderBottomWidth"]
@@ -1106,19 +1121,24 @@ export class OrderForm {
 
       if (!(Math.abs(now - px) < 1)) el.style.setProperty(name, `${px}px`);
     };
+    const floor = pane + foldMin + below;
+    const visible = parseFloat(this.cart.style.getPropertyValue("--cart-vis"))
+      || window.innerHeight;
+    const roomPx = visible - rem;
+    const most = Math.min(roomPx, Math.max(visible * 0.48, floor));
 
     set(wrap, "--cart-scroll-min", room);
     set(this.cart, "--cart-fold-min", Math.ceil(foldMin));
-    set(this.cart, "--cart-min-h", Math.ceil(pane + foldMin + below));
+    set(this.cart, "--cart-min-h", Math.ceil(floor));
 
-    // Too short for the floor itself: what is under the total row then
-    // scrolls, so the rows, the total and Continue keep their room.
-    const visible = parseFloat(this.cart.style.getPropertyValue("--cart-vis"))
-      || window.innerHeight;
-
+    // With no room for the badges they go; too short for the floor
+    // itself, what is under the total row scrolls, so the rows, the
+    // total and Continue keep their room.
     this.cart.toggleAttribute(
-      "data-tight", pane + foldMin + below > visible - 1.01 * rem
+      "data-squeezed",
+      this.cart.dataset.stuck === "true" && most < floor + extra - 0.5
     );
+    this.cart.toggleAttribute("data-tight", floor > roomPx);
   }
 
   // Quantity controls.
@@ -1642,6 +1662,7 @@ export class OrderForm {
     // The delivery badges and the bulk tiers read as delivery terms:
     // on a pickup they are noise (#267).
     qs(c, ".order-badges").hidden = method !== "delivery";
+    this.syncScroll();
     // The header's Order link shows the same count; a change to a paid
     // order is not the cart.
     if (!this.editing) announceCart(count);

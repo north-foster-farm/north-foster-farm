@@ -490,7 +490,8 @@ toolbar and the feel of the glide are manual (OP-29 for the toolbar).
      sideways; tap "N more" on a long cart.
 - **Assert:** The fill slides to the side showing, and the tab under it
   is `aria-selected`; a second tap changes nothing. Each pane is 48% of
-  the visible height or less, or the floor's height. Three rows, the
+  the visible height or less, or the floor's height. The delivery
+  badges go first when the cap has no room for them. Three rows, the
   total row and Continue are whole and on screen at every size. Every
   control is 36px tall. By hand: the cart rides above the keyboard with
   the field in sight; the page clears the notch in landscape; the list

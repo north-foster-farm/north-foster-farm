@@ -83,6 +83,7 @@ const plugins = [
         "data-plain",
         "data-multi",
         "data-tight",
+        "data-squeezed",
         "data-pulse",
         "data-show",
         "data-more",

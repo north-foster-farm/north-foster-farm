@@ -219,12 +219,17 @@ test.describe("cart panes on a phone", () => {
     await apart(down);
   });
 
+  // The badges are the first thing to go when the cap has no room for
+  // them (a long cart, or a screen under about 800px tall); a short
+  // cart on a taller screen keeps them.
   test("the badges show only for a delivery, on two lines", async ({
     page,
   }) => {
     const order = new OrderPage(page);
 
-    await order.open(FULL_CART);
+    await page.setViewportSize(TALL);
+    await order.open({ wings: 2 });
+    await page.evaluate(() => window.scrollTo(0, 400));
 
     const badges = order.cart.locator(".order-badges");
 
@@ -239,7 +244,7 @@ test.describe("cart panes on a phone", () => {
     // Two lines, lit or not, at 390 and at an SE's 375 (#267), and the
     // text no larger than the "Next discount" note under Continue.
     for (const width of [390, 375]) {
-      await page.setViewportSize({ width, height: 664 });
+      await page.setViewportSize({ width, height: 844 });
       await page.evaluate(() => {
         for (const el of document.querySelectorAll(".order-badge")) {
           el.dataset.on = "true";
@@ -267,6 +272,20 @@ test.describe("cart panes on a phone", () => {
       expect(seen.size).toBeLessThanOrEqual(seen.note);
       expect(seen.size).toBeGreaterThan(0.7 * 16);
     }
+  });
+
+  test("a long cart gives up the badges before it gives up a row", async ({
+    page,
+  }) => {
+    const order = new OrderPage(page);
+
+    await order.open(FULL_CART, { method: "delivery" });
+    await order.scrollSettled();
+    await page.evaluate(() => window.scrollTo(0, 400));
+    await expect(order.cart).toHaveAttribute("data-stuck", "true");
+    await expect(order.cart).toHaveAttribute("data-squeezed", "");
+    await expect(order.cart.locator(".order-badges")).toBeHidden();
+    await expect(order.cart.locator("[data-way-toggle]")).toBeVisible();
   });
 
   test("the shared row's controls are all 36px tall", async ({ page }) => {

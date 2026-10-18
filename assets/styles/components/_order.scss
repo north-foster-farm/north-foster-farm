@@ -2266,6 +2266,12 @@
       min-height: var(--cart-fold-min, 0);
     }
 
+    // No room under the cap for the badges: they are information only
+    // and the first to go (order-form.js measureFloor).
+    .order-cart[data-squeezed] .order-badges {
+      display: none;
+    }
+
     // When the room is too short even for the floor (a phone on its
     // side), the parts under the total row give way and scroll: the
     // sheet still keeps the rows, the total and Continue.
@@ -2281,16 +2287,12 @@
   }
 
   // A phone turned sideways has the height for little else than the
-  // lines, the total and Continue: the badges (information only) and
-  // some of the room around the parts go, so the way and the code still
-  // show without scrolling where they can.
+  // lines, the total and Continue: some of the room around the parts
+  // goes, so the way and the code still show without scrolling where
+  // they can.
   @media (max-width: 767.98px) and (max-height: 500px) {
     .order-cart {
       padding-block: 0.5rem;
-    }
-
-    .order-badges {
-      display: none;
     }
 
     .order-cart-rule {
