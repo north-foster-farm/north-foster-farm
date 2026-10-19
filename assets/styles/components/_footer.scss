@@ -9,11 +9,41 @@
 $footer-gap: 3.75rem;
 $footer-gap-copyright: 3rem;
 
+// The farm silhouette on the footer's top edge (#226): the high tunnel
+// and the two mobile coops, in the footer's own color, rising into the
+// band above. It spans the full width at the mask's 3792:280 shape, so
+// its height is a share of the width; the bands above the footer pad
+// their bottoms by it (_touch.scss) so nothing sits under the rooftops.
+:root {
+  --footer-silhouette-height: calc(100vw * 280 / 3792);
+}
+
+.footer-clearance {
+  min-height: var(--footer-silhouette-height);
+}
+
 .site-footer {
+  position: relative;
   padding-block: 2.25rem 1.25rem;
   color: $navbar-light-color;
   text-align: center;
   background-color: $footer-bg;
+
+  // Decoration only: the 1px overlap hides the seam, and it never
+  // takes a tap meant for the band below it. Autoprefixer adds the
+  // -webkit- form of the mask.
+  &::before {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% - 1px);
+    left: 0;
+    aspect-ratio: 3792 / 280;
+    pointer-events: none;
+    content: "";
+    background-color: $footer-bg;
+    mask: url("/images/farm-silhouette.svg") center bottom / 100% 100%
+      no-repeat;
+  }
 
   .footer-news {
     margin-bottom: $footer-gap;
