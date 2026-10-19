@@ -40,8 +40,3 @@ weight = 70
 name = "Order"
 pageRef = "/order"
 weight = 80
-
-[[footer]]
-name = "llms.txt"
-url = "/llms.txt"
-weight = 90

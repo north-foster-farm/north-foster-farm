@@ -10,7 +10,7 @@ import { expect, test } from "./support/order.mjs";
 
 const LINKS = [
   "About", "Account", "News", "Accessibility", "Privacy", "Delivery",
-  "Contact", "Order", "llms.txt",
+  "Contact", "Order",
 ];
 
 // Each dotted line's items, grouped by the row they sit on, with the
