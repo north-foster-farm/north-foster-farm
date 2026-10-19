@@ -4,7 +4,7 @@
 // two read as one voice. Not scoped to a page.
 
 .touch {
-  padding-block: 3.5rem calc(3.5rem + var(--footer-silhouette-height));
+  padding-block: 3.5rem;
   background-color: var(--bs-success-bg-subtle);
   text-align: center;
 }
