@@ -3,11 +3,12 @@
 // reach it, and the copyright. Rows wrap, centered, as the width
 // shrinks; nothing changes layout at a breakpoint.
 
-// Vertical rhythm: one unit is 1.5rem, the old uniform gap between
-// groups. Sign-up, logo and links each sit 2.5 units from the next
-// group; the contact line sits 2 units above the copyright.
-$footer-gap: 3.75rem;
-$footer-gap-copyright: 3rem;
+// Vertical rhythm (James's values, #226): the sign-up and the logo sit
+// 2.5rem above what follows, 1.5rem below the md breakpoint, where the
+// links and the contact line tighten too and the copyright's own
+// margin goes.
+$footer-gap: 2.5rem;
+$footer-gap-phone: 1.5rem;
 
 .site-footer {
   padding-block: 2.25rem 1.25rem;
@@ -17,14 +18,28 @@ $footer-gap-copyright: 3rem;
 
   .footer-news {
     margin-bottom: $footer-gap;
+
+    @include media-breakpoint-down(md) {
+      margin-bottom: $footer-gap-phone;
+    }
   }
 
   .dot-list {
     --dot-gap: 1.25rem;
   }
 
+  .footer-contact {
+    @include media-breakpoint-down(md) {
+      margin-bottom: 0.75rem;
+    }
+  }
+
   .footer-copyright {
-    margin-top: $footer-gap-copyright;
+    margin-top: 0.375rem;
+
+    @include media-breakpoint-down(md) {
+      margin-top: 0;
+    }
   }
 
   a {
@@ -37,14 +52,22 @@ $footer-gap-copyright: 3rem;
 
   // The links read a little larger than the contact line under them.
   nav .dot-list {
-    margin-bottom: $footer-gap;
+    margin-bottom: 0.75rem;
     font-size: 1.0625rem;
+
+    @include media-breakpoint-down(md) {
+      margin-bottom: 1rem;
+    }
   }
 
   .apppa-logo {
     display: block;
     width: fit-content;
     margin: 0 auto $footer-gap;
+
+    @include media-breakpoint-down(md) {
+      margin-bottom: $footer-gap-phone;
+    }
 
     svg {
       display: block;
