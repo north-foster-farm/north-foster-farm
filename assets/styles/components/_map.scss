@@ -2,49 +2,57 @@
 // ZIPs over it. On Delivery, the ZIPs we deliver to in green, the rest
 // of Rhode Island in sand at the higher price, and the neighbouring
 // states as plain land, with one dark green pin that drops where the
-// visitor asks. On Places, all land is plain and every place is the
-// same blue pin. Everything drawn keeps its line weight and the pins
-// their size as the map zooms.
+// visitor asks. On Places, all land is plain and every place is a dark
+// green pin with its number; the chosen one is lighter, never darker.
+// Water is the only blue. Everything drawn keeps its line weight and
+// the pins their size as the map zooms.
 
 $map-water: tint-color($teal, 84%);
 $map-land: #f3f1ea;
 $map-away: #e9dfc8;
 $map-ours: tint-color($green, 58%);
-$map-place: $blue;
-$map-place-tint: tint-color($blue, 82%);
+$map-place: $primary;
+$map-place-chosen: tint-color($green, 6%);
+
+// The chosen row: a pale warm wash from the sand family, under text at
+// AA. The hover on a row or a pin is a fainter one.
+$map-chosen: #f7f1e2;
+$map-hover: #fbf8ef;
 
 // A link to the map (the delivery policy's "See where we deliver")
-// lands with the map a little below the top of the window.
+// lands with the map a little below the top of the window. Stacked, the
+// switch, the map and its key follow one another; side by side, a map
+// capped at 608px and a 300px column, centered together, the column
+// level with the top of the map.
 .map {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 2rem;
   align-items: start;
   scroll-margin-top: 1.5rem;
 
   @media (min-width: 992px) {
-    grid-template-rows: auto 1fr;
-    grid-template-columns: 7fr 5fr;
-    gap: 1.5rem 3rem;
+    grid-template-columns: minmax(0, 608px) 300px;
+    column-gap: 2.5rem;
+    justify-content: center;
   }
 }
 
-// Stacked, the map comes first, then the key; side by side, the map
-// fills the left and the key sits beside it.
+// The switch, the map and the key are the grid's own items.
 .map-view {
-  @media (min-width: 992px) {
-    grid-row: 1 / span 2;
-    grid-column: 1;
-  }
+  display: contents;
 }
 
 // The layer switch, alone above the map.
 .map-bar {
+  grid-column: 1;
+  grid-row: 1;
   margin-bottom: 0.75rem;
 }
 
 .map-frame {
   position: relative;
+  grid-column: 1;
+  grid-row: 2;
   overflow: hidden;
   border: 1px solid var(--bs-border-color-translucent);
   border-radius: var(--bs-border-radius-lg);
@@ -114,9 +122,10 @@ $map-place-tint: tint-color($blue, 82%);
   pointer-events: none;
 }
 
-// A place's pin: blue, outlined in white so it stands off the land. It
-// rises a little under the pointer, and while its card is open it
-// brightens and glows.
+// A place's pin: dark green, outlined in white so it stands off the
+// land, and numbered as its row is. It rises a little under the pointer
+// or its row's, and while its card is open it turns a lighter green and
+// glows.
 .map-pin {
   cursor: pointer;
   outline: none;
@@ -129,18 +138,14 @@ $map-place-tint: tint-color($blue, 82%);
     transition: fill 0.12s ease-out, stroke 0.12s ease-out;
   }
 
-  circle {
-    fill: $white;
-  }
-
-  // Selected, a pin brightens and glows; it never darkens. Keyboard
+  // Selected, a pin lightens and glows; it never darkens. Keyboard
   // focus alone takes the dark outline.
   &[aria-pressed="true"] {
-    filter: drop-shadow(0 0 5px rgba($map-place, 0.75))
+    filter: drop-shadow(0 0 5px rgba($map-place-chosen, 0.8))
       drop-shadow(0 2px 2px rgba($black, 0.25));
 
     path {
-      fill: tint-color($map-place, 35%);
+      fill: $map-place-chosen;
     }
   }
 
@@ -150,11 +155,23 @@ $map-place-tint: tint-color($blue, 82%);
   }
 }
 
+// The number, white in the pin's head, in the page's own face.
+.map-pin-num {
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: bold;
+  text-anchor: middle;
+  fill: $white;
+  pointer-events: none;
+  user-select: none;
+}
+
 .map-pin-body {
   transition: transform 0.16s ease-out;
 }
 
 .map-pin:hover .map-pin-body,
+.map-pin[data-hot] .map-pin-body,
 .map-pin[aria-pressed="true"] .map-pin-body {
   transform: translateY(-4px) scale(1.12);
 }
@@ -187,12 +204,12 @@ $map-place-tint: tint-color($blue, 82%);
   stroke-width: 6;
 }
 
-// Places: the selected pin's town, outlined in the pin's blue over the
+// Places: the selected pin's town, outlined in the brand green over the
 // same white casing.
 .map-town,
 .map-town-casing {
   fill: none;
-  stroke: shade-color($map-place, 20%);
+  stroke: $primary;
   stroke-width: 3;
   stroke-linejoin: round;
   pointer-events: none;
@@ -322,53 +339,33 @@ $map-place-tint: tint-color($blue, 82%);
   }
 }
 
-// A place's card, over its pin: what kind of place, its name, when,
-// where, its links and, for the two ways to pick up, a button.
+// A place's card, open in its row: when, where, directions, links
+// and, for the two ways to pick up, a button. It leaves a part out and
+// never reorders one.
 .map-card {
-  position: absolute;
-  z-index: 3;
-  width: min(18rem, calc(100% - 1rem));
-  padding: 0.875rem 1rem 1rem;
-  border: 1px solid var(--bs-border-color-translucent);
-  border-radius: var(--bs-border-radius-lg);
+  padding: 0 0.75rem 0.875rem 3.125rem;
   font-size: 0.875rem;
-  background-color: $white;
-  box-shadow: $btn-lift-shadow;
 
   p {
     margin: 0;
   }
 }
 
-.map-card-close {
-  position: absolute;
-  top: 0.625rem;
-  right: 0.625rem;
-  width: 0.5rem;
-  height: 0.5rem;
-}
-
-.map-card-kind {
-  padding-right: 1.5rem;
-  font-size: 0.75rem;
+.map-card-label,
+.map-card-directions .directions-label {
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.125rem !important;
+  font-size: 0.6875rem;
   font-weight: bold;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--bs-green);
-}
-
-.map-card-name {
-  padding-right: 1.5rem;
-  margin-bottom: 0.375rem !important;
-  font-size: 1rem;
-  font-weight: bold;
-  outline: none;
+  color: var(--bs-secondary-color);
 }
 
 .map-card-when {
   display: grid;
   gap: 0.375rem;
-  margin-bottom: 0.375rem;
+  margin: 0;
 
   strong,
   span {
@@ -376,24 +373,38 @@ $map-place-tint: tint-color($blue, 82%);
   }
 }
 
-.map-card-where {
-  color: var(--bs-secondary-color);
+.map-card-directions .directions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
 }
 
-.map-card-directions {
-  margin-top: 0.5rem !important;
+.map-card-directions .directions-label {
+  flex-basis: 100%;
+  margin-bottom: 0 !important;
+}
+
+// A direction is a chip, 36px tall to tap.
+.map-card-directions .directions-link {
+  min-height: 2.25rem;
+  padding: 0 0.875rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 50rem;
+  font-weight: bold;
+  background-color: $white;
 }
 
 .map-card-links {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem 1rem;
-  margin-top: 0.375rem !important;
   font-weight: bold;
 }
 
 .map-card-shop {
-  margin-top: 0.75rem;
+  display: block;
+  margin-top: 0.875rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -408,15 +419,39 @@ $map-place-tint: tint-color($blue, 82%);
   }
 }
 
-// The key beside the map: on Delivery, the two shades by price and how
-// the tag marks what we deliver; on Places, every place by name, each
-// a button that opens its card.
+// The key beside the map, under it on a phone: a card with the map's
+// border and radius, as tall as its content. On Delivery, the shading
+// by price and the icons on the tag; on Places, every place by number
+// and name, each row opening its card.
 
 .map-key {
+  grid-column: 1;
+  grid-row: 3;
+  margin-top: 1.25rem;
   font-size: 0.9375rem;
 
   @media (min-width: 992px) {
     grid-column: 2;
+    grid-row: 2;
+    margin-top: 0;
+  }
+}
+
+.map-key-card {
+  padding: 1rem;
+  border: 1px solid var(--bs-border-color-translucent);
+  border-radius: var(--bs-border-radius-lg);
+  background-color: $white;
+}
+
+// Two groups, side by side under the map, one above the other beside it.
+.map-key-card[data-map-for="delivery"] {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem 1rem;
+
+  @media (min-width: 992px) {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -425,13 +460,13 @@ $map-place-tint: tint-color($blue, 82%);
 .map-places {
   overflow-y: auto;
   overscroll-behavior: contain;
+  padding: 0.75rem 0.5rem;
 }
 
 .map-key-areas {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, max-content));
-  gap: 0.75rem 1.5rem;
-  margin-bottom: 1.25rem;
+  gap: 0.75rem;
+  margin: 0;
 
   li {
     display: flex;
@@ -442,6 +477,7 @@ $map-place-tint: tint-color($blue, 82%);
 }
 
 .map-swatch {
+  flex: none;
   width: 1.5rem;
   height: 1.125rem;
   border-radius: 0.25rem;
@@ -459,55 +495,108 @@ $map-place-tint: tint-color($blue, 82%);
 
 .map-key-icons {
   display: inline-flex;
+  flex: none;
   gap: 0.25rem;
 }
 
 .map-key-head {
-  margin: 0 0 0.375rem;
-  font-size: 0.8125rem;
+  margin: 0 0 0.625rem;
+  font-size: 0.75rem;
   font-weight: bold;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--bs-secondary-color);
 
   * + & {
-    margin-top: 1.25rem;
+    margin-top: 1rem;
+  }
+
+  .map-places & {
+    padding-inline: 0.5rem;
+    margin-bottom: 0.25rem;
   }
 }
 
 .map-key-list {
   display: grid;
-  gap: 0.25rem;
+  gap: 0.125rem;
   margin: 0;
+
+  li {
+    border-radius: var(--bs-border-radius);
+  }
+
+  // The chosen place: a pale warm wash and a 3px bar in the brand green.
+  li[data-open] {
+    background-color: $map-chosen;
+    box-shadow: inset 3px 0 0 $primary;
+  }
 }
 
 .map-key-show {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
   width: 100%;
-  min-height: 2.75rem;
-  padding: 0.375rem 0.625rem;
+  min-height: 3.25rem;
+  padding: 0.375rem 0.75rem 0.375rem 0.5rem;
   border: 0;
   border-radius: var(--bs-border-radius);
   text-align: left;
   color: inherit;
   background: none;
 
+  strong,
   small {
-    margin-left: 0.25rem;
+    display: block;
+  }
+
+  small {
     color: var(--bs-secondary-color);
   }
 
-  &:hover {
-    background-color: tint-color($green, 88%);
+  &::after {
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-right: 0.25rem;
+    content: "";
+    border: solid var(--bs-secondary-color);
+    border-width: 0 2px 2px 0;
+    transform: rotate(-45deg);
   }
 
-  &[aria-pressed="true"] {
-    font-weight: bold;
+  &[aria-expanded="true"]::after {
+    transform: rotate(45deg);
+  }
+
+  &:hover,
+  &[data-hot] {
+    background-color: $map-hover;
+  }
+
+  &[aria-expanded="true"] {
+    background: none;
+  }
+}
+
+// The row's number, as the pin carries it: tinted, and filled in the
+// chosen row.
+.map-num {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-weight: bold;
+  line-height: 1;
+  color: $primary;
+  background-color: tint-color($green, 85%);
+
+  [aria-expanded="true"] > & {
     color: $white;
     background-color: $primary;
-
-    small {
-      color: inherit;
-    }
   }
 }
 
@@ -535,11 +624,11 @@ $map-place-tint: tint-color($blue, 82%);
   }
 }
 
-// The zoom, over the map's top left, under the tag and the cards.
+// The zoom, over the map's top right, under the tag.
 .map-zoom {
   position: absolute;
   top: 0.75rem;
-  left: 0.75rem;
+  right: 0.75rem;
   z-index: 1;
   display: flex;
   flex-direction: column;
@@ -577,8 +666,7 @@ $map-place-tint: tint-color($blue, 82%);
 .map[data-layer="delivery"] {
   .map-town,
   .map-town-casing,
-  .map-pins,
-  .map-card {
+  .map-pins {
     display: none;
   }
 }
@@ -599,15 +687,6 @@ $map-place-tint: tint-color($blue, 82%);
 
   .map-zip.is-land {
     stroke: $map-land;
-  }
-
-  // A town with a place in it, tinted to ground its pin.
-  .map-zip.has-pin {
-    fill: $map-place-tint;
-  }
-
-  .map-zip.is-land.has-pin {
-    stroke: $map-place-tint;
   }
 }
 

@@ -103,6 +103,8 @@ const plugins = [
         "full",
         "aria-pressed",
         "data-layer",
+        // The map's list row and pin lit by each other (#214).
+        "data-hot",
         "delivery",
         "places",
       ];
@@ -129,8 +131,6 @@ const plugins = [
         "is-fading",
         "is-new",
         "is-ticked",
-        // Applied by the map's script to a town with a pin (#214).
-        "has-pin",
         // The account page marks the order an email linked to.
         "is-linked",
         // The search palette's JavaScript: open, and a real photo.

@@ -2,8 +2,8 @@
 // Island and its neighbours. Delivery: the ZIPs we deliver to shaded
 // from the same data as the order form, by price, a key, and a pin
 // dropped on any ZIP typed into a check on the page or tapped on the
-// map, with a tag. Places: one blue pin for every place, a directory
-// that opens their cards, one card template. Both zoom.
+// map, with a tag. Places: a numbered green pin for every place, a
+// list whose rows open their cards, one card template. Both zoom.
 // docs/qa-launch.md, "The autumn refresh".
 //
 // Visibility is read from what renders, never from a script property:
@@ -204,12 +204,14 @@ test.describe("map (#138, #214)", () => {
     await expect(map(page).locator(".map-places")).toBeHidden();
     await places(page);
     await expect(pins.first()).toBeVisible();
-    await expect(map(page).locator(".map-key-areas")).toBeHidden();
+    await expect(map(page).locator(".map-key-areas").first()).toBeHidden();
+    await expect(map(page).locator(".map-key-areas").last()).toBeHidden();
 
     const rows = await map(page).locator("[data-map-show]").evaluateAll(
       (els) => els.map((el) => ({
         n: el.dataset.mapShow,
-        name: el.firstChild.textContent.trim(),
+        name: el.querySelector("strong").textContent.trim(),
+        num: el.querySelector("[data-map-num]").textContent,
         head: el.closest("ul").previousElementSibling.textContent.trim(),
       }))
     );
@@ -232,6 +234,20 @@ test.describe("map (#138, #214)", () => {
     for (const pin of drawn) {
       expect(rows.some((r) => r.n === pin.n), `${pin.label} listed`)
         .toBe(true);
+    }
+    // A pin carries its row's number, in list order, and is named for
+    // its place, never the number (#214).
+    const numbered = rows.filter((r) => !/^Scituate/.test(r.name));
+
+    expect(numbered.map((r) => r.num)).toEqual(
+      numbered.map((_, i) => String(i + 1))
+    );
+    for (const row of numbered) {
+      const pin = map(page).locator(`[data-map-pin='${row.n}']`);
+
+      await expect(pin.locator(".map-pin-num")).toHaveText(row.num);
+      expect(await pin.getAttribute("aria-label")).not.toBe(row.num);
+      await expect(pin).toHaveAccessibleName(/\D{3}/);
     }
     // The drop site and the Scituate market are one place, one pin.
     const drop = rows.find((r) => r.name === "Drop site");
@@ -291,7 +307,7 @@ test.describe("map (#138, #214)", () => {
       await page.goto(HOME.path);
       await places(page);
       await map(page).locator("[data-map-show]", { hasText: "Drop site" })
-        .click();
+        .first().click();
 
       const card = map(page).locator("[data-map-card]:not([hidden])");
       const when = card.locator(".map-card-when li");
@@ -302,13 +318,12 @@ test.describe("map (#138, #214)", () => {
       await expect(when.last()).toContainText("Drop site pickup");
       // The market's entry stands while it runs.
       if (await when.count() === 2) {
-        await expect(card.locator(".map-card-kind"))
-          .toHaveText("Farmers market and drop site");
         await expect(when.first()).toContainText("Scituate");
         await expect(card.getByRole("link", { name: "Market website" }))
           .toBeVisible();
       } else {
-        await expect(card.locator(".map-card-kind")).toHaveText("Drop site");
+        await expect(card.getByRole("link", { name: "Market website" }))
+          .toHaveCount(0);
       }
     });
 
@@ -435,8 +450,9 @@ test.describe("map (#138, #214)", () => {
       .toBeLessThanOrEqual(frame.y + frame.height);
     expect(zoom.y, "the zoom inside the map").toBeGreaterThanOrEqual(frame.y);
     expect(zoom.x).toBeGreaterThanOrEqual(frame.x);
-    expect(tag.x >= zoom.x + zoom.width || tag.y >= zoom.y + zoom.height,
-      "the tag clear of the zoom").toBe(true);
+    expect(tag.x >= zoom.x + zoom.width || tag.x + tag.width <= zoom.x
+      || tag.y >= zoom.y + zoom.height || tag.y + tag.height <= zoom.y,
+    "the tag clear of the zoom").toBe(true);
   });
 
   test("a second tap on the town picked clears it; so does water",
@@ -625,7 +641,7 @@ test.describe("map (#138, #214)", () => {
     await expect(tip).toBeHidden();
   });
 
-  test("a pin opens its card; Escape closes it to the pin",
+  test("a pin opens its card; Escape closes it to its row",
     async ({ page }) => {
       await page.goto(HOME.path);
       await places(page);
@@ -648,11 +664,14 @@ test.describe("map (#138, #214)", () => {
       await expect(pin).toHaveAttribute("aria-pressed", "true");
       // The selected pin is brightened, never darkened (#214).
       await expect.poll(light).toBeGreaterThan(idle);
-      await expect(card.locator(".map-card-name")).toBeFocused();
-      // One template: what kind of place, then its name.
-      await expect(card.locator(".map-card-kind")).toHaveText("Our farm");
-      await expect(card.locator(".map-card-name"))
-        .toContainText("North Foster Farm");
+      // The card opens in its row, and the row has the focus.
+      await expect(map(page).locator("[data-map-show='1']")).toBeFocused();
+      await expect(card.locator("xpath=ancestor::li"))
+        .toHaveAttribute("data-open", "");
+      // One template: when, where, directions, then the shop button.
+      await expect(card.locator(".map-card-label")).toHaveText(
+        ["When", "Where"]
+      );
       // To the farm's listing by name, and Apple's by its place ID.
       const farm = "destination=North\\+Foster\\+Farm%2C\\+99\\+East";
 
@@ -667,51 +686,34 @@ test.describe("map (#138, #214)", () => {
         "href", /\/order\/\?method=onfarm$/
       );
 
-      // The card sits inside the map's frame.
-      const frame = await map(page).locator("[data-map-frame]").boundingBox();
-      const c = await card.boundingBox();
-
-      expect(c.x).toBeGreaterThanOrEqual(frame.x - 1);
-      expect(c.x + c.width).toBeLessThanOrEqual(frame.x + frame.width + 1);
+      // The card is in the list, never over the map.
+      await expect(map(page).locator("[data-map-frame] [data-map-card]"))
+        .toHaveCount(0);
 
       await page.keyboard.press("Escape");
       await expect(card).toBeHidden();
-      await expect(pin).toBeFocused();
+      await expect(map(page).locator("[data-map-show='1']")).toBeFocused();
       await expect(pin).toHaveAttribute("aria-pressed", "false");
     });
 
   // A name in the directory opens the same card. Markets and pop-ups
   // have no shop button, and their links are labeled.
-  // Towns with a pin in them are tinted on Places only (#214).
-  test("towns with a pin are tinted blue on Places", async ({ page }) => {
+  // No blue on land: water is the only blue, and a town with a pin has
+  // no tint (#214).
+  test("no town takes a tint, and no land is blue", async ({ page }) => {
     await page.goto(HOME.path);
-
-    const tinted = map(page).locator(".map-zip.has-pin");
-    const fills = () => tinted.evaluateAll((els) => [...new Set(
-      els.map((el) => getComputedStyle(el).fill)
-    )]);
-    const plain = () => map(page).locator(".map-zip.is-land:not(.has-pin)")
-      .first().evaluate((el) => getComputedStyle(el).fill);
-
-    expect(await tinted.count()).toBeGreaterThan(0);
-    await map(page).scrollIntoViewIfNeeded();
-    expect(await fills(), "no tint on Delivery").not.toContain(
-      await plain()
-    );
     await places(page);
+    await expect(map(page).locator(".has-pin")).toHaveCount(0);
 
-    // The fill eases in: wait for it.
-    await expect.poll(async () => (await fills()).join()).not.toBe(
-      await plain()
+    const fills = await map(page).locator(".map-zip").evaluateAll(
+      (els) => [...new Set(els.map((el) => getComputedStyle(el).fill))]
     );
 
-    const [fill] = await fills();
+    expect(fills).toHaveLength(1);
 
-    expect(await fills()).toHaveLength(1);
+    const [r, , b] = fills[0].match(/\d+/g).map(Number);
 
-    const [r, , b] = fill.match(/\d+/g).map(Number);
-
-    expect(b, "blue").toBeGreaterThan(r);
+    expect(b, "not blue").toBeLessThanOrEqual(r);
   });
 
   // Beside the map, a list longer than the map scrolls (#214).
@@ -727,7 +729,7 @@ test.describe("map (#138, #214)", () => {
       test.skip(!wide, "the list sits below the map on a phone");
       await list.scrollIntoViewIfNeeded();
       await list.evaluate((el) => {
-        const ul = el.querySelector("ul:last-of-type");
+        const ul = el.querySelector(".map-key-list:last-of-type");
 
         for (let i = 0; i < 12; i += 1) {
           ul.append(ul.firstElementChild.cloneNode(true));
@@ -780,7 +782,7 @@ test.describe("map (#138, #214)", () => {
     await page.goto(HOME.path);
     await places(page);
 
-    const line = map(page).locator("[data-map-show]", {
+    const line = map(page).locator("[data-map-show]:not([data-also])", {
       hasText: "Foster Farmers Market",
     });
 
@@ -793,15 +795,15 @@ test.describe("map (#138, #214)", () => {
 
     await expect(map(page)).toHaveAttribute("data-layer", "places");
     await expect(card).toBeVisible();
-    await expect(line).toHaveAttribute("aria-pressed", "true");
-    await expect(card.locator(".map-card-kind")).toHaveText("Farmers market");
+    await expect(line).toHaveAttribute("aria-expanded", "true");
     await expect(card).toContainText("June through October");
     await expect(card).not.toContainText("Out of season");
     await expect(card.locator(".map-card-shop")).toHaveCount(0);
     await expect(card.locator(".map-card-links a"))
       .toHaveText(["Website", "Instagram"]);
     await expect(card).toBeInViewport();
-    await card.locator("[data-map-card-close]").click();
+    // Tapping the row again closes it.
+    await line.click();
     await expect(card).toBeHidden();
   });
 
@@ -821,23 +823,93 @@ test.describe("map (#138, #214)", () => {
 
     await svg.scrollIntoViewIfNeeded();
 
-    const full = await width();
-    const pinAtFull = await pinHeight();
+    // Places opens framed on its pins: closer than the state, and
+    // the globe has nothing to do.
+    const fit = await width();
+    const pinAtFit = await pinHeight();
 
-    expect(pinAtFull, "the pin shows").toBeGreaterThan(20);
-    await expect(zoomOut).toBeDisabled();
+    expect(pinAtFit, "the pin shows").toBeGreaterThan(20);
     await expect(reset).toBeHidden();
+    await expect(zoomOut).toBeEnabled();
 
     await zoomIn.click();
-    await expect.poll(width).toBeCloseTo(full / 2, 0);
-    await expect(zoomOut).toBeEnabled();
+    await expect.poll(width).toBeCloseTo(fit / 2, 0);
     await expect(reset).toBeVisible();
-    expect(Math.abs(await pinHeight() - pinAtFull), "pin size on screen")
+    expect(Math.abs(await pinHeight() - pinAtFit), "pin size on screen")
       .toBeLessThanOrEqual(2);
 
+    // The buttons zoom out to the whole state, and no further.
     await reset.click();
-    await expect.poll(width).toBeCloseTo(full, 0);
+    await expect.poll(width).toBeCloseTo(fit, 0);
+    for (let i = 0; i < 4; i += 1) {
+      if (await zoomOut.isEnabled()) await zoomOut.click();
+      await page.waitForTimeout(300);
+    }
     await expect(zoomOut).toBeDisabled();
+    expect(await width()).toBeGreaterThan(fit);
+    await reset.click();
+    await expect.poll(width).toBeCloseTo(fit, 0);
+  });
+
+  // Places frames its pins; Delivery shows the whole state (#214).
+  test("Places frames its pins, and Delivery the whole state",
+    async ({ page }) => {
+      await page.goto(HOME.path);
+
+      const svg = map(page).locator("[data-map-svg]");
+      const view = () => svg.getAttribute("viewBox");
+      const whole = await view();
+
+      await places(page);
+
+      // Every pin sits inside the frame with about its height to spare.
+      const box = await svg.boundingBox();
+      const pins = await map(page).locator("[data-map-pin]").evaluateAll(
+        (els) => els.map((el) => el.getBoundingClientRect().toJSON())
+      );
+
+      expect(await view()).not.toBe(whole);
+      for (const r of pins) {
+        expect(r.left - box.x, "left room").toBeGreaterThanOrEqual(20);
+        expect(box.x + box.width - r.right, "right room")
+          .toBeGreaterThanOrEqual(20);
+        expect(r.top - box.y, "top room").toBeGreaterThanOrEqual(20);
+        expect(box.y + box.height - r.bottom, "bottom room")
+          .toBeGreaterThanOrEqual(20);
+      }
+
+      // One pin alone is shown at a town's zoom, no closer.
+      await map(page).evaluate((m) => {
+        for (const pin of [...m.querySelectorAll("[data-map-pin]")].slice(1)) {
+          pin.remove();
+        }
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      await expect.poll(async () => {
+        const w = Number((await view()).split(" ")[2]);
+
+        return Math.round(Number(whole.split(" ")[2]) / w * 10) / 10;
+      }).toBe(4);
+
+      await map(page).getByRole("tab", { name: "Delivery" }).click();
+      await expect.poll(view).toBe(whole);
+    });
+
+  // A row and its pin light each other under a mouse (#214).
+  test("a row and its pin light each other", async ({ page }) => {
+    await page.goto(HOME.path);
+    await places(page);
+
+    const row = map(page).locator("[data-map-show='1']");
+    const pin = map(page).locator("[data-map-pin='1']");
+
+    await row.hover();
+    await expect(pin).toHaveAttribute("data-hot", "");
+    await pin.locator(".map-pin-body").hover();
+    await expect(row).toHaveAttribute("data-hot", "");
+    await page.mouse.move(0, 0);
+    await expect(row).not.toHaveAttribute("data-hot", "");
+    await expect(pin).not.toHaveAttribute("data-hot", "");
   });
 
   test("with reduced motion the pin appears without falling",
