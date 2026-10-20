@@ -1,7 +1,13 @@
 // The order page and the cart: what a customer sees before paying.
 // docs/qa-launch.md, "The order page and cart".
 
+import { readFileSync } from "node:fs";
+
 import { OrderPage, SKU, expect, test } from "./support/order.mjs";
+
+const catalog = JSON.parse(readFileSync(
+  new URL("../data/catalog.json", import.meta.url), "utf8"
+));
 
 test.describe("order page", () => {
   test("an empty cart owes nothing and cannot continue", async ({ page }) => {
@@ -218,4 +224,26 @@ test.describe("order page", () => {
       expect(rows.sort()).toEqual(inStock.sort());
       expect(rows).toContain(SKU.eggs);
     });
+
+  // Square is the database; the page shows only what is in stock. An
+  // item out of stock has no row at all, not a sold-out one (#267).
+  test("an out-of-stock item has no row", async ({ page }) => {
+    const order = new OrderPage(page);
+
+    await order.open();
+
+    const out = catalog.groups.flatMap((g) => g.items)
+      .filter((item) => !item.inStock)
+      .map((item) => item.sku);
+
+    expect(out).toEqual(expect.arrayContaining(
+      ["NFF-CHK-EGG-MD", "NFF-CHK-EGG-SM"]
+    ));
+    for (const sku of out) {
+      await expect(page.locator(`.order-item[data-sku="${sku}"]`))
+        .toHaveCount(0);
+    }
+    await expect(page.locator("#cat-eggs .order-item-name"))
+      .toHaveText([/Large/]);
+  });
 });

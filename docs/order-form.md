@@ -692,6 +692,10 @@ Flags that take a value accept both `--reason "..."` and
   the demand vote.
 - **Sold-out items are not rendered**, and a category with nothing in
   stock is left out along with its nav pill. The data keeps them.
+  Square is the database and the page shows only what is in stock:
+  an item out of stock has no row, never a sold-out one, and a rename
+  never changes that (James, #267, 2026-10-20). `order-page.spec.mjs`
+  holds it.
 - **The order page is the product list**, headed "All products" (the
   `heading` front-matter param; the title stays "Order" for the tab
   and the breadcrumb). A "Catalog" sidebar (Bootstrap ScrollSpy)
