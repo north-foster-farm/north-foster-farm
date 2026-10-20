@@ -23,7 +23,10 @@
     "check:supply": "node bin/supply/check.mjs",
     "check:audit": "node bin/audit/check.mjs --actions .github/workflows package-lock.json",
     "check:env":"node bin/check-env.mjs",
-    "e2e": "playwright test"
+    "check:signatures": "npm audit signatures",
+    "check:record-shape": "node bin/check-record-shape.mjs",
+    "e2e": "playwright test",
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

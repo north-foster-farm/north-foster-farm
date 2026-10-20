@@ -31,7 +31,9 @@ npm run lint                # All linters
 npm run lint:scripts        # ESLint for JS files
 npm run lint:styles         # Stylelint for SCSS
 
-# Lint and the unit tests; CI runs the same as `lint-and-test`
+# Lint and the unit tests; CI runs the same as `lint-and-test`, and
+# the pre-commit hook in .githooks/ (set up by `npm install`) runs it
+# before every commit
 npm run check
 
 # Production build. NETLIFY ONLY -- do not run this locally.

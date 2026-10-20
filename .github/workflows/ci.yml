@@ -52,7 +52,7 @@ jobs:
       - name: Record shape
         run: >
           env -i PATH="$PATH" HOME="$HOME"
-          node bin/check-record-shape.mjs
+          npm run --silent check:record-shape --
           "${{ github.event.pull_request.base.sha || github.event.before }}"
           --event "${{ github.event_name }}"
           --ref "${{ github.ref }}"
@@ -161,7 +161,7 @@ jobs:
 
       # Fails on an invalid registry signature or provenance attestation.
       - name: Signatures
-        run: env -i PATH="$PATH" HOME="$HOME" npm audit signatures
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:signatures
 
       # Fails on a version under 7 days old with no recorded waiver, and
       # on a package with no attestation that James has not approved.

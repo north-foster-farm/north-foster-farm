@@ -96,7 +96,12 @@ npm run lint            # both linters
 npm run lint:scripts    # ESLint, assets/scripts, netlify, test
 npm run lint:styles     # Stylelint, assets/styles
 npm test                # node:test: functions, CLI and build checks
+npm run check:signatures              # registry signatures, as CI
+npm run check:record-shape -- origin/next   # trailers since next
 ```
+
+`npm install` points git at `.githooks/`, whose pre-commit hook runs
+`npm run check`. `git commit --no-verify` skips it; CI does not.
 
 GitHub Actions runs lint and the tests as the `lint-and-test` check
 (`.github/workflows/ci.yml`) on every pull request, on every push to

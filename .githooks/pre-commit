@@ -1,0 +1,9 @@
+#!/bin/sh
+# Lint and the unit tests before every commit: the same command as
+# CI's lint-and-test, under the same env -i, so a commit that would
+# turn CI red stops here. `npm install` points git at this folder
+# (the prepare script). `git commit --no-verify` skips it; CI does not.
+#
+# It checks the working tree, not only what is staged.
+
+exec env -i PATH="$PATH" HOME="$HOME" npm run --silent check
