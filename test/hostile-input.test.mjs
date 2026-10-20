@@ -103,8 +103,21 @@ const CASES = {
     { links }), false],
   newsConfirm: [() => templates.newsConfirm(`${HOSTILE}@example.com`, url,
     { links }), false],
-  newsWelcome: [() => templates.newsWelcome({ firstName: HOSTILE }, url,
-    { links }), true],
+  newsWelcome: [() => templates.newsWelcome({
+    firstName: HOSTILE, marketing: true, marketingAt: at,
+    consent: [{ action: "in", type: "market-sheet", detail: HOSTILE, at,
+      recordedAt: at }],
+  }, url, { links }), true],
+  listMail: [() => templates.listMail(HOSTILE, {
+    preview: HOSTILE, hero: { src: url, alt: HOSTILE },
+    blocks: [
+      templates.listBlocks.p(HOSTILE), templates.listBlocks.heading(HOSTILE),
+      templates.listBlocks.image(url, HOSTILE, HOSTILE),
+      templates.listBlocks.button(HOSTILE, url),
+      templates.listBlocks.linked(HOSTILE, HOSTILE, url, HOSTILE),
+    ],
+    reason: HOSTILE, unsubscribeUrl: url, links,
+  }), true],
   addressReview: [() => templates.addressReview(customer(), { links }), true],
   farmOrderPlaced: [() => templates.farmOrderPlaced(order(),
     { squareUrl: url, links }), true],
@@ -156,7 +169,10 @@ const CASES = {
 };
 
 // Helpers that return a phrase or a table, not a message.
-const NOT_MESSAGES = ["CANCEL_REASONS", "paymentPhrase", "summaryLine"];
+const NOT_MESSAGES = [
+  "CANCEL_REASONS", "listBlocks", "optInPhrase", "paymentPhrase",
+  "summaryLine",
+];
 
 const messagesOf = (result) => (Array.isArray(result) ? result : [result]);
 

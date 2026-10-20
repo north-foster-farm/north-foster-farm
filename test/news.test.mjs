@@ -12,7 +12,7 @@ import {
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import {
-  newsConfirm, newsWelcome,
+  newsConfirm,
 } from "../netlify/functions/lib/templates.mjs";
 import { handle } from "../netlify/functions/news.mjs";
 
@@ -545,24 +545,6 @@ describe("the unsubscribe endpoint", () => {
       { method: "POST" }), { stores, env, now });
 
     assert.equal(bad.status, 404);
-  });
-});
-
-describe("the welcome email", () => {
-  it("reads as James drafted it (T6a)", () => {
-    const url = "https://x/news/?unsubscribe=t";
-    const m = newsWelcome({ firstName: "Pat" }, url, {});
-
-    assert.equal(m.subject, "You're on the North Foster Farm list");
-    assert.ok(m.text.includes("Hi Pat,\nThanks for signing up. You're on " +
-      "our farm news list.\nEvery now and then, we'll email you what's " +
-      "happening on the farm: what's in stock, where to find us, and news " +
-      "from the pasture. We hope it goes without saying, but we will " +
-      "never sell or give out your address.\nDon't want these after " +
-      `all? Unsubscribe here: ${url}. One click and you're off.\n` +
-      "— James and Jim"), m.text);
-    assert.match(m.html, /<a href="https:\/\/x\/news\/\?unsubscribe=t"/);
-    assert.match(newsWelcome({}, url, {}).text, /^Hi,$/m);
   });
 });
 

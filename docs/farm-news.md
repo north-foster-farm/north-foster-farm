@@ -3,10 +3,51 @@
 Opt-in only, ever. Consent is `marketing` and `marketingAt` on the
 customer record (`marketingSource` says how it came: `signup`,
 `order`, `account`, `confirm`, `resend`, `unsubscribe`), set by the
-sign-up field,
-the checkout box, the settings box, or the old list's confirmation
-link below. Anyone with an email address may opt in; a record is made
-for an address that has never ordered.
+sign-up field, the checkout box, the settings box, or the old list's
+confirmation link below. Anyone with an email address may opt in; a
+record is made for an address that has never ordered.
+
+## The consent log
+
+Those three fields are the current state. Behind them, `consent` on
+the record is the history (#267, #273): one event per opt-in or
+opt-out, appended by `saveCustomer` whenever the state changes, never
+rewritten. A second opt-in keeps the first.
+
+| Field | Holds |
+| --- | --- |
+| `action` | `in` or `out` |
+| `type` | `website-form`, `checkout`, `account-settings`, `reinvite-confirmation`, `market-sheet`, `in-person`, `resend`, `unsubscribe-link`, or `membership` (reserved) |
+| `detail` | the page, the order, the market: `the sign-up form on /news/`, `order NFF-2610-K3WM` |
+| `at` | when consent was given; for a market sheet, the sheet's date |
+| `recordedAt` | when it was written here, equal to `marketingAt` |
+| `capturedBy` | for a sheet or an in-person opt-in, who took it (James or Jim) |
+| `evidence` | a pointer to private proof, such as a scan's file name; never the scan |
+
+A record from before the log gets one event from its dated state on
+its next write, with the detail `recorded before the log`. That is all
+such a record kept: one that had opted out has lost its opt-in.
+
+## Fields kept for later
+
+Every customer write fills these, and nothing reads them yet (#267):
+
+- `language`: a BCP-47 tag, `en` by default; `es` is the only other
+  planned value.
+- `memberId` and `memberIdStatus`: an opaque random code, unique, and
+  `active` or `retired`, so a code can be retired and a new one
+  issued. Both null until the membership program exists.
+- `memberSince`: when they joined, or null. Joining is also a
+  `membership` event in the consent log.
+- `memberGroup`: `{ id, joinedAt }`, or null. It links to a group
+  record (id, name, founder contact, created) that has no store yet;
+  the program's own issue makes one. `discountGroup` is a different
+  thing, the price group.
+
+James's spec puts these, and the log, on the household record in
+Supabase. Customers live in Blobs until households move there (see
+the workspace `CLAUDE.md`); the move carries the log as an events
+table keyed by household and these as columns.
 
 A sign-up on the site joins at once and gets a welcome, with no
 confirmation step. Only
@@ -35,10 +76,17 @@ source `account`. Everything else is in `lib/news.mjs`.
 
 ## The welcome
 
-A real join from any of the three sends the welcome (`newsWelcome`
-in `templates.mjs`, T6); a repeat sends nothing. From the order box it
-goes once the order is paid, after the order's own emails. A failed
-send is logged as `news.welcome.failed` and leaves them on the list.
+A real join from any of the four sends the welcome (`newsWelcome` in
+`templates.mjs`, T6), the whole welcome sequence (#267); a repeat
+sends nothing. From the order box it goes once the order is paid,
+after the order's own emails. A failed send is logged as
+`news.welcome.failed` and leaves them on the list.
+
+It names how they opted in, from the last event in the log ("you
+signed up on our sheet at the Foster Farmers Market in July"), and
+the footer says it again. The market sheets and the re-invite also
+hear that the list moved to a new provider, so a welcome reaching a
+long-standing customer makes sense.
 
 Its unsubscribe takes one click and no sign-in (T6c). A random token,
 kept hashed in the auth store with no expiry, names the address. The
@@ -63,9 +111,26 @@ works for seven days, single use, ending on "You're receiving this
 message because you previously joined our mailing list." Those
 already in are skipped and bad addresses reported. Nothing else
 happens until they click. `GET /api/news/confirm?token=` is the
-click: it opts the record in, dated, source `confirm`, and lands on
-`/news/?news=confirmed` (or `expired`, `invalid`), where the note
-under the field says so. This is the Fastmail list's way in.
+click: it opts the record in, dated, source `confirm`, sends the
+welcome, and lands on `/news/?news=confirmed` (or `expired`,
+`invalid`), where the note under the field says so. This is the
+Fastmail list's way in.
+
+## The list template
+
+`listMail` in `templates.mjs` is the layout for mail to the list:
+the welcome, the invitation and, later, newsletters. It has the order
+emails' wordmark, card, font and green, plus a hero image, preview
+text, and blocks in `listBlocks`: `p`, `heading`, `image` (with an
+optional caption), `button` and `linked`. Its footer says why the
+mail came, gives the one-click unsubscribe and the farm's postal
+address (CAN-SPAM), and the text version says the same. It follows
+the reader's dark mode in Apple Mail, iOS Mail and Outlook; Gmail
+shows the light one. The order emails stay light.
+
+Images in list mail need a fixed public address, and Hugo's are
+fingerprinted, so none exists yet. The library's
+`news-letter-sample` shows every block.
 
 ## The audience
 

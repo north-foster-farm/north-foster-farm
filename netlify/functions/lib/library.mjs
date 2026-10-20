@@ -118,6 +118,66 @@ export const customer = {
   },
 };
 
+// A subscriber whose consent log ends on one opt-in (#273).
+const subscriber = (type, detail, at = "2026-10-20T14:00:00.000Z") => ({
+  ...customer,
+  marketing: true,
+  marketingAt: "2026-10-20T14:00:00.000Z",
+  consent: [{
+    action: "in", type, detail, at,
+    recordedAt: "2026-10-20T14:00:00.000Z",
+    capturedBy: type === "in-person" || type === "market-sheet"
+      ? "James" : null,
+    evidence: type === "market-sheet" ? "foster-2026-07-12.pdf" : null,
+  }],
+});
+
+const unsub = (links) => `${links.site}/news/?unsubscribe=abc123`;
+
+// The welcome as each way onto the list words it.
+const WELCOMES = [
+  ["checkout", "order " + "NFF-2610-K3WM", "from the order box",
+    "The order box was ticked and the order is placed"],
+  ["account-settings", "account settings", "from account settings",
+    "Farm news turned on in account settings"],
+  ["reinvite-confirmation", "the confirmation link sent 2026-10-21",
+    "after the re-invite", "Someone on the old list clicked to confirm"],
+  ["market-sheet", "the Foster Farmers Market", "from a market sheet",
+    "A market sign-up sheet is imported (the import is not built yet)"],
+  ["in-person", "", "for an in-person opt-in",
+    "Someone asked in person to be added (recorded later, #267)"],
+];
+
+// A newsletter with every block, on photos whose source is recorded
+// in docs/media-provenance.md. The words are placeholders.
+const newsletter = (links) => {
+  const b = t.listBlocks;
+
+  return t.listMail("Sample: news from the pasture", {
+    preview: "A sample of the list template, with every block in it.",
+    hero: {
+      src: `${links.site}/images/email/sample-hero.jpg`,
+      alt: "Chicks under the heat lamp in the brooder",
+    },
+    blocks: [
+      b.p("Hi Dana,"),
+      b.p("**This is a sample of the farm news template.** The words are " +
+        "placeholders; the layout is what's on show: a hero image, body " +
+        "copy, a heading, a photo with a caption, and a button."),
+      b.heading("On the farm this week"),
+      b.p("The broilers moved to fresh pasture on Tuesday, and the hens " +
+        "are laying well into the shorter days."),
+      b.image(`${links.site}/images/email/sample-photo.jpg`,
+        "A hen in the grass", "One of the hens, in no hurry at all."),
+      b.button("Order for Saturday", links.order),
+      b.p("— James and Jim"),
+    ],
+    reason: "you signed up on our website on October 20, 2026",
+    unsubscribeUrl: unsub(links),
+    links,
+  });
+};
+
 // Another customer, for the farm's lists.
 const other = (firstName, lastName) => ({
   firstName, lastName, name: `${firstName} ${lastName}`,
@@ -403,8 +463,21 @@ export const library = [
     when: "Someone joins on the site: the news field, account settings, " +
       "or the order box once the order is placed",
     audience: C, tags: ["list", "sign-up", "farm news"],
-    build: (links) => t.newsWelcome(customer,
-      `${links.site}/news/?unsubscribe=abc123`, { links }),
+    build: (links) => t.newsWelcome(subscriber("website-form",
+      "the sign-up form on /news/"), unsub(links), { links }),
+  },
+  ...WELCOMES.map(([type, detail, name, when]) => ({
+    id: `news-welcome-${type}`, name: `Farm news welcome, ${name}`,
+    when, audience: C, tags: ["list", "farm news", "welcome"],
+    build: (links) => t.newsWelcome(subscriber(type, detail,
+      type === "market-sheet" ? "2026-07-12T14:00:00.000Z" : undefined),
+    unsub(links), { links }),
+  })),
+  {
+    id: "news-letter-sample", name: "Farm news letter, sample",
+    when: "Not sent: shows every block of the list template (#273)",
+    audience: C, tags: ["list", "farm news", "template"],
+    build: (links) => newsletter(links),
   },
 
   // To the farm
@@ -595,10 +668,6 @@ const APPROVED = {
   "farm-refund-needed": T5A,
   "farm-return-request": T5A,
   "farm-square-out-of-sync": T5A,
-  "news-welcome": "James\x27s rewrite on #233 (T6a, 2026-09-28), " +
-    "verbatim; the sign-off takes the dash (#211). The link takes them " +
-    "off in one click, with no sign-in, and turns off the account " +
-    "setting at once (T6c).",
 };
 
 // Rewrites of 2026-09-26 that have landed come back here to approve,
@@ -614,6 +683,10 @@ const T4 = "Removed items head the list under \"Removed\", as plain " +
 const W11D = "W11d (2026-09-28): a pickup is booked by paying, from " +
   "the farm\x27s schedule; no farm confirmation, and the window " +
   "reads as its times (9 AM – noon).";
+const WELCOME = "Draft (#273, Q8): one welcome for everyone, naming " +
+  "how they opted in; the moved-provider paragraph only for the market " +
+  "sheets and the re-invite. James\x27s T6 lines kept: what to expect, " +
+  "never sell your address, the unsubscribe line, the sign-off.";
 const WAITING = {
   "order-confirmed-onfarm": `James approved it in the library on ` +
     `2026-09-26. ${W11D}`,
@@ -647,6 +720,12 @@ const WAITING = {
     "request this email, you can safely ignore it.\" Site sign-ups get " +
     "no email since W1. \"Farm news\" for the list, settled (W14, " +
     "2026-09-28).",
+  "news-welcome": WELCOME,
+  ...Object.fromEntries(WELCOMES.map(([type]) =>
+    [`news-welcome-${type}`, WELCOME])),
+  "news-letter-sample": "The list template (#273), for its look; " +
+    "the words and photos are placeholders. The photos have no public " +
+    "address yet, so here they show as broken images.",
   "news-launch-email": "Subject and preview text are his (2026-09-26). " +
     "The whole body is the email lane\x27s draft and waits on him (W18), " +
     "with \"much of Rhode Island\" (Q5). Draft: \"In the next few days " +

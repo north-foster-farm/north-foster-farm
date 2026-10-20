@@ -26,7 +26,7 @@ import {
 import { GUIDE, RUNBOOK_ALERTS } from "./alerts-guide.mjs";
 import { company } from "./company.mjs";
 import { between, methodName } from "./describe.mjs";
-import { keptFee, paymentsOf } from "./records.mjs";
+import { currentOptIn, keptFee, paymentsOf } from "./records.mjs";
 
 // The delivery day by name, and how long a missed delivery is
 // held for the customer to choose, from data/delivery.json.
@@ -748,50 +748,277 @@ export const magicLink = (email, url, {
   return { subject: title, ...render(title, blocks, links) };
 };
 
-// Farm news: the one click that puts an address from the old list on
-// the new one, when it is asked to opt in again. A sign-up on the site
-// needs no click (W1). The wording is James's, on the pattern of the
-// sign-in email, ending on his line for the old list (W19).
-export const newsConfirm = (email, url, {
-  days = accounts.newsInviteDays, links,
-} = {}) => {
-  const title = `Confirm your email for farm news from ${company.name}`;
-  const blocks = [
-    p("Click the button below to receive farm news from North Foster " +
-      "Farm."),
-    button("Sign up", url),
-    p(`This link expires in ${days} days. You're receiving this ` +
-      "message because you previously joined our mailing list."),
-    row([["Need help? Contact us", contactUrl(links)]]),
-  ];
+// --- List mail (#273) ----------------------------------------------
+//
+// Mail to the list, as against mail about an order: the welcome, the
+// old list's invitation and, later, newsletters. The same look as the
+// rest (the wordmark, the card, Aller, the green), with what list mail
+// needs on top: a hero image, images with captions, preview text, a
+// footer that says why it came and how to stop it, and the farm's
+// postal address (CAN-SPAM). It follows the reader's dark mode where
+// the mail app allows it; the order emails stay light.
 
-  return { subject: title, ...render(title, blocks, links) };
+// The dark palette, from the site's colors lifted for a dark ground.
+const DARK = {
+  ground: "#111513",
+  card: "#1b201d",
+  ink: "#e7eae8",
+  muted: "#a9b0ac",
+  green: "#8fd1ae",
+  button: "#23794f",
+  edge: "rgba(255,255,255,.16)",
 };
 
-// Farm news: the welcome to anyone who joins on the site (T6, James,
-// 2026-09-28), since it is the only word they get that it worked.
-// `unsubscribeUrl` takes them off in one click, no sign-in (T6c).
+// Apple Mail, iOS Mail and Outlook for Mac honor the media query;
+// Outlook.com marks its dark mode with [data-ogsc]. Gmail ignores
+// both and shows the light version. The wordmark is dark green, so in
+// dark mode it is drawn light.
+const darkStyles = `<style>
+@media (prefers-color-scheme:dark){
+.nff-ground{background:${DARK.ground}!important}
+.nff-card{background:${DARK.card}!important;
+border-color:${DARK.edge}!important}
+.nff-ink,.nff-ink p,.nff-ink h2{color:${DARK.ink}!important}
+.nff-muted,.nff-ink .nff-muted{color:${DARK.muted}!important}
+.nff-link{color:${DARK.green}!important}
+.nff-btn{background:${DARK.button}!important;
+border-color:${DARK.button}!important;color:#fff!important}
+.nff-logo{filter:brightness(0) invert(.92)}
+}
+[data-ogsc] .nff-ground{background:${DARK.ground}!important}
+[data-ogsc] .nff-card{background:${DARK.card}!important}
+[data-ogsc] .nff-ink{color:${DARK.ink}!important}
+[data-ogsc] .nff-muted{color:${DARK.muted}!important}
+[data-ogsc] .nff-link{color:${DARK.green}!important}
+@media (max-width:480px){
+.nff-pad{padding:20px 18px 8px!important}
+.nff-btn{display:block!important;text-align:center!important}
+}
+</style>`;
+
+const link = (text, url) =>
+  `<a href="${escape(url)}" class="nff-link" style="color:${GREEN}">${
+    escape(text)}</a>`;
+
+// The blocks a list email is built from, exported for newsletters.
+// Each is { text, html }, like the order emails' blocks.
+export const listBlocks = {
+  p: (text) => ({
+    text, html: `<p style="margin:0 0 16px">${inline(text)}</p>`,
+  }),
+  heading: (text) => ({
+    text: `\n${text.toUpperCase()}`,
+    html: `<h2 style="margin:28px 0 10px;font-size:20px;line-height:1.3">${
+      escape(text)}</h2>`,
+  }),
+  button: (text, url) => ({
+    text: `${text}: ${url}`,
+    html: `<p style="margin:24px 0"><a href="${escape(url)}" class="nff-btn" ` +
+      `style="${BTN}padding:12px 22px;border:1px solid ${GREEN};` +
+      `color:#fff;background:${GREEN}">${escape(text)}</a></p>`,
+  }),
+  // An image across the card, with an optional caption under it.
+  image: (src, alt, caption = "") => ({
+    text: `[Photo: ${alt}]${caption ? `\n${caption}` : ""}`,
+    html: `<p style="margin:24px 0 ${caption ? "6px" : "24px"}"><img ` +
+      `src="${escape(src)}" alt="${escape(alt)}" width="512" ` +
+      `style="display:block;width:100%;max-width:512px;height:auto;` +
+      `border:0;border-radius:4px"></p>${caption
+        ? `<p class="nff-muted" style="margin:0 0 24px;font-size:14px;` +
+        `line-height:1.5;color:${MUTED}">${inline(caption)}</p>`
+        : ""}`,
+  }),
+  // A line with one link in it: `before`, the link, then `after`.
+  linked: (before, text, url, after = "") => ({
+    text: `${before}${text}: ${url}${after}`,
+    html: `<p style="margin:0 0 16px">${inline(before)}${link(text, url)}${
+      inline(after)}</p>`,
+  }),
+};
+
+// The page around the blocks. `reason` ends "You're getting this
+// because ..."; `unsubscribeUrl` is the one-click link, left out only
+// for the invitation, which goes to someone not on the list.
+// -> { subject, text, html }
+export const listMail = (subject, {
+  preview = "", hero = null, blocks = [], reason = "",
+  unsubscribeUrl = null, links = {},
+} = {}) => {
+  const site = links.site;
+  const address = `${company.address.street}, ${company.address.city}, ` +
+    `${company.address.state} ${company.address.zip}`;
+  const why = reason ? `You're getting this because ${reason}.` : "";
+  const text = [
+    ...(hero ? [`[Photo: ${hero.alt}]`, ""] : []),
+    ...blocks.flatMap((b) => [b.text, ""]),
+    "--",
+    why,
+    unsubscribeUrl ? `Unsubscribe in one click: ${unsubscribeUrl}` : "",
+    "",
+    company.name,
+    address,
+  ].filter((line, i, all) => line !== "" || all[i - 1] !== "").join("\n");
+  const logo = site
+    ? `<p style="margin:0 0 20px;text-align:center"><img class="nff-logo" ` +
+      `src="${site}/images/email/logo.png" width="280" ` +
+      `alt="${escape(company.name)}" style="display:block;margin:0 auto;` +
+      `width:280px;max-width:100%;height:auto;border:0"></p>`
+    : header(site);
+  // The preview text, hidden; the spaces after it keep the mail app
+  // from filling the rest of the preview with the body.
+  const pre = preview
+    ? `<div style="display:none;max-height:0;overflow:hidden;` +
+      `mso-hide:all">${escape(preview)}${"&#8199;&#847; ".repeat(40)}</div>`
+    : "";
+  const heroHtml = hero
+    ? `<img src="${escape(hero.src)}" alt="${escape(hero.alt)}" ` +
+      `width="560" style="display:block;width:100%;height:auto;border:0;` +
+      `border-radius:5px 5px 0 0">`
+    : "";
+  const html = `<!doctype html><html><head><meta charset="utf-8">` +
+    `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+    `<meta name="format-detection" ` +
+    `content="telephone=no, date=no, address=no, email=no">` +
+    `<meta name="color-scheme" content="light dark">` +
+    `<meta name="supported-color-schemes" content="light dark">` +
+    `<title>${escape(subject)}</title>${styles(site)}${darkStyles}</head>` +
+    `<body id="body" class="nff-ground" style="margin:0;padding:0;` +
+    `background:#f6f7f6;font-family:${FONT};font-size:17px;color:${INK};` +
+    `line-height:1.6">${pre}` +
+    `<div class="nff-ground" style="background:#f6f7f6;padding:24px 12px">` +
+    `<div style="max-width:560px;margin:0 auto">${logo}` +
+    `<div class="nff-card" style="background:#fff;` +
+    `border:1px solid rgba(0,0,0,.175);border-radius:6px;` +
+    `box-shadow:0 2px 3px rgba(7,6,6,.2)">${heroHtml}` +
+    `<div class="nff-pad nff-ink" style="padding:28px 24px 12px;` +
+    `color:${INK}">${blocks.map((b) => b.html).join("")}</div></div>` +
+    `<div class="nff-muted" style="margin:20px 0 0;padding:0 12px;` +
+    `font-size:13px;line-height:1.6;text-align:center;color:${MUTED}">` +
+    `${why ? `<p style="margin:0 0 8px">${escape(why)}</p>` : ""}` +
+    `${unsubscribeUrl
+      ? `<p style="margin:0 0 8px">${link("Unsubscribe", unsubscribeUrl)}` +
+        " in one click.</p>"
+      : ""}` +
+    `<p style="margin:0">${escape(company.name)}<br>${escape(address)}` +
+    `</p></div></div></div></body></html>`;
+
+  return { subject, text, html };
+};
+
+// "July", from an ISO time, in the farm's zone.
+const month = (iso) => new Date(iso).toLocaleDateString("en-US", {
+  month: "long", timeZone: "America/New_York",
+});
+
+// "October 20, 2026"
+const longDate = (iso) => new Date(iso).toLocaleDateString("en-US", {
+  month: "long", day: "numeric", year: "numeric",
+  timeZone: "America/New_York",
+});
+
+// How someone came onto the list, in plain words, from their opt-in
+// event (records.mjs): "you signed up on our website". Draft (#267).
+export const optInPhrase = (event) => {
+  const detail = (event && event.detail) || "";
+
+  switch (event && event.type) {
+  case "website-form":
+    return "you signed up on our website";
+  case "checkout":
+    return "you ticked the box for farm news when you ordered from us";
+  case "account-settings":
+    return "you turned on farm news in your account";
+  case "reinvite-confirmation":
+    return "you confirmed you'd like to stay on our list";
+  case "market-sheet":
+    return `you signed up on our sheet at ${
+      detail || "one of our markets"} in ${month(event.at)}`;
+  case "in-person":
+    return `you asked us to add you when we met in person${
+      detail ? ` at ${detail}` : ""}`;
+  case "resend":
+    return "you asked us to add you to our list";
+  default:
+    return "you joined our email list";
+  }
+};
+
+// The contacts who were on the list before it moved to Resend: the
+// market sheets and the old list's re-invite (#267).
+const MIGRATED = ["market-sheet", "reinvite-confirmation"];
+
+const capital = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// Farm news: the one click that puts an address from the old list on
+// the new one, when it is asked to opt in again (D-INVITE). A sign-up
+// on the site needs no click (W1). The wording is James's, on the
+// pattern of the sign-in email, ending on his line for the old list
+// (W19); the list layout is #273's.
+export const newsConfirm = (email, url, {
+  days = accounts.newsInviteDays, links,
+} = {}) => listMail(
+  `Confirm your email for farm news from ${company.name}`, {
+    preview: "One click keeps you on our list.",
+    blocks: [
+      listBlocks.p("Click the button below to receive farm news from " +
+        `${company.name}.`),
+      listBlocks.button("Sign up", url),
+      listBlocks.p(`This link expires in ${days} days. You're receiving ` +
+        "this message because you previously joined our mailing list."),
+      listBlocks.linked("Need help? ", "Contact us", contactUrl(links)),
+    ],
+    reason: "you were on our old mailing list. If you don't click, " +
+      "we won't email you again",
+    links,
+  },
+);
+
+// Farm news: the welcome, the one email of the welcome sequence
+// (#267), to everyone who comes onto the list: a sign-up here, the
+// checkout or settings box, the old list's confirmation, or an
+// import. It always says how they opted in, from the consent log;
+// those who were on the list before it moved hear why a welcome comes
+// now. `unsubscribeUrl` takes them off in one click, no sign-in (T6c).
+// T6's lines are James's (2026-09-28); the rest is a draft.
 export const newsWelcome = (who, unsubscribeUrl, { links } = {}) => {
-  const title = `You're on the ${company.name} list`;
   const name = firstName(who);
+  const event = currentOptIn(who);
+  const phrase = optInPhrase(event);
+  const migrated = !!event && MIGRATED.includes(event.type);
+  const b = listBlocks;
   const blocks = [
-    p(name ? `Hi ${name},` : "Hi,"),
-    p("Thanks for signing up. You're on our farm news list."),
-    p("Every now and then, we'll email you what's happening on the " +
+    b.p(name ? `Hi ${name},` : "Hi,"),
+    b.p(`**Thanks for joining our farm news list.** We're writing ` +
+      `because ${phrase}. Being let into your inbox is a trust, and we ` +
+      "take it seriously."),
+    ...(migrated
+      ? [b.p("We've moved our list to a new email provider, and we want " +
+        "it to be accurate and up to date. That's why a welcome is " +
+        "reaching you now, even if you've been buying from us for a " +
+        "while.")]
+      : []),
+    b.p("Every now and then, we'll email you what's happening on the " +
       "farm: what's in stock, where to find us, and news from the " +
-      "pasture. We hope it goes without saying, but we will never " +
-      "sell or give out your address."),
-    {
-      text: "Don't want these after all? Unsubscribe here: " +
-        `${unsubscribeUrl}. One click and you're off.`,
-      html: "<p>Don't want these after all? " +
-        `<a href="${escape(unsubscribeUrl)}" style="color:${GREEN}">` +
-        "Unsubscribe here</a>. One click and you're off.</p>",
-    },
-    p("— James and Jim"),
+      "pasture. We hope it goes without saying, but we will never sell " +
+      "or give out your address."),
+    ...(links && links.order
+      ? [b.button("See what's in stock", links.order)]
+      : []),
+    b.linked("Don't want these after all? ", "Unsubscribe here",
+      unsubscribeUrl, ". One click and you're off."),
+    b.p("— James and Jim"),
   ];
 
-  return { subject: title, ...render(title, blocks, links) };
+  return listMail(`You're on the ${company.name} list`, {
+    preview: `${capital(phrase)}. Here's what to expect.`,
+    blocks,
+    reason: event && event.at
+      ? `${phrase}${event.type === "market-sheet" ? ""
+        : ` on ${longDate(event.at)}`}`
+      : phrase,
+    unsubscribeUrl,
+    links,
+  });
 };
 
 // --- To the farm ---------------------------------------------------
