@@ -929,7 +929,7 @@ export const optInPhrase = (event) => {
   case "account-settings":
     return "you turned on farm news in your account";
   case "reinvite-confirmation":
-    return "you confirmed you'd like to stay on our list";
+    return "you confirmed you'd like to keep hearing from us";
   case "market-sheet":
     return `you signed up on our sign-up sheet at ${
       detail || "one of our markets"} in ${month(event.at)}`;

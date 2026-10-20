@@ -164,7 +164,7 @@ describe("the re-invite's click", () => {
 
     assert.equal(sent.length, 2);
     assert.match(sent[1].text,
-      /because you confirmed you'd like to stay on our list/);
+      /because you confirmed you'd like to keep hearing from us/);
     assert.match(sent[1].text,
       /moved our list to a new email provider, so this welcome/);
     assert.ok(sent[1].headers["List-Unsubscribe"]);
