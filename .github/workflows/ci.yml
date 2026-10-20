@@ -172,10 +172,9 @@ jobs:
   # the Actions in use, set against security/exceptions.json. It fails
   # while a known vulnerability has neither an update nor a recorded
   # exception, or an excepted package has since shipped a patched
-  # version. It is not yet a required check: the staging and main
-  # rulesets require lint-and-test, supply-chain and codeql, and
-  # bin/promote.mjs reports the audit without blocking on it (#267).
-  # The log is public: counts only. The
+  # version. Here it blocks nothing, on next or staging (#283): main's
+  # gate is release-audit (release-audit.yml), the same command on a
+  # pull request into main. The log is public: counts only. The
   # token is the run's own, to lift the advisory API's rate limit.
   audit:
     name: audit
