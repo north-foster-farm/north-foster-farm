@@ -7,8 +7,11 @@
 // Water is the only blue. Everything drawn keeps its line weight and
 // the pins their size as the map zooms.
 
+// Land is a warm neutral dark enough that the white town lines read at
+// phone size, and darker than the sand, so Rhode Island stands off its
+// neighbours on Delivery (#281).
 $map-water: tint-color($teal, 84%);
-$map-land: #f3f1ea;
+$map-land: #d9d1bf;
 $map-away: #e9dfc8;
 $map-ours: tint-color($green, 58%);
 $map-place: $primary;
