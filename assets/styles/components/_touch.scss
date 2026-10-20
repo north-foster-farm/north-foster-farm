@@ -1,13 +1,16 @@
-// A band above the footer: one centred statement on the tint, an
+// A band above the footer: one centred statement on the dark band, an
 // eyebrow over it, a line under it and a button or two. The home
 // page's "Get in touch" and the footer's "Shop now" share it, so the
 // two read as one voice. Not scoped to a page.
 
-// Both bands sit right above the footer, so each pads its bottom by
-// the farm silhouette's rise (_footer.scss) on top of its own gap.
+// Both bands sit right above the footer, whose silhouette rises into
+// them (_footer.scss), so each pads its bottom by the rise and a gap
+// above the roofline. No content overlaps the buildings.
 .touch {
-  padding-block: 3.5rem calc(3.5rem + var(--sil-h));
-  background-color: var(--bs-success-bg-subtle);
+  @include dark-band;
+
+  padding-block: $band-gap $sil-clear;
+  background-color: $band-dark-bg;
   text-align: center;
 }
 
@@ -17,7 +20,7 @@
   font-weight: bold;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--bs-green);
+  color: $band-dark-label;
 }
 
 .touch-title {
@@ -31,7 +34,7 @@
   max-width: 36rem;
   margin: 0 auto 1.75rem;
   font-size: 1.25rem;
-  color: var(--bs-secondary-color);
+  color: $band-dark-text;
 }
 
 // The buttons stay as wide as their words, like every button outside

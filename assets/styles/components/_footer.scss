@@ -10,42 +10,80 @@
 $footer-gap: 2.5rem;
 $footer-gap-phone: 1.5rem;
 
-// The farm silhouette along the footer's top (#272): the high tunnel
-// and the two coops, at full width, rising into the band above. Its
-// height is a share of the width, at each SVG's own shape; below md
-// the right-half crop (the coops) takes over. The band above pads its
-// bottom by it (_touch.scss), and so does the spacer where no band is.
+// The farm silhouette along the footer's top (#272, #277): the high
+// tunnel and the two coops, at full width, rising into the band above.
+// Its height (James's --h) is a share of the width at each SVG's own
+// shape, 216 over the viewBox width, in three crops: the phone crop
+// below md, the middle crop from md to xl, the full scene from xl. The
+// band above pads its bottom by it (_touch.scss), and so does the order
+// page's strip.
+$sil-url: url("/images/silhouette-4.svg");
+$sil-url-md: url("/images/silhouette-4_2.svg");
+$sil-url-sm: url("/images/silhouette-4_2-sm.svg");
+
 :root {
-  --sil-h: calc(100vw * 283 / 3589);
+  --sil-h: calc(100vw * 216 / 2268);
+
+  @include media-breakpoint-down(xl) {
+    --sil-h: calc(100vw * 216 / 1836);
+  }
 
   @include media-breakpoint-down(md) {
-    --sil-h: calc(100vw * 230 / 1795);
+    --sil-h: calc(100vw * 216 / 1374);
   }
 }
 
+// What a band pads its bottom by: the rise, and 32px between its
+// buttons and the roofline (James's value).
+$sil-clear: calc(var(--sil-h) + 32px);
+
+// A band's gap above its content (_touch.scss).
+$band-gap: 3.5rem;
+
+// The order page has no band, so a strip of the band stands in for one:
+// an empty band, its top gap over its bottom padding. Any shorter and
+// the shadow's fog reaches the light row above it.
 .footer-clearance {
-  min-height: calc(var(--sil-h) + 1.5rem);
+  min-height: calc(#{$band-gap} + #{$sil-clear});
+  background-color: $band-dark-bg;
+}
+
+// The slate fog round the roofline (James's values): a drop shadow on
+// a wrapper, so it follows the shape the mask cuts in the footer. A
+// filter on the footer itself would be cut by its own mask. The page
+// clips what spills past its sides; the wrapper must not, or the fog
+// would be cut off.
+.footer-wrap {
+  position: relative;
+  filter: $footer-shadow;
+}
+
+body {
+  overflow-x: clip;
 }
 
 // The footer carries the shape itself: it rises by --sil-h and two
 // mask layers cut it, the silhouette across the top and a solid block
-// for the rest, overlapping by 1px so no seam shows. One background
-// then paints both, so a gradient will run through them unbroken.
+// for the rest, overlapping by 1px so no seam shows. One gradient
+// paints both, top to bottom.
 .site-footer {
+  @include dark-band;
+
   margin-top: calc(-1 * var(--sil-h));
-  padding-block: calc(2.25rem + var(--sil-h)) 1.25rem;
-  color: $navbar-light-color;
+  padding-block: calc(var(--sil-h) + 40px) 1.25rem;
   text-align: center;
-  background-color: $footer-bg;
+  background: linear-gradient(to bottom, $footer-top 0, $footer-bottom 100%);
   mask:
-    url("/images/silhouette.svg") center top / 100% var(--sil-h) no-repeat,
+    $sil-url center top / 100% var(--sil-h) no-repeat,
     linear-gradient(#000, #000) center bottom / 100%
       calc(100% - var(--sil-h) + 1px) no-repeat;
 
+  @include media-breakpoint-down(xl) {
+    mask-image: $sil-url-md, linear-gradient(#000, #000);
+  }
+
   @include media-breakpoint-down(md) {
-    mask-image:
-      url("/images/silhouette-small.svg"),
-      linear-gradient(#000, #000);
+    mask-image: $sil-url-sm, linear-gradient(#000, #000);
   }
 
   .footer-news {
@@ -74,11 +112,38 @@ $footer-gap-phone: 1.5rem;
     }
   }
 
-  a {
-    color: $navbar-light-color;
+  a:not(.btn) {
+    color: $band-dark-text;
+    text-decoration: none;
 
     &:hover {
-      color: shade-color($navbar-light-color, 30%);
+      color: $white;
+      text-decoration: underline;
+      text-underline-offset: 0.18em;
+    }
+  }
+
+  .dot-list > li + li::before {
+    color: $band-dark-field-border;
+  }
+
+  .news-signup .input-group:has(> .form-control:focus) {
+    box-shadow: $band-dark-focus-ring;
+  }
+
+  .news-signup-note {
+    color: $band-dark-text;
+
+    &[data-tone="ok"] {
+      color: $band-dark-label;
+    }
+
+    &[data-tone="wait"] {
+      color: $band-dark-wait;
+    }
+
+    &[data-tone="no"] {
+      color: $band-dark-no;
     }
   }
 
@@ -106,8 +171,10 @@ $footer-gap-phone: 1.5rem;
       height: 3.5rem;
     }
 
+    // The mark's black would vanish on the dark band, so it reverses
+    // to the band's heading color, like a reversed print of the logo.
     .apppa-black {
-      fill: #010101;
+      fill: $band-dark-heading;
     }
 
     .apppa-white {

@@ -1,0 +1,44 @@
+// The light row above the dark band (ticker-slot.html, #277): a strip
+// of the light tint under a hairline, with a small ornament at its
+// center, two rules and three dots between them. The brand ticker
+// will take its place.
+.ticker-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 6rem;
+  background-color: $ticker-slot-bg;
+  border-top: 1px solid $ticker-slot-border;
+
+  // A row that already closes on a hairline (the home page's map)
+  // keeps its own, so the line isn't doubled.
+  .border-bottom + & {
+    border-top: 0;
+  }
+}
+
+.ticker-slot-ornament {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+
+  &::before,
+  &::after {
+    width: 5.5rem;
+    height: 2px;
+    content: "";
+    background-color: rgba($ticker-slot-ornament, 0.6);
+  }
+
+  // The middle dot, with a smaller one either side as its shadows.
+  > span {
+    width: 7px;
+    height: 7px;
+    margin-inline: 0.75rem;
+    background-color: $ticker-slot-ornament;
+    border-radius: 50%;
+    box-shadow:
+      -12px 0 0 -1px $ticker-slot-ornament,
+      12px 0 0 -1px $ticker-slot-ornament;
+  }
+}

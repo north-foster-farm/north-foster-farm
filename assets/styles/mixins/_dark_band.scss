@@ -1,0 +1,76 @@
+// The dark band (#277): the bands above the footer and the footer
+// itself, light on dark. Bootstrap's own variables are reset inside
+// it, so headings, links, buttons and fields follow from the tokens
+// (_variables.scss) without one-off colors in the components.
+
+// Bootstrap's focus ring is a pale tint of the brand green that all
+// but vanishes here. On the band it is a solid ring in the label's
+// green, set off from the control by a sliver of the band.
+$band-dark-focus-ring: 0 0 0 2px $band-dark-bg, 0 0 0 5px $band-dark-focus;
+
+@mixin dark-band {
+  --bs-body-color: #{$band-dark-text};
+  --bs-secondary-color: #{$band-dark-text};
+  --bs-heading-color: #{$band-dark-heading};
+  --bs-emphasis-color: #{$band-dark-heading};
+  --bs-link-color-rgb: #{to-rgb($band-dark-heading)};
+  --bs-link-hover-color-rgb: #{to-rgb($white)};
+
+  color: $band-dark-text;
+
+  .btn-primary {
+    --bs-btn-color: #{$band-dark-btn-color};
+    --bs-btn-bg: #{$band-dark-btn-bg};
+    --bs-btn-border-color: #{$band-dark-btn-bg};
+    --bs-btn-hover-color: #{$band-dark-btn-color};
+    --bs-btn-hover-bg: #{$band-dark-btn-hover-bg};
+    --bs-btn-hover-border-color: #{$band-dark-btn-hover-bg};
+    --bs-btn-active-color: #{$band-dark-btn-color};
+    --bs-btn-active-bg: #{$band-dark-btn-hover-bg};
+    --bs-btn-active-border-color: #{$band-dark-btn-hover-bg};
+    --bs-btn-disabled-color: #{$band-dark-btn-color};
+    --bs-btn-disabled-bg: #{$band-dark-btn-bg};
+    --bs-btn-disabled-border-color: #{$band-dark-btn-bg};
+  }
+
+  // Its hover is the site's: a tint of its own light color (_global).
+  .btn-outline-primary {
+    --bs-btn-color: #{$band-dark-heading};
+    --bs-btn-border-color: #{$band-dark-text};
+  }
+
+  .btn {
+    --bs-btn-focus-box-shadow: #{$band-dark-focus-ring};
+  }
+
+  a:not(.btn):focus-visible {
+    border-radius: 0.125rem;
+    outline: 2px solid $band-dark-focus;
+    outline-offset: 3px;
+  }
+
+  .form-control {
+    color: $band-dark-heading;
+    background-color: $band-dark-field-bg;
+    border-color: $band-dark-field-border;
+
+    &::placeholder {
+      color: $band-dark-placeholder;
+    }
+
+    &:focus {
+      color: $band-dark-heading;
+      background-color: $band-dark-field-bg;
+      border-color: $band-dark-focus;
+      box-shadow: $band-dark-focus-ring;
+    }
+
+    &:-webkit-autofill,
+    &:-webkit-autofill:hover,
+    &:-webkit-autofill:focus {
+      box-shadow: 0 0 0 1000px $band-dark-field-bg inset;
+      -webkit-text-fill-color: $band-dark-heading;
+      caret-color: $band-dark-heading;
+    }
+  }
+}

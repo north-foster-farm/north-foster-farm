@@ -1,10 +1,21 @@
 {{ $company := hugo.Data.company }}
 {{ $phone := partial "phone.html" . }}
 {{ $instagram := hugo.Data.socialMedia.instagram.url }}
-{{/* The order page has no band above the footer to take the
-     silhouette's rise (_footer.scss), so its spacer clears it. */}}
-<div class="flex-grow-1{{ if eq .Type "order" }} footer-clearance{{ end }}"></div>
+<div class="flex-grow-1"></div>
+{{/* The light row sits above the dark band on every page; the home
+     page's band, and its row, are in home/contact.html. The order
+     page has no band to take the silhouette's rise (_footer.scss), so
+     a strip of the band's color clears it. */}}
+{{ if not .IsHome }}
+  {{ partial "ticker-slot.html" . }}
+{{ end }}
+{{ if eq .Type "order" }}
+  <div class="footer-clearance"></div>
+{{ end }}
 {{ partial "footer/shop.html" . }}
+{{/* The wrapper carries the drop shadow round the silhouette; the
+     footer carries the mask (_footer.scss). */}}
+<div class="footer-wrap">
 <footer class="site-footer">
   <div class="container">
     {{/* One centered column at every width (#226, R-FT): the
@@ -34,3 +45,4 @@
     {{ partial "footer/scripts.html" . }}
   </div>
 </footer>
+</div>
