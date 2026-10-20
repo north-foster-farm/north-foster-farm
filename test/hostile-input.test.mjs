@@ -164,6 +164,8 @@ const CASES = {
   }), true],
   farmMorningReport: [() => templates.farmMorningReport(stats, [asked()],
     { date: "2026-10-06", links, now: at }), true],
+  farmArchivedInStock: [() => templates.farmArchivedInStock(
+    [{ sku: HOSTILE, name: HOSTILE, count: 3 }], { links }), true],
   farmTomorrow: [() => templates.farmTomorrow(
     [order(), order("onfarm")], { date: "2026-10-08", links }), true],
 };

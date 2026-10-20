@@ -1313,6 +1313,36 @@ export const farmRefundNeeded = (order, customer, { links } = {}) => {
   );
 };
 
+// Products the catalog marks archived while stock shows them on hand
+// (#267): hidden everywhere, so nobody can buy what came in. `items`
+// is [{ sku, name, count }], count null when the SKU is in stock by
+// its catalog flag and not counted. Also a section of the morning
+// report, until each is resolved.
+const archivedRows = (items) => table(["Product", "SKU", "On hand"],
+  items.map((i) => [i.name, mono(i.sku),
+    i.count === null ? "in stock, not counted" : String(i.count)]),
+  { align: ["left", "left", "right"] });
+const archivedFix = () => [
+  p("Customers can't see or buy these. If one is back on sale, change " +
+    "its restock type in data/catalog.json and deploy. If not, zero " +
+    "its count:"),
+  command("bin/nff stock set <sku> 0"),
+];
+
+export const farmArchivedInStock = (items, { links } = {}) => farmCard(
+  items.length === 1
+    ? `Hidden but in stock: ${items[0].name}`
+    : `Hidden but in stock: ${items.length} products`,
+  "Stock check",
+  [
+    p("The catalog marks these archived, so the website hides them, " +
+      "but stock shows them on hand:"),
+    archivedRows(items),
+    ...archivedFix(),
+  ],
+  links
+);
+
 // A customer's cancel, refunded on the spot (T1d): nothing to run,
 // only an order not to pack.
 export const farmOrderCancelled = (order, customer, { links } = {}) => {
@@ -1614,7 +1644,7 @@ const age = (iso, now) => {
 };
 
 export const farmMorningReport = (stats, pickups, {
-  date, links, now = new Date(), schedule = null,
+  date, links, now = new Date(), schedule = null, archived = [],
 } = {}) => {
   const title = `Morning report: ${label(date)}`;
   const blocks = [
@@ -1638,6 +1668,16 @@ export const farmMorningReport = (stats, pickups, {
         : "The pickup schedule offers no windows."}**`),
       p("Add windows and deploy, or the next deploy fails:"),
       command("bin/nff schedule set <file>")
+    );
+  }
+  // Until the flag is flipped or the stock zeroed (#267).
+  if (archived.length) {
+    blocks.push(
+      heading("Hidden but in stock"),
+      p("The catalog marks these archived, so the website hides them, " +
+        "but stock shows them on hand:"),
+      archivedRows(archived),
+      ...archivedFix()
     );
   }
   if (pickups.length) {

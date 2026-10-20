@@ -2,6 +2,7 @@
 // guidance, but this is the gate: nothing the client claims about
 // money or dates is trusted.
 
+import { archived } from "./catalog.mjs";
 import { datesFor } from "./dates.mjs";
 import { computeTotals, meetsMinimum } from "./totals.mjs";
 
@@ -129,7 +130,7 @@ export const validateOrder = (payload, {
       errors[`lines.${sku}`] = "Quantities are whole numbers from 1 to 99.";
       continue;
     }
-    if (!item.inStock) {
+    if (!item.inStock || archived(item)) {
       errors[`lines.${sku}`] = `${item.groupName}, ${item.label} is sold out.`;
       continue;
     }

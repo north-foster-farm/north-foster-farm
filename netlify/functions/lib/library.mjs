@@ -589,6 +589,15 @@ export const library = [
     }),
   },
   {
+    id: "farm-archived-in-stock", name: "Hidden but in stock",
+    when: "Stock shows an archived product on hand, once a day each",
+    audience: F, tags: ["alert", "report"],
+    build: (links) => t.farmArchivedInStock([
+      { sku: "NFF-CHK-WNG-0000-0200", name: "Wings, up to 1.9 lbs",
+        count: 6 },
+    ], { links }),
+  },
+  {
     id: "farm-tomorrow", name: "Tomorrow's orders",
     when: "Every day at 18:00", audience: F,
     tags: ["report", "delivery", "pickup", "drop site"],
@@ -691,6 +700,8 @@ const WELCOME = "Draft (#273, Q8): one welcome for everyone, naming " +
   "sign-off. Drafts: the opt-in sentence, the inbox line, the " +
   "moved-provider paragraph, the button and the footer.";
 const WAITING = {
+  "farm-archived-in-stock": "#267: to sales@ only, and listed in the " +
+    "morning report until resolved. Draft wording.",
   "order-confirmed-onfarm": `James approved it in the library on ` +
     `2026-09-26. ${W11D}`,
   "order-changed-paid-more": `${LANDED}: each line says what was added, ` +

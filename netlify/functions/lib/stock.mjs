@@ -13,8 +13,22 @@
 // CLI. For a farm that sells dozens of packs a week, that is the
 // right trade.
 
+//
+// A product the catalog marks `restock: "archived"` is never sold,
+// whatever its count (#267). If stock shows one on hand anyway, the
+// farm is told (archivedInStock, below): it would otherwise sit
+// hidden from the people waiting for it, and nobody would know why.
+
 import catalog from "../../../data/catalog.json" with { type: "json" };
-import { indexCatalog } from "../../../assets/scripts/order/lib/catalog.mjs";
+import {
+  archived, indexCatalog,
+} from "../../../assets/scripts/order/lib/catalog.mjs";
+import terms from "../../../data/delivery.json" with { type: "json" };
+import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { log } from "./log.mjs";
+import { farmEmails, sendMail } from "./mail.mjs";
+import { mailLinks } from "./site.mjs";
+import { farmArchivedInStock } from "./templates.mjs";
 
 const index = indexCatalog(catalog);
 
@@ -56,23 +70,89 @@ export const adjust = async (stores, lines, sign) => {
   return counts;
 };
 
+// Whether stock has this item on hand, its restock type aside: the
+// catalog flag, and the count above 0 where there is one.
+const onHand = (item, counts, sku) => !!item.inStock
+  && (!Object.hasOwn(counts, sku) || counts[sku] > 0);
+
 // What the page needs for every catalog item, counted or not.
 //   { sku: { inStock, available } }  available is null when uncounted.
-export const availability = async (stores) => {
+// An archived item is never in stock. `catalogIndex` is for tests.
+export const availability = async (stores, { catalogIndex = index } = {}) => {
   const counts = await getCounts(stores);
   const items = {};
 
-  for (const [sku, item] of index) {
+  for (const [sku, item] of catalogIndex) {
     const counted = Object.hasOwn(counts, sku);
     const available = counted ? Math.max(0, counts[sku]) : null;
 
     items[sku] = {
-      inStock: !!item.inStock && (!counted || available > 0),
+      inStock: onHand(item, counts, sku) && !archived(item),
       available,
     };
   }
 
   return items;
+};
+
+// The archived items stock has on hand. -> [{ sku, name, count }],
+// count null for one in stock by its flag and not counted.
+export const archivedOnHand = async (stores, {
+  catalogIndex = index,
+} = {}) => {
+  const counts = await getCounts(stores);
+
+  return [...catalogIndex].filter(([sku, item]) => archived(item)
+    && onHand(item, counts, sku)).map(([sku, item]) => ({
+    sku,
+    name: `${item.groupName}, ${item.label}`,
+    count: Object.hasOwn(counts, sku) ? counts[sku] : null,
+  }));
+};
+
+// Every read of stock looks for archived items on hand, and emails
+// FARM_NOTIFICATIONS_EMAIL, and no one else, about each one once a
+// day (the jobs store's `stock/archived/<day>` keeps which). The
+// morning report lists them every day until they are resolved. It
+// never fails the read it rides on. -> the items newly reported.
+export const archivedKey = (day) => `stock/archived/${day}`;
+
+export const archivedInStock = async (stores, {
+  env = process.env, mail = sendMail, now = new Date(),
+  catalogIndex = index,
+} = {}) => {
+  try {
+    const found = await archivedOnHand(stores, { catalogIndex });
+    const to = farmEmails(env);
+
+    if (!found.length || !to.length) return [];
+
+    const key = archivedKey(today(now, terms.timeZone));
+    const told = ((await stores.jobs.get(key)) || {}).skus || [];
+    const fresh = found.filter((i) => !told.includes(i.sku));
+
+    if (!fresh.length) return [];
+
+    // Marked once sent, so a failed send tries again on the next read.
+    // Two reads racing share the idempotency key, so Resend sends one.
+    await mail({
+      to,
+      idempotencyKey: `${key}/${fresh.map((i) => i.sku).join(",")}`,
+      ...farmArchivedInStock(fresh, { links: mailLinks(env) }),
+    }, { env, stores });
+    await stores.jobs.set(key, {
+      at: now.toISOString(), skus: [...told, ...fresh.map((i) => i.sku)],
+    });
+    log.warn({
+      event: "stock.archived_in_stock", skus: fresh.map((i) => i.sku),
+    });
+
+    return fresh;
+  } catch (error) {
+    log.error({ event: "stock.archived_check_failed", error: String(error) });
+
+    return [];
+  }
 };
 
 // Errors keyed like the validator's, for lines that cannot be filled.

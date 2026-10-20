@@ -53,6 +53,7 @@ import {
   sweepAuth, sweepCheckouts,
 } from "./records.mjs";
 import { rotationDaily } from "./rotation.mjs";
+import { archivedOnHand } from "./stock.mjs";
 import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
 import {
   deliveryReminder, farmMorningReport, farmTomorrow,
@@ -99,6 +100,9 @@ export const runJobs = async (stores, {
   // Null when PayPal is not configured: no checkout can be rescued.
   paypal = paypalApi.configured(env) ? paypalApi : null,
   fetchImpl = globalThis.fetch,
+  // The catalog as indexCatalog makes it, for tests of the archived
+  // check; the real one by default.
+  catalogIndex,
 } = {}) => {
   const report = {
     at: now.toISOString(), announced: [], deliveryReminded: [], closed: [],
@@ -211,7 +215,9 @@ export const runJobs = async (stores, {
   report.scrubbed = (await attempt(null, "retention",
     () => scrubDaily(stores, now))) || [];
   report.pickupsToConfirm = (await attempt(null, "morningReport",
-    () => morningReport(stores, { env, mail, now, fetchImpl }))) || [];
+    () => morningReport(stores, {
+      env, mail, now, fetchImpl, catalogIndex,
+    }))) || [];
   report.tomorrow = await attempt(null, "tomorrowReport",
     () => tomorrowReport(stores, { env, mail, now }));
   report.rotation = await attempt(null, "rotationReminder",
@@ -475,7 +481,9 @@ const coverage = (env, now) => {
   };
 };
 
-const morningReport = async (stores, { env, mail, now, fetchImpl }) => {
+const morningReport = async (stores, {
+  env, mail, now, fetchImpl, catalogIndex,
+}) => {
   const day = today(now, tz);
   const sent = await dailyReport(stores, {
     key: `report/morning/${day}`,
@@ -484,10 +492,13 @@ const morningReport = async (stores, { env, mail, now, fetchImpl }) => {
     list: async () => [{
       stats: await funnel(stores, now),
       pickups: pickupsDue(await openOrders(stores), day),
+      archived: await archivedOnHand(stores, { catalogIndex }),
     }],
-    build: ([{ stats, pickups }]) => farmMorningReport(stats, pickups, {
-      date: day, links: mailLinks(env), now, schedule: coverage(env, now),
-    }),
+    build: ([{ stats, pickups, archived }]) => farmMorningReport(stats,
+      pickups, {
+        date: day, links: mailLinks(env), now, schedule: coverage(env, now),
+        archived,
+      }),
     onSent: () => ping(env.HEALTHCHECKS_ALERT_URL, { ok: true, fetchImpl }),
     env, mail, now,
   });
