@@ -78,6 +78,37 @@ const places = async (page) => {
   }, { intervals: [300] }).toBe(true);
 };
 
+// The view's width after one press of +: half of it, but never past
+// map.js's MAX_ZOOM of 5. Places frames its pins, so with the places
+// close together it opens near the cap, and + stops there (#282).
+const MAX_ZOOM = 5;
+const zoomedIn = (width, whole) => Math.max(width / 2, whole / MAX_ZOOM);
+
+// A check that needs the farm and the Foster market both on the map
+// passes silently once the market's season ends: say it was skipped.
+const skipped = (why) => test.info().annotations.push({
+  type: "skipped check", description: why,
+});
+
+// The whole map's width, from the Delivery view a page opens on.
+const wholeWidth = (page) => map(page).locator("[data-map-svg]").evaluate(
+  (el) => el.viewBox.baseVal.width
+);
+
+// Opening a card scrolls its row into view smoothly: wait for the page
+// to stop before measuring where anything is on screen.
+const scrollRest = async (page) => {
+  let last = -1;
+
+  await expect.poll(async () => {
+    const now = await page.evaluate(() => scrollY);
+    const rest = now === last;
+
+    last = now;
+    return rest;
+  }, { intervals: [200] }).toBe(true);
+};
+
 // Where each pin's tip stands on screen, and where its place is.
 const tips = (page) => map(page).locator("[data-map-svg]").evaluate((el) => (
   [...el.querySelectorAll("[data-map-pin]")].map((g) => {
@@ -88,7 +119,7 @@ const tips = (page) => map(page).locator("[data-map-svg]").evaluate((el) => (
 
     return { n: g.getAttribute("aria-label"), nudge: g.dataset.nudge,
       dx: tip.x - place.x, dy: tip.y - place.y,
-      left: r.left, right: r.right };
+      left: r.left, right: r.right, top: r.top, bottom: r.bottom };
   })
 ));
 
@@ -172,13 +203,14 @@ test.describe("map (#138, #214)", () => {
 
       await expect(swatch.locator("xpath=..")).toHaveText(text);
 
-      const [a, b] = await Promise.all([
-        swatch.evaluate((el) => getComputedStyle(el).backgroundColor),
-        map(page).locator(`.map-zip.${cls}`).first()
-          .evaluate((el) => getComputedStyle(el).fill),
-      ]);
+      const a = await swatch.evaluate(
+        (el) => getComputedStyle(el).backgroundColor
+      );
 
-      expect(a, cls).toBe(b);
+      // The fills ease in as the page opens: wait for them to rest.
+      await expect.poll(() => map(page).locator(`.map-zip.${cls}`).first()
+        .evaluate((el) => getComputedStyle(el).fill), { message: cls })
+        .toBe(a);
     }
 
     // Then how the tag marks what we deliver: a struck-through icon.
@@ -266,39 +298,72 @@ test.describe("map (#138, #214)", () => {
 
   // The farm and the Foster market meet at the whole map: each stands
   // a little aside, so both can be tapped, and both come back to their
-  // places once zoomed in. Every other tip is on its place at every
-  // zoom: the Foster market's tip once fell in Connecticut on a phone.
+  // places once zoomed in. Places opens framed on its pins, as close as
+  // they allow, so the two may already stand apart there (#282): at
+  // that view they must only not overlap. Every other tip is on its
+  // place at every zoom: the Foster market's tip once fell in
+  // Connecticut on a phone.
   test("pins stand on their places; the farm and Foster stand apart",
     async ({ page }) => {
       await page.goto(HOME.path);
+
+      const all = await wholeWidth(page);
+
       await places(page);
 
       const svg = map(page).locator("[data-map-svg]");
       const width = () => svg.evaluate(
         (el) => Number(el.getAttribute("viewBox").split(" ")[2])
       );
+      const pair = (shown) => [
+        shown.find((t) => t.n === "North Foster Farm"),
+        shown.find((t) => t.n === "Foster Farmers Market"),
+      ];
+      const onPlaces = (shown, where) => {
+        for (const t of shown) {
+          expect(Math.abs(t.dy), `${t.n}, ${where}`).toBeLessThanOrEqual(1);
+          expect(Math.abs(t.dx), `${t.n}, ${where}`)
+            .toBeLessThanOrEqual(t.nudge ? 16 : 1);
+        }
+      };
+      const apart = (a, b) => a.left >= b.right - 2 || b.left >= a.right - 2;
+      const zoomOut = map(page).locator("[data-map-zoom='out']");
 
       await svg.scrollIntoViewIfNeeded();
-      const full = await width();
-      const whole = await tips(page);
-      const farm = whole.find((t) => t.n === "North Foster Farm");
-      const foster = whole.find((t) => t.n === "Foster Farmers Market");
+      const fit = await width();
+      const framed = await tips(page);
+      const [farm, foster] = pair(framed);
 
-      for (const t of whole) {
-        expect(Math.abs(t.dy), t.n).toBeLessThanOrEqual(1);
-        expect(Math.abs(t.dx), t.n)
-          .toBeLessThanOrEqual(t.nudge ? 16 : 1);
-      }
+      onPlaces(framed, "framed");
+      if (!(farm && foster)) skipped("Foster market not showing");
       if (farm && foster) {
-        expect(farm.left >= foster.right - 2 || foster.left >= farm.right - 2,
-          "the farm and the Foster market side by side").toBe(true);
+        const clear = apart(farm, foster) || farm.top >= foster.bottom - 2
+          || foster.top >= farm.bottom - 2;
+
+        expect(clear, "the farm and the Foster market both tappable")
+          .toBe(true);
       }
 
       await map(page).locator("[data-map-zoom='in']").click();
-      await expect.poll(width).toBeCloseTo(full / 2, 0);
+      await expect.poll(width).toBeCloseTo(zoomedIn(fit, all), 0);
       for (const t of await tips(page)) {
         expect(Math.hypot(t.dx, t.dy), `${t.n}, zoomed`)
           .toBeLessThanOrEqual(1);
+      }
+
+      // Out to the whole state, where the two meet: side by side.
+      while (await zoomOut.isEnabled()) {
+        await zoomOut.click();
+        await page.waitForTimeout(300);
+      }
+      await expect.poll(width).toBeCloseTo(all, 0);
+      const whole = await tips(page);
+      const [farAt, fosterAt] = pair(whole);
+
+      onPlaces(whole, "whole state");
+      if (farAt && fosterAt) {
+        expect(apart(farAt, fosterAt),
+          "the farm and the Foster market side by side").toBe(true);
       }
     });
 
@@ -347,6 +412,7 @@ test.describe("map (#138, #214)", () => {
         await pin.locator(".map-pin-body").tap();
         await expect(card).toBeVisible();
         await expect(pin).toHaveAttribute("aria-pressed", "true");
+        await scrollRest(page);
 
         // A corner of the map the card, the zoom and the pins leave bare.
         const box = await svg.boundingBox();
@@ -436,6 +502,8 @@ test.describe("map (#138, #214)", () => {
   test("the tag keeps inside the frame", async ({ page }) => {
     await page.goto(HOME.path);
     await check(page, HOME.input, "02865");
+    // A check brings the map into view: measure once the page stops.
+    await scrollRest(page);
 
     const [tag, frame, zoom] = await Promise.all([
       map(page).locator("[data-map-drop-tag]"),
@@ -809,8 +877,8 @@ test.describe("map (#138, #214)", () => {
 
   test("zoom in and out; pins keep their size", async ({ page }) => {
     await page.goto(HOME.path);
-    await places(page);
 
+    const all = await wholeWidth(page);
     const svg = map(page).locator("[data-map-svg]");
     const width = () => svg.evaluate(
       (el) => Number(el.getAttribute("viewBox").split(" ")[2])
@@ -821,6 +889,20 @@ test.describe("map (#138, #214)", () => {
     const zoomOut = map(page).locator("[data-map-zoom='out']");
     const reset = map(page).locator("[data-map-zoom='reset']");
 
+    // Delivery opens on the whole state, whatever the pins: + halves
+    // the view, and stops at MAX_ZOOM with the button disabled (#282).
+    await svg.scrollIntoViewIfNeeded();
+    await expect(zoomOut).toBeDisabled();
+    await zoomIn.click();
+    await expect.poll(width).toBeCloseTo(all / 2, 0);
+    for (let i = 0; i < 4 && await zoomIn.isEnabled(); i += 1) {
+      await zoomIn.click();
+      await page.waitForTimeout(300);
+    }
+    await expect(zoomIn).toBeDisabled();
+    await expect.poll(width).toBeCloseTo(all / MAX_ZOOM, 0);
+
+    await places(page);
     await svg.scrollIntoViewIfNeeded();
 
     // Places opens framed on its pins: closer than the state, and
@@ -833,7 +915,7 @@ test.describe("map (#138, #214)", () => {
     await expect(zoomOut).toBeEnabled();
 
     await zoomIn.click();
-    await expect.poll(width).toBeCloseTo(fit / 2, 0);
+    await expect.poll(width).toBeCloseTo(zoomedIn(fit, all), 0);
     await expect(reset).toBeVisible();
     expect(Math.abs(await pinHeight() - pinAtFit), "pin size on screen")
       .toBeLessThanOrEqual(2);
