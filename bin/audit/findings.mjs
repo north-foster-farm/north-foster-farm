@@ -57,16 +57,21 @@ export const usesFromWorkflow = (text) => {
 
 // The findings in a list of GitHub advisories returned for one action.
 export const actionFindings = (repo, advisories) => advisories.map((a) => {
-  const hit = (a.vulnerabilities || []).find(
+  // Every entry for the action, since one advisory may list it once
+  // per release line; the first patched one counts.
+  const all = a.vulnerabilities || [];
+  const own = all.filter(
     (v) => v.package?.name?.toLowerCase() === repo.toLowerCase(),
-  ) || (a.vulnerabilities || [])[0] || {};
+  );
+  const first = (own.length ? own : all.slice(0, 1))
+    .map((v) => v.first_patched_version).find(Boolean) || null;
 
   return {
     package: repo,
     advisory: a.ghsa_id,
     severity: a.severity,
-    fix: hit.first_patched_version || null,
-    patched: hit.first_patched_version || null,
+    fix: first,
+    patched: first,
   };
 });
 

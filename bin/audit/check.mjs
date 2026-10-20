@@ -81,12 +81,17 @@ export const patchedVersion = async (pkg, advisory, fetchImpl = fetch) => {
 
   if (!res.ok) throw new Error(`advisory ${advisory}: HTTP ${res.status}`);
 
-  const hit = ((await res.json()).vulnerabilities || []).find((v) =>
+  // An advisory may list a package once per release line, some lines
+  // patched and some not. Any patched line re-raises: at worst that is
+  // a line we don't use, which fails safe.
+  const hits = ((await res.json()).vulnerabilities || []).filter((v) =>
     v.package?.ecosystem === "npm" && v.package?.name === pkg);
 
-  if (!hit) throw new Error(`advisory ${advisory} does not name ${pkg}`);
+  if (!hits.length) {
+    throw new Error(`advisory ${advisory} does not name ${pkg}`);
+  }
 
-  return hit.first_patched_version || null;
+  return hits.map((v) => v.first_patched_version).find(Boolean) || null;
 };
 
 export const readExceptions = (path = join(ROOT, "security/exceptions.json")) =>
@@ -111,6 +116,8 @@ export const collectFindings = async ({
       if (excepted.has(key) && !lookups.has(key)) {
         lookups.set(key, f.advisory.startsWith("GHSA-")
           ? await patched(f.package, f.advisory)
+          // Only an advisory without a GHSA id lands here, and it
+          // keeps the old meaning: npm's fix hint stands in.
           : f.fix);
       }
 

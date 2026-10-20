@@ -85,6 +85,20 @@ describe("actionFindings", () => {
       patched: "46.0.1",
     }]);
   });
+
+  it("takes a patched release line listed after an unpatched one", () => {
+    const advisories = [{
+      "ghsa_id": "GHSA-1111-2222-3333",
+      severity: "high",
+      vulnerabilities: [
+        { package: { name: "owner/repo" }, "first_patched_version": null },
+        { package: { name: "owner/repo" }, "first_patched_version": "2.0.1" },
+      ],
+    }];
+
+    assert.equal(actionFindings("owner/repo", advisories)[0].patched,
+      "2.0.1");
+  });
 });
 
 describe("evaluate", () => {
@@ -207,6 +221,20 @@ describe("patchedVersion", () => {
       answer(vulnerable("braces", "3.0.4"))), "3.0.4");
     assert.equal(await patchedVersion("braces", "GHSA-dddd-eeee-ffff",
       answer(vulnerable("braces", null))), null);
+  });
+
+  it("re-raises when any release line is patched", async () => {
+    const lines = {
+      vulnerabilities: [
+        { package: { ecosystem: "npm", name: "braces" },
+          "first_patched_version": null },
+        { package: { ecosystem: "npm", name: "braces" },
+          "first_patched_version": "2.0.1" },
+      ],
+    };
+
+    assert.equal(await patchedVersion("braces", "GHSA-dddd-eeee-ffff",
+      answer(lines)), "2.0.1");
   });
 
   it("throws rather than guess", async () => {
