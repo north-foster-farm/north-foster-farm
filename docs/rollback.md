@@ -66,7 +66,8 @@ version).
    time or at run time, is rotated under the leak procedure in
    `docs/secrets.md`: revoke at once, no overlap. That makes the
    rolled-back deploy's keys dead, so it is a target only until the
-   new keys are live; then fix forward or revert on `main`.
+   new keys are live; then fix forward or revert on `next` and
+   promote.
 4. Write it up in `incidents/`.
 
 **Case B: an actively exploited flaw in a version we have had for a
@@ -91,21 +92,21 @@ of the new site to go back to. The one-tap rollback (next section)
 automates the publish path below; until it is built, these are the
 manual steps.
 
-| | Publish a previous deploy | Revert on `main` |
+| | Publish a previous deploy | Revert on `next` and promote |
 | --- | --- | --- |
-| What happens | Netlify serves an older atomic deploy: its HTML, its functions, its schedule | A new commit undoes the release; Netlify builds and publishes it |
-| Live in | Seconds once the call is made (Netlify: "instantaneous") | A passing `lint-and-test` run, then the push and a build: a few minutes |
+| What happens | Netlify serves an older atomic deploy: its HTML, its functions, its schedule | A new commit on `next` undoes the release; it is promoted to `staging` and `main`, and Netlify builds and publishes it |
+| Live in | Seconds once the call is made (Netlify: "instantaneous") | Green checks on `next`, James's approval, two promotions and a build: a few minutes once he approves |
 | Env vars | The values set when that deploy was built (see below) | The values set now |
 | Survives the next push | Only if auto publishing is locked | Yes |
 | Needs | The deploy still to exist (30 days on this plan) | git, and GitHub Actions up |
 | Undo | Publish the release deploy again | Revert the revert |
 
 Publish a previous deploy first. It is the fast path, it touches
-nothing in git and no branch rule applies to it. Revert on `main`
-(or unlock) once the rollback has been live 24 hours with no fix
-ready, or as soon as anything else must reach production, whichever
-comes first: the lock blocks every publish from `main`. Revert on
-`main` earlier when the old deploy has been deleted or was built
+nothing in git and no branch rule applies to it. Revert on `next` and
+promote (or unlock) once the rollback has been live 24 hours with no
+fix ready, or as soon as anything else must reach production,
+whichever comes first: the lock blocks every publish from `main`.
+Revert earlier when the old deploy has been deleted or was built
 before a key whose old credential is revoked.
 
 Two words, kept apart. A **redeploy** runs a new build, with today's
@@ -134,8 +135,8 @@ still works depends on why it changed (`docs/secrets.md`, rule 6):
   log, which has a `revoked` line once the old credential is gone.
 - **After a leak, or once the old credential is revoked, it holds a
   dead key.** Never publish a deploy built before that change. Roll
-  back past one by reverting on `main`, which builds with current
-  values, or fix forward. A secret we generate ourselves
+  back past one by reverting on `next` and promoting, which builds
+  with current values, or fix forward. A secret we generate ourselves
   (`STAGING_TOKEN`, `MAINTENANCE_SECRET`) has no overlap, so any
   deploy built before its change is already past the floor.
 
@@ -275,7 +276,7 @@ The site id is in `.netlify/state.json` of a linked checkout.
    incident happened.
 9. **Watch the clock.** Once the rollback has been live 24 hours with
    no fix ready, or as soon as anything else must reach production,
-   unlock or revert on `main` (below). The lock blocks every publish
+   unlock, or revert on `next` and promote (below). The lock blocks every publish
    from `main`.
 
 ## What a rollback does not undo
@@ -367,11 +368,11 @@ Republishing an older release deploy brings back its env snapshot.
 If an env var changed after it was built, redeploy (a new build, with
 today's values) instead.
 
-## Reverting on `main` instead
+## Reverting on `next` and promoting instead
 
 For a rollback that has to last, when the deploy is gone, or when it
-was built before a key change. Ask James before pushing to `main`; it
-auto-deploys.
+was built before a key change. Ask James before promoting to `main`;
+it auto-deploys.
 
 Switch maintenance mode on first when the release carries a
 `Record-shape:` trailer (other than `none`), and for any data
@@ -379,39 +380,40 @@ migration: the revert builds in minutes, and old code must not write
 records beside the new shape meanwhile
 (`bin/nff --production maintenance on`, off after the checks).
 
-The rulesets on `main` take only a fast-forward to a commit that has
-passed `lint-and-test`, `supply-chain` and `codeql`, and have no
-bypass (`docs/security.md`). So the revert is one commit on a branch,
-checked by CI, then fast-forwarded. A revert that touches a lockfile
-must also pass the `supply-chain` cooldown, so pinning back to an
-older version does.
+`next`, `staging` and `main` take only fast-forwards, with linear
+history and no bypass (`docs/security.md`). A revert committed on
+`main` would leave it holding a commit `staging` lacks, and the next
+promotion could no longer fast-forward. So the revert lands on
+`next` and is promoted like any release: the same CI, the same
+required checks and James's approval for `main`, nothing skipped. A
+revert that touches a lockfile must also pass the `supply-chain`
+cooldown, so pinning back to an older version does.
+
+Revert the release on a branch off `next`. If `next` also holds work
+that must not ship yet, revert it in the same range by ending the
+range at `origin/next` instead, and restore it after the release:
 
 ```
-R=north-foster-farm/north-foster-farm
 git -C <site> fetch origin
-git -C <site> switch -c revert-release origin/main
+git -C <site> switch -c revert-release origin/next
 git -C <site> revert --no-edit <first release commit>^..origin/main
-git -C <site> push -u origin revert-release
-gh workflow run ci.yml -R $R --ref revert-release
-gh run list -R $R --workflow ci.yml --branch revert-release -L 1
-gh run watch <run id> -R $R --exit-status
+git -C <site> push origin revert-release:next
 ```
 
-Dispatch the run the moment the branch is pushed: `ci.yml` runs on
-its own only for `next`, `staging`, `main` and pull requests, and
-`lgtm-automerge` refuses a pull request into `main`. The one run so
-far (2026-10-16) waited 2 seconds for a runner and took 24. Once it
-passes, fast-forward and push:
+The push to `next` starts CI. Once `lint-and-test`, `supply-chain`
+and `codeql` are green on it, promote:
 
 ```
-git -C <site> switch main
-git -C <site> merge --ff-only revert-release
-git -C <site> push origin main
+bin/nff promote staging
+bin/nff promote main
 ```
 
-If auto publishing is locked, the push builds but does not publish:
-unlock, or publish the new deploy. To go forward again, revert the
-revert the same way.
+`promote main` refuses until James's `LGTM` is on the open
+staging-to-main pull request, put on after the revert commit.
+
+If auto publishing is locked, the promotion to `main` builds but does
+not publish: unlock, or publish the new deploy. To go forward again,
+revert the revert the same way.
 
 If the check cannot pass (GitHub Actions down), nobody can push around
 it. Only James can switch the ruleset off in the repository's
@@ -419,9 +421,9 @@ settings, push, switch it on again and write it up in `incidents/`.
 Publishing the previous deploy needs none of this.
 
 After launch, the revert is scripted as one command, `bin/nff
-rollback revert`: branch, revert range, CI dispatch, watch,
-fast-forward, push. It stops on any failure and asks James for his go
-before it pushes `main`. It is tracked under After launch and does not
+rollback revert`: branch, revert range, push to `next`, watch CI,
+promote twice. It stops on any failure and asks James for his go
+before it promotes to `main`. It is tracked under After launch and does not
 block anything.
 
 ## The rehearsals

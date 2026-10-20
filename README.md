@@ -107,9 +107,11 @@ that has already passed. The run holds no secret: each step runs under
 and makes fetch, sockets and DNS throw for any host but this machine.
 A test that would reach a real service fails.
 
-The Netlify build runs no tests. It checks the pickup schedule
-(`npm run check:schedule`), builds, and holds the built HTML to
-Bootstrap's grid (`npm run check:grid`).
+The Netlify build runs no tests. It checks that the deploy's
+environment has every key (`npm run check:env`) and the pickup
+schedule (`npm run check:schedule`), builds, and holds the built HTML
+to Bootstrap's grid (`npm run check:grid`) and the news posts' titles
+and URLs (`npm run check:news`).
 
 Every fact the site repeats (prices, fees, hours, addresses, the
 farm's name) has one source in `data/` or site config, and templates

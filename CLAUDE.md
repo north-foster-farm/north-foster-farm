@@ -121,12 +121,12 @@ bin/
 - Template metrics and debug output enabled
 
 **Production** (`bin/prod` + `hugo --gc`):
-1. Installs Dart Sass v1.79.5 to `node_modules/.bin`
-2. Runs linters (ESLint + Stylelint)
-3. Hugo processes SCSS via Dart Sass Embedded
-4. PostCSS runs autoprefixer and PurgeCSS
-5. JavaScript bundled via Hugo Pipes
-6. Output to `public/` directory
+1. Installs Dart Sass v1.79.5 to `node_modules/.bin` (all `bin/prod`
+   does; lint and tests run in GitHub Actions)
+2. Hugo processes SCSS via Dart Sass Embedded
+3. PostCSS runs autoprefixer and PurgeCSS
+4. JavaScript bundled via Hugo Pipes
+5. Output to `public/` directory
 
 ### Styling Architecture
 

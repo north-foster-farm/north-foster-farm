@@ -10,7 +10,7 @@ updates:
       timezone: "America/New_York"
     # No release is adopted until it has been public for 7 days. This
     # covers version updates; security updates ignore the cooldown, and
-    # the CI check (bin/supply/check-cooldown.mjs) holds the same line
+    # the CI check (bin/supply/check.mjs) holds the same line
     # for whatever a lockfile resolves.
     cooldown:
       default-days: 7

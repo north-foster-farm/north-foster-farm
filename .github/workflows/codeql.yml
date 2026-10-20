@@ -2,8 +2,9 @@ name: CodeQL
 
 # Static analysis of the JavaScript, only for changes headed to next,
 # staging or main: a pull request into one of them, or a push to one.
-# The check is named codeql and is required on all three, and it fails
-# on an open high or critical alert (bin/codeql/gate.mjs). Dismissing an
+# The check is named codeql. It is required on staging and main, and
+# runs as a signal on next, which requires no check. It fails on an
+# open high or critical alert (bin/codeql/gate.mjs). Dismissing an
 # alert in GitHub, with a reason, is the recorded exception and is
 # James's call.
 #

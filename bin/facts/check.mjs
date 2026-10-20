@@ -4,7 +4,7 @@
 // the known values from those files and finds any literal copy of one
 // elsewhere, so a fee, a day or an address can't change in one place
 // and not another. test/facts.test.mjs runs it with the suite, which
-// the Netlify build runs. `node bin/facts/check.mjs` prints what it
+// CI runs as lint-and-test. `node bin/facts/check.mjs` prints what it
 // finds.
 //
 // Comments may name a value to explain the code; only what a reader
