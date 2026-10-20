@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Fails a lint-and-test run when a range of commits touches the code
+// Fails the record-shape check when a range of commits touches the code
 // that decides the shape of a stored record and no commit in the range
 // says so. A rollback (docs/rollback.md) republishes older code beside
 // records the newer code may have written in a new shape, so the
@@ -11,13 +11,18 @@
 //   Record-shape: none               touched, but the shape is the same
 //
 // One such commit anywhere in the range satisfies the check, so "none"
-// cannot be skipped silently: a person had to write it.
+// cannot be skipped silently: a person had to write it. A line that
+// tries to be the trailer and is not (`Record shape: x`, an empty
+// `Record-shape:`) fails the range whatever it touches.
 //
-//   node bin/check-record-shape.mjs <base> [<head>] [--event E] [--ref R]
+//   node bin/check-record-shape.mjs <base> [<head>] [--warn]
 //
-// Head defaults to HEAD. CI passes the event and ref: a pull request
-// and a push to main fail without the trailer, a push to next or
-// staging only warns (see modeFor).
+// Head defaults to HEAD. Every run fails without the trailer: CI's
+// record-shape check on every branch and event, and the pre-push hook
+// (.githooks/pre-push), so the agent who wrote the commit fixes it
+// before it lands (James, #283). --warn only reports, for an early
+// look. --event and --ref, from older callers, are accepted and
+// ignored.
 
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
@@ -46,13 +51,29 @@ export const touchesShape = (files, paths = SHAPE_PATHS) =>
   files.filter((file) => paths.some((path) =>
     path.endsWith("/") ? file.startsWith(path) : file === path));
 
-// A commit is { sha, message, files }. Returns { ok, touched, trailers }.
+// A line that means to be the trailer: any spelling of the key at the
+// start of a line, followed by a colon.
+const ATTEMPT = /^[ \t]*record[ \t_-]*shape[ \t]*:.*$/gim;
+const WELL_FORMED = /^Record-shape:[ \t]*\S/i;
+
+// The attempted trailer lines in a message that are not well formed.
+export const malformedTrailers = (message) =>
+  (message.match(ATTEMPT) || []).filter((line) => !WELL_FORMED.test(line));
+
+// A commit is { sha, message, files }. Returns
+// { ok, touched, trailers, malformed }.
 export const checkRange = (commits, paths = SHAPE_PATHS) => {
   const touched = commits
     .map((c) => ({ sha: c.sha, files: touchesShape(c.files, paths) }))
     .filter((c) => c.files.length);
   const trailers = commits.filter((c) => TRAILER.test(c.message));
-  return { ok: !touched.length || trailers.length > 0, touched, trailers };
+  const malformed = commits
+    .map((c) => ({ sha: c.sha, lines: malformedTrailers(c.message) }))
+    .filter((c) => c.lines.length);
+  return {
+    ok: !malformed.length && (!touched.length || trailers.length > 0),
+    touched, trailers, malformed,
+  };
 };
 
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" });
@@ -73,16 +94,10 @@ const readRange = (base, head) => {
   }));
 };
 
-// A missing trailer fails a pull request and a push to main. A push to
-// next or staging only warns: work lands there in batches long before a
-// release, and the batch is held to it on its way to main. A run with
-// no event or ref (a person's shell) is strict.
-export const WARN_REFS = ["next", "staging"];
-
-export const modeFor = ({ event = "", ref = "" } = {}) =>
-  event !== "pull_request" && event !== "pull_request_target" &&
-  WARN_REFS.includes(ref.replace(/^refs\/heads\//, ""))
-    ? "warn" : "strict";
+// Every run is strict, whatever the event or branch: a lenient run on
+// next once let a commit without its trailer land, to fail only on the
+// way to main. Only --warn reports without failing.
+export const modeFor = ({ warn = false } = {}) => warn ? "warn" : "strict";
 
 const option = (args, name) => {
   const at = args.indexOf(name);
@@ -90,11 +105,18 @@ const option = (args, name) => {
   return at === -1 ? "" : args.splice(at, 2)[1] ?? "";
 };
 
+const flag = (args, name) => {
+  const at = args.indexOf(name);
+
+  if (at !== -1) args.splice(at, 1);
+  return at !== -1;
+};
+
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const args = process.argv.slice(2);
-  const mode = modeFor({
-    event: option(args, "--event"), ref: option(args, "--ref"),
-  });
+  option(args, "--event");
+  option(args, "--ref");
+  const mode = modeFor({ warn: flag(args, "--warn") });
   const [arg, head = "HEAD"] = args;
   const exists = (sha) => {
     try {
@@ -109,18 +131,27 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     const say = mode === "warn" ? console.log : console.error;
 
     if (mode === "warn") {
-      say("::warning title=Record-shape::No Record-shape trailer yet. " +
-        "The release to main will fail without one.");
+      say("::warning title=Record-shape::Record-shape trailer missing " +
+        "or malformed. The push will be refused without one.");
     }
-    say("Record-shape: this range touches record-shape code and " +
-      "no commit carries a Record-shape trailer.");
-    for (const { sha, files } of result.touched) {
-      say(`  ${sha.slice(0, 7)}  ${files.join(", ")}`);
+    for (const { sha, lines } of result.malformed) {
+      const quoted = lines.map((line) => JSON.stringify(line.trim()));
+
+      say(`Record-shape: ${sha.slice(0, 7)} has a malformed trailer: ${
+        quoted.join(", ")}`);
     }
-    say("Add 'Record-shape: <what changed>' (or 'Record-shape: " +
-      "none') to one commit message. See docs/rollback.md.");
+    if (result.touched.length && !result.trailers.length) {
+      say("Record-shape: this range touches record-shape code and " +
+        "no commit carries a Record-shape trailer.");
+      for (const { sha, files } of result.touched) {
+        say(`  ${sha.slice(0, 7)}  ${files.join(", ")}`);
+      }
+    }
+    say("Write 'Record-shape: <what changed>' (or 'Record-shape: " +
+      "none') in one commit message, exactly so spelled. See " +
+      "docs/rollback.md.");
     if (mode === "strict") process.exit(1);
-    console.log("Record-shape: warning only on this branch; passing.");
+    console.log("Record-shape: warning only; passing.");
 
     process.exit(0);
   }

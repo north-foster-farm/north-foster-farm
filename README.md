@@ -100,8 +100,10 @@ npm run check:signatures              # registry signatures, as CI
 npm run check:record-shape -- origin/next   # trailers since next
 ```
 
-`npm install` points git at `.githooks/`, whose pre-commit hook runs
-`npm run check`. `git commit --no-verify` skips it; CI does not.
+`npm install` points git at `.githooks/`. Its pre-commit hook runs
+`npm run check`; its pre-push hook refuses commits that touch record
+shape without a `Record-shape:` trailer (`docs/rollback.md`).
+`--no-verify` skips either; CI does not.
 
 GitHub Actions runs lint and the tests as the `lint-and-test` check
 (`.github/workflows/ci.yml`) on every pull request, on every push to

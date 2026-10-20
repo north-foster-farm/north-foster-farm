@@ -92,35 +92,49 @@ describe("record shape: the range check", () => {
   });
 });
 
-describe("record shape: fail or warn", () => {
-  it("fails a pull request, whatever its branch is called", () => {
-    assert.equal(modeFor({ event: "pull_request", ref: "refs/pull/9/merge" }),
-      "strict");
-    assert.equal(modeFor({ event: "pull_request", ref: "refs/heads/next" }),
-      "strict");
-  });
+describe("record shape: a malformed trailer", () => {
+  const store = ["netlify/functions/lib/store.mjs"];
 
-  it("fails a push to main", () => {
-    assert.equal(modeFor({ event: "push", ref: "refs/heads/main" }), "strict");
-  });
+  it("fails the range, even one that touches nothing", () => {
+    for (const message of [
+      "Fix\n\nRecord shape: none\n",
+      "Fix\n\nRecordShape: none\n",
+      "Fix\n\nRecord_shape: order gains a note\n",
+      "Fix\n\nRecord-shape:\n",
+    ]) {
+      const result = checkRange([commit(["docs/x.md"], message)]);
 
-  it("only warns on a push to next or staging", () => {
-    for (const ref of ["refs/heads/next", "refs/heads/staging", "next"]) {
-      assert.equal(modeFor({ event: "push", ref }), "warn", ref);
+      assert.equal(result.ok, false, message);
+      assert.equal(result.malformed.length, 1, message);
     }
   });
 
-  it("warns on a dispatched run of next, fails one of main", () => {
-    const event = "workflow_dispatch";
+  it("fails even beside a well-formed trailer elsewhere", () => {
+    const result = checkRange([
+      commit(store, "Change\n\nRecord-shape: none\n"),
+      commit(["docs/x.md"], "Doc\n\nRecord shape: none\n"),
+    ]);
 
-    assert.equal(modeFor({ event, ref: "refs/heads/next" }), "warn");
-    assert.equal(modeFor({ event, ref: "refs/heads/main" }), "strict");
+    assert.equal(result.ok, false);
   });
 
-  it("is strict for a run with no event or ref, or another branch", () => {
+  it("accepts the key in any case, and prose that names it", () => {
+    for (const message of [
+      "Fix\n\nrecord-shape: none\n",
+      "Fix\n\nWe add a Record-shape: line when the shape moves.\n",
+    ]) {
+      const result = checkRange([commit(store, message)]);
+
+      assert.deepEqual(result.malformed, [], message);
+    }
+  });
+});
+
+describe("record shape: strict everywhere", () => {
+  it("is strict unless asked only to warn", () => {
     assert.equal(modeFor(), "strict");
-    assert.equal(modeFor({ event: "push", ref: "refs/heads/lane/x" }),
-      "strict");
+    assert.equal(modeFor({ warn: false }), "strict");
+    assert.equal(modeFor({ warn: true }), "warn");
   });
 });
 
@@ -149,18 +163,30 @@ describe("record shape: the command", () => {
   const run = (cwd, ...args) => spawnSync(process.execPath,
     [script, ...args], { cwd, encoding: "utf8" });
 
-  it("exits 1 for a strict run and 0 with a warning otherwise", () => {
+  it("exits 1 on every branch, and 0 only when told to warn", () => {
     const { cwd, base } = repo();
-    const strict = run(cwd, base, "--event", "push", "--ref",
-      "refs/heads/main");
-    const warn = run(cwd, base, "--event", "push", "--ref",
-      "refs/heads/next");
+    const warn = run(cwd, base, "--warn");
 
-    assert.equal(strict.status, 1);
-    assert.match(strict.stderr, /no commit carries/);
+    for (const ref of ["refs/heads/next", "refs/heads/staging",
+      "refs/heads/main"]) {
+      const strict = run(cwd, base, "--event", "push", "--ref", ref);
+
+      assert.equal(strict.status, 1, ref);
+      assert.match(strict.stderr, /no commit carries/, ref);
+    }
     assert.equal(warn.status, 0);
     assert.match(warn.stdout, /::warning title=Record-shape::/);
-    assert.match(warn.stdout, /warning only on this branch/);
+    assert.match(warn.stdout, /warning only; passing/);
+  });
+
+  it("names a malformed trailer and exits 1", () => {
+    const { cwd, base, git } = repo();
+
+    git("commit", "-q", "--allow-empty", "-m", "Note\n\nRecord shape: none");
+    const result = run(cwd, base);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /malformed trailer: "Record shape: none"/);
   });
 
   it("passes a strict run once a commit carries the trailer", () => {
@@ -190,5 +216,60 @@ describe("record shape: choosing the base", () => {
     assert.equal(resolveBase(undefined, has), "origin/main");
     assert.equal(resolveBase("0".repeat(40), has), "origin/main");
     assert.equal(resolveBase("abc123", lacks), "origin/main");
+  });
+});
+
+// The pre-push hook, run as git runs it: refs on stdin, one line each.
+describe("record shape: the pre-push hook", () => {
+  const hook = fileURLToPath(new URL("../.githooks/pre-push", import.meta.url));
+  const zero = "0".repeat(40);
+
+  // A clone whose origin/next is one commit, then a lane commit on top.
+  const lane = (message) => {
+    const cwd = mkdtempSync(join(tmpdir(), "prepush-"));
+    const git = (...args) => execFileSync("git",
+      ["-c", "user.name=t", "-c", "user.email=t@example.test", ...args],
+      { cwd, encoding: "utf8" }).trim();
+
+    git("init", "-q");
+    git("commit", "-q", "--allow-empty", "-m", "Base");
+    git("update-ref", "refs/remotes/origin/next", "HEAD");
+    const next = git("rev-parse", "HEAD");
+
+    mkdirSync(join(cwd, "netlify/functions/lib"), { recursive: true });
+    writeFileSync(join(cwd, "netlify/functions/lib/store.mjs"), "x\n");
+    git("add", ".");
+    git("commit", "-q", "-m", message);
+
+    return { cwd, next, head: git("rev-parse", "HEAD") };
+  };
+  const push = (cwd, line) => spawnSync("sh", [hook, "origin", "url"],
+    { cwd, input: `${line}\n`, encoding: "utf8" });
+
+  it("refuses a new branch whose commit has no trailer", () => {
+    const { cwd, head } = lane("Change the store");
+    const result = push(cwd,
+      `refs/heads/lane/x ${head} refs/heads/lane/x ${zero}`);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /no commit carries/);
+    assert.match(result.stdout, /pre-push: refused/);
+  });
+
+  it("refuses a malformed trailer pushed onto next", () => {
+    const { cwd, next, head } = lane("Change the store\n\nRecord shape: none");
+    const result = push(cwd, `refs/heads/next ${head} refs/heads/next ${next}`);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /malformed trailer/);
+  });
+
+  it("lets a commit with its trailer through, and ignores a deletion", () => {
+    const { cwd, head } = lane("Change the store\n\nRecord-shape: none");
+
+    assert.equal(push(cwd,
+      `refs/heads/lane/x ${head} refs/heads/lane/x ${zero}`).status, 0);
+    assert.equal(push(cwd,
+      `(delete) ${zero} refs/heads/lane/y ${head}`).status, 0);
   });
 });
