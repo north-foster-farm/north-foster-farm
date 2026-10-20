@@ -233,6 +233,32 @@ for (const [wings, delivery, free] of [
   });
 }
 
+// All but $200+ lit, the floating pane open: one line down to 320px.
+for (const width of [320, 360, 390]) {
+  test(`the lit badges keep one line at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+
+    const order = new OrderPage(page);
+
+    await order.open({ wings: 15, thighs: 4 });
+    await page.evaluate(() => window.scrollTo(0, 400));
+    await expect(order.cart).toHaveAttribute("data-stuck", "true");
+    if (await order.cart.getAttribute("data-open") !== "true") {
+      await order.cart.locator("[data-cart-toggle]").click();
+    }
+    await expect(order.cart.locator("[data-badge='tier-150']"))
+      .toHaveAttribute("data-on", "true");
+
+    const seen = await order.cart.locator(".order-badges").evaluate((ul) => ({
+      lines: new Set([...ul.querySelectorAll("li")]
+        .map((li) => Math.round(li.getBoundingClientRect().top))).size,
+      over: ul.scrollWidth - ul.clientWidth,
+    }));
+
+    expect(seen).toEqual({ lines: 1, over: 0 });
+  });
+}
+
 test("pack labels start with a capital where they start with a letter",
   async ({ page }) => {
     await page.setViewportSize(PHONE);

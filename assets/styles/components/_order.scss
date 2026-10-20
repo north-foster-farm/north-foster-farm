@@ -774,6 +774,14 @@
         padding: 0 0.1875rem;
       }
     }
+
+    // At 320 the row has 254px and lit they need 264: closer still
+    // (#278).
+    @media (max-width: 359.98px) {
+      li + li::before {
+        padding: 0 0.0625rem;
+      }
+    }
   }
 
   .order-badge {
