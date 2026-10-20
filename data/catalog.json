@@ -1,5 +1,5 @@
 {
-  "version": "2026-v7",
+  "version": "2026-v8",
   "groups": [
     {
       "key": "eggs",
@@ -8,25 +8,27 @@
       "items": [
         {
           "sku": "NFF-CHK-EGG-LG",
-          "label": "Farm dozen",
-          "note": "Our standard carton",
-          "name": "Eggs, Farm dozen",
+          "label": "Large",
+          "note": "Grade A",
+          "name": "Eggs, Large",
           "price": 7,
           "inStock": true,
           "squareVariationId": "S7XJNPQUKY6JSYQOEYSL6FYS"
         },
         {
           "sku": "NFF-CHK-EGG-MD",
-          "label": "Petites",
-          "name": "Eggs, Petites",
+          "label": "Medium",
+          "note": "Grade A",
+          "name": "Eggs, Medium",
           "price": 5,
           "inStock": false,
           "squareVariationId": "BVP2QVW2QQ3PD5SWHUYQYCND"
         },
         {
           "sku": "NFF-CHK-EGG-SM",
-          "label": "Pullet",
-          "name": "Eggs, Pullet",
+          "label": "Small",
+          "note": "Grade A",
+          "name": "Eggs, Small",
           "price": 2,
           "inStock": false,
           "squareVariationId": "YZ4S22UUPFD6JEVISCX2OPT2"

@@ -76,7 +76,7 @@ test.describe("cart count on the Order link (#166)", () => {
     await stock;
     await dialog.locator("#search-palette-input").fill("eggs");
     await expect(dialog.locator("[data-search-card] [data-search-name]"))
-      .toHaveText("Farm dozen");
+      .toHaveText("Large");
     await dialog.locator("[data-search-add]").click();
     await expect(rowBadge(page)).toHaveText("1");
     await dialog.locator("[data-search-step='1']").click();

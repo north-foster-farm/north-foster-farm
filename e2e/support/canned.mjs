@@ -29,7 +29,7 @@ export const ORDER = {
   submittedAt: "2026-09-26T14:00:00.000Z",
   paidAt: "2026-09-26T14:00:05.000Z", cancelRequested: false,
   lines: [{
-    sku: "NFF-CHK-EGG-LG", label: "Eggs, Farm dozen", qty: 2,
+    sku: "NFF-CHK-EGG-LG", label: "Eggs, Large", qty: 2,
     unitPrice: 7, lineTotal: 14,
   }],
   totals: { subtotal: 1400, discountAmount: 0, deliveryFee: 0, total: 1400 },

@@ -19,7 +19,7 @@ const order = (id) => ({
   submittedAt: now.toISOString(),
   paidAt: now.toISOString(),
   customer: { name: "Pat Example", email: OLD, phone: "" },
-  lines: [{ sku: "NFF-CHK-EGG-LG", label: "Eggs (per dozen), Farm dozen",
+  lines: [{ sku: "NFF-CHK-EGG-LG", label: "Eggs (per dozen), Large",
     qty: 1, unitPrice: 700, lineTotal: 700 }],
   totals: { subtotal: 700, discountAmount: 0, deliveryFee: 0, total: 700 },
   fulfilment: { method: "onfarm", date: "2026-10-07",

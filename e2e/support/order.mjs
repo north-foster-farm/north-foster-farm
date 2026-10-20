@@ -6,7 +6,7 @@ import { test as base, expect } from "@playwright/test";
 
 import { orderLimitHeaders } from "./staging.mjs";
 
-// SKUs and prices from data/catalog.json (price list 2026-v7). The
+// SKUs and prices from data/catalog.json (price list 2026-v8). The
 // sums below are chosen to land on the thresholds in
 // data/delivery.json.
 export const SKU = {

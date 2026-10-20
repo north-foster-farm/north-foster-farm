@@ -69,7 +69,7 @@ test.describe("order page", () => {
 
       await expect(line).toHaveCount(1);
       await expect(line.locator(".order-cart-item-name"))
-        .toHaveText("Farm dozen");
+        .toHaveText("Large");
       await expect(line.locator(".order-cart-item-qty")).toHaveText("2 × $7");
       await expect(line.locator(".order-cart-item-sub")).toHaveText("$14");
       await expect(order.cart.locator(".order-cart-group-name"))
@@ -143,8 +143,8 @@ test.describe("order page", () => {
 
       await order.open({ eggs: 2, "NFF-CHK-EGG-MD": 1 });
       await expect(page.locator("#order-added")).toHaveText(
-        new RegExp("^Added to your cart: 2 × Farm dozen\\. No longer " +
-          "available: Eggs.*, Petites\\.$")
+        new RegExp("^Added to your cart: 2 × Large\\. No longer " +
+          "available: Eggs.*, Medium\\.$")
       );
       await expect(order.qty("eggs")).toHaveValue("2");
       await expect(page).toHaveURL(/\/order\/$/);

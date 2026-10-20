@@ -203,7 +203,7 @@ describe("the fee cell", () => {
 describe("the cart's lines", () => {
   const index = new Map([
     ["EGG", {
-      groupKey: "eggs", groupLabel: "Eggs (per dozen)", label: "Farm dozen",
+      groupKey: "eggs", groupLabel: "Eggs (per dozen)", label: "Large",
       price: 7,
     }],
     ["WHL35", {
@@ -227,7 +227,7 @@ describe("the cart's lines", () => {
         label: "Eggs",
         items: [
           {
-            sku: "EGG", label: "Farm dozen", qtyText: "6 × $7",
+            sku: "EGG", label: "Large", qtyText: "6 × $7",
             subtotal: "$42",
           },
         ],

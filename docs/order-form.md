@@ -36,7 +36,7 @@ ZIP rule exists once. `npm test` covers it.
 
 ### The catalog
 
-`data/catalog.json` is price list 2026-v7: 37 SKUs in 11 render groups,
+`data/catalog.json` is price list 2026-v8: 37 SKUs in 11 render groups,
 every item in one array with an `inStock` flag. The identifier is the
 SKU (`NFF-CHK-WHL-0200-0250`), which encodes both weight-tier bounds
 and so survives a catalog restructure. `squareVariationId` is null
@@ -669,12 +669,16 @@ Flags that take a value accept both `--reason "..."` and
   farm can't keep is cancelled and refunded.
 - **No Google Sheet.** Square is the system of record; the function log
   is the fallback record.
-- **Catalog version 2026-v7, keyed by SKU.** The spec's 2026-v5 list of
+- **Catalog version 2026-v8, keyed by SKU.** The spec's 2026-v5 list of
   31 keyed by `group.item` is superseded. Its 20 in-stock items are the
   same 20; v6 adds Medium and Pullet eggs, Cornish Hens, Ground Chicken
-  and splits the sausage flavors. 2026-v7 (#275) changes labels only:
-  Large and Medium eggs become Farm dozen and Petites (size classes are
-  USDA grading terms), and the cuts' tiers get new weight labels.
+  and splits the sausage flavors. 2026-v7 (#275, 2026-10-20) changes
+  labels only: Large and Medium eggs become Farm dozen and Petites, and
+  the cuts' tiers get new weight labels. 2026-v8 (#267, 2026-10-20)
+  restores the sizes Large, Medium and Small, each noted "Grade A":
+  Rhode Island (250-RICR-40-20-7 §7.5) requires eggs offered for sale
+  to state grade and size in full. The eggs are self-graded by
+  candling, so the site never claims AA, a USDA grade or the shield.
 - **Stock set as of 17 September 2026** is the 2026-v3 flyer's 20 line
   items. The August home-page update lists Cornish hens and sweet
   Italian sausage as on hand, and the processor receipts show 133 packs

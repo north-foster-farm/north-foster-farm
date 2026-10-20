@@ -15,7 +15,7 @@ describe("packLabel", () => {
   it("leaves a figure first, and a capital, as they are", () => {
     assert.equal(packLabel("1.5 lbs and up"), "1.5 lbs and up");
     assert.equal(packLabel("2.0 – 2.4 lbs"), "2.0 – 2.4 lbs");
-    assert.equal(packLabel("Farm dozen"), "Farm dozen");
+    assert.equal(packLabel("Large"), "Large");
   });
 
   it("changes nothing but the first letter of any catalog label", () => {
