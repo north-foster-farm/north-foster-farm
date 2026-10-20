@@ -16,7 +16,8 @@
           {{ $id := printf "qty-%s" (.sku | lower) }}
           <li class="order-item" data-sku="{{ .sku }}" tabindex="-1">
             <span class="order-item-name">
-              <label for="{{ $id }}">{{ .label }}</label>
+              {{/* Capitalized here, never in the catalog (#278). */}}
+              <label for="{{ $id }}">{{ .label | strings.FirstUpper }}</label>
             </span>
             <span class="order-item-price">
               ${{ .price }}{{ with .unit }} <span class="order-item-unit">{{ . }}</span>{{ end }}{{ with .note }} <span class="order-item-note">&middot; {{ . }}</span>{{ end }}

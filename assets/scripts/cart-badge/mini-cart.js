@@ -5,6 +5,7 @@
 // and discounts are the order page's; this only adds up prices.
 
 import { Draft } from "../order/draft.js";
+import { packLabel } from "../order/lib/catalog.mjs";
 
 const money = (d) => (Number.isInteger(d) ? `$${d}` : `$${d.toFixed(2)}`);
 
@@ -93,7 +94,7 @@ export const wireMiniCart = () => {
         li.querySelector(`[data-mini-cart-${name}]`).textContent = text;
       };
 
-      set("label", p.label);
+      set("label", packLabel(p.label));
       set("qty", `× ${qty}`);
       set("price", money(p.price * qty));
       items.append(li);

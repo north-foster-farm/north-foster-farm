@@ -87,6 +87,9 @@ const plugins = [
         "data-cat",
         "data-empty",
         "data-pulse",
+        // The Hide/Show pill's two pulses (#278).
+        "teach",
+        "once",
         "data-show",
         "data-more",
         "data-top",

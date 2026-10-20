@@ -5,6 +5,12 @@
 // form everywhere else (the cart, the emails, the Square order).
 export const short = (label) => label.replace(/ \(.*\)$/, "");
 
+// A pack label as a line shows it (#278): a letter first is a capital,
+// "up to 1.9 lbs" -> "Up to 1.9 lbs"; a figure first stays. The
+// catalog and Square keep their own.
+export const packLabel = (label) =>
+  label.charAt(0).toUpperCase() + label.slice(1);
+
 export const indexCatalog = (catalog) => {
   const index = new Map();
 

@@ -1,6 +1,6 @@
 import Tooltip from "bootstrap/js/dist/tooltip.js";
 
-import { indexCatalog } from "./lib/catalog.mjs";
+import { indexCatalog, packLabel } from "./lib/catalog.mjs";
 import {
   keyboardInset, moreStop, rowsFloor, visibleArea,
 } from "./lib/cart-scroll.mjs";
@@ -59,6 +59,19 @@ const pulse = (el, className) => {
   el.classList.add(className);
 };
 
+// Where the cart is a one-column sheet with the total row's two as
+// tabs: a phone, upright or on its side (#278). A phone on its side is
+// tablet-wide but too short for the tablet's two columns. The
+// stylesheet's $cart-sheet is the same query.
+const SHEET = "(max-width: 767.98px), "
+  + "(max-width: 1199.98px) and (max-height: 500px)";
+
+// The first Add's lesson (#278): how long the pane stays open on the
+// new line, then the Hide/Show pill's three pairs of pulses (the
+// stylesheet's order-pill-teach), or its still emphasis under reduced
+// motion.
+const TEACH_DWELL = 2000;
+const PULSE_MS = { teach: 4400, once: 520, still: 2600 };
 
 export class OrderForm {
   static init() {
@@ -434,21 +447,28 @@ export class OrderForm {
     const itemsToggle = qs(this.cart, "[data-cart-items-toggle]");
     const moneyToggle = qs(this.cart, "[data-cart-money-toggle]");
     const seg = qs(this.cart, "[data-cart-seg]");
-    const narrow = matchMedia("(max-width: 767.98px)");
+    const narrow = matchMedia(SHEET);
     const other = { items: "money", money: "items" };
+    // A tap on either while the pane is hidden opens it on that part
+    // (#278).
+    const unfold = () => {
+      if (this.cart.dataset.open !== "false") return false;
+      this.setOpen(true);
+
+      return true;
+    };
     const pick = (part) => {
+      unfold();
       this.setPart(part, true);
       this.setPart(other[part], false);
     };
+    const flip = (part) => {
+      if (narrow.matches) return pick(part);
+      this.setPart(part, unfold() || this.cart.dataset[part] !== "open");
+    };
 
-    itemsToggle.addEventListener("click", () => {
-      if (narrow.matches) return pick("items");
-      this.setPart("items", this.cart.dataset.items !== "open");
-    });
-    moneyToggle.addEventListener("click", () => {
-      if (narrow.matches) return pick("money");
-      this.setPart("money", this.cart.dataset.money !== "open");
-    });
+    itemsToggle.addEventListener("click", () => flip("items"));
+    moneyToggle.addEventListener("click", () => flip("money"));
     // Tabs: the arrows move the pick and the focus with it.
     seg.addEventListener("keydown", (e) => {
       if (!narrow.matches || seg.hasAttribute("data-plain")) return;
@@ -621,7 +641,7 @@ export class OrderForm {
 
     // A tap on a badge explains it; the next tap, or a tap elsewhere,
     // closes it.
-    const tips = all(this.cart, "[data-badge]").map((badge) => new Tooltip(
+    const tips = all(this.cart, "[data-tip]").map((badge) => new Tooltip(
       badge, { title: badge.dataset.tip, trigger: "click", placement: "top" }
     ));
 
@@ -631,7 +651,7 @@ export class OrderForm {
       }
     });
     document.addEventListener("click", (e) => {
-      if (!e.target.closest("[data-badge]")) {
+      if (!e.target.closest("[data-tip]")) {
         for (const tip of tips) tip.hide();
       }
     });
@@ -1030,7 +1050,7 @@ export class OrderForm {
   // above as their panels), from md buttons that fold a part
   // (aria-expanded), and a fill that slides only for the tabs.
   syncSeg() {
-    const narrow = matchMedia("(max-width: 767.98px)").matches;
+    const narrow = matchMedia(SHEET).matches;
     const seg = qs(this.cart, "[data-cart-seg]");
     const parts = {
       items: [qs(this.cart, "[data-cart-items-toggle]"), "order-cart-list"],
@@ -1091,6 +1111,25 @@ export class OrderForm {
   syncScroll() {
     const list = qs(this.cart, "[data-cart-items]");
     const wrap = list.parentElement;
+
+    if (this.easing) return;
+
+    // The floor under the lines is three rows, or the list's own
+    // height when it is shorter: one item leaves no gap (#203).
+    wrap.style.setProperty("--cart-list-h", `${list.scrollHeight}px`);
+    this.measureFloor(list, wrap);
+    // Room for the "more" pills above and below the rows, only while
+    // the rows overflow: the pills never sit on a heading or a line.
+    // The strip is counted back first: taken from the rows, it kept
+    // them overflowing once a pane in mid-opening had let them, and
+    // the first line stayed scrolled under the top fade (#278).
+    const strip = wrap.hasAttribute("data-scroll")
+      ? parseFloat(getComputedStyle(wrap).paddingBottom) || 0 : 0;
+
+    wrap.toggleAttribute(
+      "data-scroll", list.scrollHeight > list.clientHeight + strip + 1
+    );
+
     const seen = list.scrollTop + list.clientHeight;
     const more = seen < list.scrollHeight - 1;
     const items = all(list, ".order-cart-item");
@@ -1103,17 +1142,8 @@ export class OrderForm {
     const button = qs(wrap, "[data-cart-more]");
     const top = qs(wrap, "[data-cart-more-top]");
 
-    // The floor under the lines is three rows, or the list's own
-    // height when it is shorter: one item leaves no gap (#203).
-    wrap.style.setProperty("--cart-list-h", `${list.scrollHeight}px`);
-    this.measureFloor(list, wrap);
     wrap.toggleAttribute("data-top", list.scrollTop > 0);
     wrap.toggleAttribute("data-more", more);
-    // Room for the "more" pills above and below the rows, only while
-    // the rows overflow: the pills never sit on a heading or a line.
-    wrap.toggleAttribute(
-      "data-scroll", list.scrollHeight > list.clientHeight + 1
-    );
     button.hidden = !more || below === 0;
     button.textContent = `${below} more ↓`;
     top.hidden = list.scrollTop <= 0 || above === 0;
@@ -1173,7 +1203,10 @@ export class OrderForm {
     const floor = pane + foldMin + below;
     const visible = parseFloat(this.cart.style.getPropertyValue("--cart-vis"))
       || window.innerHeight;
-    const roomPx = visible - rem;
+    // The room ends at the top bar's foot: the bar stays over the pane
+    // (#278).
+    const bar = parseFloat(this.cart.style.getPropertyValue("--cart-bar")) || 0;
+    const roomPx = visible - rem - bar;
 
     set(wrap, "--cart-scroll-min", room);
     set(this.cart, "--cart-fold-min", Math.ceil(foldMin));
@@ -1229,7 +1262,8 @@ export class OrderForm {
 
   // The feedback for an Add (#267). The first of a browser session
   // opens the pane on the lines, outlines the new line, shuts the pane
-  // after a few seconds and pulses the Hide/Show pill twice. Every
+  // after two seconds and pulses the Hide/Show pill in three pairs
+  // (#278). Every
   // later Add leaves the pane shut: the bar says what was added, the
   // count ticks, the pill pulses once. Whatever the pane is doing,
   // a screen reader hears it, and the focus stays where it is.
@@ -1268,16 +1302,16 @@ export class OrderForm {
         for (const row of all(this.cart, ".order-cart-item.is-new")) {
           row.classList.remove("is-new");
         }
-      }, 3500);
+      }, TEACH_DWELL);
       this.closeTimer = setTimeout(() => {
         this.setOpen(false);
-        this.pulsePill(pill, 2);
-      }, 3500);
+        this.pulsePill(pill, "teach");
+      }, TEACH_DWELL);
 
       return;
     }
 
-    this.pulsePill(pill, 1);
+    this.pulsePill(pill, "once");
     if (!floating || this.cart.dataset.open === "true") return;
 
     const box = qs(this.cart, "[data-cart-added-box]");
@@ -1323,15 +1357,20 @@ export class OrderForm {
     }
   }
 
-  // The Hide/Show pill pulses `times` times; a reduced-motion browser's
-  // global rule cuts it to a blink of 1ms.
-  pulsePill(pill, times) {
+  // The Hide/Show pill pulses: "teach" the first time, three pairs
+  // (#278), "once" on a later Add. With reduced motion it holds a still
+  // emphasis for a moment instead. A timer, not animationend, ends it:
+  // the still one has no animation to end.
+  pulsePill(pill, kind) {
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    clearTimeout(this.pulseTimer);
     pill.removeAttribute("data-pulse");
     void pill.offsetWidth;
-    pill.setAttribute("data-pulse", String(times));
-    pill.addEventListener("animationend", () => {
+    pill.setAttribute("data-pulse", kind);
+    this.pulseTimer = setTimeout(() => {
       pill.removeAttribute("data-pulse");
-    }, { once: true });
+    }, PULSE_MS[still ? "still" : kind]);
   }
 
   // The pane is the customer's once they touch it or focus in it: the
@@ -1644,6 +1683,7 @@ export class OrderForm {
     const s = summarize({
       totals, method, money: this.money, count, lines, index: this.index,
     });
+    const from = c.offsetHeight;
 
     this.renderItems(s);
 
@@ -1703,11 +1743,6 @@ export class OrderForm {
     }
     qs(c, "[data-way-name]").textContent = wayName || "Pickup or delivery";
     c.toggleAttribute("data-empty", count === 0);
-    // The delivery pair is noise on a pickup (#267); the bulk tiers
-    // apply to every order and always show (#274).
-    for (const li of all(c, "[data-badge-way]")) {
-      li.hidden = method !== "delivery";
-    }
     this.syncScroll();
     // The header's Order link shows the same count; a change to a paid
     // order is not the cart.
@@ -1761,6 +1796,31 @@ export class OrderForm {
     if (nudge.textContent !== s.nudge) nudge.textContent = s.nudge;
     nudge.hidden = !s.nudge;
     nudge.dataset.tone = s.nudgeTone || "";
+    this.ease(from);
+  }
+
+  // In the column (xl), the pane eases to its new height as lines come
+  // and go, rather than jumping (#278). Its content is laid out at the
+  // new height at once; the pane's own edge follows.
+  ease(from) {
+    const c = this.cart;
+    const to = c.offsetHeight;
+
+    if (!matchMedia("(min-width: 1200px)").matches || !from
+      || Math.abs(to - from) < 1 || typeof c.animate !== "function"
+      || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    if (this.easing) this.easing.cancel();
+    this.easing = c.animate(
+      [{ height: `${from}px` }, { height: `${to}px` }],
+      { duration: 420, easing: "cubic-bezier(0.2, 0.8, 0.25, 1)" }
+    );
+    // The lines give way while it eases, as they do to the cap: the
+    // fades and the "more" pills wait for the end, or they would flash.
+    this.easing.onfinish = () => {
+      this.easing = null;
+      this.syncScroll();
+    };
   }
 
   // The cart's lines: each category, with its tiers indented beneath,
@@ -1806,7 +1866,9 @@ export class OrderForm {
           "aria-label", `Remove ${group.label}, ${item.label} from the cart`
         );
         row.appendChild(remove);
-        row.appendChild(make("span", "order-cart-item-name", item.label));
+        row.appendChild(
+          make("span", "order-cart-item-name", packLabel(item.label))
+        );
         row.appendChild(make("span", "order-cart-item-qty", item.qtyText));
         row.appendChild(make("span", "order-cart-item-sub", item.subtotal));
         items.appendChild(row);

@@ -1,6 +1,5 @@
 {{ $money := hugo.Data.delivery.money }}
 {{ $deliveryTip := printf "Orders of $%v or more after discounts can be delivered on %ss. $%v fee, waived at $%v." $money.deliveryMinimum (partial "weekday.html" "delivery") $money.deliveryFee $money.feeWaivedAt }}
-{{ $freeTip := printf "No delivery fee on orders of $%v or more." $money.feeWaivedAt }}
 {{/* The ways, in the order the page lists them (#196), named as the
      cart's switch names them. */}}
 {{ $ways := slice
@@ -94,14 +93,12 @@
   <div class="order-cart-fold order-cart-after">
     <div class="order-cart-inner">
       <hr class="order-cart-rule order-cart-rule-dark">
-      {{/* Badges: the delivery pair on one dotted line, shown only for
-           a delivery (#267), and the bulk tiers always, on a line of
-           their own (#274). */}}
+      {{/* Badges on one dotted line, whatever the way (#278): "Free
+           Delivery" first, one badge whose two words light on their
+           own, "Delivery" at the delivery minimum and "Free" at the
+           free-delivery threshold, then the bulk tiers. */}}
       <ul class="order-badges list-unstyled" aria-label="What this order qualifies for">
-        <li data-badge-way hidden><button type="button" class="order-badge" data-badge="delivery" data-tip="{{ $deliveryTip }}">Delivery</button></li>
-        <li data-badge-way hidden><button type="button" class="order-badge" data-badge="free-delivery" data-tip="{{ $freeTip }}">Free delivery</button></li>
-        <li class="order-badges-break" aria-hidden="true" data-badge-way hidden></li>
-        <li class="order-badges-label" aria-hidden="true">Bulk discount</li>
+        <li><button type="button" class="order-badge order-badge-pair" data-tip="{{ $deliveryTip }}"><span data-badge="free-delivery">Free</span> <span data-badge="delivery">Delivery</span></button></li>
         {{ range $money.bulkTiers }}
           <li><button type="button" class="order-badge" data-badge="tier-{{ .threshold }}" data-tip="${{ .off }} off orders of ${{ .threshold }} or more.">${{ .threshold }}+</button></li>
         {{ end }}

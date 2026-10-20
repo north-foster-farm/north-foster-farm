@@ -19,9 +19,23 @@ $cart-line-gap:    0.25rem; // Heading to lines, and line to line.
 $cart-indent:      0.875rem; // The lines, set in under their heading.
 $cart-more-strip:  1.75rem; // Under the lines: the "more" pills' own.
 
+// Where the cart is a one-column sheet, its count and total a pair of
+// tabs: a phone upright, or on its side, tablet-wide but too short for
+// the tablet's two columns (#278). Below xl, the rest of the range
+// (a tablet) is $cart-split. order-form.js's SHEET is the same query.
+$cart-sheet: "(max-width: 767.98px), "
+  + "(max-width: 1199.98px) and (max-height: 500px)";
+$cart-split: "(min-width: 768px) and (max-width: 1199.98px) "
+  + "and (min-height: 500.02px)";
+
 // The cart's Expand/Hide pill: halfway between $gray-100 (its hover)
 // and Bootstrap's light-bg-subtle (O1a).
 $pill-bg: #ededed;
+
+// Its ring at the height of the first Add's pulse, and its still
+// emphasis under reduced motion (#278).
+$pill-ring:
+  0 0 0 0.375rem color-mix(in srgb, var(--bs-primary) 40%, transparent);
 
 // Bootstrap variables
 

@@ -530,10 +530,11 @@ Partial: `cart-added.spec.mjs`. How the pulse and the slide look on an
 iPhone is manual (#267).
 
 - **Scenario:** The first Add of a browser session opens the phone cart
-  on the new line, outlines it, shuts the pane after three to four
-  seconds and pulses the Hide/Show pill twice. A later Add leaves the
-  pane shut: the bar says "Added: {item}", the count ticks and the pill
-  pulses once. A screen reader hears "Added {item} to cart" every time.
+  on the new line, outlines it, shuts the pane after two seconds and
+  pulses the Hide/Show pill in three pairs, a second apart (#278). A
+  later Add leaves the pane shut: the bar says "Added: {item}", the
+  count ticks and the pill pulses once. A screen reader hears "Added
+  {item} to cart" every time.
 - **Setup:** A phone-sized window, an empty cart, a fresh session.
 - **Test:**
   1. Press Add on a row. Watch the pane, the new line and the pill.
@@ -543,12 +544,13 @@ iPhone is manual (#267).
   5. With reduced motion on, repeat 1 and 2.
   6. Manual, with VoiceOver: press Add and listen.
 - **Assert:** One: the pane opens on the lines, one line is outlined, it
-  shuts in three to four seconds and the pill pulses twice. Two: the
-  pane stays shut, the bar names the item for a moment, the count ticks
-  and the pill pulses once. Three: the pane stays open. Four: the pane
-  stays shut (the session's first Add is spent). Five: no pulse and no
-  slide, only the states. Six: "Added {item} to cart", each time, with
-  the focus still on the item's control.
+  shuts in about two seconds and the pill pulses in three pairs. Two:
+  the pane stays shut, the bar names the item for a moment, the count
+  ticks and the pill pulses once. Three: the pane stays open. Four: the
+  pane stays shut (the session's first Add is spent). Five: no pulse
+  and no slide, only the states; the pill holds a still ring for a
+  moment. Six: "Added {item} to cart", each time, with the focus still
+  on the item's control.
 - **Teardown:** Clear the draft.
 
 ## Pricing and discounts
@@ -601,7 +603,8 @@ reached".
 - **Setup:** 15 wings.
 - **Test:**
   1. Read each badge's `data-on`.
-- **Assert:** Delivery, Free delivery, $50+, $100+, $150+ on; $200+ off.
+- **Assert:** "Free Delivery" with both words on, $50+, $100+, $150+
+  on; $200+ off. One line, on any way (#278).
 - **Teardown:** None.
 
 ### PR-04 The nudge names the next tier

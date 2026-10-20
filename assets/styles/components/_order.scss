@@ -2,6 +2,8 @@
 // @extend, no mixins, no colour functions, so it survives the
 // Tailwind migration unchanged.
 
+@use "sass:math";
+
 .order {
   --order-gutter: 1rem;
   --order-radius: var(--bs-border-radius);
@@ -662,12 +664,15 @@
     min-height: 0;
     margin: 0;
 
+    // As wide as the rows' outlines, which reach a little past the
+    // wrapper: a fade that stopped short left the outline's edge
+    // standing at full strength (#278).
     &::before,
     &::after {
       content: "";
       position: absolute;
-      right: 0;
-      left: 0;
+      right: -0.25rem;
+      left: -0.25rem;
       z-index: 1;
       height: 2.5rem;
       opacity: 0;
@@ -762,27 +767,6 @@
       color: var(--bs-breadcrumb-divider-color);
     }
 
-    // The tiers take a second line, led by their name.
-    .order-badges-break {
-      flex: 0 0 100%;
-      height: 0;
-    }
-
-    .order-badges-label {
-      font-weight: normal;
-
-      &::after {
-        content: ":";
-        padding-right: 0.375rem;
-      }
-    }
-
-    .order-badges-break::before,
-    .order-badges-label::before,
-    .order-badges-label + li::before {
-      content: none;
-    }
-
     // A phone's floating cart has about 290 to 305px for them, and
     // lit they need 303: closer dots keep them on one line.
     @media (max-width: 413.98px) {
@@ -807,10 +791,18 @@
       color: var(--bs-secondary-color);
     }
 
-    &[data-on="true"] {
+    &[data-on="true"],
+    [data-on="true"] {
       color: var(--bs-primary);
       font-style: italic;
     }
+  }
+
+  // "Free Delivery" is one badge; each word lights on its own (#278).
+  .order-badge-pair > span {
+    transition:
+      color var(--order-base) ease,
+      font-style var(--order-base) ease;
   }
 
   // Empty, there are no lines and nothing to sum: the pane opens on
@@ -1313,16 +1305,25 @@
     }
   }
 
-
-
   // Once the pane has shut itself, or on a later Add, the pill pulses
-  // to say where the cart went: twice the first time, once after.
-  .order-cart-toggle[data-pulse] {
+  // to say where the cart went: three pairs the first time (#278),
+  // once after (order-form.js pulsePill times them).
+  .order-cart-toggle[data-pulse="once"] {
     animation: order-pill 520ms var(--order-ease);
   }
 
-  .order-cart-toggle[data-pulse="2"] {
-    animation-iteration-count: 2;
+  .order-cart-toggle[data-pulse="teach"] {
+    animation: order-pill-teach 4400ms linear;
+  }
+
+  // Reduced motion: no pulse, a still emphasis for a moment. More
+  // specific than the global rule, which would cut it to 1ms.
+  @media (prefers-reduced-motion: reduce) {
+    .order-cart-toggle[data-pulse] {
+      animation: none !important;
+      background-color: var(--bs-primary-bg-subtle);
+      box-shadow: $pill-ring;
+    }
   }
 
   // The gap after it goes too: the margin takes it back.
@@ -2243,24 +2244,35 @@
       // height left to the page (order-form.js watchKeyboard). The
       // cap gives way to a floor, three rows of the lines with the
       // total row and Continue (--cart-min-h, measured), and the pane
-      // then grows up to the whole visible area: on a small screen it
-      // is a full-height sheet whose lines scroll, and what is under
-      // the total row (the badges, the way, the code) scrolls if the
-      // room is too short for it.
-      @media (max-width: 767.98px) {
+      // then grows up to the whole visible area under the top bar
+      // (--cart-bar, its foot): on a small screen it is a full-height
+      // sheet whose lines scroll, and what is under the total row (the
+      // badges, the way, the code) scrolls if the room is too short
+      // for it. The bar and its shadow stay over the pane, floating or
+      // settled (#278): it keeps the z-index under the bar's.
+      @media #{$cart-sheet} {
         --cart-rest: max(
           env(safe-area-inset-bottom, 0px),
           var(--cart-gap, 0px)
         );
+        --cart-room: calc(
+          var(--cart-vis, 100svh) - 1rem - var(--cart-bar, 0px)
+        );
 
         bottom: calc(0.5rem + var(--cart-rest) + var(--cart-kb, 0px));
         max-height: min(
-          calc(var(--cart-vis, 100svh) - 1rem),
+          var(--cart-room),
           max(calc(var(--cart-vis, 100svh) * 0.48), var(--cart-min-h, 0px))
         );
+      }
 
-        // Grown to a sheet, the pane rides over the top bar.
-        z-index: 36;
+      // A phone on its side has too little height to keep half of it
+      // for the page: the lines take all of it under the bar, up to
+      // the bar's foot (#278).
+      @media (max-height: 500px) {
+        max-height: calc(
+          var(--cart-vis, 100svh) - 0.5rem - var(--cart-bar, 0px)
+        );
       }
     }
 
@@ -2293,7 +2305,7 @@
   // wrapper let the rows run on under the rule and the sums (#180).
   // Nothing from the sums to the badges is tapped, so they sit closer
   // and leave the height to the lines.
-  @media (max-width: 767.98px) {
+  @media #{$cart-sheet} {
     // The pane's own cap (above) decides the height; the lines give
     // way to it down to a floor of three rows, or the whole list when
     // it is shorter (order-form.js measureFloor).
@@ -2329,13 +2341,54 @@
   // lines, the total and Continue: some of the room around the parts
   // goes, so the way and the code still show without scrolling where
   // they can.
-  @media (max-width: 767.98px) and (max-height: 500px) {
+  @media (max-width: 1199.98px) and (max-height: 500px) {
     .order-cart {
       padding-block: 0.5rem;
     }
 
     .order-cart-rule {
       margin: 0.25rem 0;
+    }
+
+    // The lines take the whole height left (#278): no floor of three
+    // rows, and the badges, the way and the code go with the sums, on
+    // the Total tab.
+    .order-cart-scroll,
+    .order-cart[data-open="true"][data-items="open"]
+      > .order-cart-fold:not(.order-cart-after) {
+      min-height: 0;
+    }
+
+    .order-cart[data-stuck="true"][data-items="open"] {
+      .order-cart-after,
+      .order-cart-rule-end {
+        display: none;
+      }
+    }
+
+    // One row for the foot: the nudge at the left, then Hide or Expand
+    // beside Continue at the right (#278). Continue keeps the width of
+    // its words.
+    .order-cart-end {
+      flex-wrap: nowrap;
+    }
+
+    .order-cart-nudge {
+      flex: 1 1 auto;
+      order: -1;
+      min-width: 0;
+      margin: 0;
+      text-align: left;
+    }
+
+    .order-cart-toggle {
+      flex: none;
+      margin-left: auto;
+    }
+
+    .order-cart-next {
+      flex: 0 0 auto;
+      margin-left: 0;
     }
   }
 
@@ -2344,7 +2397,7 @@
   // wrappers dissolve into the grid, so a fold simply hides the parts.
   // The lines add nothing to the height (contain: size): the right
   // column sets it, and the lines scroll in what it leaves them.
-  @media (min-width: 768px) and (max-width: 1199.98px) {
+  @media #{$cart-split} {
     .order-cart {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -2537,6 +2590,28 @@
     box-shadow:
       0 0 0 0.3rem color-mix(in srgb, var(--bs-primary) 30%, transparent);
     transform: scale(1.1);
+  }
+}
+
+// The first Add's lesson (#278): two pulses 400ms apart, a second's
+// rest, two more, a rest, the last two. Each pulse peaks 160ms in.
+$teach-ms: 4400;
+$teach-starts: 0, 400, 1800, 2200, 3600, 4000;
+
+@keyframes order-pill-teach {
+  @each $start in $teach-starts {
+    #{math.percentage(math.div($start, $teach-ms))},
+    #{math.percentage(math.div($start + 400, $teach-ms))} {
+      box-shadow: 0 0 0 0 transparent;
+      background-color: $pill-bg;
+      transform: scale(1);
+    }
+
+    #{math.percentage(math.div($start + 160, $teach-ms))} {
+      box-shadow: $pill-ring;
+      background-color: var(--bs-primary-bg-subtle);
+      transform: scale(1.16);
+    }
   }
 }
 

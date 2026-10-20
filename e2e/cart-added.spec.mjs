@@ -1,6 +1,7 @@
 // What the phone cart does when something is added (#267): the first
 // Add of a browser session opens the pane on the new line and shuts it
-// again, pulsing the Hide/Show pill twice; a later Add leaves it shut
+// again after two seconds, pulsing the Hide/Show pill in three pairs
+// (#278); a later Add leaves it shut
 // and says so in the bar. Neither moves the focus off the item.
 // docs/qa-launch.md, OP-30.
 
@@ -37,7 +38,7 @@ test.describe("the cart's word for an Add", () => {
       await expect(order.cart.locator(".order-cart-item.is-new"))
         .toHaveCount(1);
       await expect(order.cart.locator(".order-cart-item.is-new"))
-        .toContainText("up to 1.9 lbs");
+        .toContainText("Up to 1.9 lbs");
       await expect(live).toHaveText("Added Wings, up to 1.9 lbs to cart");
 
       // The focus stays with the item the customer pressed, not the pane.
@@ -49,17 +50,17 @@ test.describe("the cart's word for an Add", () => {
       expect(inCart).toBe(false);
       await expect(row).toBeVisible();
 
-      // It shuts by itself after three to four seconds, then the pill
-      // pulses twice.
+      // It shuts by itself after about two seconds (#278), then the
+      // pill pulses in three pairs.
       await expect(order.cart).toHaveAttribute("data-open", "false", {
         timeout: 6_000,
       });
 
       const shut = Date.now() - began;
 
-      expect(shut).toBeGreaterThanOrEqual(3_000);
-      expect(shut).toBeLessThanOrEqual(5_500);
-      await expect(pill).toHaveAttribute("data-pulse", "2");
+      expect(shut).toBeGreaterThanOrEqual(1_800);
+      expect(shut).toBeLessThanOrEqual(3_500);
+      await expect(pill).toHaveAttribute("data-pulse", "teach");
       await expect(order.cart.locator(".order-cart-item.is-new"))
         .toHaveCount(0);
     });
@@ -81,7 +82,7 @@ test.describe("the cart's word for an Add", () => {
       await expect(order.cart.locator("[data-cart-added]"))
         .toHaveText("Added: Eggs, Farm dozen");
       await expect(order.count).toHaveText("2 items");
-      await expect(pill).toHaveAttribute("data-pulse", "1");
+      await expect(pill).toHaveAttribute("data-pulse", "once");
       await expect(live).toHaveText("Added Eggs, Farm dozen to cart");
 
       // The word in the bar is gone again after a moment.

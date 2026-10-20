@@ -56,6 +56,7 @@ const desktopOnly = [
   // They set their own widths.
   "**/overflow.spec.mjs",
   "**/cart-round3.spec.mjs",
+  "**/cart-round4.spec.mjs",
   "**/keyboard.spec.mjs",
 ];
 
@@ -105,7 +106,7 @@ export default defineConfig({
       name: "iphone",
       testMatch: [
         "**/overflow.spec.mjs", "**/a11y.spec.mjs", "**/keyboard.spec.mjs",
-        "**/payment-stacking.spec.mjs",
+        "**/payment-stacking.spec.mjs", "**/cart-round4.spec.mjs",
       ],
       use: { ...devices["iPhone 15"] },
     },

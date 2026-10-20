@@ -222,12 +222,10 @@ test.describe("cart panes on a phone", () => {
   // The badges are the first thing to go when the cap has no room for
   // them (a long cart, or a screen under about 800px tall); a short
   // cart on a taller screen keeps them.
-  // The bulk tiers apply to every order; the delivery pair only to a
-  // delivery (#267). The row went missing for pickup once, and the
-  // chicks with it (4dabd6d, #274).
-  test("the tiers always show, the delivery pair only for a delivery", async ({
-    page,
-  }) => {
+  // Every badge shows whatever the way, "Free Delivery" among them, on
+  // one line with no label (#278). The row went missing for pickup
+  // once, and the chicks with it (4dabd6d, #274).
+  test("the badges show on one line whatever the way", async ({ page }) => {
     const order = new OrderPage(page);
 
     await page.setViewportSize(TALL);
@@ -236,25 +234,22 @@ test.describe("cart panes on a phone", () => {
 
     const badges = order.cart.locator(".order-badges");
     const tier = order.cart.locator("[data-badge='tier-50']");
-    const delivery = order.cart.locator("[data-badge='delivery']");
+    const pair = order.cart.locator(".order-badge-pair");
 
-    for (const way of ["onfarm", "scituate"]) {
+    for (const way of ["onfarm", "scituate", "delivery"]) {
       await order.method(way);
       await expect(badges, way).toBeVisible();
       await expect(tier, way).toBeVisible();
-      await expect(delivery, way).toBeHidden();
+      await expect(pair, way).toHaveText("Free Delivery");
     }
+    await expect(badges).not.toContainText("Bulk discount");
 
-    await order.method("delivery");
-    await expect(badges).toBeVisible();
-    await expect(delivery).toBeVisible();
-
-    // Two lines, lit or not, at 390 and at an SE's 375 (#267), and the
-    // text no larger than the "Next discount" note under Continue.
+    // One line, lit or not, at 390 and at an SE's 375, and the text no
+    // larger than the "Next discount" note under Continue.
     for (const width of [390, 375]) {
       await page.setViewportSize({ width, height: 844 });
       await page.evaluate(() => {
-        for (const el of document.querySelectorAll(".order-badge")) {
+        for (const el of document.querySelectorAll("[data-badge]")) {
           el.dataset.on = "true";
         }
       });
@@ -275,7 +270,7 @@ test.describe("cart panes on a phone", () => {
         };
       });
 
-      expect(seen.lines, `${width}px lines`).toBe(2);
+      expect(seen.lines, `${width}px lines`).toBe(1);
       expect(seen.over, `${width}px overflow`).toBeLessThanOrEqual(0);
       expect(seen.size).toBeLessThanOrEqual(seen.note);
       expect(seen.size).toBeGreaterThan(0.7 * 16);
