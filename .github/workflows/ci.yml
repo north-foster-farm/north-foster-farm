@@ -92,8 +92,11 @@ jobs:
   # npm audit over the lockfile and the GitHub advisory database over
   # the Actions in use, set against security/exceptions.json. It fails
   # while a known vulnerability has neither an update nor a recorded
-  # exception, and branch rules require it on staging and main, so
-  # nothing vulnerable is promoted. The log is public: counts only. The
+  # exception, or an excepted package has since shipped a patched
+  # version. It is not yet a required check: the staging and main
+  # rulesets require lint-and-test, supply-chain and codeql, and
+  # bin/promote.mjs reports the audit without blocking on it (#267).
+  # The log is public: counts only. The
   # token is the run's own, to lift the advisory API's rate limit.
   audit:
     name: audit
