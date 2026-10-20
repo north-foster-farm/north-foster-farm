@@ -161,7 +161,9 @@ Deployment configured in `netlify.toml`:
   `plugins/source-maps` then moves the source maps out of `public/`
   into Blobs (`docs/monitoring.md`). The build runs
   no lint or tests: those run in GitHub Actions (`lint-and-test`,
-  `.github/workflows/ci.yml`), which `staging` and `main` require
+  `.github/workflows/ci.yml`), which `staging` and `main` require.
+  CI's `build` job repeats the Hugo build, `check:grid` and
+  `check:news` on every push, so a template error shows on the commit
 - Hugo version: 0.164.0 (pinned; Node 26 via NODE_VERSION and .nvmrc)
 - Deploy previews build drafts/future/expired content
 - Custom redirects (e.g., `/venmo` → Venmo profile)

@@ -111,7 +111,10 @@ The Netlify build runs no tests. It checks that the deploy's
 environment has every key (`npm run check:env`) and the pickup
 schedule (`npm run check:schedule`), builds, and holds the built HTML
 to Bootstrap's grid (`npm run check:grid`) and the news posts' titles
-and URLs (`npm run check:news`).
+and URLs (`npm run check:news`). CI's `build` check runs the same
+Hugo build, grid and news checks on every push, as production and as
+staging builds, so a template error shows on the commit before a
+deploy fails.
 
 Every fact the site repeats (prices, fees, hours, addresses, the
 farm's name) has one source in `data/` or site config, and templates

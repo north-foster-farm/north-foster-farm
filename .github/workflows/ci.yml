@@ -60,6 +60,85 @@ jobs:
       - name: Test
         run: env -i PATH="$PATH" HOME="$HOME" npm test
 
+  # The Hugo build and the checks on its HTML, as Netlify runs them, so
+  # a template error or a grid fault shows as a red check on the commit
+  # instead of a failed deploy after the push is accepted (#283, C4).
+  # It builds twice: as production does, and as staging and previews
+  # do, with drafts, expired and future posts. check:env,
+  # check:schedule and the gate install stay on Netlify: they read
+  # Netlify's own environment and clock. Hugo and Dart Sass are the
+  # versions netlify.toml and bin/prod use, pinned by SHA-256.
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HUGO_VERSION: 0.164.0
+      HUGO_SHA256: >-
+        fea17b8c076f950bb2e9f9486667bdaa29422883888d509d63931c73e8a9b3a4
+      SASS_VERSION: 1.79.5
+      SASS_SHA256: >-
+        a2a776abc777f2b8594b7410c2d057d7aa7a9090b55ed20382eea72cde6a10ce
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Install Hugo and Dart Sass
+        run: |
+          set -euo pipefail
+          tools="$RUNNER_TEMP/tools"
+          mkdir -p "$tools"
+          cd "$RUNNER_TEMP"
+          base=https://github.com/gohugoio/hugo/releases/download
+          hugo="hugo_extended_${HUGO_VERSION}_linux-amd64.tar.gz"
+          curl -fsSL -o hugo.tgz "$base/v$HUGO_VERSION/$hugo"
+          echo "$HUGO_SHA256  hugo.tgz" | sha256sum -c -
+          tar -xzf hugo.tgz -C "$tools" hugo
+          base=https://github.com/sass/dart-sass/releases/download
+          sass="dart-sass-${SASS_VERSION}-linux-x64.tar.gz"
+          curl -fsSL -o sass.tgz "$base/$SASS_VERSION/$sass"
+          echo "$SASS_SHA256  sass.tgz" | sha256sum -c -
+          tar -xzf sass.tgz
+          cp -r dart-sass/* "$tools"
+          echo "$tools" >> "$GITHUB_PATH"
+
+      - name: Build as production
+        run: >
+          env -i PATH="$PATH" HOME="$HOME" CONTEXT=production
+          HUGO_ENABLEGITINFO=true HUGO_BUILD_SHA="$GITHUB_SHA"
+          hugo --gc --environment production
+
+      - name: Grid, production
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:grid
+
+      - name: News, production
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:news
+
+      - name: Build as staging
+        run: >
+          rm -rf public &&
+          env -i PATH="$PATH" HOME="$HOME" CONTEXT=branch-deploy
+          HUGO_ENABLEGITINFO=true HUGO_BUILD_SHA="$GITHUB_SHA"
+          hugo --gc --environment production
+          --buildDrafts --buildExpired --buildFuture
+          -b https://staging--north-foster-farm.netlify.app/
+
+      - name: Grid, staging
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:grid
+
+      - name: News, staging
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:news
+
   # The supply chain checks need the network, which the suite above
   # closes, so they run as their own check. Like the rest of the run it
   # holds no secret and prints counts and package names only.
