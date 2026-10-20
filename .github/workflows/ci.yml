@@ -45,20 +45,34 @@ jobs:
       - name: Lint
         run: env -i PATH="$PATH" HOME="$HOME" npm run lint
 
-      # A pull request checks its own commits; a push checks the commits
-      # it added (a release to main: everything in it). A dispatched run
-      # has no base and checks against origin/main. Only a pull request
-      # and a push to main fail; next and staging get a warning.
+      - name: Test
+        run: env -i PATH="$PATH" HOME="$HOME" npm test
+
+  # The Record-shape trailer, as its own check: required on staging,
+  # and so on main, which takes only what staging has (James, #283).
+  # It fails on every branch, next included, so a commit that skipped
+  # the pre-push hook shows red on its own push. A pull request checks
+  # its own commits; a push checks the commits it added. A dispatched
+  # run has no base and checks against origin/main.
+  record-shape:
+    name: record-shape
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+
       - name: Record shape
         run: >
           env -i PATH="$PATH" HOME="$HOME"
           npm run --silent check:record-shape --
           "${{ github.event.pull_request.base.sha || github.event.before }}"
-          --event "${{ github.event_name }}"
-          --ref "${{ github.ref }}"
-
-      - name: Test
-        run: env -i PATH="$PATH" HOME="$HOME" npm test
 
   # The Hugo build and the checks on its HTML, as Netlify runs them, so
   # a template error or a grid fault shows as a red check on the commit

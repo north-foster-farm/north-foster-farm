@@ -313,7 +313,7 @@ outside the deploy stays.
 
 ## The record-shape check
 
-`lint-and-test` runs `bin/check-record-shape.mjs`. If the commits in
+`bin/check-record-shape.mjs` is the rule. If the commits in
 the checked range touch any of these paths (`SHAPE_PATHS` in the
 script; change them there), at least one commit in the range must
 carry the trailer:
@@ -326,23 +326,28 @@ carry the trailer:
   that writes, rewrites, restores or removes them)
 - `netlify/migrations/` and `bin/migrations/` (neither exists yet)
 
-The range depends on the event:
+A malformed trailer (`Record shape: none`, an empty `Record-shape:`)
+fails whatever the range touches. It runs in three places, all strict
+(James, 2026-10-20, #283):
 
-- **Pull request:** the PR's commits, merge commits skipped. A miss
-  fails the run.
-- **Push to `main`:** the commits that push added. A release is the
-  whole batch, so one trailer anywhere in it passes. A miss fails
-  the run, and the push that fast-forwards `main` is the one that
-  fails. The release that first puts these files on `main` needs
-  one: cut it with an empty commit that says `Record-shape: none`
-  when no shape changed, or what changed when one did. James or the
-  coordinator makes that statement, not a lane.
-- **Push to `next` or `staging`:** the same range, but a warning
-  annotation only, because work lands there in batches long before a
-  release.
+- **The pre-push hook** (`.githooks/pre-push`, set up by `npm
+  install`) checks the commits the remote branch lacks, or, for a new
+  or rebased branch, those since `origin/next`. It refuses the push,
+  so the agent who wrote the commit fixes it before anything lands.
+- **CI's `record-shape` check** runs on every push and pull request,
+  `next` included: a pull request checks its own commits, merge
+  commits skipped; a push checks the commits it added. A commit that
+  skipped the hook shows red on its own push and is fixed forward.
+  It is the check `staging` requires; `main` takes only what
+  `staging` has.
 - **A run with no usable base** (dispatched, a new branch, a
   force-push whose old tip is gone) checks against `origin/main`.
-  A run from a person's shell is strict.
+
+The release that first puts these files on `main` needs a trailer in
+its range: cut it with an empty commit that says `Record-shape: none`
+when no shape changed, or what changed when one did. James or the
+coordinator makes that statement, not a lane. `--warn` reports
+without failing, for an early look.
 
 To read the trailers a release carries, before an older deploy goes
 up:

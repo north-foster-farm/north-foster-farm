@@ -1,0 +1,34 @@
+#!/bin/sh
+# Refuses a push whose new commits touch record-shape code without a
+# Record-shape trailer, or carry a malformed one (James, #283). The
+# agent who wrote the commit fixes it here, before anything lands; CI's
+# record-shape check is the backstop. bin/check-record-shape.mjs has
+# the rule. `git push --no-verify` skips it; CI does not.
+#
+# The commits checked are those the remote branch lacks. For a new
+# branch, or a rebased one whose old tip is gone from its history,
+# that is everything since origin/next.
+
+check="$(dirname "$0")/../bin/check-record-shape.mjs"
+zero=0000000000000000000000000000000000000000
+status=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$local_sha" in "$zero") continue ;; esac
+
+  base="$remote_sha"
+  if [ "$base" = "$zero" ] ||
+    ! git merge-base --is-ancestor "$base" "$local_sha" 2>/dev/null; then
+    base=$(git merge-base origin/next "$local_sha" 2>/dev/null) ||
+      base=origin/main
+  fi
+
+  echo "pre-push: record-shape for $remote_ref"
+  node "$check" "$base" "$local_sha" || status=1
+done
+
+if [ "$status" -ne 0 ]; then
+  echo "pre-push: refused. Fix the trailer in the commit message and"
+  echo "push again."
+fi
+exit "$status"
