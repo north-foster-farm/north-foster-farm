@@ -39,13 +39,18 @@ const sleep = (ms) => new Promise((r) => { setTimeout(r, ms); });
 // --- Consent -------------------------------------------------------
 
 // Dated consent on the record, creating one when the address has
-// none. A record that already says yes is returned untouched.
+// none. A record that already says yes is returned untouched. The
+// rest of the options go in the consent log's event (records.mjs):
+// `detail`, `capturedBy`, `evidence`, and `givenAt` when consent
+// was given before it was entered (a market sheet).
 export const optIn = async (stores, email, {
   firstName = "", lastName = "", source = "site",
+  detail = "", capturedBy = null, evidence = null, givenAt = null,
 } = {}, now = new Date()) => {
   const address = normalizeEmail(email);
   const at = now.toISOString();
   const existing = await getCustomer(stores, address);
+  const consent = { detail, capturedBy, evidence, at: givenAt || at };
 
   if (existing && existing.marketing === true) return existing;
   if (existing) {
@@ -57,7 +62,7 @@ export const optIn = async (stores, email, {
       marketing: true,
       marketingAt: at,
       marketingSource: source,
-    });
+    }, { consent });
   }
 
   return saveCustomer(stores, {
@@ -74,13 +79,14 @@ export const optIn = async (stores, email, {
     marketingSource: source,
     createdAt: at,
     lastOrderAt: null,
-  });
+  }, { consent });
 };
 
 // Consent withdrawn, dated. Nothing happens to a record that never
 // said yes.
-export const optOut = async (stores, email, { source = "site" } = {},
-  now = new Date()) => {
+export const optOut = async (stores, email, {
+  source = "site", detail = "",
+} = {}, now = new Date()) => {
   const existing = await getCustomer(stores, normalizeEmail(email));
 
   if (!existing || existing.marketing !== true) return existing || null;
@@ -90,7 +96,7 @@ export const optOut = async (stores, email, { source = "site" } = {},
     marketing: false,
     marketingAt: now.toISOString(),
     marketingSource: source,
-  });
+  }, { consent: { detail } });
 };
 
 // Left through Resend (its unsubscribe link, or deleted there), at `at`,
@@ -113,7 +119,9 @@ export const resendLeft = async (stores, email, at, now = new Date()) => {
     resendLeftAt: new Date(Math.max(when, before)).toISOString(),
   });
 
-  return optOut(stores, existing.email, { source: "resend" }, now);
+  return optOut(stores, existing.email, {
+    source: "resend", detail: "unsubscribed or deleted in Resend",
+  }, now);
 };
 
 // --- The welcome and its unsubscribe -------------------------------
@@ -151,7 +159,9 @@ export const unsubscribe = async (stores, token, { now = new Date() } = {}) => {
   const found = await stores.auth.get(`unsub/${hash(token)}`);
 
   if (!found) return { ok: false, reason: "unknown" };
-  await optOut(stores, found.email, { source: "unsubscribe" }, now);
+  await optOut(stores, found.email, {
+    source: "unsubscribe", detail: "the link in a list email",
+  }, now);
 
   return { ok: true, email: found.email };
 };
@@ -160,9 +170,10 @@ export const unsubscribe = async (stores, token, { now = new Date() } = {}) => {
 export const joined = (before, after) => !!after
   && after.marketing === true && !(before && before.marketing === true);
 
-// The welcome (T6), to a record just put on the list from the site: the
-// news field, account settings, or the order box once the order is
-// placed. Never throws; a welcome that fails leaves them on the list.
+// The welcome (T6), the whole welcome sequence (#267), to a record
+// just put on the list: the news field, account settings, the order
+// box once the order is placed, or the old list's confirmation. Never
+// throws; a welcome that fails leaves them on the list.
 // -> true when it went.
 export const welcome = async (stores, customer, {
   env = process.env, mail = sendMail, now = new Date(),
@@ -204,8 +215,10 @@ const withinRate = async (stores, address, now) => {
 // --- Signing up on the site ----------------------------------------
 
 // The footer and news-page field: on the list at once (W1), then the
-// welcome (T6). -> { ok: true, email } or { ok: false, reason }.
+// welcome (T6). `page` is the path it was sent from, for the consent
+// log. -> { ok: true, email } or { ok: false, reason }.
 export const subscribe = async (stores, { email, firstName, lastName }, {
+  page = "",
   now = new Date(),
   limit = true,
   env = process.env,
@@ -221,6 +234,7 @@ export const subscribe = async (stores, { email, firstName, lastName }, {
   const before = await getCustomer(stores, address);
   const after = await optIn(stores, address, {
     firstName: text(firstName), lastName: text(lastName), source: "signup",
+    detail: page ? `the sign-up form on ${page}` : "the sign-up form",
   }, now);
 
   if (joined(before, after)) await welcome(stores, after, { env, mail, now });
@@ -277,10 +291,13 @@ export const requestSubscribe = async (stores, {
   return { ok: true, url, email: address };
 };
 
-// The click. Single use; expired links are refused.
-// -> { ok: true, email } or { ok: false, reason }.
+// The click. Single use; expired links are refused. A click that puts
+// the address on the list starts the welcome, as a sign-up here does
+// (#267). -> { ok: true, email } or { ok: false, reason }.
 export const confirmSubscribe = async (stores, token, {
   now = new Date(),
+  env = process.env,
+  mail = sendMail,
 } = {}) => {
   if (!token || typeof token !== "string" || token.length > 200) {
     return { ok: false, reason: "invalid" };
@@ -295,9 +312,16 @@ export const confirmSubscribe = async (stores, token, {
 
   if (now.getTime() > found.expires) return { ok: false, reason: "expired" };
 
+  const before = await getCustomer(stores, found.email);
   const customer = await optIn(stores, found.email, {
     firstName: found.firstName, lastName: found.lastName, source: "confirm",
+    detail: `the confirmation link sent ${
+      String(found.createdAt || "").slice(0, 10) || "to the old list"}`,
   }, now);
+
+  if (joined(before, customer)) {
+    await welcome(stores, customer, { env, mail, now });
+  }
 
   return { ok: true, email: customer.email };
 };
@@ -471,7 +495,7 @@ export const syncAudience = async (stores, {
         if (!dryRun) {
           await optIn(stores, email, {
             firstName: contact.first_name, lastName: contact.last_name,
-            source: "resend",
+            source: "resend", detail: "found in the Resend audience",
           }, now);
         }
         report.imported.push(email);
@@ -490,7 +514,7 @@ export const syncAudience = async (stores, {
     if (!dryRun) {
       await optIn(stores, email, {
         firstName: contact.first_name || "", lastName: contact.last_name || "",
-        source: "resend",
+        source: "resend", detail: "found in the Resend audience",
       }, now);
     }
     report.imported.push(email);

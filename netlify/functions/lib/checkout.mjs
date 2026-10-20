@@ -108,7 +108,9 @@ export const completeOrder = async (stores, order, { square, payment }, {
   // here is the farm's to finish (the alert says what), never a
   // failure card for a customer who has just paid.
   try {
-    await touchCustomer(stores, order.customer, now);
+    await touchCustomer(stores, order.customer, now, {
+      orderId: order.id,
+    });
 
     await adjust(stores, order.lines, -1);
     await mark(stores, "order", { id: order.id }, now);

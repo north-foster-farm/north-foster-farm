@@ -490,8 +490,120 @@ export const reminderPrefs = (customer) => {
 export const getCustomer = (stores, email) =>
   stores.customers.get(customerKey(email));
 
-export const saveCustomer = async (stores, customer) => {
-  const record = { ...customer, email: emailKey(customer.email) };
+// --- Consent to farm news, as a log (#273) -------------------------
+//
+// `marketing`, `marketingAt` and `marketingSource` are the current
+// state, which the sync and the checkout read. `consent` is the
+// history behind it: one event per opt-in or opt-out, appended, never
+// rewritten, so a second opt-in keeps the first. Each event:
+//
+//   action      "in" or "out"
+//   type        one of CONSENT_TYPES
+//   detail      the form or page, the market, the order: plain words
+//   at          when the person gave or withdrew consent (a market
+//               sheet's date, which may be weeks before it is entered)
+//   recordedAt  when it was written here; equals `marketingAt`
+//   capturedBy  who took an in-person consent (James or Jim), or null
+//   evidence    a pointer to private proof (a scan's file name), never
+//               the proof itself; or null
+export const CONSENT_TYPES = [
+  "website-form", // The footer or /news/ sign-up field
+  "checkout", // The box on the order page
+  "account-settings", // The box in account settings
+  "reinvite-confirmation", // The old list's confirmation link
+  "market-sheet", // A paper sign-up sheet at a market
+  "in-person", // Asked us to add them, by word of mouth
+  "resend", // Added by hand in Resend, or left there
+  "unsubscribe-link", // The one-click link in a list email
+  "membership", // Reserved: joining the membership program
+];
+
+// How `marketingSource` names the same things.
+const SOURCE_TYPES = {
+  signup: "website-form",
+  site: "website-form",
+  order: "checkout",
+  account: "account-settings",
+  confirm: "reinvite-confirmation",
+  import: "market-sheet",
+  resend: "resend",
+  unsubscribe: "unsubscribe-link",
+};
+
+export const consentType = (source) => SOURCE_TYPES[source] || source
+  || "unknown";
+
+const consentEvent = (customer, {
+  type, detail = "", at, capturedBy = null, evidence = null,
+} = {}) => ({
+  action: customer.marketing === true ? "in" : "out",
+  type: type || consentType(customer.marketingSource),
+  detail,
+  at: at || customer.marketingAt,
+  recordedAt: customer.marketingAt,
+  capturedBy,
+  evidence,
+});
+
+// The log, with a record from before it began given one event from
+// its dated state. That event can only say what the record kept: an
+// address that opted out before the log lost its opt-in.
+export const consentLog = (customer) => {
+  if (Array.isArray(customer.consent)) return customer.consent;
+  if (!customer.marketingAt) return [];
+
+  return [consentEvent(customer, { detail: "recorded before the log" })];
+};
+
+// The opt-in now in force, or null. The welcome names its source.
+export const currentOptIn = (customer) => {
+  if (!customer || customer.marketing !== true) return null;
+
+  const log = consentLog(customer);
+
+  return log.length && log[log.length - 1].action === "in"
+    ? log[log.length - 1] : null;
+};
+
+// Schema only, for the membership program and Spanish mail after
+// launch (#267). Nothing reads these yet.
+//
+//   language        a BCP-47 tag; "en", and later "es"
+//   memberId        an opaque random code, unique, or null
+//   memberIdStatus  "active" or "retired", so a code can be retired
+//                   and a new one issued; null while there is none
+//   memberSince     when they joined, or null; joining is also a
+//                   `membership` event in the consent log
+//   memberGroup     { id, joinedAt }, a link to a group record that
+//                   does not exist yet (docs/email-list.md), or null
+export const SCHEMA_DEFAULTS = {
+  language: "en",
+  memberId: null,
+  memberIdStatus: null,
+  memberSince: null,
+  memberGroup: null,
+};
+
+// Every write fills the schema-only fields and keeps the log. A
+// change to the consent state that came without an event gets one
+// from `marketingSource`; `consent` gives the event its detail.
+export const saveCustomer = async (stores, customer, { consent } = {}) => {
+  // A record without a log is new, or from before the log: its log is
+  // seeded from what is stored, not from the state being written.
+  const stored = Array.isArray(customer.consent) ? null
+    : await stores.customers.get(customerKey(customer.email));
+  const log = Array.isArray(customer.consent) ? customer.consent
+    : (stored ? consentLog(stored) : []);
+  const last = log[log.length - 1];
+  const changed = !!customer.marketingAt && !(last
+    && last.recordedAt === customer.marketingAt
+    && last.action === (customer.marketing === true ? "in" : "out"));
+  const record = {
+    ...SCHEMA_DEFAULTS,
+    ...customer,
+    email: emailKey(customer.email),
+    consent: changed ? [...log, consentEvent(customer, consent)] : log,
+  };
 
   await stores.customers.set(customerKey(record.email), record);
 
@@ -499,13 +611,16 @@ export const saveCustomer = async (stores, customer) => {
 };
 
 // `marketing` true on an order opts the customer in to farm news and
-// dates it; false or absent never opts anyone out.
+// dates it; false or absent never opts anyone out. `orderId` goes in
+// the consent log's detail.
 export const touchCustomer = async (
-  stores, { firstName, lastName, name, email, phone, marketing }, now
+  stores, { firstName, lastName, name, email, phone, marketing }, now,
+  { orderId } = {}
 ) => {
   const existing = await getCustomer(stores, email);
   const at = now.toISOString();
   const optIn = marketing === true;
+  const consent = { detail: orderId ? `order ${orderId}` : "an order" };
 
   if (existing) {
     return saveCustomer(stores, {
@@ -518,7 +633,7 @@ export const touchCustomer = async (
       ...(optIn && existing.marketing !== true
         ? { marketing: true, marketingAt: at, marketingSource: "order" }
         : {}),
-    });
+    }, { consent });
   }
 
   return saveCustomer(stores, {
@@ -535,7 +650,7 @@ export const touchCustomer = async (
     ...(optIn ? { marketingSource: "order" } : {}),
     createdAt: at,
     lastOrderAt: at,
-  });
+  }, { consent });
 };
 
 export const allCustomers = async (stores) => {

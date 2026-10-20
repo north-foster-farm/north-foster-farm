@@ -22,6 +22,19 @@ import { confirmSubscribe, subscribe, unsubscribe } from "./lib/news.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
+// The page a sign-up came from, for the consent log: the path of a
+// same-site Referer, or "".
+const fromPage = (req) => {
+  try {
+    const ref = new URL(req.headers.get("referer") || "");
+
+    return ref.host === new URL(req.url).host ? ref.pathname.slice(0, 100)
+      : "";
+  } catch {
+    return "";
+  }
+};
+
 export const handle = async (req, {
   stores = defaultStores(),
   env = process.env,
@@ -43,7 +56,9 @@ export const handle = async (req, {
 
     if (!body) return json(400, { errors: { body: "Expected JSON." } });
 
-    const r = await subscribe(stores, body, { now, env, mail });
+    const r = await subscribe(stores, body, {
+      now, env, mail, page: fromPage(req),
+    });
 
     if (!r.ok && r.reason === "invalid") {
       return json(422, {
@@ -63,7 +78,7 @@ export const handle = async (req, {
     if (closed) return closed;
 
     const r = await confirmSubscribe(stores, url.searchParams.get("token"),
-      { now });
+      { now, env, mail });
     const status = r.ok ? "confirmed"
       : (r.reason === "expired" ? "expired" : "invalid");
 
