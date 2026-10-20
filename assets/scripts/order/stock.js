@@ -1,7 +1,8 @@
 // Keeps the product list honest while the page is open: asks
 // /api/stock on load, when the tab comes back, when the network
 // returns, every couple of minutes, and right before a submission.
-// A row that sold out is closed; a quantity above what is left is
+// A row that sold out is hidden, and its category with it once that
+// leaves the category empty; a quantity above what is left is
 // brought down and the customer is told.
 
 import { clear, whileLoading } from "../utils/skeleton.js";
@@ -99,9 +100,10 @@ export class Stock {
       const label = row.querySelector("label").textContent.trim();
       let text = "";
 
+      // Out of stock means no row at all, never a sold-out one (#267).
+      row.hidden = !inStock;
       if (!inStock) {
-        row.dataset.stock = "out";
-        text = "Sold out";
+        delete row.dataset.stock;
         if (qty > 0) {
           this.setQty(input, 0);
           changed.push(`${label} sold out and was removed`);
@@ -124,9 +126,25 @@ export class Stock {
       if (note && note.textContent !== text) note.textContent = text;
     }
 
+    this.hideEmptyGroups();
+
     if (changed.length) {
       this.onChange(`Stock moved while you were shopping: ${
         changed.join("; ")}. Your cart was updated.`);
+    }
+  }
+
+  // A category whose rows are all hidden goes too, with its link in
+  // the sidebar, as the build leaves out one with nothing in stock.
+  hideEmptyGroups() {
+    for (const group of this.form.querySelectorAll(".order-cat")) {
+      const empty = !group.querySelector(".order-item:not([hidden])");
+      const link = document.querySelector(
+        `#order-nav a[href="#${CSS.escape(group.id)}"]`
+      );
+
+      group.hidden = empty;
+      if (link) link.closest(".nav-item").hidden = empty;
     }
   }
 }

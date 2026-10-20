@@ -217,9 +217,8 @@ test.describe("order page", () => {
       const inStock = Object.entries(stock.items)
         .filter(([, s]) => s.inStock && s.available !== 0)
         .map(([sku]) => sku);
-      const rows = await page.locator(".order-item").evaluateAll(
-        (items) => items.map((li) => li.dataset.sku)
-      );
+      const rows = await page.locator(".order-item:not([hidden])")
+        .evaluateAll((items) => items.map((li) => li.dataset.sku));
 
       expect(rows.sort()).toEqual(inStock.sort());
       expect(rows).toContain(SKU.eggs);
@@ -245,5 +244,39 @@ test.describe("order page", () => {
     }
     await expect(page.locator("#cat-eggs .order-item-name"))
       .toHaveText([/Large/]);
+  });
+
+  // A stock count of 0 is out of stock too: the row goes, never a
+  // sold-out one, and a category it leaves empty goes with its link.
+  test("a product whose count reaches 0 loses its row, and its " +
+    "category when empty", async ({ page }) => {
+    const gone = [SKU.eggs, "NFF-CHK-DRM-0150-0300"];
+
+    await page.route("**/api/stock", async (route) => {
+      const res = await route.fetch();
+      const body = await res.json();
+
+      for (const sku of gone) {
+        body.items[sku] = { inStock: false, available: 0 };
+      }
+      await route.fulfill({ response: res, json: body });
+    });
+
+    const order = new OrderPage(page);
+
+    await order.open({ eggs: 1 });
+
+    const row = (sku) => page.locator(`.order-item[data-sku="${sku}"]`);
+
+    for (const sku of gone) await expect(row(sku)).toBeHidden();
+    await expect(page.getByText("Sold out", { exact: true }))
+      .toHaveCount(0);
+    await expect(page.locator("#cat-eggs")).toBeHidden();
+    await expect(page.locator("#order-nav a[href='#cat-eggs']"))
+      .toBeHidden();
+    await expect(row(SKU.drums)).toBeVisible();
+    await expect(page.locator("#order-stock"))
+      .toContainText("Large sold out and was removed");
+    await expect(order.count).toHaveText("0 items");
   });
 });

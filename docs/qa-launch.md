@@ -433,22 +433,29 @@ Manual: animation and tooltip behavior are visual.
   chicks hop out of it once.
 - **Teardown:** None.
 
-### OP-26 Stock counts close rows and clamp the cart
+### OP-26 Stock counts hide rows and clamp the cart
 
-Manual: the stock counts are shared by everyone using staging, so a
-test that sets them would disturb other runs.
+Manual on staging: the stock counts are shared by everyone using
+staging, so a test that sets them would disturb other runs.
+Automated with a stubbed `/api/stock`: `order-page.spec.mjs`, "a
+product whose count reaches 0 loses its row, and its category when
+empty" (both projects).
 
-- **Scenario:** The page shows "N left" at five or fewer, drops sold-out
-  rows and clamps the cart.
+- **Scenario:** The page shows "N left" at five or fewer, hides
+  sold-out rows (and a category left empty, with its sidebar link) and
+  clamps the cart.
 - **Setup:** Pick an unused SKU, for example `NFF-CHK-DRM-0150-0300`.
   `bin/nff --staging stock set NFF-CHK-DRM-0150-0300 3`.
 - **Test:**
   1. Open `/order/?add=NFF-CHK-DRM-0150-0300:5`.
   2. `bin/nff --staging stock set NFF-CHK-DRM-0150-0300 0`; return to the
      tab.
+  3. Reload, then search for "drum".
 - **Assert:** Step 1: the row says "3 left" and the quantity is clamped
-  to 3 with a notice. Step 2: the row is gone and the cart line removed
-  with a notice.
+  to 3 with a notice. Step 2: the row is gone, with no "Sold out" row
+  in its place, and the cart line is removed with a notice ending "sold
+  out and was removed". Step 3: the row stays gone after the reload,
+  and the search lists the other drumsticks but not this one.
 - **Teardown:** `bin/nff --staging stock set NFF-CHK-DRM-0150-0300 none`.
 
 ### OP-27 The phone cart after the first Add

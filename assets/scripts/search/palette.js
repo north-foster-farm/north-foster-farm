@@ -129,16 +129,17 @@ export const wireSearch = () => {
     showCard(matches[active]);
   };
 
-  // A row's sold-out mark and its price, or "Sold out" in its place.
   const markRow = (row, p) => {
-    if (soldOut(p)) row.dataset.stock = "out";
-    else delete row.dataset.stock;
     row.querySelector(".search-palette-row-price").firstChild.nodeValue =
-      soldOut(p) ? "Sold out" : money(p.price);
+      money(p.price);
   };
 
+  // What the query finds, less what is sold out: an item out of stock
+  // is not offered at all (#267).
+  const find = (query) => search(indexed, query).filter((p) => !soldOut(p));
+
   const render = (query) => {
-    matches = search(indexed, query);
+    matches = find(query);
     list.replaceChildren(...matches.map((p, i) => {
       const row = document.createElement("li");
       const name = document.createElement("span");
@@ -172,9 +173,22 @@ export const wireSearch = () => {
     select(0, { scroll: false });
   };
 
-  // Stock has come in: mark the rows, and the card's + and Add. What
-  // the customer has in the cart stays as it is.
+  // Stock has come in: drop what sold out, keeping the selection where
+  // it can, then mark the rows and the card's + and Add. What the
+  // customer has in the cart stays as it is.
   const refreshStock = () => {
+    const shown = matches.map((p) => p.sku).join();
+
+    if (find(input.value).map((p) => p.sku).join() !== shown) {
+      const sku = matches[active] ? matches[active].sku : null;
+
+      render(input.value);
+      const i = matches.findIndex((p) => p.sku === sku);
+
+      if (i > 0) select(i, { scroll: false });
+
+      return;
+    }
     [...list.children].forEach((row, i) => markRow(row, matches[i]));
     if (matches[active]) syncQty(matches[active]);
   };

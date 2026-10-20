@@ -186,6 +186,36 @@ test.describe("search (#142)", () => {
     await expect(p.qty).toHaveValue("2");
   });
 
+  // #267: an item out of stock is not offered, not even as sold out.
+  test("a product whose count reaches 0 leaves the results",
+    async ({ page }) => {
+      const gone = "NFF-CHK-DRM-0150-0300";
+
+      await page.route("**/api/stock", async (route) => {
+        const res = await route.fetch();
+        const body = await res.json();
+
+        body.items[gone] = { inStock: false, available: 0 };
+        await route.fulfill({ response: res, json: body });
+      });
+      await page.goto("/about/");
+
+      const p = palette(page);
+      const stock = page.waitForResponse("**/api/stock");
+
+      await p.opener.click();
+      await p.input.fill("drum");
+      await stock;
+      await expect(p.rows.and(page.locator(`[data-sku="${gone}"]`)))
+        .toHaveCount(0);
+      await expect(p.rows).toHaveCount(1);
+      await expect(p.rows).toHaveAttribute(
+        "data-sku", "NFF-CHK-DRM-0000-0150"
+      );
+      await expect(p.dialog.getByText("Sold out", { exact: true }))
+        .toHaveCount(0);
+    });
+
   // #208: one Add, as on the order page. It becomes the stepper, which
   // edits the cart itself; at 0 the product leaves and Add returns.
   test("Add becomes the stepper, and 0 takes it out", async ({ page }) => {

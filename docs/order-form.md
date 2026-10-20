@@ -60,8 +60,9 @@ count of packs per SKU (`counts`), set by the CLI and moved by orders:
 down when an order is paid, back up when it is cancelled. `GET
 /api/stock` gives every item's `{ inStock, available }`; the page asks
 on load, on return to the tab, every two minutes and before paying,
-closes sold-out rows, shows "N left" at five or fewer, clamps the cart
-and says so. The order handler checks the same counts and answers
+hides sold-out rows (and a category they leave empty, with its link),
+shows "N left" at five or fewer, clamps the cart and says so. The
+search palette leaves sold-out items out of its results. The order handler checks the same counts and answers
 `422` with `lines.<sku>` errors plus the fresh `stock`.
 
 ## Rules
@@ -694,8 +695,11 @@ Flags that take a value accept both `--reason "..."` and
   stock is left out along with its nav pill. The data keeps them.
   Square is the database and the page shows only what is in stock:
   an item out of stock has no row, never a sold-out one, and a rename
-  never changes that (James, #267, 2026-10-20). `order-page.spec.mjs`
-  holds it.
+  never changes that (James, #267, 2026-10-20). A stock count of 0 is
+  out of stock too: the page hides the row once `/api/stock` says so.
+  Every SKU stays in Square, including empty tiers. The website shows
+  only in-stock items; out-of-stock tiers are hidden.
+  `order-page.spec.mjs` and `search.spec.mjs` hold it.
 - **The order page is the product list**, headed "All products" (the
   `heading` front-matter param; the title stays "Order" for the tab
   and the breadcrumb). A "Catalog" sidebar (Bootstrap ScrollSpy)

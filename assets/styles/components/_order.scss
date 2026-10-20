@@ -394,21 +394,6 @@
     grid-area: stock;
   }
 
-  .order-item[data-stock="out"] {
-    background-color: var(--bs-tertiary-bg);
-    box-shadow: none;
-
-    .order-item-name label {
-      color: var(--bs-secondary-color);
-      text-decoration: line-through;
-      cursor: default;
-    }
-
-    .order-item-stock {
-      color: var(--bs-secondary-color);
-    }
-  }
-
   @media (max-width: 30rem) {
     .order-item {
       grid-template-columns: 1fr 6.25rem;
@@ -515,10 +500,6 @@
 
   .order-qty-tick {
     animation: order-tick 200ms var(--order-ease);
-  }
-
-  .order-item[data-stock="out"] .order-qty {
-    visibility: hidden;
   }
 
   // The heading stands in the flow where the pane settles, a
@@ -1489,10 +1470,6 @@
         background-color: transparent;
         box-shadow: inset 3px 0 0 var(--bs-success-border-subtle);
       }
-    }
-
-    .order-item[data-stock="out"] {
-      background-color: transparent;
     }
 
     .order-qty {
