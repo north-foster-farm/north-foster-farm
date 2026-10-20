@@ -78,7 +78,11 @@ part updates faster than another.
    provenance attestation fails unless its name is in
    `security/attestation-baseline.json`; James approves a new one by a
    pull request that adds it. The baseline holds the packages already
-   resolved without one on 2026-10-18, taken as found.
+   resolved without one on 2026-10-18, taken as found. Since then,
+   James approved on 2026-10-20 (#279) seven build and lint packages
+   that never ship: `@csstools/css-syntax-patches-for-csstree`,
+   `@keyv/bigmap`, `@keyv/serialize`, `get-east-asian-width`,
+   `hashery`, `hookified` and `qified`.
 4. **Updates arrive as Dependabot pull requests into `next`**, minor
    and patch in one group each Monday 08:00 Eastern, a major version
    in its own. They pass the full suite like any change. A major bump
