@@ -123,7 +123,8 @@ the welcome, the invitation and, later, newsletters. It has the order
 emails' wordmark, card, font and green, plus a hero image, preview
 text, and blocks in `listBlocks`: `p`, `heading`, `image` (with an
 optional caption), `button` and `linked`. Its footer says why the
-mail came, gives the one-click unsubscribe and the farm's postal
+mail came (the invitation leaves that to its body), gives the
+one-click unsubscribe and the farm's postal
 address (CAN-SPAM), and the text version says the same. It follows
 the reader's dark mode in Apple Mail, iOS Mail and Outlook; Gmail
 shows the light one. The order emails stay light.

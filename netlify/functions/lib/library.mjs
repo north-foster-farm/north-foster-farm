@@ -685,8 +685,11 @@ const W11D = "W11d (2026-09-28): a pickup is booked by paying, from " +
   "reads as its times (9 AM – noon).";
 const WELCOME = "Draft (#273, Q8): one welcome for everyone, naming " +
   "how they opted in; the moved-provider paragraph only for the market " +
-  "sheets and the re-invite. James\x27s T6 lines kept: what to expect, " +
-  "never sell your address, the unsubscribe line, the sign-off.";
+  "sheets and the re-invite. James\x27s T6 lines kept verbatim: the " +
+  "opening (except the re-invite\x27s, which thanks them for staying), " +
+  "what to expect, never sell your address, the unsubscribe line, the " +
+  "sign-off. Drafts: the opt-in sentence, the inbox line, the " +
+  "moved-provider paragraph, the button and the footer.";
 const WAITING = {
   "order-confirmed-onfarm": `James approved it in the library on ` +
     `2026-09-26. ${W11D}`,

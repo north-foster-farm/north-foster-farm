@@ -925,13 +925,13 @@ export const optInPhrase = (event) => {
   case "website-form":
     return "you signed up on our website";
   case "checkout":
-    return "you ticked the box for farm news when you ordered from us";
+    return "you ticked the farm news box when you placed your order";
   case "account-settings":
     return "you turned on farm news in your account";
   case "reinvite-confirmation":
     return "you confirmed you'd like to stay on our list";
   case "market-sheet":
-    return `you signed up on our sheet at ${
+    return `you signed up on our sign-up sheet at ${
       detail || "one of our markets"} in ${month(event.at)}`;
   case "in-person":
     return `you asked us to add you when we met in person${
@@ -939,7 +939,7 @@ export const optInPhrase = (event) => {
   case "resend":
     return "you asked us to add you to our list";
   default:
-    return "you joined our email list";
+    return "you joined our farm news list";
   }
 };
 
@@ -967,8 +967,6 @@ export const newsConfirm = (email, url, {
         "this message because you previously joined our mailing list."),
       listBlocks.linked("Need help? ", "Contact us", contactUrl(links)),
     ],
-    reason: "you were on our old mailing list. If you don't click, " +
-      "we won't email you again",
     links,
   },
 );
@@ -979,7 +977,8 @@ export const newsConfirm = (email, url, {
 // import. It always says how they opted in, from the consent log;
 // those who were on the list before it moved hear why a welcome comes
 // now. `unsubscribeUrl` takes them off in one click, no sign-in (T6c).
-// T6's lines are James's (2026-09-28); the rest is a draft.
+// T6's lines are James's (2026-09-28); the re-invite's opening and the
+// rest are drafts.
 export const newsWelcome = (who, unsubscribeUrl, { links } = {}) => {
   const name = firstName(who);
   const event = currentOptIn(who);
@@ -988,14 +987,14 @@ export const newsWelcome = (who, unsubscribeUrl, { links } = {}) => {
   const b = listBlocks;
   const blocks = [
     b.p(name ? `Hi ${name},` : "Hi,"),
-    b.p(`**Thanks for joining our farm news list.** We're writing ` +
-      `because ${phrase}. Being let into your inbox is a trust, and we ` +
-      "take it seriously."),
+    b.p(`${event && event.type === "reinvite-confirmation"
+      ? "Thanks for staying on our farm news list."
+      : "Thanks for signing up. You're on our farm news list."} ` +
+      `We're writing because ${phrase}. We don't take a place in your ` +
+      "inbox lightly."),
     ...(migrated
-      ? [b.p("We've moved our list to a new email provider, and we want " +
-        "it to be accurate and up to date. That's why a welcome is " +
-        "reaching you now, even if you've been buying from us for a " +
-        "while.")]
+      ? [b.p("We've moved our list to a new email provider, so this " +
+        "welcome reaches you even if you've been with us for years.")]
       : []),
     b.p("Every now and then, we'll email you what's happening on the " +
       "farm: what's in stock, where to find us, and news from the " +

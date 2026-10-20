@@ -165,24 +165,27 @@ describe("the re-invite's click", () => {
     assert.equal(sent.length, 2);
     assert.match(sent[1].text,
       /because you confirmed you'd like to stay on our list/);
-    assert.match(sent[1].text, /moved our list to a new email provider/);
+    assert.match(sent[1].text,
+      /moved our list to a new email provider, so this welcome/);
     assert.ok(sent[1].headers["List-Unsubscribe"]);
   });
 });
 
-describe("the welcome", () => {
-  const who = (type, detail = "", at = now.toISOString()) => ({
-    firstName: "Pat", marketing: true, marketingAt: now.toISOString(),
-    consent: [{ action: "in", type, detail, at,
-      recordedAt: now.toISOString(), capturedBy: null, evidence: null }],
-  });
+const who = (type, detail = "", at = now.toISOString()) => ({
+  firstName: "Pat", marketing: true, marketingAt: now.toISOString(),
+  consent: [{ action: "in", type, detail, at,
+    recordedAt: now.toISOString(), capturedBy: null, evidence: null }],
+});
 
+describe("the welcome", () => {
   it("names how each person opted in", () => {
     assert.match(newsWelcome(who("website-form"), "https://u", {}).text,
       /because you signed up on our website\./);
     assert.match(newsWelcome(who("market-sheet", "the Foster Farmers " +
       "Market", "2026-07-12T14:00:00Z"), "https://u", {}).text,
-    /you signed up on our sheet at the Foster Farmers Market in July\./);
+    /you signed up on our sign-up sheet at the Foster Farmers Market in /);
+    assert.match(newsWelcome(who("market-sheet", "the market",
+      "2026-07-12T14:00:00Z"), "u", {}).text, /the market in July\./);
     assert.match(newsWelcome(who("in-person"), "https://u", {}).text,
       /you asked us to add you when we met in person\./);
   });
@@ -211,7 +214,7 @@ describe("the welcome", () => {
   });
 
   it("words a missing event plainly", () => {
-    assert.equal(optInPhrase(null), "you joined our email list");
+    assert.equal(optInPhrase(null), "you joined our farm news list");
   });
 });
 
@@ -250,10 +253,20 @@ describe("the list template", () => {
     assert.match(m.text, /Order: https:\/\/x\/order\//);
   });
 
-  it("leaves the unsubscribe out of the invitation", () => {
+  it("gives the invitation no unsubscribe and no second reason", () => {
     const invite = newsConfirm("a@b.co", "https://x/c", { links });
 
     assert.doesNotMatch(invite.text, /Unsubscribe/);
-    assert.match(invite.text, /we won't email you again/);
+    assert.doesNotMatch(invite.text, /You're getting this because/);
+    assert.match(invite.text, /previously joined our mailing list\./);
   });
+
+  it("opens on James's T6 line, or thanks the re-invite for staying",
+    () => {
+      assert.match(newsWelcome(who("website-form"), "u", {}).text,
+        /^Thanks for signing up\. You're on our farm news list\. /m);
+      assert.match(
+        newsWelcome(who("reinvite-confirmation"), "u", {}).text,
+        /^Thanks for staying on our farm news list\. /m);
+    });
 });
