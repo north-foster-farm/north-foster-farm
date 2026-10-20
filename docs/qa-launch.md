@@ -200,6 +200,10 @@ projects).
 - **Assert:** Wings 5, Scituate checked, first name "Draft", Total $45.
 - **Teardown:** None (the browser context is discarded).
 
+The draft's date and window are `order-draft-date.spec.mjs` (#284):
+the last date on offer, not the first, kept for on-farm pickup and
+delivery, with `/api/dates` answering at once and 2.5 seconds late.
+
 ### OP-10 Continue to payment goes to Pickup or delivery
 
 Automated: `order-page.spec.mjs`, "Continue to payment takes the
