@@ -1323,9 +1323,8 @@ const archivedRows = (items) => table(["Product", "SKU", "On hand"],
     i.count === null ? "in stock, not counted" : String(i.count)]),
   { align: ["left", "left", "right"] });
 const archivedFix = () => [
-  p("Customers can't see or buy these. If one is back on sale, change " +
-    "its restock type in data/catalog.json and deploy. If not, zero " +
-    "its count:"),
+  p("If it's back on sale, change its restock type in data/catalog.json " +
+    "and deploy. If not, zero its count:"),
   command("bin/nff stock set <sku> 0"),
 ];
 
@@ -1335,8 +1334,8 @@ export const farmArchivedInStock = (items, { links } = {}) => farmCard(
     : `Hidden but in stock: ${items.length} products`,
   "Stock check",
   [
-    p("The catalog marks these archived, so the website hides them, " +
-      "but stock shows them on hand:"),
+    p("Each product below is archived in the catalog, so no customer " +
+      "can see or buy it, but stock shows it on hand:"),
     archivedRows(items),
     ...archivedFix(),
   ],
@@ -1674,8 +1673,8 @@ export const farmMorningReport = (stats, pickups, {
   if (archived.length) {
     blocks.push(
       heading("Hidden but in stock"),
-      p("The catalog marks these archived, so the website hides them, " +
-        "but stock shows them on hand:"),
+      p("Each product below is archived in the catalog, so no customer " +
+        "can see or buy it, but stock shows it on hand:"),
       archivedRows(archived),
       ...archivedFix()
     );
