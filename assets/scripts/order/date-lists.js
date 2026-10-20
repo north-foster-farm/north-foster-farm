@@ -115,8 +115,20 @@ export class DateLists {
     this.onChange();
   }
 
+  // A date to choose once the lists come: a restored draft's, or the
+  // paid order's being changed. Set on the select before its options
+  // exist, the browser would drop it and the first date would win
+  // (#284).
+  want(method, date) {
+    const select = this.form.querySelector(`[data-dates="${method}"]`);
+
+    if (!select || !date) return;
+    select.dataset.want = date;
+    if (this.lists) this.fill(select, this.lists[method] || []);
+  }
+
   fill(select, list) {
-    const current = select.value;
+    const current = select.dataset.want || select.value;
 
     select.textContent = "";
 
@@ -143,6 +155,7 @@ export class DateLists {
     select.value = list.some((d) => d.date === current)
       ? current
       : list[0].date;
+    delete select.dataset.want;
   }
 
   // The 409 answer carries a fresh list for the method that went stale.

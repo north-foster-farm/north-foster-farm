@@ -2012,13 +2012,9 @@ export class OrderForm {
       set(`delivery.${key}`, d[key]);
     }
 
-    if (f.method && f.date) {
-      const select = qs(this.form, `[data-dates="${f.method}"]`);
-
-      // Kept until the real list arrives; fill() honours it if the
-      // date is still valid.
-      if (select) select.value = f.date;
-    }
+    // Kept until the real list arrives; fill() honours it if the date
+    // is still valid (#284).
+    if (f.method && f.date) this.dates.want(f.method, f.date);
     this.showContact();
   }
 
@@ -2115,6 +2111,10 @@ export class OrderForm {
   // The same with one last look at stock. If the cart had to change,
   // the customer sees why and decides again; nothing is sent.
   async prepareAsync() {
+    // Pressed before the dates came: wait for them, rather than check
+    // the order against no dates at all and send nothing (#284).
+    if (!this.dates.lists) await this.dates.refresh();
+
     const payload = this.prepare();
 
     if (!payload) return null;
