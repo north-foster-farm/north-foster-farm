@@ -1,1 +1,10 @@
-[]
+[
+  {
+    "package": "braces",
+    "advisory": "GHSA-vfj7-8cjw-p6xm",
+    "why": "No patched version exists: braces 3.0.3 is the latest release and the advisory covers every version up to it. stylelint and purgecss reach it through micromatch and fast-glob, and their latest releases still do.",
+    "exposure": "Build-time tooling only: stylelint and the CSS build's purgecss. The only patterns that reach braces are our own, the lint:styles glob and purgecss's content setting. No customer, request or function input reaches it, and none of it ships to the browser or the Netlify functions. The worst case is a crashed lint or build on a pattern we wrote.",
+    "plan": "Take the fix when braces or micromatch ships one. bin/audit/check.mjs and the daily production audit fail once the advisory database names a patched braces, with no manual step.",
+    "approved": "James, 2026-10-20, north-foster-farm#279"
+  }
+]
