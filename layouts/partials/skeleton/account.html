@@ -1,0 +1,52 @@
+{{/* The account page while /api/me and the orders load (#271): the
+     head, the tabs and two orders, in the page's own classes, so the
+     real page lands where the bars were. */}}
+<div class="account-head">
+  <span class="placeholder account-avatar rounded-circle"></span>
+  <div class="account-who">
+    <p class="account-name"><span class="placeholder col-4"></span></p>
+    <p class="account-email"><span class="placeholder col-6"></span></p>
+  </div>
+  <span class="placeholder btn btn-sm">Sign out</span>
+</div>
+<div class="account-nav">
+  {{ range slice "Orders" "Receipts" "Address" "Settings" "Help" }}
+    <span class="account-tab"><span class="placeholder">{{ . }}</span></span>
+  {{ end }}
+</div>
+{{/* Real headings, for their sizes; aria-hidden keeps them out of
+     the outline. */}}
+<div class="account-section">
+  <h2 class="h4"><span class="placeholder col-3"></span></h2>
+  {{ range seq 2 }}
+    <div class="account-order account-card">
+      <div class="account-order-head">
+        <div class="flex-grow-1">
+          <h3 class="account-order-title"><span class="placeholder col-7"></span></h3>
+          <p class="account-order-meta"><span class="placeholder col-5"></span></p>
+        </div>
+        <span class="placeholder account-status rounded-pill">Paid</span>
+      </div>
+      <ul class="account-lines">
+        {{ range slice "col-6" "col-4" }}
+          <li class="account-line">
+            <span><span class="placeholder">1 ×</span></span>
+            <span><span class="placeholder {{ . }}"></span></span>
+            <span><span class="placeholder">$00</span></span>
+            <span class="account-line-add"><span class="placeholder">Add again</span></span>
+          </li>
+        {{ end }}
+      </ul>
+      <div class="account-totals">
+        <span><span class="placeholder col-2"></span></span>
+        <span class="text-end"><span class="placeholder">$00</span></span>
+        <span><span class="placeholder col-3"></span></span>
+        <span class="text-end"><span class="placeholder">Visa ending 0000</span></span>
+      </div>
+      <div class="account-order-actions">
+        <span class="placeholder btn btn-sm">Reorder</span>
+        <span class="placeholder btn btn-sm">Change</span>
+      </div>
+    </div>
+  {{ end }}
+</div>

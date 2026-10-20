@@ -10,6 +10,7 @@ import { label } from "../order/lib/zoned.mjs";
 import { forgetJoined, remember } from "../news/hide.js";
 import { forget, showChick, signOut } from "../session/session.js";
 import { api } from "../utils/api.js";
+import { whileLoading } from "../utils/skeleton.js";
 
 const qs = (root, selector) => root.querySelector(selector);
 const all = (root, selector) => Array.from(root.querySelectorAll(selector));
@@ -114,6 +115,7 @@ class Account {
     this.avatars = data.avatars;
     this.terms = data.terms;
     this.app = document.getElementById("account-app");
+    this.region = document.getElementById("account-region");
     this.loading = document.getElementById("account-loading");
     this.flash = document.getElementById("account-flash");
     this.customer = null;
@@ -121,34 +123,58 @@ class Account {
     this.dates = null;
   }
 
-  async start() {
+  // The page loads as one region (#271): its skeleton holds the place
+  // until the account and its orders are both in, or says it failed.
+  start() {
+    return whileLoading(this.region, () => this.fetch(), {
+      render: (got) => this.show(got),
+      retry: () => this.start(),
+    });
+  }
+
+  // -> what the page shows, or null when it could not be had.
+  async fetch() {
     const me = await api("/api/me");
 
     // Maintenance keeps sessions but closes the account: the message
     // stands in for the page (#267).
-    if (me.ok && me.data.maintenance) {
-      this.loading.textContent = me.data.message;
-      this.loading.hidden = false;
-
-      return;
-    }
-    if (!me.ok || !me.data.signedIn) {
+    if (me.ok && me.data.maintenance) return { maintenance: me.data.message };
+    if (me.status === 401 || (me.ok && !me.data.signedIn)) {
       // Come back to where they were headed, not just the account
       // page, so a link to one order survives signing in.
       location.replace(`/login/?next=${encodeURIComponent(
         location.pathname + location.search + location.hash
       )}`);
 
+      // The page is going; the bars stay until it has.
+      return new Promise(() => {});
+    }
+    if (!me.ok) return null;
+
+    const orders = await api("/api/account/orders");
+
+    if (!orders.ok) return null;
+
+    return { customer: me.data.customer, orders: orders.data.orders || [] };
+  }
+
+  show({ maintenance, customer, orders }) {
+    if (maintenance) {
+      this.loading.textContent = maintenance;
+      this.loading.hidden = false;
+
       return;
     }
 
-    this.customer = me.data.customer;
+    this.customer = customer;
     this.wire();
     this.renderHead();
     this.renderAddress();
     this.renderProfile();
-    await this.loadOrders();
-    this.loading.hidden = true;
+    this.orders = orders;
+    this.renderOrders();
+    this.renderReceipts();
+    this.renderSupportOrders();
     this.app.hidden = false;
     this.showTab(location.hash.replace("#", "") || "orders");
     this.openOrder(orderFromPath());
@@ -566,15 +592,6 @@ class Account {
   }
 
   // Orders and receipts
-
-  async loadOrders() {
-    const { ok, data } = await api("/api/account/orders");
-
-    this.orders = ok ? data.orders : [];
-    this.renderOrders();
-    this.renderReceipts();
-    this.renderSupportOrders();
-  }
 
   renderOrders() {
     const list = document.getElementById("orders-list");

@@ -22,6 +22,7 @@
 
 import { venmoGate } from "./lib/venmo.mjs";
 import { crumb, reportError, reportUnavailable, sdk } from "./report.js";
+import { whileLoading } from "../utils/skeleton.js";
 
 const qs = (root, selector) => root.querySelector(selector);
 
@@ -156,10 +157,19 @@ export class Payment {
   async load() {
     if (this.starting) return this.starting;
 
-    this.starting = this.init().catch((error) => {
+    // The card fields wait under a skeleton (#271). A payment that
+    // turns out unavailable says so itself; one still loading after
+    // the skeleton gives up offers Try again, a reload.
+    const init = () => this.init().then(() => true, (error) => {
       console.error(error);
       reportUnavailable("checkout.init", error);
       this.setState("unavailable");
+
+      return true;
+    });
+
+    this.starting = whileLoading(qs(this.root, "#pay-card-panel"), init, {
+      failed: (done) => !done,
     });
 
     return this.starting;

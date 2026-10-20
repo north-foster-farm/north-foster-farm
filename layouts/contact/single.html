@@ -68,13 +68,15 @@
                    the filter appears when the list is long. */}}
               <div class="row" data-contact-orders hidden>
                 <label class="col-sm-3 col-form-label" for="contact-order">Order <span class="text-body-secondary">(optional)</span></label>
-                <div class="col-sm-9">
+                <div class="col-sm-9 skeleton-slot" data-contact-orders-region>
+                  {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
                   <input class="form-control mb-2" type="search" id="contact-order-filter" placeholder="Find an order" aria-label="Find an order" aria-controls="contact-order" autocomplete="off" data-contact-filter hidden>
                   <select class="form-select" id="contact-order" name="orderId" data-field="orderId" aria-describedby="err-contact-order">
                     <option value="">No particular order</option>
                   </select>
                   <div class="visually-hidden" role="status" data-contact-filter-status></div>
                   <div class="invalid-feedback" id="err-contact-order" data-error-for="orderId"></div>
+                  {{ partial "skeleton/status.html" (dict "failed" "We couldn't load your orders.") }}
                 </div>
               </div>
               <div class="row">

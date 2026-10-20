@@ -1,0 +1,13 @@
+{{/*
+  What a loading region says (#271): "Loading…" to a screen reader
+  while it loads, and, if it fails, a short message with a Try again
+  link (scripts/utils/skeleton.js wires it). One per region.
+
+  (dict "failed" "We couldn't load your orders.") sets the message;
+  (dict "quiet" true) leaves it out, for a region that falls back to
+  what it had. The messages are drafts.
+*/}}
+<span class="visually-hidden skeleton-status">Loading…</span>
+{{- if not .quiet }}
+  <p class="skeleton-failed" role="status">{{ .failed | default "This didn't load." }} <a href="" data-skeleton-retry>Try again</a></p>
+{{- end }}

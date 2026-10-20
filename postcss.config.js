@@ -107,6 +107,11 @@ const plugins = [
         "data-hot",
         "delivery",
         "places",
+        // A region loading (#271), set by scripts/utils/skeleton.js.
+        "data-load",
+        "wait",
+        "shown",
+        "aria-busy",
       ];
     },
     safelist: {
@@ -153,6 +158,9 @@ const plugins = [
         "order-qty-tick",
         "form-control-plaintext",
         "text-danger-emphasis",
+        // The loading skeletons (#271), some cloned in by scripts.
+        /^placeholder/,
+        /^skeleton/,
       ],
       // Bootstrap builds the tooltip at runtime.
       deep: [/^tooltip/, /^bs-tooltip/],

@@ -10,6 +10,7 @@ import Dropdown from "bootstrap/js/dist/dropdown.js";
 import { index, search } from "./match.js";
 import { cartCount, inCart, setCart } from "./cart.js";
 import { room as roomFor, soldOut as isSoldOut } from "./stock.js";
+import { whileLoading } from "../utils/skeleton.js";
 
 const STOCK_TTL = 60_000;
 
@@ -27,6 +28,8 @@ export const wireSearch = () => {
   const q = (selector) => dialog.querySelector(selector);
   const input = q(".search-palette-input");
   const list = q(".search-palette-list");
+  const body = q(".search-palette-body");
+  const bar = q("[data-search-skeleton]");
   const empty = q("[data-search-empty]");
   const card = q("[data-search-card]");
   const img = q("[data-search-img]");
@@ -50,18 +53,21 @@ export const wireSearch = () => {
   let stockAt = 0;
 
   // Live stock: { sku: { inStock, available } }, or null if unknown.
+  // The rows' prices wait under skeletons while it comes (#271); if it
+  // fails, the build's stock stands in.
   const loadStock = async () => {
     if (stock && Date.now() - stockAt < STOCK_TTL) return;
-    try {
+    await whileLoading(body, async () => {
       const res = await fetch("/api/stock", { cache: "no-store" });
 
-      if (!res.ok) return;
-      stock = (await res.json()).items || {};
-      stockAt = Date.now();
-      refreshStock();
-    } catch {
-      // The build's stock stands in.
-    }
+      return res.ok ? (await res.json()).items || {} : null;
+    }, {
+      render: (items) => {
+        stock = items;
+        stockAt = Date.now();
+        refreshStock();
+      },
+    });
   };
 
   const soldOut = (p) => isSoldOut(stock, p.sku);
@@ -127,7 +133,7 @@ export const wireSearch = () => {
   const markRow = (row, p) => {
     if (soldOut(p)) row.dataset.stock = "out";
     else delete row.dataset.stock;
-    row.querySelector(".search-palette-row-price").textContent =
+    row.querySelector(".search-palette-row-price").firstChild.nodeValue =
       soldOut(p) ? "Sold out" : money(p.price);
   };
 
@@ -146,7 +152,11 @@ export const wireSearch = () => {
       group.textContent = p.group;
       // A dot between them: weight alone can't part "Eggs Large".
       name.append(group, ` · ${p.label}`);
-      price.className = "search-palette-row-price";
+      price.className = "search-palette-row-price skeleton-slot";
+      // Its words first, then the bar that covers them while stock is
+      // on its way (#271).
+      price.append(document.createTextNode(""),
+        bar.content.firstElementChild.cloneNode(true));
       row.append(name, price);
       markRow(row, p);
 

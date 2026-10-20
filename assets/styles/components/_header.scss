@@ -620,13 +620,20 @@ header {
 // The slot holds the Sign in link from the first paint, transparent,
 // so the menu never shifts; session.js fades it in, or swaps in the
 // Account menu, once it knows who is here.
+// While /api/me is slow, a bar holds the link's place (#271): the
+// slot's own fade leaves the skeleton out.
 .site-account {
+  --skeleton-cover: transparent;
+
   display: flex;
   align-items: center;
-  opacity: 0;
-  transition: opacity 0.3s ease;
 
-  &.is-ready {
+  > :not(.skeleton) {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  &.is-ready > :not(.skeleton) {
     opacity: 1;
   }
 
@@ -635,10 +642,19 @@ header {
     flex-direction: column;
     align-items: stretch;
     gap: 0.25rem;
+
+    // The slot spans the menu; the bar covers only where Sign in sits.
+    > .skeleton-over {
+      top: 0.5rem;
+      right: auto;
+      width: 4.75rem;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    transition: none;
+    > * {
+      transition: none;
+    }
   }
 }
 

@@ -2,7 +2,9 @@
 <h2 class="visually-hidden">Choose your items</h2>
 <div class="invalid-feedback d-block mb-2" data-error-for="lines"></div>
 
+{{/* The Add buttons wait for /api/stock under a bar each (#271). */}}
 <div class="order-catalog" id="order-catalog" tabindex="0">
+  {{ partial "skeleton/status.html" (dict "failed" "We couldn't check what's in stock.") }}
   {{ range $groups }}
     <section class="order-cat" id="cat-{{ .key }}" aria-labelledby="cat-{{ .key }}-h">
       <h3 class="order-cat-title" id="cat-{{ .key }}-h">
@@ -22,6 +24,7 @@
             </span>
             <span class="order-item-stock" data-stock-note aria-live="polite"></span>
             <div class="order-qty" data-qty-state="empty">
+              {{ partial "skeleton.html" (dict "over" true) }}
               <button type="button" class="btn btn-outline-primary btn-sm order-qty-add" data-step="1" aria-hidden="true" tabindex="-1">Add</button>
               <div class="order-qty-step" role="group" aria-label="Quantity of {{ .label }}">
                 <button type="button" class="btn" data-step="-1" aria-label="One fewer">&minus;</button>

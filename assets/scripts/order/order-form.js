@@ -25,9 +25,11 @@ import { crumb } from "./report.js";
 import { Stock } from "./stock.js";
 import { Submitter } from "./submit.js";
 import { announceCart } from "../cart-badge/announce.js";
+import { stampFrom } from "../session/cache.js";
 import { me } from "../session/session.js";
 import { api } from "../utils/api.js";
 import { setBusy as spin } from "../utils/busy-button.js";
+import { whileLoading } from "../utils/skeleton.js";
 
 // A send that can't get through is tried once more this soon, while
 // the page still shows it being placed, and then not again (#154).
@@ -150,18 +152,26 @@ export class OrderForm {
     this.payment.start();
 
     // A signed-in customer sees their discount group as they shop, and
-    // their details arrive already filled in.
-    me().then((who) => {
-      if (!who.signedIn || !who.customer) return;
+    // their details arrive already filled in, under skeletons while
+    // they come (#271). Someone with no session stamp is signed out,
+    // so their fields never wait; if the answer fails, they type.
+    const fields = stampFrom(document.cookie)
+      ? all(this.form, "[data-prefill-region]")
+      : [];
 
-      const group = who.customer.discountGroup || null;
+    whileLoading(fields, me, { render: (who) => this.signedIn(who) });
+  }
 
-      if (group && group !== this.group) {
-        this.group = group;
-        this.refresh();
-      }
-      this.prefill(who.customer);
-    }).catch(() => {});
+  signedIn(who) {
+    if (!who.signedIn || !who.customer) return;
+
+    const group = who.customer.discountGroup || null;
+
+    if (group && group !== this.group) {
+      this.group = group;
+      this.refresh();
+    }
+    this.prefill(who.customer);
   }
 
   // /order/?edit=<id>: the page opens one of the customer's paid orders

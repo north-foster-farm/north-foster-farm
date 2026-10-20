@@ -1,0 +1,33 @@
+{{/*
+  A loading skeleton (#271): pale bars in the shape of something that
+  loads after the page, Bootstrap's placeholders with the glow.
+  scripts/utils/skeleton.js shows and clears them; each region also
+  takes one partials/skeleton/status.html, its "Loading…" and its
+  message when the load fails.
+
+  Two kinds:
+
+  - In the flow, (dict "shape" "account"): the bars in
+    partials/skeleton/<shape>.html stand in for whatever follows the
+    skeleton in its region, and must take the same room. A region that
+    loads with the page says so in its markup, data-load="wait" and
+    aria-busy="true", so its place is kept from the first paint.
+  - Laid over, (dict "over" true): one bar covering the box it sits
+    in, which must be positioned (.skeleton-slot does it), so the box
+    keeps its own size. "fit" "field" covers only a form field's
+    height at the top of the box.
+
+  Words inside a bar give it their width and are never seen or read.
+*/}}
+{{ $class := "skeleton placeholder-glow" }}
+{{ if .over }}
+  {{ $class = printf "%s skeleton-over" $class }}
+  {{ with .fit }}{{ $class = printf "%s skeleton-%s" $class . }}{{ end }}
+{{ end }}
+<div class="{{ $class }}" aria-hidden="true">
+  {{- with .shape -}}
+    {{ partial (printf "skeleton/%s.html" .) $ }}
+  {{- else -}}
+    <span class="placeholder"></span>
+  {{- end -}}
+</div>

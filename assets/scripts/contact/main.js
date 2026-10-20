@@ -9,6 +9,7 @@ import { api } from "../utils/api.js";
 import { looksLikeEmail } from "../utils/email.js";
 import { isBusy, whileBusy } from "../utils/busy-button.js";
 import { me } from "../session/session.js";
+import { whileLoading } from "../utils/skeleton.js";
 
 const qs = (root, selector) => root.querySelector(selector);
 const all = (root, selector) => Array.from(root.querySelectorAll(selector));
@@ -41,19 +42,37 @@ const orderText = (order) => [
   order.totals ? dollars(order.totals.total) : "",
 ].filter(Boolean).join(", ");
 
-// The customer's own orders, newest first. Signed out, or with none,
-// the order row stays hidden and orderId goes as "".
-const offerOrders = async (form) => {
-  const { ok, data } = await api("/api/account/orders")
-    .catch(() => ({ ok: false }));
-  const orders = ok && data && Array.isArray(data.orders)
+// The customer's own orders, newest first, or null.
+const fetchOrders = async () => {
+  const { ok, data } = await api("/api/account/orders");
+
+  return ok && data && Array.isArray(data.orders)
     ? [...data.orders].sort((a, b) =>
       String(b.submittedAt).localeCompare(String(a.submittedAt)))
-    : [];
+    : null;
+};
 
-  if (!orders.length) return;
-
+// A signed-in customer's order row shows at once, its list under a
+// skeleton until the orders come (#271). With none, the row goes
+// again; signed out, it never shows, and orderId goes as "".
+const offerOrders = (form) => {
   const row = qs(form, "[data-contact-orders]");
+
+  row.hidden = false;
+
+  return whileLoading(qs(row, "[data-contact-orders-region]"), fetchOrders, {
+    render: (orders) => listOrders(row, orders),
+    retry: () => offerOrders(form),
+  });
+};
+
+const listOrders = (row, orders) => {
+  if (!orders.length) {
+    row.hidden = true;
+
+    return;
+  }
+
   const select = qs(row, "select");
   const filter = qs(row, "[data-contact-filter]");
   const status = qs(row, "[data-contact-filter-status]");
@@ -88,7 +107,6 @@ const offerOrders = async (form) => {
       if (e.key === "Enter") e.preventDefault();
     });
   }
-  row.hidden = false;
 };
 
 const prefill = async (form) => {

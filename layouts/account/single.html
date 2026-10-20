@@ -7,7 +7,12 @@
       <div class="account-wide mb-5">
         {{ partial "page-heading.html" . }}
 
-        <p class="account-loading" id="account-loading" role="status">Loading your account…</p>
+        {{/* Loading from the first paint (#271): the bars hold the
+             page's place until main.js has the account. */}}
+        <div id="account-region" data-load="wait" aria-busy="true">
+        {{ partial "skeleton.html" (dict "shape" "account") }}
+        {{ partial "skeleton/status.html" (dict "failed" "We couldn't load your account.") }}
+        <p class="account-loading" id="account-loading" role="status" hidden></p>
 
         <div id="account-app" hidden>
           <header class="account-head">
@@ -219,6 +224,7 @@
 
           {{/* James's line (#238), once under every tab. */}}
           <p class="account-contact"><a href="mailto:{{ hugo.Data.company.email }}">Contact us</a> with your questions or concerns and we'll answer by email.</p>
+        </div>
         </div>
       </div>
     </div>

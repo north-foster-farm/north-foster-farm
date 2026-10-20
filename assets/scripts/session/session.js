@@ -7,6 +7,7 @@
 import { api } from "../utils/api.js";
 import { forgetCustomer } from "../order/draft.js";
 import { fresh, stampFrom } from "./cache.js";
+import { whileLoading } from "../utils/skeleton.js";
 
 const KEY = "nff-me";
 
@@ -103,8 +104,14 @@ export const Session = {
 
     if (!slots.length) return;
 
-    const who = await me();
+    // A slow answer shows a bar in the slot (#271); none at all, or an
+    // error, leaves the Sign in link, and a late answer still lands.
+    const who = await whileLoading(slots, me, {
+      render: (answer) => {
+        for (const slot of slots) fill(slot, answer);
+      },
+    });
 
-    for (const slot of slots) fill(slot, who);
+    if (!who) for (const slot of slots) fill(slot, { signedIn: false });
   },
 };

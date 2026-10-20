@@ -23,16 +23,20 @@
         <div class="order-method-body order-hform">
           <div class="row">
             <label class="col-sm-4 col-form-label" for="onfarm-date">Pickup day</label>
-            <div class="col-sm-8">
+            <div class="col-sm-8 skeleton-slot" data-dates-region>
+              {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
               <select class="form-select" id="onfarm-date" name="onfarm.date" data-dates="onfarm" data-field="fulfilment.date" disabled aria-describedby="err-onfarm-date">
                 <option value="">Loading dates&hellip;</option>
               </select>
               <div class="invalid-feedback" id="err-onfarm-date" data-error-for="fulfilment.date"></div>
+              {{ partial "skeleton/status.html" (dict "failed" "We couldn't load the dates.") }}
             </div>
           </div>
           <div class="row">
             <span class="col-sm-4 col-form-label" id="onfarm-window-label">Pickup time</span>
-            <div class="col-sm-8">
+            <div class="col-sm-8 skeleton-slot" data-dates-region>
+              {{ partial "skeleton.html" (dict "over" true) }}
+              {{ partial "skeleton/status.html" (dict "quiet" true) }}
               {{/* The chosen day's windows from the farm's schedule
                    (/api/dates, W11d), one radio each, from the
                    template below (order-form.js renderWindows). */}}
@@ -79,11 +83,13 @@
         <div class="order-method-body order-hform">
           <div class="row">
             <label class="col-sm-4 col-form-label" for="scituate-date">Choose a pick-up day</label>
-            <div class="col-sm-8">
+            <div class="col-sm-8 skeleton-slot" data-dates-region>
+              {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
               <select class="form-select" id="scituate-date" name="scituate.date" data-dates="scituate" data-field="fulfilment.date" disabled aria-describedby="err-scituate-date">
                 <option value="">Loading dates&hellip;</option>
               </select>
               <div class="invalid-feedback" id="err-scituate-date" data-error-for="fulfilment.date"></div>
+              {{ partial "skeleton/status.html" (dict "failed" "We couldn't load the dates.") }}
             </div>
           </div>
         </div>
@@ -111,11 +117,13 @@
           </p>
           <div class="row">
             <label class="col-sm-4 col-form-label" for="delivery-date">Delivery date</label>
-            <div class="col-sm-8 col-lg-6">
+            <div class="col-sm-8 col-lg-6 skeleton-slot" data-dates-region>
+              {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
               <select class="form-select" id="delivery-date" name="delivery.date" data-dates="delivery" data-field="fulfilment.date" disabled aria-describedby="err-delivery-date">
                 <option value="">Loading dates&hellip;</option>
               </select>
               <div class="invalid-feedback" id="err-delivery-date" data-error-for="fulfilment.date"></div>
+              {{ partial "skeleton/status.html" (dict "failed" "We couldn't load the dates.") }}
             </div>
           </div>
           <div class="row">

@@ -1,26 +1,32 @@
 {{/* Horizontal layout: label column, field column. A signed-in
      customer's name, email and phone arrive filled in, as ordinary
-     fields. */}}
+     fields, under skeletons while /api/me answers (#271). */}}
 <fieldset class="order-section order-details mb-5" id="details">
   <legend class="h2" tabindex="-1">Contact information</legend>
   <div class="order-hform">
     <div class="row">
       <label class="col-sm-3 col-form-label" for="customer-first-name">First name</label>
-      <div class="col-sm-9">
+      <div class="col-sm-9 skeleton-slot" data-prefill-region>
+        {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
+        {{ partial "skeleton/status.html" (dict "quiet" true) }}
         <input class="form-control" type="text" id="customer-first-name" name="customer.firstName" autocomplete="given-name" required data-field="customer.firstName" data-prefill="firstName" aria-describedby="err-customer-first-name">
         <div class="invalid-feedback" id="err-customer-first-name" data-error-for="customer.firstName"></div>
       </div>
     </div>
     <div class="row">
       <label class="col-sm-3 col-form-label" for="customer-last-name">Last name</label>
-      <div class="col-sm-9">
+      <div class="col-sm-9 skeleton-slot" data-prefill-region>
+        {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
+        {{ partial "skeleton/status.html" (dict "quiet" true) }}
         <input class="form-control" type="text" id="customer-last-name" name="customer.lastName" autocomplete="family-name" required data-field="customer.lastName" data-prefill="lastName" aria-describedby="err-customer-last-name">
         <div class="invalid-feedback" id="err-customer-last-name" data-error-for="customer.lastName"></div>
       </div>
     </div>
     <div class="row">
       <label class="col-sm-3 col-form-label" for="customer-email">Email</label>
-      <div class="col-sm-9">
+      <div class="col-sm-9 skeleton-slot" data-prefill-region>
+        {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
+        {{ partial "skeleton/status.html" (dict "quiet" true) }}
         <input class="form-control" type="email" id="customer-email" name="customer.email" autocomplete="email" inputmode="email" required data-field="customer.email" data-prefill="email" aria-describedby="err-customer-email">
         <div class="invalid-feedback" id="err-customer-email" data-error-for="customer.email"></div>
         {{/* Farm news is opt-in only: the box starts unticked, a
@@ -39,7 +45,9 @@
     <div class="row">
       {{/* Required for delivery only (order-form.js toggles it). */}}
       <label class="col-sm-3 col-form-label" for="customer-phone">Phone <span class="text-body-secondary" data-phone-optional hidden>(optional)</span></label>
-      <div class="col-sm-9">
+      <div class="col-sm-9 skeleton-slot" data-prefill-region>
+        {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
+        {{ partial "skeleton/status.html" (dict "quiet" true) }}
         <input class="form-control" type="tel" id="customer-phone" name="customer.phone" autocomplete="tel" inputmode="tel" data-field="customer.phone" data-prefill="phone" aria-describedby="err-customer-phone">
         <div class="invalid-feedback" id="err-customer-phone" data-error-for="customer.phone"></div>
       </div>

@@ -244,4 +244,11 @@ $breadcrumb-divider:                "▸";
 
 $spinner-animation-speed: 0.6s;
 
+// Loading skeletons (#271): Bootstrap's placeholders, pale green-grey
+// bars that glow from full to half strength.
+
+$placeholder-opacity-max: 1;
+$placeholder-opacity-min: 0.5;
+$skeleton-color:          mix($green, $gray-100, 14%);
+
 $spinner-border-width-sm: 2px;

@@ -7,6 +7,7 @@
 // on.
 
 import { wire } from "./signup.js";
+import { whileLoading } from "../utils/skeleton.js";
 
 // How far ahead of the end, in pixels, the next page starts loading.
 const AHEAD = 800;
@@ -15,6 +16,7 @@ export const wireMore = () => {
   const years = document.querySelector("[data-news-years]");
   const pager = document.querySelector("[data-news-pager]");
   const link = pager && pager.querySelector("[data-news-next]");
+  const more = document.querySelector("[data-news-more]");
 
   if (!years || !link || !("IntersectionObserver" in window)) return;
 
@@ -63,36 +65,50 @@ export const wireMore = () => {
     sentinel.remove();
   };
 
+  // The page, parsed, or null.
+  const fetchPage = async () => {
+    const res = await fetch(next);
+
+    return res.ok
+      ? new DOMParser().parseFromString(await res.text(), "text/html")
+      : null;
+  };
+
+  const take = (doc) => {
+    const added = append(doc);
+    const more = doc.querySelector("[data-news-next]");
+
+    next = more ? more.href : null;
+    status.textContent = `${added} older ${added === 1
+      ? "post" : "posts"} loaded.`;
+    pager.hidden = true;
+    if (next) {
+      link.href = next;
+    } else {
+      stop();
+    }
+  };
+
+  // The next page comes under a skeleton of its rows (#271). If it
+  // fails, Try again asks once more, and the pager comes back, pointing
+  // at the page that failed.
   const load = async () => {
     if (loading || !next) return;
     loading = true;
     sentinel.dataset.loading = "true";
-    try {
-      const res = await fetch(next);
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const doc = await whileLoading(more, fetchPage, {
+      render: take,
+      retry: () => load(),
+    });
 
-      const doc = new DOMParser().parseFromString(await res.text(),
-        "text/html");
-      const added = append(doc);
-      const more = doc.querySelector("[data-news-next]");
-
-      next = more ? more.href : null;
-      status.textContent = `${added} older ${added === 1
-        ? "post" : "posts"} loaded.`;
-      if (next) {
-        link.href = next;
-      } else {
-        stop();
-      }
-    } catch {
-      // Fall back to the pager, pointing at the page that failed.
-      stop();
+    loading = false;
+    delete sentinel.dataset.loading;
+    if (!doc) {
       link.href = next;
       pager.hidden = false;
-    } finally {
-      loading = false;
-      delete sentinel.dataset.loading;
+
+      return;
     }
     // A short page can leave the end still in view; keep going.
     if (next && near()) load();

@@ -1,0 +1,14 @@
+{{/* Older posts on their way (#271): three rows in the list's own
+     classes, the thumbnail's card and the date, title and line. */}}
+<ol class="list-unstyled news-list">
+  {{ range seq 3 }}
+    <li class="news-item">
+      <span class="placeholder news-thumb"></span>
+      <div class="news-item-body">
+        <p class="news-date mb-0"><span class="placeholder col-3"></span></p>
+        <h3 class="news-item-title"><span class="placeholder col-8"></span></h3>
+        <p class="mb-0"><span class="placeholder col-11"></span> <span class="placeholder col-6"></span></p>
+      </div>
+    </li>
+  {{ end }}
+</ol>

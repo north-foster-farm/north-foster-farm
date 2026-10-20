@@ -50,6 +50,11 @@
       <button class="search-palette-close" type="button" data-search-close aria-label="Close search">{{ partial "svg.html" "icons/x" }}</button>
     </div>
     <div class="search-palette-body">
+      {{/* While /api/stock answers, each row's price, which may turn to
+           Sold out, waits under a bar cloned from here (#271). Add
+           stays live: the build's stock stands in until then. */}}
+      {{ partial "skeleton/status.html" (dict "quiet" true) }}
+      <template data-search-skeleton>{{ partial "skeleton.html" (dict "over" true) }}</template>
       <ul class="search-palette-list" id="search-palette-list" role="listbox" aria-label="Products"></ul>
       <p class="search-palette-empty" data-search-empty hidden></p>
       <section class="search-palette-card" data-search-card hidden>

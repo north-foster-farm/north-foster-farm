@@ -245,6 +245,11 @@
     transition: padding-left var(--order-base) var(--order-ease);
   }
 
+  // A failed load's Try again (#271), tabbed to, clears the top bar.
+  .skeleton-failed a {
+    scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
+  }
+
   // Marks the section in view. A double chevron, since a single one
   // read as an accordion's toggle (#228); it takes no pointer.
   .order-cat-chev {
@@ -1789,14 +1794,6 @@
     }
   }
 
-  .order-pay-loading {
-    margin: -3.5rem 0 0;
-    padding-top: 1rem;
-    font-size: 0.875rem;
-    color: var(--bs-secondary-color);
-  }
-
-
 
   // Every way to pay, equal cells: four across while they fit, then
   // two by two, then a stack. The vendors' buttons fill their cells.
@@ -1935,7 +1932,6 @@
 
   .order-pay[data-pay-state="ready"],
   .order-pay[data-pay-state="venmo-only"] {
-    .order-pay-loading,
     .order-pay-unavailable {
       display: none;
     }

@@ -2,6 +2,8 @@
 // server on load, and the clock is anchored to the server's, so a
 // visitor's wrong clock cannot offer a closed date.
 
+import { clear, whileLoading } from "../utils/skeleton.js";
+
 const RETRY = [2000, 5000, 15000, 30000];
 const HOUR = 3_600_000;
 
@@ -32,6 +34,8 @@ export class DateLists {
     this.timer = null;
     this.chip = form.querySelector("[data-countdown]");
     this.text = form.querySelector("[data-countdown-text]");
+    this.regions = form.querySelectorAll("[data-dates-region]");
+    this.again = null;
   }
 
   now() {
@@ -61,20 +65,42 @@ export class DateLists {
       (d.windows || []).map((w) => ({ date: d.date, ...w })));
   }
 
+  // The first load, and a Try again: the date fields show their
+  // skeletons while it runs (#271). A failure says so under the
+  // field, and the lists are asked for again in the background.
   async load() {
-    try {
-      const res = await fetch("/api/dates", { cache: "no-store" });
+    const data = await whileLoading(this.regions, () => this.fetchLists(), {
+      render: (lists) => this.apply(lists),
+      retry: () => this.load(),
+    });
 
-      if (!res.ok) throw new Error(String(res.status));
-
-      this.apply(await res.json());
+    if (data) {
       this.attempt = 0;
-    } catch {
-      const delay = RETRY[Math.min(this.attempt++, RETRY.length - 1)];
-
-      this.note("We couldn't load the available dates. Retrying…");
-      setTimeout(() => this.load(), delay);
+    } else {
+      this.retryLater();
     }
+  }
+
+  // -> the lists, or null.
+  async fetchLists() {
+    const res = await fetch("/api/dates", { cache: "no-store" });
+
+    return res.ok ? res.json() : null;
+  }
+
+  retryLater() {
+    const delay = RETRY[Math.min(this.attempt++, RETRY.length - 1)];
+
+    this.note("We couldn't load the available dates. Retrying…");
+    clearTimeout(this.again);
+    this.again = setTimeout(async () => {
+      if (await this.refresh()) {
+        this.attempt = 0;
+        clear(this.regions);
+      } else {
+        this.retryLater();
+      }
+    }, delay);
   }
 
   apply(data) {
@@ -159,7 +185,7 @@ export class DateLists {
       // The cutoff passed while the page was open: refresh the lists
       // so the closed date leaves the select without a reload.
       this.note("That cutoff just passed. Updating dates…");
-      this.load();
+      this.refresh().then((ok) => ok || this.retryLater());
 
       return;
     }

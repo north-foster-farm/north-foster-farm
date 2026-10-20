@@ -4,7 +4,10 @@
      out as plain links instead of a dropdown. */}}
 {{ $flat := .flat }}
 {{ $ctx := .ctx }}
-<div class="site-account{{ if not $flat }} dropdown{{ end }}" data-account>
+<div class="site-account skeleton-slot{{ if not $flat }} dropdown{{ end }}" data-account>
+  {{/* The Sign in link's place while /api/me is slow (#271). */}}
+  {{ partial "skeleton.html" (dict "over" true) }}
+  {{ partial "skeleton/status.html" (dict "quiet" true) }}
   <a class="site-nav-link site-signin" href="{{ relURL "login/" }}" data-account-signin {{- if $ctx.onLogin }} aria-current="page" {{ end }}>Sign in</a>
   {{ if $flat }}
     <div class="site-menu-flat" data-account-menu hidden>

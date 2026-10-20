@@ -4,6 +4,8 @@
 // A row that sold out is closed; a quantity above what is left is
 // brought down and the customer is told.
 
+import { clear, whileLoading } from "../utils/skeleton.js";
+
 const EVERY = 2 * 60_000;
 
 export class Stock {
@@ -12,6 +14,7 @@ export class Stock {
   // form's own setter, so the row's state follows.
   constructor(form, { onChange, setQty }) {
     this.form = form;
+    this.region = document.getElementById("order-catalog");
     this.onChange = onChange;
     this.setQty = setQty || ((input, n) => { input.value = String(n); });
     this.items = null;
@@ -22,7 +25,7 @@ export class Stock {
   }
 
   start() {
-    this.refresh();
+    this.first();
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") this.refresh();
     });
@@ -32,17 +35,36 @@ export class Stock {
     }, EVERY);
   }
 
-  // -> the latest availability, or null when it cannot be fetched.
+  // The first answer, and a Try again: the Add buttons wait under
+  // their skeletons (#271), since one pressed now might be sold out.
+  first() {
+    return whileLoading(this.region, () => this.fetchItems(), {
+      render: (items) => this.take(items),
+      retry: () => this.first(),
+    });
+  }
+
+  // -> { sku: state }, or null.
+  async fetchItems() {
+    const res = await fetch("/api/stock", { cache: "no-store" });
+
+    return res.ok ? (await res.json()).items || {} : null;
+  }
+
+  take(items) {
+    this.items = items;
+    this.apply();
+  }
+
+  // -> the latest availability, or null when it cannot be fetched. A
+  // good answer also ends a failed first load.
   async refresh() {
     try {
-      const res = await fetch("/api/stock", { cache: "no-store" });
+      const items = await this.fetchItems();
 
-      if (!res.ok) return null;
-
-      const data = await res.json();
-
-      this.items = data.items || {};
-      this.apply();
+      if (!items) return null;
+      clear(this.region);
+      this.take(items);
 
       return this.items;
     } catch {

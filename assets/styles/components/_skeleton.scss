@@ -1,0 +1,94 @@
+// Loading skeletons (#271): partials/skeleton.html draws them and
+// scripts/utils/skeleton.js sets each region's data-load. Nothing
+// here shows until a region is loading.
+
+.skeleton,
+.skeleton-status,
+.skeleton-failed {
+  display: none;
+}
+
+// The bars: Bootstrap's placeholders in the brand's pale green-grey,
+// at the site's radius. Words inside one size it, unseen.
+.skeleton .placeholder {
+  border-radius: $border-radius;
+  background-color: $skeleton-color;
+  color: transparent;
+  cursor: default;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton.placeholder-glow .placeholder {
+    animation: none;
+  }
+}
+
+[data-load="wait"],
+[data-load="shown"] {
+  .skeleton-status {
+    display: inline;
+  }
+}
+
+[data-load="failed"] .skeleton-failed {
+  display: block;
+  margin: 0.5rem 0;
+  color: var(--bs-secondary-color);
+  font-size: 0.875rem;
+}
+
+// In the flow: the bars hold the content's place, unseen at first, and
+// the content after them waits out of sight until it is ready.
+[data-load] > .skeleton:not(.skeleton-over) {
+  display: block;
+}
+
+[data-load="wait"] > .skeleton:not(.skeleton-over) {
+  visibility: hidden;
+}
+
+[data-load="failed"] > .skeleton:not(.skeleton-over) {
+  display: none;
+}
+
+[data-load] > .skeleton:not(.skeleton-over)
+  ~ :not(.skeleton-status, .skeleton-failed) {
+  display: none !important;
+}
+
+// Laid over: one bar covering its box, on the box's own background so
+// what is under it never shows through the glow. It takes the clicks,
+// so nothing under it is pressed before it is ready.
+.skeleton-slot {
+  position: relative;
+}
+
+.skeleton-over {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background-color: var(--skeleton-cover, var(--bs-body-bg));
+
+  > .placeholder {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+[data-load="shown"] .skeleton-over {
+  display: block;
+}
+
+// A grid column's box takes in its gutters; the bar keeps to the
+// content between them.
+.row > .skeleton-slot > .skeleton-over {
+  inset-inline: calc(var(--bs-gutter-x) * 0.5);
+}
+
+// Only a form field's height, at the top of its box.
+.skeleton-field {
+  bottom: auto;
+  height: $input-height;
+}
