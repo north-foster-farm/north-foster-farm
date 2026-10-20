@@ -104,9 +104,15 @@ with `overrides` in `package.json`.
   GitHub advisory database over the Actions in use. It fails while a
   finding has neither a fix in the lockfile nor a recorded exception.
   The log prints counts only.
-- **Merging to `staging`, and so to `main`, is blocked while any known
-  vulnerability is unresolved.** It resolves by an update or by an
-  exception. This does not require taking every available update.
+- **Promoting to `main` is blocked while any known vulnerability is
+  unresolved.** It resolves by an update or by an exception. This does
+  not require taking every available update. `staging` is not blocked:
+  it serves no customers, and build-only tooling should not stop QA
+  (James, 2026-10-20, #283, relaxing the earlier rule that blocked
+  `staging` too). The gate is `release-audit`, its own workflow
+  (`release-audit.yml`) that runs only on a pull request into `main`,
+  so no run on another event can satisfy it for the same commit.
+  `audit` runs the same command on every push and blocks nothing.
 - **Exceptions are James's call and are recorded** in
   `security/exceptions.json`: package, advisory id, why, how we are
   exposed, and the plan. Entries are public-safe; exploit detail goes
@@ -202,8 +208,10 @@ to-do list and prints the line to paste into the pull request.
 - `fast-forward only: next, staging, main`: linear history, no force
   push, no deletion.
 - `required checks: staging, main`: `lint-and-test`, `supply-chain`
-  and `codeql`, each from the GitHub Actions app. `audit` joins when
-  the open advisories are decided.
+  and `codeql`, each from the GitHub Actions app. James decided the
+  next sets on 2026-10-20 (#283): `build` on both, `release-audit` on
+  `main` only, `record-shape` on `staging`, and the e2e checks. They
+  are applied once each job is green and James confirms.
 
 `next` requires no check, because lanes land by pushing a commit that
 has no result yet. GitHub accepts a direct push of a commit whose
