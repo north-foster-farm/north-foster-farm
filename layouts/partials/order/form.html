@@ -25,7 +25,10 @@
        scrolled away the total joins it on the right, and a tap on it
        goes back to the cart (#203). */}}
   <div class="order-topbar d-lg-none">
-    <span class="order-topbar-title" data-topbar-title aria-hidden="true">{{ .Params.heading | default .Title }}</span>
+    <span class="order-topbar-title order-bar-title" aria-hidden="true">
+      <span class="order-bar-chev">{{ partial "svg.html" "icons/chevrons-right" }}</span>
+      <span class="order-bar-name" data-topbar-title>{{ .Params.heading | default .Title }}</span>
+    </span>
     <button type="button" class="order-topbar-total" data-to-cart inert>
       <span data-total-bar-count>0 items</span>
       <span class="order-cart-sum-label">Total</span>
@@ -53,7 +56,10 @@
          tap on the total goes back to the pane. Below lg the topbar
          carries both. */}}
     <div class="order-total-bar d-none d-lg-flex d-xl-none">
-      <span class="order-total-bar-title" data-topbar-title aria-hidden="true">{{ .Params.heading | default .Title }}</span>
+      <span class="order-total-bar-title order-bar-title" aria-hidden="true">
+        <span class="order-bar-chev">{{ partial "svg.html" "icons/chevrons-right" }}</span>
+        <span class="order-bar-name" data-topbar-title>{{ .Params.heading | default .Title }}</span>
+      </span>
       <button type="button" class="order-total-bar-sum" data-to-cart inert>
         <span data-total-bar-count>0 items</span>
         <span class="order-cart-sum-label">Total</span>

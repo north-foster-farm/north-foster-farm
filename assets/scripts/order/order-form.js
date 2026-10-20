@@ -511,6 +511,9 @@ export class OrderForm {
     // is: until the page scrolls it to the top, it sits lower (#180).
     let stuckTick = null;
     const bar = document.querySelector(".order-topbar");
+    const cartHeading = document.getElementById("order-cart-heading");
+    // The pane's height while it last floated, under its cap.
+    let floatH = 0;
     const stuckWatch = () => {
       stuckTick = null;
 
@@ -520,7 +523,21 @@ export class OrderForm {
       // of the layout viewport (--cart-gap), the keyboard aside.
       const rest = (parseFloat(getComputedStyle(this.cart).bottom) || 12)
         - (this.keyboard || 0);
-      const floating = below && r.bottom > window.innerHeight - rest - 1;
+      // Settled, the pane drops its cap and shows every line (#274), so
+      // its own height cannot decide: taller, it would float again, take
+      // the cap and settle, over and over. Its place in the flow, under
+      // the heading, and its height under the cap decide instead, and
+      // settled it is no longer sticky (_order.scss).
+      const place = cartHeading.getBoundingClientRect().bottom
+        + parseFloat(getComputedStyle(cartHeading).marginBottom);
+
+      // Not while its padding eases back in: short for that moment, it
+      // would settle again for a frame.
+      if (this.cart.dataset.stuck !== "false"
+        && !this.cart.getAnimations().length) floatH = r.height;
+
+      const floating = below && place + Math.min(floatH || r.height, r.height)
+        > window.innerHeight - rest - 1;
       const barRect = bar ? bar.getBoundingClientRect() : null;
       const barBottom = barRect ? barRect.bottom : 0;
 
@@ -652,20 +669,24 @@ export class OrderForm {
         link, target: document.querySelector(link.hash),
       }))
       .filter(({ target }) => target);
+    // Each category's link, by its section; the catalog's rows, top to
+    // bottom.
+    const cats = new Map(sections
+      .filter(({ target }) => target.classList.contains("order-cat"))
+      .map(({ link, target }) => [target, link]));
+    const rows = all(catalog, ".order-item");
+    const cartHeading = document.getElementById("order-cart-heading");
     let shown = null;
     let tick = null;
 
-    // Mark the link, its parent in the outline (Catalog, over a
-    // category) and the category, whose heading shows the chevron.
+    // Mark the link and its parent in the outline (Catalog, over a
+    // category).
     const mark = (link) => {
       const parent = link.closest(".order-side-sub")
         ?.closest(".nav-item").querySelector(":scope > .nav-link");
 
       for (const a of all(nav, ".nav-link")) {
         a.classList.toggle("active", a === link || a === parent);
-      }
-      for (const cat of all(catalog, ".order-cat")) {
-        cat.classList.toggle("is-active", `#${cat.id}` === link.hash);
       }
       if (wide.matches) {
         link.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -697,7 +718,9 @@ export class OrderForm {
       for (const { link, target } of sections) {
         if (target.dataset.stuck === "true") continue;
         if (column && target.id === "order-cart") continue;
-        const top = target.getBoundingClientRect().top;
+        // Settled, the cart begins at its heading, above the pane.
+        const top = (target.id === "order-cart" ? cartHeading : target)
+          .getBoundingClientRect().top;
 
         // On a tie the later link wins: a category over the catalog.
         // At the foot of the page the last section on screen wins,
@@ -709,15 +732,33 @@ export class OrderForm {
         }
       }
 
+      // Within the catalog, the category is the one whose rows are
+      // under the bar: the first row still showing below its edge
+      // names it. A section's top crossing the line named it too late,
+      // after the gap above its heading, while the rows under the bar
+      // were already its own (#274).
+      if (current && (current.hash === `#${catalog.id}`
+        || cats.has(document.querySelector(current.hash)))) {
+        const row = rows.find((el) => el.getBoundingClientRect().bottom
+          > edge + 8);
+
+        if (row && row.getBoundingClientRect().top < window.innerHeight) {
+          current = cats.get(row.closest(".order-cat")) || current;
+        }
+      }
+
       if (current && current !== shown) mark(current);
       shown = current || shown;
 
       const name = current
         ? current.dataset.heading || current.textContent.trim()
         : heading ? heading.textContent.trim() : "";
+      // A category's name in the bar carries the double chevron.
+      const cat = !!current && current.hash.startsWith("#cat-");
 
       for (const title of titles) {
         if (title.textContent !== name) title.textContent = name;
+        title.parentElement.toggleAttribute("data-cat", cat);
       }
     };
     const onScroll = () => {
@@ -1005,8 +1046,14 @@ export class OrderForm {
       seg.removeAttribute("aria-label");
     }
 
+    // Settling opens both parts, and they stay open when the pane floats
+    // again; the tabs then show the lines, where the fill is. "Total"
+    // lit white beside it was white on the grey track (#274).
+    const lines = this.cart.dataset.items === "open";
+
     for (const [part, [button, panelId]] of Object.entries(parts)) {
-      const open = this.cart.dataset[part] === "open";
+      const open = this.cart.dataset[part] === "open"
+        && !(narrow && part === "money" && lines);
       const panel = document.getElementById(panelId);
 
       button.dataset.on = String(open);
@@ -1110,18 +1157,10 @@ export class OrderForm {
     const listBox = wrap.parentElement;
     const foldMin = room + others(wrap.parentElement, wrap)
       + others(listBox.parentElement, listBox) + spacer;
-    // What is under the total row: the badges are information only and
-    // the first to go when the cap has no room for them, so the floor
-    // counts the rest (the way, the code) and the badges at their last
-    // seen height.
-    const badges = qs(after, ".order-badges");
-
-    if (badges.offsetHeight && !this.cart.hasAttribute("data-squeezed")) {
-      this.badgesH = outer(badges);
-    }
-
-    const extra = badges.hidden ? 0 : this.badgesH || 40;
-    const below = others(after.firstElementChild, badges) + spacer;
+    // What is under the total row: the badges, the way and the code.
+    // The badges once gave way first; they are where a discount's
+    // chicks come from, so they stay and the cap gives way (#274).
+    const below = others(after.firstElementChild) + spacer;
     const css = getComputedStyle(this.cart);
     const pane = others(this.cart, fold, after)
       + ["paddingTop", "paddingBottom", "borderTopWidth", "borderBottomWidth"]
@@ -1135,19 +1174,13 @@ export class OrderForm {
     const visible = parseFloat(this.cart.style.getPropertyValue("--cart-vis"))
       || window.innerHeight;
     const roomPx = visible - rem;
-    const most = Math.min(roomPx, Math.max(visible * 0.48, floor));
 
     set(wrap, "--cart-scroll-min", room);
     set(this.cart, "--cart-fold-min", Math.ceil(foldMin));
     set(this.cart, "--cart-min-h", Math.ceil(floor));
 
-    // With no room for the badges they go; too short for the floor
-    // itself, what is under the total row scrolls, so the rows, the
-    // total and Continue keep their room.
-    this.cart.toggleAttribute(
-      "data-squeezed",
-      this.cart.dataset.stuck === "true" && most < floor + extra - 0.5
-    );
+    // Too short for the floor itself, what is under the total row
+    // scrolls, so the rows, the total and Continue keep their room.
     this.cart.toggleAttribute("data-tight", floor > roomPx);
   }
 
@@ -1669,9 +1702,12 @@ export class OrderForm {
       if (on) wayName = way.textContent.trim();
     }
     qs(c, "[data-way-name]").textContent = wayName || "Pickup or delivery";
-    // The delivery badges and the bulk tiers read as delivery terms:
-    // on a pickup they are noise (#267).
-    qs(c, ".order-badges").hidden = method !== "delivery";
+    c.toggleAttribute("data-empty", count === 0);
+    // The delivery pair is noise on a pickup (#267); the bulk tiers
+    // apply to every order and always show (#274).
+    for (const li of all(c, "[data-badge-way]")) {
+      li.hidden = method !== "delivery";
+    }
     this.syncScroll();
     // The header's Order link shows the same count; a change to a paid
     // order is not the cart.
@@ -1696,8 +1732,17 @@ export class OrderForm {
     this.lastCount = count;
 
     // A badge that just turned on sends its chicks; the first render
-    // (a restored draft) only sets the baseline.
+    // (a restored draft) only sets the baseline. They leave the badge
+    // itself; with the pane folded or the badge out of sight, the total.
     const lit = {};
+    const seen = (el) => {
+      const r = el.getBoundingClientRect();
+      const box = c.getBoundingClientRect();
+
+      return c.dataset.open !== "false" && r.height > 0
+        && r.top >= Math.max(0, box.top) - 1
+        && r.bottom <= Math.min(window.innerHeight, box.bottom) + 1;
+    };
 
     for (const badge of s.badges) {
       const el = qs(c, `[data-badge="${badge.key}"]`);
@@ -1705,7 +1750,9 @@ export class OrderForm {
       lit[badge.key] = badge.on;
       if (!el) continue;
       el.dataset.on = String(badge.on);
-      if (badge.on && this.lit && !this.lit[badge.key]) celebrate(el);
+      if (badge.on && this.lit && !this.lit[badge.key]) {
+        celebrate(seen(el) ? el : qs(c, "[data-total='total']"));
+      }
     }
     this.lit = lit;
 

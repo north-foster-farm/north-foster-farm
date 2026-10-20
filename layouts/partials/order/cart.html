@@ -94,12 +94,13 @@
   <div class="order-cart-fold order-cart-after">
     <div class="order-cart-inner">
       <hr class="order-cart-rule order-cart-rule-dark">
-      {{/* Badges, shown only for a delivery: the delivery pair on one
-           dotted line, the bulk tiers under it on a second. */}}
-      <ul class="order-badges list-unstyled" aria-label="What this order qualifies for" hidden>
-        <li><button type="button" class="order-badge" data-badge="delivery" data-tip="{{ $deliveryTip }}">Delivery</button></li>
-        <li><button type="button" class="order-badge" data-badge="free-delivery" data-tip="{{ $freeTip }}">Free delivery</button></li>
-        <li class="order-badges-break" aria-hidden="true"></li>
+      {{/* Badges: the delivery pair on one dotted line, shown only for
+           a delivery (#267), and the bulk tiers always, on a line of
+           their own (#274). */}}
+      <ul class="order-badges list-unstyled" aria-label="What this order qualifies for">
+        <li data-badge-way hidden><button type="button" class="order-badge" data-badge="delivery" data-tip="{{ $deliveryTip }}">Delivery</button></li>
+        <li data-badge-way hidden><button type="button" class="order-badge" data-badge="free-delivery" data-tip="{{ $freeTip }}">Free delivery</button></li>
+        <li class="order-badges-break" aria-hidden="true" data-badge-way hidden></li>
         <li class="order-badges-label" aria-hidden="true">Bulk discount</li>
         {{ range $money.bulkTiers }}
           <li><button type="button" class="order-badge" data-badge="tier-{{ .threshold }}" data-tip="${{ .off }} off orders of ${{ .threshold }} or more.">${{ .threshold }}+</button></li>

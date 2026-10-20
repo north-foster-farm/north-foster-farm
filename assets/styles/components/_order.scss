@@ -226,8 +226,6 @@
   }
 
   // Product list: each category is a heading and a stack of row cards.
-  // The active category's heading slides right to make room for a
-  // chevron that slides in from the left.
 
   .order-cat + .order-cat {
     margin-top: 2.75rem;
@@ -242,7 +240,6 @@
     padding: 0 0.25rem;
     font-size: 1.0625rem;
     scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
-    transition: padding-left var(--order-base) var(--order-ease);
   }
 
   // A failed load's Try again (#271), tabbed to, clears the top bar.
@@ -250,36 +247,46 @@
     scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
   }
 
-  // Marks the section in view. A double chevron, since a single one
-  // read as an accordion's toggle (#228); it takes no pointer.
-  .order-cat-chev {
-    position: absolute;
-    top: 50%;
-    left: 0;
+  // The sticky bar's name. A category's carries a double chevron that
+  // slides in from the left: the bar is always in view, a heading not
+  // (#274). Double, since a single one read as an accordion's toggle
+  // (#228).
+  .order-bar-title {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .order-bar-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .order-bar-chev {
     display: inline-flex;
+    flex: none;
+    width: 0;
+    overflow: hidden;
     color: var(--bs-primary);
-    pointer-events: none;
     opacity: 0;
-    translate: -0.75rem -50%;
+    translate: -0.75rem 0;
     transition:
+      width var(--order-base) var(--order-ease),
       translate var(--order-base) var(--order-ease),
       opacity var(--order-base) ease;
 
     svg {
+      flex: none;
       width: 1.125rem;
       height: 1.125rem;
     }
   }
 
-  .order-cat.is-active {
-    .order-cat-title {
-      padding-left: 1.375rem;
-    }
-
-    .order-cat-chev {
-      opacity: 1;
-      translate: 0.125rem -50%;
-    }
+  .order-bar-title[data-cat] .order-bar-chev {
+    width: 1.5rem;
+    opacity: 1;
+    translate: 0 0;
   }
 
   .order-cat-note {
@@ -806,6 +813,16 @@
     }
   }
 
+  // Empty, there are no lines and nothing to sum: the pane opens on
+  // the way and the code alone (#274).
+  .order-cart[data-empty] {
+    .order-cart-list,
+    .order-cart-money,
+    .order-badges {
+      display: none;
+    }
+  }
+
   // The lines: what is in the cart, grouped under its category with
   // the tiers indented beneath, then the sum. Related things sit
   // closer together than unrelated ones. The rows stack from the top:
@@ -816,8 +833,11 @@
     gap: $cart-group-gap;
     flex: 1 1 auto;
     min-height: 0;
-    margin: 0;
-    padding-bottom: 0.75rem;
+
+    // A line's outline reaches into this padding, inside the scroller's
+    // clip (#274).
+    margin: 0 -0.25rem;
+    padding: 0 0.25rem 0.75rem;
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
@@ -841,6 +861,12 @@
     grid-template-columns: auto minmax(0, 1fr) auto auto;
     column-gap: 0.75rem;
     align-items: center;
+
+    // Room inside for the new line's outline (#274), taken from the
+    // list's own padding so the text and prices stay where they were.
+    margin-inline: -0.25rem;
+    padding-inline: 0.25rem;
+    border-radius: 0.25rem;
     line-height: $cart-line-height;
   }
 
@@ -1071,10 +1097,6 @@
     opacity: 1;
   }
 
-  .order-cart-rule-dark {
-    border-top: 2px solid var(--bs-secondary-color);
-  }
-
   .order-cart-icon {
     display: inline-flex;
 
@@ -1110,6 +1132,14 @@
     transition:
       background-color var(--order-base) var(--order-ease),
       box-shadow var(--order-base) var(--order-ease);
+
+    // Past a phone, a track across the whole pane no longer read as a
+    // two-part control (#274): it keeps a phone's width, at the right,
+    // so the total still stands under the column of prices.
+    @media (min-width: 576px) {
+      flex: 0 1 24rem;
+      margin-left: auto;
+    }
   }
 
   // A transform, not layout: the fill is half the track and moves by
@@ -1164,6 +1194,7 @@
 
   // Settled, or in the column: no track, no fill, plain text.
   .order-cart-seg[data-plain] {
+    flex: 1 1 auto;
     margin-inline: 0;
     background-color: transparent;
     box-shadow: none;
@@ -1172,8 +1203,12 @@
       opacity: 0;
     }
 
-    .order-cart-disclose {
+    // An open part's own fill too: in the column it was a green pill
+    // clipped around "0 items" (#274).
+    .order-cart-disclose,
+    .order-cart-disclose[data-on="true"] {
       padding-inline: 0;
+      background-color: transparent;
       color: inherit;
     }
 
@@ -1184,11 +1219,11 @@
 
   // A tablet's two columns fold their parts on their own, so there is
   // no one fill to slide: each open part carries its own.
-  .order-cart-seg[data-multi] {
-    .order-cart-seg-fill {
-      opacity: 0;
-    }
+  .order-cart-seg[data-multi] .order-cart-seg-fill {
+    opacity: 0;
+  }
 
+  .order-cart-seg[data-multi]:not([data-plain]) {
     .order-cart-disclose[data-on="true"] {
       background-color: var(--bs-primary);
     }
@@ -1237,11 +1272,10 @@
   }
 
   // The new line, outlined in the list for the moment the pane is open
-  // to show it.
+  // to show it. Drawn inside the row: an outline outside it was cut
+  // off by the scroller's edge (#274).
   .order-cart-item.is-new {
-    border-radius: 0.25rem;
-    outline: 2px solid var(--bs-primary);
-    outline-offset: 2px;
+    box-shadow: inset 0 0 0 2px var(--bs-primary);
   }
 
   // The fold control: a pale pill, the chevrons that say what a press
@@ -1323,6 +1357,11 @@
   }
 
   .order-cart-total {
+    // On white the flash is the success green; on the green fill, a
+    // pale brand green with a soft glow. Black there was unreadable.
+    --order-flash: var(--bs-success-text-emphasis);
+    --order-flash-glow: none;
+
     display: inline-block;
     font-size: 1.375rem;
     font-weight: bold;
@@ -1331,6 +1370,12 @@
     &.is-bumped {
       animation: order-bump 260ms var(--order-ease);
     }
+  }
+
+  .order-cart-seg:not([data-plain])
+    .order-cart-disclose[data-on="true"] .order-cart-total {
+    --order-flash: #{tint-color($green, 70%)};
+    --order-flash-glow: 0 0 0.5rem rgb(255 255 255 / 55%);
   }
 
 
@@ -1403,14 +1448,6 @@
 
     .order-cat-title {
       padding: 0;
-    }
-
-    .order-cat-chev {
-      display: none;
-    }
-
-    .order-cat.is-active .order-cat-title {
-      padding-left: 0;
     }
 
     .order-items {
@@ -2185,7 +2222,13 @@
         border-color var(--order-slow) ease,
         box-shadow var(--order-slow) ease;
 
+      // Settled in the page, nothing caps the pane: every line shows,
+      // with no inner scroll and no "N more" pill (#274). Not sticky
+      // then: taller than the screen, sticky would lift it off its
+      // place (order-form.js stuckWatch).
       &[data-stuck="false"] {
+        position: relative;
+        max-height: none;
         margin-inline: -1px;
         padding: 0;
         border-color: transparent;
@@ -2219,6 +2262,12 @@
         // Grown to a sheet, the pane rides over the top bar.
         z-index: 36;
       }
+    }
+
+    // Settled, Continue is as wide as its words, like any other button
+    // (#274).
+    .order-cart[data-stuck="false"] .order-cart-next {
+      flex: 0 0 auto;
     }
 
     // The total row's count folds the lines away; its total unfolds
@@ -2260,12 +2309,6 @@
     .order-cart[data-open="true"][data-items="open"]
       > .order-cart-fold:not(.order-cart-after) {
       min-height: var(--cart-fold-min, 0);
-    }
-
-    // No room under the cap for the badges: they are information only
-    // and the first to go (order-form.js measureFloor).
-    .order-cart[data-squeezed] .order-badges {
-      display: none;
     }
 
     // When the room is too short even for the floor (a phone on its
@@ -2327,6 +2370,11 @@
       contain: size;
     }
 
+    // Settled, the lines set their own height and show in full (#274).
+    .order-cart[data-stuck="false"] .order-cart-scroll {
+      contain: none;
+    }
+
     .order-cart-rule-items {
       display: none;
     }
@@ -2351,8 +2399,9 @@
       text-align: right;
     }
 
-    // With the lines folded, the rest takes the whole width.
-    .order-cart[data-items="closed"] {
+    // With the lines folded, or none, the rest takes the whole width.
+    .order-cart[data-items="closed"],
+    .order-cart[data-empty] {
       grid-template-columns: minmax(0, 1fr);
 
       .order-cart-money,
@@ -2434,6 +2483,11 @@
     font-weight: bold;
     font-variant-numeric: tabular-nums;
   }
+
+  // Empty, the lines' fold goes too, with the floor it keeps (#274).
+  .order-cart[data-empty] > .order-cart-fold:not(.order-cart-after) {
+    display: none;
+  }
 }
 
 // The chick canvas sits over a box around the badge and catches
@@ -2486,20 +2540,19 @@
   }
 }
 
+// The ends leave the color alone, so the total starts and ends in its
+// own: black on white, white on the green fill. Each sets the flash
+// for its background (#274).
 @keyframes order-bump {
-  0% {
+  0%,
+  100% {
     transform: scale(1);
-    color: var(--bs-body-color);
   }
 
   40% {
     transform: scale(1.07);
-    color: var(--bs-success-text-emphasis);
-  }
-
-  100% {
-    transform: scale(1);
-    color: var(--bs-body-color);
+    color: var(--order-flash);
+    text-shadow: var(--order-flash-glow);
   }
 }
 

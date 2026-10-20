@@ -220,7 +220,13 @@ test.describe("cart below xl", () => {
         : page.locator(".order-topbar");
 
       await order.open(FULL_CART);
+      // Passing the cart settles it, and settled it shows every line
+      // (#274), so what follows moves down: go there again after.
       await page.locator("#pickup").scrollIntoViewIfNeeded();
+      await order.scrollSettled();
+      await page.locator("#pickup").evaluate(
+        (el) => el.scrollIntoView({ block: "center", behavior: "instant" })
+      );
       await page.evaluate(() => window.scrollBy(0, 200));
       await page.waitForTimeout(600);
       await expect(bar).toBeVisible();

@@ -83,7 +83,9 @@ const plugins = [
         "data-plain",
         "data-multi",
         "data-tight",
-        "data-squeezed",
+        // The sticky bar names a category; the cart is empty (#274).
+        "data-cat",
+        "data-empty",
         "data-pulse",
         "data-show",
         "data-more",

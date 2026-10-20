@@ -53,8 +53,9 @@ const desktopOnly = [
   "**/contact-send.spec.mjs",
   "**/policies.spec.mjs",
   "**/skip-link.spec.mjs",
-  // It sets its own widths.
+  // They set their own widths.
   "**/overflow.spec.mjs",
+  "**/cart-round3.spec.mjs",
   "**/keyboard.spec.mjs",
 ];
 

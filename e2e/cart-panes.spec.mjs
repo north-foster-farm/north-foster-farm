@@ -222,7 +222,10 @@ test.describe("cart panes on a phone", () => {
   // The badges are the first thing to go when the cap has no room for
   // them (a long cart, or a screen under about 800px tall); a short
   // cart on a taller screen keeps them.
-  test("the badges show only for a delivery, on two lines", async ({
+  // The bulk tiers apply to every order; the delivery pair only to a
+  // delivery (#267). The row went missing for pickup once, and the
+  // chicks with it (4dabd6d, #274).
+  test("the tiers always show, the delivery pair only for a delivery", async ({
     page,
   }) => {
     const order = new OrderPage(page);
@@ -232,14 +235,19 @@ test.describe("cart panes on a phone", () => {
     await page.evaluate(() => window.scrollTo(0, 400));
 
     const badges = order.cart.locator(".order-badges");
+    const tier = order.cart.locator("[data-badge='tier-50']");
+    const delivery = order.cart.locator("[data-badge='delivery']");
 
-    await expect(badges).toBeHidden();
-
-    await order.method("scituate");
-    await expect(badges).toBeHidden();
+    for (const way of ["onfarm", "scituate"]) {
+      await order.method(way);
+      await expect(badges, way).toBeVisible();
+      await expect(tier, way).toBeVisible();
+      await expect(delivery, way).toBeHidden();
+    }
 
     await order.method("delivery");
     await expect(badges).toBeVisible();
+    await expect(delivery).toBeVisible();
 
     // Two lines, lit or not, at 390 and at an SE's 375 (#267), and the
     // text no larger than the "Next discount" note under Continue.
@@ -274,17 +282,16 @@ test.describe("cart panes on a phone", () => {
     }
   });
 
-  test("a long cart gives up the badges before it gives up a row", async ({
-    page,
-  }) => {
+  // The badges once gave way first under the cap (bb34f07); they are
+  // where the chicks come from, so the cap gives way instead (#274).
+  test("a long cart keeps its badges and its way", async ({ page }) => {
     const order = new OrderPage(page);
 
     await order.open(FULL_CART, { method: "delivery" });
     await order.scrollSettled();
     await page.evaluate(() => window.scrollTo(0, 400));
     await expect(order.cart).toHaveAttribute("data-stuck", "true");
-    await expect(order.cart).toHaveAttribute("data-squeezed", "");
-    await expect(order.cart.locator(".order-badges")).toBeHidden();
+    await expect(order.cart.locator(".order-badges")).toBeVisible();
     await expect(order.cart.locator("[data-way-toggle]")).toBeVisible();
   });
 
