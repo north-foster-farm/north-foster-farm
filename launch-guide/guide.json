@@ -1,6 +1,6 @@
 {
- "revision": 37,
- "updated": "2026-10-18",
+ "revision": 38,
+ "updated": "2026-10-20",
  "notice": null,
  "phases": [
   {
@@ -4510,6 +4510,28 @@
       }
      ],
      "recommendation": "Approve once all six hold."
+    }
+   ]
+  },
+  {
+   "id": "D-PIPELINE",
+   "section": "rv-decide",
+   "title": "The pipeline: which checks gate staging and main",
+   "area": "#283, from #267",
+   "device": "laptop",
+   "type": "decide",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-20",
+     "summary": "The inventory of every automated check in both repos is on #283: what runs, where, what blocks, and its last result, then the gaps against your six-point target design and a proposal for the promotion flow you agreed. **Nothing has been changed.** Decide:\n\n- The required checks for `staging` and for `main`, from the report's table. `audit` on `main` waits on the braces decision in #279, or `main` cannot be promoted.\n- The promotion flow: a GitHub App (\"nff-promote\") as the only actor that may move `staging` and `main`, a `promote.yml` workflow that pushes for it, and the four rulesets in the report.\n- Whether the agents get their own GitHub account or App, without admin. Until they do, your approval on the staging-to-main PR is recorded, not enforced.\n- Turn on secret scanning and push protection in both repos, and Dependabot security updates in `nff-dashboard`.\n- Narrow `nff-dashboard`'s admin bypass on its `main` ruleset, and land its PR #30.\n- Git hooks installed from `npm install` in both repos, and the Hugo build, grid and news checks moved into GitHub Actions.\n\nEach approved item becomes an issue for an implementer.",
+     "look": [
+      {
+       "label": "The inventory on #283",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/283#issuecomment-6296154487"
+      }
+     ],
+     "recommendation": "Approve the required sets and the promotion flow as proposed, and turn on secret scanning first: it is a setting, free, and blocks at GitHub."
     }
    ]
   }
