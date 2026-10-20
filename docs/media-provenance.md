@@ -75,6 +75,7 @@ below from them, paths as drawn; run it after changing an original.
 | `assets/images/logo-horizontal.svg`, `static/logo-horizontal.svg` | Built from the originals | | `halo-chicken-wordmark.svg`, unchanged. Public; unused on the pages (L3). |
 | `static/images/email/logo.png` | Built from the originals | | Inkscape render of `logo.svg` in the header green. Every email's header. |
 | `assets/images/logo-mark.png` | Built from the originals | | Inkscape render of the hen and arc of `halo-chicken.svg` in its own green, 512 wide. JSON-LD `logo` (`params.logo`). |
+| `static/images/silhouette.svg`, `silhouette-small.svg` | James | | His final files for #226 (launch-guide 05864cc, `feedback/ft-silhouette/`), drawn after a photo of the farm: the high tunnel and the two coops, and a right-half crop of the coops for phones. Through svgo 4.1.0 at its default preset (his own options are not in yet, `pl-svgo`), plus `preserveAspectRatio="none"`. Footer's top edge (#272). |
 | `assets/images/share-card.png` | James | | Made 2026-09-24 (1352220). `og:image` on every page. |
 | `static/email-signature/logo-horizontal.png` | James | | "New image files for general use outside of this project" (57e89d5). Public URL, likely his email signature. |
 | `bin/favicons/emblem.mjs` and `static/favicons/*` | An agent, from James's choice | | The gingham egg James chose (#145). `bin/favicons/build` writes every favicon file from the script; a rebuild reproduces them pixel for pixel. |

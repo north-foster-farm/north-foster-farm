@@ -1,7 +1,9 @@
 {{ $company := hugo.Data.company }}
 {{ $phone := partial "phone.html" . }}
 {{ $instagram := hugo.Data.socialMedia.instagram.url }}
-<div class="flex-grow-1"></div>
+{{/* The order page has no band above the footer to take the
+     silhouette's rise (_footer.scss), so its spacer clears it. */}}
+<div class="flex-grow-1{{ if eq .Type "order" }} footer-clearance{{ end }}"></div>
 {{ partial "footer/shop.html" . }}
 <footer class="site-footer">
   <div class="container">

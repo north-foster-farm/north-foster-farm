@@ -3,8 +3,10 @@
 // page's "Get in touch" and the footer's "Shop now" share it, so the
 // two read as one voice. Not scoped to a page.
 
+// Both bands sit right above the footer, so each pads its bottom by
+// the farm silhouette's rise (_footer.scss) on top of its own gap.
 .touch {
-  padding-block: 3.5rem;
+  padding-block: 3.5rem calc(3.5rem + var(--sil-h));
   background-color: var(--bs-success-bg-subtle);
   text-align: center;
 }

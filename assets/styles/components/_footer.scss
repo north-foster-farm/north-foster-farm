@@ -10,11 +10,43 @@
 $footer-gap: 2.5rem;
 $footer-gap-phone: 1.5rem;
 
+// The farm silhouette along the footer's top (#272): the high tunnel
+// and the two coops, at full width, rising into the band above. Its
+// height is a share of the width, at each SVG's own shape; below md
+// the right-half crop (the coops) takes over. The band above pads its
+// bottom by it (_touch.scss), and so does the spacer where no band is.
+:root {
+  --sil-h: calc(100vw * 283 / 3589);
+
+  @include media-breakpoint-down(md) {
+    --sil-h: calc(100vw * 230 / 1795);
+  }
+}
+
+.footer-clearance {
+  min-height: calc(var(--sil-h) + 1.5rem);
+}
+
+// The footer carries the shape itself: it rises by --sil-h and two
+// mask layers cut it, the silhouette across the top and a solid block
+// for the rest, overlapping by 1px so no seam shows. One background
+// then paints both, so a gradient will run through them unbroken.
 .site-footer {
-  padding-block: 2.25rem 1.25rem;
+  margin-top: calc(-1 * var(--sil-h));
+  padding-block: calc(2.25rem + var(--sil-h)) 1.25rem;
   color: $navbar-light-color;
   text-align: center;
   background-color: $footer-bg;
+  mask:
+    url("/images/silhouette.svg") center top / 100% var(--sil-h) no-repeat,
+    linear-gradient(#000, #000) center bottom / 100%
+      calc(100% - var(--sil-h) + 1px) no-repeat;
+
+  @include media-breakpoint-down(md) {
+    mask-image:
+      url("/images/silhouette-small.svg"),
+      linear-gradient(#000, #000);
+  }
 
   .footer-news {
     margin-bottom: $footer-gap;
