@@ -169,6 +169,35 @@ test.describe("footer (#141)", () => {
       expect(await shadow(form.locator(".input-group"))).toBe("none");
     });
 
+  // James, #280: on the dark band the invalid outline, and the ring
+  // when focused, take the red of the message under the field.
+  test("an invalid field is outlined in the message's red (#280)",
+    async ({ page }) => {
+      const form = page.locator("footer [data-news-signup]");
+      const input = form.locator("input[type='email']");
+      const note = form.locator("[data-news-note]");
+      const style = (el, prop) =>
+        el.evaluate((node, p) => getComputedStyle(node)[p], prop);
+
+      await page.goto("/");
+      await input.fill("nope");
+      await form.getByRole("button").click();
+      await expect(input).toHaveClass(/\bis-invalid\b/);
+
+      const red = await style(note, "color");
+
+      await expect.poll(() => style(input, "borderTopColor"),
+        "focused: the border").toBe(red);
+      expect(await style(form.locator(".input-group"), "boxShadow"),
+        "focused: the ring").toContain(red);
+
+      await input.blur();
+      await expect.poll(() => style(input, "borderTopColor"),
+        "at rest: the border").toBe(red);
+      expect(await style(input, "backgroundImage"), "no warning icon")
+        .toBe("none");
+    });
+
   test("while it sends, the button shows the egg, grows and settles back",
     async ({ page }) => {
       const form = page.locator("footer [data-news-signup]");

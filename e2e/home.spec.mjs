@@ -704,5 +704,34 @@ test.describe("home", () => {
       expect((await look(hero)).width, "the hero's Order now")
         .toBeGreaterThanOrEqual(300);
     });
+
+    // James, #280: no light row above Get in touch, and its two
+    // buttons share one centered row down to the smallest phone.
+    test("Get in touch: no light row, both buttons on one row (#280)",
+      async ({ page }) => {
+        const buttons = page.locator(".touch-actions .btn");
+
+        await page.goto("/");
+        await expect(page.locator(".ticker-slot")).toHaveCount(0);
+        await expect(buttons).toHaveText(["Email us", "Call or text us"]);
+        await expect(buttons.last()).toHaveAttribute("href", /^tel:/);
+        await expect(page.locator(".touch-lead a"), "a text link")
+          .not.toHaveClass(/\bbtn\b/);
+
+        for (const width of [320, 390]) {
+          await page.setViewportSize({ width, height: 664 });
+
+          const boxes = await buttons.evaluateAll((els) => els.map((el) => {
+            const r = el.getBoundingClientRect();
+
+            return { top: r.top, left: r.left, right: r.right };
+          }));
+          const [first, last] = boxes;
+
+          expect(last.top, `one row at ${width}`).toBe(first.top);
+          expect(Math.abs(first.left - (width - last.right)),
+            `centered at ${width}`).toBeLessThanOrEqual(2);
+        }
+      });
   });
 });
