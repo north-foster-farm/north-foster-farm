@@ -47,7 +47,9 @@ To check a production build locally, run the linters and then
 ### Development Server Modes
 
 The `bin/dev` script supports two modes via environment variables:
-- **Default**: Standard Hugo server on localhost:1313
+- **Default**: Standard Hugo server on localhost:1313, or on
+  `HUGO_PORT`. `npm run start:functions -- --port <port>` picks a free
+  one, so one can run per worktree (`docs/order-form.md`)
 - **`HUGO_BIND_TO_IP=true`**: Binds to local network IP (requires /etc/hosts entries for `northfosterfarm.local`)
 
 ## Architecture

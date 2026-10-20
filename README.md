@@ -128,6 +128,10 @@ bin/stock                 # flip items in and out of stock, no code edit
 npm run start:functions   # netlify dev: Hugo plus /api/* on :8888
 ```
 
+To run one per worktree at once, give each its own port:
+`npm run start:functions -- --port 8891`. `docs/order-form.md`, "Local
+development", has the details.
+
 To check a production build locally:
 
 ```bash

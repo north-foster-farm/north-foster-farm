@@ -29,6 +29,8 @@ included_files = ["docs/rotation-log.md"]
 
 # `netlify dev` runs the Hugo server and proxies the functions in
 # front of it, so /api/* is exercisable locally.
+# `npm run start:functions` overrides targetPort with a free port and
+# passes it to bin/dev as HUGO_PORT, so several can run at once (#276).
 [dev]
 command = "bin/dev"
 targetPort = 1313

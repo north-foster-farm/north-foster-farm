@@ -772,6 +772,18 @@ issue #112 (the Venmo matching problem) closes with it.
 `npm run start:functions` runs `netlify dev`, which starts the Hugo
 server and proxies the functions at <http://localhost:8888>.
 
+Several can run at once, one per worktree, each on its own `--port`:
+
+```bash
+npm run start:functions -- --offline --port 8891
+```
+
+The wrapper (`bin/dev-functions.mjs`) gives Hugo a free port from the
+system, never 1313, and points `netlify dev` at it; `HUGO_PORT` picks
+one instead. It works from a worktree nested in
+another checkout (`.claude/worktrees/`). Stopping it, by Ctrl-C or a
+signal to `npm`, stops Netlify and Hugo with it and frees both ports.
+
 **Fake payments, the default.** The development env file sets
 `SITE_CONTEXT=dev`, `SQUARE_ENV=fake` and `PAYPAL_ENV=fake` (#265).
 Then no call leaves the machine: `lib/fake-square.mjs` and
