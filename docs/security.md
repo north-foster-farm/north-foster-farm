@@ -43,7 +43,8 @@ Netlify, apps and webhooks, and fixing every anonymous read
 
 ## GitHub's free security features
 
-Owner rights are needed to turn these on; each is a launch guide step.
+The first three are on in both repositories, the site and the
+dashboard, since 2026-10-20 (#283):
 
 - Secret scanning with push protection.
 - Private vulnerability reporting, so an outsider writes to James and
