@@ -27,16 +27,16 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@fullhuman/postcss-purgecss": "6.0.0",
+    "@fullhuman/postcss-purgecss": "8.0.0",
     "@playwright/test": "1.62.1",
     "autoprefixer": "10.5.4",
     "eslint": "10.8.0",
     "globals": "17.8.0",
     "postcss": "8.5.25",
-    "postcss-cli": "11.0.1",
-    "stylelint": "16.10.0",
+    "postcss-cli": "12.0.0",
+    "stylelint": "16.26.1",
     "stylelint-config-standard-scss": "13.1.0",
-    "stylelint-scss": "6.8.1"
+    "stylelint-scss": "6.14.0"
   },
   "dependencies": {
     "@netlify/blobs": "11.1.0",
