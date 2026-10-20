@@ -7,6 +7,7 @@
 // but vanishes here. On the band it is a solid ring in the label's
 // green, set off from the control by a sliver of the band.
 $band-dark-focus-ring: 0 0 0 2px $band-dark-bg, 0 0 0 5px $band-dark-focus;
+$band-dark-invalid-ring: 0 0 0 2px $band-dark-bg, 0 0 0 5px $band-dark-no;
 
 @mixin dark-band {
   --bs-body-color: #{$band-dark-text};
@@ -63,6 +64,21 @@ $band-dark-focus-ring: 0 0 0 2px $band-dark-bg, 0 0 0 5px $band-dark-focus;
       background-color: $band-dark-field-bg;
       border-color: $band-dark-focus;
       box-shadow: $band-dark-focus-ring;
+    }
+
+    // Invalid, focused or not (#280): the outline and the ring take
+    // the red of the message under the field, not Bootstrap's light
+    // one. Bootstrap's warning icon goes; the message says it. Only
+    // .is-invalid is set by the scripts, so there is no valid style.
+    &.is-invalid {
+      padding-right: $input-padding-x;
+      background-image: none;
+      border-color: $band-dark-no;
+
+      &:focus {
+        border-color: $band-dark-no;
+        box-shadow: $band-dark-invalid-ring;
+      }
     }
 
     &:-webkit-autofill,

@@ -2,8 +2,8 @@
 {{ $phone := partial "phone.html" . }}
 {{ $instagram := hugo.Data.socialMedia.instagram.url }}
 <div class="flex-grow-1"></div>
-{{/* The light row sits above the dark band on every page; the home
-     page's band, and its row, are in home/contact.html. The order
+{{/* The light row sits above the dark band on every page but the
+     home page, whose band (home/contact.html) has none (#280). The order
      page has no band to take the silhouette's rise (_footer.scss), so
      a strip of the band's color clears it. */}}
 {{ if not .IsHome }}

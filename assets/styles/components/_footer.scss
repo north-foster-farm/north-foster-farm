@@ -129,6 +129,10 @@ body {
 
   .news-signup .input-group:has(> .form-control:focus) {
     box-shadow: $band-dark-focus-ring;
+
+    &:has(> .is-invalid) {
+      box-shadow: $band-dark-invalid-ring;
+    }
   }
 
   .news-signup-note {

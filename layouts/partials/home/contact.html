@@ -1,13 +1,13 @@
 {{/* Get in touch: one centred statement on the dark band above the
-     footer, with the two ways to reach the farm as buttons, under the
-     light row every page has there (ticker-slot.html). The address and
-     the rest live in the footer's farm line; the lead links to the
-     contact page and its form. The band's styles
-     are the shared .touch set (_touch.scss), which the footer's Shop
-     now band uses on every other page. */}}
+     footer, with the two ways to reach the farm as buttons. No light
+     row above it (#280): "Where to find us" already breaks up the
+     dark bands here. The address and the rest live in the footer's
+     farm line; the lead links to the contact page and its form, the
+     third way in, which stays a text link. The band's styles are the
+     shared .touch set (_touch.scss), which the footer's Shop now band
+     uses on every other page. */}}
 {{ $email := hugo.Data.company.email }}
 {{ $phone := partial "phone.html" . }}
-{{ partial "ticker-slot.html" . }}
 <div class="touch">
   <div class="container">
     <p class="touch-eyebrow">Get in touch</p>
@@ -15,7 +15,7 @@
     <p class="touch-lead">Call, text, email, message us on Instagram, or use our <a href="{{ relURL "contact/" }}">contact form</a>.</p>
     <div class="touch-actions">
       <a class="btn btn-primary btn-lg" href="mailto:{{ $email }}">Email us</a>
-      <a class="btn btn-outline-primary btn-lg" href="{{ $phone.href }}">Call or text {{ $phone.display }}</a>
+      <a class="btn btn-outline-primary btn-lg" href="{{ $phone.href }}">Call or text us</a>
     </div>
   </div>
 </div>
