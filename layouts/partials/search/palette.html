@@ -7,7 +7,10 @@
 
   The products are the order page's own list (order/groups.html),
   embedded as JSON so the palette needs no request to search; stock
-  is asked of /api/stock when it opens. scripts/search/ does the rest.
+  is asked of /api/stock when it opens. Every product but an archived
+  one is here, whatever the order page's Show control says:
+  one out of stock shows its restock label in place of its price
+  (#267). scripts/search/ does the rest.
 
   A photo for a group goes at assets/images/products/<group key>.jpg;
   until one exists, the card shows the logo's hen (search/hen.svg,
@@ -32,6 +35,8 @@
       "unit" (replaceRE `^per each$` "each" (.unit | default $group.unit))
       "note" (.note | default "")
       "price" .price
+      "out" .out
+      "restock" .restockLabel
       "image" $image
     ) }}
   {{ end }}
@@ -50,10 +55,9 @@
       <button class="search-palette-close" type="button" data-search-close aria-label="Close search">{{ partial "svg.html" "icons/x" }}</button>
     </div>
     <div class="search-palette-body">
-      {{/* While /api/stock answers, each row's price waits under a bar
-           cloned from here (#271); what it says is sold out then leaves
-           the list. Add stays live: the build's stock stands in until
-           then. */}}
+      {{/* While /api/stock answers, each row's price, or its restock
+           label, waits under a bar cloned from here (#271). Add stays
+           live: the build's stock stands in until then. */}}
       {{ partial "skeleton/status.html" (dict "quiet" true) }}
       <template data-search-skeleton>{{ partial "skeleton.html" (dict "over" true) }}</template>
       <ul class="search-palette-list" id="search-palette-list" role="listbox" aria-label="Products"></ul>
@@ -64,10 +68,11 @@
         </div>
         <h2 class="search-palette-name" data-search-name></h2>
         <p class="search-palette-group" data-search-group></p>
-        {{/* No stock row: nothing shown here can be out of stock, so
-             "In stock" would be a claim nothing backs (#208). */}}
+        {{/* No "In stock" row (#208): a product out of stock says so
+             with its restock label instead, and its Add is off. */}}
         <dl class="search-palette-facts">
           <div><dt>Price</dt><dd data-search-price></dd></div>
+          <div data-search-restock-row hidden><dt>Availability</dt><dd class="search-palette-restock" data-search-restock></dd></div>
         </dl>
         <div class="search-palette-actions">
           <div class="search-palette-qty" data-search-qty-state="empty">

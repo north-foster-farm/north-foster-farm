@@ -1,23 +1,27 @@
 // Keeps the product list honest while the page is open: asks
 // /api/stock on load, when the tab comes back, when the network
 // returns, every couple of minutes, and right before a submission.
-// A row that sold out is hidden, and its category with it once that
-// leaves the category empty; a quantity above what is left is
-// brought down and the customer is told.
+// A row that sold out is marked out: hidden while Show is on "In
+// stock", else greyed with its restock label and no way to add it
+// (order/restock.js); a quantity above what is left is brought down
+// and the customer is told.
 
 import { clear, whileLoading } from "../utils/skeleton.js";
+import { showRows } from "./restock.js";
 
 const EVERY = 2 * 60_000;
 
 export class Stock {
   // `onChange(notice)` is called after the cart changed under the
   // customer, with a sentence to show. `setQty(input, n)` is the
-  // form's own setter, so the row's state follows.
-  constructor(form, { onChange, setQty }) {
+  // form's own setter, so the row's state follows. `inStockOnly()`
+  // says whether Show is on "In stock".
+  constructor(form, { onChange, setQty, inStockOnly }) {
     this.form = form;
     this.region = document.getElementById("order-catalog");
     this.onChange = onChange;
     this.setQty = setQty || ((input, n) => { input.value = String(n); });
+    this.inStockOnly = inStockOnly || (() => true);
     this.items = null;
     this.timer = null;
     // Packs a paid order being changed (?edit=) already holds: they
@@ -100,10 +104,14 @@ export class Stock {
       const label = row.querySelector("label").textContent.trim();
       let text = "";
 
-      // Out of stock means no row at all, never a sold-out one (#267).
-      row.hidden = !inStock;
+      // Out of stock is never a sold-out row: hidden, or under Full
+      // catalog its restock label (#267). Stock wins over the
+      // label; an archived item has no row at all.
+      row.toggleAttribute("data-out", !inStock);
       if (!inStock) {
-        delete row.dataset.stock;
+        text = row.dataset.restockLabel || "";
+        if (text) row.dataset.stock = "out";
+        else delete row.dataset.stock;
         if (qty > 0) {
           this.setQty(input, 0);
           changed.push(`${label} sold out and was removed`);
@@ -126,25 +134,11 @@ export class Stock {
       if (note && note.textContent !== text) note.textContent = text;
     }
 
-    this.hideEmptyGroups();
+    showRows(this.form, this.inStockOnly());
 
     if (changed.length) {
       this.onChange(`Stock moved while you were shopping: ${
         changed.join("; ")}. Your cart was updated.`);
-    }
-  }
-
-  // A category whose rows are all hidden goes too, with its link in
-  // the sidebar, as the build leaves out one with nothing in stock.
-  hideEmptyGroups() {
-    for (const group of this.form.querySelectorAll(".order-cat")) {
-      const empty = !group.querySelector(".order-item:not([hidden])");
-      const link = document.querySelector(
-        `#order-nav a[href="#${CSS.escape(group.id)}"]`
-      );
-
-      group.hidden = empty;
-      if (link) link.closest(".nav-item").hidden = empty;
     }
   }
 }

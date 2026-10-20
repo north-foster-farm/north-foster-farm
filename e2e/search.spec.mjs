@@ -186,8 +186,10 @@ test.describe("search (#142)", () => {
     await expect(p.qty).toHaveValue("2");
   });
 
-  // #267: an item out of stock is not offered, not even as sold out.
-  test("a product whose count reaches 0 leaves the results",
+  // #267: an item out of stock stays in the results with its restock
+  // label in place of its price, and cannot be added; never "Sold
+  // out".
+  test("a product whose count reaches 0 shows its restock label",
     async ({ page }) => {
       const gone = "NFF-CHK-DRM-0150-0300";
 
@@ -206,12 +208,14 @@ test.describe("search (#142)", () => {
       await p.opener.click();
       await p.input.fill("drum");
       await stock;
-      await expect(p.rows.and(page.locator(`[data-sku="${gone}"]`)))
-        .toHaveCount(0);
-      await expect(p.rows).toHaveCount(1);
-      await expect(p.rows).toHaveAttribute(
-        "data-sku", "NFF-CHK-DRM-0000-0150"
-      );
+
+      const row = p.rows.and(page.locator(`[data-sku="${gone}"]`));
+
+      await expect(p.rows).toHaveCount(2);
+      await expect(row).toHaveAttribute("data-stock", "out");
+      await expect(row).toContainText("Back in spring");
+      await row.click();
+      await expect(p.add).toBeDisabled();
       await expect(p.dialog.getByText("Sold out", { exact: true }))
         .toHaveCount(0);
     });

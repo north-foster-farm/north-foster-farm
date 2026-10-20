@@ -22,6 +22,7 @@ import { Lapsed } from "./lapsed.js";
 import { Payment } from "./pay.js";
 import { Pending } from "./pending.js";
 import { crumb } from "./report.js";
+import { wireSwitch } from "./restock.js";
 import { Stock } from "./stock.js";
 import { Submitter } from "./submit.js";
 import { announceCart } from "../cart-badge/announce.js";
@@ -119,6 +120,7 @@ export class OrderForm {
     this.stock = new Stock(form, {
       onChange: (notice) => this.stockMoved(notice),
       setQty: (input, n) => this.setQty(input, n),
+      inStockOnly: wireSwitch(form),
     });
     this.stockNotice = document.getElementById("order-stock");
     this.cart = document.getElementById("order-cart");
@@ -841,7 +843,9 @@ export class OrderForm {
       const input = qs(this.form, `[data-qty="${CSS.escape(sku || "")}"]`);
       const qty = Math.min(99, Math.max(1, parseInt(qtyText, 10) || 1));
 
-      if (!input) {
+      // A row out of stock is on the page to say when it is back, not
+      // to be added (#267).
+      if (!input || input.closest("[data-out]")) {
         const item = this.index.get(sku);
 
         missing.push(item ? `${item.groupName}, ${item.label}` : sku);

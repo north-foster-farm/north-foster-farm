@@ -370,7 +370,10 @@
     grid-area: error;
   }
 
-  // Live stock: a note under the name, and a closed row when sold out.
+  // Live stock: a note under the name, "N left" at five or fewer. An
+  // item out of stock has no row while Show is on "In stock"; under
+  // "Full catalog" its row is greyed, says its restock label there ("Back in
+  // spring") and has no quantity control (#267).
   .order-item-stock {
     grid-area: name;
     align-self: end;
@@ -392,6 +395,21 @@
 
   .order-item[data-stock] .order-item-stock {
     grid-area: stock;
+  }
+
+  .order-item[data-stock="out"] {
+    background-color: var(--bs-tertiary-bg);
+    box-shadow: none;
+
+    .order-item-name label {
+      cursor: default;
+    }
+
+    .order-item-name label,
+    .order-item-price,
+    .order-item-stock {
+      color: var(--bs-secondary-color);
+    }
   }
 
   @media (max-width: 30rem) {
@@ -500,6 +518,10 @@
 
   .order-qty-tick {
     animation: order-tick 200ms var(--order-ease);
+  }
+
+  .order-item[data-stock="out"] .order-qty {
+    visibility: hidden;
   }
 
   // The heading stands in the flow where the pane settles, a
@@ -1472,6 +1494,10 @@
       }
     }
 
+    .order-item[data-stock="out"] {
+      background-color: transparent;
+    }
+
     .order-qty {
       width: 6.25rem;
       justify-self: end;
@@ -1600,6 +1626,82 @@
     &:has(> .form-check-input:focus-visible) {
       outline: 2px solid var(--bs-primary);
       outline-offset: 2px;
+    }
+  }
+
+  // Show "In stock" or "Full catalog", over the list (#267): the cart's
+  // segmented control, a pill track with a fill that slides to the
+  // chosen side. Here the fill is the page's white on the grey track,
+  // so the chosen side is lighter, never darker. The radios stay in
+  // place under their labels, unseen, so arrows move between them.
+  .order-filter {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: flex-end;
+    margin: 0 0 0.75rem;
+  }
+
+  .order-filter-label {
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+  }
+
+  .order-filter-seg {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    border-radius: 999px;
+    background-color: $pill-bg;
+    box-shadow: inset 0 0 0 1px var(--bs-border-color-translucent);
+  }
+
+  .order-filter-fill {
+    position: absolute;
+    inset: 2px calc(50% + 2px) 2px 2px;
+    border-radius: 999px;
+    background-color: var(--bs-body-bg);
+    box-shadow: var(--bs-box-shadow-sm);
+    transition: transform var(--order-base) var(--order-ease);
+  }
+
+  .order-filter-seg:has(.order-filter-input[value="all"]:checked)
+    .order-filter-fill {
+    transform: translateX(calc(100% + 4px));
+  }
+
+  // Over its whole label, unseen: focus brings the label into view.
+  .order-filter-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+    scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
+  }
+
+  .order-filter-option {
+    position: relative;
+    min-height: 2rem;
+    padding: 0.3125rem 0.875rem;
+    border-radius: 999px;
+    font-size: 0.875rem;
+    text-align: center;
+    white-space: nowrap;
+    color: var(--bs-body-color);
+    cursor: pointer;
+  }
+
+  .order-filter-option:has(.order-filter-input:focus-visible) {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .order-filter-fill {
+      transition: none;
     }
   }
 

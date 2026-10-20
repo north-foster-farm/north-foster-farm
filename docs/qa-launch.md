@@ -437,30 +437,42 @@ Manual: animation and tooltip behavior are visual.
   chicks hop out of it once.
 - **Teardown:** None.
 
-### OP-26 Stock counts hide rows and clamp the cart
+### OP-26 Stock counts, restock labels and Show
 
 Manual on staging: the stock counts are shared by everyone using
 staging, so a test that sets them would disturb other runs.
 Automated with a stubbed `/api/stock`: `order-page.spec.mjs`, "a
 product whose count reaches 0 loses its row, and its category when
-empty" (both projects).
+empty", `search.spec.mjs`, "a product whose count reaches 0 shows its
+restock label", and every rule in `restock.spec.mjs` (both projects).
 
-- **Scenario:** The page shows "N left" at five or fewer, hides
-  sold-out rows (and a category left empty, with its sidebar link) and
-  clamps the cart.
-- **Setup:** Pick an unused SKU, for example `NFF-CHK-DRM-0150-0300`.
-  `bin/nff --staging stock set NFF-CHK-DRM-0150-0300 3`.
+- **Scenario:** The page shows "N left" at five or fewer and clamps
+  the cart. With Show on "In stock", the default, it hides sold-out
+  rows (and a category left empty, with its sidebar link); on "Full
+  catalog" it shows them greyed with their restock label, not
+  addable. Search shows them with their label whatever Show says
+  (#267).
+- **Setup:** Pick an unused SKU, for example `NFF-CHK-DRM-0150-0300`
+  (`seasonal`, spring). `bin/nff --staging stock set
+  NFF-CHK-DRM-0150-0300 3`.
 - **Test:**
   1. Open `/order/?add=NFF-CHK-DRM-0150-0300:5`.
   2. `bin/nff --staging stock set NFF-CHK-DRM-0150-0300 0`; return to the
      tab.
-  3. Reload, then search for "drum".
+  3. Choose Show "Full catalog", then reload.
+  4. Choose "In stock". Search for "drum", then "sausage" and "Cornish".
 - **Assert:** Step 1: the row says "3 left" and the quantity is clamped
   to 3 with a notice. Step 2: the row is gone, with no "Sold out" row
   in its place, and the cart line is removed with a notice ending "sold
-  out and was removed". Step 3: the row stays gone after the reload,
-  and the search lists the other drumsticks but not this one.
+  out and was removed". Step 3: "Full catalog" stays chosen after the reload;
+  the row is back, greyed, saying "Back in spring", with no Add;
+  Cornish Hens return with their sidebar link, both "No longer
+  available", and Medium and Small eggs say "Back soon". Step 4: the
+  row hides again. Search lists both drumsticks, this one "Back in
+  spring" with Add off; Sweet Italian Sausage says "On hiatus"; both
+  Cornish hens say "No longer available".
 - **Teardown:** `bin/nff --staging stock set NFF-CHK-DRM-0150-0300 none`.
+  Choose Show "In stock" again.
 
 ### OP-27 The phone cart after the first Add
 

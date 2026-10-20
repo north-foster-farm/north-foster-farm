@@ -224,8 +224,9 @@ test.describe("order page", () => {
       expect(rows).toContain(SKU.eggs);
     });
 
-  // Square is the database; the page shows only what is in stock. An
-  // item out of stock has no row at all, not a sold-out one (#267).
+  // Square is the database; by default the page shows only what is in
+  // stock. An item out of stock shows no row, not a sold-out one
+  // (#267); Show "Full catalog" shows it (restock.spec.mjs).
   test("an out-of-stock item has no row", async ({ page }) => {
     const order = new OrderPage(page);
 
@@ -240,10 +241,11 @@ test.describe("order page", () => {
     ));
     for (const sku of out) {
       await expect(page.locator(`.order-item[data-sku="${sku}"]`))
-        .toHaveCount(0);
+        .toBeHidden();
     }
-    await expect(page.locator("#cat-eggs .order-item-name"))
-      .toHaveText([/Large/]);
+    await expect(page.locator(
+      "#cat-eggs .order-item:visible .order-item-name"
+    )).toHaveText([/Large/]);
   });
 
   // A stock count of 0 is out of stock too: the row goes, never a

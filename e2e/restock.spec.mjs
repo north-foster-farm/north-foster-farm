@@ -1,0 +1,336 @@
+// Restock types and the order page's Show control (#267, 6303165805,
+// the `soon` amendment 6303183573 and the control in 6303649455).
+// "In stock", the default, shows what is in stock; "Full catalog"
+// also shows the rest, greyed, with a restock label and no way to add
+// it. Search shows every product but an archived one, with its label,
+// whatever the page shows. Stock wins over every type but archived.
+// docs/qa-launch.md OP-26.
+
+import { readFileSync } from "node:fs";
+
+import { OrderPage, SKU, expect, test } from "./support/order.mjs";
+
+const catalog = JSON.parse(readFileSync(
+  new URL("../data/catalog.json", import.meta.url), "utf8"
+));
+const items = catalog.groups.flatMap((g) => g.items);
+
+// One product out of stock in the catalog for each restock type.
+const OUT = {
+  soon: "NFF-CHK-EGG-MD", // Eggs, Medium: "Back soon"
+  seasonal: "NFF-CHK-WHL-0500-0600", // Whole Chicken, 5.0 - 5.9 lbs
+  hiatus: "NFF-CHK-SAUSWT-0075-0125", // Sweet Italian Sausage
+  discontinued: "NFF-CHK-CRN-0000-0300", // Cornish Hens, under 3.0 lbs
+};
+const LABEL = {
+  soon: "Back soon",
+  seasonal: "Back in spring",
+  hiatus: "On hiatus",
+  discontinued: "No longer available",
+};
+const archived = items.filter((i) => i.restock === "archived")
+  .map((i) => i.sku);
+
+const row = (page, sku) => page.locator(`.order-item[data-sku="${sku}"]`);
+const choice = (page, name) => page.getByRole("radio", { name });
+const show = (page, name) => choice(page, name).click();
+
+// /api/stock as the server gives it, with `over` laid on top.
+const stubStock = (page, over) => page.route("**/api/stock",
+  async (route) => {
+    const res = await route.fetch();
+    const body = await res.json();
+
+    Object.assign(body.items, over);
+    await route.fulfill({ response: res, json: body });
+  });
+
+// Opens the order page and waits for its stock check.
+const open = async (page, cart) => {
+  const stock = page.waitForResponse("**/api/stock");
+
+  await new OrderPage(page).open(cart);
+  await stock;
+};
+
+test.describe("restock types (#267)", () => {
+  test("the catalog's assignments hold", () => {
+    for (const [type, sku] of Object.entries(OUT)) {
+      const item = items.find((i) => i.sku === sku);
+
+      expect(item.inStock, sku).toBe(false);
+      expect(item.restock, sku).toBe(type);
+    }
+    for (const item of items) {
+      expect(["seasonal", "soon", "hiatus", "discontinued", "archived"])
+        .toContain(item.restock);
+    }
+  });
+
+  test("Show is a radio group, In stock by default, showing today's " +
+    "list", async ({ page }) => {
+    await open(page);
+
+    const group = page.getByRole("radiogroup", { name: "Show" });
+
+    await expect(group).toBeVisible();
+    await expect(group.getByRole("radio")).toHaveCount(2);
+    await expect(choice(page, "In stock")).toBeChecked();
+    await expect(choice(page, "Full catalog")).not.toBeChecked();
+    for (const sku of Object.values(OUT)) {
+      await expect(row(page, sku)).toBeHidden();
+    }
+    await expect(page.locator("#cat-cornish")).toBeHidden();
+    await expect(page.locator("#order-nav a[href='#cat-cornish']"))
+      .toBeHidden();
+    await expect(row(page, SKU.eggs)).toBeVisible();
+
+    // It takes the keyboard, with a visible focus ring on the label.
+    await page.keyboard.press("Shift");
+    await choice(page, "In stock").focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(choice(page, "Full catalog")).toBeChecked();
+    await expect(choice(page, "Full catalog")).toBeFocused();
+    await expect(row(page, OUT.soon)).toBeVisible();
+    expect(await page.locator(".order-filter-option:has(#order-show-all)")
+      .evaluate((el) => getComputedStyle(el).outlineStyle)).toBe("solid");
+
+    // The chosen side is lighter than the track.
+    const lum = (sel) => page.locator(sel).evaluate((el) => {
+      const [r, g, b] = getComputedStyle(el).backgroundColor
+        .match(/\d+/g).map(Number);
+
+      return r + g + b;
+    });
+
+    expect(await lum(".order-filter-fill"))
+      .toBeGreaterThan(await lum(".order-filter-seg"));
+  });
+
+  test("Full catalog: out-of-stock rows show greyed with their label " +
+    "and can't be added", async ({ page }) => {
+    await open(page);
+    await show(page, "Full catalog");
+
+    for (const [type, sku] of Object.entries(OUT)) {
+      const r = row(page, sku);
+
+      await expect(r, type).toBeVisible();
+      await expect(r).toHaveAttribute("data-stock", "out");
+      await expect(r.locator(".order-item-stock")).toHaveText(LABEL[type]);
+      await expect(r.locator(".order-qty")).toBeHidden();
+      await expect(r.locator("[data-qty]")).toBeDisabled();
+      for (const b of await r.locator("[data-step]").all()) {
+        await expect(b).toBeDisabled();
+      }
+      await expect(r.getByText("Sold out", { exact: true })).toHaveCount(0);
+    }
+
+    // Greyed: the name in the secondary color, not the body's.
+    const color = (sku) => row(page, sku).locator("label")
+      .evaluate((el) => getComputedStyle(el).color);
+
+    expect(await color(OUT.soon)).not.toBe(await color(SKU.eggs));
+
+    // Empty categories return, with their links.
+    await expect(page.locator("#cat-cornish")).toBeVisible();
+    await expect(page.locator("#order-nav a[href='#cat-cornish']"))
+      .toBeAttached();
+    await expect(page.locator("#order-nav a[href='#cat-cornish']")
+      .locator("xpath=..")).not.toHaveAttribute("hidden", "");
+    await expect(page.locator("#cat-ground")).toBeVisible();
+
+    // Every product but an archived one has a row.
+    await expect(page.locator(".order-item:visible"))
+      .toHaveCount(items.length - archived.length);
+
+    // The cart stays empty, and ?add= of one is refused.
+    await expect(new OrderPage(page).count).toHaveText("0 items");
+  });
+
+  test("an out-of-stock product can't be put in the cart by link",
+    async ({ page }) => {
+      await page.goto(`/order/?add=${OUT.soon}:2`);
+      await expect(page.locator("#order-added"))
+        .toContainText("No longer available: Eggs, Medium.");
+      await expect(new OrderPage(page).count).toHaveText("0 items");
+    });
+
+  test("the choice is remembered across reloads", async ({ page }) => {
+    await open(page);
+    await show(page, "Full catalog");
+    await expect(row(page, OUT.seasonal)).toBeVisible();
+
+    await page.reload();
+    await expect(choice(page, "Full catalog")).toBeChecked();
+    await expect(row(page, OUT.seasonal)).toBeVisible();
+
+    await show(page, "In stock");
+    await page.reload();
+    await expect(choice(page, "In stock")).toBeChecked();
+    await expect(row(page, OUT.seasonal)).toBeHidden();
+  });
+
+  test("with storage blocked the choice still works, In stock first",
+    async ({ page }) => {
+      const errors = [];
+
+      page.on("pageerror", (e) => errors.push(e.message));
+      await page.addInitScript(() => {
+        const blocked = () => {
+          throw new DOMException("Blocked", "SecurityError");
+        };
+
+        Storage.prototype.getItem = blocked;
+        Storage.prototype.setItem = blocked;
+      });
+      await open(page);
+      await expect(choice(page, "In stock")).toBeChecked();
+      await show(page, "Full catalog");
+      await expect(row(page, OUT.hiatus)).toBeVisible();
+      expect(errors.filter((m) => /Blocked/.test(m))).toEqual([]);
+    });
+
+  test("stock wins over seasonal, soon, hiatus and discontinued",
+    async ({ page }) => {
+      await stubStock(page, Object.fromEntries(Object.values(OUT)
+        .map((sku) => [sku, { inStock: true, available: 3 }])));
+      await open(page);
+      await expect(choice(page, "In stock")).toBeChecked();
+
+      for (const sku of Object.values(OUT)) {
+        const r = row(page, sku);
+
+        await expect(r).toBeVisible();
+        await expect(r).not.toHaveAttribute("data-stock", "out");
+        await expect(r.locator(".order-item-stock")).toHaveText("3 left");
+        await expect(r.locator(".order-qty-add")).toBeEnabled();
+      }
+      await row(page, OUT.discontinued).locator(".order-qty-add").click();
+      await expect(new OrderPage(page).count).toHaveText("1 item");
+    });
+
+  test("a product that sells out mid-visit takes its label",
+    async ({ page }) => {
+      await stubStock(page, { [SKU.wings]: { inStock: false, available: 0 } });
+      await open(page, { wings: 1 });
+      await expect(row(page, SKU.wings)).toBeHidden();
+      await show(page, "Full catalog");
+      await expect(row(page, SKU.wings).locator(".order-item-stock"))
+        .toHaveText("Back in spring");
+      await expect(new OrderPage(page).count).toHaveText("0 items");
+    });
+
+  test("a product with no restock type stays hidden while out",
+    async ({ page }) => {
+      await open(page);
+      // No product lacks a type today; take one away in the page.
+      await row(page, OUT.seasonal).evaluate((li) => {
+        li.dataset.restockLabel = "";
+      });
+      await show(page, "Full catalog");
+      await expect(row(page, OUT.seasonal)).toBeHidden();
+      await expect(row(page, OUT.hiatus)).toBeVisible();
+    });
+
+  test("an archived product is hidden under either choice and in search",
+    async ({ page }) => {
+      // Nothing is archived in the catalog today: then this holds the
+      // count, and the spec bites the day one is.
+      await stubStock(page, Object.fromEntries(archived
+        .map((sku) => [sku, { inStock: true, available: 9 }])));
+      await open(page);
+
+      const products = JSON.parse(await page
+        .locator("[data-search-products]").textContent());
+
+      expect(products).toHaveLength(items.length - archived.length);
+      for (const on of [true, false]) {
+        if (!on) await show(page, "Full catalog");
+        for (const sku of archived) {
+          await expect(row(page, sku)).toHaveCount(0);
+        }
+      }
+      for (const sku of archived) {
+        expect(products.map((p) => p.sku)).not.toContain(sku);
+      }
+    });
+});
+
+test.describe("search and restock types (#267)", () => {
+  const palette = (page) => {
+    const dialog = page.locator("#search-palette");
+
+    return {
+      dialog,
+      input: dialog.locator("#search-palette-input"),
+      rows: dialog.locator("#search-palette-list [role='option']"),
+      add: dialog.locator("[data-search-add]"),
+      restock: dialog.locator("[data-search-restock]"),
+    };
+  };
+  const find = async (page, query) => {
+    const p = palette(page);
+    const stock = page.waitForResponse("**/api/stock");
+
+    await page.locator("[data-search-open]").click();
+    await p.input.fill(query);
+    await stock;
+
+    return p;
+  };
+
+  test("lists every non-archived product with its label", async ({ page }) => {
+    await page.goto("/about/");
+
+    const p = await find(page, "sausage");
+
+    await expect(p.rows).toHaveCount(2);
+
+    const sweet = p.rows.and(page.locator(`[data-sku="${OUT.hiatus}"]`));
+
+    await expect(sweet).toContainText("On hiatus");
+    await expect(sweet).toHaveAttribute("data-stock", "out");
+    await sweet.click();
+    await expect(p.restock).toHaveText("On hiatus");
+    await expect(p.add).toBeDisabled();
+
+    await p.input.fill("cornish");
+    await expect(p.rows).toHaveCount(2);
+    await expect(p.rows.first()).toContainText("No longer available");
+    await expect(p.add).toBeDisabled();
+
+    await p.input.fill("eggs");
+    await expect(p.rows).toHaveCount(3);
+    await expect(p.rows.and(page.locator(`[data-sku="${OUT.soon}"]`)))
+      .toContainText("Back soon");
+    await expect(p.rows.and(page.locator(`[data-sku="${SKU.eggs}"]`)))
+      .toContainText("$7");
+  });
+
+  test("ignores what the order page shows", async ({ page }) => {
+    for (const on of [true, false]) {
+      await open(page);
+      if (!on) await show(page, "Full catalog");
+      await expect(choice(page, "In stock")).toBeChecked({ checked: on });
+
+      const p = await find(page, "cornish");
+
+      await expect(p.rows).toHaveCount(2);
+      await expect(p.rows.first()).toContainText("No longer available");
+    }
+  });
+
+  test("stock wins in search too", async ({ page }) => {
+    await stubStock(page, { [OUT.hiatus]: { inStock: true, available: 4 } });
+    await page.goto("/about/");
+
+    const p = await find(page, "sweet");
+    const sweet = p.rows.and(page.locator(`[data-sku="${OUT.hiatus}"]`));
+
+    await expect(sweet).not.toHaveAttribute("data-stock", "out");
+    await expect(sweet).toContainText("$");
+    await expect(p.restock).toBeHidden();
+    await expect(p.add).toBeEnabled();
+  });
+});

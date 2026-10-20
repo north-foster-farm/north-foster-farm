@@ -14,7 +14,7 @@
           <a class="nav-link active" href="#order-catalog" data-heading="All products">Catalog</a>
           <ul class="nav flex-column order-side-sub">
             {{ range $groups }}
-              <li class="nav-item">
+              <li class="nav-item"{{ if .out }} hidden{{ end }}>
                 <a class="nav-link" href="#cat-{{ .key }}">{{ .short }}</a>
               </li>
             {{ end }}

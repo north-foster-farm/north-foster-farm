@@ -39,6 +39,7 @@ export const wireSearch = () => {
   const fewer = q("[data-search-step='-1']");
   const more = q("[data-search-step='1']");
   const added = q("[data-search-added]");
+  const restock = q("[data-search-restock]");
   const cartButton = q("[data-search-cart]");
   // The way to the cart, once there is one.
   const showCartButton = () => {
@@ -70,10 +71,10 @@ export const wireSearch = () => {
     });
   };
 
-  const soldOut = (p) => isSoldOut(stock, p.sku);
+  const soldOut = (p) => isSoldOut(stock, p.sku, p.out);
 
   // How many more of this product can go in the cart.
-  const room = (p) => roomFor(stock, p.sku, inCart(p.sku));
+  const room = (p) => roomFor(stock, p.sku, inCart(p.sku), p.out);
 
   // The card's control as the cart has it: Add at 0, else the stepper
   // holding the quantity, its + gone quiet when there is no more room.
@@ -106,6 +107,7 @@ export const wireSearch = () => {
     q("[data-search-price]").textContent =
       `${money(p.price)}${p.unit ? ` ${p.unit}` : ""}` +
       `${p.note ? ` · ${p.note}` : ""}`;
+    showRestock(p);
     syncQty(p);
   };
 
@@ -129,14 +131,27 @@ export const wireSearch = () => {
     showCard(matches[active]);
   };
 
+  // A product out of stock says when it is back ("Back in spring") in
+  // place of its price, greyed, and cannot be added (#267).
   const markRow = (row, p) => {
+    const out = soldOut(p);
+
+    if (out) row.dataset.stock = "out";
+    else delete row.dataset.stock;
     row.querySelector(".search-palette-row-price").firstChild.nodeValue =
-      money(p.price);
+      out ? p.restock : money(p.price);
   };
 
-  // What the query finds, less what is sold out: an item out of stock
-  // is not offered at all (#267).
-  const find = (query) => search(indexed, query).filter((p) => !soldOut(p));
+  const showRestock = (p) => {
+    restock.textContent = soldOut(p) ? p.restock : "";
+    restock.parentElement.hidden = !restock.textContent;
+  };
+
+  // What the query finds, whatever the order page's Show control
+  // says. The build leaves archived products out; one with no
+  // restock type is left out here while it is out of stock.
+  const find = (query) => search(indexed, query)
+    .filter((p) => p.restock || !soldOut(p));
 
   const render = (query) => {
     matches = find(query);
@@ -173,9 +188,9 @@ export const wireSearch = () => {
     select(0, { scroll: false });
   };
 
-  // Stock has come in: drop what sold out, keeping the selection where
-  // it can, then mark the rows and the card's + and Add. What the
-  // customer has in the cart stays as it is.
+  // Stock has come in: drop what it leaves out, keeping the selection
+  // where it can, then mark the rows and the card's label, + and Add.
+  // What the customer has in the cart stays as it is.
   const refreshStock = () => {
     const shown = matches.map((p) => p.sku).join();
 
@@ -190,7 +205,10 @@ export const wireSearch = () => {
       return;
     }
     [...list.children].forEach((row, i) => markRow(row, matches[i]));
-    if (matches[active]) syncQty(matches[active]);
+    if (matches[active]) {
+      showRestock(matches[active]);
+      syncQty(matches[active]);
+    }
   };
 
   // Puts n of the selected product in the cart, no more than stock

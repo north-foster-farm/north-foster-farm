@@ -195,6 +195,7 @@ $search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   color: $search-muted;
   font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 
   // Under its skeleton while stock comes (#271), on the row's own
   // background, selected or not: the words never show through.
@@ -227,6 +228,15 @@ $search-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
       .search-palette-row-price {
         color: $search-accent;
+      }
+    }
+
+    // Out of stock (#267): greyed, its restock label for a price.
+    &[data-stock="out"] {
+      color: $search-muted;
+
+      .search-palette-row-price {
+        color: $search-muted;
       }
     }
   }

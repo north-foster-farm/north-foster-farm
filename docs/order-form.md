@@ -60,10 +60,59 @@ count of packs per SKU (`counts`), set by the CLI and moved by orders:
 down when an order is paid, back up when it is cancelled. `GET
 /api/stock` gives every item's `{ inStock, available }`; the page asks
 on load, on return to the tab, every two minutes and before paying,
-hides sold-out rows (and a category they leave empty, with its link),
-shows "N left" at five or fewer, clamps the cart and says so. The
-search palette leaves sold-out items out of its results. The order handler checks the same counts and answers
-`422` with `lines.<sku>` errors plus the fresh `stock`.
+marks rows out of stock, shows "N left" at five or fewer, clamps the
+cart and says so. The order handler checks the same counts and
+answers `422` with `lines.<sku>` errors plus the fresh `stock`.
+
+### Restock types
+
+Every catalog item has a `restock` type (#267, James, 2026-10-20). It
+is presentation only: Square stays the database for names, prices
+and counts, and the field moves to Supabase with the dashboard later.
+It says what an item out of stock shows in place of its quantity:
+
+| `restock` | Out of stock, it says |
+|---|---|
+| `seasonal` | "Back in spring", the season from `restockSeason` |
+| `soon` | "Back soon" |
+| `hiatus` | "On hiatus" |
+| `discontinued` | "No longer available" |
+| `archived` | Nothing: hidden everywhere, whatever the stock |
+
+Stock wins over every type but `archived`: an item in stock sells
+normally. An item with no type is hidden while it is out. Today:
+eggs `soon`, Cornish hens `discontinued`, both sausages `hiatus`,
+every other chicken product `seasonal` with `restockSeason: "spring"`.
+Switching one is a catalog edit and a deploy. The labels live in
+`layouts/partials/order/restock-label.html`.
+
+The order page's **Show** control (`order/restock.js`, James,
+6303649455) is a radio group (`role="radiogroup"`, labelled
+"Show") drawn as the cart's segmented control, the chosen side
+lighter: **"In stock"**, the default, shows only what is in stock;
+**"Full catalog"** also shows every out-of-stock item with a type.
+The choice is remembered on the device (`localStorage`, key
+`nff-order-in-stock-only`; blocked storage leaves "In stock").
+Under Full catalog an out-of-stock item is greyed, with its label in
+the stock note and no quantity control; its inputs are disabled, so
+it cannot be added (`?add=` of one says "No longer available"). A
+category with nothing showing goes, with its sidebar link, and comes
+back when Full catalog shows it. The build marks a row out from the
+catalog flag (`data-out`, hidden) and `/api/stock` takes over when
+it answers.
+
+Search lists every item but an archived one, whatever Show says:
+one out of stock shows its label in place of its price, greyed, and
+its Add is off. The build leaves archived items out of the page,
+search and `llms.txt`; `/api/stock` reports them out and the
+validator refuses them.
+
+**Archived with stock.** Each `/api/stock` read looks for an archived
+item stock has on hand (a count above 0, or flagged in stock and not
+counted). It emails `FARM_NOTIFICATIONS_EMAIL`, and no one else, once
+a product a day ("Hidden but in stock", `stock/archived/<day>` in the
+jobs store), and the morning report lists each one until the type is
+changed or the count zeroed. `test/restock.test.mjs` holds it.
 
 ## Rules
 
@@ -691,15 +740,16 @@ Flags that take a value accept both `--reason "..."` and
   escape hatch, both without a minimum.
 - **No South County option.** Dropped on 18 September 2026, along with
   the demand vote.
-- **Sold-out items are not rendered**, and a category with nothing in
-  stock is left out along with its nav pill. The data keeps them.
-  Square is the database and the page shows only what is in stock:
-  an item out of stock has no row, never a sold-out one, and a rename
-  never changes that (James, #267, 2026-10-20). A stock count of 0 is
-  out of stock too: the page hides the row once `/api/stock` says so.
-  Every SKU stays in Square, including empty tiers. The website shows
-  only in-stock items; out-of-stock tiers are hidden.
-  `order-page.spec.mjs` and `search.spec.mjs` hold it.
+- **Out-of-stock items are hidden by default**, and a category with
+  nothing in stock is left out along with its nav pill. Square is the
+  database and the default view shows only what is in stock: an item
+  out of stock has no row, never a sold-out one, and a rename never
+  changes that (James, #267, 2026-10-20). A stock count of 0 is out
+  of stock too: the page hides the row once `/api/stock` says so.
+  Every SKU stays in Square, including empty tiers. Show "Full
+  catalog" shows them with their restock labels, and search always does
+  (see Restock types). `order-page.spec.mjs`, `search.spec.mjs` and
+  `restock.spec.mjs` hold it.
 - **The order page is the product list**, headed "All products" (the
   `heading` front-matter param; the title stays "Order" for the tab
   and the breadcrumb). A "Catalog" sidebar (Bootstrap ScrollSpy)

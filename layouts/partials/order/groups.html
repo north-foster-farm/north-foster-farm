@@ -1,10 +1,26 @@
-{{/* The in-stock catalog groups, for the sidebar and the product list.
-     A group with nothing to sell is left out, and so is its link. A
-     group's `unit` ("per pack") sits by its heading; an item's own
-     `unit` sits in its row, for the groups that mix them. */}}
+{{/* The catalog groups, for the sidebar, the product list and search.
+     Every item but an archived one is here (#267), each with `out`,
+     true when the catalog's flag says it is out of stock, and
+     `restockLabel`, what an out-of-stock item says in place of its
+     quantity: "" for an item with no restock type, which stays hidden
+     while it is out. A group with nothing in stock is `out` too, and
+     hidden along with its link unless Show is on "Full catalog"
+     (order/restock.js). A group's `unit` ("per pack") sits
+     by its heading; an item's own `unit` sits in its row, for the
+     groups that mix them. */}}
 {{ $groups := slice }}
 {{ range hugo.Data.catalog.groups }}
-  {{ $items := where .items "inStock" true }}
+  {{ $items := slice }}
+  {{ $inStock := false }}
+  {{ range .items }}
+    {{ if ne .restock "archived" }}
+      {{ $out := not .inStock }}
+      {{ if not $out }}{{ $inStock = true }}{{ end }}
+      {{ $items = $items | append (merge . (dict
+        "out" $out
+        "restockLabel" (partial "order/restock-label.html" .))) }}
+    {{ end }}
+  {{ end }}
   {{ if $items }}
     {{ $short := replaceRE ` \(.*\)$` "" .label }}
     {{ $groups = $groups | append (dict
@@ -12,6 +28,7 @@
       "label" .label
       "short" $short
       "unit" (.unit | default "")
+      "out" (not $inStock)
       "items" $items)
     }}
   {{ end }}

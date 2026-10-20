@@ -146,6 +146,9 @@ const plugins = [
         // The search palette's JavaScript: open, and a real photo.
         "is-open",
         "is-photo",
+        // Its result rows, built by the script (#267).
+        "search-palette-row-name",
+        "search-palette-row-price",
         // Applied by session.js: the header's account slot fades in.
         "is-ready",
         "order-busy",

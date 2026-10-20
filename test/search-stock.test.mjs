@@ -26,6 +26,15 @@ describe("search stock", () => {
     assert.equal(room(live(true, 500), SKU, 0), MAX);
   });
 
+  // #267: the build's word on a product out of stock stands until
+  // /api/stock answers, and stock wins once it does.
+  it("takes the build's out of stock until stock answers", () => {
+    assert.equal(soldOut(null, SKU, true), true);
+    assert.equal(room(null, SKU, 0, true), 0);
+    assert.equal(soldOut(live(true, null), SKU, true), false);
+    assert.equal(room(live(true, 4), SKU, 0, true), 4);
+  });
+
   it("treats a product stock doesn't list as unknown", () => {
     assert.equal(soldOut({}, SKU), false);
     assert.equal(room({}, SKU, 0), MAX);
