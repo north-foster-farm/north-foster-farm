@@ -37,8 +37,8 @@ test.describe("the cart's word for an Add", () => {
       await expect(order.cart.locator(".order-cart-item.is-new"))
         .toHaveCount(1);
       await expect(order.cart.locator(".order-cart-item.is-new"))
-        .toContainText("under 2.0 lbs");
-      await expect(live).toHaveText("Added Wings, under 2.0 lbs to cart");
+        .toContainText("up to 1.9 lbs");
+      await expect(live).toHaveText("Added Wings, up to 1.9 lbs to cart");
 
       // The focus stays with the item the customer pressed, not the pane.
       const inCart = await page.evaluate(
@@ -79,10 +79,10 @@ test.describe("the cart's word for an Add", () => {
       await add(order, "eggs");
       await expect(order.cart).toHaveAttribute("data-open", "false");
       await expect(order.cart.locator("[data-cart-added]"))
-        .toHaveText("Added: Eggs, Large");
+        .toHaveText("Added: Eggs, Farm dozen");
       await expect(order.count).toHaveText("2 items");
       await expect(pill).toHaveAttribute("data-pulse", "1");
-      await expect(live).toHaveText("Added Eggs, Large to cart");
+      await expect(live).toHaveText("Added Eggs, Farm dozen to cart");
 
       // The word in the bar is gone again after a moment.
       await expect(order.cart.locator("[data-cart-added-box]"))
@@ -119,7 +119,7 @@ test.describe("the cart's word for an Add", () => {
     await page.waitForTimeout(600);
     await expect(order.cart).toHaveAttribute("data-open", "false");
     await expect(order.cart.locator("[data-cart-added]"))
-      .toHaveText("Added: Eggs, Large");
+      .toHaveText("Added: Eggs, Farm dozen");
   });
 });
 

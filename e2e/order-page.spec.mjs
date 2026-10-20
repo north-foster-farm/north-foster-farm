@@ -68,7 +68,8 @@ test.describe("order page", () => {
       const line = order.cart.locator(".order-cart-item");
 
       await expect(line).toHaveCount(1);
-      await expect(line.locator(".order-cart-item-name")).toHaveText("Large");
+      await expect(line.locator(".order-cart-item-name"))
+        .toHaveText("Farm dozen");
       await expect(line.locator(".order-cart-item-qty")).toHaveText("2 × $7");
       await expect(line.locator(".order-cart-item-sub")).toHaveText("$14");
       await expect(order.cart.locator(".order-cart-group-name"))
@@ -101,7 +102,7 @@ test.describe("order page", () => {
     await order.open({ eggs: 3, wings: 2 });
     await expect(order.count).toHaveText("5 items");
     await order.cart.getByRole("button", {
-      name: "Remove Wings, under 2.0 lbs from the cart",
+      name: "Remove Wings, up to 1.9 lbs from the cart",
     }).click();
     await expect(order.qty("wings")).toHaveValue("0");
     await expect(order.count).toHaveText("3 items");
@@ -117,7 +118,7 @@ test.describe("order page", () => {
       // that caused the blur must still land on its ×.
       await order.zip.fill("02857");
       await order.cart.getByRole("button", {
-        name: "Remove Wings, under 2.0 lbs from the cart",
+        name: "Remove Wings, up to 1.9 lbs from the cart",
       }).click();
       await expect(order.qty("wings")).toHaveValue("0");
       await expect(order.count).toHaveText("1 item");
@@ -142,8 +143,8 @@ test.describe("order page", () => {
 
       await order.open({ eggs: 2, "NFF-CHK-EGG-MD": 1 });
       await expect(page.locator("#order-added")).toHaveText(
-        new RegExp("^Added to your cart: 2 × Large\\. No longer " +
-          "available: Eggs.*, Medium\\.$")
+        new RegExp("^Added to your cart: 2 × Farm dozen\\. No longer " +
+          "available: Eggs.*, Petites\\.$")
       );
       await expect(order.qty("eggs")).toHaveValue("2");
       await expect(page).toHaveURL(/\/order\/$/);

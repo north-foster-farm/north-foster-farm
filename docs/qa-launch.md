@@ -106,10 +106,10 @@ itemizes the line" (both projects).
   into a stepper; the cart shows the line.
 - **Setup:** Fresh browser, empty cart.
 - **Test:**
-  1. Press Add on Eggs, Large.
+  1. Press Add on Eggs, Farm dozen.
   2. Fold the cart if it floats over the row, then press "One more".
 - **Assert:** The row's stepper is active with 1, then 2. The cart has
-  one group "Eggs" with one line "Large", "2 × $7", "$14". Count "2
+  one group "Eggs" with one line "Farm dozen", "2 × $7", "$14". Count "2
   items", Subtotal $14, Delivery fee +$5, Total $19.
 - **Teardown:** None.
 
@@ -122,7 +122,7 @@ the item" (both projects).
   the row.
 - **Setup:** `/order/?add=NFF-CHK-EGG-LG:1`.
 - **Test:**
-  1. Fold the cart if it floats; press Remove on Eggs, Large.
+  1. Fold the cart if it floats; press Remove on Eggs, Farm dozen.
 - **Assert:** Quantity 0, the row shows Add again, the cart reads "0
   items".
 - **Teardown:** None.
@@ -135,7 +135,7 @@ out" (both projects).
 - **Scenario:** A customer removes a whole line from the cart.
 - **Setup:** `/order/?add=` 3 eggs and 2 wings.
 - **Test:**
-  1. Press "Remove Wings, under 2.0 lbs from the cart".
+  1. Press "Remove Wings, up to 1.9 lbs from the cart".
 - **Assert:** Wings quantity 0; "3 items"; Subtotal $21.
 - **Teardown:** None.
 
@@ -177,12 +177,12 @@ added and clears the query" (both projects).
 
 - **Scenario:** The account page's Add again and Reorder links open
   `/order/?add=SKU:qty`; anything no longer sold is named, not added.
-- **Setup:** `/order/?add=NFF-CHK-EGG-LG:2,NFF-CHK-EGG-MD:1` (Medium is
-  sold out).
+- **Setup:** `/order/?add=NFF-CHK-EGG-LG:2,NFF-CHK-EGG-MD:1` (Petites
+  are sold out).
 - **Test:**
   1. Open the link.
-- **Assert:** The notice reads "Added to your cart: 2 × Large. No longer
-  available: Eggs (per dozen), Medium." Eggs, Large reads 2. The URL is
+- **Assert:** The notice reads "Added to your cart: 2 × Farm dozen. No longer
+  available: Eggs (per dozen), Petites." Eggs, Farm dozen reads 2. The URL is
   `/order/` with no query.
 - **Teardown:** None.
 
@@ -459,7 +459,7 @@ Manual: a judgement for James.
   cart over about two thirds of the catalog, covering the row just used.
 - **Setup:** Phone, empty cart.
 - **Test:**
-  1. Tap Add on Eggs, Large.
+  1. Tap Add on Eggs, Farm dozen.
   2. Try to tap + on the same row.
 - **Assert:** Decide whether the row should stay reachable without Hide.
   Screenshot of today's state:
@@ -1558,10 +1558,10 @@ back". Tagged `@regression`.
 
 - **Scenario:** Change items on the account page opens the order on the
   order page; a smaller order refunds the difference.
-- **Setup:** A paid on-farm order of 2 × Eggs, Large ($14), signed in.
+- **Setup:** A paid on-farm order of 2 × Eggs, Farm dozen ($14), signed in.
 - **Test:**
   1. Account page, the order's Change items.
-  2. Set Eggs, Large to 1; press Save changes.
+  2. Set Eggs, Farm dozen to 1; press Save changes.
 - **Assert:** The page reads "Change your order" and names the order.
   Under the total: Paid $14, To refund $7. The payment section and the
   card's Pay button are hidden; only Save changes shows. After it, the
@@ -1580,11 +1580,11 @@ is charged" (through the endpoint, with `cnon:card-nonce-ok`).
   wallet or Venmo, on a Square order of its own.
 - **Setup:** As AO-15.
 - **Test:**
-  1. Change items; set Eggs, Large to 3.
+  1. Change items; set Eggs, Farm dozen to 3.
   2. Pay by card (`4111 1111 1111 1111`); then again with Venmo.
 - **Assert:** To pay $7 and "Pay $7 and save". The record gains a second
   payment of $7; `square.changes` names a Square order of 1 × Eggs,
-  Large (`bin/nff orders show <id> --staging`). A decline leaves the
+  Farm dozen (`bin/nff orders show <id> --staging`). A decline leaves the
   order as it was. Venmo waits on #164's sandbox login.
 - **Teardown:** As AO-15.
 
@@ -2383,7 +2383,7 @@ has it", "on the order page it fills the row and the cart at once" and
   2. On `/order/?add=` 1 wing, search "wings"; Enter; Escape.
   3. With `/api/stock` held, search "eggs", press One more, then let
      the stock answer.
-- **Assert:** "Large", "In stock"; "Added 2 × Eggs, Large. 2 items in
+- **Assert:** "Farm dozen", "In stock"; "Added 2 × Eggs, Farm dozen. 2 items in
   your cart." and the button reads "Added · 2 in cart"; the order page
   shows 2 eggs, "2 items", $14. On the order page the wings row reads
   2, "2 items", $20. The late stock answer leaves the quantity at 2.

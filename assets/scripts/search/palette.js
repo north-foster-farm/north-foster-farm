@@ -150,7 +150,7 @@ export const wireSearch = () => {
       row.dataset.sku = p.sku;
       name.className = "search-palette-row-name";
       group.textContent = p.group;
-      // A dot between them: weight alone can't part "Eggs Large".
+      // A dot between them: weight alone can't part "Eggs Farm dozen".
       name.append(group, ` · ${p.label}`);
       price.className = "search-palette-row-price skeleton-slot";
       // Its words first, then the bar that covers them while stock is

@@ -49,9 +49,9 @@ test.describe("search (#142)", () => {
       await expect(p.opener).toHaveAttribute("aria-expanded", "true");
       await expect(p.input).toHaveAttribute("role", "combobox");
 
-      // #208: a dot parts the group from the item, "Eggs · Large".
+      // #208: a dot parts the group from the item, "Eggs · Farm dozen".
       await p.input.fill("egg");
-      await expect(p.rows.first()).toHaveText(/^Eggs · Large\$/);
+      await expect(p.rows.first()).toHaveText(/^Eggs · Farm dozen\$/);
 
       await p.input.fill("wing");
       await expect(p.rows.first()).toContainText("Wings");
@@ -204,14 +204,14 @@ test.describe("search (#142)", () => {
     await expect(p.qty).toHaveValue("1");
     await expect(p.more).toBeFocused();
     await expect(p.added).toHaveText(
-      "1 × Eggs, Large in your cart. 1 item in all."
+      "1 × Eggs, Farm dozen in your cart. 1 item in all."
     );
     await expect(p.fewer).toHaveAttribute("aria-label", "Remove");
     await p.fewer.click();
     await expect(p.add).toBeVisible();
     await expect(p.add).toBeFocused();
     await expect(p.added).toHaveText(
-      "Removed Eggs, Large. 0 items in your cart."
+      "Removed Eggs, Farm dozen. 0 items in your cart."
     );
     await expect(p.dialog.getByRole("button", { name: "Go to cart" }))
       .toBeHidden();
@@ -228,12 +228,12 @@ test.describe("search (#142)", () => {
     await stock;
     await expect(p.input).toBeFocused();
     await p.input.fill("eggs");
-    await expect(p.card.locator("[data-search-name]")).toHaveText("Large");
+    await expect(p.card.locator("[data-search-name]")).toHaveText("Farm dozen");
     await p.add.click();
     await p.more.click();
     await expect(p.qty).toHaveValue("2");
     await expect(p.added).toHaveText(
-      "2 × Eggs, Large in your cart. 2 items in all."
+      "2 × Eggs, Farm dozen in your cart. 2 items in all."
     );
 
     const order = new OrderPage(page);
