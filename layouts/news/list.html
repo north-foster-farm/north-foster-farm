@@ -44,7 +44,7 @@
             {{/* Where news/more.js shows the next page coming (#271). */}}
             <div class="news-more-load" data-news-more>
               {{ partial "skeleton.html" (dict "shape" "news") }}
-              {{ partial "skeleton/status.html" (dict "failed" "Older posts didn't load.") }}
+              {{ partial "skeleton/status.html" (dict "failed" "We couldn't load older posts.") }}
             </div>
             <nav class="news-pager d-flex justify-content-between gap-3" aria-label="More news" data-news-pager>
               {{ with $pager.Prev }}

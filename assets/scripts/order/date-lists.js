@@ -91,7 +91,7 @@ export class DateLists {
   retryLater() {
     const delay = RETRY[Math.min(this.attempt++, RETRY.length - 1)];
 
-    this.note("We couldn't load the available dates. Retrying…");
+    this.note("We couldn't load the dates. Retrying…");
     clearTimeout(this.again);
     this.again = setTimeout(async () => {
       if (await this.refresh()) {
