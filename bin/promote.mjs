@@ -103,6 +103,7 @@ export const auditCommit = async (sha, { show, audit = npmAudit }) => {
   const exceptions = JSON.parse(await show(sha, "security/exceptions.json"));
   const findings = await collectFindings({
     lockfiles: [join(dir, "package-lock.json")], workflows, audit,
+    exceptions,
   });
   const result = evaluate(findings, exceptions);
   const bad = incompleteExceptions(exceptions);

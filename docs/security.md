@@ -109,9 +109,11 @@ with `overrides` in `package.json`.
 - **Exceptions are James's call and are recorded** in
   `security/exceptions.json`: package, advisory id, why, how we are
   exposed, and the plan. Entries are public-safe; exploit detail goes
-  in `incidents/`. An exception comes back by itself when a fixed
-  version appears, unless `reraisedFor` names the fix James has
-  already looked at.
+  in `incidents/`. An exception comes back by itself, failing `audit`
+  and the daily production audit, once the GitHub advisory database
+  names a patched version of the package, unless `reraisedFor` names
+  the version James has already looked at. npm's own fix hint does
+  not count: it can name a downgrade of some other package.
 - **A daily audit of what is deployed** (`prod-audit.yml`) finds the
   deployed commit, audits its lockfile, and pings a Healthchecks
   check: a plain ping when clean, `/fail` when not. The ping URL is the

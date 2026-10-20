@@ -17,7 +17,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import {
-  actionFindings, evaluate, incompleteExceptions, npmFindings,
+  actionFindings, evaluate, incompleteExceptions, keyOf, npmFindings,
   usesFromWorkflow,
 } from "./findings.mjs";
 
@@ -48,35 +48,74 @@ export const npmAudit = async (dir) => {
   return report;
 };
 
-export const actionAdvisories = async (repo, version, fetchImpl = fetch) => {
+const apiHeaders = () => {
   const headers = { accept: "application/vnd.github+json" };
 
   if (process.env.GITHUB_TOKEN) {
     headers.authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   }
 
+  return headers;
+};
+
+export const actionAdvisories = async (repo, version, fetchImpl = fetch) => {
   const query = new URLSearchParams({
     ecosystem: "actions", affects: `${repo}@${version}`, "per_page": "100",
   });
-  const res = await fetchImpl(`${ADVISORIES}?${query}`, { headers });
+  const res = await fetchImpl(`${ADVISORIES}?${query}`,
+    { headers: apiHeaders() });
 
   if (!res.ok) throw new Error(`advisories for ${repo}: HTTP ${res.status}`);
 
   return res.json();
 };
 
+// The first version of an npm package that an advisory calls patched,
+// from the GitHub advisory database, or null while none exists. This,
+// not npm's fixAvailable (which may name a downgrade of some other
+// package), is what raises an exception again. Any doubt throws, so
+// the check fails rather than passing on a lookup it could not make.
+export const patchedVersion = async (pkg, advisory, fetchImpl = fetch) => {
+  const res = await fetchImpl(`${ADVISORIES}/${advisory}`,
+    { headers: apiHeaders() });
+
+  if (!res.ok) throw new Error(`advisory ${advisory}: HTTP ${res.status}`);
+
+  const hit = ((await res.json()).vulnerabilities || []).find((v) =>
+    v.package?.ecosystem === "npm" && v.package?.name === pkg);
+
+  if (!hit) throw new Error(`advisory ${advisory} does not name ${pkg}`);
+
+  return hit.first_patched_version || null;
+};
+
 export const readExceptions = (path = join(ROOT, "security/exceptions.json")) =>
   JSON.parse(readFileSync(path, "utf8"));
 
-// Every finding for a set of lockfiles and workflow texts.
+// Every finding for a set of lockfiles and workflow texts. An npm
+// finding that an exception covers gets `patched` from the advisory
+// database; one without a GHSA id falls back to npm's fix, so it still
+// comes back once npm sees any fix.
 export const collectFindings = async ({
   lockfiles = [], workflows = [], audit = npmAudit,
-  advisories = actionAdvisories,
+  advisories = actionAdvisories, exceptions = [], patched = patchedVersion,
 }) => {
   const findings = [];
+  const excepted = new Set(exceptions.map(keyOf));
+  const lookups = new Map();
 
   for (const lock of lockfiles) {
-    findings.push(...npmFindings(await audit(dirname(resolve(lock)))));
+    for (const f of npmFindings(await audit(dirname(resolve(lock))))) {
+      const key = keyOf(f);
+
+      if (excepted.has(key) && !lookups.has(key)) {
+        lookups.set(key, f.advisory.startsWith("GHSA-")
+          ? await patched(f.package, f.advisory)
+          : f.fix);
+      }
+
+      findings.push({ ...f, patched: lookups.get(key) ?? null });
+    }
   }
 
   const actions = new Map();
@@ -111,7 +150,8 @@ export const details = (result) => {
 
   return [
     ...result.unresolved.map((f) => line("unresolved", f)),
-    ...result.reraised.map((f) => line("re-raise", f)),
+    ...result.reraised.map((f) =>
+      `re-raise ${f.package} ${f.advisory} (patched: ${f.patched})`),
     ...result.stale.map((e) => `stale ${e.package} ${e.advisory}`),
   ];
 };
@@ -121,14 +161,18 @@ export const workflowTexts = (dir) => readdirSync(dir)
   .map((name) => readFileSync(join(dir, name), "utf8"));
 
 // 0 when clean, 1 when a vulnerability or an exception needs James.
-export const main = async (argv, { exceptions = readExceptions() } = {}) => {
+export const main = async (argv, {
+  exceptions = readExceptions(), audit, patched,
+} = {}) => {
   const args = [...argv];
   const showDetails = args.includes("--details")
     || !process.env.GITHUB_ACTIONS;
   const dirAt = args.indexOf("--actions");
   const workflows = dirAt >= 0 ? workflowTexts(args.splice(dirAt, 2)[1]) : [];
   const lockfiles = args.filter((a) => !a.startsWith("--"));
-  const findings = await collectFindings({ lockfiles, workflows });
+  const findings = await collectFindings({
+    lockfiles, workflows, exceptions, audit, patched,
+  });
   const result = evaluate(findings, exceptions);
   const bad = incompleteExceptions(exceptions);
 

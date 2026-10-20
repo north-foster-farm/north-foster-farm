@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 
-import { collectFindings, main } from "../bin/audit/check.mjs";
+import {
+  collectFindings, main, patchedVersion,
+} from "../bin/audit/check.mjs";
 import {
   actionFindings, evaluate, incompleteExceptions, npmFindings,
   usesFromWorkflow,
@@ -34,6 +36,9 @@ const report = {
 
 const finding = (pkg, advisory, fix = null) => ({
   package: pkg, advisory, severity: "high", fix,
+});
+const patchedFinding = (pkg, advisory, patched = null) => ({
+  ...finding(pkg, advisory), patched,
 });
 const exception = (pkg, advisory, extra = {}) => ({
   package: pkg, advisory, why: "w", exposure: "e", plan: "p", ...extra,
@@ -75,18 +80,20 @@ describe("actionFindings", () => {
       ],
     }];
 
-    assert.deepEqual(actionFindings("owner/repo", advisories),
-      [finding("owner/repo", "GHSA-1111-2222-3333", "46.0.1")]);
+    assert.deepEqual(actionFindings("owner/repo", advisories), [{
+      ...finding("owner/repo", "GHSA-1111-2222-3333", "46.0.1"),
+      patched: "46.0.1",
+    }]);
   });
 });
 
 describe("evaluate", () => {
   it("separates unresolved, excepted, re-raised and stale", () => {
     const findings = [
-      finding("a", "GHSA-1"),
-      finding("b", "GHSA-2"),
-      finding("c", "GHSA-3", "3.0.1"),
-      finding("d", "GHSA-4", "4.0.1"),
+      patchedFinding("a", "GHSA-1"),
+      patchedFinding("b", "GHSA-2"),
+      patchedFinding("c", "GHSA-3", "3.0.1"),
+      patchedFinding("d", "GHSA-4", "4.0.1"),
     ];
     const exceptions = [
       exception("b", "GHSA-2"),
@@ -103,10 +110,18 @@ describe("evaluate", () => {
   });
 
   it("re-raises an acknowledged exception when a newer fix ships", () => {
-    const result = evaluate([finding("d", "GHSA-4", "4.0.2")],
+    const result = evaluate([patchedFinding("d", "GHSA-4", "4.0.2")],
       [exception("d", "GHSA-4", { reraisedFor: "4.0.1" })]);
 
     assert.equal(result.reraised.length, 1);
+  });
+
+  it("ignores npm's fix hint while nothing is patched", () => {
+    const hinted = { ...finding("e", "GHSA-5", "other@7.0.2"), patched: null };
+    const result = evaluate([hinted], [exception("e", "GHSA-5")]);
+
+    assert.equal(result.reraised.length, 0);
+    assert.equal(result.excepted.length, 1);
   });
 });
 
@@ -143,6 +158,133 @@ describe("collectFindings", () => {
     assert.deepEqual(dirs, ["/x/y"]);
     assert.deepEqual(asked, ["o/r@1.0.0"]);
     assert.equal(findings.length, 3);
+  });
+
+  it("looks up a patched version only for excepted findings, once each",
+    async () => {
+      const asked = [];
+      const findings = await collectFindings({
+        lockfiles: ["/a/package-lock.json", "/b/package-lock.json"],
+        audit: async () => report,
+        exceptions: [
+          exception("braces", "GHSA-dddd-eeee-ffff"),
+          exception("odd", "npm-4"),
+        ],
+        patched: async (pkg, advisory) => {
+          asked.push(`${pkg} ${advisory}`);
+
+          return "3.0.4";
+        },
+      });
+      const patchedOf = (pkg) =>
+        findings.find((f) => f.package === pkg).patched;
+
+      assert.deepEqual(asked, ["braces GHSA-dddd-eeee-ffff"]);
+      assert.equal(patchedOf("braces"), "3.0.4");
+      assert.equal(patchedOf("fast-uri"), null);
+      // No GHSA id to look up: npm's own fix stands in, here none.
+      assert.equal(patchedOf("odd"), null);
+    });
+});
+
+describe("patchedVersion", () => {
+  const answer = (body, ok = true) => async (url) => {
+    assert.match(url, /\/advisories\/GHSA-dddd-eeee-ffff$/);
+
+    return { ok, status: ok ? 200 : 503, json: async () => body };
+  };
+  const vulnerable = (name, first) => ({
+    vulnerabilities: [
+      { package: { ecosystem: "npm", name: "other" },
+        "first_patched_version": "9.9.9" },
+      { package: { ecosystem: "npm", name },
+        "first_patched_version": first },
+    ],
+  });
+
+  it("is the package's first patched version, or null while none", async () => {
+    assert.equal(await patchedVersion("braces", "GHSA-dddd-eeee-ffff",
+      answer(vulnerable("braces", "3.0.4"))), "3.0.4");
+    assert.equal(await patchedVersion("braces", "GHSA-dddd-eeee-ffff",
+      answer(vulnerable("braces", null))), null);
+  });
+
+  it("throws rather than guess", async () => {
+    await assert.rejects(patchedVersion("braces", "GHSA-dddd-eeee-ffff",
+      answer({}, false)), /HTTP 503/);
+    await assert.rejects(patchedVersion("braces", "GHSA-dddd-eeee-ffff",
+      answer(vulnerable("micromatch", "4.0.9"))), /does not name braces/);
+  });
+});
+
+// An excepted advisory with no patched version, and npm hinting at a
+// downgrade of another package, as braces stood on 2026-10-20.
+const bracesReport = async () => ({
+  vulnerabilities: {
+    braces: {
+      fixAvailable: { name: "@fullhuman/postcss-purgecss", version: "7.0.2" },
+      via: [via(3, "GHSA-dddd-eeee-ffff")],
+    },
+  },
+});
+const bracesException = (extra) =>
+  exception("braces", "GHSA-dddd-eeee-ffff", extra);
+
+describe("main: an excepted package ships a fix", () => {
+  const check = async (patched, extra) => {
+    const log = mock.method(console, "log", () => {});
+
+    try {
+      const code = await main(["--details", "/x/package-lock.json"], {
+        exceptions: [bracesException(extra)],
+        audit: bracesReport,
+        patched: async () => patched,
+      });
+
+      return {
+        code,
+        printed: log.mock.calls.map((c) => c.arguments[0]).join("\n"),
+      };
+    } finally {
+      log.mock.restore();
+    }
+  };
+
+  it("passes while no patched version exists", async () => {
+    const { code, printed } = await check(null);
+
+    assert.equal(code, 0);
+    assert.match(printed, /excepted: 1/);
+  });
+
+  it("fails once one does, with no change to the exception", async () => {
+    const { code, printed } = await check("3.0.4");
+
+    assert.equal(code, 1);
+    assert.match(printed, /exceptions to re-raise: 1/);
+    assert.match(printed,
+      /re-raise braces GHSA-dddd-eeee-ffff \(patched: 3\.0\.4\)/);
+  });
+
+  it("passes again only once James records reraisedFor", async () => {
+    assert.equal((await check("3.0.4", { reraisedFor: "3.0.4" })).code, 0);
+    assert.equal((await check("3.0.5", { reraisedFor: "3.0.4" })).code, 1);
+  });
+
+  it("fails when the advisory database cannot be asked", async () => {
+    const log = mock.method(console, "log", () => {});
+
+    try {
+      await assert.rejects(main(["/x/package-lock.json"], {
+        exceptions: [bracesException()],
+        audit: bracesReport,
+        patched: async () => {
+          throw new Error("advisory GHSA-dddd-eeee-ffff: HTTP 503");
+        },
+      }), /HTTP 503/);
+    } finally {
+      log.mock.restore();
+    }
   });
 });
 
@@ -193,7 +335,7 @@ describe("prodAudit", () => {
   });
   const clean = async () => ({ vulnerabilities: {} });
 
-  const setup = (audit) => {
+  const setup = (audit, more = {}) => {
     const pings = [];
     const urls = [];
     const fetchImpl = async (url, options) => {
@@ -210,7 +352,7 @@ describe("prodAudit", () => {
     const log = mock.method(console, "log", () => {});
     const run = () => prodAudit({
       env: { PROD_AUDIT_PING_URL: "https://hc/ping/x" },
-      fetchImpl, audit, exceptions: [],
+      fetchImpl, audit, exceptions: [], ...more,
     });
 
     return { pings, urls, log, run };
@@ -244,6 +386,27 @@ describe("prodAudit", () => {
         log.mock.restore();
       }
     });
+
+  it("alerts once an excepted package ships a fix", async () => {
+    const quiet = setup(bracesReport, {
+      exceptions: [bracesException()], patched: async () => null,
+    });
+    const fixed = setup(bracesReport, {
+      exceptions: [bracesException()], patched: async () => "3.0.4",
+    });
+
+    try {
+      assert.equal(await quiet.run(), 0);
+      assert.equal(quiet.pings[0].url, "https://hc/ping/x");
+      assert.equal(await fixed.run(), 1);
+      assert.equal(fixed.pings[0].url, "https://hc/ping/x/fail");
+      assert.match(fixed.pings[0].body,
+        /re-raise braces GHSA-dddd-eeee-ffff \(patched: 3\.0\.4\)/);
+    } finally {
+      quiet.log.mock.restore();
+      fixed.log.mock.restore();
+    }
+  });
 
   it("fails loudly when no ping URL is set", async () => {
     const log = mock.method(console, "log", () => {});

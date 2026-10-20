@@ -2,9 +2,11 @@
 // findings, and sets them against the recorded exceptions
 // (security/exceptions.json). Pure functions; check.mjs does the I/O.
 //
-// A finding is { package, advisory, severity, fix }. `fix` is what
-// would resolve it (a version or "available"), or null when nothing
-// does yet.
+// A finding is { package, advisory, severity, fix, patched }. `fix` is
+// npm's hint at what would resolve it (a version or "available"), or
+// null. `patched` is the first version of the package itself that the
+// advisory calls fixed, or null while none exists; it is what raises an
+// exception again. check.mjs fills it in for excepted npm findings.
 
 const GHSA = /GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}/i;
 
@@ -64,16 +66,17 @@ export const actionFindings = (repo, advisories) => advisories.map((a) => {
     advisory: a.ghsa_id,
     severity: a.severity,
     fix: hit.first_patched_version || null,
+    patched: hit.first_patched_version || null,
   };
 });
 
-const keyOf = (item) => `${item.package}|${item.advisory}`;
+export const keyOf = (item) => `${item.package}|${item.advisory}`;
 
 // Sorts findings against the exceptions:
 //   unresolved  no exception covers it
-//   reraised    an exception covers it but a fix has since shipped, and
-//               James has not yet acknowledged that fix (an exception's
-//               `reraisedFor` names the fix he looked at)
+//   reraised    an exception covers it but a patched version has since
+//               shipped, and James has not yet acknowledged that version
+//               (an exception's `reraisedFor` names the one he looked at)
 //   excepted    covered, and nothing new to decide
 // `stale` lists exceptions whose advisory no longer shows up.
 export const evaluate = (findings, exceptions) => {
@@ -85,7 +88,7 @@ export const evaluate = (findings, exceptions) => {
     const exception = byKey.get(keyOf(finding));
 
     if (!exception) result.unresolved.push(finding);
-    else if (finding.fix && exception.reraisedFor !== finding.fix) {
+    else if (finding.patched && exception.reraisedFor !== finding.patched) {
       result.reraised.push(finding);
     } else result.excepted.push(finding);
   }

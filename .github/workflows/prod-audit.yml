@@ -11,7 +11,9 @@ name: Production audit
 #
 # PROD_AUDIT_PING_URL is the ping URL of a Healthchecks check named
 # "Production audit" with a one-day period and a grace of a few hours,
-# so a day with no run alerts as well. It is the only secret here.
+# so a day with no run alerts as well. It is the only secret here. The
+# run's own token lifts the advisory API's rate limit for the lookups
+# that raise an exception again once its package ships a fix.
 
 on:
   schedule:
@@ -36,4 +38,5 @@ jobs:
       - name: Audit production's lockfile
         env:
           PROD_AUDIT_PING_URL: ${{ secrets.PROD_AUDIT_PING_URL }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: node bin/audit/prod.mjs

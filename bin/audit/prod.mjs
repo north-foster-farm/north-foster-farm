@@ -81,7 +81,7 @@ const download = async (raw, fetchImpl) => {
 
 export const prodAudit = async ({
   env = process.env, fetchImpl = fetch, audit = npmAudit,
-  exceptions = readExceptions(),
+  exceptions = readExceptions(), patched,
 } = {}) => {
   const url = env.PROD_AUDIT_PING_URL;
 
@@ -94,7 +94,7 @@ export const prodAudit = async ({
   const { sha, ref, raw } = await locate(env, fetchImpl);
   const dir = await download(raw, fetchImpl);
   const findings = await collectFindings({
-    lockfiles: [join(dir, "package-lock.json")], audit,
+    lockfiles: [join(dir, "package-lock.json")], audit, exceptions, patched,
   });
   const result = evaluate(findings, exceptions);
   const failed = Boolean(result.unresolved.length || result.reraised.length);
