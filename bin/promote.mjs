@@ -30,9 +30,8 @@ export const REPO = "north-foster-farm/north-foster-farm";
 export const FROM = { staging: "next", main: "staging" };
 
 // The checks every promoted commit must have passed, as the branch
-// rules require them. `audit` joins when James's answers on the open
-// advisories are recorded (#267): until then it is run and reported
-// below but does not stop a promotion.
+// rules require them. `audit` is run and reported below but does not
+// stop a promotion; whether it should is James's call (#283).
 export const REQUIRED_CHECKS = ["lint-and-test", "supply-chain", "codeql"];
 export const AUDIT_BLOCKS = false;
 export const APPROVAL_LABEL = "LGTM";
@@ -43,9 +42,10 @@ export const USAGE = `
                                       main to staging, and nothing else.
                                       Refuses a non-fast-forward, a
                                       commit whose checks are not all
-                                      green, a failing dependency audit
-                                      and, for main, a commit with no
-                                      approval on its pull request`
+                                      green and, for main, a commit with
+                                      no approval on its pull request.
+                                      Reports the dependency audit
+                                      without blocking on it`
   .slice(1);
 
 const git = async (args) => (await run("git", args)).stdout.trim();
