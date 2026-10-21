@@ -319,6 +319,9 @@ for (const width of WIDTHS) {
 
     test("the order page with a cart tabs cleanly",
       async ({ page, browserName }) => {
+        // WebKit's walk of the full order page ran past the default
+        // two minutes on 2 of 10 busy runs.
+        test.setTimeout(5 * 60_000);
         await cannedDates(page);
         await new OrderPage(page).open(FULL_CART);
         await page.evaluate(() => scrollTo(0, 0));
