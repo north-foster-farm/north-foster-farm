@@ -45,6 +45,10 @@ jobs:
       - name: Lint
         run: env -i PATH="$PATH" HOME="$HOME" npm run lint
 
+      # Every tracked SVG as the clean-up writes it (#295, docs/svg.md).
+      - name: SVG
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:svg
+
       - name: Test
         run: env -i PATH="$PATH" HOME="$HOME" npm test
 

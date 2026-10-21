@@ -16,6 +16,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { clean } from "../svg/clean.mjs";
+
 const SRC = "bin/logos/originals";
 // The header's green, which the emails' wordmark wears.
 const EMAIL_GREEN = "#124a32";
@@ -56,8 +58,9 @@ const svg = (viewBox, paths, attrs) => [
   "",
 ].join("\n");
 
+// Each SVG goes out through the clean-up check:svg holds it to (#295).
 const write = (file, text) => {
-  writeFileSync(file, text);
+  writeFileSync(file, clean(text, file));
   console.log(`wrote ${file}`);
 };
 

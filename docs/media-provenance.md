@@ -91,6 +91,8 @@ below from them, paths as drawn; run it after changing an original.
 Licenses and notices for Lucide, Feather and Tabler are in `NOTICE`.
 Icons marked "James supplied" came from files he put in `~/Code/nff/`
 or named in an issue; the others an agent took from the set named.
+Every SVG is stored as the clean-up writes it (`docs/svg.md`), which
+changes how its paths are spelled but not its shapes.
 
 | File | Made by | Credit | Source and notes |
 | --- | --- | --- | --- |

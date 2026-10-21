@@ -60,4 +60,7 @@ tile 150 270 270 "$out/mstile-150x150.png"
 
 emblem mono > "$out/safari-pinned-tab.svg"
 
+# Both SVGs through the clean-up check:svg holds them to (#295).
+node bin/svg/clean.mjs "$out/favicon.svg" "$out/safari-pinned-tab.svg"
+
 echo "Rebuilt $out."

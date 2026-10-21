@@ -6,4 +6,16 @@
 #
 # It checks the working tree, not only what is staged.
 
+# The SVGs this commit adds or changes, held to the clean-up first
+# (#295, docs/svg.md): `npm run svg:clean` fixes what this refuses.
+# The names pass NUL-delimited, so a space or a glob character in one
+# stays part of it.
+staged_svgs() {
+  git diff --cached --name-only --diff-filter=ACMR -z -- '*.svg'
+}
+if [ -n "$(staged_svgs | tr -d '\0')" ]; then
+  staged_svgs | xargs -0 env -i PATH="$PATH" HOME="$HOME" \
+    npm run --silent check:svg -- || exit 1
+fi
+
 exec env -i PATH="$PATH" HOME="$HOME" npm run --silent check
