@@ -93,12 +93,15 @@ export class Stock {
 
       if (!state) continue;
 
+      const row = input.closest(".order-item");
       const held = this.held[sku] || 0;
       const inStock = state.inStock || held > 0;
-      const available = state.available === null ? null
-        : state.available + held;
+      // An archived line can only keep what the order holds, and says
+      // so: "No longer available".
+      const archived = row.hasAttribute("data-archived");
+      const available = archived ? held
+        : state.available === null ? null : state.available + held;
 
-      const row = input.closest(".order-item");
       const note = row.querySelector("[data-stock-note]");
       const qty = parseInt(input.value, 10) || 0;
       const label = row.querySelector("label").textContent.trim();
@@ -116,6 +119,10 @@ export class Stock {
           this.setQty(input, 0);
           changed.push(`${label} sold out and was removed`);
         }
+      } else if (archived) {
+        delete row.dataset.stock;
+        text = row.dataset.restockLabel;
+        if (qty > available) this.setQty(input, available);
       } else if (available !== null && available <= 5) {
         row.dataset.stock = "low";
         text = available === 1 ? "1 left" : `${available} left`;

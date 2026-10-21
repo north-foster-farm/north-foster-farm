@@ -135,6 +135,7 @@ export const planEdit = async (stores, order, body, {
 }) => {
   const result = validate(payloadFor(order, body), {
     index, terms, now, group, codes, schedule,
+    held: Object.fromEntries(order.lines.map((l) => [l.sku, l.qty])),
   });
 
   if (!result.ok) {

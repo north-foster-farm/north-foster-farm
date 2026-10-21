@@ -142,6 +142,18 @@ a product a day ("Hidden but in stock", `stock/archived/<day>` in the
 jobs store), and the morning report lists each one until the type is
 changed or the count zeroed. `test/restock.test.mjs` holds it.
 
+**Archived in a paid order** (James, 6305650920). An archived item
+stays in the catalog, so a paid order that holds one still names it.
+Changing that order keeps the line: `validateOrder` takes `held`, what
+the order already holds, and lets a line that sold out or was archived
+since keep up to that many, never more ("... is no longer available."
+past it). On the page, the product list carries every archived item
+in a hidden "No longer available" section (`order/archived.html`,
+never in the sidebar or search). Edit mode shows the rows the order
+holds, labelled "No longer available", and caps each at its held
+quantity. A cancel needs nothing: it doesn't read the catalog.
+`test/edit.test.mjs` and `e2e/archived-edit.spec.mjs` hold it.
+
 ## Rules
 
 Money is integer cents, in this order. Client figures are display only.

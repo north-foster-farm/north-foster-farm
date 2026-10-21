@@ -6,7 +6,10 @@ import { rescueCheckout } from "../netlify/functions/lib/checkout.mjs";
 import {
   diffLines, editOrder, finishEditVenmo,
 } from "../netlify/functions/lib/edit.mjs";
-import { getCheckout, getOrder } from "../netlify/functions/lib/records.mjs";
+import { cancelOrder } from "../netlify/functions/lib/account.mjs";
+import {
+  amendOrder, getCheckout, getOrder,
+} from "../netlify/functions/lib/records.mjs";
 import { buildChangeOrder } from "../netlify/functions/lib/square.mjs";
 import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
@@ -472,4 +475,68 @@ describe("editOrder", () => {
 
       assert.equal(late.status, 409);
     });
+});
+
+// An archived variation stays in the catalog, and a paid order that
+// holds one keeps it through a change or a cancel (6305650920).
+describe("a paid order holding an archived line", () => {
+  const HEN = "NFF-CHK-CRN-0000-0300";
+
+  // A placed order whose record also holds a Cornish hen, as one
+  // bought before the hens were archived would.
+  const withHen = async () => {
+    const { stores, id } = await placed();
+    const order = await getOrder(stores, id);
+
+    await amendOrder(stores, id, {
+      lines: [...order.lines, {
+        sku: HEN, label: "Cornish Hens, under 3.0 lbs", qty: 1,
+        unitPrice: 20, lineTotal: 20,
+      }],
+    }, "test.held", now);
+
+    return { stores, id };
+  };
+
+  it("keeps the line when the rest changes", async () => {
+    const { stores, id } = await withHen();
+    const result = await edit(stores, id, {
+      idempotencyKey: editKey(),
+      lines: [{ sku: SKU, qty: 1 }, { sku: HEN, qty: 1 }],
+    }, fakeSquare().square);
+
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    assert.deepEqual((await getOrder(stores, id)).lines
+      .map((l) => [l.sku, l.qty]), [[SKU, 1], [HEN, 1]]);
+  });
+
+  it("lets it fall but never rise", async () => {
+    const { stores, id } = await withHen();
+    const more = await edit(stores, id, {
+      idempotencyKey: editKey(),
+      lines: [{ sku: SKU, qty: 2 }, { sku: HEN, qty: 2 }],
+    }, fakeSquare().square);
+
+    assert.equal(more.ok, false);
+    assert.equal(more.errors[`lines.${HEN}`],
+      "Cornish Hens, under 3.0 lbs is no longer available.");
+
+    const fewer = await edit(stores, id, {
+      idempotencyKey: editKey(), lines: [{ sku: SKU, qty: 2 }],
+    }, fakeSquare().square);
+
+    assert.equal(fewer.ok, true, JSON.stringify(fewer.errors));
+    assert.deepEqual((await getOrder(stores, id)).lines.map((l) => l.sku),
+      [SKU]);
+  });
+
+  it("cancels", async () => {
+    const { stores, id } = await withHen();
+    const r = await cancelOrder(stores, customer, id, {
+      now, env, mail: async () => ({}), square: fakeSquare().square,
+    });
+
+    assert.equal(r.ok, true, JSON.stringify(r.errors));
+    assert.equal((await getOrder(stores, id)).status, "cancelled");
+  });
 });

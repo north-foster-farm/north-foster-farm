@@ -277,8 +277,6 @@ test.describe("restock types (#267)", () => {
 
   test("an archived product is hidden under either choice and in search",
     async ({ page }) => {
-      // Nothing is archived in the catalog today: then this holds the
-      // count, and the spec bites the day one is.
       await stubStock(page, Object.fromEntries(archived
         .map((sku) => [sku, { inStock: true, available: 9 }])));
       await open(page);
@@ -289,9 +287,12 @@ test.describe("restock types (#267)", () => {
       expect(products).toHaveLength(items.length - archived.length);
       for (const on of [true, false]) {
         if (!on) await show(page, "Full catalog");
+        // Its row is in the hidden "No longer available" section, for
+        // a paid order that holds it (6305650920); nothing else shows it.
         for (const sku of archived) {
-          await expect(row(page, sku)).toHaveCount(0);
+          await expect(row(page, sku)).toBeHidden();
         }
+        await expect(page.locator("#cat-archived")).toBeHidden();
       }
       for (const sku of archived) {
         expect(products.map((p) => p.sku)).not.toContain(sku);

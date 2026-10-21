@@ -134,8 +134,12 @@ describe("availability by restock type", () => {
 
     index.set(sku, { ...item, restock: "archived" });
     assert.equal(archived(index.get(sku)), true);
-    assert.match(validateOrder(payload, ctx).errors[`lines.${sku}`] || "",
-      /sold out/);
+    assert.equal(validateOrder(payload, ctx).errors[`lines.${sku}`],
+      "Whole Chicken, 3.5 – 3.9 lbs is no longer available.");
+
+    // A paid order being changed keeps what it holds, never more.
+    assert.ok(validateOrder(payload, { ...ctx, held: { [sku]: 2 } }).ok);
+    assert.ok(!validateOrder(payload, { ...ctx, held: { [sku]: 1 } }).ok);
   });
 });
 

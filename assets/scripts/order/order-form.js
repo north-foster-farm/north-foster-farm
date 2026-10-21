@@ -223,7 +223,10 @@ export class OrderForm {
     this.editing = {
       id: order.id, held: sum(order.payments) - sum(order.refunds),
     };
-    for (const line of order.lines) this.stock.held[line.sku] = line.qty;
+    for (const line of order.lines) {
+      this.stock.held[line.sku] = line.qty;
+      this.hold(line);
+    }
 
     const who = await me().catch(() => ({}));
     const customer = (who && who.customer) || {};
@@ -257,6 +260,19 @@ export class OrderForm {
     this.refresh();
     this.stock.start();
     this.payment.start();
+  }
+
+  // A line the paid order holds. An archived one's row shows, and its
+  // quantity can fall but never rise past what is held (6305650920):
+  // the line stays in the order rather than vanishing and being
+  // refunded on save.
+  hold({ sku, qty }) {
+    const input = this.form.querySelector(`[data-qty="${CSS.escape(sku)}"]`);
+    const row = input && input.closest(".order-item[data-archived]");
+
+    if (!row) return;
+    row.dataset.held = "";
+    input.dataset.max = String(qty);
   }
 
   // Under the total while changing a paid order: what is paid and the
@@ -1245,7 +1261,8 @@ export class OrderForm {
     const box = button.closest(".order-qty");
     const input = qs(box, "[data-qty]");
     const was = this.qty(input);
-    const next = Math.min(99, Math.max(0, was + Number(button.dataset.step)));
+    const max = Number(input.dataset.max) || 99;
+    const next = Math.min(max, Math.max(0, was + Number(button.dataset.step)));
 
     this.setQty(input, next);
     pulse(input, "order-qty-tick");

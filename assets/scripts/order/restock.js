@@ -35,7 +35,11 @@ export const showRows = (form, only = inStockOnly()) => {
   for (const row of form.querySelectorAll(".order-item")) {
     const out = row.hasAttribute("data-out");
 
-    row.hidden = out && (only || !row.dataset.restockLabel);
+    // An archived row shows only while a paid order being changed
+    // holds it (order/archived.html).
+    row.hidden = row.hasAttribute("data-archived")
+      ? !row.hasAttribute("data-held")
+      : out && (only || !row.dataset.restockLabel);
   }
   for (const group of form.querySelectorAll(".order-cat")) {
     const empty = !group.querySelector(".order-item:not([hidden])");

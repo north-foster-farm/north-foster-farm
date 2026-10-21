@@ -73,8 +73,11 @@ export const findCode = (value, codes) => {
 // the entry it resolved as `code`. `schedule` is the farm's parsed
 // pickup windows (lib/schedule.mjs): the functions read them from the
 // environment, the page from /api/dates.
+// `held`, for a paid order being changed, is { [sku]: qty } of what it
+// already holds: a line that sold out or was archived since may keep
+// up to that many, and never gain (6305650920).
 export const validateOrder = (payload, {
-  index, terms, now, group, codes, code, schedule = [],
+  index, terms, now, group, codes, code, schedule = [], held = {},
 }) => {
   const errors = {};
   const p = payload && typeof payload === "object" ? payload : {};
@@ -130,8 +133,10 @@ export const validateOrder = (payload, {
       errors[`lines.${sku}`] = "Quantities are whole numbers from 1 to 99.";
       continue;
     }
-    if (!item.inStock || archived(item)) {
-      errors[`lines.${sku}`] = `${item.lineName} is sold out.`;
+    if ((!item.inStock || archived(item)) && qty > (held[sku] || 0)) {
+      errors[`lines.${sku}`] = archived(item)
+        ? `${item.lineName} is no longer available.`
+        : `${item.lineName} is sold out.`;
       continue;
     }
 
