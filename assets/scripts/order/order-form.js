@@ -1197,10 +1197,11 @@ export class OrderForm {
 
     wrap.toggleAttribute("data-top", list.scrollTop > 0);
     wrap.toggleAttribute("data-more", more);
+    // A hidden pill keeps its last count: it never reads "0 more".
     button.hidden = !more || below === 0;
-    button.textContent = `${below} more ↓`;
+    if (!button.hidden) button.textContent = `${below} more ↓`;
     top.hidden = list.scrollTop <= 0 || above === 0;
-    top.textContent = `${above} more ↑`;
+    if (!top.hidden) top.textContent = `${above} more ↑`;
   }
 
   // The floor under the pane (#267): three rows of the lines, the total

@@ -25,9 +25,14 @@
     <div class="order-cart-inner">
       <div class="order-cart-list" id="order-cart-list">
         <div class="order-cart-scroll">
+          {{/* Both "more" pills come before the rows, though the
+               down one shows under them: Tab meets it while there is
+               more below. After the rows, Tab reached it only once
+               the rows had scrolled to their end and hidden it
+               (#288). */}}
           <button type="button" class="order-cart-more order-cart-more-top" data-cart-more-top hidden></button>
-          <ul class="order-cart-items list-unstyled" data-cart-items></ul>
           <button type="button" class="order-cart-more" data-cart-more hidden></button>
+          <ul class="order-cart-items list-unstyled" data-cart-items></ul>
         </div>
         <hr class="order-cart-rule order-cart-rule-items">
       </div>
