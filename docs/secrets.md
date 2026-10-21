@@ -729,8 +729,9 @@ push --staging`. The staging build fails until all three are set:
   breaker's low ceiling bounds it.
 - `GATE_MAIL_FROM`: the sender of the link, on a domain verified in
   that Resend account. Configuration.
-- `GATE_TOOLBAR_EMAIL`: James's address, the only one whose session
-  opens the toolbar. Configuration, never a literal in code.
+- `GATE_TOOLBAR_EMAIL`: James's address, whose session opens the
+  toolbar's owner areas (every session's mail, Approve and Rewrite).
+  Configuration, never a literal in code.
 
 **The allowlist and sessions** live in the staging stores and are run
 from the CLI (previews keep a separate list, `--preview`):
@@ -744,8 +745,8 @@ bin/nff --staging gate sessions end-all
 Removing an address from the allowlist ends its sessions. Ending every
 session is part of the incident rotation (Incident response). James
 seeds the allowlist before staging first gets the gate, with his own
-address, Jim's and any others he names; reviewers get the site only,
-never the toolbar.
+address, Jim's and any others he names; since #294 every one of them
+gets the toolbar, scoped to their own session (below).
 
 **Staging sends no email,** with exactly one exception: the gate's
 sign-in links. One plain-text template, no other mail path, the
@@ -792,18 +793,25 @@ test fails on a workflow that prints such output.
 
 ### What opens the toolbar
 
-The toolbar's back end, `/api/staging/*`, is James's alone. It opens
-for a gate session whose address is `GATE_TOOLBAR_EMAIL`; the browser's
-cookie is the credential and nothing is typed.
+The toolbar's back end, `/api/staging/*`, opens for any gate session
+(#294); the browser's cookie is the credential and nothing is typed.
+A session reads only the mail its own requests wrote, and a sign-in
+link in it only when it went to the session's own address. James's
+session, the one whose address is `GATE_TOOLBAR_EMAIL`, opens more.
+Without a gate session nothing here answers (401), and the edge stops
+the request before it arrives.
 
-| Area | Gate session (James) | `STAGING_TOKEN` |
-| --- | --- | --- |
-| Email library: every email built from sample data, with its sign-in link templates; approve and rewrite | yes | no |
-| Inbox: every email staging sent instead of sending, with real sign-in links and customers' addresses; clear it | yes | no |
-| Jobs run: the scheduled jobs now, or as of 8:00 or 18:00 today (the date preview), and send today's reports again | yes | yes |
-| Signature library: copy-ready email signatures | yes | no |
-| Info: the deploy's context, mail driver and Square environment, and the key in use | yes | yes |
-| Crash test: throws on purpose to prove the alert | yes | yes |
+| Area | Gate session | James's session | `STAGING_TOKEN` |
+| --- | --- | --- | --- |
+| Inbox: this session's emails, a sign-in link for another address withheld; clear them | yes | yes | no |
+| Sent: every email staging wrote, from every session and none, with real sign-in links and customers' addresses; clear it | no | yes | no |
+| Email library: every email built from sample data (fake sign-in links) | yes | yes | no |
+| Review: approve and rewrite the library's emails | no | yes | no |
+| Clock: this browser's date and time for the site (branch-deploy and dev only) | yes | yes | no |
+| Jobs run: the scheduled jobs now, as of a time, or at 6:00, 8:00 or 18:00 on the clock's day, and send today's reports again | yes | yes | yes |
+| Signature library: copy-ready email signatures | yes | yes | no |
+| Info: the deploy's context, mail driver, Square environment and clock, and the key in use | yes | yes | yes |
+| Crash test: throws on purpose to prove the alert | no | yes | yes |
 
 `E2E_STAGING_TOKEN` opens `/api/staging/e2e` and lifts the order and
 contact limits for a request carrying it, and nothing else. The

@@ -1,18 +1,20 @@
-// The staging toolbar. Built into the page only when the deploy is
-// not production (layouts/partials/staging-toolbar.html decides), so
-// production markup never carries it. Two tools: the outbox, where
-// every email the site would have sent lands under MAIL_DRIVER=outbox,
-// and the jobs trigger, since scheduled functions run only on the
-// production deploy. It opens only for James's gate session: the
-// browser's cookie is the credential, so there is nothing to type, and
-// for anyone else the first request is refused and the toolbar never
-// appears.
+// The staging toolbar. Built into the page only on the staging branch
+// deploy (layouts/partials/staging-toolbar.html decides), so
+// production markup never carries it. Its tools: this session's
+// emails (what the site would have sent, under MAIL_DRIVER=outbox),
+// the clock, the jobs trigger (scheduled functions run only on the
+// production deploy), the email library and the sandbox card. It opens
+// for every gate session (#294): the browser's cookie is the
+// credential, so there is nothing to type. James's session opens more
+// (Sent, Approve and Rewrite); /api/staging/info says which areas.
 //
 // States: open, collapsed to a tab (remembered per browser), or hidden
 // for this view only: a refresh always brings it back (James, #206).
 // The email library (library.js) opens from the panel or from a
 // #email=<id> link, even when the toolbar is hidden.
 
+import { maybeShowOverlay, wireCopy } from "./card.js";
+import { mountClock } from "./clock.js";
 import { mountLibrary } from "./library.js";
 import { forgetEverything } from "./reset.js";
 import { mountSignatures } from "./signatures.js";
@@ -97,15 +99,21 @@ const renderInbox = (messages) => {
   for (const m of messages) {
     const li = document.createElement("li");
     const b = document.createElement("button");
+    const to = Array.isArray(m.to) ? m.to.join(", ") : m.to;
 
     b.type = "button";
     b.className = "staging-mail";
     b.innerHTML = `<span class="staging-mail-subject"></span>` +
       `<span class="staging-mail-meta"></span>`;
     b.querySelector(".staging-mail-subject").textContent = m.subject;
-    b.querySelector(".staging-mail-meta").textContent =
-      `${when(m.at)} · to ${Array.isArray(m.to) ? m.to.join(", ") : m.to}`;
-    b.addEventListener("click", () => openMessage(m.id));
+    // A sign-in link sent to someone else is listed, never opened
+    // (staging.mjs, ownLink).
+    b.querySelector(".staging-mail-meta").textContent = m.withheld
+      ? `${when(m.at)} · to ${to} · withheld: a sign-in link for ` +
+        "another address"
+      : `${when(m.at)} · to ${to}`;
+    if (m.withheld) b.disabled = true;
+    else b.addEventListener("click", () => openMessage(m.id));
     li.appendChild(b);
     list.appendChild(li);
   }
@@ -141,13 +149,9 @@ const runJobs = async (at) => {
   const reset = qs("[data-staging-reset]").checked;
   const body = {};
 
-  if (at) {
-    const [h, m] = at.split(":").map(Number);
-    const d = new Date();
-
-    d.setHours(h, m, 0, 0);
-    body.at = d.toISOString();
-  }
+  // A time of day: the server puts it on the day this browser's clock
+  // reads, in the farm's zone.
+  if (at) body.time = at;
   if (reset) body.reset = true;
   say("Running…");
 
@@ -163,6 +167,15 @@ const library = mountLibrary({
   root,
   api,
   onOpen: () => { root.hidden = false; },
+  canReview: () => allowed("review"),
+  canSeeSent: () => allowed("sent"),
+});
+
+const clock = mountClock({
+  root,
+  api,
+  timeZone: root.dataset.timeZone,
+  reload: () => window.location.reload(),
 });
 
 const signatures = mountSignatures({
@@ -177,12 +190,18 @@ const boot = async () => {
 
   const info = await api("/api/staging/info");
 
-  // Not James's session: the toolbar is not for this visitor, and the
-  // page carries no sign of it.
+  // No gate session (a machine past the gate by its token): the
+  // toolbar is not for this visitor, and the page carries no sign of it.
   if (!info.ok) return;
 
   root.hidden = false;
   can = info.data.can || [];
+  if (info.data.clock && info.data.clock.available) {
+    clock.draw(info.data.clock);
+  } else {
+    can = can.filter((a) => a !== "clock");
+  }
+  maybeShowOverlay({ session: info.data.session });
   qs("[data-staging-info]").textContent = `${info.data.context} · mail ${
     info.data.mailDriver} · Square ${info.data.squareEnv}`;
   for (const el of root.querySelectorAll("[data-staging-scope]")) {
@@ -197,6 +216,7 @@ const boot = async () => {
   }
 };
 
+wireCopy();
 tab.addEventListener("click", () => show(true));
 qs("[data-staging-collapse]").addEventListener("click", () => show(false));
 qs("[data-staging-forget]").addEventListener("click", async () => {

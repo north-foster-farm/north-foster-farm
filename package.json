@@ -20,6 +20,7 @@
     "check:grid": "node bin/grid/check.mjs public",
     "check:schedule": "node bin/check-schedule.mjs",
     "check:news": "node bin/check-news.mjs public",
+    "check:staging": "node bin/check-staging.mjs public",
     "check:supply": "node bin/supply/check.mjs",
     "check:audit": "node bin/audit/check.mjs --actions .github/workflows package-lock.json",
     "check:env":"node bin/check-env.mjs",

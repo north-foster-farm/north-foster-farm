@@ -348,6 +348,8 @@ describe("the staging endpoints", () => {
 
     assert.ok(info.clock.now);
     delete info.clock.now;
+    assert.match(info.session, /^[0-9a-f]{16}$/);
+    delete info.session;
     assert.deepEqual(info, {
       key: "owner session", can: KEYS["owner session"],
       context: "deploy-preview", mailDriver: "outbox", squareEnv: "sandbox",

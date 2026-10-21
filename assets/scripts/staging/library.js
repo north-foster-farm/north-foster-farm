@@ -29,7 +29,12 @@ const day = (iso) => new Date(iso).toLocaleString(undefined, {
   month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
 });
 
-export const mountLibrary = ({ root, api, onOpen }) => {
+// `canReview` says whether this session may approve and rewrite: James
+// alone (#294); everyone else reads.
+export const mountLibrary = ({
+  root, api, onOpen, canReview = () => false, canSeeSent = () => false,
+}) => {
+  let sent = [];
   const qs = (sel) => root.querySelector(sel);
   const box = qs("[data-staging-library]");
   const shelf = qs("[data-staging-shelf]");
@@ -129,7 +134,47 @@ export const mountLibrary = ({ root, api, onOpen }) => {
       group.append(h, ol);
       shelf.appendChild(group);
     }
+    shown += drawSent();
     empty.hidden = shown > 0;
+  };
+
+  // James's alone (#294): every email the deploy wrote, from every
+  // session and none, each opening as the customer would get it.
+  // -> how many it shows.
+  const drawSent = () => {
+    const words = search.value.toLowerCase().split(/\s+/).filter(Boolean);
+    const list = sent.filter((m) => {
+      const hay = `${m.subject} ${[].concat(m.to).join(" ")}`.toLowerCase();
+
+      return words.every((w) => hay.includes(w));
+    });
+
+    // An approval filter is about templates; sent mail has none.
+    if (!list.length || approval) return 0;
+
+    const group = document.createElement("section");
+    const h = document.createElement("h2");
+    const ol = document.createElement("ol");
+
+    group.className = "staging-group";
+    h.textContent = `Sent, every session (${list.length})`;
+    for (const m of list) {
+      const li = item.content.firstElementChild.cloneNode(true);
+      const a = li.querySelector("a");
+
+      a.href = `/api/staging/outbox/${encodeURIComponent(m.id)}`;
+      a.target = "_blank";
+      a.rel = "noopener";
+      li.querySelector(".staging-item-name").textContent = m.subject;
+      li.querySelector(".staging-item-subject").textContent =
+        `${day(m.at)} · to ${[].concat(m.to).join(", ")}`;
+      li.querySelector(".staging-item-tags").remove();
+      ol.appendChild(li);
+    }
+    group.append(h, ol);
+    shelf.appendChild(group);
+
+    return list.length;
   };
 
   const drawSummary = () => {
@@ -143,8 +188,15 @@ export const mountLibrary = ({ root, api, onOpen }) => {
   };
 
   const load = () => {
-    loading = loading || api("/api/staging/emails").then(({ ok, data }) => {
+    loading = loading || api("/api/staging/emails").then(async ({
+      ok, data,
+    }) => {
       emails = ok ? data.emails : [];
+      if (ok && canSeeSent()) {
+        const got = await api("/api/staging/sent");
+
+        sent = got.ok ? got.data.messages : [];
+      }
       if (!ok) {
         empty.textContent = "The library could not be loaded.";
         empty.hidden = false;
@@ -288,7 +340,7 @@ export const mountLibrary = ({ root, api, onOpen }) => {
       revert: e.approval === "rewritten",
     };
 
-    review.bar.hidden = byCode || !!e.error;
+    review.bar.hidden = !canReview() || byCode || !!e.error;
     for (const [name, on] of Object.entries(show)) {
       review[name].hidden = !on || editing;
     }

@@ -1,22 +1,23 @@
 {{/*
-  The staging toolbar: the outbox of emails the site wrote instead of
-  sending, and a trigger for the scheduled jobs. Rendered only when
-  Netlify's build-time CONTEXT is "branch-deploy" (staging), never on a
-  deploy preview, a local build or production, so their HTML, CSS and
-  JS carry no trace of it: the stylesheet and the script below are
-  built by Hugo only when this partial renders. (hugo.Environment
-  cannot decide this; previews build with the production environment
-  too.) The endpoints it calls answer only to the gate session of the
-  address in GATE_TOOLBAR_EMAIL.
-  See docs/staging.md.
+  The staging toolbar: this session's emails, the clock, the jobs, the
+  email library and the Square sandbox card, with the order page's
+  first-visit card overlay. Rendered only when Netlify's build-time
+  CONTEXT is "branch-deploy" (staging), never on a deploy preview, a
+  local build or production, so their HTML, CSS and JS carry no trace
+  of it: the stylesheet and the script below are built by Hugo only
+  when this partial renders. (hugo.Environment cannot decide this;
+  previews build with the production environment too;
+  test/staging-build.test.mjs proves it.) The page is past the gate,
+  and the endpoints answer to any gate session, James's opening more
+  (#294). See docs/staging.md.
 */}}
 {{ $context := getenv "CONTEXT" }}
 {{ if eq $context "branch-deploy" }}
   {{ $style := resources.Get "styles/staging.css" | fingerprint "sha512" }}
   {{ $script := resources.Get "scripts/staging/main.js" | js.Build (dict "minify" true) | fingerprint "sha512" }}
   <link rel="stylesheet" href="{{ $style.RelPermalink }}" integrity="{{ $style.Data.Integrity }}">
-  <div class="staging" id="staging" data-context="{{ $context }}" hidden>
-    <button class="staging-tab" type="button" data-staging-open aria-expanded="false">Staging</button>
+  <div class="staging" id="staging" data-context="{{ $context }}" data-time-zone="{{ hugo.Data.delivery.timeZone }}" hidden>
+    <button class="staging-tab" type="button" data-staging-open aria-expanded="false">Staging<span class="staging-tab-clock" data-staging-tab-clock hidden></span></button>
     <section class="staging-panel" data-staging-panel aria-label="Staging tools" hidden>
       <header class="staging-head">
         <strong>Staging</strong>
@@ -24,9 +25,23 @@
         <button type="button" data-staging-collapse title="Collapse to a tab" aria-label="Collapse">–</button>
         <button type="button" data-staging-hide title="Hide until the next page load" aria-label="Hide">×</button>
       </header>
+      <p class="staging-clocked" data-staging-clock-banner role="status" hidden></p>
       <div class="staging-body">
         {{/* Each tool names the area the session must open
           (see staging.mjs KEYS). */}}
+        <div data-staging-scope="clock">
+          <h2>Clock</h2>
+          <p class="staging-muted" data-staging-clock-now></p>
+          <form class="staging-clock" data-staging-clock>
+            <label for="staging-clock-at">Date and time, farm time</label>
+            <input type="datetime-local" id="staging-clock-at" data-staging-clock-at required>
+            <span>
+              <button type="submit" class="staging-action">Set</button>
+              <button type="button" class="staging-action" data-staging-clock-reset>Reset to now</button>
+            </span>
+          </form>
+          <p class="staging-muted">For this browser only. The site and its emails, cutoffs and jobs run here take this time; Square and PayPal keep their own.</p>
+        </div>
         <div data-staging-scope="emails">
           <h2>Emails</h2>
           <p>
@@ -42,8 +57,8 @@
           </p>
         </div>
         <div data-staging-scope="inbox">
-        <h2>Inbox</h2>
-        <p class="staging-muted" data-staging-empty>Nothing yet. Every email the site would send lands here instead.</p>
+        <h2>This session's emails</h2>
+        <p class="staging-muted" data-staging-empty>None yet. Emails the site sends from this session land here instead; the rest are in the email library.</p>
         <ol class="staging-list" data-staging-list></ol>
         <p>
           <button type="button" class="staging-action" data-staging-refresh>Refresh</button>
@@ -54,11 +69,15 @@
         <h2>Jobs</h2>
         <p>
           <button type="button" class="staging-action" data-staging-run="">Run now</button>
+          <button type="button" class="staging-action" data-staging-run="06:00">As 6:00 today</button>
           <button type="button" class="staging-action" data-staging-run="08:00">As 8:00 today</button>
           <button type="button" class="staging-action" data-staging-run="18:00">As 18:00 today</button>
         </p>
         <label><input type="checkbox" data-staging-reset> Send today's reports again</label>
         </div>
+        <h2>Test card</h2>
+        <p class="staging-muted">Pay by card with Square's sandbox card:</p>
+        {{ partial "staging/sandbox-card.html" "toolbar" }}
         <h2>This browser</h2>
         <p>
           <button type="button" class="staging-action" data-staging-forget>Reset to a first visit</button>
@@ -191,5 +210,16 @@
     </template>
     <template data-staging-token><span class="staging-token" contenteditable="false"></span></template>
   </div>
+  {{/* The order page's first-visit overlay (#294 §4): once per gate
+    session (main.js says where the flag lives), a modal that takes the
+    page until it is closed. The words are James's. */}}
+  <dialog class="staging-card-dialog" data-staging-card-dialog aria-labelledby="staging-card-intro">
+    <div class="staging-card-sheet">
+      <p id="staging-card-intro">Simulate an order in staging: pay by <strong>card</strong> and use the Square sandbox card details:</p>
+      {{ partial "staging/sandbox-card.html" "overlay" }}
+      <p>Open the staging toolbar (bottom right) if you want to see these card details again.</p>
+      <button type="button" class="btn btn-primary" data-staging-card-close>Close</button>
+    </div>
+  </dialog>
   <script src="{{ $script.RelPermalink }}" type="module" integrity="{{ $script.Data.Integrity }}" defer></script>
 {{ end }}

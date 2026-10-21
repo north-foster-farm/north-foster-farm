@@ -3,8 +3,9 @@
 A deploy that is not production keeps its own data, writes its email
 to an outbox instead of sending it and talks to the Square sandbox.
 It is behind an access gate (below), and the staging branch deploy
-also carries a toolbar for reading that outbox and running the jobs by
-hand, for James alone. Production carries none of it.
+also carries a toolbar for everyone past the gate: their session's
+emails, a clock, the jobs and the email library. Production carries
+none of it.
 
 ## What decides
 
@@ -43,9 +44,9 @@ Unset means production: bare store names, no staging endpoints.
 - **The endpoints.** `netlify/functions/staging.mjs` answers only off
   production, and only where `GATE_TOOLBAR_EMAIL` or `STAGING_TOKEN`
   is set: anywhere else every `/api/staging/*` path is a 404 (#255).
-  There it serves the outbox and runs the jobs, to the toolbar
-  owner's gate session (see "Who may use the toolbar") or, for the
-  jobs run and info only, to `STAGING_TOKEN` as a bearer.
+  There it serves the outbox, the clock and the jobs to any gate
+  session (see "Who may use the toolbar") or, for the jobs run and
+  info only, to `STAGING_TOKEN` as a bearer.
 - **Links in mail.** A function cannot see its own deploy address
   either (`DEPLOY_PRIME_URL` is build-only), so off production the
   links in emails fall back to `URL`, which is production. `SITE_URL`
@@ -92,18 +93,31 @@ opens to a panel with:
   `bin/nff netlify blobs:list branch-deploy-jobs --prefix library/`, then
   `bin/nff netlify blobs:get` or `blobs:delete` on each key. Farm news
   rewrites go to the email lane, whose drafts they are.
-- **Inbox.** The outbox, newest first, refreshed every five seconds
-  while open. A message opens in a new window as the HTML the
-  customer would have received, with a bar above it saying who it was
-  for, and a link to the plain text. The panel flashes when a new
-  message arrives, so a sign-in request on `/login/` is followed by
-  its magic link appearing here. Clear empties it.
-- **Jobs.** Run now runs the 15-minute jobs as of the current time.
-  As 8:00 today and As 18:00 today run them as of that time, which
-  is how the morning report and the Tomorrow manifest are made to
-  send. Each daily report sends once per day; tick "Send today's
-  reports again" to have them go again. The run's report shows
-  under the buttons.
+- **This session's emails.** What the site wrote to the outbox from
+  this gate session's own requests, newest first, refreshed every
+  five seconds while open (see "Session mail" below). A message opens
+  in a new window as the HTML the customer would have received, with
+  a bar above it saying who it was for, and a link to the plain text.
+  The panel flashes when a new message arrives, so a sign-in request
+  on `/login/` for your own address is followed by its magic link
+  appearing here. Clear empties this session's. Every other email is
+  in the library's Sent list, which is James's.
+- **Clock.** Sets the date and time the site reads, in farm time, for
+  this browser alone, or resets it to now (see "The clock" below).
+  While it is set, the tab and the panel say so in orange.
+- **Jobs.** Run now runs the 15-minute jobs as of the clock's time.
+  As 6:00, 8:00 and 18:00 today run them at that hour of the clock's
+  day, which is how the packing slips (#292), the morning report and
+  the Tomorrow manifest are made to send. Each daily report sends
+  once per day; tick "Send today's reports again" to have them go
+  again. The run's report shows under the buttons, and its emails
+  land in this session's.
+- **Test card.** Square's sandbox card (`data/sandboxCard.json`), each
+  field with a Copy button. The first time a gate session opens the
+  order page, the same details show as a full-screen dialog; closing
+  it (Close or Escape) marks it seen in this browser's localStorage
+  (`staging.card-seen`, holding a short name of the gate session), so
+  it shows again after a new sign-in or Reset to a first visit.
 - **This browser.** Reset to a first visit leaves the browser as a
   stranger's first load finds it (#267). It signs out on the server,
   clears all of localStorage and sessionStorage (the cart draft and
@@ -288,13 +302,61 @@ indexed while it was public is checked in the issue, not here.
 
 ## Who may use the toolbar
 
-Only James. The toolbar opens for a gate session whose address is
-`GATE_TOOLBAR_EMAIL` (a variable on the staging context, so the address
-is config and not code); the browser's cookie is the credential and
-nothing is typed. Anyone else who signs in gets the site and no
-toolbar: the endpoints answer 403 to their session and the toolbar
-stays hidden. Reviewers (Jim, design and marketing helpers) are added
-to the allowlist and see the site only.
+Everyone past the gate (#294), signed in to a customer account or
+not. The browser's gate cookie is the credential and nothing is typed.
+Before the gate there is no toolbar: the sign-in pages carry no
+script, and every `/api/staging/*` path answers 401 to a request with
+no live gate session. James's session (the address in
+`GATE_TOOLBAR_EMAIL`, config and not code) also opens Sent, Approve
+and Rewrite. `docs/secrets.md` ("What opens the toolbar") has the
+table.
+
+### Session mail
+
+A session is the gate session: the `nff_gate` cookie the magic link
+sets. Every function runs its request in a scope (`lib/clock.mjs`,
+set in `withLog`) that knows it, and the outbox stamps each message
+with `sha256("outbox:" + id)`, never the id or the gate store's key.
+
+- A session lists, opens and clears only messages with its own stamp;
+  another's answers 404. Signing in to or out of a customer account
+  changes nothing; signing out of the gate, its expiry or removal from
+  the allowlist ends it.
+- A message carrying a sign-in link (`/api/auth/verify` or
+  `/api/gate/verify`, found by content) is withheld unless every
+  recipient is the session's own mailbox, `+tags` aside. It is listed
+  as withheld and never opened.
+- Mail from no session (webhooks, the CLI, the jobs workflow) and
+  every session's mail are in the library's Sent list, James's alone.
+- The gate's own link is never in the outbox: it is sent by Resend.
+
+`test/staging-sessions.test.mjs` proves each.
+
+### The clock
+
+`lib/clock.mjs` `now()` is the site's clock. Every handler's and
+library's `now` defaults to it, so cutoffs, locks, the date lists
+(the order page syncs to `/api/dates`' `now`), order times, the dates
+in emails and a jobs run from the toolbar take the tester's time. The
+toolbar keeps it as an offset in the `nff_clock` cookie, so it runs on
+from the time set and touches no other browser's requests. It is
+honored only where the context is `branch-deploy` or `dev`: in
+production and on previews the cookie is ignored and
+`/api/staging/clock` is a 404 (`test/clock.test.mjs`).
+
+What must not move stays on real time: the gate's sessions and links,
+every rate limit, the send breaker, logs, retention and the sweeps of
+shared data, backups, and every call to Square and PayPal (`real()`).
+
+Square's and PayPal's sandboxes keep their own, real clocks. Under an
+override our order record carries the tester's time while Square's
+order and payment carry the real one; refunds made in the sandbox
+dashboards arrive by webhook with no session and are stamped at the
+real time. Finding a lost Square payment and PayPal's token cache
+work in real time, so paying works under any override. A jobs run
+under an override acts on shared staging orders as of that date (it
+may remind or close others' orders); the clock is private, its jobs
+run is not.
 
 `STAGING_TOKEN` is for machines (Actions, health checks) and is never
 typed into a browser. It opens the jobs run, the info and the crash

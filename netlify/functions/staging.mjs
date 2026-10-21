@@ -338,6 +338,9 @@ export const handle = async (req, {
       squareEnv: env.SQUARE_ENV || "sandbox",
       siteUrl: env.SITE_URL || env.URL || null,
       email: who.email || null,
+      // A short name for this gate session, for what the browser keeps
+      // once per session (the card overlay's flag). It opens nothing.
+      session: who.tag ? who.tag.slice(0, 16) : null,
       clock: clockOf(req, env),
     });
   }

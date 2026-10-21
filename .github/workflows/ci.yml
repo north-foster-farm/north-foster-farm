@@ -115,6 +115,12 @@ jobs:
       - name: News, production
         run: env -i PATH="$PATH" HOME="$HOME" npm run check:news
 
+      # No staging tool in any file of production's build (#294).
+      - name: Staging tools, production
+        run: >
+          env -i PATH="$PATH" HOME="$HOME"
+          npm run check:staging -- production
+
       - name: Build as staging
         run: >
           rm -rf public &&
@@ -129,6 +135,11 @@ jobs:
 
       - name: News, staging
         run: env -i PATH="$PATH" HOME="$HOME" npm run check:news
+
+      - name: Staging tools, staging
+        run: >
+          env -i PATH="$PATH" HOME="$HOME"
+          npm run check:staging -- staging
 
   # The supply chain checks need the network, which the suite above
   # closes, so they run as their own check. Like the rest of the run it
