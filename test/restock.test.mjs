@@ -70,11 +70,16 @@ describe("the catalog's restock types", () => {
   });
 
   it("follow the spec's assignments", () => {
-    for (const i of of("cornish")) assert.equal(i.restock, "discontinued");
     for (const i of of("sausage")) assert.equal(i.restock, "hiatus");
     for (const i of of("eggs")) assert.equal(i.restock, "soon");
+    // Ground chicken was never sold (6304873363); Cornish hens are
+    // discontinued and archived (6305037316).
+    for (const i of [...of("ground"), ...of("cornish")]) {
+      assert.equal(i.restock, "archived", i.sku);
+      assert.equal(i.restockSeason, undefined, i.sku);
+    }
     for (const i of items.filter((x) =>
-      !["cornish", "sausage", "eggs"].includes(x.groupKey))) {
+      !["cornish", "sausage", "eggs", "ground"].includes(x.groupKey))) {
       assert.equal(i.restock, "seasonal", i.sku);
       assert.equal(i.restockSeason, "spring", i.sku);
     }

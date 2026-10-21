@@ -11,4 +11,5 @@ pageScript: "order"
 outputs: ["html", "markdown"]
 ---
 
-Pasture-raised, processed, and packed in Rhode Island.
+Pasture-raised, processed, and packed in Rhode Island. Cuts come in
+packs of at least a pound, priced by weight.

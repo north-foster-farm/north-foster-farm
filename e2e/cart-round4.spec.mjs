@@ -259,7 +259,10 @@ for (const width of [320, 360, 390]) {
   });
 }
 
-test("pack labels start with a capital where they start with a letter",
+// No label on sale starts with a letter since 2026-v9 (#267), so this
+// holds the figures as written; test/pack-label.test.mjs holds the
+// capital.
+test("pack labels show as the catalog writes them, in rows and lines",
   async ({ page }) => {
     await page.setViewportSize(PHONE);
 
@@ -267,11 +270,12 @@ test("pack labels start with a capital where they start with a letter",
 
     await order.open({ wings: 1, "NFF-CHK-DRM-0150-0300": 1 });
     await expect(order.item("wings").locator("label"))
-      .toHaveText("Up to 1.9 lbs");
+      .toHaveText("1.0 – 1.9 lbs");
     await expect(order.item("NFF-CHK-DRM-0150-0300").locator("label"))
       .toHaveText("1.5 lbs and up");
     await expect(order.cart.locator(".order-cart-item-name"))
-      .toHaveText(["1.5 lbs and up", "Up to 1.9 lbs"]);
+      .toHaveText(["1.5 lbs and up", "1.0 – 1.9 lbs"]);
+
   });
 
 // Three pairs of pulses, 400ms apart within a pair and a second's rest

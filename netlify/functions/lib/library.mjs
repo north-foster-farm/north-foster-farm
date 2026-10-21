@@ -593,7 +593,7 @@ export const library = [
     when: "Stock shows an archived product on hand, once a day each",
     audience: F, tags: ["alert", "report"],
     build: (links) => t.farmArchivedInStock([
-      { sku: "NFF-CHK-WNG-0000-0200", name: "Wings, up to 1.9 lbs",
+      { sku: "NFF-CHK-WNG-0000-0200", name: "Wings, 1.0 – 1.9 lbs",
         count: 6 },
     ], { links }),
   },

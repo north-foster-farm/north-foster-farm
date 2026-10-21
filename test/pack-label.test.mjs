@@ -8,7 +8,7 @@ import { packLabel } from "../assets/scripts/order/lib/catalog.mjs";
 // (#278).
 describe("packLabel", () => {
   it("capitalizes a letter first", () => {
-    assert.equal(packLabel("up to 1.9 lbs"), "Up to 1.9 lbs");
+    assert.equal(packLabel("over 3.0 lbs"), "Over 3.0 lbs");
     assert.equal(packLabel("under 3.0 lbs"), "Under 3.0 lbs");
   });
 

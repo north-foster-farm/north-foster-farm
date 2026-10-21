@@ -135,7 +135,7 @@ out" (both projects).
 - **Scenario:** A customer removes a whole line from the cart.
 - **Setup:** `/order/?add=` 3 eggs and 2 wings.
 - **Test:**
-  1. Press "Remove Wings, up to 1.9 lbs from the cart".
+  1. Press "Remove Wings, 1.0 – 1.9 lbs from the cart".
 - **Assert:** Wings quantity 0; "3 items"; Subtotal $21.
 - **Teardown:** None.
 
@@ -466,11 +466,11 @@ restock label", and every rule in `restock.spec.mjs` (both projects).
   in its place, and the cart line is removed with a notice ending "sold
   out and was removed". Step 3: "Full catalog" stays chosen after the reload;
   the row is back, greyed, saying "Back in spring", with no Add;
-  Cornish Hens return with their sidebar link, both "No longer
-  available", and Medium and Small eggs say "Back soon". Step 4: the
+  Medium and Small eggs say "Back soon"; Cornish Hens and Ground
+  Chicken, archived, have no section or sidebar link. Step 4: the
   row hides again. Search lists both drumsticks, this one "Back in
-  spring" with Add off; Sweet Italian Sausage says "On hiatus"; both
-  Cornish hens say "No longer available".
+  spring" with Add off; Sweet Italian Sausage says "On hiatus";
+  "Cornish" finds nothing.
 - **Teardown:** `bin/nff --staging stock set NFF-CHK-DRM-0150-0300 none`.
   Choose Show "In stock" again.
 

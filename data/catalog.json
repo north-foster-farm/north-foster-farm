@@ -1,5 +1,5 @@
 {
-  "version": "2026-v8",
+  "version": "2026-v9",
   "groups": [
     {
       "key": "eggs",
@@ -147,7 +147,7 @@
           "price": 20,
           "inStock": false,
           "squareVariationId": "AIK32GF542ORTEY72ZMCKQDP",
-          "restock": "discontinued"
+          "restock": "archived"
         },
         {
           "sku": "NFF-CHK-CRN-0300-0400",
@@ -156,7 +156,7 @@
           "price": 24,
           "inStock": false,
           "squareVariationId": "VJSFNJ7BZO34ETRAVKQGKEJP",
-          "restock": "discontinued"
+          "restock": "archived"
         }
       ]
     },
@@ -167,8 +167,8 @@
       "items": [
         {
           "sku": "NFF-CHK-BRSBL-0000-0125",
-          "label": "up to 1.2 lbs",
-          "name": "Boneless Breasts, up to 1.2 lbs",
+          "label": "1.0 – 1.2 lbs",
+          "name": "Boneless Breasts, 1.0 – 1.2 lbs",
           "price": 15,
           "inStock": true,
           "squareVariationId": "BCBBBUTDCFDMPJ2PQRX73L5I",
@@ -214,8 +214,8 @@
       "items": [
         {
           "sku": "NFF-CHK-THGBN-0000-0150",
-          "label": "up to 1.4 lbs",
-          "name": "Bone-In Thighs, up to 1.4 lbs",
+          "label": "1.0 – 1.4 lbs",
+          "name": "Bone-In Thighs, 1.0 – 1.4 lbs",
           "price": 12,
           "inStock": true,
           "squareVariationId": "T366DS6FNIHDC5LVUDI46PXN",
@@ -251,8 +251,8 @@
       "items": [
         {
           "sku": "NFF-CHK-TND-0000-0125",
-          "label": "up to 1.2 lbs",
-          "name": "Tenders, up to 1.2 lbs",
+          "label": "1.0 – 1.2 lbs",
+          "name": "Tenders, 1.0 – 1.2 lbs",
           "price": 15,
           "inStock": true,
           "squareVariationId": "AFV3B33FWG2PDDWUOH6ZFVQG",
@@ -288,8 +288,8 @@
       "items": [
         {
           "sku": "NFF-CHK-DRM-0000-0150",
-          "label": "up to 1.4 lbs",
-          "name": "Drumsticks, up to 1.4 lbs",
+          "label": "1.0 – 1.4 lbs",
+          "name": "Drumsticks, 1.0 – 1.4 lbs",
           "price": 8,
           "inStock": true,
           "squareVariationId": "5XPSNRM3QYL3ZDE27SBUNPP7",
@@ -315,8 +315,8 @@
       "items": [
         {
           "sku": "NFF-CHK-WNG-0000-0200",
-          "label": "up to 1.9 lbs",
-          "name": "Wings, up to 1.9 lbs",
+          "label": "1.0 – 1.9 lbs",
+          "name": "Wings, 1.0 – 1.9 lbs",
           "price": 10,
           "inStock": true,
           "squareVariationId": "XIAPI3T44PL5UJPZPK2AE6LD",
@@ -357,8 +357,7 @@
           "price": 12,
           "inStock": false,
           "squareVariationId": "XSRGO5XPXUIT64MWHYVICNJI",
-          "restock": "seasonal",
-          "restockSeason": "spring"
+          "restock": "archived"
         },
         {
           "sku": "NFF-CHK-GRD-0125-0175",
@@ -367,8 +366,7 @@
           "price": 15,
           "inStock": false,
           "squareVariationId": "4N2WAHXMXMS4MJIGVXME2BT6",
-          "restock": "seasonal",
-          "restockSeason": "spring"
+          "restock": "archived"
         }
       ]
     },
@@ -401,14 +399,15 @@
     },
     {
       "key": "other",
-      "label": "Other Items (1 lb avg.)",
+      "label": "Other Items",
       "unit": "",
       "items": [
         {
           "sku": "NFF-CHK-LVR-0075-0125",
           "label": "Livers",
           "unit": "per pack",
-          "name": "Livers",
+          "note": "1.0 – 1.4 lbs",
+          "name": "Livers, 1.0 – 1.4 lbs",
           "price": 7,
           "inStock": true,
           "squareVariationId": "53D4476PZIR54QK26U67J7DN",
@@ -419,7 +418,8 @@
           "sku": "NFF-CHK-NCK-0075-0125",
           "label": "Necks",
           "unit": "per pack",
-          "name": "Necks",
+          "note": "1.0 – 1.9 lbs",
+          "name": "Necks, 1.0 – 1.9 lbs",
           "price": 5,
           "inStock": true,
           "squareVariationId": "2CAXGM33P74KFHVAIABSBEUK",
@@ -430,6 +430,7 @@
           "sku": "NFF-CHK-FET-0075-0125",
           "label": "Feet",
           "unit": "per pack",
+          "note": "1 lb avg.",
           "name": "Feet",
           "price": 5,
           "inStock": false,
@@ -441,7 +442,8 @@
           "sku": "NFF-CHK-BCK-0075-0125",
           "label": "Backs",
           "unit": "per each",
-          "name": "Backs",
+          "note": "1.0 – 1.9 lbs",
+          "name": "Backs, 1.0 – 1.9 lbs",
           "price": 5,
           "inStock": true,
           "squareVariationId": "GPSA5TIEMYB2EPXJZJE3QMY3",

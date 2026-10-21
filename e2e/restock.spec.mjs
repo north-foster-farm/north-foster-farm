@@ -20,14 +20,17 @@ const OUT = {
   soon: "NFF-CHK-EGG-MD", // Eggs, Medium: "Back soon"
   seasonal: "NFF-CHK-WHL-0500-0600", // Whole Chicken, 5.0 - 5.9 lbs
   hiatus: "NFF-CHK-SAUSWT-0075-0125", // Sweet Italian Sausage
-  discontinued: "NFF-CHK-CRN-0000-0300", // Cornish Hens, under 3.0 lbs
 };
 const LABEL = {
   soon: "Back soon",
   seasonal: "Back in spring",
   hiatus: "On hiatus",
-  discontinued: "No longer available",
 };
+// No category is wholly out in the catalog since 2026-v9; selling
+// out the maple links empties Sausage.
+const MAPLE = "NFF-CHK-SAUMPL-0075-0125";
+const SAUSAGE_OUT = { [MAPLE]: { inStock: false, available: 0 } };
+
 const archived = items.filter((i) => i.restock === "archived")
   .map((i) => i.sku);
 
@@ -69,6 +72,7 @@ test.describe("restock types (#267)", () => {
 
   test("Show is a radio group, In stock by default, showing today's " +
     "list", async ({ page }) => {
+    await stubStock(page, SAUSAGE_OUT);
     await open(page);
 
     const group = page.getByRole("radiogroup", { name: "Show" });
@@ -80,8 +84,8 @@ test.describe("restock types (#267)", () => {
     for (const sku of Object.values(OUT)) {
       await expect(row(page, sku)).toBeHidden();
     }
-    await expect(page.locator("#cat-cornish")).toBeHidden();
-    await expect(page.locator("#order-nav a[href='#cat-cornish']"))
+    await expect(page.locator("#cat-sausage")).toBeHidden();
+    await expect(page.locator("#order-nav a[href='#cat-sausage']"))
       .toBeHidden();
     await expect(row(page, SKU.eggs)).toBeVisible();
 
@@ -141,6 +145,7 @@ test.describe("restock types (#267)", () => {
 
   test("Full catalog: out-of-stock rows show greyed with their label " +
     "and can't be added", async ({ page }) => {
+    await stubStock(page, SAUSAGE_OUT);
     await open(page);
     await show(page, "Full catalog");
 
@@ -165,12 +170,17 @@ test.describe("restock types (#267)", () => {
     expect(await color(OUT.soon)).not.toBe(await color(SKU.eggs));
 
     // Empty categories return, with their links.
-    await expect(page.locator("#cat-cornish")).toBeVisible();
-    await expect(page.locator("#order-nav a[href='#cat-cornish']"))
+    await expect(page.locator("#cat-sausage")).toBeVisible();
+    await expect(page.locator("#order-nav a[href='#cat-sausage']"))
       .toBeAttached();
-    await expect(page.locator("#order-nav a[href='#cat-cornish']")
+    await expect(page.locator("#order-nav a[href='#cat-sausage']")
       .locator("xpath=..")).not.toHaveAttribute("hidden", "");
-    await expect(page.locator("#cat-ground")).toBeVisible();
+    // A category with every product archived never returns (2026-v9).
+    for (const key of ["ground", "cornish"]) {
+      await expect(page.locator(`#cat-${key}`)).toHaveCount(0);
+      await expect(page.locator(`#order-nav a[href='#cat-${key}']`))
+        .toHaveCount(0);
+    }
 
     // Every product but an archived one has a row.
     await expect(page.locator(".order-item:visible"))
@@ -223,7 +233,7 @@ test.describe("restock types (#267)", () => {
       expect(errors.filter((m) => /Blocked/.test(m))).toEqual([]);
     });
 
-  test("stock wins over seasonal, soon, hiatus and discontinued",
+  test("stock wins over seasonal, soon and hiatus",
     async ({ page }) => {
       await stubStock(page, Object.fromEntries(Object.values(OUT)
         .map((sku) => [sku, { inStock: true, available: 3 }])));
@@ -238,7 +248,7 @@ test.describe("restock types (#267)", () => {
         await expect(r.locator(".order-item-stock")).toHaveText("3 left");
         await expect(r.locator(".order-qty-add")).toBeEnabled();
       }
-      await row(page, OUT.discontinued).locator(".order-qty-add").click();
+      await row(page, OUT.seasonal).locator(".order-qty-add").click();
       await expect(new OrderPage(page).count).toHaveText("1 item");
     });
 
@@ -427,10 +437,9 @@ test.describe("search and restock types (#267)", () => {
     await expect(p.restock).toHaveText("On hiatus");
     await expect(p.add).toBeDisabled();
 
+    // Cornish hens are archived (2026-v9).
     await p.input.fill("cornish");
-    await expect(p.rows).toHaveCount(2);
-    await expect(p.rows.first()).toContainText("No longer available");
-    await expect(p.add).toBeDisabled();
+    await expect(p.rows).toHaveCount(0);
 
     await p.input.fill("eggs");
     await expect(p.rows).toHaveCount(3);
@@ -446,10 +455,10 @@ test.describe("search and restock types (#267)", () => {
       if (!on) await show(page, "Full catalog");
       await expect(choice(page, "In stock")).toBeChecked({ checked: on });
 
-      const p = await find(page, "cornish");
+      const p = await find(page, "sweet");
 
-      await expect(p.rows).toHaveCount(2);
-      await expect(p.rows.first()).toContainText("No longer available");
+      await expect(p.rows.and(page.locator(`[data-sku="${OUT.hiatus}"]`)))
+        .toContainText("On hiatus");
     }
   });
 

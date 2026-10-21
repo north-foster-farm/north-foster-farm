@@ -38,8 +38,8 @@ test.describe("the cart's word for an Add", () => {
       await expect(order.cart.locator(".order-cart-item.is-new"))
         .toHaveCount(1);
       await expect(order.cart.locator(".order-cart-item.is-new"))
-        .toContainText("Up to 1.9 lbs");
-      await expect(live).toHaveText("Added Wings, up to 1.9 lbs to cart");
+        .toContainText("1.0 – 1.9 lbs");
+      await expect(live).toHaveText("Added Wings, 1.0 – 1.9 lbs to cart");
 
       // The focus stays with the item the customer pressed, not the pane.
       const inCart = await page.evaluate(

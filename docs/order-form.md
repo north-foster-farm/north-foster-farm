@@ -36,7 +36,7 @@ ZIP rule exists once. `npm test` covers it.
 
 ### The catalog
 
-`data/catalog.json` is price list 2026-v8: 37 SKUs in 11 render groups,
+`data/catalog.json` is price list 2026-v9: 37 SKUs in 11 render groups,
 every item in one array with an `inStock` flag. The identifier is the
 SKU (`NFF-CHK-WHL-0200-0250`), which encodes both weight-tier bounds
 and so survives a catalog restructure. `squareVariationId` is null
@@ -47,6 +47,14 @@ form works before the seed and switches to catalog lines after it.
 Each group carries a `unit` ("per dozen", "per each", "per pack") that
 sits by its heading on the page; where a group mixes units (Other
 Items) each item carries its own and it sits in the row.
+
+Pack weights (#267, James, 2026-10-20 and 21). The smallest pack sold
+is 1.0 lb; anything lighter is a family pack, kept by the farm and
+never entered into stock. Whole chickens and sausage are exempt. A
+pack's weight rounds to the nearest tenth of a pound (.x5 up) and
+matches the tier whose name holds it: 1.25 lbs is 1.3, "1.3 – 1.4
+lbs". The names govern; the SKUs' bounds are older and on hold. The
+order page's intro states the minimum.
 
 The Square import CSV is generated from the same table and reads this
 file for availability, so the two cannot drift.
@@ -81,8 +89,9 @@ It says what an item out of stock shows in place of its quantity:
 
 Stock wins over every type but `archived`: an item in stock sells
 normally. An item with no type is hidden while it is out. Today:
-eggs `soon`, Cornish hens `discontinued`, both sausages `hiatus`,
-every other chicken product `seasonal` with `restockSeason: "spring"`.
+eggs `soon`, both sausages `hiatus`, Cornish hens and ground
+chicken `archived` (2026-v9), every other chicken product `seasonal`
+with `restockSeason: "spring"`. No item is `discontinued` now.
 Switching one is a catalog edit and a deploy. The labels live in
 `layouts/partials/order/restock-label.html`.
 
@@ -729,6 +738,11 @@ Flags that take a value accept both `--reason "..."` and
   Rhode Island (250-RICR-40-20-7 §7.5) requires eggs offered for sale
   to state grade and size in full. The eggs are self-graded by
   candling, so the site never claims AA, a USDA grade or the shield.
+  2026-v9 (#267, 2026-10-21) sets a one-pound minimum pack: each cut's
+  smallest tier becomes a range from 1.0 lbs, Livers, Necks and Backs
+  carry their ranges as notes, Feet keeps "1 lb avg." until real
+  weights set its tier, and Ground Chicken, never sold, and Cornish
+  Hens, discontinued, are archived (6305037316).
 - **Stock set as of 17 September 2026** is the 2026-v3 flyer's 20 line
   items. The August home-page update lists Cornish hens and sweet
   Italian sausage as on hand, and the processor receipts show 133 packs
