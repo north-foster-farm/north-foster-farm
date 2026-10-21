@@ -21,8 +21,12 @@ const row = (page) => page.locator(`.order-item[data-sku="${HEN}"]`);
 
 test.describe("an archived line in a paid order (#267)", () => {
   test("is hidden on a new order, with no sidebar link", async ({ page }) => {
+    // Listen before the page loads: on a quick server the stock has
+    // answered before goto returns.
+    const stock = page.waitForResponse("**/api/stock");
+
     await page.goto("/order/");
-    await page.waitForResponse("**/api/stock");
+    await stock;
     await page.getByRole("radio", { name: "Full catalog" }).click();
     await expect(row(page)).toBeHidden();
     await expect(page.locator("#cat-archived")).toBeHidden();

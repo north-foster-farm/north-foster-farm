@@ -22,7 +22,10 @@ const walk = (page) => page.evaluate(async () => {
     () => requestAnimationFrame(done)
   ));
   const catalog = document.getElementById("order-catalog");
-  const rows = [...catalog.querySelectorAll(".order-item")];
+  // Rows that show: an archived line is in the catalog, hidden, at the
+  // end, and measuring it put the end above the top.
+  const rows = [...catalog.querySelectorAll(".order-item")]
+    .filter((el) => el.getClientRects().length);
   const top = catalog.getBoundingClientRect().top + scrollY;
   const end = rows.at(-1).getBoundingClientRect().bottom + scrollY;
   const stops = [];
