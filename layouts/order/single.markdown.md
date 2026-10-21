@@ -11,6 +11,6 @@
 ## {{ .short }}{{ with .unit }} ({{ . }}){{ end }}
 
 {{ range where .items "out" false -}}
-- {{ .label }}: ${{ .price }}{{ with .unit }} {{ . }}{{ end }}{{ with .note }} · {{ . }}{{ end }}
+- {{ .row }}: ${{ .price }}{{ with .unit }} {{ . }}{{ end }}{{ with .note }} · {{ . }}{{ end }}
 {{ end -}}
 {{- end -}}

@@ -848,11 +848,11 @@ export class OrderForm {
       if (!input || input.closest("[data-out]")) {
         const item = this.index.get(sku);
 
-        missing.push(item ? `${item.groupName}, ${item.label}` : sku);
+        missing.push(item ? item.lineName : sku);
         continue;
       }
       this.setQty(input, Math.min(99, this.qty(input) + qty));
-      added.push(`${qty} × ${this.index.get(sku).label}`);
+      added.push(`${qty} × ${this.index.get(sku).row}`);
     }
 
     const notice = document.getElementById("order-added");
@@ -1276,7 +1276,7 @@ export class OrderForm {
 
     if (!item) return;
 
-    const name = `${item.groupName}, ${item.label}`;
+    const name = item.lineName;
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const floating = this.cart.dataset.stuck === "true";
     const first = this.firstAdd();
@@ -1867,11 +1867,11 @@ export class OrderForm {
         remove.type = "button";
         remove.dataset.remove = item.sku;
         remove.setAttribute(
-          "aria-label", `Remove ${group.label}, ${item.label} from the cart`
+          "aria-label", `Remove ${item.lineName} from the cart`
         );
         row.appendChild(remove);
         row.appendChild(
-          make("span", "order-cart-item-name", packLabel(item.label))
+          make("span", "order-cart-item-name", packLabel(item.row))
         );
         row.appendChild(make("span", "order-cart-item-qty", item.qtyText));
         row.appendChild(make("span", "order-cart-item-sub", item.subtotal));

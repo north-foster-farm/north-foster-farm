@@ -16,8 +16,9 @@ const STOCK_TTL = 60_000;
 
 const money = (n) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
-// "Whole Chicken, 3.0 – 3.4 lbs".
-const title = (p) => `${p.group}, ${p.label}`;
+// A line as the cart and the emails name it (lib/catalog.mjs):
+// "Whole Chicken, 3.0 – 3.4 lbs", or "Livers, 1.0 – 1.4 lbs".
+const title = (p) => p.line;
 
 export const wireSearch = () => {
   const dialog = document.querySelector("[data-search-palette]");

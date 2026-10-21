@@ -131,7 +131,7 @@ export const validateOrder = (payload, {
       continue;
     }
     if (!item.inStock || archived(item)) {
-      errors[`lines.${sku}`] = `${item.groupName}, ${item.label} is sold out.`;
+      errors[`lines.${sku}`] = `${item.lineName} is sold out.`;
       continue;
     }
 
@@ -272,7 +272,7 @@ export const validateOrder = (payload, {
       },
       lines: lines.map(({ sku, qty, item }) => ({
         sku,
-        label: `${item.groupName}, ${item.label}`,
+        label: item.lineName,
         name: item.name,
         unitPrice: item.price,
         qty,

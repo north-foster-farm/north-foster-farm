@@ -268,13 +268,24 @@ test("pack labels show as the catalog writes them, in rows and lines",
 
     const order = new OrderPage(page);
 
-    await order.open({ wings: 1, "NFF-CHK-DRM-0150-0300": 1 });
+    await order.open({
+      wings: 1, "NFF-CHK-DRM-0150-0300": 1, "NFF-CHK-LVR-0075-0125": 1,
+    });
     await expect(order.item("wings").locator("label"))
       .toHaveText("1.0 – 1.9 lbs");
     await expect(order.item("NFF-CHK-DRM-0150-0300").locator("label"))
       .toHaveText("1.5 lbs and up");
     await expect(order.cart.locator(".order-cart-item-name"))
-      .toHaveText(["1.5 lbs and up", "1.0 – 1.9 lbs"]);
+      .toHaveText(["1.5 lbs and up", "1.0 – 1.9 lbs",
+        "Livers, 1.0 – 1.4 lbs"]);
+
+    // Other Items' lines take the item's own name, under the group's
+    // heading (#267).
+    await expect(order.cart.locator(".order-cart-group-name").last())
+      .toHaveText("Other Items");
+    await expect(order.cart.getByRole("button", {
+      name: "Remove Livers, 1.0 – 1.4 lbs from the cart",
+    })).toBeAttached();
 
   });
 

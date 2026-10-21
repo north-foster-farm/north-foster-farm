@@ -31,7 +31,9 @@
       "sku" .sku
       "group" $group.short
       "key" $group.key
-      "label" .label
+      "label" .row
+      "line" (cond (eq $group.lines "name") .name
+        (printf "%s, %s" $group.short .label))
       "unit" (replaceRE `^per each$` "each" (.unit | default $group.unit))
       "note" (.note | default "")
       "price" .price

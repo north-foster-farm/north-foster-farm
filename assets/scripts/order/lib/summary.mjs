@@ -133,6 +133,8 @@ export const itemGroups = (lines, index) => {
     group.items.push({
       sku,
       label: item.label,
+      lineName: item.lineName,
+      row: item.row,
       qtyText: `${qty} × ${dollars(unit)}`,
       subtotal: dollars(qty * unit),
     });

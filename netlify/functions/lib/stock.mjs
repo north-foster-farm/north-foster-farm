@@ -105,7 +105,7 @@ export const archivedOnHand = async (stores, {
   return [...catalogIndex].filter(([sku, item]) => archived(item)
     && onHand(item, counts, sku)).map(([sku, item]) => ({
     sku,
-    name: `${item.groupName}, ${item.label}`,
+    name: item.lineName,
     count: Object.hasOwn(counts, sku) ? counts[sku] : null,
   }));
 };
@@ -166,7 +166,7 @@ export const checkLines = async (stores, lines) => {
 
     if (!state || !item) continue;
 
-    const name = `${item.groupName}, ${item.label}`;
+    const name = item.lineName;
 
     if (!state.inStock) {
       errors[`lines.${line.sku}`] = `${name} just sold out.`;

@@ -11,6 +11,15 @@ export const short = (label) => label.replace(/ \(.*\)$/, "");
 export const packLabel = (label) =>
   label.charAt(0).toUpperCase() + label.slice(1);
 
+// How a line is named in the cart, the emails and errors (#267). Most
+// groups name it "Group, label": "Wings, 1.0 – 1.9 lbs". A group whose
+// `lines` is "name" uses each item's own name instead, as Other Items
+// does, its group name saying nothing: "Livers, 1.0 – 1.4 lbs".
+// `row` is the line under its group's heading in a grouped cart.
+const lineNames = (group, item) => (group.lines === "name"
+  ? { lineName: item.name, row: item.name }
+  : { lineName: `${short(group.label)}, ${item.label}`, row: item.label });
+
 export const indexCatalog = (catalog) => {
   const index = new Map();
 
@@ -21,6 +30,7 @@ export const indexCatalog = (catalog) => {
         groupKey: group.key,
         groupLabel: group.label,
         groupName: short(group.label),
+        ...lineNames(group, item),
       });
     }
   }

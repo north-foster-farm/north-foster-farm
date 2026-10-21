@@ -20,7 +20,7 @@
           <li class="order-item" data-sku="{{ .sku }}" data-restock-label="{{ .restockLabel }}" tabindex="-1"{{ if .out }} data-out{{ with .restockLabel }} data-stock="out"{{ end }} hidden{{ end }}>
             <span class="order-item-name">
               {{/* Capitalized here, never in the catalog (#278). */}}
-              <label for="{{ $id }}">{{ .label | strings.FirstUpper }}</label>
+              <label for="{{ $id }}">{{ .row | strings.FirstUpper }}</label>
             </span>
             <span class="order-item-price">
               ${{ .price }}{{ with .unit }} <span class="order-item-unit">{{ . }}</span>{{ end }}{{ with .note }} <span class="order-item-note">&middot; {{ . }}</span>{{ end }}
@@ -29,7 +29,7 @@
             <div class="order-qty" data-qty-state="empty">
               {{ partial "skeleton.html" (dict "over" true) }}
               <button type="button" class="btn btn-outline-primary btn-sm order-qty-add" data-step="1" aria-hidden="true" tabindex="-1"{{ if .out }} disabled{{ end }}>Add</button>
-              <div class="order-qty-step" role="group" aria-label="Quantity of {{ .label }}">
+              <div class="order-qty-step" role="group" aria-label="Quantity of {{ .row }}">
                 <button type="button" class="btn" data-step="-1" aria-label="One fewer"{{ if .out }} disabled{{ end }}>&minus;</button>
                 <input class="form-control" type="text" id="{{ $id }}" name="qty.{{ .sku }}" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="0" data-qty="{{ .sku }}" aria-describedby="err-{{ $id }}"{{ if .out }} disabled{{ end }}>
                 <button type="button" class="btn" data-step="1" aria-label="One more"{{ if .out }} disabled{{ end }}>+</button>

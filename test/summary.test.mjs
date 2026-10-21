@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import terms from "../data/delivery.json" with { type: "json" };
+import { indexCatalog } from "../assets/scripts/order/lib/catalog.mjs";
 import {
   badges, deliveryShort, feeCell, itemGroups, nudge, summarize,
 } from "../assets/scripts/order/lib/summary.mjs";
@@ -201,20 +202,21 @@ describe("the fee cell", () => {
 });
 
 describe("the cart's lines", () => {
-  const index = new Map([
-    ["EGG", {
-      groupKey: "eggs", groupLabel: "Eggs (per dozen)", label: "Large",
-      price: 7,
-    }],
-    ["WHL35", {
-      groupKey: "whole", groupLabel: "Whole Chicken", label: "3.5 – 3.9 lbs",
-      price: 30,
-    }],
-    ["WHL40", {
-      groupKey: "whole", groupLabel: "Whole Chicken", label: "4.0 – 4.4 lbs",
-      price: 34,
-    }],
-  ]);
+  const index = indexCatalog({
+    groups: [
+      {
+        key: "eggs", label: "Eggs (per dozen)",
+        items: [{ sku: "EGG", label: "Large", price: 7 }],
+      },
+      {
+        key: "whole", label: "Whole Chicken",
+        items: [
+          { sku: "WHL35", label: "3.5 – 3.9 lbs", price: 30 },
+          { sku: "WHL40", label: "4.0 – 4.4 lbs", price: 34 },
+        ],
+      },
+    ],
+  });
 
   it("group the tiers under their category, in catalog order", () => {
     assert.deepEqual(itemGroups([
@@ -227,7 +229,9 @@ describe("the cart's lines", () => {
         label: "Eggs",
         items: [
           {
-            sku: "EGG", label: "Large", qtyText: "6 × $7",
+            sku: "EGG", label: "Large",
+            lineName: "Eggs, Large", row: "Large",
+            qtyText: "6 × $7",
             subtotal: "$42",
           },
         ],
@@ -237,11 +241,15 @@ describe("the cart's lines", () => {
         label: "Whole Chicken",
         items: [
           {
-            sku: "WHL35", label: "3.5 – 3.9 lbs", qtyText: "1 × $30",
+            sku: "WHL35", label: "3.5 – 3.9 lbs",
+            lineName: "Whole Chicken, 3.5 – 3.9 lbs", row: "3.5 – 3.9 lbs",
+            qtyText: "1 × $30",
             subtotal: "$30",
           },
           {
-            sku: "WHL40", label: "4.0 – 4.4 lbs", qtyText: "2 × $34",
+            sku: "WHL40", label: "4.0 – 4.4 lbs",
+            lineName: "Whole Chicken, 4.0 – 4.4 lbs", row: "4.0 – 4.4 lbs",
+            qtyText: "2 × $34",
             subtotal: "$68",
           },
         ],
