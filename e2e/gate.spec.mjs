@@ -37,10 +37,12 @@ test.describe("the access gate", () => {
       await page.getByLabel("Email address")
         .fill(`qa-gate-${Date.now().toString(36)}@example.com`);
       await page.getByRole("button", { name: "Send the link" }).click();
-      await expect(page.getByRole("heading", {
-        name: "Use the link you received to sign in",
-      }))
+      await expect(page.getByRole("heading", { name: "Staging" }))
         .toBeVisible();
+      await expect(page.getByText("Use the link to sign in.")).toBeVisible();
+      await expect(page.getByRole("link", {
+        name: "Use a different address",
+      })).toBeVisible();
     });
 
   test("leaves the webhooks to their own signatures", async ({ request }) => {
