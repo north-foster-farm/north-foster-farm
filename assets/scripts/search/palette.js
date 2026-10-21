@@ -106,8 +106,7 @@ export const wireSearch = () => {
     q("[data-search-name]").textContent = p.label;
     q("[data-search-group]").textContent = p.group;
     q("[data-search-price]").textContent =
-      `${money(p.price)}${p.unit ? ` ${p.unit}` : ""}` +
-      `${p.note ? ` · ${p.note}` : ""}`;
+      `${money(p.price)}${p.note ? ` · ${p.note}` : ""}`;
     showRestock(p);
     syncQty(p);
   };

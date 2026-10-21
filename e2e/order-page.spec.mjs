@@ -252,7 +252,7 @@ test.describe("order page", () => {
   // sold-out one, and a category it leaves empty goes with its link.
   test("a product whose count reaches 0 loses its row, and its " +
     "category when empty", async ({ page }) => {
-    const gone = [SKU.eggs, "NFF-CHK-DRM-0150-0300"];
+    const gone = [SKU.eggs, "NFF-CHK-DRM-15-99"];
 
     await page.route("**/api/stock", async (route) => {
       const res = await route.fetch();

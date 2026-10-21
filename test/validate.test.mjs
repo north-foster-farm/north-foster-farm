@@ -26,7 +26,7 @@ const base = () => ({
     phone: "401-555-0100",
     contact: "text",
   },
-  lines: [{ sku: "NFF-CHK-WHL-0350-0400", qty: 2 }],
+  lines: [{ sku: "NFF-CHK-WHL-35-39", qty: 2 }],
   fulfilment: {
     method: "onfarm",
     date: "2026-10-07",
@@ -45,7 +45,7 @@ const withCustomer = (patch) => {
 
 const delivery = (overrides = {}) => ({
   ...base(),
-  lines: [{ sku: "NFF-CHK-WHL-0350-0400", qty: 2 }],
+  lines: [{ sku: "NFF-CHK-WHL-35-39", qty: 2 }],
   fulfilment: {
     method: "delivery",
     date: "2026-10-08",
@@ -264,12 +264,12 @@ describe("lines", () => {
 
   it("rejects a sold-out SKU by name", () => {
     const r = validateOrder(
-      { ...base(), lines: [{ sku: "NFF-CHK-WHL-0700-0800", qty: 1 }] }, ctx
+      { ...base(), lines: [{ sku: "NFF-CHK-WHL-70-79", qty: 1 }] }, ctx
     );
 
     assert.equal(r.status, 422);
     assert.match(
-      r.errors["lines.NFF-CHK-WHL-0700-0800"], /Whole Chicken, 7.0 – 7.9 lbs/
+      r.errors["lines.NFF-CHK-WHL-70-79"], /Whole Chicken, 7.0 – 7.9 lbs/
     );
   });
 
@@ -365,7 +365,7 @@ describe("delivery rules", () => {
   it("blocks a $35 order and names the escape hatches", () => {
     const small = delivery();
 
-    small.lines = [{ sku: "NFF-CHK-WHL-0350-0400", qty: 1 }];
+    small.lines = [{ sku: "NFF-CHK-WHL-35-39", qty: 1 }];
     const r = validateOrder(small, ctx);
 
     assert.equal(r.status, 422);

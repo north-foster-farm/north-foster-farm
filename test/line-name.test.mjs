@@ -17,9 +17,9 @@ import { testStores } from "../netlify/functions/lib/store.mjs";
 import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
 const index = indexCatalog(catalog);
-const LIVERS = "NFF-CHK-LVR-0075-0125";
+const LIVERS = "NFF-CHK-LVR-10-14";
 const FEET = "NFF-CHK-FET-0075-0125";
-const WINGS = "NFF-CHK-WNG-0000-0200";
+const WINGS = "NFF-CHK-WNG-10-19";
 
 describe("line names", () => {
   it("are Group, label in every group but Other Items", () => {
@@ -33,7 +33,7 @@ describe("line names", () => {
       }
     }
     assert.equal(index.get(WINGS).lineName, "Wings, 1.0 – 1.9 lbs");
-    assert.equal(index.get("NFF-CHK-SAUMPL-0075-0125").lineName,
+    assert.equal(index.get("NFF-CHK-SAUMPL").lineName,
       "Chicken Sausage, Maple breakfast links");
   });
 

@@ -21,7 +21,7 @@ const MAILS = {
 
 // Tuesday 6 October 2026, 09:00 ET; on-farm pickup Wednesday the 7th.
 const now = instant("2026-10-06", 9, 0, "America/New_York");
-const SKU = "NFF-CHK-WHL-0350-0400";
+const SKU = "NFF-CHK-WHL-35-39";
 const env = {
   ...MAILS, URL: "https://x", PICKUP_SCHEDULE: SCHEDULE,
 };

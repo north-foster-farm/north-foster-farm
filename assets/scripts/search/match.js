@@ -28,7 +28,7 @@ export const index = (products) => products.map((product, order) => ({
   product,
   order,
   words: words([
-    product.group, product.label, product.unit, product.note,
+    product.group, product.label, product.note,
     ALSO[product.key] || "",
   ].join(" ")),
 }));

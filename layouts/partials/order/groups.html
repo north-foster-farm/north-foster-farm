@@ -5,9 +5,8 @@
      quantity: "" for an item with no restock type, which stays hidden
      while it is out. A group with nothing in stock is `out` too, and
      hidden along with its link unless Show is on "Full catalog"
-     (order/restock.js). A group's `unit` ("per pack") sits
-     by its heading; an item's own `unit` sits in its row, for the
-     groups that mix them. `row` is what an item's row says: its
+     (order/restock.js). No price carries a unit word (#267,
+     6305365293). `row` is what an item's row says: its
      label, or, in a group whose `lines` is "name", its own name
      ("Livers, 1.0 – 1.4 lbs") where a cut says its tier
      (order/lib/catalog.mjs). */}}
@@ -32,7 +31,6 @@
       "key" .key
       "label" .label
       "short" $short
-      "unit" (.unit | default "")
       "lines" (.lines | default "")
       "out" (not $inStock)
       "items" $items)

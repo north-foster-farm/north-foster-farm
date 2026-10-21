@@ -11,13 +11,13 @@ import { orderLimitHeaders } from "./staging.mjs";
 // data/delivery.json.
 export const SKU = {
   eggs: "NFF-CHK-EGG-LG", // $7
-  wings: "NFF-CHK-WNG-0000-0200", // $10
-  thighs: "NFF-CHK-THGBN-0000-0150", // $12
-  drums: "NFF-CHK-DRM-0000-0150", // $8
-  whole: "NFF-CHK-WHL-0200-0250", // $20
-  breasts: "NFF-CHK-BRSBL-0000-0125", // $15
-  sausage: "NFF-CHK-SAUMPL-0075-0125", // $18
-  necks: "NFF-CHK-NCK-0075-0125", // $5
+  wings: "NFF-CHK-WNG-10-19", // $10
+  thighs: "NFF-CHK-THGBN-10-14", // $12
+  drums: "NFF-CHK-DRM-10-14", // $8
+  whole: "NFF-CHK-WHL-20-24", // $20
+  breasts: "NFF-CHK-BRSBL-10-12", // $15
+  sausage: "NFF-CHK-SAUMPL", // $18
+  necks: "NFF-CHK-NCK-10-19", // $5
 };
 
 // A cart as ?add= wants it: { eggs: 2 } -> "NFF-CHK-EGG-LG:2".

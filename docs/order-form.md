@@ -36,17 +36,28 @@ ZIP rule exists once. `npm test` covers it.
 
 ### The catalog
 
-`data/catalog.json` is price list 2026-v9: 37 SKUs in 11 render groups,
+`data/catalog.json` is price list 2026-v9 (its `version`, with its
+`date`, 2026-10-21; James, 6305650920): 37 SKUs in 11 render groups,
 every item in one array with an `inStock` flag. The identifier is the
-SKU (`NFF-CHK-WHL-0200-0250`), which encodes both weight-tier bounds
-and so survives a catalog restructure. `squareVariationId` is null
+SKU. One sold by weight carries its tier's bounds in tenths of a
+pound, two digits each, inclusive: `NFF-CHK-WHL-20-24` is
+"2.0 – 2.4 lbs", and an "and up" tier tops out at `99`. Eggs and
+sausage carry no bounds (`NFF-CHK-EGG-LG`, `NFF-CHK-SAUMPL`). The
+SKUs took this form on 2026-10-21 (#267, #287); `docs/sku-map.csv`
+lists each old SKU with its new one and the date, and
+`test/sku.test.mjs` holds the catalog to both. **From 1 January 2027
+a SKU never changes** (James, 6305014532): moving a tier boundary is a
+new variation with a new SKU, a row in the map, and the old one
+`archived`. `squareVariationId` is null
 until the catalog is seeded into Square; while it is null the order
 handler sends an ad hoc line item with the same name and price, so the
 form works before the seed and switches to catalog lines after it.
 
-Each group carries a `unit` ("per dozen", "per each", "per pack") that
-sits by its heading on the page; where a group mixes units (Other
-Items) each item carries its own and it sits in the row.
+No price carries a unit word (#267, James, 6305365293): every product
+reads name, tier, price, as in "Wings · 1.0 – 1.9 lbs · $10". The
+catalog has no `unit` field. An item's `note` follows the price where
+it says something the tier doesn't: "Grade A" for eggs, the links per
+pack for sausage (6305373706).
 
 A line is named "Group, label" ("Wings, 1.0 – 1.9 lbs") in the cart,
 the stored order, the emails and the errors. A group with `"lines":
@@ -61,7 +72,7 @@ is 1.0 lb; anything lighter is a family pack, kept by the farm and
 never entered into stock. Whole chickens and sausage are exempt. A
 pack's weight rounds to the nearest tenth of a pound (.x5 up) and
 matches the tier whose name holds it: 1.25 lbs is 1.3, "1.3 – 1.4
-lbs". The names govern; the SKUs' bounds are older and on hold. No
+lbs". The names govern, and the SKUs carry the same bounds. No
 customer page states the minimum (James, 6305274262).
 
 The Square import CSV is generated from the same table and reads this
@@ -778,8 +789,8 @@ Flags that take a value accept both `--reason "..."` and
   and the breadcrumb). A "Catalog" sidebar (Bootstrap ScrollSpy)
   becomes an offcanvas drawer below `lg`; the active category's
   heading slides right and a chevron slides in beside it. One section
-  per category with its unit by the heading; each product a row card
-  with the unit price and an Add button, rightmost, that morphs into
+  per category under its heading; each product a row card with its
+  price and an Add button, rightmost, that morphs into
   a stepper. Buttons take their height from padding, never a fixed
   height.
 - **The cart.** From `xl` it is a column to the right of the catalog,

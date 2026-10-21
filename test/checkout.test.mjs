@@ -41,7 +41,7 @@ const order = (overrides = {}) => ({
     },
   },
   lines: [{
-    sku: "NFF-CHK-WHL-0350-0400", label: "Whole Chicken, 3.5 – 3.9 lbs",
+    sku: "NFF-CHK-WHL-35-39", label: "Whole Chicken, 3.5 – 3.9 lbs",
     name: "Whole Chicken, 3.5 – 3.9 lbs", unitPrice: 30, qty: 2,
     lineTotal: 60, squareVariationId: null,
   }],
@@ -149,7 +149,7 @@ describe("completeOrder", () => {
       const { sent, mail } = mailbox();
       const env = { ...MAILS };
 
-      await setCount(stores, "NFF-CHK-WHL-0350-0400", 4);
+      await setCount(stores, "NFF-CHK-WHL-35-39", 4);
       const first = await completeOrder(stores, order(), {
         square: { squareOrderId: "SQO", customerId: "CUST" },
         payment: { via: "square", method: "card", ...paid() },
@@ -161,7 +161,7 @@ describe("completeOrder", () => {
       assert.equal(first.payments[0].last4, "4242");
       assert.deepEqual((await openOrders(stores)).map((o) => o.id),
         ["NFF-2610-ABCD"]);
-      assert.equal((await getCounts(stores))["NFF-CHK-WHL-0350-0400"], 2);
+      assert.equal((await getCounts(stores))["NFF-CHK-WHL-35-39"], 2);
       assert.equal((await readMark(stores, "order")).id, "NFF-2610-ABCD");
       assert.equal((await readMark(stores, "paid")).via, "square");
       assert.equal(sent.length, 0, "the request that pays sends no email");
@@ -179,7 +179,7 @@ describe("completeOrder", () => {
       }, { mail, env, now });
 
       assert.equal(again.payments[0].last4, "4242", "the first record stands");
-      assert.equal((await getCounts(stores))["NFF-CHK-WHL-0350-0400"], 2);
+      assert.equal((await getCounts(stores))["NFF-CHK-WHL-35-39"], 2);
       assert.equal(sent.length, 2);
     });
 
@@ -250,7 +250,7 @@ describe("payWithSquare", () => {
 
       // A counted line, so the stock write after the record is reached,
       // and a store that refuses it.
-      await setCount(stores, "NFF-CHK-WHL-0350-0400", 5);
+      await setCount(stores, "NFF-CHK-WHL-35-39", 5);
       stores.stock = {
         ...stock,
         get: (k) => stock.get(k),

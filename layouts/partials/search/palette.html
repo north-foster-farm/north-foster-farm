@@ -16,8 +16,6 @@
   until one exists, the card shows the logo's hen (search/hen.svg,
   from bin/logos/build.mjs), or for the eggs the map's egg pair
   (icons/eggs.svg), both filled green here (#220).
-
-  The catalog's "per each" reads "$30 each" here (#208).
 */}}
 {{ $products := slice }}
 {{ range partial "order/groups.html" . }}
@@ -34,7 +32,6 @@
       "label" .row
       "line" (cond (eq $group.lines "name") .name
         (printf "%s, %s" $group.short .label))
-      "unit" (replaceRE `^per each$` "each" (.unit | default $group.unit))
       "note" (.note | default "")
       "price" .price
       "out" .out

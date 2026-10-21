@@ -71,7 +71,7 @@ describe("the log scrub", () => {
           address: { street: "17 Quiet Lane", zip: "02857" },
           notes: "Leave at the side door",
         },
-        lines: [{ sku: "NFF-CHK-WHL-0350-0400", qty: 2 }],
+        lines: [{ sku: "NFF-CHK-WHL-35-39", qty: 2 }],
       },
     });
 
@@ -80,7 +80,7 @@ describe("the log scrub", () => {
     assert.equal(out.order.fulfilment.notes, "[removed]");
     assert.equal(out.order.fulfilment.method, "delivery");
     assert.deepEqual(out.order.lines,
-      [{ sku: "NFF-CHK-WHL-0350-0400", qty: 2 }]);
+      [{ sku: "NFF-CHK-WHL-35-39", qty: 2 }]);
   });
 
   it("scrubs an error and survives a loop", () => {
@@ -128,7 +128,7 @@ describe("a failed order", () => {
           email: "pat.example@gmail.test", phone: "401-555-0142",
           contact: "call",
         },
-        lines: [{ sku: "NFF-CHK-WHL-0350-0400", qty: 2 }],
+        lines: [{ sku: "NFF-CHK-WHL-35-39", qty: 2 }],
         fulfilment: {
           method: "onfarm", date: "2026-10-07", onfarm: { window: MORNING },
         },

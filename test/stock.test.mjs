@@ -9,7 +9,7 @@ import { handle } from "../netlify/functions/stock.mjs";
 
 const EGGS = "NFF-CHK-EGG-LG";           // In stock in the catalog
 const MEDIUM = "NFF-CHK-EGG-MD";         // Flagged out in the catalog
-const BIRD = "NFF-CHK-WHL-0200-0250";    // In stock, uncounted here
+const BIRD = "NFF-CHK-WHL-20-24";    // In stock, uncounted here
 
 describe("stock counts", () => {
   it("start empty and set per SKU", async () => {

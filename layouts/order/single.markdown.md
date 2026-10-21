@@ -8,9 +8,9 @@
 
 {{ .RenderShortcodes | strings.TrimSpace }}
 {{ range where (partial "order/groups.html" .) "out" false }}
-## {{ .short }}{{ with .unit }} ({{ . }}){{ end }}
+## {{ .short }}
 
 {{ range where .items "out" false -}}
-- {{ .row }}: ${{ .price }}{{ with .unit }} {{ . }}{{ end }}{{ with .note }} · {{ . }}{{ end }}
+- {{ .row }}: ${{ .price }}{{ with .note }} · {{ . }}{{ end }}
 {{ end -}}
 {{- end -}}

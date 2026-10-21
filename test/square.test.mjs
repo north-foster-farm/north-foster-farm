@@ -30,7 +30,7 @@ const order = (overrides = {}) => ({
     delivery: null,
   },
   lines: [{
-    sku: "NFF-CHK-WHL-0350-0400",
+    sku: "NFF-CHK-WHL-35-39",
     label: "Whole Chicken, 3.5 – 3.9 lbs",
     name: "Whole Chicken (per each), 3.5 – 3.9 lbs",
     unitPrice: 30,

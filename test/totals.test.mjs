@@ -155,8 +155,8 @@ describe("real catalog prices", () => {
     const t = computeTotals({
       lines: [
         { sku: "NFF-CHK-EGG-LG", qty: 2 },
-        { sku: "NFF-CHK-WHL-0350-0400", qty: 1 },
-        { sku: "NFF-CHK-BRSBL-0000-0125", qty: 3 },
+        { sku: "NFF-CHK-WHL-35-39", qty: 1 },
+        { sku: "NFF-CHK-BRSBL-10-12", qty: 3 },
       ],
       method: "delivery",
       index,

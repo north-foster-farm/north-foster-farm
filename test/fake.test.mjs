@@ -57,7 +57,7 @@ const order = () => ({
     delivery: null,
   },
   lines: [{
-    sku: "NFF-CHK-WHL-0350-0400", label: "Whole Chicken",
+    sku: "NFF-CHK-WHL-35-39", label: "Whole Chicken",
     name: "Whole Chicken", unitPrice: 30, qty: 2, lineTotal: 60,
     squareVariationId: null,
   }],
@@ -392,7 +392,7 @@ describe("the development sample takes orders offline", () => {
       firstName: "Pat", lastName: "Example", email: "pat@example.com",
       phone: "401-555-0100", contact: "call",
     },
-    lines: [{ sku: "NFF-CHK-WHL-0350-0400", qty: 2 }],
+    lines: [{ sku: "NFF-CHK-WHL-35-39", qty: 2 }],
     fulfilment: {
       method: "onfarm", date: "2026-10-07", onfarm: { window: MORNING },
     },

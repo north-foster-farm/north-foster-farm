@@ -269,11 +269,11 @@ test("pack labels show as the catalog writes them, in rows and lines",
     const order = new OrderPage(page);
 
     await order.open({
-      wings: 1, "NFF-CHK-DRM-0150-0300": 1, "NFF-CHK-LVR-0075-0125": 1,
+      wings: 1, "NFF-CHK-DRM-15-99": 1, "NFF-CHK-LVR-10-14": 1,
     });
     await expect(order.item("wings").locator("label"))
       .toHaveText("1.0 – 1.9 lbs");
-    await expect(order.item("NFF-CHK-DRM-0150-0300").locator("label"))
+    await expect(order.item("NFF-CHK-DRM-15-99").locator("label"))
       .toHaveText("1.5 lbs and up");
     await expect(order.cart.locator(".order-cart-item-name"))
       .toHaveText(["1.5 lbs and up", "1.0 – 1.9 lbs",

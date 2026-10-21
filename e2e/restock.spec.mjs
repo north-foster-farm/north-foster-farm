@@ -18,8 +18,8 @@ const items = catalog.groups.flatMap((g) => g.items);
 // One product out of stock in the catalog for each restock type.
 const OUT = {
   soon: "NFF-CHK-EGG-MD", // Eggs, Medium: "Back soon"
-  seasonal: "NFF-CHK-WHL-0500-0600", // Whole Chicken, 5.0 - 5.9 lbs
-  hiatus: "NFF-CHK-SAUSWT-0075-0125", // Sweet Italian Sausage
+  seasonal: "NFF-CHK-WHL-50-59", // Whole Chicken, 5.0 - 5.9 lbs
+  hiatus: "NFF-CHK-SAUSWT", // Sweet Italian Sausage
 };
 const LABEL = {
   soon: "Back soon",
@@ -28,7 +28,7 @@ const LABEL = {
 };
 // No category is wholly out in the catalog since 2026-v9; selling
 // out the maple links empties Sausage.
-const MAPLE = "NFF-CHK-SAUMPL-0075-0125";
+const MAPLE = "NFF-CHK-SAUMPL";
 const SAUSAGE_OUT = { [MAPLE]: { inStock: false, available: 0 } };
 
 const archived = items.filter((i) => i.restock === "archived")
@@ -304,7 +304,7 @@ test.describe("restock types (#267)", () => {
   // /api/stock saying it is on hand, as when a restock leaves the flag
   // on. Nothing may bring it back, and ?add= of it is refused by name.
   test.describe("a stubbed archived product", () => {
-    const sku = "NFF-CHK-WNG-0200-0300"; // Wings, 2.0 - 2.9 lbs
+    const sku = "NFF-CHK-WNG-20-29"; // Wings, 2.0 - 2.9 lbs
 
     // A stock check still in flight at the end must not fail the next
     // test.

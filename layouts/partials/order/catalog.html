@@ -12,7 +12,6 @@
     <section class="order-cat" id="cat-{{ .key }}" aria-labelledby="cat-{{ .key }}-h"{{ if .out }} hidden{{ end }}>
       <h3 class="order-cat-title" id="cat-{{ .key }}-h">
         <span class="order-cat-text">{{ .short }}</span>
-        {{ with .unit }}<span class="order-cat-note">{{ . }}</span>{{ end }}
       </h3>
       <ul class="order-items list-unstyled mb-0">
         {{ range .items }}
@@ -23,7 +22,7 @@
               <label for="{{ $id }}">{{ .row | strings.FirstUpper }}</label>
             </span>
             <span class="order-item-price">
-              ${{ .price }}{{ with .unit }} <span class="order-item-unit">{{ . }}</span>{{ end }}{{ with .note }} <span class="order-item-note">&middot; {{ . }}</span>{{ end }}
+              ${{ .price }}{{ with .note }} <span class="order-item-note">&middot; {{ . }}</span>{{ end }}
             </span>
             <span class="order-item-stock" data-stock-note aria-live="polite">{{ if .out }}{{ .restockLabel }}{{ end }}</span>
             <div class="order-qty" data-qty-state="empty">

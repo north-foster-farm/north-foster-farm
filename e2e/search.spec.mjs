@@ -191,7 +191,7 @@ test.describe("search (#142)", () => {
   // out".
   test("a product whose count reaches 0 shows its restock label",
     async ({ page }) => {
-      const gone = "NFF-CHK-DRM-0150-0300";
+      const gone = "NFF-CHK-DRM-15-99";
 
       await page.route("**/api/stock", async (route) => {
         const res = await route.fetch();

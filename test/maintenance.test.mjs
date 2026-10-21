@@ -29,7 +29,7 @@ import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
 const now = instant("2026-10-06", 9, 0, "America/New_York");
 const KEY = "0f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f";
-const SKU = "NFF-CHK-WHL-0350-0400";
+const SKU = "NFF-CHK-WHL-35-39";
 const SECRET = "test-maintenance-secret";
 const env = {
   DEV_NOTIFICATIONS_EMAIL: "james@example.com",

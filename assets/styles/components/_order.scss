@@ -321,12 +321,6 @@
     translate: 0 0;
   }
 
-  .order-cat-note {
-    font-size: 0.75rem;
-    font-weight: normal;
-    color: var(--bs-secondary-color);
-  }
-
   .order-items {
     display: grid;
     gap: 0.625rem;
@@ -390,10 +384,6 @@
     color: var(--bs-secondary-color);
     font-variant-numeric: tabular-nums;
     text-wrap: pretty;
-  }
-
-  .order-item-unit {
-    font-size: 0.8125rem;
   }
 
   .order-item-error {

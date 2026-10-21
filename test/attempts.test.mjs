@@ -42,7 +42,7 @@ const order = (overrides = {}) => ({
     },
   },
   lines: [{
-    sku: "NFF-CHK-WHL-0350-0400", label: "Whole Chicken, 3.5 – 3.9 lbs",
+    sku: "NFF-CHK-WHL-35-39", label: "Whole Chicken, 3.5 – 3.9 lbs",
     name: "Whole Chicken, 3.5 – 3.9 lbs", unitPrice: 30, qty: 2,
     lineTotal: 60, squareVariationId: null,
   }],

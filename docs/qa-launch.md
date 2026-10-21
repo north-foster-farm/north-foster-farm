@@ -452,12 +452,12 @@ restock label", and every rule in `restock.spec.mjs` (both projects).
   catalog" it shows them greyed with their restock label, not
   addable. Search shows them with their label whatever Show says
   (#267).
-- **Setup:** Pick an unused SKU, for example `NFF-CHK-DRM-0150-0300`
+- **Setup:** Pick an unused SKU, for example `NFF-CHK-DRM-15-99`
   (`seasonal`, spring). `bin/nff --staging stock set
-  NFF-CHK-DRM-0150-0300 3`.
+  NFF-CHK-DRM-15-99 3`.
 - **Test:**
-  1. Open `/order/?add=NFF-CHK-DRM-0150-0300:5`.
-  2. `bin/nff --staging stock set NFF-CHK-DRM-0150-0300 0`; return to the
+  1. Open `/order/?add=NFF-CHK-DRM-15-99:5`.
+  2. `bin/nff --staging stock set NFF-CHK-DRM-15-99 0`; return to the
      tab.
   3. Choose Show "Full catalog", then reload.
   4. Choose "In stock". Search for "drum", then "sausage" and "Cornish".
@@ -471,7 +471,7 @@ restock label", and every rule in `restock.spec.mjs` (both projects).
   row hides again. Search lists both drumsticks, this one "Back in
   spring" with Add off; Sweet Italian Sausage says "On hiatus";
   "Cornish" finds nothing.
-- **Teardown:** `bin/nff --staging stock set NFF-CHK-DRM-0150-0300 none`.
+- **Teardown:** `bin/nff --staging stock set NFF-CHK-DRM-15-99 none`.
   Choose Show "In stock" again.
 
 ### OP-27 The phone cart after the first Add
@@ -805,7 +805,7 @@ Manual: needs a signed-in customer whose record carries a group.
 - **Setup:** Sign in once as `qa-group@example.com` (AO-01), then
   `bin/nff --staging customers set qa-group@example.com group=friends`.
 - **Test:**
-  1. Signed in, open `/order/?add=NFF-CHK-WNG-0000-0200:12`.
+  1. Signed in, open `/order/?add=NFF-CHK-WNG-10-19:12`.
   2. Make it 12 wings and 1 necks ($125).
 - **Assert:** At $120: "Friends & family (10%)" −$12 (beats the $10
   tier). At $125: check whether the discount is $12.50. Every charge is

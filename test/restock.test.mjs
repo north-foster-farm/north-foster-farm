@@ -34,7 +34,7 @@ const ENV = {
 const TYPES = ["seasonal", "soon", "hiatus", "discontinued", "archived"];
 const FIXTURE = indexCatalog({
   groups: [{
-    key: "cuts", label: "Cuts", unit: "per pack",
+    key: "cuts", label: "Cuts",
     items: [
       ...TYPES.map((restock) => ({
         sku: restock.toUpperCase(), label: restock, price: 10,
@@ -110,7 +110,7 @@ describe("availability by restock type", () => {
   });
 
   it("never sells an archived product", () => {
-    const sku = "NFF-CHK-WHL-0350-0400";
+    const sku = "NFF-CHK-WHL-35-39";
     const index = indexCatalog(catalog);
     const item = index.get(sku);
     const ctx = {
