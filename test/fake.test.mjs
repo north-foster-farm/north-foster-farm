@@ -242,6 +242,20 @@ describe("the fakes match the real calls", () => {
         && e.declined && e.code === "CARD_DECLINED");
     });
 
+  it("square: the sandbox's test nonces decline as the sandbox does",
+    async () => {
+      for (const [nonce, code] of [
+        ["cnon:card-nonce-declined", "CARD_DECLINED"],
+        ["cnon:card-nonce-rejected-cvv", "CVV_FAILURE"],
+      ]) {
+        await assert.rejects(square.createPayment({
+          order: order(), squareOrderId: "O1", customerId: "C1", key: KEY,
+          source: { sourceId: nonce },
+        }, { env: DEV }), (e) => e instanceof square.SquareError
+          && e.declined && e.code === code, nonce);
+      }
+    });
+
   it("paypal: a fake capture reports the amount the order was made for",
     async () => {
       const { paypalOrderId } = await paypal.createOrder(order(), KEY,

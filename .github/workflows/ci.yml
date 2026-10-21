@@ -81,18 +81,12 @@ jobs:
   # do, with drafts, expired and future posts. check:env,
   # check:schedule and the gate install stay on Netlify: they read
   # Netlify's own environment and clock. Hugo and Dart Sass are the
-  # versions netlify.toml and bin/prod use, pinned by SHA-256.
+  # versions netlify.toml and bin/prod use, pinned by SHA-256
+  # (.github/actions/setup-hugo).
   build:
     name: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      HUGO_VERSION: 0.164.0
-      HUGO_SHA256: >-
-        fea17b8c076f950bb2e9f9486667bdaa29422883888d509d63931c73e8a9b3a4
-      SASS_VERSION: 1.79.5
-      SASS_SHA256: >-
-        a2a776abc777f2b8594b7410c2d057d7aa7a9090b55ed20382eea72cde6a10ce
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -107,24 +101,7 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Install Hugo and Dart Sass
-        run: |
-          set -euo pipefail
-          tools="$RUNNER_TEMP/tools"
-          mkdir -p "$tools"
-          cd "$RUNNER_TEMP"
-          base=https://github.com/gohugoio/hugo/releases/download
-          hugo="hugo_extended_${HUGO_VERSION}_linux-amd64.tar.gz"
-          curl -fsSL -o hugo.tgz "$base/v$HUGO_VERSION/$hugo"
-          echo "$HUGO_SHA256  hugo.tgz" | sha256sum -c -
-          tar -xzf hugo.tgz -C "$tools" hugo
-          base=https://github.com/sass/dart-sass/releases/download
-          sass="dart-sass-${SASS_VERSION}-linux-x64.tar.gz"
-          curl -fsSL -o sass.tgz "$base/$SASS_VERSION/$sass"
-          echo "$SASS_SHA256  sass.tgz" | sha256sum -c -
-          tar -xzf sass.tgz
-          cp -r dart-sass/* "$tools"
-          echo "$tools" >> "$GITHUB_PATH"
+      - uses: ./.github/actions/setup-hugo
 
       - name: Build as production
         run: >

@@ -2,22 +2,72 @@
 // from data/events.json. The build picks the event; the page drops a
 // bar whose end has passed. docs/qa-launch.md, "The autumn refresh".
 
+import events from "../data/events.json" with { type: "json" };
 import { expect, test } from "./support/order.mjs";
 
-// The event on staging today, and when it ends in the farm's zone. A
-// pop-up's link opens its card on the home page's map (M9 on #214),
+// The event the bar shows is worked out here from data/events.json as
+// layouts/partials/top-bar.html does: the first by date that has not
+// ended, in the farm's zone. A spec that named one event went red the
+// day it ended, on every build after.
+const ZONE = "America/New_York";
+
+// The farm's offset from UTC on a date: "-04:00" or "-05:00".
+const offset = (date) => new Intl.DateTimeFormat("en-US", {
+  timeZone: ZONE, timeZoneName: "longOffset",
+}).formatToParts(new Date(`${date}T12:00:00Z`))
+  .find((p) => p.type === "timeZoneName").value.replace("GMT", "");
+
+// "14:00" -> "2:00 PM", as Hugo's "3:04 PM".
+const clock = (hm) => {
+  const [h, m] = hm.split(":").map(Number);
+  const half = h < 12 ? "AM" : "PM";
+
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${half}`;
+};
+
+const day = (date, style) => new Date(`${date}T12:00:00Z`)
+  .toLocaleDateString("en-US", {
+    timeZone: "UTC", weekday: style, month: style, day: "numeric",
+  });
+
+const urlize = (text) => text.toLowerCase().replace(/[^a-z0-9\s-]/g, "")
+  .trim().replace(/\s+/g, "-");
+
+const next = [...events.events]
+  .sort((a, b) => a.date.localeCompare(b.date))
+  .map((e) => ({
+    ...e, ends: `${e.date}T${e.end || "23:59"}:00${offset(e.date)}`,
+  }))
+  .find((e) => new Date(e.ends) > new Date());
+
+// A pop-up's link opens its card on the home page's map (M9 on #214),
 // in the same tab; the card has no Instagram link.
-const EVENT = {
-  short: "Pop-up at The Village Family Fitness, Sun, Oct 18",
-  long: "Pop-up at The Village Family Fitness in Warwick, Sunday, " +
-    "October 18, 10:00 AM – 2:00 PM",
-  href: /#place-the-village-family-fitness$/,
-  ends: "2026-10-18T14:00:00-04:00",
+const EVENT = next && {
+  ...next,
+  popUp: next.kind === "pop-up",
+  short: `${next.name}, ${day(next.date, "short")}`,
+  long: `${next.name} in ${next.address.city}, ${day(next.date, "long")}${
+    next.start ? `, ${clock(next.start)} – ${clock(next.end || "23:59")}` : ""
+  }`,
+  href: new RegExp(`#place-${urlize(next.place)}$`),
 };
 
 const bar = (page) => page.locator("[data-top-bar]");
 
+test.describe("top bar, with no event ahead", () => {
+  test.skip(!!EVENT, "data/events.json has an event ahead");
+
+  test("no page carries a bar", async ({ page }) => {
+    for (const path of ["/", "/order/", "/about/"]) {
+      await page.goto(path);
+      await expect(bar(page), path).toHaveCount(0);
+    }
+  });
+});
+
 test.describe("top bar (#139)", () => {
+  test.skip(!EVENT || !EVENT.popUp,
+    "no pop-up ahead in data/events.json; these cover a pop-up");
   test("one line above the header, short on a phone, linking to the map",
     async ({ page }) => {
       await page.goto("/");
@@ -68,7 +118,7 @@ test.describe("top bar (#139)", () => {
     await expect(page).toHaveURL(EVENT.href);
     await expect(map).toHaveAttribute("data-layer", "places");
     await expect(card).toContainText("Pop-up");
-    await expect(card).toContainText("The Village Family Fitness");
+    await expect(card).toContainText(EVENT.place);
     await expect(card.getByRole("link", { name: "Instagram" }))
       .toHaveCount(0);
   });
@@ -88,11 +138,14 @@ test.describe("top bar (#139)", () => {
         await page.goto("/");
       };
 
-      await page.clock.install({ time: new Date("2026-10-18T13:59:00-04:00") });
-      await at("2026-10-18T13:59:00-04:00");
+      const minute = 60_000;
+      const ends = new Date(EVENT.ends).getTime();
+
+      await page.clock.install({ time: new Date(ends - minute) });
+      await at(ends - minute);
       await expect(bar(page)).toBeVisible();
 
-      await at("2026-10-18T14:01:00-04:00");
+      await at(ends + minute);
       await expect(bar(page)).toHaveCount(0);
 
       // With no bar the hero reserves only the header's height.

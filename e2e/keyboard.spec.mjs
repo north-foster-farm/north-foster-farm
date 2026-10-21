@@ -136,7 +136,10 @@ const install = () => {
     const shown = shownFor(el);
 
     out.name = name(el);
-    out.iframe = el.tagName === "IFRAME";
+    // Square's card fields are its own iframe, passed over. The stub
+    // SDK's plain fields (fake payments, a local run) stand in for it
+    // and ship nowhere, so they are passed over the same way.
+    out.iframe = el.tagName === "IFRAME" || !!el.closest("[data-fake-card]");
     out.repeat = kbd.seen.has(el);
     kbd.seen.add(el);
     out.invisible = !visible(shown);

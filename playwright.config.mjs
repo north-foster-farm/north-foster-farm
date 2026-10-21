@@ -60,6 +60,13 @@ const desktopOnly = [
   "**/keyboard.spec.mjs",
 ];
 
+// What only a deployed non-production site can show: the access gate
+// is an edge function a local server never runs. CI's e2e checks run
+// against a local build (bin/e2e/serve.mjs) and leave these to the
+// separate run against staging, behind E2E_STAGING_TOKEN.
+const local = host === "localhost" || host === "127.0.0.1";
+const stagingOnly = local ? ["**/gate.spec.mjs"] : [];
+
 export default defineConfig({
   testDir: "e2e",
   testMatch: "**/*.spec.mjs",
@@ -84,6 +91,7 @@ export default defineConfig({
   projects: [
     {
       name: "desktop",
+      testIgnore: stagingOnly,
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1500, height: 900 },
@@ -91,7 +99,7 @@ export default defineConfig({
     },
     {
       name: "phone",
-      testIgnore: desktopOnly,
+      testIgnore: [...desktopOnly, ...stagingOnly],
       use: {
         browserName: "chromium",
         viewport: { width: 390, height: 664 },

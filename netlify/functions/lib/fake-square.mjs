@@ -7,7 +7,9 @@
 // A card token from the stub SDK (assets/scripts/fake/square.js) is
 // `fake:ok-...`, or `fake:<CODE>` for a decline with one of Square's
 // codes (DECLINE_MESSAGES): the stub's card 4000 0000 0000 0002 sends
-// `fake:CARD_DECLINED`.
+// `fake:CARD_DECLINED`. Square's own sandbox test nonces answer as the
+// sandbox does (SANDBOX_NONCES), so a spec that posts one passes here
+// and on staging alike.
 
 import { fakeId } from "./fake.mjs";
 import {
@@ -40,9 +42,20 @@ export const createChangeOrder = async (order, change, key, {
 
 export const payZeroOrder = async (squareOrderId) => ({ squareOrderId });
 
+// Square's sandbox test values for a declined card nonce
+// (developer.squareup.com, "Sandbox test values"); its ok nonce,
+// cnon:card-nonce-ok, pays like any other token.
+export const SANDBOX_NONCES = {
+  "cnon:card-nonce-declined": "CARD_DECLINED",
+  "cnon:card-nonce-rejected-cvv": "CVV_FAILURE",
+  "cnon:card-nonce-rejected-postalcode": "ADDRESS_VERIFICATION_FAILURE",
+  "cnon:card-nonce-rejected-expiration": "INVALID_EXPIRATION",
+};
+
 export const createPayment = async ({ order, key, source }) => {
   const token = (source && source.sourceId) || "";
-  const code = token.startsWith("fake:") ? token.slice(5) : "";
+  const code = token.startsWith("fake:")
+    ? token.slice(5) : SANDBOX_NONCES[token] || "";
 
   if (DECLINE_MESSAGES[code]) {
     throw new SquareError("Square 402 on /v2/payments", {

@@ -10,7 +10,7 @@
   "browserslist": "defaults",
   "scripts": {
     "lint": "npm run lint:scripts && npm run lint:styles",
-    "lint:scripts": "eslint 'assets/scripts/**/*.{js,mjs}' 'netlify/**/*.mjs' 'test/**/*.mjs' 'e2e/**/*.mjs' 'bin/grid/*.mjs' 'bin/logos/*.mjs' 'bin/facts/*.mjs' 'bin/maps/*.mjs' 'plugins/**/*.js' bin/check-schedule.mjs bin/check-news.mjs bin/check-env.mjs bin/install-gate.mjs bin/gate.mjs bin/check-record-shape.mjs bin/check-rotation-log.mjs bin/staging-jobs-summary.mjs bin/schedule-env.mjs bin/dev-schedule.mjs bin/dev-functions.mjs 'bin/env/*.mjs' 'bin/supply/*.mjs' 'bin/audit/*.mjs' 'bin/codeql/*.mjs' bin/promote.mjs 'bin/postcss/*.js' bin/nff *.config.js playwright.config.mjs",
+    "lint:scripts": "eslint 'assets/scripts/**/*.{js,mjs}' 'netlify/**/*.mjs' 'test/**/*.mjs' 'e2e/**/*.mjs' 'bin/grid/*.mjs' 'bin/logos/*.mjs' 'bin/facts/*.mjs' 'bin/maps/*.mjs' 'plugins/**/*.js' bin/check-schedule.mjs bin/check-news.mjs bin/check-env.mjs bin/install-gate.mjs bin/gate.mjs bin/check-record-shape.mjs bin/check-rotation-log.mjs bin/staging-jobs-summary.mjs bin/schedule-env.mjs bin/dev-schedule.mjs bin/dev-functions.mjs 'bin/env/*.mjs' 'bin/supply/*.mjs' 'bin/audit/*.mjs' 'bin/codeql/*.mjs' 'bin/e2e/*.mjs' bin/promote.mjs 'bin/postcss/*.js' bin/nff *.config.js playwright.config.mjs",
     "lint:styles": "stylelint assets/styles/**/*.scss",
     "start": "bin/dev",
     "start:bind": "HUGO_BIND_TO_IP=true bin/dev",
@@ -26,6 +26,7 @@
     "check:signatures": "npm audit signatures",
     "check:record-shape": "node bin/check-record-shape.mjs",
     "e2e": "playwright test",
+    "e2e:serve": "node bin/e2e/serve.mjs",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "devDependencies": {
