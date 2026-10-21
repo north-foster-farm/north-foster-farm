@@ -75,6 +75,18 @@ framework = "#custom"
   force = true
 
 [[redirects]]
+  from = "/staging"
+  to = "https://staging--north-foster-farm.netlify.app/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/staging/*"
+  to = "https://staging--north-foster-farm.netlify.app/:splat"
+  status = 302
+  force = true
+
+[[redirects]]
   from = "/venmo"
   to = "https://venmo.com/u/northfosterfarm"
   status = 301

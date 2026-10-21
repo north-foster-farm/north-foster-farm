@@ -121,6 +121,21 @@ describe("e2e server: netlify.toml", () => {
       "no-store");
   });
 
+  it("sends /staging and its deep links to staging, not the API", () => {
+    const toml = parseToml(readFileSync(
+      new URL("../netlify.toml", import.meta.url), "utf8"));
+    const staging = "https://staging--north-foster-farm.netlify.app/";
+
+    assert.deepEqual(
+      findRedirect(toml.redirects, "/staging", { forced: true }),
+      { to: staging, status: 302 });
+    assert.deepEqual(
+      findRedirect(toml.redirects, "/staging/order/", { forced: true }),
+      { to: `${staging}order/`, status: 302 });
+    assert.equal(findRedirect(toml.redirects, "/api/staging/jobs/run",
+      { forced: true }), null);
+  });
+
   it("matches a path exactly or by its splat", () => {
     assert.equal(matchPath("/api/dates", "/api/dates"), "");
     assert.equal(matchPath("/api/dates", "/api/dates/x"), null);
