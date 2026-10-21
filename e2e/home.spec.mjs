@@ -731,6 +731,19 @@ test.describe("home", () => {
           expect(last.top, `one row at ${width}`).toBe(first.top);
           expect(Math.abs(first.left - (width - last.right)),
             `centered at ${width}`).toBeLessThanOrEqual(2);
+          // Room to spare: Linux's Chromium rounds each letter to a
+          // whole pixel, and wrapped the pair where a Mac left 3.7px
+          // (#290).
+          expect(await page.locator(".touch-actions").evaluate((row) => {
+            const cs = getComputedStyle(row);
+            const room = row.clientWidth - parseFloat(cs.paddingLeft)
+              - parseFloat(cs.paddingRight);
+            const btns = [...row.querySelectorAll(".btn")];
+
+            return room - btns.reduce(
+              (n, b) => n + b.getBoundingClientRect().width, 0
+            ) - parseFloat(cs.columnGap) * (btns.length - 1);
+          }), `px to spare at ${width}`).toBeGreaterThanOrEqual(6);
         }
       });
   });
