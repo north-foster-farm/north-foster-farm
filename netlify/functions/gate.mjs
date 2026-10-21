@@ -20,7 +20,9 @@ import {
   verifyToken,
 } from "./lib/gate.mjs";
 import { sendLink } from "./lib/gate-mail.mjs";
-import { checkEmailPage, signInPage } from "./lib/gate-page.mjs";
+import {
+  checkEmailPage, invalidLinkPage, signInPage,
+} from "./lib/gate-page.mjs";
 import { json } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
@@ -114,9 +116,7 @@ export const handle = async (req, {
     });
 
     if (!result.ok) {
-      return html(401, signInPage({
-        message: "That link has expired or was used. Ask for a new one.",
-      }));
+      return html(401, invalidLinkPage());
     }
 
     const id = await createSession(gate, result.email, now);

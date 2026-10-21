@@ -1,6 +1,10 @@
 {
   "sessionDays": 365,
   "linkMinutes": 15,
+  "production": {
+    "url": "https://www.northfosterfarm.com/",
+    "label": "northfosterfarm.com"
+  },
   "perAddress": { "max": 3, "windowMinutes": 15 },
   "perIp": { "max": 10, "windowMinutes": 15 },
   "mailCeiling": { "perHour": 6, "perDay": 20 }
