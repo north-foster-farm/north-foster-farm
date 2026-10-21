@@ -237,9 +237,16 @@ const walk = async (page, key) => {
   return [...new Set(problems)];
 };
 
+// Loaded, fonts in, and no region still loading: a region that waits
+// on a request (the header's Sign in waits on /api/me) is aria-busy
+// under its skeleton until it answers (utils/skeleton.js). A walk
+// begun sooner found Sign in under its skeleton on a slow run.
 const settle = async (page) => {
   await page.waitForLoadState("load");
   await page.evaluate(() => document.fonts.ready);
+  await page.waitForFunction(
+    () => !document.querySelector("[aria-busy='true']"),
+  );
 };
 
 // Escape closes what `open` opened and gives the focus back to

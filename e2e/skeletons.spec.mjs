@@ -191,17 +191,45 @@ test.describe("loading skeletons (#271)", () => {
 
   test("a request that never answers gives up after ten seconds",
     async ({ page }) => {
+      // The region's states, timed in the page: a wait out here also
+      // counts how slow the run is, and on a busy runner the region had
+      // given up before a 9 s wait here ended.
+      await page.addInitScript(() => {
+        window.e2eLoads = [];
+        new MutationObserver(() => {
+          const region = document.getElementById("account-region");
+          const state = region && region.dataset.load;
+          const last = window.e2eLoads[window.e2eLoads.length - 1];
+
+          if (state && (!last || last[0] !== state)) {
+            window.e2eLoads.push([state, performance.now()]);
+          }
+        }).observe(document, {
+          subtree: true, attributes: true, attributeFilter: ["data-load"],
+        });
+      });
       await hold(page, "**/api/me");
       await page.goto("/account/");
 
       const region = page.locator("#account-region");
 
-      await loading(region);
-      await page.waitForTimeout(GIVE_UP_MS - 1000);
-      await expect(region).toHaveAttribute("data-load", "shown");
       await expect(region.locator(".skeleton-failed")).toBeVisible({
-        timeout: 3000,
+        timeout: GIVE_UP_MS + 5000,
       });
+
+      const states = await page.evaluate(() => window.e2eLoads);
+      const at = (name) => states.find(([state]) => state === name)?.[1];
+
+      // Waiting, then the bars, then the failure, ten seconds on.
+      expect(states.map(([state]) => state)).toEqual([
+        "wait", "shown", "failed",
+      ]);
+      expect(at("failed") - at("wait")).toBeGreaterThanOrEqual(
+        GIVE_UP_MS - 100
+      );
+      expect(at("failed") - at("wait")).toBeLessThanOrEqual(
+        GIVE_UP_MS + 1000
+      );
       await expect(region.getByRole("link", { name: "Try again" }))
         .toBeVisible();
     });
@@ -263,15 +291,29 @@ test.describe("loading skeletons (#271)", () => {
     });
 
   test("the order page's dates fail with Try again", async ({ page }) => {
-    let answers = 0;
+    // Every answer fails until the page has seen Try again pressed.
+    // The page also retries by itself, 2 s after a failure, and hides
+    // the link while it does; had that retry succeeded, a slow run
+    // lost the link before it could press it.
+    // The press is noted here, in the test, since Try again may reload
+    // the page; a request that beats the note waits for it a moment.
+    let tried = false;
 
+    await page.exposeFunction("e2eTried", () => {
+      tried = true;
+    });
+    await page.addInitScript(() => {
+      document.addEventListener("click", (e) => {
+        if (e.target.closest(".skeleton-failed a")) window.e2eTried();
+      }, true);
+    });
     await page.route("**/api/stock", (route) => route.fulfill(STOCK));
-    await page.route("**/api/dates", (route) => {
-      answers += 1;
+    await page.route("**/api/dates", async (route) => {
+      if (!tried) await new Promise((r) => setTimeout(r, 500));
 
-      return route.fulfill(answers === 1
-        ? { status: 500, json: { error: "Stubbed." } }
-        : json(dates()));
+      return route.fulfill(tried
+        ? json(dates())
+        : { status: 500, json: { error: "Stubbed." } });
     });
     await page.goto("/order/");
 

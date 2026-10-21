@@ -314,8 +314,12 @@ test("under reduced motion the pill holds still", async ({ page }) => {
     timeout: 4_000,
   });
 
+  // The pulse is a keyframe animation (a CSSAnimation, which names
+  // its keyframes). The ring's own transition may still be running
+  // as it comes on; WebKit counts it too, but nothing moves.
   const still = await pill.evaluate((el) => ({
-    animations: el.getAnimations().length,
+    animations: el.getAnimations().filter((a) => "animationName" in a)
+      .length,
     ring: getComputedStyle(el).boxShadow,
   }));
 
