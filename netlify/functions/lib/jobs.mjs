@@ -91,6 +91,7 @@ export const cutoffAt = (order) => {
 // while the farm's question waits on them (lib/account.mjs's gate).
 // The Venmo rescue asks before it captures a change (#292).
 export const editOpen = (order, now) => order.status === "paid"
+  && !order.cancelRequested
   && (now.getTime() < cutoffAt(order).getTime() || questionOpen(order));
 
 export const deliveryReminderAt = (order) =>

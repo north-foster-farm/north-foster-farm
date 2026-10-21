@@ -59,6 +59,22 @@ describe("the Venmo change rescue after the lock", () => {
     assert.equal(await getCheckout(stores, "k-1", "PPO-1"), null);
   });
 
+  it("drops one on an order the customer asked to cancel", async () => {
+    const stores = testStores();
+    let finished = 0;
+
+    await saveOrder(stores, { ...order("A"), cancelRequested: true }, placed);
+    await saveCheckout(stores, checkout);
+
+    const out = await rescueCheckout(stores, checkout, {
+      paypal: paypal("APPROVED"), env: {}, now: at(TUESDAY, 7),
+      finishEdit: async () => { finished += 1; }, editOpen,
+    });
+
+    assert.equal(out, null);
+    assert.equal(finished, 0);
+  });
+
   it("still finishes one before the lock, or one PayPal completed",
     async () => {
       const stores = testStores();

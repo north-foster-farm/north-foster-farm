@@ -128,6 +128,22 @@ describe("the PDF writer", () => {
       ["one two", "three"]);
     assert.ok(wrap("x".repeat(200), 100).every((l) => widthOf(l) <= 100));
   });
+
+  it("wraps a long unbroken note in time, and caps its rows", () => {
+    const note = "é".repeat(2000);
+    const started = performance.now();
+    const all = wrap(note, 400, { size: 11 });
+    const took = performance.now() - started;
+    const capped = wrap(note, 400, { size: 11, rows: 12 });
+
+    assert.ok(took < 50, `${took.toFixed(1)} ms`);
+    assert.equal(all.join(""), note, "nothing lost");
+    assert.equal(capped.length, 12);
+    assert.ok(capped[11].endsWith("…"));
+    assert.ok(capped.every((l) => widthOf(l, { size: 11 }) <= 400));
+    assert.deepEqual(wrap("WW", 1), ["W", "W"],
+      "a glyph wider than the line still moves on");
+  });
 });
 
 describe("what goes in a packet", () => {
@@ -381,6 +397,21 @@ describe("Healthchecks", () => {
       assert.deepEqual(h.pings.map((p) => [p.url, p.method]),
         [[URL, "GET"], [URL, "GET"]]);
     });
+
+  it("scrubs the error it posts to /fail", async () => {
+    const stores = testStores();
+    const h = harness();
+
+    await saveOrder(stores, order("A"), placed);
+    await assert.rejects(run(stores, {
+      ...h, mail: async () => {
+        throw new Error("rejected pat@example.com, 401-555-0100");
+      },
+    }, at(TUESDAY, 6)));
+
+    assert.doesNotMatch(h.pings[0].body, /pat@example\.com|555-0100/);
+    assert.match(h.pings[0].body, /\[email:/);
+  });
 
   it("pings /fail when the packet can't go, and tries again next run",
     async () => {

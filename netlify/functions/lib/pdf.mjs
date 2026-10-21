@@ -68,54 +68,92 @@ export const printable = (value) => [...String(value ?? "")
   .replace(/[\t\r\n\u2028\u2029]+/g, " ")]
   .map((ch) => (codeOf(ch) === null ? "?" : ch)).join("");
 
+// A non-ASCII character's width, worked out once: its normal form is
+// the costly part.
+const wideCache = new Map();
+
 const charWidth = (ch, bold) => {
   const c = ch.codePointAt(0);
 
   if (c >= 32 && c <= 126) return (bold ? BOLD : REGULAR)[c - 32];
-  if (WIDE[ch]) return WIDE[ch][bold ? 1 : 0];
 
-  const base = ch.normalize("NFD")[0];
+  const key = `${bold ? 1 : 0}${ch}`;
 
-  if (base !== ch && base.codePointAt(0) <= 126) return charWidth(base, bold);
+  if (!wideCache.has(key)) {
+    const base = ch.normalize("NFD")[0];
 
-  return 556;
+    wideCache.set(key, WIDE[ch] ? WIDE[ch][bold ? 1 : 0]
+      : base !== ch && base.codePointAt(0) <= 126 ? charWidth(base, bold)
+        : 556);
+  }
+
+  return wideCache.get(key);
 };
+
+// The width of already printable text, in points.
+const measure = (chars, size, bold) =>
+  chars.reduce((w, ch) => w + charWidth(ch, bold), 0) * size / 1000;
 
 // The width of `text` in points.
 export const widthOf = (text, { size = 10, bold = false } = {}) =>
-  [...printable(text)].reduce((w, ch) => w + charWidth(ch, bold), 0)
-    * size / 1000;
+  measure([...printable(text)], size, bold);
+
+export const ELLIPSIS = "…";
 
 // `text` broken into lines no wider than `width`, at spaces where it
-// can be and mid-word where a word alone is too wide.
-export const wrap = (text, width, style = {}) => {
-  const words = printable(text).split(" ").filter(Boolean);
+// can be and mid-word where a word alone is too wide. Each character
+// is measured once, so a long note costs no more than its length.
+// With `rows`, text past that many lines is cut and the last line
+// ends in an ellipsis.
+export const wrap = (text, width, {
+  size = 10, bold = false, rows = Infinity,
+} = {}) => {
+  const w = (ch) => charWidth(ch, bold) * size / 1000;
+  const space = w(" ");
   const lines = [];
-  let line = "";
+  let line = [];
+  let lineWidth = 0;
+  const flush = () => {
+    lines.push(line.join(""));
+    line = [];
+    lineWidth = 0;
+  };
 
-  for (let word of words) {
-    while (widthOf(word, style) > width) {
-      let cut = word.length - 1;
+  for (const word of printable(text).split(" ").filter(Boolean)) {
+    const chars = [...word];
+    const wordWidth = chars.reduce((s, ch) => s + w(ch), 0);
 
-      while (cut > 1 && widthOf(word.slice(0, cut), style) > width) cut--;
-      if (line) lines.push(line);
-      lines.push(word.slice(0, cut));
-      line = "";
-      word = word.slice(cut);
+    if (wordWidth > width) {
+      // Too wide alone: cut it where the line fills, at least one
+      // character a line so even a too-wide glyph moves on.
+      if (line.length) flush();
+      for (const ch of chars) {
+        if (line.length && lineWidth + w(ch) > width) flush();
+        line.push(ch);
+        lineWidth += w(ch);
+      }
+      continue;
     }
-
-    const next = line ? `${line} ${word}` : word;
-
-    if (widthOf(next, style) > width && line) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = next;
+    if (line.length && lineWidth + space + wordWidth > width) flush();
+    if (line.length) {
+      line.push(" ");
+      lineWidth += space;
     }
+    line.push(...chars);
+    lineWidth += wordWidth;
   }
-  if (line || !lines.length) lines.push(line);
+  if (line.length || !lines.length) flush();
+  if (lines.length <= rows) return lines;
 
-  return lines;
+  const kept = lines.slice(0, rows);
+  const last = [...kept[rows - 1]];
+  const room = width - w(ELLIPSIS);
+  let lastWidth = measure(last, size, bold);
+
+  while (last.length && lastWidth > room) lastWidth -= w(last.pop());
+  kept[rows - 1] = `${last.join("").trimEnd()}${ELLIPSIS}`;
+
+  return kept;
 };
 
 // A PDF literal string, in WinAnsi bytes.

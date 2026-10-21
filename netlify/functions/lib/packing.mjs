@@ -35,7 +35,7 @@ import {
 import { company } from "./company.mjs";
 import { placeOf } from "./describe.mjs";
 import { ping } from "./health.mjs";
-import { log } from "./log.mjs";
+import { log, scrub } from "./log.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { pdf, wrap } from "./pdf.mjs";
 import {
@@ -274,6 +274,10 @@ const M = 54;
 const RIGHT = 612 - M;
 const BOTTOM = 792 - 54;
 const LINE = 15;
+// The most lines one field or item name takes; past that it ends
+// in an ellipsis, so a long note can't run on for pages.
+export const FIELD_ROWS = 12;
+const LABEL_ROWS = 4;
 
 const stamp = (now) => new Intl.DateTimeFormat("en-US", {
   timeZone: tz, weekday: "short", month: "short", day: "numeric",
@@ -317,7 +321,7 @@ const sheet = (doc, { title, id, now }) => {
 };
 
 const field = (doc, at, name, value, { width = RIGHT - M - 90 } = {}) => {
-  const rows = wrap(value || "", width, { size: 11 });
+  const rows = wrap(value || "", width, { size: 11, rows: FIELD_ROWS });
 
   at.room(rows.length * LINE);
   doc.text(name, M, at.y, { size: 9, shade: 0.4 });
@@ -373,7 +377,9 @@ const slipPage = (doc, order, now) => {
   at.y += LINE + 4;
 
   for (const l of order.lines) {
-    const rows = wrap(l.label, RIGHT - M - 140, { size: 11 });
+    const rows = wrap(l.label, RIGHT - M - 140, {
+      size: 11, rows: LABEL_ROWS,
+    });
 
     at.room(rows.length * LINE + 4);
     doc.rect(M + 6, at.y - 9, 9, 9, { stroke: 0.75 });
@@ -452,7 +458,9 @@ const revisionPage = (doc, entry, now) => {
   at.y += LINE + 6;
   for (const change of entry.changes.length ? entry.changes
     : ["Details only: see the new slip"]) {
-    const rows = wrap(change, RIGHT - M - 16, { size: 11 });
+    const rows = wrap(change, RIGHT - M - 16, {
+      size: 11, rows: LABEL_ROWS,
+    });
 
     at.room(rows.length * LINE);
     doc.text("•", M + 2, at.y, { size: 11 });
@@ -491,7 +499,9 @@ const coverPage = (doc, { entries, now, title }) => {
     at.y += LINE;
   }
   for (const p of picks) {
-    const rows = wrap(p.label, RIGHT - M - 70, { size: 11 });
+    const rows = wrap(p.label, RIGHT - M - 70, {
+      size: 11, rows: LABEL_ROWS,
+    });
 
     at.room(rows.length * LINE + 2);
     doc.rect(M, at.y - 9, 9, 9, { stroke: 0.75 });
@@ -681,7 +691,8 @@ export const packingDaily = async (stores, {
 
     log.error({ event: "packing.failed", error: message });
     await ping(pingUrl(env), {
-      ok: false, body: { failed: "packing", day, error: message }, fetchImpl,
+      ok: false, body: scrub({ failed: "packing", day, error: message }),
+      fetchImpl,
     });
     throw error;
   }

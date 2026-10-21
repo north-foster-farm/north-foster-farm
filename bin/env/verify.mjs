@@ -154,6 +154,7 @@ const axiom = async (v, fetchImpl) => {
 
 const healthchecks = async (v) => [
   "HEALTHCHECKS_JOBS_URL", "HEALTHCHECKS_ALERT_URL", "HEALTHCHECKS_BACKUP_URL",
+  "HEALTHCHECKS_PACKING_URL",
 ].filter((name) => name in v).map((name) => [name, HEALTHCHECKS.test(v[name])
   ? { ok: true, note: "shape only, not pinged" }
   : { ok: false, note: "not a hc-ping.com URL" }]);
