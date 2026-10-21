@@ -6,11 +6,13 @@
 // the header means nothing. /api/orders and /api/contact use it.
 
 import { deployContext } from "./store.mjs";
+import { sameToken } from "./token.mjs";
 
 export const limitExempt = (req, env = process.env) => {
   const context = deployContext(env);
   const given = req.headers.get("x-staging-token");
 
   return !!given && !!context && context !== "production" &&
-    [env.STAGING_TOKEN, env.E2E_STAGING_TOKEN].includes(given);
+    [env.STAGING_TOKEN, env.E2E_STAGING_TOKEN]
+      .some((token) => token && sameToken(given, token));
 };

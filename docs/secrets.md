@@ -805,8 +805,8 @@ cookie is the credential and nothing is typed.
 | Info: the deploy's context, mail driver and Square environment, and the key in use | yes | yes |
 | Crash test: throws on purpose to prove the alert | yes | yes |
 
-`E2E_STAGING_TOKEN` opens `/api/staging/e2e` and lifts the order limit
-for a request carrying it, and nothing else. The browser reset acts on
+`E2E_STAGING_TOKEN` opens `/api/staging/e2e` and lifts the order and
+contact limits for a request carrying it, and nothing else. The browser reset acts on
 the browser alone and needs no key. Each new
 toolbar feature adds a row here and decides in `KEYS`
 (`netlify/functions/staging.mjs`) which way in opens it; the default

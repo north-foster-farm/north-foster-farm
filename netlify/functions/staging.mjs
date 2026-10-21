@@ -50,8 +50,6 @@
 // same holds for /e2e and E2E_STAGING_TOKEN, the one token of the
 // test suite; the two never open each other's paths.
 
-import { timingSafeEqual } from "node:crypto";
-
 import { runOp } from "./lib/e2e.mjs";
 import { COOKIE, cookieValue, sessionFor } from "./lib/gate.mjs";
 import { json, readJson } from "./lib/http.mjs";
@@ -64,6 +62,7 @@ import {
   tokenize, versionFor, withdrawApproval,
 } from "./lib/review.mjs";
 import { mailLinks } from "./lib/site.mjs";
+import { sameToken } from "./lib/token.mjs";
 import {
   alone, entry as signature, library as signatures, render,
 } from "./lib/signatures.mjs";
@@ -81,15 +80,6 @@ const tokenOf = (req) => {
   const auth = req.headers.get("authorization") || "";
 
   return auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-};
-
-// Compares in constant time, so the answer's timing says nothing about
-// how much of a guess was right.
-const sameToken = (given, expected) => {
-  const a = Buffer.from(String(given));
-  const b = Buffer.from(String(expected));
-
-  return a.length === b.length && timingSafeEqual(a, b);
 };
 
 // What each way in opens, by the areas below. The machine token opens
