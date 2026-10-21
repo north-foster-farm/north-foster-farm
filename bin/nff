@@ -18,7 +18,7 @@ import { loadEnv } from "../netlify/functions/lib/env.mjs";
 import { USAGE as BREAKER_USAGE, breakerCommand } from "./breaker.mjs";
 import { USAGE as GATE_USAGE, gateCommand } from "./gate.mjs";
 import { devSchedule } from "./dev-schedule.mjs";
-import { runNetlify } from "./env/cli.mjs";
+import { NETLIFY_NPX, runNetlify } from "./env/cli.mjs";
 import { deployAfterPush } from "./env/deploy.mjs";
 import {
   PREVIEW_ALLOWED, PREVIEW_CONTEXTS, TARGETS, checkEnv, envRunner, planPush,
@@ -370,7 +370,7 @@ const checkedSchedule = (file) => {
 // The Netlify CLI, as the env file's site and token, for the one
 // command that changes a deploy's settings. -> its stdout.
 const netlify = (args) => new Promise((resolve, reject) => {
-  const child = spawn("npx", ["netlify", ...args], {
+  const child = spawn("npx", [...NETLIFY_NPX, ...args], {
     stdio: ["ignore", "pipe", "inherit"],
     env: process.env,
   });
@@ -446,7 +446,7 @@ const envFiles = () => {
 // The Netlify CLI for env commands: its output is kept, and an error
 // shows it with every value blanked.
 const envNetlify = (values) => (args) => new Promise((resolve, reject) => {
-  const child = spawn("npx", ["netlify", ...args], {
+  const child = spawn("npx", [...NETLIFY_NPX, ...args], {
     stdio: ["ignore", "pipe", "pipe"],
     env: process.env,
   });

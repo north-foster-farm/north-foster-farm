@@ -15,6 +15,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadEnv } from "../netlify/functions/lib/env.mjs";
+import { NETLIFY_NPX } from "./env/cli.mjs";
 import { devSchedule } from "./dev-schedule.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -51,7 +52,7 @@ console.log(`start:functions: Hugo on port ${hugoPort}`);
 // that checkout, and reads its netlify.toml. `--cwd` makes it use this
 // worktree instead, but it ignores `--cwd` when it names the directory
 // it runs in, so it runs from bin/.
-const child = spawn("npx", ["netlify", ...netlifyArgs], {
+const child = spawn("npx", [...NETLIFY_NPX, ...netlifyArgs], {
   cwd: join(root, "bin"),
   detached: true,
   env: process.env,

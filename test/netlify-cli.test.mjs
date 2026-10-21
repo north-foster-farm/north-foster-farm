@@ -9,7 +9,7 @@ import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { runNetlify } from "../bin/env/cli.mjs";
+import { NETLIFY_CLI_VERSION, runNetlify } from "../bin/env/cli.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SECRET = "nfp_fake-cli-token-4321";
@@ -33,8 +33,13 @@ describe("the Netlify CLI run by bin/nff", () => {
     assert.equal(code, 0);
     assert.equal(seen[0].options.env.NETLIFY_AUTH_TOKEN, SECRET);
     assert.equal(seen[0].options.stdio, "inherit");
-    assert.deepEqual(seen[0].argv,
-      ["netlify", "env:list", "--context", "production"]);
+    // One pinned version, never whatever npx would fetch (#283).
+    assert.equal(seen[0].file, "npx");
+    assert.deepEqual(seen[0].argv, [
+      "--yes", `--package=netlify-cli@${NETLIFY_CLI_VERSION}`, "netlify",
+      "env:list", "--context", "production",
+    ]);
+    assert.match(NETLIFY_CLI_VERSION, /^\d+\.\d+\.\d+$/);
     assert.ok(!JSON.stringify([seen[0].file, seen[0].argv])
       .includes(SECRET));
   });
@@ -79,7 +84,9 @@ exit 7
       const written = readFileSync(log, "utf8");
 
       assert.equal(r.status, 7);
-      assert.match(written, /args: netlify env:list --context production/);
+      assert.match(written, new RegExp("args: --yes --package=netlify-cli@" +
+        `${NETLIFY_CLI_VERSION.replaceAll(".", "\\.")} netlify env:list ` +
+        "--context production"));
       assert.match(written, /token set: yes/);
       assert.ok(!written.includes(`args: ${SECRET}`));
       assert.ok(!`${r.stdout}${r.stderr}`.includes(SECRET));
