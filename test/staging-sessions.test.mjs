@@ -13,7 +13,9 @@ import { COOKIE, addAllow } from "../netlify/functions/lib/gate.mjs";
 import { gateRequest } from "../netlify/functions/lib/gate-edge.mjs";
 import { OUTBOX_PREFIX, sendMail } from "../netlify/functions/lib/mail.mjs";
 import { testStores as plainStores } from "../netlify/functions/lib/store.mjs";
-import { carriesSignIn, handle } from "../netlify/functions/staging.mjs";
+import {
+  carriesSignIn, handle, ownLink,
+} from "../netlify/functions/staging.mjs";
 
 const OWNER = "james@example.com";
 const PAT = "pat@example.com";
@@ -248,6 +250,108 @@ describe("sign-in links in the toolbar", () => {
 
       assert.equal((await listed(stores, PAT))[0].withheld, true);
     });
+
+  it("are withheld by their sender's mark, whatever the text says",
+    async () => {
+      const stores = testStores();
+
+      await sendAs(stores, PAT, {
+        to: JIM, subject: "Sign in", text: "A link we wrapped oddly.",
+        credential: true,
+      });
+
+      assert.equal((await listed(stores, PAT))[0].withheld, true);
+    });
+
+  it("cover farm news confirm and unsubscribe links too", () => {
+    for (const text of [
+      "Confirm: https://x/api/news/confirm?token=abc",
+      "Off: https://x/api/news/unsubscribe?token=abc",
+      "Off: https://x/news/?unsubscribe=abc",
+    ]) {
+      assert.ok(carriesSignIn({ text, html: "" }), text);
+    }
+  });
+
+  it("are marked at the source: the shop's link and the news confirm",
+    async () => {
+      const { requestLink } = await import(
+        "../netlify/functions/lib/auth.mjs");
+      const { requestSubscribe, welcome } = await import(
+        "../netlify/functions/lib/news.mjs");
+      const sent = [];
+      const mail = async (m) => { sent.push(m); };
+      const stores = testStores();
+
+      await requestLink(stores, { email: JIM }, { env, mail });
+      await requestSubscribe(stores, { email: JIM }, { env, mail });
+      await welcome(stores, {
+        email: JIM, firstName: "Jim", marketingAt: "2026-10-21",
+      }, { env, mail });
+      assert.equal(sent.length, 3);
+      for (const m of sent) assert.equal(m.credential, true, m.subject);
+    });
+
+  it("open to no one but James when the message names no recipient",
+    async () => {
+      // The outbox driver refuses such a message; a record could still
+      // come to be some other way, so it is written as the outbox would.
+      const stores = testStores();
+      const session = await tagOf(IDS[PAT]);
+
+      for (const [n, to] of [[1, []], [2, ""], [3, null]]) {
+        await stores.jobs.set(`${OUTBOX_PREFIX}m${n}`, {
+          ...signInLink(PAT), html: "",
+          id: `m${n}`, at: "2026-10-21T12:00:00Z", session, to,
+        });
+      }
+
+      const list = await listed(stores, PAT);
+
+      assert.equal(list.length, 3);
+      for (const m of list) assert.equal(m.withheld, true);
+      assert.equal(ownLink({ to: [] }, { key: "owner session" }), true);
+    });
+});
+
+describe("a tester's jobs run (#294 review)", () => {
+  const DAY = 86_400_000;
+  const run = (stores, body) => handle(new Request(
+    "https://x/api/staging/jobs/run", {
+      method: "POST",
+      headers: {
+        Cookie: `${COOKIE}=${IDS[PAT]}`, "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }), { stores, env });
+
+  it("as of two years on sweeps nothing live", async () => {
+    const stores = testStores();
+    // Someone else's live customer session, good for 30 more days.
+    const key = `session/${hash("jim-customer-session")}`;
+
+    stores.auth.data.set(key, {
+      email: JIM, expires: Date.now() + 30 * DAY,
+    });
+
+    const res = await run(stores, {
+      at: new Date(Date.now() + 2 * 365 * DAY).toISOString(),
+    });
+    const body = await res.json();
+
+    assert.equal(res.status, 200);
+    assert.equal(body.authSwept, 0);
+    assert.deepEqual(body.scrubbed, []);
+    assert.ok(stores.auth.data.has(key), "jim's session lives");
+  });
+
+  it("refuses a time past what the clock may reach", async () => {
+    for (const at of ["2099-01-01T12:00:00Z", "1990-01-01T12:00:00Z"]) {
+      const res = await run(testStores(), { at });
+
+      assert.equal(res.status, 400, at);
+    }
+  });
 });
 
 describe("before the gate (#294 hard rule)", () => {

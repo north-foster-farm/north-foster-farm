@@ -119,6 +119,9 @@ export const requestLink = async (stores, { email, next }, {
     await mail({
       to: address,
       idempotencyKey: `link-${hash(token).slice(0, 16)}`,
+      // A sign-in link: the staging toolbar shows it to that
+      // address's own session only (#294).
+      credential: true,
       ...magicLink(address, url, {
         minutes: ttl / MINUTE, links: mailLinks(env),
       }),

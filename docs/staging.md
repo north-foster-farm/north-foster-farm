@@ -322,10 +322,13 @@ with `sha256("outbox:" + id)`, never the id or the gate store's key.
   another's answers 404. Signing in to or out of a customer account
   changes nothing; signing out of the gate, its expiry or removal from
   the allowlist ends it.
-- A message carrying a sign-in link (`/api/auth/verify` or
-  `/api/gate/verify`, found by content) is withheld unless every
-  recipient is the session's own mailbox, `+tags` aside. It is listed
-  as withheld and never opened.
+- A message whose link acts for its recipient is withheld unless it
+  has recipients and every one is the session's own mailbox, `+tags`
+  aside. Its sender marks it (`credential: true`: the shop's sign-in
+  link, the farm news confirm and welcome), and the content is
+  checked too (`/api/auth|gate/verify`, `/api/news/confirm|
+  unsubscribe`, `?unsubscribe=`) in case a sender forgets. It is
+  listed as withheld and never opened.
 - Mail from no session (webhooks, the CLI, the jobs workflow) and
   every session's mail are in the library's Sent list, James's alone.
 - The gate's own link is never in the outbox: it is sent by Resend.
@@ -345,8 +348,19 @@ production and on previews the cookie is ignored and
 `/api/staging/clock` is a 404 (`test/clock.test.mjs`).
 
 What must not move stays on real time: the gate's sessions and links,
-every rate limit, the send breaker, logs, retention and the sweeps of
-shared data, backups, and every call to Square and PayPal (`real()`).
+every rate limit, the send breaker, logs, backups, and every call to
+Square and PayPal (`real()`). Retention and the sweeps of checkouts
+and sign-ins take the real time itself (`runJobs`' `realNow`), never
+the run's, so no clock and no "as of" can scrub or sweep shared
+records early. A jobs run "as of" a time must be within three years of
+now, as the clock must.
+
+One edge stays: a record keeps the time it was made on. An order or
+checkout made under a clock two years ahead outlives retention by two
+years, and a checkout made under a clock set back looks old to the
+next sweep, which may drop it mid-payment (a sandbox Venmo payment is
+then left for `bin/nff` to reconcile). Test payments on the real
+clock, or finish them before the next jobs run.
 
 Square's and PayPal's sandboxes keep their own, real clocks. Under an
 override our order record carries the tester's time while Square's

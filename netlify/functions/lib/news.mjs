@@ -13,7 +13,7 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { normalizeEmail, validEmail } from "./auth.mjs";
-import { now as clock } from "./clock.mjs";
+import { now as clock, real } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
@@ -186,6 +186,8 @@ export const welcome = async (stores, customer, {
       to: customer.email,
       idempotencyKey: `welcome-${
         hash(`${customer.email} ${customer.marketingAt}`).slice(0, 16)}`,
+      // Its unsubscribe link acts for the address (#294).
+      credential: true,
       headers: {
         "List-Unsubscribe": `<${links.post}>`,
         "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
@@ -205,10 +207,12 @@ export const welcome = async (stores, customer, {
 const withinRate = async (stores, address, now) => {
   const rateKey = `rate/news/${address}`;
   const rate = (await stores.auth.get(rateKey)) || { times: [] };
-  const recent = rate.times.filter((t) => now.getTime() - t < REQUEST_WINDOW);
+  // Real time: a tester's clock must not reopen the limit (#294).
+  const at = real(now).getTime();
+  const recent = rate.times.filter((t) => at - t < REQUEST_WINDOW);
 
   if (recent.length >= REQUESTS_PER_WINDOW) return false;
-  await stores.auth.set(rateKey, { times: [...recent, now.getTime()] });
+  await stores.auth.set(rateKey, { times: [...recent, at] });
 
   return true;
 };
@@ -283,6 +287,9 @@ export const requestSubscribe = async (stores, {
     await mail({
       to: address,
       idempotencyKey: `news-${hash(token).slice(0, 16)}`,
+      // Its link acts for the address: the staging toolbar shows it
+      // to that address's own session only (#294).
+      credential: true,
       ...newsConfirm(address, url, {
         days: Math.round(ttl / DAY), links: mailLinks(env),
       }),

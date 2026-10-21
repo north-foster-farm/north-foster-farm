@@ -258,6 +258,9 @@ export const viaOutbox = async (message, env, stores, now = new Date()) => {
     subject: message.subject,
     text: message.text || "",
     html: message.html || "",
+    // A link in it acts for the recipient (a sign-in, a news confirm or
+    // unsubscribe): the toolbar withholds it from other sessions.
+    credential: !!message.credential,
     ...(attached(message).length
       ? { attachments: attached(message) } : {}),
   });

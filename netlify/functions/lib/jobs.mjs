@@ -45,7 +45,7 @@ import { announceNew, rescueCheckout, syncSquare } from "./checkout.mjs";
 import { finishEditVenmo } from "./edit.mjs";
 import { deleteOldMessages, scrubOldOrders } from "./forget.mjs";
 import { alert, escalate, ping, readCount, readMark } from "./health.mjs";
-import { now as clock, real } from "./clock.mjs";
+import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { audienceConfigured, syncAudience } from "./news.mjs";
@@ -106,6 +106,10 @@ export const deliveryReminderAt = (order) =>
 // caught by the function wrapper and alerted as jobs.crashed.
 export const runJobs = async (stores, {
   now = clock(),
+  // The real time, whatever `now` is: a run as of another time (the
+  // toolbar's clock, or its "as of") must not sweep or scrub shared
+  // records early (#294). Tests may set it.
+  realNow = new Date(),
   env = process.env,
   mail = sendMail,
   square,
@@ -223,11 +227,11 @@ export const runJobs = async (stores, {
   }
 
   report.checkoutsSwept = (await attempt(null, "checkouts",
-    () => sweepCheckouts(stores, real(now)))) || 0;
+    () => sweepCheckouts(stores, realNow))) || 0;
   report.authSwept = (await attempt(null, "auth",
-    () => sweepAuth(stores, real(now)))) || 0;
+    () => sweepAuth(stores, realNow))) || 0;
   report.scrubbed = (await attempt(null, "retention",
-    () => scrubDaily(stores, real(now)))) || [];
+    () => scrubDaily(stores, realNow))) || [];
   report.pickupsToConfirm = (await attempt(null, "morningReport",
     () => morningReport(stores, {
       env, mail, now, fetchImpl, catalogIndex,

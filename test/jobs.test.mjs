@@ -343,15 +343,16 @@ describe("runJobs", () => {
       order: order("B"), paypalOrderId: "PPO-2",
     });
 
+    // The sweep reads the real time (realNow), not the run's `now`.
+    const early = new Date(placed.getTime() + CHECKOUT_TTL - 60_000);
+    const late = new Date(placed.getTime() + CHECKOUT_TTL + 60_000);
     const before = await runJobs(stores, {
-      ...opts, now: new Date(placed.getTime() + CHECKOUT_TTL - 60_000),
+      ...opts, now: early, realNow: early,
     });
 
     assert.equal(before.checkoutsSwept, 0);
 
-    const after = await runJobs(stores, {
-      ...opts, now: new Date(placed.getTime() + CHECKOUT_TTL + 60_000),
-    });
+    const after = await runJobs(stores, { ...opts, now: late, realNow: late });
 
     assert.equal(after.checkoutsSwept, 1);
     assert.equal(await getCheckout(stores, "k-old"), null);

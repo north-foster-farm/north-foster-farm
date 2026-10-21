@@ -151,11 +151,19 @@ const whoIs = async (req, env, stores) => {
   };
 };
 
-// A message that carries a sign-in link, the shop's or the gate's.
-const SIGN_IN = /\/api\/(?:auth|gate)\/verify\?token=/;
+// A message carrying a link that acts for its recipient: marked so at
+// its source (`credential`, set by the shop's sign-in and the farm
+// news confirm and welcome), and found by content as well, in case a
+// sender forgets the mark. The sign-in links of the shop and the gate,
+// news confirm and unsubscribe.
+const SIGN_IN = new RegExp([
+  "/api/(?:auth|gate)/verify\\?token=",
+  "/api/news/(?:confirm|unsubscribe)\\?token=",
+  "[?&]unsubscribe=",
+].join("|"));
 
-export const carriesSignIn = (m) =>
-  SIGN_IN.test(`${m.text || ""}\n${m.html || ""}`);
+export const carriesSignIn = (m) => !!m.credential
+  || SIGN_IN.test(`${m.text || ""}\n${m.html || ""}`);
 
 // One mailbox, its +tags aside: pat+1@example.com is pat@example.com.
 const mailbox = (address) => {
@@ -164,12 +172,14 @@ const mailbox = (address) => {
   return `${String(local).split("+")[0]}@${domain}`;
 };
 
-const recipients = (m) => (Array.isArray(m.to) ? m.to : [m.to]);
+const recipients = (m) => [].concat(m.to).filter(Boolean);
 
 // Whether a sign-in link in `m` is the asker's own to read: it was sent
-// to their own mailbox, or the asker is James.
+// to their own mailbox and no other, or the asker is James. A message
+// with no recipient is no one's.
 export const ownLink = (m, who) => who.key === "owner session"
-  || recipients(m).every((to) => mailbox(to) === mailbox(who.email));
+  || (recipients(m).length > 0 && !!who.email
+    && recipients(m).every((to) => mailbox(to) === mailbox(who.email)));
 
 // This browser's clock: whether it may move here, its offset, and the
 // time it reads.
@@ -566,7 +576,12 @@ export const handle = async (req, {
         Number(time[2]), terms.timeZone)
         : now;
 
-    if (Number.isNaN(at.getTime())) return json(400, { error: "Bad at." });
+    // No further from the real time than the clock may go; the sweeps
+    // keep the real time whatever this is (lib/jobs.mjs, realNow).
+    if (Number.isNaN(at.getTime())
+      || Math.abs(at.getTime() - Date.now()) > MAX_OFFSET) {
+      return json(400, { error: "Bad at: within three years of now." });
+    }
     if (body.reset) {
       const day = today(at, terms.timeZone);
 
