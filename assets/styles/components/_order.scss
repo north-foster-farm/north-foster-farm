@@ -21,9 +21,39 @@
     max-width: 1040px;
   }
 
-  // Wraps without a one-word last line.
+  // The lead and the Show control (#267): stacked and centered, then
+  // one row, lead left and control right, once the column has room
+  // for both. The query asks the column, not the screen, since the
+  // sidebar and the cart take their share from lg up.
+  .order-intro {
+    container: order-intro / inline-size;
+  }
+
+  .order-intro-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: center;
+    text-align: center;
+  }
+
+  @container order-intro (min-width: 36rem) {
+    .order-intro-row {
+      flex-direction: row;
+      gap: 1.5rem;
+      justify-content: space-between;
+      text-align: start;
+    }
+  }
+
+  // A short line: where it wraps, beside the control or centered over
+  // it, its lines come out even.
   .order-lead {
-    text-wrap: pretty;
+    text-wrap: balance;
+
+    > :last-child {
+      margin-bottom: 0;
+    }
   }
 
   .order-section legend {
@@ -1629,17 +1659,16 @@
     }
   }
 
-  // Show "In stock" or "Full catalog", over the list (#267): the cart's
+  // Show "In stock" or "Full catalog", in the intro (#267): the cart's
   // segmented control, a pill track with a fill that slides to the
   // chosen side. Here the fill is the page's white on the grey track,
   // so the chosen side is lighter, never darker. The radios stay in
   // place under their labels, unseen, so arrows move between them.
   .order-filter {
     display: flex;
+    flex: none;
     gap: 0.75rem;
     align-items: center;
-    justify-content: flex-end;
-    margin: 0 0 0.75rem;
   }
 
   .order-filter-label {
