@@ -33,13 +33,13 @@ import {
   addDays, label, parts, today, weekday,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { company } from "./company.mjs";
-import { placeOf } from "./describe.mjs";
+import { packetCounts, placeOf } from "./describe.mjs";
 import { ping } from "./health.mjs";
 import { log, scrub } from "./log.mjs";
-import { farmEmails, sendMail } from "./mail.mjs";
+import { MailError, farmEmails, sendMail } from "./mail.mjs";
 import { pdf, wrap } from "./pdf.mjs";
 import {
-  getOrder, openOrders, paidTotal, paymentsOf, refundedTotal,
+  allOrders, getOrder, paidTotal, paymentsOf, refundedTotal,
 } from "./records.mjs";
 import { resendAllowed } from "./resend-guard.mjs";
 import { mailLinks } from "./site.mjs";
@@ -48,10 +48,15 @@ import { farmChangedAfterPrint, farmPackingSlips } from "./templates.mjs";
 const tz = terms.timeZone;
 
 export const PACKING_HOUR = 6;
+// A day's packet starts no later than this hour, so a release or an
+// outage late in the day waits for the next morning. Once started,
+// it is retried until it goes.
+export const PACKING_LAST_HOUR = 10;
 export const KEEP_DAYS = 30;
 export const PRINTED = "packing/printed/";
 export const SENT = "packing/sent/";
 export const CHANGED = "packing/changed/";
+export const PENDING = "packing/pending/";
 
 const printedKey = (id) => `${PRINTED}${id}`;
 
@@ -63,16 +68,17 @@ const hash = (...values) => createHash("sha256")
 
 // --- Money ------------------------------------------------------------
 
-// PAID when the money kept covers the total, from the payments and
-// refunds on the record rather than its status: an order from before
-// checkout moved onto the page may still be `submitted`, unpaid.
+// PAID when the payments cover the total, from the money on the
+// record rather than its status: an order from before checkout moved
+// onto the page may still be `submitted`, unpaid. A refund never makes
+// an order owe: the total is what was ordered, and what went back is
+// its own line.
 export const paymentState = (order) => {
-  const kept = paidTotal(order) - refundedTotal(order);
   const due = order.status === "submitted"
     ? order.totals.total
-    : Math.max(0, order.totals.total - kept);
+    : Math.max(0, order.totals.total - paidTotal(order));
 
-  return { paid: due === 0, due };
+  return { paid: due === 0, due, refunded: refundedTotal(order) };
 };
 
 const paidWord = (state) => (state.paid ? "PAID" : "UNPAID");
@@ -113,6 +119,7 @@ export const snapshotOf = (order) => {
     discount: order.totals.discountAmount || 0,
     paid: state.paid,
     due: state.due,
+    refunded: state.refunded,
   };
 };
 
@@ -153,7 +160,7 @@ export const changesBetween = (before, after) => {
     out.push("Place or address changed: see the new slip");
   }
   if (before.notes !== after.notes) {
-    out.push("Instructions changed: see the new slip");
+    out.push("Notes or delivery instructions changed: see the new slip");
   }
   if (before.contact !== after.contact) {
     out.push("Contact details changed: see the new slip");
@@ -167,9 +174,13 @@ export const changesBetween = (before, after) => {
       dollars(after.total)}`);
   }
   if (before.paid !== after.paid || before.due !== after.due) {
-    const word = (s) => (s.paid ? "PAID" : `UNPAID, ${dollars(s.due)} due`);
+    const word = (s) => (s.paid ? "PAID" : `UNPAID (${dollars(s.due)} due)`);
 
     out.push(`Payment: was ${word(before)}, now ${word(after)}`);
+  }
+  if ((before.refunded || 0) !== (after.refunded || 0)) {
+    out.push(`Refunded: was ${dollars(before.refunded || 0)}, now ${
+      dollars(after.refunded || 0)}`);
   }
 
   return out;
@@ -247,6 +258,13 @@ export const byFulfilment = (a, b) => {
     || startOf(a.order).localeCompare(startOf(b.order))
     || a.order.id.localeCompare(b.order.id);
 };
+
+// -> { slips, revised, cancelled } for a packet's counts.
+export const countsOf = (entries) => ({
+  slips: entries.filter((e) => e.kind !== "cancelled").length,
+  revised: entries.filter((e) => e.kind === "changed").length,
+  cancelled: entries.filter((e) => e.kind === "cancelled").length,
+});
 
 export const slipsOf = (entries) =>
   entries.filter((e) => e.kind !== "cancelled");
@@ -402,6 +420,7 @@ const slipPage = (doc, order, now) => {
   }
   if (t.deliveryFee) sums.push(["Delivery fee", dollars(t.deliveryFee)]);
   sums.push(["Total", dollars(t.total)]);
+  if (state.refunded) sums.push(["Refunded", dollars(state.refunded)]);
 
   at.room(sums.length * LINE + 30);
   doc.line(M, at.y - 6, RIGHT, at.y - 6, { width: 0.5, shade: 0.6 });
@@ -457,7 +476,7 @@ const revisionPage = (doc, entry, now) => {
   });
   at.y += LINE + 6;
   for (const change of entry.changes.length ? entry.changes
-    : ["Details only: see the new slip"]) {
+    : ["Only the details changed: see the new slip"]) {
     const rows = wrap(change, RIGHT - M - 16, {
       size: 11, rows: LABEL_ROWS,
     });
@@ -478,18 +497,14 @@ const revisionPage = (doc, entry, now) => {
 };
 
 const KIND = {
-  new: "New", changed: "Revised", weekly: "Week", cancelled: "CANCELLED",
+  new: "New", changed: "Revised", weekly: "Reprint", cancelled: "CANCELLED",
 };
 
 const coverPage = (doc, { entries, now, title }) => {
   const at = sheet(doc, { title, now });
-  const slips = slipsOf(entries);
   const picks = pickList(entries);
 
-  doc.text(`${slips.length} slip${slips.length === 1 ? "" : "s"}, ${
-    entries.filter((e) => e.kind === "changed").length} revised, ${
-    entries.filter((e) => e.kind === "cancelled").length} cancelled`, M,
-  at.y, { size: 11 });
+  doc.text(packetCounts(countsOf(entries)), M, at.y, { size: 11 });
   at.y += LINE + 12;
 
   doc.text("Pick list", M, at.y, { size: 14, bold: true });
@@ -565,53 +580,61 @@ export const attachment = (filename, bytes) => ({
 
 // --- Reading the records ---------------------------------------------
 
-// The open orders, and each printed order no longer open: cancelled
-// (or deleted) since it was printed and not yet past its date. A
-// fulfilled one drops out.
-const gather = async (stores, day) => {
-  const open = (await openOrders(stores)).filter((o) => o.status === "paid");
+// Every order that gets a slip: paid, or an older record still unpaid.
+export const PACKED = ["paid", "submitted"];
+const GONE = ["cancelled", "abandoned"];
+
+// The orders to pack, and each printed order since cancelled (or
+// deleted) and not yet past its date. A fulfilled one drops out. The
+// morning packet reads every order, so an unpaid one is found too;
+// the check after it reads only the printed ones.
+const gather = async (stores, day, { every = true } = {}) => {
   const printed = await readPrinted(stores);
-  const openIds = new Set(open.map((o) => o.id));
+  const orders = every
+    ? await allOrders(stores)
+    : (await Promise.all([...printed.keys()]
+      .map((id) => getOrder(stores, id)))).filter(Boolean);
+  const byId = new Map(orders.map((o) => [o.id, o]));
+  const open = orders.filter((o) => PACKED.includes(o.status));
   const gone = [];
 
   for (const record of printed.values()) {
-    if (openIds.has(record.id) || record.snapshot.status === "cancelled"
-      || record.date < day) {
-      continue;
-    }
+    if (record.snapshot.status === "cancelled" || record.date < day) continue;
 
-    const order = await getOrder(stores, record.id);
+    const order = byId.get(record.id) || null;
 
-    if (!order || order.status === "cancelled") {
-      gone.push({
-        record: {
-          id: record.id, customer: null,
-          fulfilment: {
-            method: record.snapshot.method, date: record.snapshot.date,
-          },
+    if (order && !GONE.includes(order.status)) continue;
+    gone.push({
+      record: {
+        id: record.id, customer: null,
+        fulfilment: {
+          method: record.snapshot.method, date: record.snapshot.date,
         },
-        order,
-      });
-    }
+      },
+      order,
+    });
   }
 
   return { open, printed, gone };
 };
 
-const remember = async (stores, entries, now) => {
-  for (const e of entries) {
-    const snapshot = e.kind === "cancelled"
-      ? { ...(e.order.lines ? snapshotOf(e.order) : {}), status: "cancelled" }
-      : snapshotOf(e.order);
+// What an entry's slip or sheet shows, to keep as printed.
+const printedOf = (e) => ({
+  id: e.order.id,
+  date: e.order.fulfilment.date,
+  snapshot: e.kind === "cancelled"
+    ? { ...(e.order.lines ? snapshotOf(e.order) : {}), status: "cancelled" }
+    : snapshotOf(e.order),
+});
 
-    await stores.jobs.set(printedKey(e.order.id), {
-      id: e.order.id, at: now.toISOString(),
-      date: e.order.fulfilment.date, snapshot,
-    });
+const remember = async (stores, records, now) => {
+  for (const r of records) {
+    await stores.jobs.set(printedKey(r.id), { ...r, at: now.toISOString() });
   }
 };
 
-// Snapshots of orders KEEP_DAYS past their date go.
+// Snapshots of orders KEEP_DAYS past their date go, and so do the
+// pending packets and change notes of past days.
 const prune = async (stores, day) => {
   const floor = addDays(day, -KEEP_DAYS);
   let n = 0;
@@ -622,9 +645,23 @@ const prune = async (stores, day) => {
       n += 1;
     }
   }
+  for (const prefix of [PENDING, CHANGED]) {
+    for (const { key } of await stores.jobs.list(prefix)) {
+      if (key.slice(prefix.length, prefix.length + 10) < day) {
+        await stores.jobs.delete(key);
+      }
+    }
+  }
 
   return n;
 };
+
+// Resend's answer when a key it has already sent comes back with a
+// different body: what that key carried went out, so it counts as
+// sent.
+export const alreadySent = (error) => error instanceof MailError
+  && error.status === 409
+  && !!error.detail && error.detail.name === "invalid_idempotent_request";
 
 // --- Healthchecks -------------------------------------------------------
 
@@ -643,7 +680,16 @@ export const missingPingKey = (env) => sendsForReal(env) && !env[PING_KEY];
 // --- The morning run ----------------------------------------------------
 
 // From PACKING_HOUR, once a day: the packet, or the quiet-day email.
-// -> { day, kind, slips, revised, cancelled, quiet } or null when
+//
+// The first try fixes the day's packet in `packing/pending/<day>`:
+// its time and each order with what its sheet shows. A retry sends
+// the same orders with the same time, so a send whose answer was lost
+// is not sent twice: Resend answers the same key with the first send.
+// If an order changed in between, the body differs and Resend refuses
+// the key; the first send went out, so the day counts as sent, as the
+// pending record printed it, and the change is caught later.
+//
+// -> { day, sunday, quiet, slips, revised, cancelled } or null when
 // nothing was done this run. Throws when the packet could not go (the
 // next run tries again) or went without its check configured.
 export const packingDaily = async (stores, {
@@ -652,38 +698,63 @@ export const packingDaily = async (stores, {
 } = {}) => {
   const day = today(now, tz);
   const to = farmEmails(env);
+  const hour = parts(now, tz).hour;
 
-  if (parts(now, tz).hour < PACKING_HOUR || !to.length) return null;
+  if (hour < PACKING_HOUR || !to.length) return null;
   if (await stores.jobs.get(`${SENT}${day}`)) return null;
+
+  const pendingKey = `${PENDING}${day}`;
+  let pending = await stores.jobs.get(pendingKey);
+
+  if (!pending && hour >= PACKING_LAST_HOUR) return null;
 
   let result;
 
   try {
-    const entries = choose({ ...(await gather(stores, day)), day });
-    const title = packetTitle(day);
-    const quiet = !entries.length;
+    let entries = choose({ ...(await gather(stores, day)), day });
+
+    if (pending) {
+      const ids = new Set(pending.entries.map((e) => e.id));
+
+      entries = entries.filter((e) => ids.has(e.order.id));
+    } else {
+      pending = {
+        at: now.toISOString(),
+        entries: entries.map((e) => ({ ...printedOf(e), kind: e.kind })),
+      };
+      await stores.jobs.set(pendingKey, pending);
+    }
+
+    const stamp = new Date(pending.at);
     const summary = {
-      day, sunday: isSunday(day), quiet,
-      slips: slipsOf(entries).length,
-      revised: entries.filter((e) => e.kind === "changed").length,
-      cancelled: entries.filter((e) => e.kind === "cancelled").length,
+      day, sunday: isSunday(day), quiet: !entries.length,
+      ...countsOf(entries),
     };
     const filename = fileName(day);
-    const message = farmPackingSlips(entries, {
-      ...summary, filename, links: mailLinks(env),
-    });
+    let records = entries.map(printedOf);
 
-    await mail({
-      to, idempotencyKey: `packing-${day}`, ...message,
-      attachments: quiet ? [] : [
-        attachment(filename, packetPdf({ entries, now, title })),
-      ],
-    }, { env });
-    await remember(stores, entries, now);
+    try {
+      await mail({
+        to, idempotencyKey: `packing-${day}`,
+        ...farmPackingSlips(entries, {
+          ...summary, filename, links: mailLinks(env),
+        }),
+        attachments: summary.quiet ? [] : [attachment(filename, packetPdf({
+          entries, now: stamp, title: packetTitle(day),
+        }))],
+      }, { env });
+    } catch (error) {
+      if (!alreadySent(error)) throw error;
+      log.warn({ event: "packing.already_sent", day });
+      records = pending.entries.map((r) => ({
+        id: r.id, date: r.date, snapshot: r.snapshot,
+      }));
+    }
+    await remember(stores, records, stamp);
     await stores.jobs.set(`${SENT}${day}`, {
-      at: now.toISOString(), ...summary,
-      ids: entries.map((e) => e.order.id),
+      at: now.toISOString(), ...summary, ids: records.map((r) => r.id),
     });
+    await stores.jobs.delete(pendingKey);
     await prune(stores, day);
     result = summary;
   } catch (error) {
@@ -713,7 +784,9 @@ export const packingDaily = async (stores, {
 // An order due today that changed after it was printed, once today's
 // packet is out: the farm hears at once, with its revision sheet and
 // a fresh slip, and the snapshot moves on so each change is mailed
-// once. -> the ids mailed this run.
+// once. The key names the change by its content, so a retry of the
+// same change is the same message and a newer change a new one.
+// -> the ids mailed this run.
 export const changedAfterPrint = async (stores, {
   env = process.env, mail = sendMail, now = new Date(),
 } = {}) => {
@@ -722,28 +795,30 @@ export const changedAfterPrint = async (stores, {
 
   if (!to.length || !(await stores.jobs.get(`${SENT}${day}`))) return [];
 
-  const { open, printed, gone } = await gather(stores, day);
-  const dueToday = (e) => e.order.fulfilment.date === day;
-  const entries = choose({
-    open: open.filter((o) => printed.has(o.id)), printed, gone, day,
-  }).filter((e) => dueToday(e) && e.kind !== "weekly");
+  const { open, printed, gone } = await gather(stores, day, { every: false });
+  const entries = choose({ open, printed, gone, day })
+    .filter((e) => e.order.fulfilment.date === day && e.kind !== "weekly");
   const sent = [];
 
   for (const e of entries) {
-    const n = (await stores.jobs.list(`${CHANGED}${day}/${e.order.id}/`))
-      .length + 1;
-    const filename = fileName(day, `-${e.order.id}-${n}`);
+    const record = printedOf(e);
+    const change = hash(record.snapshot);
+    const filename = fileName(day, `-${e.order.id}-${change.slice(0, 6)}`);
 
-    await mail({
-      to, idempotencyKey: `packing-changed-${day}-${e.order.id}-${n}`,
-      ...farmChangedAfterPrint(e, { date: day, links: mailLinks(env) }),
-      attachments: [attachment(filename, packetPdf({
-        entries: [e], now, cover: false,
-        title: `Changed after printing, ${label(day)}`,
-      }))],
-    }, { env });
-    await remember(stores, [e], now);
-    await stores.jobs.set(`${CHANGED}${day}/${e.order.id}/${n}`, {
+    try {
+      await mail({
+        to, idempotencyKey: `packing-changed-${day}-${e.order.id}-${change}`,
+        ...farmChangedAfterPrint(e, { date: day, links: mailLinks(env) }),
+        attachments: [attachment(filename, packetPdf({
+          entries: [e], now, cover: false,
+          title: `Changed after printing, ${label(day)}`,
+        }))],
+      }, { env });
+    } catch (error) {
+      if (!alreadySent(error)) throw error;
+    }
+    await remember(stores, [record], now);
+    await stores.jobs.set(`${CHANGED}${day}/${e.order.id}/${change}`, {
       at: now.toISOString(), kind: e.kind,
     });
     sent.push(e.order.id);

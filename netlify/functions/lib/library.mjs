@@ -13,8 +13,8 @@
 
 import { launchEmail } from "./launch.mjs";
 import {
-  attachment, byFulfilment, changesBetween, fileName, packetPdf, packetTitle,
-  snapshotOf,
+  attachment, byFulfilment, changesBetween, countsOf, fileName, packetPdf,
+  packetTitle, snapshotOf,
 } from "./packing.mjs";
 import * as t from "./templates.mjs";
 import { orderPathFor } from "./site.mjs";
@@ -272,7 +272,7 @@ const packetMail = (links) => {
 
   return {
     ...t.farmPackingSlips(entries, {
-      day, slips: 4, revised: 1, cancelled: 1, filename, links,
+      day, ...countsOf(entries), filename, links,
     }),
     attachments: [attachment(filename, packetPdf({
       entries, now, title: packetTitle(day),
@@ -280,14 +280,17 @@ const packetMail = (links) => {
   };
 };
 
-const changedMail = (links) => {
-  const { day, now, entries } = samplePacket();
-  const e = entries.find((x) => x.kind === "changed");
+// The sample's changed or cancelled order, mailed on its own day at
+// 9:30 AM, after that morning's packet went out.
+const afterPrintMail = (kind) => (links) => {
+  const e = samplePacket().entries.find((x) => x.kind === kind);
+  const day = e.order.fulfilment.date;
 
   return {
-    ...t.farmChangedAfterPrint(e, { date: e.order.fulfilment.date, links }),
-    attachments: [attachment(fileName(day, `-${e.order.id}-1`), packetPdf({
-      entries: [e], now, cover: false, title: "Changed after printing",
+    ...t.farmChangedAfterPrint(e, { date: day, links }),
+    attachments: [attachment(fileName(day, `-${e.order.id}`), packetPdf({
+      entries: [e], now: new Date(`${day}T13:30:00.000Z`), cover: false,
+      title: "Changed after printing",
     }))],
   };
 };
@@ -700,7 +703,8 @@ export const library = [
   },
   {
     id: "farm-packing-slips", name: "Packing slips",
-    when: "Every day at 6:00, with the PDF to print; Sundays the week",
+    when: "Every day at 6:00, with the PDF to print; on Sunday, the " +
+      "whole week",
     audience: F, tags: ["report", "delivery", "pickup", "drop site", "pdf"],
     build: packetMail,
   },
@@ -714,9 +718,17 @@ export const library = [
   },
   {
     id: "farm-changed-after-print", name: "Changed after printing",
-    when: "An order due today changes after the morning's slips",
+    when: "An order due today changes or is cancelled after the " +
+      "morning's slips go out",
     audience: F, tags: ["alert", "delivery", "pdf"],
-    build: changedMail,
+    build: afterPrintMail("changed"),
+  },
+  {
+    id: "farm-cancelled-after-print", name: "Cancelled after printing",
+    when: "An order due today changes or is cancelled after the " +
+      "morning's slips go out",
+    audience: F, tags: ["alert", "drop site", "pdf"],
+    build: afterPrintMail("cancelled"),
   },
 
   // Farm news

@@ -47,8 +47,22 @@ export const streetAddress = (a = {}) => [
   [a.state, a.zip].filter(Boolean).join(" "),
 ].filter(Boolean).join(", ");
 
-const FARM = `${company.address.street}, ${company.address.city}, ` +
-  `${company.address.state} ${company.address.zip}`;
+// The farm as the email footer writes it.
+const FARM = `${company.address.short || company.address.street}, ${
+  company.address.city}, ${company.address.state} ${company.address.zip}`;
+
+// "10:00 AM – 4:00 PM" -> "10 AM – 4 PM", the way pickup windows read.
+const hours = (window) => window.replace(/:00/g, "");
+
+// A packet's counts: "4 slips (1 revised), 1 cancelled", a zero part
+// left out, and "No slips, 1 cancelled" when nothing is to pack.
+export const packetCounts = ({ slips = 0, revised = 0, cancelled = 0 }) => [
+  slips
+    ? `${slips} slip${slips === 1 ? "" : "s"}${
+      revised ? ` (${revised} revised)` : ""}`
+    : "No slips",
+  cancelled && `${cancelled} cancelled`,
+].filter(Boolean).join(", ");
 
 // Where and when an order is handed over, for any way of getting it:
 // { method, name, window, place }. `place` is the address the order
@@ -58,10 +72,11 @@ export const placeOf = (order) => {
   const f = order.fulfilment;
   const of = {
     delivery: () => ({
-      window: terms.delivery.window, place: streetAddress(f.delivery || {}),
+      window: hours(terms.delivery.window),
+      place: streetAddress(f.delivery || {}),
     }),
     scituate: () => ({
-      window: terms.scituate.window, place: terms.scituate.location,
+      window: hours(terms.scituate.window), place: terms.scituate.location,
     }),
     onfarm: () => ({ window: pickupWindow(order), place: FARM }),
   }[f.method];

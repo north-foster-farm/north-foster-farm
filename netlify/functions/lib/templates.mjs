@@ -23,7 +23,7 @@ import {
 import { GUIDE, RUNBOOK_ALERTS } from "./alerts-guide.mjs";
 import { company } from "./company.mjs";
 import {
-  between, methodName, pickupWindow, streetAddress,
+  between, methodName, packetCounts, pickupWindow, streetAddress,
 } from "./describe.mjs";
 import { currentOptIn, keptFee, paymentsOf } from "./records.mjs";
 
@@ -1742,7 +1742,7 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
 // PDF is attached, and the email lists what is in it. Wording is a
 // draft.
 const PACKET_KIND = {
-  new: "new", weekly: "this week", changed: "**revised**",
+  new: "new", weekly: "reprint", changed: "**revised**",
   cancelled: "**CANCELLED**",
 };
 
@@ -1766,18 +1766,14 @@ export const farmPackingSlips = (entries, {
     return {
       subject: title,
       ...render(title, [
-        p("Nothing to print today. No order is new, changed or cancelled " +
-          "since the last packet."),
+        p("No order has come in, changed or been cancelled since the " +
+          "last packet."),
         adminFooter(links),
       ], links, { tag: "Packing slips" }),
     };
   }
 
-  const counts = [
-    `${slips} slip${slips === 1 ? "" : "s"}`,
-    revised && `${revised} revised`,
-    cancelled && `${cancelled} cancelled`,
-  ].filter(Boolean).join(", ");
+  const counts = packetCounts({ slips, revised, cancelled });
   const title = sunday
     ? `Packing slips for the week of ${when}: ${counts}`
     : `Packing slips, ${when}: ${counts}`;
@@ -1785,11 +1781,13 @@ export const farmPackingSlips = (entries, {
   return {
     subject: title,
     ...render(title, [
-      p(`Print the attached PDF${filename ? `, ${filename},` : ""} in one ` +
-        "go. The first page is the pick list for every slip in it."),
+      p(`Print the attached PDF${filename ? `, ${filename}` : ""}. It ` +
+        "opens with the pick list for every slip in it."),
       sunday
-        ? p("It's Sunday, so every order for the week is in it, with the " +
-          "new and changed ones since yesterday.")
+        ? p(`It's Sunday, so it has a slip for every order due by ${
+          label(addDays(day, 6))}, as well as anything new, changed or ` +
+          "cancelled since yesterday, and replaces every earlier slip for " +
+          "this week.")
         : null,
       revised || cancelled
         ? p("A **revised** order has a sheet saying what changed, then a " +
@@ -1814,11 +1812,11 @@ export const farmChangedAfterPrint = (entry, { date, links } = {}) => {
   const blocks = [
     p(cancelled
       ? `**${id}** is due today, ${label(date)}, and was cancelled after ` +
-        "this morning's packing slips. Don't pack it. The attached sheet " +
-        "says so for the packing table."
+        "this morning's packing slips went out. Don't pack it. The " +
+        "attached sheet says so for the packing table."
       : `**${id}** is due today, ${label(date)}, and changed after this ` +
-        "morning's packing slips. The attached PDF has a sheet saying " +
-        "what changed and a new slip: throw away the old one."),
+        "morning's packing slips went out. The attached PDF has a sheet " +
+        "saying what changed and a new slip: throw away the old one."),
   ];
 
   if (!cancelled && entry.changes.length) {

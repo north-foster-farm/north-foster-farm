@@ -5,9 +5,11 @@ import { describe, it } from "node:test";
 
 import { runJobs } from "../netlify/functions/lib/jobs.mjs";
 import { samplePacket } from "../netlify/functions/lib/library.mjs";
-import { OUTBOX_PREFIX, sendMail } from "../netlify/functions/lib/mail.mjs";
 import {
-  PING_KEY, SENT, changedAfterPrint, changesBetween, choose, packetPdf,
+  MailError, OUTBOX_PREFIX, sendMail,
+} from "../netlify/functions/lib/mail.mjs";
+import {
+  PENDING, PING_KEY, SENT, changedAfterPrint, changesBetween, choose, packetPdf,
   packingDaily, paymentState, pickList, readPrinted, snapshotOf,
 } from "../netlify/functions/lib/packing.mjs";
 import {
@@ -169,7 +171,8 @@ describe("what goes in a packet", () => {
       assert.equal(quiet.quiet, true);
       assert.equal(h.sent[1].subject, "Packing slips, Wednesday, " +
         "October 7: nothing to print");
-      assert.match(h.sent[1].text, /Nothing to print today/);
+      assert.match(h.sent[1].text,
+        /No order has come in, changed or been\s+cancelled/);
       assert.deepEqual(h.sent[1].attachments, []);
     });
 
@@ -268,7 +271,7 @@ describe("changed and cancelled orders", () => {
 
       assert.equal(wed.revised, 1);
       assert.equal(wed.slips, 1, "only the changed order is printed again");
-      assert.match(h.sent[1].subject, /: 1 slip, 1 revised$/);
+      assert.match(h.sent[1].subject, /: 1 slip \(1 revised\)$/);
       assert.match(text, /\(REVISED\)/);
       assert.match(text, /\(Eggs, Large: was 2, now 5\)/);
       assert.match(text, /\(Removed: 1 \\327 Boneless Breasts/);
@@ -286,11 +289,11 @@ describe("changed and cancelled orders", () => {
     const changes = changesBetween(before, after);
 
     assert.ok(changes.includes("Type: was Delivery, now On-farm pickup"));
-    assert.ok(changes.some((c) => /^Window: was 10:00 AM – 4:00 PM, now /
+    assert.ok(changes.some((c) => /^Window: was 10 AM – 4 PM, now /
       .test(c)));
     assert.ok(changes.includes("Contact details changed: see the new slip"));
     assert.ok(changes.includes("Total: was $37, now $32"));
-    assert.ok(changes.includes("Payment: was PAID, now UNPAID, $32 due"));
+    assert.ok(changes.includes("Payment: was PAID, now UNPAID ($32 due)"));
   });
 
   it("prints a CANCELLED sheet with no slip for a printed order",
@@ -312,7 +315,7 @@ describe("changed and cancelled orders", () => {
 
       assert.equal(wed.cancelled, 1);
       assert.equal(wed.slips, 0);
-      assert.match(h.sent[1].subject, /: 0 slips, 1 cancelled$/);
+      assert.match(h.sent[1].subject, /: No slips, 1 cancelled$/);
       assert.match(text, /\(CANCELLED\)/);
       assert.doesNotMatch(text, /\(Packing slip\)/);
       assert.doesNotMatch(text, /GHOST/);
@@ -337,9 +340,10 @@ describe("changed and cancelled orders", () => {
 
       const text = pdfText(h.sent[0]);
 
-      assert.deepEqual(paymentState(owing), { paid: false, due: 2200 });
+      assert.deepEqual(paymentState(owing),
+        { paid: false, due: 2200, refunded: 0 });
       assert.deepEqual(paymentState({ ...order("L"), status: "submitted" }),
-        { paid: false, due: 3700 }, "an old unpaid record");
+        { paid: false, due: 3700, refunded: 0 }, "an old unpaid record");
       assert.match(text, /\(UNPAID\)/);
       assert.match(text, /\(\$22 due\)/);
       assert.match(text, /\(PAID\)/);
@@ -378,7 +382,11 @@ describe("changed and cancelled orders", () => {
       assert.deepEqual(first, ["TODAY"], "LATER waits for tomorrow's packet");
       assert.deepEqual(second, []);
       assert.equal(m.subject, "Changed after printing: TODAY");
-      assert.match(m.text, /Payment: was PAID, now UNPAID, \$7 due/);
+      // A partial refund is its own line: the order is still paid.
+      assert.match(m.text, /Refunded: was \$0, now \$7/);
+      assert.doesNotMatch(m.text, /UNPAID/);
+      assert.doesNotMatch(pdfText(m), /\(UNPAID\)/);
+      assert.match(pdfText(m), /\(Refunded\)/);
       assert.match(pdfText(m), /\(REVISED\)/);
       assert.doesNotMatch(pdfText(m), /Pick list/, "no cover for one order");
     });
@@ -544,5 +552,97 @@ describe("the library's sample packet", () => {
     }
     assert.ok(entries.every((e) => !e.order.customer
       || e.order.customer.email.endsWith("@example.com")), "fake people");
+  });
+});
+
+describe("when the packet goes, and going once", () => {
+  it("gives an unpaid order a slip, marked UNPAID with what is due",
+    async () => {
+      const stores = testStores();
+      const h = harness();
+
+      await saveOrder(stores, {
+        ...order("OLD", { paid: false }), status: "submitted",
+      }, placed);
+
+      const r = await run(stores, h, at(TUESDAY, 6));
+      const text = pdfText(h.sent[0]);
+
+      assert.equal(r.slips, 1);
+      assert.match(text, /\(UNPAID\)/);
+      assert.match(text, /\(\$37 due\)/);
+    });
+
+  it("waits for the next morning when it starts after 10:00", async () => {
+    const stores = testStores();
+    const h = harness();
+
+    await saveOrder(stores, order("A", { date: "2026-10-15" }), placed);
+
+    // The release lands mid-afternoon: nothing until 6:00 tomorrow.
+    assert.equal(await run(stores, h, at(TUESDAY, 14, 30)), null);
+    assert.equal(await run(stores, h, at("2026-10-07", 5, 45)), null);
+    assert.equal((await run(stores, h, at("2026-10-07", 6))).slips, 1);
+    assert.equal(h.sent.length, 1);
+  });
+
+  it("retries with the same orders and the same body", async () => {
+    const stores = testStores();
+    const lost = harness({ failMail: true });
+    const h = harness();
+    let firstBody = null;
+
+    await saveOrder(stores, order("A"), placed);
+    await assert.rejects(run(stores, {
+      ...lost, mail: async (m) => {
+        firstBody = m;
+        throw new Error("timed out");
+      },
+    }, at(TUESDAY, 6)));
+    assert.ok(await stores.jobs.get(`${PENDING}${TUESDAY}`));
+
+    // A failed try after 10:00 still retries; a new order waits.
+    await saveOrder(stores, order("B"), placed);
+    await run(stores, h, at(TUESDAY, 11));
+
+    const m = h.sent[0];
+
+    assert.equal(m.idempotencyKey, firstBody.idempotencyKey);
+    assert.equal(m.subject, firstBody.subject);
+    assert.equal(m.text, firstBody.text);
+    assert.equal(m.attachments[0].content, firstBody.attachments[0].content,
+      "the same PDF, stamped with the first try's time");
+    assert.equal(await stores.jobs.get(`${PENDING}${TUESDAY}`), null);
+    assert.ok(!(await readPrinted(stores)).has("B"), "B waits for tomorrow");
+    assert.equal((await run(stores, h, at("2026-10-07", 6))).slips, 1);
+  });
+
+  it("counts Resend's refusal of a resent key as sent", async () => {
+    const stores = testStores();
+    const h = harness();
+
+    await saveOrder(stores, order("A"), placed);
+    await assert.rejects(run(stores, harness({ failMail: true }),
+      at(TUESDAY, 6)));
+    // A went out on that try after all; then it changed.
+    await amendOrder(stores, "A", { notes: "Ring twice" }, "edited",
+      at(TUESDAY, 6, 5));
+
+    const r = await run(stores, {
+      ...h, mail: async () => {
+        throw new MailError("Resend 409", {
+          status: 409, detail: { name: "invalid_idempotent_request" },
+        });
+      },
+    }, at(TUESDAY, 6, 15));
+
+    assert.equal(r.slips, 1);
+    assert.ok(await stores.jobs.get(`${SENT}${TUESDAY}`));
+    assert.deepEqual(h.pings.map((p) => p.url), [URL]);
+
+    // What was printed is the first try's A, so the change shows.
+    const wed = await run(stores, h, at("2026-10-07", 6));
+
+    assert.equal(wed.revised, 1);
   });
 });
