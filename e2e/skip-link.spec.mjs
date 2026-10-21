@@ -4,10 +4,38 @@
 
 import { expect, test } from "./support/order.mjs";
 
+// The order page marks the rail's link once /api/stock answers; that
+// once moved the Tab starting point to the link (#291). Its cases wait
+// for the answer, under each Show choice (restock.js's key).
+const CASES = [
+  { path: "/" },
+  { path: "/order/", stock: true },
+  { path: "/order/", stock: true, show: "off", name: "Full catalog" },
+  { path: "/about/" },
+  { path: "/news/" },
+];
+
 test.describe("skip link", () => {
-  for (const path of ["/", "/order/", "/about/", "/news/"]) {
-    test(`${path}: the first Tab skips to the content`, async ({ page }) => {
+  for (const { path, stock, show, name } of CASES) {
+    const title = `${path}${name ? ` (${name})` : ""}`;
+
+    test(`${title}: the first Tab skips to the content`, async ({ page }) => {
+      if (show) {
+        await page.addInitScript((value) => {
+          localStorage.setItem("nff-order-in-stock-only", value);
+        }, show);
+      }
+
+      const answered = stock && page.waitForResponse("**/api/stock");
+
       await page.goto(path);
+      if (answered) {
+        await answered;
+        // The rail is marked on the next frame after the rows change.
+        await page.evaluate(() => new Promise((done) => {
+          requestAnimationFrame(() => requestAnimationFrame(done));
+        }));
+      }
 
       const skip = page.getByRole("link", { name: "Skip to main content" });
 

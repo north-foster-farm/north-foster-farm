@@ -60,6 +60,31 @@ const pulse = (el, className) => {
   el.classList.add(className);
 };
 
+// Brings the rail's lit link into view inside whatever box scrolls the
+// rail, never the page. scrollIntoView moved Chromium's Tab starting
+// point to the link, so on load the first Tab skipped the skip link
+// for the link after it (#291).
+const keepInRail = (link) => {
+  let box = link.parentElement;
+
+  while (box && box !== document.body) {
+    const { overflowY } = getComputedStyle(box);
+
+    const scrolls = /auto|scroll/.test(overflowY);
+
+    if (scrolls && box.scrollHeight > box.clientHeight) break;
+    box = box.parentElement;
+  }
+  if (!box || box === document.body) return;
+
+  const a = link.getBoundingClientRect();
+  const b = box.getBoundingClientRect();
+  const by = a.top < b.top ? a.top - b.top
+    : a.bottom > b.bottom ? a.bottom - b.bottom : 0;
+
+  if (by) box.scrollBy({ top: by, behavior: "smooth" });
+};
+
 // Where the cart is a one-column sheet with the total row's two as
 // tabs: a phone, upright or on its side (#278). A phone on its side is
 // tablet-wide but too short for the tablet's two columns. The
@@ -727,9 +752,7 @@ export class OrderForm {
       for (const a of all(nav, ".nav-link")) {
         a.classList.toggle("active", a === link || a === parent);
       }
-      if (wide.matches) {
-        link.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      }
+      if (wide.matches) keepInRail(link);
     };
 
     const update = () => {
