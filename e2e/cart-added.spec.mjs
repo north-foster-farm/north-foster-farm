@@ -27,10 +27,24 @@ test.describe("the cart's word for an Add", () => {
       const pill = order.cart.locator("[data-cart-toggle]");
       const live = order.cart.locator("[data-cart-live]");
 
+      // When the pane opens and shuts, timed in the page: a clock out
+      // here also counts how slow the run is, and a busy runner once
+      // made a 2 s close look like 3.8 s.
+      await page.addInitScript(() => {
+        window.e2eCart = [];
+        new MutationObserver(() => {
+          const cart = document.getElementById("order-cart");
+
+          if (cart) {
+            window.e2eCart.push([cart.dataset.open, performance.now()]);
+          }
+        }).observe(document, {
+          subtree: true, attributes: true, attributeFilter: ["data-open"],
+        });
+      });
       await order.open();
       await expect(order.cart).toHaveAttribute("data-open", "false");
 
-      const began = Date.now();
       const row = await add(order, "wings");
 
       await expect(order.cart).toHaveAttribute("data-open", "true");
@@ -56,7 +70,13 @@ test.describe("the cart's word for an Add", () => {
         timeout: 6_000,
       });
 
-      const shut = Date.now() - began;
+      const shut = await page.evaluate(() => {
+        const log = window.e2eCart;
+        const opened = log.findLast(([open]) => open === "true");
+        const closed = log.findLast(([open]) => open === "false");
+
+        return closed[1] - opened[1];
+      });
 
       expect(shut).toBeGreaterThanOrEqual(1_800);
       expect(shut).toBeLessThanOrEqual(3_500);
