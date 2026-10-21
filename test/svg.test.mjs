@@ -8,13 +8,16 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { optimize } from "svgo";
+
 import config, {
-  FEATURES, FLOAT_PRECISION, MULTIPASS, PRETTIFY, TRANSFORM_PRECISION,
+  FEATURES, FLOAT_PRECISION, MULTIPASS, OVERRIDES, PRETTIFY,
+  TRANSFORM_PRECISION, configFor, plugins,
 } from "../svgo.config.mjs";
 import {
-  clean, corpus, guard, run, trackedSvgs, usePattern,
+  INLINE_ALLOWED, clean, corpus, guard, inlineSvgs, run, trackedSvgs,
+  usePattern,
 } from "../bin/svg/clean.mjs";
-import { KEEP } from "../bin/svg/strip.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const CLI = join(ROOT, "bin/svg/clean.mjs");
@@ -86,24 +89,32 @@ describe("svg: the config matches ~/.bin/svgomg", () => {
 });
 
 describe("svg: unused classes", () => {
-  it("drops Lucide's classes and keeps the ones the site styles", () => {
-    const out = clean('<svg xmlns="http://www.w3.org/2000/svg" ' +
-      'viewBox="0 0 4 4"><path class="lucide black" d="M0 0h4v4H0z"/>' +
-      '<path class="lucide-copy" d="M1 1h2v2H1z"/></svg>', "x.svg");
+  const LOGO = '<svg xmlns="http://www.w3.org/2000/svg" ' +
+    'viewBox="0 0 4 4"><path class="lucide black" d="M0 0h4v4H0z"/>' +
+    '<path class="lucide-copy" d="M1 1h2v2H1z"/></svg>';
+
+  it("drops Lucide's classes and keeps the file's own", () => {
+    const out = clean(LOGO, "assets/images/logo.svg");
 
     assert.doesNotMatch(out, /lucide/);
     assert.match(out, /class="black"/);
     assert.equal(out.match(/class=/g).length, 1);
   });
 
+  it("keeps a class only in the file whose override names it", () => {
+    assert.doesNotMatch(clean(LOGO, "x.svg"), /class=/);
+  });
+
   it("keeps only classes something in the project still uses", () => {
     const files = corpus();
 
-    for (const [name, why] of Object.entries(KEEP)) {
-      const re = usePattern(name);
+    for (const [file, { classes = {} }] of Object.entries(OVERRIDES)) {
+      for (const [name, why] of Object.entries(classes)) {
+        const re = usePattern(name);
 
-      assert.ok(files.some(({ text }) => re.test(text)),
-        `KEEP has "${name}" (${why}), and nothing uses it`);
+        assert.ok(files.some(({ text }) => re.test(text)),
+          `${file} keeps "${name}" (${why}), and nothing uses it`);
+      }
     }
   });
 
@@ -148,6 +159,95 @@ describe("svg: unused classes", () => {
     assert.equal(result.blocked.length, 1);
     assert.equal(wrote, false);
   });
+});
+
+describe("svg: per-file overrides", () => {
+  const tracked = new Set(trackedSvgs());
+  const on = new Set(FEATURES.filter(([, isOn]) => isOn).map(([n]) => n));
+  const read = (file) => readFileSync(join(ROOT, file), "utf8");
+
+  it("names tracked files, features that are on, and a reason each", () => {
+    for (const [file, { off = {}, classes = {} }] of
+      Object.entries(OVERRIDES)) {
+      assert.ok(tracked.has(file), `${file} is not a tracked SVG`);
+      for (const name of Object.keys(off)) {
+        assert.ok(on.has(name), `${file}: ${name} is not an SVGOMG feature`);
+      }
+      for (const why of [...Object.values(off), ...Object.values(classes)]) {
+        assert.ok(typeof why === "string" && why.length > 20, file);
+      }
+    }
+  });
+
+  it("turns off only what the file needs", () => {
+    for (const [file, override] of Object.entries(OVERRIDES)) {
+      for (const name of Object.keys(override.off ?? {})) {
+        const rest = Object.fromEntries(Object.entries(override.off)
+          .filter(([key]) => key !== name));
+        const out = optimize(read(file), {
+          ...configFor(file), path: file,
+          plugins: plugins({ ...override, off: rest }),
+        }).data;
+
+        assert.notEqual(out, read(file),
+          `${file}: ${name} off changes nothing; drop the override`);
+      }
+    }
+  });
+
+  it("keeps each class its override names in that file", () => {
+    for (const [file, { classes = {} }] of Object.entries(OVERRIDES)) {
+      for (const name of Object.keys(classes)) {
+        assert.match(read(file), usePattern(name), `${file}: ${name}`);
+      }
+    }
+  });
+
+  // The svg.html partial refuses to inline a file with ids unless it is
+  // the once-a-page sprite: two copies of an id on one page are
+  // invalid, and url(#id) finds only the first.
+  it("leaves ids only in a file that keeps them on purpose", () => {
+    for (const file of tracked) {
+      if (!file.startsWith("assets/images/")) continue;
+      const keeps = Object.hasOwn(OVERRIDES[file]?.off ?? {}, "cleanupIds");
+
+      assert.equal(/\sid="/.test(read(file)), keeps, file);
+    }
+  });
+});
+
+describe("svg: none written by hand in templates", () => {
+  it("finds an <svg> in a template or content, past comments", () => {
+    const hits = inlineSvgs([
+      { file: "layouts/a.html", text: "<p>\n  <svg viewBox=\"0 0 1 1\">" },
+      { file: "layouts/b.html", text: "{{/* use <svg class=x> */}}\n<p>" },
+      { file: "content/c.md", text: "x\n\n<SVG>" },
+      { file: "assets/scripts/d.js", text: "<svg>" },
+      { file: "layouts/partials/svg.html", text: "<svg>" },
+    ]);
+
+    assert.deepEqual(hits, [
+      { file: "layouts/a.html", line: 2 },
+      { file: "content/c.md", line: 3 },
+    ]);
+  });
+
+  it("finds none in the project", () => {
+    const files = execFileSync("git", ["ls-files", "layouts", "content"],
+      { cwd: ROOT, encoding: "utf8" }).split("\n").filter(Boolean)
+      .map((file) => ({ file, text: read(file) }));
+
+    assert.deepEqual(inlineSvgs(files), []);
+  });
+
+  it("allows only files that exist, each with its reason", () => {
+    for (const [file, why] of Object.entries(INLINE_ALLOWED)) {
+      assert.match(read(file), /<svg[\s>]/, file);
+      assert.ok(why.length > 20, file);
+    }
+  });
+
+  const read = (file) => readFileSync(join(ROOT, file), "utf8");
 });
 
 describe("svg: the check", () => {

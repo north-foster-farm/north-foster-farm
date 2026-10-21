@@ -5,13 +5,15 @@
 //   node bin/svg/clean.mjs [files...]           npm run svg:clean
 //   node bin/svg/clean.mjs --check [files...]   npm run check:svg
 //
-// With no files it takes every tracked .svg outside EXCLUDE. The
-// check fails when a file differs from what the clean-up would write.
+// With no files it takes every tracked .svg outside EXCLUDE, each with
+// its override in svgo.config.mjs, and the check also fails on an
+// <svg> written by hand in a template. The check fails when a file
+// differs from what the clean-up would write.
 //
 // Before it drops a class or an id, it looks for that name in the
 // project's stylesheets, scripts, templates, content and tests. A
-// name in use stops the run and says where: add the class to KEEP in
-// bin/svg/strip.mjs with the reason, or point the reference at
+// name in use stops the run and says where: give the file an override
+// in svgo.config.mjs with the reason, or point the reference at
 // something SVGO keeps. See docs/svg.md.
 
 import { execFileSync } from "node:child_process";
@@ -21,7 +23,7 @@ import { pathToFileURL } from "node:url";
 
 import { optimize } from "svgo";
 
-import config from "../../svgo.config.mjs";
+import { configFor } from "../../svgo.config.mjs";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 
@@ -60,8 +62,8 @@ export const corpus = () => git("ls-files")
   .filter((file) => !NOT_CORPUS.some((re) => re.test(file)))
   .map((file) => ({ file, text: readFileSync(join(ROOT, file), "utf8") }));
 
-export const clean = (markup, path) => optimize(markup, { ...config, path })
-  .data;
+export const clean = (markup, path) =>
+  optimize(markup, { ...configFor(path), path }).data;
 
 const names = (markup, attr) => new Set([...markup.matchAll(
   new RegExp(`\\s${attr}="([^"]*)"`, "g"))]
@@ -101,6 +103,36 @@ export const guard = (before, after, files) => [
 ].map((hit) => ({ ...hit, files: uses(hit.name, files) }))
   .filter((hit) => hit.files.length);
 
+// Every SVG in markup comes from a file through partials/svg.html
+// (#295): a template or a content file that writes an <svg> element
+// by hand fails the check. Each exception says why.
+export const INLINE_ALLOWED = {
+  "layouts/partials/svg.html": "the partial that writes them",
+  "layouts/partials/map.html": "Hugo builds the map from data/map.json, " +
+    "the delivery tiers and the market schedule on every build: each ZIP " +
+    "is a path with its tier's class and data attributes, and each " +
+    "place a pin; no file could hold it",
+};
+
+const INLINE_IN = /^(layouts|content)\/.*\.(html|md)$/;
+const SVG_TAG = /<svg[\s>/]/i;
+
+// The template lines that write an <svg> by hand: [{ file, line }].
+// A Go template comment ({{/* ... */}}) is not markup and is skipped.
+export const inlineSvgs = (files) => files
+  .filter(({ file }) => INLINE_IN.test(file))
+  .filter(({ file }) => !Object.hasOwn(INLINE_ALLOWED, file))
+  .flatMap(({ file, text }) => {
+    const bare = text.replace(/{{-?\s*\/\*[\s\S]*?\*\/\s*-?}}/g,
+      (comment) => comment.replace(/[^\n]/g, " "));
+
+    return bare.split("\n").flatMap((line, i) =>
+      SVG_TAG.test(line) ? [{ file, line: i + 1 }] : []);
+  });
+
+const templates = () => git("ls-files", "layouts", "content")
+  .map((file) => ({ file, text: readFileSync(join(ROOT, file), "utf8") }));
+
 // Each file's verdict: { file, clean, changed, blocked }.
 export const run = (files, { check = false, read, write, ...rest } = {}) => {
   const text = rest.corpus ?? corpus();
@@ -134,8 +166,8 @@ const main = (args) => {
     for (const { kind, name, files: where } of blocked) {
       failed = true;
       console.error(`${file}: SVGO would drop the ${kind} "${name}", ` +
-        `which ${where.join(", ")} uses. Keep it (bin/svg/strip.mjs, ` +
-        "KEEP) or stop naming it; see docs/svg.md.");
+        `which ${where.join(", ")} uses. Keep it (OVERRIDES in ` +
+        "svgo.config.mjs) or stop naming it; see docs/svg.md.");
     }
     if (check && changed) {
       failed = true;
@@ -145,6 +177,16 @@ const main = (args) => {
     }
   }
   const dirty = results.filter((r) => r.changed).length;
+
+  // The whole-project check also holds templates to the partial.
+  if (check && !given.length) {
+    for (const { file, line } of inlineSvgs(templates())) {
+      failed = true;
+      console.error(`${file}:${line}: an <svg> written by hand. Put the ` +
+        "drawing in a file and include it with partials/svg.html; see " +
+        "docs/svg.md.");
+    }
+  }
 
   console.log(check
     ? `check:svg: ${results.length} SVG(s), ${dirty} not cleaned.`

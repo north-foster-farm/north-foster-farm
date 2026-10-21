@@ -84,7 +84,10 @@ below from them, paths as drawn; run it after changing an original.
 
 | File | Made by | Credit | Source and notes |
 | --- | --- | --- | --- |
-| `layouts/partials/avatars.html` | An agent | | The six chicken avatars a customer picks in account settings (`data/avatars.json`), SVG symbols drawn from shapes in the template (8a5bf6f). No file or icon set behind them. |
+| `assets/images/avatars.svg` | An agent | | The six chicken avatars a customer picks in account settings (`data/avatars.json`), SVG symbols drawn from shapes in `layouts/partials/avatars.html` (8a5bf6f). No file or icon set behind them. Moved from the template into the file for #295; the shapes are unchanged. |
+| `icons/egg-spinner.svg` | An agent | | The busy button's spinner, an egg outline drawn in `layouts/partials/busy-button.html` (995dabd). Moved into the file for #295. |
+| `icons/play.svg`, `pause.svg` | An agent | | The video toggles, drawn in the video shortcode (dd03b4c). Moved into files for #295. |
+| `icons/check.svg` | An agent | | The order page's success mark, drawn in `layouts/partials/order/form.html` (adf0e36). Moved into the file for #295. |
 
 ## Icons
 

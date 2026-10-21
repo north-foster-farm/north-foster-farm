@@ -16,7 +16,7 @@
 
         <div id="account-app" hidden>
           <header class="account-head">
-            <svg class="account-avatar" id="account-avatar" aria-hidden="true"><use href="#avatar-hen-brown"/></svg>
+            {{ partial "svg.html" (dict "use" "avatar-hen-brown" "class" "account-avatar" "id" "account-avatar" "aria-hidden" "true") }}
             <div class="account-who">
               <p class="account-name" id="account-name"></p>
               <p class="account-email" id="account-email"></p>
@@ -152,7 +152,7 @@
                   {{ range hugo.Data.avatars }}
                     <label class="account-avatar-choice">
                       <input type="radio" name="avatar" value="{{ .key }}" data-field="avatar">
-                      <svg class="account-avatar" aria-hidden="true"><use href="#avatar-{{ .key }}"/></svg>
+                      {{ partial "svg.html" (dict "use" (printf "avatar-%s" .key) "class" "account-avatar" "aria-hidden" "true") }}
                       <span>{{ .label }}</span>
                     </label>
                   {{ end }}

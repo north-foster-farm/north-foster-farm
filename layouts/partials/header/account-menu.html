@@ -32,7 +32,7 @@
     {{/* The customer's chicken leads the button, once session.js
          knows it; none chosen, none shown (#238). */}}
     <button class="site-nav-link site-account-btn" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" data-account-menu hidden>
-      <svg class="site-account-chick" aria-hidden="true" focusable="false" data-account-chick hidden><use href="#avatar-hen-brown"/></svg>
+      {{ partial "svg.html" (dict "use" "avatar-hen-brown" "class" "site-account-chick" "aria-hidden" "true" "focusable" "false" "data-account-chick" "" "hidden" "") }}
       Account
       <span class="site-nav-caret" aria-hidden="true">{{ partial "svg.html" "icons/chevron-down" }}</span>
     </button>

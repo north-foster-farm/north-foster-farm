@@ -100,9 +100,7 @@
   <div class="order-result-card">
     <div class="order-result-head">
       <div class="order-result-mark" aria-hidden="true">
-        <svg width="28" height="28" viewBox="0 0 28 28">
-          <path d="M6 14.5 11.5 20 22 8.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        {{ partial "svg.html" (dict "src" "icons/check" "width" "28" "height" "28") }}
       </div>
       <h2 class="h3 mb-0">Thank you, <span data-out="name"></span>. Your order is placed.</h2>
     </div>
