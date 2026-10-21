@@ -1,5 +1,6 @@
 // The staging toolbar itself: on the staging branch deploy only, and
-// for the owner's gate session alone. docs/qa-launch.md, "Staging".
+// for a person's gate session, never the suite's machine cookie (#294).
+// docs/qa-launch.md, "Staging".
 
 import { expect, test } from "./support/order.mjs";
 
@@ -22,9 +23,9 @@ test.describe("staging toolbar", () => {
     expect(await page.locator("script[src*='staging']").count()).toBe(0);
   });
 
-  // The toolbar opens for the owner's gate session alone. The suite's
-  // machine cookie passes the gate but is not that session, so for it
-  // the page carries no toolbar and the staging API refuses.
+  // The toolbar opens for any gate session (#294). The suite's machine
+  // cookie passes the gate but is no session, so for it the page
+  // carries no toolbar and the staging API refuses.
   test("the suite's machine gets no toolbar, and the API refuses",
     async ({ page, request, baseURL }) => {
       test.skip(!branch(baseURL), "only on a branch deploy");
@@ -39,9 +40,8 @@ test.describe("staging toolbar", () => {
   // site keeps in the browser survives, and the farm news forms,
   // hidden for someone on the list, are back (#267).
   //
-  // The button is the owner's: this runs only with the owner's gate
-  // session cookie in E2E_GATE_SESSION (the nff_gate cookie's value,
-  // from a browser signed in as GATE_TOOLBAR_EMAIL).
+  // This runs only with a gate session cookie in E2E_GATE_SESSION (the
+  // nff_gate cookie's value, from a browser signed in to the gate).
   test("Reset to a first visit leaves a fresh browser",
     async ({ page, context, baseURL }) => {
       test.skip(!branch(baseURL), "only on a branch deploy");
@@ -84,4 +84,114 @@ test.describe("staging toolbar", () => {
       expect(kept).toEqual({ local: [], session: false, cookie: "" });
       await expect(page.locator("footer [data-news-block]")).toBeVisible();
     });
+
+  // #294 §4: the first time a gate session opens the order page, the
+  // sandbox card takes the page as a modal until it is closed; it
+  // stays closed for the session, and Reset to a first visit brings
+  // it back.
+  test("the card overlay shows once per gate session",
+    async ({ page, context, baseURL, browserName }) => {
+      test.skip(preview(baseURL), "never on a preview");
+      test.skip(!process.env.E2E_GATE_SESSION, "needs a gate session");
+      await asSession(context, baseURL);
+      const dialog = page.locator("[data-staging-card-dialog]");
+
+      await page.goto("/order/");
+      await expect(dialog).toBeVisible();
+      expect(await dialog.evaluate((d) => d.matches(":modal"))).toBe(true);
+      await expect(dialog).toContainText("Simulate an order in staging: " +
+        "pay by card and use the Square sandbox card details:");
+      await expect(dialog).toContainText("4111 1111 1111 1111");
+      await expect(dialog).toContainText("Open the staging toolbar " +
+        "(bottom right) if you want to see these card details again.");
+      // Focus starts inside and Tab keeps it out of the page behind.
+      const inside = () => page.evaluate(() => !!document.activeElement
+        .closest("[data-staging-card-dialog]"));
+      const outside = () => page.evaluate(() => !!document.activeElement
+        .closest("main, header, footer"));
+
+      expect(await inside()).toBe(true);
+      for (let i = 0; i < 8; i += 1) {
+        await page.keyboard.press("Tab");
+        expect(await outside()).toBe(false);
+      }
+
+      if (browserName === "chromium") {
+        await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+        await dialog.getByRole("button", { name: "Copy" }).nth(1).click();
+        await expect(dialog.locator(".staging-copied").nth(1))
+          .toHaveText("Copied");
+        expect(await page.evaluate(() => navigator.clipboard.readText()))
+          .toBe("4111111111111111");
+      }
+
+      await dialog.getByRole("button", { name: "Copy" }).first().focus();
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeHidden();
+      expect(await outside()).toBe(true);
+
+      await page.reload();
+      await expect(page.locator("#staging")).toBeVisible();
+      await expect(dialog).toBeHidden();
+
+      // The toolbar keeps the same details; Reset brings the overlay
+      // back.
+      await page.locator("[data-staging-open]").click();
+      await expect(page.locator("#staging .staging-card"))
+        .toContainText("4111 1111 1111 1111");
+      await Promise.all([
+        page.waitForEvent("load"),
+        page.locator("[data-staging-forget]").click(),
+      ]);
+      await expect(dialog).toBeVisible();
+      await dialog.locator("[data-staging-card-close]").click();
+      await expect(dialog).toBeHidden();
+    });
+
+  // #294 §3: the clock moves the server's time for this browser alone,
+  // and shows while it is set.
+  test("the clock moves the site's time for this browser alone",
+    async ({ page, context, browser, baseURL }) => {
+      test.skip(preview(baseURL), "never on a preview");
+      test.skip(!process.env.E2E_GATE_SESSION, "needs a gate session");
+      await asSession(context, baseURL);
+      const datesNow = async (p) => (await (await p.request
+        .get("/api/dates")).json()).now;
+
+      await page.goto("/");
+      await page.locator("[data-staging-open]").click();
+      await page.locator("#staging-clock-at").fill("2027-01-07T06:00");
+      await Promise.all([
+        page.waitForEvent("load"),
+        page.locator("[data-staging-clock] [type=submit]").click(),
+      ]);
+      try {
+        await expect(page.locator("[data-staging-clock-banner]"))
+          .toHaveText(/Clock set: Thu, Jan 7, 2027, 6:00\sAM, farm time\./);
+        await expect(page.locator("[data-staging-open]"))
+          .toContainText("Jan 7, 2027");
+        expect(await datesNow(page)).toMatch(/^2027-01-07T11:0/);
+
+        // Another browser on the same gate session keeps the real time.
+        const other = await browser.newContext();
+
+        await asSession(other, baseURL);
+        const elsewhere = await datesNow(await other.newPage());
+
+        await other.close();
+        expect(Math.abs(Date.parse(elsewhere) - Date.now()))
+          .toBeLessThan(10 * 60_000);
+      } finally {
+        await page.request.delete("/api/staging/clock");
+      }
+      await page.reload();
+      await expect(page.locator("[data-staging-clock-banner]")).toBeHidden();
+    });
 });
+
+// Signs `context` in to the gate with E2E_GATE_SESSION.
+const asSession = (context, baseURL) => context.addCookies([{
+  name: "nff_gate", value: process.env.E2E_GATE_SESSION,
+  domain: new URL(baseURL).hostname, path: "/",
+  httpOnly: true, secure: true, sameSite: "Lax",
+}]);

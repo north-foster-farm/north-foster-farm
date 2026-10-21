@@ -2643,14 +2643,13 @@ on staging 2026-09-25 (c1b1ff6). The wording is a draft for James.
 
 ## Staging
 
-### ST-01 The toolbar is the owner's alone
+### ST-01 The toolbar is for gate sessions only
 
 Automated: `staging-toolbar.spec.mjs`, "the suite's machine gets no
 toolbar, and the API refuses".
 
-- **Scenario:** The toolbar opens for the gate session of
-  `GATE_TOOLBAR_EMAIL` and nobody else; the suite's machine cookie
-  passes the gate but is not that session.
+- **Scenario:** The toolbar opens for any gate session (#294); the
+  suite's machine cookie passes the gate but is no session.
 - **Setup:** Toolbar not hidden; the machine cookie only.
 - **Test:**
   1. Open `/`; `GET /api/staging/info` and `/api/staging/outbox`.
@@ -2660,11 +2659,12 @@ toolbar, and the API refuses".
 ### ST-02 Reset to a first visit
 
 Automated: `staging-toolbar.spec.mjs`, "Reset to a first visit leaves a
-fresh browser". Runs only with the owner's `nff_gate` cookie value in
-`E2E_GATE_SESSION`; otherwise it skips.
+fresh browser". Runs only with a gate session's `nff_gate` cookie
+value in `E2E_GATE_SESSION`; otherwise it skips. So do ST-05 and
+ST-06.
 
 - **Scenario:** The toolbar's reset leaves the browser as a stranger's.
-- **Setup:** The owner's gate session; seeded storage and cookies.
+- **Setup:** A gate session; seeded storage and cookies.
 - **Test:**
   1. Open the panel; press Reset to a first visit.
 - **Assert:** No site storage or cookie survives; the news forms are
@@ -2695,6 +2695,43 @@ toolbar", run with `E2E_BASE_URL` set to a deploy preview (#255).
 - **Assert:** No `#staging` element or staging script; 404 once the
   preview context holds no `STAGING_TOKEN` (#251).
 - **Teardown:** None.
+
+### ST-05 The card overlay shows once per gate session
+
+Automated: `staging-toolbar.spec.mjs`, "the card overlay shows once
+per gate session".
+
+- **Scenario:** The order page's first visit in a gate session shows
+  Square's sandbox card as a modal (#294 §4).
+- **Setup:** A gate session; a fresh browser.
+- **Test:**
+  1. Open `/order/`; Tab eight times; copy the card number.
+  2. Escape; reload.
+  3. Open the panel; press Reset to a first visit.
+- **Assert:** A modal dialog with James's lines and the card; focus
+  never reaches the page; the clipboard holds `4111111111111111`
+  beside "Copied"; Escape closes it and focus is on the page; after
+  the reload it stays closed and the panel lists the card; after the
+  reset it shows again.
+- **Teardown:** None.
+
+### ST-06 The clock is this browser's alone
+
+Automated: `staging-toolbar.spec.mjs`, "the clock moves the site's
+time for this browser alone".
+
+- **Scenario:** The toolbar's clock moves the server's time for one
+  browser and says so (#294 §3).
+- **Setup:** A gate session.
+- **Test:**
+  1. Set the clock to January 7, 2027, 6:00 AM.
+  2. `GET /api/dates` from this browser and from a second one on the
+     same gate session.
+  3. Reset to now.
+- **Assert:** The banner and the tab show the time set; this
+  browser's `now` is 2027-01-07 11:00 UTC; the other's is the real
+  time; after the reset the banner is gone.
+- **Teardown:** The clock reset (the test does it).
 
 ## Regression list
 
