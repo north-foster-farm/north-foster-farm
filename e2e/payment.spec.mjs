@@ -7,7 +7,7 @@
 // 4000 0000 0000 0002 is declined.
 
 import {
-  OrderPage, expect, test, uniqueEmail,
+  OrderPage, expect, paymentFakes, test, uniqueEmail,
 } from "./support/order.mjs";
 import {
   BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, deleteCustomer,
@@ -38,7 +38,7 @@ test.describe("payments", () => {
   ]));
 
   test("a card pays for an on-farm pickup, booked by paying " +
-    "(W11d)", { tag: "@regression" }, async ({ page }) => {
+    "(W11d)", { tag: "@regression" }, async ({ page, request }) => {
     const order = new OrderPage(page);
     const email = uniqueEmail("card");
 
@@ -74,9 +74,12 @@ test.describe("payments", () => {
     await expect(card.locator("[data-out='when']")).toHaveText(
       /, \d.* (AM|PM|noon), at the farm\.$/
     );
-    await expect(card.locator("[data-out='receiptUrl']")).toHaveAttribute(
-      "href", /^https:\/\/([\w-]+\.)*squareup(sandbox)?\.com\//
-    );
+    // Only Square issues a receipt; the fake driver has none to link.
+    if (!(await paymentFakes(request)).square) {
+      await expect(card.locator("[data-out='receiptUrl']")).toHaveAttribute(
+        "href", /^https:\/\/([\w-]+\.)*squareup(sandbox)?\.com\//
+      );
+    }
     // The header's cart count goes with the cart (#166).
     await expect(page.locator(".site-order [data-cart-badge]")).toBeHidden();
 

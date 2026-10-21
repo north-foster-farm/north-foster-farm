@@ -7,17 +7,9 @@
 // deploy on Netlify: SQUARE_ENV=fake and PAYPAL_ENV=fake work only
 // where SITE_CONTEXT is dev (netlify/functions/lib/fake.mjs).
 
-import { OrderPage, expect, test, uniqueEmail } from "./support/order.mjs";
-
-const fakes = async (request) => {
-  const res = await request.get("/api/checkout/config");
-  const cfg = res.ok() ? await res.json() : {};
-
-  return {
-    square: !!cfg.square && cfg.square.env === "fake",
-    paypal: !!cfg.paypal && cfg.paypal.env === "fake",
-  };
-};
+import {
+  OrderPage, expect, paymentFakes as fakes, test, uniqueEmail,
+} from "./support/order.mjs";
 
 test.describe("fake payments", () => {
   test("a card pays for an on-farm pickup", async ({ page, request }) => {

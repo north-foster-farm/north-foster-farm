@@ -81,6 +81,19 @@ export const test = base.extend({
 
 export { expect };
 
+// Which payment drivers are the fakes here: none on any Netlify deploy,
+// both on a local run (SQUARE_ENV and PAYPAL_ENV fake work only where
+// SITE_CONTEXT is dev; netlify/functions/lib/fake.mjs).
+export const paymentFakes = async (request) => {
+  const res = await request.get("/api/checkout/config");
+  const cfg = res.ok() ? await res.json() : {};
+
+  return {
+    square: !!cfg.square && cfg.square.env === "fake",
+    paypal: !!cfg.paypal && cfg.paypal.env === "fake",
+  };
+};
+
 export class OrderPage {
   constructor(page) {
     this.page = page;
@@ -239,9 +252,25 @@ export class OrderPage {
     );
   }
 
+  // Fills Square's card field, or the stub SDK's plain fields where
+  // payments are fake (a local run, as CI's e2e makes; docs/order-form.md).
   async card(number = "4111111111111111", {
     expiry = "12/30", cvv = "111", postal = "11111",
   } = {}) {
+    const fake = this.page.locator("[data-fake-card]");
+    const frame = this.page.locator(
+      "iframe[src*='single-card-element-iframe']"
+    );
+
+    await expect(fake.or(frame)).toBeVisible();
+    if (await fake.count()) {
+      await fake.locator("[name='cardNumber']").fill(number);
+      await fake.locator("[name='expirationDate']").fill(expiry);
+      await fake.locator("[name='cvv']").fill(cvv);
+      await fake.locator("[name='postalCode']").fill(postal);
+      return;
+    }
+
     const f = this.cardFrame();
 
     await f.locator("#cardNumber").fill(number);

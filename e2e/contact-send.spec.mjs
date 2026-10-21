@@ -51,7 +51,8 @@ test.describe("contact messages (#140)", () => {
         subject: new RegExp(`^Message from ${name}$`), since,
       });
 
-      expect(mail.replyTo).toBe(email);
+      // A reply goes to the writer by name (4332ef1).
+      expect(mail.replyTo).toBe(`"${name}" <${email}>`);
       expect(mail.text).toContain("Wings this week?");
       expect(mail.text).toContain("Reply to this email to answer them.");
 

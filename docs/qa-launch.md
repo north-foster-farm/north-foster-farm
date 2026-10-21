@@ -17,6 +17,26 @@ npx playwright show-report
 bin/nff --staging orders list
 ```
 
+**In CI** (#283), the suite runs in GitHub Actions against a local
+build instead: `npm run e2e:serve` (`bin/e2e/serve.mjs`) builds the
+site as staging does and serves it with the functions offline and
+fake payments, and the back office answers to a token made for the
+run. To run it the same way on a machine:
+
+```sh
+export E2E_STAGING_TOKEN=$(openssl rand -hex 24)
+npm run e2e:serve -- --port 8895 &   # once /api/dates answers:
+E2E_BASE_URL=http://localhost:8895 npm run e2e -- --retries=0
+```
+
+`e2e` runs the whole suite twice on each push to `next`, and fails if
+either pass fails: a flake is a failure, never retried away.
+`e2e-burn-in` runs every spec changed since `staging` ten times on the
+pull request into `staging` (`e2e-burn-in-advisory` on `next`).
+`e2e-soak.yml` runs the whole suite many times over, by hand only.
+`gate.spec.mjs` and anything that needs Square's or PayPal's own
+forms stay with the run against staging.
+
 A deploy preview takes no payments (3a82919: the order page says so and
 `POST /api/orders` answers 403 `paymentsOff`), so on a preview only the
 specs that never reach the card form apply; OP-11 and the payment cases

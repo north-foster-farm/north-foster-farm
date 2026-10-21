@@ -5,7 +5,9 @@
 // regression shows as a number rather than a feeling.
 // docs/qa-launch.md, "The order page and cart".
 
-import { FULL_CART, OrderPage, expect, test } from "./support/order.mjs";
+import {
+  FULL_CART, OrderPage, expect, paymentFakes, test,
+} from "./support/order.mjs";
 
 const WIDTHS = [
   { width: 1500, height: 900 },
@@ -292,8 +294,10 @@ test.describe("contact form spacing", () => {
 test.describe("the card form", () => {
   for (const size of [WIDTHS[0], WIDTHS[1], WIDTHS[4]]) {
     test(`${size.width}px: the card box hugs Square's field`, async ({
-      page,
+      page, request,
     }) => {
+      test.skip((await paymentFakes(request)).square,
+        "Square's own card field; the stub SDK has none");
       await page.setViewportSize(size);
 
       const order = new OrderPage(page);

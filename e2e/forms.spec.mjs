@@ -10,6 +10,12 @@ import {
 // form validates first, so no request reaches /api/orders.
 const attempt = async (order) => {
   await order.openCard();
+  // Square's card field starts empty and the stub SDK's starts filled
+  // (a local run with fake payments); empty it, so the card form stops
+  // the order here as it does on staging.
+  const fake = order.page.locator("[data-fake-card] [name='cardNumber']");
+
+  if (await fake.count()) await fake.fill("");
   await order.submit.click();
 };
 
