@@ -96,18 +96,9 @@ jobs:
           echo "::add-mask::$token"
           echo "E2E_STAGING_TOKEN=$token" >> "$GITHUB_ENV"
 
-      - name: Serve the site
-        run: |
-          npm run e2e:serve -- --port "$E2E_PORT" \
-            > "$RUNNER_TEMP/serve.log" 2>&1 &
-          for _ in $(seq 1 180); do
-            if curl -fs -o /dev/null "http://localhost:$E2E_PORT/api/dates"
-            then exit 0; fi
-            sleep 1
-          done
-          tail -n 40 "$RUNNER_TEMP/serve.log"
-          exit 1
-
+      # Each pass gets a server of its own, so it starts as a deploy
+      # does: the functions' memory (stores, rate limits) is new, and
+      # one pass's orders and messages never count against the next.
       - name: Run
         env:
           E2E_BASE_URL: http://localhost:${{ env.E2E_PORT }}
@@ -117,8 +108,21 @@ jobs:
           WORKERS: ${{ inputs.workers }}
           PLAYWRIGHT_HTML_OPEN: never
         run: |
+          serve() {
+            node bin/e2e/serve.mjs --port "$E2E_PORT" \
+              > "$RUNNER_TEMP/serve-$1.log" 2>&1 &
+            server=$!
+            for _ in $(seq 1 180); do
+              if curl -fs -o /dev/null "$E2E_BASE_URL/api/dates"
+              then return 0; fi
+              sleep 1
+            done
+            tail -n 40 "$RUNNER_TEMP/serve-$1.log"
+            exit 1
+          }
           failed=0
           for pass in $(seq 1 "$PASSES"); do
+            serve "$pass"
             echo "::group::Pass $pass of $PASSES, shard $SHARD"
             # shellcheck disable=SC2086
             if PLAYWRIGHT_HTML_OUTPUT_DIR="playwright-report/pass-$pass" \
@@ -128,6 +132,8 @@ jobs:
             fi
             echo "::endgroup::"
             echo "Pass $pass: $result"
+            kill "$server"
+            wait "$server" 2>/dev/null || true
           done
           if [ "$failed" -eq 0 ]; then exit 0; fi
           if [ "$failed" -lt "$PASSES" ]; then

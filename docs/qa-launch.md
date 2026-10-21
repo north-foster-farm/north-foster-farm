@@ -36,7 +36,8 @@ the suite needs of Netlify, and no more:
 - **Not emulated:** edge functions, so the access gate never runs
   (`gate.spec.mjs` stays with the staging run); Netlify Blobs, so the
   stores are the functions' memory stores, gone when the server stops,
-  and one process shares them; scheduled runs (the jobs answer only
+  and one process shares them (CI starts a new server for each pass,
+  so rate limits and records never carry from one pass to the next); scheduled runs (the jobs answer only
   when called); Netlify's own headers, caching, ETags, compression
   and request limits; Square's and PayPal's real forms (the fakes
   stand in).
