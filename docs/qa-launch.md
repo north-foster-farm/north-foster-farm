@@ -181,7 +181,7 @@ added and clears the query" (both projects).
   sold out).
 - **Test:**
   1. Open the link.
-- **Assert:** The notice reads "Added to your cart: 2 × Large. No longer
+- **Assert:** The notice reads "Added to your cart: 2 × Eggs, Large. No longer
   available: Eggs (per dozen), Medium." Eggs, Large reads 2. The URL is
   `/order/` with no query.
 - **Teardown:** None.

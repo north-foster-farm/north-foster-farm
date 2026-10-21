@@ -392,7 +392,7 @@ test.describe("restock types (#267)", () => {
       await archive(page);
       await page.goto(`/order/?add=${sku}:2,${SKU.eggs}:1`);
       await expect(page.locator("#order-added")).toHaveText(
-        "Added to your cart: 1 × Large. " +
+        "Added to your cart: 1 × Eggs, Large. " +
         "No longer available: Wings, 2.0 – 2.9 lbs."
       );
       await expect(new OrderPage(page).count).toHaveText("1 item");

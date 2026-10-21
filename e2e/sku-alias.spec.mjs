@@ -18,7 +18,8 @@ test.describe("old SKUs (#267)", () => {
 
     const notice = page.locator("#order-added");
 
-    await expect(notice).toHaveText("Added to your cart: 2 × 1.0 – 1.2 lbs.");
+    await expect(notice)
+      .toHaveText("Added to your cart: 2 × Boneless Breasts, 1.0 – 1.2 lbs.");
     await expect(qty(page, NEW)).toHaveValue("2");
     await expect(new OrderPage(page).count).toHaveText("2 items");
   });

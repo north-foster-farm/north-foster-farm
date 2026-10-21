@@ -873,7 +873,7 @@ export class OrderForm {
         continue;
       }
       this.setQty(input, Math.min(99, this.qty(input) + qty));
-      added.push(`${qty} × ${this.index.get(sku).row}`);
+      added.push(`${qty} × ${this.index.get(sku).lineName}`);
     }
 
     const notice = document.getElementById("order-added");
