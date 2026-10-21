@@ -87,6 +87,12 @@ export const cutoffAt = (order) => {
   return instant(date, 0, 0, tz);
 };
 
+// Whether a customer's change may still land: before the cutoff, or
+// while the farm's question waits on them (lib/account.mjs's gate).
+// The Venmo rescue asks before it captures a change (#292).
+export const editOpen = (order, now) => order.status === "paid"
+  && (now.getTime() < cutoffAt(order).getTime() || questionOpen(order));
+
 export const deliveryReminderAt = (order) =>
   instant(addDays(order.fulfilment.date, -1), DELIVERY_REMINDER_HOUR, 0, tz);
 
@@ -203,6 +209,7 @@ export const runJobs = async (stores, {
       const saved = await attempt(checkout.order && checkout.order.id,
         "rescue", () => rescueCheckout(stores, checkout, {
           ...opts, paypal, square, fetchImpl, finishEdit: finishEditVenmo,
+          editOpen,
         }));
 
       if (saved) {

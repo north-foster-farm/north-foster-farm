@@ -578,9 +578,28 @@ export const rescueCheckout = async (stores, checkout, {
     return null;
   }
 
+  // A change the customer approved but nobody captured, found after
+  // the order locked, is not made: nothing is captured, so no money
+  // moves, and the order stands as the packing slip printed it (#292).
+  // A payment PayPal already completed is recorded whatever the hour.
+  const { finishEdit, editOpen, ...rest } = options;
+
+  if (checkout.edit && current.status === "APPROVED" && editOpen) {
+    const order = await getOrder(stores, checkout.edit.id);
+
+    if (order && !editOpen(order, now)) {
+      log.warn({
+        event: "venmo.edit_past_cutoff", id: order.id,
+        paypalOrderId: checkout.paypalOrderId,
+      });
+      await deleteCheckout(stores, checkout.key, checkout.paypalOrderId);
+
+      return null;
+    }
+  }
+
   // A change to a paid order (lib/edit.mjs) finishes as a change; the
   // jobs hand in its finish, since edit.mjs builds on this file.
-  const { finishEdit, ...rest } = options;
   const saved = checkout.edit
     ? await finishEdit(stores, {
       id: checkout.edit.id, key: checkout.key, attempt: checkout.attempt,
