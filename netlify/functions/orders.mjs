@@ -32,6 +32,7 @@ import { sessionFrom } from "./lib/auth.mjs";
 import {
   METHODS, announceNew, finishVenmo, ownRecord, payWithSquare, startVenmo,
 } from "./lib/checkout.mjs";
+import { now as clock, real } from "./lib/clock.mjs";
 import { json, ORDER_BUDGET_MS, readJson } from "./lib/http.mjs";
 import { alert, count } from "./lib/health.mjs";
 import { log, withLog } from "./lib/log.mjs";
@@ -130,7 +131,7 @@ export const handle = async (req, {
   stores = defaultStores(),
   mail = sendMail,
   env = process.env,
-  now = new Date(),
+  now = clock(),
   ip = "",
   square,
   paypal,
@@ -170,7 +171,8 @@ export const handle = async (req, {
 
   // A customer can reach the limit through a run of declines, so it is
   // said plainly: a silent answer here read as a placed order.
-  if (!closed && !limitExempt(req, env) && rateLimited(ip, now.getTime())) {
+  if (!closed && !limitExempt(req, env)
+    && rateLimited(ip, real(now).getTime())) {
     return new Response(JSON.stringify({
       message: "There have been too many tries from here. Wait a few " +
         "minutes and try again; your order is saved on this page.",

@@ -10,6 +10,7 @@
 
 import { createHash, randomBytes } from "node:crypto";
 
+import { now as clock, real } from "./clock.mjs";
 import { sendMail } from "./mail.mjs";
 import {
   getCustomer, reminderPrefs, saveCustomer,
@@ -79,7 +80,7 @@ export const ensureCustomer = async (stores, email, now) => {
 // mints itself (`limit: false`) counts against nobody and may live
 // longer (`ttl`).
 export const requestLink = async (stores, { email, next }, {
-  now = new Date(),
+  now = clock(),
   env = process.env,
   mail = sendMail,
   send = true,
@@ -93,12 +94,14 @@ export const requestLink = async (stores, { email, next }, {
   if (limit) {
     const rateKey = `rate/${address}`;
     const rate = (await stores.auth.get(rateKey)) || { times: [] };
-    const recent = rate.times.filter((t) => now.getTime() - t < LINK_WINDOW);
+    // Real time: a tester's clock must not reopen the limit.
+    const at = real(now).getTime();
+    const recent = rate.times.filter((t) => at - t < LINK_WINDOW);
 
     if (recent.length >= LINKS_PER_WINDOW) {
       return { ok: false, reason: "rate" };
     }
-    await stores.auth.set(rateKey, { times: [...recent, now.getTime()] });
+    await stores.auth.set(rateKey, { times: [...recent, at] });
   }
 
   const token = secret();
@@ -126,7 +129,7 @@ export const requestLink = async (stores, { email, next }, {
 };
 
 // Consumes a token. -> { ok: true, email, next } or { ok: false, reason }.
-export const verifyToken = async (stores, token, { now = new Date() } = {}) => {
+export const verifyToken = async (stores, token, { now = clock() } = {}) => {
   if (!token || typeof token !== "string" || token.length > 200) {
     return { ok: false, reason: "invalid" };
   }
@@ -154,7 +157,7 @@ export const tokenEmail = async (stores, token) => {
 };
 
 export const createSession = async (stores, email, {
-  now = new Date(),
+  now = clock(),
   via = "link",
 } = {}) => {
   const id = secret();
@@ -199,7 +202,7 @@ export const cookieFrom = (req) => {
 };
 
 // -> { id, email, customer } for a live session on the request, else null.
-export const sessionFrom = async (stores, req, { now = new Date() } = {}) => {
+export const sessionFrom = async (stores, req, { now = clock() } = {}) => {
   const id = cookieFrom(req);
 
   if (!id || !/^[A-Za-z0-9_-]{20,64}$/.test(id)) return null;

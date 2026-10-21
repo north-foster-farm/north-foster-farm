@@ -13,6 +13,7 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { normalizeEmail, validEmail } from "./auth.mjs";
+import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
@@ -46,7 +47,7 @@ const sleep = (ms) => new Promise((r) => { setTimeout(r, ms); });
 export const optIn = async (stores, email, {
   firstName = "", lastName = "", source = "site",
   detail = "", capturedBy = null, evidence = null, givenAt = null,
-} = {}, now = new Date()) => {
+} = {}, now = clock()) => {
   const address = normalizeEmail(email);
   const at = now.toISOString();
   const existing = await getCustomer(stores, address);
@@ -86,7 +87,7 @@ export const optIn = async (stores, email, {
 // said yes.
 export const optOut = async (stores, email, {
   source = "site", detail = "",
-} = {}, now = new Date()) => {
+} = {}, now = clock()) => {
   const existing = await getCustomer(stores, normalizeEmail(email));
 
   if (!existing || existing.marketing !== true) return existing || null;
@@ -104,7 +105,7 @@ export const optOut = async (stores, email, {
 // so the sync can tell a sign-up here made since from one the
 // unsubscribe overrules (#234). A consent here newer than the event (a
 // late redelivery) stands.
-export const resendLeft = async (stores, email, at, now = new Date()) => {
+export const resendLeft = async (stores, email, at, now = clock()) => {
   const existing = await getCustomer(stores, normalizeEmail(email));
   const when = Date.parse(at) || now.getTime();
 
@@ -134,7 +135,7 @@ export const resendLeft = async (stores, email, at, now = new Date()) => {
 // fetches it takes no one off; `post` for the List-Unsubscribe header,
 // the one-click POST of RFC 8058.
 export const unsubscribeLinks = async (stores, email, {
-  env = process.env, now = new Date(),
+  env = process.env, now = clock(),
 } = {}) => {
   const token = secret();
   const site = siteUrl(env);
@@ -151,7 +152,7 @@ export const unsubscribeLinks = async (stores, email, {
 
 // The click, as often as it comes. -> { ok: true, email } or
 // { ok: false, reason }.
-export const unsubscribe = async (stores, token, { now = new Date() } = {}) => {
+export const unsubscribe = async (stores, token, { now = clock() } = {}) => {
   if (!token || typeof token !== "string" || token.length > 200) {
     return { ok: false, reason: "invalid" };
   }
@@ -176,7 +177,7 @@ export const joined = (before, after) => !!after
 // throws; a welcome that fails leaves them on the list.
 // -> true when it went.
 export const welcome = async (stores, customer, {
-  env = process.env, mail = sendMail, now = new Date(),
+  env = process.env, mail = sendMail, now = clock(),
 } = {}) => {
   try {
     const links = await unsubscribeLinks(stores, customer.email, { env, now });
@@ -219,7 +220,7 @@ const withinRate = async (stores, address, now) => {
 // log. -> { ok: true, email } or { ok: false, reason }.
 export const subscribe = async (stores, { email, firstName, lastName }, {
   page = "",
-  now = new Date(),
+  now = clock(),
   limit = true,
   env = process.env,
   mail = sendMail,
@@ -250,7 +251,7 @@ export const subscribe = async (stores, { email, firstName, lastName }, {
 export const requestSubscribe = async (stores, {
   email, firstName, lastName,
 }, {
-  now = new Date(),
+  now = clock(),
   env = process.env,
   mail = sendMail,
   send = true,
@@ -295,7 +296,7 @@ export const requestSubscribe = async (stores, {
 // the address on the list starts the welcome, as a sign-up here does
 // (#267). -> { ok: true, email } or { ok: false, reason }.
 export const confirmSubscribe = async (stores, token, {
-  now = new Date(),
+  now = clock(),
   env = process.env,
   mail = sendMail,
 } = {}) => {
@@ -330,7 +331,7 @@ export const confirmSubscribe = async (stores, token, {
 // address, once. Addresses already consenting are skipped, bad
 // ones reported. -> { invited, skipped, invalid }.
 export const inviteSubscribers = async (stores, rows, {
-  now = new Date(),
+  now = clock(),
   env = process.env,
   mail = sendMail,
   dryRun = false,
@@ -439,7 +440,7 @@ export const listContacts = async (env, fetchImpl = globalThis.fetch) =>
 export const syncAudience = async (stores, {
   env = process.env,
   fetchImpl = globalThis.fetch,
-  now = new Date(),
+  now = clock(),
   pace = 550,
   dryRun = false,
 } = {}) => {

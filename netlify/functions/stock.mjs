@@ -4,6 +4,7 @@
 // tells the farm, once a day, of an archived product stock has on
 // hand (#267).
 
+import { now as clock } from "./lib/clock.mjs";
 import { json } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
 import { archivedInStock, availability } from "./lib/stock.mjs";
@@ -11,7 +12,7 @@ import { stores as defaultStores } from "./lib/store.mjs";
 
 export const handle = async (req, {
   stores = defaultStores(),
-  now = new Date(),
+  now = clock(),
   env = process.env,
   mail,
   catalogIndex,

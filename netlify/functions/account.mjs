@@ -20,6 +20,7 @@ import {
   cancelOrder, changeOrder, listOrders, requestReturn, saveAddress,
   sendSupport, updateProfile,
 } from "./lib/account.mjs";
+import { now as clock } from "./lib/clock.mjs";
 import { editOrder } from "./lib/edit.mjs";
 import {
   clearCookieHeader, clearStampHeader, publicCustomer, sameSite, sessionFrom,
@@ -47,7 +48,7 @@ const answer = (result) => {
 export const handle = async (req, {
   stores = defaultStores(),
   env = process.env,
-  now = new Date(),
+  now = clock(),
   mail,
   square,
   news,

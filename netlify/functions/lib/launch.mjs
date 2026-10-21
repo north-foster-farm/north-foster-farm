@@ -13,6 +13,7 @@ import terms from "../../../data/delivery.json" with { type: "json" };
 import {
   dayName, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { now as clock } from "./clock.mjs";
 
 const dollars = (n) => `$${n}`;
 
@@ -46,7 +47,7 @@ const starting = (now) =>
 
 // The facts as of now, so an email sent after the drop site opens
 // doesn't announce its first day.
-export const facts = (now = new Date()) => ({
+export const facts = (now = clock()) => ({
   deliveryDay: dayName(delivery.weekday),
   deliveryFrom: ends(delivery.window)[0],
   deliveryTo: ends(delivery.window)[1],
@@ -75,7 +76,7 @@ export const fill = (text, values = facts()) =>
     return values[key];
   });
 
-export const launchEmail = (now = new Date()) => {
+export const launchEmail = (now = clock()) => {
   const values = facts(now);
   return {
     subject: fill(email.subject, values),

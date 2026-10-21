@@ -35,6 +35,7 @@ import {
 import { company } from "./company.mjs";
 import { packetCounts, placeOf } from "./describe.mjs";
 import { ping } from "./health.mjs";
+import { now as clock } from "./clock.mjs";
 import { log, scrub } from "./log.mjs";
 import { MailError, farmEmails, sendMail } from "./mail.mjs";
 import { pdf, wrap } from "./pdf.mjs";
@@ -701,7 +702,7 @@ export const missingPingKey = (env) => sendsForReal(env) && !env[PING_KEY];
 // nothing was done this run. Throws when the packet could not go (the
 // next run tries again) or went without its check configured.
 export const packingDaily = async (stores, {
-  env = process.env, mail = sendMail, now = new Date(),
+  env = process.env, mail = sendMail, now = clock(),
   fetchImpl = globalThis.fetch,
 } = {}) => {
   const day = today(now, tz);
@@ -802,7 +803,7 @@ export const packingDaily = async (stores, {
 // that day in the key would close it.
 // -> the ids mailed this run.
 export const changedAfterPrint = async (stores, {
-  env = process.env, mail = sendMail, now = new Date(),
+  env = process.env, mail = sendMail, now = clock(),
 } = {}) => {
   const day = today(now, tz);
   const to = farmEmails(env);

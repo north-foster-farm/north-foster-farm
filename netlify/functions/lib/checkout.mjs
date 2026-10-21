@@ -23,6 +23,7 @@ import { createHash } from "node:crypto";
 
 import { retry } from "./http.mjs";
 import { alert, mark } from "./health.mjs";
+import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { welcome } from "./news.mjs";
@@ -63,7 +64,7 @@ const squareRecord = (created) =>
 // the id first (reserveOrderId) means this should never fire.
 // -> the record. throws OrderCollisionError.
 export const ownRecord = async (stores, record, key, {
-  stage, payment, mail = sendMail, env = process.env, now = new Date(),
+  stage, payment, mail = sendMail, env = process.env, now = clock(),
 } = {}) => {
   if (belongsTo(record, key)) return record;
 
@@ -85,7 +86,7 @@ export const ownRecord = async (stores, record, key, {
 export const completeOrder = async (stores, order, { square, payment }, {
   mail = sendMail,
   env = process.env,
-  now = new Date(),
+  now = clock(),
 } = {}) => {
   const existing = await getOrder(stores, order.id);
 
@@ -150,7 +151,7 @@ export const completeOrder = async (stores, order, { square, payment }, {
 export const announceNew = async (stores, order, {
   mail = sendMail,
   env = process.env,
-  now = new Date(),
+  now = clock(),
 } = {}) => {
   try {
     let current = await announcePaid(stores, order.id, { mail, env, now })
@@ -267,7 +268,7 @@ export const payWithSquare = async (stores, order, {
 // throws CheckoutError { code: "payment.unreconciled" }.
 const recordFound = async (stores, order, found, method, options) => {
   const env = options.env || process.env;
-  const now = options.now || new Date();
+  const now = options.now || clock();
   const mail = options.mail || sendMail;
   const detail = {
     id: order.id, squarePaymentId: found.squarePaymentId,
@@ -319,7 +320,7 @@ export const startVenmo = async (stores, order, { key, attempt = 1 }, {
 } = {}) => {
   const k = attemptKey(key, attempt);
   const env = options.env || process.env;
-  const now = options.now || new Date();
+  const now = options.now || clock();
   const fetchImpl = options.fetchImpl;
   const { deadline } = options;
 
@@ -400,7 +401,7 @@ export const finishVenmo = async (stores, order, {
   ...options
 } = {}) => {
   const env = options.env || process.env;
-  const now = options.now || new Date();
+  const now = options.now || clock();
   const fetchImpl = options.fetchImpl;
   // Finished already, by this request's lost first try or by the
   // jobs: the checkout is gone, and the record is the answer.
@@ -480,7 +481,7 @@ export const finishVenmo = async (stores, order, {
 // `squareSync` in the jobs tries again.
 export const recordOnSquare = async (stores, order, k, capture, {
   square = squareApi, env = process.env, fetchImpl, mail = sendMail,
-  now = new Date(), sleep, amount = order.totals.total, deadline,
+  now = clock(), sleep, amount = order.totals.total, deadline,
 } = {}) => {
   const until = deadline || 0;
 
@@ -529,7 +530,7 @@ export const rescueCheckout = async (stores, checkout, {
   ...options
 } = {}) => {
   const env = options.env || process.env;
-  const now = options.now || new Date();
+  const now = options.now || clock();
 
   if (!checkout.paypalOrderId) return null;
   // Approved no earlier than it was made, so a young checkout's
@@ -632,7 +633,7 @@ export const rescueCheckout = async (stores, checkout, {
 // try. -> the record, updated or not.
 export const syncSquare = async (stores, order, {
   square = squareApi, env = process.env, fetchImpl, mail = sendMail,
-  now = new Date(), sleep,
+  now = clock(), sleep,
 } = {}) => {
   const payments = paymentsOf(order);
   const p = payments[0] || {};

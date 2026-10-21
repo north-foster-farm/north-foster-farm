@@ -14,6 +14,7 @@ import { company } from "./company.mjs";
 import {
   FAKE, FAKE_SDK_URLS, fakeAllowed, refusal,
 } from "./fake.mjs";
+import { real } from "./clock.mjs";
 import * as fake from "./fake-square.mjs";
 import { MONEY_FLOOR_MS, timedFetch, timedOut } from "./http.mjs";
 import {
@@ -616,7 +617,7 @@ export const findPaid = async (order, {
   if (isFake(env)) return fake.findPaid(order, { env });
 
   const cfg = { ...settings(env), deadline };
-  const since = new Date(now.getTime() - FIND_WINDOW).toISOString();
+  const since = new Date(real(now).getTime() - FIND_WINDOW).toISOString();
   let cursor;
 
   for (let page = 0; page < FIND_PAGES; page++) {

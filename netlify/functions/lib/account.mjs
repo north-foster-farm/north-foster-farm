@@ -16,6 +16,7 @@ import {
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { cancelOrder as cancelAndRefund } from "./admin.mjs";
 import { cutoffAt } from "./jobs.mjs";
+import { now as clock } from "./clock.mjs";
 import { farmEmails, mailbox, sendMail } from "./mail.mjs";
 import { log } from "./log.mjs";
 import { joined, welcome } from "./news.mjs";
@@ -63,7 +64,7 @@ const tellFarm = async (message, { mail = sendMail, env = process.env }) => {
 };
 
 // The order as the account page shows it: nothing internal.
-export const publicOrder = (order, now = new Date()) => ({
+export const publicOrder = (order, now = clock()) => ({
   id: order.id,
   status: order.status,
   submittedAt: order.submittedAt,
@@ -137,7 +138,7 @@ const index = indexCatalog(catalog);
 export const canChange = (order, now) => actionable(order, now)
   && (order.lines || []).every((l) => index.has(l.sku));
 
-export const listOrders = async (stores, customer, { now = new Date() } = {}) =>
+export const listOrders = async (stores, customer, { now = clock() } = {}) =>
   ({
     ok: true,
     orders: (await ordersFor(stores, customer.email))
@@ -151,7 +152,7 @@ const owned = async (stores, customer, id) => {
 };
 
 export const cancelOrder = async (stores, customer, id, {
-  now = new Date(), env = process.env, mail = sendMail,
+  now = clock(), env = process.env, mail = sendMail,
   square = squareApi, paypal = paypalApi, fetchImpl,
 } = {}) => {
   const order = await owned(stores, customer, id);
@@ -216,7 +217,7 @@ export const cancelOrder = async (stores, customer, id, {
 // What can change without touching money: the date, the pickup
 // window, the drop-off details, the notes.
 export const changeOrder = async (stores, customer, id, changes, {
-  now = new Date(), env = process.env, mail = sendMail,
+  now = clock(), env = process.env, mail = sendMail,
   square = { updateFulfilment: squareApi.updateFulfilment },
 } = {}) => {
   const order = await owned(stores, customer, id);
@@ -325,7 +326,7 @@ export const changeOrder = async (stores, customer, id, changes, {
 };
 
 export const updateProfile = async (stores, customer, changes, {
-  now = new Date(), env = process.env, mail = sendMail,
+  now = clock(), env = process.env, mail = sendMail,
 } = {}) => {
   const c = changes && typeof changes === "object" ? changes : {};
   const errors = {};
@@ -388,7 +389,7 @@ export const updateProfile = async (stores, customer, changes, {
 // An address inside the approved list is approved at once. Anything
 // else is pending until the farm decides, and the farm is told.
 export const saveAddress = async (stores, customer, address, {
-  now = new Date(), env = process.env, mail = sendMail,
+  now = clock(), env = process.env, mail = sendMail,
 } = {}) => {
   const a = address && typeof address === "object" ? address : {};
   const errors = {};
@@ -445,7 +446,7 @@ export const saveAddress = async (stores, customer, address, {
 // A return or problem report on an order. The farm answers by email
 // and settles it in the CLI.
 export const requestReturn = async (stores, customer, id, request, {
-  now = new Date(), env = process.env, mail = sendMail,
+  now = clock(), env = process.env, mail = sendMail,
 } = {}) => {
   const order = await owned(stores, customer, id);
 
@@ -482,7 +483,7 @@ export const requestReturn = async (stores, customer, id, request, {
 
 // A message to the farm, with the customer's details attached.
 export const sendSupport = async (stores, customer, request, {
-  now = new Date(), env = process.env, mail = sendMail,
+  now = clock(), env = process.env, mail = sendMail,
 } = {}) => {
   const r = request && typeof request === "object" ? request : {};
   const subject = text(r.subject, 150);

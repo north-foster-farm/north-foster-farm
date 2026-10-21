@@ -12,6 +12,8 @@
 
 import { createHash } from "node:crypto";
 
+import { within } from "./clock.mjs";
+
 const buffer = [];
 
 const SHIP_TIMEOUT = 1500;
@@ -174,7 +176,7 @@ export const withLog = (name, handler, {
 
   return async (req, context) => {
     try {
-      return await handler(req, context);
+      return await within(req, () => handler(req, context));
     } catch (error) {
       let path = null;
 

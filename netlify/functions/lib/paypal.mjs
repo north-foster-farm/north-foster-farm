@@ -13,6 +13,7 @@ import { company } from "./company.mjs";
 import {
   FAKE, FAKE_SDK_URLS, fakeAllowed, refusal,
 } from "./fake.mjs";
+import { real } from "./clock.mjs";
 import * as fake from "./fake-paypal.mjs";
 import { MONEY_FLOOR_MS, timedFetch, timedOut } from "./http.mjs";
 
@@ -197,7 +198,7 @@ export const forgetTokens = () => tokens.clear();
 const call = async (cfg, path, body, {
   fetchImpl, now, requestId, method = "POST",
 }) => {
-  const bearer = await token(cfg, fetchImpl, now);
+  const bearer = await token(cfg, fetchImpl, real(now));
   const res = await timedFetch(fetchImpl, `${cfg.host}${path}`, {
     method,
     headers: {

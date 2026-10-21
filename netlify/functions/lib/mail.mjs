@@ -29,6 +29,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { guard, recordSend } from "./breaker.mjs";
+import { sessionTag } from "./clock.mjs";
 import { timedFetch } from "./http.mjs";
 import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
 import { stores as defaultStores } from "./store.mjs";
@@ -244,9 +245,14 @@ export const viaOutbox = async (message, env, stores, now = new Date()) => {
   const id = `${now.toISOString().replace(/[:.]/g, "-")}-${
     String(seq).padStart(4, "0")}`;
 
+  // The gate session whose request wrote it (lib/clock.mjs), or null:
+  // the toolbar lists a session's own mail only (#294).
+  const session = await sessionTag();
+
   await jobs.set(`${OUTBOX_PREFIX}${id}`, {
     id,
     at: now.toISOString(),
+    session,
     to: message.to,
     replyTo: message.replyTo || null,
     subject: message.subject,

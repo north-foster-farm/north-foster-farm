@@ -25,6 +25,7 @@ import { company } from "./company.mjs";
 import {
   between, methodName, packetCounts, pickupWindow, streetAddress,
 } from "./describe.mjs";
+import { now as clock } from "./clock.mjs";
 import { currentOptIn, keptFee, paymentsOf } from "./records.mjs";
 
 // The delivery day by name, and how long a missed delivery is
@@ -1613,7 +1614,7 @@ const age = (iso, now) => {
 };
 
 export const farmMorningReport = (stats, pickups, {
-  date, links, now = new Date(), schedule = null, archived = [],
+  date, links, now = clock(), schedule = null, archived = [],
 } = {}) => {
   const title = `Morning report: ${label(date)}`;
   const blocks = [

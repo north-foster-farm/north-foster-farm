@@ -35,6 +35,7 @@ import { refundOrder } from "./admin.mjs";
 import { attemptKey, CheckoutError, METHODS } from "./checkout.mjs";
 import { alert } from "./health.mjs";
 import { retry } from "./http.mjs";
+import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { notifyFarm, sendForOrder } from "./payments.mjs";
@@ -311,7 +312,7 @@ export const applyEdit = async (stores, plan, {
   key, attempt = 1, payment, charge = chargeSquare,
 }, {
   square = squareApi, paypal, env = process.env, fetchImpl, sleep,
-  mail = sendMail, now = new Date(),
+  mail = sendMail, now = clock(),
 } = {}) => {
   const { next, change } = plan;
   const id = plan.order.id;
@@ -402,7 +403,7 @@ export const applyEdit = async (stores, plan, {
 // page never came back (rescueCheckout), captures it and applies the
 // plan it kept, provided the record has not changed since.
 export const startEditVenmo = async (stores, plan, { key, attempt = 1 }, {
-  paypal = paypalApi, env = process.env, fetchImpl, sleep, now = new Date(),
+  paypal = paypalApi, env = process.env, fetchImpl, sleep, now = clock(),
 } = {}) => {
   const k = attemptKey(key, attempt);
   const after = { ...plan.order, totals: { ...plan.order.totals,
@@ -528,7 +529,7 @@ export const finishEditVenmo = async (stores, {
 // `idempotencyKey`, `attempt`, and `payment` when there is more to
 // pay. -> { ok, order } or { ok: false, status, errors, ... }
 export const editOrder = async (stores, customer, id, body, {
-  now = new Date(), group = null, ...options
+  now = clock(), group = null, ...options
 } = {}) => {
   const order = await getOrder(stores, id);
 

@@ -4,23 +4,39 @@
 // the deploy's SITE_CONTEXT is set and is not production; anywhere
 // else every path here is a 404, so nothing staging-only is reachable.
 //
-// Two ways in, neither typed into a browser:
+// Three ways in, none typed into a browser:
 //
-//   a gate session (lib/gate.mjs) whose address is GATE_TOOLBAR_EMAIL,
-//   James's, opens every area: the toolbar uses it, by cookie. Another
-//   address that signed in gets 403 and no toolbar.
+//   any gate session (lib/gate.mjs) opens the toolbar (#294): its own
+//   session's mail, the jobs, the clock, the email library and the
+//   signatures. The browser's cookie is the credential.
+//
+//   the gate session of GATE_TOOLBAR_EMAIL, James's, opens all of that
+//   and also every session's mail (Sent) and the library's review.
 //
 //   STAGING_TOKEN, as a bearer, is for machines: the jobs workflow, a
 //   health check. It opens only the "machine" areas below.
 //
-//   GET    /api/staging/info          context, mail driver, Square env
-//   GET    /api/staging/outbox        the last messages, newest first
+// Mail is scoped to the gate session whose request wrote it (lib/
+// clock.mjs stamps it): a session lists and opens only its own, and a
+// message carrying a sign-in link only if it went to that session's
+// own address (ownLink). Mail no session wrote is in Sent alone.
+//
+//   GET    /api/staging/info          context, mail driver, Square env,
+//                                     the clock, who is asking
+//   GET    /api/staging/outbox        this session's messages, newest
+//                                     first
 //   GET    /api/staging/outbox/:id    one message as HTML (?format=text)
 //   GET    /api/staging/outbox/:id/attachments/:name   a file it carries
-//   DELETE /api/staging/outbox        empty it
-//   POST   /api/staging/jobs/run      { at?, reset? } run the jobs now,
-//                                     or as of `at`; `reset` lets the
-//                                     day's reports send again
+//   DELETE /api/staging/outbox        empty this session's
+//   GET    /api/staging/sent          every message, any session's
+//   DELETE /api/staging/sent          empty the whole outbox
+//   GET    /api/staging/clock         { offset, now }: this browser's
+//   PUT    /api/staging/clock         { at } set it; DELETE resets it
+//   POST   /api/staging/jobs/run      { at?, time?, reset? } run the
+//                                     jobs now (on this browser's
+//                                     clock), as of `at`, or at `time`
+//                                     ("08:00") on its day; `reset`
+//                                     lets the day's reports send again
 //   GET    /api/staging/emails        the email library (lib/library.mjs):
 //                                     every email, built from sample data,
 //                                     with its tags, approval and text
@@ -47,14 +63,19 @@
 //   POST   /api/staging/throw         throws, to prove the crash alert
 //                                     (only with STAGING_TOKEN set)
 //
+// The review routes (approval, rewrite) are James's alone.
+//
 // With neither GATE_TOOLBAR_EMAIL nor STAGING_TOKEN set the API fails
 // closed: a context that forgot them answers 404, as production does,
 // rather than opening the outbox and its magic links to anyone. The
 // same holds for /e2e and E2E_STAGING_TOKEN, the one token of the
 // test suite; the two never open each other's paths.
 
+import {
+  MAX_OFFSET, clockAllowed, clockCookie, now as clock, offsetFrom, tagOf,
+} from "./lib/clock.mjs";
 import { runOp } from "./lib/e2e.mjs";
-import { COOKIE, cookieValue, sessionFor } from "./lib/gate.mjs";
+import { COOKIE, cookieValue, normalize, sessionFor } from "./lib/gate.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { runJobs } from "./lib/jobs.mjs";
 import { entry, library } from "./lib/library.mjs";
@@ -72,7 +93,7 @@ import {
 } from "./lib/signatures.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 import terms from "../../data/delivery.json" with { type: "json" };
-import { today } from "../../assets/scripts/order/lib/zoned.mjs";
+import { instant, today } from "../../assets/scripts/order/lib/zoned.mjs";
 
 export const staging = (env = process.env) => {
   const context = deployContext(env);
@@ -87,43 +108,101 @@ const tokenOf = (req) => {
 };
 
 // What each way in opens, by the areas below. The machine token opens
-// the areas a workflow needs, none that read customers' mail (the
-// outbox and the email library carry sign-in links) or show the
-// toolbar. Every new area is listed in docs/secrets.md.
-const AREAS = ["info", "inbox", "jobs", "emails", "signatures", "throw"];
+// the areas a workflow needs, none that read mail or show the toolbar.
+// A tester's session reads its own mail only ("inbox"); every
+// session's ("sent") and the review are James's. Every new area is
+// listed in docs/secrets.md.
+const AREAS = [
+  "info", "inbox", "sent", "jobs", "clock", "emails", "review",
+  "signatures", "throw",
+];
 
 export const KEYS = {
-  "gate session": AREAS,
+  "owner session": AREAS,
+  "gate session": [
+    "info", "inbox", "jobs", "clock", "emails", "signatures",
+  ],
   STAGING_TOKEN: ["info", "jobs", "throw"],
 };
 
-// Who is asking -> { key } (a name of KEYS), { refused: 401 | 403 }.
-// The toolbar owner's gate session first; a session of anyone else is
-// a refusal of its own, not a try at the token.
-const whoIs = async (req, env, stores, now) => {
+// Who is asking -> { key, email?, tag? } (key a name of KEYS), or
+// { refused: 401 }. `tag` is the session's mail stamp (lib/clock.mjs).
+// Checked on the real clock: a tester's clock must not revive a
+// session that has ended.
+const whoIs = async (req, env, stores) => {
   const given = tokenOf(req);
 
   if (given && env.STAGING_TOKEN && sameToken(given, env.STAGING_TOKEN)) {
     return { key: "STAGING_TOKEN" };
   }
 
-  const session = await sessionFor(stores.gate,
-    cookieValue(req.headers, COOKIE), now);
+  const id = cookieValue(req.headers, COOKIE);
+  const session = await sessionFor(stores.gate, id, new Date());
 
   if (!session) return { refused: 401 };
 
-  return env.GATE_TOOLBAR_EMAIL
-    && session.email === String(env.GATE_TOOLBAR_EMAIL).trim().toLowerCase()
-    ? { key: "gate session" }
-    : { refused: 403 };
+  const owner = !!env.GATE_TOOLBAR_EMAIL
+    && session.email === normalize(env.GATE_TOOLBAR_EMAIL);
+
+  return {
+    key: owner ? "owner session" : "gate session",
+    email: session.email,
+    tag: await tagOf(id),
+  };
 };
+
+// A message that carries a sign-in link, the shop's or the gate's.
+const SIGN_IN = /\/api\/(?:auth|gate)\/verify\?token=/;
+
+export const carriesSignIn = (m) =>
+  SIGN_IN.test(`${m.text || ""}\n${m.html || ""}`);
+
+// One mailbox, its +tags aside: pat+1@example.com is pat@example.com.
+const mailbox = (address) => {
+  const [local, domain] = normalize(address).split("@");
+
+  return `${String(local).split("+")[0]}@${domain}`;
+};
+
+const recipients = (m) => (Array.isArray(m.to) ? m.to : [m.to]);
+
+// Whether a sign-in link in `m` is the asker's own to read: it was sent
+// to their own mailbox, or the asker is James.
+export const ownLink = (m, who) => who.key === "owner session"
+  || recipients(m).every((to) => mailbox(to) === mailbox(who.email));
+
+// This browser's clock: whether it may move here, its offset, and the
+// time it reads.
+const clockOf = (req, env) => {
+  const offset = offsetFrom(req.headers, env);
+
+  return {
+    available: clockAllowed(env),
+    offset,
+    now: new Date(Date.now() + offset).toISOString(),
+  };
+};
+
+// Whether `m` was written by `who`'s own session; whether `who` may
+// open it (James opens any, from Sent); and whether its sign-in link
+// is kept from them.
+const mine = (m, who) => !!who.tag && m.session === who.tag;
+const withheld = (m, who) => carriesSignIn(m) && !ownLink(m, who);
+const opens = (m, who) => (who.key === "owner session" || mine(m, who))
+  && !withheld(m, who);
 
 // Which area of the API a request is in, or null for a path no area
 // owns. Deny by default: a null area is open only to the owner's session,
-// so a route added without an area here is closed to a machine.
+// so a route added without an area here is closed to a machine and to
+// a tester.
 export const areaOf = (method, path) => {
   if (path === "/api/staging/info") return "info";
   if (path.startsWith("/api/staging/outbox")) return "inbox";
+  if (path === "/api/staging/sent") return "sent";
+  if (path === "/api/staging/clock") return "clock";
+  if (/^\/api\/staging\/emails\/[^/]+\/(?:approval|rewrite)$/.test(path)) {
+    return "review";
+  }
   if (path.startsWith("/api/staging/jobs")) return "jobs";
   if (path.startsWith("/api/staging/emails")) return "emails";
   if (path.startsWith("/api/staging/signatures")) return "signatures";
@@ -203,7 +282,7 @@ const view = (e, m, saved) => ({
 export const handle = async (req, {
   stores = defaultStores(),
   env = process.env,
-  now = new Date(),
+  now = clock(),
   run = runJobs,
 } = {}) => {
   if (new URL(req.url).pathname.replace(/\/$/, "") === "/api/staging/e2e") {
@@ -224,12 +303,9 @@ export const handle = async (req, {
     return json(404, { error: "Not found." });
   }
 
-  const who = await whoIs(req, env, stores, now);
+  const who = await whoIs(req, env, stores);
 
-  if (who.refused === 401) return json(401, { error: "Sign in required." });
-  if (who.refused) {
-    return json(403, { error: "This session does not open that." });
-  }
+  if (who.refused) return json(401, { error: "Sign in required." });
 
   const { key } = who;
 
@@ -241,7 +317,7 @@ export const handle = async (req, {
   log.info({ event: "staging.key_used", key, method: req.method, path });
   const area = areaOf(req.method, path);
 
-  if (area ? !can.includes(area) : key !== "gate session") {
+  if (area ? !can.includes(area) : key !== "owner session") {
     return json(403, { error: "This key does not open that.", key });
   }
 
@@ -261,26 +337,61 @@ export const handle = async (req, {
       mailDriver: env.MAIL_DRIVER || "log",
       squareEnv: env.SQUARE_ENV || "sandbox",
       siteUrl: env.SITE_URL || env.URL || null,
+      email: who.email || null,
+      clock: clockOf(req, env),
     });
   }
 
-  if (path === "/api/staging/outbox") {
+  if (path === "/api/staging/clock") {
+    if (!clockAllowed(env)) return json(404, { error: "Not found." });
+    if (req.method === "GET") return json(200, clockOf(req, env));
+    if (req.method === "DELETE") {
+      log.info({ event: "staging.clock_reset" });
+
+      return json(200, { offset: 0, now: new Date().toISOString() }, {
+        "Set-Cookie": clockCookie(null),
+      });
+    }
+    if (req.method !== "PUT") {
+      return json(405, { error: "GET, PUT or DELETE." });
+    }
+
+    const body = (await readJson(req)) || {};
+    const at = Date.parse(body.at);
+    const offset = at - Date.now();
+
+    if (Number.isNaN(at) || Math.abs(offset) > MAX_OFFSET) {
+      return json(400, { error: "A date and time within three years." });
+    }
+    log.info({ event: "staging.clock_set", offset });
+
+    return json(200, { offset, now: new Date(at).toISOString() }, {
+      "Set-Cookie": clockCookie(offset),
+    });
+  }
+
+  if (path === "/api/staging/outbox" || path === "/api/staging/sent") {
+    const all = path === "/api/staging/sent";
     const keys = (await stores.jobs.list(OUTBOX_PREFIX)).map((k) => k.key);
+    const found = (await Promise.all(
+      keys.map(async (k) => [k, await stores.jobs.get(k)])
+    )).filter(([, m]) => m && (all || mine(m, who)));
 
     if (req.method === "DELETE") {
-      for (const key of keys) await stores.jobs.delete(key);
+      for (const [k] of found) await stores.jobs.delete(k);
 
-      return json(200, { ok: true, removed: keys.length });
+      return json(200, { ok: true, removed: found.length });
     }
     if (req.method !== "GET") return json(405, { error: "GET or DELETE." });
 
-    const messages = (await Promise.all(
-      keys.map((key) => stores.jobs.get(key))
-    )).filter(Boolean).reverse().map((m) => ({
-      id: m.id, at: m.at, to: m.to, subject: m.subject,
-      attachments: filesOf(m,
-        `/api/staging/outbox/${encodeURIComponent(m.id)}`),
-    }));
+    const messages = found.map(([, m]) => m).reverse().map((m) => (
+      withheld(m, who)
+        ? { id: m.id, at: m.at, to: m.to, subject: m.subject, withheld: true }
+        : {
+          id: m.id, at: m.at, to: m.to, subject: m.subject,
+          attachments: filesOf(m,
+            `/api/staging/outbox/${encodeURIComponent(m.id)}`),
+        }));
 
     return json(200, { messages });
   }
@@ -295,7 +406,8 @@ export const handle = async (req, {
     const m = file[1] === "emails"
       ? e && e.build(mailLinks(env))
       : await stores.jobs.get(`${OUTBOX_PREFIX}${id}`);
-    const res = m && fileResponse(m, decodeURIComponent(file[3]));
+    const res = m && (file[1] === "emails" || opens(m, who))
+      && fileResponse(m, decodeURIComponent(file[3]));
 
     return res || json(404, { error: "No such attachment." });
   }
@@ -304,7 +416,8 @@ export const handle = async (req, {
     const id = decodeURIComponent(path.slice("/api/staging/outbox/".length));
     const m = await stores.jobs.get(`${OUTBOX_PREFIX}${id}`);
 
-    if (!m) return json(404, { error: "No such message." });
+    // Another session's, or a sign-in link not theirs: as if absent.
+    if (!m || !opens(m, who)) return json(404, { error: "No such message." });
 
     const headers = MESSAGE_HEADERS;
 
@@ -443,7 +556,12 @@ export const handle = async (req, {
 
   if (req.method === "POST" && path === "/api/staging/jobs/run") {
     const body = (await readJson(req)) || {};
-    const at = body.at ? new Date(body.at) : now;
+    const time = /^(\d{2}):(\d{2})$/.exec(String(body.time || ""));
+    // A time of day is on the day this browser's clock reads.
+    const at = body.at ? new Date(body.at)
+      : time ? instant(today(now, terms.timeZone), Number(time[1]),
+        Number(time[2]), terms.timeZone)
+        : now;
 
     if (Number.isNaN(at.getTime())) return json(400, { error: "Bad at." });
     if (body.reset) {

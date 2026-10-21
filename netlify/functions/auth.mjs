@@ -10,6 +10,7 @@ import {
   endSession, normalizeEmail, publicCustomer, requestLink, safeNext, sameSite,
   sessionFrom, stampHeader, tokenEmail, verifyToken,
 } from "./lib/auth.mjs";
+import { now as clock, real } from "./lib/clock.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
 import {
@@ -40,7 +41,7 @@ const redirect = (location, headers = []) => new Response(null, {
 export const handle = async (req, {
   stores = defaultStores(),
   env = process.env,
-  now = new Date(),
+  now = clock(),
   ip = "",
   mail,
 } = {}) => {
@@ -62,7 +63,7 @@ export const handle = async (req, {
     if (!body || typeof body !== "object") {
       return json(400, { errors: { body: "Expected a JSON body." } });
     }
-    if (body.website || rateLimited(ip, now.getTime())) {
+    if (body.website || rateLimited(ip, real(now).getTime())) {
       return json(200, { ok: true });
     }
 

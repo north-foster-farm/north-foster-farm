@@ -19,6 +19,7 @@ import terms from "../../../data/delivery.json" with { type: "json" };
 import {
   parts, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { devEmails, sendMail } from "./mail.mjs";
 import { mailLinks } from "./site.mjs";
@@ -120,7 +121,7 @@ export const stillDue = (entries, start) => {
 // with no address to send to. A mail failure leaves no record, so the
 // next run tries again. -> { on, final, due } | null
 export const rotationDaily = async (stores, {
-  env = process.env, mail = sendMail, now = new Date(),
+  env = process.env, mail = sendMail, now = clock(),
   readLogText = readRotationLog,
 } = {}) => {
   const to = devEmails(env);

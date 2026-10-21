@@ -21,6 +21,8 @@
 // waits under `checkout/<key>` between the two, and a PayPal webhook
 // can finish it if the browser never came back.
 
+import { now as clock } from "./clock.mjs";
+
 export const OPEN = ["paid"];
 
 // A question the farm put to the customer (today only `window`: the
@@ -50,7 +52,7 @@ const stamp = (order, event, now, extra = {}) => ({
 
 // Writes the order and its indexes. Idempotent: writing the same order
 // twice leaves one record.
-export const saveOrder = async (stores, order, now = new Date()) => {
+export const saveOrder = async (stores, order, now = clock()) => {
   const record = order.history ? order : stamp(order, order.status, now);
 
   await stores.orders.set(orderKey(record.id), record);
@@ -111,7 +113,7 @@ export const orderForSubmission = async (stores, key) => {
 // as written. A key that reads back empty means the store failed, and
 // that throws (the page retries) rather than pass the id over, which
 // would leave one submission holding two.
-export const reserveOrderId = async (stores, key, draw, now = new Date()) => {
+export const reserveOrderId = async (stores, key, draw, now = clock()) => {
   const known = await stores.orders.get(submissionKey(key));
 
   if (known && known.id) return known.id;
@@ -216,7 +218,7 @@ export const orderByPayment = async (stores, paymentId) => {
 // Moves an order to a new status with a history line, keeping the
 // open index in step. Returns the updated record, or null if unknown.
 export const setStatus = async (
-  stores, id, status, now = new Date(), extra
+  stores, id, status, now = clock(), extra
 ) => {
   const order = await getOrder(stores, id);
 
@@ -238,7 +240,7 @@ export const setStatus = async (
 
 // Any patch that is not a status change, with a history line.
 export const amendOrder = async (
-  stores, id, patch, event, now = new Date()
+  stores, id, patch, event, now = clock()
 ) => {
   const order = await getOrder(stores, id);
 
@@ -413,7 +415,7 @@ export const listCheckouts = async (stores) => {
   return found;
 };
 
-export const sweepCheckouts = async (stores, now = new Date()) => {
+export const sweepCheckouts = async (stores, now = clock()) => {
   const cutoff = now.getTime() - CHECKOUT_TTL;
   let swept = 0;
 
@@ -444,7 +446,7 @@ export const AUTH_SWEPT = ["token/", "session/", "news/"];
 
 const HASHED_SESSION = /^session\/[0-9a-f]{64}$/;
 
-export const sweepAuth = async (stores, now = new Date()) => {
+export const sweepAuth = async (stores, now = clock()) => {
   let swept = 0;
 
   for (const prefix of AUTH_SWEPT) {

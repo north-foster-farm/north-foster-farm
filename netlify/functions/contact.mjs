@@ -16,6 +16,7 @@
 import { randomBytes } from "node:crypto";
 
 import { normalizeEmail, sameSite, validEmail } from "./lib/auth.mjs";
+import { now as clock, real } from "./lib/clock.mjs";
 import { alert, noteMail } from "./lib/health.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { limitExempt } from "./lib/limit-exempt.mjs";
@@ -86,7 +87,7 @@ const ownsOrder = async (stores, { orderId, email }) => {
 export const handle = async (req, {
   stores = defaultStores(),
   env = process.env,
-  now = new Date(),
+  now = clock(),
   ip = "",
   mail = sendMail,
 } = {}) => {
@@ -103,7 +104,8 @@ export const handle = async (req, {
   // Said plainly: a quiet 200 here thanked a real writer for a message
   // that was then dropped.
   // The staging token skips the limit off production, as for orders.
-  const wait = limitExempt(req, env) ? 0 : rateLimited(ip, now.getTime());
+  const wait = limitExempt(req, env)
+    ? 0 : rateLimited(ip, real(now).getTime());
 
   if (wait) {
     return json(429, {
@@ -141,7 +143,7 @@ export const handle = async (req, {
       idempotencyKey: `contact-${id}`,
       ...farmContactMessage(message, { order, links: mailLinks(env) }),
     }, { env, stores });
-    await noteMail(stores, true, now);
+    await noteMail(stores, true, real(now));
     log.info({ event: "contact.sent", id });
   } catch (error) {
     const detail = String(error && error.message);
@@ -151,7 +153,7 @@ export const handle = async (req, {
       error: detail,
     });
     await stores.customers.set(key, { ...record, mailed: false });
-    await noteMail(stores, false, now, { error: detail });
+    await noteMail(stores, false, real(now), { error: detail });
     await alert(stores, "mail.failed", {
       template: "farmContactMessage", message: id, error: detail,
     }, { env, mail, now });

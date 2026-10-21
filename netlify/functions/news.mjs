@@ -14,6 +14,7 @@
 //                              it takes requests from any site
 
 import { sameSite } from "./lib/auth.mjs";
+import { now as clock } from "./lib/clock.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { sendMail } from "./lib/mail.mjs";
@@ -38,7 +39,7 @@ const fromPage = (req) => {
 export const handle = async (req, {
   stores = defaultStores(),
   env = process.env,
-  now = new Date(),
+  now = clock(),
   mail = sendMail,
 } = {}) => {
   const url = new URL(req.url);

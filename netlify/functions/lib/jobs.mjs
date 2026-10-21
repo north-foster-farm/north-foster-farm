@@ -45,6 +45,7 @@ import { announceNew, rescueCheckout, syncSquare } from "./checkout.mjs";
 import { finishEditVenmo } from "./edit.mjs";
 import { deleteOldMessages, scrubOldOrders } from "./forget.mjs";
 import { alert, escalate, ping, readCount, readMark } from "./health.mjs";
+import { now as clock, real } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { audienceConfigured, syncAudience } from "./news.mjs";
@@ -104,7 +105,7 @@ export const deliveryReminderAt = (order) =>
 // report when something did. A run that throws before any of that is
 // caught by the function wrapper and alerted as jobs.crashed.
 export const runJobs = async (stores, {
-  now = new Date(),
+  now = clock(),
   env = process.env,
   mail = sendMail,
   square,
@@ -222,11 +223,11 @@ export const runJobs = async (stores, {
   }
 
   report.checkoutsSwept = (await attempt(null, "checkouts",
-    () => sweepCheckouts(stores, now))) || 0;
+    () => sweepCheckouts(stores, real(now)))) || 0;
   report.authSwept = (await attempt(null, "auth",
-    () => sweepAuth(stores, now))) || 0;
+    () => sweepAuth(stores, real(now)))) || 0;
   report.scrubbed = (await attempt(null, "retention",
-    () => scrubDaily(stores, now))) || [];
+    () => scrubDaily(stores, real(now)))) || [];
   report.pickupsToConfirm = (await attempt(null, "morningReport",
     () => morningReport(stores, {
       env, mail, now, fetchImpl, catalogIndex,
@@ -381,7 +382,7 @@ export const checkInvariants = (orders, now) => {
 
 export const LEDGER_KEEP = 48 * 60 * MINUTE;
 
-export const recordRun = async (stores, report, now = new Date()) => {
+export const recordRun = async (stores, report, now = clock()) => {
   const key = `run/${now.toISOString()}`;
 
   try {

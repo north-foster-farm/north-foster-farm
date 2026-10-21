@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
+import { runAs } from "../netlify/functions/lib/clock.mjs";
 import { COOKIE } from "../netlify/functions/lib/gate.mjs";
 
 import {
@@ -157,6 +158,11 @@ describe("the staging endpoints", () => {
     ["GET", "/api/staging/outbox"],
     ["DELETE", "/api/staging/outbox"],
     ["GET", "/api/staging/outbox/2026-01-01T00-00-0000"],
+    ["GET", "/api/staging/sent"],
+    ["DELETE", "/api/staging/sent"],
+    ["GET", "/api/staging/clock"],
+    ["PUT", "/api/staging/clock"],
+    ["DELETE", "/api/staging/clock"],
     ["POST", "/api/staging/jobs/run"],
     ["GET", "/api/staging/emails"],
     ["GET", "/api/staging/emails/sign-in-link"],
@@ -223,27 +229,37 @@ describe("the staging endpoints", () => {
     }
   });
 
-  describe("a signed-in reviewer", () => {
+  describe("a signed-in reviewer (#294: the toolbar is everyone's)", () => {
     const reviewer = cookie("reviewer-session-id-0123456789abc");
+    // James's alone: every session's mail, the review, and what no
+    // area owns.
+    const owners = (path) => path === "/api/staging/sent"
+      || /\/(approval|rewrite)$/.test(path) || path === THROWS
+      || path === "/api/staging/nothing-here";
 
-    it("is refused every route, the toolbar's included", async () => {
+    it("opens the toolbar, and none of James's routes", async () => {
       for (const [method, path] of routes) {
         const res = await handle(ask(method, path, reviewer), {
-          stores: testStores(), env, run,
+          stores: testStores(), env: { ...env, CONTEXT: "branch-deploy" },
+          run,
         });
 
-        assert.equal(res.status, 403, `${method} ${path}`);
-        assert.deepEqual(await res.json(),
-          { error: "This session does not open that." });
+        if (owners(path)) {
+          assert.equal(res.status, 403, `${method} ${path}`);
+        } else {
+          assert.notEqual(res.status, 401, `${method} ${path}`);
+          assert.notEqual(res.status, 403, `${method} ${path}`);
+        }
       }
     });
 
-    it("is refused when no toolbar owner is configured", async () => {
+    it("is a tester when no toolbar owner is configured", async () => {
       const res = await handle(ask("GET", "/api/staging/info", reviewer), {
         stores: testStores(), env: { ...env, GATE_TOOLBAR_EMAIL: "" },
       });
 
-      assert.equal(res.status, 403);
+      assert.equal(res.status, 200);
+      assert.equal((await res.json()).key, "gate session");
     });
 
     it("does not become the owner by case or spacing", async () => {
@@ -253,6 +269,7 @@ describe("the staging endpoints", () => {
       });
 
       assert.equal(res.status, 200, "the same address, written otherwise");
+      assert.equal((await res.json()).key, "owner session");
     });
 
     it("loses the toolbar with the allowlist", async () => {
@@ -327,10 +344,15 @@ describe("the staging endpoints", () => {
       stores: testStores(), env: { ...env, SQUARE_ENV: "sandbox" },
     });
 
-    assert.deepEqual(await res.json(), {
-      key: "gate session", can: KEYS["gate session"],
+    const info = await res.json();
+
+    assert.ok(info.clock.now);
+    delete info.clock.now;
+    assert.deepEqual(info, {
+      key: "owner session", can: KEYS["owner session"],
       context: "deploy-preview", mailDriver: "outbox", squareEnv: "sandbox",
-      siteUrl: null,
+      siteUrl: null, email: OWNER,
+      clock: { available: false, offset: 0 },
     });
   });
 
@@ -347,7 +369,7 @@ describe("the staging endpoints", () => {
       const area = areaOf("POST", path.replace(/\/$/, ""));
 
       assert.ok(area, `${path} has no area in areaOf`);
-      assert.ok(KEYS["gate session"].includes(area),
+      assert.ok(KEYS["owner session"].includes(area),
         `${area} belongs to no key`);
     }
   });
@@ -376,7 +398,7 @@ describe("the staging endpoints", () => {
     const used = lines.filter((l) => l.includes("staging.key_used"));
 
     assert.equal(used.length, 2);
-    assert.ok(used[0].includes("gate session"));
+    assert.ok(used[0].includes("owner session"));
     assert.ok(used[1].includes("STAGING_TOKEN"));
     for (const line of lines) {
       assert.ok(!line.includes(SESSION) && !line.includes(TOKEN));
@@ -386,8 +408,10 @@ describe("the staging endpoints", () => {
   it("list, show and clear the outbox", async () => {
     const stores = testStores();
 
-    await sendMail(message, { env, stores });
-    await sendMail({ ...message, subject: "Second" }, { env, stores });
+    await runAs({ gate: SESSION }, async () => {
+      await sendMail(message, { env, stores });
+      await sendMail({ ...message, subject: "Second" }, { env, stores });
+    });
 
     const list = await (await handle(req("/api/staging/outbox"),
       { stores, env })).json();

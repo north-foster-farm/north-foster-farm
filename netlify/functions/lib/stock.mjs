@@ -25,6 +25,7 @@ import {
 } from "../../../assets/scripts/order/lib/catalog.mjs";
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { mailLinks } from "./site.mjs";
@@ -118,7 +119,7 @@ export const archivedOnHand = async (stores, {
 export const archivedKey = (day) => `stock/archived/${day}`;
 
 export const archivedInStock = async (stores, {
-  env = process.env, mail = sendMail, now = new Date(),
+  env = process.env, mail = sendMail, now = clock(),
   catalogIndex = index,
 } = {}) => {
   try {

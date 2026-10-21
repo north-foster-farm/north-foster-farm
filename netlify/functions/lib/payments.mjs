@@ -3,6 +3,7 @@
 // The taking of the money is checkout.mjs.
 
 import { alert, mark, noteMail } from "./health.mjs";
+import { now as clock } from "./clock.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { log } from "./log.mjs";
 import {
@@ -35,7 +36,7 @@ export const paymentsOff = (env = process.env) =>
 export const sendForOrder = async (stores, order, key, message, {
   mail = sendMail,
   env = process.env,
-  now = new Date(),
+  now = clock(),
   to = order.customer.email,
 } = {}) => {
   try {
@@ -81,7 +82,7 @@ export const sendForOrder = async (stores, order, key, message, {
 export const notifyFarm = async (stores, order, key, message, {
   mail = sendMail,
   env = process.env,
-  now = new Date(),
+  now = clock(),
 } = {}) => {
   const to = farmEmails(env);
 
@@ -97,7 +98,7 @@ export const notifyFarm = async (stores, order, key, message, {
 export const confirmOrder = async (stores, order, {
   mail = sendMail,
   env = process.env,
-  now = new Date(),
+  now = clock(),
   again = false,
 } = {}) => {
   const done = !!(order.emails && order.emails.orderConfirmed);
@@ -118,7 +119,7 @@ export const confirmOrder = async (stores, order, {
 export const announcePaid = async (stores, id, {
   mail = sendMail,
   env = process.env,
-  now = new Date(),
+  now = clock(),
 } = {}) => {
   let order = await getOrder(stores, id);
 
@@ -173,7 +174,7 @@ export const recordRefund = async (stores, order, refund, source, now) => {
 // and the farm is alerted, since the customer is still owed (#215).
 // -> { handled, id }.
 export const applyRefundEvent = async (stores, event, {
-  now = new Date(),
+  now = clock(),
   env = process.env,
   mail = sendMail,
 } = {}) => {
