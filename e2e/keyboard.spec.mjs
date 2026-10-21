@@ -152,6 +152,21 @@ const install = () => {
     return out;
   };
 
+  // The same judgement of the stop still focused, a moment later, and
+  // nothing recorded: a page still settling (the order page's late
+  // stock and dates) can move a stop after the browser scrolled to it.
+  window.kbdLook = () => {
+    const shown = shownFor(document.activeElement);
+    const invisible = !visible(shown);
+    const offScreen = !invisible && !onScreen(shown);
+
+    return {
+      invisible,
+      offScreen,
+      coveredBy: invisible || offScreen ? null : coveredBy(shown),
+    };
+  };
+
   // Once nothing has the focus: the stops that looked no different
   // with it. Judged here rather than as the focus moves on, since a
   // parent's ring stays while the focus moves within it.
@@ -208,7 +223,7 @@ const walk = async (page, key) => {
     await page.keyboard.press(key);
 
     // WebKit scrolls to the focus a frame or two after it moves.
-    const s = await page.evaluate(() => new Promise((done) => {
+    let s = await page.evaluate(() => new Promise((done) => {
       requestAnimationFrame(() => requestAnimationFrame(
         () => done(window.kbdStep()),
       ));
@@ -219,6 +234,12 @@ const walk = async (page, key) => {
     if (s.repeat) {
       problems.push(`Tab loops without reaching the end, back at ${s.name}`);
       break;
+    }
+    // A stop that looks hidden is looked at again once the page has
+    // had a moment: only one still hidden then is a fault.
+    if (s.invisible || s.offScreen || s.coveredBy) {
+      await page.waitForTimeout(300);
+      s = { ...s, ...await page.evaluate(() => window.kbdLook()) };
     }
     if (s.invisible) problems.push(`focus on something unseen: ${s.name}`);
     if (s.offScreen) problems.push(`focus off screen: ${s.name}`);
@@ -237,9 +258,16 @@ const walk = async (page, key) => {
   return [...new Set(problems)];
 };
 
+// Loaded, fonts in, and no region still loading: a region that waits
+// on a request (the header's Sign in waits on /api/me) is aria-busy
+// under its skeleton until it answers (utils/skeleton.js). A walk
+// begun sooner found Sign in under its skeleton on a slow run.
 const settle = async (page) => {
   await page.waitForLoadState("load");
   await page.evaluate(() => document.fonts.ready);
+  await page.waitForFunction(
+    () => !document.querySelector("[aria-busy='true']"),
+  );
 };
 
 // Escape closes what `open` opened and gives the focus back to
