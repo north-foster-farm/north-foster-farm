@@ -45,7 +45,15 @@ pound, two digits each, inclusive: `NFF-CHK-WHL-20-24` is
 sausage carry no bounds (`NFF-CHK-EGG-LG`, `NFF-CHK-SAUMPL`). The
 SKUs took this form on 2026-10-21 (#267, #287); `docs/sku-map.csv`
 lists each old SKU with its new one and the date, and
-`test/sku.test.mjs` holds the catalog to both. **From 1 January 2027
+`test/sku.test.mjs` holds the catalog to both. Past orders still name
+the old SKUs: the order page maps an old one in a Reorder link
+(`?add=`) or a saved cart to its new one through
+`data/skuAliases.json`, a copy of the map the test keeps equal to it,
+and a SKU it can't name gets "Some items from that order have changed.
+Please add them again.", never the SKU itself. That is all the
+aliasing there is: an order holding a SKU the catalog doesn't know
+can't be changed (`canChange` is false), only cancelled, so a save
+can never drop and refund the line. **From 1 January 2027
 a SKU never changes** (James, 6305014532): moving a tier boundary is a
 new variation with a new SKU, a row in the map, and the old one
 `archived`. `squareVariationId` is null

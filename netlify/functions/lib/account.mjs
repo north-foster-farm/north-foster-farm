@@ -7,7 +7,9 @@
 import { randomBytes } from "node:crypto";
 
 import avatars from "../../../data/avatars.json" with { type: "json" };
+import catalog from "../../../data/catalog.json" with { type: "json" };
 import terms from "../../../data/delivery.json" with { type: "json" };
+import { indexCatalog } from "../../../assets/scripts/order/lib/catalog.mjs";
 import { datesFor } from "../../../assets/scripts/order/lib/dates.mjs";
 import {
   phoneOk, zipInfo,
@@ -126,7 +128,14 @@ const actionable = (order, now) =>
 
 export const canCancel = actionable;
 
-export const canChange = actionable;
+const index = indexCatalog(catalog);
+
+// A change replays the order's lines through the catalog, so an order
+// holding a SKU the catalog doesn't know (one placed before the SKUs
+// were renamed, #267) can't be changed: saving would drop that line
+// and refund it. Cancelling, and calling the farm, still can.
+export const canChange = (order, now) => actionable(order, now)
+  && (order.lines || []).every((l) => index.has(l.sku));
 
 export const listOrders = async (stores, customer, { now = new Date() } = {}) =>
   ({

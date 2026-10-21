@@ -20,6 +20,13 @@ const lineNames = (group, item) => (group.lines === "name"
   ? { lineName: item.name, row: item.name }
   : { lineName: `${short(group.label)}, ${item.label}`, row: item.label });
 
+// A SKU as the catalog knows it now: an old one, from a past order's
+// Reorder link or a saved cart, through the renames in
+// data/skuAliases.json (docs/sku-map.csv, #267). Never an order-edit
+// shim: an order holding an old SKU can't be changed.
+export const current = (sku, aliases = {}) =>
+  (Object.hasOwn(aliases, sku) ? aliases[sku] : sku);
+
 export const indexCatalog = (catalog) => {
   const index = new Map();
 

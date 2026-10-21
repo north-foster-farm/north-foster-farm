@@ -540,3 +540,25 @@ describe("a paid order holding an archived line", () => {
     assert.equal((await getOrder(stores, id)).status, "cancelled");
   });
 });
+
+// An order holding a SKU the catalog no longer knows (placed before
+// the rename, #267) can't be changed: saving would drop that line and
+// refund it. It can still be cancelled.
+describe("a paid order holding an unknown SKU", () => {
+  it("refuses a change", async () => {
+    const { stores, id } = await placed();
+
+    await amendOrder(stores, id, {
+      lines: [{ sku: "NFF-CHK-WHL-0350-0400", label: "Whole Chicken, " +
+        "3.5 – 3.9 lbs", qty: 2, unitPrice: 30, lineTotal: 60 }],
+    }, "test.renamed", now);
+
+    const result = await edit(stores, id, {
+      idempotencyKey: editKey(), lines: [{ sku: SKU, qty: 1 }],
+    }, fakeSquare().square);
+
+    assert.equal(result.status, 409);
+    assert.equal((await getOrder(stores, id)).lines[0].sku,
+      "NFF-CHK-WHL-0350-0400");
+  });
+});

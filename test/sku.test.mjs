@@ -9,8 +9,9 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import catalog from "../data/catalog.json" with { type: "json" };
+import aliases from "../data/skuAliases.json" with { type: "json" };
 import {
-  archived, indexCatalog,
+  archived, current, indexCatalog,
 } from "../assets/scripts/order/lib/catalog.mjs";
 
 const items = [...indexCatalog(catalog).values()];
@@ -80,5 +81,21 @@ describe("docs/sku-map.csv", () => {
       assert.ok(skus.has(to), `${to} is not in the catalog`);
     }
     assert.equal(new Set(rows.map((r) => r[1])).size, rows.length);
+  });
+});
+
+// The order page maps old SKUs from Reorder links and saved carts
+// through a copy of the map it can read (data/skuAliases.json).
+describe("data/skuAliases.json", () => {
+  it("is docs/sku-map.csv, old to new", () => {
+    assert.deepEqual(aliases, Object.fromEntries(map.slice(1)
+      .map((line) => line.split(",").slice(0, 2))));
+  });
+
+  it("turns an old SKU into its new one and leaves the rest", () => {
+    assert.equal(current("NFF-CHK-BRSBL-0000-0125", aliases),
+      "NFF-CHK-BRSBL-10-12");
+    assert.equal(current("NFF-CHK-EGG-LG", aliases), "NFF-CHK-EGG-LG");
+    assert.equal(current("toString", aliases), "toString");
   });
 });

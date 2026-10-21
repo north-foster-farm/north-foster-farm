@@ -7,6 +7,7 @@
 {{ end }}
 {{ $data := dict
   "catalog" hugo.Data.catalog
+  "aliases" (hugo.Data.skuAliases | default dict)
   "terms" hugo.Data.delivery
   "codes" $codes
   "contact" (dict "name" hugo.Data.company.name "email" hugo.Data.company.email "phone" hugo.Data.company.phone)

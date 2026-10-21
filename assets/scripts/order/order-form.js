@@ -1,6 +1,6 @@
 import Tooltip from "bootstrap/js/dist/tooltip.js";
 
-import { indexCatalog, packLabel } from "./lib/catalog.mjs";
+import { current, indexCatalog, packLabel } from "./lib/catalog.mjs";
 import {
   keyboardInset, moreStop, rowsFloor, visibleArea,
 } from "./lib/cart-scroll.mjs";
@@ -88,6 +88,7 @@ export class OrderForm {
 
     this.form = form;
     this.catalog = data.catalog;
+    this.aliases = data.aliases || {};
     this.terms = data.terms;
     this.contact = data.contact;
     // Discount codes, by hash; the plain codes stay on the server.
@@ -853,9 +854,11 @@ export class OrderForm {
 
     const added = [];
     const missing = [];
+    let unknown = false;
 
     for (const part of raw.split(",")) {
-      const [sku, qtyText] = part.split(":");
+      const [given, qtyText] = part.split(":");
+      const sku = current(given || "", this.aliases);
       const input = qs(this.form, `[data-qty="${CSS.escape(sku || "")}"]`);
       const qty = Math.min(99, Math.max(1, parseInt(qtyText, 10) || 1));
 
@@ -864,7 +867,9 @@ export class OrderForm {
       if (!input || input.closest("[data-out]")) {
         const item = this.index.get(sku);
 
-        missing.push(item ? item.lineName : sku);
+        // Named, never a raw SKU.
+        if (item) missing.push(item.lineName);
+        else unknown = true;
         continue;
       }
       this.setQty(input, Math.min(99, this.qty(input) + qty));
@@ -877,6 +882,11 @@ export class OrderForm {
     if (added.length) bits.push(`Added to your cart: ${added.join(", ")}.`);
     if (missing.length) {
       bits.push(`No longer available: ${missing.join(", ")}.`);
+    }
+    // Draft wording.
+    if (unknown) {
+      bits.push("Some items from that order have changed. Please add " +
+        "them again.");
     }
     notice.textContent = bits.join(" ");
     notice.hidden = !bits.length;
@@ -2018,7 +2028,10 @@ export class OrderForm {
     set("code", payload.code);
 
     for (const line of payload.lines || []) {
-      const input = qs(this.form, `[data-qty="${line.sku}"]`);
+      // A saved cart may predate a rename; a paid order being changed
+      // never does (its SKUs are all known, or it can't be changed).
+      const sku = this.editing ? line.sku : current(line.sku, this.aliases);
+      const input = qs(this.form, `[data-qty="${CSS.escape(sku)}"]`);
 
       if (input) this.setQty(input, line.qty);
     }

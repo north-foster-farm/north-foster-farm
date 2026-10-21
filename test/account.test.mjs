@@ -17,6 +17,8 @@ import { handle } from "../netlify/functions/account.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import { AFTERNOON, SCHEDULE } from "./schedule-fixture.mjs";
 
+// A SKU the catalog knows: an order with an unknown one can't change.
+const EGG = "NFF-CHK-EGG-LG";
 const MAILS = {
   FARM_NOTIFICATIONS_EMAIL: "farm@example.com",
   DEV_NOTIFICATIONS_EMAIL: "dev@example.com",
@@ -38,7 +40,7 @@ const order = (id, method = "delivery", email = "pat@example.com") => ({
   paidAt: now.toISOString(),
   customer: { name: "Pat Example", email, phone: "" },
   lines: [
-    { sku: "A", label: "Eggs (per dozen), Large", qty: 1, unitPrice: 7,
+    { sku: EGG, label: "Eggs, Large", qty: 1, unitPrice: 7,
       lineTotal: 7 },
   ],
   totals: { subtotal: 700, discountAmount: 0, deliveryFee: 500, total: 1200 },
@@ -175,6 +177,27 @@ describe("listOrders", () => {
     }]);
     assert.deepEqual(b.payments, []);
   });
+
+  it("never offers a change to an order holding a SKU the catalog lacks",
+    async () => {
+      const stores = testStores();
+      const old = {
+        ...order("OLD"),
+        lines: [{ sku: "NFF-CHK-BRSBL-0000-0125", label: "Boneless " +
+          "Breasts, 1.0 – 1.2 lbs", qty: 2, unitPrice: 15, lineTotal: 30 }],
+      };
+
+      await saveOrder(stores, old, now);
+
+      const { orders } = await listOrders(stores, customerOf(), { now });
+
+      assert.equal(orders[0].canChange, false);
+      assert.equal(orders[0].canCancel, true);
+
+      const r = await changeOrder(stores, customerOf(), "OLD", {}, { now });
+
+      assert.equal(r.status, 409);
+    });
 });
 
 describe("cancelOrder", () => {
@@ -183,7 +206,7 @@ describe("cancelOrder", () => {
     const stores = testStores();
     const { sent, calls, opts } = harness();
 
-    await setCount(stores, "A", 3);
+    await setCount(stores, EGG, 3);
     await saveOrder(stores, order("A"), now);
     const r = await cancelOrder(stores, customerOf(), "A", opts);
 
@@ -196,7 +219,7 @@ describe("cancelOrder", () => {
       ["square.refund", "PAY-A", 1200, "refund-cancel-A-0"],
       ["fulfilment", "SQO"],
     ]);
-    assert.equal((await getCounts(stores)).A, 4);
+    assert.equal((await getCounts(stores))[EGG], 4);
     assert.equal(sent.length, 2);
     assert.match(sent[0].subject, /cancelled/);
     assert.match(sent[0].text,
@@ -222,7 +245,7 @@ describe("cancelOrder", () => {
     const stores = testStores();
     const { sent, calls, opts } = harness();
 
-    await setCount(stores, "A", 3);
+    await setCount(stores, EGG, 3);
     await saveOrder(stores, order("A"), now);
     const r = await cancelOrder(stores, customerOf(), "A", {
       ...opts,
@@ -237,7 +260,7 @@ describe("cancelOrder", () => {
     assert.equal(r.order.cancelRequested, true);
     assert.equal(r.order.canCancel, false);
     assert.deepEqual(calls, []);
-    assert.equal((await getCounts(stores)).A, 4);
+    assert.equal((await getCounts(stores))[EGG], 4);
     assert.equal(sent.length, 2);
     assert.match(sent[0].text, /A refund of \$12 is on its way/);
     assert.equal(sent[1].subject,
@@ -542,12 +565,12 @@ describe("returns and support", () => {
       await saveOrder(stores, order("A"), now);
       sent.length = 0;
       const r = await requestReturn(stores, customerOf(), "A", {
-        reason: "One pack was thawed", skus: ["A", "nope"],
+        reason: "One pack was thawed", skus: [EGG, "nope"],
       }, opts);
 
       assert.equal(r.ok, true);
       assert.equal(r.request.status, "requested");
-      assert.deepEqual(r.request.skus, ["A"]);
+      assert.deepEqual(r.request.skus, [EGG]);
       assert.equal(r.order.returns.length, 1);
       assert.match(sent[0].subject, /Return request/);
     });
