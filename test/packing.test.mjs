@@ -349,6 +349,28 @@ describe("changed and cancelled orders", () => {
       assert.match(text, /\(PAID\)/);
     });
 
+  it("shows only the farm's refunds, not a change's", () => {
+    // The customer took items out: the total fell from $37 to $12 and
+    // the $25 difference went back.
+    const edited = order("E", {
+      lines: [{ sku: "EGG-L", label: "Eggs, Large", qty: 1, lineTotal: 7 }],
+    });
+
+    edited.totals = { ...edited.totals, subtotal: 700, total: 1200 };
+    edited.payments[0].amount = 3700;
+    edited.refunds = [
+      { amount: 2500, status: "COMPLETED", edit: "edit-1" },
+    ];
+    assert.deepEqual(paymentState(edited),
+      { paid: true, due: 0, refunded: 0 }, "the total already fell");
+
+    // The farm then refunds $5 for a cracked egg.
+    edited.refunds.push({ amount: 500, status: "COMPLETED" });
+    edited.refunds.push({ amount: 900, status: "FAILED" });
+    assert.deepEqual(paymentState(edited),
+      { paid: true, due: 0, refunded: 500 }, "a failed one returned nothing");
+  });
+
   it("mails a change to an order due today after the packet, once",
     async () => {
       const stores = testStores();

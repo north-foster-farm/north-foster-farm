@@ -39,7 +39,7 @@ import { log, scrub } from "./log.mjs";
 import { MailError, farmEmails, sendMail } from "./mail.mjs";
 import { pdf, wrap } from "./pdf.mjs";
 import {
-  allOrders, getOrder, paidTotal, paymentsOf, refundedTotal,
+  allOrders, getOrder, paidTotal, paymentsOf, settledRefunds,
 } from "./records.mjs";
 import { resendAllowed } from "./resend-guard.mjs";
 import { mailLinks } from "./site.mjs";
@@ -73,12 +73,20 @@ const hash = (...values) => createHash("sha256")
 // onto the page may still be `submitted`, unpaid. A refund never makes
 // an order owe: the total is what was ordered, and what went back is
 // its own line.
+//
+// That line counts only refunds off the total as it stands: the farm's
+// (`orders refund`) or one noted from Square or PayPal. A customer's
+// change that took items out lowered the total already and refunded
+// the difference (its refund carries `edit`), so counting it again
+// would read as money kept back.
 export const paymentState = (order) => {
   const due = order.status === "submitted"
     ? order.totals.total
     : Math.max(0, order.totals.total - paidTotal(order));
+  const refunded = settledRefunds(order).filter((r) => !r.edit)
+    .reduce((s, r) => s + (r.amount || 0), 0);
 
-  return { paid: due === 0, due, refunded: refundedTotal(order) };
+  return { paid: due === 0, due, refunded };
 };
 
 const paidWord = (state) => (state.paid ? "PAID" : "UNPAID");
@@ -786,6 +794,12 @@ export const packingDaily = async (stores, {
 // a fresh slip, and the snapshot moves on so each change is mailed
 // once. The key names the change by its content, so a retry of the
 // same change is the same message and a newer change a new one.
+//
+// Known gap (#292 QA, nit a), left for later: an order that goes from
+// A to B, back to A and to B again on its day repeats B's key within
+// Resend's 24 hours, so the last mail is deduplicated and never sent,
+// and the farm's newest sheet shows A. A count of the order's changes
+// that day in the key would close it.
 // -> the ids mailed this run.
 export const changedAfterPrint = async (stores, {
   env = process.env, mail = sendMail, now = new Date(),
