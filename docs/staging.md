@@ -192,10 +192,10 @@ through `POST /api/staging/e2e` (`lib/e2e.mjs`), with
 `E2E_STAGING_TOKEN`. The deploy runs each step against its own
 stores, so the suite holds no Netlify personal access token and no
 Blobs credentials, and a CI run needs none. The token opens that path
-and the order and contact limits' exemption and nothing else; `STAGING_TOKEN` (the
-toolbar and the jobs workflow) does not open the path, and this one
-does not open the toolbar's. Both are 404 on production and wherever
-they are unset.
+and the order and contact limits' exemption and nothing else;
+`STAGING_TOKEN` (the toolbar and the jobs workflow) does not open the
+path, and this one does not open the toolbar's. Both are 404 on
+production and wherever they are unset.
 
 Set `E2E_STAGING_TOKEN` on Netlify's `branch:staging` context and
 give the same value to the suite: in the environment, or in
