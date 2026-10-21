@@ -249,13 +249,24 @@ for (const width of [320, 360, 390]) {
     await expect(order.cart.locator("[data-badge='tier-150']"))
       .toHaveAttribute("data-on", "true");
 
-    const seen = await order.cart.locator(".order-badges").evaluate((ul) => ({
-      lines: new Set([...ul.querySelectorAll("li")]
-        .map((li) => Math.round(li.getBoundingClientRect().top))).size,
-      over: ul.scrollWidth - ul.clientWidth,
-    }));
+    const seen = await order.cart.locator(".order-badges").evaluate((ul) => {
+      const lis = [...ul.querySelectorAll("li")];
 
-    expect(seen).toEqual({ lines: 1, over: 0 });
+      return {
+        lines: new Set(lis.map((li) => Math.round(li.getBoundingClientRect()
+          .top))).size,
+        over: ul.scrollWidth - ul.clientWidth,
+        spare: ul.clientWidth - lis.reduce(
+          (n, li) => n + li.getBoundingClientRect().width, 0
+        ),
+      };
+    });
+
+    expect({ lines: seen.lines, over: seen.over })
+      .toEqual({ lines: 1, over: 0 });
+    // Room to spare: Linux's Chromium rounds each letter to a whole
+    // pixel, and wrapped the line where a Mac left 5.5px (#289).
+    expect(seen.spare, "px to spare").toBeGreaterThanOrEqual(6);
   });
 }
 

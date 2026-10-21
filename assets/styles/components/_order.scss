@@ -798,12 +798,12 @@
       }
     }
 
-    // At 320 the row has 254px and lit they need 264: closer still
-    // (#278).
+    // At 320 the row has 254px. At 13px, lit, they took 248 on a Mac
+    // and 255 on Linux, whose Chromium rounds each letter to a whole
+    // pixel, so "$200+" wrapped there (#289). At 12px they take 246
+    // and 241, dots and all: room to spare on both (#278).
     @media (max-width: 359.98px) {
-      li + li::before {
-        padding: 0 0.0625rem;
-      }
+      font-size: 0.75rem;
     }
   }
 
