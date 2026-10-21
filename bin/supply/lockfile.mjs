@@ -49,15 +49,19 @@ export const tooNew = (packages, published, now, days, waivers = []) => {
 };
 
 // The packages whose resolved version has no provenance attestation and
-// whose name is not in the approved baseline. `attested` maps
-// "name@version" to true or false.
+// that the approved baseline does not cover. `attested` maps
+// "name@version" to true or false. A baseline entry is a bare name,
+// which approves every version, or "name@version", which approves that
+// version only. A scoped name ("@s/c", "@s/c@1.0.0") starts with "@",
+// so the two forms differ by an "@" after the first character.
 export const newlyUnattested = (packages, attested, baseline) => {
   const approved = new Set(baseline);
 
   return packages
     .filter(({ name, version }) => attested[`${name}@${version}`] === false)
+    .filter(({ name, version }) =>
+      !approved.has(name) && !approved.has(`${name}@${version}`))
     .map(({ name }) => name)
-    .filter((name) => !approved.has(name))
     .filter((name, i, all) => all.indexOf(name) === i)
     .sort();
 };

@@ -82,6 +82,31 @@ describe("newlyUnattested", () => {
     assert.deepEqual(newlyUnattested(pkgs, attested, []), ["a", "b"]);
     assert.deepEqual(newlyUnattested(pkgs, attested, ["a"]), ["b"]);
   });
+
+  it("approves only the pinned version of a name@version entry", () => {
+    assert.deepEqual(
+      newlyUnattested(pkgs, attested, ["a@1.0.0", "b"]), ["a"],
+    );
+    assert.deepEqual(
+      newlyUnattested(pkgs, attested, ["a@1.0.0", "a@1.1.0", "b"]), [],
+    );
+  });
+
+  it("reads a scoped name with and without a pinned version", () => {
+    const scoped = [
+      { name: "@s/c", version: "3.0.0" },
+      { name: "@s/c", version: "3.1.0" },
+    ];
+    const none = { "@s/c@3.0.0": false, "@s/c@3.1.0": false };
+
+    assert.deepEqual(newlyUnattested(scoped, none, ["@s/c"]), []);
+    assert.deepEqual(
+      newlyUnattested(scoped, none, ["@s/c@3.0.0"]), ["@s/c"],
+    );
+    assert.deepEqual(
+      newlyUnattested(scoped, none, ["@s/c@3.0.0", "@s/c@3.1.0"]), [],
+    );
+  });
 });
 
 describe("registryFacts", () => {
