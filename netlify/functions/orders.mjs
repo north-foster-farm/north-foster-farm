@@ -45,6 +45,7 @@ import {
 } from "./lib/records.mjs";
 import { DECLINE_MESSAGES as SQUARE_DECLINES } from "./lib/square.mjs";
 import { checkLines } from "./lib/stock.mjs";
+import { limitExempt } from "./lib/limit-exempt.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 
 const index = indexCatalog(catalog);
@@ -65,19 +66,6 @@ const rateLimited = (ip, now) => {
   hits.set(ip, recent);
 
   return recent.length > RATE.max;
-};
-
-// Off production, a request carrying the staging token (the toolbar's,
-// or the e2e suite's own) as X-Staging-Token skips the limit, so the QA
-// suite and a person testing by hand can share one address. Without the
-// header staging keeps the limit, so it can still be tested; in
-// production the header means nothing.
-const exempt = (req, env) => {
-  const context = deployContext(env);
-  const given = req.headers.get("x-staging-token");
-
-  return !!given && !!context && context !== "production" &&
-    [env.STAGING_TOKEN, env.E2E_STAGING_TOKEN].includes(given);
 };
 
 // Human-readable, and the same for every retry of one submission:
@@ -182,7 +170,7 @@ export const handle = async (req, {
 
   // A customer can reach the limit through a run of declines, so it is
   // said plainly: a silent answer here read as a placed order.
-  if (!closed && !exempt(req, env) && rateLimited(ip, now.getTime())) {
+  if (!closed && !limitExempt(req, env) && rateLimited(ip, now.getTime())) {
     return new Response(JSON.stringify({
       message: "There have been too many tries from here. Wait a few " +
         "minutes and try again; your order is saved on this page.",

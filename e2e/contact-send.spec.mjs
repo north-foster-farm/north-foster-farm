@@ -8,9 +8,16 @@ import { NONCE, eggOrder, postOrder } from "./support/api.mjs";
 import { expect, test, uniqueEmail } from "./support/order.mjs";
 import {
   BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, contactMessages,
-  deleteContactMessages, deleteCustomer, linkIn, mailTo, outbox, teardown,
-  waitForMail,
+  deleteContactMessages, deleteCustomer, linkIn, mailTo, orderLimitHeaders,
+  outbox, teardown, waitForMail,
 } from "./support/staging.mjs";
+
+// The contact form allows 5 messages in 10 minutes from one address,
+// and a burn-in runs this file ten times over. Off production the
+// staging token skips the limit, as for orders; only /api/contact is
+// given it, never the other hosts a page calls. rate-limit.spec is
+// where the limit itself is tested.
+const limit = orderLimitHeaders();
 
 test.describe.configure({ mode: "serial" });
 
@@ -25,6 +32,18 @@ test.describe("contact messages (#140)", () => {
 
   test.beforeAll(() => {
     since = new Date();
+  });
+
+  // On the context, so a tab a test opens (as from an email) has it too.
+  test.beforeEach(async ({ context }) => {
+    if (!Object.keys(limit).length) return;
+    await context.route("**/api/contact", (route) => (
+      route.request().method() === "POST"
+        ? route.continue({
+          headers: { ...route.request().headers(), ...limit },
+        })
+        : route.fallback()
+    ));
   });
 
   test.afterAll(() => teardown([
@@ -70,9 +89,12 @@ test.describe("contact messages (#140)", () => {
 
   test("someone else's order number is named to the farm only",
     async ({ request }) => {
-      const res = await request.post("/api/contact", { data: {
-        name, email, orderId: "NFF-0000-QAQA", message: "Whose is this?",
-      } });
+      const res = await request.post("/api/contact", {
+        headers: limit,
+        data: {
+          name, email, orderId: "NFF-0000-QAQA", message: "Whose is this?",
+        },
+      });
 
       expect(res.status()).toBe(200);
       expect(await res.json()).toEqual({ ok: true });
@@ -149,16 +171,20 @@ test.describe("contact messages (#140)", () => {
   test("the honeypot and bad fields are refused at the API",
     async ({ request }) => {
       const before = (await contactMessages(email)).length;
-      const trap = await request.post("/api/contact", { data: {
-        name, email, message: "Buy followers", website: "https://spam",
-      } });
+      const trap = await request.post("/api/contact", {
+        headers: limit,
+        data: {
+          name, email, message: "Buy followers", website: "https://spam",
+        },
+      });
 
       expect(trap.status()).toBe(200);
       expect(await trap.json()).toEqual({ ok: true });
 
-      const bad = await request.post("/api/contact", { data: {
-        name: " ", email: "you@farm", message: "",
-      } });
+      const bad = await request.post("/api/contact", {
+        headers: limit,
+        data: { name: " ", email: "you@farm", message: "" },
+      });
 
       expect(bad.status()).toBe(422);
       expect((await bad.json()).errors).toEqual({
@@ -168,7 +194,7 @@ test.describe("contact messages (#140)", () => {
       });
 
       const foreign = await request.post("/api/contact", {
-        headers: { Origin: "https://example.org" },
+        headers: { ...limit, Origin: "https://example.org" },
         data: { name, email, message: "From elsewhere" },
       });
 

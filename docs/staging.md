@@ -180,7 +180,10 @@ skips it, so the QA suite sends the header and leaves the limit to a
 person testing by hand on the same machine. A request without it meets
 the limit as production does, which is how the limit itself is tested.
 The end-to-end suite sends `E2E_STAGING_TOKEN` instead, which skips it
-the same way.
+the same way. `/api/contact` (5 messages per 10 minutes) honors the
+same header (`lib/limit-exempt.mjs`), so a burn-in that sends many
+messages from one address is not refused; `rate-limit.spec.mjs` still
+tests both limits without it.
 
 ## The end-to-end suite's access (#266)
 

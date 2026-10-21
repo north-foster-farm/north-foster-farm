@@ -180,6 +180,35 @@ describe("POST /api/contact", () => {
       assert.match((await sixth.json()).message, /too many messages/);
     });
 
+  // As for orders (docs/staging.md, "The order limit"): the e2e suite
+  // posts many messages from one address.
+  it("lets the staging token past the limit off production only",
+    async () => {
+      const token = "e2e-token-123";
+      const run = async (context, headers) => {
+        const one = ip();
+        const statuses = [];
+        const opts = {
+          stores: testStores(), now, ip: one, mail: mailbox().mail,
+          env: { ...env, SITE_CONTEXT: context, E2E_STAGING_TOKEN: token },
+        };
+
+        for (let i = 0; i < 7; i += 1) {
+          statuses.push((await handle(req(good, headers), opts)).status);
+        }
+
+        return statuses.filter((s) => s === 429).length;
+      };
+
+      assert.equal(await run("branch-deploy",
+        { "X-Staging-Token": token }), 0);
+      assert.equal(await run("branch-deploy",
+        { "X-Staging-Token": "wrong" }), 2);
+      assert.equal(await run("branch-deploy", {}), 2);
+      assert.equal(await run("production",
+        { "X-Staging-Token": token }), 2);
+    });
+
   it("refuses a cross-site post and a body that is not JSON", async () => {
     const opts = { stores: testStores(), env, now, ip: ip(),
       mail: mailbox().mail };

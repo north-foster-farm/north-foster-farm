@@ -18,6 +18,7 @@ import { randomBytes } from "node:crypto";
 import { normalizeEmail, sameSite, validEmail } from "./lib/auth.mjs";
 import { alert, noteMail } from "./lib/health.mjs";
 import { json, readJson } from "./lib/http.mjs";
+import { limitExempt } from "./lib/limit-exempt.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { farmEmails, mailbox, sendMail } from "./lib/mail.mjs";
 import { getOrder } from "./lib/records.mjs";
@@ -101,7 +102,8 @@ export const handle = async (req, {
 
   // Said plainly: a quiet 200 here thanked a real writer for a message
   // that was then dropped.
-  const wait = rateLimited(ip, now.getTime());
+  // The staging token skips the limit off production, as for orders.
+  const wait = limitExempt(req, env) ? 0 : rateLimited(ip, now.getTime());
 
   if (wait) {
     return json(429, {
