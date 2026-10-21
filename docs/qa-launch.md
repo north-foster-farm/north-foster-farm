@@ -21,7 +21,30 @@ bin/nff --staging orders list
 build instead: `npm run e2e:serve` (`bin/e2e/serve.mjs`) builds the
 site as staging does and serves it with the functions offline and
 fake payments, and the back office answers to a token made for the
-run. To run it the same way on a machine:
+run.
+
+The server is a few hundred lines of Node of our own, not `netlify
+dev`: the Netlify CLI brings over a thousand packages, most without
+provenance, and would need James to approve each one. It does what
+the suite needs of Netlify, and no more:
+
+- **Emulated:** each function answers on its own `config.path` and
+  methods, with `context.ip` and `context.waitUntil`; `netlify.toml`'s
+  redirects (forced ones before files, the rest after, a 200 as a
+  rewrite) and its header rules; `/about` sends 301 to `/about/`; a
+  missing page is `404.html` with a 404.
+- **Not emulated:** edge functions, so the access gate never runs
+  (`gate.spec.mjs` stays with the staging run); Netlify Blobs, so the
+  stores are the functions' memory stores, gone when the server stops,
+  and one process shares them; scheduled runs (the jobs answer only
+  when called); Netlify's own headers, caching, ETags, compression
+  and request limits; Square's and PayPal's real forms (the fakes
+  stand in).
+
+So a green `e2e` says the site and its functions work together. It
+says nothing about Netlify's platform: that is what staging is for,
+and anything that needs it belongs in the run against staging, never
+in a fake here. To run it the same way on a machine:
 
 ```sh
 export E2E_STAGING_TOKEN=$(openssl rand -hex 24)

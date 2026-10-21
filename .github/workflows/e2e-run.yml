@@ -57,7 +57,6 @@ jobs:
       matrix:
         shard: ${{ fromJSON(inputs.shards) }}
     env:
-      NETLIFY_CLI_VERSION: 26.1.0
       E2E_PORT: 8895
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -74,10 +73,6 @@ jobs:
         run: npm ci
 
       - uses: ./.github/actions/setup-hugo
-
-      # Pinned, not whatever npx would fetch.
-      - name: Install the Netlify CLI
-        run: npm install --global "netlify-cli@$NETLIFY_CLI_VERSION"
 
       - name: Playwright version
         id: playwright
