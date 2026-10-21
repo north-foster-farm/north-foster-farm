@@ -255,6 +255,106 @@ test.describe("restock types (#267)", () => {
         expect(products.map((p) => p.sku)).not.toContain(sku);
       }
     });
+
+  // Nothing is archived yet, so one is stubbed (qa, after 3f10e84): the
+  // order page is served as the build makes it for an archived item,
+  // with no row and no search entry, its catalog entry marked so, and
+  // /api/stock saying it is on hand, as when a restock leaves the flag
+  // on. Nothing may bring it back, and ?add= of it is refused by name.
+  test.describe("a stubbed archived product", () => {
+    const sku = "NFF-CHK-WNG-0200-0300"; // Wings, 2.0 - 2.9 lbs
+
+    // A stock check still in flight at the end must not fail the next
+    // test.
+    test.afterEach(({ page }) => page.unrouteAll({
+      behavior: "ignoreErrors",
+    }));
+
+    const archive = async (page) => {
+      await stubStock(page, { [sku]: { inStock: true, available: 5 } });
+      await page.route(/\/order\/(\?.*)?$/, async (route) => {
+        if (route.request().resourceType() !== "document") {
+          return route.fallback();
+        }
+
+        const res = await route.fetch();
+        let html = await res.text();
+        const quoted = `"?${sku}"?`;
+        const rowRe = new RegExp(
+          `<li[^>]*data-sku=${quoted}[^>]*>[\\s\\S]*?</li>`
+        );
+
+        expect(html).toMatch(rowRe);
+        html = html.replace(rowRe, "");
+
+        // The page's catalog keeps the item, as data/catalog.json does,
+        // marked archived.
+        html = html.replace(
+          /(id="?order-data"?>)([\s\S]*?)(<\/script>)/,
+          (all, open, json, close) => {
+            const data = JSON.parse(json);
+
+            for (const group of data.catalog.groups) {
+              for (const item of group.items) {
+                if (item.sku === sku) item.restock = "archived";
+              }
+            }
+
+            return `${open}${JSON.stringify(data)}${close}`;
+          }
+        );
+        // Search's products leave it out.
+        html = html.replace(
+          /(data-search-products>)([\s\S]*?)(<\/script>)/,
+          (all, open, json, close) => `${open}${JSON.stringify(
+            JSON.parse(json).filter((p) => p.sku !== sku)
+          )}${close}`
+        );
+
+        return route.fulfill({ response: res, body: html });
+      });
+    };
+
+    test("has no row under either choice, on hand or not",
+      async ({ page }) => {
+        await archive(page);
+        await open(page);
+        await expect(row(page, SKU.wings)).toBeVisible();
+        for (const name of ["In stock", "Full catalog"]) {
+          await show(page, name);
+          await expect(row(page, sku)).toHaveCount(0);
+          await expect(page.locator("#cat-wings .order-item:visible"))
+            .toHaveCount(name === "In stock" ? 1 : 2);
+        }
+      });
+
+    test("is not in search", async ({ page }) => {
+      await archive(page);
+      await open(page);
+
+      const stock = page.waitForResponse("**/api/stock");
+
+      await page.locator("[data-search-open]").click();
+      await page.locator("#search-palette-input").fill("wings");
+      await stock.catch(() => null);
+
+      const rows = page.locator("#search-palette-list [role='option']");
+
+      await expect(rows).toHaveCount(2);
+      await expect(rows.and(page.locator(`[data-sku="${sku}"]`)))
+        .toHaveCount(0);
+    });
+
+    test("is refused by ?add=, named", async ({ page }) => {
+      await archive(page);
+      await page.goto(`/order/?add=${sku}:2,${SKU.eggs}:1`);
+      await expect(page.locator("#order-added")).toHaveText(
+        "Added to your cart: 1 × Large. " +
+        "No longer available: Wings, 2.0 – 2.9 lbs."
+      );
+      await expect(new OrderPage(page).count).toHaveText("1 item");
+    });
+  });
 });
 
 test.describe("search and restock types (#267)", () => {
