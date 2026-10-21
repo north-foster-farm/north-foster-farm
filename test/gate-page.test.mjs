@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
+import { render as renderFonts } from "../bin/gate-fonts.mjs";
 import { render } from "../bin/gate-logo.mjs";
 import { handle } from "../netlify/functions/gate.mjs";
 import {
@@ -35,8 +36,25 @@ describe("the gate's pages", () => {
     for (const [name, html] of Object.entries(pages)) {
       assert.ok(!/[<](script|link|img|iframe|object|embed)\b/i.test(html),
         name);
-      assert.ok(!/@import|url\(|src=/i.test(html), name);
+      assert.ok(!/@import|src=/i.test(html), name);
+
+      // The only url() is Aller, regular and bold, inline.
+      const urls = html.match(/url\(/gi) || [];
+      const fonts = html.match(/url\(data:font\/woff2;base64,/g) || [];
+
+      assert.equal(urls.length, 2, name);
+      assert.equal(fonts.length, 2, name);
     }
+  });
+
+  it("set the site's Aller, regular and bold, from its own files", () => {
+    const module = readFileSync(
+      join(root, "netlify/functions/lib/gate-fonts.mjs"), "utf8");
+
+    assert.equal(module, renderFonts(),
+      "run node bin/gate-fonts.mjs: the Aller files changed");
+    assert.match(pages.signIn, /font-weight: 400;\s+src: url\(data:font/);
+    assert.match(pages.signIn, /font-weight: 700;\s+src: url\(data:font/);
   });
 
   it("carry the site's header: the logo, centered, and no nav", () => {
@@ -91,7 +109,9 @@ describe("the gate's pages", () => {
     assert.ok(!pages.signIn.includes("role=\"alert\""), "no message");
     assert.match(pages.invalid,
       /id="gate-message" role="alert">That link has expired/);
-    assert.match(pages.invalid, /aria-describedby="gate-message"/);
+    assert.match(pages.invalid,
+      /aria-describedby="gate-message" autofocus>/);
+    assert.ok(!pages.signIn.includes("autofocus"), "no focus unasked");
   });
 
   it("give the button and the link the same brand style and states",

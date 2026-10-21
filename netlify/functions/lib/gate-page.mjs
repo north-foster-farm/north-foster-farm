@@ -2,8 +2,10 @@
 // inline. They are served before anyone is signed in, by the edge as
 // well as the gate's function, so they can load nothing: not the
 // site's stylesheet, fonts or scripts, and nothing from elsewhere. The
-// logo is inline (lib/gate-logo.mjs), and the styles below copy the
-// site's own, read from its build: the header row and its green
+// logo is inline (lib/gate-logo.mjs), Aller regular and bold ride
+// along as data: URIs (lib/gate-fonts.mjs, which the site's CSP allows
+// in font-src), and the styles below copy the site's own, read from
+// its build: the header row and its green
 // stripe, Bootstrap's field, and the brand button in every state
 // (_global.scss, _variables.scss). In dark mode they take the footer
 // band's colors (mixins/_dark_band.scss), the site's one dark surface.
@@ -11,6 +13,7 @@
 
 import gate from "../../../data/gate.json" with { type: "json" };
 import { company } from "./company.mjs";
+import { bold, regular } from "./gate-fonts.mjs";
 import { mark, wordmark } from "./gate-logo.mjs";
 
 const LINK_MINUTES = gate.linkMinutes;
@@ -33,7 +36,13 @@ export const COPY = {
   label: "Email address",
 };
 
-const STYLE = `
+const face = (weight, data) => `
+  @font-face {
+    font-family: Aller; font-style: normal; font-weight: ${weight};
+    src: url(data:font/woff2;base64,${data}) format("woff2");
+  }`;
+
+const STYLE = `${face(400, regular)}${face(700, bold)}
   :root {
     color-scheme: light dark;
     --bg: #fff;
@@ -215,7 +224,8 @@ ${body}
 `;
 
 // `message` is one line of ours (never a visitor's text). It is said
-// at once (role="alert") and tied to the field it is about.
+// at once (role="alert") and tied to the field it is about, and the
+// field takes focus so trying again starts there.
 export const signInPage = ({ next = "/", message = "" } = {}) => shell(
   "Staging sign-in",
   `<p>${escape(COPY.ask)}</p>
@@ -226,7 +236,7 @@ ${message
   <label for="email">${COPY.label}</label>
   <input id="email" name="email" type="email" inputmode="email"
     autocomplete="email" autocapitalize="off" spellcheck="false" required${
-  message ? ` aria-describedby="gate-message"` : ""}>
+  message ? ` aria-describedby="gate-message" autofocus` : ""}>
   <input class="hp" name="website" tabindex="-1" autocomplete="off"
     aria-hidden="true">
   <input type="hidden" name="next" value="${escape(next)}">
