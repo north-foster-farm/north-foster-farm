@@ -13,7 +13,8 @@
       <dt id="{{ $id }}-label">{{ .label }}:</dt>
       <dd>
         <code class="staging-card-value" id="{{ $id }}">{{ .value }}</code>
-        <button type="button" class="staging-copy" data-staging-copy="{{ .copy | default .value }}" aria-describedby="{{ $id }}-label {{ $id }}">Copy</button>
+        {{ $name := printf "Copy %s" .name }}
+        <button type="button" class="staging-copy" data-staging-copy="{{ .copy | default .value }}" aria-label="{{ $name }}" title="{{ $name }}"><span aria-hidden="true">{{ partial "svg.html" "icons/copy" }}</span></button>
         <span class="staging-copied" role="status" aria-live="polite"></span>
       </dd>
     </div>

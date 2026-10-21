@@ -98,6 +98,7 @@ or named in an issue; the others an agent took from the set named.
 | `icons/sign.svg` | Lucide; James supplied | NOTICE | a0179ec. |
 | `icons/changes.svg`, `lot-location.svg` | Lucide; James supplied | NOTICE | #137, #159. |
 | `icons/panel-open.svg`, `panel-close.svg` | Lucide; James supplied | NOTICE | Byte-identical to `~/Code/nff/panel-*.svg`. |
+| `icons/copy.svg` | Lucide | NOTICE | Lucide's `copy`, from `lucide-static@0.460.0` (unpkg), shapes unchanged, attributes as the set's others. James approved it on #294 (2026-10-21) for the staging sandbox card's copy buttons. |
 | `icons/chevrons-right.svg` | Lucide; James supplied | NOTICE | `~/Code/nff/chevrons-right.svg`, class stripped (2e8a846, #228). Order page's section marker. |
 | `icons/wallet.svg` | Lucide; James supplied | NOTICE | `~/Code/nff/wallet.svg`, class stripped (1610f12, #212). Home ways band, cost line. |
 | `icons/cart.svg`, `tractor.svg` | Lucide; supplier not recorded | NOTICE | From lucide.dev's page, going by its `preview-icon` class (3225811). `cart.svg` matches no icon in lucide-react 1.28.0: another release, or edited. |

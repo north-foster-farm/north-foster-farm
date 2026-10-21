@@ -1,14 +1,17 @@
 {
   "source": "https://developer.squareup.com/docs/devtools/sandbox/payments",
-  "note": "Square's sandbox Visa: card number and CVV as its docs give them; they allow any future expiry and any valid ZIP, so these are the ones docs/qa-fulfilment-a.md uses. Public test values, not secrets. Shown on staging only (#294).",
+  "note": "Square's sandbox Visa: card number and CVV as its docs give them; they allow any future expiry and any valid ZIP, so these are the ones docs/qa-fulfilment-a.md uses. Public test values, not secrets. Shown on staging only (#294). `name` is what the copy button says to a screen reader.",
   "rows": [
-    { "id": "name", "label": "Card name", "value": "Visa" },
+    { "id": "name", "label": "Card name", "name": "card name", "value": "Visa" },
     {
-      "id": "number", "label": "Card number",
+      "id": "number", "label": "Card number", "name": "card number",
       "value": "4111 1111 1111 1111", "copy": "4111111111111111"
     },
-    { "id": "expiry", "label": "Expiration (MM/YY)", "value": "12/30" },
-    { "id": "cvv", "label": "CVV", "value": "111" },
-    { "id": "zip", "label": "ZIP", "value": "94103" }
+    {
+      "id": "expiry", "label": "Expiration (MM/YY)",
+      "name": "expiration date", "value": "12/30"
+    },
+    { "id": "cvv", "label": "CVV", "name": "CVV", "value": "111" },
+    { "id": "zip", "label": "ZIP", "name": "ZIP", "value": "94103" }
   ]
 }
