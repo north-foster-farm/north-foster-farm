@@ -21,6 +21,9 @@
 //               and a warning when the pickup schedule runs short
 //   tomorrow    18:00 daily, always: every order due tomorrow, by
 //               method, with what to pack and where it goes
+//   packing     6:00 daily, always: the packing slips as one PDF, or
+//               "nothing to print"; then, all day, an order due today
+//               that changes after it was printed (lib/packing.mjs)
 //   audience    once a day from 05:00: the farm-news audience in Resend
 //               and the records made to agree
 //   rotation    8:00 on Dec 1 and weekly after, to the developer: the
@@ -45,6 +48,7 @@ import { alert, escalate, ping, readCount, readMark } from "./health.mjs";
 import { log } from "./log.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { audienceConfigured, syncAudience } from "./news.mjs";
+import { changedAfterPrint, packingDaily } from "./packing.mjs";
 import { sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
@@ -108,7 +112,8 @@ export const runJobs = async (stores, {
     at: now.toISOString(), announced: [], deliveryReminded: [], closed: [],
     squareSynced: [], muted: [], checkoutsRescued: [], checkoutsSwept: 0,
     authSwept: 0, pickupsToConfirm: [], scrubbed: [],
-    tomorrow: null, rotation: null, errors: [], invariants: [],
+    tomorrow: null, packing: null, changedAfterPrint: [], rotation: null,
+    errors: [], invariants: [],
   };
   const opts = { env, mail, now };
   const fail = (id, step, error) => {
@@ -220,6 +225,10 @@ export const runJobs = async (stores, {
     }))) || [];
   report.tomorrow = await attempt(null, "tomorrowReport",
     () => tomorrowReport(stores, { env, mail, now }));
+  report.packing = await attempt(null, "packing",
+    () => packingDaily(stores, { env, mail, now, fetchImpl }));
+  report.changedAfterPrint = (await attempt(null, "changedAfterPrint",
+    () => changedAfterPrint(stores, { env, mail, now }))) || [];
   report.rotation = await attempt(null, "rotationReminder",
     () => rotationDaily(stores, { env, mail, now }));
   report.escalated = (await attempt(null, "escalation",
@@ -305,8 +314,9 @@ export const summarize = (report) => ({
   at: report.at,
   counts: Object.fromEntries([
     "announced", "deliveryReminded", "closed", "squareSynced", "muted",
-    "checkoutsRescued", "pickupsToConfirm", "scrubbed",
+    "checkoutsRescued", "pickupsToConfirm", "scrubbed", "changedAfterPrint",
   ].map((k) => [k, (report[k] || []).length])),
+  packing: report.packing || null,
   checkoutsSwept: report.checkoutsSwept || 0,
   authSwept: report.authSwept || 0,
   tomorrow: report.tomorrow,

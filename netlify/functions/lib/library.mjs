@@ -12,6 +12,10 @@
 // until it is ported here.
 
 import { launchEmail } from "./launch.mjs";
+import {
+  attachment, byFulfilment, changesBetween, fileName, packetPdf, packetTitle,
+  snapshotOf,
+} from "./packing.mjs";
 import * as t from "./templates.mjs";
 import { orderPathFor } from "./site.mjs";
 
@@ -213,10 +217,86 @@ const before = () => ({
   lines: order().lines, totals: order().totals, method: "delivery",
 });
 
+// A Tuesday's packing slips (#292), all fake: two new orders for
+// Thursday, one changed since its slip, one owing money, and a drop-
+// site order cancelled since it was printed. -> { day, now, entries }.
+export const samplePacket = () => {
+  const day = "2026-10-06";
+  const lee = (over = {}) => order({
+    id: "NFF-2610-ZX4T", customer: other("Lee", "Marchetti"), notes: "",
+    fulfilment: {
+      ...order().fulfilment,
+      delivery: {
+        address1: "310 Danielson Pike", town: "Scituate", state: "RI",
+        zip: "02857", cooler: "On the front porch", gate: "4471", notes: "",
+      },
+    },
+    ...over,
+  });
+  const leeNow = lee({
+    lines: added.lines, totals: added.totals, payments: added.payments,
+  });
+  const robin = pickup({
+    id: "NFF-2610-HT6P", customer: other("Robin", "Ashby"), notes: "",
+    status: "submitted", payments: [],
+  });
+  const jo = dropSite({
+    id: "NFF-2610-WB2N", customer: other("Jo", "Pereira"), notes: "",
+    status: "cancelled",
+  });
+
+  return {
+    day,
+    now: new Date("2026-10-06T10:00:00.000Z"),
+    entries: [
+      { order: order(), kind: "new", changes: [] },
+      {
+        order: leeNow, kind: "changed",
+        changes: changesBetween(snapshotOf(lee()), snapshotOf(leeNow)),
+      },
+      {
+        order: pickup({
+          id: "NFF-2610-PQ7R", customer: other("Sam", "Okafor"),
+        }),
+        kind: "new", changes: [],
+      },
+      { order: robin, kind: "new", changes: [] },
+      { order: jo, kind: "cancelled", changes: [] },
+    ].sort(byFulfilment),
+  };
+};
+
+const packetMail = (links) => {
+  const { day, now, entries } = samplePacket();
+  const filename = fileName(day);
+
+  return {
+    ...t.farmPackingSlips(entries, {
+      day, slips: 4, revised: 1, cancelled: 1, filename, links,
+    }),
+    attachments: [attachment(filename, packetPdf({
+      entries, now, title: packetTitle(day),
+    }))],
+  };
+};
+
+const changedMail = (links) => {
+  const { day, now, entries } = samplePacket();
+  const e = entries.find((x) => x.kind === "changed");
+
+  return {
+    ...t.farmChangedAfterPrint(e, { date: e.order.fulfilment.date, links }),
+    attachments: [attachment(fileName(day, `-${e.order.id}-1`), packetPdf({
+      entries: [e], now, cover: false, title: "Changed after printing",
+    }))],
+  };
+};
+
 // The sample values above that no pattern in lib/review.mjs catches
 // (names, items, notes, messages), so a rewrite keeps them as tokens.
 export const SAMPLE_TEXT = [
-  "Dana Whitcomb", "Dana", "Sam Okafor", "Lee Marchetti",
+  "Dana Whitcomb", "Dana", "Sam Okafor", "Lee Marchetti", "Robin Ashby",
+  "Jo Pereira",
   "Whole Chicken, 3.5 – 3.9 lbs", "Eggs, Large",
   "Green cooler by the garage", "Dog is friendly",
   "Please leave the eggs on top.", "On the front porch",
@@ -617,6 +697,26 @@ export const library = [
         notes: "",
       }),
     ], { date: "2026-10-08", links }),
+  },
+  {
+    id: "farm-packing-slips", name: "Packing slips",
+    when: "Every day at 6:00, with the PDF to print; Sundays the week",
+    audience: F, tags: ["report", "delivery", "pickup", "drop site", "pdf"],
+    build: packetMail,
+  },
+  {
+    id: "farm-packing-quiet", name: "Packing slips, nothing to print",
+    when: "Every day at 6:00 when nothing is new, changed or cancelled",
+    audience: F, tags: ["report"],
+    build: (links) => t.farmPackingSlips([], {
+      day: "2026-10-06", quiet: true, links,
+    }),
+  },
+  {
+    id: "farm-changed-after-print", name: "Changed after printing",
+    when: "An order due today changes after the morning's slips",
+    audience: F, tags: ["alert", "delivery", "pdf"],
+    build: changedMail,
   },
 
   // Farm news

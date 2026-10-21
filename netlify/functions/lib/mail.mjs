@@ -119,6 +119,12 @@ export const mailbox = (name, email) => {
   return `${display} <${email}>`;
 };
 
+// A message's files, each { filename, contentType, content } with the
+// content in base64 (the packing slips' PDF, #292).
+export const attached = (message) =>
+  (Array.isArray(message.attachments) ? message.attachments : [])
+    .filter((a) => a && a.filename && a.content);
+
 // Resend answers in a second; one that takes longer is not waited for
 // (an alert sent from the order path must not eat the request).
 export const RESEND_MS = 4000;
@@ -141,6 +147,12 @@ const viaResend = async (message, env, fetchImpl) => {
       subject: message.subject,
       text: message.text,
       html: message.html,
+      attachments: attached(message).length
+        ? attached(message).map((a) => ({
+          filename: a.filename, content: a.content,
+          "content_type": a.contentType,
+        }))
+        : undefined,
       headers: message.idempotencyKey || message.headers
         ? {
           ...message.headers,
@@ -175,6 +187,7 @@ const viaLog = async (message) => {
     replyTo: message.replyTo,
     subject: message.subject,
     text: message.text,
+    attachments: attached(message).map((a) => a.filename),
   }));
 
   return { id: null, driver: "log" };
@@ -196,6 +209,12 @@ export const viaFile = async (message, env, now = new Date()) => {
   writeFileSync(join(dir, `${base}.txt`),
     `To: ${to}\n${message.replyTo ? `Reply-To: ${message.replyTo}\n` : ""}` +
     `Subject: ${message.subject}\n\n${message.text}\n`);
+  for (const a of attached(message)) {
+    const name = a.filename.replace(/[^\w.-]+/g, "-");
+
+    writeFileSync(join(dir, `${base}-${name}`),
+      Buffer.from(a.content, "base64"));
+  }
   console.info(JSON.stringify({
     event: "mail.filed", to: message.to, subject: message.subject,
     file: join(dir, `${base}.html`),
@@ -233,6 +252,8 @@ export const viaOutbox = async (message, env, stores, now = new Date()) => {
     subject: message.subject,
     text: message.text || "",
     html: message.html || "",
+    ...(attached(message).length
+      ? { attachments: attached(message) } : {}),
   });
 
   if (keyed) await jobs.set(keyed, { id, at: now.toISOString() });

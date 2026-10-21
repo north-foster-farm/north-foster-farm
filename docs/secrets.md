@@ -137,7 +137,7 @@ of every row.
 | `RESEND_WEBHOOK_SECRET` | secret | production only | env file | Resend |
 | `RESEND_READ_KEY` | secret, old | production, until launch day's live checks pass | none | Resend |
 | `AXIOM_TOKEN` | secret | production; staging | env file | Axiom |
-| `HEALTHCHECKS_JOBS_URL`, `_ALERT_URL`, `_BACKUP_URL` | ping URLs | each environment (backup: production only) | env file | healthchecks.io |
+| `HEALTHCHECKS_JOBS_URL`, `_ALERT_URL`, `_BACKUP_URL`, `_PACKING_URL` | ping URLs | each environment (backup and packing: production only) | env file | healthchecks.io |
 | `PROD_AUDIT_PING_URL` | ping URL | GitHub Actions secret, in each repository | password manager | healthchecks.io |
 | The ntfy topic | secret name | Healthchecks' channel and James's phone | password manager | us |
 | `BACKUP_R2_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY` | secret | production only | env file | Cloudflare |

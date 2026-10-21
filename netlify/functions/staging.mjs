@@ -16,6 +16,7 @@
 //   GET    /api/staging/info          context, mail driver, Square env
 //   GET    /api/staging/outbox        the last messages, newest first
 //   GET    /api/staging/outbox/:id    one message as HTML (?format=text)
+//   GET    /api/staging/outbox/:id/attachments/:name   a file it carries
 //   DELETE /api/staging/outbox        empty it
 //   POST   /api/staging/jobs/run      { at?, reset? } run the jobs now,
 //                                     or as of `at`; `reset` lets the
@@ -25,6 +26,8 @@
 //                                     with its tags, approval and text
 //   GET    /api/staging/emails/:id    one as HTML (?format=text); nothing
 //                                     is sent
+//   GET    /api/staging/emails/:id/attachments/:name   its sample file
+//                                     (the packing slips' PDF)
 //   PUT    /api/staging/emails/:id/approval  { version } James approves
 //   DELETE /api/staging/emails/:id/approval  and withdraws it
 //   PUT    /api/staging/emails/:id/rewrite   { version, subject, text }
@@ -56,7 +59,8 @@ import { json, readJson } from "./lib/http.mjs";
 import { runJobs } from "./lib/jobs.mjs";
 import { entry, library } from "./lib/library.mjs";
 import { log, withLog } from "./lib/log.mjs";
-import { OUTBOX_PREFIX } from "./lib/mail.mjs";
+import { OUTBOX_PREFIX, attached } from "./lib/mail.mjs";
+import { SENT as PACKING_SENT } from "./lib/packing.mjs";
 import {
   cleanParts, joined, revert, reviews, saveApproval, saveRewrite, standing,
   tokenize, versionFor, withdrawApproval,
@@ -155,6 +159,31 @@ const MESSAGE_HEADERS = {
   "Cache-Control": "no-store",
 };
 
+// A message's attachments as links under `base` (#292: the packing
+// slips' PDF).
+const filesOf = (m, base) => attached(m).map((a) => ({
+  filename: a.filename,
+  url: `${base}/attachments/${encodeURIComponent(a.filename)}`,
+}));
+
+// One attachment of a message, served as itself, or null.
+const fileResponse = (m, name) => {
+  const a = attached(m).find((x) => x.filename === name);
+
+  if (!a) return null;
+
+  return new Response(Buffer.from(a.content, "base64"), {
+    status: 200,
+    headers: {
+      "Content-Type": a.contentType || "application/octet-stream",
+      "Content-Disposition": `inline; filename="${
+        a.filename.replace(/[^\w.-]+/g, "-")}"`,
+      "Content-Security-Policy": "default-src 'none'",
+      "Cache-Control": "no-store",
+    },
+  });
+};
+
 const about = (e) => ({
   id: e.id, name: e.name, when: e.when, audience: e.audience,
   tags: e.tags, note: e.note,
@@ -166,6 +195,7 @@ const view = (e, m, saved) => ({
   ...about(e),
   subject: m.subject,
   text: m.text,
+  attachments: filesOf(m, `/api/staging/emails/${encodeURIComponent(e.id)}`),
   parts: { subject: tokenize(m.subject), text: tokenize(m.text) },
   ...standing(e, versionFor(e), saved),
 });
@@ -248,9 +278,26 @@ export const handle = async (req, {
       keys.map((key) => stores.jobs.get(key))
     )).filter(Boolean).reverse().map((m) => ({
       id: m.id, at: m.at, to: m.to, subject: m.subject,
+      attachments: filesOf(m,
+        `/api/staging/outbox/${encodeURIComponent(m.id)}`),
     }));
 
     return json(200, { messages });
+  }
+
+  const file = req.method === "GET" && path.match(
+    /^\/api\/staging\/(outbox|emails)\/([^/]+)\/attachments\/([^/]+)$/
+  );
+
+  if (file) {
+    const id = decodeURIComponent(file[2]);
+    const e = file[1] === "emails" ? entry(id) : null;
+    const m = file[1] === "emails"
+      ? e && e.build(mailLinks(env))
+      : await stores.jobs.get(`${OUTBOX_PREFIX}${id}`);
+    const res = m && fileResponse(m, decodeURIComponent(file[3]));
+
+    return res || json(404, { error: "No such attachment." });
   }
 
   if (req.method === "GET" && path.startsWith("/api/staging/outbox/")) {
@@ -405,6 +452,8 @@ export const handle = async (req, {
       for (const kind of ["morning", "tomorrow"]) {
         await stores.jobs.delete(`report/${kind}/${day}`);
       }
+      // The packing slips go again; what was printed stays printed.
+      await stores.jobs.delete(`${PACKING_SENT}${day}`);
     }
     log.info({ event: "staging.jobs_run", at: at.toISOString() });
 

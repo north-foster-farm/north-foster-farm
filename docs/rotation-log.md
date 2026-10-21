@@ -32,6 +32,7 @@ HEALTHCHECKS_JOBS_URL | 2026-10-18 | staging | seed | checkout agent
 HEALTHCHECKS_ALERT_URL | 2026-10-18 | production | seed | checkout agent
 HEALTHCHECKS_ALERT_URL | 2026-10-18 | staging | seed | checkout agent
 HEALTHCHECKS_BACKUP_URL | 2026-10-18 | production | seed | checkout agent
+HEALTHCHECKS_PACKING_URL | 2026-10-21 | production | seed | orders agent
 ntfy topic | 2026-10-18 | production | seed | checkout agent
 PICKUP_SCHEDULE_HOOK | 2026-10-18 | production | seed | checkout agent
 GATE_RESEND_KEY | 2026-10-18 | staging | seed | checkout agent

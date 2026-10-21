@@ -34,6 +34,13 @@ sees, so a dead page and a silent failure both reach the phone.
 - **Backup heartbeat.** The nightly backup export (`docs/backup.md`)
   pings a third check when its copy lands in R2, and `/fail` with
   `backup.failed` when it does not. `HEALTHCHECKS_BACKUP_URL`.
+- **Packing slips heartbeat.** The 6:00 packing slips (#292,
+  `lib/packing.mjs`) ping a fourth check once the email has gone, a
+  quiet day's included, and its `/fail` with the error when the PDF
+  could not be built or sent. Production only, and required there:
+  `check:env` fails a production build without
+  `HEALTHCHECKS_PACKING_URL`, and a run that sends through Resend
+  without it is a jobs error. A staging run never pings it.
 - **Production audit heartbeat.** A daily workflow (`prod-audit.yml`)
   audits the deployed lockfile for known vulnerabilities and pings a
   check per repository: a plain ping when clean, `/fail` with the
@@ -114,8 +121,16 @@ sees, so a dead page and a silent failure both reach the phone.
    - *Backup*: period 1 day, grace 2 hours. Its ping URL goes to
      Netlify as `HEALTHCHECKS_BACKUP_URL`, production only, since
      the nightly run is production's alone.
+   - *Packing slips*: schedule type Cron, `0 6 * * *`, time zone
+     America/New_York, grace 30 minutes. The jobs run sends the slips
+     between 6:00 and 6:15 and tries again every 15 minutes after a
+     failure, so 30 minutes covers one retry. Its ping URL goes in
+     `.env.production` as `HEALTHCHECKS_PACKING_URL`, then
+     `bin/nff env push --production`. Production only: staging has no
+     packing check. After the release, the next 6:00 run's ping turns
+     it green; until then it waits as "new".
    Attach a push integration (Pushover, ntfy, Telegram or Signal) to
-   production's three checks only, besides email. Staging's checks get
+   production's four checks only, besides email. Staging's checks get
    email at most, never a phone.
 3. **Axiom**, free plan. Create a dataset `nff-site` and an API token
    with ingest rights on it. On Netlify: `AXIOM_DATASET=nff-site`,
@@ -551,6 +566,25 @@ delivery the address, cooler, gate code and notes, and for every
 order what to pack. Sent even when empty ("Nothing due"). If it has
 not arrived by 18:15, something is wrong; the heartbeat will already
 have said so.
+
+**Packing slips**, 6:00 (#292, `lib/packing.mjs`), to
+`FARM_NOTIFICATIONS_EMAIL`: one PDF to print whole. Its cover is the
+pick list, each product and tier with its total across the slips;
+then the slips by fulfilment date, type and pickup time. Sunday's
+packet holds every order for Sunday to Saturday. Other days hold the
+orders not printed yet, a revision sheet and a new slip for each
+order changed since it was printed, and a CANCELLED sheet for each
+printed order since cancelled. A quiet day still sends "nothing to
+print". What each order's slip showed is kept in the jobs store
+(`packing/printed/<id>`, contact details and address only as a hash,
+30 days past its date), and a reprint comes from comparing the order
+with it; `packing/sent/<day>` stops a second packet. After the packet,
+an order due that day that changes anyway (the CLI, a refund noted
+from Square or PayPal) is mailed at once as "Changed after printing",
+with its sheets. Its heartbeat is the *Packing slips* check. The
+staging toolbar's email library previews the email and the PDF.
+Staging's own jobs runs put its packet in the outbox, never in a
+mailbox, and a run with `reset` lets the day's packet go again.
 
 ## The log
 

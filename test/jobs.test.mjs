@@ -491,7 +491,10 @@ describe("runJobs", () => {
       ...opts, env: { ...env, PICKUP_SCHEDULE: "2026-10-09 09:00-12:00" },
       now: at("2026-10-05", 8),
     });
-    assert.match(sent.at(-1).text, /The pickup schedule's last window is on /);
+    const morning = sent.filter((m) => /Morning report/.test(m.subject));
+
+    assert.match(morning.at(-1).text,
+      /The pickup schedule's last window is on /);
   });
 
   it("sends tomorrow's manifest at 18:00, even when empty", async () => {
@@ -542,8 +545,10 @@ describe("runJobs", () => {
     });
 
     assert.equal(nothing.tomorrow, 0);
-    assert.match(sent.at(-1).subject, /Tomorrow, Wednesday, October 7: 0/);
-    assert.match(sent.at(-1).text, /Nothing due Wednesday, October 7/);
+    const last = sent.filter((m) => /^Tomorrow, /.test(m.subject)).at(-1);
+
+    assert.match(last.subject, /Tomorrow, Wednesday, October 7: 0/);
+    assert.match(last.text, /Nothing due Wednesday, October 7/);
   });
 
   it("isolates a failing order, records the run, alerts and pings",

@@ -168,6 +168,15 @@ const CASES = {
     [{ sku: HOSTILE, name: HOSTILE, count: 3 }], { links }), true],
   farmTomorrow: [() => templates.farmTomorrow(
     [order(), order("onfarm")], { date: "2026-10-08", links }), true],
+  farmPackingSlips: [() => templates.farmPackingSlips([
+    { order: order(), kind: "new", changes: [] },
+    { order: order("onfarm"), kind: "changed", changes: [HOSTILE] },
+  ], {
+    day: "2026-10-08", slips: 2, revised: 1, filename: "p.pdf", links,
+  }), true],
+  farmChangedAfterPrint: [() => templates.farmChangedAfterPrint(
+    { order: order(), kind: "changed", changes: [HOSTILE] },
+    { date: "2026-10-08", links }), true],
 };
 
 // Helpers that return a phrase or a table, not a message.

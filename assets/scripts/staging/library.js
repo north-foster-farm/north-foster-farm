@@ -315,6 +315,22 @@ export const mountLibrary = ({ root, api, onOpen }) => {
     note.textContent = current.note || "";
     note.hidden = !current.note;
 
+    // A PDF the email carries (the packing slips), opened in a tab.
+    const files = current.attachments || [];
+    const holder = qs("[data-staging-reader-files]");
+
+    holder.replaceChildren(...files.flatMap((f, i) => {
+      const a = document.createElement("a");
+
+      a.href = f.url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = f.filename;
+
+      return i ? [", ", a] : [a];
+    }));
+    qs("[data-staging-reader-attachments]").hidden = !files.length;
+
     const mine = current.approval === "rewritten";
 
     for (const b of views) {

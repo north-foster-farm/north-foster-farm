@@ -16,16 +16,15 @@
 
 import accounts from "../../../data/accounts.json" with { type: "json" };
 import terms from "../../../data/delivery.json" with { type: "json" };
-import {
-  pickupTimes, windowLabel,
-} from "../../../assets/scripts/order/lib/schedule.mjs";
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import {
   addDays, dayName, label, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { GUIDE, RUNBOOK_ALERTS } from "./alerts-guide.mjs";
 import { company } from "./company.mjs";
-import { between, methodName } from "./describe.mjs";
+import {
+  between, methodName, pickupWindow, streetAddress,
+} from "./describe.mjs";
 import { currentOptIn, keptFee, paymentsOf } from "./records.mjs";
 
 // The delivery day by name, and how long a missed delivery is
@@ -346,35 +345,6 @@ const orderNumber = (order, {
       `-webkit-user-select:all;user-select:all">${escape(order.id)}</span></p>`,
   }
   : p(`${label}: **${order.id}**`));
-
-// "9 – 11 AM", "11 AM – 1 PM": a range the farm confirmed before W11d,
-// on the hour.
-const hoursRange = (from, to) => {
-  const h = (x) => `${((x + 11) % 12) + 1}`;
-  const m = (x) => (x < 12 ? "AM" : "PM");
-
-  return m(from) === m(to)
-    ? `${h(from)} – ${h(to)} ${m(to)}`
-    : `${h(from)} ${m(from)} – ${h(to)} ${m(to)}`;
-};
-
-// "9 AM – noon": the window booked. A record from before W11d may
-// carry the range the farm confirmed inside its window; that wins.
-const pickupWindow = (order) => {
-  const o = order.fulfilment.onfarm || {};
-  const times = pickupTimes(o);
-
-  if (o.confirmed) return hoursRange(o.confirmed.from, o.confirmed.to);
-
-  return times ? windowLabel(times) : String(o.window || "");
-};
-
-// "84 Foster Center Rd, Foster, RI 02825", skipping whatever the
-// record lacks.
-const streetAddress = (a = {}) => [
-  a.address1, a.address2, a.town,
-  [a.state, a.zip].filter(Boolean).join(" "),
-].filter(Boolean).join(", ");
 
 // "Order type: Delivery" and the two lines under it.
 const orderType = (order) => {
@@ -1765,6 +1735,100 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
 
   return {
     subject: title, ...render(title, blocks, links, { tag: "Tomorrow" }),
+  };
+};
+
+// The packing slips (#292, lib/packing.mjs), 6:00 daily, always: the
+// PDF is attached, and the email lists what is in it. Wording is a
+// draft.
+const PACKET_KIND = {
+  new: "new", weekly: "this week", changed: "**revised**",
+  cancelled: "**CANCELLED**",
+};
+
+const packetLine = (e) => {
+  const f = e.order.fulfilment;
+  const who = e.order.customer && e.order.customer.name;
+
+  return `**${e.order.id}**${who ? `, ${who}` : ""}, ${
+    methodName(f.method)}, ${label(f.date)}: ${PACKET_KIND[e.kind]}`;
+};
+
+export const farmPackingSlips = (entries, {
+  day, sunday = false, quiet = false, slips = 0, revised = 0,
+  cancelled = 0, filename = "", links,
+} = {}) => {
+  const when = label(day);
+
+  if (quiet) {
+    const title = `Packing slips, ${when}: nothing to print`;
+
+    return {
+      subject: title,
+      ...render(title, [
+        p("Nothing to print today. No order is new, changed or cancelled " +
+          "since the last packet."),
+        adminFooter(links),
+      ], links, { tag: "Packing slips" }),
+    };
+  }
+
+  const counts = [
+    `${slips} slip${slips === 1 ? "" : "s"}`,
+    revised && `${revised} revised`,
+    cancelled && `${cancelled} cancelled`,
+  ].filter(Boolean).join(", ");
+  const title = sunday
+    ? `Packing slips for the week of ${when}: ${counts}`
+    : `Packing slips, ${when}: ${counts}`;
+
+  return {
+    subject: title,
+    ...render(title, [
+      p(`Print the attached PDF${filename ? `, ${filename},` : ""} in one ` +
+        "go. The first page is the pick list for every slip in it."),
+      sunday
+        ? p("It's Sunday, so every order for the week is in it, with the " +
+          "new and changed ones since yesterday.")
+        : null,
+      revised || cancelled
+        ? p("A **revised** order has a sheet saying what changed, then a " +
+          "new slip: throw away its old one. A **CANCELLED** order has a " +
+          "sheet and no slip.")
+        : null,
+      heading("In this packet"),
+      list(entries.map(packetLine)),
+      adminFooter(links),
+    ].filter(Boolean), links, { tag: "Packing slips" }),
+  };
+};
+
+// An order due today that changed after this morning's packet. The
+// sheets are attached. Wording is a draft.
+export const farmChangedAfterPrint = (entry, { date, links } = {}) => {
+  const id = entry.order.id;
+  const cancelled = entry.kind === "cancelled";
+  const title = cancelled
+    ? `Cancelled after printing: ${id}`
+    : `Changed after printing: ${id}`;
+  const blocks = [
+    p(cancelled
+      ? `**${id}** is due today, ${label(date)}, and was cancelled after ` +
+        "this morning's packing slips. Don't pack it. The attached sheet " +
+        "says so for the packing table."
+      : `**${id}** is due today, ${label(date)}, and changed after this ` +
+        "morning's packing slips. The attached PDF has a sheet saying " +
+        "what changed and a new slip: throw away the old one."),
+  ];
+
+  if (!cancelled && entry.changes.length) {
+    blocks.push(heading("What changed"), list(entry.changes));
+  }
+  blocks.push(adminFooter(links));
+
+  return {
+    subject: title,
+    ...render(title, blocks, links, { tag: "Packing slips" }),
   };
 };
 

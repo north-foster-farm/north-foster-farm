@@ -516,6 +516,27 @@ describe("the email library", () => {
     assert.deepEqual(await stores.jobs.list(OUTBOX_PREFIX), [],
       "nothing reaches the outbox");
   });
+
+  it("links and serves the packing slips' sample PDF (#292)", async () => {
+    const stores = testStores();
+    const list = await (await handle(req("/api/staging/emails"),
+      { stores, env })).json();
+    const slips = list.emails.find((e) => e.id === "farm-packing-slips");
+    const [file] = slips.attachments;
+    const res = await handle(req(file.url), { stores, env });
+    const bytes = Buffer.from(await res.arrayBuffer());
+    const missing = await handle(req(
+      "/api/staging/emails/farm-packing-slips/attachments/nope.pdf"),
+    { stores, env });
+
+    assert.equal(file.filename, "packing-slips-2026-10-06.pdf");
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("content-type"), "application/pdf");
+    assert.equal(bytes.subarray(0, 8).toString("latin1"), "%PDF-1.4");
+    assert.equal(missing.status, 404);
+    assert.deepEqual(list.emails.find((e) => e.id === "farm-packing-quiet")
+      .attachments, [], "the quiet day carries no PDF");
+  });
 });
 
 describe("James's review in the library", () => {
