@@ -84,19 +84,23 @@ test.describe("loading skeletons (#271)", () => {
   });
 
   test("a quick answer never shows the bars", async ({ page }) => {
-    let shown = false;
-
     await page.route("**/api/me", (route) => route.fulfill(json({
       signedIn: true, customer: CUSTOMER,
     })));
     await page.route("**/api/account/orders", (route) => route.fulfill(
       json({ orders: [ORDER] }),
     ));
-    await page.exposeFunction("qaShown", () => { shown = true; });
+    // Each region's states, timed in the page. A stubbed answer is
+    // quick, but on a busy run it can still take longer than the
+    // 150 ms the bars wait, and then they rightly show.
     await page.addInitScript(() => {
+      window.qaLoads = [];
       new MutationObserver((changes) => {
-        if (changes.some((c) => c.target.dataset.load === "shown")) {
-          window.qaShown();
+        for (const c of changes) {
+          window.qaLoads.push([
+            c.target.id || c.target.className, c.target.dataset.load || "",
+            performance.now(),
+          ]);
         }
       }).observe(document, {
         attributes: true, attributeFilter: ["data-load"], subtree: true,
@@ -104,7 +108,28 @@ test.describe("loading skeletons (#271)", () => {
     });
     await page.goto("/account/");
     await expect(page.locator("#account-app")).toBeVisible();
-    expect(shown).toBe(false);
+
+    const loads = await page.evaluate(() => window.qaLoads);
+    const regions = [...new Set(loads.map(([region]) => region))];
+
+    for (const region of regions) {
+      const own = loads.filter(([r]) => r === region);
+      const began = own.find(([, state]) => state === "wait")?.[2];
+      const shown = own.find(([, state]) => state === "shown")?.[2];
+      const done = own.find(([, state]) => state === "")?.[2];
+
+      if (began === undefined) continue;
+      // The bars never come sooner than 150 ms, and an answer within
+      // it never shows them.
+      if (shown !== undefined) {
+        expect(shown - began, region).toBeGreaterThanOrEqual(
+          SHOW_AFTER_MS - 5
+        );
+      }
+      if (done !== undefined && done - began < SHOW_AFTER_MS) {
+        expect(shown, region).toBeUndefined();
+      }
+    }
   });
 
   test("the top bar holds the Sign in link's place", async ({ page }) => {
