@@ -170,27 +170,16 @@ body {
       margin-bottom: $footer-gap-phone;
     }
 
+    // The 2025 full lockup (#296) carries its own colors inline; the
+    // height keeps the small line under "APPPA" near legible.
     svg {
       display: block;
-      height: 3.5rem;
+      height: 5rem;
     }
 
-    // The mark's black would vanish on the dark band, so it reverses
-    // to the band's heading color, like a reversed print of the logo.
-    .apppa-black {
-      fill: $band-dark-heading;
-    }
-
-    .apppa-white {
-      fill: #fff;
-    }
-
-    .apppa-brown {
-      fill: #6d412a;
-    }
-
-    .apppa-green {
-      fill: #32620e;
+    // The badge behind the logo is ours, so it takes the theme's white.
+    .background {
+      fill: $white;
     }
   }
 }
