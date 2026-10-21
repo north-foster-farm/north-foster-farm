@@ -12,7 +12,7 @@ import config, {
   FEATURES, FLOAT_PRECISION, MULTIPASS, PRETTIFY, TRANSFORM_PRECISION,
 } from "../svgo.config.mjs";
 import {
-  clean, corpus, guard, run, usePattern,
+  clean, corpus, guard, run, trackedSvgs, usePattern,
 } from "../bin/svg/clean.mjs";
 import { KEEP } from "../bin/svg/strip.mjs";
 
@@ -177,6 +177,13 @@ describe("svg: the check", () => {
     const once = clean(DIRTY, "x.svg");
 
     assert.equal(clean(once, "x.svg"), once);
+  });
+
+  it("finds every tracked SVG already clean", () => {
+    const dirty = run(trackedSvgs(), { check: true })
+      .filter((r) => r.changed || r.blocked.length).map((r) => r.file);
+
+    assert.deepEqual(dirty, []);
   });
 });
 
