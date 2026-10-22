@@ -150,6 +150,7 @@ const SQUARE_CALLS = {
     squarePaymentId: "P1", amount: 100, key: KEY, reason: "test",
   }, o),
   getPayment: (o) => square.getPayment("P1", o),
+  inventoryCounts: (o) => square.inventoryCounts(["V1"], o),
   findPaid: (o) => square.findPaid(order(), o),
   deleteCustomer: (o) => square.deleteCustomer("C1", o),
   renameCustomerEmail: (o) => square.renameCustomerEmail(

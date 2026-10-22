@@ -111,6 +111,29 @@ marks rows out of stock, shows "N left" at five or fewer, clamps the
 cart and says so. The order handler checks the same counts and
 answers `422` with `lines.<sku>` errors plus the fresh `stock`.
 
+Square's count wins (#267, James, 6304555099). Every sale, on the
+phones at a market or on this site, and all stock live at one Square
+location, North Foster Farm, which is `SQUARE_LOCATION_ID`. Square's
+`IN_STOCK` counts there (`inventoryCounts` in `lib/square.mjs`, at
+most 1.5 s) are what the page and the order check sell by, wherever
+Square counts a SKU. Each order and edit check reads them fresh and
+logs `stock.checked` with `via: "square"` or `"store"`. `/api/stock`
+is public, so it reads them from a snapshot in the store (`square`,
+with its time), refreshed at most every 15 s, so that a run of calls
+cannot spend the token's rate limit, which the payment calls share;
+in production it also answers 429 past 120 calls from one address in
+ten minutes.
+
+A SKU Square doesn't count (tracking off at the farm) keeps the flag
+and the store's count. So does a variation that tracks inventory but
+has no count entered: the farm enters a count for every variation it
+tracks. If Square fails or is slow, the read logs
+`stock.square_unread` and the store's counts stand, so set them with
+`bin/nff stock set` as before. Website orders still move the store's
+counts; no SKU is counted twice, since each sells by Square's count or
+the store's. The sandbox's item library has its own ids, so staging
+and development never ask and go by the store alone.
+
 ### Restock types
 
 Every catalog item has a `restock` type (#267, James, 2026-10-20). It
@@ -342,8 +365,12 @@ Environment variables, set in Netlify, never in the repo:
 
 - `SQUARE_ACCESS_TOKEN`: an app token with `CUSTOMERS_READ`,
   `CUSTOMERS_WRITE`, `ORDERS_READ`, `ORDERS_WRITE`, `PAYMENTS_READ`
-  and `PAYMENTS_WRITE`, which covers refunds too.
-- `SQUARE_LOCATION_ID`: the location orders and payments belong to.
+  and `PAYMENTS_WRITE`, which covers refunds too, and
+  `INVENTORY_READ` for the stock counts.
+- `SQUARE_LOCATION_ID`: the location orders and payments belong to,
+  and whose stock the site sells by. In production, North Foster Farm
+  (#267): every sale lives there. An order placed at another location
+  before a change is still updated where it was placed.
 - `SQUARE_APPLICATION_ID`: the app id the page hands the SDK. Public;
   sandbox and production ids differ, so one value per context.
 - `SQUARE_ENV`: `sandbox` (the default), `production`, or `fake` for

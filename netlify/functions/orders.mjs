@@ -283,7 +283,9 @@ export const handle = async (req, {
   // The catalog said it was in stock at build time; the count says
   // whether it still is. Field errors, like the validator's, plus the
   // fresh availability so the page can bring the cart into line.
-  const stock = await checkLines(stores, result.order.lines);
+  const stock = await checkLines(stores, result.order.lines, {
+    env, deadline,
+  });
 
   if (!stock.ok) {
     return json(422, { errors: stock.errors, stock: stock.items });

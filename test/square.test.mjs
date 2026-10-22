@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import {
   SquareError, buildOrder, cancelFulfilment, cancelOrder, clientConfig,
   createOrder, createPayment, dashboardUrl, deleteCustomer, e164,
-  getPayment, refundPayment, settings, updateFulfilment,
+  getPayment, inventoryCounts, refundPayment, settings, updateFulfilment,
 } from "../netlify/functions/lib/square.mjs";
 
 const env = {
@@ -506,6 +506,62 @@ describe("cancelOrder", () => {
 
     assert.equal(out.cancelled, false);
     assert.equal(calls.length, 1);
+  });
+});
+
+describe("inventoryCounts (#267)", () => {
+  const prod = { ...env, SQUARE_ENV: "production" };
+  const PATH = "/v2/inventory/counts/batch-retrieve";
+
+  it("reads IN_STOCK at the site's location, page by page", async () => {
+    const { impl, calls } = fakeFetch({
+      [PATH]: (n) => new Response(JSON.stringify(n === 1
+        ? {
+          counts: [
+            { catalog_object_id: "V1", location_id: "LOC", quantity: "4" },
+            { catalog_object_id: "V2", location_id: "ELSE", quantity: "9" },
+          ],
+          cursor: "C2",
+        }
+        : {
+          counts: [
+            { catalog_object_id: "V2", location_id: "LOC", quantity: "-1" },
+            { catalog_object_id: "V3", location_id: "LOC", quantity: "x" },
+          ],
+        })),
+    });
+    const out = await inventoryCounts(["V1", "V2", "V3"],
+      { env: prod, fetchImpl: impl });
+
+    assert.deepEqual(out, { V1: 4, V2: -1 });
+    assert.equal(calls.length, 2);
+    assert.deepEqual(calls[0].body, {
+      catalog_object_ids: ["V1", "V2", "V3"],
+      location_ids: ["LOC"],
+      states: ["IN_STOCK"],
+      limit: 1000,
+    });
+    assert.equal(calls[1].body.cursor, "C2");
+  });
+
+  it("asks nothing of the sandbox or a Square without keys", async () => {
+    const { impl, calls } = fakeFetch({});
+
+    assert.equal(await inventoryCounts(["V1"], { env, fetchImpl: impl }),
+      null);
+    assert.equal(await inventoryCounts(["V1"], {
+      env: { SQUARE_ENV: "production" }, fetchImpl: impl,
+    }), null);
+    assert.equal(calls.length, 0);
+  });
+
+  it("throws what Square answers wrong", async () => {
+    const { impl } = fakeFetch({
+      [PATH]: () => new Response("{}", { status: 503 }),
+    });
+
+    await assert.rejects(inventoryCounts(["V1"],
+      { env: prod, fetchImpl: impl }), SquareError);
   });
 });
 

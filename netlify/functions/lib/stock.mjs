@@ -6,6 +6,26 @@
 // only flagged.
 //
 //   counts        { [sku]: number }
+//   square        { at: ISO time, counts: { [variationId]: number }
+//                   or null }, Square's counts as the page last read
+//                   them (SNAPSHOT, below)
+//
+// Square's count wins (#267). Every sale, at the market on a phone or
+// on this site, and all stock live at one Square location, so where
+// Square counts a SKU there, that count is the one the page sells by
+// (liveCounts, below), and the store's is only its fallback while
+// Square doesn't answer. Orders placed here still move the store's,
+// so the fallback stays close; a SKU sells by one count or the other,
+// never both. A variation that tracks inventory in Square but has no
+// count entered there sells by its flag, so the farm enters a count
+// for every one it tracks.
+//
+// The page's reads come from a snapshot of Square's counts, kept in
+// the store and read again at most every SNAPSHOT_MS by whichever
+// instance asks first once it ages. /api/stock is public, and a run
+// of calls straight to Square would spend the token's rate limit,
+// which the payment calls share. The order and edit checks read
+// Square fresh, and log which counts they sold by.
 //
 // Netlify Blobs has no transactions. Two orders in the same second
 // could both see the last pack; the count then goes to -1, the next
@@ -29,6 +49,7 @@ import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { mailLinks } from "./site.mjs";
+import { inventoryCounts } from "./square.mjs";
 import { farmArchivedInStock } from "./templates.mjs";
 
 const index = indexCatalog(catalog);
@@ -37,6 +58,75 @@ export const COUNTS = "counts";
 
 export const getCounts = async (stores) =>
   (await stores.stock.get(COUNTS)) || {};
+
+export const SNAPSHOT = "square";
+export const SNAPSHOT_MS = 15_000;
+
+// Square's counts by variation id, or null when it doesn't answer.
+const readSquare = async (ids, { env, deadline, inventory }) => {
+  try {
+    return (await inventory(ids, { env, deadline })) || null;
+  } catch (error) {
+    log.warn({ event: "stock.square_unread", error: String(error) });
+
+    return null;
+  }
+};
+
+// Square's counts from the snapshot while it is young, else read and
+// kept. A failed read is kept too, as null, so a Square that is down
+// is not asked again until the snapshot ages.
+const snapshotCounts = async (stores, ids, opts, now) => {
+  const t = now.getTime();
+  const kept = await stores.stock.get(SNAPSHOT);
+  const age = kept ? t - Date.parse(kept.at) : NaN;
+
+  if (age >= 0 && age < SNAPSHOT_MS) return kept.counts;
+
+  const counts = await readSquare(ids, opts);
+
+  try {
+    await stores.stock.set(SNAPSHOT, { at: now.toISOString(), counts });
+  } catch (error) {
+    log.warn({ event: "stock.snapshot_unsaved", error: String(error) });
+  }
+
+  return counts;
+};
+
+// The counts the page sells by: the store's, with Square's over them
+// for every SKU Square counts at the site's location. A Square read
+// that fails is logged and leaves the store's. With `snapshot`,
+// Square's come from the snapshot (above). With `check`, the line
+// logged says whether Square's counts or only the store's were used.
+// `inventory` is for tests.
+export const liveCounts = async (stores, {
+  catalogIndex = index, env = process.env, deadline,
+  inventory = inventoryCounts, snapshot = false, now = clock(), check,
+} = {}) => {
+  const counts = await getCounts(stores);
+  const skus = new Map();
+
+  for (const [sku, item] of catalogIndex) {
+    if (item.squareVariationId) skus.set(item.squareVariationId, sku);
+  }
+
+  const ids = [...skus.keys()];
+  const opts = { env, deadline, inventory };
+  const square = snapshot
+    ? await snapshotCounts(stores, ids, opts, now)
+    : await readSquare(ids, opts);
+
+  for (const [id, n] of Object.entries(square || {})) {
+    if (skus.has(id)) counts[skus.get(id)] = n;
+  }
+  if (check) {
+    log.info({ event: "stock.checked", for: check,
+      via: square ? "square" : "store" });
+  }
+
+  return counts;
+};
 
 export const setCounts = (stores, counts) => stores.stock.set(COUNTS, counts);
 
@@ -78,9 +168,13 @@ const onHand = (item, counts, sku) => !!item.inStock
 
 // What the page needs for every catalog item, counted or not.
 //   { sku: { inStock, available } }  available is null when uncounted.
-// An archived item is never in stock. `catalogIndex` is for tests.
-export const availability = async (stores, { catalogIndex = index } = {}) => {
-  const counts = await getCounts(stores);
+// An archived item is never in stock. `catalogIndex` is for tests;
+// `counts`, when given, are liveCounts already read.
+export const availability = async (stores, {
+  catalogIndex = index, env, deadline, inventory, counts: given,
+} = {}) => {
+  const counts = given
+    || await liveCounts(stores, { catalogIndex, env, deadline, inventory });
   const items = {};
 
   for (const [sku, item] of catalogIndex) {
@@ -99,9 +193,10 @@ export const availability = async (stores, { catalogIndex = index } = {}) => {
 // The archived items stock has on hand. -> [{ sku, name, count }],
 // count null for one in stock by its flag and not counted.
 export const archivedOnHand = async (stores, {
-  catalogIndex = index,
+  catalogIndex = index, env, deadline, inventory, counts: given,
 } = {}) => {
-  const counts = await getCounts(stores);
+  const counts = given
+    || await liveCounts(stores, { catalogIndex, env, deadline, inventory });
 
   return [...catalogIndex].filter(([sku, item]) => archived(item)
     && onHand(item, counts, sku)).map(([sku, item]) => ({
@@ -120,10 +215,12 @@ export const archivedKey = (day) => `stock/archived/${day}`;
 
 export const archivedInStock = async (stores, {
   env = process.env, mail = sendMail, now = clock(),
-  catalogIndex = index,
+  catalogIndex = index, inventory, counts,
 } = {}) => {
   try {
-    const found = await archivedOnHand(stores, { catalogIndex });
+    const found = await archivedOnHand(stores, {
+      catalogIndex, env, inventory, counts,
+    });
     const to = farmEmails(env);
 
     if (!found.length || !to.length) return [];
@@ -157,8 +254,12 @@ export const archivedInStock = async (stores, {
 };
 
 // Errors keyed like the validator's, for lines that cannot be filled.
-export const checkLines = async (stores, lines) => {
-  const items = await availability(stores);
+// Always a fresh read of Square; `check` names the check in the log.
+export const checkLines = async (stores, lines, {
+  env, deadline, inventory, check = "order",
+} = {}) => {
+  const counts = await liveCounts(stores, { env, deadline, inventory, check });
+  const items = await availability(stores, { counts });
   const errors = {};
 
   for (const line of lines || []) {

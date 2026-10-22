@@ -544,7 +544,7 @@ const morningReport = async (stores, {
     list: async () => [{
       stats: await funnel(stores, now),
       pickups: pickupsDue(await openOrders(stores), day),
-      archived: await archivedOnHand(stores, { catalogIndex }),
+      archived: await archivedOnHand(stores, { catalogIndex, env }),
       messages: await listMessages(stores),
     }],
     build: ([{

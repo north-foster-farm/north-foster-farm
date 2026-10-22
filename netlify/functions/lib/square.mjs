@@ -842,6 +842,56 @@ export const getPayment = async (squarePaymentId, {
   };
 };
 
+// Square's stock at the site's location (#267: every sale and all
+// stock live at North Foster Farm), for the catalog's variations.
+// -> { [variationId]: quantity } for those Square counts, which may
+// be below 0 after a sale at the market; a variation Square doesn't
+// count is left out. Null where there is no production catalog to ask:
+// a fake, no Square keys, or the sandbox, whose item library has
+// other ids. A read takes at most STOCK_MS, so a slow Square costs the
+// page its counts, never its load.
+export const STOCK_MS = 1500;
+export const STOCK_PAGES = 4;
+
+export const inventoryCounts = async (variationIds, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+  deadline,
+} = {}) => {
+  if (isFake(env)) return fake.inventoryCounts();
+  if (!env.SQUARE_ACCESS_TOKEN || !env.SQUARE_LOCATION_ID) return null;
+
+  const base = settings(env);
+
+  if (!base.catalog || !variationIds.length) return null;
+
+  const end = Date.now() + STOCK_MS;
+  const cfg = { ...base, deadline: deadline ? Math.min(deadline, end) : end };
+  const counts = {};
+  let cursor;
+
+  for (let page = 0; page < STOCK_PAGES; page++) {
+    const data = await call(cfg, "/v2/inventory/counts/batch-retrieve", {
+      catalog_object_ids: variationIds,
+      location_ids: [cfg.locationId],
+      states: ["IN_STOCK"],
+      limit: 1000,
+      cursor,
+    }, fetchImpl);
+
+    for (const c of data.counts || []) {
+      const n = Number(c.quantity);
+
+      if (c.location_id !== cfg.locationId || !Number.isFinite(n)) continue;
+      counts[c.catalog_object_id] = Math.trunc(n);
+    }
+    cursor = data.cursor;
+    if (!cursor) break;
+  }
+
+  return counts;
+};
+
 // Every Square customer under one email, moved to another, for
 // `bin/nff customers rename` (#238). -> the ids found; with `apply`
 // false nothing is written.

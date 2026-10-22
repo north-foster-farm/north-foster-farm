@@ -132,7 +132,7 @@ export const heldOn = (order) => paidTotal(order) - refundedTotal(order);
 // the change against the record. -> { ok, order, next, change } or a
 // failure shaped like the order endpoint's.
 export const planEdit = async (stores, order, body, {
-  now, index, terms, codes, group, validate, schedule,
+  now, index, terms, codes, group, validate, schedule, env,
 }) => {
   // An order placed with a pass (#182) keeps its waiver through every
   // change, the fee's too if the pass waives it; the pass is already
@@ -152,7 +152,9 @@ export const planEdit = async (stores, order, body, {
 
   const next = result.order;
   const change = diffLines(order.lines, next.lines);
-  const stock = await checkLines(stores, change.added);
+  const stock = await checkLines(stores, change.added, {
+    env, check: "edit",
+  });
 
   if (!stock.ok) return fail(422, stock.errors, { stock: stock.items });
   if (next.flags.totalMismatch) {
@@ -582,6 +584,7 @@ export const editOrder = async (stores, customer, id, body, {
   const plan = await planEdit(stores, order, b, {
     now, index, terms, codes: discountCodes.codes, group,
     validate: validateOrder, schedule: pickupSchedule(options.env),
+    env: options.env,
   });
 
   if (!plan.ok) return plan;

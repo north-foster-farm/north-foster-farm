@@ -120,5 +120,8 @@ export const getPayment = async (squarePaymentId) => ({
   refunded: 0,
 });
 
+// No Square to count stock: the store's counts stand (#267).
+export const inventoryCounts = async () => null;
+
 // No customers here to rename.
 export const renameCustomerEmail = async () => [];
