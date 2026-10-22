@@ -5,6 +5,7 @@ import {
   keyboardInset, moreStop, rowsFloor, visibleArea,
 } from "./lib/cart-scroll.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
+import { sentence } from "./lib/sentence.mjs";
 import { summarize } from "./lib/summary.mjs";
 import {
   computeTotals, dollars, meetsMinimum, toCents,
@@ -909,9 +910,11 @@ export class OrderForm {
     const notice = document.getElementById("order-added");
     const bits = [];
 
-    if (added.length) bits.push(`Added to your cart: ${added.join(", ")}.`);
+    if (added.length) {
+      bits.push(sentence(`Added to your cart: ${added.join(", ")}`));
+    }
     if (missing.length) {
-      bits.push(`No longer available: ${missing.join(", ")}.`);
+      bits.push(sentence(`No longer available: ${missing.join(", ")}`));
     }
     // Draft wording.
     if (unknown) {

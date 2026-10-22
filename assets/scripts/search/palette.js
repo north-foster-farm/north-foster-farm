@@ -11,6 +11,7 @@ import { index, search } from "./match.js";
 import { cartCount, inCart, setCart } from "./cart.js";
 import { room as roomFor, soldOut as isSoldOut } from "./stock.js";
 import { whileLoading } from "../utils/skeleton.js";
+import { sentence } from "../order/lib/sentence.mjs";
 
 const STOCK_TTL = 60_000;
 
@@ -233,7 +234,7 @@ export const wireSearch = () => {
 
     added.textContent = now > 0
       ? `${now} × ${title(p)} in your cart. ${items} in all.`
-      : `Removed ${title(p)}. ${items} in your cart.`;
+      : `${sentence(`Removed ${title(p)}`)} ${items} in your cart.`;
     syncQty(p);
 
     return true;
