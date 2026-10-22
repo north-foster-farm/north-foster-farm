@@ -470,6 +470,67 @@
     max-width: 9rem;
   }
 
+  // Delete your details: a section like the others, set off by the
+  // same rule, its warning in the danger red (#303).
+  .account-delete {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--bs-border-color-translucent);
+  }
+
+  .account-delete-list {
+    margin-bottom: 1rem;
+    padding-left: 1.25rem;
+  }
+
+  .account-delete-warning {
+    padding-left: 0.75rem;
+    border-left: 3px solid var(--bs-danger);
+    color: var(--bs-danger-text-emphasis);
+    font-size: 1.0625rem;
+  }
+
+  // The confirm dialog takes the whole screen: the page's white, its
+  // content in a narrow column near the top, the close button in the
+  // corner.
+  .account-delete-dialog {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+
+    &::backdrop {
+      background-color: var(--bs-body-bg);
+    }
+  }
+
+  .account-delete-dialog-inner {
+    max-width: 32rem;
+    margin: 0 auto;
+    padding: calc(4rem + env(safe-area-inset-top)) 1rem 2rem;
+    text-align: left;
+
+    @include media-breakpoint-up(md) {
+      padding-top: 18vh;
+    }
+  }
+
+  .account-delete-close {
+    position: absolute;
+    top: calc(1rem + env(safe-area-inset-top));
+    right: 1rem;
+  }
+
+  .account-delete-form {
+    max-width: none;
+    margin: 1.5rem 0 0;
+  }
+
 
   // The egg spinner (#299), drawn by _busy-button.scss, shown while
   // saving.

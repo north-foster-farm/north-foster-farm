@@ -338,7 +338,7 @@ describe("POST /api/account/delete", () => {
     body: JSON.stringify(body),
   });
 
-  it("needs a confirm, then deletes and signs out", async () => {
+  it("needs the account's email, then deletes and signs out", async () => {
     const stores = testStores();
 
     await saveCustomer(stores, customer());
@@ -346,10 +346,17 @@ describe("POST /api/account/delete", () => {
     const session = await createSession(stores, PAT, { now });
     const opts = { stores, now, env: {}, news: news() };
 
-    assert.equal((await handle(req({}, session.id), opts)).status, 422);
+    for (const body of [{}, { confirm: true }, { email: "" },
+      { email: "someone@else.test" }]) {
+      const refused = await handle(req(body, session.id), opts);
+
+      assert.equal(refused.status, 422, JSON.stringify(body));
+      assert.match((await refused.json()).errors.email, /isn't the email/);
+    }
     assert.ok(await getCustomer(stores, PAT));
 
-    const res = await handle(req({ confirm: true }, session.id), opts);
+    const typed = `  ${PAT.toUpperCase()} `;
+    const res = await handle(req({ email: typed }, session.id), opts);
 
     assert.equal(res.status, 200);
     assert.equal(res.headers.getSetCookie().length, 2);
@@ -363,7 +370,7 @@ describe("POST /api/account/delete", () => {
     await saveOrder(stores, order("C", { status: "paid" }));
 
     const session = await createSession(stores, PAT, { now });
-    const res = await handle(req({ confirm: true }, session.id), {
+    const res = await handle(req({ email: PAT }, session.id), {
       stores, now, env: {}, news: news(),
     });
 

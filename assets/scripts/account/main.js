@@ -213,8 +213,7 @@ class Account {
 
     document.getElementById("account-signout").addEventListener("click",
       signOut);
-    document.getElementById("account-delete").addEventListener("click",
-      () => this.deleteDetails());
+    this.wireDelete();
 
     // The address saves once the street, town and ZIP are there; the
     // settings once both names are.
@@ -574,14 +573,70 @@ class Account {
     this.say("Sent. We'll answer by email.");
   }
 
-  // Deleting your details (#189). Final: the session ends with them,
-  // and the order draft forgets who you were.
+  // Deleting your details (#189): Delete my account opens a full-screen
+  // dialog (#303), and its Confirm sends only when the address typed is
+  // this account's. The dialog is modal, so the page behind is inert;
+  // Escape and the close button shut it, except while it sends.
+  wireDelete() {
+    const dialog = document.getElementById("delete-dialog");
+    const form = document.getElementById("delete-confirm-form");
+    const field = document.getElementById("delete-confirm-email");
+    const note = document.getElementById("delete-confirm-note");
+    const button = busyButton(form);
+
+    this.deleteUi = { dialog, form, field, note, button };
+    document.getElementById("account-delete").addEventListener("click",
+      () => {
+        form.reset();
+        this.deleteNote("");
+        dialog.showModal();
+        field.focus();
+      });
+    qs(dialog, "[data-delete-close]").addEventListener("click", () => {
+      if (!isBusy(button)) dialog.close();
+    });
+    dialog.addEventListener("cancel", (e) => {
+      if (isBusy(button)) e.preventDefault();
+    });
+    field.addEventListener("input", () => this.deleteNote(""));
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      this.deleteDetails();
+    });
+  }
+
+  // The line under the field: why Confirm did nothing, or why the
+  // deletion failed. Empty clears it.
+  deleteNote(message) {
+    const { field, note } = this.deleteUi;
+
+    note.textContent = message;
+    note.dataset.tone = message ? "no" : "";
+    field.classList.toggle("is-invalid", !!message);
+    if (message) field.setAttribute("aria-invalid", "true");
+    else field.removeAttribute("aria-invalid");
+  }
+
+  // Final: the session ends with the details, and the order draft
+  // forgets who you were. The wording of the two checks is a draft.
   async deleteDetails() {
-    const status = document.getElementById("account-delete-status");
-    const button = document.getElementById("account-delete");
+    const { field, button } = this.deleteUi;
+    const typed = field.value.trim().toLowerCase();
+    const mine = String(this.customer.email || "").trim().toLowerCase();
 
     if (isBusy(button)) return;
-    if (!window.confirm("Delete your details? This can't be undone.")) return;
+    if (!typed) {
+      this.deleteNote("Enter your email address.");
+      field.focus();
+
+      return;
+    }
+    if (typed !== mine) {
+      this.deleteNote("That isn't the email address on this account.");
+      field.focus();
+
+      return;
+    }
 
     // Busy until the home page takes over, or it fails.
     setBusy(button, true);
@@ -590,7 +645,7 @@ class Account {
 
     try {
       answer = await api("/api/account/delete", {
-        method: "POST", body: { confirm: true },
+        method: "POST", body: { email: field.value },
       });
     } catch (error) {
       console.error("Delete failed", error);
@@ -601,8 +656,7 @@ class Account {
 
     if (!ok) {
       setBusy(button, false);
-      status.textContent = (data && data.message) || FAILED;
-      status.hidden = false;
+      this.deleteNote((data && data.message) || FAILED);
 
       return;
     }

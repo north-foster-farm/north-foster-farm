@@ -211,13 +211,43 @@
                    or why it failed; main.js sets data-save and the words. */}}
               <p class="form-text mt-3 mb-0 account-save" data-autosave aria-live="polite">{{ partial "svg.html" (dict "src" "icons/egg-spinner" "class" "egg-spinner account-save-spin" "aria-hidden" "true" "focusable" "false") }}<span data-save-text></span></p>
             </form>
-            {{/* Deleting your details (#189): one click and a confirm. */}}
-            <section class="account-card mt-4" aria-labelledby="prof-delete-h">
+            {{/* Deleting your details (#189, #303): the button opens the
+                 dialog below, where the address typed must be this
+                 account's before Confirm sends. What the list names is
+                 what lib/forget.mjs deletes. */}}
+            <section class="account-delete" aria-labelledby="prof-delete-h">
               <h3 class="account-group-title" id="prof-delete-h">Delete your details</h3>
-              <p>This deletes your account: your name, email, phone and address, and the customer profile we made for you at Square, which keeps the payments themselves. We keep your past orders for our records, with no name on them. It can't be undone.</p>
-              {{ partial "busy-button.html" (dict "label" "Delete my details" "busy" "Deleting" "class" "btn-outline-danger btn-sm" "id" "account-delete" "type" "button") }}
-              <p class="form-text mb-0 mt-2" id="account-delete-status" role="status" aria-live="polite" hidden></p>
+              <p class="mb-2">This deletes your account:</p>
+              <ul class="account-delete-list">
+                <li>Your name</li>
+                <li>Your email address</li>
+                <li>Your phone number</li>
+                <li>Your delivery address</li>
+                <li>Your customer profile in Square</li>
+              </ul>
+              <p>We keep records of past orders, but we permanently remove your details from them.</p>
+              <p class="account-delete-warning"><strong>Deleting your account is irreversible. It cannot be undone.</strong></p>
+              <button class="btn btn-outline-danger" type="button" id="account-delete" aria-haspopup="dialog" aria-controls="delete-dialog">Delete my account</button>
             </section>
+
+            {{/* The full-screen takeover (#303). A modal <dialog>: the
+                 page behind is inert, so focus stays inside, and Escape
+                 or the close button shuts it while nothing is sending. */}}
+            <dialog class="account-delete-dialog" id="delete-dialog" aria-labelledby="delete-dialog-h" aria-describedby="delete-dialog-text">
+              <div class="account-delete-dialog-inner">
+                <button class="btn-close account-delete-close" type="button" aria-label="Close" data-delete-close></button>
+                <h2 class="h3" id="delete-dialog-h">Confirm account deletion</h2>
+                <p id="delete-dialog-text">Enter your email address and click Confirm to permanently delete your account.</p>
+                <form class="news-signup account-delete-form" id="delete-confirm-form" novalidate>
+                  <label class="visually-hidden" for="delete-confirm-email">Your email address</label>
+                  <div class="input-group">
+                    <input class="form-control" type="email" id="delete-confirm-email" name="email" placeholder="Email address" autocomplete="off" inputmode="email" enterkeyhint="done" required autofocus aria-describedby="delete-confirm-note">
+                    {{ partial "busy-button.html" (dict "label" "Confirm" "busy" "Deleting" "class" "btn-danger" "fit" true) }}
+                  </div>
+                  <p class="news-signup-note account-delete-note" id="delete-confirm-note" role="status" aria-live="polite"></p>
+                </form>
+              </div>
+            </dialog>
           </section>
 
           <section class="account-section" id="acct-help" data-section="help" aria-labelledby="acct-help-h" hidden>

@@ -25,7 +25,8 @@ runs them by hand.
 
 ## Deleting details
 
-A customer uses Delete my details on the account page
+A customer uses Delete my account on the account page and confirms by
+typing the account's email address, which the server checks
 (`POST /api/account/delete`); the farm uses `bin/nff customers forget
 <email> --apply`, which is a dry run without `--apply`. The Square
 customer profiles named on the customer's own orders go first; if

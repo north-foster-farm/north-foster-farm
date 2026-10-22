@@ -130,17 +130,19 @@ test.describe("busy buttons", () => {
     async ({ page }) => {
       await signedIn(page);
       await page.route("**/api/account/delete", (route) => route.abort());
-      // The fixture dismisses every dialog; this one is a yes.
-      await page.addInitScript(() => {
-        window.confirm = () => true;
-      });
       await page.goto("/account/#settings");
 
-      const button = page.locator("#account-delete");
+      // The full-screen confirm (#303): the account's own address,
+      // then Confirm, the busy button.
+      await page.locator("#account-delete").click();
+      await page.locator("#delete-confirm-email").fill(CUSTOMER.email);
+
+      const button = page.locator("#delete-confirm-form .busy-button");
 
       await button.click();
-      await expect(page.locator("#account-delete-status"))
+      await expect(page.locator("#delete-confirm-note"))
         .toHaveText("Something went wrong. Please try again.");
+      await expect(page.locator("#delete-dialog")).toBeVisible();
       await expect(button).toHaveAttribute("data-busy", "false");
       await expect(button).not.toHaveAttribute("aria-busy");
     });

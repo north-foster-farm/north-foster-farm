@@ -12,9 +12,10 @@
 //                                               avatar, reminders, marketing }
 //   PUT   /api/account/address                { address1, ..., zip, cooler }
 //   POST  /api/account/support                { subject, message, orderId }
-//   POST  /api/account/delete                 { confirm: true } deletes
-//                                             the customer's details
-//                                             and signs out (#189)
+//   POST  /api/account/delete                 { email } deletes the
+//                                             customer's details and
+//                                             signs out (#189) when it
+//                                             is the account's address
 
 import {
   cancelOrder, changeOrder, listOrders, requestReturn, saveAddress,
@@ -138,8 +139,13 @@ export const handle = async (req, {
   }
 
   if (req.method === "POST" && path === "/api/account/delete") {
-    if (body.confirm !== true) {
-      return json(422, { errors: { confirm: "Please confirm." } });
+    // The typed address is the confirmation: trimmed, any case.
+    const fold = (s) => String(s || "").trim().toLowerCase();
+
+    if (!fold(body.email) || fold(body.email) !== fold(customer.email)) {
+      const message = "That isn't the email address on this account.";
+
+      return json(422, { message, errors: { email: message } });
     }
 
     const result = await forgetCustomer(stores, customer.email, {

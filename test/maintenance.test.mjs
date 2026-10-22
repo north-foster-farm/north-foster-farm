@@ -329,7 +329,7 @@ describe("the account area under maintenance", () => {
     ["PATCH", "/api/account/profile", { firstName: "Sam" }],
     ["PUT", "/api/account/address", {}],
     ["POST", "/api/account/support", { subject: "Hi", message: "Hi" }],
-    ["POST", "/api/account/delete", { confirm: true }],
+    ["POST", "/api/account/delete", { email: "x@y.test" }],
   ];
 
   for (const [method, path, payload] of routes) {

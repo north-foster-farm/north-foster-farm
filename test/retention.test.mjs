@@ -291,7 +291,7 @@ describe("what does not count", () => {
     const stores = await seeded();
     const session = await signIn(stores, before);
     const res = await call(stores, before, "/api/account/delete", "POST",
-      { confirm: true }, session);
+      { email: PAT }, session);
 
     assert.equal(res.status, 200);
     assert.equal(await getCustomer(stores, PAT), null);
