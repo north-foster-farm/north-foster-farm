@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 
 import { loadEnv } from "../netlify/functions/lib/env.mjs";
 import { USAGE as BREAKER_USAGE, breakerCommand } from "./breaker.mjs";
+import { confirmed } from "./confirm.mjs";
 import { USAGE as GATE_USAGE, gateCommand } from "./gate.mjs";
 import { devSchedule } from "./dev-schedule.mjs";
 import { NETLIFY_NPX, runNetlify } from "./env/cli.mjs";
@@ -202,7 +203,11 @@ ${PROMOTE_USAGE}
 
   --production, --staging, --preview  act on that deploy context's
                                       data; with none, on the dev
-                                      stores, never production's`;
+                                      stores, never production's
+  --yes                               with --production, skip the typed
+                                      confirmation that every cancel,
+                                      refund, delete and stock or order
+                                      change asks for (for a script)`;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -770,6 +775,14 @@ const run = async () => {
   if (group === "restore") return restoreCommand(action);
   if (group === "login" && action) return signIn(action, false);
   if (group === "masquerade" && action) return signIn(action, true);
+
+  // Production asks first for anything that cancels, refunds, deletes
+  // or changes an order or stock (#268); --yes is for a script.
+  if (!await confirmed({ group, action, rest }, {
+    context, flags, ask: process.stdin.isTTY ? askLine : null,
+  })) {
+    process.exit(1);
+  }
 
   switch (`${group} ${action}`) {
   case "customers list": {
