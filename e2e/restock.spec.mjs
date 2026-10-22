@@ -114,37 +114,36 @@ test.describe("restock types (#267)", () => {
       .toBeGreaterThan(await lum(".order-filter-seg"));
   });
 
-  test("Show sits with the lead in the intro: one row when wide, " +
-    "centered under it when narrow", async ({ page }) => {
-    await open(page);
+  // The lead line and the visible "Show" went (#274, round 4 part 2):
+  // the control stands alone, centered over the catalog, still named
+  // "Show" for a screen reader.
+  test("Show stands alone, centered, at the top of the catalog",
+    async ({ page }) => {
+      await open(page);
 
-    const box = (sel) => page.locator(sel).evaluate((el) => {
-      const r = el.getBoundingClientRect();
+      await expect(page.locator(".order-intro .order-filter")).toHaveCount(1);
+      await expect(page.locator(".order-topbar .order-filter"))
+        .toHaveCount(0);
+      await expect(page.locator(".order-intro")).toHaveText(
+        /^\s*In stock\s*Full catalog\s*$/
+      );
 
-      return { top: r.top, bottom: r.bottom, left: r.left, right: r.right,
-        mid: r.left + r.width / 2 };
+      for (const size of [
+        { width: 1280, height: 900 }, { width: 390, height: 800 },
+      ]) {
+        await page.setViewportSize(size);
+
+        const offset = await page.locator(".order-intro").evaluate((el) => {
+          const box = el.getBoundingClientRect();
+          const seg = el.querySelector(".order-filter-seg")
+            .getBoundingClientRect();
+
+          return (seg.left + seg.width / 2) - (box.left + box.width / 2);
+        });
+
+        expect(Math.abs(offset), `${size.width}px`).toBeLessThan(2);
+      }
     });
-
-    await expect(page.locator(".order-intro .order-filter")).toHaveCount(1);
-    await expect(page.locator(".order-topbar .order-filter")).toHaveCount(0);
-
-    await page.setViewportSize({ width: 1280, height: 900 });
-    let lead = await box(".order-lead");
-    let filter = await box(".order-filter");
-
-    expect(filter.left).toBeGreaterThan(lead.right);
-    expect(filter.top).toBeLessThan(lead.bottom);
-    expect(filter.bottom).toBeGreaterThan(lead.top);
-
-    await page.setViewportSize({ width: 390, height: 800 });
-    lead = await box(".order-lead");
-    filter = await box(".order-filter");
-    const intro = await box(".order-intro-row");
-
-    expect(filter.top).toBeGreaterThanOrEqual(lead.bottom);
-    expect(Math.abs(filter.mid - intro.mid)).toBeLessThan(2);
-    expect(Math.abs(lead.mid - intro.mid)).toBeLessThan(2);
-  });
 
   test("Full catalog: out-of-stock rows show greyed with their label " +
     "and can't be added", async ({ page }) => {

@@ -39,20 +39,18 @@
   <div class="order-catalog-col">
     {{/* The page's intro, under the title wherever the title is: below
          lg that is the top bar, so it cannot sit with the heading. The
-         lead and the Show control read as one header (#267,
-         6305274262): one row, lead left, where both fit; centered, the
-         control under the lead, where they don't. */}}
+         Show control alone, centered over the catalog: no lead line
+         and no visible "Show" label (#274, round 4 part 2; the group
+         keeps "Show" as its name for a screen reader). */}}
     <div class="order-intro mb-4">
       <div class="order-intro-row">
-        {{ with .Content }}<div class="order-lead">{{ . }}</div>{{ end }}
         {{/* Show "In stock" or "Full catalog" (#267, 6303649455): a
              radio group drawn as the cart's segmented control, the
              chosen side lighter. In stock, the default, is what can
              be bought now; Full catalog also shows what is out,
              greyed, with its restock label and no way to add it.
              order/restock.js remembers the choice. */}}
-        <div class="order-filter" role="radiogroup" aria-labelledby="order-filter-label">
-          <span class="order-filter-label" id="order-filter-label">Show</span>
+        <div class="order-filter" role="radiogroup" aria-label="Show">
           <div class="order-filter-seg">
             <span class="order-filter-fill" aria-hidden="true"></span>
             <label class="order-filter-option"><input class="order-filter-input" type="radio" name="order-show" id="order-show-stock" value="stock" checked data-show><span>In stock</span></label>

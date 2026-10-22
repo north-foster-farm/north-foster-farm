@@ -21,39 +21,11 @@
     max-width: 1040px;
   }
 
-  // The lead and the Show control (#267): stacked and centered, then
-  // one row, lead left and control right, once the column has room
-  // for both. The query asks the column, not the screen, since the
-  // sidebar and the cart take their share from lg up.
-  .order-intro {
-    container: order-intro / inline-size;
-  }
-
+  // The Show control on its own, centered over the catalog at every
+  // size (#274, round 4 part 2: the lead beside it is gone).
   .order-intro-row {
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    align-items: center;
-    text-align: center;
-  }
-
-  @container order-intro (min-width: 36rem) {
-    .order-intro-row {
-      flex-direction: row;
-      gap: 1.5rem;
-      justify-content: space-between;
-      text-align: start;
-    }
-  }
-
-  // A short line: where it wraps, beside the control or centered over
-  // it, its lines come out even.
-  .order-lead {
-    text-wrap: balance;
-
-    > :last-child {
-      margin-bottom: 0;
-    }
+    justify-content: center;
   }
 
   .order-section legend {
@@ -1666,11 +1638,6 @@
     flex: none;
     gap: 0.75rem;
     align-items: center;
-  }
-
-  .order-filter-label {
-    font-size: 0.875rem;
-    color: var(--bs-secondary-color);
   }
 
   .order-filter-seg {

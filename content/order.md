@@ -10,5 +10,3 @@ layout: "order/single.html"
 pageScript: "order"
 outputs: ["html", "markdown"]
 ---
-
-Pasture-raised, processed, and packed in Rhode Island.

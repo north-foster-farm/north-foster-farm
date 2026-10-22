@@ -126,8 +126,10 @@ Switching one is a catalog edit and a deploy. The labels live in
 `layouts/partials/order/restock-label.html`.
 
 The order page's **Show** control (`order/restock.js`, James,
-6303649455) is a radio group (`role="radiogroup"`, labelled
-"Show") drawn as the cart's segmented control, the chosen side
+6303649455) is a radio group (`role="radiogroup"`, named "Show"
+for a screen reader, with no visible label since #274) alone and
+centered at the top of the catalog, drawn as the cart's segmented
+control, the chosen side
 lighter: **"In stock"**, the default, shows only what is in stock;
 **"Full catalog"** also shows every out-of-stock item with a type.
 The choice is remembered on the device (`localStorage`, key
