@@ -129,8 +129,11 @@ export class OrderForm {
     this.codes = data.codes || [];
     this.code = null;
     // A pass the farm issued (#182): its code, once /api/pass says it
-    // lifts the delivery minimum. The server checks it again.
+    // lifts the delivery minimum, and whether it waives the delivery
+    // fee too. The server checks it again. To the customer it is a
+    // discount code like any other.
     this.pass = null;
+    this.passFee = false;
     this.joke = null;
     this.index = indexCatalog(this.catalog);
     this.money = this.terms.money;
@@ -276,6 +279,7 @@ export class OrderForm {
 
     this.group = customer.discountGroup || null;
     this.pass = order.pass || null;
+    this.passFee = !!(order.pass && order.passWaivesFee);
 
     const saved = this.draft.load();
 
@@ -1517,6 +1521,7 @@ export class OrderForm {
       group: this.group,
       code: this.code,
       zipStatus: this.zipStatus(),
+      waiveFee: !!this.pass && this.passFee,
     });
   }
 
@@ -1546,7 +1551,10 @@ export class OrderForm {
     if (!typed) {
       this.stopJoke();
       this.code = null;
-      if (!this.editing) this.pass = null;
+      if (!this.editing) {
+        this.pass = null;
+        this.passFee = false;
+      }
       say("");
       this.refresh();
 
@@ -1597,13 +1605,17 @@ export class OrderForm {
 
     const pass = this.editing ? { ok: false } : await this.applyPass(typed);
 
+    // James's wording (6333286808, and on #182 since): the minimum is
+    // the live one from data/delivery.json; a code that waives the fee
+    // says only "Applied.", as the fee cell already shows $0.
     if (pass.ok) {
-      // Draft wording.
-      accepted("Code applied: this order can be delivered under the " +
-        `$${this.money.deliveryMinimum} minimum.`);
+      accepted(this.passFee ? "Applied."
+        : "Applied: this order can be delivered under the " +
+          `$${this.money.deliveryMinimum} minimum.`);
     } else if (!quiet) {
-      // The code that was on stays on.
-      say(pass.message || "Not a valid discount code.");
+      // The code that was on stays on. Every code refused says only
+      // this (James, on #182).
+      say(pass.message || "That code isn't valid.");
     }
     this.refresh();
   }
@@ -1617,13 +1629,32 @@ export class OrderForm {
     if (raw.length !== 8) return { ok: false };
 
     const code = `${raw.slice(0, 4)}-${raw.slice(4)}`;
+    // The submission's key: a pass it holds, after a declined card and
+    // a reload, is still its own.
+    const holder = encodeURIComponent(this.draft.key());
     const { ok, data } = await api(
-      `/api/pass?code=${encodeURIComponent(code)}`
+      `/api/pass?code=${encodeURIComponent(code)}&holder=${holder}`
     ).catch(() => ({ ok: false, data: null }));
 
-    if (ok) this.pass = code;
+    if (ok) {
+      this.pass = code;
+      this.passFee = !!(data && data.waivesFee);
+    }
 
     return { ok, message: data && data.message };
+  }
+
+  // Takes a pass the server refused off the order and says why by the
+  // code box, as a code refused on Apply would.
+  dropPass(message) {
+    const note = qs(this.cart, "[data-code-note]");
+
+    this.pass = null;
+    this.passFee = false;
+    note.textContent = message;
+    note.hidden = false;
+    delete note.dataset.tone;
+    this.refresh();
   }
 
   // The money rules the page holds the order to: a pass lifts the
@@ -2214,7 +2245,7 @@ export class OrderForm {
     return validateOrder(payload, {
       index: this.index, terms: this.terms, now: this.dates.now(),
       group: this.group, code: this.code, schedule: this.dates.schedule(),
-      waive: { minimum: !!this.pass },
+      waive: { minimum: !!this.pass, fee: !!this.pass && this.passFee },
     });
   }
 
@@ -2428,6 +2459,13 @@ export class OrderForm {
       if (outcome.stock) {
         this.stock.items = outcome.stock;
         this.stock.apply();
+      }
+      // A code the server refused (#182): it comes off, the totals
+      // follow, and the words go by the code box, not under a field.
+      if (outcome.errors.pass) {
+        this.dropPass(outcome.errors.pass);
+
+        return;
       }
       if (outcome.errors.total) {
         this.refresh();

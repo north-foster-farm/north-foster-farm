@@ -40,7 +40,7 @@ import { sendMail } from "./lib/mail.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./lib/paypal.mjs";
 import {
-  PASS_MESSAGES, getPass, holdPass, passCodeOf, passProblem,
+  PASS_MESSAGES, getPass, holdPass, passCodeOf, passProblem, waivesFee,
 } from "./lib/passes.mjs";
 import { PAYMENTS_OFF, paymentsOff } from "./lib/payments.mjs";
 import { pickupSchedule } from "./lib/pickups.mjs";
@@ -242,10 +242,11 @@ export const handle = async (req, {
   const group = session && session.customer
     ? session.customer.discountGroup || null
     : null;
-  // A pass (#182) lifts the delivery minimum for this one order. It is
-  // checked against the order's email, held for this submission (its
-  // key: the id is reserved later, #253) while it is paid, and used up
-  // by the paid record.
+  // A pass (#182) lifts the delivery minimum for this one order, and
+  // the fee if it was issued so. It is checked against the order's
+  // email, held for this submission (its key: the id is reserved
+  // later, #253) while it is paid, and used up by the paid record. A
+  // standing one is neither held nor used up.
   const passCode = passCodeOf(payload.pass);
   const pass = passCode ? await getPass(stores, passCode) : null;
   const problem = passCode
@@ -253,19 +254,28 @@ export const handle = async (req, {
       email: (payload.customer || {}).email, holder: key, now,
     })
     : null;
+
+  // A code the page applied and the server refuses is answered first,
+  // whatever else the order needs, as `errors.pass`: the page shows it
+  // by the code box and drops the code. Answered later, a fee the page
+  // took off came back as a changed total and Pay looped (QA, #182).
+  // A pickup ignores a code; it lifts nothing there.
+  if (problem && (payload.fulfilment || {}).method === "delivery") {
+    return json(422, { errors: { pass: PASS_MESSAGES[problem] } });
+  }
+
   const result = validateOrder(payload, {
     index, terms, now, group, codes: discountCodes.codes,
     schedule: pickupSchedule(env),
-    waive: { minimum: !!passCode && !problem },
+    waive: {
+      minimum: !!passCode && !problem,
+      fee: !!passCode && !problem && waivesFee(pass),
+    },
   });
 
   if (!result.ok) {
-    const errors = problem && result.errors["delivery.minimum"]
-      ? { ...result.errors, "delivery.minimum": PASS_MESSAGES[problem] }
-      : result.errors;
-
     return json(result.status, {
-      errors,
+      errors: result.errors,
       dates: result.dates || undefined,
     });
   }
@@ -327,15 +337,17 @@ export const handle = async (req, {
 
   // Every way is booked by paying: a window the schedule offers needs
   // no second yes from the farm (W11d).
-  const waived = result.order.flags.minimumWaived;
+  const waived = result.order.flags.minimumWaived
+    || !!result.order.totals.feeWaived;
 
-  if (waived) await holdPass(stores, pass, key, now);
+  if (waived && !pass.standing) await holdPass(stores, pass, key, now);
 
   const order = {
     id,
     submittedAt: now.toISOString(),
     ...result.order,
     pass: waived ? pass.code : null,
+    passWaivesFee: waived && waivesFee(pass),
     fulfilment: { ...result.order.fulfilment, state: "agreed" },
     meta: {
       formVersion: catalog.version,

@@ -810,13 +810,26 @@ Flags that take a value accept both `--reason "..."` and
 - **$40 minimum is a hard block** with pickup and the drop site as the
   escape hatch, both without a minimum. The one exception is a pass
   (#182): `bin/nff passes issue [--email x] [--days 14]` prints a code
-  that lets one delivery order under the minimum. It changes nothing
-  charged (the fee stays), is single use, expires, and is tied to an
-  email when given. The code box takes it; `GET /api/pass` tells the
-  page, and `POST /api/orders` checks it again, holds it for 30
-  minutes while the order is paid, and the paid record uses it up
-  (`lib/passes.mjs`). An order that meets the minimum anyway leaves it
-  unused, and a change to the order keeps the waiver.
+  that lets one delivery order under the minimum. It is single use,
+  expires, and is tied to an email when given. `--standing` (with
+  `--email`) makes one for every order from that email: never used
+  up, no expiry unless `--days`, ended by `passes revoke`.
+  `--waive-fee`, on either kind, takes the delivery fee and the
+  outside-area fee to $0 (the fee cell says "$0"; Square gets a $0
+  "Delivery fee" service charge and no discount): ride-along customers
+  get a standing one. Otherwise a pass changes nothing charged. To the
+  customer it is a discount code: the code box takes it; `GET
+  /api/pass` tells the page, and `POST /api/orders` checks it again,
+  holds a single-use one for 30 minutes while the order is paid, and
+  the paid record uses it up (`lib/passes.mjs`). Every code refused,
+  a discount code or a pass, used, expired or for another email, says
+  "That code isn't valid."; `passes list` gives the farm the reason.
+  A pass the server refuses at Pay comes off the order, and the words
+  go by the code box. Applied, the note says the order can be
+  delivered under the minimum, or only "Applied." for a code that
+  waives the fee. An order that needs no waiver leaves the pass
+  unused, and a change to the order keeps the waiver (`passWaivesFee`
+  on the record keeps the fee's).
 - **No South County option.** Dropped on 18 September 2026, along with
   the demand vote.
 - **Out-of-stock items are hidden by default**, and a category with

@@ -4,20 +4,26 @@ import { describe, it } from "node:test";
 import { handle } from "../netlify/functions/orders.mjs";
 import { handle as lookup } from "../netlify/functions/passes.mjs";
 import { publicOrder } from "../netlify/functions/lib/account.mjs";
+import {
+  buildOrder, settings,
+} from "../netlify/functions/lib/square.mjs";
 import { planEdit } from "../netlify/functions/lib/edit.mjs";
 import {
-  HOLD_MS, PASS_DAYS, getPass, holdPass, issuePass, listPasses,
-  newPassCode, passCodeOf, passProblem, passState, revokePass, usePass,
+  HOLD_MS, PASS_DAYS, PASS_MESSAGES, getPass, holdPass, issuePass,
+  listPasses, newPassCode, passCodeOf, passProblem, passState, revokePass,
+  usePass, waivesFee,
 } from "../netlify/functions/lib/passes.mjs";
 import { orderForSubmission } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import catalog from "../data/catalog.json" with { type: "json" };
 import terms from "../data/delivery.json" with { type: "json" };
 import { indexCatalog } from "../assets/scripts/order/lib/catalog.mjs";
+import { feeCell } from "../assets/scripts/order/lib/summary.mjs";
+import { computeTotals } from "../assets/scripts/order/lib/totals.mjs";
 import { validateOrder } from "../assets/scripts/order/lib/validate.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import { parseSchedule } from "../assets/scripts/order/lib/schedule.mjs";
-import { SCHEDULE } from "./schedule-fixture.mjs";
+import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
 const now = instant("2026-10-06", 9, 0, "America/New_York");
 const later = (ms) => new Date(now.getTime() + ms);
@@ -227,8 +233,8 @@ describe("POST /api/orders with a pass", () => {
       }));
 
       assert.equal(again.status, 422);
-      assert.equal((await again.json()).errors["delivery.minimum"],
-        "That code has already been used.");
+      assert.equal((await again.json()).errors.pass,
+        "That code isn't valid.");
     });
 
   it("refuses a pass issued to another email", async () => {
@@ -241,8 +247,9 @@ describe("POST /api/orders with a pass", () => {
     const res = await run(stores, small({ pass: "ABCD-EFGH" }));
 
     assert.equal(res.status, 422);
-    assert.match((await res.json()).errors["delivery.minimum"],
-      /different email/);
+    assert.equal((await res.json()).errors.pass,
+      "That code isn't valid.");
+    assert.equal((await orderForSubmission(stores, KEY)), null);
   });
 
   it("holds the pass while an order is paid, against another", async () => {
@@ -254,7 +261,8 @@ describe("POST /api/orders with a pass", () => {
     const res = await run(stores, small({ pass: pass.code }));
 
     assert.equal(res.status, 422);
-    assert.match((await res.json()).errors["delivery.minimum"], /in use/);
+    assert.equal((await res.json()).errors.pass,
+      "That code isn't valid.");
   });
 
   it("leaves the pass alone when the order meets the minimum",
@@ -312,12 +320,41 @@ describe("GET /api/pass", () => {
     const good = await ask(stores, "abcd-efgh");
 
     assert.equal(good.status, 200);
-    assert.deepEqual(await good.json(), { ok: true });
+    assert.deepEqual(await good.json(), { ok: true, waivesFee: false });
 
     const bad = await ask(stores, "ZZZZ-ZZZZ");
 
     assert.equal(bad.status, 404);
-    assert.equal((await bad.json()).message, "Not a valid code.");
+    assert.equal((await bad.json()).message, "That code isn't valid.");
+  });
+
+  it("lets the submission that holds a pass see it as good",
+    async () => {
+      const stores = testStores();
+      const pass = await issuePass(stores, { now, pick: picks("ABCD-EFGH") });
+
+      await holdPass(stores, pass, KEY, now);
+      assert.equal((await ask(stores, pass.code)).status, 404);
+
+      const mine = await lookup(new Request(
+        `http://x/api/pass?code=${pass.code}&holder=${KEY}`
+      ), { stores, now });
+
+      assert.equal(mine.status, 200);
+    });
+
+  it("says whether it waives the fee too", async () => {
+    const stores = testStores();
+
+    await issuePass(stores, {
+      now, waiveFee: true, pick: picks("ABCD-EFGH"),
+    });
+    await issuePass(stores, { now, pick: picks("JKMN-PQRS") });
+
+    assert.deepEqual(await (await ask(stores, "ABCD-EFGH")).json(),
+      { ok: true, waivesFee: true });
+    assert.deepEqual(await (await ask(stores, "JKMN-PQRS")).json(),
+      { ok: true, waivesFee: false });
   });
 
   it("slows a script down", async () => {
@@ -328,5 +365,252 @@ describe("GET /api/pass", () => {
       last = await ask(stores, "ZZZZ-ZZZZ", { ip: "203.0.113.9" });
     }
     assert.equal(last.status, 429);
+  });
+});
+
+// James's wording (on #182): one refusal for every code that doesn't
+// work. The farm's list keeps the reason.
+describe("the refusals", () => {
+  it("are one sentence, whatever the reason", () => {
+    assert.deepEqual(new Set(Object.values(PASS_MESSAGES)),
+      new Set(["That code isn't valid."]));
+  });
+
+  it("leave the reason to the farm's list", () => {
+    const pass = {
+      code: "ABCD-EFGH", expiresAt: later(86_400_000).toISOString(),
+    };
+
+    assert.equal(passState({ ...pass, usedBy: "NFF-1" }, now),
+      "used by NFF-1");
+    assert.equal(passState(pass, later(2 * 86_400_000)), "expired");
+  });
+});
+
+// A standing pass (6333265908): one email, every order, never used up.
+describe("standing passes", () => {
+  const standing = (stores, options = {}) => issuePass(stores, {
+    email: "pat@example.com", standing: true, days: null, now,
+    pick: picks("ABCD-EFGH"), ...options,
+  });
+
+  it("need an email, and never expire unless given days", async () => {
+    await assert.rejects(issuePass(testStores(), {
+      standing: true, days: null, now,
+    }), /needs --email/);
+    await assert.rejects(issuePass(testStores(), { days: null, now }),
+      /whole number/, "a single-use pass always expires");
+
+    const open = await standing(testStores());
+
+    assert.equal(open.standing, true);
+    assert.equal(open.expiresAt, null);
+    assert.equal(passProblem(open, { now: later(3650 * 86_400_000) }), null);
+    assert.equal(passState(open, now), "standing");
+
+    const dated = await standing(testStores(), { days: 30 });
+
+    assert.equal(passState(dated, now),
+      `standing until ${dated.expiresAt.slice(0, 10)}`);
+  });
+
+  it("let every order from its email under the minimum", async () => {
+    const stores = testStores();
+    const pass = await standing(stores);
+
+    for (const key of [KEY, OTHER]) {
+      const res = await run(stores, small({
+        idempotencyKey: key, pass: pass.code,
+      }));
+
+      assert.equal(res.status, 200, key);
+      assert.equal((await orderForSubmission(stores, key)).pass, pass.code);
+    }
+
+    const after = await getPass(stores, pass.code);
+
+    assert.equal(after.usedBy, null, "never used up");
+    assert.equal(after.heldBy, null, "never held");
+  });
+
+  it("refuse another email with the generic words", async () => {
+    const stores = testStores();
+    const pass = await standing(stores);
+    const res = await run(stores, small({
+      pass: pass.code,
+      customer: { ...small().customer, email: "sam@example.com" },
+    }));
+
+    assert.equal(res.status, 422);
+    assert.equal((await res.json()).errors.pass,
+      "That code isn't valid.");
+  });
+
+  it("answer a refused code before the total, over the minimum too",
+    async () => {
+      const stores = testStores();
+      const pass = await standing(stores, {
+        email: "sam@example.com", waiveFee: true,
+      });
+      // Two chickens, $5 off; the page took the fee off, so it claims
+      // $55 where the server, without the code, makes it $60.
+      const res = await run(stores, small({
+        lines: [{ sku: SKU, qty: 2 }], claimedTotal: 5500, pass: pass.code,
+      }));
+
+      assert.equal(res.status, 422);
+      assert.deepEqual((await res.json()).errors,
+        { pass: "That code isn't valid." });
+    });
+
+  it("leave a pickup alone: a code lifts nothing there", async () => {
+    const stores = testStores();
+    const pass = await standing(stores, { email: "sam@example.com" });
+    const res = await run(stores, small({
+      pass: pass.code, claimedTotal: 3000,
+      fulfilment: {
+        method: "onfarm", date: "2026-10-07",
+        onfarm: { window: MORNING },
+      },
+    }));
+
+    assert.equal(res.status, 200, JSON.stringify(await res.clone().json()));
+    assert.equal((await orderForSubmission(stores, KEY)).pass, null);
+  });
+
+  it("end when revoked, and the list shows them", async () => {
+    const stores = testStores();
+    const pass = await standing(stores);
+
+    await revokePass(stores, pass.code, now);
+
+    const res = await run(stores, small({ pass: pass.code }));
+
+    assert.equal(res.status, 422);
+    assert.equal(passState((await listPasses(stores))[0], now), "revoked");
+  });
+});
+
+// --waive-fee (6333306849): the fee line at $0, a $0 service charge in
+// Square, no discount line. Ride-along customers get a standing one.
+describe("passes that waive the fee", () => {
+  const money = terms.money;
+  const totalsOf = (qty, waiveFee, zipStatus = "listed") => computeTotals({
+    lines: [{ sku: SKU, qty }], method: "delivery", index, money,
+    zipStatus, waiveFee,
+  });
+
+  it("take the fee and the outside-area fee off, and say so", () => {
+    const t = totalsOf(1, true, "unlisted");
+
+    assert.equal(t.deliveryFee, 0);
+    assert.equal(t.areaFee, 0);
+    assert.equal(t.feeWaived, true);
+    assert.equal(t.discountAmount, 0, "no discount line");
+    assert.equal(t.total, 3000);
+    assert.deepEqual(feeCell(t, "delivery"),
+      { show: true, waived: true, text: "$0" });
+  });
+
+  it("leave an order with no fee to waive as it was", () => {
+    assert.deepEqual(totalsOf(5, true), totalsOf(5, false));
+    assert.equal("feeWaived" in totalsOf(1, false), false);
+  });
+
+  it("send the delivery to Square as a $0 charge", () => {
+    const t = totalsOf(1, true);
+    const built = buildOrder({
+      id: "NFF-2610-ABCD",
+      customer: { name: "Pat Example", email: "pat@example.com" },
+      fulfilment: {
+        method: "delivery", date: "2026-10-08",
+        delivery: {
+          address1: "1 Main St", town: "Foster", zip: "02825",
+          cooler: "Porch",
+        },
+      },
+      lines: [{
+        sku: SKU, name: "Whole Chicken", unitPrice: 30, qty: 1,
+        lineTotal: 30, squareVariationId: null,
+      }],
+      totals: t,
+      flags: { zipUnlisted: false },
+    }, "CUST", settings({
+      SQUARE_ACCESS_TOKEN: "tok", SQUARE_LOCATION_ID: "LOC",
+      SQUARE_ENV: "sandbox",
+    }));
+
+    assert.deepEqual(built.service_charges.map((c) => [
+      c.name, c.amount_money.amount,
+    ]), [["Delivery fee", 0]]);
+    assert.equal(built.discounts, undefined);
+  });
+
+  it("are issued from the CLI's flag and named in the list", async () => {
+    const stores = testStores();
+    const pass = await issuePass(stores, {
+      email: "pat@example.com", standing: true, days: null, waiveFee: true,
+      now, pick: picks("ABCD-EFGH"),
+    });
+
+    assert.deepEqual(pass.lifts, ["minimum", "fee"]);
+    assert.equal(waivesFee(pass), true);
+    assert.equal(passState(pass, now), "standing, waives the fee");
+  });
+
+  it("charge an order under the minimum nothing for delivery",
+    async () => {
+      const stores = testStores();
+      const pass = await issuePass(stores, {
+        email: "pat@example.com", standing: true, days: null, waiveFee: true,
+        now, pick: picks("ABCD-EFGH"),
+      });
+      const res = await run(stores, small({
+        pass: pass.code, claimedTotal: 3000,
+      }));
+      const order = await orderForSubmission(stores, KEY);
+
+      assert.equal(res.status, 200);
+      assert.equal(order.totals.deliveryFee, 0);
+      assert.equal(order.totals.total, 3000);
+      assert.equal(order.passWaivesFee, true);
+      assert.equal(publicOrder(order, now).passWaivesFee, true);
+    });
+
+  it("waive the fee over the minimum too, for a standing pass",
+    async () => {
+      const stores = testStores();
+      const pass = await issuePass(stores, {
+        email: "pat@example.com", standing: true, days: null, waiveFee: true,
+        now, pick: picks("ABCD-EFGH"),
+      });
+      const res = await run(stores, small({
+        lines: [{ sku: SKU, qty: 2 }], claimedTotal: 6000 - 500,
+        pass: pass.code,
+      }));
+      const order = await orderForSubmission(stores, KEY);
+
+      assert.equal(res.status, 200, JSON.stringify(await res.clone().json()));
+      assert.equal(order.totals.deliveryFee, 0);
+      assert.equal(order.pass, pass.code);
+    });
+
+  it("keep the fee off when the order is changed", async () => {
+    const stores = testStores();
+    const pass = await issuePass(stores, {
+      now, waiveFee: true, pick: picks("ABCD-EFGH"),
+    });
+
+    await run(stores, small({ pass: pass.code, claimedTotal: 3000 }));
+
+    const order = await orderForSubmission(stores, KEY);
+    const plan = await planEdit(stores, order, {
+      fulfilment: { date: "2026-10-15" }, claimedTotal: 3000,
+    }, {
+      now, index, terms, codes: [], group: null,
+      validate: validateOrder, schedule,
+    });
+
+    assert.equal(plan.ok, true, JSON.stringify(plan.errors));
   });
 });

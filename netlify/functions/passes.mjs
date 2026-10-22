@@ -1,16 +1,20 @@
-// GET /api/pass?code=XXXX-XXXX: whether a pass (#182) would lift the
-// delivery minimum, so the order page can let the order through. The
+// GET /api/pass?code=XXXX-XXXX[&holder=<key>]: whether a pass (#182)
+// would lift the delivery minimum, so the order page can let the order
+// through. `holder` is the page's submission key: a pass that
+// submission holds (a declined card, then a reload) is still good to
+// it, as POST /api/orders would find. The
 // answer is advice only: POST /api/orders checks the pass again with
 // the order's email and holds it. Nothing about the pass is returned
-// but whether it is good and, if not, why.
+// but whether it is good, whether it waives the delivery fee too (so
+// the page can show the fee at $0) and, if not good, why.
 //
-//   200 { ok: true }     404 { ok: false, message }
+//   200 { ok: true, waivesFee }     404 { ok: false, message }
 //   429 too many tries from one address
 
 import { json } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
 import {
-  PASS_MESSAGES, getPass, passCodeOf, passProblem,
+  PASS_MESSAGES, getPass, passCodeOf, passProblem, waivesFee,
 } from "./lib/passes.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
@@ -41,14 +45,17 @@ export const handle = async (req, {
     });
   }
 
-  const code = passCodeOf(new URL(req.url).searchParams.get("code"));
-  const problem = code
-    ? passProblem(await getPass(stores, code), { now })
-    : "unknown";
+  const params = new URL(req.url).searchParams;
+  const code = passCodeOf(params.get("code"));
+  const pass = code ? await getPass(stores, code) : null;
+  const problem = passProblem(pass, {
+    holder: String(params.get("holder") || "").slice(0, 100) || undefined,
+    now,
+  });
 
   return problem
     ? json(404, { ok: false, message: PASS_MESSAGES[problem] })
-    : json(200, { ok: true });
+    : json(200, { ok: true, waivesFee: waivesFee(pass) });
 };
 
 export default withLog(async (req, context) =>

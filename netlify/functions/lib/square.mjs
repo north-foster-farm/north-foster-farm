@@ -363,11 +363,13 @@ export const buildOrder = (order, customerId, cfg) => {
     }];
   }
   // Two lines when the address is outside the published towns, so
-  // the receipt explains the extra $3 on its own.
+  // the receipt explains the extra $3 on its own. A fee a pass waived
+  // (#182) still goes as the delivery, at $0, with no discount line.
   const charges = [
     ["Delivery fee", t.deliveryFee - (t.areaFee || 0)],
     ["Outside-area fee", t.areaFee || 0],
-  ].filter(([, cents]) => cents > 0);
+  ].filter(([name, cents]) => cents > 0
+    || (t.feeWaived && name === "Delivery fee"));
 
   if (charges.length) {
     out.service_charges = charges.map(([name, cents]) => ({

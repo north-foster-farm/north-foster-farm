@@ -84,10 +84,15 @@ const USAGE = `Usage:
   bin/nff orders fulfil <id>
   bin/nff orders delete <id>
   bin/nff passes issue [--email <email>] [--days 14] [--note "..."]
+                     [--standing] [--waive-fee]
                                       a code that lets one delivery
                                       order under the minimum; single
                                       use, tied to --email if given.
-                                      The fee is charged as usual
+                                      --standing (needs --email): every
+                                      order from that email, never used
+                                      up, no expiry unless --days.
+                                      --waive-fee: the delivery fee is
+                                      $0 too (Square gets a $0 charge)
   bin/nff passes list
   bin/nff passes revoke <code>
   bin/nff returns resolve <id> <returnId> [note...]
@@ -955,15 +960,25 @@ const run = async () => {
   }
   case "passes issue": {
     const email = typeof flags.email === "string" ? flags.email : null;
+    const standing = flags.standing === true;
+    const waiveFee = flags["waive-fee"] === true;
+    let days = passes.PASS_DAYS;
+
+    if (flags.days !== undefined) days = Number(flags.days);
+    else if (standing) days = null;
+
     const pass = await passes.issuePass(stores, {
-      email,
-      days: flags.days === undefined ? passes.PASS_DAYS : Number(flags.days),
+      email, days, standing, waiveFee,
       note: typeof flags.note === "string" ? flags.note : "",
     });
+    const what = waiveFee ? "the delivery minimum and fee"
+      : "the delivery minimum";
+    const which = standing ? "every order" : "one order";
+    const until = pass.expiresAt ? `, until ${pass.expiresAt.slice(0, 10)}`
+      : ", until revoked";
 
-    return out(`${pass.code}  lifts the delivery minimum on one order${
-      pass.email ? ` from ${pass.email}` : ""}, until ${
-      pass.expiresAt.slice(0, 10)}.`);
+    return out(`${pass.code}  lifts ${what} on ${which}${
+      pass.email ? ` from ${pass.email}` : ""}${until}.`);
   }
   case "passes list": {
     const list = await passes.listPasses(stores);

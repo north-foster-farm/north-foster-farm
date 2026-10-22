@@ -9,6 +9,15 @@
 // that order for HOLD_MS, so a second order cannot take it while the
 // first is being paid; the paid record uses it up. An order that meets
 // the minimum anyway, or is not a delivery, leaves the pass alone.
+//
+// A standing pass (James, 6333265908) is tied to one email and lifts
+// the minimum on every order from it until the farm revokes it: no
+// expiry unless one is given, no hold, never used up. Either kind may
+// also waive the delivery fee (6333306849): that is how the farm
+// carries ride-along customers. The fee then goes to Square as $0.
+//
+// To the customer a pass is a discount code like any other: it goes in
+// the same box, and nothing they see calls it a pass.
 
 import { randomInt } from "node:crypto";
 
@@ -38,14 +47,23 @@ export const passCodeOf = (value) => {
 
 const emailOf = (value) => String(value || "").trim().toLowerCase();
 
-// Drafts: the customer sees these on the order page.
+// What the customer sees (James, on #182): one sentence for every code
+// that doesn't work, used, expired, revoked, for another email or held
+// by an order being paid. The page never says which; the farm sees the
+// reason in `passes list` (passState).
+const INVALID = "That code isn't valid.";
+
 export const PASS_MESSAGES = {
-  unknown: "Not a valid code.",
-  used: "That code has already been used.",
-  expired: "That code has expired.",
-  email: "That code was issued for a different email address.",
-  held: "That code is in use on another order. Try again in half an hour.",
+  unknown: INVALID,
+  used: INVALID,
+  expired: INVALID,
+  email: INVALID,
+  held: INVALID,
 };
+
+// What a pass lifts: the minimum always, the fee when issued so.
+export const waivesFee = (pass) => !!pass
+  && (pass.lifts || []).includes("fee");
 
 export const getPass = async (stores, value) => {
   const code = passCodeOf(value);
@@ -53,11 +71,16 @@ export const getPass = async (stores, value) => {
   return code ? stores.orders.get(passKey(code)) : null;
 };
 
+// `days` null means no expiry, for a standing pass only.
 export const issuePass = async (stores, {
-  email = null, days = PASS_DAYS, note = "", now = new Date(),
-  pick = randomInt,
+  email = null, days = PASS_DAYS, note = "", standing = false,
+  waiveFee = false, now = new Date(), pick = randomInt,
 } = {}) => {
-  if (!(Number.isInteger(days) && days >= 1 && days <= 365)) {
+  if (standing && !email) {
+    throw new Error("A standing pass needs --email.");
+  }
+  if (days === null ? !standing
+    : !(Number.isInteger(days) && days >= 1 && days <= 365)) {
     throw new Error("--days is a whole number from 1 to 365.");
   }
 
@@ -68,11 +91,13 @@ export const issuePass = async (stores, {
 
   const pass = {
     code,
-    lifts: ["minimum"],
+    lifts: waiveFee ? ["minimum", "fee"] : ["minimum"],
+    standing: !!standing,
     email: email ? emailOf(email) : null,
     note: String(note || ""),
     issuedAt: now.toISOString(),
-    expiresAt: new Date(now.getTime() + days * 86_400_000).toISOString(),
+    expiresAt: days === null ? null
+      : new Date(now.getTime() + days * 86_400_000).toISOString(),
     heldBy: null,
     heldAt: null,
     usedBy: null,
@@ -94,10 +119,13 @@ export const passProblem = (pass, {
 } = {}) => {
   if (!pass || pass.revokedAt) return "unknown";
   if (pass.usedBy) return "used";
-  if (now.toISOString() > pass.expiresAt) return "expired";
+  if (pass.expiresAt && now.toISOString() > pass.expiresAt) {
+    return "expired";
+  }
   if (email && pass.email && pass.email !== emailOf(email)) return "email";
 
-  const heldElsewhere = pass.heldBy && pass.heldBy !== holder
+  const heldElsewhere = !pass.standing && pass.heldBy
+    && pass.heldBy !== holder
     && now.getTime() - Date.parse(pass.heldAt) < HOLD_MS;
 
   return heldElsewhere ? "held" : null;
@@ -113,11 +141,11 @@ export const holdPass = async (stores, pass, holder, now = new Date()) => {
 };
 
 // Idempotent: a retried write of the same order finds it used by that
-// order and leaves it.
+// order and leaves it. A standing pass is never used up.
 export const usePass = async (stores, code, orderId, now = new Date()) => {
   const pass = await getPass(stores, code);
 
-  if (!pass || pass.usedBy) return pass;
+  if (!pass || pass.usedBy || pass.standing) return pass;
 
   const used = { ...pass, usedBy: orderId, usedAt: now.toISOString() };
 
@@ -152,9 +180,17 @@ export const listPasses = async (stores) => {
 };
 
 export const passState = (pass, now = new Date()) => {
+  const fee = waivesFee(pass) ? ", waives the fee" : "";
+
   if (pass.revokedAt) return "revoked";
   if (pass.usedBy) return `used by ${pass.usedBy}`;
-  if (now.toISOString() > pass.expiresAt) return "expired";
+  if (pass.expiresAt && now.toISOString() > pass.expiresAt) {
+    return "expired";
+  }
 
-  return `open until ${pass.expiresAt.slice(0, 10)}`;
+  const until = pass.expiresAt ? ` until ${pass.expiresAt.slice(0, 10)}`
+    : "";
+
+  return pass.standing ? `standing${until}${fee}`
+    : `open${until}${fee}`;
 };

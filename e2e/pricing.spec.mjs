@@ -197,7 +197,7 @@ test.describe("pricing and discounts", () => {
     await order.codeOpen.click();
     await order.codeInput.fill("nosuchcode");
     await order.codeApply.click();
-    await expect(order.codeNote).toHaveText("Not a valid discount code.");
+    await expect(order.codeNote).toHaveText("That code isn't valid.");
     await expect(order.codeInput).toHaveValue("NOSUCHCODE");
     await expect(order.discountLabel).toHaveText("Bulk discount ($50+)");
     await expect(order.total).toHaveText("$50");

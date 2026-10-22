@@ -800,7 +800,7 @@ nothing".
 - **Setup:** 5 wings.
 - **Test:**
   1. Type `nosuchcode`; press Apply.
-- **Assert:** "Not a valid discount code."; the field reads NOSUCHCODE;
+- **Assert:** "That code isn't valid."; the field reads NOSUCHCODE;
   the discount stays "Bulk discount ($50+)"; Total $50.
 - **Teardown:** None.
 

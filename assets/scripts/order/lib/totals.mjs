@@ -76,8 +76,11 @@ export const codeDiscountFor = (subtotal, code) => {
 // code entry, if a known one was typed. The bulk tier, the group
 // discount and the code never stack: the customer gets the largest.
 // `zipStatus` is the delivery ZIP's status from zipInfo, when known.
+// `waiveFee` is a farm-issued pass that waives the delivery fee
+// (#182): no fee and no outside-area fee, and `feeWaived` set when
+// there was one to waive. Discounts apply as usual.
 export const computeTotals = ({
-  lines, method, index, money, group, code, zipStatus,
+  lines, method, index, money, group, code, zipStatus, waiveFee = false,
 }) => {
   let subtotal = 0;
 
@@ -106,7 +109,9 @@ export const computeTotals = ({
   const areaFee = isDelivery && zipStatus === "unlisted"
     ? toCents(money.outsideAreaFee || 0)
     : 0;
-  const deliveryFee = baseFee + areaFee;
+  const owed = baseFee + areaFee;
+  const feeWaived = !!waiveFee && owed > 0;
+  const deliveryFee = feeWaived ? 0 : owed;
 
   const discountAmount = useCode
     ? byCode.amount
@@ -125,7 +130,9 @@ export const computeTotals = ({
     discountLabel,
     discountAmount,
     deliveryFee,
-    areaFee,
+    areaFee: feeWaived ? 0 : areaFee,
+    // Only on an order that waived one, so no other record changes.
+    ...(feeWaived ? { feeWaived: true } : {}),
     total: subtotal - discountAmount + deliveryFee,
   };
 };

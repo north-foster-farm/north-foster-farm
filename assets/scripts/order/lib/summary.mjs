@@ -97,9 +97,10 @@ export const deliveryShort = (totals, money) => {
 };
 
 // The fee cell: nothing outside delivery or on an empty cart, the
-// fee, or "Free".
+// fee, "$0" when a farm-issued code waived it (#182), or "Free".
 export const feeCell = (totals, method) => {
   if (method !== "delivery" || totals.subtotal === 0) return { show: false };
+  if (totals.feeWaived) return { show: true, waived: true, text: "$0" };
   if (totals.deliveryFee === 0) {
     return { show: true, waived: true, text: "Free" };
   }

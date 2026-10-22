@@ -135,11 +135,15 @@ export const planEdit = async (stores, order, body, {
   now, index, terms, codes, group, validate, schedule,
 }) => {
   // An order placed with a pass (#182) keeps its waiver through every
-  // change; the pass is already used up by this order.
+  // change, the fee's too if the pass waives it; the pass is already
+  // used up by this order.
   const result = validate(payloadFor(order, body), {
     index, terms, now, group, codes, schedule,
     held: Object.fromEntries(order.lines.map((l) => [l.sku, l.qty])),
-    waive: { minimum: !!order.pass },
+    waive: {
+      minimum: !!order.pass,
+      fee: !!order.passWaivesFee,
+    },
   });
 
   if (!result.ok) {
