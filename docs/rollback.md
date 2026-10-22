@@ -405,8 +405,8 @@ git -C <site> revert --no-edit <first release commit>^..origin/main
 git -C <site> push origin revert-release:next
 ```
 
-The push to `next` starts CI. Once `lint-and-test`, `supply-chain`
-and `codeql` are green on it, promote:
+The push to `next` starts CI. Once `lint-and-test`, `supply-chain`,
+`codeql`, `build` and `record-shape` are green on it, promote:
 
 ```
 bin/nff promote staging
@@ -414,7 +414,9 @@ bin/nff promote main
 ```
 
 `promote main` refuses until James's `LGTM` is on the open
-staging-to-main pull request, put on after the revert commit.
+staging-to-main pull request, put on after the revert reached
+`staging`. If no
+such pull request is open, the first run opens it and stops.
 
 If auto publishing is locked, the promotion to `main` builds but does
 not publish: unlock, or publish the new deploy. To go forward again,

@@ -7,8 +7,10 @@ name: LGTM auto-merge
 # land untested. The repository allows nothing but rebase merges.
 #
 # Only a PR into next is merged. staging and main never take a merge:
-# they move only by fast-forwarding to a SHA already checked, so a PR
-# against either is refused here.
+# they move only by fast-forwarding to a SHA already checked. A PR
+# against either skips this job, so the LGTM on the staging-to-main PR
+# that `bin/nff promote main` opens leaves no red run (#283); a PR into
+# staging is refused, as it should never exist.
 #
 # A merge made with GITHUB_TOKEN starts no push workflow, and a rebase
 # writes new SHAs, so the merged commits would carry no check and a
@@ -27,7 +29,9 @@ permissions:
 
 jobs:
   automerge:
-    if: github.event.label.name == 'LGTM'
+    if: >-
+      github.event.label.name == 'LGTM'
+      && github.event.pull_request.base.ref != 'main'
     runs-on: ubuntu-latest
     steps:
       - name: Refuse any base but next

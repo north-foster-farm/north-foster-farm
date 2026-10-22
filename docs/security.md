@@ -224,10 +224,17 @@ check belongs to its SHA. So:
 - **Branch to `next`:** rebase onto `next`, then push the fast-forward.
 - **`next` to `staging`, `staging` to `main`:** `bin/nff promote
   staging|main [--dry-run]` pushes that commit and nothing else. It
-  refuses a non-fast-forward and a commit without green
-  `lint-and-test`, `supply-chain` and `codeql`. For `main` it also
-  requires the commit to be the head of an open staging-to-main pull
-  request with an `LGTM` label put on after the commit was made. It
+  refuses a non-fast-forward and a commit without every check the
+  agreed ruleset for that branch requires (`REQUIRED_CHECKS` in
+  `bin/promote.mjs`): `lint-and-test`, `supply-chain`, `codeql` and
+  `build`, plus `record-shape` for `staging` and `release-audit` for
+  `main`. For `main` it also requires the commit to be the head of an
+  open staging-to-main pull request from this repository's `staging`,
+  with an `LGTM` label put on after the push that brought the commit
+  to `staging` (from the repository's activity, not the commit date,
+  which can predate the label) and still on it, since taking the label
+  off withdraws the approval; when none is open it opens one, so
+  `release-audit` runs, and stops. It
   audits the commit's own lockfile first: reported now, blocking once
   `AUDIT_BLOCKS` is set, because a check that passed earlier cannot
   see an advisory published since.

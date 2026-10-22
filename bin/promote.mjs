@@ -11,9 +11,16 @@
 // passed earlier cannot see an advisory published since.
 //
 // The approval is the pull request's evidence: it is open, its head is
-// exactly this commit, and the LGTM label was put on after that commit
-// was made. GitHub holds one account here, which the agents share with
-// James, so this shows the evidence is on the PR, not who put it there.
+// exactly this commit, and the LGTM label was put on after the push
+// that brought this commit to staging. Not after the commit was made:
+// a commit made before a label but pushed after it was never seen by
+// whoever labeled. GitHub holds one account here, which the agents
+// share with James, so this shows the evidence is on the PR, not who
+// put it there.
+//
+// When no staging-to-main pull request is open, it opens one and stops
+// (#283): release-audit runs only on a pull request into main, and
+// James's LGTM goes on it. Run it again once both are in.
 
 import { execFile } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -29,10 +36,19 @@ const run = promisify(execFile);
 export const REPO = "north-foster-farm/north-foster-farm";
 export const FROM = { staging: "next", main: "staging" };
 
-// The checks every promoted commit must have passed, as the branch
-// rules require them. `audit` is run and reported below but does not
-// stop a promotion; whether it should is James's call (#283).
-export const REQUIRED_CHECKS = ["lint-and-test", "supply-chain", "codeql"];
+// The checks a promoted commit must have passed, per branch, as the
+// agreed rulesets require them (James, #283, 6332972143), so a refusal
+// comes from here rather than from the push. `e2e` joins both when
+// James lifts the pause. release-audit runs only on the pull request
+// into main, so it is looked for once that pull request is open.
+// `audit` is run and reported below but stops nothing (#283).
+const BASE_CHECKS = ["lint-and-test", "supply-chain", "codeql", "build"];
+
+export const PR_CHECKS = ["release-audit"];
+export const REQUIRED_CHECKS = {
+  staging: [...BASE_CHECKS, "record-shape"],
+  main: [...BASE_CHECKS, ...PR_CHECKS],
+};
 export const AUDIT_BLOCKS = false;
 export const APPROVAL_LABEL = "LGTM";
 
@@ -44,45 +60,93 @@ export const USAGE = `
                                       commit whose checks are not all
                                       green and, for main, a commit with
                                       no approval on its pull request.
+                                      For main, opens that pull request
+                                      when none is open, and stops.
                                       Reports the dependency audit
                                       without blocking on it`
   .slice(1);
 
 const git = async (args) => (await run("git", args)).stdout.trim();
 
-const ghApi = async (path) => JSON.parse(
-  (await run("gh", ["api", path], { maxBuffer: 16 * 1024 * 1024 })).stdout,
-);
+// A GET, or with `fields` a POST of those string fields. With `all`, a
+// GET of a list follows every page and returns one array.
+const ghApi = async (path, { fields, all = false } = {}) => {
+  const post = fields
+    ? ["-X", "POST", ...Object.entries(fields)
+      .flatMap(([key, value]) => ["-f", `${key}=${value}`])]
+    : [];
+  const pages = all ? ["--paginate", "--slurp"] : [];
+  const { stdout } = await run("gh", ["api", ...pages, ...post, path],
+    { maxBuffer: 64 * 1024 * 1024 });
+  const data = JSON.parse(stdout);
+
+  return all ? data.flat() : data;
+};
+
+// The pull request from staging into main, when none is open: the one
+// release-audit runs on and James approves. It follows staging, so the
+// body names no commit.
+export const pullRequest = () => ({
+  title: "Promote staging to main",
+  head: FROM.main,
+  base: "main",
+  body: "Fast-forwards main to the head of staging. Opened by "
+    + "`bin/nff promote main` so release-audit runs on it. Label it LGTM "
+    + "to approve, then run `bin/nff promote main` again. It is never "
+    + "merged here: main moves only by fast-forward.",
+});
+
+// The open pull requests into main from this repository's own staging
+// branch. One from a fork's branch of the same name never counts.
+export const fromStaging = (pulls) => pulls.filter((p) =>
+  p.head?.repo?.full_name === REPO && p.head?.ref === FROM.main);
+
+// When the latest push that left staging at `sha` happened, from the
+// repository's activity (newest first), or undefined.
+export const pushedAt = (activity, sha) => activity
+  .filter((a) => a.activity_type === "push" && a.after === sha)
+  .map((a) => a.timestamp).sort().at(-1);
 
 // The names of the checks that finished green on a commit.
 export const passedChecks = (runs) => new Set(runs
   .filter((r) => r.status === "completed" && r.conclusion === "success")
   .map((r) => r.name));
 
-export const missingChecks = (runs) => {
+export const missingChecks = (runs, target) => {
   const passed = passedChecks(runs);
 
-  return REQUIRED_CHECKS.filter((name) => !passed.has(name));
+  return REQUIRED_CHECKS[target].filter((name) => !passed.has(name));
 };
 
 // The pull request that proposes this commit for main, when one does and
 // its approval stands: open, head exactly `sha`, the label put on after
-// the commit was made. -> { ok, reason }.
-export const approval = ({ pulls, sha, madeAt, timeline }) => {
+// the push that brought `sha` to staging (`pushedAt`). `pulls` are the
+// ones fromStaging() keeps. -> { ok, reason }.
+export const approval = ({ pulls, sha, pushedAt: pushed, timeline }) => {
   const pr = pulls.find((p) => p.head?.sha === sha);
 
   if (!pr) return { ok: false, reason: "no open staging-to-main pull "
     + "request has this commit as its head" };
+  // The label must still be on: one taken off withdraws the approval.
+  if (!pr.labels?.some((l) => l.name === APPROVAL_LABEL)) {
+    return { ok: false, reason: `PR #${pr.number} has no `
+      + `${APPROVAL_LABEL} label` };
+  }
 
   const labeled = timeline.filter((e) => e.event === "labeled"
     && e.label?.name === APPROVAL_LABEL).map((e) => e.created_at).sort();
-  const at = labeled[labeled.length - 1];
+  const at = labeled.at(-1);
 
   if (!at) return { ok: false, reason: `PR #${pr.number} has no `
     + `${APPROVAL_LABEL} label` };
-  if (Date.parse(at) < Date.parse(madeAt)) {
+  if (!pushed) {
+    return { ok: false, reason: "no push that brought this commit to "
+      + "staging was found, so the label cannot be dated against it" };
+  }
+  if (!(Date.parse(at) > Date.parse(pushed))) {
     return { ok: false, reason: `the ${APPROVAL_LABEL} label on PR `
-      + `#${pr.number} is older than this commit` };
+      + `#${pr.number} is older than the push that brought this commit `
+      + "to staging" };
   }
 
   return { ok: true, reason: `PR #${pr.number} approved` };
@@ -147,11 +211,14 @@ export const promote = async (target, { dryRun = false, out }, deps = {}) => {
 
   const { check_runs: runs } = await api(
     `repos/${REPO}/commits/${sha}/check-runs?per_page=100`);
-  const missing = missingChecks(runs);
+  const missing = missingChecks(runs, target);
+  const refuseMissing = (names) => {
+    if (names.length) {
+      throw new Error(`Refused: ${sha} has no green ${names.join(", ")}.`);
+    }
+  };
 
-  if (missing.length) {
-    throw new Error(`Refused: ${sha} has no green ${missing.join(", ")}.`);
-  }
+  refuseMissing(missing.filter((name) => !PR_CHECKS.includes(name)));
 
   const audited = await auditCommit(sha, { show, audit });
 
@@ -162,18 +229,37 @@ export const promote = async (target, { dryRun = false, out }, deps = {}) => {
   }
 
   if (target === "main") {
-    const pulls = await api(
-      `repos/${REPO}/pulls?state=open&base=main&per_page=100`);
-    const commit = await api(`repos/${REPO}/commits/${sha}`);
+    const pulls = fromStaging(await api(
+      `repos/${REPO}/pulls?state=open&base=main&per_page=100`));
+
+    if (!pulls.length) {
+      if (dryRun) {
+        throw new Error("Refused: no staging-to-main pull request is "
+          + "open. Without --dry-run, this opens one and stops.");
+      }
+
+      const opened = await api(`repos/${REPO}/pulls`,
+        { fields: pullRequest() });
+
+      out(`Opened PR #${opened.number}: ${opened.html_url}`);
+      throw new Error(`Refused for now: PR #${opened.number} is new. `
+        + "Promote again once release-audit is green on it and it has "
+        + `the ${APPROVAL_LABEL} label.`);
+    }
+
     const pr = pulls.find((p) => p.head?.sha === sha);
     const timeline = pr
-      ? await api(`repos/${REPO}/issues/${pr.number}/timeline?per_page=100`)
+      ? await api(`repos/${REPO}/issues/${pr.number}/timeline?per_page=100`,
+        { all: true })
       : [];
+    const activity = await api(`repos/${REPO}/activity?ref=refs/heads/`
+      + `${FROM.main}&activity_type=push&per_page=100`);
     const verdict = approval({
-      pulls, sha, madeAt: commit.commit.committer.date, timeline,
+      pulls, sha, pushedAt: pushedAt(activity, sha), timeline,
     });
 
     if (!verdict.ok) throw new Error(`Refused: ${verdict.reason}.`);
+    refuseMissing(missing.filter((name) => PR_CHECKS.includes(name)));
     out(verdict.reason);
   }
 
