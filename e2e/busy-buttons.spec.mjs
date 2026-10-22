@@ -87,6 +87,8 @@ test.describe("busy buttons", () => {
       const hold = await holdRequests(page, "**/api/auth/signout");
 
       await page.goto("/account/");
+      // The account page draws the button once the session is in.
+      await expect(button).toBeVisible();
 
       const at = await width(button);
 
