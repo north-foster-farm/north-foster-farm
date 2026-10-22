@@ -42,9 +42,20 @@ export const check = (dir, kind) => {
   }
   if (kind === "staging") {
     const order = readFileSync(join(dir, "order", "index.html"), "utf8");
-
-    return ORDER_PAGE.filter((t) => !t.test(order))
+    const found = ORDER_PAGE.filter((t) => !t.test(order))
       .map((t) => `order/index.html lacks ${t}`);
+    // The toolbar's card and the overlay's are one component (#303):
+    // the same markup but for their ids' prefixes.
+    const cards = [...order.matchAll(/<dl class="?staging-card"?>[\s\S]*?<\/dl>/g)]
+      .map((m) => m[0].replace(/\b(toolbar|overlay)-card-/g, "card-"));
+
+    if (cards.length !== 2 || cards[0] !== cards[1]) {
+      found.push("order/index.html lacks one card component in both " +
+        `places (found ${cards.length}, ${
+          cards[0] === cards[1] ? "alike" : "different"})`);
+    }
+
+    return found;
   }
 
   return [`Say production or staging, not ${kind}.`];

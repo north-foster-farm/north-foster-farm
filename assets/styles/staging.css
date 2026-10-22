@@ -787,30 +787,55 @@ html.staging-library-open {
   color-scheme: light dark;
 }
 
-/* The sandbox card's details, in the toolbar and the overlay. */
+/* The sandbox card's details (partials/staging/sandbox-card.html),
+   one component in the toolbar and in the order page's overlay
+   (#303): an inset grid with every value in one column and every
+   copy button in the next, level with its value. Where the card is
+   too narrow for the label beside them, each label sits above its
+   row and the values and buttons keep their columns. The box is the
+   container the card measures, in its own font's em. */
+.staging-card-box {
+  container: staging-card / inline-size;
+}
+
 .staging-card {
-  margin: 0 0 0.75rem;
+  display: grid;
+  grid-template-columns: max-content max-content auto minmax(0, 1fr);
+  gap: 0.25rem 0.75rem;
+  align-items: center;
+  margin: 0.25rem 0 0.75rem 0.75rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--stg-line, #d6d6d6);
 }
 
 .staging-card-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 0.5rem;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
-  padding: 0.2rem 0;
 }
 
 .staging-card dt {
-  min-width: 8.5rem;
   font-weight: 600;
 }
 
 .staging-card dd {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  margin: 0;
+  display: contents;
+}
+
+@container staging-card (width < 26em) {
+  .staging-card {
+    grid-template-columns: max-content auto minmax(0, 1fr);
+    row-gap: 0.125rem;
+  }
+
+  .staging-card dt {
+    grid-column: 1 / -1;
+  }
+
+  .staging-card-row + .staging-card-row dt {
+    margin-top: 0.375rem;
+  }
 }
 
 .staging-card-value {
@@ -851,49 +876,17 @@ html.staging-library-open {
 }
 
 .staging-copied {
-  min-width: 3.5rem;
   font-size: 0.85em;
   font-weight: 600;
-  color: #186243;
+  white-space: nowrap;
+  color: var(--stg-focus, #186243);
 }
 
-/* In the toolbar (#303): one grid, inset, with every value in one
-   column and every copy button in the next, level with its value. */
-.staging .staging-card {
-  display: grid;
-  grid-template-columns: max-content max-content auto minmax(0, 1fr);
-  gap: 0.25rem 0.75rem;
-  align-items: center;
-  margin: 0.25rem 0 0.75rem 0.75rem;
-  padding-left: 0.75rem;
-  border-left: 2px solid var(--stg-line);
-}
-
-.staging .staging-card-row {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  align-items: center;
-  padding: 0;
-}
-
-.staging .staging-card dt {
-  min-width: 0;
-}
-
-.staging .staging-card dd {
-  display: contents;
-}
-
+/* The toolbar's buttons are smaller, to its 13px type. */
 .staging .staging-copy {
   min-width: 1.75rem;
   min-height: 1.75rem;
   padding: 0.2rem;
-}
-
-.staging .staging-copied {
-  min-width: 0;
-  color: var(--stg-focus);
 }
 
 /* The order page's first-visit overlay: a modal that takes the whole
@@ -941,10 +934,6 @@ html.staging-library-open {
   margin: 0 0 1rem;
 }
 
-.staging-card-sheet .staging-card dt {
-  min-width: 10rem;
-}
-
 .staging-card-sheet .staging-copy {
   min-width: 2.25rem;
   min-height: 2.25rem;
@@ -954,9 +943,5 @@ html.staging-library-open {
 @media (max-width: 575.98px) {
   .staging-card-sheet {
     padding: 1.25rem 1rem;
-  }
-
-  .staging-card-sheet .staging-card dt {
-    flex-basis: 100%;
   }
 }

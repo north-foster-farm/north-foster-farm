@@ -4,8 +4,11 @@
   the toolbar and by the order page's first-visit overlay, both staging
   only (staging-toolbar.html). The values are data/sandboxCard.json's.
   The context is a prefix for the ids, so both copies can share a page.
+  Both look alike too: staging.css styles the component, never one of
+  its places (#303; bin/check-staging.mjs holds the two to it).
 */}}
 {{ $prefix := . }}
+<div class="staging-card-box">
 <dl class="staging-card">
   {{ range hugo.Data.sandboxCard.rows }}
     {{ $id := printf "%s-card-%s" $prefix .id }}
@@ -20,3 +23,4 @@
     </div>
   {{ end }}
 </dl>
+</div>
