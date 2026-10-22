@@ -52,6 +52,19 @@ describe("the freshness check", () => {
     assert.deepEqual(check(build()), []);
   });
 
+  it("still reads the home page when a staging build marks it noindex",
+    () => {
+      const noindex = (f) => {
+        f["index.html"] = `<meta name="robots" content="noindex">${HOME}`;
+      };
+
+      assert.deepEqual(rules(noindex), []);
+      assert.deepEqual(rules((f) => {
+        noindex(f);
+        f["llms.txt"] = f["llms.txt"].replace("> A farm.", "> Old words.");
+      }), ["F3"]);
+    });
+
   it("wants all three files", () => {
     assert.deepEqual(rules((f) => { f["sitemap.xml"] = null; }), ["F1"]);
     assert.deepEqual(rules((f) => { f["llms.txt"] = null; }), ["F3"]);

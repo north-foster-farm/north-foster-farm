@@ -64,6 +64,10 @@ export function check(dir) {
   const read = (path) => readFileSync(join(dir, path), "utf8");
   const built = (path) => existsSync(join(dir, path));
 
+  // The home page, however it is indexed: a staging build marks every
+  // page noindex, and llms.txt and the manifest still answer to it.
+  const home = built("index.html") ? read("index.html") : "";
+
   // The pages search may index: not a redirect, not noindex, not 404.
   const pages = new Map();
 
@@ -113,7 +117,6 @@ export function check(dir) {
     add("F3", "there is no llms.txt");
   } else {
     const llms = read("llms.txt");
-    const home = pages.get("index.html") || "";
     const summary = /^> (.+)$/m.exec(llms)?.[1];
     const description = text(home, "description");
 
@@ -133,7 +136,6 @@ export function check(dir) {
   }
 
   // F4: the manifest.
-  const home = pages.get("index.html") || "";
   const href = attr(home, "link", "href", "rel=\"?manifest\"?");
 
   if (!href) {
