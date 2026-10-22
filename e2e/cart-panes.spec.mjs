@@ -125,10 +125,9 @@ test.describe("cart panes on a phone", () => {
 
   // Three rows, the total row and Continue, on every phone: when they
   // do not fit the cap the pane grows, up to the visible area under the
-  // top bar and never past the foot of the screen (#267).
-  for (const size of [
-    PHONE, TALL, { width: 375, height: 667 }, { width: 667, height: 375 },
-  ]) {
+  // top bar and never past the foot of the screen (#267). A phone on
+  // its side no longer floats the pane (#274 round 4, cart-round4).
+  for (const size of [PHONE, TALL, { width: 375, height: 667 }]) {
     test(`the pane keeps its floor at ${size.width}x${size.height}`, async ({
       page,
     }) => {

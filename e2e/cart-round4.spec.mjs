@@ -1,10 +1,10 @@
 // Cart round 4 (#278): the first line clear of the top fade; the
 // column easing to its new height; a tap on the toggle opening a hidden
 // pane; the top bar over the cart; a phone on its side; one line of
-// badges with "Free Delivery"; pack labels capitalized at render; the
-// first Add's shorter dwell and three pairs of pulses. It sets its own
-// sizes, and runs in WebKit too (the iphone project), where the first
-// line's fault showed.
+// badges; pack labels capitalized at render; the first Add's dwell and
+// three pairs of pulses; and from #274 round 4, nothing riding along
+// on a short screen. It sets its own sizes, and runs in WebKit too
+// (the iphone project), where the first line's fault showed.
 
 import { FULL_CART, OrderPage, expect, test } from "./support/order.mjs";
 
@@ -159,61 +159,42 @@ test("the top bar stays over the cart", async ({ page }) => {
   expect(onTop).toEqual({ under: true, hits: [true, true, true] });
 });
 
-// A phone on its side was given the tablet's two columns (#278, item 5).
+// A phone on its side was given the tablet's two columns (#278, item
+// 5). Since #274 round 4 its cart no longer floats (see "nothing rides
+// along" below); settled, it keeps the phone's one column: the lines
+// over the sums, the sums over the badges, the way and the code.
 test.describe("a phone on its side", () => {
   test.use({ viewport: SIDE, isMobile: true, hasTouch: true });
 
-  test("one tab filled, the foot on one row, the lines fill the height",
-    async ({ page }) => {
-      const order = new OrderPage(page);
+  test("the settled cart keeps one column", async ({ page }) => {
+    const order = new OrderPage(page);
 
-      await order.open(FULL_CART);
-      await page.evaluate(() => window.scrollTo(0, 400));
-      await expect(order.cart).toHaveAttribute("data-stuck", "true");
-      if (await order.cart.getAttribute("data-open") !== "true") {
-        await order.cart.locator("[data-cart-toggle]").click();
-      }
-      await order.cart.locator("[data-cart-items-toggle]").click();
-      await page.waitForTimeout(500);
-
-      const seen = await page.evaluate(() => {
-        const cart = document.getElementById("order-cart");
-        const q = (s) => cart.querySelector(s);
-        const rect = (s) => q(s).getBoundingClientRect();
-        const bar = document.querySelector(".order-topbar")
-          .getBoundingClientRect();
-        const on = [...cart.querySelectorAll(".order-cart-disclose")]
-          .filter((b) => b.dataset.on === "true").length;
-        const toggle = rect("[data-cart-toggle]");
-        const next = rect("[data-checkout]");
-        const box = cart.getBoundingClientRect();
-
-        return {
-          multi: q("[data-cart-seg]").hasAttribute("data-multi"),
-          role: q("[data-cart-seg]").getAttribute("role"),
-          on,
-          row: Math.abs(toggle.top - next.top) < 4,
-          beside: next.left - toggle.right >= 0
-            && next.left - toggle.right < 24,
-          right: box.right - next.right < 40,
-          under: box.top - bar.bottom >= 0 && box.top - bar.bottom < 24,
-          inView: box.bottom <= innerHeight,
-          lines: rect(".order-cart-scroll").height,
-          badges: q(".order-badges").offsetHeight,
-        };
-      });
-
-      expect(seen).toMatchObject({
-        multi: false, role: "tablist", on: 1, row: true, beside: true,
-        right: true, under: true, inView: true, badges: 0,
-      });
-      expect(seen.lines).toBeGreaterThan(100);
-
-      // The Total tab carries the sums, the badges, the way and the code.
-      await order.cart.locator("[data-cart-money-toggle]").click();
-      await expect(order.cart.locator(".order-badges")).toBeVisible();
-      await expect(order.cart.locator("[data-way-toggle]")).toBeVisible();
+    await order.open(FULL_CART);
+    await page.evaluate(() => {
+      document.getElementById("order-cart-heading")
+        .scrollIntoView({ block: "start" });
     });
+    await order.scrollSettled();
+    await expect(order.cart).toHaveAttribute("data-stuck", "false");
+
+    const seen = await page.evaluate(() => {
+      const cart = document.getElementById("order-cart");
+      const rect = (s) => cart.querySelector(s).getBoundingClientRect();
+      const list = rect("#order-cart-list");
+      const money = rect("#order-cart-money");
+      const badges = rect(".order-badges");
+
+      return {
+        stacked: list.bottom <= money.top + 1
+          && money.bottom <= badges.top + 1,
+        wide: list.width > cart.getBoundingClientRect().width * 0.8,
+      };
+    });
+
+    expect(seen).toEqual({ stacked: true, wide: true });
+    await expect(order.cart.locator(".order-badges")).toBeVisible();
+    await expect(order.cart.locator("[data-way-toggle]")).toBeVisible();
+  });
 });
 
 // "Delivery" lights at the minimum and "Free" at free delivery, on a
@@ -356,4 +337,66 @@ test("under reduced motion the pill holds still", async ({ page }) => {
   await expect(pill).not.toHaveAttribute("data-pulse", /./, {
     timeout: 4_000,
   });
+});
+
+// #274, round 4: 500px tall or less, at any width, nothing rides
+// along. The cart never floats; it sits where it settles, and the top
+// bar scrolls away with the page. An iPhone on its side, Safari's bar
+// shown (340) or not (390), the tallest one (430), and a short laptop
+// window; one pixel over the line, it floats as before.
+const SHORT_SIZES = [
+  { width: 844, height: 340 },
+  { width: 844, height: 390 },
+  { width: 932, height: 430 },
+  { width: 1280, height: 480 },
+];
+
+const midCatalog = async (order) => {
+  await order.item("thighs").evaluate(
+    (el) => el.scrollIntoView({ block: "center" })
+  );
+  await order.scrollSettled();
+};
+
+for (const size of SHORT_SIZES) {
+  test(`at ${size.width} x ${size.height} nothing rides along`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(size);
+
+    const order = new OrderPage(page);
+
+    await order.open(FULL_CART);
+    await midCatalog(order);
+
+    const state = await page.evaluate(() => {
+      const cart = document.getElementById("order-cart");
+      const bar = document.querySelector(".order-topbar");
+      const r = cart.getBoundingClientRect();
+
+      return {
+        position: getComputedStyle(cart).position,
+        onScreen: r.top < innerHeight && r.bottom > 0,
+        bar: bar.offsetParent ? getComputedStyle(bar).position : "hidden",
+        barOnScreen: bar.getBoundingClientRect().bottom > 0,
+      };
+    });
+
+    expect(state.position).not.toBe("sticky");
+    expect(state.onScreen).toBe(false);
+    expect(state.bar).not.toBe("sticky");
+    expect(state.barOnScreen).toBe(false);
+    await expect(order.cart).not.toHaveAttribute("data-stuck", "true");
+  });
+}
+
+test("at 501px tall the cart floats again", async ({ page }, testInfo) => {
+  phonesOnly(testInfo);
+  await page.setViewportSize({ width: 844, height: 501 });
+
+  const order = new OrderPage(page);
+
+  await order.open(FULL_CART);
+  await midCatalog(order);
+  await expect(order.cart).toHaveAttribute("data-stuck", "true");
 });

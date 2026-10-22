@@ -817,7 +817,11 @@ Flags that take a value accept both `--reason "..."` and
   under the page heading, about 60/40, and sticks to the top for the
   length of the page like the sidebar. Below `xl` it floats above the
   list while it scrolls and a caret folds it down to the total and
-  the Next button. It itemises every line (name, quantity at the unit
+  the Next button. On a screen 500px tall or less, at any width (a
+  phone on its side, whatever Safari's bars are doing), nothing rides
+  along: the cart sits where it settles and the top bar scrolls away
+  with the page (#274 round 4; `$cart-short`, order-form.js `SHORT`).
+  It itemises every line (name, quantity at the unit
   price, subtotal, or "0 items"), then subtotal, discount and fee
   ("Free" when waived), the discount code field, then the total under
   the line, and Next, which scrolls to Your details. Lines are grouped

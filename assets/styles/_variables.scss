@@ -28,6 +28,12 @@ $cart-sheet: "(max-width: 767.98px), "
 $cart-split: "(min-width: 768px) and (max-width: 1199.98px) "
   + "and (min-height: 500.02px)";
 
+// Too short for anything to ride along over the page, at any width: a
+// phone on its side, whatever its browser's bars are doing (#274,
+// round 4). The cart stays where it settles and the bars scroll away.
+// order-form.js's SHORT is the same query.
+$cart-short: "(max-height: 500px)";
+
 // The cart's Expand/Hide pill: halfway between $gray-100 (its hover)
 // and Bootstrap's light-bg-subtle (O1a).
 $pill-bg: #ededed;

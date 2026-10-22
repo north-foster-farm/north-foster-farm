@@ -2373,14 +2373,7 @@
         );
       }
 
-      // A phone on its side has too little height to keep half of it
-      // for the page: the lines take all of it under the bar, up to
-      // the bar's foot (#278).
-      @media (max-height: 500px) {
-        max-height: calc(
-          var(--cart-vis, 100svh) - 0.5rem - var(--cart-bar, 0px)
-        );
-      }
+      // A phone on its side no longer floats it: see $cart-short.
     }
 
     // Settled, Continue is as wide as its words, like any other button
@@ -2647,6 +2640,21 @@
   // Empty, the lines' fold goes too, with the floor it keeps (#274).
   .order-cart[data-empty] > .order-cart-fold:not(.order-cart-after) {
     display: none;
+  }
+  // Too short for anything to ride along (#274, round 4): the top bar
+  // scrolls away with the page, and the cart sits where it settles,
+  // below the catalog or at the head of its column, never floating.
+  // Below xl, order-form.js keeps it settled (SHORT); the total bar
+  // that stands in for it once passed stays hidden.
+  @media #{$cart-short} {
+    .order-topbar {
+      position: relative;
+    }
+
+    .order-cart {
+      position: relative;
+      max-height: none;
+    }
   }
 }
 

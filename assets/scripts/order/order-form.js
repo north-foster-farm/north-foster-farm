@@ -92,6 +92,11 @@ const keepInRail = (link) => {
 const SHEET = "(max-width: 767.98px), "
   + "(max-width: 1199.98px) and (max-height: 500px)";
 
+// Too short for the cart to float or a bar to ride along, at any
+// width: a phone on its side, whatever Safari's bars are doing (#274,
+// round 4). The cart stays settled. The stylesheet's $cart-short.
+const SHORT = "(max-height: 500px)";
+
 // The first Add's lesson (#278): how long the pane stays open on the
 // new line, then the Hide/Show pill's three pairs of pulses (the
 // stylesheet's order-pill-teach), or its still emphasis under reduced
@@ -582,6 +587,7 @@ export class OrderForm {
       stuckTick = null;
 
       const r = this.cart.getBoundingClientRect();
+      const short = matchMedia(SHORT).matches;
       const below = matchMedia("(max-width: 1199.98px)").matches;
       // The pane rests a margin and the toolbar's gap above the foot
       // of the layout viewport (--cart-gap), the keyboard aside.
@@ -600,8 +606,9 @@ export class OrderForm {
       if (this.cart.dataset.stuck !== "false"
         && !this.cart.getAnimations().length) floatH = r.height;
 
-      const floating = below && place + Math.min(floatH || r.height, r.height)
-        > window.innerHeight - rest - 1;
+      const floating = below && !short
+        && place + Math.min(floatH || r.height, r.height)
+          > window.innerHeight - rest - 1;
       const barRect = bar ? bar.getBoundingClientRect() : null;
       const barBottom = barRect ? barRect.bottom : 0;
 
@@ -631,7 +638,7 @@ export class OrderForm {
       this.plainTotals();
       // Scrolled past: the total bar takes over, and its total becomes
       // a way back.
-      const passed = below && r.bottom < 60;
+      const passed = below && !short && r.bottom < 60;
 
       if (this.form.dataset.cartPassed !== String(passed)) {
         this.form.dataset.cartPassed = String(passed);
