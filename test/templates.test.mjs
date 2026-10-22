@@ -121,7 +121,8 @@ describe("the site's look", () => {
     has(m.html, '<p style="margin:0 0 20px;text-align:center"><img ' +
       'src="https://x/images/email/logo.png"');
     assert.doesNotMatch(m.html, /<h1/);
-    assert.match(m.html, /aller-regular\.woff2/);
+    assert.doesNotMatch(m.html, /Aller|font-face|\.woff/i,
+      "no font file is loaded from the site");
     assert.match(m.html, /a\[x-apple-data-detectors\]/);
     // Green buttons, the site's radius; the order link is a button.
     has(m.html, '<a href="https://x/account/orders/NFF-2610-ABCD/" ' +

@@ -331,8 +331,6 @@ framework = "#custom"
 
   [headers.values]
     Cache-Control = "public, max-age=604800"
-    # The emails load Aller from here, so mail clients need CORS.
-    Access-Control-Allow-Origin = "*"
 
 [[headers]]
   for = "/images/*"
