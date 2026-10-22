@@ -128,8 +128,8 @@
 
   // Orders sit on the page, a rule between one and the next.
   .account-order + .account-order {
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
+    margin-top: 2rem;
+    padding-top: 2rem;
     border-top: 1px solid var(--bs-border-color-translucent);
   }
 
@@ -144,7 +144,13 @@
     align-items: start;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  // When and where it goes, on its own row under the number.
+  .account-order-when {
+    margin: 0 0 0.75rem;
+    font-weight: bold;
   }
 
   .account-order-title {
@@ -168,19 +174,19 @@
     white-space: nowrap;
   }
 
-  .account-order[data-status="submitted"] .account-status {
+  [data-status="submitted"] > * > .account-status {
     background-color: var(--bs-warning-bg-subtle);
     color: var(--bs-warning-text-emphasis);
   }
 
-  .account-order[data-status="paid"] .account-status,
-  .account-order[data-status="fulfilled"] .account-status {
+  [data-status="paid"] > * > .account-status,
+  [data-status="fulfilled"] > * > .account-status {
     background-color: var(--bs-success-bg-subtle);
     color: var(--bs-success-text-emphasis);
   }
 
-  .account-order[data-status="cancelled"] .account-status,
-  .account-order[data-status="abandoned"] .account-status {
+  [data-status="cancelled"] > * > .account-status,
+  [data-status="abandoned"] > * > .account-status {
     background-color: var(--bs-danger-bg-subtle);
     color: var(--bs-danger-text-emphasis);
   }
@@ -194,21 +200,29 @@
   }
 
   .account-lines {
-    margin: 0 0 0.5rem;
+    margin: 0 0 1rem;
     padding: 0;
     list-style: none;
   }
 
+  // A line over two rows: quantity, item and price, then Add again
+  // under the item.
   .account-line {
     display: grid;
-    grid-template-columns: 2.5rem 1fr auto auto;
-    gap: 0.5rem;
+    grid-template-columns: 2.5rem 1fr auto;
+    gap: 0.125rem 0.5rem;
     align-items: baseline;
-    padding: 0.25rem 0;
+    padding: 0.5rem 0;
     font-size: 0.9375rem;
+
+    + .account-line {
+      border-top: 1px solid var(--bs-border-color-translucent);
+    }
   }
 
   .account-line-add {
+    grid-column: 2;
+    justify-self: start;
     font-size: 0.8125rem;
     white-space: nowrap;
   }
@@ -242,8 +256,9 @@
   .account-totals {
     display: grid;
     grid-template-columns: 1fr auto;
-    margin: 0 0 0.75rem;
-    padding-top: 0.5rem;
+    gap: 0.25rem 1rem;
+    margin: 0 0 1rem;
+    padding-top: 0.75rem;
     border-top: 1px solid var(--bs-border-color);
     font-size: 0.9375rem;
 
@@ -313,15 +328,51 @@
     margin-bottom: 0.75rem;
   }
 
-  // Invoices, address, avatars
-
-  .account-table {
-    font-size: 0.9375rem;
+  // Receipts: one payment over three rows, a rule between payments.
+  .account-receipts {
+    margin: 0;
+    padding: 0;
+    list-style: none;
 
     &[hidden] {
       display: none;
     }
   }
+
+  .account-receipt-item {
+    display: grid;
+    gap: 0.375rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+
+    &:first-child {
+      padding-top: 0;
+    }
+  }
+
+  .account-receipt-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+  }
+
+  .account-receipt-id {
+    font-weight: bold;
+  }
+
+  .account-receipt-amount {
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .account-receipt-sub {
+    font-size: 0.9375rem;
+    color: var(--bs-secondary-color);
+  }
+
+  // Invoices, address, avatars
 
   .account-address-status {
     padding: 0.5rem 0.75rem;

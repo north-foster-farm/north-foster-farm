@@ -96,12 +96,12 @@ test.describe("accounts", () => {
         "We'll confirm it", { timeout: 1_000 }
       );
       await page.locator("[data-tab='receipts']").click();
-      await expect(page.locator("#receipts-body")).toContainText(orderId);
+      await expect(page.locator("#receipts-list")).toContainText(orderId);
       // The sandbox's approved nonce is a Visa ending 5858.
-      await expect(page.locator("#receipts-body")).toContainText(
+      await expect(page.locator("#receipts-list")).toContainText(
         /Visa ending \d{4}/
       );
-      await expect(page.locator("#receipts-body")).toContainText("$7");
+      await expect(page.locator("#receipts-list")).toContainText("$7");
       await expect(page.locator("body")).not.toContainText("Pay now");
       await expect(page.locator("body")).not.toContainText(
         "I paid by Venmo"

@@ -1093,32 +1093,36 @@ class Account {
   }
 
   renderReceipts() {
-    const body = document.getElementById("receipts-body");
-    // One row per payment: an order changed after paying has several.
+    const list = document.getElementById("receipts-list");
+    // One item per payment: an order changed after paying has several.
     const rows = this.orders.flatMap((order) => order.payments
       .map((payment, i) => ({ order, payment, i })));
 
-    body.textContent = "";
+    list.textContent = "";
     document.getElementById("receipts-empty").hidden = rows.length > 0;
-    document.getElementById("receipts-table").hidden = rows.length === 0;
+    list.hidden = rows.length === 0;
 
     for (const { order, payment, i } of rows) {
-      const tr = el("tr");
-      const cell = (text) => tr.appendChild(el("td", "", text));
+      const node = clone("tpl-receipt");
+      const item = qs(node, "[data-receipt-item]");
+      const set = (name, text) => {
+        qs(node, `[data-out="${name}"]`).textContent = text;
+      };
       const back = total(order.refunds.filter((r) => r.payment === i));
+      const link = qs(node, "[data-out='link']");
 
-      cell(order.id);
-      cell(payment.at ? placed(payment.at) : "");
-      cell(dollars(payment.amount));
-      cell(paidWith(payment));
+      item.dataset.status = back >= payment.amount ? "cancelled"
+        : order.status;
+      set("id", order.id);
+      set("paid", payment.at ? `Paid ${placed(payment.at)}` : "");
+      set("amount", dollars(payment.amount));
+      set("method", paidWith(payment));
       if (back) {
-        cell(back >= payment.amount ? "Refunded" : `Refunded ${
+        set("status", back >= payment.amount ? "Refunded" : `Refunded ${
           dollars(back)}`);
       } else {
-        cell(statusOf(order) || "");
+        set("status", statusOf(order) || "");
       }
-
-      const td = el("td");
 
       if (payment.receiptUrl) {
         const a = el("a", "", "Receipt");
@@ -1126,7 +1130,7 @@ class Account {
         a.href = payment.receiptUrl;
         a.target = "_blank";
         a.rel = "noopener";
-        td.appendChild(a);
+        link.appendChild(a);
       } else if (payment.method === "venmo") {
         // PayPal gives Venmo no receipt link: ours, under the table.
         const a = el("a", "", "Receipt");
@@ -1136,10 +1140,9 @@ class Account {
           e.preventDefault();
           this.showReceipt(order, payment);
         });
-        td.appendChild(a);
+        link.appendChild(a);
       }
-      tr.appendChild(td);
-      body.appendChild(tr);
+      list.appendChild(node);
     }
   }
 

@@ -44,12 +44,7 @@
 
           <section class="account-section" id="acct-receipts" data-section="receipts" aria-labelledby="acct-receipts-h" hidden>
             <h2 class="h4" id="acct-receipts-h">Receipts</h2>
-            <table class="table account-table" id="receipts-table">
-              <thead>
-                <tr><th scope="col">Order</th><th scope="col">Paid</th><th scope="col">Total</th><th scope="col">Paid with</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Link</span></th></tr>
-              </thead>
-              <tbody id="receipts-body"></tbody>
-            </table>
+            <ul class="account-receipts" id="receipts-list" hidden></ul>
             <p class="account-empty" id="receipts-empty" hidden>No payments yet.</p>
             {{/* Our own receipt for a Venmo payment, which PayPal gives
                  no receipt link (#238); main.js fills it from the
@@ -303,15 +298,18 @@
     </div>
   </section>
 
+  {{/* An order over several rows (#303): number, date and status, then
+       when and where, its lines, its totals and what can be done. */}}
   <template id="tpl-order">
     <article class="account-order" data-order>
       <header class="account-order-head">
         <div>
-          <h3 class="account-order-title"><span data-out="when"></span></h3>
-          <p class="account-order-meta"><span data-out="id"></span> · placed <span data-out="placed"></span></p>
+          <h3 class="account-order-title" data-out="id"></h3>
+          <p class="account-order-meta">Placed <span data-out="placed"></span></p>
         </div>
         <span class="account-status" data-out="status"></span>
       </header>
+      <p class="account-order-when" data-out="when"></p>
       <p class="account-order-note" data-out="pickup" hidden></p>
       <p class="account-order-note" data-out="note" hidden></p>
       <ul class="account-lines" data-out="lines"></ul>
@@ -327,6 +325,25 @@
       <span class="account-line-label" data-out="label"></span>
       <span class="account-line-total" data-out="total"></span>
       <a class="account-line-add" data-out="add" href="{{ relURL "order/" }}">Add again</a>
+    </li>
+  </template>
+
+  {{/* One payment (#303): its order and status, when and how much, then
+       how it was paid and the receipt. */}}
+  <template id="tpl-receipt">
+    <li class="account-receipt-item" data-receipt-item>
+      <div class="account-receipt-row">
+        <span class="account-receipt-id" data-out="id"></span>
+        <span class="account-status" data-out="status"></span>
+      </div>
+      <div class="account-receipt-row">
+        <span data-out="paid"></span>
+        <span class="account-receipt-amount" data-out="amount"></span>
+      </div>
+      <div class="account-receipt-row account-receipt-sub">
+        <span data-out="method"></span>
+        <span data-out="link"></span>
+      </div>
     </li>
   </template>
 
