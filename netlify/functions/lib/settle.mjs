@@ -90,7 +90,10 @@ export const checkRefunds = async (stores, {
     checked: 0, completed: [], failed: [], stalled: [], pending: [],
     errors: [],
   };
-  // The stalled refunds not alerted before.
+  // The failed and the newly stalled refunds, marked on their orders
+  // only once the farm has been told (below): a refund whose alert did
+  // not go is asked again, and alerted again, on the next run.
+  const failing = [];
   const fresh = [];
 
   for (const { order, refund } of unsettled(await allOrders(stores))) {
@@ -116,17 +119,13 @@ export const checkRefunds = async (stores, {
         now);
       report.completed.push({ ...row, status });
     } else if (FAILED_REFUND.includes(status)) {
-      await note(stores, order.id, refund, { status }, "refund.failed", now);
+      failing.push({ order, refund, status });
       report.failed.push({ ...row, status });
     } else if (now.getTime() - Date.parse(refund.at) < STALL_AFTER) {
       report.pending.push({ ...row, status });
     } else {
       report.stalled.push({ ...row, status });
-      if (!refund.stalledAt) {
-        fresh.push({ ...row, status });
-        await note(stores, order.id, refund, { stalledAt: now.toISOString() },
-          "refund.stalled", now);
-      }
+      if (!refund.stalledAt) fresh.push({ order, refund, row, status });
     }
   }
 
@@ -136,15 +135,30 @@ export const checkRefunds = async (stores, {
   // heard.
   const opts = { env, mail, now, fetchImpl, dedupe: false };
 
-  if (report.failed.length) {
-    await alert(stores, "refund.failed", {
+  if (failing.length) {
+    const sent = await alert(stores, "refund.failed", {
       count: report.failed.length, refunds: report.failed,
     }, opts);
+
+    if (sent === "sent") {
+      for (const { order, refund, status } of failing) {
+        await note(stores, order.id, refund, { status }, "refund.failed",
+          now);
+      }
+    }
   }
   if (fresh.length) {
-    await alert(stores, "refund.stalled", {
-      count: fresh.length, refunds: fresh,
+    const sent = await alert(stores, "refund.stalled", {
+      count: fresh.length,
+      refunds: fresh.map(({ row, status }) => ({ ...row, status })),
     }, opts);
+
+    if (sent === "sent") {
+      for (const { order, refund } of fresh) {
+        await note(stores, order.id, refund,
+          { stalledAt: now.toISOString() }, "refund.stalled", now);
+      }
+    }
   }
 
   return report;

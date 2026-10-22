@@ -214,6 +214,42 @@ describe("the refund check (#215)", () => {
       assert.doesNotMatch(sent[1].text, /held for an hour/);
     });
 
+  it("marks a failed or stalled refund only once the farm was told, " +
+    "so a mail that fails is alerted again next run", async () => {
+    const stores = testStores();
+    const { env, mail, alerts } = alerting();
+    const down = async () => { throw new Error("Resend is down"); };
+    const { square, paypal } = processors({ R1: "PENDING", R2: "FAILED" });
+
+    await saveOrder(stores, order("NFF-1", [
+      refund({ squareRefundId: "R1" }),
+    ]), made);
+    await saveOrder(stores, order("NFF-2", [
+      refund({ squareRefundId: "R2" }),
+    ]), made);
+
+    await checkRefunds(stores, {
+      now: later(STALL_AFTER), env, mail: down, square, paypal,
+    });
+
+    const one = await getOrder(stores, "NFF-1");
+    const two = await getOrder(stores, "NFF-2");
+
+    assert.equal(one.refunds[0].stalledAt, undefined);
+    assert.equal(two.refunds[0].status, "PENDING", "not yet marked failed");
+    assert.equal(refundedTotal(two), 700);
+
+    await checkRefunds(stores, {
+      now: later(STALL_AFTER + DAY), env, mail, square, paypal,
+    });
+
+    assert.equal(alerts("refund.stalled"), 1);
+    assert.equal(alerts("refund.failed"), 1);
+    assert.ok((await getOrder(stores, "NFF-1")).refunds[0].stalledAt);
+    assert.equal((await getOrder(stores, "NFF-2")).refunds[0].status,
+      "FAILED");
+  });
+
   it("calls a refund with no processor id stalled, asking nobody",
     async () => {
       const stores = testStores();
