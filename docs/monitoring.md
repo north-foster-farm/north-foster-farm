@@ -432,9 +432,19 @@ Foster Farm website", an `NFF-` reference) that are a day old with no
 tender, no record and no Venmo checkout waiting: `squareOpen` in that
 run's report, `open` in `bin/nff jobs history`, a "Left in Square"
 section in the 8:00 morning report, and `bin/nff jobs square` on
-demand. The jobs cancel them only when `SQUARE_SWEEP_CANCEL` is
-`true`; `bin/nff jobs square --apply` cancels them once. Orders made
+demand. The jobs cancel them unless the Square deletion kill switch
+is set; `bin/nff jobs square --apply` cancels them once. Orders made
 before the source was set are never listed.
+
+**The Square deletion kill switch, `SQUARE_DELETION_KILL_SWITCH`.**
+Unset, as it is by default, the automatic Square cleanups run: this
+sweep's cancelling and the deletion of the customer profiles a failed
+checkout made (#236). Set to any value, both stop at once and only
+report: the morning report and `bin/nff jobs square` say the switch
+is set, and `--apply` refuses. It is the fail-safe for when automatic
+changes to Square must stop. Any code that deletes or cancels records
+in Square on its own must check it (`deletionsPaused` in
+`netlify/functions/lib/square.mjs`).
 
 **`venmo.amount_mismatch`.** PayPal captured a different amount than
 was asked: the order's total, or for a change to an order, the

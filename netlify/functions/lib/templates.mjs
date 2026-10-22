@@ -1695,8 +1695,10 @@ export const farmMorningReport = (stats, pickups, {
       ...archivedFix()
     );
   }
-  // What the day's Square sweeps found (#241). Draft wording.
-  // `open` counts every order found, the cancelled ones among them.
+  // What the day's Square sweep found (#241). James's heading and the
+  // copy lane's approved lines; the paused line is a draft. `open`
+  // counts every order found, the cancelled ones among them; `paused`,
+  // the Square deletion kill switch is set.
   if (square && square.open) {
     const found = `${square.open} order${square.open === 1 ? "" : "s"}`;
     const left = square.open - square.cancelled;
@@ -1712,8 +1714,12 @@ export const farmMorningReport = (stats, pickups, {
     } else if (square.cancelled) {
       text = `${lead}, and the sweep cancelled ${all}. To see ${all}:`;
     }
+    if (square.paused) {
+      text = `${lead}. The Square deletion kill switch is set, so the ` +
+        `sweep cancels nothing. To see ${all}:`;
+    }
     blocks.push(
-      heading("Left in Square"),
+      heading("Square sweep: open orders from failed payments"),
       p(text),
       command("bin/nff jobs square")
     );

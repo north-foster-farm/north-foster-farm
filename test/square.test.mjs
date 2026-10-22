@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  SOURCE_NAME, SquareError, buildOrder, cancelFulfilment, cancelOrder,
-  clientConfig, createOrder, createPayment, dashboardUrl, deleteCustomer,
-  e164, getPayment, inventoryCounts, refundPayment, searchOpenOrders,
-  settings, updateFulfilment,
+  KILL_SWITCH, SOURCE_NAME, SquareError, buildOrder, cancelFulfilment,
+  cancelOrder, clientConfig, createOrder, createPayment, dashboardUrl,
+  deleteCustomer, deletionsPaused, e164, getPayment, inventoryCounts,
+  refundPayment, searchOpenOrders, settings, updateFulfilment,
 } from "../netlify/functions/lib/square.mjs";
 
 const env = {
@@ -77,6 +77,18 @@ const completed = (extra = {}) => ({
     card_details: { card: { card_brand: "VISA", last_4: "4242" } },
     ...extra,
   },
+});
+
+// #241 and #236: one switch stops every automatic Square cleanup.
+describe("the Square deletion kill switch", () => {
+  it("is off unset or blank, and on at any value", () => {
+    assert.equal(KILL_SWITCH, "SQUARE_DELETION_KILL_SWITCH");
+    assert.equal(deletionsPaused({}), false);
+    assert.equal(deletionsPaused({ [KILL_SWITCH]: " " }), false);
+    for (const value of ["1", "true", "on", "0", "false"]) {
+      assert.equal(deletionsPaused({ [KILL_SWITCH]: value }), true, value);
+    }
+  });
 });
 
 describe("settings", () => {

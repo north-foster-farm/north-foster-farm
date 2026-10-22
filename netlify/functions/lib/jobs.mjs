@@ -18,8 +18,8 @@
 //               deleted (#189)
 //   open        7:00 daily: a Square order the site made whose payment
 //               failed is reported after a day, in the morning report
-//               too, and cancelled when SQUARE_SWEEP_CANCEL is "true"
-//               (#241)
+//               too, and cancelled unless the Square deletion kill
+//               switch is set (#241; lib/square.mjs)
 //   morning     8:00 daily, always: the day in numbers, the on-farm
 //               orders within two days still waiting on the customer,
 //               a warning when the pickup schedule runs short, and the
@@ -410,8 +410,9 @@ const squareFinds = async (stores, day) => {
 // the site made (its source and an order id for reference) with no
 // tender, no record and no Venmo checkout waiting is one: the farm's
 // own orders, paid orders and change orders to a recorded order never
-// are. The sweep reports them, and cancels them only when
-// SQUARE_SWEEP_CANCEL is "true".
+// are. The sweep reports them and cancels them, unless the Square
+// deletion kill switch is set (lib/square.mjs, deletionsPaused): then
+// it only reports.
 
 export const SQUARE_OPEN_GRACE = 24 * HOUR;
 
@@ -425,7 +426,7 @@ export const sweepSquareOrders = async (stores, {
   now = new Date(),
   square = squareApi,
   fetchImpl = globalThis.fetch,
-  cancel = env.SQUARE_SWEEP_CANCEL === "true",
+  cancel = !squareApi.deletionsPaused(env),
 } = {}) => {
   if (!env.SQUARE_ACCESS_TOKEN || !env.SQUARE_LOCATION_ID) return null;
 
@@ -661,7 +662,10 @@ const morningReport = async (stores, {
       pickups: pickupsDue(await openOrders(stores), day),
       archived: await archivedOnHand(stores, { catalogIndex, env }),
       messages: await listMessages(stores),
-      square: await squareFinds(stores, day),
+      square: {
+        ...await squareFinds(stores, day),
+        paused: squareApi.deletionsPaused(env),
+      },
     }],
     build: ([{
       stats, pickups, archived, messages, square,

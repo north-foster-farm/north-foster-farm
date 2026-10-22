@@ -269,6 +269,7 @@ const [
   backup,
   maintenance,
   passes,
+  square,
 ] = await Promise.all([
   import("../data/delivery.json", { with: { type: "json" } }),
   import("../netlify/functions/lib/admin.mjs"),
@@ -289,6 +290,7 @@ const [
   import("../netlify/functions/lib/backup.mjs"),
   import("../netlify/functions/lib/maintenance.mjs"),
   import("../netlify/functions/lib/passes.mjs"),
+  import("../netlify/functions/lib/square.mjs"),
 ]);
 
 // --scratch: development's env, but stores of their own
@@ -1001,6 +1003,14 @@ const run = async () => {
     return out(await runJobs(stores));
   case "jobs square": {
     const apply = !!flags.apply;
+    const paused = square.deletionsPaused();
+
+    // The kill switch stops a cancel asked for here too (#241).
+    if (apply && paused) {
+      throw new Error(`${square.KILL_SWITCH} is set: the Square ` +
+        "cleanups are paused, so --apply cancels nothing. Unset it first.");
+    }
+
     const found = await sweepSquareOrders(stores, { cancel: apply });
 
     if (!found) return out("Square is not configured here.");
@@ -1011,8 +1021,10 @@ const run = async () => {
           : "open"}`);
     }
 
-    return out(`${found.length} left open.${apply ? "" : " This is only a " +
-      "report; --apply cancels them."}`);
+    return out(`${found.length} left open.${apply ? ""
+      : paused ? ` This is only a report: ${square.KILL_SWITCH} is set, ` +
+        "so the daily sweep cancels nothing."
+        : " This is only a report; --apply cancels them."}`);
   }
   case "jobs history": {
     const n = Number(flags.n) || 20;

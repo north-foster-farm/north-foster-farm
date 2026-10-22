@@ -323,7 +323,7 @@ describe("the monitoring emails", () => {
 
     has(quiet.text, "No pickups waiting on the customer.");
     has(quiet.text, "No messages waiting on an answer.");
-    assert.doesNotMatch(quiet.text, /Pickup schedule|Left in Square/);
+    assert.doesNotMatch(quiet.text, /Pickup schedule|Square sweep/);
     assert.match(quiet.text, /Payments declined\s+4\s+🙈\n/,
       "many declines are worth a look");
 
@@ -341,6 +341,12 @@ describe("the monitoring emails", () => {
       "them:");
     has(left({ open: 2, cancelled: 2 }), "Failed payments left 2 orders " +
       "open in Square, and the sweep cancelled them. To see them:");
+    has(left({ open: 1, cancelled: 0 }),
+      "Square sweep: open orders from failed payments");
+    // The kill switch set (#241): reported, never cancelled.
+    has(left({ open: 2, cancelled: 0, paused: true }), "Failed payments " +
+      "left 2 orders open in Square. The Square deletion kill switch is " +
+      "set, so the sweep cancels nothing. To see them:");
   });
 
   it("morning report: the messages not yet answered (#167)", () => {

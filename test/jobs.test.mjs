@@ -726,8 +726,8 @@ describe("Square orders left open (#241)", () => {
     assert.equal(leftOpen(open("S", null)), false, "the POS");
   });
 
-  it("reports the orders a day old with no record and no checkout " +
-    "waiting, and cancels nothing", async () => {
+  it("with the kill switch set, reports the orders a day old with no " +
+    "record and no checkout waiting, and cancels nothing", async () => {
     const stores = testStores();
 
     await saveOrder(stores, { ...order("NFF-2610-PAID"), square: null });
@@ -743,7 +743,7 @@ describe("Square orders left open (#241)", () => {
       open("SQ-POS", null, { source: "Square Point of Sale" }),
     ]);
     const found = await sweepSquareOrders(stores, {
-      env: squareEnv, now, square,
+      env: { ...squareEnv, SQUARE_DELETION_KILL_SWITCH: "1" }, now, square,
     });
 
     assert.deepEqual(found, [{
@@ -755,15 +755,14 @@ describe("Square orders left open (#241)", () => {
     ]]);
   });
 
-  it("cancels them, unpaid only, when SQUARE_SWEEP_CANCEL is true, and " +
-    "reports a failure as a job error", async () => {
+  it("cancels them, unpaid only, with the kill switch unset (the " +
+    "default), and reports a failure as a job error", async () => {
     const stores = testStores();
     const square = fakeSquare([
       open("SQ-1", "NFF-2610-AAAA"), open("SQ-2", "NFF-2610-BBBB"),
     ], { fails: ["SQ-2"] });
     const r = await runJobs(stores, {
-      ...harness().opts, square, now, realNow: now,
-      env: { ...squareEnv, SQUARE_SWEEP_CANCEL: "true" },
+      ...harness().opts, square, now, realNow: now, env: squareEnv,
     });
 
     assert.deepEqual(square.calls.slice(1), [
@@ -801,15 +800,16 @@ describe("Square orders left open (#241)", () => {
     assert.deepEqual((await run(6, 45)).squareOpen, []);
     assert.equal((await run(7)).squareOpen.length, 2);
     assert.deepEqual((await run(7, 15)).squareOpen, []);
-    assert.deepEqual(square.calls.map((c) => c[0]), ["search"],
-      "one search that day");
+    assert.deepEqual(square.calls.map((c) => c[0]),
+      ["search", "cancel", "cancel"], "one sweep that day");
     await run(8);
 
     const [report] = sent.filter((m) => /Morning report/.test(m.subject));
 
-    assert.match(report.text, /Left in Square/);
+    assert.match(report.text,
+      /Square sweep: open orders from failed payments/);
     assert.ok(report.text.includes("Failed payments left 2 orders open " +
-      "in Square. To see them:"), report.text);
+      "in Square, and the sweep cancelled them. To see them:"), report.text);
     assert.match(report.text, /\n {4}bin\/nff jobs square\n/);
   });
 
