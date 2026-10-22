@@ -250,6 +250,36 @@ describe("the refund check (#215)", () => {
       "FAILED");
   });
 
+  it("reports a refund whose completed note would not save as its own " +
+    "error, and checks the rest", async () => {
+    const stores = testStores();
+    const { env, mail } = alerting();
+    const { square, paypal } = processors({ R1: "COMPLETED", R2: "COMPLETED" });
+
+    await saveOrder(stores, order("NFF-1", [
+      refund({ squareRefundId: "R1" }),
+    ]), made);
+    await saveOrder(stores, order("NFF-2", [
+      refund({ squareRefundId: "R2" }),
+    ]), made);
+
+    const put = stores.orders.set.bind(stores.orders);
+
+    stores.orders.set = async (key, value, ...rest) => {
+      if (key === "order/NFF-1") throw new Error("store down");
+
+      return put(key, value, ...rest);
+    };
+
+    const r = await checkRefunds(stores, {
+      now: later(DAY), env, mail, square, paypal,
+    });
+
+    assert.deepEqual(r.errors.map((e) => [e.id, e.error]),
+      [["NFF-1", "store down"]]);
+    assert.deepEqual(r.completed.map((x) => x.id), ["NFF-2"]);
+  });
+
   it("calls a refund with no processor id stalled, asking nobody",
     async () => {
       const stores = testStores();

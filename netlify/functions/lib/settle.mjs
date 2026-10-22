@@ -115,9 +115,14 @@ export const checkRefunds = async (stores, {
     }
 
     if (status === "COMPLETED") {
-      await note(stores, order.id, refund, { status }, "refund.completed",
-        now);
-      report.completed.push({ ...row, status });
+      // A write that fails is this refund's error, and the rest go on.
+      try {
+        await note(stores, order.id, refund, { status }, "refund.completed",
+          now);
+        report.completed.push({ ...row, status });
+      } catch (error) {
+        report.errors.push({ ...row, error: String(error && error.message) });
+      }
     } else if (FAILED_REFUND.includes(status)) {
       failing.push({ order, refund, status });
       report.failed.push({ ...row, status });
