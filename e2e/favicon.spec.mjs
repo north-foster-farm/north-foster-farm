@@ -1,5 +1,5 @@
 // AR-25 (#145): the gingham egg replaces the NF monogram. Every icon the
-// head, the manifest and browserconfig.xml name answers with the art in
+// head, the manifest names answers with the art in
 // static/favicons/, as do the root paths browsers ask for on their own.
 // The look at 16px in a tab stays with a person. docs/qa-launch.md,
 // "The autumn refresh".
@@ -65,8 +65,6 @@ test.describe("favicon (#145)", () => {
           sizes: el.getAttribute("sizes"),
           color: el.getAttribute("color"),
         })));
-        const meta = (name) => page
-          .locator(`meta[name='${name}']`).getAttribute("content");
 
         expect(links.map((l) => l.path).sort()).toEqual([
           "/favicons/apple-touch-icon.png",
@@ -78,7 +76,6 @@ test.describe("favicon (#145)", () => {
           "/favicons/site.webmanifest",
         ]);
         expect(links.find((l) => l.rel === "mask-icon").color).toBe("#1e7b54");
-        expect(await meta("msapplication-TileColor")).toBe("#1e7b54");
 
         for (const link of links) {
           const name = link.path.replace("/favicons/", "");
@@ -89,15 +86,6 @@ test.describe("favicon (#145)", () => {
             expect(pngSize(got.body), name).toBe(link.sizes);
           }
         }
-
-        const config = await meta("msapplication-config");
-        const xml = (await fetchIcon(request, config)).body.toString();
-        const tile = xml.match(/square150x150logo src="([^"]+)"/)[1];
-
-        expect(xml).toContain("<TileColor>#1e7b54</TileColor>");
-        // Windows draws its tiles at 1.8 times, so this one is 270px.
-        expect((await fetchIcon(request, tile)).body
-          .equals(local("mstile-150x150.png"))).toBe(true);
       });
   }
 
@@ -109,7 +97,10 @@ test.describe("favicon (#145)", () => {
     expect(res.headers()["content-type"])
       .toMatch(/^application\/manifest\+json/);
 
-    const { icons } = await res.json();
+    const { icons, id, start_url: start, scope } = await res.json();
+
+    // The app is the whole site, opened at its front page (#191).
+    expect([id, start, scope]).toEqual(["/", "/", "/"]);
 
     expect(icons.filter((i) => i.purpose === "maskable")).toHaveLength(1);
     for (const icon of icons) {

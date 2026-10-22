@@ -1,6 +1,9 @@
 {
+    "id": "/",
     "name": "North Foster Farm",
     "short_name": "North Foster Farm",
+    "start_url": "/",
+    "scope": "/",
     "icons": [
         {
             "src": "/favicons/android-chrome-192x192.png?v=2",

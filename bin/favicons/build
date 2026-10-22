@@ -5,7 +5,7 @@
 #   bin/favicons/build
 #
 # Then bump the "v" in layouts/partials/head/favicon-path.html,
-# site.webmanifest and browserconfig.xml so browsers fetch the new set.
+# and site.webmanifest so browsers fetch the new set.
 # Needs Node, Inkscape and ImageMagick.
 set -euo pipefail
 
@@ -23,14 +23,6 @@ render() {
   inkscape "$tmp/emblem.svg" --export-type=png \
     --export-width="$1" --export-height="$1" \
     --export-filename="$2" > /dev/null 2>&1
-}
-
-# tile <icon px> <width> <height> <file>: the emblem centred on clear,
-# for the Windows tiles.
-tile() {
-  render "$1" "$tmp/tile.png"
-  magick -size "$2x$3" xc:none "$tmp/tile.png" -gravity center \
-    -composite "$4"
 }
 
 # The small sizes are the pixel-snapped design; the SVG is its 32 px
@@ -53,10 +45,6 @@ for opaque in apple-touch-icon.png maskable-512x512.png; do
   magick "$out/$opaque" -background "#e3f1e8" -alpha remove -alpha off \
     "$out/$opaque"
 done
-
-# The Windows tile browserconfig.xml names, at RealFaviconGenerator's
-# size. It named no other.
-tile 150 270 270 "$out/mstile-150x150.png"
 
 emblem mono > "$out/safari-pinned-tab.svg"
 
