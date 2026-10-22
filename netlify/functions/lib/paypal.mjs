@@ -392,6 +392,8 @@ export const getRefund = async (paypalRefundId, {
   fetchImpl = globalThis.fetch,
   now = new Date(),
 } = {}) => {
+  if (isFake(env)) return fake.getRefund(paypalRefundId, { env });
+
   const cfg = settings(env);
   const data = await call(cfg, `/v2/payments/refunds/${paypalRefundId}`,
     null, { fetchImpl, now, method: "GET" });

@@ -130,6 +130,11 @@ export const getPayment = async (squarePaymentId) => ({
   refunded: 0,
 });
 
+// A refund made here is complete at once (refundPayment says so).
+export const getRefund = async (squareRefundId) => ({
+  squareRefundId, status: "COMPLETED", amount: 0,
+});
+
 // No Square to count stock: the store's counts stand (#267).
 export const inventoryCounts = async () => null;
 

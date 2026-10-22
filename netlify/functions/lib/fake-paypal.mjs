@@ -58,6 +58,10 @@ export const refundCapture = async ({ amount, key }) => ({
   amount,
 });
 
+export const getRefund = async (paypalRefundId) => ({
+  paypalRefundId, status: "COMPLETED", amount: 0,
+});
+
 // PayPal cannot reach this machine, and a fake must never take a
 // forged event for a real one: nothing verifies.
 export const verifyWebhook = async () => false;
