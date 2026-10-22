@@ -1624,23 +1624,37 @@ export const devMailTest = ({ at, context } = {}) => {
 // The yearly secret rotation, to the developer: Dec 1, then weekly
 // while the rotation log shows something not yet rotated this window.
 // `final` is the loud one in the last week of December.
+// `pending`: rotations whose old credential is still to be revoked
+// (lib/rotation.mjs, pendingRevocations).
 export const rotationReminder = ({
-  due = [], start, final = false, logFound = true, links,
+  due = [], pending = [], start, final = false, logFound = true, links,
 } = {}) => {
   const year = Number(start.slice(0, 4));
-  const title = final
-    ? `FINAL REMINDER: rotate the secrets by Jan 1, ${year + 1}`
-    : `Secrets are due for rotation: Dec 1 to Jan 1, ${year + 1}`;
-  const blocks = [
-    p(final
-      ? "**The window closes in days.** Everything below is still " +
-        "unrotated in the log. Rotate it now, in the quiet hour " +
-        "docs/secrets.md names, and log each rotation."
-      : "**Every secret rotates between Dec 1 and Jan 1.** Tokens that " +
-        "can expire are set to expire Jan 31. Log each rotation in " +
-        "docs/rotation-log.md as you go; this reminder repeats weekly " +
-        "for what the log still shows as due."),
-  ];
+  const revokeOnly = !due.length && pending.length && logFound;
+  let title = `Secrets are due for rotation: Dec 1 to Jan 1, ${year + 1}`;
+
+  if (final) {
+    title = `FINAL REMINDER: rotate the secrets by Jan 1, ${year + 1}`;
+  } else if (revokeOnly) {
+    title = "Old credentials are waiting to be revoked";
+  }
+  let intro = "**Every secret rotates between Dec 1 and Jan 1.** " +
+    "Tokens that can expire are set to expire Jan 31. Log each rotation " +
+    "in docs/rotation-log.md as you go; this reminder repeats weekly " +
+    "for what the log still shows as due.";
+
+  if (final) {
+    intro = "**The window closes in days.** Everything below is still " +
+      "unrotated in the log. Rotate it now, in the quiet hour " +
+      "docs/secrets.md names, and log each rotation.";
+  } else if (revokeOnly) {
+    intro = "**Every secret is rotated; the old credentials below are " +
+      "still valid.** Revoke each at its vendor by the date shown, then " +
+      "log it as revoked in docs/rotation-log.md. This reminder repeats " +
+      "weekly until the log shows them all revoked.";
+  }
+
+  const blocks = [p(intro)];
 
   if (!logFound) {
     blocks.push(p("docs/rotation-log.md was not found, so the list " +
@@ -1652,9 +1666,21 @@ export const rotationReminder = ({
       table(["Secret", "Environment", "Last rotated", "Why"],
         due.map((e) => [e.name, e.environment, e.date, e.reason]))
     );
-  } else {
+  } else if (!pending.length) {
     blocks.push(p("The log lists nothing as rotated yet. Check " +
       "docs/secrets.md for the full set."));
+  }
+  if (pending.length) {
+    blocks.push(
+      heading("Old credentials still to revoke"),
+      p("Each was rotated and its replacement is live. The old one " +
+        "stays valid for 31 days, or until its Jan 31 expiry if that " +
+        "comes first; revoke it at the vendor, then add a `revoked` " +
+        "line for it to docs/rotation-log.md."),
+      table(["Secret", "Environment", "Rotated", "Revoke by"],
+        pending.map((e) => [e.name, e.environment, e.date,
+          e.overdue ? `${e.by} (overdue)` : e.by]))
+    );
   }
   blocks.push(
     p("Ping URLs, ids and the build hook rotate only on a leak: skip " +

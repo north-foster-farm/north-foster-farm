@@ -7,7 +7,8 @@ import {
 import { runJobs } from "../netlify/functions/lib/jobs.mjs";
 import { escalatedEmails } from "../netlify/functions/lib/mail.mjs";
 import {
-  parseRotationLog, reminderFor, rotationDaily, stillDue,
+  parseRotationLog, pendingRevocations, reminderFor, revokeBy, rotationDaily,
+  stillDue,
 } from "../netlify/functions/lib/rotation.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 
@@ -104,10 +105,106 @@ describe("the reminder days", () => {
     assert.equal(reminderFor("2026-12-31").final, true);
   });
 
-  it("is silent outside December", () => {
-    for (const day of ["2026-11-30", "2027-01-01", "2026-06-15"]) {
+  it("is silent outside December and January", () => {
+    for (const day of ["2026-11-30", "2027-02-01", "2026-06-15"]) {
       assert.equal(reminderFor(day), null, day);
     }
+  });
+
+  it("goes on weekly through January, never final, for the window " +
+    "before it", () => {
+    const days = ["01", "08", "15", "22", "29", "31"].map((d) =>
+      reminderFor(`2027-01-${d}`));
+
+    assert.deepEqual(days.map((r) => r.on), [
+      "2027-01-01", "2027-01-08", "2027-01-15", "2027-01-22", "2027-01-29",
+      "2027-01-29",
+    ]);
+    assert.ok(days.every((r) => !r.final && r.start === "2026-12-01"));
+  });
+});
+
+describe("the old credentials still to revoke", () => {
+  it("is 31 days after a rotation, or the Jan 31 after it if sooner",
+    () => {
+      assert.equal(revokeBy("2026-12-20"), "2027-01-20");
+      assert.equal(revokeBy("2026-12-01"), "2027-01-01");
+      assert.equal(revokeBy("2026-12-31"), "2027-01-31");
+      assert.equal(revokeBy("2027-01-01"), "2027-01-31");
+      assert.equal(revokeBy("2027-03-01"), "2027-04-01");
+    });
+
+  it("lists a scheduled rotation with no revoked line after it", () => {
+    const entries = parseRotationLog(`
+- RESEND_API_KEY | 2026-12-02 | production | schedule | James
+- AXIOM_TOKEN | 2026-12-03 | production | schedule | James
+- AXIOM_TOKEN | 2026-12-04 | staging | schedule | James
+- AXIOM_TOKEN | 2027-01-02 | production | revoked | James
+- SQUARE_ACCESS_TOKEN | 2026-12-05 | production | leak | James
+- STAGING_TOKEN | 2026-12-05 | staging | schedule | James
+- GATE_RESEND_KEY | 2026-10-18 | staging | seed | James
+- PAYPAL_CLIENT_SECRET | 2025-12-03 | production | schedule | James
+- BACKUP_R2_ACCESS_KEY_ID | 2026-12-06 | production | Scheduled | James
+- HEALTHCHECKS_JOBS_URL | 2026-12-06 | production | Schedule | James
+- HEALTHCHECKS_JOBS_URL | 2026-12-08 | production | Revoked | James
+`);
+    const pending = pendingRevocations(entries, "2027-01-10",
+      "2026-12-01");
+
+    assert.deepEqual(pending.map((e) => [e.name, e.environment, e.by]), [
+      ["RESEND_API_KEY", "production", "2027-01-02"],
+      ["AXIOM_TOKEN", "staging", "2027-01-04"],
+      ["BACKUP_R2_ACCESS_KEY_ID", "production", "2027-01-06"],
+    ]);
+    assert.ok(pending.every((e) => e.overdue));
+    assert.deepEqual(pendingRevocations(entries, "2026-12-20",
+      "2026-12-01").map((e) => e.overdue), [false, false, false]);
+  });
+
+  it("does not count a revoked line as a rotation in the window", () => {
+    const due = stillDue(parseRotationLog(`
+- RESEND_API_KEY | 2026-10-20 | production | schedule | James
+- RESEND_API_KEY | 2026-12-05 | production | revoked | James
+`), "2026-12-01");
+
+    assert.deepEqual(due.map((e) => e.date), ["2026-10-20"]);
+  });
+
+  it("rides in the email, and January sends it alone", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const text = `
+- RESEND_API_KEY | 2026-12-02 | production | schedule | James
+- AXIOM_TOKEN | 2026-12-03 | production | schedule | James
+- AXIOM_TOKEN | 2026-12-30 | production | revoked | James
+`;
+    const run = (now) => rotationDaily(stores, {
+      env, mail, now, readLogText: async () => text,
+    });
+
+    assert.equal((await run(at("2026-12-15"))).pending, 1);
+    assert.match(sent[0].text, /Old credentials still to revoke/);
+    assert.match(sent[0].text, /RESEND_API_KEY[^\n]*2027-01-02/);
+    assert.doesNotMatch(sent[0].text, /AXIOM_TOKEN/);
+
+    const jan = await run(at("2027-01-08"));
+
+    assert.deepEqual(jan, {
+      on: "2027-01-08", final: false, due: 0, pending: 1,
+    });
+    assert.equal(sent[1].subject, "Old credentials are waiting to be revoked");
+    assert.match(sent[1].text, /overdue/);
+    assert.match(sent[1].text, /Every secret is rotated; the old/);
+    assert.doesNotMatch(sent[1].text, /rotates between Dec 1 and Jan 1/);
+
+    // Revoked at last: January goes quiet.
+    const done = `${text}` +
+      "- RESEND_API_KEY | 2027-01-09 | production | revoked | James\n";
+
+    assert.equal(await rotationDaily(stores, {
+      env, mail, now: at("2027-01-15"), readLogText: async () => done,
+    }), null);
+    assert.equal(sent.length, 2);
   });
 });
 
@@ -124,7 +221,7 @@ describe("the reminder email", () => {
     assert.equal(await run(at("2026-12-01", "12:30")), null,
       "not before 8:00 in New York");
     assert.deepEqual(await run(at("2026-12-01", "13:30")),
-      { on: "2026-12-01", final: false, due: 3 });
+      { on: "2026-12-01", final: false, due: 3, pending: 1 });
     assert.equal(await run(at("2026-12-01", "20:00")), null, "once");
     assert.equal(sent.length, 1);
     assert.deepEqual(sent[0].to, ["dev@x.com"]);
@@ -144,13 +241,17 @@ describe("the reminder email", () => {
     assert.equal(sent.length, 4);
   });
 
-  it("stops once the log shows everything rotated", async () => {
+  it("stops once the log shows everything rotated and revoked", async () => {
     const stores = testStores();
     const { sent, mail } = mailbox();
     const done = `${LOG}
 - NETLIFY_AUTH_TOKEN | 2026-12-03 | all | schedule | James
 - AXIOM_TOKEN | 2026-12-03 | production | schedule | James
 - SQUARE_ACCESS_TOKEN | 2026-12-04 | production | schedule | James
+- RESEND_API_KEY | 2026-12-30 | production | revoked | James
+- NETLIFY_AUTH_TOKEN | 2026-12-30 | all | revoked | James
+- AXIOM_TOKEN | 2026-12-30 | production | revoked | James
+- SQUARE_ACCESS_TOKEN | 2026-12-30 | production | revoked | James
 `;
 
     await rotationDaily(stores, {
@@ -190,7 +291,7 @@ describe("the reminder email", () => {
   it("sends nothing outside December or with nobody to tell", async () => {
     const { sent, mail } = mailbox();
 
-    for (const day of ["2026-11-30", "2027-01-02"]) {
+    for (const day of ["2026-11-30", "2027-02-02"]) {
       assert.equal(await rotationDaily(testStores(), {
         env, mail, now: at(day), readLogText: log,
       }), null);
