@@ -2467,11 +2467,13 @@ export class OrderForm {
 
         return;
       }
+      // The fields first: showing them clears every slot, the
+      // payment's too, so the changed total is said after (#302).
+      this.errors.show(outcome.errors);
       if (outcome.errors.total) {
         this.refresh();
         this.payment.fail(outcome.errors.total);
       }
-      this.errors.show(outcome.errors);
       break;
     case "stale":
       this.lapse(payload.fulfilment.method, outcome.dates);
