@@ -677,10 +677,21 @@ note goes through `planChange` and `applyChange` in `lib/account.mjs`,
 which the customer's own quick change shares. Both send the customer
 `orderChanged` and flag `squareOutOfSync` if Square fails. History
 records `farm.changed`, and the farm is not emailed about its own
-change. The CLI moves no money: a change that adds a fee (the
-customer must pay it on the order page) or credits one is refused
-and says so. `--dry-run` saves and sends nothing and prints the
-email.
+change. The order keeps its own prices (`planEdit`'s `hold`), so a
+catalog price that moved since it was placed, or the prices of a later
+day, show no difference; only a fee of the new way can. The CLI moves
+no money: a change that adds a fee (the customer must pay it on the
+order page) or credits one is refused, and says to make the change on
+the order page or refund by hand and run it again. `--notes` goes
+alone or with a date, time or drop-off detail, never with `--method`
+or an address. `--phone` and `--contact` go alone or with any other
+flag. A method or address change prints its idempotency key before it
+applies; after a crash, run it again with `--key <key>`. A key whose
+change is already done returns success and applies nothing of the new
+body. The CLI says so when the change set `squareOutOfSync`. Square's
+inventory is read only when a change adds items, so a farm change and
+`--dry-run` need no Square. `--dry-run` saves and sends nothing and
+prints the email.
 
 A customer who cancels from the account page is refunded and
 cancelled at once (T1d), and the farm is emailed "Cancelled: <id>".

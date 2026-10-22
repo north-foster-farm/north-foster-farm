@@ -8,7 +8,7 @@ import {
 } from "../netlify/functions/lib/edit.mjs";
 import { cancelOrder } from "../netlify/functions/lib/account.mjs";
 import {
-  amendOrder, getCheckout, getOrder,
+  amendOrder, getCheckout, getOrder, paymentsOf,
 } from "../netlify/functions/lib/records.mjs";
 import { buildChangeOrder } from "../netlify/functions/lib/square.mjs";
 import { SquareError } from "../netlify/functions/lib/square.mjs";
@@ -712,6 +712,127 @@ describe("farmEdit", () => {
     assert.equal((await getOrder(stores, id)).fulfilment.method, "onfarm");
     assert.deepEqual(calls, []);
     assert.equal(sent.length, 0);
+  });
+
+  it("changes a delivery address, and says its key", async () => {
+    const { stores, id } = await placed();
+    const { square } = fakeSquare();
+    const { sent, mail } = outbox();
+    const keys = [];
+    const home = {
+      method: "delivery", date: "2026-10-08",
+      delivery: {
+        address1: "1 Main St", town: "Foster", zip: "02825", cooler: "Porch",
+      },
+    };
+
+    await edit(stores, id, {
+      idempotencyKey: editKey(), fulfilment: home,
+      payment: { method: "card", sourceId: "cnon:tok" },
+    }, square);
+
+    const result = await farmEdit(stores, id, {
+      fulfilment: { delivery: { address1: "2 Oak Rd" } },
+    }, opts(square, mail, { onKey: (k) => keys.push(k) }));
+
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+
+    const saved = await getOrder(stores, id);
+
+    assert.equal(saved.fulfilment.delivery.address1, "2 Oak Rd");
+    assert.equal(saved.fulfilment.delivery.town, "Foster");
+    assert.equal(saved.edits.at(-1).by, "farm");
+    assert.deepEqual(keys, [result.key]);
+    assert.equal(result.outOfSync, false);
+    assert.equal(sent.at(-1).subject, "Your order is updated");
+
+    // The same key again applies nothing new.
+    const again = await farmEdit(stores, id, {
+      fulfilment: { delivery: { address1: "3 Elm St" } },
+    }, opts(square, mail, { key: result.key }));
+
+    assert.equal(again.ok, true, JSON.stringify(again.errors));
+    assert.equal((await getOrder(stores, id)).fulfilment.delivery.address1,
+      "2 Oak Rd");
+  });
+
+  it("changes the phone alone, and refuses a bad one", async () => {
+    const { stores, id } = await placed();
+    const { square, calls } = fakeSquare();
+    const { sent, mail } = outbox();
+    const bad = await farmEdit(stores, id, {
+      customer: { phone: "nope" },
+    }, opts(square, mail));
+    const result = await farmEdit(stores, id, {
+      customer: { phone: "401-555-0199", contact: "text" },
+    }, opts(square, mail));
+
+    assert.equal(bad.ok, false);
+    assert.equal(bad.errors["customer.phone"],
+      "That phone number doesn't look right.");
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+
+    const saved = await getOrder(stores, id);
+
+    assert.equal(saved.customer.phone, "401-555-0199");
+    assert.equal(saved.customer.contact, "text");
+    assert.equal(saved.customer.email, "pat@example.com");
+    assert.ok(saved.history.some((h) => h.event === "farm.changed"));
+    assert.equal(calls.filter((c) => c[0] !== "updateFulfilment").length, 0);
+    assert.equal(sent.length, 1);
+  });
+
+  it("refuses notes beside a method change", async () => {
+    const { stores, id } = await placed();
+    const { square } = fakeSquare();
+    const result = await farmEdit(stores, id, {
+      fulfilment: { method: "scituate", date: "2026-10-17" }, notes: "Hi",
+    }, opts(square, async () => ({})));
+
+    assert.equal(result.ok, false);
+    assert.match(result.errors.notes, /command of their own/);
+  });
+
+  it("says Square is out of sync when its change set the flag",
+    async () => {
+      const { stores, id } = await placed();
+      const { square } = fakeSquare();
+
+      square.updateFulfilment = async () => {
+        throw new SquareError("down");
+      };
+
+      const result = await farmEdit(stores, id, {
+        fulfilment: { date: "2026-10-08" },
+      }, opts(square, async () => ({})));
+
+      assert.equal(result.outOfSync, true);
+    });
+
+  it("keeps the prices the order was placed at", async () => {
+    const { stores, id } = await placed();
+    const { square } = fakeSquare();
+    const was = await getOrder(stores, id);
+    const bump = 2;
+    const lines = was.lines.map((l, i) => (i ? l : {
+      ...l, unitPrice: l.unitPrice + bump,
+      lineTotal: l.lineTotal + bump * l.qty,
+    }));
+    const totals = { ...was.totals,
+      subtotal: was.totals.subtotal + bump * 100 * was.lines[0].qty,
+      total: was.totals.total + bump * 100 * was.lines[0].qty };
+    const payments = [{ ...paymentsOf(was)[0],
+      amount: totals.total }];
+
+    // As if the catalog had since come down by the bump.
+    await amendOrder(stores, id, { lines, totals, payments }, "test", now);
+
+    const result = await farmEdit(stores, id, {
+      fulfilment: { method: "scituate", date: "2026-10-17" },
+    }, opts(square, async () => ({})));
+
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    assert.equal((await getOrder(stores, id)).totals.total, totals.total);
   });
 
   it("saves and sends nothing on a dry run", async () => {

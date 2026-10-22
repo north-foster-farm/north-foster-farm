@@ -29,7 +29,7 @@ import discountCodes from "../../../data/discount-codes.json" with {
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import { indexCatalog } from "../../../assets/scripts/order/lib/catalog.mjs";
 import {
-  validateOrder,
+  CONTACT, phoneOk, validateOrder,
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import {
   applyChange, canChange, planChange, publicOrder,
@@ -139,11 +139,22 @@ export const heldOn = (order) => paidTotal(order) - refundedTotal(order);
 export const creditOn = (order) => heldOn(order) - keptFee(order);
 
 // Validated, priced and checked, before any money: the new order, and
-// the change against the record. -> { ok, order, next, change } or a
-// failure shaped like the order endpoint's.
+// the change against the record. `hold` prices the lines the order
+// already has at the prices it was placed at, so a catalog price that
+// moved since shows no difference (the farm's change, #307). -> { ok,
+// order, next, change } or a failure shaped like the order endpoint's.
 export const planEdit = async (stores, order, body, {
-  now, index, terms, codes, group, validate, schedule, env,
+  now, index, terms, codes, group, validate, schedule, env, hold = false,
 }) => {
+  if (hold) {
+    index = new Map(index);
+    for (const l of order.lines) {
+      if (index.has(l.sku)) {
+        index.set(l.sku, { ...index.get(l.sku), price: l.unitPrice });
+      }
+    }
+  }
+
   // An order placed with a pass (#182) keeps its waiver through every
   // change, the fee's too if the pass waives it; the pass is already
   // used up by this order.
@@ -162,9 +173,10 @@ export const planEdit = async (stores, order, body, {
 
   const next = result.order;
   const change = diffLines(order.lines, next.lines);
-  const stock = await checkLines(stores, change.added, {
-    env, check: "edit",
-  });
+  // Square's inventory is read only for what the change adds.
+  const stock = change.added.length
+    ? await checkLines(stores, change.added, { env, check: "edit" })
+    : { ok: true, errors: {}, items: {} };
 
   if (!stock.ok) return fail(422, stock.errors, { stock: stock.items });
   if (next.flags.totalMismatch) {
@@ -182,8 +194,14 @@ export const planEdit = async (stores, order, body, {
   // when there is nothing to pay.
   change.carries = switched;
 
+  // The farm can move the address alone; a pickup has none.
+  const there = (o) => ["address1", "address2", "town", "zip"]
+    .map((k) => (o.fulfilment.delivery || {})[k] || "").join("|");
+  const moved = next.fulfilment.method === "delivery"
+    && there(next) !== there(order);
+
   if (!change.delta.length && !switched && change.difference === 0
-    && next.fulfilment.date === order.fulfilment.date) {
+    && !moved && next.fulfilment.date === order.fulfilment.date) {
     return fail(422, { order: "Nothing has changed." });
   }
 
@@ -653,13 +671,21 @@ export const editOrder = async (stores, customer, id, body, {
 // change of method or address goes through planEdit and applyEdit like
 // the customer's edit; the rest (date, pickup time, drop-off details,
 // notes) through planChange and applyChange like their quick change.
+// The order keeps its own prices (`hold`), so only a change of items,
+// which the CLI cannot make, or a fee of the new way can cost anything.
 // The CLI moves no money: a change that costs or credits anything is
 // refused. `body` is `{ fulfilment, customer, notes }`, as the edit
-// takes it. `dryRun` plans and renders the email; nothing is saved or
-// sent. -> { ok, order, email? } or { ok: false, status, errors }
+// takes it; `customer` may carry the phone and the text-or-call alone,
+// or beside another change, but notes only alone or with a date, time
+// or drop-off detail. `dryRun` plans and renders the email; nothing is
+// saved or sent. `onKey` hears the idempotency key before anything is
+// applied, so a retry after a crash can pass it back as `key`: a key
+// whose edit is already done returns success and applies nothing of
+// the new body. -> { ok, order, key?, outOfSync, email? } or
+// { ok: false, status, errors }
 export const farmEdit = async (stores, id, body, {
   now = clock(), env = process.env, mail = sendMail, square = squareApi,
-  paypal, fetchImpl, sleep, key, dryRun = false,
+  paypal, fetchImpl, sleep, key, dryRun = false, onKey,
 } = {}) => {
   const order = await getOrder(stores, id);
 
@@ -678,15 +704,34 @@ export const farmEdit = async (stores, id, body, {
   const links = mailLinks(env);
   const orderUrl = orderUrlFor(env, id);
   const structural = (f.method && f.method !== order.fulfilment.method)
-    || ["address1", "address2", "town", "zip"].some((k) => d[k] !== undefined)
-    || !!b.customer;
+    || ["address1", "address2", "town", "zip"].some((k) => d[k] !== undefined);
+  // A flag the change itself set, for the CLI to say.
+  const outOfSync = (after) => !!(after.flags || {}).squareOutOfSync
+    && !(order.flags || {}).squareOutOfSync;
+  const c = b.customer || {};
+  const phone = c.phone !== undefined ? String(c.phone).trim() : undefined;
+  const contact = c.contact !== undefined ? String(c.contact).trim()
+    : undefined;
 
   if (!structural) {
     const plan = planChange(order, {
       date: f.date, onfarm: f.onfarm, delivery: d, notes: b.notes,
     }, { now, env, by: "farm" });
 
-    if (plan.errors) return fail(422, plan.errors);
+    const errors = { ...plan.errors };
+
+    if (phone !== undefined && !phoneOk(phone)) {
+      errors["customer.phone"] = "That phone number doesn't look right.";
+    }
+    if (contact !== undefined && !CONTACT.includes(contact)) {
+      errors["customer.contact"] = "Text or call?";
+    }
+    if (Object.keys(errors).length) return fail(422, errors);
+    if (phone !== undefined || contact !== undefined) {
+      plan.patch = { ...plan.patch, customer: { ...order.customer,
+        ...phone !== undefined && { phone },
+        ...contact !== undefined && { contact } } };
+    }
     if (dryRun) {
       const after = { ...order, ...plan.patch };
 
@@ -694,19 +739,22 @@ export const farmEdit = async (stores, id, body, {
         email: orderChanged(after, { orderUrl, links }) };
     }
 
-    return { ok: true, order: await applyChange(stores, order, plan, {
+    const done = await applyChange(stores, order, plan, {
       now, env, mail, square, by: "farm",
-    }) };
+    });
+
+    return { ok: true, order: done, outOfSync: outOfSync(done) };
   }
 
   if (b.notes !== undefined) {
-    return fail(422, { notes: "Change the notes in a command of their own." });
+    return fail(422, { notes: "A change of method or address can't carry " +
+      "the notes. Change them in a command of their own." });
   }
 
   const cust = await getCustomer(stores, order.customer.email);
   const plan = async (claimedTotal) => planEdit(stores, order,
     { ...b, claimedTotal }, {
-      now, index, terms, codes: discountCodes.codes,
+      now, index, terms, codes: discountCodes.codes, hold: true,
       group: (cust && cust.discountGroup) || null, validate: validateOrder,
       schedule: pickupSchedule(env), env,
     });
@@ -725,12 +773,14 @@ export const farmEdit = async (stores, id, body, {
       ? `This change adds ${dollars(difference)}, which only the customer ` +
         "can pay, on their order page."
       : `This change takes ${dollars(-difference)} off the order. The ` +
-        "CLI moves no money: refund it by hand once the change is made." });
+        "CLI moves no money: make the change on the order page, or " +
+        "refund it by hand and run this again." });
   }
 
   const k = key || `farm-${id}-${now.getTime()}`;
 
   if (!KEY.test(k)) return fail(422, { key: "That key doesn't look right." });
+  if (onKey) onKey(k);
   if (dryRun) {
     const after = { ...order, ...changedRecord(order, planned.next,
       planned.change, k, now, "farm") };
@@ -741,9 +791,11 @@ export const farmEdit = async (stores, id, body, {
       }) };
   }
 
-  return { ok: true, order: await applyEdit(stores, planned, {
+  const done = await applyEdit(stores, planned, {
     key: k, by: "farm", payment: {},
-  }, { square, paypal, env, fetchImpl, sleep, mail, now }) };
+  }, { square, paypal, env, fetchImpl, sleep, mail, now });
+
+  return { ok: true, order: done, key: k, outOfSync: outOfSync(done) };
 };
 
 // A processor's failure as the page reads it, as the order endpoint

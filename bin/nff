@@ -108,9 +108,20 @@ const USAGE = `Usage:
                                       the way they receive it (method)
                                       and the address. The customer gets
                                       the "order changed" email and
-                                      Square follows. A change that
+                                      Square follows. The order keeps
+                                      its own prices. A change that
                                       costs or credits money is
-                                      refused. --dry-run saves and sends
+                                      refused. --notes goes alone or
+                                      with a date, time or drop-off
+                                      detail, not with --method or an
+                                      address. --phone and --contact
+                                      go alone or with any other. The
+                                      key is printed before a method or
+                                      address change applies; after a
+                                      crash, pass it back as --key (a
+                                      key whose change is done succeeds
+                                      and applies nothing new).
+                                      --dry-run saves and sends
                                       nothing and prints the email
   bin/nff orders fulfil <id>
   bin/nff orders delete <id>
@@ -1010,6 +1021,7 @@ const run = async () => {
 
     const r = await farmEdit(stores, rest[0], body, {
       key: given("key"), dryRun: !!flags["dry-run"],
+      onKey: (k) => out(`Key: ${k} (pass --key ${k} to retry)`),
     });
 
     if (!r.ok) {
@@ -1023,7 +1035,13 @@ const run = async () => {
       return undefined;
     }
 
-    return out(summaryLine(r.order));
+    out(summaryLine(r.order));
+    if (r.outOfSync) {
+      out("Square did not take the change: the order is flagged out of " +
+        "sync. Fix the Square order by hand; the farm has been told.");
+    }
+
+    return undefined;
   }
   case "orders fulfil":
   case "orders fulfill":
