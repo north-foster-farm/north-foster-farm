@@ -29,10 +29,13 @@ test.describe("no retired words (#150)", () => {
 
         return content ? content[1] : "";
       };
+      // Tags become spaces and runs of space one, so a retired phrase
+      // split by the orphan pass's span (#303) still reads as one.
       const said = {
         served: html
           .replace(/<(script|style|svg)\b[\s\S]*?<\/\1>/gi, " ")
-          .replace(/<[^>]+>/g, " "),
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " "),
         description: meta("name", "description"),
         share: meta("property", "og:description"),
       };
