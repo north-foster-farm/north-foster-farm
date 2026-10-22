@@ -827,13 +827,14 @@ Flags that take a value accept both `--reason "..."` and
   the line, and Next, which scrolls to Your details. Lines are grouped
   under their category with the tiers indented beneath, at 0.875rem.
   The "Next discount" nudge is hidden at the top tier. There is no
-  Empty cart; a saved draft is restored silently. The badges are one
-  dotted line of 0.7rem text on any way, "Free Delivery" (each word
-  lights on its own: Delivery at the minimum, Free at the waiver) then
-  the tiers, muted until earned and then primary green and italic; a
-  handful of chicks
-  hop out of one the moment it lights (`celebrate.js`, on a small
-  canvas around the badge). Below `lg` the page title rides in the
+  Empty cart; a saved draft is restored silently. The badges are a
+  dotted line of 0.7rem text on any way: "Delivery" (lit at the
+  minimum) and "Free delivery" (lit at the waiver), two badges since
+  #274 round 4, then the tiers, which take a second line where the
+  list is under 22rem wide. They are muted until earned and then
+  primary green and italic; a handful of chicks hop out of one the
+  moment it lights (`celebrate.js`, on a small canvas around the
+  badge). Below `lg` the page title rides in the
   sticky Jump to bar beside the button. Everything the panel says
   comes from `lib/summary.mjs`, whose tests pin every sentence and
   prove the nudge's promise against the totals at every cent to $250.

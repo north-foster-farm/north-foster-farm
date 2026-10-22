@@ -221,10 +221,11 @@ test.describe("cart panes on a phone", () => {
   // The badges are the first thing to go when the cap has no room for
   // them (a long cart, or a screen under about 800px tall); a short
   // cart on a taller screen keeps them.
-  // Every badge shows whatever the way, "Free Delivery" among them, on
-  // one line with no label (#278). The row went missing for pickup
-  // once, and the chicks with it (4dabd6d, #274).
-  test("the badges show on one line whatever the way", async ({ page }) => {
+  // Every badge shows whatever the way, "Delivery" and "Free delivery"
+  // among them, on one line with no label (#278; two badges again since
+  // #274 round 4). The row went missing for pickup once, and the chicks
+  // with it (4dabd6d, #274).
+  test("the badges show whatever the way", async ({ page }) => {
     const order = new OrderPage(page);
 
     await page.setViewportSize(TALL);
@@ -233,18 +234,22 @@ test.describe("cart panes on a phone", () => {
 
     const badges = order.cart.locator(".order-badges");
     const tier = order.cart.locator("[data-badge='tier-50']");
-    const pair = order.cart.locator(".order-badge-pair");
+    const delivery = order.cart.locator("[data-badge='delivery']");
+    const free = order.cart.locator("[data-badge='free-delivery']");
 
     for (const way of ["onfarm", "scituate", "delivery"]) {
       await order.method(way);
       await expect(badges, way).toBeVisible();
       await expect(tier, way).toBeVisible();
-      await expect(pair, way).toHaveText("Free Delivery");
+      await expect(delivery, way).toHaveText("Delivery");
+      await expect(free, way).toHaveText("Free delivery");
     }
     await expect(badges).not.toContainText("Bulk discount");
 
-    // One line, lit or not, at 390 and at an SE's 375, and the text no
-    // larger than the "Next discount" note under Continue.
+    // Lit, at 390 and at an SE's 375: one line, or two where the pane
+    // is too narrow (the tiers under the delivery badges, #274 round
+    // 4; cart-round4 pins which), never wider than the pane, and the
+    // text no larger than the "Next discount" note under Continue.
     for (const width of [390, 375]) {
       await page.setViewportSize({ width, height: 844 });
       await page.evaluate(() => {
@@ -269,7 +274,7 @@ test.describe("cart panes on a phone", () => {
         };
       });
 
-      expect(seen.lines, `${width}px lines`).toBe(1);
+      expect(seen.lines, `${width}px lines`).toBeLessThanOrEqual(2);
       expect(seen.over, `${width}px overflow`).toBeLessThanOrEqual(0);
       expect(seen.size).toBeLessThanOrEqual(seen.note);
       expect(seen.size).toBeGreaterThan(0.7 * 16);

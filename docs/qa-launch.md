@@ -671,8 +671,8 @@ reached".
 - **Setup:** 15 wings.
 - **Test:**
   1. Read each badge's `data-on`.
-- **Assert:** "Free Delivery" with both words on, $50+, $100+, $150+
-  on; $200+ off. One line, on any way (#278).
+- **Assert:** Delivery, Free delivery, $50+, $100+, $150+ on; $200+
+  off. One line, on any way (#278, #274).
 - **Teardown:** None.
 
 ### PR-04 The nudge names the next tier

@@ -197,12 +197,15 @@ test.describe("a phone on its side", () => {
   });
 });
 
-// "Delivery" lights at the minimum and "Free" at free delivery, on a
-// pickup too (#278, item 6).
+// "Delivery" lights at the minimum and "Free delivery" at the waiver,
+// each a badge of its own, on a pickup too (#278, item 6; two badges
+// since #274 round 4).
 for (const [wings, delivery, free] of [
   [3, "false", "false"], [4, "true", "false"], [15, "true", "true"],
 ]) {
-  test(`Free Delivery at $${wings * 10} on a pickup`, async ({ page }) => {
+  test(`the delivery badges at $${wings * 10} on a pickup`, async ({
+    page,
+  }) => {
     await page.setViewportSize(PHONE);
 
     const order = new OrderPage(page);
@@ -215,9 +218,16 @@ for (const [wings, delivery, free] of [
   });
 }
 
-// All but $200+ lit, the floating pane open: one line down to 320px.
-for (const width of [320, 360, 390]) {
-  test(`the lit badges keep one line at ${width}px`, async ({ page }) => {
+// All but $200+ lit, the floating pane open. One line where it fits
+// with room to spare; with "Delivery" and "Free delivery" two badges
+// again (#274 round 4), a phone up to 414px puts the tiers on a second
+// line, the delivery badges on the first.
+for (const width of [320, 360, 390, 414, 430]) {
+  const lines = width >= 430 ? 1 : 2;
+
+  test(`the lit badges take ${lines} line(s) at ${width}px`, async ({
+    page,
+  }) => {
     await page.setViewportSize({ width, height: 800 });
 
     const order = new OrderPage(page);
@@ -232,20 +242,24 @@ for (const width of [320, 360, 390]) {
       .toHaveAttribute("data-on", "true");
 
     const seen = await order.cart.locator(".order-badges").evaluate((ul) => {
-      const lis = [...ul.querySelectorAll("li")];
+      const lis = [...ul.querySelectorAll("li")]
+        .filter((li) => li.getBoundingClientRect().height > 0);
+      const top = (li) => Math.round(li.getBoundingClientRect().top);
+      const tops = [...new Set(lis.map(top))];
+      const row = (t) => lis.filter((li) => top(li) === t);
 
       return {
-        lines: new Set(lis.map((li) => Math.round(li.getBoundingClientRect()
-          .top))).size,
+        lines: tops.length,
+        first: row(tops[0]).map((li) => li.textContent.trim()),
         over: ul.scrollWidth - ul.clientWidth,
-        spare: ul.clientWidth - lis.reduce(
+        spare: Math.min(...tops.map((t) => ul.clientWidth - row(t).reduce(
           (n, li) => n + li.getBoundingClientRect().width, 0
-        ),
+        ))),
       };
     });
 
-    expect({ lines: seen.lines, over: seen.over })
-      .toEqual({ lines: 1, over: 0 });
+    expect({ lines: seen.lines, over: seen.over }).toEqual({ lines, over: 0 });
+    if (lines === 2) expect(seen.first).toEqual(["Delivery", "Free delivery"]);
     // Room to spare: Linux's Chromium rounds each letter to a whole
     // pixel, and wrapped the line where a Mac left 5.5px (#289).
     expect(seen.spare, "px to spare").toBeGreaterThanOrEqual(6);
