@@ -517,15 +517,14 @@
     visibility: hidden;
   }
 
-  // Out until spring, on hiatus or not available: no price, and the
-  // label stands where Add goes (#274 round 5). "Returning soon" keeps
-  // its price.
-  .order-item[data-stock="out"]:not([data-restock="soon"]) {
+  // Out of stock: the label stands where Add goes, on every row
+  // (#274 round 5, #303). "Returning soon" keeps its price beside it.
+  // Every row with a label has a restock type.
+  .order-item[data-stock="out"][data-restock] {
     grid-template-areas:
-      "name  name  qty"
+      "name  price qty"
       "error error error";
 
-    .order-item-price,
     .order-qty {
       display: none;
     }
@@ -535,6 +534,24 @@
       align-self: center;
       font-size: 0.875rem;
       text-align: center;
+    }
+
+    @media (max-width: 30rem) {
+      grid-template-areas:
+        "name  qty"
+        "price qty"
+        "error error";
+    }
+  }
+
+  // Out until spring, on hiatus or not available: no price either.
+  .order-item[data-stock="out"]:not([data-restock="soon"]) {
+    grid-template-areas:
+      "name  name  qty"
+      "error error error";
+
+    .order-item-price {
+      display: none;
     }
 
     @media (max-width: 30rem) {

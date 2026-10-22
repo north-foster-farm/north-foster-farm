@@ -512,8 +512,8 @@ restock label", and every rule in `restock.spec.mjs` (both projects).
   out and was removed". Step 3: "Full catalog" stays chosen after the reload;
   the row is back, greyed, saying "Back in spring", with no Add;
   Medium and Small eggs say "On hiatus", with no price or grade,
-  and only Large says "Grade A"; Feet say "Returning soon" and keep
-  their price; Cornish Hens and Ground
+  and only Large says "Grade A"; Feet say "Returning soon" where Add
+  goes and keep their price; Cornish Hens and Ground
   Chicken, archived, have no section or sidebar link. Step 4: the
   row hides again. Search lists both drumsticks, this one "Back in
   spring" with Add off; Sweet Italian Sausage says "On hiatus";

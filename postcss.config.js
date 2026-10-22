@@ -49,6 +49,8 @@ const plugins = [
         "data-stock",
         "out",
         "low",
+        // An out-of-stock row's label in the Add button's place (#303).
+        "data-restock",
         "data-urgency",
         "soon",
         "last",
