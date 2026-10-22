@@ -18,72 +18,106 @@
   <link rel="stylesheet" href="{{ $style.RelPermalink }}" integrity="{{ $style.Data.Integrity }}">
   <div class="staging" id="staging" data-context="{{ $context }}" data-time-zone="{{ hugo.Data.delivery.timeZone }}" hidden>
     <button class="staging-tab" type="button" data-staging-open aria-expanded="false">Staging<span class="staging-tab-clock" data-staging-tab-clock hidden></span></button>
+    {{/* #303: the sections listed A to Z on the left, with scrollspy
+      marking the one in view, and all of them in one scrolling pane on
+      the right. Where the list would wrap, it becomes a flyout behind
+      the header's menu button (staging.css, the container query). */}}
     <section class="staging-panel" data-staging-panel aria-label="Staging tools" hidden>
       <header class="staging-head">
+        <button type="button" class="staging-nav-toggle" data-staging-nav-toggle aria-controls="staging-nav" aria-expanded="false" title="Sections" aria-label="Sections">☰</button>
         <strong>Staging</strong>
-        <span data-staging-info>{{ $context }}</span>
+        {{ with getenv "HUGO_BUILD_SHA" }}
+          <a class="staging-sha" href="https://github.com/north-foster-farm/north-foster-farm/commit/{{ . }}" target="_blank" rel="noopener" title="The deployed commit">{{ substr . 0 7 }}</a>
+        {{ else }}
+          <span class="staging-sha">local</span>
+        {{ end }}
         <button type="button" data-staging-collapse title="Collapse to a tab" aria-label="Collapse">–</button>
         <button type="button" data-staging-hide title="Hide until the next page load" aria-label="Hide">×</button>
       </header>
-      <p class="staging-clocked" data-staging-clock-banner role="status" hidden></p>
       <div class="staging-body">
-        {{/* Each tool names the area the session must open
-          (see staging.mjs KEYS). */}}
-        <div data-staging-scope="clock">
-          <h2>Clock</h2>
-          <p class="staging-muted" data-staging-clock-now></p>
-          <form class="staging-clock" data-staging-clock>
-            <label for="staging-clock-at">Date and time, farm time</label>
-            <input type="datetime-local" id="staging-clock-at" data-staging-clock-at required>
-            <span>
-              {{ partial "busy-button.html" (dict "label" "Set" "busy" "Setting" "class" "staging-action" "plain" true) }}
-              {{ partial "busy-button.html" (dict "label" "Reset to now" "busy" "Resetting" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-clock-reset" "")) }}
-            </span>
-          </form>
-          <p class="staging-muted">For this browser only. The site and its emails, cutoffs and jobs run here take this time; Square and PayPal keep their own.</p>
+        <nav class="staging-nav" id="staging-nav" data-staging-nav aria-label="Staging sections">
+          <div class="list-group list-group-flush">
+            <a class="list-group-item list-group-item-action" href="#staging-time" data-staging-section="clock">Current time <span class="badge staging-dot" data-staging-badge-time hidden>Set</span></a>
+            <a class="list-group-item list-group-item-action" href="#staging-email" data-staging-section="emails signatures inbox">Email <span class="badge staging-dot" data-staging-badge-email hidden></span></a>
+            <a class="list-group-item list-group-item-action" href="#staging-jobs" data-staging-section="jobs">Jobs</a>
+            <a class="list-group-item list-group-item-action" href="#staging-orders">Orders</a>
+            <a class="list-group-item list-group-item-action" href="#staging-reset">Reset</a>
+          </div>
+        </nav>
+        <div class="staging-main">
+          <div class="staging-pane" data-staging-pane tabindex="0">
+            {{/* Each group names the area the session must open (see
+              staging.mjs KEYS); a section with none open is hidden. */}}
+            <section id="staging-time" tabindex="-1" aria-labelledby="staging-time-h" data-staging-section="clock">
+              <h2 id="staging-time-h">Current time</h2>
+              <div data-staging-scope="clock">
+                <h3>Change time</h3>
+                <p>Browse the website on a specific day and time.</p>
+                <p class="staging-muted" data-staging-clock-now></p>
+                <form class="staging-clock" data-staging-clock>
+                  <input type="datetime-local" id="staging-clock-at" data-staging-clock-at aria-label="Date and time, farm time" required>
+                  <span>
+                    {{ partial "busy-button.html" (dict "label" "Set" "busy" "Setting" "class" "staging-action" "plain" true) }}
+                    {{ partial "busy-button.html" (dict "label" "Reset" "busy" "Resetting" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-clock-reset" "")) }}
+                  </span>
+                </form>
+              </div>
+            </section>
+            <section id="staging-email" tabindex="-1" aria-labelledby="staging-email-h" data-staging-section="emails signatures inbox">
+              <h2 id="staging-email-h">Email</h2>
+              <div data-staging-scope="inbox">
+                <h3>This session's emails</h3>
+                <p class="staging-muted" data-staging-empty>None yet. Emails the site sends from this session land here instead; the rest are in the email library.</p>
+                <ol class="staging-list" data-staging-list></ol>
+                <p>
+                  {{ partial "busy-button.html" (dict "label" "Refresh" "busy" "Refreshing" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-refresh" "")) }}
+                  {{ partial "busy-button.html" (dict "label" "Clear" "busy" "Clearing" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-clear" "")) }}
+                </p>
+              </div>
+              <div data-staging-scope="emails">
+                <h3>Email library</h3>
+                <p class="staging-muted" data-staging-library-count></p>
+                <p><button type="button" class="staging-action" data-staging-library-open>Email library</button></p>
+              </div>
+              <div data-staging-scope="signatures">
+                <h3>Signatures</h3>
+                <p class="staging-muted" data-staging-sigs-count></p>
+                <p><button type="button" class="staging-action" data-staging-sigs-open>Signature library</button></p>
+              </div>
+            </section>
+            <section id="staging-jobs" tabindex="-1" aria-labelledby="staging-jobs-h" data-staging-section="jobs">
+              <h2 id="staging-jobs-h">Jobs</h2>
+              <div data-staging-scope="jobs">
+                <h3>Trigger jobs</h3>
+                <p>
+                  {{ partial "busy-button.html" (dict "label" "Run now" "busy" "Running" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-run" "")) }}
+                  {{ partial "busy-button.html" (dict "label" "6 AM" "busy" "Running" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-run" "06:00")) }}
+                  {{ partial "busy-button.html" (dict "label" "8 AM" "busy" "Running" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-run" "08:00")) }}
+                  {{ partial "busy-button.html" (dict "label" "6 PM" "busy" "Running" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-run" "18:00")) }}
+                </p>
+                <label class="staging-check"><input type="checkbox" data-staging-reset> Always send today's reports</label>
+              </div>
+            </section>
+            <section id="staging-orders" tabindex="-1" aria-labelledby="staging-orders-h">
+              <h2 id="staging-orders-h">Orders</h2>
+              <h3>Test card</h3>
+              <p>Square's sandbox credit card. Use this to pay for an order in staging.</p>
+              {{ partial "staging/sandbox-card.html" "toolbar" }}
+            </section>
+            <section id="staging-reset" tabindex="-1" aria-labelledby="staging-reset-h">
+              <h2 id="staging-reset-h">Reset</h2>
+              <p>
+                {{ partial "busy-button.html" (dict "label" "Reset to defaults" "busy" "Resetting" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-defaults" "")) }}
+              </p>
+              <p class="staging-muted">Undoes any changes made in the staging toolbar.</p>
+              <p>
+                {{ partial "busy-button.html" (dict "label" "Reset to first visit" "busy" "Resetting" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-forget" "")) }}
+              </p>
+              <p class="staging-muted">Clears all state. Provides the experience a first-time visitor would have.</p>
+            </section>
+          </div>
+          <pre class="staging-out" data-staging-out hidden></pre>
         </div>
-        <div data-staging-scope="emails">
-          <h2>Emails</h2>
-          <p>
-            <button type="button" class="staging-action" data-staging-library-open>Email library</button>
-            <span class="staging-muted" data-staging-library-count></span>
-          </p>
-        </div>
-        <div data-staging-scope="signatures">
-          <h2>Signatures</h2>
-          <p>
-            <button type="button" class="staging-action" data-staging-sigs-open>Signature library</button>
-            <span class="staging-muted" data-staging-sigs-count></span>
-          </p>
-        </div>
-        <div data-staging-scope="inbox">
-        <h2>This session's emails</h2>
-        <p class="staging-muted" data-staging-empty>None yet. Emails the site sends from this session land here instead; the rest are in the email library.</p>
-        <ol class="staging-list" data-staging-list></ol>
-        <p>
-          {{ partial "busy-button.html" (dict "label" "Refresh" "busy" "Refreshing" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-refresh" "")) }}
-          {{ partial "busy-button.html" (dict "label" "Clear" "busy" "Clearing" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-clear" "")) }}
-        </p>
-        </div>
-        <div data-staging-scope="jobs">
-        <h2>Jobs</h2>
-        <p>
-          {{ partial "busy-button.html" (dict "label" "Run now" "busy" "Running" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-run" "")) }}
-          {{ partial "busy-button.html" (dict "label" "As 6:00 today" "busy" "Running" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-run" "06:00")) }}
-          {{ partial "busy-button.html" (dict "label" "As 8:00 today" "busy" "Running" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-run" "08:00")) }}
-          {{ partial "busy-button.html" (dict "label" "As 18:00 today" "busy" "Running" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-run" "18:00")) }}
-        </p>
-        <label><input type="checkbox" data-staging-reset> Send today's reports again</label>
-        </div>
-        <h2>Test card</h2>
-        <p class="staging-muted">Pay by card with Square's sandbox card:</p>
-        {{ partial "staging/sandbox-card.html" "toolbar" }}
-        <h2>This browser</h2>
-        <p>
-          {{ partial "busy-button.html" (dict "label" "Reset to a first visit" "busy" "Resetting" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-forget" "")) }}
-        </p>
-        <p class="staging-muted">Signs you out and forgets everything the site keeps here: the cart, its choices, dismissed notes, the news sign-up and Venmo flags, cookies and saved settings. Then reloads. Only the toolbar's own token stays.</p>
-        <pre class="staging-out" data-staging-out hidden></pre>
       </div>
     </section>
     {{/* The email library: every email the site sends, built from sample

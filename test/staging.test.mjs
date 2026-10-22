@@ -645,6 +645,23 @@ describe("James's review in the library", () => {
     }).approval, "to approve", "a rewrite that has landed is done");
   });
 
+  it("marks an email updated when its wording changed after review",
+    () => {
+      const e = { approval: "to approve" };
+      const now = versionOf({ subject: "Hi", text: "Now." });
+
+      assert.equal(standing(e, now, {
+        approval: { version: "old", at: "x" },
+      }).updated, true);
+      assert.equal(standing(e, now, {
+        rewrite: { version: "old", subject: [], text: [] },
+      }).updated, true);
+      assert.equal(standing(e, now, {
+        approval: { version: now, at: "x" },
+      }).updated, undefined);
+      assert.equal(standing(e, now).updated, undefined);
+    });
+
   it("refuses to approve what the code already approves", async () => {
     const stores = testStores();
     const e = await one(stores, "sign-in-link");

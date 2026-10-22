@@ -31,6 +31,21 @@ const day = (iso) => new Date(iso).toLocaleString(undefined, {
   month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
 });
 
+// The toolbar's line on the library (#303). Feedback given is a
+// rewrite waiting to be ported; updated, an email whose wording the
+// code has changed since James approved or rewrote it
+// (lib/review.mjs, standing).
+export const tally = (emails) => {
+  const n = (test) => emails.filter(test).length;
+
+  return [
+    `Total emails: ${emails.length}`,
+    `To approve: ${n((e) => e.approval === "to approve")}`,
+    `Feedback given: ${n((e) => e.approval === "rewritten")}`,
+    `Updated: ${n((e) => e.updated)}`,
+  ].join(" · ");
+};
+
 // `canReview` says whether this session may approve and rewrite: James
 // alone (#294); everyone else reads.
 export const mountLibrary = ({
@@ -186,7 +201,7 @@ export const mountLibrary = ({
       redone ? `, ${redone} rewritten` : ""}`;
 
     summary.textContent = text;
-    count.textContent = text;
+    count.textContent = tally(emails);
   };
 
   const load = () => {

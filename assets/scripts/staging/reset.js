@@ -1,4 +1,4 @@
-// "Reset to a first visit": leaves this browser as a stranger's first
+// "Reset to first visit": leaves this browser as a stranger's first
 // load of the site would find it. It clears everything the site keeps
 // here, without a list of keys to fall behind the site:
 //

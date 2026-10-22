@@ -2658,9 +2658,9 @@ toolbar, and the API refuses".
 - **Assert:** `#staging` stays hidden; both 401.
 - **Teardown:** None.
 
-### ST-02 Reset to a first visit
+### ST-02 Reset to first visit
 
-Automated: `staging-toolbar.spec.mjs`, "Reset to a first visit leaves a
+Automated: `staging-toolbar.spec.mjs`, "Reset to first visit leaves a
 fresh browser". Runs only with a gate session's `nff_gate` cookie
 value in `E2E_GATE_SESSION`; otherwise it skips. So do ST-05 and
 ST-06.
@@ -2668,7 +2668,7 @@ ST-06.
 - **Scenario:** The toolbar's reset leaves the browser as a stranger's.
 - **Setup:** A gate session; seeded storage and cookies.
 - **Test:**
-  1. Open the panel; press Reset to a first visit.
+  1. Open the panel; press Reset to first visit.
 - **Assert:** No site storage or cookie survives; the news forms are
   back.
 - **Teardown:** None.
@@ -2709,7 +2709,7 @@ per gate session".
 - **Test:**
   1. Open `/order/`; Tab eight times; copy the card number.
   2. Escape; reload.
-  3. Open the panel; press Reset to a first visit.
+  3. Open the panel; press Reset to first visit.
 - **Assert:** A modal dialog with James's lines and the card; focus
   never reaches the page; the clipboard holds `4111111111111111`
   beside "Copied"; Escape closes it and focus is on the page; after

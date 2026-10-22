@@ -78,19 +78,22 @@
   box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
 }
 
+/* #303: wider than the old single column, and no taller: it holds one
+   height and the right-hand pane scrolls inside it. */
 .staging-panel {
-  width: min(24rem, calc(100vw - 2rem));
-  max-height: min(34rem, calc(100vh - 2rem));
+  width: min(42rem, calc(100vw - 2rem));
+  height: min(34rem, calc(100dvh - 2rem));
   display: flex;
   flex-direction: column;
   border-radius: 0.75rem;
   background: var(--stg-bg);
   box-shadow: 0 6px 24px var(--stg-shadow);
   overflow: hidden;
+  container: staging-panel / inline-size;
 }
 
-.staging-new .staging-panel {
-  box-shadow: 0 0 0 3px var(--stg-flag), 0 6px 24px var(--stg-shadow);
+.staging-panel[hidden] {
+  display: none;
 }
 
 .staging-head {
@@ -103,44 +106,200 @@
   font-family: inherit;
 }
 
-.staging-head span {
+.staging-head strong {
+  font-size: 14px;
+}
+
+/* The deployed commit, linked to it on GitHub. */
+.staging-sha {
   flex: 1;
-  color: #5e5e5f;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  font: 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #3d3d3e !important;
+}
+
+a.staging-sha {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a.staging-sha:hover {
+  color: var(--stg-flag-ink) !important;
 }
 
 .staging-head button {
   width: 1.75rem;
   height: 1.75rem;
+  flex: none;
   border: 0;
   border-radius: 0.375rem;
   background: rgb(0 0 0 / 8%);
   color: var(--stg-flag-ink);
 }
 
+.staging-head button:hover {
+  background: rgb(0 0 0 / 15%);
+}
+
+/* The sidebar and the pane. The body is the flyout's frame, and the
+   pane is not positioned, so Bootstrap's scrollspy reads its sections'
+   offsets against the same parent as the pane's own. */
 .staging-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.staging-nav {
+  flex: none;
+  min-width: 9.5rem; /* holds still when a badge comes or goes */
   overflow: auto;
-  padding: 0.75rem;
+  border-right: 1px solid var(--stg-line);
+  background: var(--stg-bg);
+}
+
+/* Bootstrap's flush list group, in the toolbar's colors. */
+.staging .list-group {
+  --bs-list-group-color: var(--stg-ink);
+  --bs-list-group-bg: transparent;
+  --bs-list-group-border-color: var(--stg-line);
+  --bs-list-group-item-padding-x: 0.875rem;
+  --bs-list-group-item-padding-y: 0.55rem;
+  --bs-list-group-action-color: var(--stg-ink);
+  --bs-list-group-action-hover-color: var(--stg-ink);
+  --bs-list-group-action-hover-bg: var(--stg-hover);
+  --bs-list-group-action-active-color: var(--stg-ink);
+  --bs-list-group-action-active-bg: var(--stg-hover);
+  --bs-list-group-active-color: var(--stg-ink);
+  --bs-list-group-active-bg: var(--stg-hover);
+  --bs-list-group-active-border-color: var(--stg-line);
+}
+
+.staging .list-group-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.staging .list-group-item.active {
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--stg-focus);
+}
+
+.staging .list-group-item[hidden] {
+  display: none;
+}
+
+.staging-dot {
+  margin-left: auto;
+  padding: 0.15em 0.5em;
+  border-radius: 999px;
+  background: #f08c00;
+  color: #1d1c1b;
+  font-size: 11px;
+}
+
+.staging-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.staging-pane {
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.staging-pane:focus-visible {
+  outline-offset: -2px;
+}
+
+.staging-pane > section:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.staging-pane > section + section {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--stg-line);
+}
+
+/* Room for the last section to reach the top fifth, where scrollspy
+   marks it current. */
+.staging-pane > section:last-of-type {
+  min-height: 85%;
+}
+
+.staging-pane section[hidden],
+.staging-pane [data-staging-scope][hidden] {
+  display: none;
 }
 
 .staging h2 {
-  margin: 0 0 0.375rem;
-  font-size: 0.75rem;
+  margin: 0 0 0.5rem;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--stg-ink);
+}
+
+.staging h3 {
+  margin: 0 0 0.35rem;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--stg-muted);
 }
 
-.staging-body > * + h2,
-.staging-body > * + [data-staging-scope] {
+.staging-pane [data-staging-scope] + [data-staging-scope] {
   margin-top: 1rem;
 }
 
-.staging-body p {
+.staging-pane p {
   margin: 0 0 0.5rem;
+}
+
+/* Where the list would wrap beside the pane, it becomes a flyout over
+   it, behind the header's menu button. */
+.staging-nav-toggle {
+  display: none;
+}
+
+@container staging-panel (width < 30rem) {
+  .staging-head .staging-nav-toggle {
+    display: block;
+  }
+
+  .staging-nav {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: 1;
+    min-width: 12rem;
+    box-shadow: 4px 0 16px var(--stg-shadow);
+    visibility: hidden;
+    transform: translateX(-100%);
+    /* Hidden only once it has slid away. */
+    transition: transform 0.2s ease, visibility 0s linear 0.2s;
+  }
+
+  /* Visible at once on opening, so its items take focus straight
+     away (nav.js). */
+  .staging-nav-open .staging-nav {
+    visibility: visible;
+    transform: none;
+    transition: transform 0.2s ease, visibility 0s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .staging-nav {
+    transition: none !important;
+  }
 }
 
 .staging-muted {
@@ -196,9 +355,10 @@
 }
 
 .staging-out {
-  margin: 0.5rem 0 0;
+  flex: none;
+  margin: 0 0.75rem 0.75rem;
   padding: 0.5rem;
-  max-height: 10rem;
+  max-height: 7rem;
   overflow: auto;
   border-radius: 0.375rem;
   background: var(--stg-hover);
@@ -209,6 +369,11 @@
 .staging label {
   display: block;
   margin-bottom: 0.5rem;
+}
+
+.staging-check input {
+  margin-right: 0.35rem;
+  vertical-align: -2px;
 }
 
 /* The email library: a sidebar on the left, the open email beside it.
@@ -595,8 +760,8 @@ html.staging-library-open {
   text-decoration: none;
 }
 
-/* The clock (#294): plain when off; when set, the tab and the panel
-   say so in the flag's orange, so nobody forgets it is on. */
+/* The clock (#294): plain when off; when set, the tab and the
+   sidebar's badge say so in orange, so nobody forgets it is on. */
 .staging-is-clocked .staging-tab {
   background: #f08c00;
   color: #1d1c1b !important;
@@ -606,24 +771,12 @@ html.staging-library-open {
   font-weight: 600;
 }
 
-.staging-clocked {
-  margin: 0;
-  padding: 0.4rem 0.75rem;
-  background: #f08c00;
-  color: #1d1c1b;
-  font-weight: 700;
-}
-
 .staging-clock {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
   align-items: center;
   margin: 0 0 0.35rem;
-}
-
-.staging-clock label {
-  flex-basis: 100%;
 }
 
 .staging .staging-clock input {
@@ -702,6 +855,45 @@ html.staging-library-open {
   font-size: 0.85em;
   font-weight: 600;
   color: #186243;
+}
+
+/* In the toolbar (#303): one grid, inset, with every value in one
+   column and every copy button in the next, level with its value. */
+.staging .staging-card {
+  display: grid;
+  grid-template-columns: max-content max-content auto minmax(0, 1fr);
+  gap: 0.25rem 0.75rem;
+  align-items: center;
+  margin: 0.25rem 0 0.75rem 0.75rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--stg-line);
+}
+
+.staging .staging-card-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  padding: 0;
+}
+
+.staging .staging-card dt {
+  min-width: 0;
+}
+
+.staging .staging-card dd {
+  display: contents;
+}
+
+.staging .staging-copy {
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0.2rem;
+}
+
+.staging .staging-copied {
+  min-width: 0;
+  color: var(--stg-focus);
 }
 
 /* The order page's first-visit overlay: a modal that takes the whole

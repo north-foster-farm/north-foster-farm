@@ -42,7 +42,7 @@ test.describe("staging toolbar", () => {
   //
   // This runs only with a gate session cookie in E2E_GATE_SESSION (the
   // nff_gate cookie's value, from a browser signed in to the gate).
-  test("Reset to a first visit leaves a fresh browser",
+  test("Reset to first visit leaves a fresh browser",
     async ({ page, context, baseURL }) => {
       test.skip(!branch(baseURL), "only on a branch deploy");
       test.skip(!process.env.E2E_GATE_SESSION,
@@ -87,7 +87,7 @@ test.describe("staging toolbar", () => {
 
   // #294 §4: the first time a gate session opens the order page, the
   // sandbox card takes the page as a modal until it is closed; it
-  // stays closed for the session, and Reset to a first visit brings
+  // stays closed for the session, and Reset to first visit brings
   // it back.
   test("the card overlay shows once per gate session",
     async ({ page, context, baseURL, browserName }) => {
@@ -166,8 +166,10 @@ test.describe("staging toolbar", () => {
         page.locator("[data-staging-clock] [type=submit]").click(),
       ]);
       try {
-        await expect(page.locator("[data-staging-clock-banner]"))
-          .toHaveText(/Clock set: Thu, Jan 7, 2027, 6:00\sAM, farm time\./);
+        await expect(page.locator("[data-staging-clock-now]"))
+          .toHaveText(/Currently: Thu, Jan 7, 2027, 6:00\sAM/);
+        await expect(page.locator("[data-staging-badge-time]"))
+          .toBeVisible();
         await expect(page.locator("[data-staging-open]"))
           .toContainText("Jan 7, 2027");
         expect(await datesNow(page)).toMatch(/^2027-01-07T11:0/);
@@ -185,7 +187,7 @@ test.describe("staging toolbar", () => {
         await page.request.delete("/api/staging/clock");
       }
       await page.reload();
-      await expect(page.locator("[data-staging-clock-banner]")).toBeHidden();
+      await expect(page.locator("[data-staging-badge-time]")).toBeHidden();
     });
 });
 

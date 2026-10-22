@@ -93,7 +93,7 @@ export const mountSignatures = ({ root, api, aloneUrl, onOpen }) => {
     empty.hidden = ok;
     if (!ok) return;
     signatures = data.signatures;
-    count.textContent = `${signatures.length} variants`;
+    count.textContent = `Variants: ${signatures.length}`;
     drawList();
   };
 

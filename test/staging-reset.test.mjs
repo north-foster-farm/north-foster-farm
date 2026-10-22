@@ -55,7 +55,7 @@ const seed = () => ({
   cookies: jar({ "nff_signed_in": "17", other: "x" }),
 });
 
-describe("Reset to a first visit (#267)", () => {
+describe("Reset to first visit (#267)", () => {
   it("leaves the browser as a first visit finds it", async () => {
     const { local, session, cookies } = seed();
     let signedOut = 0;

@@ -5,7 +5,7 @@
 // The overlay shows once per gate session. Its flag lives in this
 // browser's localStorage under SEEN, holding the session's short name
 // from /api/staging/info: a new gate session (signing in again)
-// shows it again, and so does the toolbar's "Reset to a first visit",
+// shows it again, and so does the toolbar's "Reset to first visit",
 // which clears localStorage (reset.js keeps only the toolbar's own
 // open state).
 

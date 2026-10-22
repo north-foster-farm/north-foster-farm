@@ -240,22 +240,26 @@ export const pending = async (stores, library, links) => {
 
 // Where an email stands: approved in the code, rewritten, approved on
 // staging, or to approve. Records made against another version of it
-// do not count.
+// do not count, but mark it `updated`: its wording changed in the code
+// after James approved or rewrote it (the toolbar counts these, #303).
 export const standing = (e, version, saved = {}) => {
   const { approval, rewrite } = saved;
+  const updated = [approval, rewrite]
+    .some((r) => r && r.version !== version);
+  const was = updated ? { updated: true } : {};
 
   if (e.approval === "approved") {
-    return { version, approval: "approved", approvedBy: "code" };
+    return { version, approval: "approved", approvedBy: "code", ...was };
   }
   if (rewrite && rewrite.version === version) {
-    return { version, approval: "rewritten", rewrite };
+    return { version, approval: "rewritten", rewrite, ...was };
   }
   if (approval && approval.version === version) {
     return {
       version, approval: "approved", approvedBy: "staging",
-      approvedAt: approval.at,
+      approvedAt: approval.at, ...was,
     };
   }
 
-  return { version, approval: "to approve" };
+  return { version, approval: "to approve", ...was };
 };

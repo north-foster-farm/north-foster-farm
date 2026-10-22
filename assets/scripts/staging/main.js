@@ -1,12 +1,13 @@
 // The staging toolbar. Built into the page only on the staging branch
 // deploy (layouts/partials/staging-toolbar.html decides), so
-// production markup never carries it. Its tools: this session's
-// emails (what the site would have sent, under MAIL_DRIVER=outbox),
-// the clock, the jobs trigger (scheduled functions run only on the
-// production deploy), the email library and the sandbox card. It opens
-// for every gate session (#294): the browser's cookie is the
-// credential, so there is nothing to type. James's session opens more
-// (Sent, Approve and Rewrite); /api/staging/info says which areas.
+// production markup never carries it. Its sections (#303): the current
+// time (the clock), email (this session's emails, what the site would
+// have sent under MAIL_DRIVER=outbox, and the email and signature
+// libraries), jobs (scheduled functions run only on the production
+// deploy), orders (the sandbox card) and reset. It opens for every gate
+// session (#294): the browser's cookie is the credential, so there is
+// nothing to type. James's session opens more (Sent, Approve and
+// Rewrite); /api/staging/info says which areas.
 //
 // States: open, collapsed to a tab (remembered per browser), or hidden
 // for this view only: a refresh always brings it back (James, #206).
@@ -17,12 +18,15 @@ import { onPress, setBusy } from "../utils/busy-button.js";
 import { maybeShowOverlay, wireCopy } from "./card.js";
 import { mountClock } from "./clock.js";
 import { mountLibrary } from "./library.js";
+import { mountNav } from "./nav.js";
 import { forgetEverything } from "./reset.js";
+import { SEEN_MAIL, unseen } from "./seen.js";
 import { mountSignatures } from "./signatures.js";
 
 const root = document.getElementById("staging");
 const qs = (sel) => root.querySelector(sel);
-const KEY = { open: "staging.open" };
+// What the toolbar keeps in this browser; Reset to defaults clears it.
+const KEY = { open: "staging.open", reports: "staging.reports" };
 // Hiding was once kept for the tab, which left no way back (#206).
 const HIDDEN = "staging.hidden";
 
@@ -71,21 +75,48 @@ const tab = qs("[data-staging-open]");
 const list = qs("[data-staging-list]");
 const empty = qs("[data-staging-empty]");
 const out = qs("[data-staging-out]");
+const mailBadge = qs("[data-staging-badge-email]");
+const reports = qs("[data-staging-reset]");
 // The areas the session opens, from /api/staging/info; the rest are
 // hidden, not left to fail.
 let can = [];
 const allowed = (area) => can.includes(area);
 const SIGNED_OUT = "Your gate session has ended. Reload to sign in again.";
-let seen = "";
+let messages = [];
 let timer = null;
+
+// The Email badge: new arrivals since the section was last in view.
+const badgeMail = () => {
+  const n = unseen(messages, store("sessionStorage", SEEN_MAIL));
+
+  mailBadge.textContent = n ? String(n) : "";
+  mailBadge.hidden = !n;
+  mailBadge.title = n === 1 ? "1 new email" : `${n} new emails`;
+};
+
+const seeMail = () => {
+  store("sessionStorage", SEEN_MAIL, messages[0] ? messages[0].id : "");
+  badgeMail();
+};
+
+const nav = mountNav({
+  root,
+  onSection: (id) => {
+    if (id === "staging-email" && !panel.hidden) seeMail();
+  },
+});
 
 const show = (open) => {
   panel.hidden = !open;
   tab.hidden = open;
   tab.setAttribute("aria-expanded", String(open));
   store("localStorage", KEY.open, open ? "1" : null);
-  if (open) poll();
-  else clearTimeout(timer);
+  if (open) {
+    nav.shown();
+    poll();
+  } else {
+    clearTimeout(timer);
+  }
 };
 
 const openMessage = (id) => {
@@ -93,9 +124,7 @@ const openMessage = (id) => {
     "noopener");
 };
 
-const renderInbox = (messages) => {
-  const newest = messages[0] ? messages[0].id : "";
-
+const renderInbox = () => {
   list.replaceChildren();
   for (const m of messages) {
     const li = document.createElement("li");
@@ -119,11 +148,10 @@ const renderInbox = (messages) => {
     list.appendChild(li);
   }
   empty.hidden = messages.length > 0;
-  if (newest && seen && newest !== seen) {
-    root.classList.add("staging-new");
-    setTimeout(() => root.classList.remove("staging-new"), 1500);
-  }
-  seen = newest;
+  // The first look in this browser session counts nothing as new.
+  if (store("sessionStorage", SEEN_MAIL) === null) seeMail();
+  else if (!panel.hidden && nav.current() === "staging-email") seeMail();
+  else badgeMail();
 };
 
 const poll = async () => {
@@ -132,7 +160,10 @@ const poll = async () => {
 
   const { ok, status, data } = await api("/api/staging/outbox");
 
-  if (ok) renderInbox(data.messages || []);
+  if (ok) {
+    messages = data.messages || [];
+    renderInbox();
+  }
   if (ok && out.textContent === SIGNED_OUT) say("");
   if (status === 401) {
     say(SIGNED_OUT);
@@ -147,13 +178,12 @@ const say = (text) => {
 };
 
 const runJobs = async (at) => {
-  const reset = qs("[data-staging-reset]").checked;
   const body = {};
 
   // A time of day: the server puts it on the day this browser's clock
   // reads, in the farm's zone.
   if (at) body.time = at;
-  if (reset) body.reset = true;
+  if (reports.checked) body.reset = true;
   say("Running…");
 
   const { ok, data } = await api("/api/staging/jobs/run", {
@@ -162,6 +192,17 @@ const runJobs = async (at) => {
 
   say(ok ? JSON.stringify(data, null, 2) : `Failed: ${JSON.stringify(data)}`);
   await poll();
+};
+
+// Back to the real time, for both resets. A session without the clock
+// has nothing to undo.
+const realTime = async () => {
+  if (!allowed("clock")) return;
+  try {
+    await api("/api/staging/clock", { method: "DELETE" });
+  } catch {
+    // Offline: the reload below shows whether the clock is still set.
+  }
 };
 
 const library = mountLibrary({
@@ -203,13 +244,14 @@ const boot = async () => {
     can = can.filter((a) => a !== "clock");
   }
   maybeShowOverlay({ session: info.data.session });
-  qs("[data-staging-info]").textContent = `${info.data.context} · mail ${
-    info.data.mailDriver} · Square ${info.data.squareEnv}`;
   for (const el of root.querySelectorAll("[data-staging-scope]")) {
     el.hidden = !allowed(el.dataset.stagingScope);
   }
+  nav.scope(allowed);
   if (allowed("emails")) library.fromHash();
   show(!!store("localStorage", KEY.open));
+  // The badge counts while the toolbar is collapsed too.
+  if (panel.hidden) poll();
   if (allowed("emails")) library.counted();
   if (allowed("signatures")) {
     signatures.fromHash();
@@ -218,11 +260,24 @@ const boot = async () => {
 };
 
 wireCopy();
+reports.checked = store("localStorage", KEY.reports) === "1";
+reports.addEventListener("change", () => {
+  store("localStorage", KEY.reports, reports.checked ? "1" : null);
+});
 tab.addEventListener("click", () => show(true));
 qs("[data-staging-collapse]").addEventListener("click", () => show(false));
-// Busy until the page reloads.
+// Both resets stay busy until the page reloads.
+qs("[data-staging-defaults]").addEventListener("click", async (ev) => {
+  setBusy(ev.currentTarget, true);
+  store("localStorage", KEY.reports, null);
+  // The Email badge starts counting afresh from the next page.
+  store("sessionStorage", SEEN_MAIL, null);
+  await realTime();
+  window.location.reload();
+});
 qs("[data-staging-forget]").addEventListener("click", async (ev) => {
   setBusy(ev.currentTarget, true);
+  await realTime();
   await forgetEverything();
   window.location.reload();
 });

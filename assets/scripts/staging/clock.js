@@ -35,21 +35,20 @@ export const mountClock = ({ root, api, timeZone, reload }) => {
   const form = qs("[data-staging-clock]");
   const field = qs("[data-staging-clock-at]");
   const now = qs("[data-staging-clock-now]");
-  const banner = qs("[data-staging-clock-banner]");
+  const badge = qs("[data-staging-badge-time]");
   const tabClock = qs("[data-staging-tab-clock]");
   const out = qs("[data-staging-out]");
 
+  // While a time is set, the sidebar's Current time carries a badge
+  // and the collapsed tab shows the time (#303).
   const draw = (clock) => {
     const at = new Date(clock.now);
     const on = clock.offset !== 0;
     const when = spoken(at, timeZone);
 
     field.value = fieldValue(at, timeZone);
-    now.textContent = on
-      ? `Set: the site reads ${when}.`
-      : `Off: the site reads the real time, ${when}.`;
-    banner.hidden = !on;
-    banner.textContent = on ? `Clock set: ${when}, farm time.` : "";
+    now.textContent = `Currently: ${when}`;
+    badge.hidden = !on;
     tabClock.hidden = !on;
     tabClock.textContent = on ? ` · ${when}` : "";
     root.classList.toggle("staging-is-clocked", on);

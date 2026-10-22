@@ -61,10 +61,34 @@ Unset means production: bare store names, no staging endpoints.
 ## The toolbar
 
 A yellow "Staging" tab in the bottom right corner of every page. It
-opens to a panel with:
+opens to a panel headed with the deployed commit's short SHA, linked
+to it on GitHub (Netlify's `COMMIT_REF`, passed in as
+`HUGO_BUILD_SHA`). Its sections are listed A to Z in a sidebar, a
+Bootstrap flush list group whose scrollspy marks the one in view;
+each item jumps to its section in the one scrolling pane beside it
+(#303). Where the panel is too narrow for the list beside the pane,
+the list becomes a flyout behind the menu button in the header. Email
+carries a badge counting the emails that arrived since its section
+was last in view (kept in sessionStorage, `staging.seen-mail`), and
+Current time one while a time is set. The sections:
 
-- **Emails.** The email library: every email the site sends, and the
-  Farm news drafts, each built from sample data by
+- **Current time.** Sets the date and time the site reads, in farm
+  time, for this browser alone, or resets it to now (see "The clock"
+  below). While it is set, the tab turns orange and shows the time.
+- **Email: this session's emails.** What the site wrote to the outbox
+  from this gate session's own requests, newest first, refreshed
+  every five seconds while open (see "Session mail" below). A message
+  opens in a new window as the HTML the customer would have received,
+  with a bar above it saying who it was for, and a link to the plain
+  text. A sign-in request on `/login/` for your own address is
+  followed by its magic link appearing here. Clear empties this
+  session's. Every other email is in the library's Sent list, which
+  is James's.
+- **Email: the email library.** Its line counts the emails, those to
+  approve, those with feedback given (a rewrite waiting to be
+  ported) and those updated (the code changed the wording after
+  James approved or rewrote it). The library holds every email the
+  site sends, and the Farm news drafts, each built from sample data by
   `netlify/functions/lib/library.mjs` and listed in a sidebar by who
   receives it. Search matches names, tags, subjects and body text; a
   tag narrows the list to itself; the filter shows what waits on
@@ -93,32 +117,24 @@ opens to a panel with:
   `bin/nff netlify blobs:list branch-deploy-jobs --prefix library/`, then
   `bin/nff netlify blobs:get` or `blobs:delete` on each key. Farm news
   rewrites go to the email lane, whose drafts they are.
-- **This session's emails.** What the site wrote to the outbox from
-  this gate session's own requests, newest first, refreshed every
-  five seconds while open (see "Session mail" below). A message opens
-  in a new window as the HTML the customer would have received, with
-  a bar above it saying who it was for, and a link to the plain text.
-  The panel flashes when a new message arrives, so a sign-in request
-  on `/login/` for your own address is followed by its magic link
-  appearing here. Clear empties this session's. Every other email is
-  in the library's Sent list, which is James's.
-- **Clock.** Sets the date and time the site reads, in farm time, for
-  this browser alone, or resets it to now (see "The clock" below).
-  While it is set, the tab and the panel say so in orange.
 - **Jobs.** Run now runs the 15-minute jobs as of the clock's time.
-  As 6:00, 8:00 and 18:00 today run them at that hour of the clock's
-  day, which is how the packing slips (#292), the morning report and
-  the Tomorrow manifest are made to send. Each daily report sends
-  once per day; tick "Send today's reports again" to have them go
-  again. The run's report shows under the buttons, and its emails
-  land in this session's.
-- **Test card.** Square's sandbox card (`data/sandboxCard.json`), each
+  6 AM, 8 AM and 6 PM run them at that hour of the clock's day, which
+  is how the packing slips (#292), the morning report and the
+  Tomorrow manifest are made to send. Each daily report sends once
+  per day; tick "Always send today's reports" (remembered in this
+  browser, `staging.reports`) to have them go again on every run.
+  The run's report shows under the pane, and its emails land in this
+  session's.
+- **Orders: test card.** Square's sandbox card (`data/sandboxCard.json`), each
   field with a Copy button. The first time a gate session opens the
   order page, the same details show as a full-screen dialog; closing
   it (Close or Escape) marks it seen in this browser's localStorage
   (`staging.card-seen`, holding a short name of the gate session), so
-  it shows again after a new sign-in or Reset to a first visit.
-- **This browser.** Reset to a first visit leaves the browser as a
+  it shows again after a new sign-in or Reset to first visit.
+- **Reset.** Reset to defaults undoes the toolbar's own changes: it
+  puts the clock back to the real time, unticks "Always send today's
+  reports" and starts the Email badge's count afresh, then reloads. Reset to first visit does the same
+  and leaves the browser as a
   stranger's first load finds it (#267). It signs out on the server,
   clears all of localStorage and sessionStorage (the cart draft and
   any undelivered submission, paid-order edit drafts, the dismissed

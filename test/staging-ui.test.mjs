@@ -8,6 +8,8 @@ import {
   SEEN, maybeShowOverlay,
 } from "../assets/scripts/staging/card.js";
 import { fieldValue, fromField } from "../assets/scripts/staging/clock.js";
+import { tally } from "../assets/scripts/staging/library.js";
+import { unseen } from "../assets/scripts/staging/seen.js";
 
 const TZ = "America/New_York";
 
@@ -105,4 +107,28 @@ describe("the card overlay", () => {
         session: null, doc: page("/order/").doc,
       }), false);
     });
+});
+
+// #303: the Email badge and the email library's line.
+describe("the toolbar's counts", () => {
+  const mail = [{ id: "c" }, { id: "b" }, { id: "a" }];
+
+  it("counts the emails newer than the last one seen", () => {
+    assert.equal(unseen(mail, null), 0, "the first look counts none");
+    assert.equal(unseen(mail, "c"), 0);
+    assert.equal(unseen(mail, "a"), 2);
+    assert.equal(unseen(mail, ""), 3, "all are new after an empty list");
+    assert.equal(unseen(mail, "gone"), 3, "the seen one was cleared");
+    assert.equal(unseen([], "a"), 0);
+  });
+
+  it("tallies the library as the spec words it", () => {
+    assert.equal(tally([
+      { approval: "to approve", updated: true },
+      { approval: "to approve" },
+      { approval: "rewritten" },
+      { approval: "approved", updated: true },
+    ]), "Total emails: 4 · To approve: 2 · Feedback given: 1 · " +
+      "Updated: 2");
+  });
 });
