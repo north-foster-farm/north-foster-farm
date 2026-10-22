@@ -129,14 +129,19 @@ test.describe("payments", () => {
   });
 
   test("a delivery paid by card is confirmed at once",
-    { tag: "@regression" }, async ({ page }) => {
+    { tag: "@regression" }, async ({ page, baseURL }) => {
       const order = new OrderPage(page);
       const email = uniqueEmail("delivery");
 
       emails.push(email);
       // Signed in, as far as the page knows: the thank-you card then
       // leaves out the account line (#114). The details match what
-      // the test fills in, so the prefill changes nothing.
+      // the test fills in, so the prefill changes nothing. Without the
+      // session stamp the order page never applies /api/me's answer,
+      // so the stamp goes with it.
+      await page.context().addCookies([
+        { name: "nff_signed_in", value: "1", url: baseURL },
+      ]);
       await page.route("**/api/me", (route) => route.fulfill({
         json: {
           signedIn: true,
