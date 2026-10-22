@@ -540,7 +540,7 @@ class Account {
 
     email.value = c.email;
     // As wide as the address, so Change sits beside it (#240).
-    email.size = Math.max(c.email.length, 10);
+    email.size = Math.max(Math.ceil(c.email.length * 1.2) + 1, 10);
     document.getElementById("account-review").hidden =
       c.reviewDismissed === true;
     for (const radio of all(form, "[data-field='avatar']")) {
