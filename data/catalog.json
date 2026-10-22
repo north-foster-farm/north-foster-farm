@@ -265,8 +265,7 @@
           "price": 24,
           "inStock": false,
           "squareVariationId": "RKEZBHHIVR4A6ZTBDKZTUFYZ",
-          "restock": "seasonal",
-          "restockSeason": "spring"
+          "restock": "discontinued"
         }
       ]
     },

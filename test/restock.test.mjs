@@ -81,6 +81,7 @@ describe("the catalog's restock types", () => {
       "NFF-CHK-BRSBL-15-16": "discontinued",
       "NFF-CHK-BRSBL-17-99": "discontinued",
       "NFF-CHK-THGBN-20-99": "discontinued",
+      "NFF-CHK-TND-15-99": "discontinued", // #303
       "NFF-CHK-WNG-20-29": "discontinued",
       "NFF-CHK-WNG-30-99": "discontinued",
       "NFF-CHK-FET-0075-0125": "soon",

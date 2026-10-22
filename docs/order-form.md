@@ -153,8 +153,8 @@ Stock wins over every type but `archived`: an item in stock sells
 normally. An item with no type is hidden while it is out. Today
 (James, #274, 6330468558): large eggs and feet `soon`; medium and
 small eggs and both sausages `hiatus`; whole chickens from 5.0 lbs,
-boneless breasts from 1.5 lbs, bone-in thighs from 2.0 lbs and wings
-from 2.0 lbs `discontinued`; Cornish hens and ground chicken
+boneless breasts from 1.5 lbs, bone-in thighs from 2.0 lbs, wings
+from 2.0 lbs and tenders from 1.5 lbs (#303) `discontinued`; Cornish hens and ground chicken
 `archived` (2026-v9); every other item `seasonal` with
 `restockSeason: "spring"`.
 Switching one is a catalog edit and a deploy. The labels live in
