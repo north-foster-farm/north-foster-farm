@@ -554,7 +554,7 @@ export const updateProfile = async (stores, customer, changes, {
   // each browser again (#161).
   if (c.autoplay !== undefined) {
     if (c.autoplay !== null && !AUTOPLAY.includes(c.autoplay)) {
-      errors.autoplay = "On or off?";
+      errors.autoplay = "Choose on or off.";
     } else {
       patch.autoplay = c.autoplay;
     }
