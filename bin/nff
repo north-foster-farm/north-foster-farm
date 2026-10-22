@@ -162,6 +162,10 @@ const USAGE = `Usage:
                                       whose payment never succeeded; a
                                       report unless --apply, which
                                       deletes them (#236)
+  bin/nff square deletions status|pause|resume
+                                      the Square deletion kill switch:
+                                      pause stops both cleanups from the
+                                      next jobs run, no deploy needed
   bin/nff maintenance status|on|off [--staging|--production]
                                       the maintenance switch (#267): on
                                       closes ordering, sign-in and the
@@ -294,7 +298,7 @@ const [
   import("../netlify/functions/lib/backup.mjs"),
   import("../netlify/functions/lib/maintenance.mjs"),
   import("../netlify/functions/lib/passes.mjs"),
-  import("../netlify/functions/lib/square.mjs"),
+  import("../netlify/functions/lib/square-pause.mjs"),
 ]);
 
 // --scratch: development's env, but stores of their own
@@ -1007,12 +1011,13 @@ const run = async () => {
     return out(await runJobs(stores));
   case "jobs square": {
     const apply = !!flags.apply;
-    const paused = square.deletionsPaused();
+    const paused = await square.deletionsPaused(stores);
 
     // The kill switch stops a cancel asked for here too (#241).
     if (apply && paused) {
-      throw new Error(`${square.KILL_SWITCH} is set: the Square ` +
-        "cleanups are paused, so --apply cancels nothing. Unset it first.");
+      throw new Error("The Square deletion kill switch is set: the " +
+        "cleanups are paused, so --apply cancels nothing. Run bin/nff " +
+        "square deletions status to see why.");
     }
 
     const found = await sweepSquareOrders(stores, { cancel: apply });
@@ -1021,23 +1026,24 @@ const run = async () => {
     for (const o of found) {
       out(`${o.createdAt.slice(0, 16)}  ${o.orderId}  ${o.squareOrderId}  ${
         dollars(o.total)}  ${o.error ? `error: ${o.error}`
-        : o.cancelled ? "cancelled" : apply ? "left (paid or closed)"
-          : "open"}`);
+        : o.cancelled ? "cancelled" : o.later ? "next run"
+          : apply ? "left (paid or closed)" : "open"}`);
     }
 
     return out(`${found.length} left open.${apply ? ""
-      : paused ? ` This is only a report: ${square.KILL_SWITCH} is set, ` +
-        "so the daily sweep cancels nothing."
+      : paused ? " This is only a report: the Square deletion kill " +
+        "switch is set, so the daily sweep cancels nothing."
         : " This is only a report; --apply cancels them."}`);
   }
   case "jobs customers": {
     const apply = !!flags.apply;
-    const paused = square.deletionsPaused();
+    const paused = await square.deletionsPaused(stores);
 
     // The kill switch stops a delete asked for here too (#236).
     if (apply && paused) {
-      throw new Error(`${square.KILL_SWITCH} is set: the Square ` +
-        "cleanups are paused, so --apply deletes nothing. Unset it first.");
+      throw new Error("The Square deletion kill switch is set: the " +
+        "cleanups are paused, so --apply deletes nothing. Run bin/nff " +
+        "square deletions status to see why.");
     }
 
     const found = await sweepMadeCustomers(stores, { remove: apply });
@@ -1045,13 +1051,14 @@ const run = async () => {
     if (!found) return out("Square is not configured here.");
     for (const c of found) {
       out(`${c.at.slice(0, 16)}  ${c.orderId}  ${c.customerId}  ${
-        c.error ? `error: ${c.error}` : c.deleted ? "deleted" : "unpaid"}`);
+        c.error ? `error: ${c.error}` : c.deleted ? "deleted"
+          : c.later ? "next run" : "unpaid"}`);
     }
 
     return out(`${found.length} profiles made for payments that never ` +
       `went through.${apply ? ""
-        : paused ? ` This is only a report: ${square.KILL_SWITCH} is set, ` +
-          "so the daily sweep deletes nothing."
+        : paused ? " This is only a report: the Square deletion kill " +
+          "switch is set, so the daily sweep deletes nothing."
           : " This is only a report; --apply deletes them."}`);
   }
   case "jobs history": {
@@ -1119,6 +1126,32 @@ const run = async () => {
     if (!r.delivered) process.exitCode = 1;
 
     return undefined;
+  }
+  case "square deletions": {
+    const what = rest[0] || "status";
+
+    if (what === "pause" || what === "resume") {
+      const r = await square.setPause(stores, what === "pause", {
+        by: "bin/nff",
+      });
+
+      out(r.changed
+        ? `Square deletions are now ${r.paused ? "PAUSED" : "running"} on ${
+          process.env.SITE_CONTEXT}. The next jobs run reads it.`
+        : `Square deletions were already ${
+          r.paused ? "paused" : "running"}.`);
+    } else if (what !== "status") {
+      throw new Error("Say status, pause or resume.");
+    }
+
+    const flag = await square.readPause(stores);
+    const env = square.envPaused();
+
+    return out(`Flag: ${flag.unreadable ? "unreadable, so paused"
+      : flag.paused ? `paused (since ${flag.at} by ${flag.by})`
+        : "not set"}. ${square.KILL_SWITCH} in this env file: ${
+      env ? "set" : "unset"} (Netlify's takes effect at a deploy). ` +
+      `Cleanups ${flag.paused || env ? "PAUSED" : "run"}.`);
   }
   case "maintenance status": {
     const s = await maintenance.readState(stores);

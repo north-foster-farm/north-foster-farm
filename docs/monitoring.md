@@ -452,15 +452,23 @@ is set, a note (it holds the customer's email) is dropped after 30
 days and the profile stays. A profile that already existed is never
 touched.
 
-**The Square deletion kill switch, `SQUARE_DELETION_KILL_SWITCH`.**
-Unset, as it is by default, the automatic Square cleanups run: this
-sweep's cancelling and the deletion of the customer profiles a failed
-checkout made (#236). Set to any value, both stop at once and only
-report: the morning report, `bin/nff jobs square` and `bin/nff jobs
-customers` say the switch is set, and `--apply` refuses. It is the fail-safe for when automatic
-changes to Square must stop. Any code that deletes or cancels records
-in Square on its own must check it (`deletionsPaused` in
-`netlify/functions/lib/square.mjs`).
+**The Square deletion kill switch.** The automatic Square cleanups
+run unless it is set: this sweep's cancelling, and the deletion of the
+customer profiles a failed checkout made (#236). It is set by either
+of two things. `bin/nff square deletions pause` (with `--staging` or
+`--production`) sets a flag in the jobs store that the next run reads,
+so it stops both at once, with no deploy; `resume` clears it and
+`status` says where both stand. `SQUARE_DELETION_KILL_SWITCH`, any
+non-blank value, also pauses them, on Netlify from the next deploy
+and in `bin/nff` from the env file it reads; it is optional in every
+env sample, so `bin/nff env push` carries it. While either is set,
+the cleanups only report: the morning report, `bin/nff jobs square`
+and `bin/nff jobs customers` say so, and `--apply` refuses. A flag
+that cannot be read counts as set. Each cleanup changes at most 25
+records a run; the rest wait for the next day's run. Any code that
+deletes or cancels records in Square on its own must check it
+(`deletionsPaused` in `netlify/functions/lib/square-pause.mjs`). A deletion
+a customer asks for is not a cleanup and does not.
 
 **`venmo.amount_mismatch`.** PayPal captured a different amount than
 was asked: the order's total, or for a change to an order, the

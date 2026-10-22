@@ -72,6 +72,7 @@ import { rotationDaily } from "./rotation.mjs";
 import { archivedOnHand } from "./stock.mjs";
 import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
+import { deletionsPaused } from "./square-pause.mjs";
 import { ORDER_ID, SOURCE_NAME } from "./square.mjs";
 import {
   deliveryReminder, farmMorningReport, farmTomorrow,
@@ -427,24 +428,32 @@ const squareFinds = async (stores, day) => {
 // tender, no record and no Venmo checkout waiting is one: the farm's
 // own orders, paid orders and change orders to a recorded order never
 // are. The sweep reports them and cancels them, unless the Square
-// deletion kill switch is set (lib/square.mjs, deletionsPaused): then
-// it only reports.
+// deletion kill switch is set (lib/square-pause.mjs, deletionsPaused): then
+// it only reports. It changes at most SQUARE_SWEEP_MAX in a run (a
+// backlog would outrun the run's time); the rest are reported as
+// `later` and wait for the next day's sweep.
 
 export const SQUARE_OPEN_GRACE = 24 * HOUR;
+export const SQUARE_SWEEP_MAX = 25;
 
 export const leftOpen = (o) => o.tenders === 0 && o.source === SOURCE_NAME
   && ORDER_ID.test(o.referenceId || "");
 
-// -> [{ squareOrderId, orderId, createdAt, total, cancelled, error? }],
-// or null when Square is not configured.
+// -> [{ squareOrderId, orderId, createdAt, total, cancelled, later?,
+// error? }], or null when Square is not configured. `cancel` unset
+// means unless the kill switch is set.
 export const sweepSquareOrders = async (stores, {
   env = process.env,
   now = new Date(),
   square = squareApi,
   fetchImpl = globalThis.fetch,
-  cancel = !squareApi.deletionsPaused(env),
+  cancel,
+  max = SQUARE_SWEEP_MAX,
 } = {}) => {
   if (!env.SQUARE_ACCESS_TOKEN || !env.SQUARE_LOCATION_ID) return null;
+
+  const allowed = cancel ?? !(await deletionsPaused(stores, env));
+  let tries = 0;
 
   const found = await square.searchOpenOrders({
     before: new Date(now.getTime() - SQUARE_OPEN_GRACE),
@@ -462,7 +471,10 @@ export const sweepSquareOrders = async (stores, {
       total: o.total, cancelled: false,
     };
 
-    if (cancel) {
+    if (allowed && tries >= max) {
+      item.later = true;
+    } else if (allowed) {
+      tries += 1;
       try {
         const r = await square.cancelOrder(o.id, {
           env, fetchImpl, unpaid: true,
@@ -491,7 +503,7 @@ export const sweepSquareOrders = async (stores, {
 // which notes it again and so restarts the day. A
 // profile that was found rather than made is never noted, so never
 // weighed. Otherwise it is reported and deleted, unless the Square
-// deletion kill switch is set (lib/square.mjs, deletionsPaused): then
+// deletion kill switch is set (lib/square-pause.mjs, deletionsPaused): then
 // it is only reported. Square keeps the cancelled order. The note
 // holds the customer's email, so while the switch is set it is kept
 // MADE_CUSTOMER_KEEP and then dropped; the profile stays.
@@ -499,17 +511,22 @@ export const sweepSquareOrders = async (stores, {
 export const MADE_CUSTOMER_GRACE = 24 * HOUR;
 export const MADE_CUSTOMER_KEEP = 30 * 24 * HOUR;
 
-// -> [{ customerId, orderId, at, deleted, error? }] for the profiles
-// with no paid order behind them, or null when Square is not
-// configured.
+// -> [{ customerId, orderId, at, deleted, later?, error? }] for the
+// profiles with no paid order behind them, or null when Square is not
+// configured. `remove` unset means unless the kill switch is set; at
+// most `max` are deleted in a run, as for the orders.
 export const sweepMadeCustomers = async (stores, {
   env = process.env,
   now = new Date(),
   square = squareApi,
   fetchImpl = globalThis.fetch,
-  remove = !squareApi.deletionsPaused(env),
+  remove: asked,
+  max = SQUARE_SWEEP_MAX,
 } = {}) => {
   if (!env.SQUARE_ACCESS_TOKEN || !env.SQUARE_LOCATION_ID) return null;
+
+  const remove = asked ?? !(await deletionsPaused(stores, env));
+  let tries = 0;
 
   const cutoff = now.getTime() - MADE_CUSTOMER_GRACE;
   const out = [];
@@ -543,7 +560,10 @@ export const sweepMadeCustomers = async (stores, {
       deleted: false,
     };
 
-    if (remove) {
+    if (remove && tries >= max) {
+      item.later = true;
+    } else if (remove) {
+      tries += 1;
       try {
         await square.deleteCustomer(made.customerId, { env, fetchImpl });
         await dropMadeCustomer(stores, made.customerId);
@@ -761,7 +781,7 @@ const morningReport = async (stores, {
       messages: await listMessages(stores),
       square: {
         ...await squareFinds(stores, day),
-        paused: squareApi.deletionsPaused(env),
+        paused: await deletionsPaused(stores, env),
       },
     }],
     build: ([{

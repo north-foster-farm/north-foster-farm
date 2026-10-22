@@ -3,12 +3,13 @@ import { describe, it } from "node:test";
 
 import {
   MADE_CUSTOMER_GRACE, MADE_CUSTOMER_KEEP, SQUARE_OPEN_GRACE,
-  SQUARE_SWEEP_HOUR,
-  SQUARE_SYNC_GRACE, checkInvariants, cutoffAt, deliveryReminderAt,
+  SQUARE_SWEEP_HOUR, SQUARE_SWEEP_MAX, SQUARE_SYNC_GRACE, checkInvariants,
+  cutoffAt, deliveryReminderAt,
   leftOpen, runJobs, runsSince, sweepMadeCustomers, sweepSquareOrders,
 } from "../netlify/functions/lib/jobs.mjs";
 import { answerMessage } from "../netlify/functions/lib/admin.mjs";
 import { SOURCE_NAME } from "../netlify/functions/lib/square.mjs";
+import { setPause } from "../netlify/functions/lib/square-pause.mjs";
 import { readMark } from "../netlify/functions/lib/health.mjs";
 import {
   CHECKOUT_TTL, getCheckout, getOrder, listMadeCustomers, noteMadeCustomer,
@@ -727,6 +728,45 @@ describe("Square orders left open (#241)", () => {
     assert.equal(leftOpen(open("S", null)), false, "the POS");
   });
 
+  it("cancels nothing while the pause flag is set, with no deploy",
+    async () => {
+      const stores = testStores();
+      const square = fakeSquare([open("SQ-1", "NFF-2610-AAAA")]);
+
+      await setPause(stores, true, { by: "test" });
+
+      const paused = await sweepSquareOrders(stores, {
+        env: squareEnv, now, square,
+      });
+
+      assert.deepEqual(paused.map((o) => o.cancelled), [false]);
+      assert.ok(!square.calls.some((c) => c[0] === "cancel"));
+
+      await setPause(stores, false);
+
+      const resumed = await sweepSquareOrders(stores, {
+        env: squareEnv, now, square,
+      });
+
+      assert.deepEqual(resumed.map((o) => o.cancelled), [true]);
+    });
+
+  it("cancels at most SQUARE_SWEEP_MAX a run, and leaves the rest for " +
+    "the next", async () => {
+    const stores = testStores();
+    const square = fakeSquare(Array.from({ length: SQUARE_SWEEP_MAX + 2 },
+      (_, i) => open(`SQ-${i}`, `NFF-2610-A${String(i).padStart(3, "0")}`)));
+    const found = await sweepSquareOrders(stores, {
+      env: squareEnv, now, square,
+    });
+
+    assert.equal(SQUARE_SWEEP_MAX, 25);
+    assert.equal(found.filter((o) => o.cancelled).length, SQUARE_SWEEP_MAX);
+    assert.equal(found.filter((o) => o.later).length, 2);
+    assert.equal(square.calls.filter((c) => c[0] === "cancel").length,
+      SQUARE_SWEEP_MAX);
+  });
+
   it("with the kill switch set, reports the orders a day old with no " +
     "record and no checkout waiting, and cancels nothing", async () => {
     const stores = testStores();
@@ -929,6 +969,28 @@ describe("Square profiles a failed checkout made (#236)", () => {
 
     assert.equal(run.counts.customersMade, 2);
     assert.equal(run.customersDeleted, 1);
+  });
+
+  it("deletes nothing while the pause flag is set, and at most " +
+    "SQUARE_SWEEP_MAX a run", async () => {
+    const stores = testStores();
+    const square = fakeSquare();
+
+    for (let i = 0; i < SQUARE_SWEEP_MAX + 1; i += 1) {
+      await note(stores, `C${i}`, `NFF-2610-B${String(i).padStart(3, "0")}`);
+    }
+    await setPause(stores, true);
+    assert.ok((await sweepMadeCustomers(stores, {
+      env: squareEnv, now, square,
+    })).every((c) => !c.deleted));
+    await setPause(stores, false);
+
+    const found = await sweepMadeCustomers(stores, {
+      env: squareEnv, now, square,
+    });
+
+    assert.equal(found.filter((c) => c.deleted).length, SQUARE_SWEEP_MAX);
+    assert.equal(found.filter((c) => c.later).length, 1);
   });
 
   it("with the kill switch set, deletes nothing, and drops a note " +

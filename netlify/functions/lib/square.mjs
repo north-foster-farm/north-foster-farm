@@ -44,20 +44,9 @@ export const squareEnv = (env = process.env) => {
   return env.SQUARE_ENV === FAKE ? FAKE : "sandbox";
 };
 
-// The Square deletion kill switch (James, #241 and #236). Unset, as it
-// is everywhere by default, the automatic Square cleanups run: the
-// daily sweep cancels the site's orders a failed payment left open,
-// and deletes the customer profiles a failed checkout made. Set to any
-// value, both stop at once and only report, a fail-safe for when
-// automatic changes to Square must stop.
-//
-// ANY CODE THAT DELETES OR CANCELS RECORDS IN SQUARE ON ITS OWN, NOW
-// OR LATER, MUST CHECK deletionsPaused() FIRST. A refund or a cancel a
-// customer or the farm asks for is not a cleanup and does not.
-export const KILL_SWITCH = "SQUARE_DELETION_KILL_SWITCH";
-
-export const deletionsPaused = (env = process.env) =>
-  String(env[KILL_SWITCH] || "").trim() !== "";
+// The Square deletion kill switch (#241, #236) is in
+// square-pause.mjs. ANY CODE THAT DELETES OR CANCELS RECORDS IN SQUARE
+// ON ITS OWN, NOW OR LATER, MUST CHECK ITS deletionsPaused() FIRST.
 
 // SQUARE_ENV=fake: fake-square.mjs answers instead of Square, in local
 // development only (lib/fake.mjs). Anywhere else it throws, so no

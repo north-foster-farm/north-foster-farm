@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  KILL_SWITCH, SOURCE_NAME, SquareError, buildOrder, cancelFulfilment,
-  cancelOrder, clientConfig, createOrder, createPayment, customerOrders,
-  dashboardUrl, deleteCustomer, deletionsPaused, e164, getPayment,
-  inventoryCounts, refundPayment, searchOpenOrders, settings,
-  updateFulfilment,
+  SOURCE_NAME, SquareError, buildOrder, cancelFulfilment, cancelOrder,
+  clientConfig, createOrder, createPayment, customerOrders, dashboardUrl,
+  deleteCustomer, e164, getPayment, inventoryCounts, refundPayment,
+  searchOpenOrders, settings, updateFulfilment,
 } from "../netlify/functions/lib/square.mjs";
+import {
+  KILL_SWITCH, deletionsPaused, readPause, setPause,
+} from "../netlify/functions/lib/square-pause.mjs";
+import { testStores } from "../netlify/functions/lib/store.mjs";
 
 const env = {
   SQUARE_ACCESS_TOKEN: "tok",
@@ -82,13 +85,43 @@ const completed = (extra = {}) => ({
 
 // #241 and #236: one switch stops every automatic Square cleanup.
 describe("the Square deletion kill switch", () => {
-  it("is off unset or blank, and on at any value", () => {
+  it("is off unset or blank, and on at any value", async () => {
+    const stores = testStores();
+
     assert.equal(KILL_SWITCH, "SQUARE_DELETION_KILL_SWITCH");
-    assert.equal(deletionsPaused({}), false);
-    assert.equal(deletionsPaused({ [KILL_SWITCH]: " " }), false);
+    assert.equal(await deletionsPaused(stores, {}), false);
+    assert.equal(await deletionsPaused(stores, { [KILL_SWITCH]: " " }),
+      false);
     for (const value of ["1", "true", "on", "0", "false"]) {
-      assert.equal(deletionsPaused({ [KILL_SWITCH]: value }), true, value);
+      assert.equal(await deletionsPaused(stores, { [KILL_SWITCH]: value }),
+        true, value);
     }
+  });
+
+  it("is on while the flag is, which takes effect at once", async () => {
+    const stores = testStores();
+    const now = new Date("2026-10-22T09:00:00Z");
+
+    assert.deepEqual(await setPause(stores, true, { by: "t", now }),
+      { changed: true, paused: true });
+    assert.equal(await deletionsPaused(stores, {}), true);
+    assert.deepEqual(await readPause(stores), {
+      paused: true, at: now.toISOString(), by: "t",
+    });
+    assert.deepEqual(await setPause(stores, true), {
+      changed: false, paused: true,
+    });
+    await setPause(stores, false);
+    assert.equal(await deletionsPaused(stores, {}), false);
+  });
+
+  it("counts a flag it cannot read as set", async () => {
+    const broken = { jobs: { get: async () => {
+      throw new Error("Blobs down");
+    } } };
+
+    assert.equal(await deletionsPaused(broken, {}), true);
+    assert.equal((await readPause(broken)).unreadable, true);
   });
 });
 
