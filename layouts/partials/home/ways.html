@@ -89,7 +89,10 @@
                 <span class="place-fact-icon" aria-hidden="true">
                   {{ partial "svg.html" (printf "icons/%s" .icon) }}
                 </span>
-                {{ index $way (.field | default .key) }}
+                {{/* In its own span: the li is a flex row, and the
+                     orphan pass would make its last words a flex item
+                     (#303). */}}
+                <span>{{ index $way (.field | default .key) }}</span>
               </li>
             {{ end }}
           </ul>

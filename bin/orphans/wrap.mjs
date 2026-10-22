@@ -14,9 +14,11 @@
 //   word (the footer's "in <span class="text-nowrap">Scituate</span>.",
 //   which keeps a word whole but still leaves it alone on a line).
 // - Nothing when the words are inside any other markup (a link, a
-//   span, code), when the element holds only two words, or when either
-//   word is a URL or an email address (://, www. or @) or longer than
-//   14 characters.
+//   span, code), or when either word is a URL or an email address
+//   (://, www. or @) or longer than 14 characters. An element of just
+//   two words is wrapped like any other, except a table cell: there
+//   the nowrap sets the column's width, and a narrow table then runs
+//   past the screen (/delivery-policy/ at 320 px).
 //
 // The two words go in <span class="text-nowrap">, Bootstrap's
 // white-space: nowrap. When an em or the like starts before the first
@@ -47,6 +49,7 @@ const VOID = new Set([
   "meta", "source", "track", "wbr",
 ]);
 const INLINE = new Set(["b", "strong", "em", "i"]);
+const CELL = new Set(["th", "td"]);
 const MAX_WORD = 14;
 const OPEN = '<span class="text-nowrap">';
 const CLOSE = "</span>";
@@ -212,13 +215,11 @@ function plan(tokens, open, close) {
   if (k < 0) return null;
   const firstEnd = k;
   while (k >= 0 && !isSpace(chars[k])) k--;
-  // No space before the first word: the element holds only these two
-  // words, or the first word runs on into markup the pass leaves alone.
-  if (k < 0) return null;
-  // Only space before it, back to the element's start: two words.
-  let lead = k;
-  while (lead >= 0 && isSpace(chars[lead])) lead--;
-  if (lead < 0 && whole) return null;
+  // No space before the first word and the walk stopped short of the
+  // element's start: the word runs on into markup the pass leaves
+  // alone. At the start, the element is just these two words, which
+  // are wrapped too (#303), unless the element is a table cell.
+  if (k < 0 && (!whole || CELL.has(tokens[open].name))) return null;
   const first = chars.slice(k + 1, firstEnd + 1).join("");
   if (unsafe(first) || unsafe(second)) return null;
 

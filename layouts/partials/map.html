@@ -257,12 +257,15 @@
   <div class="map-key">
     {{/* Delivery: the shading by price, then the icons on the tag. No
          heads or other text: only swatches, icons and labels (#214). */}}
+    {{/* Each label sits in its own span: an li here is a flex row, and
+         the build's orphan pass (bin/orphans/wrap.mjs) would otherwise
+         make its last words a flex item of their own (#303). */}}
     <div class="map-key-card" data-map-for="delivery">
       <ul class="map-key-areas list-unstyled">
-        <li><span class="map-swatch is-ours" aria-hidden="true"></span>${{ $money.deliveryFee }} delivery</li>
-        <li><span class="map-swatch is-away" aria-hidden="true"></span>${{ add $money.deliveryFee $money.outsideAreaFee }} delivery</li>
-        <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon">{{ $egg }}</span><span class="map-tag-icon">{{ $hen }}</span></span>Available for delivery</li>
-        <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon is-off">{{ $hen }}</span></span>Unavailable for delivery</li>
+        <li><span class="map-swatch is-ours" aria-hidden="true"></span><span>${{ $money.deliveryFee }} delivery</span></li>
+        <li><span class="map-swatch is-away" aria-hidden="true"></span><span>${{ add $money.deliveryFee $money.outsideAreaFee }} delivery</span></li>
+        <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon">{{ $egg }}</span><span class="map-tag-icon">{{ $hen }}</span></span><span>Available for delivery</span></li>
+        <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon is-off">{{ $hen }}</span></span><span>Unavailable for delivery</span></li>
       </ul>
     </div>
 

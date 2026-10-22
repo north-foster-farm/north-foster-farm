@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { wrapLastWords } from "../bin/orphans/wrap.mjs";
@@ -58,7 +59,6 @@ describe("keeping the last two words together", () => {
     same('<p>Proudly raised in <span class="text-nowrap">Rhode'
       + " Island</span>.</p>");
     same('<p>Read <span class="x">this one</span></p>');
-    same('<p>Read <span class="text-nowrap">one</span></p>');
     same("<p>Run it with <code>npm test</code></p>");
     same("<p>One two <a href=\"/\">three</a>.</p>");
   });
@@ -69,11 +69,24 @@ describe("keeping the last two words together", () => {
     same("<p>One two<br>three four</p>");
   });
 
-  it("adds nothing to an element of one or two words", () => {
+  it("adds nothing to an element of one word", () => {
     same("<p>Hello</p>");
-    same("<p>Shop now</p>");
-    same("<li>  Free delivery  </li>");
     same("<p></p>");
+    same("<li>  Free  </li>");
+  });
+
+  it("wraps an element of just two words (#303)", () => {
+    assert.equal(wrap("<p>Shop now</p>"), `<p>${N}Shop now</span></p>`);
+    assert.equal(wrap("<li>  Free delivery  </li>"),
+      `<li>  ${N}Free delivery  </span></li>`);
+    assert.equal(wrap("<h2><em>Our eggs</em></h2>"),
+      `<h2>${N}<em>Our eggs</em></span></h2>`);
+    assert.equal(wrap('<p>Read <span class="text-nowrap">one</span></p>'),
+      `<p>${N}Read <span class="text-nowrap">one</span></span></p>`);
+    same("<th>Delivery fee</th>");
+    same("<td>West Warwick</td>");
+    assert.equal(wrap("<td>Free over $100</td>"),
+      `<td>Free ${N}over $100</span></td>`);
     assert.equal(wrap('<p><a href="/">Order</a> by Monday</p>'),
       `<p><a href="/">Order</a> ${N}by Monday</span></p>`);
   });
@@ -159,10 +172,48 @@ describe("keeping the last two words together", () => {
       "<p>Eggs from our own hens.</p>",
       "<p>Our <em>very good eggs</em>.</p>",
       '<p>Or our drop site in <span class="text-nowrap">Scituate</span>.</p>',
+      "<p>Shop now</p>",
     ]) {
       const once = wrap(html);
       assert.notEqual(once, html);
       assert.equal(wrap(once), once);
     }
+  });
+});
+
+// The list items we know are flex rows: their text must sit in a span
+// of its own, which the pass leaves alone. Bare text there would get a
+// nowrap span that becomes a flex item of its own (#303).
+describe("the flex rows the pass must not split", () => {
+  const read = (path) => readFileSync(new URL(`../${path}`,
+    import.meta.url), "utf8");
+  const items = (html, from) => {
+    const list = html.slice(html.indexOf(from));
+
+    return list.slice(0, list.indexOf("</ul>")).match(/<li\b[\s\S]*?<\/li>/g)
+      || [];
+  };
+
+  it("the map key keeps each label in its own span", () => {
+    const lis = items(read("layouts/partials/map.html"),
+      '<ul class="map-key-areas');
+
+    assert.ok(lis.length >= 4);
+    for (const li of lis) {
+      assert.match(li, /<span>[^<]+<\/span><\/li>$/, li);
+    }
+  });
+
+  it("the home place cards keep each fact in its own span", () => {
+    const lis = items(read("layouts/partials/home/ways.html"),
+      '<ul class="place-facts');
+
+    assert.equal(lis.length, 1);
+    assert.match(lis[0], /<span>\{\{[^<]+\}\}<\/span>\s*<\/li>$/);
+  });
+
+  it("leaves that shape alone", () => {
+    same('<li><span class="map-swatch"></span><span>$5 delivery</span>'
+      + "</li>");
   });
 });
