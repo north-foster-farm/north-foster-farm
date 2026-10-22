@@ -413,7 +413,7 @@ export const orderConfirmed = (order, {
   ];
 
   if (orderUrl) {
-    // Draft wording.
+    // Wording approved by James, 2026-10-22 (#114).
     if (firstOrder) {
       blocks.push(p("Your email address is your account with us. Sign " +
         "in any time with a link we email you; there's no password."));
