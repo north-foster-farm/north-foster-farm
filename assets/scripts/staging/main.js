@@ -13,6 +13,7 @@
 // The email library (library.js) opens from the panel or from a
 // #email=<id> link, even when the toolbar is hidden.
 
+import { onPress, setBusy } from "../utils/busy-button.js";
 import { maybeShowOverlay, wireCopy } from "./card.js";
 import { mountClock } from "./clock.js";
 import { mountLibrary } from "./library.js";
@@ -160,7 +161,7 @@ const runJobs = async (at) => {
   });
 
   say(ok ? JSON.stringify(data, null, 2) : `Failed: ${JSON.stringify(data)}`);
-  poll();
+  await poll();
 };
 
 const library = mountLibrary({
@@ -219,7 +220,9 @@ const boot = async () => {
 wireCopy();
 tab.addEventListener("click", () => show(true));
 qs("[data-staging-collapse]").addEventListener("click", () => show(false));
-qs("[data-staging-forget]").addEventListener("click", async () => {
+// Busy until the page reloads.
+qs("[data-staging-forget]").addEventListener("click", async (ev) => {
+  setBusy(ev.currentTarget, true);
   await forgetEverything();
   window.location.reload();
 });
@@ -227,13 +230,13 @@ qs("[data-staging-hide]").addEventListener("click", () => {
   root.hidden = true;
   clearTimeout(timer);
 });
-qs("[data-staging-refresh]").addEventListener("click", poll);
-qs("[data-staging-clear]").addEventListener("click", async () => {
+onPress(qs("[data-staging-refresh]"), poll);
+onPress(qs("[data-staging-clear]"), async () => {
   await api("/api/staging/outbox", { method: "DELETE" });
-  poll();
+  await poll();
 });
 for (const b of root.querySelectorAll("[data-staging-run]")) {
-  b.addEventListener("click", () => runJobs(b.dataset.stagingRun));
+  onPress(b, () => runJobs(b.dataset.stagingRun));
 }
 
 boot();

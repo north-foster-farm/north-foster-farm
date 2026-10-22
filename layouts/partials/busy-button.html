@@ -1,8 +1,9 @@
 {{/*
-  A submit button that fades to an egg spinner and a busy word while
-  its request runs. Both faces share one grid cell, so the button keeps
-  the width of the wider one and only fades between them.
-  scripts/utils/busy-button.js turns it on and off.
+  A button that fades to an egg spinner and a busy word while its
+  request runs (#299: every button that sends one). Both faces share
+  one grid cell, so the button keeps the width of the wider one and
+  only fades between them. scripts/utils/busy-button.js turns it on
+  and off.
 
   Params:
     label     The idle text
@@ -14,11 +15,38 @@
     hidden    true to start hidden (optional)
     fit       true to fit the face that's showing, easing between the
               two widths, rather than keep the wider (optional)
+    attrs     More attributes, as a dict; an empty value writes the
+              name alone, such as data-close (optional)
+    plain     true to leave out Bootstrap's btn, for a button its own
+              class styles, such as a menu item (optional)
+    start     true to set both faces at the start, not centered, as
+              in a menu (optional)
+    icon      An SVG under assets/images to show before the label,
+              the spinner taking its place while busy (optional)
+    iconClass The class of the span that holds the icon (optional)
 */}}
-<button class="btn busy-button{{ if .fit }} busy-button-fit{{ end }}{{ with .class }} {{ . }}{{ end }}" type="{{ .type | default "submit" }}"{{ with .id }} id="{{ . }}"{{ end }}{{ if .disabled }} disabled{{ end }}{{ if .hidden }} hidden{{ end }}>
-  <span class="busy-button-idle">{{ .label }}</span>
+{{- $class := slice -}}
+{{- if not .plain }}{{ $class = $class | append "btn" }}{{ end -}}
+{{- $class = $class | append "busy-button" -}}
+{{- if .fit }}{{ $class = $class | append "busy-button-fit" }}{{ end -}}
+{{- if .start }}{{ $class = $class | append "busy-button-start" }}{{ end -}}
+{{- with .class }}{{ $class = $class | append . }}{{ end -}}
+{{- $attrs := "" -}}
+{{- range $name, $value := .attrs -}}
+  {{- if eq (string $value) "" -}}
+    {{- $attrs = printf "%s %s" $attrs $name -}}
+  {{- else -}}
+    {{- $attrs = printf "%s %s=%q" $attrs $name (string $value | htmlEscape) -}}
+  {{- end -}}
+{{- end -}}
+{{- $spinner := partial "svg.html" (dict "src" "icons/egg-spinner" "class" "egg-spinner" "aria-hidden" "true" "focusable" "false") -}}
+<button class="{{ delimit $class " " }}" type="{{ .type | default "submit" }}"{{ with .id }} id="{{ . }}"{{ end }}{{ $attrs | safeHTMLAttr }}{{ if .disabled }} disabled{{ end }}{{ if .hidden }} hidden{{ end }}>
+  <span class="busy-button-idle">
+    {{- with .icon }}<span{{ with $.iconClass }} class="{{ . }}"{{ end }} aria-hidden="true">{{ partial "svg.html" . }}</span>{{ end -}}
+    {{ .label -}}
+  </span>
   <span class="busy-button-busy" aria-hidden="true">
-    {{ partial "svg.html" (dict "src" "icons/egg-spinner" "class" "egg-spinner" "aria-hidden" "true" "focusable" "false") }}
-    {{ .busy }}
+    {{- if .icon }}<span{{ with .iconClass }} class="{{ . }}"{{ end }} aria-hidden="true">{{ $spinner }}</span>{{ else }}{{ $spinner }}{{ end -}}
+    {{ .busy -}}
   </span>
 </button>

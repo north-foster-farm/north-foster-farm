@@ -29,7 +29,7 @@
             </div>
             <div class="row">
               <div class="col-sm-9 offset-sm-3">
-                <button type="submit" class="btn btn-primary" id="login-submit">Email me a sign-in link</button>
+                {{ partial "busy-button.html" (dict "label" "Email me a sign-in link" "busy" "Sending" "class" "btn-primary" "id" "login-submit") }}
               </div>
             </div>
           </div>

@@ -21,7 +21,7 @@
               <p class="account-name" id="account-name"></p>
               <p class="account-email" id="account-email"></p>
             </div>
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="account-signout">Sign out</button>
+            {{ partial "busy-button.html" (dict "label" "Sign out" "busy" "Signing out" "class" "btn-outline-secondary btn-sm" "id" "account-signout" "type" "button") }}
           </header>
 
           <nav class="account-nav" aria-label="Account sections">
@@ -108,7 +108,7 @@
               </div>
               {{/* What the last save did (#238): Saving… with a spinner, Saved,
                    or why it failed; main.js sets data-save and the words. */}}
-              <p class="form-text mt-3 mb-0 account-save" data-autosave aria-live="polite"><span class="account-save-spin" aria-hidden="true"></span><span data-save-text></span></p>
+              <p class="form-text mt-3 mb-0 account-save" data-autosave aria-live="polite">{{ partial "svg.html" (dict "src" "icons/egg-spinner" "class" "egg-spinner account-save-spin" "aria-hidden" "true" "focusable" "false") }}<span data-save-text></span></p>
             </form>
           </section>
 
@@ -182,13 +182,13 @@
               </section>
               {{/* What the last save did (#238): Saving… with a spinner, Saved,
                    or why it failed; main.js sets data-save and the words. */}}
-              <p class="form-text mt-3 mb-0 account-save" data-autosave aria-live="polite"><span class="account-save-spin" aria-hidden="true"></span><span data-save-text></span></p>
+              <p class="form-text mt-3 mb-0 account-save" data-autosave aria-live="polite">{{ partial "svg.html" (dict "src" "icons/egg-spinner" "class" "egg-spinner account-save-spin" "aria-hidden" "true" "focusable" "false") }}<span data-save-text></span></p>
             </form>
             {{/* Deleting your details (#189): one click and a confirm. */}}
             <section class="account-card mt-4" aria-labelledby="prof-delete-h">
               <h3 class="account-group-title" id="prof-delete-h">Delete your details</h3>
               <p>This deletes your account: your name, email, phone and address, and the customer profile we made for you at Square, which keeps the payments themselves. We keep your past orders for our records, with no name on them. It can't be undone.</p>
-              <button type="button" class="btn btn-outline-danger btn-sm" id="account-delete">Delete my details</button>
+              {{ partial "busy-button.html" (dict "label" "Delete my details" "busy" "Deleting" "class" "btn-outline-danger btn-sm" "id" "account-delete" "type" "button") }}
               <p class="form-text mb-0 mt-2" id="account-delete-status" role="status" aria-live="polite" hidden></p>
             </section>
           </section>
@@ -218,7 +218,7 @@
                   <div class="invalid-feedback" id="err-sup-message" data-error-for="message"></div>
                 </div>
               </div>
-              <button type="submit" class="btn btn-primary mt-3">Send</button>
+              {{ partial "busy-button.html" (dict "label" "Send" "busy" "Sending" "class" "btn-primary mt-3") }}
             </form>
           </section>
 
@@ -291,7 +291,7 @@
       </div>
       <p class="form-text">To change what's in the order, use Change items.</p>
       <div class="account-panel-actions">
-        <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
+        {{ partial "busy-button.html" (dict "label" "Save changes" "busy" "Saving" "class" "btn-primary btn-sm") }}
         <button type="button" class="btn btn-outline-secondary btn-sm" data-close>Never mind</button>
       </div>
     </form>
@@ -325,7 +325,7 @@
       </div>
       <p class="form-text">To change what's in the order, use Change items.</p>
       <div class="account-panel-actions">
-        <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
+        {{ partial "busy-button.html" (dict "label" "Save changes" "busy" "Saving" "class" "btn-primary btn-sm") }}
         <button type="button" class="btn btn-outline-secondary btn-sm" data-close>Never mind</button>
       </div>
     </form>
@@ -341,7 +341,7 @@
       </label>
       <div class="invalid-feedback" data-error-for="reason"></div>
       <div class="account-panel-actions">
-        <button type="submit" class="btn btn-primary btn-sm">Send</button>
+        {{ partial "busy-button.html" (dict "label" "Send" "busy" "Sending" "class" "btn-primary btn-sm") }}
         <button type="button" class="btn btn-outline-secondary btn-sm" data-close>Never mind</button>
       </div>
     </form>
@@ -352,7 +352,7 @@
       <p class="account-panel-title">Cancel this order?</p>
       <p class="form-text" data-out="explain"></p>
       <div class="account-panel-actions">
-        <button type="submit" class="btn btn-danger btn-sm">Yes, cancel it</button>
+        {{ partial "busy-button.html" (dict "label" "Yes, cancel it" "busy" "Cancelling" "class" "btn-danger btn-sm") }}
         <button type="button" class="btn btn-outline-secondary btn-sm" data-close>Keep it</button>
       </div>
     </form>

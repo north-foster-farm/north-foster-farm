@@ -382,7 +382,7 @@
     padding-top: 0;
   }
 
-  // What the last save did: "Saving…" with a spinner, "Saved 👍",
+  // What the last save did: "Saving…" with the egg spinner, "Saved 👍",
   // which fades, or why it failed. It keeps a line's height empty, so
   // the card doesn't jump.
   .account-save {
@@ -402,18 +402,10 @@
   }
 
 
+  // The egg spinner (#299), drawn by _busy-button.scss, shown while
+  // saving.
   .account-save-spin {
     display: none;
-    width: 0.85em;
-    height: 0.85em;
-    border: 2px solid currentcolor;
-    border-right-color: transparent;
-    border-radius: 50%;
-    animation: account-spin 0.8s linear infinite;
-
-    @media (prefers-reduced-motion: reduce) {
-      animation-duration: 2.4s;
-    }
   }
 
   .account-save[data-save="saving"] > .account-save-spin {
@@ -440,12 +432,6 @@
     margin: 2.5rem 0 0;
     padding-top: 1rem;
     border-top: 1px solid var(--bs-border-color-translucent);
-  }
-}
-
-@keyframes account-spin {
-  to {
-    transform: rotate(360deg);
   }
 }
 

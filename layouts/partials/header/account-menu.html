@@ -23,10 +23,7 @@
         <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/account" }}</span>
         Account settings
       </a>
-      <button class="site-nav-link" type="button" data-account-signout>
-        <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/sign-out" }}</span>
-        Sign out
-      </button>
+      {{ partial "busy-button.html" (dict "label" "Sign out" "busy" "Signing out" "class" "site-nav-link" "type" "button" "plain" true "start" true "icon" "icons/sign-out" "iconClass" "site-menu-icon" "attrs" (dict "data-account-signout" "")) }}
     </div>
   {{ else }}
     {{/* The customer's chicken leads the button, once session.js
@@ -57,10 +54,7 @@
       </li>
       <li><hr class="dropdown-divider"></li>
       <li>
-        <button class="dropdown-item" type="button" data-account-signout>
-          <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/sign-out" }}</span>
-          Sign out
-        </button>
+        {{ partial "busy-button.html" (dict "label" "Sign out" "busy" "Signing out" "class" "dropdown-item" "type" "button" "plain" true "start" true "icon" "icons/sign-out" "iconClass" "site-menu-icon" "attrs" (dict "data-account-signout" "")) }}
       </li>
     </ul>
   {{ end }}

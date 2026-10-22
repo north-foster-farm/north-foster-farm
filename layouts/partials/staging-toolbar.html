@@ -36,8 +36,8 @@
             <label for="staging-clock-at">Date and time, farm time</label>
             <input type="datetime-local" id="staging-clock-at" data-staging-clock-at required>
             <span>
-              <button type="submit" class="staging-action">Set</button>
-              <button type="button" class="staging-action" data-staging-clock-reset>Reset to now</button>
+              {{ partial "busy-button.html" (dict "label" "Set" "busy" "Setting" "class" "staging-action" "plain" true) }}
+              {{ partial "busy-button.html" (dict "label" "Reset to now" "busy" "Resetting" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-clock-reset" "")) }}
             </span>
           </form>
           <p class="staging-muted">For this browser only. The site and its emails, cutoffs and jobs run here take this time; Square and PayPal keep their own.</p>
@@ -61,17 +61,17 @@
         <p class="staging-muted" data-staging-empty>None yet. Emails the site sends from this session land here instead; the rest are in the email library.</p>
         <ol class="staging-list" data-staging-list></ol>
         <p>
-          <button type="button" class="staging-action" data-staging-refresh>Refresh</button>
-          <button type="button" class="staging-action" data-staging-clear>Clear</button>
+          {{ partial "busy-button.html" (dict "label" "Refresh" "busy" "Refreshing" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-refresh" "")) }}
+          {{ partial "busy-button.html" (dict "label" "Clear" "busy" "Clearing" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-clear" "")) }}
         </p>
         </div>
         <div data-staging-scope="jobs">
         <h2>Jobs</h2>
         <p>
-          <button type="button" class="staging-action" data-staging-run="">Run now</button>
-          <button type="button" class="staging-action" data-staging-run="06:00">As 6:00 today</button>
-          <button type="button" class="staging-action" data-staging-run="08:00">As 8:00 today</button>
-          <button type="button" class="staging-action" data-staging-run="18:00">As 18:00 today</button>
+          {{ partial "busy-button.html" (dict "label" "Run now" "busy" "Running" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-run" "")) }}
+          {{ partial "busy-button.html" (dict "label" "As 6:00 today" "busy" "Running" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-run" "06:00")) }}
+          {{ partial "busy-button.html" (dict "label" "As 8:00 today" "busy" "Running" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-run" "08:00")) }}
+          {{ partial "busy-button.html" (dict "label" "As 18:00 today" "busy" "Running" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-run" "18:00")) }}
         </p>
         <label><input type="checkbox" data-staging-reset> Send today's reports again</label>
         </div>
@@ -80,7 +80,7 @@
         {{ partial "staging/sandbox-card.html" "toolbar" }}
         <h2>This browser</h2>
         <p>
-          <button type="button" class="staging-action" data-staging-forget>Reset to a first visit</button>
+          {{ partial "busy-button.html" (dict "label" "Reset to a first visit" "busy" "Resetting" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-forget" "")) }}
         </p>
         <p class="staging-muted">Signs you out and forgets everything the site keeps here: the cart, its choices, dismissed notes, the news sign-up and Venmo flags, cookies and saved settings. Then reloads. Only the toolbar's own token stays.</p>
         <pre class="staging-out" data-staging-out hidden></pre>
@@ -134,10 +134,10 @@
           See lib/review.mjs. */}}
         <div class="staging-review" data-staging-review hidden>
           <span class="staging-review-status" data-staging-review-status></span>
-          <button type="button" class="staging-action staging-primary" data-staging-approve>Approve</button>
+          {{ partial "busy-button.html" (dict "label" "Approve" "busy" "Approving" "class" "staging-action staging-primary" "type" "button" "plain" true "attrs" (dict "data-staging-approve" "")) }}
           <button type="button" class="staging-action" data-staging-rewrite>Rewrite</button>
-          <button type="button" class="staging-action" data-staging-withdraw>Withdraw approval</button>
-          <button type="button" class="staging-action" data-staging-revert>Revert to the current wording</button>
+          {{ partial "busy-button.html" (dict "label" "Withdraw approval" "busy" "Withdrawing" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-withdraw" "")) }}
+          {{ partial "busy-button.html" (dict "label" "Revert to the current wording" "busy" "Reverting" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-revert" "")) }}
           <span class="staging-error" data-staging-review-error hidden></span>
         </div>
         <iframe class="staging-frame" data-staging-frame title="The email as it renders" sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
@@ -152,7 +152,7 @@
           <p class="staging-muted" data-staging-edit-dropped hidden></p>
           <p class="staging-error" data-staging-edit-error hidden></p>
           <p class="staging-edit-actions">
-            <button type="submit" class="staging-action staging-primary">Save rewrite</button>
+            {{ partial "busy-button.html" (dict "label" "Save rewrite" "busy" "Saving" "class" "staging-action staging-primary" "plain" true) }}
             <button type="button" class="staging-action" data-staging-edit-cancel>Cancel</button>
           </p>
         </form>

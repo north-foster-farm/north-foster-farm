@@ -13,6 +13,8 @@
 // #email=<id> on any page opens the library at that email, so a link
 // to one can be handed to James; #emails opens it at the top.
 
+import { isBusy, onPress, whileBusy } from "../utils/busy-button.js";
+
 const GROUPS = [
   ["customer", "To the customer"],
   ["farm", "To the farm"],
@@ -470,14 +472,14 @@ export const mountLibrary = ({
     editor.dropped.hidden = !gone.length;
   };
 
-  review.approve.addEventListener("click", () => send("approval", "PUT",
+  onPress(review.approve, () => send("approval", "PUT",
     { version: current.version }, review.error));
-  review.withdraw.addEventListener("click", () => send("approval",
+  onPress(review.withdraw, () => send("approval",
     "DELETE", undefined, review.error));
-  review.revert.addEventListener("click", () => {
+  onPress(review.revert, async () => {
     if (!confirm("Drop your rewrite and keep the current wording?")) return;
     view = "html";
-    send("rewrite", "DELETE", undefined, review.error);
+    await send("rewrite", "DELETE", undefined, review.error);
   });
   review.rewrite.addEventListener("click", openEditor);
   editor.subject.addEventListener("keydown", (ev) => {
@@ -486,14 +488,18 @@ export const mountLibrary = ({
   editor.form.addEventListener("input", noteDropped);
   editor.form.addEventListener("submit", async (ev) => {
     ev.preventDefault();
+
+    const button = editor.form.querySelector(".busy-button");
+
+    if (isBusy(button)) return;
     editor.error.hidden = true;
 
     const subject = partsOf(editor.subject)
       .map((p) => (p.text === undefined ? p
         : { text: p.text.replace(/\s*\n\s*/g, " ") }));
-    const ok = await send("rewrite", "PUT", {
+    const ok = await whileBusy(button, send("rewrite", "PUT", {
       version: current.version, subject, text: partsOf(editor.text),
-    }, editor.error);
+    }, editor.error));
 
     if (ok) {
       closeEditor();

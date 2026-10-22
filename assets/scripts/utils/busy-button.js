@@ -1,5 +1,7 @@
 // The busy button (partials/busy-button.html): while a request runs,
-// it fades to the egg spinner and its busy word.
+// it fades to the egg spinner and its busy word. Every button that
+// sends a request is one (#299); test/busy-button.test.mjs holds them
+// to it.
 
 // The spinner stays up at least this long, so a quick answer doesn't
 // flash it.
@@ -47,10 +49,22 @@ export const setBusy = (button, on) => {
     button.dataset.busy = on ? "true" : "false";
   }
   button.setAttribute("aria-disabled", String(on));
+  // A screen reader hears the busy word; aria-busy says the button is
+  // still working on it (#299).
+  if (on) button.setAttribute("aria-busy", "true");
+  else button.removeAttribute("aria-busy");
   button.querySelector(".busy-button-idle")
     .setAttribute("aria-hidden", String(on));
   button.querySelector(".busy-button-busy")
     .setAttribute("aria-hidden", String(!on));
+};
+
+// Wires a button that sends a request on a click: busy until `run`
+// settles, and a press while busy does nothing.
+export const onPress = (button, run) => {
+  button.addEventListener("click", () => {
+    if (!isBusy(button)) whileBusy(button, run());
+  });
 };
 
 // Runs the request with the button busy and resolves with its result,

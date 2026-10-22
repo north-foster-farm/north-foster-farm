@@ -2,6 +2,7 @@
 // email". A ?error= from a bad or used link explains itself here.
 
 import { api } from "../utils/api.js";
+import { isBusy, whileBusy } from "../utils/busy-button.js";
 
 const ERRORS = {
   expired: "That sign-in link expired. Ask for a new one below.",
@@ -43,6 +44,7 @@ const start = () => {
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (isBusy(submit)) return;
     email.classList.remove("is-invalid");
     error.textContent = "";
 
@@ -54,20 +56,14 @@ const start = () => {
       return;
     }
 
-    submit.disabled = true;
-    submit.textContent = "Sending…";
-
-    const { ok, data } = await api("/api/auth/request", {
+    const { ok, data } = await whileBusy(submit, api("/api/auth/request", {
       method: "POST",
       body: {
         email: value,
         next,
         website: form.querySelector("[name='website']").value,
       },
-    });
-
-    submit.disabled = false;
-    submit.textContent = "Email me a sign-in link";
+    }));
 
     if (!ok) {
       fail((data && data.maintenance && data.message)

@@ -155,6 +155,11 @@
   background: var(--stg-bg);
 }
 
+/* A busy button (#299) here sits in the line, as the others do. */
+.staging .staging-action.busy-button {
+  display: inline-grid;
+}
+
 .staging .staging-action:hover {
   border-color: var(--stg-ink);
 }

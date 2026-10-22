@@ -1,5 +1,5 @@
-// The busy button (layouts/partials/busy-button.html), shared by the
-// news sign-up and the contact form: while its request runs it fades
+// The busy button (layouts/partials/busy-button.html), on every button
+// that sends a request (#299): while its request runs it fades
 // to an egg spinner and a busy word, at the same width or, when fitted,
 // at the busy word's.
 
@@ -34,6 +34,9 @@ export const expectBusy = async (page, button, { busyWord, width }) => {
 
   await expect(button).toHaveAttribute("data-busy", "true");
   await expect(button).toHaveAttribute("aria-disabled", "true");
+  // A screen reader hears the busy word, and that it is working (#299).
+  await expect(button).toHaveAttribute("aria-busy", "true");
+  await expect(button).toHaveAccessibleName(busyWord);
   await page.waitForTimeout(400);
   await expect(busy).toHaveText(busyWord);
   await expect(busy).toHaveCSS("opacity", "1");
@@ -48,6 +51,7 @@ export const expectBusy = async (page, button, { busyWord, width }) => {
 export const expectIdle = async (button, { width }) => {
   await expect(button).toHaveAttribute("data-busy", "false");
   await expect(button).toHaveAttribute("aria-disabled", "false");
+  await expect(button).not.toHaveAttribute("aria-busy");
   expect((await button.boundingBox()).width, "width after")
     .toBeCloseTo(width, 0);
 };

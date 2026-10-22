@@ -6,6 +6,7 @@
 // order page's date lists included, comes from the new time.
 
 import { instant, isoDate, parts } from "../order/lib/zoned.mjs";
+import { isBusy, setBusy } from "../utils/busy-button.js";
 
 const pad = (n) => String(n).padStart(2, "0");
 
@@ -59,28 +60,41 @@ export const mountClock = ({ root, api, timeZone, reload }) => {
     out.hidden = false;
   };
 
-  form.addEventListener("submit", async (ev) => {
+  // The button stays busy until the page reloads, or the change fails.
+  const change = async (button, method, body) => {
+    if (isBusy(button)) return;
+    setBusy(button, true);
+
+    let answer;
+
+    try {
+      answer = await api("/api/staging/clock", { method, body });
+    } catch {
+      answer = { ok: false, data: { error: "the site didn't answer" } };
+    }
+
+    const { ok, data } = answer;
+
+    if (ok) {
+      reload();
+    } else {
+      setBusy(button, false);
+      failed(data);
+    }
+  };
+
+  form.addEventListener("submit", (ev) => {
     ev.preventDefault();
 
     const at = fromField(field.value, timeZone);
 
-    if (!at) return;
-
-    const { ok, data } = await api("/api/staging/clock", {
-      method: "PUT", body: { at: at.toISOString() },
-    });
-
-    if (ok) reload();
-    else failed(data);
+    if (at) {
+      change(form.querySelector(".busy-button"), "PUT",
+        { at: at.toISOString() });
+    }
   });
-  qs("[data-staging-clock-reset]").addEventListener("click", async () => {
-    const { ok, data } = await api("/api/staging/clock", {
-      method: "DELETE",
-    });
-
-    if (ok) reload();
-    else failed(data);
-  });
+  qs("[data-staging-clock-reset]").addEventListener("click",
+    (ev) => change(ev.currentTarget, "DELETE"));
 
   return { draw };
 };

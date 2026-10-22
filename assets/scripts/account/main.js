@@ -10,10 +10,13 @@ import { label } from "../order/lib/zoned.mjs";
 import { forgetJoined, remember } from "../news/hide.js";
 import { forget, showChick, signOut } from "../session/session.js";
 import { api } from "../utils/api.js";
+import { isBusy, setBusy, whileBusy } from "../utils/busy-button.js";
 import { whileLoading } from "../utils/skeleton.js";
 
 const qs = (root, selector) => root.querySelector(selector);
 const all = (root, selector) => Array.from(root.querySelectorAll(selector));
+// A form's busy button (partials/busy-button.html).
+const busyButton = (form) => qs(form, ".busy-button");
 
 const STATUS = {
   paid: "Paid",
@@ -546,15 +549,18 @@ class Account {
     e.preventDefault();
 
     const form = e.target;
+    const button = busyButton(form);
     const body = {};
+
+    if (isBusy(button)) return;
 
     for (const field of all(form, "[data-field]")) {
       body[field.dataset.field] = field.value;
     }
 
-    const { ok, data } = await api("/api/account/support", {
+    const { ok, data } = await whileBusy(button, api("/api/account/support", {
       method: "POST", body,
-    });
+    }));
 
     if (!ok) {
       this.showErrors(form, data.errors);
@@ -571,14 +577,29 @@ class Account {
   // and the order draft forgets who you were.
   async deleteDetails() {
     const status = document.getElementById("account-delete-status");
+    const button = document.getElementById("account-delete");
 
+    if (isBusy(button)) return;
     if (!window.confirm("Delete your details? This can't be undone.")) return;
 
-    const { ok, data } = await api("/api/account/delete", {
-      method: "POST", body: { confirm: true },
-    });
+    // Busy until the home page takes over, or it fails.
+    setBusy(button, true);
+
+    let answer;
+
+    try {
+      answer = await api("/api/account/delete", {
+        method: "POST", body: { confirm: true },
+      });
+    } catch (error) {
+      console.error("Delete failed", error);
+      answer = { ok: false, data: null };
+    }
+
+    const { ok, data } = answer;
 
     if (!ok) {
+      setBusy(button, false);
       status.textContent = (data && data.message) ||
         "Something went wrong. Please try again.";
       status.hidden = false;
@@ -826,6 +847,7 @@ class Account {
       () => this.closePanel(card));
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+      if (isBusy(busyButton(form))) return;
 
       const body = {
         date: select.value, notes: qs(form, "[name='notes']").value,
@@ -843,9 +865,9 @@ class Account {
         body.onfarm = { window: window ? window.value : "" };
       }
 
-      const { ok, data } = await api(
+      const { ok, data } = await whileBusy(busyButton(form), api(
         `/api/account/orders/${order.id}/change`, { method: "POST", body }
-      );
+      ));
 
       if (!ok) {
         this.showErrors(form, data.errors);
@@ -901,10 +923,11 @@ class Account {
       () => this.closePanel(card));
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+      if (isBusy(busyButton(form))) return;
 
-      const { ok, data } = await api(
+      const { ok, data } = await whileBusy(busyButton(form), api(
         `/api/account/orders/${order.id}/cancel`, { method: "POST", body: {} }
-      );
+      ));
 
       if (!ok) {
         this.say((data.errors && data.errors.order) || "That didn't work.");
@@ -947,14 +970,15 @@ class Account {
       () => this.closePanel(card));
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+      if (isBusy(busyButton(form))) return;
 
       const body = {
         reason: qs(form, "[name='reason']").value,
         skus: all(form, "[name='skus']:checked").map((b) => b.value),
       };
-      const { ok, data } = await api(
+      const { ok, data } = await whileBusy(busyButton(form), api(
         `/api/account/orders/${order.id}/return`, { method: "POST", body }
-      );
+      ));
 
       if (!ok) {
         this.showErrors(form, data.errors);

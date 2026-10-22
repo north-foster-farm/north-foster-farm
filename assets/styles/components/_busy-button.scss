@@ -83,6 +83,18 @@
   }
 }
 
+// The kind set at the start, as a menu item (partial's `start`). The
+// item's own class sets it flex, so this outranks it; its faces keep
+// the item's gap between icon and label.
+button.busy-button.busy-button-start {
+  display: grid;
+  place-items: center start;
+
+  > span {
+    gap: inherit;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .egg-spinner-run {
     animation: none;
