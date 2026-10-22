@@ -439,3 +439,9 @@
 .login .account-wide {
   max-width: 700px;
 }
+
+// The sign-in form is the farm news form (.news-signup, #303), set at
+// the start of the column under its line rather than centered.
+.login .login-form {
+  margin-inline: 0;
+}

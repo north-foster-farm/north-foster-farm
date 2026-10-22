@@ -47,7 +47,8 @@ test.describe("accounts", () => {
       await page.locator("#login-email").fill(email);
       await page.locator("#login-submit").click();
       await expect(page.locator("#login-sent")).toBeVisible();
-      await expect(page.locator("[data-login-email]")).toHaveText(email);
+      await expect(page.locator("#login-sent"))
+        .toContainText("Check your email.");
 
       const mail = await waitForMail({ to: email, subject: SIGN_IN,
         since: asked });
@@ -131,7 +132,6 @@ test.describe("sign-in links are rate limited", () => {
         await page.locator("#login-submit").click();
         await expect(page.locator("#login-sent"), `request ${i}`)
           .toBeVisible();
-        await expect(page.locator("[data-login-email]")).toHaveText(email);
       }
 
       const links = async () => (await mailTo(email, since))

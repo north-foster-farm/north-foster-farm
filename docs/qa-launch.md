@@ -1423,7 +1423,7 @@ Automated: `account.spec.mjs`, "a link by email signs in, once". Tagged
   1. `/login/`; request a link for the address.
   2. Open the link from the outbox.
   3. Clear cookies; open it again.
-- **Assert:** "Check your email" naming the address; the outbox has
+- **Assert:** "Check your email." and the link's lifetime; the outbox has
   "Your secure sign-in link to North Foster Farm" with a link to the
   staging host; it lands on `/account/` showing the address, and
   `/about/` then shows the account menu at once, though `/login/`

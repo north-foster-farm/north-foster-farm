@@ -16,8 +16,9 @@ const start = () => {
 
   if (!form) return;
 
+  const ask = document.getElementById("login-ask");
   const sent = document.getElementById("login-sent");
-  const notice = form.querySelector("[data-login-notice]");
+  const notice = ask.querySelector("[data-login-notice]");
   const email = form.querySelector("#login-email");
   const error = form.querySelector("[data-error-for='email']");
   const submit = document.getElementById("login-submit");
@@ -36,9 +37,8 @@ const start = () => {
     email.focus();
   };
 
-  const showSent = (address) => {
-    sent.querySelector("[data-login-email]").textContent = address;
-    form.hidden = true;
+  const showSent = () => {
+    ask.hidden = true;
     sent.hidden = false;
   };
 
@@ -73,12 +73,12 @@ const start = () => {
       return;
     }
 
-    showSent(value);
+    showSent();
   });
 
   document.getElementById("login-again").addEventListener("click", () => {
     sent.hidden = true;
-    form.hidden = false;
+    ask.hidden = false;
     email.focus();
   });
 };

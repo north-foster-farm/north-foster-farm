@@ -1,51 +1,34 @@
 {{ define "main" }}
+  {{/* #303: one line, then the field and its button straight on the
+       page, as the farm news sign-up has them (partials/news-signup
+       .html), sharing its styles. The link's lifetime is the one
+       lib/auth.mjs enforces, from data/accounts.json;
+       test/link-lifetimes.test.mjs holds the two together. */}}
+  {{ $minutes := hugo.Data.accounts.signInLinkMinutes }}
   <section class="{{ .Type }}">
     <div class="page container py-5">
       <div class="account-wide mb-5">
         {{ partial "page-heading.html" . }}
 
-        <p class="text-body-secondary mb-4">
-          Signed-in customers can see past orders and receipts, change or
-          cancel an order in progress, and keep a delivery address on file.
-        </p>
-
-        {{/* The form uses the order page's horizontal layout
-             (partials/order/customer.html): a label column, a field
-             column, the same .form-control and .invalid-feedback. */}}
-        <form class="account-card" id="login-form" novalidate>
-          <h2 class="h4">Send me a magic link</h2>
-          <p class="mb-3">
-            Type the email you order with and we'll send you a link that
-            signs you in. This site doesn't use passwords.
-          </p>
+        <div id="login-ask">
+          <p class="mb-3">Type the email you order with, and we'll send you a link that signs you in.</p>
           <div class="alert alert-warning" role="alert" data-login-notice hidden></div>
-          <div class="order-hform">
-            <div class="row">
-              <label class="col-sm-3 col-form-label" for="login-email">Email</label>
-              <div class="col-sm-9">
-                <input class="form-control" type="email" id="login-email" name="email" autocomplete="email" inputmode="email" required aria-describedby="err-login-email">
-                <div class="invalid-feedback" id="err-login-email" data-error-for="email"></div>
-              </div>
+          <form class="news-signup login-form" id="login-form" novalidate>
+            <label class="visually-hidden" for="login-email">Email address</label>
+            <div class="input-group has-validation">
+              <input class="form-control" type="email" id="login-email" name="email" placeholder="Email address" autocomplete="email" inputmode="email" enterkeyhint="send" required aria-describedby="err-login-email">
+              {{ partial "busy-button.html" (dict "label" "Email me a sign-in link" "busy" "Sending" "class" "btn-primary" "id" "login-submit" "fit" true) }}
+              <div class="invalid-feedback" id="err-login-email" data-error-for="email"></div>
             </div>
-            <div class="row">
-              <div class="col-sm-9 offset-sm-3">
-                {{ partial "busy-button.html" (dict "label" "Email me a sign-in link" "busy" "Sending" "class" "btn-primary" "id" "login-submit") }}
-              </div>
+            <div class="order-hp" aria-hidden="true">
+              <label for="login-website">Website</label>
+              <input type="text" id="login-website" name="website" tabindex="-1" autocomplete="off">
             </div>
-          </div>
-          <div class="order-hp" aria-hidden="true">
-            <label for="login-website">Website</label>
-            <input type="text" id="login-website" name="website" tabindex="-1" autocomplete="off">
-          </div>
-        </form>
+          </form>
+        </div>
 
-        <div class="account-card" id="login-sent" role="status" aria-live="polite" hidden>
-          <h2 class="h4">Check your email</h2>
-          <p>
-            If <strong data-login-email></strong> is an address we know or
-            can create an account for, a sign-in link is on its way. It works
-            once and expires in {{ hugo.Data.accounts.signInLinkMinutes }} minutes.
-          </p>
+        <div id="login-sent" role="status" aria-live="polite" hidden>
+          <p data-login-sent-text>Check your email. If your email address is an address we know or one we can create an account for, a sign-in link is on its way. It works only once and expires in {{ $minutes }} minutes.</p>
           <p class="mb-0 text-body-secondary">
             Nothing after a few minutes? Check spam, or
             <button type="button" class="btn btn-link p-0 align-baseline" id="login-again">try again</button>.
