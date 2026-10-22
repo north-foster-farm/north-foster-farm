@@ -1764,10 +1764,11 @@
     }
   }
 
-  // The agreement: one plain sentence directly above the Pay button,
-  // for every way to get an order (#196).
+  // The agreement: one plain sentence under the Pay button, smaller
+  // than the page's text, for every way to get an order (#196, #274).
   .order-agree {
-    margin-bottom: 0.75rem;
+    margin: 0.75rem 0 0;
+    font-size: 0.875rem;
 
     a {
       text-decoration: underline;

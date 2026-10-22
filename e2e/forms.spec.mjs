@@ -211,7 +211,7 @@ test.describe("contact and pickup forms", () => {
     expect(posted).toBe(0);
   });
 
-  test("every way to get an order agrees to the policy, above Pay",
+  test("every way to get an order agrees to the policy, under Pay",
     async ({ page }) => {
       const order = new OrderPage(page);
       const line = page.locator(".order-submit .order-agree");
@@ -224,10 +224,18 @@ test.describe("contact and pickup forms", () => {
           "By placing an order you agree to our delivery policy."
         );
       }
-      // Directly above the button, and nowhere else.
+      // Under the buttons (Pay, or Save changes when editing), in
+      // smaller text, and nowhere else (#274, round 4 part 2).
       await expect(page.locator(".order-agree")).toHaveCount(1);
       expect(await line.evaluate((el) =>
-        el.nextElementSibling?.id)).toBe("order-submit");
+        el.previousElementSibling?.id)).toBe("order-save");
+
+      const sizes = await line.evaluate((el) => [
+        parseFloat(getComputedStyle(el).fontSize),
+        parseFloat(getComputedStyle(document.body).fontSize),
+      ]);
+
+      expect(sizes[0]).toBeLessThan(sizes[1]);
     });
 
   test("the delivery countdown names the next delivery day",

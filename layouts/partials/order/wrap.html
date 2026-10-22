@@ -10,11 +10,15 @@
   {{/* After the lapsed-time dialog (order/lapsed.html): what the
        order now says, read out as the focus lands on Pay. */}}
   <p class="order-moved" role="status" data-lapsed-status hidden></p>
-  <p class="order-agree">By placing an order you agree to our <a href="{{ relURL "delivery-policy/" }}" target="_blank" rel="noopener">delivery policy</a>.</p>
-  {{ partial "busy-button.html" (dict "label" "Pay and place your order" "busy" "Taking your payment" "class" "btn-primary btn-lg" "id" "order-submit" "disabled" true) }}
+  {{/* Fitted: as wide as its label plus the standard padding, not as
+       wide as "Taking your payment" and the spinner (#274, round 4
+       part 2). */}}
+  {{ partial "busy-button.html" (dict "label" "Pay and place your order" "busy" "Taking your payment" "class" "btn-primary btn-lg" "id" "order-submit" "disabled" true "fit" true) }}
   {{/* A change to a paid order with nothing more to pay saves here
        instead of paying (order-form.js). */}}
   {{ partial "busy-button.html" (dict "label" "Save changes" "busy" "Saving" "class" "btn-primary btn-lg" "id" "order-save" "type" "button" "hidden" true) }}
+  {{/* Under the button, in smaller text (#274, round 4 part 2). */}}
+  <p class="order-agree">By placing an order you agree to our <a href="{{ relURL "delivery-policy/" }}" target="_blank" rel="noopener">delivery policy</a>.</p>
   <div class="invalid-feedback" data-error-for="order"></div>
   {{/* A wallet or Venmo payment has no button of ours to spin, so
        this says it is being placed. */}}
