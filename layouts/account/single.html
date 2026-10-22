@@ -69,39 +69,51 @@
 
           <section class="account-section" id="acct-address" data-section="address" aria-labelledby="acct-address-h" hidden>
             <h2 class="h4" id="acct-address-h">Delivery address</h2>
-            <p class="text-body-secondary">Kept on file so delivery orders fill themselves in. An address outside our usual area is checked by us first.</p>
+            <p>Save your delivery address. This address is automatically added to new orders on the order page.</p>
             <p class="account-address-status" id="address-status" hidden></p>
-            <form class="account-card" id="address-form" novalidate>
-              <div class="row g-3">
-                <div class="col-12">
-                  <label class="form-label" for="addr-address1">Street address</label>
+            <form class="account-form" id="address-form" novalidate>
+              <div class="row account-row">
+                <label class="col-md-4 col-form-label" for="addr-address1">Street address</label>
+                <div class="col-md-8">
                   <input class="form-control" type="text" id="addr-address1" name="address1" autocomplete="shipping address-line1" data-field="address1" aria-describedby="err-addr-address1">
                   <div class="invalid-feedback" id="err-addr-address1" data-error-for="address1"></div>
                 </div>
-                <div class="col-12">
-                  <label class="form-label" for="addr-address2">Apartment, unit, or floor <span class="text-body-secondary">(optional)</span></label>
+              </div>
+              <div class="row account-row">
+                <label class="col-md-4 col-form-label" for="addr-address2">Apartment, unit, or floor <span class="text-body-secondary">(optional)</span></label>
+                <div class="col-md-8">
                   <input class="form-control" type="text" id="addr-address2" name="address2" autocomplete="shipping address-line2" data-field="address2">
                 </div>
+              </div>
+              <div class="row account-row">
+                <label class="col-md-4 col-form-label" for="addr-town">Town</label>
                 <div class="col-md-8">
-                  <label class="form-label" for="addr-town">Town</label>
                   <input class="form-control" type="text" id="addr-town" name="town" autocomplete="shipping address-level2" data-field="town" aria-describedby="err-addr-town">
                   <div class="invalid-feedback" id="err-addr-town" data-error-for="town"></div>
                 </div>
-                <div class="col-md-4">
-                  <label class="form-label" for="addr-zip">ZIP</label>
-                  <input class="form-control" type="text" id="addr-zip" name="zip" autocomplete="shipping postal-code" inputmode="numeric" maxlength="10" data-field="zip" aria-describedby="err-addr-zip">
+              </div>
+              <div class="row account-row">
+                <label class="col-md-4 col-form-label" for="addr-zip">ZIP</label>
+                <div class="col-md-8">
+                  <input class="form-control account-zip" type="text" id="addr-zip" name="zip" autocomplete="shipping postal-code" inputmode="numeric" maxlength="10" data-field="zip" aria-describedby="err-addr-zip">
                   <div class="invalid-feedback" id="err-addr-zip" data-error-for="zip"></div>
                 </div>
-                <div class="col-md-7">
-                  <label class="form-label" for="addr-cooler">Where will we find your cooler?</label>
+              </div>
+              <div class="row account-row">
+                <label class="col-md-4 col-form-label" for="addr-cooler">Where will we find your cooler?</label>
+                <div class="col-md-8">
                   <input class="form-control" type="text" id="addr-cooler" name="cooler" data-field="cooler">
                 </div>
-                <div class="col-md-5">
-                  <label class="form-label" for="addr-gate">Gate or keypad code <span class="text-body-secondary">(optional)</span></label>
+              </div>
+              <div class="row account-row">
+                <label class="col-md-4 col-form-label" for="addr-gate">Gate or keypad code <span class="text-body-secondary">(optional)</span></label>
+                <div class="col-md-8">
                   <input class="form-control" type="text" id="addr-gate" name="gate" autocomplete="off" data-field="gate">
                 </div>
-                <div class="col-12">
-                  <label class="form-label" for="addr-notes">Anything we should know about the drop-off? <span class="text-body-secondary">(optional)</span></label>
+              </div>
+              <div class="row account-row">
+                <label class="col-md-4 col-form-label" for="addr-notes">Anything we should know about the drop-off? <span class="text-body-secondary">(optional)</span></label>
+                <div class="col-md-8">
                   <textarea class="form-control" id="addr-notes" name="notes" rows="2" data-field="notes"></textarea>
                 </div>
               </div>

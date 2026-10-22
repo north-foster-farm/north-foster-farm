@@ -420,6 +420,33 @@
     &[data-save="failed"] {
       color: var(--bs-danger-text-emphasis);
     }
+
+    // Under the fields' column, beside nothing.
+    @include media-breakpoint-up(md) {
+      margin-left: calc((100% + var(--bs-gutter-x, 1.5rem)) / 3);
+    }
+
+    // On a phone the field being typed in is often far above the line,
+    // so it rides the screen's bottom edge while the form is in view
+    // (#303).
+    @include media-breakpoint-down(md) {
+      position: sticky;
+      bottom: 0;
+      z-index: 1;
+      margin-inline: -0.75rem;
+      padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom));
+      background-color: var(--bs-body-bg);
+
+      &[data-save="saving"],
+      &[data-save="saved"],
+      &[data-save="failed"] {
+        box-shadow: 0 -1px 0 var(--bs-border-color-translucent);
+      }
+    }
+  }
+
+  .account-zip {
+    max-width: 9rem;
   }
 
 
