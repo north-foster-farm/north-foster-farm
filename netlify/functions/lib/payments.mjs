@@ -29,6 +29,18 @@ export const paymentsOff = (env = process.env) =>
   && env.SQUARE_ENV !== "fake" && env.PAYPAL_ENV !== "fake"
   && !squareConfig(env) && !paypalConfig(env) && !env.SQUARE_ACCESS_TOKEN;
 
+// `bin/nff --no-email`: while on, no email goes to a customer, from
+// any command. The send is noted on the order as suppressed (history
+// `mail.suppressed.<key>`, `emails[key].suppressed`), so the jobs
+// never send it later. The farm's own notices are unaffected.
+let withheld = false;
+
+export const withholdCustomerEmail = (on = true) => {
+  withheld = on;
+};
+
+export const customerEmailWithheld = () => withheld;
+
 // Sends one templated email about an order and notes it on the order.
 // The recipient is the customer unless `to` says otherwise. Never
 // throws: a mail failure is logged and the order is left for the next
@@ -41,6 +53,20 @@ export const sendForOrder = async (stores, order, key, message, {
   to = order.customer.email,
   idempotencyKey = `${order.id}-${key}`,
 } = {}) => {
+  if (withheld && to === order.customer.email) {
+    const current = await getOrder(stores, order.id) || order;
+
+    // A send already noted keeps its time and Resend id.
+    if ((current.emails || {})[key]) return current;
+
+    return amendOrder(stores, order.id, {
+      emails: {
+        ...(current.emails || {}),
+        [key]: { at: now.toISOString(), suppressed: true },
+      },
+    }, `mail.suppressed.${key}`, now);
+  }
+
   try {
     const sent = await mail({
       to,

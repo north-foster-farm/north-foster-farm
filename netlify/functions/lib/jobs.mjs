@@ -48,9 +48,9 @@
 //   health      each run ends with invariant checks, a ledger line,
 //               alerts for what went wrong, and a heartbeat ping
 
-import terms from "../../../data/delivery.json" with { type: "json" };
+import terms from "./terms.mjs";
 import {
-  cutoffFor, dropCutoffFor,
+  cutoffFor, dropCutoffFor, siteCutoffFor, siteOf,
 } from "../../../assets/scripts/order/lib/dates.mjs";
 import {
   coverUntil, parseSchedule,
@@ -117,6 +117,11 @@ export const cutoffAt = (order) => {
 
   if (method === "delivery") return cutoffFor(date, terms);
   if (method === "scituate") return dropCutoffFor(date, terms);
+  if (method === "market") {
+    const site = siteOf(terms, method, order.fulfilment.site);
+
+    if (site) return siteCutoffFor(date, site, terms);
+  }
 
   return instant(date, 0, 0, tz);
 };

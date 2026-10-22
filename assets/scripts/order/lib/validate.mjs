@@ -3,12 +3,12 @@
 // money or dates is trusted.
 
 import { archived } from "./catalog.mjs";
-import { datesFor } from "./dates.mjs";
+import { datesFor, siteOf } from "./dates.mjs";
 import { moneyOn } from "./money-on.mjs";
 import { computeTotals, meetsMinimum } from "./totals.mjs";
 import { today } from "./zoned.mjs";
 
-export const METHODS = ["onfarm", "scituate", "delivery"];
+export const METHODS = ["onfarm", "scituate", "delivery", "market"];
 export const CONTACT = ["text", "call"];
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -78,13 +78,18 @@ export const findCode = (value, codes) => {
 // `held`, for a paid order being changed, is { [sku]: qty } of what it
 // already holds: a line that sold out or was archived since may keep
 // up to that many, and never gain (6305650920).
+// `farm` is the farm's own change from the CLI: it may book a market that
+// customers cannot choose yet (`customers` false in data/markets.json).
+// `kept` is the site the order already holds: the customer's own edit
+// may keep it, though no customer could choose it now; `keptDate` is
+// its day, likewise kept.
 // `waive.minimum` lets a delivery under the minimum through, and
 // `waive.fee` takes the delivery fee off: the caller has checked the
 // customer's pass (lib/passes.mjs, #182), and the order says it used
 // one in `flags.minimumWaived` and `totals.feeWaived`.
 export const validateOrder = (payload, {
   index, terms, now, group, codes, code, schedule = [], held = {},
-  waive = {}, placed = null,
+  waive = {}, placed = null, farm = false, kept = null, keptDate = null,
 }) => {
   const errors = {};
   const p = payload && typeof payload === "object" ? payload : {};
@@ -164,6 +169,17 @@ export const validateOrder = (payload, {
     errors["fulfilment.method"] = "Choose how you'd like to get your order.";
   }
 
+  // A market names its site, and customers reach only the sites open
+  // to them.
+  const siteId = method === "market" ? text(fulfilment.site, 40) : null;
+  const site = method === "market" ? siteOf(terms, method, siteId) : null;
+
+  const open = site && (farm || site.customers || siteId === kept);
+
+  if (method === "market" && !open) {
+    errors["fulfilment.site"] = "Choose where you'd like to pick up.";
+  }
+
   // The ZIP's status feeds the totals (an unlisted Rhode Island ZIP
   // adds the outside-area fee) before the delivery block reads it.
   const zipStatus = method === "delivery"
@@ -232,9 +248,16 @@ export const validateOrder = (payload, {
 
   // The chosen date must still be valid now, not when the page loaded.
   if (METHODS.includes(method)) {
-    const dates = datesFor(method, now, terms, schedule);
+    const dates = datesFor(method, now, terms, schedule, siteId,
+      farm);
     const date = text(fulfilment.date, 10);
-    const day = dates.find((d) => d.date === date);
+    // A day the farm booked beyond the usual list stays valid for the
+    // customer's own edit of that order, though not offered to choose.
+    const heldDay = method === "market" && siteId === kept
+      && date === keptDate
+      ? datesFor(method, now, terms, schedule, siteId, true) : [];
+    const day = dates.find((d) => d.date === date)
+      || heldDay.find((d) => d.date === date);
     // A pickup time the schedule no longer has is as stale as a closed
     // date: 409 with the fresh list, so the page can offer the rest.
     const gone = method === "onfarm" && day && out.onfarm.window
@@ -285,6 +308,7 @@ export const validateOrder = (payload, {
       fulfilment: {
         method,
         date: out.date || null,
+        ...siteId && { site: siteId },
         onfarm: out.onfarm || null,
         delivery: out.delivery || null,
       },

@@ -666,7 +666,8 @@ pay the next trip's fee, on the order page.
 `bin/nff orders change <id>` makes, for the customer and past the
 cutoff, any change they could make themselves, and one they cannot:
 the way they receive the order, with its address. Its flags are
-`--method onfarm|dropsite|delivery`, `--date`, `--window` (a pickup
+`--method onfarm|dropsite|market|delivery`, `--site` (the market's id,
+with `--method market`), `--date`, `--window` (a pickup
 time), `--address1`, `--address2`, `--town`, `--zip`, `--cooler`,
 `--gate`, `--delivery-notes`, `--phone`, `--contact`, `--notes` and
 `--key` (to retry one change safely). A new method or address goes
@@ -692,6 +693,43 @@ body. The CLI says so when the change set `squareOutOfSync`. Square's
 inventory is read only when a change adds items, so a farm change and
 `--dry-run` need no Square. `--dry-run` saves and sends nothing and
 prints the email.
+
+Market and pop-up pickup (#309) is a way to get an order like the
+drop site: functionally a drop site pickup at a public market. Its
+sites are the entries of `data/markets.json` that carry a `pickup`
+block (`id`, `customers`, and optionally `cutoffDaysBefore`,
+`cutoffHour`, `datesToOffer`). The place, hours and season are the
+entry's own, read by `pickupSites` (`lib/sites.mjs`) and merged into
+the terms as `markets` (`lib/terms.mjs`); the cutoff is the drop
+site's rule, the end of the day before. `customers: false` keeps a
+site off the order page and out of the public validator, so only the
+farm's `orders change --method market --site foster --date
+YYYY-MM-DD` books it (`farm: true` in `validateOrder`, which also
+offers every open day, not just the next few). The record is
+`fulfilment: { method: "market", site: "foster", date }`; `siteOf`
+in `dates.mjs` resolves a method and site to its rules, and
+`placeOf` in `describe.mjs` to its words, so emails, packing slips,
+the Square fulfilment note and the CLI summary read the site. The
+drop site stays method `scituate` with no `site`.
+
+`--no-email` is on every `bin/nff` command. It calls
+`withholdCustomerEmail` (`lib/payments.mjs`), after which
+`sendForOrder` sends the customer nothing and notes
+`emails[key].suppressed` and the history event
+`mail.suppressed.<key>` instead, so a job never sends it later; the
+address decision skips its email. The farm's own notices still go.
+A send already noted on the order is left as it was. `audience
+invite` sends nothing and lists the addresses as `withheld`;
+`breaker flush` refuses to run (`--dry-run` still works).
+`--no-email=false` is off. A customer editing a market order the
+farm booked keeps its site and day, though customers cannot choose
+that site; the days they are offered are the usual ones. `orders
+change --site` needs `--method market`, and `--window` is refused
+with it.
+`--dry-run` with it prints that nothing would be sent. The jobs treat
+a market order as a drop site order: no reminder, closed the day
+after its date, listed in the packing slips and the evening report
+under "Market pickup".
 
 A customer who cancels from the account page is refunded and
 cancelled at once (T1d), and the farm is emailed "Cancelled: <id>".

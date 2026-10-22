@@ -8,7 +8,7 @@ import { randomBytes } from "node:crypto";
 
 import avatars from "../../../data/avatars.json" with { type: "json" };
 import catalog from "../../../data/catalog.json" with { type: "json" };
-import terms from "../../../data/delivery.json" with { type: "json" };
+import terms from "./terms.mjs";
 import { indexCatalog } from "../../../assets/scripts/order/lib/catalog.mjs";
 import { datesFor } from "../../../assets/scripts/order/lib/dates.mjs";
 import {
@@ -251,7 +251,8 @@ export const planChange = (order, changes, { now, env, by = "customer" }) => {
   const f = JSON.parse(JSON.stringify(order.fulfilment));
   const method = f.method;
 
-  const allowed = datesFor(method, now, terms, pickupSchedule(env));
+  const allowed = datesFor(method, now, terms, pickupSchedule(env),
+    f.site, by === "farm");
 
   // After the customer's miss, another delivery day charges the fee
   // again (C1), which only the order page can take. Draft wording.

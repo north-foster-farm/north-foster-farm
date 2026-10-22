@@ -62,7 +62,7 @@ export const PENDING = "packing/pending/";
 const printedKey = (id) => `${PRINTED}${id}`;
 
 // The order the slips stack in, within a day.
-const METHOD_ORDER = ["delivery", "scituate", "onfarm"];
+const METHOD_ORDER = ["delivery", "scituate", "market", "onfarm"];
 
 const hash = (...values) => createHash("sha256")
   .update(JSON.stringify(values)).digest("hex").slice(0, 16);

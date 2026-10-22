@@ -14,7 +14,9 @@ import { company } from "./company.mjs";
 import { DELIVERING } from "./health.mjs";
 import { devEmails, sendMail } from "./mail.mjs";
 import * as newsApi from "./news.mjs";
-import { recordRefund, sendForOrder } from "./payments.mjs";
+import {
+  customerEmailWithheld, recordRefund, sendForOrder,
+} from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
   OPEN, allCustomers, allOrders, amendOrder, answerQuestion, byEmailKey,
@@ -218,6 +220,8 @@ export const decideAddress = async (stores, email, decision, {
   });
 
   try {
+    if (customerEmailWithheld()) return saved;
+
     await mail({
       to: saved.email,
       idempotencyKey: `address-${decision}-${now.getTime()}`,

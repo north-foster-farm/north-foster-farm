@@ -22,7 +22,7 @@
 // same edit and never charges or refunds twice.
 
 import catalog from "../../../data/catalog.json" with { type: "json" };
-import terms from "../../../data/delivery.json" with { type: "json" };
+import terms from "./terms.mjs";
 import discountCodes from "../../../data/discount-codes.json" with {
   type: "json",
 };
@@ -92,6 +92,9 @@ export const payloadFor = (order, body = {}) => {
     fulfilment: {
       method,
       date: next.date || (same ? f.date : null),
+      ...(next.site || (same && f.site)) && {
+        site: next.site || f.site,
+      },
       onfarm: { ...old("onfarm"), ...(next.onfarm || {}) },
       delivery: { ...old("delivery"), ...(next.delivery || {}) },
     },
@@ -145,6 +148,7 @@ export const creditOn = (order) => heldOn(order) - keptFee(order);
 // order, next, change } or a failure shaped like the order endpoint's.
 export const planEdit = async (stores, order, body, {
   now, index, terms, codes, group, validate, schedule, env, hold = false,
+  farm = false,
 }) => {
   if (hold) {
     index = new Map(index);
@@ -160,6 +164,10 @@ export const planEdit = async (stores, order, body, {
   // used up by this order.
   const result = validate(payloadFor(order, body), {
     index, terms, now, group, codes, schedule, placed: order.submittedAt,
+    farm,
+    kept: order.fulfilment.method === "market" ? order.fulfilment.site
+      : null,
+    keptDate: order.fulfilment.date,
     held: Object.fromEntries(order.lines.map((l) => [l.sku, l.qty])),
     waive: {
       minimum: !!order.pass,
@@ -186,7 +194,8 @@ export const planEdit = async (stores, order, body, {
     }, { totals: next.totals });
   }
 
-  const switched = next.fulfilment.method !== order.fulfilment.method;
+  const switched = next.fulfilment.method !== order.fulfilment.method
+    || (next.fulfilment.site || null) !== (order.fulfilment.site || null);
 
   change.difference = next.totals.total - creditOn(order);
   change.switched = switched;
@@ -742,6 +751,7 @@ export const farmEdit = async (stores, id, body, {
   const links = mailLinks(env);
   const orderUrl = orderUrlFor(env, id);
   const structural = (f.method && f.method !== order.fulfilment.method)
+    || (f.site !== undefined && f.site !== order.fulfilment.site)
     || ["address1", "address2", "town", "zip"].some((k) => d[k] !== undefined);
   // A flag the change itself set, for the CLI to say.
   const outOfSync = (after) => !!(after.flags || {}).squareOutOfSync
@@ -810,7 +820,7 @@ export const farmEdit = async (stores, id, body, {
     { ...b, claimedTotal }, {
       now, index, terms, codes: discountCodes.codes, hold: true,
       group: (cust && cust.discountGroup) || null, validate: validateOrder,
-      schedule: pickupSchedule(env), env,
+      schedule: pickupSchedule(env), env, farm: true,
     });
   let planned = await plan(undefined);
 

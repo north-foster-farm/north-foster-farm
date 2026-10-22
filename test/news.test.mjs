@@ -8,6 +8,9 @@ import {
   subscribe, syncAudience, unsubscribe,
 } from "../netlify/functions/lib/news.mjs";
 import {
+  withholdCustomerEmail,
+} from "../netlify/functions/lib/payments.mjs";
+import {
   getCustomer, saveCustomer,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
@@ -241,6 +244,7 @@ describe("the invitation of an old list", () => {
         invited: ["new@example.com"],
         skipped: ["in@example.com"],
         invalid: ["not an address"],
+        withheld: [],
       });
       assert.equal(sent.length, 1);
       assert.equal(sent[0].to, "new@example.com");
@@ -253,6 +257,26 @@ describe("the invitation of an old list", () => {
 
       assert.deepEqual(dry.invited, ["x@y.co"]);
       assert.equal(sent.length, 1, "a dry run sends nothing");
+    });
+
+  it("sends no invitation under --no-email, and lists who it held",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+
+      withholdCustomerEmail();
+
+      try {
+        const report = await inviteSubscribers(stores, [
+          { email: "new@example.com" },
+        ], { now, env, mail });
+
+        assert.deepEqual(report.withheld, ["new@example.com"]);
+        assert.deepEqual(report.invited, []);
+        assert.equal(sent.length, 0);
+      } finally {
+        withholdCustomerEmail(false);
+      }
     });
 
   it("reads a CSV with or without a header", () => {

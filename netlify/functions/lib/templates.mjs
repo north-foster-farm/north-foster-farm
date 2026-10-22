@@ -15,15 +15,16 @@
 // the row leaves it out.
 
 import accounts from "../../../data/accounts.json" with { type: "json" };
-import terms from "../../../data/delivery.json" with { type: "json" };
+import terms from "./terms.mjs";
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import {
   addDays, dayName, label, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { GUIDE, RUNBOOK_ALERTS } from "./alerts-guide.mjs";
+import { siteOf } from "../../../assets/scripts/order/lib/dates.mjs";
 import { company } from "./company.mjs";
 import {
-  between, methodName, packetCounts, pickupWindow, streetAddress,
+  between, methodName, packetCounts, pickupWindow, placeOf, streetAddress,
 } from "./describe.mjs";
 import { now as clock } from "./clock.mjs";
 import { currentOptIn, keptFee, paymentsOf } from "./records.mjs";
@@ -361,10 +362,10 @@ const orderType = (order) => {
       `Arrives: ${when}, between ${between(terms.delivery.window)}`,
       `Address: ${streetAddress(f.delivery)}`,
     ]
-    : f.method === "scituate"
+    : f.method === "scituate" || f.method === "market"
       ? [
-        `When: ${when}, between ${between(terms.scituate.window)}`,
-        `Where: ${terms.scituate.location}`,
+        `When: ${when}, between ${between(placeOf(order).window)}`,
+        `Where: ${placeOf(order).place}`,
       ]
       : [
         `When: ${when}, ${pickupWindow(order)}`,
@@ -1887,6 +1888,7 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
   const by = (method) => orders.filter((o) => o.fulfilment.method === method);
   const deliveries = by("delivery");
   const drops = by("scituate");
+  const markets = by("market");
   const farm = by("onfarm");
   const blocks = [];
   const who = (o) => `${o.customer.name || o.customer.email}${
@@ -1926,6 +1928,11 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
     for (const o of drops) {
       blocks.push(p(`**${o.id}**, ${who(o)}, ${state(o)}`), tree([pack(o)]));
     }
+  }
+  for (const o of markets) {
+    blocks.push(heading(`Market pickup, ${placeOf(o).place}, ${
+      placeOf(o).window}`));
+    blocks.push(p(`**${o.id}**, ${who(o)}, ${state(o)}`), tree([pack(o)]));
   }
   if (farm.length) {
     blocks.push(heading(`On-farm pickups (${farm.length})`));
@@ -2035,7 +2042,15 @@ export const farmChangedAfterPrint = (entry, { date, links } = {}) => {
 };
 
 // A short line for the CLI and logs.
+const siteSuffix = (order) => {
+  const site = siteOf(terms, order.fulfilment.method, order.fulfilment.site);
+
+  return site && order.fulfilment.method === "market"
+    ? ` (${site.name})` : "";
+};
+
 export const summaryLine = (order) =>
   `${order.id} ${order.status} ${dollars(order.totals.total)} ` +
-  `${methodName(order.fulfilment.method)} ${order.fulfilment.date} ` +
+  `${methodName(order.fulfilment.method)}${siteSuffix(order)} ` +
+  `${order.fulfilment.date} ` +
   `${order.customer.email}`;

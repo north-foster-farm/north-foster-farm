@@ -39,6 +39,48 @@ export const cutoffFor = (iso, terms) =>
 export const dropCutoffFor = (iso, terms) =>
   cutoffOf(iso, terms.scituate, terms.timeZone);
 
+// The pickup site an order names. The drop site is `scituate`, the
+// one every stored order of that method means; a market is one of
+// `terms.markets`, named by the order's `fulfilment.site`. -> the site
+// (its id added) or null for a way that has none.
+export const siteOf = (terms, method, siteId) => {
+  if (method === "scituate") return { id: "scituate", ...terms.scituate };
+
+  const found = method === "market"
+    && (terms.markets || []).find((m) => m.id === siteId);
+
+  return found || null;
+};
+
+// A site's cutoff for one of its days, by its own rules.
+export const siteCutoffFor = (iso, site, terms) =>
+  cutoffOf(iso, site, terms.timeZone);
+
+// The next days of a site on or after its start whose cutoff has not
+// passed (inclusive, as for delivery), up to its `end` when it has one.
+export const siteDates = (now, terms, site, count) => {
+  const wanted = count || site.datesToOffer;
+  const { start, weekday: day } = site;
+  const current = today(now, terms.timeZone);
+  const out = [];
+  let d = current > start ? current : start;
+
+  for (let i = 0; out.length < wanted && i < 120; i++) {
+    if (weekday(d) === day && !isHoliday(d, terms)
+      && (!site.end || d <= site.end)) {
+      const cutoff = siteCutoffFor(d, site, terms);
+
+      if (now.getTime() <= cutoff.getTime()) {
+        out.push(entry(d, { cutoff: cutoff.toISOString() }));
+      }
+    }
+
+    d = addDays(d, 1);
+  }
+
+  return out;
+};
+
 // The next delivery Thursdays whose cutoff has not passed. The cutoff
 // itself is inclusive: an order at exactly 12:00:00 still makes it.
 export const deliveryDates = (now, terms, count) => {
@@ -92,5 +134,14 @@ export const allDates = (now, terms, schedule) => ({
   delivery: deliveryDates(now, terms),
 });
 
-export const datesFor = (method, now, terms, schedule) =>
-  allDates(now, terms, schedule)[method] || [];
+// `all` lists a market's every open day, not just the next few: the
+// farm's own booking.
+export const datesFor = (method, now, terms, schedule, siteId, all) => {
+  if (method === "market") {
+    const site = siteOf(terms, method, siteId);
+
+    return site ? siteDates(now, terms, site, all ? 60 : undefined) : [];
+  }
+
+  return allDates(now, terms, schedule)[method] || [];
+};

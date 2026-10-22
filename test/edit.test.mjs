@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { after, describe, it } from "node:test";
 
 import { handle as placeOrder } from "../netlify/functions/orders.mjs";
 import { rescueCheckout } from "../netlify/functions/lib/checkout.mjs";
 import {
   diffLines, editOrder, farmEdit, finishEditVenmo,
 } from "../netlify/functions/lib/edit.mjs";
-import { cancelOrder } from "../netlify/functions/lib/account.mjs";
+import {
+  cancelOrder, changeOrder, planChange,
+} from "../netlify/functions/lib/account.mjs";
 import {
   amendOrder, getCheckout, getOrder, paymentsOf,
 } from "../netlify/functions/lib/records.mjs";
@@ -14,6 +16,12 @@ import { buildChangeOrder } from "../netlify/functions/lib/square.mjs";
 import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
+import terms from "../netlify/functions/lib/terms.mjs";
+import { validateOrder } from "../assets/scripts/order/lib/validate.mjs";
+import {
+  notifyFarm, sendForOrder, withholdCustomerEmail,
+} from "../netlify/functions/lib/payments.mjs";
+import { summaryLine } from "../netlify/functions/lib/templates.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import { AFTERNOON, MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
@@ -752,6 +760,264 @@ describe("farmEdit", () => {
       assert.ok(calls.some((c) => c[0] === "updateFulfilment"
         && c[2] === "2026-10-08"));
       assert.deepEqual(sent.map((m) => m.subject), ["Your order is updated"]);
+    });
+
+  it("moves a pickup to a market site, and Square follows", async () => {
+    const { stores, id } = await placed();
+    const { square, calls } = fakeSquare();
+    const { sent, mail } = outbox();
+    const result = await farmEdit(stores, id, {
+      fulfilment: { method: "market", site: "foster", date: "2026-10-25" },
+    }, opts(square, mail));
+
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+
+    const saved = await getOrder(stores, id);
+
+    assert.equal(saved.fulfilment.method, "market");
+    assert.equal(saved.fulfilment.site, "foster");
+    assert.equal(saved.fulfilment.date, "2026-10-25");
+    assert.ok(calls.some((c) => c[0] === "cancelFulfilment"));
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].text, /Foster Farmers Market/);
+    assert.match(summaryLine(saved), /Market pickup \(Foster Farmers Market\)/);
+  });
+
+  it("refuses a market the schedule or the data lacks", async () => {
+    const { stores, id } = await placed();
+    const { square } = fakeSquare();
+    const { sent, mail } = outbox();
+    const monday = await farmEdit(stores, id, {
+      fulfilment: { method: "market", site: "foster", date: "2026-10-26" },
+    }, opts(square, mail));
+    const nowhere = await farmEdit(stores, id, {
+      fulfilment: { method: "market", site: "nope", date: "2026-10-25" },
+    }, opts(square, mail));
+
+    assert.equal(monday.ok, false);
+    assert.equal(monday.errors["fulfilment.date"],
+      "That date is no longer available.");
+    assert.equal(nowhere.ok, false);
+    assert.ok(nowhere.errors["fulfilment.site"]);
+    assert.equal((await getOrder(stores, id)).fulfilment.method, "onfarm");
+    assert.equal(sent.length, 0);
+  });
+
+  it("sends the customer nothing when withheld, and says so", async () => {
+    const { stores, id } = await placed();
+    const { square, calls } = fakeSquare();
+    const { sent, mail } = outbox();
+
+    withholdCustomerEmail();
+    after(() => withholdCustomerEmail(false));
+
+    const result = await farmEdit(stores, id, {
+      fulfilment: { method: "market", site: "foster", date: "2026-10-25" },
+    }, opts(square, mail));
+
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+
+    const saved = await getOrder(stores, id);
+
+    assert.equal(sent.length, 0);
+    assert.ok(saved.history.some((h) => h.event.startsWith(
+      "mail.suppressed.orderChanged-")));
+    assert.equal(saved.emails[`orderChanged-${saved.edits[0].key}`]
+      .suppressed, true);
+    assert.ok(calls.some((c) => c[0] === "cancelFulfilment"));
+
+    const later = await farmEdit(stores, id, {
+      fulfilment: { date: "2026-10-18" },
+    }, opts(square, mail));
+    const final = await getOrder(stores, id);
+
+    assert.equal(later.ok, true, JSON.stringify(later.errors));
+    assert.equal(final.fulfilment.date, "2026-10-18");
+    assert.equal(sent.length, 0);
+    assert.equal(final.history.filter((h) => h.event.startsWith(
+      "mail.suppressed.")).length, 2);
+    withholdCustomerEmail(false);
+  });
+
+  it("still tells the farm of a customer's own change", async () => {
+    const { stores, id } = await placed();
+    const order = await getOrder(stores, id);
+    const { sent, mail } = outbox();
+
+    withholdCustomerEmail();
+    after(() => withholdCustomerEmail(false));
+    await notifyFarm(stores, order, "farmTest", { subject: "x", text: "x" },
+      { mail, env, now });
+    await sendForOrder(stores, order, "orderTest",
+      { subject: "x", text: "x" }, { mail, env, now });
+    withholdCustomerEmail(false);
+
+    assert.deepEqual(sent.map((m) => m.to), [["farm@example.com"]]);
+  });
+
+  it("keeps the note of a send already made when one is withheld",
+    async () => {
+      const { stores, id } = await placed();
+      const { mail } = outbox();
+      const order = await getOrder(stores, id);
+
+      await sendForOrder(stores, order, "orderTest",
+        { subject: "x", text: "x" }, { mail, env, now });
+
+      const first = (await getOrder(stores, id)).emails.orderTest;
+
+      withholdCustomerEmail();
+      try {
+        await sendForOrder(stores, order, "orderTest",
+          { subject: "x", text: "x" }, { mail, env, now });
+      } finally {
+        withholdCustomerEmail(false);
+      }
+
+      const saved = await getOrder(stores, id);
+
+      assert.deepEqual(saved.emails.orderTest, first);
+      assert.equal(saved.emails.orderTest.suppressed, undefined);
+    });
+
+  it("plans a quiet change without saving", async () => {
+    const { stores, id } = await placed();
+    const { square } = fakeSquare();
+    const { sent, mail } = outbox();
+    const result = await farmEdit(stores, id, {
+      fulfilment: { method: "market", site: "foster", date: "2026-10-25" },
+    }, opts(square, mail, { dryRun: true }));
+
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    assert.equal(result.dryRun, true);
+    assert.equal((await getOrder(stores, id)).fulfilment.method, "onfarm");
+    assert.equal(sent.length, 0);
+  });
+
+  it("refuses a market to a customer", async () => {
+    const payload = validateOrder({
+      customer: { firstName: "A", lastName: "B", email: "a@b.co",
+        contact: "text" },
+      fulfilment: { method: "market", site: "foster", date: "2026-10-25" },
+      lines: [],
+    }, { index: new Map(), terms, now });
+
+    assert.equal(payload.ok, false);
+    assert.ok(payload.errors["fulfilment.site"]);
+  });
+
+  describe("a market order the farm booked", () => {
+    const booked = async () => {
+      const { stores, id } = await placed();
+      const { square } = fakeSquare();
+      const { mail } = outbox();
+      const r = await farmEdit(stores, id, {
+        fulfilment: { method: "market", site: "foster", date: "2026-10-25" },
+      }, opts(square, mail));
+
+      assert.equal(r.ok, true, JSON.stringify(r.errors));
+
+      return { stores, id, square };
+    };
+
+    it("lets the customer change a note", async () => {
+      const { stores, id } = await booked();
+      const r = await changeOrder(stores, customer, id,
+        { notes: "Leave the eggs for last" },
+        { now, env, mail: async () => ({}), square: {
+          updateFulfilment: async () => ({}) } });
+
+      assert.equal(r.ok, true, JSON.stringify(r.errors));
+
+      const saved = await getOrder(stores, id);
+
+      assert.equal(saved.fulfilment.method, "market");
+      assert.equal(saved.fulfilment.site, "foster");
+      assert.equal(saved.notes, "Leave the eggs for last");
+    });
+
+    it("lets the customer lower a quantity", async () => {
+      const { stores, id, square } = await booked();
+      const r = await edit(stores, id, {
+        idempotencyKey: editKey(), lines: [{ sku: SKU, qty: 1 }],
+      }, square);
+
+      assert.equal(r.ok, true, JSON.stringify(r.errors));
+
+      const saved = await getOrder(stores, id);
+
+      assert.equal(saved.lines[0].qty, 1);
+      assert.equal(saved.fulfilment.site, "foster");
+    });
+
+    it("lets the customer move to another market day", async () => {
+      const { stores, id, square } = await booked();
+      const r = await edit(stores, id, {
+        idempotencyKey: editKey(), fulfilment: { date: "2026-10-18" },
+      }, square);
+
+      assert.equal(r.ok, true, JSON.stringify(r.errors));
+      assert.equal((await getOrder(stores, id)).fulfilment.date,
+        "2026-10-18");
+    });
+
+    it("does not let a customer book the site on another order",
+      async () => {
+        const { stores, id } = await placed();
+        const { square } = fakeSquare();
+        const r = await edit(stores, id, {
+          idempotencyKey: editKey(),
+          fulfilment: { method: "market", site: "foster",
+            date: "2026-10-25" },
+        }, square);
+
+        assert.equal(r.ok, false);
+        assert.ok(r.errors["fulfilment.site"]);
+      });
+
+    it("offers the customer only the usual days", async () => {
+      const { stores, id } = await booked();
+      const order = await getOrder(stores, id);
+      const other = { ...order, fulfilment: {
+        ...order.fulfilment, date: "2026-10-18" } };
+      const mine = planChange(other, { date: "2026-10-25" },
+        { now, env });
+      const farm = planChange(other, { date: "2026-10-25" },
+        { now, env, by: "farm" });
+
+      assert.equal(mine.errors.date, "That date isn't available.");
+      assert.equal(farm.errors, undefined);
+    });
+  });
+
+  it("refuses a delivery moved to a market: the fee is money back",
+    async () => {
+      const { stores, id } = await placed();
+      const { square } = fakeSquare();
+      const { sent, mail } = outbox();
+
+      await edit(stores, id, {
+        idempotencyKey: editKey(),
+        fulfilment: {
+          method: "delivery", date: "2026-10-08",
+          delivery: {
+            address1: "1 Main St", town: "Foster", zip: "02825",
+            cooler: "Porch",
+          },
+        },
+        payment: { method: "card", sourceId: "cnon:tok" },
+      }, square);
+
+      const r = await farmEdit(stores, id, {
+        fulfilment: { method: "market", site: "foster",
+          date: "2026-10-25" },
+      }, opts(square, mail));
+
+      assert.equal(r.ok, false);
+      assert.match(r.errors.payment, /takes \$\d+ off the order/);
+      assert.equal((await getOrder(stores, id)).fulfilment.method,
+        "delivery");
+      assert.equal(sent.length, 0);
     });
 
   it("refuses with the customer's messages", async () => {

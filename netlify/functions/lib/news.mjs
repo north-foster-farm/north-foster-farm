@@ -18,6 +18,7 @@ import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
 import { allCustomers, getCustomer, saveCustomer } from "./records.mjs";
+import { customerEmailWithheld } from "./payments.mjs";
 import { mailLinks, siteUrl } from "./site.mjs";
 import { newsConfirm, newsWelcome } from "./templates.mjs";
 import accounts from "../../../data/accounts.json" with { type: "json" };
@@ -336,14 +337,16 @@ export const confirmSubscribe = async (stores, token, {
 
 // The re-opt-in of an existing list: the confirmation email to each
 // address, once. Addresses already consenting are skipped, bad
-// ones reported. -> { invited, skipped, invalid }.
+// ones reported. With `bin/nff --no-email` nothing is sent and the
+// addresses that would have been invited are listed as withheld.
+// -> { invited, skipped, invalid, withheld }.
 export const inviteSubscribers = async (stores, rows, {
   now = clock(),
   env = process.env,
   mail = sendMail,
   dryRun = false,
 } = {}) => {
-  const report = { invited: [], skipped: [], invalid: [] };
+  const report = { invited: [], skipped: [], invalid: [], withheld: [] };
 
   for (const row of rows) {
     const address = normalizeEmail(row.email);
@@ -357,6 +360,10 @@ export const inviteSubscribers = async (stores, rows, {
 
     if (existing && existing.marketing === true) {
       report.skipped.push(address);
+      continue;
+    }
+    if (customerEmailWithheld()) {
+      report.withheld.push(address);
       continue;
     }
     if (!dryRun) {

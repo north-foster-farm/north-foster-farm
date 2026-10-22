@@ -2,10 +2,11 @@
 // the emails, the packing slips and the account pages so everyone
 // reads the same words everywhere.
 
-import terms from "../../../data/delivery.json" with { type: "json" };
+import terms from "./terms.mjs";
 import {
   pickupTimes, windowLabel,
 } from "../../../assets/scripts/order/lib/schedule.mjs";
+import { siteOf } from "../../../assets/scripts/order/lib/dates.mjs";
 import { company } from "./company.mjs";
 
 // "10:00 AM – 4:00 PM" -> "10 AM and 4 PM", for "between ... and ...".
@@ -15,6 +16,7 @@ export const between = (window) =>
 export const methodName = (method) => ({
   delivery: "Delivery",
   scituate: "Drop site",
+  market: "Market pickup",
   onfarm: "On-farm pickup",
 }[method] || method);
 
@@ -78,6 +80,13 @@ export const placeOf = (order) => {
     scituate: () => ({
       window: hours(terms.scituate.window), place: terms.scituate.location,
     }),
+    market: () => {
+      const site = siteOf(terms, "market", f.site);
+
+      return site
+        ? { window: hours(site.window), place: site.location }
+        : { window: "", place: "" };
+    },
     onfarm: () => ({ window: pickupWindow(order), place: FARM }),
   }[f.method];
 

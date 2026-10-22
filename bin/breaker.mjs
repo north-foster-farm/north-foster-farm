@@ -9,6 +9,9 @@ import {
   declare, flush, incidentReport, reset, status,
 } from "../netlify/functions/lib/breaker.mjs";
 import { sendMail } from "../netlify/functions/lib/mail.mjs";
+import {
+  customerEmailWithheld,
+} from "../netlify/functions/lib/payments.mjs";
 
 export const USAGE = `  bin/nff breaker status [--production]
                                       tripped or not, this hour's and
@@ -97,6 +100,11 @@ export const breakerCommand = async (action, {
     return out(`${r.unsent} held emails wait for: bin/nff breaker flush`);
   }
   case "flush": {
+    if (customerEmailWithheld() && !flags["dry-run"]) {
+      throw new Error("A flush sends held customer email, so it won't " +
+        "run with --no-email. Drop the flag, or use --dry-run.");
+    }
+
     const r = await flush(stores, (m) => sendMail(m, { stores }), {
       now, dryRun: !!flags["dry-run"],
     });

@@ -33,6 +33,11 @@ import { USAGE as PROMOTE_USAGE, promoteCommand } from "./promote.mjs";
 import { USAGE as SUPPLY_USAGE, supplyCommand } from "./supply/waive.mjs";
 
 const USAGE = `Usage:
+  Any command takes --no-email: it does its work but sends no customer
+  an email (an order's notice, a cancellation, a refund, an address
+  decision). Each unsent email is noted on the order as suppressed
+  (history mail.suppressed.<name>), so the jobs never send it later.
+  The farm's own notices still go.
   bin/nff customers list
   bin/nff customers show <email>
   bin/nff customers set <email> name=.. phone=.. group=friends|none
@@ -95,7 +100,8 @@ const USAGE = `Usage:
                                       their own miss that kept the fee:
                                       they pay it again on the order
                                       page
-  bin/nff orders change <id> [--method onfarm|dropsite|delivery]
+  bin/nff orders change <id> [--method onfarm|dropsite|market|delivery]
+                             [--site <id>]
                              [--date YYYY-MM-DD] [--window <id>]
                              [--address1 ... --address2 ... --town ...
                              --zip ...] [--cooler ...] [--gate ...]
@@ -122,7 +128,11 @@ const USAGE = `Usage:
                                       key whose change is done succeeds
                                       and applies nothing new).
                                       --dry-run saves and sends
-                                      nothing and prints the email
+                                      nothing and prints the email.
+                                      --method market needs --site
+                                      (a market in data/delivery.json)
+                                      and a --date its schedule has.
+                                      --no-email: see below
   bin/nff orders fulfil <id>
   bin/nff orders delete <id>
   bin/nff passes issue [--email <email>] [--days 14] [--note "..."]
@@ -330,6 +340,7 @@ const [
   square,
   { checkRefunds },
   { farmEdit },
+  { customerEmailWithheld, withholdCustomerEmail },
 ] = await Promise.all([
   import("../data/delivery.json", { with: { type: "json" } }),
   import("../netlify/functions/lib/admin.mjs"),
@@ -353,6 +364,7 @@ const [
   import("../netlify/functions/lib/square-pause.mjs"),
   import("../netlify/functions/lib/settle.mjs"),
   import("../netlify/functions/lib/edit.mjs"),
+  import("../netlify/functions/lib/payments.mjs"),
 ]);
 
 // --scratch: development's env, but stores of their own
@@ -381,7 +393,7 @@ const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
   "to", "waive", "detail", "reason-text", "sha", "deploy", "label",
   "out", "count", "hours", "advisory", "file", "email", "days", "method",
   "date", "window", "phone", "contact", "address1", "address2", "town",
-  "zip", "cooler", "gate", "delivery-notes", "notes", "key"];
+  "zip", "cooler", "gate", "delivery-notes", "notes", "key", "site"];
 const args = process.argv.slice(2);
 
 for (let i = 0; i < args.length; i += 1) {
@@ -398,6 +410,13 @@ for (let i = 0; i < args.length; i += 1) {
   } else {
     flags[m[1]] = true;
   }
+}
+
+// --no-email, on any command: no customer is sent an email (an order's
+// notice, an address decision, a refund's). Each send is noted on the
+// order as suppressed; the farm's own notices still go.
+if (flags["no-email"] && flags["no-email"] !== "false") {
+  withholdCustomerEmail();
 }
 
 const [group, action, ...rest] = words;
@@ -993,6 +1012,7 @@ const run = async () => {
       .filter(([, v]) => v !== undefined));
     const method = given("method") === "dropsite" ? "scituate"
       : given("method");
+    const site = given("site");
     const onfarm = pick({ window: given("window") });
     const delivery = pick({
       address1: given("address1"), address2: given("address2"),
@@ -1004,7 +1024,7 @@ const run = async () => {
     });
     const body = pick({
       fulfilment: pick({
-        method, date: given("date"),
+        method, site, date: given("date"),
         onfarm: Object.keys(onfarm).length ? onfarm : undefined,
         delivery: Object.keys(delivery).length ? delivery : undefined,
       }),
@@ -1013,10 +1033,16 @@ const run = async () => {
     });
 
     if (!rest[0]) throw new Error("Which order? orders change <id> ...");
+    if (site !== undefined && method !== "market") {
+      throw new Error("--site needs --method market.");
+    }
+    if (method === "market" && onfarm.window !== undefined) {
+      throw new Error("--window is for on-farm pickup, not --method market.");
+    }
     if (!Object.keys(body.fulfilment).length && !body.customer
       && body.notes === undefined) {
       throw new Error("Nothing to change. Give --method, --date, " +
-        "--window, an address, --cooler, --gate, --phone or --notes.");
+        "--site, --window, an address, --cooler, --gate, --phone or --notes.");
     }
 
     const r = await farmEdit(stores, rest[0], body, {
@@ -1029,6 +1055,11 @@ const run = async () => {
     }
     if (r.dryRun) {
       out(summaryLine(r.order));
+      if (customerEmailWithheld()) {
+        return out("--dry-run: nothing saved or sent. With --no-email the " +
+          "customer would get nothing.");
+      }
+
       out(`--dry-run: nothing saved or sent. The customer would get:\n`);
       out(`Subject: ${r.email.subject}\n\n${r.email.text}`);
 

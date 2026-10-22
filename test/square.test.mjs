@@ -10,6 +10,7 @@ import {
 import {
   KILL_SWITCH, deletionsPaused, readPause, setPause,
 } from "../netlify/functions/lib/square-pause.mjs";
+import { pickupSites } from "../assets/scripts/order/lib/sites.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 
 const env = {
@@ -232,6 +233,36 @@ describe("buildOrder", () => {
       o.service_charges.map((c) => [c.name, c.amount_money.amount]),
       [["Delivery fee", 500], ["Outside-area fee", 300]]
     );
+  });
+
+  it("schedules a market pickup at the site's opening", () => {
+    const at = (site) => buildOrder(order({
+      fulfilment: { method: "market", site, date: "2026-10-25",
+        onfarm: null },
+    }), "CUST", cfg).fulfillments[0].pickup_details;
+
+    assert.match(at("foster").pickup_at, /T13:00:00/);
+    assert.match(at("foster").note, /^Market pickup, Foster/);
+  });
+
+  it("does not call a market gone from the data on-farm", () => {
+    const note = buildOrder(order({
+      fulfilment: { method: "market", site: "gone", date: "2026-10-25",
+        onfarm: null },
+    }), "CUST", cfg).fulfillments[0].pickup_details.note;
+
+    assert.match(note, /^Market pickup, gone/);
+  });
+
+  it("reads an evening site's hour and minutes", () => {
+    const [site] = pickupSites([{
+      name: "Evening Market", where: "Somewhere", opens: "2026-06-01",
+      closes: "2026-08-31", when: "Wednesdays, 4:30 – 7:00 PM",
+      pickup: { id: "evening" },
+    }]);
+
+    assert.equal(site.opensHour, 16);
+    assert.equal(site.opensMinute, 30);
   });
 
   it("schedules an on-farm pickup at its window's start, New York " +

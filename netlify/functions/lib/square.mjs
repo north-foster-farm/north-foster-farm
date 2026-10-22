@@ -9,7 +9,7 @@
 // whole function, returns the object already created instead of a
 // duplicate.
 
-import terms from "../../../data/delivery.json" with { type: "json" };
+import terms from "./terms.mjs";
 import { company } from "./company.mjs";
 import {
   FAKE, FAKE_SDK_URLS, fakeAllowed, refusal,
@@ -20,6 +20,7 @@ import { MONEY_FLOOR_MS, timedFetch, timedOut } from "./http.mjs";
 import {
   pickupTimes, windowLabel,
 } from "../../../assets/scripts/order/lib/schedule.mjs";
+import { siteOf } from "../../../assets/scripts/order/lib/dates.mjs";
 import { instant } from "../../../assets/scripts/order/lib/zoned.mjs";
 
 const HOSTS = {
@@ -320,14 +321,18 @@ const fulfillment = (order) => {
 
   // A pickup's time is its window's start (W11d-D); the drop site's is
   // when it opens.
+  const site = siteOf(terms, f.method, f.site);
   const start = f.method === "onfarm"
     && (pickupTimes(f.onfarm) || { from: "09:00" }).from;
   const [hour, minute] = start
     ? start.split(":").map(Number)
-    : [terms.scituate.opensHour, 0];
-  const where = f.method === "scituate"
-    ? `Drop site, ${terms.scituate.location}`
-    : "On-farm pickup";
+    : [(site || terms.scituate).opensHour,
+      (site || terms.scituate).opensMinute || 0];
+  // A market gone from the data is not the farm: say which it was.
+  const where = site
+    ? `${f.method === "market" ? "Market pickup" : "Drop site"}, ${
+      site.location}`
+    : f.method === "market" ? `Market pickup, ${f.site}` : "On-farm pickup";
 
   return {
     type: "PICKUP",

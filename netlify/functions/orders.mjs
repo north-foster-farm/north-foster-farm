@@ -21,7 +21,7 @@
 import { createHash } from "node:crypto";
 
 import catalog from "../../data/catalog.json" with { type: "json" };
-import terms from "../../data/delivery.json" with { type: "json" };
+import terms from "./lib/terms.mjs";
 import discountCodes from "../../data/discount-codes.json" with {
   type: "json",
 };
