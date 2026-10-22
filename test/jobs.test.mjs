@@ -1017,6 +1017,25 @@ describe("Square profiles a failed checkout made (#236)", () => {
     assert.deepEqual(found.map((c) => c.deleted), [true]);
   });
 
+  it("a report run with the switch unset forgets no note, however old",
+    async () => {
+      const stores = testStores();
+      const square = fakeSquare();
+      const late = new Date(
+        placed.getTime() + MADE_CUSTOMER_KEEP + 60 * 60_000);
+
+      await note(stores, "OLD", "NFF-2610-OLDD");
+
+      const found = await sweepMadeCustomers(stores, {
+        env: squareEnv, now: late, square, remove: false,
+      });
+
+      assert.deepEqual(found.map((c) => c.deleted), [false]);
+      assert.equal((await noted(stores)).length, 1, "still noted");
+      assert.deepEqual(square.calls.filter((c) => c[0] === "deleteCustomer"),
+        []);
+    });
+
   it("runs once a day from 7:00, and the morning report says what it " +
     "found", async () => {
     const stores = testStores();

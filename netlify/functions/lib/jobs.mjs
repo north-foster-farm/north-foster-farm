@@ -525,7 +525,8 @@ export const sweepMadeCustomers = async (stores, {
 } = {}) => {
   if (!env.SQUARE_ACCESS_TOKEN || !env.SQUARE_LOCATION_ID) return null;
 
-  const remove = asked ?? !(await deletionsPaused(stores, env));
+  const paused = await deletionsPaused(stores, env);
+  const remove = asked ?? !paused;
   let tries = 0;
 
   const cutoff = now.getTime() - MADE_CUSTOMER_GRACE;
@@ -533,7 +534,9 @@ export const sweepMadeCustomers = async (stores, {
 
   for (const made of await listMadeCustomers(stores)) {
     if (!(Date.parse(made.at) < cutoff)) continue;
-    if (!remove
+    // Only the switch ages a note out: a report run (remove false, the
+    // switch unset) forgets nothing the next real run would delete.
+    if (!remove && paused
       && Date.parse(made.at) < now.getTime() - MADE_CUSTOMER_KEEP) {
       await dropMadeCustomer(stores, made.customerId);
       continue;
