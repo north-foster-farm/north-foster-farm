@@ -351,6 +351,14 @@ describe("the monitoring emails", () => {
     has(left({ open: 2, cancelled: 0, paused: true }), "Failed payments " +
       "left 2 orders open in Square. The Square deletion kill switch is " +
       "set, so the sweep cancels nothing. To see them:");
+    // And for the profiles (#236): reported, never deleted.
+    has(left({ profiles: 1, deleted: 0, paused: true }), "Checkouts whose " +
+      "payment never went through made 1 customer profile in Square. The " +
+      "Square deletion kill switch is set, so the sweep deletes nothing. " +
+      "To see it:");
+    has(left({ profiles: 2, deleted: 2 }), "Checkouts whose payment never " +
+      "went through made 2 customer profiles in Square, and 2 were " +
+      "deleted. To see them:");
   });
 
   it("morning report: the messages not yet answered (#167)", () => {

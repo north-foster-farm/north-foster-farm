@@ -1032,6 +1032,14 @@ const run = async () => {
   }
   case "jobs customers": {
     const apply = !!flags.apply;
+    const paused = square.deletionsPaused();
+
+    // The kill switch stops a delete asked for here too (#236).
+    if (apply && paused) {
+      throw new Error(`${square.KILL_SWITCH} is set: the Square ` +
+        "cleanups are paused, so --apply deletes nothing. Unset it first.");
+    }
+
     const found = await sweepMadeCustomers(stores, { remove: apply });
 
     if (!found) return out("Square is not configured here.");
@@ -1041,8 +1049,10 @@ const run = async () => {
     }
 
     return out(`${found.length} profiles made for payments that never ` +
-      `went through.${apply ? "" : " This is only a report; --apply " +
-      "deletes them."}`);
+      `went through.${apply ? ""
+        : paused ? ` This is only a report: ${square.KILL_SWITCH} is set, ` +
+          "so the daily sweep deletes nothing."
+          : " This is only a report; --apply deletes them."}`);
   }
   case "jobs history": {
     const n = Number(flags.n) || 20;

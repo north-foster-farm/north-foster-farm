@@ -855,7 +855,7 @@ describe("Square profiles a failed checkout made (#236)", () => {
     .map((m) => m.customerId).sort();
 
   it("reports a profile whose payment never succeeded, and deletes " +
-    "nothing while the switch is off", async () => {
+    "nothing while the kill switch is set", async () => {
     const stores = testStores();
     const square = fakeSquare();
 
@@ -863,7 +863,7 @@ describe("Square profiles a failed checkout made (#236)", () => {
     await note(stores, "FRESH", "NFF-2610-FRSH", now);
 
     const found = await sweepMadeCustomers(stores, {
-      env: squareEnv, now, square,
+      env: { ...squareEnv, SQUARE_DELETION_KILL_SWITCH: "1" }, now, square,
     });
 
     assert.deepEqual(found, [{
@@ -896,7 +896,7 @@ describe("Square profiles a failed checkout made (#236)", () => {
     await note(stores, "RETRY", "NFF-2610-RTRY");
 
     const found = await sweepMadeCustomers(stores, {
-      env: { ...squareEnv, SQUARE_CUSTOMER_CLEANUP: "true" }, now, square,
+      env: squareEnv, now, square,
     });
 
     assert.deepEqual(found, []);
@@ -905,8 +905,9 @@ describe("Square profiles a failed checkout made (#236)", () => {
       "kept ones are settled; the retry is weighed again later");
   });
 
-  it("deletes them when SQUARE_CUSTOMER_CLEANUP is true, and reports a " +
-    "Square error as a job error, keeping the note", async () => {
+  it("deletes them with the kill switch unset (the default), and " +
+    "reports a Square error as a job error, keeping the note",
+  async () => {
     const stores = testStores();
     const square = fakeSquare({ fails: ["BAD"] });
 
@@ -914,8 +915,7 @@ describe("Square profiles a failed checkout made (#236)", () => {
     await note(stores, "BAD", "NFF-2610-BBBB");
 
     const r = await runJobs(stores, {
-      ...harness().opts, square, now, realNow: now,
-      env: { ...squareEnv, SQUARE_CUSTOMER_CLEANUP: "true" },
+      ...harness().opts, square, now, realNow: now, env: squareEnv,
     });
 
     assert.deepEqual(r.customersMade.map((c) => [c.customerId, c.deleted]),
@@ -931,25 +931,25 @@ describe("Square profiles a failed checkout made (#236)", () => {
     assert.equal(run.customersDeleted, 1);
   });
 
-  it("drops a note after 30 days while the switch is off, and keeps " +
-    "the profile", async () => {
+  it("with the kill switch set, deletes nothing, and drops a note " +
+    "after 30 days, keeping the profile", async () => {
     const stores = testStores();
     const square = fakeSquare();
     const late = new Date(placed.getTime() + MADE_CUSTOMER_KEEP + 60 * 60_000);
 
     await note(stores, "OLD", "NFF-2610-OLDD");
     assert.deepEqual(await sweepMadeCustomers(stores, {
-      env: squareEnv, now: late, square,
+      env: { ...squareEnv, SQUARE_DELETION_KILL_SWITCH: "1" }, now: late,
+      square,
     }), []);
     assert.deepEqual(await noted(stores), []);
     assert.deepEqual(square.calls, [], "nothing asked, nothing deleted");
 
-    // With the switch on, an old note is weighed and deleted as ever.
+    // With the switch unset, an old note is weighed and deleted.
     await note(stores, "OLD", "NFF-2610-OLDD");
 
     const found = await sweepMadeCustomers(stores, {
-      env: { ...squareEnv, SQUARE_CUSTOMER_CLEANUP: "true" }, now: late,
-      square,
+      env: squareEnv, now: late, square,
     });
 
     assert.deepEqual(found.map((c) => c.deleted), [true]);
@@ -981,7 +981,8 @@ describe("Square profiles a failed checkout made (#236)", () => {
     const [report] = sent.filter((m) => /Morning report/.test(m.subject));
 
     assert.ok(report.text.includes("Checkouts whose payment never went " +
-      "through made 1 customer profile in Square. To see it:"), report.text);
+      "through made 1 customer profile in Square, and 1 was deleted. " +
+      "To see it:"), report.text);
     assert.match(report.text, /\n {4}bin\/nff jobs customers\n/);
   });
 

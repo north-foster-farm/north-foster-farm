@@ -456,8 +456,8 @@ touched.
 Unset, as it is by default, the automatic Square cleanups run: this
 sweep's cancelling and the deletion of the customer profiles a failed
 checkout made (#236). Set to any value, both stop at once and only
-report: the morning report and `bin/nff jobs square` say the switch
-is set, and `--apply` refuses. It is the fail-safe for when automatic
+report: the morning report, `bin/nff jobs square` and `bin/nff jobs
+customers` say the switch is set, and `--apply` refuses. It is the fail-safe for when automatic
 changes to Square must stop. Any code that deletes or cancels records
 in Square on its own must check it (`deletionsPaused` in
 `netlify/functions/lib/square.mjs`).

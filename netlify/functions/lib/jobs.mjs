@@ -490,10 +490,11 @@ export const sweepSquareOrders = async (stores, {
 // now) leaves it for a later run, as does a retry of the same order,
 // which notes it again and so restarts the day. A
 // profile that was found rather than made is never noted, so never
-// weighed. Otherwise it is reported, and deleted only when
-// SQUARE_CUSTOMER_CLEANUP is "true". Square keeps the cancelled order.
-// The note holds the customer's email, so while the switch is off it
-// is kept MADE_CUSTOMER_KEEP and then dropped; the profile stays.
+// weighed. Otherwise it is reported and deleted, unless the Square
+// deletion kill switch is set (lib/square.mjs, deletionsPaused): then
+// it is only reported. Square keeps the cancelled order. The note
+// holds the customer's email, so while the switch is set it is kept
+// MADE_CUSTOMER_KEEP and then dropped; the profile stays.
 
 export const MADE_CUSTOMER_GRACE = 24 * HOUR;
 export const MADE_CUSTOMER_KEEP = 30 * 24 * HOUR;
@@ -506,7 +507,7 @@ export const sweepMadeCustomers = async (stores, {
   now = new Date(),
   square = squareApi,
   fetchImpl = globalThis.fetch,
-  remove = env.SQUARE_CUSTOMER_CLEANUP === "true",
+  remove = !squareApi.deletionsPaused(env),
 } = {}) => {
   if (!env.SQUARE_ACCESS_TOKEN || !env.SQUARE_LOCATION_ID) return null;
 

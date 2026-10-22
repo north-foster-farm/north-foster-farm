@@ -1733,11 +1733,16 @@ export const farmMorningReport = (stats, pickups, {
       square.profiles === 1 ? "" : "s"}`;
     const allProfiles = square.profiles === 1 ? "it" : "them";
 
+    const madeLead = `Checkouts whose payment never went through made ${
+      foundProfiles} in Square`;
+
     blocks.push(
       heading("Square sweep: customer profiles from failed payments"),
-      p(`Checkouts whose payment never went through made ${
-        foundProfiles} in Square${done(square.deleted, "deleted")}. To see ${
-        allProfiles}:`),
+      p(square.paused
+        ? `${madeLead}. The Square deletion kill switch is set, so the ` +
+          `sweep deletes nothing. To see ${allProfiles}:`
+        : `${madeLead}${done(square.deleted, "deleted")}. To see ${
+          allProfiles}:`),
       command("bin/nff jobs customers")
     );
   }
