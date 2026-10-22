@@ -24,6 +24,10 @@
     icon      An SVG under assets/images to show before the label,
               the spinner taking its place while busy (optional)
     iconClass The class of the span that holds the icon (optional)
+    error     true to write a status line after the button, where
+              failBusy() in busy-button.js says the request failed.
+              It stays in the page, empty, so a screen reader hears
+              the text when it comes (optional)
 */}}
 {{- $class := slice -}}
 {{- if not .plain }}{{ $class = $class | append "btn" }}{{ end -}}
@@ -50,3 +54,6 @@
     {{ .busy -}}
   </span>
 </button>
+{{- if .error }}
+<span class="busy-button-error" role="status" aria-live="polite"></span>
+{{- end }}

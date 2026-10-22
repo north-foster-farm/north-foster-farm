@@ -21,7 +21,7 @@
               <p class="account-name" id="account-name"></p>
               <p class="account-email" id="account-email"></p>
             </div>
-            {{ partial "busy-button.html" (dict "label" "Sign out" "busy" "Signing out" "class" "btn-outline-secondary btn-sm" "id" "account-signout" "type" "button") }}
+            {{ partial "busy-button.html" (dict "label" "Sign out" "busy" "Signing out" "class" "btn-outline-secondary btn-sm" "id" "account-signout" "type" "button" "error" true) }}
           </header>
 
           <nav class="account-nav" aria-label="Account sections">

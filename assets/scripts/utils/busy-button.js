@@ -42,7 +42,22 @@ const fit = (button, change) => {
   else button.addEventListener("transitionend", done);
 };
 
+// What a failed request says when it has nothing better.
+export const FAILED = "Something went wrong. Please try again.";
+
+// The status line the partial's `error` param writes after the button.
+const errorLine = (button) => {
+  const line = button.nextElementSibling;
+
+  return line && line.classList.contains("busy-button-error") ? line : null;
+};
+
 export const setBusy = (button, on) => {
+  const line = errorLine(button);
+
+  // A new try clears the last one's failure, so a second failure with
+  // the same words is a change the screen reader announces.
+  if (on && line) line.textContent = "";
   if (button.classList.contains("busy-button-fit")) {
     fit(button, () => { button.dataset.busy = on ? "true" : "false"; });
   } else {
@@ -57,6 +72,16 @@ export const setBusy = (button, on) => {
     .setAttribute("aria-hidden", String(on));
   button.querySelector(".busy-button-busy")
     .setAttribute("aria-hidden", String(!on));
+};
+
+// Idle again after a failed request, saying so on the button's status
+// line, if it has one. The line is always in the page, empty until
+// now, so writing to it is what the live region announces.
+export const failBusy = (button, message = FAILED) => {
+  const line = errorLine(button);
+
+  setBusy(button, false);
+  if (line) line.textContent = message;
 };
 
 // Wires a button that sends a request on a click: busy until `run`

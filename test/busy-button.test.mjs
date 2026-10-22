@@ -14,7 +14,7 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
-  isBusy, onPress, setBusy, whileBusy,
+  FAILED, failBusy, isBusy, onPress, setBusy, whileBusy,
 } from "../assets/scripts/utils/busy-button.js";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -200,5 +200,43 @@ describe("busy buttons: the helper", () => {
     assert.equal(runs, 1);
     assert.equal(isBusy(button), true);
     finish();
+  });
+
+  it("failBusy goes idle and says so on the status line", () => {
+    const button = fakeButton();
+    const line = {
+      textContent: "",
+      classList: { contains: (name) => name === "busy-button-error" },
+    };
+
+    button.nextElementSibling = line;
+    setBusy(button, true);
+    failBusy(button);
+    assert.equal(isBusy(button), false);
+    assert.equal(line.textContent, FAILED);
+
+    // The next try clears it, so the same words again are a change.
+    setBusy(button, true);
+    assert.equal(line.textContent, "");
+    failBusy(button, "The site said no.");
+    assert.equal(line.textContent, "The site said no.");
+  });
+
+  it("the partial writes the status line in the page, not hidden", () => {
+    const partial = read("layouts/partials/busy-button.html");
+    const tag = partial.match(/<span class="busy-button-error"[^>]*>/);
+
+    assert.ok(tag, "the partial writes the line");
+    assert.doesNotMatch(tag[0], /\bhidden\b/,
+      "a hidden live region is not announced");
+    assert.match(tag[0], /role="status"/);
+  });
+
+  it("failBusy on a button with no status line only goes idle", () => {
+    const button = fakeButton();
+
+    setBusy(button, true);
+    failBusy(button);
+    assert.equal(isBusy(button), false);
   });
 });

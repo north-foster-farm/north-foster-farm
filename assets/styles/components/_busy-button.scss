@@ -33,6 +33,24 @@
   }
 }
 
+// The line after a button whose request failed (failBusy()).
+.busy-button-error {
+  display: block;
+  padding: 0.25rem 0;
+  font-size: 0.875rem;
+  color: var(--bs-danger-text-emphasis);
+
+  // Empty, it stays in the page for screen readers but takes no room.
+  &:empty {
+    padding: 0;
+  }
+
+  // In line with the menu's items.
+  .dropdown-menu & {
+    padding-inline: var(--bs-dropdown-item-padding-x);
+  }
+}
+
 // The spinner: an egg in outline with a run of brighter line chasing
 // round it.
 .egg-spinner {

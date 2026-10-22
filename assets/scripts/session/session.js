@@ -5,7 +5,7 @@
 // without accounts has no slot.
 
 import { api } from "../utils/api.js";
-import { isBusy, setBusy } from "../utils/busy-button.js";
+import { failBusy, isBusy, setBusy } from "../utils/busy-button.js";
 import { forgetCustomer } from "../order/draft.js";
 import { fresh, stampFrom } from "./cache.js";
 import { whileLoading } from "../utils/skeleton.js";
@@ -44,19 +44,27 @@ export const forget = () => {
 // Every Sign out button: the order draft keeps its cart but loses the
 // customer's details, as the privacy page promises.
 // Pressed, the button stays busy until the home page takes over, or
-// idle again if the request never arrives. The click stops here, so
-// Bootstrap leaves the header's menu open and its egg shows (#299).
+// goes idle and says it failed if the site never signs it out. The
+// click stops here, so Bootstrap leaves the header's menu open and its
+// egg and any failure show (#299).
 export const signOut = async (event) => {
   const button = event && event.currentTarget;
 
   if (event) event.stopPropagation();
   if (button && isBusy(button)) return;
   if (button) setBusy(button, true);
+
+  let answer;
+
   try {
-    await api("/api/auth/signout", { method: "POST", body: {} });
+    answer = await api("/api/auth/signout", { method: "POST", body: {} });
   } catch (error) {
-    if (button) setBusy(button, false);
     console.error("Sign out failed", error);
+    answer = { ok: false, data: null };
+  }
+
+  if (!answer.ok) {
+    if (button) failBusy(button, answer.data && answer.data.message);
 
     return;
   }

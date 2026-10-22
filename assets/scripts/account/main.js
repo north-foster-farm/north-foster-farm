@@ -10,7 +10,9 @@ import { label } from "../order/lib/zoned.mjs";
 import { forgetJoined, remember } from "../news/hide.js";
 import { forget, showChick, signOut } from "../session/session.js";
 import { api } from "../utils/api.js";
-import { isBusy, setBusy, whileBusy } from "../utils/busy-button.js";
+import {
+  FAILED, isBusy, setBusy, whileBusy,
+} from "../utils/busy-button.js";
 import { whileLoading } from "../utils/skeleton.js";
 
 const qs = (root, selector) => root.querySelector(selector);
@@ -600,8 +602,7 @@ class Account {
 
     if (!ok) {
       setBusy(button, false);
-      status.textContent = (data && data.message) ||
-        "Something went wrong. Please try again.";
+      status.textContent = (data && data.message) || FAILED;
       status.hidden = false;
 
       return;
