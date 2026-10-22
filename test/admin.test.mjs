@@ -280,6 +280,18 @@ describe("orders from the CLI", () => {
       assert.deepEqual(calls, []);
     });
 
+  it("cancel refuses a fulfilled order and leaves it alone", async () => {
+    const stores = testStores();
+    const { sent, calls, opts } = harness();
+
+    await saveOrder(stores, { ...order("A"), status: "fulfilled" }, now);
+    await assert.rejects(cancelOrder(stores, "A", opts),
+      /This order is fulfilled/);
+    assert.equal((await getOrder(stores, "A")).status, "fulfilled");
+    assert.deepEqual(calls, []);
+    assert.deepEqual(sent, []);
+  });
+
   // The fixture is a pickup: it cancels like a delivery (T2d).
   it("cancel gives the customer the farm's reason (T2a)", async () => {
     const stores = testStores();

@@ -317,7 +317,8 @@ export const refundOrder = async (stores, id, {
   return saved;
 };
 
-// A cancel, the farm's or the customer's: any status but fulfilled.
+// A cancel, the farm's or the customer's: any status but fulfilled,
+// which it refuses.
 // Stock goes back, the fulfilment is cancelled in Square, the money
 // goes back unless the farm says otherwise (--no-refund: W11a-1,
 // T1c), the customer is told. The farm's `reason`, one of the
@@ -333,6 +334,11 @@ export const cancelOrder = async (stores, id, {
   const order = need(await getOrder(stores, id), "order");
 
   if (["cancelled", "abandoned"].includes(order.status)) return order;
+  // Handed over: what goes back now is a refund or a return, not a
+  // cancel.
+  if (order.status === "fulfilled") {
+    throw new Error("This order is fulfilled. Refund it instead.");
+  }
 
   // Whatever has not gone back yet, less a fee an attempted delivery
   // keeps; a refund made earlier stays as it was.
