@@ -244,6 +244,15 @@ const changedRecord = (order, next, change, key, now, by = "customer") => {
 
 const editOf = (order, key) => (order.edits || []).find((e) => e.key === key);
 
+// The plan of an edit already saved as pending: the record holds the
+// change, so a retry by its key only finishes what was left undone.
+const pendingPlan = (order, edit) => ({
+  ok: true, order, next: order, change: {
+    difference: edit.difference, delta: [], switched: edit.switched,
+    carries: edit.switched,
+  },
+});
+
 const markEdit = (order, key, patch) => ({
   edits: (order.edits || []).map((e) => (e.key === key ? { ...e, ...patch }
     : e)),
@@ -620,11 +629,13 @@ export const editOrder = async (stores, customer, id, body, {
     });
   }
 
-  const plan = await planEdit(stores, order, b, {
-    now, index, terms, codes: discountCodes.codes, group,
-    validate: validateOrder, schedule: pickupSchedule(options.env),
-    env: options.env,
-  });
+  const started = editOf(order, key);
+  const plan = started ? pendingPlan(order, started)
+    : await planEdit(stores, order, b, {
+      now, index, terms, codes: discountCodes.codes, group,
+      validate: validateOrder, schedule: pickupSchedule(options.env),
+      env: options.env,
+    });
 
   if (!plan.ok) return plan;
 
@@ -749,6 +760,22 @@ export const farmEdit = async (stores, id, body, {
   if (b.notes !== undefined) {
     return fail(422, { notes: "A change of method or address can't carry " +
       "the notes. Change them in a command of their own." });
+  }
+
+  const started = key && editOf(order, key);
+
+  if (started && started.state === "done") {
+    return { ok: true, order, key, outOfSync: false };
+  }
+  if (started) {
+    if (dryRun) return { ok: true, dryRun: true, order, key };
+    if (onKey) onKey(key);
+
+    const finished = await applyEdit(stores, pendingPlan(order, started), {
+      key, by: "farm", payment: {},
+    }, { square, paypal, env, fetchImpl, sleep, mail, now });
+
+    return { ok: true, order: finished, key, outOfSync: outOfSync(finished) };
   }
 
   const cust = await getCustomer(stores, order.customer.email);

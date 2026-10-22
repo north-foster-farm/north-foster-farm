@@ -181,6 +181,45 @@ describe("buildChangeOrder", () => {
 });
 
 describe("editOrder", () => {
+  it("changes a delivery address alone, and finishes a pending retry",
+    async () => {
+      const { stores, id } = await placed();
+      const { square } = fakeSquare();
+      const home = {
+        method: "delivery", date: "2026-10-08",
+        delivery: {
+          address1: "1 Main St", town: "Foster", zip: "02825",
+          cooler: "Porch",
+        },
+      };
+
+      await edit(stores, id, {
+        idempotencyKey: editKey(), fulfilment: home,
+        payment: { method: "card", sourceId: "cnon:tok" },
+      }, square);
+
+      const key = editKey();
+      const body = { idempotencyKey: key, fulfilment: { delivery: {
+        ...home.delivery, address1: "2 Oak Rd" } } };
+      const result = await edit(stores, id, body, square);
+
+      assert.equal(result.ok, true, JSON.stringify(result.errors));
+      assert.equal(result.difference, 0);
+      assert.equal((await getOrder(stores, id)).fulfilment.delivery.address1,
+        "2 Oak Rd");
+
+      const saved = await getOrder(stores, id);
+
+      await amendOrder(stores, id, { edits: saved.edits.map((e) =>
+        e.key === key ? { ...e, state: "pending" } : e) }, "test.crash", now);
+
+      const again = await edit(stores, id, body, square);
+
+      assert.equal(again.ok, true, JSON.stringify(again.errors));
+      assert.equal((await getOrder(stores, id)).edits
+        .find((e) => e.key === key).state, "done");
+    });
+
   it("charges the difference on a Square order of its own", async () => {
     const { stores, id } = await placed();
     const { square, calls } = fakeSquare();
@@ -754,6 +793,49 @@ describe("farmEdit", () => {
     assert.equal(again.ok, true, JSON.stringify(again.errors));
     assert.equal((await getOrder(stores, id)).fulfilment.delivery.address1,
       "2 Oak Rd");
+  });
+
+  it("finishes a pending edit by its key, and answers a done one", async () => {
+    const { stores, id } = await placed();
+    const { square } = fakeSquare();
+    const { mail } = outbox();
+    const home = {
+      method: "delivery", date: "2026-10-08",
+      delivery: {
+        address1: "1 Main St", town: "Foster", zip: "02825", cooler: "Porch",
+      },
+    };
+
+    await edit(stores, id, {
+      idempotencyKey: editKey(), fulfilment: home,
+      payment: { method: "card", sourceId: "cnon:tok" },
+    }, square);
+
+    const body = { fulfilment: { delivery: { address1: "2 Oak Rd" } } };
+    const key = "farm-pending-key-0001";
+    const first = await farmEdit(stores, id, body,
+      opts(square, mail, { key }));
+
+    assert.equal(first.ok, true, JSON.stringify(first.errors));
+
+    // A crash after the record was saved, before it was finished.
+    const saved = await getOrder(stores, id);
+
+    await amendOrder(stores, id, { edits: saved.edits.map((e) => e.key === key
+      ? { ...e, state: "pending" } : e) }, "test.crash", now);
+
+    const again = await farmEdit(stores, id, body,
+      opts(square, mail, { key }));
+
+    assert.equal(again.ok, true, JSON.stringify(again.errors));
+    assert.equal(again.order.edits.find((e) => e.key === key).state, "done");
+
+    const third = await farmEdit(stores, id, body,
+      opts(square, mail, { key }));
+
+    assert.equal(third.ok, true, JSON.stringify(third.errors));
+    assert.equal((await getOrder(stores, id)).edits
+      .filter((e) => e.key === key).length, 1);
   });
 
   it("changes the phone alone, and refuses a bad one", async () => {
