@@ -8,7 +8,7 @@
   {{ if eq . "seasonal" }}
     {{ $label = printf "Back in %s" ($.restockSeason | default "spring") }}
   {{ else if eq . "soon" }}
-    {{ $label = "Back soon" }}
+    {{ $label = "Returning soon" }}
   {{ else if eq . "hiatus" }}
     {{ $label = "On hiatus" }}
   {{ else if eq . "discontinued" }}

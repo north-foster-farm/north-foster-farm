@@ -121,7 +121,7 @@ It says what an item out of stock shows in place of its quantity:
 | `restock` | Out of stock, it says |
 |---|---|
 | `seasonal` | "Back in spring", the season from `restockSeason` |
-| `soon` | "Back soon" |
+| `soon` | "Returning soon" |
 | `hiatus` | "On hiatus" |
 | `discontinued` | "Not available" |
 | `archived` | Nothing: hidden everywhere, whatever the stock |

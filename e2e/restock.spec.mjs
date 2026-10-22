@@ -18,13 +18,13 @@ const items = catalog.groups.flatMap((g) => g.items);
 // One product out of stock in the catalog for each restock type but
 // archived (James's corrections, #274 6330468558).
 const OUT = {
-  soon: "NFF-CHK-FET-0075-0125", // Feet: "Back soon"
+  soon: "NFF-CHK-FET-0075-0125", // Feet: "Returning soon"
   seasonal: "NFF-CHK-TND-15-99", // Tenders, 1.5 lbs and up
   hiatus: "NFF-CHK-SAUSWT", // Sweet Italian Sausage
   discontinued: "NFF-CHK-WHL-50-59", // Whole Chicken, 5.0 - 5.9 lbs
 };
 const LABEL = {
-  soon: "Back soon",
+  soon: "Returning soon",
   seasonal: "Back in spring",
   hiatus: "On hiatus",
   discontinued: "Not available",
@@ -158,7 +158,7 @@ test.describe("restock types (#267)", () => {
       await expect(r).toHaveAttribute("data-stock", "out");
       await expect(r.locator(".order-item-stock")).toHaveText(LABEL[type]);
       await expect(r.locator(".order-qty")).toBeHidden();
-      // No price but on "Back soon"; the label stands where Add goes,
+      // No price but on "Returning soon"; the label stands where Add goes,
       // at the row's right (#274, round 5).
       await expect(r.locator(".order-item-price"))
         .toBeVisible({ visible: type === "soon" });
@@ -461,7 +461,7 @@ test.describe("search and restock types (#267)", () => {
     await p.input.fill("eggs");
     await expect(p.rows).toHaveCount(3);
     await expect(p.rows.and(page.locator(`[data-sku="${OUT.soon}"]`)))
-      .toContainText("Back soon");
+      .toContainText("Returning soon");
     await expect(p.rows.and(page.locator(`[data-sku="${SKU.eggs}"]`)))
       .toContainText("$7");
   });

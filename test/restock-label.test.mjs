@@ -15,7 +15,7 @@ const PARTIAL = readFileSync(new URL(
 // The table in docs/order-form.md. Seasonal's season is a field of its own.
 const LABELS = {
   seasonal: 'printf "Back in %s"',
-  soon: '"Back soon"',
+  soon: '"Returning soon"',
   hiatus: '"On hiatus"',
   discontinued: '"Not available"',
 };

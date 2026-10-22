@@ -518,7 +518,7 @@
   }
 
   // Out until spring, on hiatus or not available: no price, and the
-  // label stands where Add goes (#274 round 5). "Back soon" keeps
+  // label stands where Add goes (#274 round 5). "Returning soon" keeps
   // its price.
   .order-item[data-stock="out"]:not([data-restock="soon"]) {
     grid-template-areas:
