@@ -394,9 +394,12 @@ $nav-link-transition:
     }
   }
 
-  &.is-current {
-    border-color: var(--bs-border-color);
-    color: var(--bs-secondary-color);
+  // On the order page it keeps its style, and its word is underlined
+  // as the page you are on (#303); the cart count is not.
+  &[aria-current="page"] .site-order-label {
+    text-decoration: underline;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.2em;
   }
 }
 

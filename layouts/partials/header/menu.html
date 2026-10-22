@@ -70,9 +70,10 @@
         <span class="site-search-icon site-search-shut" aria-hidden="true">{{ partial "svg.html" "icons/search-close" }}</span>
       </button>
       {{/* On the order page Order stays a link, as every link in the
-           row does on its own page, greyed as the page you are on. */}}
+           row does on its own page, in its usual style with its word
+           underlined as the page you are on (#303). */}}
       {{ if $onOrder }}
-        <a class="site-order is-current" href="{{ relURL "order/" }}" aria-current="page">Order{{ partial "header/cart-badge.html" }}</a>
+        <a class="site-order" href="{{ relURL "order/" }}" aria-current="page"><span class="site-order-label">Order</span>{{ partial "header/cart-badge.html" }}</a>
       {{ else }}
         {{/* Order, and once the cart holds something, the cart beside
              it with its count. */}}
