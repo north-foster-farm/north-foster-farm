@@ -170,6 +170,37 @@ describe("sendMail", () => {
       assert.equal((await stores.jobs.list("outbox/")).length, 4);
     });
 
+  it("keeps a line break out of every field that reaches a header",
+    async () => {
+      let seen;
+      let sentHeaders;
+      const fetchImpl = async (url, init) => {
+        sentHeaders = init.headers;
+        seen = JSON.parse(init.body);
+
+        return new Response(JSON.stringify({ id: "email_1" }),
+          { status: 200 });
+      };
+
+      await sendMail({
+        ...message,
+        idempotencyKey: "k-1\r\nBcc: evil@example.net",
+        headers: { "List-Unsubscribe\r\nX-Evil": "<https://x/u>\nBcc: e" },
+        attachments: [{
+          filename: "day\r\n.pdf", content: "x", contentType: "a/b",
+        }],
+      }, { env: live, fetchImpl });
+
+      const fields = [
+        sentHeaders["Idempotency-Key"], seen.headers["X-Entity-Ref-ID"],
+        ...Object.keys(seen.headers), ...Object.values(seen.headers),
+        seen.attachments[0].filename,
+      ];
+
+      for (const field of fields) assert.doesNotMatch(field, /[\r\n]/);
+      assert.equal(seen.attachments[0].filename, "day .pdf");
+    });
+
   it("posts to Resend with the sender, reply-to and reference id", async () => {
     let seen;
     const fetchImpl = async (url, init) => {

@@ -286,12 +286,26 @@ export const viaOutbox = async (message, env, stores, now = new Date()) => {
 const oneLine = (value) => String(value)
   .replace(/[\r\n\u2028\u2029]+/g, " ").trim();
 
+// Every field that reaches a header: the recipients, subject and
+// Reply-To, the extra headers (name and value), the idempotency key
+// (an Idempotency-Key and an X-Entity-Ref-ID) and an attachment's
+// file name (a Content-Disposition).
 export const headerSafe = (message) => ({
   ...message,
   to: Array.isArray(message.to) ? message.to.map(oneLine)
     : message.to && oneLine(message.to),
   subject: message.subject && oneLine(message.subject),
   ...(message.replyTo ? { replyTo: oneLine(message.replyTo) } : {}),
+  ...(message.idempotencyKey
+    ? { idempotencyKey: oneLine(message.idempotencyKey) } : {}),
+  ...(message.headers ? {
+    headers: Object.fromEntries(Object.entries(message.headers)
+      .map(([name, value]) => [oneLine(name), oneLine(value)])),
+  } : {}),
+  ...(Array.isArray(message.attachments) ? {
+    attachments: message.attachments.map((a) => (a && a.filename
+      ? { ...a, filename: oneLine(a.filename) } : a)),
+  } : {}),
 });
 
 // The message is { to, subject, text, html, idempotencyKey?, replyTo? }.
