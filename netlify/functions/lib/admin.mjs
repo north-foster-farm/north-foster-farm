@@ -442,9 +442,16 @@ export const markAttempted = async (stores, id, {
 } = {}) => {
   let order = need(await getOrder(stores, id), "order");
 
-  // The same delivery marked again is a retry; a rescheduled day that
-  // is missed in its turn is a miss of its own.
-  if (order.attempted && order.attempted.date === order.fulfilment.date) {
+  // The same delivery marked again is a retry. A miss of its own is a
+  // later day than the one marked, already come: a rescheduled day
+  // missed in its turn. A record from before `attempted.date`, or a
+  // weather miss moved to a day still ahead, is the same delivery.
+  const prior = order.attempted;
+  const again = prior && !(prior.date
+    && order.fulfilment.date > prior.date
+    && order.fulfilment.date <= today(now, terms.timeZone));
+
+  if (again) {
     return missedUntold(order)
       ? tellMissed(stores, order, { now, env, mail })
       : order;

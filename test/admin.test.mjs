@@ -808,6 +808,51 @@ describe("an attempted delivery keeps its fee", () => {
         ["square.refund", "PAY-A", 1900]);
     });
 
+  it("takes a rerun for the same delivery, not a new miss, when the " +
+    "record has no attempted.date or the miss moved to a day ahead " +
+    "(#193)", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const first = delivered("A");
+
+    // Marked before attempted.date existed: the fee, asked and told.
+    await saveOrder(stores, {
+      ...first,
+      attempted: {
+        at: now.toISOString(), cause: "no-cooler", fee: 500,
+        waived: false, note: "", detail: "",
+      },
+      question: {
+        kind: "missed", reason: "", openedAt: now.toISOString(),
+        until: "2026-10-15", answeredAt: null, answer: null, by: null,
+      },
+      emails: { missedDelivery: { at: now.toISOString() } },
+    }, now);
+
+    const old = await markAttempted(stores, "A",
+      { ...opts, cause: "no-cooler" });
+
+    assert.equal(keptFee(old), 500, "the fee is not doubled");
+    assert.equal(old.question.openedAt, now.toISOString());
+    assert.equal(sent.length, 0);
+
+    // A weather miss moved a week on; a rerun with a customer's cause
+    // that day must not charge the delivery still ahead.
+    await saveOrder(stores, delivered("B"), now);
+    await markAttempted(stores, "B", { ...opts, cause: "weather" });
+    sent.length = 0;
+
+    const b = await markAttempted(stores, "B",
+      { ...opts, cause: "no-cooler" });
+
+    assert.equal(b.fulfilment.date, "2026-10-15");
+    assert.equal(b.attempted.date, "2026-10-08");
+    assert.equal(b.attempted.cause, "weather");
+    assert.equal(keptFee(b), 0);
+    assert.equal(b.question, null);
+    assert.equal(sent.length, 0);
+  });
+
   it("moves a delivery from the CLI, except after a kept fee", async () => {
     const stores = testStores();
     const { sent, calls, opts } = harness();
