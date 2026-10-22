@@ -3,12 +3,13 @@
 // reach it, and the copyright. Rows wrap, centered, as the width
 // shrinks; nothing changes layout at a breakpoint.
 
-// Vertical rhythm (James's values, #226): the sign-up and the logo sit
-// 2.5rem above what follows, 1.5rem below the md breakpoint, where the
-// links and the contact line tighten too and the copyright's own
+// Vertical rhythm (#226): James's values of 2026-10-19, each gap
+// between groups doubled on 2026-10-22. The sign-up and the logo sit
+// 5rem above what follows, 3rem below the md breakpoint, where the
+// links and the contact line differ too and the copyright's own
 // margin goes.
-$footer-gap: 2.5rem;
-$footer-gap-phone: 1.5rem;
+$footer-gap: 5rem;
+$footer-gap-phone: 3rem;
 
 // The farm silhouette along the footer's top (#272, #277): the high
 // tunnel and the two coops, at full width, rising into the band above.
@@ -42,7 +43,7 @@ $band-gap: 3.5rem;
 
 // The order page has no band, so a strip of the band stands in for one:
 // an empty band, its top gap over its bottom padding. Any shorter and
-// the shadow's fog reaches the light row above it.
+// the shadow's fog reaches the page above it.
 .footer-clearance {
   min-height: calc(#{$band-gap} + #{$sil-clear});
   background-color: $band-dark-bg;
@@ -100,12 +101,12 @@ body {
 
   .footer-contact {
     @include media-breakpoint-down(md) {
-      margin-bottom: 0.75rem;
+      margin-bottom: 1.5rem;
     }
   }
 
   .footer-copyright {
-    margin-top: 0.375rem;
+    margin-top: 0.75rem;
 
     @include media-breakpoint-down(md) {
       margin-top: 0;
@@ -153,11 +154,11 @@ body {
 
   // The links read a little larger than the contact line under them.
   nav .dot-list {
-    margin-bottom: 0.75rem;
+    margin-bottom: 1.5rem;
     font-size: 1.0625rem;
 
     @include media-breakpoint-down(md) {
-      margin-bottom: 1rem;
+      margin-bottom: 2rem;
     }
   }
 

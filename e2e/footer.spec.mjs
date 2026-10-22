@@ -241,3 +241,15 @@ test.describe("footer (#141)", () => {
       expect(hold.calls()).toBe(1);
     });
 });
+
+// James, 2026-10-20 and 2026-10-22 (#226): no ornament row between a
+// page and its dark band, and nothing left in its place.
+test.describe("above the footer (#226)", () => {
+  for (const path of ["/about/", "/order/"]) {
+    test(`no ornament row on ${path}`, async ({ page }) => {
+      await page.goto(path);
+      await expect(page.locator(".ticker-slot")).toHaveCount(0);
+      await expect(page.locator(".site-footer")).toHaveCount(1);
+    });
+  }
+});
