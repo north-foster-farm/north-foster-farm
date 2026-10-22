@@ -559,6 +559,30 @@
         "name  qty"
         "error error";
     }
+
+    // A note outlives the price: "Grade A" under the name (#303).
+    &:has(.order-item-note) {
+      grid-template-areas:
+        "name  name  qty"
+        "price price qty"
+        "error error error";
+
+      .order-item-price {
+        display: block;
+      }
+
+      .order-item-amount,
+      .order-item-dot {
+        display: none;
+      }
+
+      @media (max-width: 30rem) {
+        grid-template-areas:
+          "name  qty"
+          "price qty"
+          "error error";
+      }
+    }
   }
 
   // The heading stands in the flow where the pane settles, a

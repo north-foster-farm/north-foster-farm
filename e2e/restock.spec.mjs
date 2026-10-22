@@ -195,15 +195,15 @@ test.describe("restock types (#267)", () => {
 
     expect(await color(OUT.soon)).not.toBe(await color(SKU.eggs));
 
-    // Only an egg in stock says its grade (#303): Large, beside its
-    // price. Medium and Small, on hiatus, show only their label.
+    // Every egg says its grade (#303, James, final): Large beside its
+    // price; Medium and Small, on hiatus, under the name with no price.
     await expect(row(page, SKU.eggs).locator(".order-item-price"))
       .toHaveText("$7 · Grade A", { useInnerText: true });
     for (const sku of ["NFF-CHK-EGG-MD", "NFF-CHK-EGG-SM"]) {
       await expect(row(page, sku).locator(".order-item-price"), sku)
+        .toHaveText("Grade A", { useInnerText: true });
+      await expect(row(page, sku).locator(".order-item-amount"), sku)
         .toBeHidden();
-      expect(await row(page, sku).innerText(), sku)
-        .not.toContain("Grade A");
       await expect(row(page, sku).locator(".order-item-stock"), sku)
         .toHaveText("On hiatus");
     }

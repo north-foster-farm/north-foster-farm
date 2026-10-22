@@ -8,8 +8,10 @@
     {{/* Capitalized here, never in the catalog (#278). */}}
     <label for="{{ $id }}">{{ .row | strings.FirstUpper }}</label>
   </span>
+  {{/* A row out of stock without a price keeps its note: every egg
+       says "Grade A" (#303, James, final). */}}
   <span class="order-item-price">
-    ${{ .price }}{{ with .note }} <span class="order-item-note">&middot; {{ . }}</span>{{ end }}
+    <span class="order-item-amount">${{ .price }}</span>{{ with .note }} <span class="order-item-note"><span class="order-item-dot">&middot; </span>{{ . }}</span>{{ end }}
   </span>
   <span class="order-item-stock" data-stock-note aria-live="polite">{{ if .out }}{{ .restockLabel }}{{ end }}</span>
   <div class="order-qty" data-qty-state="empty">
