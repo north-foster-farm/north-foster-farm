@@ -122,6 +122,9 @@ jobs:
       - name: Schema, production
         run: env -i PATH="$PATH" HOME="$HOME" npm run check:schema
 
+      - name: Freshness, production
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:fresh
+
       - name: News, production
         run: env -i PATH="$PATH" HOME="$HOME" npm run check:news
 
@@ -148,6 +151,9 @@ jobs:
 
       - name: Schema, staging
         run: env -i PATH="$PATH" HOME="$HOME" npm run check:schema
+
+      - name: Freshness, staging
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:fresh
 
       - name: News, staging
         run: env -i PATH="$PATH" HOME="$HOME" npm run check:news

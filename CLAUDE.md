@@ -164,13 +164,15 @@ Deployment configured in `netlify.toml`:
   `check:grid` holds the built HTML to Bootstrap's grid
   rules (see `bin/grid/check.mjs`), and `check:schema` the built
   JSON-LD to schema.org's types and Google's required properties
-  (`bin/schema/check.mjs`). The local build plugin
+  (`bin/schema/check.mjs`), and `check:fresh` the sitemap, llms.txt
+  and web app manifest to the pages beside them (`bin/fresh/check.mjs`;
+  Hugo writes all three in the render, so none is a step to skip). The local build plugin
   `plugins/source-maps` then moves the source maps out of `public/`
   into Blobs (`docs/monitoring.md`). The build runs
   no lint or tests: those run in GitHub Actions (`lint-and-test`,
   `.github/workflows/ci.yml`), which `staging` and `main` require.
-  CI's `build` job repeats the Hugo build, `check:grid`, `check:schema`
-  and `check:news` on every push, so a template error shows on the commit
+  CI's `build` job repeats the Hugo build, `check:grid`, `check:schema`,
+  `check:fresh` and `check:news` on every push, so a template error shows on the commit
 - Hugo version: 0.164.0 (pinned; Node 26 via NODE_VERSION and .nvmrc)
 - Deploy previews build drafts/future/expired content
 - Custom redirects (e.g., `/venmo` → Venmo profile)

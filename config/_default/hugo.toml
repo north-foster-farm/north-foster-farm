@@ -1,6 +1,9 @@
 copyright = 2024
 disableKinds = ["rss", "taxonomy", "term"]
 enableEmoji = true
+# A page with no date takes its sitemap lastmod from its last commit,
+# on every build (bin/fresh/check.mjs holds the sitemap to it).
+enableGitInfo = true
 enableRobotsTXT = true
 locale = "en-us"
 pluralizeListTitles = true
