@@ -106,10 +106,16 @@ yet written; it is after-launch work).
   `DEV_NOTIFICATIONS_EMAIL` what is still due, read from the rotation
   log, then weekly, then one louder email in the last week of
   December (`netlify/functions/lib/rotation.mjs`; the job is in
-  `docs/monitoring.md`). It also lists each rotation whose old
-  credential is still waiting to be revoked; that part is to be built
-  before Dec 1. A secret missing from the log is invisible to it,
-  which is why the log is seeded with every secret.
+  `docs/monitoring.md`). It also lists each `schedule` rotation since
+  Dec 1 whose old credential is still waiting to be revoked (no
+  `revoked` line for that name and environment on or after it), with
+  the day to revoke it by, the 31st day or Jan 31 if sooner, and
+  "overdue" once past. Secrets swapped at once (`STAGING_TOKEN`,
+  `E2E_STAGING_TOKEN`, `MAINTENANCE_SECRET`) and the age key are never
+  listed. The weekly reminders go on through January while anything is
+  still due or pending, and stop when the log shows it all done. A
+  secret missing from the log is invisible to it, which is why the log
+  is seeded with every secret.
 - **Quiet hours.** The Square token rotates under maintenance mode,
   in a quiet hour inside the window.
 - **Vendor sources.** Re-check every source under "Vendor references"

@@ -600,10 +600,13 @@ of the run report), not a separate schedule. Every secret rotates
 between Dec 1 and Jan 1 (`docs/secrets.md`, "Schedule"); the email
 lists each name and environment in `docs/rotation-log.md` whose latest
 rotation is dated before Dec 1, and the file is bundled into the
-function by `included_files` in `netlify.toml`. The Dec 1 email always
-goes. Later ones go only while the log still shows something due, and
-the Dec 29 one, in the last week of the month, is titled FINAL
-REMINDER. A run that missed a day sends it at the next. The log's line
+function by `included_files` in `netlify.toml`. It also lists the old
+credentials still to revoke: each `schedule` rotation since Dec 1 with
+no later `revoked` line, and the day to revoke it by. The Dec 1 email
+always goes. Later ones, through January (Jan 1, 8, 15, 22 and 29),
+go only while the log still shows something due or something to
+revoke, and the Dec 29 one, in the last week of December, is titled
+FINAL REMINDER. A run that missed a day sends it at the next. The log's line
 format is name, date (YYYY-MM-DD), environment, reason, who, split by
 `|` or `,`; a line without a date second is skipped. A missing log
 makes the email say so. Each send is recorded in the jobs store under
