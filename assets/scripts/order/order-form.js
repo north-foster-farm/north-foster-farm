@@ -2237,12 +2237,24 @@ export class OrderForm {
   // Submission and recovery.
 
   // The main button: the card form.
+  // A second press while the first is still checking the dates and the
+  // stock (before the button goes busy) is ignored: it would tokenize
+  // and send again (#268, rec 7). The server would only dedupe it.
   async submit(e) {
     e.preventDefault();
+    if (this.preparing) return;
 
     crumb("pay.press");
 
-    const payload = await this.prepareAsync();
+    this.preparing = true;
+
+    let payload;
+
+    try {
+      payload = await this.prepareAsync();
+    } finally {
+      this.preparing = false;
+    }
 
     if (!payload) return;
     // A change with nothing more to pay: no payment at all.
