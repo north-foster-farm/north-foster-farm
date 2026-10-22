@@ -683,6 +683,74 @@ describe("an attempted delivery keeps its fee", () => {
     assert.equal(sent.length, 1);
   });
 
+  it("states the held-until day only once the record holds it (#193)",
+    async () => {
+      const stores = testStores();
+      const { opts } = harness();
+      const down = async () => { throw new Error("Resend is down"); };
+      const seen = [];
+
+      await saveOrder(stores, delivered("A"), now);
+      await markAttempted(stores, "A",
+        { ...opts, mail: down, cause: "no-cooler" });
+
+      const later = new Date("2026-10-09T14:00:00Z");
+
+      await markAttempted(stores, "A", {
+        ...opts, now: later,
+        mail: async (m) => {
+          seen.push([(await getOrder(stores, "A")).question.until, m.text]);
+
+          return { id: "m1" };
+        },
+      });
+
+      assert.equal(seen.length, 1);
+      assert.equal(seen[0][0], "2026-10-16", "stored before it is sent");
+      assert.match(seen[0][1], /until Friday, October 16/);
+    });
+
+  it("records a miss of the day the customer rescheduled to, and asks " +
+    "again, the fee kept before staying kept (#193)", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const first = delivered("A");
+
+    // Missed on the 8th, fee kept, and the customer chose the 15th.
+    await saveOrder(stores, {
+      ...first,
+      fulfilment: { ...first.fulfilment, date: "2026-10-15" },
+      attempted: {
+        at: now.toISOString(), date: "2026-10-08", cause: "no-cooler",
+        fee: 500, waived: false, note: "", detail: "",
+      },
+      question: {
+        kind: "missed", reason: "", openedAt: now.toISOString(),
+        until: "2026-10-15", answeredAt: "2026-10-09T12:00:00Z",
+        answer: "reschedule", by: "customer",
+      },
+      emails: { missedDelivery: { at: now.toISOString() } },
+    }, now);
+
+    const second = new Date("2026-10-15T14:00:00Z");
+    const a = await markAttempted(stores, "A",
+      { ...opts, now: second, cause: "no-cooler" });
+
+    assert.equal(a.attempted.date, "2026-10-15");
+    assert.equal(a.attempted.at, second.toISOString());
+    assert.equal(keptFee(a), 500 + a.totals.deliveryFee, "both kept");
+    assert.equal(a.question.kind, "missed");
+    assert.equal(a.question.answeredAt, null);
+    assert.equal(a.question.until, "2026-10-22");
+    assert.equal(missedUntold(a), false, "and they were told again");
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].text, /hold your order until Thursday, October 22/);
+
+    // The same day marked again is a retry, not a third miss.
+    await markAttempted(stores, "A", { ...opts, now: second });
+    assert.equal(sent.length, 1);
+  });
+
   it("marks a miss the jobs closed up to two days late, but not one " +
     "the farm closed (#193)", async () => {
     const stores = testStores();

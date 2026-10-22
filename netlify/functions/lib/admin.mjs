@@ -424,8 +424,10 @@ export const ATTEMPT_CAUSES = [...CUSTOMER_CAUSES, "weather", "farm"];
 // pickup and every email read one fact. A customer's miss can be
 // waived anyway, with the reason, at the same moment (C2). `note` is
 // that private reason; `detail` is what the customer's email adds
-// about where we couldn't get to (no-access). Marking twice keeps the
-// first.
+// about where we couldn't get to (no-access). Marking the same
+// delivery twice keeps the first. A day the customer rescheduled to,
+// missed in its turn, is marked again: the fee kept before stays kept
+// (`fee` adds up), and the customer is asked and told afresh.
 //
 // A customer's miss, waived or not, asks them what to do (F2): the
 // order holds a `missed` question until they reschedule, switch or
@@ -440,7 +442,9 @@ export const markAttempted = async (stores, id, {
 } = {}) => {
   let order = need(await getOrder(stores, id), "order");
 
-  if (order.attempted) {
+  // The same delivery marked again is a retry; a rescheduled day that
+  // is missed in its turn is a miss of its own.
+  if (order.attempted && order.attempted.date === order.fulfilment.date) {
     return missedUntold(order)
       ? tellMissed(stores, order, { now, env, mail })
       : order;
@@ -469,12 +473,13 @@ export const markAttempted = async (stores, id, {
       at: now.toISOString(),
       date: order.fulfilment.date,
       cause,
-      fee: waived ? 0 : order.totals.deliveryFee || 0,
+      fee: keptFee(order) + (waived ? 0 : order.totals.deliveryFee || 0),
       waived,
       note,
       detail: detail.trim(),
     },
     ...theirs && {
+      emails: { ...order.emails, missedDelivery: undefined },
       question: {
         kind: "missed", reason: "", openedAt: now.toISOString(),
         until: addDays(order.fulfilment.date, terms.delivery.holdDays),
@@ -511,25 +516,29 @@ export const missedUntold = (order) => order.status === "paid"
 
 // Tells the customer their delivery was missed and how long it is
 // held. The hold runs at least `holdDays` from the day they are told,
-// never from a day they didn't know about: a send that fails leaves
-// `until` as it was, and the jobs try again each run.
+// never from a day they didn't know about. A send that fails leaves
+// the order untold, so the hold does not run, and the jobs try again
+// each run.
 export const tellMissed = async (stores, order, {
   now = new Date(), env = process.env, mail = sendMail,
 } = {}) => {
   const from = addDays(today(now, terms.timeZone), terms.delivery.holdDays);
   const until = order.question.until > from ? order.question.until : from;
-  const held = { ...order, question: { ...order.question, until } };
-  const told = await sendForOrder(stores, held, "missedDelivery",
+
+  // The record holds the day the email names before the email goes, so
+  // a crash between the two can't leave a hold shorter than promised.
+  const held = until === order.question.until ? order
+    : await amendOrder(stores, order.id, {
+      question: { ...order.question, until },
+    }, "question.held", now);
+
+  return sendForOrder(stores, held, "missedDelivery",
     missedDelivery(held, {
       pickUrl: orderUrlFor(env, order.id), links: mailLinks(env), now,
-    }), { mail, env, now });
-
-  if (missedUntold(told)) return getOrder(stores, order.id);
-  if (until === order.question.until) return told;
-
-  return amendOrder(stores, order.id, {
-    question: { ...told.question, until },
-  }, "question.held", now);
+    }), {
+      mail, env, now,
+      idempotencyKey: `${order.id}-missedDelivery-${order.attempted.date}`,
+    });
 };
 
 const isDeliveryDay = (date) => weekday(date) === terms.delivery.weekday

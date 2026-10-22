@@ -352,6 +352,58 @@ describe("runJobs", () => {
     assert.equal(calls.length, 2);
   });
 
+  it("does not cancel a customer who answered after the hold was " +
+    "listed as out (#193)", async () => {
+    const stores = testStores();
+    const { opts } = harness();
+    const calls = [];
+    const square = {
+      refundPayment: async (r) => { calls.push(["refund", r]); return {}; },
+      cancelFulfilment: async (id) => { calls.push(["cancel", id]); },
+    };
+    const missed = {
+      ...order("A"),
+      attempted: { at: at("2026-10-08", 13).toISOString(),
+        date: "2026-10-08", cause: "no-cooler", fee: 500, waived: false },
+      question: { kind: "missed", reason: "", until: "2026-10-15",
+        openedAt: at("2026-10-08", 13).toISOString(), answeredAt: null,
+        answer: null, by: null },
+      emails: {
+        ...order("A").emails,
+        missedDelivery: { at: at("2026-10-08", 13).toISOString() },
+      },
+    };
+
+    await saveOrder(stores, missed, placed);
+
+    // The first read of the order is the list's; after it the customer
+    // has rescheduled.
+    const read = stores.orders.get.bind(stores.orders);
+    let reads = 0;
+
+    stores.orders.get = async (key) => {
+      const got = await read(key);
+
+      if (key !== "order/A" || !got) return got;
+      reads += 1;
+
+      return reads === 1 ? got : {
+        ...got, question: {
+          ...got.question, answeredAt: at("2026-10-16", 0, 9).toISOString(),
+          answer: "reschedule", by: "customer",
+        },
+      };
+    };
+
+    const r = await runJobs(stores, {
+      ...opts, square, now: at("2026-10-16", 0, 10),
+    });
+
+    assert.deepEqual(r.holdsExpired, []);
+    assert.deepEqual(calls, []);
+    assert.equal((await read("order/A")).status, "paid");
+  });
+
   it("never lets a hold run out on a customer who wasn't told, and " +
     "holds seven days from when they are (#193)", async () => {
     const stores = testStores();
@@ -391,7 +443,9 @@ describe("runJobs", () => {
     assert.deepEqual(down.missedTold, []);
     assert.deepEqual(calls, []);
     assert.equal((await getOrder(stores, "A")).status, "paid");
-    assert.equal((await getOrder(stores, "A")).question.until, "2026-10-15");
+    // The day the email would name is stored before it is sent; the
+    // untold order holds nothing until it is told.
+    assert.equal((await getOrder(stores, "A")).question.until, "2026-10-23");
 
     up = true;
     const told = await runJobs(stores, {

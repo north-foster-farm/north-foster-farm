@@ -227,7 +227,11 @@ export const runJobs = async (stores, {
       return;
     }
 
-    if (holdExpired(order, now)) {
+    // Decided from the order as listed, so look again just before the
+    // cancel: a customer who answered meanwhile is not cancelled.
+    const fresh = holdExpired(order, now) && await getOrder(stores, order.id);
+
+    if (fresh && holdExpired(fresh, now)) {
       // The question stays open until the cancel has gone through, so
       // a refund that fails is tried again next run, by the same key.
       await cancelOrder(stores, order.id, {
