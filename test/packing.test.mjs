@@ -133,12 +133,30 @@ describe("the PDF writer", () => {
 
   it("wraps a long unbroken note in time, and caps its rows", () => {
     const note = "é".repeat(2000);
-    const started = performance.now();
     const all = wrap(note, 400, { size: 11 });
-    const took = performance.now() - started;
     const capped = wrap(note, 400, { size: 11, rows: 12 });
 
-    assert.ok(took < 50, `${took.toFixed(1)} ms`);
+    // In time: eight times the note takes about eight times as long, not
+    // the sixty-four a quadratic wrap would. A ratio, best of five, so a
+    // loaded machine slows both sides alike (#159).
+    const best = (n) => {
+      const long = "é".repeat(n);
+      let fastest = Infinity;
+
+      for (let i = 0; i !== 5; i += 1) {
+        const started = performance.now();
+
+        wrap(long, 400, { size: 11 });
+        fastest = Math.min(fastest, performance.now() - started);
+      }
+
+      return fastest;
+    };
+
+    best(500);
+    const ratio = best(4000) / best(500);
+
+    assert.ok(ratio < 24, `8x the note took ${ratio.toFixed(1)}x as long`);
     assert.equal(all.join(""), note, "nothing lost");
     assert.equal(capped.length, 12);
     assert.ok(capped[11].endsWith("…"));
