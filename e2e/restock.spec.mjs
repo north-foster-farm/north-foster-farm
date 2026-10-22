@@ -15,16 +15,19 @@ const catalog = JSON.parse(readFileSync(
 ));
 const items = catalog.groups.flatMap((g) => g.items);
 
-// One product out of stock in the catalog for each restock type.
+// One product out of stock in the catalog for each restock type but
+// archived (James's corrections, #274 6330468558).
 const OUT = {
-  soon: "NFF-CHK-EGG-MD", // Eggs, Medium: "Back soon"
-  seasonal: "NFF-CHK-WHL-50-59", // Whole Chicken, 5.0 - 5.9 lbs
+  soon: "NFF-CHK-FET-0075-0125", // Feet: "Back soon"
+  seasonal: "NFF-CHK-TND-15-99", // Tenders, 1.5 lbs and up
   hiatus: "NFF-CHK-SAUSWT", // Sweet Italian Sausage
+  discontinued: "NFF-CHK-WHL-50-59", // Whole Chicken, 5.0 - 5.9 lbs
 };
 const LABEL = {
   soon: "Back soon",
   seasonal: "Back in spring",
   hiatus: "On hiatus",
+  discontinued: "No longer available",
 };
 // No category is wholly out in the catalog since 2026-v9; selling
 // out the maple links empties Sausage.
@@ -192,9 +195,9 @@ test.describe("restock types (#267)", () => {
 
   test("an out-of-stock product can't be put in the cart by link",
     async ({ page }) => {
-      await page.goto(`/order/?add=${OUT.soon}:2`);
+      await page.goto(`/order/?add=${OUT.seasonal}:2`);
       await expect(page.locator("#order-added"))
-        .toContainText("No longer available: Eggs, Medium.");
+        .toContainText("No longer available: Tenders, 1.5 lbs and up.");
       await expect(new OrderPage(page).count).toHaveText("0 items");
     });
 

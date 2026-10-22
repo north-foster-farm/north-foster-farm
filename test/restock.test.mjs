@@ -69,19 +69,35 @@ describe("the catalog's restock types", () => {
     }
   });
 
+  // #267's assignments with James's corrections (#274, 6330468558).
   it("follow the spec's assignments", () => {
-    for (const i of of("sausage")) assert.equal(i.restock, "hiatus");
-    for (const i of of("eggs")) assert.equal(i.restock, "soon");
+    const SPEC = {
+      "NFF-CHK-EGG-LG": "soon",
+      "NFF-CHK-EGG-MD": "hiatus",
+      "NFF-CHK-EGG-SM": "hiatus",
+      "NFF-CHK-WHL-50-59": "discontinued",
+      "NFF-CHK-WHL-60-69": "discontinued",
+      "NFF-CHK-WHL-70-79": "discontinued",
+      "NFF-CHK-BRSBL-15-16": "discontinued",
+      "NFF-CHK-BRSBL-17-99": "discontinued",
+      "NFF-CHK-THGBN-20-99": "discontinued",
+      "NFF-CHK-WNG-20-29": "discontinued",
+      "NFF-CHK-WNG-30-99": "discontinued",
+      "NFF-CHK-FET-0075-0125": "soon",
+    };
+
+    for (const i of of("sausage")) SPEC[i.sku] = "hiatus";
     // Ground chicken was never sold (6304873363); Cornish hens are
     // discontinued and archived (6305037316).
     for (const i of [...of("ground"), ...of("cornish")]) {
-      assert.equal(i.restock, "archived", i.sku);
-      assert.equal(i.restockSeason, undefined, i.sku);
+      SPEC[i.sku] = "archived";
     }
-    for (const i of items.filter((x) =>
-      !["cornish", "sausage", "eggs", "ground"].includes(x.groupKey))) {
-      assert.equal(i.restock, "seasonal", i.sku);
-      assert.equal(i.restockSeason, "spring", i.sku);
+    for (const i of items) {
+      const want = SPEC[i.sku] || "seasonal";
+
+      assert.equal(i.restock, want, i.sku);
+      assert.equal(i.restockSeason, want === "seasonal" ? "spring"
+        : undefined, i.sku);
     }
   });
 });

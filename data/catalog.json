@@ -24,7 +24,7 @@
           "price": 5,
           "inStock": false,
           "squareVariationId": "BVP2QVW2QQ3PD5SWHUYQYCND",
-          "restock": "soon"
+          "restock": "hiatus"
         },
         {
           "sku": "NFF-CHK-EGG-SM",
@@ -34,7 +34,7 @@
           "price": 2,
           "inStock": false,
           "squareVariationId": "YZ4S22UUPFD6JEVISCX2OPT2",
-          "restock": "soon"
+          "restock": "hiatus"
         }
       ]
     },
@@ -109,8 +109,7 @@
           "price": 46,
           "inStock": false,
           "squareVariationId": "NP6L4UNZVNYJNYQVIZIIX3MF",
-          "restock": "seasonal",
-          "restockSeason": "spring"
+          "restock": "discontinued"
         },
         {
           "sku": "NFF-CHK-WHL-60-69",
@@ -119,8 +118,7 @@
           "price": 52,
           "inStock": false,
           "squareVariationId": "DMIQBYH3PX32VUIGUMICRTJ4",
-          "restock": "seasonal",
-          "restockSeason": "spring"
+          "restock": "discontinued"
         },
         {
           "sku": "NFF-CHK-WHL-70-79",
@@ -129,8 +127,7 @@
           "price": 60,
           "inStock": false,
           "squareVariationId": "NFLPHGC55MFMDUBMUL7AHHE4",
-          "restock": "seasonal",
-          "restockSeason": "spring"
+          "restock": "discontinued"
         }
       ]
     },
@@ -189,8 +186,7 @@
           "price": 24,
           "inStock": false,
           "squareVariationId": "MXKHL3EEHSJEWJDFDERYEXCX",
-          "restock": "seasonal",
-          "restockSeason": "spring"
+          "restock": "discontinued"
         },
         {
           "sku": "NFF-CHK-BRSBL-17-99",
@@ -199,8 +195,7 @@
           "price": 28,
           "inStock": false,
           "squareVariationId": "JJUT44GZXC4LQR7C2OUDYONB",
-          "restock": "seasonal",
-          "restockSeason": "spring"
+          "restock": "discontinued"
         }
       ]
     },
@@ -235,8 +230,7 @@
           "price": 20,
           "inStock": false,
           "squareVariationId": "JNDKYBNUERQBIQCMXTXS2YKH",
-          "restock": "seasonal",
-          "restockSeason": "spring"
+          "restock": "discontinued"
         }
       ]
     },
@@ -323,8 +317,7 @@
           "price": 16,
           "inStock": false,
           "squareVariationId": "4VIAOWSPJUE7QKNS2JCK35HX",
-          "restock": "seasonal",
-          "restockSeason": "spring"
+          "restock": "discontinued"
         },
         {
           "sku": "NFF-CHK-WNG-30-99",
@@ -333,8 +326,7 @@
           "price": 20,
           "inStock": false,
           "squareVariationId": "SYY7VR5UTU4D6R6BA5JBM5NL",
-          "restock": "seasonal",
-          "restockSeason": "spring"
+          "restock": "discontinued"
         }
       ]
     },
@@ -420,8 +412,7 @@
           "price": 5,
           "inStock": false,
           "squareVariationId": "ZIM45BGVEPPSC2NYNRH5ROF3",
-          "restock": "seasonal",
-          "restockSeason": "spring"
+          "restock": "soon"
         },
         {
           "sku": "NFF-CHK-BCK-10-19",
