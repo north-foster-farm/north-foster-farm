@@ -127,33 +127,43 @@
             <h2 class="h4" id="acct-settings-h">Settings</h2>
             {{/* Three groups under headings (#238): a label sits closer to
                  its field than a group to the next. */}}
-            <form class="account-card" id="profile-form" novalidate>
+            <form class="account-form" id="profile-form" novalidate>
               <section class="account-group" aria-labelledby="prof-details-h">
                 <h3 class="account-group-title" id="prof-details-h">Your details</h3>
-                <div class="row g-3">
-                  <div class="col-md-4">
-                    <label class="form-label" for="prof-first">First name</label>
+                <div class="row account-row">
+                  <label class="col-md-4 col-form-label" for="prof-first">First name</label>
+                  <div class="col-md-8">
                     <input class="form-control" type="text" id="prof-first" name="firstName" autocomplete="given-name" data-field="firstName" aria-describedby="err-prof-first">
                     <div class="invalid-feedback" id="err-prof-first" data-error-for="firstName"></div>
                   </div>
-                  <div class="col-md-4">
-                    <label class="form-label" for="prof-last">Last name</label>
+                </div>
+                <div class="row account-row">
+                  <label class="col-md-4 col-form-label" for="prof-last">Last name</label>
+                  <div class="col-md-8">
                     <input class="form-control" type="text" id="prof-last" name="lastName" autocomplete="family-name" data-field="lastName" aria-describedby="err-prof-last">
                     <div class="invalid-feedback" id="err-prof-last" data-error-for="lastName"></div>
                   </div>
-                  <div class="col-md-4">
-                    <label class="form-label" for="prof-phone">Phone <span class="text-body-secondary">(optional)</span></label>
+                </div>
+                <div class="row account-row">
+                  <label class="col-md-4 col-form-label" for="prof-phone">Phone <span class="text-body-secondary">(optional)</span></label>
+                  <div class="col-md-8">
                     <input class="form-control" type="tel" id="prof-phone" name="phone" autocomplete="tel" inputmode="tel" data-field="phone" aria-describedby="err-prof-phone">
                     <div class="invalid-feedback" id="err-prof-phone" data-error-for="phone"></div>
                   </div>
-                  <div class="col-12">
-                    <label class="form-label" for="prof-email">Email</label>
-                    <input class="form-control-plaintext account-email-value" type="email" id="prof-email" readonly tabindex="-1" aria-describedby="prof-email-note">
-                    <div class="form-text" id="prof-email-note">Your email is how you sign in. Write us to change it.</div>
+                </div>
+                {{/* The sign-in address, read-only for now. #240's
+                     email address change replaces this row whole, with
+                     its approved wording: keep the row's id. */}}
+                <div class="row account-row" id="prof-email-row">
+                  <label class="col-md-4 col-form-label" for="prof-email">Email address</label>
+                  <div class="col-md-8">
+                    <input class="form-control-plaintext account-email-value" type="email" id="prof-email" readonly tabindex="-1">
                   </div>
-                  <div class="col-12" id="prof-group-row" hidden>
-                    <span class="form-label d-block">Your pricing</span>
-                    <p class="mb-0" id="prof-group"></p>
+                </div>
+                <div class="row account-row" id="prof-group-row" hidden>
+                  <span class="col-md-4 col-form-label">Your pricing</span>
+                  <div class="col-md-8">
+                    <p class="mb-0 account-email-value" id="prof-group"></p>
                   </div>
                 </div>
               </section>
@@ -171,25 +181,31 @@
                 <div class="invalid-feedback d-block" data-error-for="avatar"></div>
               </section>
               <section class="account-group" aria-labelledby="prof-email-h">
-                <h3 class="account-group-title" id="prof-email-h">Email from us</h3>
-                <div class="row g-3">
-                  <fieldset class="col-12">
-                    <legend class="form-label">Reminders</legend>
-                    <div class="form-check">
-                      <input class="form-check-input" type="checkbox" id="prof-remind-delivery" name="remind-delivery" data-reminder="delivery">
-                      <label class="form-check-label" for="prof-remind-delivery">Remind me the evening before a delivery</label>
+                <h3 class="account-group-title" id="prof-email-h">Email preferences</h3>
+                {{/* A fieldset cannot be a flex row (grid check G13), so
+                     the row sits inside it and the label names it. */}}
+                <fieldset aria-labelledby="prof-remind-l">
+                  <div class="row account-row">
+                    <span class="col-md-4 col-form-label account-legend" id="prof-remind-l">Reminders</span>
+                    <div class="col-md-8 account-checks">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="prof-remind-delivery" name="remind-delivery" data-reminder="delivery">
+                        <label class="form-check-label" for="prof-remind-delivery">Remind me the evening before delivery.</label>
+                      </div>
                     </div>
-                    <div class="form-text">We always email your order confirmation and any change to an order.</div>
-                  </fieldset>
-                  <fieldset class="col-12">
-                    <legend class="form-label">Farm news</legend>
-                    <div class="form-check">
-                      <input class="form-check-input" type="checkbox" id="prof-marketing" name="marketing" data-field="marketing">
-                      <label class="form-check-label" for="prof-marketing">Receive occasional email from {{ hugo.Data.company.name }}</label>
+                  </div>
+                </fieldset>
+                <fieldset aria-labelledby="prof-news-l">
+                  <div class="row account-row">
+                    <span class="col-md-4 col-form-label account-legend" id="prof-news-l">Farm news</span>
+                    <div class="col-md-8 account-checks">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="prof-marketing" name="marketing" data-field="marketing">
+                        <label class="form-check-label" for="prof-marketing">Receive an occasional newsletter from {{ hugo.Data.company.name }}.</label>
+                      </div>
                     </div>
-                    <div class="form-text">Off unless you turn it on. Turn it off here any time.</div>
-                  </fieldset>
-                </div>
+                  </div>
+                </fieldset>
               </section>
               {{/* What the last save did (#238): Saving… with a spinner, Saved,
                    or why it failed; main.js sets data-save and the words. */}}
