@@ -1712,7 +1712,7 @@ const MESSAGES_SHOWN = 30;
 
 export const farmMorningReport = (stats, pickups, {
   date, links, now = clock(), schedule = null, archived = [], messages = [],
-  square = null,
+  square = null, reminders = [],
 } = {}) => {
   const title = `Morning report: ${label(date)}`;
   const blocks = [
@@ -1737,6 +1737,10 @@ export const farmMorningReport = (stats, pickups, {
       p("Add windows and deploy, or the next deploy fails:"),
       command("bin/nff schedule set <file>")
     );
+  }
+  // Dated reminders for the farm (lib/reminders.mjs).
+  if (reminders.length) {
+    blocks.push(heading("Reminders"), ...reminders.map((r) => p(r)));
   }
   // Until the flag is flipped or the stock zeroed (#267).
   if (archived.length) {

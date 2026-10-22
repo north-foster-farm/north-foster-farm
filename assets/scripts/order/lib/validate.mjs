@@ -4,7 +4,9 @@
 
 import { archived } from "./catalog.mjs";
 import { datesFor } from "./dates.mjs";
+import { moneyOn } from "./money-on.mjs";
 import { computeTotals, meetsMinimum } from "./totals.mjs";
+import { today } from "./zoned.mjs";
 
 export const METHODS = ["onfarm", "scituate", "delivery"];
 export const CONTACT = ["text", "call"];
@@ -82,14 +84,16 @@ export const findCode = (value, codes) => {
 // one in `flags.minimumWaived` and `totals.feeWaived`.
 export const validateOrder = (payload, {
   index, terms, now, group, codes, code, schedule = [], held = {},
-  waive = {},
+  waive = {}, placed = null,
 }) => {
   const errors = {};
   const p = payload && typeof payload === "object" ? payload : {};
   const discountCode = codes ? findCode(p.code, codes) : code || null;
   const customer = p.customer || {};
   const fulfilment = p.fulfilment || {};
-  const money = terms.money;
+  // An order being changed keeps the prices of the day it was placed.
+  const money = moneyOn(terms.money,
+    today(placed ? new Date(placed) : now, terms.timeZone));
 
   const firstName = text(customer.firstName, 60);
   const lastName = text(customer.lastName, 60);

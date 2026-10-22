@@ -64,6 +64,13 @@ sees, so a dead page and a silent failure both reach the phone.
 - **Tomorrow.** 18:00 daily, always: every order due tomorrow by
   method, with what to pack and where to leave it.
   `FARM_NOTIFICATIONS_EMAIL`.
+- **Dated rebuild.** On the day a money change takes effect (`money.
+  changes` in `data/delivery.json`, 1 January 2027 for the first), the
+  first run posts the build hook once so the pages Hugo rendered catch
+  up; `rebuilt` in that run's report, `rebuild/<day>` in the jobs
+  store. It needs `PICKUP_SCHEDULE_HOOK` set on Netlify too (`netlify
+  env:set`); unset, nothing is posted. A hook that fails is tried
+  again each run and shows as a `rebuild` error, for a week.
 - **Refund check.** 07:00 daily: every refund not yet settled is asked
   of Square, or of PayPal for Venmo; one that failed or stalled raises
   an alert (#215). `bin/nff refunds check` runs it on demand. Needs

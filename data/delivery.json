@@ -11,6 +11,9 @@
       { "threshold": 150, "off": 15 },
       { "threshold": 200, "off": 20 }
     ],
+    "changes": [
+      { "from": "2027-01-01", "deliveryMinimum": 50, "dropTiers": [50] }
+    ],
     "discountGroups": {
       "friends": { "label": "Friends & family", "percent": 10 },
       "wholesale": { "label": "Wholesale", "percent": 20 }

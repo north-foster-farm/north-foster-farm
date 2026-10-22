@@ -26,7 +26,7 @@
   data/company.json. A cutoff hour of 24 has no word that reads before
   "on Wednesday"; use the cutoff shortcode for that. */ -}}
 {{- $terms := hugo.Data.delivery -}}
-{{- $money := $terms.money -}}
+{{- $money := partial "money.html" -}}
 {{- $fact := .Get 0 -}}
 {{- $key := .Get 1 | default "delivery" -}}
 {{- $of := index $terms $key -}}

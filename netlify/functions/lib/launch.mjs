@@ -13,6 +13,7 @@ import terms from "../../../data/delivery.json" with { type: "json" };
 import {
   dayName, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { moneyOn } from "../../../assets/scripts/order/lib/money-on.mjs";
 import { now as clock } from "./clock.mjs";
 
 const dollars = (n) => `$${n}`;
@@ -34,8 +35,7 @@ const ends = (window) => window.split(/\s*–\s*/);
 // 7 -> "a week", 3 -> "3 days": the email says it in words.
 export const span = (days) => (days === 7 ? "a week" : `${days} days`);
 
-const { money, delivery, scituate } = terms;
-const tiers = money.bulkTiers;
+const { delivery, scituate } = terms;
 const { address } = company;
 
 // ", starting October 17" while the drop site's first day is ahead in
@@ -47,28 +47,34 @@ const starting = (now) =>
 
 // The facts as of now, so an email sent after the drop site opens
 // doesn't announce its first day.
-export const facts = (now = clock()) => ({
-  deliveryDay: dayName(delivery.weekday),
-  deliveryFrom: ends(delivery.window)[0],
-  deliveryTo: ends(delivery.window)[1],
-  cutoff: `${hour(delivery.cutoffHour)} on ${dayName(delivery.cutoffWeekday)}`,
-  minimum: dollars(money.deliveryMinimum),
-  fee: dollars(money.deliveryFee),
-  feeWaivedAt: dollars(money.feeWaivedAt),
-  farmAddress:
-    `${address.street}, ${address.city}, ${address.state} ${address.zip}`,
-  dropDay: dayName(scituate.weekday),
-  dropWindow: ends(scituate.window).join(" to "),
-  dropStarting: starting(now),
-  // The place without its state and ZIP, which the list knows.
-  dropPlace: scituate.location.replace(/, [A-Z]{2} \d{5}$/, ""),
-  bulkFirstOff: dollars(tiers[0].off),
-  bulkFirstAt: dollars(tiers[0].threshold),
-  bulkLastOff: dollars(tiers.at(-1).off),
-  bulkLastAt: dollars(tiers.at(-1).threshold),
-  // How long the sign-up email's button works (news.mjs CONFIRM_TTL).
-  inviteLife: span(accounts.newsInviteDays),
-});
+export const facts = (now = clock()) => {
+  const money = moneyOn(terms.money, today(now, terms.timeZone));
+  const tiers = money.bulkTiers;
+
+  return {
+    deliveryDay: dayName(delivery.weekday),
+    deliveryFrom: ends(delivery.window)[0],
+    deliveryTo: ends(delivery.window)[1],
+    cutoff: `${hour(delivery.cutoffHour)} on ${
+      dayName(delivery.cutoffWeekday)}`,
+    minimum: dollars(money.deliveryMinimum),
+    fee: dollars(money.deliveryFee),
+    feeWaivedAt: dollars(money.feeWaivedAt),
+    farmAddress:
+      `${address.street}, ${address.city}, ${address.state} ${address.zip}`,
+    dropDay: dayName(scituate.weekday),
+    dropWindow: ends(scituate.window).join(" to "),
+    dropStarting: starting(now),
+    // The place without its state and ZIP, which the list knows.
+    dropPlace: scituate.location.replace(/, [A-Z]{2} \d{5}$/, ""),
+    bulkFirstOff: dollars(tiers[0].off),
+    bulkFirstAt: dollars(tiers[0].threshold),
+    bulkLastOff: dollars(tiers.at(-1).off),
+    bulkLastAt: dollars(tiers.at(-1).threshold),
+    // How long the sign-up email's button works (news.mjs CONFIRM_TTL).
+    inviteLife: span(accounts.newsInviteDays),
+  };
+};
 
 export const fill = (text, values = facts()) =>
   text.replace(/\{(\w+)\}/g, (_, key) => {

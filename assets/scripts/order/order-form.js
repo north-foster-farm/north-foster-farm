@@ -7,6 +7,7 @@ import { current, indexCatalog, packLabel } from "./lib/catalog.mjs";
 import {
   keyboardInset, moreStop, rowsFloor, visibleArea,
 } from "./lib/cart-scroll.mjs";
+import { moneyOn } from "./lib/money-on.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
 import { sentence } from "./lib/sentence.mjs";
 import { summarize } from "./lib/summary.mjs";
@@ -17,7 +18,7 @@ import {
   disallowedFor, normalizeCode, phoneOk, validateOrder, zipInfo,
 } from "./lib/validate.mjs";
 import { pickupTimes, windowLabel } from "./lib/schedule.mjs";
-import { label } from "./lib/zoned.mjs";
+import { label, today } from "./lib/zoned.mjs";
 import { celebrate } from "./celebrate.js";
 import { DateLists } from "./date-lists.js";
 import { Draft } from "./draft.js";
@@ -117,6 +118,17 @@ export class OrderForm {
     });
   }
 
+  // The prices in force today in the farm's zone, so the 1 January
+  // changes (data/delivery.json, money.changes) arrive with the day;
+  // an order being changed keeps those of the day it was placed.
+  get money() {
+    const placed = this.editing && this.editing.placed;
+
+    return moneyOn(this.terms.money, today(
+      placed ? new Date(placed) : this.dates.now(), this.terms.timeZone
+    ));
+  }
+
   constructor(form) {
     const data = JSON.parse(document.getElementById("order-data").textContent);
 
@@ -136,7 +148,6 @@ export class OrderForm {
     this.passFee = false;
     this.joke = null;
     this.index = indexCatalog(this.catalog);
-    this.money = this.terms.money;
     this.errors = new Errors(form);
     // /order/?edit=<id> changes a paid order (startEdit): its own draft,
     // so the cart the header reads is left alone, and its own endpoint.
@@ -270,7 +281,7 @@ export class OrderForm {
     // nothing now (#193).
     this.editing = {
       id: order.id, held: sum(order.payments) - sum(order.refunds),
-      kept: order.keptFee || 0,
+      kept: order.keptFee || 0, placed: order.submittedAt,
     };
     for (const line of order.lines) {
       this.stock.held[line.sku] = line.qty;
@@ -719,6 +730,25 @@ export class OrderForm {
       this.setQty(input, 0);
       this.changed();
     });
+
+    // A page built before a money change (data/delivery.json,
+    // money.changes) took effect still carries the old badges and
+    // minimum: bring them to today's.
+    const tiers = this.money.bulkTiers.map((t) => `tier-${t.threshold}`);
+
+    for (const badge of this.editId ? [] : all(this.cart,
+      "[data-badge^='tier-']")) {
+      if (!tiers.includes(badge.dataset.badge)) badge.remove();
+    }
+
+    const delivery = qs(this.cart, "[data-badge='delivery']");
+
+    if (delivery && !this.editId) {
+      delivery.dataset.tip = delivery.dataset.tip.replace(
+        /^Orders of \$\d+ or more/,
+        `Orders of $${this.money.deliveryMinimum} or more`
+      );
+    }
 
     // A tap on a badge explains it; the next tap, or a tap elsewhere,
     // closes it.
@@ -2250,6 +2280,7 @@ export class OrderForm {
   check(payload) {
     return validateOrder(payload, {
       index: this.index, terms: this.terms, now: this.dates.now(),
+      placed: this.editing && this.editing.placed,
       group: this.group, code: this.code, schedule: this.dates.schedule(),
       waive: { minimum: !!this.pass, fee: !!this.pass && this.passFee },
     });

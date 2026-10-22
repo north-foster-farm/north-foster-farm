@@ -1,5 +1,5 @@
 {{ $terms := hugo.Data.delivery }}
-{{ $money := $terms.money }}
+{{ $money := partial "money.html" }}
 {{ $policy := relURL "delivery-policy/" }}
 <fieldset class="order-section mb-5" id="pickup">
   <legend class="h2" tabindex="-1">Pickup or delivery</legend>

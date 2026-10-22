@@ -17,7 +17,7 @@
      then. Built after, `from` is empty and the band just shows. */}}
 {{ $from := .from }}
 {{ $terms := hugo.Data.delivery }}
-{{ $money := $terms.money }}
+{{ $money := partial "money.html" }}
 {{ $address := hugo.Data.company.address }}
 {{ $dropStart := time.AsTime $terms.scituate.start $terms.timeZone }}
 {{ $dropEnd := $dropStart.AddDate 0 0 1 }}

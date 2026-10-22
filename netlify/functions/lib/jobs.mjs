@@ -80,6 +80,7 @@ import {
   paymentsOf, questionOpen, refundsOf, reminderPrefs, setStatus, sweepAuth,
   sweepCheckouts,
 } from "./records.mjs";
+import { remindersOn } from "./reminders.mjs";
 import { rotationDaily } from "./rotation.mjs";
 import { archivedOnHand } from "./stock.mjs";
 import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
@@ -161,7 +162,7 @@ export const runJobs = async (stores, {
 } = {}) => {
   const report = {
     at: now.toISOString(), announced: [], deliveryReminded: [], closed: [],
-    squareSynced: [], muted: [], missedTold: [], holdsExpired: [],
+    squareSynced: [], muted: [], missedTold: [], holdsExpired: [], rebuilt: [],
     checkoutsRescued: [], checkoutsSwept: 0, authSwept: 0, squareOpen: [],
     customersMade: [], pickupsToConfirm: [], scrubbed: [], tomorrow: null,
     packing: null, changedAfterPrint: [], rotation: null,
@@ -301,6 +302,8 @@ export const runJobs = async (stores, {
     }
   }
 
+  report.rebuilt = (await attempt(null, "rebuild",
+    () => rebuildDaily(stores, { env, now: realNow, fetchImpl, fail }))) || [];
   report.checkoutsSwept = (await attempt(null, "checkouts",
     () => sweepCheckouts(stores, realNow))) || 0;
   report.authSwept = (await attempt(null, "auth",
@@ -678,13 +681,59 @@ const refundCheckDaily = async (stores, {
   };
 };
 
+// A money change that takes effect on a date (data/delivery.json,
+// money.changes) reaches the order page and the functions by itself;
+// the pages Hugo rendered need a build on or after the day. The first
+// run on the day (the farm's zone) posts the build hook once, kept
+// under rebuild/<day> so a later run does not post it again; one that
+// is missed starts it up to REBUILD_WITHIN_DAYS late. A hook that
+// fails leaves no mark and is tried again next run. With no hook set
+// (PICKUP_SCHEDULE_HOOK, on Netlify too) nothing is posted and the
+// morning report's reminder says to deploy by hand.
+// -> the change days it started a build for.
+export const REBUILD_WITHIN_DAYS = 7;
+export const REBUILD_TIMEOUT = 10_000;
+
+const rebuildDaily = async (stores, { env, now, fetchImpl, fail }) => {
+  const hook = env.PICKUP_SCHEDULE_HOOK;
+  const day = today(now, tz);
+  const started = [];
+
+  if (!hook) return started;
+
+  for (const { from } of terms.money.changes || []) {
+    if (from > day || day > addDays(from, REBUILD_WITHIN_DAYS)) continue;
+
+    const key = `rebuild/${from}`;
+
+    if (await stores.jobs.get(key)) continue;
+
+    // A hook that hangs must not hold the run: ten seconds, then it
+    // counts as unanswered and is tried again next run.
+    const res = await fetchImpl(hook, {
+      method: "POST", signal: AbortSignal.timeout(REBUILD_TIMEOUT),
+    }).catch(() => null);
+
+    if (!res || !res.ok) {
+      fail(null, "rebuild", res ? `build hook answered ${res.status}`
+        : "build hook did not answer");
+      continue;
+    }
+    await stores.jobs.set(key, { at: now.toISOString() });
+    started.push(from);
+  }
+
+  return started;
+};
+
 // The report, in counts, for the ledger, the log and the heartbeat.
 export const summarize = (report) => ({
   at: report.at,
   counts: Object.fromEntries([
     "announced", "deliveryReminded", "closed", "squareSynced", "muted",
-    "missedTold", "holdsExpired", "checkoutsRescued", "pickupsToConfirm",
-    "scrubbed", "changedAfterPrint", "squareOpen", "customersMade",
+    "missedTold", "holdsExpired", "rebuilt", "checkoutsRescued",
+    "pickupsToConfirm", "scrubbed", "changedAfterPrint", "squareOpen",
+    "customersMade",
   ].map((k) => [k, (report[k] || []).length])),
   squareCancelled: (report.squareOpen || []).filter((o) => o.cancelled)
     .length,
@@ -889,7 +938,7 @@ const morningReport = async (stores, {
       stats, pickups, archived, messages, square,
     }]) => farmMorningReport(stats, pickups, {
       date: day, links: mailLinks(env), now, schedule: coverage(env, now),
-      archived, messages, square,
+      archived, messages, square, reminders: remindersOn(day),
     }),
     onSent: () => ping(env.HEALTHCHECKS_ALERT_URL, { ok: true, fetchImpl }),
     env, mail, now,
