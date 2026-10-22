@@ -168,7 +168,8 @@ const blocker = async (stores, email, orders) => {
 };
 
 export const WAIT = {
-  open: "You have an order still to come. You can delete your details " +
+  // James, D-189 part 1 (2026-10-17).
+  open: "You have an order in progress. You can delete your details " +
     "once it's delivered or picked up, or after you cancel it.",
   return: "We're still working on a return for you. You can delete " +
     "your details once it's settled.",

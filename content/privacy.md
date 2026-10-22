@@ -80,11 +80,12 @@ If you start paying with Venmo and don't finish, we delete your order details
 within a day, and PayPal lets the unfinished payment expire.
 
 Your account stays until you close it. Deleting your details takes one click
-in your account settings. Your orders stay in our records, with no name on
-them, for our own reporting. Seven years after an order, we remove your name,
-email address, phone number and street address from it. The order keeps what
-was bought, the prices, the date, how it reached you, and the town and ZIP
-code. Deleting your details also deletes the customer profile we made for you
+in your account settings. If you delete your details, your past orders stay
+in our records with no name on them, for our own reporting. Seven years after
+an order, we remove your name, email address, phone number and street address
+from it. The order keeps what was bought, the prices, the date, how it reached
+you, and the town and ZIP code. Deleting your details also deletes the
+customer profile we made for you
 at Square, which keeps the payments themselves. We delete the messages you send
 us seven years after you send them, or when you delete your details. Deleted
 details can remain in our encrypted backups for up to 30 days.

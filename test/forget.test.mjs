@@ -368,6 +368,6 @@ describe("POST /api/account/delete", () => {
     });
 
     assert.equal(res.status, 409);
-    assert.match((await res.json()).message, /order still to come/);
+    assert.match((await res.json()).message, /order in progress/);
   });
 });
