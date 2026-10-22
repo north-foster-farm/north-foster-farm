@@ -1,4 +1,4 @@
-{{ $title := partial "page-title.html" . | safeHTML }}
+{{ $title := partial "head/document-title.html" . | safeHTML }}
 {{ $featuredImage := partial "featured-image-url.html" . }}
 {{ $description := (chomp .Description) | safeHTML }}
 {{ $isPost := and .IsPage (eq .Section "news") }}

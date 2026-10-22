@@ -18,6 +18,9 @@
 // S7  a BreadcrumbList counts from 1, and links every item but the last
 // S8  a news post carries a BlogPosting, and the home page the farm's
 //     address
+// T1  a page's title is "Page title | North Foster Farm" (the home
+//     page: "North Foster Farm | slogan"), and its og:title the same
+// T2  no two pages share a title
 // S9  the order page has a Product for every catalog item that is on
 //     the page, at the catalog's price, with a known availability
 
@@ -220,6 +223,40 @@ export function checkHtml(html, path = "") {
   return findings;
 }
 
+const BRAND = "North Foster Farm";
+
+// The page's <title> and og:title, or null for a redirect.
+export function titleOf(html) {
+  if (/<meta http-equiv="?refresh/i.test(html)) return null;
+  const title = /<title>([^<]*)<\/title>/.exec(html);
+  const og = /<meta property="?og:title"? content="?([^">]*)"?/.exec(html);
+
+  return { title: title?.[1], og: og?.[1] };
+}
+
+// T1, for one page.
+export function checkTitle(html, path = "") {
+  const found = titleOf(html);
+  const findings = [];
+
+  if (!found) return findings;
+  if (!found.title) {
+    return [{ rule: "T1", message: "no <title>" }];
+  }
+  if (!(path === "index.html" ? found.title.startsWith(`${BRAND} | `)
+    : found.title.endsWith(` | ${BRAND}`))) {
+    findings.push({ rule: "T1", message: `title is "${found.title}"` });
+  }
+  if (found.og !== found.title) {
+    findings.push({
+      rule: "T1",
+      message: `og:title is "${found.og}", the title "${found.title}"`,
+    });
+  }
+
+  return findings;
+}
+
 // S9: a Product for every catalog item the order page shows, at the
 // catalog's price. Archived items are not on the page.
 const catalog = () => JSON.parse(readFileSync(
@@ -264,12 +301,20 @@ function* htmlFiles(dir) {
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const dir = process.argv[2] || "public";
   let count = 0;
+  const titles = new Map();
   for (const file of htmlFiles(dir)) {
     const path = relative(dir, file).split(sep).join("/");
-    for (const f of checkHtml(readFileSync(file, "utf8"), path)) {
+    const html = readFileSync(file, "utf8");
+    for (const f of [...checkHtml(html, path), ...checkTitle(html, path)]) {
       count++;
       console.log(`${path} ${f.rule}: ${f.message}`);
     }
+    const title = titleOf(html)?.title;
+    if (title && titles.has(title)) {
+      count++;
+      console.log(
+        `${path} T2: the title "${title}" is also on ${titles.get(title)}`);
+    } else if (title) titles.set(title, path);
   }
   console.log(`schema check: ${count} findings`);
   process.exitCode = count ? 1 : 0;

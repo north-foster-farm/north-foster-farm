@@ -1,0 +1,13 @@
+{{/* What the browser tab, a search result and a shared link call the
+     page: "Page title | North Foster Farm", the page first (#191). The
+     home page leads with the farm instead, and carries its slogan
+     where the others carry the farm's name. */}}
+{{ $title := partial "page-title.html" . }}
+
+{{ if .IsHome }}
+  {{ $title = print $title " | " .Site.Params.slogan }}
+{{ else }}
+  {{ $title = print $title " | " .Site.Title }}
+{{ end }}
+
+{{ return $title }}

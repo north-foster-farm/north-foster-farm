@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
-  checkGraph, checkHtml, checkOrder,
+  checkGraph, checkHtml, checkOrder, checkTitle,
 } from "../bin/schema/check.mjs";
 
 // The built graphs of the home page, a news post and /order/, as
@@ -131,5 +131,23 @@ describe("the schema check", () => {
       .filter((f) => /no Product for NFF-NEW/.test(f.message)).length, 1);
     assert.equal(checkOrder(data, items).some(
       (f) => /OLD/.test(f.message)), false);
+  });
+
+  it("wants \"Page | North Foster Farm\", og:title the same", () => {
+    const head = (title, og = title) => `<title>${title}</title>`
+      + `<meta property="og:title" content="${og}">`;
+
+    assert.deepEqual(checkTitle(head("Contact | North Foster Farm"),
+      "contact/index.html"), []);
+    assert.deepEqual(checkTitle(
+      head("North Foster Farm | Pasture-raised chicken"), "index.html"), []);
+    assert.deepEqual(checkTitle("<meta http-equiv=\"refresh\">"), []);
+    assert.equal(checkTitle(head("Contact"), "contact/index.html").length,
+      1);
+    assert.equal(checkTitle(head("Contact | North Foster Farm", "Contact"),
+      "contact/index.html").length, 1);
+    assert.equal(checkTitle(head("Contact | North Foster Farm"),
+      "index.html").length, 1);
+    assert.equal(checkTitle("<head></head>", "a/index.html").length, 1);
   });
 });
