@@ -26,12 +26,19 @@
 
 import { createHash } from "node:crypto";
 
+import catalog from "../../../data/catalog.json" with { type: "json" };
 import terms from "../../../data/delivery.json" with { type: "json" };
+import signatures from "../../../data/signatures.json" with { type: "json" };
+import skuAliases from "../../../data/skuAliases.json" with { type: "json" };
+import {
+  current, indexCatalog,
+} from "../../../assets/scripts/order/lib/catalog.mjs";
 import { pickupTimes } from "../../../assets/scripts/order/lib/schedule.mjs";
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import {
   addDays, label, parts, today, weekday,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { METHODS } from "./checkout.mjs";
 import { company } from "./company.mjs";
 import { methodName, packetCounts, placeOf } from "./describe.mjs";
 import { isScheduled } from "../../../assets/scripts/order/lib/dates.mjs";
@@ -39,12 +46,16 @@ import { ping } from "./health.mjs";
 import { now as clock } from "./clock.mjs";
 import { log, scrub } from "./log.mjs";
 import { MailError, farmEmails, sendMail } from "./mail.mjs";
+import {
+  configured as paypalConfigured, venmoHidden,
+} from "./paypal.mjs";
 import { pdf, wrap } from "./pdf.mjs";
 import {
   allOrders, getOrder, paidTotal, paymentsOf, settledRefunds,
 } from "./records.mjs";
 import { resendAllowed } from "./resend-guard.mjs";
 import { mailLinks } from "./site.mjs";
+import { mark, wordmark } from "./slip-assets.mjs";
 import { farmChangedAfterPrint, farmPackingSlips } from "./templates.mjs";
 
 const tz = terms.timeZone;
@@ -93,13 +104,6 @@ export const paymentState = (order) => {
 };
 
 const paidWord = (state) => (state.paid ? "PAID" : "UNPAID");
-
-const VIA = { square: "Card", venmo: "Venmo" };
-
-// "Card", "Venmo", "Apple Pay": how it was paid, first payment first.
-const paidVia = (order) => [...new Set(paymentsOf(order).map((p) => ({
-  applepay: "Apple Pay", googlepay: "Google Pay", cashapp: "Cash App Pay",
-}[p.method] || VIA[p.via] || p.via)).filter(Boolean))].join(", ");
 
 // --- Snapshots ----------------------------------------------------------
 
@@ -326,9 +330,16 @@ export const pickList = (entries) => {
 };
 
 // --- The PDF ------------------------------------------------------------
+//
+// Two kinds of page (James, #292). The customer's slip goes in the bag
+// with the order, so it carries the brand: the site's hen and wordmark,
+// Aller, the brand green, and words a customer would use. Every other
+// sheet is the farm's alone: plain Helvetica in black and white, under
+// a black FARM COPY band, so none can go in a bag by mistake.
 
 const M = 54;
 const RIGHT = 612 - M;
+const CENTER = 306;
 const BOTTOM = 792 - 54;
 const LINE = 15;
 // The most lines one field or item name takes; past that it ends
@@ -336,32 +347,32 @@ const LINE = 15;
 export const FIELD_ROWS = 12;
 const LABEL_ROWS = 4;
 
+export const FARM_COPY = "FARM COPY · DON'T PACK";
+
+// The slip's colours: the site's $primary, which the logo, the emails
+// and the gate use; its body text; $gray-600; the green, faint, for
+// rules. The green prints as a dark gray in black and white.
+const GREEN = "#186243";
+const INK = "#212529";
+const MUTED = "#5e5e5f";
+const RULE = "#c5d6cc";
+const ALLER = { font: "aller" };
+
+// The slip's body ends here; its footer sits below, clear of the half
+// inch a printer may crop.
+const SLIP_BOTTOM = 684;
+// The Price column's right edge; Amount ends at the table's.
+const PRICE_X = RIGHT - 90;
+
 const stamp = (now) => new Intl.DateTimeFormat("en-US", {
   timeZone: tz, weekday: "short", month: "short", day: "numeric",
   hour: "numeric", minute: "2-digit",
 }).format(now);
 
-// One page or more for one sheet, with a footer on each.
-const sheet = (doc, { title, id, now }) => {
-  let y = 0;
-  const pageNo = { n: 0 };
-  const start = () => {
-    doc.page();
-    pageNo.n += 1;
-    doc.text(company.name, M, M, {
-      size: 9, shade: 0.35,
-    });
-    doc.text(`${title}${pageNo.n > 1 ? " (continued)" : ""}`, M, M + 22, {
-      size: 18, bold: true,
-    });
-    if (id) {
-      doc.text(id, RIGHT, M + 22, { size: 18, bold: true, align: "right" });
-    }
-    doc.text(`Printed ${stamp(now)}`, M, BOTTOM + 24, { size: 8, shade: 0.4 });
-    y = M + 50;
-  };
-
-  start();
+// A sheet's place on its pages: `y` moves down, and `room(h)` starts a
+// new page, through `start`, when `h` more points would not fit.
+const flow = (start, bottom) => {
+  let y = start();
 
   return {
     get y() {
@@ -370,11 +381,36 @@ const sheet = (doc, { title, id, now }) => {
     set y(v) {
       y = v;
     },
-    // Room for `h` more points, or a new page.
     room(h) {
-      if (y + h > BOTTOM) start();
+      if (y + h > bottom) y = start();
     },
   };
+};
+
+// One page or more for one of the farm's sheets, each under the band
+// and with the band's words again at the foot.
+const sheet = (doc, { title, id, now }) => {
+  let n = 0;
+
+  return flow(() => {
+    doc.page();
+    n += 1;
+    doc.rect(M, 40, RIGHT - M, 28, { fill: 0, stroke: 0 });
+    doc.text(FARM_COPY, CENTER, 59, {
+      size: 14, bold: true, color: 1, align: "center",
+    });
+    doc.text(company.name, M, 88, { size: 9, shade: 0.35 });
+    doc.text(`${title}${n > 1 ? " (continued)" : ""}`, M, 110, {
+      size: 18, bold: true,
+    });
+    if (id) doc.text(id, RIGHT, 110, { size: 18, bold: true, align: "right" });
+    doc.text(`Printed ${stamp(now)}`, M, BOTTOM + 24, { size: 8, shade: 0.4 });
+    doc.text(FARM_COPY, RIGHT, BOTTOM + 24, {
+      size: 8, bold: true, align: "right",
+    });
+
+    return 138;
+  }, BOTTOM);
 };
 
 const field = (doc, at, name, value, { width = RIGHT - M - 90 } = {}) => {
@@ -394,61 +430,263 @@ const banner = (doc, at, word, { x = RIGHT - 170, w = 170 } = {}) => {
     align: "center" });
 };
 
-const slipPage = (doc, order, now) => {
-  const at = sheet(doc, { title: "Packing slip", id: order.id, now });
+// --- The customer's slip ------------------------------------------------
+
+const catalogIndex = indexCatalog(catalog);
+const byLineName = new Map([...catalogIndex.values()]
+  .map((item) => [item.lineName, item]));
+
+// A line as the slip names it: an item graded in the catalog shows its
+// grade, "Eggs, Grade A Large", as Rhode Island wants on the invoice
+// (250-RICR-40-20-7). Found by SKU, or for an older record by the
+// name it was sold under (with or without its grade); anything else
+// keeps its own name.
+export const slipLabel = (line) => {
+  const item = catalogIndex.get(current(line.sku, skuAliases))
+    || byLineName.get(line.label.replace(/ · Grade .*$/, ""));
+
+  return item && /^Grade /.test(item.note || "")
+    ? `${item.groupName}, ${item.note} ${item.label}`
+    : line.label;
+};
+
+// "a, b and c", as the site writes a list.
+const list = (words) => (words.length > 1
+  ? `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`
+  : words.join(""));
+
+// Each way to pay as the slip says it, by checkout's method keys.
+export const PAY_WORDS = {
+  card: "card", applepay: "Apple Pay", googlepay: "Google Pay",
+  cashapp: "Cash App Pay", venmo: "Venmo",
+};
+
+// Every way checkout takes payment now: its methods, less Venmo while
+// PayPal is unset or the button is held back.
+export const acceptedWays = (env) => Object.keys(METHODS)
+  .filter((m) => m !== "venmo" || (paypalConfigured(env)
+    && !venmoHidden(env)))
+  .map((m) => PAY_WORDS[m] || m);
+
+// "Paid by card. Thank you!", "Paid with Apple Pay. Thank you!"
+export const paidLine = (order) => {
+  const ways = [...new Set(paymentsOf(order).map((p) => PAY_WORDS[p.method]
+    || (p.via === "venmo" ? PAY_WORDS.venmo : PAY_WORDS.card)))]
+    .sort((a, b) => (b === "card") - (a === "card"));
+
+  if (!ways.length) return "Paid. Thank you!";
+
+  return `Paid ${ways[0] === "card" ? "by" : "with"} ${list(ways)}. ` +
+    "Thank you!";
+};
+
+// A card's brand as Square names it, as a customer would write it.
+const BRANDS = {
+  VISA: "Visa", MASTERCARD: "Mastercard", AMERICAN_EXPRESS: "American Express",
+  DISCOVER: "Discover", DISCOVER_DINERS: "Diners Club", JCB: "JCB",
+  UNIONPAY: "UnionPay",
+};
+
+const brandName = (brand) => BRANDS[brand] || String(brand).toLowerCase()
+  .split("_").map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+
+// "Visa ending in 4242" for a card, else the method's name: "Venmo",
+// "Apple Pay". A card the record has no brand or digits for is "Card".
+export const paymentName = (p) => {
+  if (p.via === "venmo") return PAY_WORDS.venmo;
+  if (p.method && p.method !== "card" && PAY_WORDS[p.method]) {
+    return PAY_WORDS[p.method];
+  }
+  if (!p.last4) return p.brand ? brandName(p.brand) : "Card";
+
+  return `${p.brand ? brandName(p.brand) : "Card"} ending in ${p.last4}`;
+};
+
+// "Amount due at pickup: $94", and the ways to pay it. Cash leads: the
+// farm takes it in person, though the site never offers it (James,
+// 2026-10-22, #181).
+export const dueLines = (order, state, env) => [
+  `Amount due at ${order.fulfilment.method === "delivery" ? "delivery"
+    : "pickup"}: ${dollars(state.due)}`,
+  `We accept ${list(["cash", ...acceptedWays(env).map((w) => (w === "card"
+    ? "cards" : w))])}.`,
+];
+
+export const SLIP_THANKS = `Thank you for supporting ${company.name} ` +
+  "and local farms.";
+
+// The farm's street address, as it goes on an envelope.
+export const slipAddress = () => `${company.name}  ·  ${
+  company.address.street}, ${company.address.city}, ${
+  company.address.state} ${company.address.zip}`;
+
+// The phone, the sales address, the website and the Instagram handle,
+// from the site's data. The website is the sales address's domain.
+export const slipContacts = () => [
+  company.phone.display,
+  company.email,
+  company.email.split("@")[1],
+  `@${new URL(signatures.shared.instagram.url).pathname.replace(/\//g, "")}`,
+].join("  ·  ");
+
+const slipFooter = (doc) => {
+  doc.line(M, 700, RIGHT, 700, { width: 0.75, color: GREEN });
+  doc.text(SLIP_THANKS, CENTER, 720, {
+    ...ALLER, size: 11, bold: true, color: GREEN, align: "center",
+  });
+  doc.text(slipContacts(), CENTER, 736, {
+    ...ALLER, size: 9, color: INK, align: "center",
+  });
+  doc.text(slipAddress(), CENTER, 751, {
+    ...ALLER, size: 8, color: MUTED, align: "center",
+  });
+};
+
+// The header on each page of a slip: the hen and wordmark, the order
+// number, the green stripe the site's header has.
+const slipSheet = (doc, { id }) => {
+  let n = 0;
+
+  return flow(() => {
+    doc.page();
+    n += 1;
+
+    const w = doc.art(mark, M, 44, { height: 44, color: GREEN });
+
+    doc.art(wordmark, M + w + 11, 58, { height: 16, color: GREEN });
+    doc.text("Order", RIGHT, 60, {
+      ...ALLER, size: 9, color: MUTED, align: "right",
+    });
+    doc.text(id, RIGHT, 79, {
+      ...ALLER, size: 16, bold: true, color: GREEN, align: "right",
+    });
+    doc.rect(M, 98, RIGHT - M, 1.5, { fill: GREEN, stroke: 0 });
+    slipFooter(doc);
+    if (n === 1) return 104;
+
+    doc.text("Your order (continued)", M, 130, {
+      ...ALLER, size: 14, bold: true, color: GREEN,
+    });
+
+    return 150;
+  }, SLIP_BOTTOM);
+};
+
+// PAID solid green, UNPAID an outline: apart at a glance, in colour
+// and in gray.
+const payBadge = (doc, state, x, top, w, h) => {
+  const color = state.paid ? 1 : GREEN;
+
+  // The outline drawn inside the box, so both line up with the stripe.
+  if (state.paid) doc.rect(x, top, w, h, { fill: GREEN, stroke: 0 });
+  else {
+    doc.rect(x + 1.25, top + 1.25, w - 2.5, h - 2.5, {
+      stroke: 2.5, color: GREEN,
+    });
+  }
+  doc.text(paidWord(state), x + w / 2, top + h / 2 + 8, {
+    ...ALLER, size: 22, bold: true, color, align: "center",
+  });
+};
+
+// A column of the slip's details: a small label, then lines of text.
+// -> the y below it.
+const column = (doc, x, top, width, label, lines) => {
+  let y = top;
+
+  doc.text(label.toUpperCase(), x, y, {
+    ...ALLER, size: 8, bold: true, color: MUTED,
+  });
+  y += 16;
+  for (const [text, bold] of lines) {
+    for (const row of wrap(text, width, {
+      ...ALLER, size: bold ? 12 : 10.5, bold, rows: FIELD_ROWS,
+    })) {
+      doc.text(row, x, y, {
+        ...ALLER, size: bold ? 12 : 10.5, bold, color: INK,
+      });
+      y += bold ? 16 : 14;
+    }
+  }
+
+  return y;
+};
+
+const slipPage = (doc, order, env) => {
+  const at = slipSheet(doc, { id: order.id });
   const where = placeOf(order);
   const state = paymentState(order);
   const d = order.fulfilment.delivery || {};
-
-  banner(doc, at, paidWord(state));
-  if (!state.paid) {
-    doc.text(`${dollars(state.due)} due`, RIGHT - 85, at.y + 54, {
-      size: 11, bold: true, align: "center",
-    });
-  }
-
   const c = order.customer;
 
-  field(doc, at, "Customer", c.name || "", { width: 250 });
-  field(doc, at, "Phone", c.phone || "", { width: 250 });
-  field(doc, at, "Email", c.email || "", { width: 250 });
-  at.y = Math.max(at.y, M + 50 + 70) + 18;
-  doc.line(M, at.y - 16, RIGHT, at.y - 16, { width: 0.5, shade: 0.6 });
+  doc.text("Your order", M, 146, {
+    ...ALLER, size: 26, bold: true, color: GREEN,
+  });
+  payBadge(doc, state, RIGHT - 150, 118, 150, 40);
 
-  field(doc, at, "Type", where.name);
-  field(doc, at, "Date", label(order.fulfilment.date));
-  if (where.window) field(doc, at, "Window", where.window);
-  field(doc, at, order.fulfilment.method === "delivery" ? "Address"
-    : "Place", where.address || where.place);
-  if (d.cooler) field(doc, at, "Cooler", d.cooler);
-  if (d.gate) field(doc, at, "Gate or code", d.gate);
-  if (d.notes) field(doc, at, "Delivery notes", d.notes);
-  if (order.notes) field(doc, at, "Order notes", order.notes);
+  let y = 178;
 
-  at.y += 10;
-  at.room(LINE * 3);
-  doc.rect(M, at.y - 12, RIGHT - M, 18, { fill: 0.9, stroke: 0 });
-  doc.text("Qty", M + 6, at.y, { size: 9, bold: true });
-  doc.text("Item", M + 50, at.y, { size: 9, bold: true });
-  doc.text("Price", RIGHT - 6, at.y, { size: 9, bold: true, align: "right" });
-  at.y += LINE + 4;
+  if (state.paid) {
+    doc.text(paidLine(order), M, y, { ...ALLER, size: 12, color: INK });
+  } else {
+    const [due, ways] = dueLines(order, state, env);
+
+    doc.text(due, M, y, { ...ALLER, size: 13, bold: true, color: INK });
+    for (const row of wrap(ways, RIGHT - M, { ...ALLER, size: 10.5 })) {
+      y += 15;
+      doc.text(row, M, y, { ...ALLER, size: 10.5, color: INK });
+    }
+  }
+
+  const top = y + 30;
+  const left = column(doc, M, top, 220, "Customer", [
+    [c.name || "", true], [c.phone || ""], [c.email || ""],
+  ].filter(([text]) => text));
+  const right = column(doc, M + 260, top, RIGHT - M - 260, where.name, [
+    [label(order.fulfilment.date), true],
+    ...(where.window ? [[where.window]] : []),
+    [where.place],
+    ...(d.gate ? [[`Gate or code: ${d.gate}`]] : []),
+  ]);
+
+  at.y = Math.max(left, right) + 14;
+
+  // The items: a slim green header row, then each line's quantity,
+  // name, unit price and amount.
+  at.room(15 + LINE * 3);
+  doc.rect(M, at.y, RIGHT - M, 15, { fill: GREEN, stroke: 0 });
+  for (const [text, x, align] of [
+    ["Qty", M + 36, "right"], ["Item", M + 50, "left"],
+    ["Price", PRICE_X, "right"], ["Amount", RIGHT - 8, "right"],
+  ]) {
+    doc.text(text, x, at.y + 10.5, {
+      ...ALLER, size: 9, bold: true, color: 1, align,
+    });
+  }
+  at.y += 33;
 
   for (const l of order.lines) {
-    const rows = wrap(l.label, RIGHT - M - 140, {
-      size: 11, rows: LABEL_ROWS,
+    const rows = wrap(slipLabel(l), PRICE_X - 70 - M - 50, {
+      ...ALLER, size: 11, rows: LABEL_ROWS,
     });
+    const each = l.unitPrice ?? l.lineTotal / l.qty;
 
-    at.room(rows.length * LINE + 4);
-    doc.rect(M + 6, at.y - 9, 9, 9, { stroke: 0.75 });
-    doc.text(String(l.qty), M + 40, at.y, { size: 11, bold: true,
-      align: "right" });
-    rows.forEach((row, i) => doc.text(row, M + 50, at.y + i * LINE, {
-      size: 11,
-    }));
-    doc.text(dollars(Math.round(l.lineTotal * 100)), RIGHT - 6, at.y, {
-      size: 11, align: "right",
+    at.room(rows.length * LINE + 10);
+    doc.text(String(l.qty), M + 36, at.y, {
+      ...ALLER, size: 11, bold: true, color: INK, align: "right",
     });
-    at.y += rows.length * LINE + 4;
+    rows.forEach((row, i) => doc.text(row, M + 50, at.y + i * LINE, {
+      ...ALLER, size: 11, color: INK,
+    }));
+    doc.text(dollars(Math.round(each * 100)), PRICE_X, at.y, {
+      ...ALLER, size: 11, color: INK, align: "right",
+    });
+    doc.text(dollars(Math.round(l.lineTotal * 100)), RIGHT - 8, at.y, {
+      ...ALLER, size: 11, color: INK, align: "right",
+    });
+    at.y += rows.length * LINE - 4;
+    doc.line(M, at.y, RIGHT, at.y, { width: 0.5, color: RULE });
+    at.y += 18;
   }
 
   const t = order.totals;
@@ -459,27 +697,36 @@ const slipPage = (doc, order, now) => {
   }
   if (t.deliveryFee) sums.push(["Delivery fee", dollars(t.deliveryFee)]);
   sums.push(["Total", dollars(t.total)]);
+
+  // What has been paid, below the total, each by its method.
+  const paid = paymentsOf(order).filter((p) => p.amount > 0);
+
+  for (const p of paid) sums.push([`Paid by ${paymentName(p)}`,
+    `-${dollars(p.amount)}`]);
   if (state.refunded) sums.push(["Refunded", dollars(state.refunded)]);
+  if (paid.length && state.due) sums.push(["Amount due", dollars(state.due)]);
 
-  at.room(sums.length * LINE + 30);
-  doc.line(M, at.y - 6, RIGHT, at.y - 6, { width: 0.5, shade: 0.6 });
-  at.y += 8;
+  at.room(sums.length * LINE + 12);
   for (const [name, value] of sums) {
-    const bold = name === "Total";
+    const bold = name === "Total" || name === "Amount due";
 
-    doc.text(name, RIGHT - 120, at.y, { size: 11, bold, align: "right" });
-    doc.text(value, RIGHT - 6, at.y, { size: 11, bold, align: "right" });
-    at.y += LINE;
+    if (name === "Total") {
+      doc.line(RIGHT - 220, at.y - 9, RIGHT, at.y - 9, {
+        width: 0.75, color: GREEN,
+      });
+      at.y += 9;
+    }
+    doc.text(name, RIGHT - 110, at.y, {
+      ...ALLER, size: bold ? 12 : 11, bold, color: INK, align: "right",
+    });
+    doc.text(value, RIGHT - 8, at.y, {
+      ...ALLER, size: bold ? 12 : 11, bold, color: INK, align: "right",
+    });
+    at.y += name === "Total" ? LINE + 3 : LINE;
   }
-
-  const via = paidVia(order);
-
-  at.y += 6;
-  doc.text(`${paidWord(state)}${via ? `, ${via}` : ""}${
-    state.paid ? "" : `: ${dollars(state.due)} due`}`, RIGHT - 6, at.y, {
-    size: 11, bold: true, align: "right",
-  });
 };
+
+// --- The farm's sheets --------------------------------------------------
 
 const revisionPage = (doc, entry, now) => {
   const cancelled = entry.kind === "cancelled";
@@ -501,7 +748,7 @@ const revisionPage = (doc, entry, now) => {
   if (cancelled) {
     for (const row of wrap("This order is canceled. Don't pack it, and " +
       "throw away the slip printed for it earlier.", RIGHT - M, {
-      size: 13,
+      size: 13, bold: true,
     })) {
       doc.text(row, M, at.y, { size: 13, bold: true });
       at.y += LINE + 3;
@@ -529,7 +776,7 @@ const revisionPage = (doc, entry, now) => {
   }
   at.y += 10;
   for (const row of wrap("The new packing slip follows. Throw away the " +
-    "one printed earlier.", RIGHT - M, { size: 11 })) {
+    "one printed earlier.", RIGHT - M, { size: 11, bold: true })) {
     doc.text(row, M, at.y, { size: 11, bold: true });
     at.y += LINE;
   }
@@ -590,8 +837,11 @@ const coverPage = (doc, { entries, now, title }) => {
 };
 
 // The whole packet: the cover (unless `cover` is false), then for each
-// entry its revision sheet and slip as it needs. -> a Buffer.
-export const packetPdf = ({ entries, now, title, cover = true }) => {
+// entry its revision sheet and slip as it needs. `env` says which ways
+// to pay an unpaid slip lists. -> a Buffer.
+export const packetPdf = ({
+  entries, now, title, cover = true, env = process.env,
+}) => {
   const doc = pdf({ title });
 
   if (cover) coverPage(doc, { entries, now, title });
@@ -599,7 +849,7 @@ export const packetPdf = ({ entries, now, title, cover = true }) => {
     if (e.kind === "changed" || e.kind === "cancelled") {
       revisionPage(doc, e, now);
     }
-    if (e.kind !== "cancelled") slipPage(doc, e.order, now);
+    if (e.kind !== "cancelled") slipPage(doc, e.order, env);
   }
 
   return doc.bytes();
@@ -781,7 +1031,7 @@ export const packingDaily = async (stores, {
           ...summary, filename, links: mailLinks(env),
         }),
         attachments: summary.quiet ? [] : [attachment(filename, packetPdf({
-          entries, now: stamp, title: packetTitle(day),
+          entries, now: stamp, title: packetTitle(day), env,
         }))],
       }, { env });
     } catch (error) {
@@ -857,7 +1107,7 @@ export const changedAfterPrint = async (stores, {
         to, idempotencyKey: `packing-changed-${day}-${e.order.id}-${change}`,
         ...farmChangedAfterPrint(e, { date: day, links: mailLinks(env) }),
         attachments: [attachment(filename, packetPdf({
-          entries: [e], now, cover: false,
+          entries: [e], now, cover: false, env,
           title: `Changed after printing, ${label(day)}`,
         }))],
       }, { env });

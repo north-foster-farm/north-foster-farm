@@ -294,7 +294,7 @@ describe("changed and canceled orders", () => {
       assert.match(text, /\(Eggs, Large: was 2, now 5\)/);
       assert.match(text, /\(Removed: 1 \\327 Boneless Breasts/);
       assert.match(text, /\(Date: was Thursday, October 8, now Thursday, /);
-      assert.match(text, /\(Packing slip\)/);
+      assert.match(text, /\(Your order\)/);
       assert.equal(thu.quiet, true);
     });
 
@@ -335,7 +335,7 @@ describe("changed and canceled orders", () => {
       assert.equal(wed.slips, 0);
       assert.match(h.sent[1].subject, /: No slips, 1 canceled$/);
       assert.match(text, /\(CANCELED\)/);
-      assert.doesNotMatch(text, /\(Packing slip\)/);
+      assert.doesNotMatch(text, /\(Your order\)/);
       assert.doesNotMatch(text, /GHOST/);
       assert.equal((await readPrinted(stores)).get("A").snapshot.status,
         "cancelled");
@@ -363,7 +363,7 @@ describe("changed and canceled orders", () => {
       assert.deepEqual(paymentState({ ...order("L"), status: "submitted" }),
         { paid: false, due: 3700, refunded: 0 }, "an old unpaid record");
       assert.match(text, /\(UNPAID\)/);
-      assert.match(text, /\(\$22 due\)/);
+      assert.match(text, /\(Amount due at pickup: \$22\)/);
       assert.match(text, /\(PAID\)/);
     });
 
@@ -606,7 +606,7 @@ describe("scheduled pickups in a packet", () => {
 
     assert.ok(text.includes("Foster Farmers Market"), "the series' name");
     assert.ok(text.includes("Shady Acres Diner"), "its place");
-    assert.ok(text.includes("(Packing slip)"));
+    assert.ok(text.includes("(Your order)"));
   });
 
   it("names the old and new occurrence of a move", () => {
@@ -728,7 +728,7 @@ describe("when the packet goes, and going once", () => {
 
       assert.equal(r.slips, 1);
       assert.match(text, /\(UNPAID\)/);
-      assert.match(text, /\(\$37 due\)/);
+      assert.match(text, /\(Amount due at delivery: \$37\)/);
     });
 
   it("waits for the next morning when it starts after 10:00", async () => {
