@@ -66,6 +66,11 @@ const built = spawnSync("hugo", [
 
 if (built.status !== 0) process.exit(built.status ?? 1);
 
+// The same pass over the HTML as the Netlify build (#303).
+const kept = spawnSync("node", ["bin/orphans/wrap.mjs", site],
+  { cwd: root, stdio: "inherit" });
+if (kept.status !== 0) process.exit(kept.status ?? 1);
+
 mkdirSync(join(site, "scripts"), { recursive: true });
 for (const name of ["square", "paypal"]) {
   copyFileSync(join(root, "assets/scripts/fake", `${name}.js`),

@@ -158,7 +158,10 @@ ES6 modules with explicit imports:
 Deployment configured in `netlify.toml`:
 - Build command: `npm run check:env && npm run check:schedule &&
   bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc && npm run
-  check:grid`. `check:grid` holds the built HTML to Bootstrap's grid
+  build:orphans && npm run check:grid`. `build:orphans` keeps the
+  last two words of every paragraph, heading and list item on one
+  line (see `bin/orphans/wrap.mjs`); `hugo server` skips it.
+  `check:grid` holds the built HTML to Bootstrap's grid
   rules (see `bin/grid/check.mjs`). The local build plugin
   `plugins/source-maps` then moves the source maps out of `public/`
   into Blobs (`docs/monitoring.md`). The build runs

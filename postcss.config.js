@@ -117,6 +117,9 @@ const plugins = [
         "wait",
         "shown",
         "aria-busy",
+        // Added to the built HTML after Hugo, by bin/orphans/wrap.mjs
+        // (#303), so Hugo's stats may never see it.
+        "text-nowrap",
       ];
     },
     safelist: {

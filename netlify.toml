@@ -1,6 +1,6 @@
 [build]
 publish = "public"
-command = "npm run check:env && npm run check:schedule && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc && npm run check:grid && npm run check:news"
+command = "npm run check:env && npm run check:schedule && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc && npm run build:orphans && npm run check:grid && npm run check:news"
 
 [build.environment]
 HUGO_VERSION = "0.164.0"
@@ -9,10 +9,10 @@ HUGO_ENV = "production"
 HUGO_ENABLEGITINFO = "true"
 
 [context.deploy-preview]
-command = "npm run check:env && npm run check:schedule && node bin/install-gate.mjs && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL && npm run check:grid && npm run check:news"
+command = "npm run check:env && npm run check:schedule && node bin/install-gate.mjs && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL && npm run build:orphans && npm run check:grid && npm run check:news"
 
 [context.branch-deploy]
-command = "npm run check:env && npm run check:schedule && node bin/install-gate.mjs && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL && npm run check:grid && npm run check:news"
+command = "npm run check:env && npm run check:schedule && node bin/install-gate.mjs && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL && npm run build:orphans && npm run check:grid && npm run check:news"
 
 # After the build, before the upload: the source maps go into Blobs,
 # out of the site (#246; docs/monitoring.md, "Source maps").

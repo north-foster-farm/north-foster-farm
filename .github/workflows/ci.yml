@@ -113,6 +113,9 @@ jobs:
           HUGO_ENABLEGITINFO=true HUGO_BUILD_SHA="$GITHUB_SHA"
           hugo --gc --environment production
 
+      - name: Last words, production
+        run: env -i PATH="$PATH" HOME="$HOME" npm run build:orphans
+
       - name: Grid, production
         run: env -i PATH="$PATH" HOME="$HOME" npm run check:grid
 
@@ -133,6 +136,9 @@ jobs:
           hugo --gc --environment production
           --buildDrafts --buildExpired --buildFuture
           -b https://staging--north-foster-farm.netlify.app/
+
+      - name: Last words, staging
+        run: env -i PATH="$PATH" HOME="$HOME" npm run build:orphans
 
       - name: Grid, staging
         run: env -i PATH="$PATH" HOME="$HOME" npm run check:grid
