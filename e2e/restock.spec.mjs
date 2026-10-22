@@ -115,9 +115,9 @@ test.describe("restock types (#267)", () => {
   });
 
   // The lead line and the visible "Show" went (#274, round 4 part 2):
-  // the control stands alone, centered over the catalog, still named
-  // "Show" for a screen reader.
-  test("Show stands alone, centered, at the top of the catalog",
+  // the control stands alone, at the right over the catalog (round 5),
+  // still named "Show" for a screen reader.
+  test("Show stands alone, at the right, at the top of the catalog",
     async ({ page }) => {
       await open(page);
 
@@ -138,7 +138,7 @@ test.describe("restock types (#267)", () => {
           const seg = el.querySelector(".order-filter-seg")
             .getBoundingClientRect();
 
-          return (seg.left + seg.width / 2) - (box.left + box.width / 2);
+          return seg.right - box.right;
         });
 
         expect(Math.abs(offset), `${size.width}px`).toBeLessThan(2);

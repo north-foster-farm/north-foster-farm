@@ -21,11 +21,12 @@
     max-width: 1040px;
   }
 
-  // The Show control on its own, centered over the catalog at every
-  // size (#274, round 4 part 2: the lead beside it is gone).
+  // The Show control on its own, at the right over the catalog at
+  // every size (#274, round 4 part 2: the lead beside it is gone;
+  // round 5: right, not centered).
   .order-intro-row {
     display: flex;
-    justify-content: center;
+    justify-content: flex-end;
   }
 
   .order-section legend {
@@ -546,9 +547,11 @@
   // The heading stands in the flow where the pane settles, a
   // category's distance below the catalog and a legend's above the
   // pane.
-  // The header's total scrolls back to it, clear of the top bar.
+  // The header's total scrolls back to it, clear of the top bar. Below
+  // it, the gap under "Pickup or delivery" to its first card (#274,
+  // round 5).
   h2.order-cart-heading {
-    margin: 2.75rem 0 1rem;
+    margin: 2.75rem 0 1.5rem;
     scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
 
     &:focus {
@@ -2371,8 +2374,11 @@
       // with no inner scroll and no "N more" pill (#274). Not sticky
       // then: taller than the screen, sticky would lift it off its
       // place (order-form.js stuckWatch).
+      // Relative, its sticky `bottom` would lift it off its place by
+      // the rest margin; `top` wins over it (#274, round 5).
       &[data-stuck="false"] {
         position: relative;
+        top: 0;
         max-height: none;
         margin-inline: -1px;
         padding: 0;
