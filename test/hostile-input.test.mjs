@@ -84,6 +84,8 @@ const CASES = {
   orderConfirmed: [() => templates.orderConfirmed(order(), { links }), true],
   deliveryReminder: [() => templates.deliveryReminder(order(),
     { orderUrl: url, settingsUrl: url, links }), true],
+  quietNotice: [() => templates.quietNotice(customer(),
+    { accountUrl: url, links, wasSubscribed: true }), true],
   orderChanged: [() => templates.orderChanged(order(), {
     links, difference: 700,
     before: {

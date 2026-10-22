@@ -451,6 +451,37 @@ export const deliveryReminder = (order, {
   return { subject: title, ...render(title, blocks, links) };
 };
 
+// A year without interaction (#189, D-189): the one notice, sent once.
+// The account stays; they are off farm news if they were on it.
+// `wasSubscribed` says whether this run took them off. DRAFT: every
+// line is for James's approval (Q8).
+export const quietNotice = (customer, {
+  accountUrl = null, links, wasSubscribed = false,
+} = {}) => {
+  const title = "Your account is still here";
+  const name = firstName(customer);
+  const blocks = [
+    p(name ? `Hi ${name},` : "Hi,"),
+    p("It's been a year since you last signed in or ordered from us, " +
+      "so we wanted to let you know where things stand."),
+  ];
+
+  if (wasSubscribed) {
+    blocks.push(p("We've stopped sending you our farm news emails. You " +
+      "can turn them back on in your account settings at any time."));
+  }
+  blocks.push(
+    p("You don't need to do anything. Your account stays open, and " +
+      "we'll be glad to see you whenever you're back."),
+    p("If you'd rather we didn't keep your details, you can delete them " +
+      "in one click in your account settings."),
+  );
+  if (accountUrl) blocks.push(button("Go to your account", accountUrl));
+  blocks.push(customerFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
 // After a customer changes the date, the details or the items of an
 // order. `difference` (cents) is set when the items changed: what they
 // paid more, or what went back, and the new totals. `before` is the

@@ -517,6 +517,7 @@ export const CONSENT_TYPES = [
   "in-person", // Asked us to add them, by word of mouth
   "resend", // Added by hand in Resend, or left there
   "unsubscribe-link", // The one-click link in a list email
+  "inactivity", // Taken off after a year without interaction (#189)
   "membership", // Reserved: joining the membership program
 ];
 
@@ -530,6 +531,7 @@ const SOURCE_TYPES = {
   import: "market-sheet",
   resend: "resend",
   unsubscribe: "unsubscribe-link",
+  inactive: "inactivity",
 };
 
 export const consentType = (source) => SOURCE_TYPES[source] || source

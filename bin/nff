@@ -41,6 +41,10 @@ const USAGE = `Usage:
                                       orders stay, re-pointed to the
                                       deleted household; the rest goes.
                                       Final. A dry run unless --apply
+  bin/nff customers quiet             who is due the quiet-account
+                                      notice, a year without
+                                      interaction. Read only: the
+                                      daily jobs send it
   bin/nff customers rename <old> <new> [--apply]
                                       a customer's email changed: the
                                       record, orders, links, the Resend
@@ -726,6 +730,17 @@ const run = async () => {
   case "customers set":
     return out(await admin.setCustomer(stores, rest[0], kv(rest.slice(1)),
       terms.money));
+  case "customers quiet": {
+    const list = await admin.quietCustomers(stores);
+
+    for (const c of list) {
+      out(`${c.email}  last ${c.lastInteraction}${
+        c.onFarmNews ? "  on farm news" : ""}`);
+    }
+    if (!list.length) out("No quiet accounts due.");
+
+    return undefined;
+  }
   case "customers rename":
     return out(await admin.renameCustomer(stores, rest[0], rest[1], {
       apply: !!flags.apply,

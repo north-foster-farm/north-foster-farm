@@ -29,6 +29,7 @@ import { forgetCustomer } from "./lib/forget.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
 import { gate } from "./lib/maintenance.mjs";
+import { leaving, leavingChange, noteInteraction } from "./lib/retention.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
 // Ownership is checked by the logic; the route only shapes the id.
@@ -68,6 +69,17 @@ export const handle = async (req, {
   const path = url.pathname.replace(/\/+$/, "");
   const customer = session.customer;
   const opts = { now, env, mail, square };
+  // What the customer did while signed in counts as an interaction
+  // (#189); only turning things off does not (lib/retention.mjs).
+  const took = async (result, { leave = false } = {}) => {
+    if (result.ok && leave) {
+      await leaving(stores, customer.email, { session: session.id });
+    } else if (result.ok) {
+      await noteInteraction(stores, customer.email, "account", { now });
+    }
+
+    return result;
+  };
 
   if (req.method === "GET" && path === "/api/account/orders") {
     return answer(await listOrders(stores, customer, { now }));
@@ -86,22 +98,27 @@ export const handle = async (req, {
     const [, id, action] = m;
 
     if (action === "cancel") {
-      return answer(await cancelOrder(stores, customer, id, opts));
+      return answer(await took(await cancelOrder(stores, customer, id, opts)));
     }
     if (action === "change") {
-      return answer(await changeOrder(stores, customer, id, body, opts));
+      return answer(await took(
+        await changeOrder(stores, customer, id, body, opts)));
     }
     if (action === "edit") {
-      return answer(await editOrder(stores, customer, id, body, {
+      return answer(await took(await editOrder(stores, customer, id, body, {
         ...opts, group: customer.discountGroup || null,
-      }));
+      })));
     }
 
-    return answer(await requestReturn(stores, customer, id, body, opts));
+    return answer(await took(
+      await requestReturn(stores, customer, id, body, opts)));
   }
 
   if (req.method === "PATCH" && path === "/api/account/profile") {
-    const result = await updateProfile(stores, customer, body);
+    // Against the record as it was, before the save changes it.
+    const leave = leavingChange(body, customer);
+    const result = await took(await updateProfile(stores, customer, body),
+      { leave });
 
     return result.ok
       ? json(200, { ok: true, customer: publicCustomer(result.customer) })
@@ -109,7 +126,7 @@ export const handle = async (req, {
   }
 
   if (req.method === "PUT" && path === "/api/account/address") {
-    const result = await saveAddress(stores, customer, body, opts);
+    const result = await took(await saveAddress(stores, customer, body, opts));
 
     return result.ok
       ? json(200, { ok: true, customer: publicCustomer(result.customer) })
@@ -117,7 +134,7 @@ export const handle = async (req, {
   }
 
   if (req.method === "POST" && path === "/api/account/support") {
-    return answer(await sendSupport(stores, customer, body, opts));
+    return answer(await took(await sendSupport(stores, customer, body, opts)));
   }
 
   if (req.method === "POST" && path === "/api/account/delete") {

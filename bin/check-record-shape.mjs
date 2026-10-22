@@ -39,6 +39,7 @@ export const SHAPE_PATHS = [
   "netlify/functions/lib/account.mjs",
   "netlify/functions/lib/admin.mjs",
   "netlify/functions/lib/forget.mjs",
+  "netlify/functions/lib/retention.mjs",
   "netlify/functions/lib/backup.mjs",
   "netlify/functions/lib/stock.mjs",
   "netlify/functions/lib/packing.mjs",

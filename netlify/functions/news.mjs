@@ -20,6 +20,7 @@ import { log, withLog } from "./lib/log.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import { confirmSubscribe, subscribe, unsubscribe } from "./lib/news.mjs";
+import { noteInteraction } from "./lib/retention.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
@@ -80,6 +81,12 @@ export const handle = async (req, {
 
     const r = await confirmSubscribe(stores, url.searchParams.get("token"),
       { now, env, mail });
+
+    // The link proves the address is theirs, so it counts as an
+    // interaction (#189). The sign-up form above does not: anyone can
+    // type any address into it.
+    if (r.ok) await noteInteraction(stores, r.email, "sign-up", { now });
+
     const status = r.ok ? "confirmed"
       : (r.reason === "expired" ? "expired" : "invalid");
 

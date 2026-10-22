@@ -47,6 +47,7 @@ import { deleteOldMessages, scrubOldOrders } from "./forget.mjs";
 import { alert, escalate, ping, readCount, readMark } from "./health.mjs";
 import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
+import { quietAccounts } from "./retention.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { audienceConfigured, syncAudience } from "./news.mjs";
 import { changedAfterPrint, packingDaily } from "./packing.mjs";
@@ -232,6 +233,8 @@ export const runJobs = async (stores, {
     () => sweepAuth(stores, realNow))) || 0;
   report.scrubbed = (await attempt(null, "retention",
     () => scrubDaily(stores, realNow))) || [];
+  report.quiet = await attempt(null, "quietAccounts",
+    () => quietDaily(stores, { env, mail, now: realNow }));
   report.pickupsToConfirm = (await attempt(null, "morningReport",
     () => morningReport(stores, {
       env, mail, now, fetchImpl, catalogIndex,
@@ -296,6 +299,29 @@ const scrubDaily = async (stores, now) => {
   return ids;
 };
 
+// Quiet accounts (#189), once a day, after the scrub: a year without
+// interaction takes the customer off farm news and sends the notice
+// once (lib/retention.mjs). Never a deletion. At most QUIET_PER_RUN a
+// day; those left over, and a notice that failed, go the next day.
+// -> the counts, or null when this day has run.
+const quietDaily = async (stores, { env, mail, now }) => {
+  const key = `quiet/${today(now, tz)}`;
+
+  if (await stores.jobs.get(key)) return null;
+
+  const r = await quietAccounts(stores, { env, mail, now });
+  const counts = {
+    noticed: r.noticed.length, failed: r.failed.length, left: r.left,
+  };
+
+  await stores.jobs.set(key, { at: now.toISOString(), ...counts });
+  if (r.failed.length) {
+    throw new Error(`${r.failed.length} quiet-account notice(s) failed`);
+  }
+
+  return counts;
+};
+
 // Farm news, once a day from AUDIENCE_SYNC_HOUR: the audience in Resend
 // and the records made to agree (lib/news.mjs). -> the counts, or null
 // when nothing was done this run.
@@ -335,6 +361,7 @@ export const summarize = (report) => ({
   tomorrow: report.tomorrow,
   rotation: report.rotation || null,
   audience: report.audience || null,
+  quiet: report.quiet || null,
   errors: report.errors,
   invariants: report.invariants,
 });

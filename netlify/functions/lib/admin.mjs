@@ -24,8 +24,19 @@ import {
   addressDecision, devMailTest as devMailTestMessage, orderCancelled,
   sessionsEnded,
 } from "./templates.mjs";
+import { lastInteraction, quietDue } from "./retention.mjs";
 
 export { forgetCustomer } from "./forget.mjs";
+
+// Quiet accounts due their notice (#189, lib/retention.mjs), for
+// `bin/nff customers quiet`. Read only: the daily jobs act on them.
+export const quietCustomers = async (stores, now = new Date()) =>
+  (await allCustomers(stores)).filter((c) => quietDue(c, now))
+    .map((c) => ({
+      email: c.email,
+      lastInteraction: lastInteraction(c),
+      onFarmNews: c.marketing === true,
+    }));
 
 const need = (thing, what) => {
   if (!thing) throw new Error(`No such ${what}.`);

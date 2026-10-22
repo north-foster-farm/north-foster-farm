@@ -16,6 +16,7 @@ import { withLog } from "./lib/log.mjs";
 import {
   MESSAGE, gate, isAdminAddress, readState,
 } from "./lib/maintenance.mjs";
+import { noteInteraction } from "./lib/retention.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
 // Per-instance, best effort, like the order handler's.
@@ -97,6 +98,12 @@ export const handle = async (req, {
 
     const session = await createSession(stores, result.email, {
       now, via: "link",
+    });
+
+    // Signing in is an interaction (#189), taken back if the session
+    // only opts out (lib/retention.mjs).
+    await noteInteraction(stores, session.email, "sign-in", {
+      now, session: session.id,
     });
 
     return redirect(safeNext(result.next), [
