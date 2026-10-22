@@ -10,7 +10,8 @@ const DAYS = [0, 1, 2, 3, 4, 5, 6].map(dayName);
 
 // "Sundays, 9:00 AM – 1:00 PM" -> { weekday: 0, window: "9:00 AM – 1:00 PM",
 // opensHour: 9, opensMinute: 0 }. A window that names AM or PM once
-// ("4:00 – 7:00 PM") gives it to its start too.
+// ("4:00 – 7:00 PM") gives it to its start too, unless the start is
+// the later hour ("11:00 – 1:00 PM" opens at 11 AM).
 const hoursOf = (when) => {
   const [days, window] = String(when).split(/,\s*/);
   const weekday = DAYS.findIndex((d) => days.startsWith(d));
@@ -18,7 +19,10 @@ const hoursOf = (when) => {
     .match(/^(\d{1,2})(?::(\d\d))?\s*(AM|PM)?/) || [];
   const [, closing] = String(window).match(/(AM|PM)\s*$/) || [];
   const meridiem = half || closing;
-  const afternoon = meridiem === "PM" && Number(hour) < 12;
+  const [, closeHour] = String(window).match(/[-–—]\s*(\d{1,2})/) || [];
+  const startsFirst = half || !closeHour
+    || (Number(hour) <= Number(closeHour) && Number(closeHour) !== 12);
+  const afternoon = meridiem === "PM" && Number(hour) < 12 && startsFirst;
 
   return {
     weekday, window, opensHour: Number(hour) + (afternoon ? 12 : 0),

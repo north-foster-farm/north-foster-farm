@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 
 import { loadEnv } from "../netlify/functions/lib/env.mjs";
 import { USAGE as BREAKER_USAGE, breakerCommand } from "./breaker.mjs";
+import { noEmailRefusal } from "./no-email.mjs";
 import { confirmed } from "./confirm.mjs";
 import { USAGE as GATE_USAGE, gateCommand } from "./gate.mjs";
 import { devSchedule } from "./dev-schedule.mjs";
@@ -33,11 +34,12 @@ import { USAGE as PROMOTE_USAGE, promoteCommand } from "./promote.mjs";
 import { USAGE as SUPPLY_USAGE, supplyCommand } from "./supply/waive.mjs";
 
 const USAGE = `Usage:
-  Any command takes --no-email: it does its work but sends no customer
-  an email (an order's notice, a cancellation, a refund, an address
-  decision). Each unsent email is noted on the order as suppressed
-  (history mail.suppressed.<name>), so the jobs never send it later.
-  The farm's own notices still go.
+  --no-email skips a customer's transactional emails (an order's
+  notice, a cancellation, a refund, an address decision). Each unsent
+  email is noted on the order as suppressed (history
+  mail.suppressed.<name>), so the jobs never send it later. The
+  farm's own notices still go. It does not cover the retention and
+  farm-news emails, so jobs run and audience invite refuse it.
   bin/nff customers list
   bin/nff customers show <email>
   bin/nff customers set <email> name=.. phone=.. group=friends|none
@@ -130,7 +132,7 @@ const USAGE = `Usage:
                                       --dry-run saves and sends
                                       nothing and prints the email.
                                       --method market needs --site
-                                      (a market in data/delivery.json)
+                                      (a market in data/markets.json)
                                       and a --date its schedule has.
                                       --no-email: see below
   bin/nff orders fulfil <id>
@@ -416,6 +418,12 @@ for (let i = 0; i < args.length; i += 1) {
 // notice, an address decision, a refund's). Each send is noted on the
 // order as suppressed; the farm's own notices still go.
 if (flags["no-email"] && flags["no-email"] !== "false") {
+  const refusal = noEmailRefusal(words[0], words[1]);
+
+  if (refusal) {
+    console.error(refusal);
+    process.exit(1);
+  }
   withholdCustomerEmail();
 }
 

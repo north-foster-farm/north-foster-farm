@@ -718,9 +718,12 @@ drop site stays method `scituate` with no `site`.
 `emails[key].suppressed` and the history event
 `mail.suppressed.<key>` instead, so a job never sends it later; the
 address decision skips its email. The farm's own notices still go.
-A send already noted on the order is left as it was. `audience
-invite` sends nothing and lists the addresses as `withheld`;
-`breaker flush` refuses to run (`--dry-run` still works).
+A send already noted on the order is left as it was. It covers a
+customer's transactional email only. The quiet-account notice, the
+farm-news welcome and the confirmation link are not covered, so
+`jobs run` and `audience invite` refuse the flag (`bin/no-email.mjs`),
+and `breaker flush` refuses it too (`--dry-run` still works).
+`breaker reset` sends no customer mail.
 `--no-email=false` is off. A customer editing a market order the
 farm booked keeps its site and day, though customers cannot choose
 that site; the days they are offered are the usual ones. `orders
