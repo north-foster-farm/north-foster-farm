@@ -12,8 +12,9 @@ import {
 } from "./support/staging.mjs";
 
 const SIGN_IN = "Your secure sign-in link to North Foster Farm";
-const CONFIRM = "Confirm your new email for North Foster Farm";
-const CHANGED = "Your email with North Foster Farm was changed";
+const CONFIRM = "Confirm your new email address for North Foster Farm";
+const CHANGED = "The email address on your North Foster Farm account " +
+  "was changed";
 const VERIFY = /\/api\/auth\/verify\?token=/;
 
 test.describe.configure({ mode: "serial" });
@@ -111,7 +112,7 @@ test.describe("changing your own email", () => {
       await expect(page.locator("#account-email")).toHaveText(to);
       await expect(page.locator("#prof-email")).toHaveValue(to);
       await expect(page.locator("#email-change-sent")).toContainText(
-        `Your email is now ${to}.`
+        `Your email address has been changed to ${to}.`
       );
 
       await waitForMail({ to: from, subject: CHANGED, since: asked });
@@ -132,15 +133,17 @@ test.describe("changing your own email", () => {
       await signIn(page, to);
 
       await ask(page, to);
-      await expect(error).toHaveText("That's already your email.");
+      await expect(error).toHaveText("That's already your email address.");
       await page.locator("#email-new").fill("not-an-email");
       await page.locator("#email-change-send").click();
       await expect(error).toHaveText("That email address doesn't look right.");
       await page.locator("#email-new").fill(taken);
       await page.locator("#email-new").press("Enter");
       await expect(error).toContainText(
-        "That address already has an account with us."
+        "That email address already exists."
       );
+      await expect(error.getByRole("link", { name: "contact us" }))
+        .toHaveAttribute("href", "mailto:info@northfosterfarm.com");
 
       // Escape closes the field and gives the focus back to Change.
       await page.locator("#email-new").press("Escape");
@@ -173,7 +176,7 @@ test.describe("changing your own email", () => {
       await expect(page.locator("#login-confirm")).toBeVisible();
       await page.locator("#login-confirm-submit").click();
       await expect(page.locator("[data-confirm-error]")).toContainText(
-        "your email wasn't changed"
+        "That email address already exists."
       );
       expect(await customerRecord(to)).not.toBeNull();
     });

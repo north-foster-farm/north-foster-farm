@@ -103,6 +103,10 @@ const CASES = {
     { links }), true],
   magicLink: [() => templates.magicLink(`${HOSTILE}@example.com`, url,
     { links }), false],
+  emailChangeLink: [() => templates.emailChangeLink(
+    `${HOSTILE}@example.com`, url, { links }), false],
+  emailChanged: [() => templates.emailChanged(`${HOSTILE}@example.com`,
+    `${HOSTILE}2@example.com`, { links }), true],
   newsConfirm: [() => templates.newsConfirm(`${HOSTILE}@example.com`, url,
     { links }), false],
   newsWelcome: [() => templates.newsWelcome({

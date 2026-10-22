@@ -13,6 +13,7 @@ import { api } from "../utils/api.js";
 import {
   FAILED, isBusy, setBusy, whileBusy,
 } from "../utils/busy-button.js";
+import { say } from "../utils/contact-link.js";
 import { whileLoading } from "../utils/skeleton.js";
 
 const qs = (root, selector) => root.querySelector(selector);
@@ -187,7 +188,7 @@ class Account {
   }
 
   // Arrived from the link that moved the account (#240): say so once,
-  // then drop the flag so a reload doesn't repeat it. Draft wording.
+  // then drop the flag so a reload doesn't repeat it.
   emailChanged() {
     const params = new URLSearchParams(location.search);
 
@@ -197,8 +198,7 @@ class Account {
     history.replaceState(null, "", location.pathname
       + (params.toString() ? `?${params}` : "") + location.hash);
     document.getElementById("email-change-sent").textContent =
-      `Your email is now ${this.customer.email}. Sign in with it from ` +
-      "now on.";
+      `Your email address has been changed to ${this.customer.email}.`;
   }
 
   // Arrived from an email about one order: show that order rather
@@ -266,7 +266,7 @@ class Account {
 
   // The email changes by a link to the new address (#240): the page
   // asks for it, and following it moves the account and signs in
-  // there. Until then nothing changes. The words are drafts.
+  // there. Until then nothing changes.
   wireEmailChange() {
     const open = document.getElementById("email-change-open");
     const panel = document.getElementById("email-change");
@@ -289,7 +289,7 @@ class Account {
     };
     const fail = (message) => {
       input.classList.add("is-invalid");
-      error.textContent = message;
+      say(error, message);
       input.focus();
     };
     const request = async () => {
@@ -316,8 +316,8 @@ class Account {
 
       input.value = "";
       show(false);
-      sent.textContent = `We sent a link to ${data.email}. Open it to ` +
-        "make that your email; until then, sign in with this one.";
+      sent.textContent = `We sent a link to ${data.email}. Click the ` +
+        "link in the message to confirm this change.";
     };
 
     open.addEventListener("click", () => show(true));

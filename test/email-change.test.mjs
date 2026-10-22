@@ -3,7 +3,9 @@ import { describe, it } from "node:test";
 
 import { handle as account } from "../netlify/functions/account.mjs";
 import { handle as auth } from "../netlify/functions/auth.mjs";
-import { createSession } from "../netlify/functions/lib/auth.mjs";
+import {
+  createSession, sessionKey,
+} from "../netlify/functions/lib/auth.mjs";
 import {
   finishEmailChange, requestEmailChange,
 } from "../netlify/functions/lib/email-change.mjs";
@@ -81,8 +83,8 @@ describe("asking to change the email (#240)", () => {
       assert.deepEqual(r, { ok: true, email: NEW });
       assert.equal(sent.length, 1);
       assert.equal(sent[0].to, NEW);
-      assert.match(sent[0].subject, /Confirm your new email/);
-      assert.match(sent[0].text, /Until you do, nothing changes/);
+      assert.match(sent[0].subject, /Confirm your new email address for/);
+      assert.match(sent[0].text, /If you didn't request this change/);
       assert.ok(await getCustomer(stores, OLD));
       assert.equal(await getCustomer(stores, NEW), null);
     });
@@ -97,9 +99,9 @@ describe("asking to change the email (#240)", () => {
       await saveCustomer(stores, { email: "taken@example.com", name: "T" });
       assert.match((await ask("nope")).errors.email, /doesn't look right/);
       assert.match((await ask(" PAT@example.com")).errors.email,
-        /already your email/);
+        /already your email address\./);
       assert.match((await ask("taken@example.com")).errors.email,
-        /already has an account/);
+        /That email address already exists/);
       assert.equal((await ask("nope")).status, 422);
       assert.equal(sent.length, 0);
     });
@@ -112,7 +114,7 @@ describe("asking to change the email (#240)", () => {
     });
 
     for (let i = 0; i < 3; i++) assert.equal((await ask()).ok, true);
-    assert.match((await ask()).errors.email, /a few links already/);
+    assert.match((await ask()).errors.email, /as many links as we can for now/);
     assert.equal(sent.length, 3);
   });
 });
@@ -135,30 +137,14 @@ describe("following the link (#240)", () => {
         [["resend", true], ["square", true]]);
       assert.equal(sent.length, 1);
       assert.equal(sent[0].to, OLD);
-      assert.match(sent[0].subject, /was changed/);
-      assert.match(sent[0].text, new RegExp(`signs in with ${NEW}`));
-      assert.match(sent[0].text, /contact us right away/);
-      // Pat never subscribed to farm news, so the notice doesn't
-      // claim it will follow (copy's finding on #240).
-      assert.doesNotMatch(sent[0].text, /farm news/);
+      assert.match(sent[0].subject,
+        /email address on your .* account was changed/);
+      assert.match(sent[0].text, new RegExp(`changed from ${OLD} to ${NEW}`));
+      assert.match(sent[0].text,
+        /contact us at info@northfosterfarm\.com for additional/);
+      // James's approved sentence, "if you get it" and all.
+      assert.match(sent[0].text, /farm news, if you get it, will be sent/);
     });
-
-  it("mentions farm news moving only for a subscriber", async () => {
-    const stores = await seed();
-    const { sent, mail } = mailbox();
-    const { square, news } = outside();
-
-    await saveCustomer(stores, {
-      email: OLD, name: "Pat", avatar: "chick", marketing: true,
-    });
-
-    const r = await finishEmailChange(stores, {
-      email: NEW, changeFrom: OLD,
-    }, { now, env, mail, square, news });
-
-    assert.equal(r.ok, true);
-    assert.match(sent[0].text, /farm news/);
-  });
 
   it("refuses once the new address has an account of its own",
     async () => {
@@ -228,7 +214,7 @@ describe("the endpoints (#240)", () => {
     assert.equal(res.headers.get("set-cookie"), null);
     assert.ok(await getCustomer(stores, OLD));
     assert.equal(await getCustomer(stores, NEW), null);
-    assert.ok(await stores.auth.get(`session/${old.id}`));
+    assert.ok(await stores.auth.get(sessionKey(old.id)));
 
     // The token still works: the GET didn't spend it.
     const confirmed = await auth(verifyPost(token), { stores, env, now, mail,
@@ -264,7 +250,7 @@ describe("the endpoints (#240)", () => {
       assert.match(res.headers.get("set-cookie"), /^nff_session=/);
       assert.equal(await getCustomer(stores, OLD), null);
       assert.ok(await getCustomer(stores, NEW));
-      assert.equal(await stores.auth.get(`session/${old.id}`), null,
+      assert.equal(await stores.auth.get(sessionKey(old.id)), null,
         "the old session ended");
       assert.equal(sent[1].to, OLD);
 
@@ -292,7 +278,7 @@ describe("the endpoints (#240)", () => {
         { ok: false, reason: "change-taken" });
       assert.equal(res.headers.get("set-cookie"), null);
       assert.ok(await getCustomer(stores, OLD));
-      assert.ok(await stores.auth.get(`session/${old.id}`));
+      assert.ok(await stores.auth.get(sessionKey(old.id)));
     });
 
   it("need a session to ask", async () => {
@@ -318,7 +304,7 @@ describe("the endpoints (#240)", () => {
 
       assert.equal(blocked.status, 422);
       assert.match((await blocked.json()).errors.email,
-        /a few links already/);
+        /as many links as we can for now/);
     });
 
   it("limits requests per IP across accounts", async () => {
@@ -343,7 +329,7 @@ describe("the endpoints (#240)", () => {
 
     assert.equal(blocked.status, 422);
     assert.match((await blocked.json()).errors.email,
-      /a few links already/);
+      /as many links as we can for now/);
   });
 
   it("voids an earlier change link once a new one is sent", async () => {

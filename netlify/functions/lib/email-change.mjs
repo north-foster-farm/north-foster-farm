@@ -25,8 +25,12 @@ const refuse = (email) => ({
   ok: false, status: 422, errors: { email },
 });
 
-const TOO_MANY = refuse("We've sent a few links already. Use the last " +
-  "one, or try again in a few minutes.");
+// "[contact us]" becomes a link to the support address on the page.
+export const TAKEN = "That email address already exists. For " +
+  "additional support, [contact us].";
+
+const TOO_MANY = refuse("We've sent you as many links as we can for " +
+  "now. Try again later.");
 
 // Voids any change token still waiting for `from` (a stale one from an
 // earlier request, or one made moot by the move it's about to send),
@@ -41,8 +45,8 @@ const voidChangeTokens = async (stores, from) => {
   }
 };
 
-// POST /api/account/email { email }, from a live session. Drafts: the
-// customer sees these on the Settings tab.
+// POST /api/account/email { email }, from a live session. James's
+// approved wording; the customer sees these on the Settings tab.
 export const requestEmailChange = async (stores, customer, email, {
   now = new Date(), env = process.env, mail = sendMail, ip = "",
 } = {}) => {
@@ -52,10 +56,9 @@ export const requestEmailChange = async (stores, customer, email, {
   if (!validEmail(to)) {
     return refuse("That email address doesn't look right.");
   }
-  if (to === from) return refuse("That's already your email.");
+  if (to === from) return refuse("That's already your email address.");
   if (await getCustomer(stores, to)) {
-    return refuse("That address already has an account with us. " +
-      "Write us and we'll sort it out.");
+    return refuse(TAKEN);
   }
 
   const limits = { windowMs: LINK_WINDOW, max: LINKS_PER_WINDOW };
@@ -130,13 +133,11 @@ export const finishEmailChange = async (stores, { email, changeFrom }, {
   }
 
   try {
-    const moved = await getCustomer(stores, report.to);
-
     await mail({
       to: report.from,
       idempotencyKey: `email-changed-${now.getTime()}`,
       ...emailChanged(report.from, report.to, {
-        links: mailLinks(env), marketing: Boolean(moved && moved.marketing),
+        links: mailLinks(env),
       }),
     }, { env });
   } catch (error) {

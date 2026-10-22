@@ -262,6 +262,17 @@ const render = (title, blocks, links = {}, { tag = null } = {}) => {
 const contactUrl = (links) =>
   (links && links.contact) || `mailto:${company.email}`;
 
+// The support address, a mailto link (#240): "[contact us]" in a
+// paragraph is a link to it in the HTML and "contact us at info@..."
+// in the plain text.
+const SUPPORT = company.emailInfo;
+const pSupport = (text) => ({
+  text: text.replace("[contact us]", `contact us at ${SUPPORT}`),
+  html: `<p>${inline(text).replace("[contact us]",
+    `<a href="mailto:${escape(SUPPORT)}" style="color:${GREEN}">contact ` +
+    "us</a>")}</p>`,
+});
+
 // The row every customer email ends on.
 const customerFooter = (links = {}) => row([
   ["Your orders", links.orders], ["Contact us", contactUrl(links)],
@@ -760,35 +771,31 @@ export const magicLink = (email, url, {
 };
 
 // A customer's own email change (#240), in two parts: the link to the
-// new address, which alone moves the account, and the word to the old
-// one once it has moved. Draft wording, on the sign-in email's pattern.
+// new email address, which alone moves the account, and the word to the
+// old one once it has moved. James's approved wording.
 export const emailChangeLink = (email, url, {
   minutes = accounts.signInLinkMinutes, links,
 } = {}) => {
-  const title = `Confirm your new email for ${company.name}`;
+  const title = `Confirm your new email address for ${company.name}`;
   const blocks = [
-    p(`Click the button below to move your ${company.name} account to ` +
-      `this address. This link expires in ${minutes} minutes.`),
-    button("Confirm new email", url),
-    p("Until you do, nothing changes. If you didn't ask for this, you " +
-      "can safely ignore it."),
-    row([["Need help? Contact us", contactUrl(links)]]),
+    p(`Click the link below to change your ${company.name} email ` +
+      `address. This link expires in ${minutes} minutes.`),
+    button("Confirm new email address", url),
+    p("If you didn't request this change, you can safely ignore it."),
   ];
 
   return { subject: title, ...render(title, blocks, links) };
 };
 
-// Drafts: copy flagged that "farm news go there from now on" wasn't
-// true for a customer who never subscribed (#240), so the line only
-// mentions news when it actually moves.
-export const emailChanged = (from, to, { links, marketing = false } = {}) => {
-  const title = `Your email with ${company.name} was changed`;
-  const moves = marketing ? "Order emails and farm news go" : "Order emails go";
+export const emailChanged = (from, to, { links } = {}) => {
+  const title = `The email address on your ${company.name} account ` +
+    "was changed";
   const blocks = [
-    p(`Your account now signs in with ${to}, not ${from}. ` +
-      `${moves} there from now on.`),
-    p("If you didn't make this change, contact us right away."),
-    row([["Contact us", contactUrl(links)]]),
+    p(`Your email address has been changed from ${from} to ${to}. ` +
+      "Order emails and farm news, if you get it, will be sent to the " +
+      "new email address from now on."),
+    pSupport("If you didn't make this change, [contact us] for " +
+      "additional support right away."),
   ];
 
   return { subject: title, ...render(title, blocks, links) };

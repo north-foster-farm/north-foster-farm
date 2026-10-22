@@ -12,7 +12,7 @@
 
         <div id="login-ask">
           <p class="mb-3">Type the email you order with, and we'll send you a link that signs you in.</p>
-          <div class="alert alert-warning" role="alert" data-login-notice hidden></div>
+          <div class="alert alert-warning" role="alert" data-login-notice data-support="{{ hugo.Data.company.emailInfo }}" hidden></div>
           <form class="news-signup login-form" id="login-form" novalidate>
             <label class="visually-hidden" for="login-email">Email address</label>
             <div class="input-group has-validation">
@@ -38,13 +38,13 @@
         {{/* An email-change link (#240) lands here with #confirm=TOKEN
              in the fragment, never the query string, so it never
              reaches a server log. Following it only peeked; this
-             button's POST is what actually moves the account. Words
-             are drafts for James. */}}
-        <div class="account-card" id="login-confirm" role="status" aria-live="polite" hidden>
-          <h2 class="h4">Confirm your new email</h2>
-          <p>Change your sign-in email to <strong data-confirm-email></strong>?</p>
+             button's POST is what actually moves the account. The
+             wording is James's, approved on #240. */}}
+        <div class="account-card" id="login-confirm" role="status" aria-live="polite" data-support="{{ hugo.Data.company.emailInfo }}" hidden>
+          <h2 class="h4">Confirm your new email address</h2>
+          <p>Change your email address to <strong data-confirm-email></strong>? <strong>You will no longer be able to sign in with your current email address once you confirm this change.</strong></p>
           <div class="alert alert-danger" role="alert" data-confirm-error hidden></div>
-          <button type="button" class="btn btn-primary" id="login-confirm-submit">Confirm new email</button>
+          {{ partial "busy-button.html" (dict "label" "Confirm new email address" "busy" "Confirming" "class" "btn-primary" "id" "login-confirm-submit" "type" "button" "fit" true) }}
           <button type="button" class="btn btn-link" id="login-confirm-cancel">Cancel</button>
         </div>
       </div>
