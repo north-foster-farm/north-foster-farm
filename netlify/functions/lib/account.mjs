@@ -241,19 +241,11 @@ export const cancelOrder = async (stores, customer, id, {
   return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
 };
 
-// What can change without touching money: the date, the pickup
-// window, the drop-off details, the notes.
-export const changeOrder = async (stores, customer, id, changes, {
-  now = clock(), env = process.env, mail = sendMail,
-  square = { updateFulfilment: squareApi.updateFulfilment },
-} = {}) => {
-  const order = await owned(stores, customer, id);
-
-  if (!order) return fail(404, { order: "We can't find that order." });
-  if (!canChange(order, now)) {
-    return fail(409, { order: "This order can't be changed any more." });
-  }
-
+// What a change without money does to the record: the date, the
+// pickup window, the drop-off details, the notes. Nothing is saved.
+// `by` is who answers a question the farm asked ("customer", "farm").
+// -> { errors } or { patch, moved }
+export const planChange = (order, changes, { now, env, by = "customer" }) => {
   const c = changes && typeof changes === "object" ? changes : {};
   const errors = {};
   const f = JSON.parse(JSON.stringify(order.fulfilment));
@@ -313,7 +305,7 @@ export const changeOrder = async (stores, customer, id, changes, {
 
   const notes = c.notes !== undefined ? text(c.notes, 2000) : order.notes;
 
-  if (Object.keys(errors).length) return fail(422, errors);
+  if (Object.keys(errors).length) return { errors };
 
   // A moved pickup answers a time the farm gave up; a delivery on
   // another day answers a missed one.
@@ -321,10 +313,22 @@ export const changeOrder = async (stores, customer, id, changes, {
 
   if (moved) f.state = "agreed";
   if (moved || f.date !== order.fulfilment.date) {
-    patch.question = answerQuestion(order, "reschedule", "customer", now);
+    patch.question = answerQuestion(order, "reschedule", by, now);
   }
 
-  const changed = await amendOrder(stores, id, patch, "customer.changed", now);
+  return { patch, moved };
+};
+
+// Saves a planned change, keeps Square's fulfilment in step and tells
+// the customer, and the farm too when the customer made it. `by` names
+// the history event: customer.changed or farm.changed. -> the order.
+export const applyChange = async (stores, order, plan, {
+  now, env, mail, square, by = "customer",
+}) => {
+  const { id } = order;
+  const { patch, moved } = plan;
+  const f = patch.fulfilment;
+  const changed = await amendOrder(stores, id, patch, `${by}.changed`, now);
 
   // Square carries the fulfilment the farm packs from; keep it in step.
   if (order.square && order.square.squareOrderId) {
@@ -341,7 +345,7 @@ export const changeOrder = async (stores, customer, id, changes, {
       }, "square.out_of_sync", now);
       await notifyFarm(stores, await getOrder(stores, id),
         `farmSquareOutOfSync-${now.getTime()}`,
-        farmSquareOutOfSync({ id, fulfilment: f }, customer, {
+        farmSquareOutOfSync({ id, fulfilment: f }, order.customer, {
           links: mailLinks(env),
         }), { mail, env, now });
     }
@@ -353,12 +357,33 @@ export const changeOrder = async (stores, customer, id, changes, {
     }),
     { mail, env, now });
 
-  if (moved) {
+  if (moved && by === "customer") {
     await notifyFarm(stores, await getOrder(stores, id),
       `farmPickupChanged-${now.getTime()}`,
       farmPickupChanged(changed, { links: mailLinks(env) }),
       { mail, env, now });
   }
+
+  return getOrder(stores, id);
+};
+
+// What can change without touching money, for the signed-in owner.
+export const changeOrder = async (stores, customer, id, changes, {
+  now = clock(), env = process.env, mail = sendMail,
+  square = { updateFulfilment: squareApi.updateFulfilment },
+} = {}) => {
+  const order = await owned(stores, customer, id);
+
+  if (!order) return fail(404, { order: "We can't find that order." });
+  if (!canChange(order, now)) {
+    return fail(409, { order: "This order can't be changed any more." });
+  }
+
+  const plan = planChange(order, changes, { now, env });
+
+  if (plan.errors) return fail(422, plan.errors);
+
+  await applyChange(stores, order, plan, { now, env, mail, square });
 
   return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
 };

@@ -26,11 +26,14 @@ import terms from "../../../data/delivery.json" with { type: "json" };
 import discountCodes from "../../../data/discount-codes.json" with {
   type: "json",
 };
+import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import { indexCatalog } from "../../../assets/scripts/order/lib/catalog.mjs";
 import {
   validateOrder,
 } from "../../../assets/scripts/order/lib/validate.mjs";
-import { canChange, publicOrder } from "./account.mjs";
+import {
+  applyChange, canChange, planChange, publicOrder,
+} from "./account.mjs";
 import { refundOrder } from "./admin.mjs";
 import { attemptKey, CheckoutError, METHODS } from "./checkout.mjs";
 import { alert } from "./health.mjs";
@@ -43,9 +46,9 @@ import { pickupSchedule } from "./pickups.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./paypal.mjs";
 import {
-  amendOrder, answerQuestion, deleteCheckout, getCheckout, getOrder, keptFee,
-  moneyPatch, paidTotal, paymentRef, paymentsOf, questionOpen, refundedTotal,
-  refundsOf, saveCheckout,
+  amendOrder, answerQuestion, deleteCheckout, getCheckout, getCustomer,
+  getOrder, keptFee, moneyPatch, paidTotal, paymentRef, paymentsOf,
+  questionOpen, refundedTotal, refundsOf, saveCheckout,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
@@ -189,7 +192,7 @@ export const planEdit = async (stores, order, body, {
 
 // The record as it becomes. Every way is booked as it stands (W11d):
 // the validator already held a new pickup time to the schedule.
-const changedRecord = (order, next, change, key, now) => {
+const changedRecord = (order, next, change, key, now, by = "customer") => {
   const f = next.fulfilment;
   const was = order.fulfilment;
   const moved = f.method === "onfarm" && (change.switched
@@ -204,7 +207,7 @@ const changedRecord = (order, next, change, key, now) => {
   return {
     ...answered && questionOpen(order) && {
       question: answerQuestion(order,
-        change.switched ? "switch" : "reschedule", "customer", now),
+        change.switched ? "switch" : "reschedule", by, now),
     },
     customer: { ...order.customer, phone: next.customer.phone,
       contact: next.customer.contact },
@@ -214,7 +217,7 @@ const changedRecord = (order, next, change, key, now) => {
     flags: { ...(order.flags || {}), zipUnlisted: next.flags.zipUnlisted },
     fulfilment,
     edits: [...(order.edits || []), {
-      key, at: now.toISOString(), state: "pending",
+      key, at: now.toISOString(), state: "pending", by,
       difference: change.difference, switched: change.switched,
       before: { lines: order.lines, totals: order.totals, method: was.method },
     }],
@@ -330,9 +333,11 @@ const syncFulfilment = async (stores, saved, change, { changeOrderId, k,
 // throws SquareError { declined, code } or { retryable }, like the
 // order endpoint's payments; a refund failure throws as the CLI's does.
 // `charge` takes the difference; by default the card or wallet in
-// `payment`, and for Venmo the capture (finishEditVenmo).
+// `payment`, and for Venmo the capture (finishEditVenmo). `by` is
+// "farm" for a change made from the CLI: the history says so, and the
+// farm is not emailed about its own change.
 export const applyEdit = async (stores, plan, {
-  key, attempt = 1, payment, charge = chargeSquare,
+  key, attempt = 1, payment, charge = chargeSquare, by = "customer",
 }, {
   square = squareApi, paypal, env = process.env, fetchImpl, sleep,
   mail = sendMail, now = clock(),
@@ -345,7 +350,7 @@ export const applyEdit = async (stores, plan, {
 
   if (started && started.state === "done") return order;
 
-  const patch = started ? {} : changedRecord(order, next, change, key, now);
+  const patch = started ? {} : changedRecord(order, next, change, key, now, by);
   const after = { ...order, ...patch };
   let changeOrderId = null;
 
@@ -399,7 +404,7 @@ export const applyEdit = async (stores, plan, {
   }
 
   order = await amendOrder(stores, id, markEdit(order, key, { state: "done" }),
-    "edit.done", now);
+    by === "farm" ? "farm.changed" : "edit.done", now);
   order = await syncFulfilment(stores, order, change, {
     changeOrderId, k, square, env, fetchImpl, mail, now,
   });
@@ -412,6 +417,8 @@ export const applyEdit = async (stores, plan, {
       orderUrl: orderUrlFor(env, id), links, difference: change.difference,
       before: editOf(order, key).before,
     }), { mail, env, now });
+
+  if (by === "farm") return order;
 
   return notifyFarm(stores, order, `farmOrderChanged-${key}`,
     farmOrderChanged(order, {
@@ -637,6 +644,106 @@ export const editOrder = async (stores, customer, id, body, {
     }, opts),
     difference,
   ));
+};
+
+// The farm changes a paid order for the customer, from the CLI (#306),
+// past the cutoff and by the same rules and messages as the customer's
+// own change. The farm can also change the way the order is received
+// (`fulfilment.method`) and the address, which the page cannot. A
+// change of method or address goes through planEdit and applyEdit like
+// the customer's edit; the rest (date, pickup time, drop-off details,
+// notes) through planChange and applyChange like their quick change.
+// The CLI moves no money: a change that costs or credits anything is
+// refused. `body` is `{ fulfilment, customer, notes }`, as the edit
+// takes it. `dryRun` plans and renders the email; nothing is saved or
+// sent. -> { ok, order, email? } or { ok: false, status, errors }
+export const farmEdit = async (stores, id, body, {
+  now = clock(), env = process.env, mail = sendMail, square = squareApi,
+  paypal, fetchImpl, sleep, key, dryRun = false,
+} = {}) => {
+  const order = await getOrder(stores, id);
+
+  if (!order) return fail(404, { order: `We can't find order ${id}.` });
+  if (order.status !== "paid" || order.cancelRequested) {
+    return fail(409, { order: "This order can't be changed any more." });
+  }
+  if (!order.lines.every((l) => index.has(l.sku))) {
+    return fail(409, { order: "This order holds an item the catalog no " +
+      "longer has, so it can't be changed." });
+  }
+
+  const b = body && typeof body === "object" ? body : {};
+  const f = b.fulfilment || {};
+  const d = f.delivery || {};
+  const links = mailLinks(env);
+  const orderUrl = orderUrlFor(env, id);
+  const structural = (f.method && f.method !== order.fulfilment.method)
+    || ["address1", "address2", "town", "zip"].some((k) => d[k] !== undefined)
+    || !!b.customer;
+
+  if (!structural) {
+    const plan = planChange(order, {
+      date: f.date, onfarm: f.onfarm, delivery: d, notes: b.notes,
+    }, { now, env, by: "farm" });
+
+    if (plan.errors) return fail(422, plan.errors);
+    if (dryRun) {
+      const after = { ...order, ...plan.patch };
+
+      return { ok: true, dryRun: true, order: after,
+        email: orderChanged(after, { orderUrl, links }) };
+    }
+
+    return { ok: true, order: await applyChange(stores, order, plan, {
+      now, env, mail, square, by: "farm",
+    }) };
+  }
+
+  if (b.notes !== undefined) {
+    return fail(422, { notes: "Change the notes in a command of their own." });
+  }
+
+  const cust = await getCustomer(stores, order.customer.email);
+  const plan = async (claimedTotal) => planEdit(stores, order,
+    { ...b, claimedTotal }, {
+      now, index, terms, codes: discountCodes.codes,
+      group: (cust && cust.discountGroup) || null, validate: validateOrder,
+      schedule: pickupSchedule(env), env,
+    });
+  let planned = await plan(undefined);
+
+  // The page learns the total from the same code, then sends it back.
+  if (!planned.ok && planned.errors.total && planned.totals) {
+    planned = await plan(planned.totals.total);
+  }
+  if (!planned.ok) return planned;
+
+  const { difference } = planned.change;
+
+  if (difference !== 0) {
+    return fail(422, { payment: difference > 0
+      ? `This change adds ${dollars(difference)}, which only the customer ` +
+        "can pay, on their order page."
+      : `This change takes ${dollars(-difference)} off the order. The ` +
+        "CLI moves no money: refund it by hand once the change is made." });
+  }
+
+  const k = key || `farm-${id}-${now.getTime()}`;
+
+  if (!KEY.test(k)) return fail(422, { key: "That key doesn't look right." });
+  if (dryRun) {
+    const after = { ...order, ...changedRecord(order, planned.next,
+      planned.change, k, now, "farm") };
+
+    return { ok: true, dryRun: true, order: after,
+      email: orderChanged(after, {
+        orderUrl, links, difference: 0, before: after.edits.at(-1).before,
+      }) };
+  }
+
+  return { ok: true, order: await applyEdit(stores, planned, {
+    key: k, by: "farm", payment: {},
+  }, { square, paypal, env, fetchImpl, sleep, mail, now }) };
 };
 
 // A processor's failure as the page reads it, as the order endpoint

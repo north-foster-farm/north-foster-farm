@@ -663,6 +663,25 @@ the cutoff, answers the question and emails orderChanged; it refuses
 after the customer's miss kept the fee, since only the customer can
 pay the next trip's fee, on the order page.
 
+`bin/nff orders change <id>` makes, for the customer and past the
+cutoff, any change they could make themselves, and one they cannot:
+the way they receive the order, with its address. Its flags are
+`--method onfarm|dropsite|delivery`, `--date`, `--window` (a pickup
+time), `--address1`, `--address2`, `--town`, `--zip`, `--cooler`,
+`--gate`, `--delivery-notes`, `--phone`, `--contact`, `--notes` and
+`--key` (to retry one change safely). A new method or address goes
+through `planEdit` and `applyEdit` in `lib/edit.mjs` (`farmEdit`
+there), with the customer's validation, schedule and fee rules and
+the Square fulfilment move; a date, pickup time, drop-off detail or
+note goes through `planChange` and `applyChange` in `lib/account.mjs`,
+which the customer's own quick change shares. Both send the customer
+`orderChanged` and flag `squareOutOfSync` if Square fails. History
+records `farm.changed`, and the farm is not emailed about its own
+change. The CLI moves no money: a change that adds a fee (the
+customer must pay it on the order page) or credits one is refused
+and says so. `--dry-run` saves and sends nothing and prints the
+email.
+
 A customer who cancels from the account page is refunded and
 cancelled at once (T1d), and the farm is emailed "Cancelled: <id>".
 Only if that refund fails is the order flagged `cancelRequested`,
@@ -819,7 +838,8 @@ it, and says that too. `bin/nff` with no arguments prints the commands:
 customers (list, show, set, delete), address (approve, deny), orders
 (list with `--open`, `--status`, `--email`; show; cancel `--reason
 <why> | --reason-text | --no-reason [--no-refund] [--amount]`, which
-says what it refunds; attempted; refund
+says what it refunds; attempted; change `[--method] [--date] ...
+[--dry-run]`; refund
 `[--amount] [--reason]`; fulfil; delete), returns resolve, stock
 (list, set), schedule (check, set), login and masquerade (a
 single-use sign-in link, opened for you), audience (invite, sync),

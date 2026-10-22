@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { handle as placeOrder } from "../netlify/functions/orders.mjs";
 import { rescueCheckout } from "../netlify/functions/lib/checkout.mjs";
 import {
-  diffLines, editOrder, finishEditVenmo,
+  diffLines, editOrder, farmEdit, finishEditVenmo,
 } from "../netlify/functions/lib/edit.mjs";
 import { cancelOrder } from "../netlify/functions/lib/account.mjs";
 import {
@@ -15,7 +15,7 @@ import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
-import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
+import { AFTERNOON, MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
 const MAILS = {
   FARM_NOTIFICATIONS_EMAIL: "farm@example.com",
@@ -611,5 +611,158 @@ describe("a paid order holding an unknown SKU", () => {
     assert.equal(result.status, 409);
     assert.equal((await getOrder(stores, id)).lines[0].sku,
       "NFF-CHK-WHL-0350-0400");
+  });
+});
+
+// The farm changes an order for the customer (#306).
+describe("farmEdit", () => {
+  const outbox = () => {
+    const sent = [];
+
+    return { sent, mail: async (m) => {
+      sent.push(m);
+
+      return { id: `m${sent.length}`, driver: "test" };
+    } };
+  };
+  const opts = (square, mail, extra = {}) => ({
+    now, env, square, mail, ...quiet, ...extra,
+  });
+
+  it("moves an on-farm pickup to the drop site, as the farm", async () => {
+    const { stores, id } = await placed();
+    const { square, calls } = fakeSquare();
+    const { sent, mail } = outbox();
+    const result = await farmEdit(stores, id, {
+      fulfilment: { method: "scituate", date: "2026-10-17" },
+    }, opts(square, mail));
+
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+
+    const saved = await getOrder(stores, id);
+    const events = saved.history.map((h) => h.event);
+
+    assert.equal(saved.fulfilment.method, "scituate");
+    assert.equal(saved.fulfilment.date, "2026-10-17");
+    assert.ok(events.includes("farm.changed"));
+    assert.ok(!events.includes("edit.done"));
+    assert.equal(saved.edits[0].by, "farm");
+    assert.ok(calls.some((c) => c[0] === "cancelFulfilment" && c[1] === "SQO"));
+    // The customer is told; the farm is not told of its own change.
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].to, "pat@example.com");
+    assert.equal(sent[0].subject, "Your order is updated");
+  });
+
+  it("changes the date and pickup time as the quick change does",
+    async () => {
+      const { stores, id } = await placed();
+      const { square, calls } = fakeSquare();
+      const { sent, mail } = outbox();
+      const result = await farmEdit(stores, id, {
+        fulfilment: { date: "2026-10-08", onfarm: { window: AFTERNOON } },
+      }, opts(square, mail));
+
+      assert.equal(result.ok, true, JSON.stringify(result.errors));
+
+      const saved = await getOrder(stores, id);
+
+      assert.equal(saved.fulfilment.date, "2026-10-08");
+      assert.equal(saved.fulfilment.onfarm.window, AFTERNOON);
+      assert.ok(saved.history.some((h) => h.event === "farm.changed"));
+      assert.ok(calls.some((c) => c[0] === "updateFulfilment"
+        && c[2] === "2026-10-08"));
+      assert.deepEqual(sent.map((m) => m.subject), ["Your order is updated"]);
+    });
+
+  it("refuses with the customer's messages", async () => {
+    const { stores, id } = await placed();
+    const { square } = fakeSquare();
+    const { sent, mail } = outbox();
+    const late = await farmEdit(stores, id, { fulfilment: {
+      date: "2026-12-31" } }, opts(square, mail));
+    const drop = await farmEdit(stores, id, { fulfilment: {
+      method: "scituate", date: "2026-10-14" } }, opts(square, mail));
+
+    assert.equal(late.ok, false);
+    assert.equal(late.errors.date, "That date isn't available.");
+    assert.equal(drop.ok, false);
+    assert.equal(drop.errors["fulfilment.date"],
+      "That date is no longer available.");
+    assert.equal((await getOrder(stores, id)).fulfilment.method, "onfarm");
+    assert.equal(sent.length, 0);
+  });
+
+  it("refuses a change that moves money", async () => {
+    const { stores, id } = await placed();
+    const { square, calls } = fakeSquare();
+    const { sent, mail } = outbox();
+    const result = await farmEdit(stores, id, {
+      fulfilment: {
+        method: "delivery", date: "2026-10-08",
+        delivery: {
+          address1: "1 Main St", town: "Foster", zip: "02825",
+          cooler: "Porch",
+        },
+      },
+    }, opts(square, mail));
+
+    assert.equal(result.ok, false);
+    assert.match(result.errors.payment, /only the customer can pay/);
+    assert.equal((await getOrder(stores, id)).fulfilment.method, "onfarm");
+    assert.deepEqual(calls, []);
+    assert.equal(sent.length, 0);
+  });
+
+  it("saves and sends nothing on a dry run", async () => {
+    const { stores, id } = await placed();
+    const { square, calls } = fakeSquare();
+    const { sent, mail } = outbox();
+    const before = await getOrder(stores, id);
+    const move = await farmEdit(stores, id, {
+      fulfilment: { method: "scituate", date: "2026-10-17" },
+    }, opts(square, mail, { dryRun: true }));
+    const quick = await farmEdit(stores, id, {
+      fulfilment: { date: "2026-10-08" },
+    }, opts(square, mail, { dryRun: true }));
+
+    assert.equal(move.ok, true, JSON.stringify(move.errors));
+    assert.equal(move.dryRun, true);
+    assert.equal(move.order.fulfilment.method, "scituate");
+    assert.equal(move.email.subject, "Your order is updated");
+    assert.equal(quick.order.fulfilment.date, "2026-10-08");
+    assert.deepEqual(await getOrder(stores, id), before);
+    assert.deepEqual(calls, []);
+    assert.equal(sent.length, 0);
+  });
+
+  it("flags Square out of sync and goes on when Square fails",
+    async () => {
+      const { stores, id } = await placed();
+      const { square } = fakeSquare();
+      const { sent, mail } = outbox();
+
+      square.updateFulfilment = async () => {
+        throw new SquareError("down");
+      };
+
+      const result = await farmEdit(stores, id, {
+        fulfilment: { date: "2026-10-08" },
+      }, opts(square, mail));
+
+      assert.equal(result.ok, true);
+      assert.equal((await getOrder(stores, id)).flags.squareOutOfSync, true);
+      assert.ok(sent.some((m) => m.subject === "Your order is updated"));
+    });
+
+  it("refuses an order that is not paid", async () => {
+    const { stores, id } = await placed();
+
+    await amendOrder(stores, id, { status: "cancelled" }, "test", now);
+
+    const result = await farmEdit(stores, id, { fulfilment: {
+      date: "2026-10-08" } }, opts(fakeSquare().square, async () => ({})));
+
+    assert.equal(result.status, 409);
   });
 });

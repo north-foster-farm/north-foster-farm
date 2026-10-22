@@ -95,6 +95,23 @@ const USAGE = `Usage:
                                       their own miss that kept the fee:
                                       they pay it again on the order
                                       page
+  bin/nff orders change <id> [--method onfarm|dropsite|delivery]
+                             [--date YYYY-MM-DD] [--window <id>]
+                             [--address1 ... --address2 ... --town ...
+                             --zip ...] [--cooler ...] [--gate ...]
+                             [--delivery-notes ...] [--phone ...]
+                             [--contact text|call] [--notes ...]
+                             [--key <retry key>] [--dry-run]
+                                      what the customer could change on
+                                      their own, for them, by their
+                                      rules and past the cutoff; also
+                                      the way they receive it (method)
+                                      and the address. The customer gets
+                                      the "order changed" email and
+                                      Square follows. A change that
+                                      costs or credits money is
+                                      refused. --dry-run saves and sends
+                                      nothing and prints the email
   bin/nff orders fulfil <id>
   bin/nff orders delete <id>
   bin/nff passes issue [--email <email>] [--days 14] [--note "..."]
@@ -301,6 +318,7 @@ const [
   passes,
   square,
   { checkRefunds },
+  { farmEdit },
 ] = await Promise.all([
   import("../data/delivery.json", { with: { type: "json" } }),
   import("../netlify/functions/lib/admin.mjs"),
@@ -323,6 +341,7 @@ const [
   import("../netlify/functions/lib/passes.mjs"),
   import("../netlify/functions/lib/square-pause.mjs"),
   import("../netlify/functions/lib/settle.mjs"),
+  import("../netlify/functions/lib/edit.mjs"),
 ]);
 
 // --scratch: development's env, but stores of their own
@@ -349,7 +368,9 @@ const words = [];
 // Flags that take a value: `--reason "..."` as well as `--reason=...`.
 const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
   "to", "waive", "detail", "reason-text", "sha", "deploy", "label",
-  "out", "count", "hours", "advisory", "file", "email", "days"];
+  "out", "count", "hours", "advisory", "file", "email", "days", "method",
+  "date", "window", "phone", "contact", "address1", "address2", "town",
+  "zip", "cooler", "gate", "delivery-notes", "notes", "key"];
 const args = process.argv.slice(2);
 
 for (let i = 0; i < args.length; i += 1) {
@@ -955,6 +976,55 @@ const run = async () => {
   case "orders move":
     return out(summaryLine(await admin.moveDelivery(stores, rest[0],
       rest[1])));
+  case "orders change": {
+    const given = (k) => (typeof flags[k] === "string" ? flags[k] : undefined);
+    const pick = (obj) => Object.fromEntries(Object.entries(obj)
+      .filter(([, v]) => v !== undefined));
+    const method = given("method") === "dropsite" ? "scituate"
+      : given("method");
+    const onfarm = pick({ window: given("window") });
+    const delivery = pick({
+      address1: given("address1"), address2: given("address2"),
+      town: given("town"), zip: given("zip"), cooler: given("cooler"),
+      gate: given("gate"), notes: given("delivery-notes"),
+    });
+    const customer = pick({
+      phone: given("phone"), contact: given("contact"),
+    });
+    const body = pick({
+      fulfilment: pick({
+        method, date: given("date"),
+        onfarm: Object.keys(onfarm).length ? onfarm : undefined,
+        delivery: Object.keys(delivery).length ? delivery : undefined,
+      }),
+      customer: Object.keys(customer).length ? customer : undefined,
+      notes: given("notes"),
+    });
+
+    if (!rest[0]) throw new Error("Which order? orders change <id> ...");
+    if (!Object.keys(body.fulfilment).length && !body.customer
+      && body.notes === undefined) {
+      throw new Error("Nothing to change. Give --method, --date, " +
+        "--window, an address, --cooler, --gate, --phone or --notes.");
+    }
+
+    const r = await farmEdit(stores, rest[0], body, {
+      key: given("key"), dryRun: !!flags["dry-run"],
+    });
+
+    if (!r.ok) {
+      throw new Error(Object.values(r.errors).join(" "));
+    }
+    if (r.dryRun) {
+      out(summaryLine(r.order));
+      out(`--dry-run: nothing saved or sent. The customer would get:\n`);
+      out(`Subject: ${r.email.subject}\n\n${r.email.text}`);
+
+      return undefined;
+    }
+
+    return out(summaryLine(r.order));
+  }
   case "orders fulfil":
   case "orders fulfill":
     return out(summaryLine(await admin.fulfilOrder(stores, rest[0])));
