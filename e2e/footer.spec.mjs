@@ -208,7 +208,7 @@ test.describe("footer (#141)", () => {
 
       const email = "qa-e2e-footer@example.com";
       // At rest the button fits "Yes" (#223); while it sends, it fits
-      // the spinner and "Submitting".
+      // the spinner and "Sending".
       const width = (await button.boundingBox()).width;
       const busyWidth = await button.evaluate((el) => {
         const face = el.querySelector(".busy-button-busy");
@@ -224,7 +224,7 @@ test.describe("footer (#141)", () => {
       await form.locator("input[type='email']").fill(email);
       await button.click();
       await expectBusy(page, button, {
-        busyWord: "Submitting", width: busyWidth,
+        busyWord: "Sending", width: busyWidth,
       });
       await expect(form.locator("[data-news-note]")).toHaveText("");
 
