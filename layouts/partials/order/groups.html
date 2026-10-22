@@ -19,8 +19,14 @@
     {{ if ne .restock "archived" }}
       {{ $out := not .inStock }}
       {{ if not $out }}{{ $inStock = true }}{{ end }}
+      {{/* A graded item (eggs, #300) shows its grade where a note
+           goes, "$7 · Grade A"; `graded` is the label with it, as
+           order/lib/catalog.mjs names a line. */}}
+      {{ $graded := cond (isset . "grade") (printf "%s %s" .grade .label) .label }}
       {{ $items = $items | append (merge . (dict
         "out" $out
+        "note" (or .note .grade "")
+        "graded" $graded
         "row" (cond $byName .name .label)
         "restockLabel" (partial "order/restock-label.html" .))) }}
     {{ end }}

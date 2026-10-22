@@ -7,7 +7,9 @@ import { describe, it } from "node:test";
 
 import catalog from "../data/catalog.json" with { type: "json" };
 import terms from "../data/delivery.json" with { type: "json" };
-import { indexCatalog, short } from "../assets/scripts/order/lib/catalog.mjs";
+import {
+  graded, indexCatalog, short,
+} from "../assets/scripts/order/lib/catalog.mjs";
 import { parseSchedule } from "../assets/scripts/order/lib/schedule.mjs";
 import { itemGroups } from "../assets/scripts/order/lib/summary.mjs";
 import { validateOrder } from "../assets/scripts/order/lib/validate.mjs";
@@ -20,21 +22,48 @@ const index = indexCatalog(catalog);
 const LIVERS = "NFF-CHK-LVR-10-14";
 const FEET = "NFF-CHK-FET-0075-0125";
 const WINGS = "NFF-CHK-WNG-10-19";
+const EGGS = "NFF-CHK-EGG-LG";
 
 describe("line names", () => {
-  it("are Group, label in every group but Other Items", () => {
+  it("are Group, label in every group but Other Items, with the "
+    + "grade where the catalog gives one", () => {
     for (const group of catalog.groups) {
       if (group.key === "other") continue;
       for (const item of group.items) {
         const got = index.get(item.sku);
 
-        assert.equal(got.lineName, `${short(group.label)}, ${item.label}`);
-        assert.equal(got.row, item.label);
+        assert.equal(got.lineName, `${short(group.label)}, ${graded(item)}`);
+        assert.equal(got.row, graded(item));
       }
     }
     assert.equal(index.get(WINGS).lineName, "Wings, 1.0 – 1.9 lbs");
+    assert.equal(index.get(EGGS).lineName, "Eggs, Grade A Large");
+    assert.equal(index.get(EGGS).row, "Grade A Large");
     assert.equal(index.get("NFF-CHK-SAUMPL").lineName,
       "Chicken Sausage, Maple breakfast links");
+  });
+
+  // Every egg says its grade, from the catalog's one `grade` (#300);
+  // nothing else has one.
+  it("carry each egg's grade and no one else's", () => {
+    const eggs = catalog.groups.find((g) => g.key === "eggs").items;
+
+    assert.deepEqual(eggs.map((i) => index.get(i.sku).lineName), [
+      "Eggs, Grade A Large", "Eggs, Grade A Medium", "Eggs, Grade A Small",
+    ]);
+    for (const group of catalog.groups) {
+      if (group.key === "eggs") continue;
+      for (const item of group.items) assert.equal(item.grade, undefined);
+    }
+  });
+
+  // Square's line takes the grade too; other lines keep the catalog's
+  // own name, which for the sausages differs from the line name.
+  it("name the Square line with the grade", () => {
+    assert.equal(index.get(EGGS).squareName, "Eggs, Grade A Large");
+    assert.equal(index.get("NFF-CHK-SAUMPL").squareName,
+      "Maple Breakfast Sausage, Links");
+    assert.equal(index.get(WINGS).squareName, index.get(WINGS).name);
   });
 
   it("are the item's own name in Other Items", () => {
@@ -73,11 +102,16 @@ describe("line names", () => {
     }, ctx);
 
     it("store the line name as the line's label", () => {
-      const r = order([{ sku: LIVERS, qty: 1 }, { sku: WINGS, qty: 1 }]);
+      const r = order([
+        { sku: LIVERS, qty: 1 }, { sku: WINGS, qty: 1 }, { sku: EGGS, qty: 1 },
+      ]);
 
       assert.ok(r.ok, JSON.stringify(r.errors));
-      assert.deepEqual(r.order.lines.map((l) => l.label),
-        ["Livers, 1.0 – 1.4 lbs", "Wings, 1.0 – 1.9 lbs"]);
+      assert.deepEqual(r.order.lines.map((l) => l.label), [
+        "Livers, 1.0 – 1.4 lbs", "Wings, 1.0 – 1.9 lbs", "Eggs, Grade A Large",
+      ]);
+      // The Square line's name, graded for eggs (#300).
+      assert.equal(r.order.lines[2].name, "Eggs, Grade A Large");
     });
 
     it("name a sold-out line", () => {

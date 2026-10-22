@@ -225,8 +225,9 @@ added and clears the query" (both projects).
   sold out).
 - **Test:**
   1. Open the link.
-- **Assert:** The notice reads "Added to your cart: 2 × Eggs, Large. No longer
-  available: Eggs (per dozen), Medium." Eggs, Large reads 2. The URL is
+- **Assert:** The notice reads "Added to your cart: 2 × Eggs, Grade A
+  Large. No longer available: Eggs, Grade A Medium." Eggs, Large reads
+  2. The URL is
   `/order/` with no query.
 - **Teardown:** None.
 
@@ -2454,8 +2455,8 @@ has it", "on the order page it fills the row and the cart at once" and
   2. On `/order/?add=` 1 wing, search "wings"; Enter; Escape.
   3. With `/api/stock` held, search "eggs", press One more, then let
      the stock answer.
-- **Assert:** "Large", "In stock"; "Added 2 × Eggs, Large. 2 items in
-  your cart." and the button reads "Added · 2 in cart"; the order page
+- **Assert:** "Large", "In stock"; "Added 2 × Eggs, Grade A Large. 2
+  items in your cart." and the button reads "Added · 2 in cart"; the order page
   shows 2 eggs, "2 items", $14. On the order page the wings row reads
   2, "2 items", $20. The late stock answer leaves the quantity at 2.
 - **Teardown:** None.

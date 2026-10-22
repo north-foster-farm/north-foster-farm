@@ -31,7 +31,7 @@
       "key" $group.key
       "label" .row
       "line" (cond (eq $group.lines "name") .name
-        (printf "%s, %s" $group.short .label))
+        (printf "%s, %s" $group.short .graded))
       "note" (.note | default "")
       "price" .price
       "out" .out

@@ -9,7 +9,7 @@
         {
           "sku": "NFF-CHK-EGG-LG",
           "label": "Large",
-          "note": "Grade A",
+          "grade": "Grade A",
           "name": "Eggs, Large",
           "price": 7,
           "inStock": true,
@@ -19,7 +19,7 @@
         {
           "sku": "NFF-CHK-EGG-MD",
           "label": "Medium",
-          "note": "Grade A",
+          "grade": "Grade A",
           "name": "Eggs, Medium",
           "price": 5,
           "inStock": false,
@@ -29,7 +29,7 @@
         {
           "sku": "NFF-CHK-EGG-SM",
           "label": "Small",
-          "note": "Grade A",
+          "grade": "Grade A",
           "name": "Eggs, Small",
           "price": 2,
           "inStock": false,
