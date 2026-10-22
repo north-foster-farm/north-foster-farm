@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { handle as account } from "../netlify/functions/account.mjs";
 import { handle as auth } from "../netlify/functions/auth.mjs";
 import {
-  createSession, sessionKey,
+  LINK_TTL, createSession, sessionKey,
 } from "../netlify/functions/lib/auth.mjs";
 import {
   finishEmailChange, requestEmailChange,
@@ -222,6 +222,33 @@ describe("the endpoints (#240)", () => {
 
     assert.equal((await confirmed.json()).ok, true);
   });
+
+  it("an expired change link says to start again from Settings",
+    async () => {
+      const stores = await seed();
+      const { sent, mail } = mailbox();
+      const old = await createSession(stores, OLD, { now });
+
+      await account(post("/api/account/email", { email: NEW }, old.id),
+        { stores, env, now, mail });
+
+      const token = tokenIn(sent[0]);
+      const late = new Date(now.getTime() + LINK_TTL + 1000);
+      const res = await auth(
+        new Request(`https://x/api/auth/verify?token=${token}`),
+        { stores, env, now: late, mail }
+      );
+
+      assert.equal(res.headers.get("location"),
+        "/login/?error=change-expired");
+
+      // Spent by the confirm step's POST, it says the same.
+      const posted = await auth(verifyPost(token),
+        { stores, env, now: late, mail });
+
+      assert.deepEqual(await posted.json(),
+        { ok: false, reason: "change-expired" });
+    });
 
   it("ask on the account page, confirm the link, arrive signed in",
     async () => {

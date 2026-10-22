@@ -160,6 +160,13 @@ const lookupToken = async (stores, token) => {
   return found ? { key, found } : { reason: "unknown" };
 };
 
+// An expired link says so; one that was to change the email address
+// says that instead, since a change starts from Settings, not the
+// sign-in form (#240).
+const expired = (found) => ({
+  ok: false, reason: found.changeFrom ? "change-expired" : "expired",
+});
+
 const tokenResult = (found) => ({
   ok: true,
   email: found.email,
@@ -177,7 +184,7 @@ export const peekToken = async (stores, token, { now = clock() } = {}) => {
 
   if (look.reason) return { ok: false, reason: look.reason };
   if (now.getTime() > look.found.expires) {
-    return { ok: false, reason: "expired" };
+    return expired(look.found);
   }
 
   return tokenResult(look.found);
@@ -192,7 +199,7 @@ export const verifyToken = async (stores, token, { now = clock() } = {}) => {
   await stores.auth.delete(look.key);
 
   if (now.getTime() > look.found.expires) {
-    return { ok: false, reason: "expired" };
+    return expired(look.found);
   }
 
   return tokenResult(look.found);

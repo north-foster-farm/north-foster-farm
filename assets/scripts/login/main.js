@@ -12,6 +12,8 @@ const ERRORS = {
   invalid: "That sign-in link isn't valid. Ask for a new one below.",
   // A link to a new email address that could not move the account
   // (#240). "[contact us]" is the support link.
+  "change-expired": "That link has expired. Sign in and change your " +
+    "email address again from your account settings.",
   "change-taken": "That email address already exists. For additional " +
     "support, [contact us].",
   "change-failed": "We couldn't change your email address. Continue " +
