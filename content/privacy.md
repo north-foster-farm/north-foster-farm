@@ -79,8 +79,10 @@ the order is marked cancelled.
 If you start paying with Venmo and don't finish, we delete your order details
 within a day, and PayPal lets the unfinished payment expire.
 
-Your account stays until you close it. Deleting your details takes one click
-in your account settings. If you delete your details, your past orders stay
+Your account stays until you close it, even if you stop using it. If a year
+goes by without you signing in or ordering, we take you off our farm news and
+email you once to say so. Deleting your details takes one click in your
+account settings. If you delete your details, your past orders stay
 in our records with no name on them, for our own reporting. Seven years after
 an order, we remove your name, email address, phone number and street address
 from it. The order keeps what was bought, the prices, the date, how it reached
