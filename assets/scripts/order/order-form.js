@@ -95,8 +95,8 @@ const SHEET = "(max-width: 767.98px), "
 // The first Add's lesson (#278): how long the pane stays open on the
 // new line, then the Hide/Show pill's three pairs of pulses (the
 // stylesheet's order-pill-teach), or its still emphasis under reduced
-// motion.
-const TEACH_DWELL = 2000;
+// motion. 2000 until #274 round 4 added 1.5 s.
+const TEACH_DWELL = 3500;
 const PULSE_MS = { teach: 4400, once: 520, still: 2600 };
 
 export class OrderForm {
@@ -1316,9 +1316,9 @@ export class OrderForm {
   }
 
   // The feedback for an Add (#267). The first of a browser session
-  // opens the pane on the lines, outlines the new line, shuts the pane
-  // after two seconds and pulses the Hide/Show pill in three pairs
-  // (#278). Every
+  // opens the pane on the lines, scrolled to the new line, shuts the
+  // pane after TEACH_DWELL and pulses the Hide/Show pill in three
+  // pairs (#278). Every
   // later Add leaves the pane shut: the bar says what was added, the
   // count ticks, the pill pulses once. Whatever the pane is doing,
   // a screen reader hears it, and the focus stays where it is.
@@ -1341,23 +1341,14 @@ export class OrderForm {
 
     clearTimeout(this.addedTimer);
     clearTimeout(this.closeTimer);
-    clearTimeout(this.outlineTimer);
-    for (const row of all(this.cart, ".order-cart-item.is-new")) {
-      row.classList.remove("is-new");
-    }
 
     if (first && floating) {
       this.setOpen(true);
       this.setPart("items", true);
       this.setPart("money", false);
-      // Once the pane has opened, the line is in reach: outline it and
-      // bring it into view inside the list.
-      setTimeout(() => this.outline(sku), reduced ? 0 : 260);
-      this.outlineTimer = setTimeout(() => {
-        for (const row of all(this.cart, ".order-cart-item.is-new")) {
-          row.classList.remove("is-new");
-        }
-      }, TEACH_DWELL);
+      // Once the pane has opened, the line is in reach: bring it into
+      // view inside the list.
+      setTimeout(() => this.reveal(sku), reduced ? 0 : 260);
       this.closeTimer = setTimeout(() => {
         this.setOpen(false);
         this.pulsePill(pill, "teach");
@@ -1395,13 +1386,13 @@ export class OrderForm {
     }
   }
 
-  // Outlines a line and scrolls the list, and only the list, to it.
-  outline(sku) {
+  // Scrolls the list, and only the list, to a line. The line itself is
+  // not marked: the open pane and the pill's pulses say enough (#274).
+  reveal(sku) {
     const button = qs(this.cart, `[data-remove="${CSS.escape(sku)}"]`);
     const row = button ? button.closest(".order-cart-item") : null;
 
     if (!row) return;
-    row.classList.add("is-new");
 
     const list = qs(this.cart, "[data-cart-items]");
     const top = row.offsetTop - list.offsetTop;

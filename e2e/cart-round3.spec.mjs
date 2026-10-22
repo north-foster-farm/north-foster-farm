@@ -1,10 +1,9 @@
 // Cart round 3 (#274): the scrollspy names the category whose rows
 // are under the sticky bar; the Items/Total toggle keeps a phone's
-// width and is plain text in the column; the new line's outline is
-// drawn inside it; the badge row is back and the chicks leave the
-// badge just earned; the total's flash stays light on the green;
-// settled, the pane shows every line; empty, it shows only the way
-// and the code. It sets its own widths.
+// width and is plain text in the column; the badge row is back and
+// the chicks leave the badge just earned; the total's flash stays
+// light on the green; settled, the pane shows every line; empty, it
+// shows only the way and the code. It sets its own widths.
 
 import { FULL_CART, OrderPage, expect, test } from "./support/order.mjs";
 
@@ -118,31 +117,8 @@ test("in the column the count and total are plain text", async ({ page }) => {
     .toHaveCSS("opacity", "0");
 });
 
-test("the new line's outline is drawn inside it", async ({ page }) => {
-  await page.setViewportSize(PHONE);
-
-  const order = new OrderPage(page);
-
-  await order.open();
-  await (await order.showRow("wings")).locator(".order-qty-add").click();
-
-  const row = order.cart.locator(".order-cart-item.is-new");
-
-  await expect(row).toBeVisible();
-  await expect(row).toHaveCSS("outline-style", "none");
-  expect(await row.evaluate((el) => getComputedStyle(el).boxShadow))
-    .toContain("inset");
-
-  // Inside the scroller's box, so nothing clips it.
-  const fits = await row.evaluate((el) => {
-    const r = el.getBoundingClientRect();
-    const s = el.closest("[data-cart-items]").getBoundingClientRect();
-
-    return r.left >= s.left - 0.5 && r.right <= s.right + 0.5;
-  });
-
-  expect(fits).toBe(true);
-});
+// The new line's outline (#274, round 3) is gone since round 4;
+// cart-added.spec.mjs checks that it stays gone.
 
 test("the chicks leave the tier just earned", async ({ page }) => {
   await page.setViewportSize(PHONE);

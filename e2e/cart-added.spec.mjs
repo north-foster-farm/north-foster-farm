@@ -1,6 +1,6 @@
 // What the phone cart does when something is added (#267): the first
 // Add of a browser session opens the pane on the new line and shuts it
-// again after two seconds, pulsing the Hide/Show pill in three pairs
+// again after 3.5 seconds, pulsing the Hide/Show pill in three pairs
 // (#278); a later Add leaves it shut
 // and says so in the bar. Neither moves the focus off the item.
 // docs/qa-launch.md, OP-30.
@@ -21,7 +21,7 @@ const add = async (order, name) => {
 test.describe("the cart's word for an Add", () => {
   test.use({ viewport: TALL });
 
-  test("the first Add opens the pane, outlines the line and shuts it",
+  test("the first Add opens the pane on the line and shuts it",
     async ({ page }) => {
       const order = new OrderPage(page);
       const pill = order.cart.locator("[data-cart-toggle]");
@@ -49,10 +49,14 @@ test.describe("the cart's word for an Add", () => {
 
       await expect(order.cart).toHaveAttribute("data-open", "true");
       await expect(order.cart).toHaveAttribute("data-items", "open");
-      await expect(order.cart.locator(".order-cart-item.is-new"))
-        .toHaveCount(1);
-      await expect(order.cart.locator(".order-cart-item.is-new"))
-        .toContainText("1.0 – 1.9 lbs");
+      // The line shows in the open pane, with no outline of its own
+      // (#274, round 4).
+      const line = order.cart.locator(".order-cart-item")
+        .filter({ hasText: "1.0 – 1.9 lbs" });
+
+      await expect(line).toBeVisible();
+      await expect(line).toHaveCSS("box-shadow", "none");
+      await expect(line).toHaveCSS("outline-style", "none");
       await expect(live).toHaveText("Added Wings, 1.0 – 1.9 lbs to cart");
 
       // The focus stays with the item the customer pressed, not the pane.
@@ -64,10 +68,10 @@ test.describe("the cart's word for an Add", () => {
       expect(inCart).toBe(false);
       await expect(row).toBeVisible();
 
-      // It shuts by itself after about two seconds (#278), then the
-      // pill pulses in three pairs.
+      // It shuts by itself after 3.5 s (TEACH_DWELL: 2 s in #278, 1.5 s
+      // more in #274 round 4), then the pill pulses in three pairs.
       await expect(order.cart).toHaveAttribute("data-open", "false", {
-        timeout: 6_000,
+        timeout: 8_000,
       });
 
       const shut = await page.evaluate(() => {
@@ -78,11 +82,9 @@ test.describe("the cart's word for an Add", () => {
         return closed[1] - opened[1];
       });
 
-      expect(shut).toBeGreaterThanOrEqual(1_800);
-      expect(shut).toBeLessThanOrEqual(3_500);
+      expect(shut).toBeGreaterThanOrEqual(3_300);
+      expect(shut).toBeLessThanOrEqual(5_000);
       await expect(pill).toHaveAttribute("data-pulse", "teach");
-      await expect(order.cart.locator(".order-cart-item.is-new"))
-        .toHaveCount(0);
     });
 
   test("a later Add leaves the pane shut and says what was added",
@@ -94,7 +96,7 @@ test.describe("the cart's word for an Add", () => {
       await order.open();
       await add(order, "wings");
       await expect(order.cart).toHaveAttribute("data-open", "false", {
-        timeout: 6_000,
+        timeout: 8_000,
       });
 
       await add(order, "eggs");
@@ -130,7 +132,7 @@ test.describe("the cart's word for an Add", () => {
     await add(order, "wings");
     await expect(order.cart).toHaveAttribute("data-open", "true");
     await expect(order.cart).toHaveAttribute("data-open", "false", {
-      timeout: 6_000,
+      timeout: 8_000,
     });
 
     // A reload keeps the session: the next Add leaves the pane shut.

@@ -597,8 +597,8 @@ Partial: `cart-added.spec.mjs`. How the pulse and the slide look on an
 iPhone is manual (#267).
 
 - **Scenario:** The first Add of a browser session opens the phone cart
-  on the new line, outlines it, shuts the pane after two seconds and
-  pulses the Hide/Show pill in three pairs, a second apart (#278). A
+  on the new line, shuts the pane after 3.5 seconds and pulses the
+  Hide/Show pill in three pairs, a second apart (#278, #274). A
   later Add leaves the pane shut: the bar says "Added: {item}", the
   count ticks and the pill pulses once. A screen reader hears "Added
   {item} to cart" every time.
@@ -610,8 +610,9 @@ iPhone is manual (#267).
   4. Reload and press Add again.
   5. With reduced motion on, repeat 1 and 2.
   6. Manual, with VoiceOver: press Add and listen.
-- **Assert:** One: the pane opens on the lines, one line is outlined, it
-  shuts in about two seconds and the pill pulses in three pairs. Two:
+- **Assert:** One: the pane opens on the lines, the new line in view and
+  not outlined; it shuts in about 3.5 seconds and the pill pulses in
+  three pairs. Two:
   the pane stays shut, the bar names the item for a moment, the count
   ticks and the pill pulses once. Three: the pane stays open. Four: the
   pane stays shut (the session's first Add is spent). Five: no pulse

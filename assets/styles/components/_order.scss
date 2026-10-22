@@ -1294,13 +1294,6 @@
     }
   }
 
-  // The new line, outlined in the list for the moment the pane is open
-  // to show it. Drawn inside the row: an outline outside it was cut
-  // off by the scroller's edge (#274).
-  .order-cart-item.is-new {
-    box-shadow: inset 0 0 0 2px var(--bs-primary);
-  }
-
   // The fold control: a pale pill, the chevrons that say what a press
   // does, then the word. Settled below the catalog the cart is always
   // open, so the pill fades and gives its room to the way on.

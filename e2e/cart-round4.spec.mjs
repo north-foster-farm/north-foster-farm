@@ -33,7 +33,8 @@ test("the first line stays clear of the top fade", async ({ page }) => {
 
   await order.open();
   await addRow(order, "wings");
-  await expect(order.cart.locator(".order-cart-item.is-new")).toHaveCount(1);
+  await expect(order.cart.locator(".order-cart-item")).toHaveCount(1);
+  await expect(order.cart).toHaveAttribute("data-open", "true");
   await page.waitForTimeout(500);
 
   const state = await order.cart.evaluate((cart) => {
@@ -336,8 +337,9 @@ test("under reduced motion the pill holds still", async ({ page }) => {
 
   await order.open();
   await addRow(order, "wings");
+  // After the pane's 3.5 s on the new line (TEACH_DWELL, #274).
   await expect(pill).toHaveAttribute("data-pulse", "teach", {
-    timeout: 4_000,
+    timeout: 6_000,
   });
 
   // The pulse is a keyframe animation (a CSSAnimation, which names
