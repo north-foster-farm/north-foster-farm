@@ -633,6 +633,28 @@ describe("returns and support", () => {
       422);
   });
 
+  it("keeps the support subject to one line (#268)", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+
+    await sendSupport(stores, customerOf(), {
+      subject: "Eggs\r\nBcc: someone@example.com\nand more",
+      message: "Line one\nline two", orderId: "A\r\n",
+    }, opts);
+
+    assert.match(sent[0].subject,
+      /^Support: Eggs Bcc: someone@example\.com and more from /);
+    assert.doesNotMatch(sent[0].subject, /[\r\n]/);
+    assert.match(sent[0].text, /Line one\nline two/,
+      "the note keeps its lines");
+
+    const [{ key }] = await stores.customers.list("support/pat@example.com/");
+    const filed = await stores.customers.get(key);
+
+    assert.equal(filed.subject, "Eggs Bcc: someone@example.com and more");
+    assert.equal(filed.orderId, "A");
+  });
+
   it("alerts when a support note can't reach the farm (#268)", async () => {
     const stores = testStores();
     const { sent, opts } = harness();

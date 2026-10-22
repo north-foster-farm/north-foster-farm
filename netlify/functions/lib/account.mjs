@@ -43,6 +43,12 @@ export const AVATARS = avatars.map((a) => a.key);
 const text = (value, max = 200) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";
 
+// One line, for a field that lands in a header, such as the support
+// note's subject: a CR or LF there could start a header of its own.
+const line = (value, max = 200) =>
+  text(typeof value === "string" ? value.replace(/[\r\n]+/g, " ") : value,
+    max);
+
 const fail = (status, errors) => ({ ok: false, status, errors });
 
 const shortId = () => randomBytes(6).toString("base64url");
@@ -504,9 +510,9 @@ export const sendSupport = async (stores, customer, request, {
   now = clock(), env = process.env, mail = sendMail,
 } = {}) => {
   const r = request && typeof request === "object" ? request : {};
-  const subject = text(r.subject, 150);
+  const subject = line(r.subject, 150);
   const message = text(r.message, 4000);
-  const orderId = text(r.orderId, 40);
+  const orderId = line(r.orderId, 40);
 
   if (!message) return fail(422, { message: "Write us a note first." });
 
