@@ -54,12 +54,37 @@ const MAX_WORD = 14;
 const OPEN = '<span class="text-nowrap">';
 const CLOSE = "</span>";
 
+// Comments, declarations and processing instructions, or the start of
+// a tag. The attributes are read by hand in tagEnd: a regex for them
+// backtracks without bound on a hostile attribute list (CodeQL
+// js/redos).
 const TAG = new RegExp(
-  "<!--[\\s\\S]*?-->|<![^>]*>|<\\?[^>]*>"
-  + "|<(/?)([a-zA-Z][\\w:-]*)"
-  + "((?:\\s+[^\\s=>/]+(?:\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+))?)*)"
-  + "\\s*(/?)>",
+  "<!--[\\s\\S]*?-->|<![^>]*>|<\\?[^>]*>|<(/?)([a-zA-Z][\\w:-]*)",
   "g");
+
+// From `from`, just past a tag name, the index after the tag's `>`, or
+// -1 when the tag never closes. A quote opens a value only straight
+// after `=`. One pass, no backtracking.
+function tagEnd(html, from) {
+  let quote = "";
+  let eq = false;
+  for (let i = from; i < html.length; i++) {
+    const c = html[i];
+    if (quote) {
+      if (c === quote) quote = "";
+    } else if (c === ">") {
+      return i + 1;
+    } else if ((c === '"' || c === "'") && eq) {
+      quote = c;
+      eq = false;
+    } else if (c === "=") {
+      eq = true;
+    } else if (!isSpace(c)) {
+      eq = false;
+    }
+  }
+  return -1;
+}
 
 // Split the document into text and tags, each with its place in the
 // source. The body of a raw text element is one opaque token.
@@ -73,18 +98,27 @@ export function tokenize(html) {
   };
   TAG.lastIndex = 0;
   for (let m; (m = TAG.exec(html));) {
+    let end = TAG.lastIndex;
+    if (m[2]) {
+      end = tagEnd(html, end);
+      // No `>` ahead means none for any later tag: the rest is text.
+      if (end === -1) break;
+    }
     text(m.index);
-    const raw = m[0];
+    const raw = html.slice(m.index, end);
     const start = m.index;
-    at = TAG.lastIndex;
+    at = end;
+    TAG.lastIndex = end;
     if (!m[2]) {
       tokens.push({ type: "other", raw, start });
       continue;
     }
     const name = m[2].toLowerCase();
     const type = m[1] ? "close" : "open";
-    const selfClosing = Boolean(m[4]) || (type === "open" && VOID.has(name));
-    tokens.push({ type, name, raw, start, attrs: m[3], selfClosing });
+    const attrs = raw.slice(m[0].length, -1).trimEnd();
+    const slash = attrs.endsWith("/");
+    const selfClosing = slash || (type === "open" && VOID.has(name));
+    tokens.push({ type, name, raw, start, attrs, selfClosing });
     if (type === "open" && RAW.has(name)) {
       const end = html.toLowerCase().indexOf(`</${name}`, at);
       const stop = end === -1 ? html.length : end;

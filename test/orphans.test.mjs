@@ -217,3 +217,24 @@ describe("the flex rows the pass must not split", () => {
       + "</li>");
   });
 });
+
+describe("hostile markup", () => {
+  it("reads a long attribute list in linear time (CodeQL js/redos)", () => {
+    for (const attrs of [
+      `${"a ".repeat(50000)}!=`,
+      `${"a=b".repeat(50000)}!=`,
+      `${'="'.repeat(50000)}`,
+    ]) {
+      const html = `<p>One two three</p><A ${attrs} <p>x y z</p>`;
+      const start = Date.now();
+      wrapLastWords(html);
+      assert.ok(Date.now() - start < 1000);
+    }
+  });
+
+  it("still reads quoted values holding a > and a trailing slash", () => {
+    assert.equal(wrap('<p title="a > b">One two three</p>'),
+      `<p title="a > b">One ${N}two three</span></p>`);
+    same('<p>One two<br class="x" /></p>');
+  });
+});
