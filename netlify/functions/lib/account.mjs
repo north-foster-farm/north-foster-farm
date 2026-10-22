@@ -18,6 +18,7 @@ import { cancelOrder as cancelAndRefund } from "./admin.mjs";
 import { cutoffAt } from "./jobs.mjs";
 import { now as clock } from "./clock.mjs";
 import { farmEmails, mailbox, sendMail } from "./mail.mjs";
+import { alert, noteMail } from "./health.mjs";
 import { log } from "./log.mjs";
 import { joined, welcome } from "./news.mjs";
 import { notifyFarm, sendForOrder } from "./payments.mjs";
@@ -46,17 +47,29 @@ const fail = (status, errors) => ({ ok: false, status, errors });
 
 const shortId = () => randomBytes(6).toString("base64url");
 
-// Farm-side notice; never fails the customer's action.
-const tellFarm = async (message, { mail = sendMail, env = process.env }) => {
+// A farm notice about no order (an address to review, a support
+// note). It never fails the customer's action, but a failed send
+// alerts, as notifyFarm's does for a notice about an order (#268).
+const tellFarm = async (stores, template, message, {
+  mail = sendMail, env = process.env, now = clock(),
+}) => {
   const to = farmEmails(env);
 
   if (!to.length) return null;
 
   try {
-    return await mail({ to, ...message }, { env });
+    const sent = await mail({ to, ...message }, { env });
+
+    await noteMail(stores, true, now);
+
+    return sent;
   } catch (error) {
-    log.error({
-      event: "mail.failed", template: "farm", error: String(error.message),
+    const reason = String(error && error.message);
+
+    log.error({ event: "mail.failed", template, error: reason });
+    await noteMail(stores, false, now, { error: reason });
+    await alert(stores, "mail.failed", { template, error: reason }, {
+      env, mail, now,
     });
 
     return null;
@@ -176,9 +189,11 @@ export const cancelOrder = async (stores, customer, id, {
       now, env, mail, square, paypal, fetchImpl, source: "customer",
       key: `refund-cancel-${id}`, reason: `Order ${id}, cancelled by you`,
     });
-    await tellFarm(farmOrderCancelled(await getOrder(stores, id), customer, {
-      links: mailLinks(env),
-    }), { mail, env });
+    const cancelled = await getOrder(stores, id);
+
+    await notifyFarm(stores, cancelled, "farmOrderCancelled",
+      farmOrderCancelled(cancelled, customer, { links: mailLinks(env) }),
+      { mail, env, now });
 
     return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
   } catch (error) {
@@ -207,9 +222,9 @@ export const cancelOrder = async (stores, customer, id, {
       refunded: paidTotal(order) - refundedTotal(order) - keptFee(order),
       links: mailLinks(env),
     }), { mail, env, now });
-  await tellFarm(farmRefundNeeded(order, customer, {
-    links: mailLinks(env),
-  }), { mail, env });
+  await notifyFarm(stores, await getOrder(stores, id), "farmRefundNeeded",
+    farmRefundNeeded(order, customer, { links: mailLinks(env) }),
+    { mail, env, now });
 
   return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
 };
@@ -303,9 +318,11 @@ export const changeOrder = async (stores, customer, id, changes, {
       await amendOrder(stores, id, {
         flags: { ...(changed.flags || {}), squareOutOfSync: true },
       }, "square.out_of_sync", now);
-      await tellFarm(farmSquareOutOfSync({ id, fulfilment: f }, customer, {
-        links: mailLinks(env),
-      }), { mail, env });
+      await notifyFarm(stores, await getOrder(stores, id),
+        `farmSquareOutOfSync-${now.getTime()}`,
+        farmSquareOutOfSync({ id, fulfilment: f }, customer, {
+          links: mailLinks(env),
+        }), { mail, env, now });
     }
   }
 
@@ -436,8 +453,8 @@ export const saveAddress = async (stores, customer, address, {
   const saved = await saveCustomer(stores, { ...customer, address: next });
 
   if (next.status === "pending") {
-    await tellFarm(addressReview(saved, { links: mailLinks(env) }),
-      { mail, env });
+    await tellFarm(stores, "addressReview",
+      addressReview(saved, { links: mailLinks(env) }), { mail, env, now });
   }
 
   return { ok: true, customer: saved };
@@ -474,11 +491,12 @@ export const requestReturn = async (stores, customer, id, request, {
     returns: [...(order.returns || []), entry],
   }, "return.requested", now);
 
-  await tellFarm(farmReturnRequest(order, customer, entry, {
-    links: mailLinks(env),
-  }), { mail, env });
+  const noted = await notifyFarm(stores, changed,
+    `farmReturnRequest-${entry.id}`,
+    farmReturnRequest(order, customer, entry, { links: mailLinks(env) }),
+    { mail, env, now });
 
-  return { ok: true, order: publicOrder(changed, now), request: entry };
+  return { ok: true, order: publicOrder(noted, now), request: entry };
 };
 
 // A message to the farm, with the customer's details attached.
@@ -497,12 +515,12 @@ export const sendSupport = async (stores, customer, request, {
   await stores.customers.set(`support/${customer.email}/${id}`, {
     id, at: now.toISOString(), subject, message, orderId, status: "open",
   });
-  await tellFarm({
+  await tellFarm(stores, "farmSupport", {
     replyTo: mailbox(customer.name, customer.email),
     ...farmSupport(customer, { subject, message, orderId }, {
       links: mailLinks(env),
     }),
-  }, { mail, env });
+  }, { mail, env, now });
 
   return { ok: true, id };
 };

@@ -272,8 +272,43 @@ describe("cancelOrder", () => {
     const saved = await getOrder(stores, "A");
 
     assert.equal(saved.cancelRequestedAt, now.toISOString());
-    assert.equal(saved.history.at(-2).event, "cancel.requested");
+    assert.deepEqual(saved.history.slice(-3).map((h) => h.event), [
+      "cancel.requested", "mail.orderCancelled", "mail.farmRefundNeeded",
+    ]);
+    assert.ok(saved.emails.farmRefundNeeded, "recorded, so sent once");
   });
+
+  it("alerts when the refund-needed notice can't reach the farm (#268)",
+    async () => {
+      const stores = testStores();
+      const { sent, opts } = harness();
+      await saveOrder(stores, order("A"), now);
+      const r = await cancelOrder(stores, customerOf(), "A", {
+        ...opts,
+        mail: async (m) => {
+          if (/^Refund needed/.test(m.subject)) {
+            throw new Error("Resend 500");
+          }
+
+          return opts.mail(m);
+        },
+        square: {
+          ...opts.square,
+          refundPayment: async () => { throw new Error("Square 503"); },
+        },
+      });
+
+      assert.equal(r.ok, true, "the customer's cancel still stands");
+      assert.equal(r.order.cancelRequested, true);
+
+      const alerted = sent.filter((m) => [].concat(m.to)
+        .includes("dev@example.com"));
+
+      assert.equal(alerted.length, 1);
+      assert.match(alerted[0].text, /farmRefundNeeded/);
+      assert.equal((await getOrder(stores, "A")).emails.farmRefundNeeded,
+        undefined, "not recorded, so a retry can send it");
+    });
 
   it("refuses someone else's order, and one past the cutoff", async () => {
     const stores = testStores();
@@ -596,6 +631,26 @@ describe("returns and support", () => {
     assert.match(sent[0].html, /&lt;b&gt;bold&lt;\/b&gt; &amp; more/);
     assert.equal((await sendSupport(stores, customerOf(), {}, opts)).status,
       422);
+  });
+
+  it("alerts when a support note can't reach the farm (#268)", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const r = await sendSupport(stores, customerOf(), {
+      subject: "Eggs", message: "Do you have duck eggs?",
+    }, {
+      ...opts,
+      mail: async (m) => {
+        if (/^Support:/.test(m.subject)) throw new Error("Resend 500");
+
+        return opts.mail(m);
+      },
+    });
+
+    assert.equal(r.ok, true, "the note is filed all the same");
+    assert.equal(sent.length, 1);
+    assert.deepEqual([].concat(sent[0].to), ["dev@example.com"]);
+    assert.match(sent[0].text, /farmSupport/);
   });
 });
 
