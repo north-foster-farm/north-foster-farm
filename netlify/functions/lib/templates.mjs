@@ -172,24 +172,18 @@ const row = (pairs) => {
   };
 };
 
-// The site's look, inlined: Aller (served from the site, with the
-// system stack behind it), the wordmark in the header's green, cards
-// with the account page's border, radius and shadow. The <style>
-// block does what inline styles cannot: load the font and stop iOS
-// Mail restyling the address and phone in the footer as blue links.
+// The site's look, inlined: the system font stack (no web font, so no
+// font file leaves the site), the wordmark in the header's green,
+// cards with the account page's border, radius and shadow. The <style>
+// block does what inline styles cannot: stop iOS Mail restyling the
+// address and phone in the footer as blue links.
 const GREEN = "#186243"; // $primary: the brand green, shaded 20%.
 const INK = "#161a1e"; // $gray-900, the body text.
 const MUTED = "#5e5e5f"; // $gray-600.
-const FONT = "Aller,system-ui,-apple-system,'Segoe UI',Roboto," +
+const FONT = "system-ui,-apple-system,'Segoe UI',Roboto," +
   "'Helvetica Neue',Arial,sans-serif";
 
-const styles = (site) => `<style>${site ? `
-@font-face{font-family:Aller;font-weight:normal;font-style:normal;
-src:url("${site}/fonts/aller-regular.woff2") format("woff2")}
-@font-face{font-family:Aller;font-weight:bold;font-style:normal;
-src:url("${site}/fonts/aller-bold.woff2") format("woff2")}
-@font-face{font-family:Aller;font-weight:bold;font-style:italic;
-src:url("${site}/fonts/aller-bold-italic.woff2") format("woff2")}` : ""}
+const styles = () => `<style>
 a[x-apple-data-detectors]{color:inherit!important;
 text-decoration:none!important;font-size:inherit!important;
 font-family:inherit!important;font-weight:inherit!important;
@@ -245,7 +239,7 @@ const render = (title, blocks, links = {}, { tag = null } = {}) => {
     `content="telephone=no, date=no, address=no, email=no">` +
     `<meta name="color-scheme" content="light">` +
     `<meta name="supported-color-schemes" content="light">` +
-    `<title>${escape(title)}</title>${styles(links.site)}</head>` +
+    `<title>${escape(title)}</title>${styles()}</head>` +
     `<body id="body" style="margin:0;padding:0;background:#fff;` +
     `font-family:${FONT};font-size:16px;color:${INK};line-height:1.63">` +
     `<div style="max-width:560px;margin:0 auto;padding:24px 16px">` +
@@ -805,7 +799,7 @@ export const emailChanged = (from, to, { links } = {}) => {
 //
 // Mail to the list, as against mail about an order: the welcome, the
 // old list's invitation and, later, newsletters. The same look as the
-// rest (the wordmark, the card, Aller, the green), with what list mail
+// rest (the wordmark, the card, the green), with what list mail
 // needs on top: a hero image, images with captions, preview text, a
 // footer that says why it came and how to stop it, and the farm's
 // postal address (CAN-SPAM). It follows the reader's dark mode where
@@ -934,7 +928,7 @@ export const listMail = (subject, {
     `content="telephone=no, date=no, address=no, email=no">` +
     `<meta name="color-scheme" content="light dark">` +
     `<meta name="supported-color-schemes" content="light dark">` +
-    `<title>${escape(subject)}</title>${styles(site)}${darkStyles}</head>` +
+    `<title>${escape(subject)}</title>${styles()}${darkStyles}</head>` +
     `<body id="body" class="nff-ground" style="margin:0;padding:0;` +
     `background:#f6f7f6;font-family:${FONT};font-size:17px;color:${INK};` +
     `line-height:1.6">${pre}` +
