@@ -92,12 +92,6 @@ export const OVERRIDES = {
         "(assets/styles/components/_header.scss)",
     },
   },
-  "assets/images/apppa-logo.svg": {
-    classes: {
-      background: "the footer fills the badge with the theme's white " +
-        "through .background (assets/styles/components/_footer.scss)",
-    },
-  },
   "assets/images/icons/egg-spinner.svg": {
     off: {
       reusePaths: "the track and the running stroke are the same egg, " +

@@ -2,29 +2,23 @@
 {{ $phone := partial "phone.html" . }}
 {{ $instagram := hugo.Data.socialMedia.instagram.url }}
 <div class="flex-grow-1"></div>
-{{/* The order page has no band to take the silhouette's rise
-     (_footer.scss), so a strip of the band's color clears it. */}}
-{{ if eq .Type "order" }}
-  <div class="footer-clearance"></div>
-{{ end }}
 {{ partial "footer/shop.html" . }}
-{{/* The wrapper carries the drop shadow round the silhouette; the
-     footer carries the mask (_footer.scss). */}}
-<div class="footer-wrap">
+{{/* One centered column at every width (#226, R-FT, #303): the
+     sign-up on the dark band, the silhouette, then the links, how to
+     reach the farm, and the copyright. Rows wrap as the width
+     shrinks; nothing switches layout at a breakpoint. */}}
 <footer class="site-footer">
-  <div class="container">
-    {{/* One centered column at every width (#226, R-FT): the
-         sign-up, the APPPA mark as a credential, the links, how to
-         reach the farm, and the copyright. Rows wrap as the width
-         shrinks; nothing switches layout at a breakpoint. */}}
-    <div class="footer-news" data-news-block>
+  <div class="footer-news" data-news-block>
+    <div class="container">
       <h2 class="news-signup-heading">Want occasional farm news by email?</h2>
       {{ partial "news-signup.html" (dict "id" "news-footer" "button" "Yes") }}
     </div>
-    <a class="apppa-logo" href="https://www.apppa.org/" target="_blank" rel="noopener" title="American Pastured Poultry Producers Association">
-      {{ partial "svg.html" "apppa-logo" }}
-      <span class="visually-hidden">Member, American Pastured Poultry Producers Association</span>
-    </a>
+  </div>
+  {{/* The wrapper carries the drop shadow round the silhouette; the
+       base carries the mask (_footer.scss). */}}
+  <div class="footer-wrap">
+  <div class="footer-base">
+  <div class="container">
     <div class="footer-lists">
       {{ partial "footer/menu.html" . }}
       {{/* How to reach the farm, on one dotted line like the links. */}}
@@ -39,5 +33,6 @@
     </div>
     {{ partial "footer/scripts.html" . }}
   </div>
+  </div>
+  </div>
 </footer>
-</div>

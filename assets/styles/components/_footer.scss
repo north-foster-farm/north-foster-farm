@@ -1,23 +1,22 @@
-// The footer (#226, R-FT): one centered column at every width, the
-// news sign-up first, then the APPPA mark, the farm's links, how to
-// reach it, and the copyright. Rows wrap, centered, as the width
-// shrinks; nothing changes layout at a breakpoint.
+// The footer (#226, R-FT, #303): one centered column at every width,
+// the news sign-up on the dark band, the silhouette under it, then the
+// farm's links, how to reach it, and the copyright. Rows wrap,
+// centered, as the width shrinks; nothing changes layout at a
+// breakpoint.
 
 // Vertical rhythm (#226): James's values of 2026-10-19, each gap
-// between groups doubled on 2026-10-22. The sign-up and the logo sit
-// 5rem above what follows, 3rem below the md breakpoint, where the
-// links and the contact line differ too and the copyright's own
-// margin goes.
+// between groups doubled on 2026-10-22. The sign-up sits 5rem under
+// the band above it, 3rem below the md breakpoint, where the links
+// and the contact line differ too and the copyright's own margin goes.
 $footer-gap: 5rem;
 $footer-gap-phone: 3rem;
 
 // The farm silhouette along the footer's top (#272, #277): the high
-// tunnel and the two coops, at full width, rising into the band above.
-// Its height (James's --h) is a share of the width at each SVG's own
+// tunnel and the two coops, at full width, rising into the sign-up's
+// band. Its height (James's --h) is a share of the width at each SVG's own
 // shape, 216 over the viewBox width, in three crops: the phone crop
 // below md, the middle crop from md to xl, the full scene from xl. The
-// band above pads its bottom by it (_touch.scss), and so does the order
-// page's strip.
+// sign-up pads its bottom by it.
 $sil-url: url("/images/silhouette-4.svg");
 $sil-url-md: url("/images/silhouette-4_2.svg");
 $sil-url-sm: url("/images/silhouette-4_2-sm.svg");
@@ -34,19 +33,29 @@ $sil-url-sm: url("/images/silhouette-4_2-sm.svg");
   }
 }
 
-// What a band pads its bottom by: the rise, and 32px between its
-// buttons and the roofline (James's value).
+// What the sign-up pads its bottom by: the rise, and 32px between its
+// field and the roofline (James's value).
 $sil-clear: calc(var(--sil-h) + 32px);
 
 // A band's gap above its content (_touch.scss).
 $band-gap: 3.5rem;
 
-// The order page has no band, so a strip of the band stands in for one:
-// an empty band, its top gap over its bottom padding. Any shorter and
-// the shadow's fog reaches the page above it.
-.footer-clearance {
-  min-height: calc(#{$band-gap} + #{$sil-clear});
+// The sign-up (#303) sits on the dark band, above the roofline that
+// rises into its bottom padding. Under a band (_touch.scss) it keeps
+// the footer's gap from the band's buttons; on the order page, which
+// has no band, it opens the band itself, and its top gap keeps the
+// shadow's fog off the page above.
+.footer-news {
+  padding-block: $band-gap $sil-clear;
   background-color: $band-dark-bg;
+
+  body:has(.touch) & {
+    padding-top: $footer-gap;
+
+    @include media-breakpoint-down(md) {
+      padding-top: $footer-gap-phone;
+    }
+  }
 }
 
 // The slate fog round the roofline (James's values): a drop shadow on
@@ -63,16 +72,13 @@ body {
   overflow-x: clip;
 }
 
-// The footer carries the shape itself: it rises by --sil-h and two
-// mask layers cut it, the silhouette across the top and a solid block
-// for the rest, overlapping by 1px so no seam shows. One gradient
-// paints both, top to bottom.
-.site-footer {
-  @include dark-band;
-
+// The base under the sign-up carries the shape itself: it rises by
+// --sil-h and two mask layers cut it, the silhouette across the top
+// and a solid block for the rest, overlapping by 1px so no seam shows.
+// One gradient paints both, top to bottom.
+.footer-base {
   margin-top: calc(-1 * var(--sil-h));
   padding-block: calc(var(--sil-h) + 40px) 1.25rem;
-  text-align: center;
   background: linear-gradient(to bottom, $footer-top 0, $footer-bottom 100%);
   mask:
     $sil-url center top / 100% var(--sil-h) no-repeat,
@@ -86,14 +92,12 @@ body {
   @include media-breakpoint-down(md) {
     mask-image: $sil-url-sm, linear-gradient(#000, #000);
   }
+}
 
-  .footer-news {
-    margin-bottom: $footer-gap;
+.site-footer {
+  @include dark-band;
 
-    @include media-breakpoint-down(md) {
-      margin-bottom: $footer-gap-phone;
-    }
-  }
+  text-align: center;
 
   .dot-list {
     --dot-gap: 1.25rem;
@@ -159,28 +163,6 @@ body {
 
     @include media-breakpoint-down(md) {
       margin-bottom: 2rem;
-    }
-  }
-
-  .apppa-logo {
-    display: block;
-    width: fit-content;
-    margin: 0 auto $footer-gap;
-
-    @include media-breakpoint-down(md) {
-      margin-bottom: $footer-gap-phone;
-    }
-
-    // The 2025 full lockup (#296) carries its own colors inline; the
-    // height keeps the small line under "APPPA" near legible.
-    svg {
-      display: block;
-      height: 5rem;
-    }
-
-    // The badge behind the logo is ours, so it takes the theme's white.
-    .background {
-      fill: $white;
     }
   }
 }

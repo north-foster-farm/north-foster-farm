@@ -123,7 +123,7 @@ changes how its paths are spelled but not its shapes.
 
 | File | Made by | Credit | Source and notes |
 | --- | --- | --- | --- |
-| `assets/images/apppa-logo.svg` | APPPA; James supplied | | The 2025 full lockup, `apppa-logo-2025_full-lockup.svg`, supplied by James 2026-10-21 (#296), already in his svgomg settings; only an unused `fill-rule` was removed, and the badge got `fill="#fff"` as a fallback outside the site. The logo's colors are inline fills; James added the white badge behind it (class `background`), which takes the theme's white. It replaced the mark from 900f21b (2025), whose supplier was not recorded. The footer. |
+| `assets/images/apppa-logo.svg` | APPPA; James supplied | | The 2025 full lockup, `apppa-logo-2025_full-lockup.svg`, supplied by James 2026-10-21 (#296), already in his svgomg settings; only an unused `fill-rule` was removed, and the badge got `fill="#fff"` as a fallback outside the site. The logo's colors are inline fills; James added the white badge behind it (class `background`), which takes the theme's white. It replaced the mark from 900f21b (2025), whose supplier was not recorded. Unused since the footer dropped it (#303). |
 | `icons/facebook.svg`, `instagram.svg` | Meta; supplier not recorded | | First commit, 2024. |
 | `icons/venmo-monogram.svg` | Venmo; James supplied | | 57e89d5. |
 | `icons/apple.svg`, `google-maps.svg` | Apple, Google; an agent | | Directions links (b8df96c, #177). |

@@ -82,8 +82,8 @@ SVGOMG features off for that file, and `classes` names the classes it
 keeps. The clean-up and `check:svg` run those files with their
 overrides, like any other. Today:
 
-- `logo.svg` and `logo-mark.svg` keep `black`, and `apppa-logo.svg`
-  keeps `background`: the header and footer color them through those.
+- `logo.svg` and `logo-mark.svg` keep `black`: the header colors
+  them through it.
 - `icons/egg-spinner.svg` keeps its two classes, and runs without
   `reusePaths`, which would draw both strokes from one path with an
   id and drop the classes and `pathLength` the animation needs.

@@ -3,13 +3,13 @@
 // page's "Get in touch" and the footer's "Shop now" share it, so the
 // two read as one voice. Not scoped to a page.
 
-// Both bands sit right above the footer, whose silhouette rises into
-// them (_footer.scss), so each pads its bottom by the rise and a gap
-// above the roofline. No content overlaps the buildings.
+// Both bands sit right above the footer's sign-up, on the same dark
+// band, which gives the gap below them and clears the silhouette
+// (_footer.scss).
 .touch {
   @include dark-band;
 
-  padding-block: $band-gap $sil-clear;
+  padding-block: $band-gap 0;
   background-color: $band-dark-bg;
   text-align: center;
 }
