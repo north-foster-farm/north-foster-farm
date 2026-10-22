@@ -903,6 +903,8 @@ export const getRefund = async (squareRefundId, {
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) => {
+  if (isFake(env)) return fake.getRefund(squareRefundId, { env });
+
   const cfg = settings(env);
   const data = await call(
     cfg, `/v2/refunds/${squareRefundId}`, null, fetchImpl, "GET"

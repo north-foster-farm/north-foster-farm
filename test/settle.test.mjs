@@ -64,7 +64,7 @@ const alerting = () => {
 
   return {
     sent,
-    env: { ADMIN_EMAILS: "farm@x.com" },
+    env: { DEV_NOTIFICATIONS_EMAIL: "dev@x.com" },
     mail: async (m) => {
       sent.push(m);
 

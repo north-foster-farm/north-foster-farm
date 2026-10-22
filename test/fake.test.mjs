@@ -97,6 +97,9 @@ const squareHost = () => async (url, { method }) => {
     [/^\/v2\/refunds$/, {
       refund: { id: "R1", status: "PENDING", amount_money: { amount: 100 } },
     }],
+    [/^\/v2\/refunds\/R1$/, {
+      refund: { id: "R1", status: "COMPLETED", amount_money: { amount: 100 } },
+    }],
     [/^\/v2\/customers\/C1$/, {}],
   ];
   const [, data] = answers.find(([re]) => re.test(path));
@@ -127,6 +130,9 @@ const paypalHost = () => async (url) => {
     [/^\/v2\/payments\/captures\//, {
       id: "RF", status: "COMPLETED", amount: { value: "1.00" },
     }],
+    [/^\/v2\/payments\/refunds\//, {
+      id: "RF", status: "COMPLETED", amount: { value: "1.00" },
+    }],
   ];
   const [, data] = answers.find(([re]) => re.test(path));
 
@@ -152,6 +158,7 @@ const SQUARE_CALLS = {
     squarePaymentId: "P1", amount: 100, key: KEY, reason: "test",
   }, o),
   getPayment: (o) => square.getPayment("P1", o),
+  getRefund: (o) => square.getRefund("R1", o),
   inventoryCounts: (o) => square.inventoryCounts(["V1"], o),
   findPaid: (o) => square.findPaid(order(), o),
   deleteCustomer: (o) => square.deleteCustomer("C1", o),
@@ -173,6 +180,7 @@ const PAYPAL_CALLS = {
   refundCapture: (o) => paypal.refundCapture({
     paypalCaptureId: "CAP", amount: 100, key: KEY, note: "test",
   }, o),
+  getRefund: (o) => paypal.getRefund("RF", o),
   verifyWebhook: (o) => paypal.verifyWebhook(
     new Headers({ "paypal-transmission-sig": "sig" }), "{}", o
   ),
