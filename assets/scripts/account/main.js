@@ -213,6 +213,7 @@ class Account {
 
     document.getElementById("account-signout").addEventListener("click",
       signOut);
+    this.wireReview();
     this.wireDelete();
 
     // The address saves once the street, town and ZIP are there; the
@@ -446,6 +447,8 @@ class Account {
     qs(form, "[data-field='phone']").value = c.phone || "";
     qs(form, "[data-field='marketing']").checked = c.marketing === true;
     document.getElementById("prof-email").value = c.email;
+    document.getElementById("account-review").hidden =
+      c.reviewDismissed === true;
     for (const radio of all(form, "[data-field='avatar']")) {
       radio.checked = radio.value === c.avatar;
     }
@@ -571,6 +574,38 @@ class Account {
     this.clearErrors(form);
     form.reset();
     this.say("Sent. We'll answer by email.");
+  }
+
+  // Leave us a review (#303): Dismiss hides the section at once and the
+  // customer record keeps it hidden; if the save fails, it comes back.
+  wireReview() {
+    const section = document.getElementById("account-review");
+
+    document.getElementById("account-review-dismiss").addEventListener(
+      "click", async () => {
+        section.hidden = true;
+        document.getElementById("prof-delete-h").focus();
+
+        let answer;
+
+        try {
+          answer = await api("/api/account/profile", {
+            method: "PATCH", body: { reviewDismissed: true },
+          });
+        } catch (error) {
+          console.error("Dismiss failed", error);
+          answer = { ok: false };
+        }
+
+        if (!answer.ok) {
+          section.hidden = false;
+          this.say(FAILED);
+
+          return;
+        }
+
+        this.customer = answer.data.customer;
+      });
   }
 
   // Deleting your details (#189): Delete my account opens a full-screen

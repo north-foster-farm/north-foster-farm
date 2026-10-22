@@ -513,6 +513,33 @@ describe("profile and address", () => {
       ["avatar", "firstName", "lastName", "phone"]);
   });
 
+  it("keeps a dismissed review section dismissed (#303)", async () => {
+    const stores = testStores();
+    const saved = await saveCustomer(stores, customerOf());
+
+    assert.equal(publicCustomer(saved).reviewDismissed, false);
+
+    const first = await updateProfile(stores, saved, {
+      reviewDismissed: true,
+    }, { now: new Date("2026-10-22T15:00:00Z") });
+
+    assert.equal(first.customer.reviewDismissedAt,
+      "2026-10-22T15:00:00.000Z");
+    assert.equal(publicCustomer(first.customer).reviewDismissed, true);
+
+    const again = await updateProfile(stores, first.customer, {
+      reviewDismissed: false,
+    }, { now: new Date("2026-10-23T15:00:00Z") });
+    const later = await updateProfile(stores, again.customer, {
+      reviewDismissed: true,
+    }, { now: new Date("2026-10-24T15:00:00Z") });
+
+    assert.equal(later.customer.reviewDismissedAt,
+      "2026-10-22T15:00:00.000Z", "nothing undoes or redates it");
+    assert.equal((await getCustomer(stores, "pat@example.com"))
+      .reviewDismissedAt, "2026-10-22T15:00:00.000Z");
+  });
+
   it("turns the delivery reminder off and on", async () => {
     const stores = testStores();
     const saved = await saveCustomer(stores, customerOf());

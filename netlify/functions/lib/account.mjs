@@ -402,6 +402,12 @@ export const updateProfile = async (stores, customer, changes, {
     }
   }
 
+  // Leave us a review (#303): Dismiss hides it for good, on every
+  // device, so only a first dismissal is dated and nothing undoes it.
+  if (c.reviewDismissed === true && !customer.reviewDismissedAt) {
+    patch.reviewDismissedAt = now.toISOString();
+  }
+
   if (Object.keys(errors).length) return fail(422, errors);
 
   const saved = await saveCustomer(stores, { ...customer, ...patch });

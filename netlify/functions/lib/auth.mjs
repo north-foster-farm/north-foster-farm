@@ -273,4 +273,5 @@ export const publicCustomer = (customer) => ({
   address: customer.address || null,
   reminders: reminderPrefs(customer),
   marketing: customer.marketing === true,
+  reviewDismissed: !!customer.reviewDismissedAt,
 });

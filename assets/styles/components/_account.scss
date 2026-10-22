@@ -472,10 +472,31 @@
 
   // Delete your details: a section like the others, set off by the
   // same rule, its warning in the danger red (#303).
+  .account-review,
   .account-delete {
     margin-top: 2rem;
     padding-top: 1.5rem;
     border-top: 1px solid var(--bs-border-color-translucent);
+  }
+
+  // The Settings form ends in its save line, which holds most of the
+  // space a section break needs, so the break under Farm news matches
+  // the others rather than adding to it (#303). On a phone the line's
+  // own padding is the rest.
+  .account-form + .account-review,
+  .account-form + .account-review[hidden] + .account-delete {
+    margin-top: 0.5rem;
+
+    @include media-breakpoint-down(md) {
+      margin-top: 0;
+    }
+  }
+
+  .account-review-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
   }
 
   .account-delete-list {

@@ -196,7 +196,7 @@
                   </div>
                 </fieldset>
                 <fieldset aria-labelledby="prof-news-l">
-                  <div class="row account-row">
+                  <div class="row account-row mb-0">
                     <span class="col-md-4 col-form-label account-legend" id="prof-news-l">Farm news</span>
                     <div class="col-md-8 account-checks">
                       <div class="form-check">
@@ -209,14 +209,25 @@
               </section>
               {{/* What the last save did (#238): Saving… with a spinner, Saved,
                    or why it failed; main.js sets data-save and the words. */}}
-              <p class="form-text mt-3 mb-0 account-save" data-autosave aria-live="polite">{{ partial "svg.html" (dict "src" "icons/egg-spinner" "class" "egg-spinner account-save-spin" "aria-hidden" "true" "focusable" "false") }}<span data-save-text></span></p>
+              <p class="form-text my-0 account-save" data-autosave aria-live="polite">{{ partial "svg.html" (dict "src" "icons/egg-spinner" "class" "egg-spinner account-save-spin" "aria-hidden" "true" "focusable" "false") }}<span data-save-text></span></p>
             </form>
             {{/* Deleting your details (#189, #303): the button opens the
                  dialog below, where the address typed must be this
                  account's before Confirm sends. What the list names is
                  what lib/forget.mjs deletes. */}}
+            {{/* Leave us a review (#303): main.js shows it until the
+                 customer dismisses it, which the customer record keeps
+                 (reviewDismissedAt), so it stays gone on every device. */}}
+            <section class="account-review" id="account-review" aria-labelledby="prof-review-h" hidden>
+              <h3 class="account-group-title" id="prof-review-h">Leave us a review</h3>
+              <p>If you enjoy {{ hugo.Data.company.name }} products and would like to leave us a review, we would truly appreciate it.</p>
+              <div class="account-review-actions">
+                <a class="btn btn-primary" href="{{ hugo.Data.company.reviews.google }}" target="_blank" rel="noopener">Review us on Google<span class="visually-hidden"> (opens in a new tab)</span></a>
+                <button class="btn btn-link" type="button" id="account-review-dismiss">Dismiss</button>
+              </div>
+            </section>
             <section class="account-delete" aria-labelledby="prof-delete-h">
-              <h3 class="account-group-title" id="prof-delete-h">Delete your details</h3>
+              <h3 class="account-group-title" id="prof-delete-h" tabindex="-1">Delete your details</h3>
               <p class="mb-2">This deletes your account:</p>
               <ul class="account-delete-list">
                 <li>Your name</li>
