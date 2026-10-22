@@ -674,6 +674,8 @@ export const findPaid = async (order, {
 // Square's copy of the fulfilment is what the farm packs from, so a
 // customer's change to the date or the details goes there too. Square
 // wants the order's current version and the fulfilment's uid.
+// The updates below send the order's own location, so one placed
+// before SQUARE_LOCATION_ID moved is changed where it lives (#267).
 const currentOrder = async (cfg, squareOrderId, fetchImpl) => {
   const data = await call(
     cfg, `/v2/orders/${squareOrderId}`, null, fetchImpl, "GET"
@@ -700,7 +702,7 @@ export const updateFulfilment = async (squareOrderId, order, {
 
   const data = await call(cfg, `/v2/orders/${squareOrderId}`, {
     order: {
-      location_id: cfg.locationId,
+      location_id: current.location_id || cfg.locationId,
       version: current.version,
       fulfillments: [{ uid: existing.uid, ...next }],
     },
@@ -725,7 +727,7 @@ export const cancelFulfilment = async (squareOrderId, {
 
   await call(cfg, `/v2/orders/${squareOrderId}`, {
     order: {
-      location_id: cfg.locationId,
+      location_id: current.location_id || cfg.locationId,
       version: current.version,
       fulfillments: [{ uid: existing.uid, state: "CANCELED" }],
     },
@@ -778,7 +780,7 @@ export const cancelOrder = async (squareOrderId, {
 
   await call(cfg, `/v2/orders/${squareOrderId}`, {
     order: {
-      location_id: cfg.locationId,
+      location_id: current.location_id || cfg.locationId,
       version: current.version,
       state: "CANCELED",
     },

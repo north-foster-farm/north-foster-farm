@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  SquareError, buildOrder, cancelOrder, clientConfig, createOrder,
-  createPayment, dashboardUrl, deleteCustomer, e164, getPayment,
-  refundPayment, settings,
+  SquareError, buildOrder, cancelFulfilment, cancelOrder, clientConfig,
+  createOrder, createPayment, dashboardUrl, deleteCustomer, e164,
+  getPayment, refundPayment, settings, updateFulfilment,
 } from "../netlify/functions/lib/square.mjs";
 
 const env = {
@@ -506,6 +506,49 @@ describe("cancelOrder", () => {
 
     assert.equal(out.cancelled, false);
     assert.equal(calls.length, 1);
+  });
+});
+
+// An order placed before SQUARE_LOCATION_ID moved (#267, one location)
+// is updated at its own location, not the new one.
+describe("an update to an order at another location", () => {
+  const placed = {
+    id: "SQO", state: "OPEN", version: 3, location_id: "OLD",
+    fulfillments: [{ uid: "F1", type: "PICKUP", state: "PROPOSED" }],
+  };
+  const answers = {
+    "/v2/orders/SQO": () => new Response(JSON.stringify({
+      order: { ...placed, version: 4 },
+    })),
+  };
+  const sent = (calls) => calls.find((c) => c.method === "PUT")
+    .body.order.location_id;
+
+  it("cancels it there", async () => {
+    const { impl, calls } = fakeFetch({
+      "/v2/orders/SQO": (n) => new Response(JSON.stringify({
+        order: n === 1 ? placed : { ...placed, state: "CANCELED" },
+      })),
+    });
+
+    await cancelOrder("SQO", { env, fetchImpl: impl });
+    assert.equal(sent(calls), "OLD");
+  });
+
+  it("moves and cancels its fulfilment there", async () => {
+    for (const run of [
+      (impl) => updateFulfilment("SQO", order(), { env, fetchImpl: impl }),
+      (impl) => cancelFulfilment("SQO", { env, fetchImpl: impl }),
+    ]) {
+      const { impl, calls } = fakeFetch({
+        "/v2/orders/SQO": (n) => (n === 1
+          ? new Response(JSON.stringify({ order: placed }))
+          : answers["/v2/orders/SQO"]()),
+      });
+
+      await run(impl);
+      assert.equal(sent(calls), "OLD");
+    }
   });
 });
 
