@@ -359,6 +359,39 @@ describe("the endpoints (#240)", () => {
       /as many links as we can for now/);
   });
 
+  it("counts a probe for an address with an account as a request",
+    async () => {
+      const stores = await seed();
+      const { mail } = mailbox();
+      const pat = await createSession(stores, OLD, { now });
+      const probe = () => account(
+        post("/api/account/email", { email: "taken@example.com" }, pat.id),
+        { stores, env, now, mail },
+      );
+
+      await saveCustomer(stores, { email: "taken@example.com", name: "T" });
+      for (let i = 0; i < 3; i++) assert.equal((await probe()).status, 422);
+
+      // Past the limit the answer is the limit's, not "taken", so the
+      // probe learns nothing.
+      assert.match((await (await probe()).json()).errors.email,
+        /as many links as we can for now/);
+    });
+
+  it("keeps the IP hashed in the limiter's key", async () => {
+    const stores = await seed();
+    const pat = await createSession(stores, OLD, { now });
+
+    await account(post("/api/account/email", { email: "b1@example.com" },
+      pat.id), { stores, env, now, mail: mailbox().mail, ip: "10.0.0.1" });
+
+    const keys = (await stores.auth.list("change-ip/")).map((e) => e.key);
+
+    assert.equal(keys.length, 1);
+    assert.doesNotMatch(keys[0], /10\.0\.0\.1/);
+    assert.match(keys[0], /^change-ip\/[0-9a-f]{64}$/);
+  });
+
   it("voids an earlier change link once a new one is sent", async () => {
     const stores = await seed();
     const { sent, mail } = mailbox();

@@ -12,6 +12,8 @@ import {
   LINK_WINDOW, LINKS_PER_WINDOW, hit, normalizeEmail, requestLink,
   validEmail,
 } from "./auth.mjs";
+import { real } from "./clock.mjs";
+import { sha256 } from "./gate.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { getCustomer } from "./records.mjs";
@@ -57,20 +59,22 @@ export const requestEmailChange = async (stores, customer, email, {
     return refuse("That email address doesn't look right.");
   }
   if (to === from) return refuse("That's already your email address.");
-  if (await getCustomer(stores, to)) {
-    return refuse(TAKEN);
-  }
 
+  // The limits come before the lookup, so asking whether an address
+  // has an account is counted, and can't be done without limit. The
+  // IP is kept hashed, as the staging gate keeps it. Real time: a
+  // tester's clock must not reopen the limit.
+  const at = real(now).getTime();
   const limits = { windowMs: LINK_WINDOW, max: LINKS_PER_WINDOW };
 
-  if ((await hit(stores, `change-rate/${from}`, now.getTime(), limits))
-    .limited) {
+  if ((await hit(stores, `change-rate/${from}`, at, limits)).limited) {
     return TOO_MANY;
   }
-  if (ip && (await hit(stores, `change-ip/${ip}`, now.getTime(), limits))
-    .limited) {
+  if (ip && (await hit(stores, `change-ip/${await sha256(ip)}`, at,
+    limits)).limited) {
     return TOO_MANY;
   }
+  if (await getCustomer(stores, to)) return refuse(TAKEN);
 
   await voidChangeTokens(stores, from);
 

@@ -99,6 +99,7 @@ describe("customers rename (#238)", () => {
     const stores = await seed();
     const { calls, square, news } = outside();
 
+    await stores.auth.set(`change-rate/${OLD}`, { times: [1] });
     await renameCustomer(stores, OLD, NEW, {
       apply: true, square, news, now,
     });
@@ -117,6 +118,10 @@ describe("customers rename (#238)", () => {
     // The pending change link to a third address is voided too, even
     // though it doesn't name OLD as `email` (#240).
     assert.equal(await stores.auth.get("token/t2"), null);
+    // The email-change limit follows the address (#240).
+    assert.equal(await stores.auth.get(`change-rate/${OLD}`), null);
+    assert.deepEqual(await stores.auth.get(`change-rate/${NEW}`),
+      { times: [1] });
     assert.equal((await stores.auth.get("unsub/u1")).email, NEW);
     assert.equal((await stores.auth.get("news/n1")).email, NEW);
     assert.equal(await stores.customers.get(`support/${OLD}/m1`), null);

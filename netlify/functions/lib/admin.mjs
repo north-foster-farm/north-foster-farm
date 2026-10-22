@@ -167,6 +167,13 @@ export const renameCustomer = async (stores, from, to, {
       await stores.auth.set(key, { ...value, email: next });
     }
   }
+  // The address's email-change limit follows it (#240).
+  const spent = await stores.auth.get(`change-rate/${old}`);
+
+  if (spent) {
+    await stores.auth.set(`change-rate/${next}`, spent);
+    await stores.auth.delete(`change-rate/${old}`);
+  }
   await deleteCustomer(stores, old);
   await outside("resend", () => news.moveContact(old, next, {
     env, fetchImpl, apply: true,

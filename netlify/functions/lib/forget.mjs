@@ -209,7 +209,9 @@ export const forgetCustomer = async (stores, rawEmail, {
       if (value && normalizeEmail(value.email) === email) auth.push(key);
     }
   }
-  for (const key of [`rate/${email}`, `rate/news/${email}`]) {
+  for (const key of [
+    `rate/${email}`, `rate/news/${email}`, `change-rate/${email}`,
+  ]) {
     if (await stores.auth.get(key)) auth.push(key);
   }
 
