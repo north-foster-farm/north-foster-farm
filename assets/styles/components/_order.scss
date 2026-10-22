@@ -1808,11 +1808,29 @@
   // The agreement: one plain sentence under the Pay button, smaller
   // than the page's text, for every way to get an order (#196, #274).
   .order-agree {
-    margin: 0.75rem 0 0;
+    margin: 0.75rem 0 2rem;
     font-size: 0.875rem;
 
     a {
       text-decoration: underline;
+    }
+  }
+
+  // Pay and the agreement sit at the right on a phone, at the left
+  // from md (#274, round 5).
+  @media (max-width: 767.98px) {
+    .order-submit {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+
+      > :not(.btn) {
+        align-self: stretch;
+      }
+    }
+
+    .order-agree {
+      text-align: right;
     }
   }
 
@@ -2320,14 +2338,10 @@
       display: none;
     }
 
+    // As wide as its words, at the right (#274, round 5).
     .order-cart-next {
-      flex: 1 1 auto;
-    }
-
-    @container cart-end (min-width: 23.125rem) {
-      .order-cart-next {
-        flex: 0 0 auto;
-      }
+      flex: 0 0 auto;
+      margin-left: auto;
     }
 
     // Never folded in the column.

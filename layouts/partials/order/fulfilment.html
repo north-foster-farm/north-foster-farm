@@ -117,7 +117,7 @@
           </p>
           <div class="row">
             <label class="col-sm-4 col-form-label" for="delivery-date">Delivery date</label>
-            <div class="col-sm-8 col-lg-6 skeleton-slot" data-dates-region>
+            <div class="col-sm-8 skeleton-slot" data-dates-region>
               {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
               <select class="form-select" id="delivery-date" name="delivery.date" data-dates="delivery" data-field="fulfilment.date" disabled aria-describedby="err-delivery-date">
                 <option value="">Loading dates&hellip;</option>
