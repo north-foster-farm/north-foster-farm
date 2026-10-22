@@ -175,16 +175,18 @@ Netlify runs scheduled functions on the production deploy only. The
 `/api/staging/jobs/run` instead, so staging's jobs run on Netlify,
 with its own environment. It asks for every fifteen minutes, off the
 quarter hour, but GitHub schedules it only from `main` and throttles
-it: runs have come two to six hours apart (#164). The jobs are safe
-to run late or twice, but a day with no run between 18:00 and midnight
-gets no delivery reminder and no manifest; start one from the
-workflow's Run workflow button when that matters. It needs the repository
+it: runs have come two to six hours apart (#164). Those gaps are
+accepted, and the schedule is not a test tool. The jobs are safe to
+run late or twice, but a day with no run between 18:00 and midnight
+gets no delivery reminder and no manifest. A tester who needs a job
+to run uses the toolbar: set the clock to the moment under test, then
+Run now, or As 6:00, 8:00 or 18:00 for the daily reports (see "The
+toolbar"). The workflow needs the repository
 secret `STAGING_TOKEN`, the same value as on Netlify. The repository
 and its Actions logs are public for good, so the step writes the
 response to a file and prints only the HTTP status and counts
 (`bin/staging-jobs-summary.mjs`), never the report, which can name
-orders and customers. The toolbar's Jobs buttons still run them on
-demand.
+orders and customers.
 
 ## The order limit
 
