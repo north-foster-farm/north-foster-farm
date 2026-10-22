@@ -255,6 +255,46 @@ describe("editOrder", () => {
     assert.equal(calls.filter((c) => c[0] === "payment").length, 1);
   });
 
+  it("never charges a pending edit's difference twice", async () => {
+    const { stores, id } = await placed();
+    const { square, calls } = fakeSquare();
+    const key = editKey();
+    const body = { idempotencyKey: key, lines: [{ sku: SKU, qty: 3 }] };
+    const first = await edit(stores, id, {
+      ...body, payment: { method: "card", sourceId: "cnon:tok2" },
+    }, square);
+
+    assert.equal(first.ok, true, JSON.stringify(first.errors));
+
+    const saved = await getOrder(stores, id);
+
+    await amendOrder(stores, id, { edits: saved.edits.map((e) =>
+      e.key === key ? { ...e, state: "pending" } : e) }, "test.crash", now);
+
+    const tries = [
+      { ...body, payment: { method: "card", sourceId: "cnon:tok3" } },
+      { ...body, attempt: 2,
+        payment: { method: "card", sourceId: "cnon:tok3" } },
+      body,
+    ];
+
+    for (const retry of tries) {
+      const again = await edit(stores, id, retry, square);
+
+      assert.equal(again.ok, true, JSON.stringify(again.errors));
+      assert.equal((await getOrder(stores, id)).edits
+        .find((e) => e.key === key).state, "done");
+      await amendOrder(stores, id, { edits: (await getOrder(stores, id))
+        .edits.map((e) => (e.key === key ? { ...e, state: "pending" }
+          : e)) }, "test.crash", now);
+    }
+
+    assert.equal(calls.filter((c) => c[0] === "payment").length, 1);
+    assert.equal(calls.filter((c) => c[0] === "changeOrder").length, 1);
+    assert.equal((await getOrder(stores, id)).payments
+      .filter((p) => p.edit === key).length, 1);
+  });
+
   it("refunds the difference to the payment that took it", async () => {
     const { stores, id } = await placed();
     const { square, calls } = fakeSquare();

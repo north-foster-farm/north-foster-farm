@@ -244,8 +244,16 @@ const changedRecord = (order, next, change, key, now, by = "customer") => {
 
 const editOf = (order, key) => (order.edits || []).find((e) => e.key === key);
 
+// The money of a started edit is in the record (edit.paid writes it
+// with the payment), so a retry of its key must never take it again.
+const paidFor = (order, key) => Boolean(editOf(order, key))
+  && paymentsOf(order).some((p) => p.edit === key);
+
 // The plan of an edit already saved as pending: the record holds the
 // change, so a retry by its key only finishes what was left undone.
+// `delta` is empty because the record does not keep it: a first run that
+// died between edit.started or edit.paid and the stock adjustment leaves
+// stock unadjusted, for the farm to fix by hand.
 const pendingPlan = (order, edit) => ({
   ok: true, order, next: order, change: {
     difference: edit.difference, delta: [], switched: edit.switched,
@@ -381,7 +389,15 @@ export const applyEdit = async (stores, plan, {
   const after = { ...order, ...patch };
   let changeOrderId = null;
 
-  if (change.difference > 0) {
+  const paid = Boolean(started) && paidFor(order, key);
+
+  if (paid) {
+    // Taken by the first run: carry on from the saved payment.
+    const change0 = ((order.square && order.square.changes) || [])
+      .filter((c) => c.amount === change.difference).at(-1);
+
+    changeOrderId = change0 ? change0.squareOrderId : null;
+  } else if (change.difference > 0) {
     // The money first: a declined card leaves the order as it was.
     const charged = await charge(after, change, k, payment, {
       square, paypal, env, fetchImpl, sleep, mail, now, stores,
@@ -551,12 +567,23 @@ export const finishEditVenmo = async (stores, {
 }, options = {}) => {
   const order = await getOrder(stores, id);
   const checkout = await getCheckout(stores, key, paypalOrderId);
+  const begun = editOf(order, key);
 
   // Finished already, by a lost first try or by the jobs.
   if (paymentsOf(order).some((p) => p.paypalOrderId === paypalOrderId)) {
     if (checkout) await deleteCheckout(stores, key, paypalOrderId);
 
     return order;
+  }
+  if (begun && paidFor(order, key)) {
+    // Another Venmo payment took this edit's money: finish, charge nothing.
+    const saved = await applyEdit(stores, pendingPlan(order, begun), {
+      key, attempt,
+    }, options);
+
+    if (checkout) await deleteCheckout(stores, key, paypalOrderId);
+
+    return saved;
   }
   if (!checkout || !checkout.edit || checkout.edit.id !== id
     || checkout.paypalOrderId !== paypalOrderId) {
@@ -641,7 +668,7 @@ export const editOrder = async (stores, customer, id, body, {
 
   const { difference } = plan.change;
 
-  if (difference > 0) {
+  if (difference > 0 && !paidFor(order, key)) {
     if (!METHODS[payment.method]) {
       return fail(422, { payment: "Choose how to pay." });
     }
