@@ -97,7 +97,7 @@ export class Stock {
       const held = this.held[sku] || 0;
       const inStock = state.inStock || held > 0;
       // An archived line can only keep what the order holds, and says
-      // so: "No longer available".
+      // so: "Not available".
       const archived = row.hasAttribute("data-archived");
       const available = archived ? held
         : state.available === null ? null : state.available + held;

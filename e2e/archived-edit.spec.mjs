@@ -1,5 +1,5 @@
 // A paid order that holds an archived variation (#267, 6305650920):
-// changing it shows the line under "No longer available", where it
+// changing it shows the line under "Not available", where it
 // can fall but never rise, rather than dropping it and refunding it on
 // save. The server holds the same rule (test/edit.test.mjs). The
 // account is canned, so this runs on a local build.
@@ -54,12 +54,12 @@ test.describe("an archived line in a paid order (#267)", () => {
 
       await expect(page.locator("#cat-archived")).toBeVisible();
       await expect(page.locator("#cat-archived-h"))
-        .toHaveText("No longer available");
+        .toHaveText("Not available");
       await expect(r).toBeVisible();
       await expect(r.locator("label"))
         .toHaveText("Cornish Hens, under 3.0 lbs");
       await expect(r.locator(".order-item-stock"))
-        .toHaveText("No longer available");
+        .toHaveText("Not available");
       await expect(qty).toHaveValue("1");
 
       // By keyboard: on a phone the open cart covers the row.

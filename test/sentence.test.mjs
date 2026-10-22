@@ -10,15 +10,15 @@ import { sentence } from "../assets/scripts/order/lib/sentence.mjs";
 
 describe("sentence", () => {
   it("adds a period where the text has none", () => {
-    assert.equal(sentence("No longer available: Eggs, Grade A Medium"),
-      "No longer available: Eggs, Grade A Medium.");
+    assert.equal(sentence("Not available: Eggs, Grade A Medium"),
+      "Not available: Eggs, Grade A Medium.");
   });
 
   it("keeps the one a name ends in", () => {
     const feet = indexCatalog(catalog).get("NFF-CHK-FET-0075-0125");
 
-    assert.equal(sentence(`No longer available: ${feet.lineName}`),
-      "No longer available: Feet, 1 lb avg.");
+    assert.equal(sentence(`Not available: ${feet.lineName}`),
+      "Not available: Feet, 1 lb avg.");
   });
 
   it("leaves a question or an exclamation alone", () => {

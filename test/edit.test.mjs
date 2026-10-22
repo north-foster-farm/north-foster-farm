@@ -519,7 +519,7 @@ describe("a paid order holding an archived line", () => {
 
     assert.equal(more.ok, false);
     assert.equal(more.errors[`lines.${HEN}`],
-      "Cornish Hens, under 3.0 lbs is no longer available.");
+      "Cornish Hens, under 3.0 lbs is not available.");
 
     const fewer = await edit(stores, id, {
       idempotencyKey: editKey(), lines: [{ sku: SKU, qty: 2 }],

@@ -123,7 +123,7 @@ It says what an item out of stock shows in place of its quantity:
 | `seasonal` | "Back in spring", the season from `restockSeason` |
 | `soon` | "Back soon" |
 | `hiatus` | "On hiatus" |
-| `discontinued` | "No longer available" |
+| `discontinued` | "Not available" |
 | `archived` | Nothing: hidden everywhere, whatever the stock |
 
 Stock wins over every type but `archived`: an item in stock sells
@@ -148,7 +148,7 @@ The choice is remembered on the device (`localStorage`, key
 `nff-order-in-stock-only`; blocked storage leaves "In stock").
 Under Full catalog an out-of-stock item is greyed, with its label in
 the stock note and no quantity control; its inputs are disabled, so
-it cannot be added (`?add=` of one says "No longer available"). A
+it cannot be added (`?add=` of one says "Not available"). A
 category with nothing showing goes, with its sidebar link, and comes
 back when Full catalog shows it. The build marks a row out from the
 catalog flag (`data-out`, hidden) and `/api/stock` takes over when
@@ -171,11 +171,11 @@ changed or the count zeroed. `test/restock.test.mjs` holds it.
 stays in the catalog, so a paid order that holds one still names it.
 Changing that order keeps the line: `validateOrder` takes `held`, what
 the order already holds, and lets a line that sold out or was archived
-since keep up to that many, never more ("... is no longer available."
+since keep up to that many, never more ("... is not available."
 past it). On the page, the product list carries every archived item
-in a hidden "No longer available" section (`order/archived.html`,
+in a hidden "Not available" section (`order/archived.html`,
 never in the sidebar or search). Edit mode shows the rows the order
-holds, labelled "No longer available", and caps each at its held
+holds, labelled "Not available", and caps each at its held
 quantity. A cancel needs nothing: it doesn't read the catalog.
 `test/edit.test.mjs` and `e2e/archived-edit.spec.mjs` hold it.
 

@@ -27,7 +27,7 @@ const LABEL = {
   soon: "Back soon",
   seasonal: "Back in spring",
   hiatus: "On hiatus",
-  discontinued: "No longer available",
+  discontinued: "Not available",
 };
 // No category is wholly out in the catalog since 2026-v9; selling
 // out the maple links empties Sausage.
@@ -210,7 +210,7 @@ test.describe("restock types (#267)", () => {
     async ({ page }) => {
       await page.goto(`/order/?add=${OUT.seasonal}:2`);
       await expect(page.locator("#order-added"))
-        .toContainText("No longer available: Tenders, 1.5 lbs and up.");
+        .toContainText("Not available: Tenders, 1.5 lbs and up.");
       await expect(new OrderPage(page).count).toHaveText("0 items");
     });
 
@@ -303,7 +303,7 @@ test.describe("restock types (#267)", () => {
       expect(products).toHaveLength(items.length - archived.length);
       for (const on of [true, false]) {
         if (!on) await show(page, "Full catalog");
-        // Its row is in the hidden "No longer available" section, for
+        // Its row is in the hidden "Not available" section, for
         // a paid order that holds it (6305650920); nothing else shows it.
         for (const sku of archived) {
           await expect(row(page, sku)).toBeHidden();
@@ -409,7 +409,7 @@ test.describe("restock types (#267)", () => {
       await page.goto(`/order/?add=${sku}:2,${SKU.eggs}:1`);
       await expect(page.locator("#order-added")).toHaveText(
         "Added to your cart: 1 × Eggs, Grade A Large. " +
-        "No longer available: Wings, 2.0 – 2.9 lbs."
+        "Not available: Wings, 2.0 – 2.9 lbs."
       );
       await expect(new OrderPage(page).count).toHaveText("1 item");
     });

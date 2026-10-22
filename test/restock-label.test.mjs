@@ -17,7 +17,7 @@ const LABELS = {
   seasonal: 'printf "Back in %s"',
   soon: '"Back soon"',
   hiatus: '"On hiatus"',
-  discontinued: '"No longer available"',
+  discontinued: '"Not available"',
 };
 
 // The type each `eq . "<type>"` branch tests, with the value it sets.

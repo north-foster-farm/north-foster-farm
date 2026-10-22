@@ -919,7 +919,7 @@ export class OrderForm {
       bits.push(sentence(`Added to your cart: ${added.join(", ")}`));
     }
     if (missing.length) {
-      bits.push(sentence(`No longer available: ${missing.join(", ")}`));
+      bits.push(sentence(`Not available: ${missing.join(", ")}`));
     }
     // Draft wording.
     if (unknown) {

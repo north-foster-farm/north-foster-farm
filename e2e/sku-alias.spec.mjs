@@ -30,7 +30,7 @@ test.describe("old SKUs (#267)", () => {
 
       const notice = page.locator("#order-added");
 
-      await expect(notice).toHaveText("No longer available: Cornish " +
+      await expect(notice).toHaveText("Not available: Cornish " +
         "Hens, under 3.0 lbs. Some items from that order have changed. " +
         "Please add them again.");
       await expect(notice).not.toContainText("NFF-");

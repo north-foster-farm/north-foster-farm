@@ -150,7 +150,7 @@ test.describe("order page", () => {
       await order.open({ eggs: 2, "NFF-CHK-EGG-MD": 1 });
       await expect(page.locator("#order-added")).toHaveText(
         new RegExp("^Added to your cart: 2 × Eggs, Grade A Large\\. " +
-          "No longer available: Eggs, Grade A Medium\\.$")
+          "Not available: Eggs, Grade A Medium\\.$")
       );
       await expect(order.qty("eggs")).toHaveValue("2");
       await expect(page).toHaveURL(/\/order\/$/);
