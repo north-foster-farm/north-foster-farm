@@ -384,14 +384,15 @@ for (const width of WIDTHS) {
     });
 
     test("Escape closes the account menu", async ({ page, browserName }) => {
-      // One in the header, one in the site menu; the menu's is flat.
+      // Two in the header, one shown at a time: with the links
+      // from md up, with the actions below md (#303).
       const button = page.locator("[data-account-menu]:visible").first();
       const menu = button.locator("xpath=following-sibling::ul");
 
       await signedIn(page);
       await page.goto("/about/");
       await settle(page);
-      test.skip(!await button.count(), "the account links are flat here");
+      await expect(button).toBeVisible();
       await escapes(page, tabKey(browserName), {
         opener: button,
         isOpen: () => menu.evaluate((m) => m.classList.contains("show")),

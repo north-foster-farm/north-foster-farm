@@ -132,7 +132,8 @@ const fill = (slot, who) => {
 
 export const Session = {
   async show() {
-    // Two slots: the header row and the phone menu.
+    // Two slots in the header row: with the links from md up, and with
+    // the actions below md (#303).
     const slots = document.querySelectorAll("[data-account]");
 
     if (!slots.length) return;

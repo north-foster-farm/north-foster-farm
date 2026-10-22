@@ -168,7 +168,9 @@ test.describe("the Account menu on a desktop", () => {
     } }));
     await page.goto("/about/");
 
-    const slot = page.locator("header .site-account.dropdown");
+    // One slot shows at a time: with the links from md up, with
+    // the actions below md (#303).
+    const slot = page.locator("header .site-account.dropdown:visible");
     const button = slot.locator("[data-bs-toggle='dropdown']");
 
     await expect(button).toBeVisible();

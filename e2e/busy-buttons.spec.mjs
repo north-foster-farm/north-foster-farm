@@ -107,8 +107,9 @@ test.describe("busy buttons", () => {
       await page.setViewportSize({ width: 1200, height: 800 });
       await page.goto("/about/");
 
-      const toggle = page.locator("[data-account] .site-account-btn");
-      const menu = page.locator("[data-account] .dropdown-menu");
+      const slot = page.locator("header [data-account]:visible");
+      const toggle = slot.locator(".site-account-btn");
+      const menu = slot.locator(".dropdown-menu");
       const button = menu.locator(".busy-button");
 
       await toggle.click();

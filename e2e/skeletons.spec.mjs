@@ -139,8 +139,9 @@ test.describe("loading skeletons (#271)", () => {
 
     await page.goto("/about/");
 
-    // The header row's slot, from md up, or the phone menu's.
-    const slot = page.locator("[data-account]").first();
+    // The header row's slot: with the links from md up, with the
+    // actions below md (#303).
+    const slot = page.locator("header [data-account]:visible");
 
     await page.waitForTimeout(SHOW_AFTER_MS + 100);
     await loading(slot);
