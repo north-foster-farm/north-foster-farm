@@ -1,6 +1,6 @@
 {
- "revision": 38,
- "updated": "2026-10-20",
+ "revision": 39,
+ "updated": "2026-10-22",
  "notice": null,
  "phases": [
   {
@@ -188,7 +188,7 @@
     {
      "id": "sq-prod",
      "title": "Check production's Square values",
-     "body": "These came in from your `.env`. Production keeps them; nothing here is replaced. If any field is empty, get it from the Developer Console with the toggle set to **Production**:\n- **Credentials:** the Application ID (it starts `sq0idp-`) and the access token (**Show**). Never use **Replace** now: it switches the old token off at once. On a later rotation, switch maintenance mode on first (the December rotation step).\n- **Locations:** the website's location ID.\n- **Webhooks → Subscriptions:** open the production subscription, then **Show** the Signature Key.\n\nIf you fixed the subscription URL in the previous step, its signature key is unchanged.",
+     "body": "These came in from your `.env`. Production keeps them; nothing here is replaced. If any field is empty, get it from the Developer Console with the toggle set to **Production**:\n- **Credentials:** the Application ID (it starts `sq0idp-`) and the access token (**Show**). Never use **Replace** now: it switches the old token off at once. On a later rotation, switch maintenance mode on first (the December rotation step).\n- **Locations:** North Foster Farm's location ID, `L6PRYPQ7VW659`. Every sale lives there now (#267), not at the northfosterfarm.com location; step sq-location moves the site.\n- **Webhooks → Subscriptions:** open the production subscription, then **Show** the Signature Key.\n\nIf you fixed the subscription URL in the previous step, its signature key is unchanged.",
      "minutes": 5,
      "links": [
       {
@@ -223,6 +223,39 @@
      ],
      "device": "laptop",
      "type": "account"
+    },
+    {
+     "id": "sq-location",
+     "title": "Launch blocker: move the site to North Foster Farm's location",
+     "body": "You decided every sale and all stock live at one Square location, **North Foster Farm** (`L6PRYPQ7VW659`), on #267. The site reads its stock there and takes its orders there once these are done. The full answer, with every place the code uses the location, is on #267.\n1. **Token:** in the Developer Console, open the production app. Under **OAuth**, or wherever the access token's permissions are set, make sure it includes `INVENTORY_READ`. Without it the site never sees Square's counts and sells by its own instead, silently. A personal access token already has every permission.\n2. **Tracking:** in the Square Dashboard, under **Items**, turn on stock tracking at North Foster Farm for every item you count. It is off on all three Tenders, Sweet Italian Sausage and Feet. Cornish hens and ground chicken are archived and can stay off.\n3. **Before tracking items come back:** Medium and Small eggs are not offered at any location. Add them at North Foster Farm before either goes back on sale, or Square refuses the website's orders for them. When Feet return, clear their **Sold out** mark at North Foster Farm.\n4. **Counts:** enter tonight's physical counts at North Foster Farm, or tell Claude to load them.\n5. **The switch, at a quiet hour:** set `SQUARE_LOCATION_ID` to `L6PRYPQ7VW659` in `.env.production`, push the env and redeploy. Then run `bin/nff env verify --production`; its Square line must say ok.\n6. **Proof:** in the Dashboard, set Backs 1.0 - 1.9 lbs to 2 at North Foster Farm. The order page says \"2 left\" on its next load. Set it back afterward.\n\nOrders placed at the old location before the switch still update and refund where they were placed. Staging runs on the sandbox and is untouched.",
+     "minutes": 30,
+     "blocked": "Waits on the checkout lane's two commits reaching production: orders update at their own location (9521b309), and the site sells by Square's count (50c91748). Do steps 1 to 4 now; the switch waits.",
+     "links": [
+      {
+       "label": "Square Developer Console",
+       "url": "https://developer.squareup.com/apps"
+      },
+      {
+       "label": "The answer on #267",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6336155077"
+      }
+     ],
+     "copy": [
+      {
+       "label": "North Foster Farm location ID",
+       "value": "L6PRYPQ7VW659"
+      }
+     ],
+     "device": "laptop",
+     "type": "account"
+    },
+    {
+     "id": "sq-pos-test",
+     "title": "Launch blocker: ring up one item at zero stock",
+     "body": "This proves a sale on the phone still goes through when the count is 0 or below. A warning is fine; a block is not.\n1. In the Square Dashboard, turn on tracking for **Backs 1.0 - 1.9 lbs** at North Foster Farm and set its count there to **0**.\n2. On your iPhone, in Square POS, go to **Settings**, then **Location**, and choose **North Foster Farm**.\n3. Ring up 1 Backs and take it as cash. **Pass:** the sale completes.\n4. In the Dashboard, Backs at North Foster Farm reads **-1**, and no other location changed.\n5. Ring up one more. It still completes, and the count reads **-2**.\n6. Refund both sales on the phone, choosing to return the items to stock. The count goes back to **0**.\n\nIf step 3 blocks the sale, look in the Dashboard's inventory settings for the one that stops sales at zero stock, and write what you find in the note on this step.",
+     "minutes": 10,
+     "device": "phone",
+     "type": "live"
     },
     {
      "id": "sq-staging",
