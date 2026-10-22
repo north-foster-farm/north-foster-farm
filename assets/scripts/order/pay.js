@@ -28,6 +28,11 @@ const qs = (root, selector) => root.querySelector(selector);
 
 const VENMO = "nff-venmo";
 
+// How long the payment SDKs get to load before the page calls payment
+// unavailable and reports it (#268, rec 8). The skeleton over the card
+// fields gives up at 10 s with Try again; this is the backstop.
+const INIT_TIMEOUT_MS = 20_000;
+
 // Whether the Venmo button works in this browser (lib/venmo.mjs).
 const venmoEnabled = (hidden) => {
   let remembered = false;
@@ -160,13 +165,26 @@ export class Payment {
     // The card fields wait under a skeleton (#271). A payment that
     // turns out unavailable says so itself; one still loading after
     // the skeleton gives up offers Try again, a reload.
-    const init = () => this.init().then(() => true, (error) => {
-      console.error(error);
-      reportUnavailable("checkout.init", error);
-      this.setState("unavailable");
+    // An SDK that loads but never settles (payments() or attach()
+    // hanging) left the page loading for good, with Pay disabled and
+    // nothing reported (#268, rec 8). After INIT_TIMEOUT_MS it is
+    // unavailable and reported; a late success still takes over.
+    const init = () => {
+      const timer = setTimeout(() => {
+        if (this.ready || this.state.dataset.payState !== "loading") return;
+        reportUnavailable("checkout.init", `No answer in ${
+          INIT_TIMEOUT_MS / 1000} s.`);
+        this.setState("unavailable");
+      }, INIT_TIMEOUT_MS);
 
-      return true;
-    });
+      return this.init().then(() => true, (error) => {
+        console.error(error);
+        reportUnavailable("checkout.init", error);
+        this.setState("unavailable");
+
+        return true;
+      }).finally(() => clearTimeout(timer));
+    };
 
     this.starting = whileLoading(qs(this.root, "#pay-card-panel"), init, {
       failed: (done) => !done,
