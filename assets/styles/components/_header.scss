@@ -121,6 +121,13 @@ header {
 // gray border. The border is there at rest, transparent, so the link
 // never changes size; the padding gives back its pixel. Nothing
 // changes on the face; a wash there read as an inset.
+$nav-link-transition:
+  color 0.16s ease-out,
+  background-color 0.16s ease-out,
+  border-color 0.16s ease-out,
+  box-shadow 0.16s ease-out,
+  transform 0.16s ease-out;
+
 .site-nav-link {
   display: inline-flex;
   align-items: center;
@@ -137,12 +144,7 @@ header {
   white-space: nowrap;
   text-decoration: none;
   transform-origin: center bottom;
-  transition:
-    color 0.16s ease-out,
-    background-color 0.16s ease-out,
-    border-color 0.16s ease-out,
-    box-shadow 0.16s ease-out,
-    transform 0.16s ease-out;
+  transition: $nav-link-transition;
 
   &:hover,
   &[aria-expanded="true"] {
@@ -167,7 +169,8 @@ header {
 
   @media (prefers-reduced-motion: reduce) {
     &:hover,
-    &:active {
+    &:active,
+    &[aria-expanded="true"] {
       transform: none;
     }
   }
@@ -628,9 +631,12 @@ header {
   display: flex;
   align-items: center;
 
+  // The fade joins the links' own easing; on its own it would replace
+  // it, and Sign in and the Account button would lift with a jump
+  // (#303).
   > :not(.skeleton) {
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.3s ease, $nav-link-transition;
   }
 
   &.is-ready > :not(.skeleton) {
@@ -651,9 +657,11 @@ header {
     }
   }
 
+  // No fade; the links keep their color easing, and their lift goes
+  // (.site-nav-link).
   @media (prefers-reduced-motion: reduce) {
-    > * {
-      transition: none;
+    > :not(.skeleton) {
+      transition: $nav-link-transition;
     }
   }
 }
