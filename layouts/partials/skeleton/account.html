@@ -4,10 +4,9 @@
 <div class="account-head">
   <span class="placeholder account-avatar rounded-circle"></span>
   <div class="account-who">
-    <p class="account-name"><span class="placeholder col-4"></span></p>
     <p class="account-email"><span class="placeholder col-6"></span></p>
+    <span class="placeholder account-signout">Sign out</span>
   </div>
-  <span class="placeholder btn btn-sm">Sign out</span>
 </div>
 <div class="account-nav">
   {{ range slice "Orders" "Receipts" "Address" "Settings" "Help" }}
@@ -19,7 +18,7 @@
 <div class="account-section">
   <h2 class="h4"><span class="placeholder col-3"></span></h2>
   {{ range seq 2 }}
-    <div class="account-order account-card">
+    <div class="account-order">
       <div class="account-order-head">
         <div class="flex-grow-1">
           <h3 class="account-order-title"><span class="placeholder col-7"></span></h3>

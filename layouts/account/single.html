@@ -17,11 +17,13 @@
         <div id="account-app" hidden>
           <header class="account-head">
             {{ partial "svg.html" (dict "use" "avatar-hen-brown" "class" "account-avatar" "id" "account-avatar" "aria-hidden" "true") }}
+            {{/* The address in the headings' type, bold, and Sign out
+                 under it as a quiet link, so the address has the width
+                 (#303). */}}
             <div class="account-who">
-              <p class="account-name" id="account-name"></p>
               <p class="account-email" id="account-email"></p>
+              {{ partial "busy-button.html" (dict "label" "Sign out" "busy" "Signing out" "class" "account-signout" "plain" true "start" true "id" "account-signout" "type" "button" "error" true) }}
             </div>
-            {{ partial "busy-button.html" (dict "label" "Sign out" "busy" "Signing out" "class" "btn-outline-secondary btn-sm" "id" "account-signout" "type" "button" "error" true) }}
           </header>
 
           <nav class="account-nav" aria-label="Account sections">
@@ -36,15 +38,12 @@
 
           <section class="account-section" id="acct-orders" data-section="orders" aria-labelledby="acct-orders-h">
             <h2 class="h4" id="acct-orders-h">Your orders</h2>
-            <p class="account-empty" id="orders-empty" hidden>
-              No orders yet. <a href="{{ relURL "order/" }}">Browse what's in stock</a>.
-            </p>
+            <p class="account-empty" id="orders-empty" hidden>No orders yet.</p>
             <div id="orders-list"></div>
           </section>
 
           <section class="account-section" id="acct-receipts" data-section="receipts" aria-labelledby="acct-receipts-h" hidden>
             <h2 class="h4" id="acct-receipts-h">Receipts</h2>
-            <p class="text-body-secondary">Every payment, and the receipt for it.</p>
             <table class="table account-table" id="receipts-table">
               <thead>
                 <tr><th scope="col">Order</th><th scope="col">Paid</th><th scope="col">Total</th><th scope="col">Paid with</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Link</span></th></tr>
@@ -55,7 +54,7 @@
             {{/* Our own receipt for a Venmo payment, which PayPal gives
                  no receipt link (#238); main.js fills it from the
                  payment when its Receipt is pressed. */}}
-            <div class="account-card account-receipt" id="receipt-card" tabindex="-1" aria-labelledby="receipt-card-h" hidden>
+            <div class="account-receipt" id="receipt-card" tabindex="-1" aria-labelledby="receipt-card-h" hidden>
               <p class="account-receipt-title" id="receipt-card-h"></p>
               <dl class="account-receipt-lines">
                 <dt>Paid</dt><dd data-receipt="paid"></dd>
@@ -200,30 +199,35 @@
               "Report a problem". For anything else, write to us here and
               we'll answer by email.
             </p>
-            <form class="account-card" id="support-form" novalidate>
-              <div class="row g-3">
-                <div class="col-md-7">
-                  <label class="form-label" for="sup-subject">Subject <span class="text-body-secondary">(optional)</span></label>
+            <form class="account-form" id="support-form" novalidate>
+              <div class="row account-row">
+                <label class="col-md-4 col-form-label" for="sup-subject">Subject <span class="text-body-secondary">(optional)</span></label>
+                <div class="col-md-8">
                   <input class="form-control" type="text" id="sup-subject" name="subject" data-field="subject">
                 </div>
-                <div class="col-md-5">
-                  <label class="form-label" for="sup-order">About an order <span class="text-body-secondary">(optional)</span></label>
+              </div>
+              <div class="row account-row">
+                <label class="col-md-4 col-form-label" for="sup-order">About an order <span class="text-body-secondary">(optional)</span></label>
+                <div class="col-md-8">
                   <select class="form-select" id="sup-order" name="orderId" data-field="orderId">
                     <option value="">No particular order</option>
                   </select>
                 </div>
-                <div class="col-12">
-                  <label class="form-label" for="sup-message">Your message</label>
+              </div>
+              <div class="row account-row">
+                <label class="col-md-4 col-form-label" for="sup-message">Your message</label>
+                <div class="col-md-8">
                   <textarea class="form-control" id="sup-message" name="message" rows="4" data-field="message" aria-describedby="err-sup-message"></textarea>
                   <div class="invalid-feedback" id="err-sup-message" data-error-for="message"></div>
                 </div>
               </div>
-              {{ partial "busy-button.html" (dict "label" "Send" "busy" "Sending" "class" "btn-primary mt-3") }}
+              <div class="row">
+                <div class="col-md-8 offset-md-4">
+                  {{ partial "busy-button.html" (dict "label" "Send" "busy" "Sending" "class" "btn-primary") }}
+                </div>
+              </div>
             </form>
           </section>
-
-          {{/* James's line (#238), once under every tab. */}}
-          <p class="account-contact"><a href="mailto:{{ hugo.Data.company.email }}">Contact us</a> with your questions or concerns and we'll answer by email.</p>
         </div>
         </div>
       </div>
@@ -231,7 +235,7 @@
   </section>
 
   <template id="tpl-order">
-    <article class="account-order account-card" data-order>
+    <article class="account-order" data-order>
       <header class="account-order-head">
         <div>
           <h3 class="account-order-title"><span data-out="when"></span></h3>

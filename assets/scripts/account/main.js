@@ -404,7 +404,6 @@ class Account {
     qs(document, "#account-avatar use").setAttribute(
       "href", `#avatar-${c.avatar || "hen-brown"}`
     );
-    document.getElementById("account-name").textContent = c.name || "Welcome";
     document.getElementById("account-email").textContent = c.email;
   }
 

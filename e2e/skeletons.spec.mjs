@@ -180,7 +180,7 @@ test.describe("loading skeletons (#271)", () => {
     release();
     await settled(region);
     await expect(page.locator("#account-app")).toBeVisible();
-    await expect(page.locator("#account-name")).toHaveText(CUSTOMER.name);
+    await expect(page.locator("#account-email")).toHaveText(CUSTOMER.email);
 
     const shifts = await shiftsSince(page, from, "#account-region");
 

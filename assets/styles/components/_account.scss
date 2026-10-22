@@ -1,5 +1,5 @@
-// Sign-in and account pages: narrow columns of cards, the same soft
-// shadow and radius as the order page.
+// Sign-in and account pages. The sign-in page keeps its card; the
+// account page sets its content straight on the page (#303).
 
 .login,
 .account {
@@ -39,7 +39,8 @@
     color: var(--bs-secondary-color);
   }
 
-  // Head: avatar, name, sign out
+  // Head: the avatar, the address in the headings' type, and Sign out
+  // under it as a quiet link (#303).
 
   .account-head {
     display: flex;
@@ -60,16 +61,29 @@
     min-width: 0;
   }
 
-  .account-name {
-    margin: 0;
-    font-weight: bold;
-  }
-
   .account-email {
     margin: 0;
+    font-family: $headings-font-family;
+    font-size: 1.25rem;
+    font-weight: bold;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+
+  .account-signout {
+    padding: 0;
+    border: 0;
+    background: none;
     font-size: 0.875rem;
     color: var(--bs-secondary-color);
-    overflow-wrap: anywhere;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, currentcolor 45%, transparent);
+    text-underline-offset: 0.18em;
+
+    &:hover {
+      color: var(--bs-body-color);
+      text-decoration-color: currentcolor;
+    }
   }
 
   // Tabs
@@ -111,6 +125,13 @@
   }
 
   // Orders
+
+  // Orders sit on the page, a rule between one and the next.
+  .account-order + .account-order {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--bs-border-color-translucent);
+  }
 
   // Followed a link from an email about this one order.
   .account-order.is-linked {
@@ -427,11 +448,21 @@
     font-weight: bold;
   }
 
-  // James's line, once under every tab.
-  .account-contact {
-    margin: 2.5rem 0 0;
-    padding-top: 1rem;
-    border-top: 1px solid var(--bs-border-color-translucent);
+  // A form on the account page: label beside field from md up,
+  // stacked on a phone (#303).
+  .account-row {
+    margin-bottom: 1rem;
+
+    @include media-breakpoint-up(md) {
+      align-items: start;
+    }
+  }
+
+  .account-form .col-form-label {
+    @include media-breakpoint-down(md) {
+      padding-top: 0;
+      padding-bottom: 0.375rem;
+    }
   }
 }
 
