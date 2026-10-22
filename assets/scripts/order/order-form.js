@@ -1,5 +1,8 @@
 import Tooltip from "bootstrap/js/dist/tooltip.js";
 
+import {
+  FLOAT_AGAIN, floatsAgain, look, segOn,
+} from "./lib/cart-float.mjs";
 import { current, indexCatalog, packLabel } from "./lib/catalog.mjs";
 import {
   keyboardInset, moreStop, rowsFloor, visibleArea,
@@ -599,22 +602,23 @@ export class OrderForm {
       // of the layout viewport (--cart-gap), the keyboard aside.
       const rest = (parseFloat(getComputedStyle(this.cart).bottom) || 12)
         - (this.keyboard || 0);
-      // Settled, the pane drops its cap and shows every line (#274), so
-      // its own height cannot decide: taller, it would float again, take
-      // the cap and settle, over and over. Its place in the flow, under
-      // the heading, and its height under the cap decide instead, and
-      // settled it is no longer sticky (_order.scss).
+      // Its place in the flow, under the heading, and its height as it
+      // last floated decide (lib/cart-float.mjs look); settled it is no
+      // longer sticky (_order.scss). Not while its padding eases back
+      // in: short for that moment, it would settle again for a frame.
       const place = cartHeading.getBoundingClientRect().bottom
         + parseFloat(getComputedStyle(cartHeading).marginBottom);
+      const seen = look({ stuck: this.cart.dataset.stuck, floatH }, {
+        place,
+        height: r.height,
+        room: window.innerHeight - rest - 1,
+        easing: this.cart.getAnimations().length > 0,
+        hidden: () => this.hiddenHeight(r.width),
+      });
 
-      // Not while its padding eases back in: short for that moment, it
-      // would settle again for a frame.
-      if (this.cart.dataset.stuck !== "false"
-        && !this.cart.getAnimations().length) floatH = r.height;
+      floatH = seen.floatH;
 
-      const floating = below && !short
-        && place + Math.min(floatH || r.height, r.height)
-          > window.innerHeight - rest - 1;
+      const floating = below && !short && seen.stuck === "true";
       const barRect = bar ? bar.getBoundingClientRect() : null;
       const barBottom = barRect ? barRect.bottom : 0;
 
@@ -624,19 +628,25 @@ export class OrderForm {
       this.cart.style.setProperty(
         "--cart-bar", `${Math.max(0, Math.round(barBottom))}px`
       );
-      if (this.cart.dataset.stuck !== String(floating)) {
+      const was = this.cart.dataset.stuck;
+
+      if (was !== String(floating)) {
         this.cart.dataset.stuck = String(floating);
+        // On the way back up it lifts off hidden, on its lines,
+        // whatever it was when it settled (#274, round 5).
+        if (below && floatsAgain(was, floating)) {
+          this.setOpen(FLOAT_AGAIN.open);
+          this.setPart("items", FLOAT_AGAIN.items === "open");
+          this.setPart("money", FLOAT_AGAIN.money === "open");
+        }
         // The cap and what gives way to it apply only while it floats.
         this.syncScroll();
       }
-      // Settled, the cart is always open and its toggle fades. It
-      // stays open when it floats again: folding it then would shorten
-      // it, settle it and open it again, over and over.
+      // Settled, the cart is always open and its toggle fades.
       if (below && !floating && this.cart.dataset.open === "false") {
         this.setOpen(true);
       }
-      // So are the lines and the sums, subtotal included (#203), and
-      // they too stay open when it floats again, for the same reason.
+      // So are the lines and the sums, subtotal included (#203).
       if (below && !floating) {
         if (this.cart.dataset.items !== "open") this.setPart("items", true);
         if (this.cart.dataset.money !== "open") this.setPart("money", true);
@@ -1134,14 +1144,13 @@ export class OrderForm {
       seg.removeAttribute("aria-label");
     }
 
-    // Settling opens both parts, and they stay open when the pane floats
-    // again; the tabs then show the lines, where the fill is. "Total"
-    // lit white beside it was white on the grey track (#274).
-    const lines = this.cart.dataset.items === "open";
+    // Settling opens both parts; the tabs then show the lines, where
+    // the fill is. "Total" lit white beside it was white on the grey
+    // track (#274).
+    const on = segOn(this.cart.dataset, narrow);
 
     for (const [part, [button, panelId]] of Object.entries(parts)) {
-      const open = this.cart.dataset[part] === "open"
-        && !(narrow && part === "money" && lines);
+      const open = on[part];
       const panel = document.getElementById(panelId);
 
       button.dataset.on = String(open);
@@ -1161,6 +1170,42 @@ export class OrderForm {
         panel.removeAttribute("aria-labelledby");
       }
     }
+  }
+
+  // The pane's height floating hidden at this width, from an unseen
+  // copy: what it lifts off at on the way back up. Its folds can't be
+  // summed: from md they dissolve into the pane's grid and measure 0
+  // (#274, round 5). A copy put in the page has no earlier style, so
+  // it starts in its end state with nothing easing.
+  hiddenHeight(width) {
+    const ghost = this.cart.cloneNode(true);
+
+    ghost.removeAttribute("id");
+    ghost.inert = true;
+    ghost.setAttribute("aria-hidden", "true");
+    Object.assign(ghost.dataset, {
+      stuck: "true",
+      open: String(FLOAT_AGAIN.open),
+      items: FLOAT_AGAIN.items,
+      money: FLOAT_AGAIN.money,
+    });
+    Object.assign(ghost.style, {
+      position: "absolute",
+      top: "0",
+      bottom: "auto",
+      left: "0",
+      width: `${width}px`,
+      visibility: "hidden",
+      pointerEvents: "none",
+    });
+    qs(ghost, "[data-cart-word]").textContent = "Expand";
+    this.cart.after(ghost);
+
+    const height = ghost.getBoundingClientRect().height;
+
+    ghost.remove();
+
+    return height;
   }
 
   // Folds or opens the cart (below xl; the column ignores it).

@@ -57,6 +57,7 @@ const desktopOnly = [
   "**/overflow.spec.mjs",
   "**/cart-round3.spec.mjs",
   "**/cart-round4.spec.mjs",
+  "**/cart-round5.spec.mjs",
   "**/keyboard.spec.mjs",
 ];
 

@@ -168,8 +168,9 @@ export class OrderPage {
     }));
   }
 
-  // Scroll first: a cart that settled below opens in full, and the
-  // scroll up floats it that way over the rows (a28065b).
+  // Scroll first: a cart that settled below opens in full. The scroll
+  // up floats it hidden since #274 round 5 (it floated open, a28065b),
+  // but a cart that never settled may still be open.
   async showRow(name) {
     await this.scrollSettled();
     await this.item(name).evaluate(
