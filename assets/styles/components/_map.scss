@@ -7,13 +7,16 @@
 // Water is the only blue. Everything drawn keeps its line weight and
 // the pins their size as the map zooms.
 
-// Land is a warm neutral dark enough that the white town lines read at
-// phone size, and darker than the sand, so Rhode Island stands off its
-// neighbours on Delivery (#281).
+// The emphasis falls on where we deliver (#214, 2026-10-22): the green
+// reads strongest, the sand of the higher price next, and the
+// neighbours, where we don't deliver, take the lightest warm tint. Rhode
+// Island's town lines are white on the green and the sand, both dark
+// enough for them to read at phone size; the neighbours draw none.
 $map-water: tint-color($teal, 84%);
-$map-land: #d9d1bf;
-$map-away: #e9dfc8;
-$map-ours: tint-color($green, 58%);
+$map-land: #f2eee5;
+$map-away: #e5d7b7;
+$map-ours: tint-color($green, 40%);
+$map-border: #868276;
 $map-place: $primary;
 $map-place-chosen: tint-color($green, 6%);
 
@@ -119,7 +122,7 @@ $map-hover: #fbf8ef;
 
 .map-borders {
   fill: none;
-  stroke: shade-color($map-land, 38%);
+  stroke: $map-border;
   stroke-width: 1.2;
   stroke-dasharray: 5 3;
   pointer-events: none;
@@ -447,17 +450,6 @@ $map-hover: #fbf8ef;
   background-color: $white;
 }
 
-// Two groups, side by side under the map, one above the other beside it.
-.map-key-card[data-map-for="delivery"] {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.5rem 1rem;
-
-  @media (min-width: 992px) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 // Beside the map, the list ends where the map does (scripts/map/ sets
 // its max-height) and scrolls past that.
 .map-places {
@@ -665,7 +657,8 @@ $map-hover: #fbf8ef;
 }
 
 // Each layer shows only its own: Delivery its shading, the picked ZIP,
-// its pin and tag; Places its pins and cards over plain land.
+// its pin and tag; Places its pins and cards over plain land, Rhode
+// Island in sand off its lighter neighbours.
 .map[data-layer="delivery"] {
   .map-town,
   .map-town-casing,
@@ -684,11 +677,12 @@ $map-hover: #fbf8ef;
 
   .map-zip {
     cursor: default;
-    fill: $map-land;
+    fill: $map-away;
     stroke: $white;
   }
 
   .map-zip.is-land {
+    fill: $map-land;
     stroke: $map-land;
   }
 }

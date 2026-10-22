@@ -255,22 +255,15 @@
   </div>
 
   <div class="map-key">
-    {{/* Delivery: the shading by price, then the icons on the tag. */}}
+    {{/* Delivery: the shading by price, then the icons on the tag. No
+         heads or other text: only swatches, icons and labels (#214). */}}
     <div class="map-key-card" data-map-for="delivery">
-      <div class="map-key-group">
-        <p class="map-key-head">Shading</p>
-        <ul class="map-key-areas list-unstyled">
-          <li><span class="map-swatch is-ours" aria-hidden="true"></span>${{ $money.deliveryFee }} delivery</li>
-          <li><span class="map-swatch is-away" aria-hidden="true"></span>${{ add $money.deliveryFee $money.outsideAreaFee }} delivery</li>
-        </ul>
-      </div>
-      <div class="map-key-group">
-        <p class="map-key-head">Icons</p>
-        <ul class="map-key-areas list-unstyled">
-          <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon">{{ $egg }}</span><span class="map-tag-icon">{{ $hen }}</span></span>Available for delivery</li>
-          <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon is-off">{{ $hen }}</span></span>Unavailable for delivery</li>
-        </ul>
-      </div>
+      <ul class="map-key-areas list-unstyled">
+        <li><span class="map-swatch is-ours" aria-hidden="true"></span>${{ $money.deliveryFee }} delivery</li>
+        <li><span class="map-swatch is-away" aria-hidden="true"></span>${{ add $money.deliveryFee $money.outsideAreaFee }} delivery</li>
+        <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon">{{ $egg }}</span><span class="map-tag-icon">{{ $hen }}</span></span>Available for delivery</li>
+        <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon is-off">{{ $hen }}</span></span>Unavailable for delivery</li>
+      </ul>
     </div>
 
     {{ if $layers }}
