@@ -8,6 +8,7 @@
 
 import { clear, whileLoading } from "../utils/skeleton.js";
 import { showRows } from "./restock.js";
+import { syncSchema } from "./schema.js";
 
 const EVERY = 2 * 60_000;
 
@@ -58,6 +59,7 @@ export class Stock {
 
   take(items) {
     this.items = items;
+    syncSchema(items);
     this.apply();
   }
 

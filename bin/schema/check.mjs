@@ -18,6 +18,8 @@
 // S7  a BreadcrumbList counts from 1, and links every item but the last
 // S8  a news post carries a BlogPosting, and the home page the farm's
 //     address
+// S9  the order page has a Product for every catalog item that is on
+//     the page, at the catalog's price, with a known availability
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
@@ -33,6 +35,7 @@ const REQUIRED = {
     "headline", "url", "image", "datePublished", "dateModified", "author",
     "publisher", "mainEntityOfPage",
   ],
+  Product: ["name", "sku", "image", "offers"],
   Event: [
     "name", "startDate", "endDate", "location", "eventStatus",
     "eventAttendanceMode", "organizer",
@@ -50,13 +53,16 @@ const NESTED = {
   GeoCoordinates: ["latitude", "longitude"],
   Place: ["name", "address"],
   City: ["name"],
+  Offer: ["price", "priceCurrency", "availability", "url", "seller"],
   ListItem: ["position", "name"],
 };
 
 const URL_KEYS = new Set([
   "url", "item", "image", "hasMap", "sameAs", "eventStatus",
-  "eventAttendanceMode",
+  "eventAttendanceMode", "availability",
 ]);
+const AVAILABILITY = new Set(["InStock", "OutOfStock", "Discontinued"]
+  .map((a) => `https://schema.org/${a}`));
 const DATE_KEYS = new Set([
   "datePublished", "dateModified", "startDate", "endDate",
 ]);
@@ -157,6 +163,15 @@ export function checkGraph(data) {
       add("S6", `${where}: ends before it starts`);
     }
 
+    if (type === "Product" && node.offers) {
+      if (!AVAILABILITY.has(node.offers.availability)) {
+        add("S9", `${where}: unknown availability ${node.offers.availability}`);
+      }
+      if (!/^\d+\.\d\d$/.test(String(node.offers.price))) {
+        add("S9", `${where}: price is not dollars and cents`);
+      }
+    }
+
     if (type === "BreadcrumbList") {
       const items = node.itemListElement || [];
       items.forEach((item, i) => {
@@ -172,7 +187,8 @@ export function checkGraph(data) {
   return findings;
 }
 
-const BLOCK = /<script type="?application\/ld\+json"?>([\s\S]*?)<\/script>/g;
+const BLOCK =
+  /<script type="?application\/ld\+json"?[^>]*>([\s\S]*?)<\/script>/g;
 
 // Check one built page. `path` is relative to the build, with forward
 // slashes ("news/some-post/index.html"), for S8.
@@ -200,6 +216,40 @@ export function checkHtml(html, path = "") {
   if (path === "index.html" && !farm?.address) {
     findings.push({ rule: "S8", message: "the home page has no address" });
   }
+  if (path === "order/index.html") findings.push(...checkOrder(data));
+  return findings;
+}
+
+// S9: a Product for every catalog item the order page shows, at the
+// catalog's price. Archived items are not on the page.
+const catalog = () => JSON.parse(readFileSync(
+  new URL("../../data/catalog.json", import.meta.url), "utf8"));
+
+export function checkOrder(data, items = catalog().groups.flatMap(
+  (g) => g.items)) {
+  const found = new Map((data["@graph"] || [])
+    .filter((n) => n["@type"] === "Product")
+    .map((n) => [n.sku, n]));
+  const findings = [];
+
+  for (const item of items.filter((i) => i.restock !== "archived")) {
+    const product = found.get(item.sku);
+
+    if (!product) {
+      findings.push({ rule: "S9", message: `no Product for ${item.sku}` });
+    } else if (Number(product.offers?.price) !== item.price) {
+      findings.push({
+        rule: "S9",
+        message: `${item.sku} is ${product.offers?.price}, the catalog `
+          + `says ${item.price}`,
+      });
+    }
+    found.delete(item.sku);
+  }
+  for (const sku of found.keys()) {
+    findings.push({ rule: "S9", message: `${sku} is not in the catalog` });
+  }
+
   return findings;
 }
 

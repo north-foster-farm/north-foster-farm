@@ -13,8 +13,8 @@
   - A news post: a BlogPosting by and from the farm.
   - The home page: each upcoming pop-up in data/events.json as an Event.
     Markets are left out: the farm does not run them, and their hours
-    are text. Products and offers wait until stock in the markup can't
-    lag /api/stock.
+    are text.
+  - The order page: a Product with an Offer for each catalog item.
 */}}
 {{ $company := hugo.Data.company }}
 {{ $home := .Site.Home.Permalink }}
@@ -205,6 +205,40 @@
   {{ end }}
 {{ end }}
 
-<script type="application/ld+json">
+{{/* The order page: each item in data/catalog.json as a Product with
+     one Offer (#191). Availability is the catalog's flag at build time,
+     and order/stock.js brings it in step with /api/stock once the page
+     is open (the script's id is what it looks for), so the markup
+     lags only for a reader that does not run scripts. An archived item
+     is not on the page and not here. */}}
+{{ if eq .Type "order" }}
+  {{ range partial "order/groups.html" . }}
+    {{ range .items }}
+      {{ $availability := "https://schema.org/OutOfStock" }}
+      {{ if .inStock }}
+        {{ $availability = "https://schema.org/InStock" }}
+      {{ else if eq .restock "discontinued" }}
+        {{ $availability = "https://schema.org/Discontinued" }}
+      {{ end }}
+      {{ $graph = $graph | append (dict
+        "@type" "Product"
+        "@id" (print $url "#product-" .sku)
+        "name" .name
+        "sku" .sku
+        "image" $shareCard.Permalink
+        "brand" (dict "@id" $farmId)
+        "offers" (dict
+          "@type" "Offer"
+          "price" (printf "%.2f" .price)
+          "priceCurrency" "USD"
+          "availability" $availability
+          "url" $url
+          "seller" (dict "@id" $farmId))
+      ) }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+
+<script type="application/ld+json" id="ld-json">
   {{- dict "@context" "https://schema.org" "@graph" $graph | jsonify | safeJS -}}
 </script>

@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { checkGraph, checkHtml } from "../bin/schema/check.mjs";
+import {
+  checkGraph, checkHtml, checkOrder,
+} from "../bin/schema/check.mjs";
 
 // The built graphs of the home page, a news post and /order/, as
-// layouts/partials/head/schema.html wrote them on 2026-09-28.
+// layouts/partials/head/schema.html wrote them (the order page's, with
+// its Products, on 2026-10-22).
 const fixture = (name) => JSON.parse(readFileSync(
   new URL(`fixtures/schema/${name}.json`, import.meta.url), "utf8"));
 const rules = (data) => checkGraph(data).map((f) => f.rule);
@@ -101,5 +104,32 @@ describe("the schema check", () => {
       checkHtml(page(fixture("order")), "index.html").map((f) => f.rule),
       ["S8"]);
     assert.deepEqual(checkHtml(page(fixture("home")), "index.html"), []);
+  });
+
+  it("wants a known availability and a price in dollars and cents", () => {
+    const data = fixture("order");
+    const [product] = data["@graph"].filter((n) => n["@type"] === "Product");
+
+    product.offers.availability = "https://schema.org/Maybe";
+    product.offers.price = "7";
+    assert.deepEqual(rules(data), ["S9", "S9"]);
+  });
+
+  it("wants a Product for each catalog item, at its price", () => {
+    const data = fixture("order");
+    const items = [
+      { sku: "NFF-CHK-EGG-LG", price: 7 },
+      { sku: "NFF-CHK-OLD", price: 3, restock: "archived" },
+    ];
+
+    assert.deepEqual(checkOrder(data, items.slice(0, 1)).map((f) => f.rule),
+      Array(data["@graph"].filter((n) => n["@type"] === "Product").length
+        - 1).fill("S9"));
+    assert.deepEqual(checkOrder(data, [{ sku: "NFF-CHK-EGG-LG", price: 8 }])
+      .filter((f) => /says 8/.test(f.message)).length, 1);
+    assert.deepEqual(checkOrder(data, [{ sku: "NFF-NEW", price: 1 }])
+      .filter((f) => /no Product for NFF-NEW/.test(f.message)).length, 1);
+    assert.equal(checkOrder(data, items).some(
+      (f) => /OLD/.test(f.message)), false);
   });
 });
