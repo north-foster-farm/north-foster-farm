@@ -32,7 +32,7 @@ import { notifyFarm, sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { pickupSchedule } from "./pickups.mjs";
 import {
-  REMINDERS, amendOrder, answerQuestion, cartKey, getOrder, keptFee,
+  REMINDERS, amendOrder, answerQuestion, cartKey, cartOwner, getOrder, keptFee,
   ordersFor, paidTotal, paymentRef, paymentsOf, questionOpen, refundedTotal,
   reminderPrefs, saveCustomer, settledRefunds,
 } from "./records.mjs";
@@ -615,11 +615,14 @@ export const saveAddress = async (stores, customer, address, {
   return { ok: true, customer: saved };
 };
 
+export { cartOwner };
+
 // The cart the customer carries across devices (#149): the account's
-// copy, or null when it has never had one.
+// copy, or null when it has never had one, and the account's tag.
 export const getCart = async (stores, customer) => ({
   ok: true,
   cart: (await stores.customers.get(cartKey(customer.email))) || null,
+  owner: cartOwner(customer.email),
 });
 
 // A device's copy, kept unless the account's is newer; either way the
@@ -640,19 +643,28 @@ export const saveCart = async (stores, customer, body, {
     return fail(422, { payload: "Expected a cart." });
   }
 
+  const owner = cartOwner(customer.email);
+
+  // A draft tagged for another account never lands on this one: it
+  // holds that person's details, left when their session ended without
+  // a sign-out.
+  if (b.owner && b.owner !== owner) {
+    return fail(409, { owner: "This cart belongs to another account." });
+  }
+
   const key = cartKey(customer.email);
   const stored = await stores.customers.get(key);
   const at = Math.min(savedAt, now.getTime());
 
   if (stored && stored.savedAt >= at) {
-    return { ok: true, cart: stored, kept: false };
+    return { ok: true, cart: stored, kept: false, owner };
   }
 
   const cart = { payload: b.payload ? cartOf(b.payload) : null, savedAt: at };
 
   await stores.customers.set(key, cart);
 
-  return { ok: true, cart, kept: true };
+  return { ok: true, cart, kept: true, owner };
 };
 
 // A return or problem report on an order. The farm answers by email

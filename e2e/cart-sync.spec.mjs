@@ -190,6 +190,99 @@ test.describe("the cart across devices (#149)", () => {
       expect(draft.payload.lines).toEqual([{ sku: EGGS, qty: 1 }]);
     });
 
+  // A session that ends without Sign out (cookies dropped), then a guest
+  // at the same browser, then another account signed in: neither sees
+  // nor receives the first customer's details.
+  test("a session ended without signing out leaves nothing of theirs",
+    async ({ page, context, baseURL }) => {
+      const ada = {
+        email: EMAIL, firstName: "Ada", lastName: "Hen",
+        phone: "4015550100", owner: "owner-ada",
+      };
+      const bo = {
+        email: "qa-e2e-cartsync-bo@example.com", firstName: "Bo",
+        lastName: "Ray", phone: "4015550111", owner: "owner-bo",
+      };
+      const puts = [];
+      let who = ada;
+
+      await page.route("**/api/me", (route) => route.fulfill({
+        json: who ? { signedIn: true, customer: who } : { signedIn: false },
+      }));
+      await page.route("**/api/account/cart", (route) => {
+        if (route.request().method() === "PUT") {
+          const body = route.request().postDataJSON();
+
+          puts.push(body);
+
+          return route.fulfill({ json: {
+            ok: true, kept: true, cart: body, owner: who.owner,
+          } });
+        }
+
+        const remote = who === ada ? {
+          payload: {
+            customer: { email: ada.email, firstName: ada.firstName,
+              lastName: ada.lastName, phone: ada.phone },
+            lines: [{ sku: EGGS, qty: 2 }],
+            fulfilment: { method: "delivery", delivery: {
+              address1: "1 Elm St", town: "Scituate", zip: "02857",
+              notes: "Gate code 1234",
+            } },
+            code: "",
+          },
+          savedAt: Date.now(),
+        } : null;
+
+        return route.fulfill({
+          json: { ok: true, cart: remote, owner: who.owner },
+        });
+      });
+      await cannedDates(page);
+
+      const signIn = () => context.addCookies([{
+        name: "nff_signed_in", value: String(Date.now()), url: baseURL,
+      }]);
+      const draft = () => page.evaluate(() => JSON.parse(
+        localStorage.getItem("nff-order-draft")
+      ));
+      const field = (name) => page.locator(
+        `#order-form [data-field="${name}"]`);
+
+      // Ada signs in; the account's cart and details arrive.
+      await signIn();
+      await page.goto("/order/");
+      await expect(qty(page, EGGS)).toHaveValue("2");
+      await expect(field("delivery.address1")).toHaveValue("1 Elm St");
+      expect((await draft()).owner).toBe("owner-ada");
+
+      // The session ends without Sign out; a guest opens the page.
+      await context.clearCookies();
+      who = null;
+      await page.reload();
+      await expect(qty(page, EGGS)).toHaveValue("2");
+      await expect(field("customer.email")).toHaveValue("");
+      await expect(field("delivery.address1")).toHaveValue("");
+
+      const left = await draft();
+
+      expect(left.owner).toBeUndefined();
+      expect(left.payload.customer).toEqual({});
+      expect(left.payload.fulfilment.delivery).toEqual({});
+
+      // Bo signs in at the same browser. Only what goes up from now on
+      // counts: Ada's own cart may have gone up under Ada.
+      puts.length = 0;
+      who = bo;
+      await signIn();
+      await page.reload();
+      await expect(field("customer.email")).not.toHaveValue(ada.email);
+      await page.waitForTimeout(2_500);
+      expect(JSON.stringify(puts)).not.toMatch(/Ada|Elm St|Gate code/);
+      expect(JSON.stringify(puts)).not.toContain(ada.email);
+      expect((await draft()).owner).toBe("owner-bo");
+    });
+
   test("a guest's cart stays in the browser",
     async ({ page, context, baseURL }) => {
       const state = await setUp(page, context, baseURL, {

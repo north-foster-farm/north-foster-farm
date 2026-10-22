@@ -67,6 +67,15 @@ export const signedOut = (payload) => {
   return { ...p, customer: {}, fulfilment: { ...f, delivery: {} } };
 };
 
+// Whether this browser's draft holds someone else's details and must
+// be scrubbed as at sign-out (signedOut). `owner` is the draft's tag
+// (undefined for a guest's draft); `account` is the tag of the account
+// signed in now, or null when no one is, or undefined when not yet
+// known. A session that ended without a sign-out, or a different
+// account signed in, leaves a draft tagged for someone not here.
+export const stray = (owner, account) => Boolean(owner)
+  && account !== undefined && owner !== account;
+
 // Which copy wins. `local` is the browser's draft ({ payload, savedAt }
 // or null); `remote` is the account's ({ payload | null, savedAt } or
 // null when it has never had one). -> "remote" to take the account's

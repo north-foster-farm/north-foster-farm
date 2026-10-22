@@ -7,10 +7,12 @@
 
 import {
   clearCookieHeader, clearStampHeader, cookieHeader, createSession,
-  endSession, normalizeEmail, peekToken, publicCustomer, requestLink, safeNext,
-  sameSite, sessionFrom, stampHeader, tokenEmail, verifyToken,
+  endSession, hasStamp, normalizeEmail, peekToken, publicCustomer,
+  requestLink, safeNext, sameSite, sessionFrom, stampHeader, tokenEmail,
+  verifyToken,
 } from "./lib/auth.mjs";
 import { finishEmailChange } from "./lib/email-change.mjs";
+import { cartOwner } from "./lib/records.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
@@ -200,13 +202,18 @@ export const handle = async (req, {
       ? { maintenance: true, message: MESSAGE }
       : {};
 
-    if (!session) return json(200, { signedIn: false, ...closed });
+    if (!session) {
+      return json(200, { signedIn: false, ...closed },
+        hasStamp(req) ? { "Set-Cookie": clearStampHeader() } : {});
+    }
 
+    // `owner`: the tag of this account's cart draft (#149).
     return json(200, {
       ...closed,
       signedIn: true,
       via: session.via,
       customer: publicCustomer(session.customer),
+      owner: cartOwner(session.email),
     });
   }
 

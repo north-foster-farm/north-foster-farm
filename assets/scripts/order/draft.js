@@ -107,6 +107,22 @@ export class Draft {
     this.touch();
   }
 
+  // The account this draft belongs to (an opaque tag from the server),
+  // or undefined for a guest's. Set when the draft is pulled or saved
+  // signed in, so a session that ends without a sign-out still leaves
+  // a draft the next page knows to scrub (#149, forgetCustomer).
+  owner() {
+    return this.current().owner;
+  }
+
+  setOwner(owner) {
+    const current = this.current();
+
+    if (current.payload && current.owner !== owner) {
+      this.put({ ...current, owner });
+    }
+  }
+
   // The time the account keeps for this draft, when it differs.
   restamp(savedAt) {
     const current = this.current();
@@ -175,10 +191,20 @@ export class Draft {
 
 // Signing out takes the customer's details and address out of the
 // draft and leaves the cart, so the next person at this browser starts
-// clean (lib/cart-sync.mjs, signedOut).
+// clean (lib/cart-sync.mjs, signedOut). The draft is then a guest's,
+// with no owner. Also run when a session ended any other way, or the
+// draft belongs to another account (session/cart-sync.js).
 export const forgetCustomer = () => {
   const current = read(DRAFT);
 
-  if (!current || !current.payload) return;
-  write(DRAFT, { ...current, payload: signedOut(current.payload) });
+  if (!current) return;
+
+  const { owner, ...rest } = current;
+
+  if (!current.payload) {
+    if (owner) write(DRAFT, rest);
+
+    return;
+  }
+  write(DRAFT, { ...rest, payload: signedOut(current.payload) });
 };

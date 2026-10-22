@@ -253,6 +253,13 @@ export const stampHeader = (now, { maxAge = SESSION_TTL / 1000 } = {}) =>
 export const clearStampHeader = () =>
   `${STAMP}=; Path=/; Secure; SameSite=Lax; Max-Age=0`;
 
+// Whether the request carries a stamp: a page that thinks it is signed
+// in. With no live session behind it (it ended on the server: the
+// account deleted, the CLI, the sweep), the answer clears it, so the
+// page knows it is signed out (#149).
+export const hasStamp = (req) => new RegExp(`(?:^|;\\s*)${STAMP}=[^;]`)
+  .test(req.headers.get("cookie") || "");
+
 export const cookieFrom = (req) => {
   const raw = req.headers.get("cookie") || "";
   const match = raw.match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]+)`));

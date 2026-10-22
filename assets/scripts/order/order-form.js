@@ -37,7 +37,9 @@ import { Stock } from "./stock.js";
 import { Submitter } from "./submit.js";
 import { announceCart } from "../cart-badge/announce.js";
 import { stampFrom } from "../session/cache.js";
-import { pullCart } from "../session/cart-sync.js";
+import {
+  SCRUBBED, pullCart, scrubStray,
+} from "../session/cart-sync.js";
 import { me } from "../session/session.js";
 import { api } from "../utils/api.js";
 import { setBusy as spin } from "../utils/busy-button.js";
@@ -46,6 +48,10 @@ import { whileLoading } from "../utils/skeleton.js";
 // A send that can't get through is tried once more this soon, while
 // the page still shows it being placed, and then not again (#154).
 const RETRY_DELAY = 3000;
+
+// The customer's details and delivery address: what signing out (or a
+// scrub of another account's draft) takes out of the draft (#149).
+const DETAIL_FIELDS = "[data-field^='customer.'], [data-field^='delivery.']";
 
 // The code that is a joke: the cart shows a discount growing by this
 // much a minute for as long as the page is open, and nothing else
@@ -228,7 +234,18 @@ export class OrderForm {
     // This browser's draft first, so the form is never empty while the
     // account's copy is on its way: a change made meanwhile saves the
     // whole cart, and is newer than the account's. The account's copy
-    // replaces it only when nothing changed here (#149).
+    // replaces it only when nothing changed here (#149). A draft left
+    // by someone not signed in here loses its details before it is
+    // shown: signed out, at once; signed in, once /api/me (usually
+    // cached) names the account, and only for a draft tagged at all.
+    window.addEventListener(SCRUBBED, () => this.clearDetails());
+    if (!stampFrom(document.cookie)) {
+      scrubStray(null);
+    } else if (this.draft.owner()) {
+      const who = await me().catch(() => ({ signedIn: false }));
+
+      scrubStray(who.signedIn ? who.owner : null);
+    }
     this.resume();
     if (await pullCart()) this.resume({ fresh: true });
 
@@ -2309,12 +2326,24 @@ export class OrderForm {
 
   // Fills the form from the saved draft. `fresh` first empties the
   // cart, for a draft that replaced the one already shown.
+  // Empties the details and address on the form, as a scrub of the
+  // draft did (#149), then fills in the signed-in customer's own.
+  clearDetails({ prefill = true } = {}) {
+    for (const el of all(this.form, DETAIL_FIELDS)) {
+      if (!["checkbox", "radio"].includes(el.type)) el.value = "";
+    }
+    if (prefill) me().then((who) => this.signedIn(who)).catch(() => {});
+  }
+
   resume({ fresh = false } = {}) {
     const draft = this.draft.load();
 
     if (!draft || !draft.payload) return;
     if (fresh) {
       for (const input of all(this.form, "[data-qty]")) this.setQty(input, 0);
+      // Details shown before go first (perhaps another account's, now
+      // scrubbed), since restore() fills only what the draft holds.
+      this.clearDetails({ prefill: false });
     }
     this.restore(draft.payload);
   }

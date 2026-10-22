@@ -72,7 +72,12 @@ export const handle = async (req, {
 
   const session = await sessionFrom(stores, req, { now });
 
-  if (!session) return json(401, { error: "Please sign in." });
+  // No live session: the stamp goes too, so the page stops thinking
+  // it is signed in (#149).
+  if (!session) {
+    return json(401, { error: "Please sign in." },
+      { "Set-Cookie": clearStampHeader() });
+  }
 
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/+$/, "");

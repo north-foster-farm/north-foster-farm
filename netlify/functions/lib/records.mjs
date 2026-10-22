@@ -21,6 +21,8 @@
 // waits under `checkout/<key>` between the two, and a PayPal webhook
 // can finish it if the browser never came back.
 
+import { createHash } from "node:crypto";
+
 import { now as clock } from "./clock.mjs";
 
 export const OPEN = ["paid"];
@@ -514,6 +516,13 @@ export const customerKey = (email) => `customer/${emailKey(email)}`;
 
 // The cart a signed-in customer carries across devices (#149).
 export const cartKey = (email) => `cart/${emailKey(email)}`;
+
+// Which account a browser's draft belongs to, without the email: the
+// browser tags its draft with this and scrubs a draft tagged for
+// another account (#149, session/cart-sync.js). /api/me and the cart
+// endpoints send it.
+export const cartOwner = (email) => createHash("sha256")
+  .update(emailKey(email)).digest("hex").slice(0, 16);
 
 // Which reminder emails a customer takes. On unless the record says
 // otherwise, so a customer who never visited the settings tab, or a
