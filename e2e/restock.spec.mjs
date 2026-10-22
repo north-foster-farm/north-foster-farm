@@ -158,6 +158,20 @@ test.describe("restock types (#267)", () => {
       await expect(r).toHaveAttribute("data-stock", "out");
       await expect(r.locator(".order-item-stock")).toHaveText(LABEL[type]);
       await expect(r.locator(".order-qty")).toBeHidden();
+      // No price but on "Back soon"; the label stands where Add goes,
+      // at the row's right (#274, round 5).
+      await expect(r.locator(".order-item-price"))
+        .toBeVisible({ visible: type === "soon" });
+      if (type !== "soon") {
+        const gap = await r.evaluate((el) => {
+          const note = el.querySelector(".order-item-stock")
+            .getBoundingClientRect();
+
+          return el.getBoundingClientRect().right - note.right;
+        });
+
+        expect(gap, type).toBeLessThan(40);
+      }
       await expect(r.locator("[data-qty]")).toBeDisabled();
       for (const b of await r.locator("[data-step]").all()) {
         await expect(b).toBeDisabled();

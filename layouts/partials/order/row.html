@@ -3,7 +3,7 @@
      `data-archived`: it stays hidden unless a paid order being
      changed holds it (order/restock.js). */}}
 {{ $id := printf "qty-%s" (.sku | lower) }}
-<li class="order-item" data-sku="{{ .sku }}" data-restock-label="{{ .restockLabel }}" tabindex="-1"{{ if eq .restock "archived" }} data-archived{{ end }}{{ if .out }} data-out{{ with .restockLabel }} data-stock="out"{{ end }} hidden{{ end }}>
+<li class="order-item" data-sku="{{ .sku }}" data-restock-label="{{ .restockLabel }}"{{ with .restock }} data-restock="{{ . }}"{{ end }} tabindex="-1"{{ if eq .restock "archived" }} data-archived{{ end }}{{ if .out }} data-out{{ with .restockLabel }} data-stock="out"{{ end }} hidden{{ end }}>
   <span class="order-item-name">
     {{/* Capitalized here, never in the catalog (#278). */}}
     <label for="{{ $id }}">{{ .row | strings.FirstUpper }}</label>

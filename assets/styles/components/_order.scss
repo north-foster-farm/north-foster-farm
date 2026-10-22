@@ -516,6 +516,33 @@
     visibility: hidden;
   }
 
+  // Out until spring, on hiatus or not available: no price, and the
+  // label stands where Add goes (#274 round 5). "Back soon" keeps
+  // its price.
+  .order-item[data-stock="out"]:not([data-restock="soon"]) {
+    grid-template-areas:
+      "name  name  qty"
+      "error error error";
+
+    .order-item-price,
+    .order-qty {
+      display: none;
+    }
+
+    .order-item-stock {
+      grid-area: qty;
+      align-self: center;
+      font-size: 0.875rem;
+      text-align: center;
+    }
+
+    @media (max-width: 30rem) {
+      grid-template-areas:
+        "name  qty"
+        "error error";
+    }
+  }
+
   // The heading stands in the flow where the pane settles, a
   // category's distance below the catalog and a legend's above the
   // pane.
