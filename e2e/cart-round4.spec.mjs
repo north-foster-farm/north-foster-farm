@@ -414,3 +414,52 @@ test("at 501px tall the cart floats again", async ({ page }, testInfo) => {
   await midCatalog(order);
   await expect(order.cart).toHaveAttribute("data-stuck", "true");
 });
+
+// #274, round 4 part 2: in a narrow floating cart a label too long for
+// its button wraps instead of overflowing, the button beside it grows
+// to the same height, and Hide or Expand shares a row with Continue.
+for (const width of [320, 390]) {
+  test(`at ${width}px the cart's rows wrap and keep even`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 760 });
+
+    const order = new OrderPage(page);
+
+    await order.open({ wings: 15 });
+    await page.evaluate(() => window.scrollTo(0, 500));
+    await order.scrollSettled();
+    await expect(order.cart).toHaveAttribute("data-stuck", "true");
+    if (await order.cart.getAttribute("data-open") !== "true") {
+      await order.cart.locator("[data-cart-toggle]").click();
+    }
+    if (await order.cart.getAttribute("data-money") !== "open") {
+      await order.cart.locator("[data-cart-money-toggle]").click();
+    }
+    await expect(order.cart.locator("[data-way-toggle]")).toBeVisible();
+    await page.waitForTimeout(500);
+
+    const seen = await order.cart.evaluate((cart) => {
+      const rect = (s) => cart.querySelector(s).getBoundingClientRect();
+      const fits = (s) => {
+        const el = cart.querySelector(s);
+
+        return el.scrollWidth <= el.clientWidth + 1;
+      };
+      const way = rect("[data-way-toggle]");
+      const code = rect("[data-code-toggle]");
+      const pill = rect("[data-cart-toggle]");
+      const next = rect("[data-checkout]");
+
+      return {
+        fits: fits("[data-way-toggle]") && fits("[data-checkout]"),
+        share: Math.abs(way.height - code.height) < 1
+          && Math.abs(way.top - code.top) < 1,
+        foot: Math.abs(pill.top - next.top) < 1
+          && Math.abs(pill.height - next.height) < 1,
+      };
+    });
+
+    expect(seen).toEqual({ fits: true, share: true, foot: true });
+  });
+}

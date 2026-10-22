@@ -949,17 +949,22 @@
     }
   }
 
+  // A label too long for its half of the row takes a second line, and
+  // the button beside it grows to match, never overflowing (#274,
+  // round 4 part 2: "On-farm pickup" at 320).
   .order-cart-way,
   .order-cart-add-code {
+    box-sizing: border-box;
     min-width: 0;
-    white-space: nowrap;
+    min-height: 2.25rem;
+    padding-block: 0.25rem;
+    line-height: 1.2;
+    text-align: center;
   }
 
-  // One height for everything the shared row shows, so opening the
-  // field or the switch moves nothing: the two buttons, the three ways,
-  // the code field and Apply.
-  .order-cart-way,
-  .order-cart-add-code,
+  // One height for what the shared row opens into, so opening the
+  // field or the switch moves nothing where the labels fit one line:
+  // the three ways, the code field and Apply.
   .order-cart-pick,
   .order-cart-code-input,
   .order-cart-apply {
@@ -1089,11 +1094,15 @@
   // the nudge under it. The button fills the room beside the toggle
   // until that would make it wider than about 370px; from there it
   // is as wide as its words.
+  // Hide or Expand and Continue keep one row however narrow: Continue
+  // starts from no width and takes the room left, its label taking a
+  // second line if it must, and the pill grows to its height (#274,
+  // round 4 part 2).
   .order-cart-end {
     container: cart-end / inline-size;
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: stretch;
     gap: 0 0.75rem;
   }
 
@@ -1108,6 +1117,7 @@
 
   .order-cart-icon {
     display: inline-flex;
+    flex: none;
 
     svg {
       width: 1rem;
@@ -1288,9 +1298,10 @@
     align-items: center;
     justify-content: center;
     gap: 0.375rem;
+    flex: none;
     min-width: 6.25rem;
     max-width: 10rem;
-    height: 2.25rem;
+    min-height: 2.25rem;
     padding: 0 0.875rem;
     overflow: hidden;
     border: 1px solid var(--bs-border-color-translucent);
@@ -1356,9 +1367,12 @@
 
   .order-cart-next {
     display: inline-flex;
-    flex: 1 1 auto;
+    flex: 1 1 0;
+    align-items: center;
     justify-content: center;
+    min-width: 0;
     margin-left: auto;
+    text-align: center;
   }
 
   @container cart-end (min-width: 30rem) {
