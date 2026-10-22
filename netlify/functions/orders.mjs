@@ -340,7 +340,14 @@ export const handle = async (req, {
   const waived = result.order.flags.minimumWaived
     || !!result.order.totals.feeWaived;
 
-  if (waived && !pass.standing) await holdPass(stores, pass, key, now);
+  // Held by a swap (#301): another submission that took the pass in
+  // the meantime wins, and this one is refused like any spent code.
+  if (waived && !pass.standing
+    && !(await holdPass(stores, pass, key, now))) {
+    return json(422, {
+      errors: { pass: PASS_MESSAGES.held },
+    });
+  }
 
   const order = {
     id,

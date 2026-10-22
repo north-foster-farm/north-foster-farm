@@ -131,27 +131,50 @@ export const passProblem = (pass, {
   return heldElsewhere ? "held" : null;
 };
 
-// `holder` is the submission's key (orders.mjs).
-export const holdPass = async (stores, pass, holder, now = new Date()) => {
-  const held = { ...pass, heldBy: holder, heldAt: now.toISOString() };
+// How many times a change to a pass reads it again after losing a
+// swap to another writer before giving up.
+const SWAPS = 5;
 
-  await stores.orders.set(passKey(pass.code), held);
+// Reads the pass, lets `change` decide from what is stored now, and
+// writes the result only if no one wrote in between (#301): two
+// function instances can no longer both take one pass. `change` -> the
+// new record, or null to write nothing. -> what was written, or null.
+const swapPass = async (stores, code, change) => {
+  const key = passKey(code);
 
-  return held;
+  for (let i = 0; i < SWAPS; i++) {
+    const found = await stores.orders.getTagged(key);
+    const next = found ? change(found.value) : null;
+
+    if (!next) return null;
+    if (await stores.orders.swap(key, next, found.etag)) return next;
+  }
+
+  throw new Error(`Pass ${code} kept changing; try again.`);
 };
 
+// `holder` is the submission's key (orders.mjs). Checked again against
+// the pass as stored, then swapped in: -> the held pass, or null when
+// another submission holds it or it was used or revoked meanwhile, and
+// the order must be refused.
+export const holdPass = (stores, pass, holder, now = new Date()) =>
+  swapPass(stores, pass.code, (stored) => (
+    passProblem(stored, { holder, now })
+      ? null
+      : { ...stored, heldBy: holder, heldAt: now.toISOString() }
+  ));
+
 // Idempotent: a retried write of the same order finds it used by that
-// order and leaves it. A standing pass is never used up.
+// order and leaves it. A standing pass is never used up. -> the pass as
+// stored after.
 export const usePass = async (stores, code, orderId, now = new Date()) => {
-  const pass = await getPass(stores, code);
+  const used = await swapPass(stores, passCodeOf(code), (stored) => (
+    stored.usedBy || stored.standing
+      ? null
+      : { ...stored, usedBy: orderId, usedAt: now.toISOString() }
+  ));
 
-  if (!pass || pass.usedBy || pass.standing) return pass;
-
-  const used = { ...pass, usedBy: orderId, usedAt: now.toISOString() };
-
-  await stores.orders.set(passKey(pass.code), used);
-
-  return used;
+  return used || getPass(stores, code);
 };
 
 export const revokePass = async (stores, value, now = new Date()) => {

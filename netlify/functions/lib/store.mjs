@@ -11,6 +11,11 @@
 // `create(key, value)` writes only if the key is new and says whether
 // it did: Blobs' `onlyIfNew`, a conditional write the server decides,
 // so of two racing creates exactly one wins (#253).
+//
+// `getTagged(key)` reads a document with its etag, -> { value, etag }
+// or null, and `swap(key, value, etag)` writes it only if the etag
+// still matches and says whether it did: Blobs' `onlyIfMatch`, so of
+// two racing changes to one document exactly one wins (#301).
 
 import { getStore } from "@netlify/blobs";
 
@@ -42,6 +47,18 @@ export const wrap = (blobs) => ({
 
     return modified;
   },
+  getTagged: async (key) => {
+    const found = await blobs.getWithMetadata(key, { type: "json" });
+
+    return found ? { value: found.data, etag: found.etag } : null;
+  },
+  swap: async (key, value, etag) => {
+    const { modified } = await blobs.setJSON(key, value, {
+      onlyIfMatch: etag,
+    });
+
+    return modified;
+  },
   delete: (key) => blobs.delete(key),
   // -> [{ key }] with the prefix kept, sorted by key.
   list: async (prefix) => {
@@ -53,29 +70,59 @@ export const wrap = (blobs) => ({
   },
 });
 
-export const memoryStore = (seed = new Map()) => ({
-  data: seed,
-  get: async (key) => (seed.has(key)
-    ? JSON.parse(JSON.stringify(seed.get(key)))
-    : null),
-  set: async (key, value) => {
+// Every write gives the key a new etag, as Blobs does.
+export const memoryStore = (seed = new Map()) => {
+  const tags = new Map();
+  let next = 0;
+  const put = (key, value) => {
     seed.set(key, JSON.parse(JSON.stringify(value)));
-  },
-  // Check and write with no await between them: atomic in one process.
-  create: async (key, value) => {
-    if (seed.has(key)) return false;
-    seed.set(key, JSON.parse(JSON.stringify(value)));
+    next += 1;
+    tags.set(key, `m${next}`);
+  };
+  const tagOf = (key) => {
+    if (!tags.has(key)) {
+      next += 1;
+      tags.set(key, `m${next}`);
+    }
 
-    return true;
-  },
-  delete: async (key) => {
-    seed.delete(key);
-  },
-  list: async (prefix) => [...seed.keys()]
-    .filter((k) => k.startsWith(prefix))
-    .sort()
-    .map((key) => ({ key })),
-});
+    return tags.get(key);
+  };
+
+  return {
+    data: seed,
+    get: async (key) => (seed.has(key)
+      ? JSON.parse(JSON.stringify(seed.get(key)))
+      : null),
+    set: async (key, value) => {
+      put(key, value);
+    },
+    // Check and write with no await between them: atomic in one
+    // process.
+    create: async (key, value) => {
+      if (seed.has(key)) return false;
+      put(key, value);
+
+      return true;
+    },
+    getTagged: async (key) => (seed.has(key)
+      ? { value: JSON.parse(JSON.stringify(seed.get(key))), etag: tagOf(key) }
+      : null),
+    swap: async (key, value, etag) => {
+      if (!seed.has(key) || tagOf(key) !== etag) return false;
+      put(key, value);
+
+      return true;
+    },
+    delete: async (key) => {
+      seed.delete(key);
+      tags.delete(key);
+    },
+    list: async (prefix) => [...seed.keys()]
+      .filter((k) => k.startsWith(prefix))
+      .sort()
+      .map((key) => ({ key })),
+  };
+};
 
 // Blobs is configured when Netlify runs the function, or when a site
 // id and token are given (the CLI does this).

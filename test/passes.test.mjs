@@ -614,3 +614,70 @@ describe("passes that waive the fee", () => {
     assert.equal(plan.ok, true, JSON.stringify(plan.errors));
   });
 });
+
+// Security's race (#301): two submissions of one single-use pass on two
+// function instances, interleaved. Each read and checked the pass
+// before either wrote; the swap lets one hold it.
+describe("holding a pass is a compare-and-swap", () => {
+  it("lets one of two racing holds win", async () => {
+    const stores = testStores();
+    const pass = await issuePass(stores, { now, pick: picks("ABCD-EFGH") });
+    const [a, b] = await Promise.all([
+      getPass(stores, pass.code), getPass(stores, pass.code),
+    ]);
+
+    assert.equal(passProblem(a, { holder: KEY, now }), null);
+    assert.equal(passProblem(b, { holder: OTHER, now }), null);
+
+    const held = await Promise.all([
+      holdPass(stores, a, KEY, now), holdPass(stores, b, OTHER, now),
+    ]);
+
+    assert.equal(held.filter(Boolean).length, 1);
+    assert.equal((await getPass(stores, pass.code)).heldBy,
+      held[0] ? KEY : OTHER);
+  });
+
+  it("lets the same submission hold it again", async () => {
+    const stores = testStores();
+    const pass = await issuePass(stores, { now, pick: picks("ABCD-EFGH") });
+
+    assert.ok(await holdPass(stores, pass, KEY, now));
+    assert.ok(await holdPass(stores, pass, KEY, now));
+  });
+
+  it("refuses the order that loses, after the check passed", async () => {
+    const stores = testStores();
+    const pass = await issuePass(stores, { now, pick: picks("ABCD-EFGH") });
+    // Another instance holds it between this one's check and its hold.
+    const orders = stores.orders;
+    const swap = orders.swap;
+
+    orders.swap = async (...args) => {
+      orders.swap = swap;
+      await holdPass(stores, pass, OTHER, now);
+
+      return swap(...args);
+    };
+
+    const res = await run(stores, small({ pass: pass.code }));
+
+    assert.equal(res.status, 422);
+    assert.equal((await res.json()).errors.pass,
+      "That code isn't valid.");
+    assert.equal(await orderForSubmission(stores, KEY), null);
+    assert.equal((await getPass(stores, pass.code)).heldBy, OTHER);
+  });
+
+  it("uses a pass once, whichever order is first", async () => {
+    const stores = testStores();
+    const pass = await issuePass(stores, { now, pick: picks("ABCD-EFGH") });
+
+    await Promise.all([
+      usePass(stores, pass.code, "NFF-1", now),
+      usePass(stores, pass.code, "NFF-2", now),
+    ]);
+    assert.equal((await getPass(stores, pass.code)).usedBy, "NFF-1");
+  });
+});
+
