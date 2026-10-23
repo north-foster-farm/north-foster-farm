@@ -2324,8 +2324,6 @@ export class OrderForm {
     };
   }
 
-  // Fills the form from the saved draft. `fresh` first empties the
-  // cart, for a draft that replaced the one already shown.
   // Empties the details and address on the form, as a scrub of the
   // draft did (#149), then fills in the signed-in customer's own.
   clearDetails({ prefill = true } = {}) {
@@ -2335,6 +2333,8 @@ export class OrderForm {
     if (prefill) me().then((who) => this.signedIn(who)).catch(() => {});
   }
 
+  // Fills the form from the saved draft. `fresh` first empties the
+  // cart, for a draft that replaced the one already shown.
   resume({ fresh = false } = {}) {
     const draft = this.draft.load();
 
