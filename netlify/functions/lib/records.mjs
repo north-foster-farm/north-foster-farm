@@ -404,7 +404,6 @@ export const deleteCheckout = async (stores, key, paypalOrderId = null) => {
   return true;
 };
 
-// Every checkout older than the TTL is dropped. -> how many.
 export const listCheckouts = async (stores) => {
   const found = [];
 
@@ -417,14 +416,21 @@ export const listCheckouts = async (stores) => {
   return found;
 };
 
-export const sweepCheckouts = async (stores, now = clock()) => {
+// Every checkout older than the TTL is dropped, except one in `keep`
+// (order ids): its rescue failed this run, and it may hold a payment
+// PayPal approved, so it waits for the next run. -> how many.
+export const sweepCheckouts = async (stores, now = clock(), {
+  keep = new Set(),
+} = {}) => {
   const cutoff = now.getTime() - CHECKOUT_TTL;
   let swept = 0;
 
   for (const { key } of await stores.orders.list("checkout/")) {
     const checkout = await stores.orders.get(key);
 
-    if (!checkout || Date.parse(checkout.at) < cutoff) {
+    const held = checkout && checkout.order && keep.has(checkout.order.id);
+
+    if (!held && (!checkout || Date.parse(checkout.at) < cutoff)) {
       await deleteCheckout(stores, key.slice("checkout/".length));
       swept += 1;
     }

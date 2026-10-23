@@ -288,6 +288,9 @@ export const runJobs = async (stores, {
   }
 
   // Before the sweep, so an approved payment is never dropped unpaid.
+  // A checkout whose rescue failed is kept by the sweep for the next run.
+  const unrescued = new Set();
+
   if (paypal) {
     for (const checkout of (await attempt(null, "checkouts",
       () => listCheckouts(stores))) || []) {
@@ -295,6 +298,10 @@ export const runJobs = async (stores, {
         "rescue", () => rescueCheckout(stores, checkout, {
           ...opts, paypal, square, fetchImpl, finishEdit: finishEditVenmo,
           editOpen,
+        }).catch((error) => {
+          if (checkout.order) unrescued.add(checkout.order.id);
+
+          throw error;
         }));
 
       if (saved) {
@@ -308,7 +315,7 @@ export const runJobs = async (stores, {
   report.rebuilt = (await attempt(null, "rebuild",
     () => rebuildDaily(stores, { env, now: realNow, fetchImpl, fail }))) || [];
   report.checkoutsSwept = (await attempt(null, "checkouts",
-    () => sweepCheckouts(stores, realNow))) || 0;
+    () => sweepCheckouts(stores, realNow, { keep: unrescued }))) || 0;
   report.authSwept = (await attempt(null, "auth",
     () => sweepAuth(stores, realNow))) || 0;
   report.scrubbed = (await attempt(null, "retention",

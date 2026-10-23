@@ -376,6 +376,18 @@ describe("checkouts", () => {
     assert.equal(await sweepCheckouts(stores, now), 0);
     assert.equal(CHECKOUT_TTL, 24 * 60 * 60_000);
   });
+
+  it("are kept past the TTL when their rescue failed this run", async () => {
+    const stores = testStores();
+    const old = new Date(now.getTime() - CHECKOUT_TTL - 60_000);
+
+    await saveCheckout(stores, checkout("stuck", old));
+    await saveCheckout(stores, checkout("done", old));
+    assert.equal(await sweepCheckouts(stores, now,
+      { keep: new Set(["NFF-stuck"]) }), 1);
+    assert.equal((await getCheckout(stores, "stuck")).key, "stuck");
+    assert.equal(await getCheckout(stores, "done"), null);
+  });
 });
 
 describe("the auth sweep (#189)", () => {

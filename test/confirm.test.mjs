@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { confirmation, confirmed } from "../bin/confirm.mjs";
+import { GUARDED, confirmation, confirmed } from "../bin/confirm.mjs";
 
 const cancel = { group: "orders", action: "cancel", rest: ["NFF-1"] };
 // A terminal that types `answer`, and what it was asked.
@@ -28,6 +28,35 @@ describe("bin/nff's production confirmation (#268)", () => {
       rest: ["pat@example.com"] }).phrase, "pat@example.com");
     assert.equal(confirmation({ group: "stock", action: "set",
       rest: ["NFF-CHK-EGG-LG", "5"] }).phrase, "NFF-CHK-EGG-LG");
+  });
+
+  it("names the customer, pass or sweep the other commands act on", () => {
+    const phrase = (group, action, rest = [], flags = {}) =>
+      confirmation({ group, action, rest, flags })?.phrase;
+
+    assert.equal(phrase("orders", "move", ["NFF-1", "2026-10-30"]), "NFF-1");
+    assert.equal(phrase("customers", "set", ["a@example.com", "x=1"]),
+      "a@example.com");
+    assert.equal(phrase("address", "deny", ["a@example.com"]),
+      "a@example.com");
+    assert.equal(phrase("passes", "revoke", ["PASS-1"]), "PASS-1");
+    assert.equal(phrase("maintenance", "on"), "maintenance on");
+    assert.equal(phrase("schedule", "set", ["file.json"]), "schedule set");
+    assert.equal(phrase("jobs", "run"), "jobs run");
+    assert.equal(phrase("audience", "sync"), "audience sync");
+    assert.equal(phrase("audience", "sync", [], { "dry-run": true }),
+      undefined);
+  });
+
+  it("guards square deletions pause and resume, not status", () => {
+    const phrase = (word) => confirmation({
+      group: "square", action: "deletions", rest: word ? [word] : [],
+    })?.phrase;
+
+    assert.equal(phrase("pause"), "square deletions");
+    assert.equal(phrase("resume"), "square deletions");
+    assert.equal(phrase("status"), undefined);
+    assert.equal(phrase(), undefined);
   });
 
   it("leaves reads, and a command with no target, alone", () => {
@@ -96,4 +125,32 @@ describe("bin/nff's production confirmation (#268)", () => {
     assert.ok(source.indexOf("await confirmed(")
       < source.indexOf("switch (`${group} ${action}`)"));
   });
+
+  it("covers every command in bin/nff that is not on the read list",
+    async () => {
+      const { readFileSync } = await import("node:fs");
+      const source = readFileSync(new URL("../bin/nff", import.meta.url),
+        "utf8");
+      const switchBody = source.slice(
+        source.indexOf("switch (`${group} ${action}`)"));
+      const commands = [...switchBody.matchAll(/^ {2}case "([^"]+)":/gm)]
+        .map((m) => m[1]);
+      // Commands that change nothing in the stores, or that ask for
+      // themselves (sessions end-all) or sit behind another gate.
+      const harmless = new Set([
+        "customers list", "customers show", "customers quiet",
+        "orders list", "orders occurrences", "orders show",
+        "events undefined", "events new", "refunds check", "stock list",
+        "schedule check", "passes issue", "passes list",
+        "jobs history", "health", "alert test", "mail test-dev",
+        "maintenance status", "maintenance links",
+        "sessions end-all", "errors show",
+      ]);
+      const open = commands.filter(
+        (c) => !GUARDED.includes(c) && !harmless.has(c));
+
+      assert.ok(commands.length > 40, `found ${commands.length} cases`);
+      assert.deepEqual(open, [], "a bin/nff command is neither guarded " +
+        "nor on the list of those that change nothing");
+    });
 });

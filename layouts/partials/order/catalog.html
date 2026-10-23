@@ -6,7 +6,7 @@
      row the catalog marks out of stock starts hidden, and so does a
      category with nothing in stock, with its link; order/stock.js
      takes over once /api/stock answers. */}}
-<div class="order-catalog" id="order-catalog" tabindex="0">
+<div class="order-catalog" id="order-catalog" role="region" aria-label="Products" tabindex="0">
   {{ partial "skeleton/status.html" (dict "failed" "We couldn't check what's in stock.") }}
   {{ range $groups }}
     <section class="order-cat" id="cat-{{ .key }}" aria-labelledby="cat-{{ .key }}-h"{{ if .out }} hidden{{ end }}>
