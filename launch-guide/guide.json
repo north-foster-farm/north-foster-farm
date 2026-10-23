@@ -1,5 +1,5 @@
 {
- "revision": 40,
+ "revision": 41,
  "updated": "2026-10-22",
  "notice": null,
  "phases": [
@@ -4587,6 +4587,61 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/303"
       }
      ]
+    }
+   ]
+  },
+  {
+   "id": "D-STOCK",
+   "section": "rv-decide",
+   "title": "The In stock switch: on the heading row, or under it?",
+   "area": "#303 Tier 0, #274",
+   "device": "any",
+   "type": "decide",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-22",
+     "changed": "Mock-ups of both placements, at 1280 and 390.",
+     "summary": "The order page's \"In stock / Full catalog\" control becomes one switch, \"In stock only\" (draft), on by default. Pick where it sits beside \"Place an order\":\n\n- **A:** on the heading row, at the right edge of the catalog column.\n- **B:** directly under the heading, on the left.\n\n**The pick only changes desktop.** At 390 A and B are identical: the heading is in the sticky top bar there, so the switch is the first thing in the catalog and scrolls away. The mock-ups come from a throwaway build, so \"off\" doesn't grey the out-of-stock rows. Nothing is built until you pick.",
+     "look": [
+      {
+       "label": "The mock-ups on #274",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/274#issuecomment-6355697769"
+      },
+      {
+       "label": "A at 1280, on",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/8136e79f/launch-guide/feedback/control/a-1280-on.png?raw=true"
+      },
+      {
+       "label": "A at 1280, off",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/8136e79f/launch-guide/feedback/control/a-1280-off.png?raw=true"
+      },
+      {
+       "label": "B at 1280, on",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/8136e79f/launch-guide/feedback/control/b-1280-on.png?raw=true"
+      },
+      {
+       "label": "B at 1280, off",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/8136e79f/launch-guide/feedback/control/b-1280-off.png?raw=true"
+      },
+      {
+       "label": "390, on (A and B are the same)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/8136e79f/launch-guide/feedback/control/a-390-on.png?raw=true"
+      },
+      {
+       "label": "390, off",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/8136e79f/launch-guide/feedback/control/a-390-off.png?raw=true"
+      },
+      {
+       "label": "A, focus ring",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/8136e79f/launch-guide/feedback/control/a-1280-focus.png?raw=true"
+      },
+      {
+       "label": "B, focus ring",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/8136e79f/launch-guide/feedback/control/b-1280-focus.png?raw=true"
+      }
+     ],
+     "recommendation": "A: it costs no height above the catalog, and it is the placement you preferred in #303."
     }
    ]
   }
