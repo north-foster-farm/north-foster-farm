@@ -77,6 +77,8 @@ test.describe("order page", () => {
       await expect(line).toHaveCount(1);
       await expect(line.locator(".order-cart-item-name"))
         .toHaveText("Large");
+      // The grade stays on the order page row; the cart omits it (#320).
+      await expect(line).not.toContainText("Grade A");
       await expect(line.locator(".order-cart-item-qty")).toHaveText("2 × $7");
       await expect(line.locator(".order-cart-item-sub")).toHaveText("$14");
       await expect(order.cart.locator(".order-cart-group-name"))

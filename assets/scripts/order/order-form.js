@@ -2195,11 +2195,6 @@ export class OrderForm {
         row.appendChild(
           make("span", "order-cart-item-name", packLabel(item.row))
         );
-        if (item.note) {
-          row.lastChild.appendChild(
-            make("span", "order-cart-item-note", ` · ${item.note}`)
-          );
-        }
         row.appendChild(make("span", "order-cart-item-qty", item.qtyText));
         row.appendChild(make("span", "order-cart-item-sub", item.subtotal));
         items.appendChild(row);

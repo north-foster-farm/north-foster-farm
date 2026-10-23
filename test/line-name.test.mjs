@@ -84,6 +84,13 @@ describe("line names", () => {
     assert.equal(group.items[0].lineName, "Livers, 1.0 – 1.4 lbs");
   });
 
+  it("keep the egg grade out of the cart (#320)", () => {
+    const [group] = itemGroups([{ sku: EGGS, qty: 1 }], index);
+
+    assert.equal(group.items[0].note, undefined);
+    assert.doesNotMatch(JSON.stringify(group), /Grade/);
+  });
+
   describe("in an order", () => {
     const ctx = {
       index, terms,

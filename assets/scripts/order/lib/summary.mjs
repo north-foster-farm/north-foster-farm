@@ -136,7 +136,6 @@ export const itemGroups = (lines, index) => {
       label: item.label,
       lineName: item.lineName,
       row: item.row,
-      note: item.note,
       qtyText: `${qty} × ${dollars(unit)}`,
       subtotal: dollars(qty * unit),
     });
