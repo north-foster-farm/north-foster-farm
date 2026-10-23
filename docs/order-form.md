@@ -547,7 +547,10 @@ id and times, `{ window: "09:00-12:00", from: "09:00", to: "12:00" }`;
 records from before keep `window: "morning"` or `"afternoon"` (9 to 12,
 1 to 5) and may carry the hours the farm confirmed then,
 `onfarm.confirmed = { from, to }` (`pickupTimes` in `lib/schedule.mjs`
-reads both). Square's pickup time is the window's start. A pickup the
+reads both, and a confirmed range wins, as in the email). Square's
+pickup time is the window's start in New York time (`instant`, so
+right on both sides of a DST change), and every change to the date or
+window writes it again by the fulfilment's uid (#308). A pickup the
 farm can't keep after all is cancelled like any order, with
 `bin/nff orders cancel <id> --reason <why>` or `--reason-text`, and
 refunded; nothing is denied (T2d). Records from before may carry a

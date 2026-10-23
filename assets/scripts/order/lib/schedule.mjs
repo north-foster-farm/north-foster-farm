@@ -309,12 +309,19 @@ const LEGACY = {
   afternoon: { from: "13:00", to: "17:00" },
 };
 
-// An order's pickup window as { from, to }, however old the record: its
-// own times, else its id ("09:00-12:00"), else the fixed pair's.
+// An order's pickup window as { from, to }, however old the record: the
+// hours the farm confirmed before W11d (whole hours, as the email
+// tells them), else its own times, else its id ("09:00-12:00"), else
+// the fixed pair's.
 export const pickupTimes = (onfarm) => {
   const o = onfarm || {};
   const id = RANGE.exec(o.window || "");
+  const c = o.confirmed;
+  const hour = (h) => `${String(h).padStart(2, "0")}:00`;
 
+  if (c && Number.isInteger(c.from) && Number.isInteger(c.to)) {
+    return { from: hour(c.from), to: hour(c.to) };
+  }
   if (o.from && o.to) return { from: o.from, to: o.to };
   if (id) return { from: `${id[1]}:${id[2]}`, to: `${id[3]}:${id[4]}` };
 

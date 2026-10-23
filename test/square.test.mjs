@@ -329,6 +329,38 @@ describe("buildOrder", () => {
     assert.match(g.pickup_details.note, /pickup 1:30 – 3 PM/);
   });
 
+  it("sends the hours the farm confirmed, as the email tells them " +
+    "(#308)", () => {
+    const o = order();
+
+    o.fulfilment.onfarm = { window: "morning",
+      confirmed: { from: 10, to: 12 } };
+    const f = buildOrder(o, "CUST", cfg).fulfillments[0].pickup_details;
+
+    assert.equal(f.pickup_at, "2026-10-07T14:00:00.000Z");
+    assert.match(f.note, /pickup 10 AM – noon/);
+  });
+
+  it("builds pickup_at from New York time on both sides of the " +
+    "November 1 change (#308)", () => {
+    const at = (date, window, from) => {
+      const o = order();
+
+      o.fulfilment.date = date;
+      o.fulfilment.onfarm = { window, from, to: "12:00" };
+
+      return buildOrder(o, "CUST", cfg).fulfillments[0]
+        .pickup_details.pickup_at;
+    };
+
+    assert.equal(at("2026-10-31", "10:00-12:00", "10:00"),
+      "2026-10-31T14:00:00.000Z", "EDT is UTC-4");
+    assert.equal(at("2026-11-01", "10:00-12:00", "10:00"),
+      "2026-11-01T15:00:00.000Z", "EST is UTC-5 from 2 AM");
+    assert.equal(at("2026-11-02", "13:30-15:00", "13:30"),
+      "2026-11-02T18:30:00.000Z");
+  });
+
   it("builds a delivery fulfillment with fee and address", () => {
     const o = order({
       fulfilment: {
@@ -802,6 +834,60 @@ describe("an update to an order at another location", () => {
       await run(impl);
       assert.equal(sent(calls), "OLD");
     }
+  });
+});
+
+// #308: a rescheduled pickup reaches Square by the fulfilment's uid,
+// against the order's current version, and a refusal is thrown.
+describe("a rescheduled pickup", () => {
+  const placed = {
+    id: "SQO", state: "OPEN", version: 7, location_id: "LOC",
+    fulfillments: [{
+      uid: "F1", type: "PICKUP", state: "PROPOSED",
+      pickup_details: { pickup_at: "2026-10-07T13:00:00.000Z" },
+    }],
+  };
+  const moved = () => {
+    const o = order();
+
+    o.fulfilment.date = "2026-11-01";
+    o.fulfilment.onfarm = { window: "10:00-12:00", from: "10:00",
+      to: "12:00" };
+
+    return o;
+  };
+
+  it("updates pickup_at on the fulfilment", async () => {
+    const { impl, calls } = fakeFetch({
+      "/v2/orders/SQO": (n) => new Response(JSON.stringify({
+        order: { ...placed, version: n === 1 ? 7 : 8 },
+      })),
+    });
+    const out = await updateFulfilment("SQO", moved(), {
+      env, fetchImpl: impl,
+    });
+    const put = calls.find((c) => c.method === "PUT").body.order;
+
+    assert.equal(put.version, 7);
+    assert.equal(put.fulfillments[0].uid, "F1");
+    assert.equal(put.fulfillments[0].pickup_details.pickup_at,
+      "2026-11-01T15:00:00.000Z");
+    assert.equal(put.fulfillments[0].state, undefined);
+    assert.equal(out.version, 8);
+  });
+
+  it("throws when Square refuses it", async () => {
+    const { impl } = fakeFetch({
+      "/v2/orders/SQO": (n) => (n === 1
+        ? new Response(JSON.stringify({ order: placed }))
+        : new Response(JSON.stringify({ errors: [{
+          code: "VERSION_MISMATCH", detail: "stale" }] }),
+        { status: 409 })),
+    });
+
+    await assert.rejects(
+      updateFulfilment("SQO", moved(), { env, fetchImpl: impl }),
+      SquareError);
   });
 });
 
