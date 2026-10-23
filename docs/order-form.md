@@ -1110,6 +1110,14 @@ one instead. It works from a worktree nested in
 another checkout (`.claude/worktrees/`). Stopping it, by Ctrl-C or a
 signal to `npm`, stops Netlify and Hugo with it and frees both ports.
 
+The wrapper passes `--internal-disable-edge-functions`. The CLI's edge
+function registry watches the whole project directory, and on macOS
+chokidar holds one file handle per file: about 2,300, plus one for
+every file a build leaves in `.ignored/` or `public/`, enough to hit
+EMFILE with several worktrees building (#159). With the registry off,
+`netlify dev` holds about 290. The access gate is the site's only edge
+function and runs on deploys, never locally.
+
 **Fake payments, the default.** The development env file sets
 `SITE_CONTEXT=dev`, `SQUARE_ENV=fake` and `PAYPAL_ENV=fake` (#265).
 Then no call leaves the machine: `lib/fake-square.mjs` and

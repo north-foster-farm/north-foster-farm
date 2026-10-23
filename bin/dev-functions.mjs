@@ -41,8 +41,17 @@ function freePort() {
 const hugoPort = process.env.HUGO_PORT || String(await freePort());
 process.env.HUGO_PORT = hugoPort;
 
+// The edge function registry watches the whole project directory (a
+// function may import from anywhere), and chokidar opens one file handle
+// per file on macOS: about 2,300 here, more for every build left in
+// .ignored/ or public/, until a worktree ran out (EMFILE, #159). The
+// site's one edge function, the access gate, is installed for deploys
+// only (bin/install-gate.mjs) and never runs locally, so the registry
+// is switched off.
 const targetGiven = args.some((arg) => arg.startsWith("--target-port"));
-const netlifyArgs = ["dev", "--cwd", root, ...args];
+const netlifyArgs = [
+  "dev", "--cwd", root, "--internal-disable-edge-functions", ...args,
+];
 if (!targetGiven) netlifyArgs.push("--target-port", hugoPort);
 
 console.log(`start:functions: Hugo on port ${hugoPort}`);
