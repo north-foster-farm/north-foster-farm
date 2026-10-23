@@ -1740,8 +1740,10 @@
     flex-basis: 100%;
   }
 
+  // The subtitle, small and secondary as on the Places cards.
   .order-pickup-name {
-    font-weight: 500;
+    color: var(--bs-secondary-color);
+    font-size: 0.875em;
   }
 
   .order-pickup-address {

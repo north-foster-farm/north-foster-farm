@@ -96,11 +96,13 @@ export const addressLines = (loc) => {
   ].filter(Boolean);
 };
 
-// A pickup as its card's parts: the day, the hours, the pickup's own
-// name ("Drop site"), and the address of the place it is at.
+// A pickup as its card's parts: the day, the hours, the subtitle (the
+// town, then the pickup's own name: "Scituate · Drop site", as on the
+// Places cards) and the address of the place it is at.
 export const pickupParts = (entry, loc) => ({
   date: entry.label,
   time: entry.window,
-  name: entry.name || "",
+  name: [entry.town || (loc || {}).town, entry.name]
+    .filter(Boolean).join(" · "),
   address: addressLines(loc),
 });

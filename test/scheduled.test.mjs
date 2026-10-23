@@ -157,11 +157,11 @@ describe("a pickup as its card's parts", () => {
     city: "North Scituate", state: "RI", zip: "02857",
   };
 
-  it("gives the day, the hours, the name and the address lines", () => {
+  it("gives the day, the hours, the subtitle and the address", () => {
     assert.deepEqual(pickupParts(drop, green), {
       date: "Saturday, October 24",
       time: "10:00 – 11:00 AM",
-      name: "Drop site",
+      name: "Scituate · Drop site",
       address: [
         "The Village Green", "46 Institute Lane", "North Scituate, RI 02857",
       ],

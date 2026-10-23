@@ -60,7 +60,7 @@ test.describe("scheduled pickup", () => {
       await expect(part(page, FOSTER.series, "time"))
         .toHaveText("9:00 AM – 1:00 PM");
       await expect(part(page, FOSTER.series, "name"))
-        .toHaveText("Foster Farmers Market");
+        .toHaveText("Foster · Foster Farmers Market");
       // One part to a line on a phone, joined on one line from wider.
       await expect(part(page, FOSTER.series, "address").locator("span"))
         .toHaveText([
@@ -69,7 +69,7 @@ test.describe("scheduled pickup", () => {
       await expect(part(page, DROP.series, "time"))
         .toHaveText("10:00 – 11:00 AM");
       await expect(part(page, DROP.series, "name"))
-        .toHaveText("Drop site");
+        .toHaveText("Scituate · Drop site");
       await expect(part(page, DROP.series, "address").locator("span"))
         .toHaveText([
           "The Village Green", "46 Institute Lane", "North Scituate, RI 02857",
