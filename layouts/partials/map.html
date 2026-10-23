@@ -11,15 +11,17 @@
   and a way to the Places layer.
 
   Places: a plain map and a green pin for everywhere you can go: the
-  farm, the drop site, the markets in their season and the pop-ups to
-  come. Each pin carries the number of its row in the list beside the
-  map, and the row opens the card. The drop site and the Scituate
-  market are one place, so one pin whose card lists both. The farm and the Foster market stand a little
-  apart at the whole map and in their true places once zoomed in. A
-  market shows from its "opens" to its "closes" date in
-  the market series of data/series.json and a pop-up until its last date in
-  the pop-up series of data/series.json: the build leaves out what has ended, and
-  scripts/map/ hides what ends before the next build.
+  farm, then each location where a series of data/series.json meets:
+  the drop site, the markets in their season and the pop-ups to come.
+  One list, numbered as the pins are, the farm first. A location's card
+  lists its series, so the drop site and a market at the Village Green
+  share one card with no special case. The build carries the locations
+  and the seasons; scripts/map/ reads /api/events at view time for the
+  dates the farm attends and the ones open for pickup orders, puts the
+  locations in the order of their next date, and links each open date
+  to the order page. A series shows until its "end" in the series file:
+  the build leaves out what has ended, and scripts/map/ hides what ends
+  before the next build.
 
   scripts/map/ makes it answer, switches the layers, opens the cards
   in their rows and zooms with the buttons over the map, a pinch or a
@@ -54,108 +56,93 @@
   {{ end }}
 {{ end }}
 
-{{/* The places, each a pin and a row with a card: its name, when (one
-     entry for each thing that happens there), where, its links, and
-     an action for the two ways to pick up an order. An
-     entry, and a place, with "until" goes when that day has passed;
-     one with "from" shows from that day. "nudge" moves a pin aside at
-     the whole map. */}}
+{{/* The places, each a pin and a row with a card: its name, its blocks
+     (the farm's one, or a series each: name, season, and the dates
+     scripts/map/ fills in), where, its links, and for the farm a
+     button. A place and a block with "until" go when that day has
+     passed. "nudge" moves a pin aside at the whole map. */}}
 {{ $places := slice }}
 {{ if $layers }}
   {{ $address := partial "address.html" . }}
   {{ $places = $places | append (merge (partial "map/xy.html" hugo.Data.places.farm) (dict
     "name" hugo.Data.company.name "key" "Our farm"
-    "town" $address.city "section" "pickup" "nudge" 1
-    "when" (slice (dict "head" "Pick a time when you order" "line" "On-farm pickup"))
+    "town" $address.city "nudge" 1
+    "blocks" (slice (dict "name" "Pick a time when you order" "line" "On-farm pickup"))
     "where" $address.full
     "directions" $address.directions
     "shop" (dict "label" "Shop for pickup" "href" (printf "%s?method=onfarm" $order)))) }}
 
-  {{/* The drop site, and the Scituate market while it runs, one
-       place. */}}
-  {{ $drop := $terms.scituate }}
-  {{ $dropStart := time.AsTime $drop.start $zone }}
-  {{ $dropLine := "Drop site pickup" }}
-  {{ if gt $dropStart.Unix now.Unix }}
-    {{ $dropLine = printf "%s, starting %s" $dropLine ($dropStart.Format "January 2") }}
-  {{ end }}
-  {{ $scituate := index (partial "lib/pickup-lists.html" .).markets 0 }}
-  {{ $when := slice }}
-  {{ $links := slice }}
-  {{ $until := "" }}
-  {{ with $scituate }}
-    {{ if ge .closes $today }}
-      {{ $when = $when | append (dict
-        "head" .when "line" (printf "%s, %s" .name (partial "market/season.html" .))
-        "from" .opens "until" .closes "alone" "Drop site") }}
-      {{ $links = slice (dict "label" "Market website" "href" .href)
-        (dict "label" "Market Instagram" "href" (printf "https://www.instagram.com/%s/" .instagram)) }}
-    {{ end }}
-  {{ end }}
-  {{ $when = $when | append (dict "head" (printf "%ss, %s" (partial "weekday.html" $drop.weekday) $drop.window) "line" $dropLine) }}
-  {{ $places = $places | append (merge (partial "map/xy.html" hugo.Data.places.dropsite) (dict
-    "key" "Drop site" "section" "pickup"
-    "name" (printf "%s %s" (partial "drop-site.html" "locality")
-      (partial "drop-site.html" "name"))
-    "town" (partial "drop-site.html" "locality")
-    "day" (printf "%ss" (partial "weekday.html" $drop.weekday))
-    "when" $when
-    "where" $drop.location
-    "links" $links
-    "also" (cond (gt (len $links) 0) $scituate.name "")
-    "shop" (dict "label" "Shop for the drop site" "href" (printf "%s?method=scituate" $order)))) }}
-
-  {{/* The other markets, while they run. */}}
-  {{ range after 1 (partial "lib/pickup-lists.html" .).markets }}
-    {{ if ge .closes $today }}
-      {{ $places = $places | append (merge (partial "map/xy.html" .) (dict
-        "name" .name "key" .name
-        "town" (index (last 1 (split .where ", ")) 0)
-        "day" (index (split .when ",") 0)
-        "section" "markets" "from" .opens "until" .closes
-        "nudge" (.nudge | default 0)
-        "when" (slice (dict "head" .when "line" (partial "market/season.html" .)))
-        "where" .where
-        "links" (slice (dict "label" "Website" "href" .href)
-          (dict "label" "Instagram" "href" (printf "https://www.instagram.com/%s/" .instagram))))) }}
-    {{ end }}
-  {{ end }}
-
-  {{/* Pop-ups to come, one place each, its dates in order. */}}
-  {{ $at := slice }}
-  {{ $dates := dict }}
-  {{ range sort (partial "lib/pickup-lists.html" .).events "date" }}
-    {{ if and (eq .kind "pop-up") (ge .date $today) }}
-      {{ if not (index $dates .place) }}{{ $at = $at | append . }}{{ end }}
-      {{ $dates = merge $dates (dict .place ((index $dates .place | default slice) | append .)) }}
-    {{ end }}
-  {{ end }}
-  {{ range $at }}
-    {{ $when := slice }}
-    {{ $last := "" }}
-    {{ range $e := index $dates .place }}
-      {{ $day := time.AsTime $e.date $zone }}
-      {{ $hours := "" }}
-      {{ with $e.start }}{{ $hours = partial "map/hours.html" $e }}{{ end }}
-      {{ $when = $when | append (dict "head" ($day.Format "Monday, January 2") "line" $hours "until" $e.date) }}
-      {{ $last = $e.date }}
-    {{ end }}
-    {{ $a := .address }}
-    {{ $links := slice }}
-    {{/* No Instagram on a pop-up's card (James, #214). */}}
-    {{ with .href }}
-      {{ if not (strings.Contains . "instagram.com") }}
-        {{ $links = $links | append (dict "label" "Website" "href" .) }}
+  {{/* The other locations, by the next day their season has one. */}}
+  {{ $all := (partial "scheduled-places.html" .).series }}
+  {{ $found := slice }}
+  {{ range hugo.Data.locations.locations }}
+    {{ $loc := . }}
+    {{ if not $loc.archived }}
+      {{ $mine := slice }}
+      {{ range where $all "locationCode" $loc.code }}
+        {{ if or (not .end) (ge .end $today) }}{{ $mine = $mine | append . }}{{ end }}
+      {{ end }}
+      {{ if $mine }}
+        {{ $next := "9999-12-31" }}
+        {{ $until := "" }}
+        {{ $endless := false }}
+        {{ $nudge := 0 }}
+        {{ $blocks := slice }}
+        {{ $days := slice }}
+        {{ $names := slice }}
+        {{ $links := slice }}
+        {{ $drop := false }}
+        {{ range $mine }}
+          {{ $s := . }}
+          {{ $raw := index (where hugo.Data.series.series "code" .code) 0 }}
+          {{ $start := cond (gt .start $today) .start $today }}
+          {{ if lt $start $next }}{{ $next = $start }}{{ end }}
+          {{ if not .end }}{{ $endless = true }}{{ else if gt .end $until }}{{ $until = .end }}{{ end }}
+          {{ with $raw.nudge }}{{ $nudge = . }}{{ end }}
+          {{ if eq .kind "drop-site" }}{{ $drop = true }}{{ end }}
+          {{ $line := printf "%ss, %s" .day .window }}
+          {{ $day := printf "%ss" .day }}
+          {{ if and .end (eq .end .start) }}
+            {{ $d := time.AsTime .start $zone }}
+            {{ $line = printf "%s, %s" ($d.Format "Monday, January 2") .window }}
+            {{ $day = $d.Format "Jan 2" }}
+          {{ else if .end }}
+            {{ $line = printf "%s · %s" $line (partial "market/season.html" (dict "opens" .start "closes" .end)) }}
+          {{ else if gt .start $today }}
+            {{ $line = printf "%s · starting %s" $line ((time.AsTime .start $zone).Format "January 2") }}
+          {{ end }}
+          {{ $blocks = $blocks | append (dict
+            "code" .code "name" .name "line" $line "until" .end
+            "order" .order "fallback" (eq .kind "drop-site")) }}
+          {{ $days = $days | append $day }}
+          {{ $names = $names | append .name }}
+          {{/* No Instagram on a pop-up's card (James, #214). */}}
+          {{ if eq .kind "market" }}
+            {{ with .href }}{{ $links = $links | append (dict "label" "Market website" "href" . "until" $s.end) }}{{ end }}
+            {{ with $raw.instagram }}{{ $links = $links | append (dict "label" "Market Instagram" "href" (printf "https://www.instagram.com/%s/" .) "until" $s.end) }}{{ end }}
+          {{ else if eq .kind "pop-up" }}
+            {{ with .href }}
+              {{ if not (strings.Contains . "instagram.com") }}{{ $links = $links | append (dict "label" "Website" "href" . "until" $s.end) }}{{ end }}
+            {{ end }}
+          {{ end }}
+        {{ end }}
+        {{ if $endless }}{{ $until = "" }}{{ end }}
+        {{ $where := printf "%s, %s, %s" $loc.street $loc.city $loc.state }}
+        {{ with $loc.zip }}{{ $where = printf "%s %s" $where . }}{{ end }}
+        {{ $found = $found | append (merge (partial "map/xy.html" $loc) (dict
+          "name" $loc.name "key" $loc.name "town" $loc.town
+          "next" $next "until" $until "nudge" $nudge "drop" $drop
+          "code" $loc.code
+          "day" (delimit ($days | uniq) ", ")
+          "names" (delimit $names ", ")
+          "blocks" $blocks
+          "where" $where
+          "directions" (dict "to" (printf "%s, %s" $loc.name $where))
+          "links" $links)) }}
       {{ end }}
     {{ end }}
-    {{ $places = $places | append (merge (partial "map/xy.html" .) (dict
-      "name" .place "key" .place "town" $a.city
-      "day" ((time.AsTime .date $zone).Format "Jan 2")
-      "section" "markets" "until" $last
-      "when" $when
-      "where" (printf "%s, %s, %s %s" $a.street $a.city $a.state $a.zip)
-      "links" $links)) }}
   {{ end }}
+  {{ $places = $places | append (sort $found "next") }}
 {{ end }}
 
 {{ $pin := "M0 0C-4-11-15-18-15-30a15 15 0 1 1 30 0C15-18 4-11 0 0Z" }}
@@ -211,7 +198,7 @@
           {{/* The places' pins. data-map-pin is the pin's card. */}}
           <g class="map-pins">
             {{ range $i, $p := $places }}
-              <g class="map-pin" data-map-pin="{{ add $i 1 }}" data-map-slug="place-{{ $p.name | urlize }}" data-x="{{ $p.x }}" data-y="{{ $p.y }}" {{- with $p.nudge }} data-nudge="{{ . }}"{{ end }} {{- with $p.from }} data-from="{{ . }}"{{ end }} {{- with $p.until }} data-until="{{ . }}"{{ end }} transform="translate({{ $p.x }} {{ $p.y }})" tabindex="0" role="button" aria-pressed="false" aria-label="{{ $p.name }}">
+              <g class="map-pin" data-map-pin="{{ add $i 1 }}" data-map-slug="place-{{ $p.name | urlize }}" data-x="{{ $p.x }}" data-y="{{ $p.y }}" {{- with $p.nudge }} data-nudge="{{ . }}"{{ end }} {{- with $p.until }} data-until="{{ . }}"{{ end }} transform="translate({{ $p.x }} {{ $p.y }})" tabindex="0" role="button" aria-pressed="false" aria-label="{{ $p.name }}">
                 <g class="map-pin-body">
                   <path d="{{ $pin }}"/>
                   <text class="map-pin-num" y="-24" aria-hidden="true">{{ add $i 1 }}</text>
@@ -270,71 +257,64 @@
     </div>
 
     {{ if $layers }}
-      {{/* Places: every place by name, a row with its number. A row
-           opens its card in place, one at a time. The Scituate
-           market's row opens the drop site's. */}}
+      {{/* Places: every place by name, a row with its number, in one
+           list. A row opens its card in place, one at a time. */}}
       <nav class="map-key-card map-places" aria-label="Places on the map" data-map-for="places" hidden>
-        {{ $heads := dict "pickup" "Pickup" "markets" "Markets and pop-ups" }}
-        {{ range $section := slice "pickup" "markets" }}
-          <p class="map-key-head">{{ index $heads $section }}</p>
-          <ul class="map-key-list list-unstyled">
-            {{ if eq $section "markets" }}
-              {{ range $i, $p := $places }}
-                {{ with $p.also }}
-                  {{ $market := index $p.when 0 }}
-                  <li data-from="{{ $market.from }}" data-until="{{ $market.until }}">
-                    <button class="map-key-show" type="button" data-map-show="{{ add $i 1 }}" data-also>
-                      <span class="map-num" aria-hidden="true" data-map-num>{{ add $i 1 }}</span>
-                      <span class="map-key-text">
-                        <strong>{{ . }}</strong>
-                        <small>{{ $p.town }} · {{ $p.day }}</small>
-                      </span>
-                    </button>
-                  </li>
-                {{ end }}
-              {{ end }}
-            {{ end }}
-            {{ range $i, $p := $places }}
-              {{ if eq $p.section $section }}
-                <li {{- with $p.from }} data-from="{{ . }}"{{ end }} {{- with $p.until }} data-until="{{ . }}"{{ end }}>
-                  <button class="map-key-show" type="button" id="{{ $id }}-row-{{ add $i 1 }}" data-map-show="{{ add $i 1 }}" aria-expanded="false" aria-controls="{{ $id }}-card-{{ add $i 1 }}">
-                    <span class="map-num" aria-hidden="true" data-map-num>{{ add $i 1 }}</span>
-                    <span class="map-key-text">
-                      <strong>{{ $p.key }}</strong>
-                      <small>{{ $p.town }}{{ with $p.day }} · {{ . }}{{ end }}</small>
-                    </span>
-                  </button>
-                  {{/* The card: when, where, directions, links, then
-                       the shop button. A card leaves a part out and
-                       never reorders one. */}}
-                  <div class="map-card" id="{{ $id }}-card-{{ add $i 1 }}" data-map-card="{{ add $i 1 }}" role="group" aria-labelledby="{{ $id }}-row-{{ add $i 1 }}" hidden>
-                    <p class="map-card-label">When</p>
-                    <ul class="map-card-when list-unstyled">
-                      {{ range $p.when }}
-                        <li {{- with .from }} data-from="{{ . }}"{{ end }} {{- with .until }} data-until="{{ . }}"{{ end }} {{- with .alone }} data-alone="{{ . }}"{{ end }}>
-                          <strong>{{ .head }}</strong>
-                          {{ with .line }}<span>{{ . }}</span>{{ end }}
-                        </li>
+        <button type="button" class="map-filter" aria-pressed="false" data-map-filter>Scheduled pickup only</button>
+        <p class="map-filter-none" data-map-filter-none hidden>No scheduled pickups are open right now.</p>
+        <ul class="map-key-list list-unstyled">
+          {{ range $i, $p := $places }}
+            <li {{- with $p.code }} data-location="{{ . }}"{{ end }} {{- if $p.drop }} data-drop{{ end }} {{- with $p.until }} data-until="{{ . }}"{{ end }}>
+              <button class="map-key-show" type="button" id="{{ $id }}-row-{{ add $i 1 }}" data-map-show="{{ add $i 1 }}" aria-expanded="false" aria-controls="{{ $id }}-card-{{ add $i 1 }}">
+                <span class="map-num" aria-hidden="true" data-map-num>{{ add $i 1 }}</span>
+                <span class="map-key-text">
+                  <strong>{{ $p.key }}</strong>
+                  <small>{{ $p.town }}{{ with $p.names }} · {{ . }}{{ end }}</small>
+                </span>
+              </button>
+              {{/* The card: when (a block for each series, its dates
+                   filled in by the script), where, directions, links,
+                   then the shop button. A card leaves a part out and
+                   never reorders one. */}}
+              <div class="map-card" id="{{ $id }}-card-{{ add $i 1 }}" data-map-card="{{ add $i 1 }}" role="group" aria-labelledby="{{ $id }}-row-{{ add $i 1 }}" hidden>
+                <p class="map-card-label">When</p>
+                <ul class="map-card-when list-unstyled">
+                  {{ range $p.blocks }}
+                    {{ $b := . }}
+                    <li {{- with .code }} data-series="{{ . }}" data-order="{{ $b.order }}"{{ end }} {{- with .until }} data-until="{{ . }}"{{ end }}>
+                      <strong>{{ .name }}</strong>
+                      <span>{{ .line }}</span>
+                      {{ if .code }}
+                        <ul class="map-card-dates list-unstyled" data-series-dates></ul>
+                        {{ if .fallback }}<a class="map-card-pickup" href="{{ .order }}" data-series-fallback>Shop for pickup here</a>{{ end }}
                       {{ end }}
-                    </ul>
-                    <p class="map-card-label">Where</p>
-                    <p class="map-card-where">{{ $p.where }}</p>
-                    <div class="map-card-directions">{{ partial "directions.html" ($p.directions | default (dict "to" $p.where)) }}</div>
-                    {{ with $p.links }}
-                      <p class="map-card-label">More</p>
-                      <p class="map-card-links">
-                        {{ range . }}<a href="{{ .href }}" target="_blank" rel="noopener">{{ .label }}</a>{{ end }}
-                      </p>
-                    {{ end }}
-                    {{ with $p.shop }}
-                      <a class="btn btn-primary btn-sm map-card-shop" href="{{ .href }}">{{ .label }}</a>
-                    {{ end }}
-                  </div>
-                </li>
-              {{ end }}
-            {{ end }}
-          </ul>
-        {{ end }}
+                    </li>
+                  {{ end }}
+                </ul>
+                <p class="map-card-label">Where</p>
+                <p class="map-card-where">{{ $p.where }}</p>
+                <div class="map-card-directions">{{ partial "directions.html" ($p.directions | default (dict "to" $p.where)) }}</div>
+                {{ with $p.links }}
+                  <p class="map-card-label">More</p>
+                  <p class="map-card-links">
+                    {{ range . }}<a href="{{ .href }}" target="_blank" rel="noopener" {{- with .until }} data-until="{{ . }}"{{ end }}>{{ .label }}</a>{{ end }}
+                  </p>
+                {{ end }}
+                {{ with $p.shop }}
+                  <a class="btn btn-primary btn-sm map-card-shop" href="{{ .href }}">{{ .label }}</a>
+                {{ end }}
+              </div>
+            </li>
+          {{ end }}
+        </ul>
+        {{/* One date of a series, as the script fills it in. */}}
+        <template data-map-date>
+          <li>
+            <span class="map-date-when"><strong data-date-label></strong> <span data-date-window></span></span>
+            <a class="map-card-pickup" href="#" data-date-shop>Shop for pickup here</a>
+            <small class="map-date-note" data-date-note>No pickup orders</small>
+          </li>
+        </template>
       </nav>
     {{ end }}
   </div>

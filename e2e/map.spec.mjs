@@ -10,7 +10,9 @@
 // an SVG group has no `hidden` property, and a check that read one
 // passed while the dropped pin never showed (fixed in 17b929e).
 
-import { expect, test } from "./support/order.mjs";
+import { OrderPage, expect, test } from "./support/order.mjs";
+import { cannedScheduled } from "./support/scheduled.mjs";
+import { addDays, today } from "../assets/scripts/order/lib/zoned.mjs";
 
 const HOME = { path: "/", input: "#home-map-zip-input" };
 const POLICY = { path: "/delivery-policy/" };
@@ -29,6 +31,43 @@ const areaZips = (page) => page.evaluate(() => {
 });
 
 const map = (page) => page.locator("[data-map]").first();
+
+// The schedule /api/events answers with (the shape #310 posted on
+// #309), canned so a spec needs no particular schedule: a date `n`
+// days from today for a series at a location, open for pickup orders
+// or only attended. The real codes: VFVQ the drop site at G4C6 (the
+// Village Green), WAC5 the Foster Farmers Market at D8RW.
+const LABEL = new Intl.DateTimeFormat("en-US", {
+  weekday: "long", month: "long", day: "numeric", timeZone: "UTC",
+});
+const on = (series, location, n, status = "pickup") => {
+  const date = addDays(today(new Date(), "America/New_York"), n);
+
+  return {
+    occurrence: `${series}-${date.slice(2).replaceAll("-", "")}`,
+    date,
+    label: LABEL.format(new Date(`${date}T12:00:00Z`)),
+    series,
+    name: series,
+    location,
+    window: "10:00 – 11:00 AM",
+    status,
+  };
+};
+// Foster's date first, so the list leaves the order the build gave it.
+const CANNED = [
+  on("WAC5", "D8RW", 1),
+  on("VFVQ", "G4C6", 2),
+  on("VFVQ", "G4C6", 9, "attend"),
+];
+const events = (page, list = CANNED) => page.route(
+  "**/api/events", (route) => route.fulfill({
+    json: { now: new Date().toISOString(), events: list },
+  })
+);
+// The rows in the list, by name.
+const names = (page) => map(page).locator("[data-map-show] strong")
+  .evaluateAll((els) => els.map((el) => el.textContent.trim()));
 const dropPin = (page) => map(page).locator(".map-drop-pin");
 // Hidden is asserted on the group: WebKit gives a shape inside a
 // display: none group a box, so the shape itself reads as visible.
@@ -224,77 +263,98 @@ test.describe("map (#138, #214)", () => {
     await expect(map(page).locator(".map-swatch.is-eggs")).toHaveCount(0);
   });
 
-  // Places: the directory beside the map names every pin, under
-  // "Pickup" and "Markets and pop-ups"; each name opens its pin's card.
-  // Every pin is drawn alike, and none shows on the Delivery layer.
-  test("the Places directory matches the pins", async ({ page }) => {
-    await page.goto(HOME.path);
+  // Places: one list beside the map names every pin, the farm first,
+  // then each location by the next date the farm attends there (#314);
+  // each name opens its pin's card. Every pin is drawn alike, and none
+  // shows on the Delivery layer.
+  test("the Places list is one list, matching the pins",
+    async ({ page }) => {
+      await events(page);
+      await page.goto(HOME.path);
 
-    const pins = map(page).locator("[data-map-pin]");
+      const pins = map(page).locator("[data-map-pin]");
 
-    await expect(map(page).locator(".map-pins")).toBeHidden();
-    await expect(map(page).locator(".map-places")).toBeHidden();
-    await places(page);
-    await expect(pins.first()).toBeVisible();
-    await expect(map(page).locator(".map-key-areas").first()).toBeHidden();
-    await expect(map(page).locator(".map-key-areas").last()).toBeHidden();
+      await expect(map(page).locator(".map-pins")).toBeHidden();
+      await expect(map(page).locator(".map-places")).toBeHidden();
+      await places(page);
+      await expect(pins.first()).toBeVisible();
+      await expect(map(page).locator(".map-key-areas").first()).toBeHidden();
+      await expect(map(page).locator(".map-key-areas").last()).toBeHidden();
+      // One list, with no sections.
+      await expect(map(page).locator(".map-key-head")).toHaveCount(0);
+      await expect(map(page).locator(".map-places .map-key-list"))
+        .toHaveCount(1);
 
-    const rows = await map(page).locator("[data-map-show]").evaluateAll(
-      (els) => els.map((el) => ({
-        n: el.dataset.mapShow,
-        name: el.querySelector("strong").textContent.trim(),
-        num: el.querySelector("[data-map-num]").textContent,
-        head: el.closest("ul").previousElementSibling.textContent.trim(),
-      }))
-    );
-    const drawn = await pins.evaluateAll((els) => els.map((el) => ({
-      n: el.dataset.mapPin,
-      label: el.getAttribute("aria-label"),
-    })));
+      const rows = await map(page).locator("[data-map-show]").evaluateAll(
+        (els) => els.map((el) => ({
+          n: el.dataset.mapShow,
+          name: el.querySelector("strong").textContent.trim(),
+          num: el.querySelector("[data-map-num]").textContent,
+        }))
+      );
+      const drawn = await pins.evaluateAll((els) => els.map((el) => ({
+        n: el.dataset.mapPin,
+        label: el.getAttribute("aria-label"),
+      })));
 
-    expect(rows.slice(0, 2)).toMatchObject([
-      { name: "Our farm", head: "Pickup" },
-      { name: "Drop site", head: "Pickup" },
-    ]);
-    for (const row of rows.slice(2)) {
-      expect(row.head, row.name).toBe("Markets and pop-ups");
-    }
-    for (const row of rows) {
-      expect(drawn.find((d) => d.n === row.n), `a pin for ${row.name}`)
-        .toBeTruthy();
-    }
-    for (const pin of drawn) {
-      expect(rows.some((r) => r.n === pin.n), `${pin.label} listed`)
-        .toBe(true);
-    }
-    // A pin carries its row's number, in list order, and is named for
-    // its place, never the number (#214).
-    const numbered = rows.filter((r) => !/^Scituate/.test(r.name));
+      expect(rows[0].name).toBe("Our farm");
+      for (const row of rows) {
+        expect(drawn.find((d) => d.n === row.n), `a pin for ${row.name}`)
+          .toBeTruthy();
+      }
+      for (const pin of drawn) {
+        expect(rows.some((r) => r.n === pin.n), `${pin.label} listed`)
+          .toBe(true);
+      }
+      // A pin carries its row's number, in list order, and is named for
+      // its place, never the number (#214).
+      await expect.poll(() => map(page).locator("[data-map-num]")
+        .evaluateAll((els) => els.map((el) => el.textContent)))
+        .toEqual(rows.map((_, i) => String(i + 1)));
+      for (const row of rows) {
+        const pin = map(page).locator(`[data-map-pin='${row.n}']`);
 
-    expect(numbered.map((r) => r.num)).toEqual(
-      numbered.map((_, i) => String(i + 1))
-    );
-    for (const row of numbered) {
-      const pin = map(page).locator(`[data-map-pin='${row.n}']`);
+        expect(await pin.getAttribute("aria-label")).not.toBe(row.num);
+        await expect(pin).toHaveAccessibleName(/\D{3}/);
+      }
+      // Fills ease in as the layer shows: wait for them to rest.
+      await expect.poll(() => pins.evaluateAll((els) => new Set(
+        els.map((el) => getComputedStyle(el.querySelector("path")).fill)
+      ).size), "one pin color").toBe(1);
+      expect(drawn.length).toBeGreaterThan(0);
+      await expect(map(page).locator(".map-key-n, .map-ig, [data-stack]"))
+        .toHaveCount(0);
+      await expect(map(page)).not.toContainText("Out of season");
+    });
 
-      await expect(pin.locator(".map-pin-num")).toHaveText(row.num);
-      expect(await pin.getAttribute("aria-label")).not.toBe(row.num);
-      await expect(pin).toHaveAccessibleName(/\D{3}/);
-    }
-    // The drop site and the Scituate market are one place, one pin.
-    const drop = rows.find((r) => r.name === "Drop site");
-    const market = rows.find((r) => /^Scituate/.test(r.name));
+  test("the list follows the next date the farm attends",
+    async ({ page }) => {
+      await events(page);
+      await page.goto(HOME.path);
+      await places(page);
 
-    if (market) expect(market.n).toBe(drop.n);
-    // Fills ease in as the layer shows: wait for them to rest.
-    await expect.poll(() => pins.evaluateAll((els) => new Set(
-      els.map((el) => getComputedStyle(el.querySelector("path")).fill)
-    ).size), "one pin color").toBe(1);
-    expect(drawn.length).toBeGreaterThan(0);
-    await expect(map(page).locator(".map-key-n, .map-ig, [data-stack]"))
-      .toHaveCount(0);
-    await expect(map(page)).not.toContainText("Out of season");
-  });
+      const all = await names(page);
+
+      if (!(all.includes("Shady Acres Diner")
+        && all.includes("The Village Green"))) {
+        skipped("Foster market not showing");
+        return;
+      }
+      // Foster's date is first in the canned schedule.
+      await expect.poll(() => names(page)).toEqual([
+        "Our farm", "Shady Acres Diner", "The Village Green",
+        ...all.filter((n) => ![
+          "Our farm", "Shady Acres Diner", "The Village Green",
+        ].includes(n)),
+      ]);
+      // And the other way round, with the drop site's first.
+      await page.unroute("**/api/events");
+      await events(page, [on("VFVQ", "G4C6", 1), on("WAC5", "D8RW", 2)]);
+      await page.reload();
+      await places(page);
+      await expect.poll(() => names(page).then((n) => n.slice(0, 3)))
+        .toEqual(["Our farm", "The Village Green", "Shady Acres Diner"]);
+    });
 
   // The farm and the Foster market meet at the whole map: each stands
   // a little aside, so both can be tapped, and both come back to their
@@ -317,7 +377,7 @@ test.describe("map (#138, #214)", () => {
       );
       const pair = (shown) => [
         shown.find((t) => t.n === "North Foster Farm"),
-        shown.find((t) => t.n === "Foster Farmers Market"),
+        shown.find((t) => t.n === "Shady Acres Diner"),
       ];
       const onPlaces = (shown, where) => {
         for (const t of shown) {
@@ -367,29 +427,168 @@ test.describe("map (#138, #214)", () => {
       }
     });
 
-  test("one place, one pin: the drop site's card lists the market too",
+  // The drop site and a market at the Village Green are two series at
+  // one location: one pin, one card, no special case (#314).
+  test("one location, one card: the Village Green's series and dates",
     async ({ page }) => {
+      await events(page);
       await page.goto(HOME.path);
       await places(page);
-      await map(page).locator("[data-map-show]", { hasText: "Drop site" })
-        .first().click();
+      await map(page).locator("[data-map-show]", {
+        hasText: "The Village Green",
+      }).click();
 
       const card = map(page).locator("[data-map-card]:not([hidden])");
-      const when = card.locator(".map-card-when li");
+      const drop = card.locator("[data-series='VFVQ']");
+      const dates = drop.locator("[data-series-dates] li");
 
       await expect(card).toHaveCount(1);
-      await expect(card.locator(".map-card-shop"))
-        .toHaveAttribute("href", /\/order\/\?method=scituate$/);
-      await expect(when.last()).toContainText("Drop site pickup");
-      // The market's entry stands while it runs.
-      if (await when.count() === 2) {
-        await expect(when.first()).toContainText("Scituate");
+      await expect(drop).toContainText("Drop site");
+      // The date open for pickup links to its series; the one the farm
+      // only attends has no link.
+      await expect(dates).toHaveCount(2);
+      await expect(dates.first().getByRole("link",
+        { name: "Shop for pickup here" }))
+        .toHaveAttribute("href", /\/order\/\?method=scheduled&series=VFVQ$/);
+      await expect(dates.last().getByRole("link")).toHaveCount(0);
+      await expect(dates.last()).toContainText("No pickup orders");
+      // No link the build kept for the drop site once the dates load.
+      await expect(drop.locator("[data-series-fallback]")).toHaveCount(0);
+      // A market there, while its season runs, shares the card.
+      const market = card.locator("[data-series='2MPW']");
+
+      if (await market.count()) {
+        await expect(card.locator("[data-series]")).toHaveCount(2);
         await expect(card.getByRole("link", { name: "Market website" }))
           .toBeVisible();
       } else {
+        skipped("the Scituate market's season has ended");
         await expect(card.getByRole("link", { name: "Market website" }))
           .toHaveCount(0);
       }
+    });
+
+  test("every series' open date links to the order page for it",
+    async ({ page }) => {
+      const codes = await (async () => {
+        await page.goto(HOME.path);
+
+        return map(page).locator("[data-series]").evaluateAll(
+          (els) => els.map((el) => [el.dataset.series,
+            el.closest("li[data-location]").dataset.location])
+        );
+      })();
+
+      // A market, a pop-up, the drop site: whatever the build carries.
+      await page.unroute("**/api/events").catch(() => {});
+      await events(page, codes.map(([series, at], i) => on(series, at, i + 1)));
+      await page.reload();
+      await places(page);
+      for (const [series, at] of codes) {
+        await map(page).locator(`li[data-location='${at}'] [data-map-show]`)
+          .click();
+
+        const card = map(page).locator("[data-map-card]:not([hidden])");
+
+        await expect(card.locator(`[data-series='${series}'] a`,
+          { hasText: "Shop for pickup here" }))
+          .toHaveAttribute("href",
+            new RegExp(`/order/\\?method=scheduled&series=${series}$`));
+        await page.keyboard.press("Escape");
+      }
+    });
+
+  test("a skipped date is absent, and a series with none shows its season",
+    async ({ page }) => {
+      // The farm skips the drop site on the second Saturday; the
+      // schedule's list leaves it out.
+      await events(page, [on("VFVQ", "G4C6", 2)]);
+      await page.goto(HOME.path);
+      await places(page);
+      await map(page).locator("[data-map-show]", {
+        hasText: "The Village Green",
+      }).click();
+
+      const drop = map(page).locator("[data-series='VFVQ']");
+
+      await expect(drop.locator("[data-series-dates] li")).toHaveCount(1);
+      await expect(drop).toContainText(/Saturdays, 10:00 – 11:00 AM/);
+      // Foster has no date in the list: its card keeps its season, and
+      // has no link.
+      const foster = map(page).locator("[data-series='WAC5']");
+
+      if (await foster.count()) {
+        await expect(foster.locator("[data-series-dates] li")).toHaveCount(0);
+        await expect(foster.locator("a")).toHaveCount(0);
+        await expect(foster).toContainText("June through October");
+      }
+    });
+
+  test("when /api/events can't load, seasons stay and only the drop site links",
+    async ({ page }) => {
+      await page.route("**/api/events", (route) => route.abort());
+      await page.goto(HOME.path);
+      await places(page);
+
+      const drop = map(page).locator("[data-series='VFVQ']");
+
+      await expect(drop.locator("[data-series-fallback]"))
+        .toHaveAttribute("href", /\/order\/\?method=scheduled&series=VFVQ$/);
+      await expect(drop.locator("[data-series-dates] li")).toHaveCount(0);
+      await expect(map(page).locator(
+        "[data-series]:not([data-series='VFVQ']) a[href*='/order/']"
+      )).toHaveCount(0);
+      await expect(map(page).locator("[data-map-show]", {
+        hasText: "The Village Green",
+      })).toBeVisible();
+    });
+
+  // The order page's "{n} locations" link opens the map to the
+  // locations with a date open for pickup (#314).
+  test("#places-scheduled keeps the scheduled pickup locations",
+    async ({ page }) => {
+      await events(page, [on("VFVQ", "G4C6", 2)]);
+      await page.goto(`${HOME.path}#places-scheduled`);
+      await expect(map(page)).toHaveAttribute("data-layer", "places");
+
+      const chip = map(page).locator("[data-map-filter]");
+
+      await expect(chip).toHaveAttribute("aria-pressed", "true");
+      await expect.poll(() => names(page)).toEqual(["The Village Green"]);
+      await expect(map(page).locator("[data-map-pin]:not([hidden])"))
+        .toHaveCount(1);
+      await expect(map(page).locator("[data-map-num]:visible"))
+        .toHaveText("1");
+      // The chip puts the rest back.
+      await chip.click();
+      await expect(chip).toHaveAttribute("aria-pressed", "false");
+      await expect.poll(async () => (await names(page)).length)
+        .toBeGreaterThan(1);
+      expect((await names(page))[0]).toBe("Our farm");
+    });
+
+  test("with nothing open for pickup, the filter says so",
+    async ({ page }) => {
+      await events(page, [on("VFVQ", "G4C6", 2, "attend")]);
+      await page.goto(`${HOME.path}#places-scheduled`);
+      await expect(map(page).locator("[data-map-filter-none]"))
+        .toBeVisible();
+      await expect(map(page).locator("[data-map-pin]:not([hidden])"))
+        .toHaveCount(0);
+    });
+
+  test("the order page's locations link opens the filtered map",
+    async ({ page }) => {
+      await cannedScheduled(page);
+
+      const order = new OrderPage(page);
+
+      await order.open({ eggs: 1 }, { method: "scheduled" });
+
+      const link = page.locator("[data-scheduled-facts] a",
+        { hasText: /locations$/ });
+
+      await expect(link).toHaveAttribute("href", /\/#places-scheduled$/);
     });
 
   test.describe("on a touch screen", () => {
@@ -764,8 +963,8 @@ test.describe("map (#138, #214)", () => {
       await expect(pin).toHaveAttribute("aria-pressed", "false");
     });
 
-  // A name in the directory opens the same card. Markets and pop-ups
-  // have no shop button, and their links are labeled.
+  // A name in the directory opens the same card. A location with only
+  // a market or a pop-up has no shop button; its links are labeled.
   // No blue on land: water is the only blue, and a town with a pin has
   // no tint (#214).
   test("no town takes a tint, and no land is blue", async ({ page }) => {
@@ -850,8 +1049,8 @@ test.describe("map (#138, #214)", () => {
     await page.goto(HOME.path);
     await places(page);
 
-    const line = map(page).locator("[data-map-show]:not([data-also])", {
-      hasText: "Foster Farmers Market",
+    const line = map(page).locator("[data-map-show]", {
+      hasText: "Shady Acres Diner",
     });
 
     test.skip(await line.count() === 0, "the Foster market has closed");
@@ -868,7 +1067,7 @@ test.describe("map (#138, #214)", () => {
     await expect(card).not.toContainText("Out of season");
     await expect(card.locator(".map-card-shop")).toHaveCount(0);
     await expect(card.locator(".map-card-links a"))
-      .toHaveText(["Website", "Instagram"]);
+      .toHaveText(["Market website", "Market Instagram"]);
     await expect(card).toBeInViewport();
     // Tapping the row again closes it.
     await line.click();

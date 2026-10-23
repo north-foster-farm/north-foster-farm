@@ -8,8 +8,8 @@
   /api/dates and /api/events at view time.
 
   A series has `code`, `kind`, `name`, `location` (the location's
-  name), `town`, `place` (the full line), `short`, `weekday` (0 is
-  Sunday), `day`, `window` ("10:00 – 11:00 AM"), `start`, `end` (empty
+  name), `locationCode`, `town`, `place` (the full line), `short`,
+  `weekday` (0 is Sunday), `day`, `window` ("10:00 – 11:00 AM"), `start`, `end` (empty
   when open-ended), `href` and `order` (the order page's link for it).
 */ -}}
 {{- $locations := hugo.Data.locations.locations -}}
@@ -32,6 +32,7 @@
       "kind" $s.kind
       "name" $s.name
       "location" $loc.name
+      "locationCode" $s.location
       "town" ($s.town | default $loc.town)
       "place" ($s.place | default (printf "%s, %s, %s" $loc.name $loc.street $loc.city))
       "short" ($s.short | default $loc.short | default (printf "%s, %s, %s" $loc.name $loc.street $loc.city))

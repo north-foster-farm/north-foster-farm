@@ -16,8 +16,16 @@
 // - A pin, or its row in the list beside the map, opens the place's
 //   card in its row, one at a time. Each pin carries the number of its
 //   row. The farm and the Foster market stand apart at the whole map.
-//   A place, or a line on its card, past its date goes, and the rest
-//   are numbered again.
+//   A place, or a series on its card, past its season goes, and the
+//   rest are numbered again.
+// - The list is one: the farm, then each location by the next date the
+//   farm attends there. The build carries the locations and seasons;
+//   /api/events fills in each series' upcoming dates, with a link to
+//   the order page on those open for pickup, and orders the list. When
+//   it can't load, the cards keep their seasons and only the drop
+//   site keeps its link.
+// - "Scheduled pickup only" keeps the locations with a date open for
+//   pickup orders; #places-scheduled opens Places so.
 // - The selected pin is lighter, with a glow, and its town is outlined
 //   in the brand green, as Delivery outlines the ZIP picked.
 // - The top bar's link to a pop-up, #place-…, opens its card.
@@ -78,35 +86,19 @@ const today = () => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
-// What has ended, or not begun, goes: a card's line, a row in the
-// list, a pin. A drop site left without its market loses the market's
-// links.
+// What has ended goes: a series on a card, a link, a row in the list,
+// a pin. A card left without links loses their heading.
 const expire = (map) => {
   const day = today();
-  const gone = (el) => (el.dataset.until && el.dataset.until < day)
-    || (el.dataset.from && el.dataset.from > day);
+  const gone = (el) => el.dataset.until && el.dataset.until < day;
 
-  for (const line of map.querySelectorAll(".map-card-when [data-until]")) {
-    if (!gone(line)) continue;
-    const card = line.closest("[data-map-card]");
-
-    if (line.dataset.alone) {
-      const links = card.querySelector(".map-card-links");
-
-      for (const a of links?.querySelectorAll("a") || []) {
-        if (a.textContent.startsWith("Market ")) a.remove();
-      }
-      if (links && !links.querySelector("a")) {
-        links.previousElementSibling.remove();
-        links.remove();
-      }
-    }
-    line.remove();
-  }
-  for (const el of map.querySelectorAll(
-    ".map-places [data-until], .map-places [data-from]"
-  )) {
+  for (const el of map.querySelectorAll(".map-places [data-until]")) {
     if (gone(el)) el.remove();
+  }
+  for (const links of map.querySelectorAll(".map-card-links")) {
+    if (links.querySelector("a")) continue;
+    links.previousElementSibling.remove();
+    links.remove();
   }
   for (const pin of map.querySelectorAll("[data-map-pin]")) {
     if (gone(pin)) pin.remove();
@@ -114,16 +106,17 @@ const expire = (map) => {
 };
 
 // The numbers on the rows and the pins, in the order of the list: a
-// place that has ended leaves no gap. The Scituate market's row wears
-// the drop site's number, being its pin's.
+// place that has ended, or is filtered out, leaves no gap.
 const number = (map) => {
-  const rows = [...map.querySelectorAll("[data-map-show]:not([data-also])")];
+  const rows = [...map.querySelectorAll(
+    "li:not([hidden]) > [data-map-show]"
+  )];
   const numbers = new Map(rows.map((row, i) => [row.dataset.mapShow, i + 1]));
 
   for (const el of map.querySelectorAll("[data-map-show], [data-map-pin]")) {
     const n = numbers.get(el.dataset.mapShow || el.dataset.mapPin);
 
-    el.querySelector("[data-map-num], .map-pin-num").textContent = n;
+    if (n) el.querySelector("[data-map-num], .map-pin-num").textContent = n;
   }
 };
 
@@ -197,13 +190,14 @@ const wire = (map) => {
   // than a town's zoom.
   const home = () => {
     const whole = { x: 0, y: 0, w: W, h: H };
+    const shown = pins.filter((p) => !p.hasAttribute("hidden"));
 
-    if (layer() !== "places" || !pins.length) return whole;
+    if (layer() !== "places" || !shown.length) return whole;
 
     const width = svg.getBoundingClientRect().width || W;
     const height = width * H / W;
-    const xs = pins.map((p) => Number(p.dataset.x));
-    const ys = pins.map((p) => Number(p.dataset.y));
+    const xs = shown.map((p) => Number(p.dataset.x));
+    const ys = shown.map((p) => Number(p.dataset.y));
     const spanX = Math.max(...xs) - Math.min(...xs);
     const spanY = Math.max(...ys) - Math.min(...ys);
     // The room a pin takes on screen, and its margin, which come out of
@@ -471,15 +465,13 @@ const wire = (map) => {
   // Cards.
 
   const rowOf = (n) => (list
-    ? list.querySelector(`[data-map-show="${n}"]:not([data-also])`) : null);
+    ? list.querySelector(`[data-map-show="${n}"]`) : null);
 
   const pressed = (n) => {
     for (const pin of pins) {
       pin.setAttribute("aria-pressed", String(pin.dataset.mapPin === n));
     }
-    for (const b of map.querySelectorAll(
-      "[data-map-show]:not([data-also])"
-    )) {
+    for (const b of map.querySelectorAll("[data-map-show]")) {
       const on = b.dataset.mapShow === n;
 
       b.setAttribute("aria-expanded", String(on));
@@ -619,7 +611,7 @@ const wire = (map) => {
 
     expire(map);
     pins = [...map.querySelectorAll("[data-map-pin]")];
-    number(map);
+    refresh();
     if (open && !open.isConnected) {
       open = null;
       pressed(null);
@@ -627,6 +619,118 @@ const wire = (map) => {
     }
     if (pins.length !== before && layer() === "places") go(home());
   });
+
+  // The schedule, read at view time (/api/events: what the farm
+  // attends, with the status "pickup" where orders are open). The
+  // locations with a date open for pickup; until it loads, the drop
+  // site's, which the build knows.
+  const rows = () => (list
+    ? [...list.querySelectorAll(".map-key-list > li")] : []);
+  let pickupAt = new Set(rows().filter((li) => "drop" in li.dataset)
+    .map((li) => li.dataset.location));
+  let scheduledOnly = false;
+  const chip = list?.querySelector("[data-map-filter]");
+  const none = list?.querySelector("[data-map-filter-none]");
+
+  // Shows the rows and pins the filter keeps, and numbers them again.
+  function refresh() {
+    if (!list) return;
+    const kept = (li) => !scheduledOnly || pickupAt.has(li.dataset.location);
+
+    for (const li of rows()) {
+      const on = kept(li);
+      const pin = pinOf(li.querySelector("[data-map-show]").dataset.mapShow);
+
+      li.hidden = !on;
+      pin?.toggleAttribute("hidden", !on);
+    }
+    if (chip) chip.setAttribute("aria-pressed", String(scheduledOnly));
+    if (none) none.hidden = !scheduledOnly || pickupAt.size > 0;
+    number(map);
+  }
+
+  function filter(on) {
+    if (!list || scheduledOnly === on) return;
+    scheduledOnly = on;
+    close();
+    refresh();
+    if (layer() === "places") go(home());
+  }
+
+  chip?.addEventListener("click", () => filter(!scheduledOnly));
+
+  // A series' dates, one line each, with a link to the order page on
+  // those open for pickup; the build's link for the drop site goes.
+  const dates = (events) => {
+    const template = map.querySelector("template[data-map-date]");
+
+    for (const block of map.querySelectorAll("[data-series]")) {
+      const dates = block.querySelector("[data-series-dates]");
+
+      dates.replaceChildren();
+      for (const e of events) {
+        if (e.series !== block.dataset.series) continue;
+
+        const li = template.content.firstElementChild.cloneNode(true);
+        const shop = li.querySelector("[data-date-shop]");
+        const note = li.querySelector("[data-date-note]");
+
+        li.querySelector("[data-date-label]").textContent = e.label;
+        li.querySelector("[data-date-window]").textContent = e.window || "";
+        if (e.status === "pickup") {
+          shop.href = block.dataset.order;
+          note.remove();
+        } else {
+          shop.remove();
+        }
+        dates.append(li);
+      }
+      block.querySelector("[data-series-fallback]")?.remove();
+    }
+  };
+
+  // The locations by the next date the farm attends: the farm first,
+  // those with a date in /api/events in its order, the rest as built.
+  const arrange = (events) => {
+    const ul = list.querySelector(".map-key-list");
+    const at = (li) => {
+      const i = events.findIndex((e) => e.location === li.dataset.location);
+
+      return i < 0 ? events.length : i;
+    };
+    const items = rows();
+    const sorted = [...items].sort((a, b) => {
+      if (!a.dataset.location || !b.dataset.location) {
+        return (a.dataset.location ? 1 : 0) - (b.dataset.location ? 1 : 0);
+      }
+
+      return at(a) - at(b) || items.indexOf(a) - items.indexOf(b);
+    });
+
+    ul.append(...sorted);
+  };
+
+  async function schedule() {
+    if (!list) return;
+
+    let events;
+
+    try {
+      const res = await fetch("/api/events", { cache: "no-store" });
+      const data = res.ok ? await res.json() : null;
+
+      events = data && Array.isArray(data.events) ? data.events : null;
+    } catch {
+      events = null;
+    }
+    if (!events) return;
+    dates(events);
+    arrange(events);
+    pickupAt = new Set(events.filter((e) => e.status === "pickup")
+      .map((e) => e.location));
+    refresh();
+    if (layer() === "places") go(home());
+  }
 
   // The tag: the town, what we deliver there and the price. "el" is
   // the dropped pin's tag or the pointer's.
@@ -848,15 +952,17 @@ const wire = (map) => {
     tabs.find((t) => t.dataset.mapLayer === "places").focus();
   });
 
-  // #places opens the Places layer; #place-… opens that place's card.
+  // #places opens the Places layer, #places-scheduled with only the
+  // scheduled pickup locations; #place-… opens that place's card.
   const follow = () => {
     const hash = decodeURIComponent(location.hash.slice(1));
 
     if (!tabs.length || !hash.startsWith("place")) return;
-    const pin = hash === "places" ? null
+    const pin = hash.startsWith("places") ? null
       : map.querySelector(`[data-map-slug="${CSS.escape(hash)}"]`);
 
     setLayer("places");
+    if (hash === "places-scheduled") filter(true);
     if (pin) show(pin.dataset.mapPin);
     frame.scrollIntoView({ block: "center" });
   };
@@ -900,6 +1006,7 @@ const wire = (map) => {
   addEventListener("resize", apply);
   apply();
   follow();
+  schedule();
 };
 
 export const wireMaps = () => {
