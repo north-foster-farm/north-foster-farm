@@ -109,24 +109,28 @@ export const knownFacts = () => {
   for (const g of Object.values(money.discountGroups)) {
     add("discount", d, `${g.percent}% off`);
   }
-  for (const key of ["delivery", "scituate"]) {
-    const t = terms[key];
-    add(`${key} day`, d, dayName(t.weekday), days(dayName(t.weekday)));
-    add(`${key} cutoff`, d, dayName(t.cutoffWeekday),
-      days(dayName(t.cutoffWeekday)));
-    add(`${key} window`, d, t.window);
-    add(`${key} window`, d, t.window.replace(" – ", " to "));
-  }
+  const t = terms.delivery;
+  add("delivery day", d, dayName(t.weekday), days(dayName(t.weekday)));
+  add("delivery cutoff", d, dayName(t.cutoffWeekday),
+    days(dayName(t.cutoffWeekday)));
+  add("delivery window", d, t.window);
+  add("delivery window", d, t.window.replace(" – ", " to "));
   const hold = terms.delivery.holdDays;
   add("hold", d, `${hold} days`);
   add("hold", d, `${hold}-day`);
-  const [site, street] = terms.scituate.location.split(", ");
-  add("drop site", d, site);
-  add("drop site", d, street);
-  add("drop site", d, terms.scituate.short);
-  const start = new Date(`${terms.scituate.start}T12:00:00Z`);
-  add("drop site start", d, terms.scituate.start);
-  add("drop site start", d, start.toLocaleDateString("en-US",
+  const drop = series.find((s) => s.kind === "drop-site");
+  const dropWindow = buildModel(locations, series).series
+    .find((s) => s.kind === "drop-site").window;
+  const sd = "data/series.json";
+  const [site, street] = drop.place.split(", ");
+  add("drop site", sd, site);
+  add("drop site", sd, street);
+  add("drop site", sd, drop.short);
+  add("drop site window", sd, dropWindow);
+  add("drop site window", sd, dropWindow.replace(" – ", " to "));
+  const start = new Date(`${drop.start}T12:00:00Z`);
+  add("drop site start", sd, drop.start);
+  add("drop site start", sd, start.toLocaleDateString("en-US",
     { month: "long", day: "numeric", timeZone: "UTC" }));
 
   const a = "data/accounts.json";

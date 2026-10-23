@@ -19,7 +19,6 @@
 
 import { readFileSync } from "node:fs";
 
-import delivery from "../data/delivery.json" with { type: "json" };
 import locations from "../data/locations.json" with { type: "json" };
 import registry from "../data/registry.json" with { type: "json" };
 import series from "../data/series.json" with { type: "json" };
@@ -41,29 +40,6 @@ const errors = checkIntegrity({
   lines,
   today: today(new Date(), terms.timeZone),
 });
-
-// The drop site block of data/delivery.json stays, read by the order
-// page and the cart until they read the series; it must say what the
-// series does.
-const drop = terms.model.series.find((s) => s.kind === "drop-site");
-const block = delivery.scituate;
-
-if (drop) {
-  for (const [name, mine, theirs] of [
-    ["window", block.window, drop.window],
-    ["location", block.location, drop.place],
-    ["short", block.short, drop.short],
-    ["town", block.town, drop.town],
-    ["start", block.start, drop.start],
-    ["weekday", block.weekday, drop.weekday],
-    ["opensHour", block.opensHour, drop.opensHour],
-  ]) {
-    if (mine !== theirs) {
-      errors.push(`data/delivery.json scituate.${name} is ${mine}, but ` +
-        `the drop site series ${drop.code} says ${theirs}.`);
-    }
-  }
-}
 
 if (errors.length) {
   console.error(`Events: ${errors.length} problem${

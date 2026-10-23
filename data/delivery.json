@@ -19,19 +19,6 @@
       "wholesale": { "label": "Wholesale", "percent": 20 }
     }
   },
-  "scituate": {
-    "start": "2026-10-17",
-    "weekday": 6,
-    "cutoffWeekday": 5,
-    "cutoffHour": 24,
-    "opensHour": 10,
-    "window": "10:00 – 11:00 AM",
-    "location": "Village Green, 46 Institute Lane, North Scituate, RI 02857",
-    "town": "Scituate",
-    "short": "46 Institute Ln, North Scituate, RI",
-    "note": "The same corner of the lot where our tent sits in market season.",
-    "datesToOffer": 2
-  },
   "delivery": {
     "weekday": 4,
     "cutoffWeekday": 3,
