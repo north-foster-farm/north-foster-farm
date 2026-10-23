@@ -96,8 +96,8 @@ module.exports = [
     },
   },
   {
-    // The CLI has no extension; it is an ES module all the same.
-    "files": ["bin/nff"],
+    // The CLIs have no extension; they are ES modules all the same.
+    "files": ["bin/nff", "bin/gh-shot"],
     "languageOptions": {
       "sourceType": "module",
     },

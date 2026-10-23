@@ -46,6 +46,16 @@ bin/prod
 To check a production build locally, run the linters and then
 `hugo --environment production` directly, skipping `bin/prod`.
 
+### Screenshots in issues and comments
+
+`gh` can't attach images, so `bin/gh-shot [--issue N] FILE...` uploads
+them to the `screenshots` branch (no shared history with `main`, never
+merged or deployed) and prints a markdown line for each to paste into
+`gh issue comment --body` or a body file. `--repo
+north-foster-farm/nff-dashboard` posts to the dashboard's branch. The
+branch is public and permanent: mockups and development or staging
+screens only, never customer data or production.
+
 ### Development Server Modes
 
 The `bin/dev` script supports two modes via environment variables:

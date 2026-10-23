@@ -1,0 +1,41 @@
+#!/usr/bin/env node
+// Upload screenshots for GitHub issues and comments, and print a
+// markdown line for each. See bin/shot/lib.mjs.
+
+import { readFileSync } from "node:fs";
+import { basename } from "node:path";
+
+import {
+  checkImage, currentRepo, ensureBranch, markdown, parseArgs, shotPath,
+  upload, USAGE,
+} from "./shot/lib.mjs";
+
+function main() {
+  const opts = parseArgs(process.argv.slice(2));
+  if (opts.help || opts.files.length === 0) {
+    console.log(USAGE);
+    return opts.help ? 0 : 1;
+  }
+  // Read and check every file before uploading any.
+  const images = opts.files.map((file) => {
+    const data = readFileSync(file);
+    checkImage(file, data.length);
+    return { file, data };
+  });
+  const repo = opts.repo ?? currentRepo();
+  if (ensureBranch(repo)) {
+    console.error(`Created the screenshots branch on ${repo}.`);
+  }
+  for (const { file, data } of images) {
+    const url = upload(repo, shotPath(file, { issue: opts.issue }), data);
+    console.log(markdown(opts.alt ?? basename(file), url));
+  }
+  return 0;
+}
+
+try {
+  process.exitCode = main();
+} catch (error) {
+  console.error(`gh-shot: ${error.message}`);
+  process.exitCode = 1;
+}
