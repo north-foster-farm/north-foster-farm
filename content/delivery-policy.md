@@ -1,7 +1,8 @@
 ---
 description: >
   How ordering from North Foster Farm works: delivery days, cutoffs,
-  minimums, fees and area, on-farm and scheduled pickup, changes, cancellations and refunds.
+  minimums, fees and area, on-farm and scheduled pickup, changes,
+  cancellations and refunds.
 slug: "delivery-policy"
 title: "Delivery policy"
 type: "policy"
@@ -35,7 +36,7 @@ your items come to {{< terms "waived-at" >}} or more.
 
 {{% bulk-tiers %}}
 
-Bulk discounts apply to every order, pickup and the drop site
+Bulk discounts apply to every order, on-farm and scheduled pickup
 included. The highest tier you reach applies, automatically.
 Discounts never combine: if more than one applies, your order takes
 whichever saves you more.
@@ -123,8 +124,7 @@ one, it appears on the order page, with its place and hours, and you
 can choose it there; the place and hours are the event's own. We
 don't open every market or pop-up we attend.
 
-You can order for a pickup through the end of the week after
-this one. Order by 11:59 PM the day before the pickup you choose.
+You can order for a pickup through the end of next week. Order by 11:59 PM the day before the pickup you choose.
 
 ## Changing or cancelling an order
 
@@ -136,7 +136,7 @@ notes, or cancel the order, until the cutoff:
 - **Delivery:** {{< cutoff "delivery" >}}, the day before your
   {{< terms "day" >}}.
 - **Scheduled pickup:** 11:59 PM the day before your pickup.
-- **On-farm pickup:** the end of the day before your pickup.
+- **On-farm pickup:** 11:59 PM the day before your pickup.
 
 To change what's in an order, cancel it and place a new one. After the
 cutoff, call, text or email us.

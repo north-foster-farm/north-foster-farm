@@ -31,7 +31,7 @@
 
 - The drop site: {{ .day }}s, {{ .window }}, {{ .place }}.{{ if gt .start (now.Format "2006-01-02") }} Starting {{ (time.AsTime .start).Format "January 2" }}.{{ end }}
 - Markets and pop-ups appear on the order page when the farm opens them for pickup: {{ (site.GetPage "/order").Permalink }}
-- Order by 11:59 PM the day before. Pickup can be booked through the end of the week after this one. No minimum, no fee.
+- Order by 11:59 PM the day before. You can book a pickup through the end of next week. No minimum, no fee.
 {{- end }}
 
 ## News
