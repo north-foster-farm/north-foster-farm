@@ -119,9 +119,10 @@ test.describe("restock types (#267)", () => {
   });
 
   // The lead line and the visible "Show" went (#274, round 4 part 2):
-  // the control stands alone, at the right over the catalog (round 5),
-  // still named "Show" for a screen reader.
-  test("Show stands alone, at the right, at the top of the catalog",
+  // the control stands alone over the catalog, centered in the
+  // hidden heading's place (#327), still named "Show" for a screen
+  // reader.
+  test("Show stands alone, centered, at the top of the catalog",
     async ({ page }) => {
       await open(page);
 
@@ -133,7 +134,8 @@ test.describe("restock types (#267)", () => {
       );
 
       for (const size of [
-        { width: 1280, height: 900 }, { width: 390, height: 800 },
+        { width: 1280, height: 900 }, { width: 768, height: 900 },
+        { width: 390, height: 800 },
       ]) {
         await page.setViewportSize(size);
 
@@ -142,12 +144,60 @@ test.describe("restock types (#267)", () => {
           const seg = el.querySelector(".order-filter-seg")
             .getBoundingClientRect();
 
-          return seg.right - box.right;
+          return (seg.left + seg.right) / 2 - (box.left + box.right) / 2;
         });
 
         expect(Math.abs(offset), `${size.width}px`).toBeLessThan(2);
+        // The heading is still the h1, for a screen reader only.
+        await expect(page.locator(".page-heading h1"))
+          .toHaveText("Place an order");
+        const h1 = await page.locator(".page-heading h1").boundingBox();
+
+        expect(h1.width * h1.height, `${size.width}px`).toBeLessThan(4);
       }
     });
+
+  // The header's Order button shows the catalog heading's double
+  // chevron on the order page only, and the icon glyphs sit equally
+  // far apart (#327).
+  test("The header's Order button wears the double chevron", async ({
+    page,
+  }) => {
+    await open(page);
+
+    const order = page.locator(".site-order");
+
+    await expect(order).toHaveAttribute("aria-current", "page");
+    await expect(order.locator(".site-order-chev svg")).toBeVisible();
+    await expect(order.locator(".site-order-chev"))
+      .toHaveAttribute("aria-hidden", "true");
+
+    await page.goto("/news/");
+    await expect(page.locator(".site-order-chev")).toHaveCount(0);
+  });
+
+  test("The header's icon glyphs are equally far apart", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await open(page);
+
+    const gaps = await page.evaluate(() => {
+      const edge = (el) => {
+        const r = el.getBoundingClientRect();
+
+        return [r.left, r.right];
+      };
+      const glyphs = [
+        ".site-account-icon", ".site-search-open", ".site-order",
+      ].map((q) => [...document.querySelectorAll(q)]
+        .find((el) => el.offsetWidth)).map(edge);
+
+      return [
+        glyphs[1][0] - glyphs[0][1], glyphs[2][0] - glyphs[1][1],
+      ];
+    });
+
+    expect(Math.abs(gaps[0] - gaps[1])).toBeLessThan(2);
+  });
 
   test("Full catalog: out-of-stock rows show their label, with no " +
     "tint on the name, and can't be added", async ({ page }) => {

@@ -73,7 +73,7 @@
            row does on its own page, in its usual style with its word
            underlined as the page you are on (#303). */}}
       {{ if $onOrder }}
-        <a class="site-order" href="{{ relURL "order/" }}" aria-current="page"><span class="site-order-label">Order</span>{{ partial "header/cart-badge.html" }}</a>
+        <a class="site-order" href="{{ relURL "order/" }}" aria-current="page"><span class="site-order-chev" aria-hidden="true">{{ partial "svg.html" "icons/chevrons-right" }}</span><span class="site-order-label">Order</span>{{ partial "header/cart-badge.html" }}</a>
       {{ else }}
         {{/* Order, and once the cart holds something, the cart beside
              it with its count. */}}

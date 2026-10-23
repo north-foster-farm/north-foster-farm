@@ -21,12 +21,11 @@
     max-width: 1040px;
   }
 
-  // The Show control on its own, at the right over the catalog at
-  // every size (#274, round 4 part 2: the lead beside it is gone;
-  // round 5: right, not centered).
+  // The Show control on its own, centered over the catalog at every
+  // size, in the heading's place (#327).
   .order-intro-row {
     display: flex;
-    justify-content: flex-end;
+    justify-content: center;
   }
 
   .order-section legend {
@@ -203,16 +202,16 @@
     transition: opacity var(--order-base) ease;
   }
 
-  @media (max-width: 991.98px) {
-    .order-head .page-heading {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      margin: 0;
-      overflow: hidden;
-      clip: rect(0 0 0 0);
-      clip-path: inset(50%);
-    }
+  // The heading stays the page's h1 for a screen reader; the Show
+  // switcher takes its place (#327).
+  .order-head .page-heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
   }
 
   .order-topbar-btn {

@@ -121,6 +121,16 @@ header {
   }
 }
 
+// The two icons sit in 2.25rem boxes with 0.5rem of air around the
+// glyph, the Order button and the toggle's bars nearly none, so equal
+// box gaps left the glyphs 8px further apart than the rest (#327).
+// Pull the search box in by that air, so every glyph gap matches.
+@media (max-width: 767.98px) {
+  .site-actions > .d-md-none + .site-search {
+    margin-left: -0.5rem;
+  }
+}
+
 // Text links: Sign in, News, About, Contact, and the Account
 // menu button. The same hinge as every button: on hover a two-pixel
 // lift and the shadow underneath, as if raised on a pin, and a light
@@ -394,12 +404,17 @@ $nav-link-transition:
     }
   }
 
-  // On the order page it keeps its style, and its word is underlined
-  // as the page you are on (#303); the cart count is not.
-  &[aria-current="page"] .site-order-label {
-    text-decoration: underline;
-    text-decoration-thickness: 1.5px;
-    text-underline-offset: 0.2em;
+  // On the order page it keeps its style and wears the double
+  // chevron the catalog heading shows for the section you are in
+  // (#327); the cart count does not.
+  .site-order-chev {
+    display: inline-flex;
+    margin-left: -0.25rem;
+
+    svg {
+      width: 1.125rem;
+      height: 1.125rem;
+    }
   }
 }
 
