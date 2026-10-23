@@ -42,6 +42,9 @@ export class DateLists {
     // Every occurrence /api/dates has listed, kept after it has gone, so
     // a confirmation can still name where an order is to be picked up.
     this.occurrences = new Map();
+    // A location by its code, for a pickup's address; the form sets it
+    // from the model (data/locations.json).
+    this.place = () => null;
   }
 
   now() {
@@ -206,7 +209,7 @@ export class DateLists {
         .cloneNode(true);
       const input = node.querySelector("input");
       const label = node.querySelector("label");
-      const parts = pickupParts(entry);
+      const parts = pickupParts(entry, this.place(entry.location));
 
       input.id = `scheduled-${entry.value.toLowerCase()}`;
       input.value = entry.value;
@@ -214,7 +217,16 @@ export class DateLists {
       label.htmlFor = input.id;
       label.querySelector(".order-pickup-date").textContent = parts.date;
       label.querySelector(".order-pickup-time").textContent = parts.time;
-      label.querySelector(".order-pickup-place").textContent = parts.place;
+      label.querySelector(".order-pickup-name").textContent = parts.name;
+
+      const address = label.querySelector(".order-pickup-address");
+
+      for (const line of parts.address) {
+        const part = document.createElement("span");
+
+        part.textContent = line;
+        address.appendChild(part);
+      }
       box.appendChild(node);
     }
   }

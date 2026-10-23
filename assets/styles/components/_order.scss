@@ -1614,10 +1614,11 @@
     }
   }
 
-  // The scheduled pickups: a vertical list of radios, one line each,
-  // in the secondary color so they read apart from the card's own
-  // (primary) radio. Date, hours and place are styled parts of the
-  // line, which wraps at the parts on a narrow screen.
+  // The scheduled pickups: a vertical list of radio cards, white until
+  // chosen (#323), in the secondary color so they read apart from the
+  // card's own (primary) radio. Each shows its day and hours, the
+  // pickup's name, and the address, one part to a line on a narrow
+  // card and written out on one line on a wide one.
   .order-pickups {
     display: grid;
     gap: 0.5rem;
@@ -1643,6 +1644,7 @@
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--bs-border-color);
     border-radius: var(--order-radius);
+    background-color: var(--bs-white);
     transition:
       border-color var(--order-hover) ease,
       background-color var(--order-hover) ease;
@@ -1680,22 +1682,16 @@
     gap: 0 0.5rem;
     cursor: pointer;
 
-    // The parts are separated by a dot that ends the part before it, so
-    // a line that wraps never starts with one.
-    > span:not(:last-child)::after {
+    // The day's dot ends it, so the hours follow on its line.
+    > .order-pickup-date::after {
       margin-left: 0.5rem;
       color: var(--bs-secondary-color);
       content: "·";
     }
 
-    // Where the line cannot hold even two parts, each takes its own row
-    // and the dots go.
-    @container (max-width: 26rem) {
-      > span {
-        flex-basis: 100%;
-      }
-
-      > span::after {
+    // Where the hours drop to their own row, the dot goes.
+    @container (max-width: 30rem) {
+      > .order-pickup-date::after {
         display: none;
       }
     }
@@ -1709,8 +1705,34 @@
     white-space: nowrap;
   }
 
-  .order-pickup-place {
+  .order-pickup-name,
+  .order-pickup-address {
+    flex-basis: 100%;
+  }
+
+  .order-pickup-name {
+    font-weight: 500;
+  }
+
+  .order-pickup-address {
+    display: flex;
+    flex-wrap: wrap;
     color: var(--bs-secondary-color);
+
+    // Written out on one line, the parts joined by commas.
+    > span:not(:last-child)::after {
+      margin-right: 0.3em;
+      content: ",";
+    }
+
+    // On a phone, one part to a line.
+    @container (max-width: 30rem) {
+      flex-direction: column;
+
+      > span::after {
+        display: none;
+      }
+    }
   }
 
   // Fulfilment cards

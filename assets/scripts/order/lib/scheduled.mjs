@@ -82,9 +82,25 @@ export const locationCount = (choices) => new Set(
   choices.map((c) => c.location || c.series)
 ).size;
 
-// A pickup as one line's parts: the day, the hours, the place.
-export const pickupParts = (entry) => ({
+// A location's address as lines: the venue's name, street line 1 and
+// line 2 where it has them, then "City, ST 02857" (#323). Each line
+// is a part; a phone shows one per row, a wide card joins them.
+export const addressLines = (loc) => {
+  if (!loc) return [];
+
+  const state = [loc.state, loc.zip].filter(Boolean).join(" ");
+
+  return [
+    loc.name, loc.street, loc.street2,
+    [loc.city, state].filter(Boolean).join(", "),
+  ].filter(Boolean);
+};
+
+// A pickup as its card's parts: the day, the hours, the pickup's own
+// name ("Drop site"), and the address of the place it is at.
+export const pickupParts = (entry, loc) => ({
   date: entry.label,
   time: entry.window,
-  place: [entry.name, entry.town].filter(Boolean).join(", "),
+  name: entry.name || "",
+  address: addressLines(loc),
 });

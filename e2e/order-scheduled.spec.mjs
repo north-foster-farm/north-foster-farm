@@ -47,7 +47,7 @@ test.describe("scheduled pickup", () => {
       expect(dates).toEqual([...dates].sort());
     });
 
-  test("each entry is one line: day, hours, then place and town",
+  test("each entry is a card: day and hours, name, then address",
     async ({ page }) => {
       await cannedScheduled(page);
 
@@ -59,16 +59,39 @@ test.describe("scheduled pickup", () => {
         .toHaveText(/^\w+, \w+ \d+$/);
       await expect(part(page, FOSTER.series, "time"))
         .toHaveText("9:00 AM – 1:00 PM");
-      await expect(part(page, FOSTER.series, "place"))
-        .toHaveText("Foster Farmers Market, Foster");
-      await expect(part(page, POPUP.series, "time"))
-        .toHaveText("6:00 – 8:00 PM");
-      await expect(part(page, POPUP.series, "place"))
-        .toHaveText("Summer Concert, Scituate");
+      await expect(part(page, FOSTER.series, "name"))
+        .toHaveText("Foster Farmers Market");
+      // One part to a line on a phone, joined on one line from wider.
+      await expect(part(page, FOSTER.series, "address").locator("span"))
+        .toHaveText([
+          "Shady Acres Diner", "164 Danielson Pike", "Foster, RI 02825",
+        ]);
       await expect(part(page, DROP.series, "time"))
         .toHaveText("10:00 – 11:00 AM");
-      await expect(part(page, DROP.series, "place"))
-        .toHaveText("Drop site, Scituate");
+      await expect(part(page, DROP.series, "name"))
+        .toHaveText("Drop site");
+      await expect(part(page, DROP.series, "address").locator("span"))
+        .toHaveText([
+          "The Village Green", "46 Institute Lane", "North Scituate, RI 02857",
+        ]);
+    });
+
+  test("an unchosen card is white and a chosen one is not",
+    async ({ page }) => {
+      await cannedScheduled(page);
+
+      const order = new OrderPage(page);
+
+      await order.open({ eggs: 1 }, { method: "scheduled" });
+      await listed(page);
+
+      const card = page.locator("#scheduled-pickups .order-pickup").first();
+      const bg = () => card.evaluate((el) => getComputedStyle(el)
+        .backgroundColor);
+
+      expect(await bg()).toBe("rgb(255, 255, 255)");
+      await card.locator("input").check();
+      expect(await bg()).not.toBe("rgb(255, 255, 255)");
     });
 
   test("none is chosen until the customer chooses", async ({ page }) => {
@@ -141,21 +164,20 @@ test.describe("scheduled pickup", () => {
 
       await order.open({ eggs: 1 });
       await listed(page);
-      await expect(page.locator("[data-scheduled-when]"))
-        .toHaveText(/^Saturdays, 10:00 – 11:00 AM$/);
+      await expect(page.locator("[data-scheduled-facts] dd").first())
+        .toHaveText("During markets, pop-ups, and drops");
       await expect(page.locator("[data-scheduled-where]"))
         .toContainText("Village Green");
     });
 
-  test("several places: the card says set days and places, and names " +
-    "them", async ({ page }) => {
+  test("several places: the card names them", async ({ page }) => {
     await cannedScheduled(page);
 
     const order = new OrderPage(page);
 
     await order.open({ eggs: 1 });
-    await expect(page.locator("[data-scheduled-when]"))
-      .toHaveText("Set days and places");
+    await expect(page.locator("[data-scheduled-facts] dd").first())
+      .toHaveText("During markets, pop-ups, and drops");
     await expect(page.locator("[data-scheduled-where]")).toHaveText(
       "Drop site, Summer Concert, and Foster Farmers Market"
     );

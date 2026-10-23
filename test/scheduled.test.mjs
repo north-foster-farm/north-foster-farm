@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  draftOccurrence, dropOnly, dropSeriesCode, fallbackChoice,
+  addressLines, draftOccurrence, dropOnly, dropSeriesCode, fallbackChoice,
   fulfilmentDate, locationCount, occurrenceId, pickupParts, placeNames,
   placesFact, scheduledChoice,
 } from "../assets/scripts/order/lib/scheduled.mjs";
@@ -151,12 +151,33 @@ describe("the locations a list reaches", () => {
   });
 });
 
-describe("a pickup as one line's parts", () => {
-  it("gives the day, the hours, and the place with its town", () => {
-    assert.deepEqual(pickupParts(drop), {
+describe("a pickup as its card's parts", () => {
+  const green = {
+    name: "The Village Green", street: "46 Institute Lane",
+    city: "North Scituate", state: "RI", zip: "02857",
+  };
+
+  it("gives the day, the hours, the name and the address lines", () => {
+    assert.deepEqual(pickupParts(drop, green), {
       date: "Saturday, October 24",
       time: "10:00 – 11:00 AM",
-      place: "Drop site, Scituate",
+      name: "Drop site",
+      address: [
+        "The Village Green", "46 Institute Lane", "North Scituate, RI 02857",
+      ],
     });
+  });
+
+  it("keeps a second street line and leaves out what is missing", () => {
+    assert.deepEqual(addressLines({
+      name: "Rocky Point Park", street: "1 Rocky Point Avenue",
+      street2: "Gate B", city: "Warwick", state: "RI",
+    }), [
+      "Rocky Point Park", "1 Rocky Point Avenue", "Gate B", "Warwick, RI",
+    ]);
+  });
+
+  it("has no address for a place it does not know", () => {
+    assert.deepEqual(pickupParts(drop).address, []);
   });
 });

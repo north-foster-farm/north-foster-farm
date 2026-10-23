@@ -172,6 +172,7 @@ export class OrderForm {
     this.draft = new Draft(this.editId ? { name: `nff-edit-${this.editId}` }
       : {});
     this.dates = new DateLists(form, () => this.refresh());
+    this.dates.place = (code) => this.terms.model.location(code);
     // A pickup time to select once its day's windows are drawn: a
     // restored draft's, or the dialog's.
     this.wantedWindow = null;
@@ -1824,9 +1825,10 @@ export class OrderForm {
     this.renderZipNote();
   }
 
-  // The scheduled pickup card from the list: its When and Where
-  // summarize every place once the list reaches more than the drop site
-  // (as built, they read as the drop site does); an empty list says so
+  // The scheduled pickup card from the list: its Where summarizes
+  // every place once the list reaches more than the drop site (as
+  // built, it reads as the drop site does; When is always "During
+  // markets, pop-ups, and drops"); an empty list says so
   // and the card cannot be chosen; the lists not yet here leave it as
   // built.
   renderScheduledCard() {
@@ -1838,16 +1840,13 @@ export class OrderForm {
 
     const choices = lists.scheduled;
     const none = !choices.length;
-    const when = qs(facts, "[data-scheduled-when]");
     const where = qs(facts, "[data-scheduled-where]");
 
-    for (const [el, text] of [
-      [when, "Set days and places"], [where, placesFact(choices)],
-    ]) {
-      if (el.dataset.built === undefined) el.dataset.built = el.textContent;
-      el.textContent = none || dropOnly(choices, this.dropSeries)
-        ? el.dataset.built : text;
+    if (where.dataset.built === undefined) {
+      where.dataset.built = where.textContent;
     }
+    where.textContent = none || dropOnly(choices, this.dropSeries)
+      ? where.dataset.built : placesFact(choices);
 
     // Beyond one place, Where counts the locations and links to the
     // map in a new tab, so the order stays as it is (#places shows the

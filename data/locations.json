@@ -17,6 +17,7 @@
       "street": "164 Danielson Pike",
       "city": "Foster",
       "state": "RI",
+      "zip": "02825",
       "town": "Foster",
       "lat": 41.80426,
       "lng": -71.77252
@@ -27,6 +28,7 @@
       "street": "One Hemsley Place",
       "city": "Exeter",
       "state": "RI",
+      "zip": "02822",
       "town": "Exeter",
       "lat": 41.56961,
       "lng": -71.52379
