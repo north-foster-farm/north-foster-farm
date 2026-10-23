@@ -5,6 +5,7 @@
 
 import { announceCart } from "../cart-badge/announce.js";
 import { Draft } from "../order/draft.js";
+import { shownLines } from "../order/lib/catalog.mjs";
 
 const MAX = 99;
 
@@ -17,10 +18,31 @@ const pageCount = () => [...document.querySelectorAll(
   "#order-form [data-qty]")]
   .reduce((sum, input) => sum + (parseInt(input.value, 10) || 0), 0);
 
-const draftLines = () => {
-  const saved = new Draft().load();
+// The catalog product search carries on every page, by SKU, and the
+// renames a saved cart may predate. Empty when the page has neither.
+export const pageCatalog = () => {
+  try {
+    const products = JSON.parse(document.querySelector(
+      "[data-search-products]").textContent);
+    const aliases = JSON.parse(document.querySelector(
+      "[data-search-palette]").dataset.aliases || "{}");
 
-  return (saved && saved.payload && saved.payload.lines) || [];
+    return { products: new Map(products.map((p) => [p.sku, p])), aliases };
+  } catch {
+    return { products: new Map(), aliases: {} };
+  }
+};
+
+// The saved cart's lines the cart can show (#322): renamed SKUs
+// brought up to date, unknown ones and empty ones left out, so the
+// count, the mini cart and the order page agree. A page with no
+// catalog can't tell, and takes the lines as saved.
+export const draftLines = () => {
+  const saved = new Draft().load();
+  const lines = (saved && saved.payload && saved.payload.lines) || [];
+  const { products, aliases } = pageCatalog();
+
+  return products.size ? shownLines(lines, aliases, products) : lines;
 };
 
 // -> how many of this product are in the cart now.
@@ -61,7 +83,9 @@ export const setCart = (sku, qty) => {
   const draft = new Draft();
   const saved = draft.load();
   const payload = { ...((saved && saved.payload) || {}) };
-  const was = payload.lines || [];
+  // The lines as shown, so a renamed SKU is not kept beside its new
+  // one.
+  const was = draftLines();
   const at = was.findIndex((l) => l.sku === sku);
   const lines = was.filter((l) => l.sku !== sku);
 

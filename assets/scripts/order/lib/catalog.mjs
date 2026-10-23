@@ -48,6 +48,26 @@ const squareName = (group, item) => (item.grade
 export const current = (sku, aliases = {}) =>
   (Object.hasOwn(aliases, sku) ? aliases[sku] : sku);
 
+// A saved cart's lines as the cart can show them (#322): each SKU as
+// the catalog knows it now, a renamed one merged with any line already
+// under its new name, and a line the catalog no longer sells (or with
+// no whole quantity) dropped. The header's count and mini cart both
+// read this, so the badge never counts what the cart can't show.
+// `known` is a Set or Map of the SKUs on sale.
+export const shownLines = (lines, aliases, known) => {
+  const kept = new Map();
+
+  for (const line of Array.isArray(lines) ? lines : []) {
+    const sku = current(line && line.sku, aliases);
+    const qty = Math.floor(Number(line && line.qty)) || 0;
+
+    if (!known.has(sku) || qty < 1) continue;
+    kept.set(sku, { ...line, sku, qty: (kept.get(sku)?.qty || 0) + qty });
+  }
+
+  return [...kept.values()];
+};
+
 export const indexCatalog = (catalog) => {
   const index = new Map();
 

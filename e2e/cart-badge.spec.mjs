@@ -127,6 +127,28 @@ test.describe("cart count on the Order link (#166)", () => {
       await expect(page.locator("#pickup")).toBeInViewport();
     });
 
+  test("a saved cart from before a SKU rename still shows (#322)",
+    async ({ page }) => {
+      await page.addInitScript(() => {
+        localStorage.setItem("nff-order-draft", JSON.stringify({
+          payload: { lines: [
+            { sku: "NFF-CHK-WHL-0200-0250", qty: 1 },
+            { sku: "NFF-GONE-FOR-GOOD", qty: 3 },
+          ] },
+        }));
+      });
+      await page.goto("/about/");
+      // The badge counts only what the mini cart can show.
+      await expect(rowBadge(page)).toHaveText("1");
+      await cartHalf(page).click();
+
+      const mini = page.locator(".site-mini-cart");
+
+      await expect(mini.locator(".site-mini-cart-line")).toHaveCount(1);
+      await expect(mini.locator("[data-mini-cart-subtotal]"))
+        .not.toHaveText("$0");
+    });
+
   test("blocked storage reads as an empty cart", async ({ page }) => {
     const errors = [];
 

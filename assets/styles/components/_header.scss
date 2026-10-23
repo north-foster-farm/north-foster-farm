@@ -685,6 +685,21 @@ $nav-link-transition:
   .site-account-chick:not([hidden]) + .site-account-icon {
     display: none;
   }
+
+  // The slot is not positioned, so a bar laid over it would cover the
+  // whole row of icons (#322). While the bar is up it is the icon's
+  // size, in the icon's place, and the link and button give way.
+  &[data-load="shown"] {
+    > :not(.skeleton, .skeleton-status) {
+      display: none;
+    }
+
+    > .skeleton-over {
+      position: static;
+      width: 2.25rem;
+      height: 2.25rem;
+    }
+  }
 }
 
 .site-account-menu {

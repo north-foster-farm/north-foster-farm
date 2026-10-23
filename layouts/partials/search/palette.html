@@ -43,7 +43,7 @@
 {{ $hen := (resources.Get "images/search/hen.svg" | fingerprint).RelPermalink }}
 {{ $egg := (resources.Get "images/icons/eggs.svg").Content | replaceRE `<path ` `<path fill="#4c6b5c" ` | resources.FromString "images/search/eggs.svg" | fingerprint }}
 {{ $egg = $egg.RelPermalink }}
-<dialog class="search-palette" id="search-palette" aria-labelledby="search-palette-label" data-search-palette data-hen="{{ $hen }}" data-egg="{{ $egg }}">
+<dialog class="search-palette" id="search-palette" aria-labelledby="search-palette-label" data-search-palette data-aliases='{{ hugo.Data.skuAliases | default dict | jsonify }}' data-hen="{{ $hen }}" data-egg="{{ $egg }}">
   <div class="search-palette-panel">
     <div class="search-palette-field">
       {{ partial "svg.html" "icons/search" }}

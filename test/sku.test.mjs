@@ -11,7 +11,7 @@ import { describe, it } from "node:test";
 import catalog from "../data/catalog.json" with { type: "json" };
 import aliases from "../data/skuAliases.json" with { type: "json" };
 import {
-  archived, current, indexCatalog,
+  archived, current, indexCatalog, shownLines,
 } from "../assets/scripts/order/lib/catalog.mjs";
 
 const items = [...indexCatalog(catalog).values()];
@@ -97,5 +97,25 @@ describe("data/skuAliases.json", () => {
       "NFF-CHK-BRSBL-10-12");
     assert.equal(current("NFF-CHK-EGG-LG", aliases), "NFF-CHK-EGG-LG");
     assert.equal(current("toString", aliases), "toString");
+  });
+});
+
+describe("shownLines (#322)", () => {
+  const known = new Set(["NEW", "OTHER"]);
+  const names = { OLD: "NEW" };
+
+  it("renames, merges and drops what the catalog can't show", () => {
+    const lines = [
+      { sku: "OLD", qty: 1 }, { sku: "NEW", qty: 2 },
+      { sku: "GONE", qty: 4 }, { sku: "OTHER", qty: 0 },
+      { sku: "OTHER", qty: "x" }, null,
+    ];
+
+    assert.deepEqual(shownLines(lines, names, known),
+      [{ sku: "NEW", qty: 3 }]);
+  });
+
+  it("copes with no lines", () => {
+    assert.deepEqual(shownLines(undefined, names, known), []);
   });
 });

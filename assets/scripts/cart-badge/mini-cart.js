@@ -4,20 +4,10 @@
 // never behind an add, another tab or the order page. Delivery, tiers
 // and discounts are the order page's; this only adds up prices.
 
-import { Draft } from "../order/draft.js";
 import { packLabel } from "../order/lib/catalog.mjs";
+import { draftLines, pageCatalog } from "../search/cart.js";
 
 const money = (d) => (Number.isInteger(d) ? `$${d}` : `$${d.toFixed(2)}`);
-
-const catalog = () => {
-  const el = document.querySelector("[data-search-products]");
-
-  try {
-    return new Map(JSON.parse(el.textContent).map((p) => [p.sku, p]));
-  } catch {
-    return new Map();
-  }
-};
 
 export const wireMiniCart = () => {
   const menu = document.querySelector("[data-cart-menu]");
@@ -31,7 +21,6 @@ export const wireMiniCart = () => {
   const panel = menu.querySelector(".site-mini-cart");
   const row = menu.closest(".site-header-inner");
   const phone = matchMedia("(max-width: 575.98px)");
-  let products = null;
 
   // On a phone the panel sits on the page's gutters, as wide as the
   // order page's cart (#203): from the header row's left content edge
@@ -58,10 +47,9 @@ export const wireMiniCart = () => {
   menu.addEventListener("show.bs.dropdown", place);
 
   menu.addEventListener("show.bs.dropdown", () => {
-    const saved = new Draft().load();
-    const lines = (saved && saved.payload && saved.payload.lines) || [];
+    const lines = draftLines();
+    const { products } = pageCatalog();
 
-    products ||= catalog();
     list.replaceChildren();
 
     // In catalog order, each group under its own heading, as the

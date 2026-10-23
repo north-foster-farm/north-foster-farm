@@ -158,6 +158,29 @@ test.describe("loading skeletons (#271)", () => {
     );
   });
 
+  test("the top bar covers only the account slot (#322)",
+    async ({ page }) => {
+      const release = await hold(page, "**/api/me", json({
+        signedIn: false,
+      }));
+
+      await page.goto("/about/");
+
+      const slot = page.locator("header [data-account]:visible");
+
+      await page.waitForTimeout(SHOW_AFTER_MS + 100);
+      await loading(slot);
+
+      const bar = await slot.locator(".skeleton-over").boundingBox();
+      const actions = await page.locator("header .site-actions")
+        .first().boundingBox();
+
+      // Never the whole row of icons, search and the menu button too.
+      expect(bar.width).toBeLessThan(actions.width * 0.6);
+      release();
+      await settled(slot);
+    });
+
   test("the account page: bars, the swap, no shift", async ({ page }) => {
     const release = await hold(page, "**/api/me", json({
       signedIn: true, customer: CUSTOMER,
