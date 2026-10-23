@@ -121,12 +121,12 @@ const newOrder = {
 };
 
 // A paid order, placed the way the page places one. -> { stores, id }
-const placed = async () => {
+const placed = async (fulfilment = newOrder.fulfilment) => {
   const stores = testStores();
   const res = await placeOrder(new Request("http://x/api/orders", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(newOrder),
+    body: JSON.stringify({ ...newOrder, fulfilment }),
   }), { stores, square: fakeSquare().square, now, env, mail: async () => ({}),
     ...quiet });
 
@@ -802,6 +802,26 @@ describe("farmEdit", () => {
     assert.ok(nowhere.errors["fulfilment.occurrence"]);
     assert.equal((await getOrder(stores, id)).fulfilment.method, "onfarm");
     assert.equal(sent.length, 0);
+  });
+
+  it("keeps where the order was, and shows it in the email", async () => {
+    const { stores, id } = await placed({
+      method: "scituate", date: "2026-10-17",
+    });
+    const { square } = fakeSquare();
+    const { sent, mail } = outbox();
+    const result = await farmEdit(stores, id, {
+      fulfilment: { method: "market", site: "foster", date: "2026-10-25" },
+    }, opts(square, mail));
+
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+
+    const { before } = (await getOrder(stores, id)).edits[0];
+
+    assert.equal(before.date, "2026-10-17", "the day it was");
+    assert.ok(before.site || before.occurrence, "the place it was");
+    assert.ok(sent.some((m) => /Before:/.test(m.text || m.html || "")),
+      "the email names the old place");
   });
 
   it("sends the customer nothing when withheld, and says so", async () => {

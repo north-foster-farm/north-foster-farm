@@ -137,13 +137,21 @@ export const snapshotOf = (order) => {
   };
 };
 
-// A snapshot printed before it carried the occurrence has neither key;
-// that alone is not a change.
-const same = (a, b) => {
-  const now = a.occurrence === undefined
-    ? { ...b, occurrence: undefined, name: undefined } : b;
+// The kind of pickup a snapshot shows: a Stage 1 `scituate` or `market`
+// and a `scheduled` one are the same kind.
+const kindOf = (snap) => (isScheduled(snap) ? "scheduled" : snap.method);
 
-  return JSON.stringify(a) === JSON.stringify(now);
+// A snapshot printed before it carried the occurrence has no such key;
+// that alone is not a change. Nor is the farm's name for the place (a
+// series renamed), or the old and new spelling of a scheduled method.
+const same = (a, b) => {
+  const strip = (s, drop) => ({
+    ...s, method: kindOf(s), name: undefined,
+    ...drop && { occurrence: undefined },
+  });
+
+  return JSON.stringify(strip(a, a.occurrence === undefined))
+    === JSON.stringify(strip(b, a.occurrence === undefined));
 };
 
 const linesOf = (snap) => new Map(snap.lines.map((l) => [l.sku, l]));

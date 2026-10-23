@@ -334,7 +334,7 @@ const fulfillment = (order) => {
   const [hour, minute] = start
     ? start.split(":").map(Number)
     : [site ? site.opensHour : 9, site ? site.opensMinute || 0 : 0];
-  const where = gone ? here.address
+  const where = gone ? here.address || f.occurrence || f.site
     : isScheduled(f) ? `Pickup at ${here.name}, ${here.address}`
       : "On-farm pickup";
 

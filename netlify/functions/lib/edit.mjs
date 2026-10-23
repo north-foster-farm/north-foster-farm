@@ -246,7 +246,10 @@ const changedRecord = (order, next, change, key, now, by = "customer") => {
     edits: [...(order.edits || []), {
       key, at: now.toISOString(), state: "pending", by,
       difference: change.difference, switched: change.switched,
-      before: { lines: order.lines, totals: order.totals, method: was.method },
+      before: {
+        lines: order.lines, totals: order.totals, method: was.method,
+        site: was.site, occurrence: was.occurrence, date: was.date,
+      },
     }],
   };
 };

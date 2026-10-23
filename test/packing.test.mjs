@@ -619,6 +619,25 @@ describe("scheduled pickups in a packet", () => {
     assert.ok(!changes.some((c) => /^Type:/.test(c)));
   });
 
+  it("reads a renamed series or a migrated method as unchanged", async () => {
+    const stores = testStores();
+    const h = harness();
+    const a = sched("A", "VFVQ-261017", "2026-10-17");
+
+    await saveOrder(stores, a, placed);
+    await run(stores, h, at(TUESDAY, 6));
+
+    const printed = await readPrinted(stores);
+    const old = { ...printed.get("A").snapshot, name: "Old name",
+      method: "scituate" };
+    const entries = choose({
+      open: [a], printed: new Map([["A", { snapshot: old }]]),
+      gone: [], day: TUESDAY,
+    });
+
+    assert.deepEqual(entries, []);
+  });
+
   it("does not read a snapshot from before the occurrence as changed",
     async () => {
       const stores = testStores();

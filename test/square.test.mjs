@@ -287,6 +287,15 @@ describe("buildOrder", () => {
     assert.match(note, /^Pickup, ZZZZ-261025/);
   });
 
+  it("names a legacy market gone from the data by its site", () => {
+    const { note } = buildOrder(order({
+      fulfilment: { method: "market", site: "gone-site",
+        date: "2026-10-25", onfarm: null },
+    }), "CUST", cfg).fulfillments[0].pickup_details;
+
+    assert.match(note, /^gone-site · /);
+  });
+
   it("reads an evening site's hour and minutes", () => {
     const [site] = buildModel([], [{
       code: "AAAA", name: "Evening Market", location: "BBBB",
