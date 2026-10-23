@@ -79,6 +79,12 @@ export const payloadFor = (order, body = {}) => {
   const method = next.method || f.method;
   const same = method === f.method;
   const old = (key) => (same && f[key]) || {};
+  const to = next.onfarm || {};
+  const was = old("onfarm");
+  // A legacy `confirmed` range belongs to the window it was set for.
+  const moved = (to.window && to.window !== was.window)
+    || (next.date && next.date !== f.date);
+  const kept = { ...was, confirmed: undefined };
 
   return {
     customer: {
@@ -97,7 +103,7 @@ export const payloadFor = (order, body = {}) => {
       ...(next.occurrence || (same && f.occurrence)) && {
         occurrence: next.occurrence || f.occurrence,
       },
-      onfarm: { ...old("onfarm"), ...(next.onfarm || {}) },
+      onfarm: { ...(moved ? kept : was), ...to },
       delivery: { ...old("delivery"), ...(next.delivery || {}) },
     },
     lines: Array.isArray(body.lines)

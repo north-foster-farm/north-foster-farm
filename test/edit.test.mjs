@@ -4,7 +4,7 @@ import { after, describe, it } from "node:test";
 import { handle as placeOrder } from "../netlify/functions/orders.mjs";
 import { rescueCheckout } from "../netlify/functions/lib/checkout.mjs";
 import {
-  diffLines, editOrder, farmEdit, finishEditVenmo,
+  diffLines, editOrder, farmEdit, finishEditVenmo, payloadFor,
 } from "../netlify/functions/lib/edit.mjs";
 import {
   cancelOrder, changeOrder, planChange,
@@ -163,6 +163,32 @@ describe("diffLines", () => {
     ]);
     assert.deepEqual(d.added.map((l) => [l.sku, l.qty]), [["A", 1], ["C", 1]]);
     assert.deepEqual(d.removed.map((l) => [l.sku, l.qty]), [["B", 1]]);
+  });
+});
+
+describe("payloadFor and a legacy confirmed range", () => {
+  const order = {
+    customer: { name: "Pat Example", email: "pat@example.com" },
+    lines: [{ sku: SKU, qty: 1 }],
+    fulfilment: {
+      method: "onfarm", date: "2026-10-07",
+      onfarm: { window: MORNING, confirmed: { from: 10, to: 12 } },
+    },
+  };
+
+  it("drops it when the edit moves to another window", () => {
+    const out = payloadFor(order, {
+      fulfilment: { onfarm: { window: AFTERNOON } },
+    });
+
+    assert.equal(out.fulfilment.onfarm.window, AFTERNOON);
+    assert.equal(out.fulfilment.onfarm.confirmed, undefined);
+  });
+
+  it("keeps it when the window and day are unchanged", () => {
+    const out = payloadFor(order, {});
+
+    assert.deepEqual(out.fulfilment.onfarm.confirmed, { from: 10, to: 12 });
   });
 });
 
