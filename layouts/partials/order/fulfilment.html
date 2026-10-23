@@ -57,38 +57,58 @@
     </div>
 
     <div class="order-method">
-      <input class="form-check-input" type="radio" name="method" id="method-scituate" value="scituate" data-field="fulfilment.method">
-      <label class="order-method-label" for="method-scituate">
+      <input class="form-check-input" type="radio" name="method" id="method-scheduled" value="scheduled" data-field="fulfilment.method">
+      <label class="order-method-label" for="method-scheduled">
         {{/* The start is a badge, as on home's ways band (#212): the
              build leaves it out once the day is over, and expiry.js
-             hides it in a page built before. */}}
+             hides it in a page built before. It is the drop site's
+             start; a series added later shows its first date in the
+             picker. */}}
         {{ $dropStart := time.AsTime $terms.scituate.start $terms.timeZone }}
         {{ $dropEnd := $dropStart.AddDate 0 0 1 }}
         <span class="d-flex flex-wrap align-items-baseline column-gap-2">
-          <span class="order-method-title">Drop site</span>
+          <span class="order-method-title">Scheduled pickup</span>
           {{ if gt $dropEnd.Unix now.Unix }}
             <span class="badge rounded-pill bg-success-subtle text-success-emphasis" data-hide-from="{{ $dropEnd.Format "2006-01-02T15:04:05-07:00" }}">Starting {{ $dropStart.Format "January 2" }}</span>
           {{ end }}
         </span>
-        <dl class="order-method-facts">
+        {{/* Built as the drop site reads. order-form.js rewrites When
+             and Where from the list once it holds more than the drop
+             site (renderScheduledCard), and says so when it is empty. */}}
+        <dl class="order-method-facts" data-scheduled-facts>
           <dt>When</dt>
-          <dd>{{ partial "weekday.html" "scituate" }}s, {{ $terms.scituate.window }}</dd>
+          <dd data-scheduled-when>{{ partial "weekday.html" "scituate" }}s, {{ $terms.scituate.window }}</dd>
           <dt>Where</dt>
-          <dd>{{ $terms.scituate.location }}</dd>
+          <dd data-scheduled-where>{{ $terms.scituate.location }}</dd>
           <dt>Cost</dt>
           <dd>No minimum, no fee</dd>
         </dl>
       </label>
-      <div class="order-method-reveal" data-method-body="scituate" inert>
+      <p class="order-method-warn" data-scheduled-none role="status" hidden>No scheduled pickups are open right now</p>
+      <div class="order-method-reveal" data-method-body="scheduled" inert>
         <div class="order-method-body order-hform">
           <div class="row">
-            <label class="col-sm-4 col-form-label" for="scituate-date">Pickup day</label>
-            <div class="col-sm-8 skeleton-slot" data-dates-region>
-              {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
-              <select class="form-select" id="scituate-date" name="scituate.date" data-dates="scituate" data-field="fulfilment.date" disabled aria-describedby="err-scituate-date">
-                <option value="">Loading dates&hellip;</option>
-              </select>
-              <div class="invalid-feedback" id="err-scituate-date" data-error-for="fulfilment.date"></div>
+            {{/* One radio per pickup, a line each: date, time, place
+                 (order-form.js renderPickups, from the template
+                 below). Nothing is chosen until the customer does. */}}
+            <span class="col-12 col-form-label" id="scheduled-label">Pickup day and place</span>
+            <div class="col-12 skeleton-slot" data-dates-region>
+              {{ partial "skeleton.html" (dict "over" true) }}
+              {{ partial "skeleton/status.html" (dict "quiet" true) }}
+              <div class="order-pickups" id="scheduled-pickups" role="radiogroup" aria-labelledby="scheduled-label" aria-describedby="err-scheduled-date" tabindex="-1" data-field="fulfilment.occurrence" data-dates="scheduled">
+                <p class="order-windows-none">Loading pickups&hellip;</p>
+              </div>
+              <template id="tpl-pickup">
+                <div class="order-pickup">
+                  <input class="form-check-input" type="radio" name="scheduled.date">
+                  <label class="order-pickup-label">
+                    <span class="order-pickup-date"></span>
+                    <span class="order-pickup-time"></span>
+                    <span class="order-pickup-place"></span>
+                  </label>
+                </div>
+              </template>
+              <div class="invalid-feedback" id="err-scheduled-date" data-error-for="fulfilment.occurrence"></div>
               {{ partial "skeleton/status.html" (dict "failed" "We couldn't load the dates.") }}
             </div>
           </div>

@@ -2,6 +2,9 @@
 // server on load, and the clock is anchored to the server's, so a
 // visitor's wrong clock cannot offer a closed date.
 
+import {
+  fallbackChoice, pickupParts, scheduledChoices,
+} from "./lib/scheduled.mjs";
 import { clear, whileLoading } from "../utils/skeleton.js";
 
 const RETRY = [2000, 5000, 15000, 30000];
@@ -36,6 +39,9 @@ export class DateLists {
     this.text = form.querySelector("[data-countdown-text]");
     this.regions = form.querySelectorAll("[data-dates-region]");
     this.again = null;
+    // Every occurrence /api/dates has listed, kept after it has gone, so
+    // a confirmation can still name where an order is to be picked up.
+    this.occurrences = new Map();
   }
 
   now() {
@@ -111,29 +117,115 @@ export class DateLists {
 
   apply(data) {
     this.offset = Date.parse(data.now) - Date.now();
-    this.lists = data;
+    this.lists = { ...data, scheduled: this.scheduled(data.scheduled) };
 
     for (const select of this.form.querySelectorAll("[data-dates]")) {
-      this.fill(select, data[select.dataset.dates] || []);
+      this.fill(select, this.lists[select.dataset.dates] || []);
     }
 
     this.tick();
     this.onChange();
   }
 
+  // The scheduled pickup entries as choices (lib/scheduled.mjs), each
+  // remembered by its occurrence id.
+  scheduled(list) {
+    const choices = scheduledChoices(list);
+
+    for (const c of choices) this.occurrences.set(c.occurrence, c);
+
+    return choices;
+  }
+
+  // An occurrence's place and window, from any entry it has had.
+  occurrence(id) {
+    return this.occurrences.get(id) || null;
+  }
+
   // A date to choose once the lists come: a restored draft's, or the
   // paid order's being changed. Set on the select before its options
   // exist, the browser would drop it and the first date would win
-  // (#284).
-  want(method, date) {
+  // (#284). For `scheduled` the "date" is the option's value, the
+  // occurrence id.
+  want(method, date, series = "") {
     const select = this.form.querySelector(`[data-dates="${method}"]`);
 
     if (!select || !date) return;
     select.dataset.want = date;
+    if (series) select.dataset.series = series;
     if (this.lists) this.fill(select, this.lists[method] || []);
   }
 
+  // The occurrence id of the pickup chosen, "" while none is.
+  scheduledValue() {
+    const box = this.form.querySelector("[data-dates='scheduled']");
+    const on = box && box.querySelector("input:checked");
+
+    return on ? on.value : "";
+  }
+
+  // Chooses a pickup in the list, if it is there.
+  choose(value) {
+    const box = this.form.querySelector("[data-dates='scheduled']");
+    const radio = box && Array.from(box.querySelectorAll("input"))
+      .find((input) => input.value === value);
+
+    if (radio) radio.checked = true;
+
+    return Boolean(radio);
+  }
+
+  // The scheduled pickups as a vertical list of radios, one line each,
+  // from the template (#tpl-pickup). Nothing is chosen but what the
+  // customer chose, or a draft or link named; a draft's closed
+  // occurrence of the old drop site falls to that series' next.
+  fillPickups(box, list) {
+    const current = box.dataset.want || this.scheduledValue();
+    const series = box.dataset.series || "";
+
+    box.textContent = "";
+    delete box.dataset.want;
+    delete box.dataset.series;
+
+    if (list.length === 0) {
+      const none = document.createElement("p");
+
+      none.className = "order-windows-none";
+      none.textContent = "No scheduled pickups are open right now";
+      box.appendChild(none);
+
+      return;
+    }
+
+    const kept = list.some((d) => d.value === current);
+    const pick = kept ? current
+      : series && fallbackChoice(list, series).value;
+
+    for (const entry of list) {
+      const node = document.getElementById("tpl-pickup").content
+        .cloneNode(true);
+      const input = node.querySelector("input");
+      const label = node.querySelector("label");
+      const parts = pickupParts(entry);
+
+      input.id = `scheduled-${entry.value.toLowerCase()}`;
+      input.value = entry.value;
+      input.checked = entry.value === pick;
+      label.htmlFor = input.id;
+      label.querySelector(".order-pickup-date").textContent = parts.date;
+      label.querySelector(".order-pickup-time").textContent = parts.time;
+      label.querySelector(".order-pickup-place").textContent = parts.place;
+      box.appendChild(node);
+    }
+  }
+
   fill(select, list) {
+    if (select.dataset.dates === "scheduled") {
+      this.fillPickups(select, list);
+
+      return;
+    }
+
     const current = select.dataset.want || select.value;
 
     select.textContent = "";
@@ -149,27 +241,27 @@ export class DateLists {
       return;
     }
 
-    for (const { date, label } of list) {
+    for (const entry of list) {
       const option = document.createElement("option");
 
-      option.value = date;
-      option.textContent = label;
+      option.value = entry.date;
+      option.textContent = entry.label;
       select.appendChild(option);
     }
 
     select.disabled = false;
     select.value = list.some((d) => d.date === current)
-      ? current
-      : list[0].date;
+      ? current : list[0].date;
     delete select.dataset.want;
   }
 
-  // The 409 answer carries a fresh list for the method that went stale.
+  // The 409 answer carries a fresh list for the way that went stale.
   replace(method, list) {
     const select = this.form.querySelector(`[data-dates="${method}"]`);
+    const fresh = method === "scheduled" ? this.scheduled(list) : list;
 
-    if (this.lists) this.lists[method] = list;
-    if (select) this.fill(select, list);
+    if (this.lists) this.lists[method] = fresh;
+    if (select) this.fill(select, fresh);
     if (method === "delivery" && this.lists) this.tick();
     this.onChange();
   }

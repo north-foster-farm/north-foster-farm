@@ -4,20 +4,30 @@
 // now. It pays nothing: "Use this" puts the choice on the form and the
 // customer pays again with the same button. Draft wording.
 
+// Keyed by the form's way: `scheduled` is scheduled pickup, the drop site
+// and every market or pop-up in one list.
 const NOUN = {
   onfarm: "pickup time",
-  scituate: "drop-site day",
+  scheduled: "scheduled pickup",
   delivery: "delivery day",
 };
 const NONE = {
   onfarm: "No pickup times are open right now",
-  scituate: "No drop-site days are open right now",
+  scheduled: "No scheduled pickups are open right now",
   delivery: "No delivery days are open right now",
 };
 const OTHER = {
-  onfarm: "Choose the drop site or delivery instead",
-  scituate: "Choose on-farm pickup or delivery instead",
-  delivery: "Choose a pickup instead",
+  onfarm: "Choose scheduled pickup or delivery instead",
+  scheduled: "Choose on-farm pickup or delivery instead",
+  delivery: "Choose on-farm or scheduled pickup instead",
+};
+const LEGEND = {
+  onfarm: "Pickup times", scheduled: "Scheduled pickups", delivery: "Days",
+};
+const USE = {
+  onfarm: "Use this time",
+  scheduled: "Use this pickup",
+  delivery: "Use this day",
 };
 
 export class Lapsed {
@@ -46,7 +56,11 @@ export class Lapsed {
 
       if (!picked) return;
 
-      const [date, window] = picked.value.split("|");
+      // A scheduled pickup's value is its occurrence id, which the
+      // form's picker takes whole; an on-farm time's is its date and
+      // window.
+      const [date, window] = this.method === "scheduled"
+        ? [picked.value] : picked.value.split("|");
 
       this.close();
       this.onUse({ method: this.method, date, window: window || null });
@@ -63,9 +77,10 @@ export class Lapsed {
     });
   }
 
-  // `dates` is the fresh list for `method`, as /api/dates gives it: for
-  // a pickup, each day with its windows. `returnTo` gets the focus back
-  // on "Never mind".
+  // `dates` is the fresh list for `method`, a way of the form, as
+  // /api/dates gives it: for on-farm pickup, each day with its windows;
+  // for scheduled pickup, its choices (lib/scheduled.mjs). `returnTo` gets
+  // the focus back on "Never mind".
   open(method, dates, returnTo) {
     if (!this.dialog) return;
 
@@ -73,7 +88,9 @@ export class Lapsed {
       ? dates.flatMap((d) => (d.windows || []).map((w) => ({
         value: `${d.date}|${w.id}`, text: `${d.label}, ${w.label}`,
       })))
-      : dates.map((d) => ({ value: d.date, text: d.label }));
+      : dates.map((d) => ({
+        value: d.value || d.date, text: d.text || d.label,
+      }));
     const some = choices.length > 0;
 
     this.method = method;
@@ -83,10 +100,11 @@ export class Lapsed {
       : NONE[method];
     this.lead.textContent = some
       ? `Nothing has been charged. Choose another ${
-        method === "onfarm" ? "time" : "day"}, then pay as before.`
+        method === "onfarm" ? "time" : method === "scheduled" ? "pickup" : "day"
+      }, then pay as before.`
       : "Nothing has been charged. You can still choose another way to " +
         "get your order.";
-    this.legend.textContent = method === "onfarm" ? "Pickup times" : "Days";
+    this.legend.textContent = LEGEND[method];
     this.list.textContent = "";
     choices.forEach((choice, i) => {
       const node = document.getElementById("tpl-lapsed-choice").content
@@ -103,8 +121,7 @@ export class Lapsed {
     });
     this.choices.hidden = !some;
     this.use.hidden = !some;
-    this.use.textContent = method === "onfarm" ? "Use this time"
-      : "Use this day";
+    this.use.textContent = USE[method];
     // With nothing left of this way, the other ways are the way on.
     this.other.textContent = some ? OTHER[method]
       : OTHER[method].replace(/ instead$/, "");

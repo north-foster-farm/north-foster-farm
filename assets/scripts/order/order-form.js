@@ -9,6 +9,10 @@ import {
 } from "./lib/cart-scroll.mjs";
 import { buildModel } from "./lib/events.mjs";
 import { moneyOn } from "./lib/money-on.mjs";
+import {
+  draftOccurrence, dropOnly, dropSeriesCode, fulfilmentDate, locationCount,
+  placesFact,
+} from "./lib/scheduled.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
 import { sentence } from "./lib/sentence.mjs";
 import { summarize } from "./lib/summary.mjs";
@@ -141,6 +145,11 @@ export class OrderForm {
     this.terms = {
       ...data.terms, model: buildModel(data.locations, data.series),
     };
+    // The drop site's series code (data/series.json), for the old
+    // ?method=scituate link and a draft saved before scheduled pickup.
+    this.dropSeries = dropSeriesCode(this.terms.model);
+    this.drop = this.terms.model.series
+      .find((s) => s.code === this.dropSeries) || {};
     this.contact = data.contact;
     // Discount codes, by hash; the plain codes stay on the server.
     this.codes = data.codes || [];
@@ -912,20 +921,47 @@ export class OrderForm {
     this.draft.touch();
   }
 
-  // /order/?method=onfarm (or scituate, delivery) chooses that way, as
+  // /order/?method=onfarm (or scheduled, delivery) chooses that way, as
   // a click on its card would: the home page's off-season band and the
-  // map's pin cards. The link wins over a restored draft's way. An
-  // unknown value is ignored. The query is cleared, as ?add= is.
+  // map's pin cards. ?method=scheduled&series=<code> also chooses that
+  // series' next date once the lists come, and the old
+  // ?method=scituate the drop site series'. The link wins over a
+  // restored draft's way. An unknown value is ignored. The query is
+  // cleared, as ?add= is.
   methodFromQuery() {
     const radios = all(this.form, "[name='method']");
-    const method = linkedMethod(
-      location.search, radios.map((radio) => radio.value)
+    const link = linkedMethod(
+      location.search, radios.map((radio) => radio.value), this.dropSeries
     );
 
     this.clearQuery("method");
-    if (!method || method === this.method()) return;
+    this.clearQuery("series");
+    if (!link) return;
 
-    radios.find((radio) => radio.value === method).checked = true;
+    this.wantedSeries = link.series;
+    if (link.method === this.method()) {
+      this.chooseSeries();
+
+      return;
+    }
+
+    radios.find((radio) => radio.value === link.method).checked = true;
+    this.draft.save(this.collect());
+  }
+
+  // A linked series' next date, chosen on the picker once its list is
+  // here. A series the list lacks (closed, or none open) leaves the
+  // picker as it was.
+  chooseSeries() {
+    const lists = this.dates.lists;
+
+    if (!this.wantedSeries || !lists) return;
+
+    const first = lists.scheduled.find((c) => c.series === this.wantedSeries);
+
+    this.wantedSeries = null;
+    if (!first || this.method() !== "scheduled") return;
+    this.dates.choose(first.value);
     this.draft.save(this.collect());
   }
 
@@ -1751,6 +1787,10 @@ export class OrderForm {
   // Everything derived from the current field values.
 
   refresh() {
+    // First: an empty list unchooses scheduled pickup, and the rest
+    // reads the way that leaves.
+    this.renderScheduledCard();
+
     const method = this.method();
     const totals = this.totals();
 
@@ -1782,6 +1822,51 @@ export class OrderForm {
 
     this.renderCart(totals, method);
     this.renderZipNote();
+  }
+
+  // The scheduled pickup card from the list: its When and Where
+  // summarize every place once the list reaches more than the drop site
+  // (as built, they read as the drop site does); an empty list says so
+  // and the card cannot be chosen; the lists not yet here leave it as
+  // built.
+  renderScheduledCard() {
+    const lists = this.dates.lists;
+    const radio = qs(this.form, "#method-scheduled");
+    const facts = qs(this.form, "[data-scheduled-facts]");
+
+    if (!lists || !radio || !facts) return;
+
+    const choices = lists.scheduled;
+    const none = !choices.length;
+    const when = qs(facts, "[data-scheduled-when]");
+    const where = qs(facts, "[data-scheduled-where]");
+
+    for (const [el, text] of [
+      [when, "Set days and places"], [where, placesFact(choices)],
+    ]) {
+      if (el.dataset.built === undefined) el.dataset.built = el.textContent;
+      el.textContent = none || dropOnly(choices, this.dropSeries)
+        ? el.dataset.built : text;
+    }
+
+    // Beyond one place, Where counts the locations and links to the
+    // map (#places opens its Places layer; #314 will open it to
+    // scheduled pickups).
+    const places = locationCount(choices);
+
+    if (!none && places > 1) {
+      const link = document.createElement("a");
+
+      link.href = "/#places";
+      link.textContent = `${places} locations`;
+      where.textContent = "";
+      where.appendChild(link);
+    }
+    facts.hidden = none;
+    qs(this.form, "[data-scheduled-none]").hidden = !none;
+    radio.disabled = none;
+    if (none && radio.checked) qs(this.form, "#method-onfarm").checked = true;
+    this.chooseSeries();
   }
 
   // The chosen pickup day's windows, one radio each, from the farm's
@@ -1837,20 +1922,23 @@ export class OrderForm {
   useLapsed({ method, date, window }) {
     const select = qs(this.form, `[data-dates="${method}"]`);
     const status = document.querySelector("[data-lapsed-status]");
+    const place = method === "scheduled" && this.pickupAt({ occurrence: date });
 
-    if (select) select.value = date;
+    if (method === "scheduled") this.dates.choose(date);
+    else if (select) select.value = date;
     if (window) this.wantedWindow = window;
     this.refresh();
     this.errors.clear();
     this.draft.save(this.collect());
 
-    const day = label(date);
+    const chosen = method === "scheduled" && this.dates.occurrence(date);
+    const day = label(chosen ? chosen.date : date);
     const times = window && windowLabel(pickupTimes({ window }));
 
     if (status) {
       status.textContent = `${method === "onfarm"
         ? `Pickup is now ${day}, ${times}`
-        : method === "scituate" ? `Drop-site pickup is now ${day}`
+        : method === "scheduled" ? `Pickup is now ${day}, ${place}`
           : `Delivery is now ${day}`}. Pay to place your order.`;
       status.hidden = false;
     }
@@ -1873,9 +1961,12 @@ export class OrderForm {
 
   // A 409: what was chosen lapsed. The fresh list goes on the form and
   // the dialog offers it (U1, U3).
-  lapse(method, dates) {
+  lapse(stored, dates) {
+    const method = stored;
+    const list = method === "scheduled" ? this.dates.scheduled(dates) : dates;
+
     this.dates.replace(method, dates);
-    this.lapsed.open(method, dates, this.submitButton.hidden ? null
+    this.lapsed.open(method, list, this.submitButton.hidden ? null
       : this.submitButton);
   }
 
@@ -1959,6 +2050,20 @@ export class OrderForm {
       way.classList.toggle("btn-primary", on);
       way.classList.toggle("btn-outline-primary", !on);
       if (on) wayName = way.textContent.trim();
+      if (way.dataset.way === "scheduled") {
+        way.disabled = !this.dates.lists
+          || !this.dates.lists.scheduled.length;
+      }
+    }
+
+    // A scheduled pickup names its day, window and place, from the
+    // picker, as the summary line does.
+    const picked = method === "scheduled"
+      && this.dates.occurrence(this.dates.scheduledValue());
+
+    if (picked) {
+      wayName += `: ${picked.label}, ${
+        this.pickupAt({ occurrence: picked.occurrence })}`;
     }
     qs(c, "[data-way-name]").textContent = wayName || "Pickup or delivery";
     c.toggleAttribute("data-empty", count === 0);
@@ -2109,7 +2214,7 @@ export class OrderForm {
 
     if (info.status === "outside") {
       note.textContent = "That's outside our delivery area. On-farm pickup " +
-        "and the drop site are open to everyone.";
+        "and scheduled pickup are open to everyone.";
       note.classList.add("text-danger-emphasis");
     } else if (info.status === "unlisted") {
       note.textContent = "A little outside our usual area: delivery is " +
@@ -2147,8 +2252,12 @@ export class OrderForm {
 
       return el.value;
     };
-    const method = this.method();
-    const dateSelect = qs(this.form, `[data-dates="${method}"]`);
+    const way = this.method();
+    const dateSelect = qs(this.form, `[data-dates="${way}"]`);
+    // Scheduled pickup stores its occurrence, which holds the date; the
+    // picker's value is the occurrence id.
+    const picked = way === "scheduled" ? this.dates.scheduledValue()
+      : dateSelect ? dateSelect.value : "";
 
     return {
       formVersion: this.form.dataset.version,
@@ -2162,8 +2271,8 @@ export class OrderForm {
       },
       lines: this.lines(),
       fulfilment: {
-        method,
-        date: dateSelect ? dateSelect.value : "",
+        method: way,
+        ...(way === "scheduled" ? { occurrence: picked } : { date: picked }),
         onfarm: {
           window: value("onfarm.window"),
         },
@@ -2229,7 +2338,11 @@ export class OrderForm {
       if (input) this.setQty(input, line.qty);
     }
 
-    if (f.method) set("fulfilment.method", f.method);
+    // A draft saved before scheduled pickup holds `scituate`, which is
+    // scheduled pickup at the drop site.
+    const way = f.method === "scituate" ? "scheduled" : f.method;
+
+    if (way) set("fulfilment.method", way);
     // The radios are drawn from the lists when they come.
     this.wantedWindow = o.window || null;
 
@@ -2241,7 +2354,12 @@ export class OrderForm {
 
     // Kept until the real list arrives; fill() honours it if the date
     // is still valid (#284).
-    if (f.method && f.date) this.dates.want(f.method, f.date);
+    if (way === "scheduled") {
+      this.dates.want(way, draftOccurrence(f, this.dropSeries),
+        f.method === "scituate" ? this.dropSeries : "");
+    } else if (way && f.date) {
+      this.dates.want(way, f.date);
+    }
     this.showContact();
   }
 
@@ -2569,13 +2687,14 @@ export class OrderForm {
   // One line saying when and where, the sentence people screenshot.
   when(fulfilment) {
     const f = fulfilment;
-    const day = f.date ? label(f.date) : "";
+    const date = fulfilmentDate(f, (id) => this.dates.occurrence(id));
+    const day = date ? label(date) : "";
 
     if (f.method === "delivery" && f.delivery) {
       return `${day}, delivered to ${f.delivery.address1}.`;
     }
-    if (f.method === "scituate") {
-      return `${day}, ${this.terms.scituate.window}, at the drop site.`;
+    if (f.method === "scituate" || f.method === "scheduled") {
+      return `${day}, ${this.pickupAt(f)}.`;
     }
     if (f.method === "onfarm" && f.onfarm) {
       const times = pickupTimes(f.onfarm);
@@ -2584,6 +2703,26 @@ export class OrderForm {
     }
 
     return day;
+  }
+
+  // "10:00 – 11:00 AM, at the drop site" or "9:00 AM – 1:00 PM, at
+  // Foster Farmers Market": the occurrence's own hours and name, from
+  // the lists (one that has since left them is still remembered). A
+  // draft saved before scheduled pickup (`scituate`) reads as the drop
+  // site's did; an occurrence the page cannot name, as "the scheduled pickup".
+  pickupAt(f) {
+    if (f.method === "scituate") {
+      return `${this.drop.window}, at the drop site`;
+    }
+
+    const entry = this.dates.occurrence(f.occurrence);
+
+    if (!entry) return "at the scheduled pickup";
+
+    const place = entry.series === this.dropSeries
+      ? "the drop site" : entry.name;
+
+    return `${entry.window}, at ${place}`;
   }
 
   summaryText(payload) {

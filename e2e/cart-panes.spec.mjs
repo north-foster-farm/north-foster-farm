@@ -237,7 +237,7 @@ test.describe("cart panes on a phone", () => {
     const delivery = order.cart.locator("[data-badge='delivery']");
     const free = order.cart.locator("[data-badge='free-delivery']");
 
-    for (const way of ["onfarm", "scituate", "delivery"]) {
+    for (const way of ["onfarm", "scheduled", "delivery"]) {
       await order.method(way);
       await expect(badges, way).toBeVisible();
       await expect(tier, way).toBeVisible();

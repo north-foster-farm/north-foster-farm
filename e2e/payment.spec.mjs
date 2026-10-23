@@ -128,6 +128,60 @@ test.describe("payments", () => {
     await expect(order.count).toHaveText("0 items");
   });
 
+  // Needs an occurrence open beyond the drop site's: a market or pop-up
+  // series with a `pickup` line in the schedule. Skipped, with the
+  // reason, where only the drop site lists.
+  test("a card pays for a market occurrence, stored with it and " +
+    "named in the emails", { tag: "@regression" },
+  async ({ page, request }) => {
+    const res = await request.get("/api/dates");
+    const { scheduled = [] } = res.ok() ? await res.json() : {};
+    const entry = scheduled.find((e) => e.name !== "Drop site");
+
+    test.skip(!entry, "No market or pop-up is open for pickup.");
+
+    const order = new OrderPage(page);
+    const email = uniqueEmail("market");
+
+    emails.push(email);
+    await order.open({ eggs: 1 });
+
+    const value = await order.scheduled(entry.series);
+
+    await order.contact({ first: "Market", email });
+    await order.openCard();
+    await order.card();
+
+    const { status, body } = await order.pay();
+
+    expect(status, JSON.stringify(body)).toBe(200);
+    made.push(body.orderId);
+    await expect(order.result.locator("[data-out='when']"))
+      .toContainText(`at ${entry.name}.`);
+    await expect(order.result.locator("[data-out='when']"))
+      .not.toContainText("the drop site");
+
+    const record = await orderRecord(body.orderId);
+
+    // Stored as a scheduled order with its occurrence, and the date
+    // the server derives from it.
+    expect(record.fulfilment).toMatchObject({
+      method: "scheduled", occurrence: value, date: entry.date,
+    });
+
+    const receipt = await waitForMail({
+      to: email, subject: "Your order is confirmed", since,
+    });
+
+    expect(receipt.text).toContain(entry.name);
+
+    const farm = await waitForMail({
+      subject: new RegExp(`^New order ${body.orderId} `), since,
+    });
+
+    expect(farm.subject).toContain(entry.name);
+  });
+
   test("a delivery paid by card is confirmed at once",
     { tag: "@regression" }, async ({ page, baseURL }) => {
       const order = new OrderPage(page);
@@ -202,9 +256,8 @@ test.describe("payments", () => {
 
       emails.push(email);
       await order.open({ eggs: 1 });
-      await order.method("scituate");
+      await order.scheduled();
       await order.contact({ first: "Decline", email });
-      await order.firstDate("scituate");
       await order.openCard();
       await order.card("4000000000000002");
 

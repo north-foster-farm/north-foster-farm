@@ -45,7 +45,7 @@ test.describe("contact and pickup forms", () => {
       await expect(page.locator("#customer-phone")).toHaveAttribute(
         "required", ""
       );
-      await order.method("scituate");
+      await order.method("scheduled");
       await expect(optional).toBeVisible();
     });
 
@@ -217,7 +217,7 @@ test.describe("contact and pickup forms", () => {
       const line = page.locator(".order-submit .order-agree");
 
       await order.open({ wings: 5 });
-      for (const method of ["onfarm", "scituate", "delivery"]) {
+      for (const method of ["onfarm", "scheduled", "delivery"]) {
         await order.method(method);
         await expect(line).toBeVisible();
         await expect(line).toHaveText(

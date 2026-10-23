@@ -39,14 +39,14 @@ test.describe("pricing and discounts", () => {
     });
   }
 
-  test("pickup and the drop site carry no fee", async ({ page }) => {
+  test("on-farm and scheduled pickup carry no fee", async ({ page }) => {
     const order = new OrderPage(page);
 
     await order.open({ eggs: 7 }, { method: "delivery" });
     await order.method("onfarm");
     await expect(order.feeRow).toBeHidden();
     await expect(order.total).toHaveText("$49");
-    await order.method("scituate");
+    await order.method("scheduled");
     await expect(order.feeRow).toBeHidden();
     await expect(order.total).toHaveText("$49");
   });
@@ -93,7 +93,7 @@ test.describe("pricing and discounts", () => {
       .toHaveAttribute("data-on", "true");
   });
 
-  test("$35 by delivery is short; the drop site takes it",
+  test("$35 by delivery is short; scheduled pickup takes it",
     { tag: "@regression" }, async ({ page }) => {
       const order = new OrderPage(page);
 
@@ -105,7 +105,7 @@ test.describe("pricing and discounts", () => {
         "You need $40 or more in your cart to use this option. Add $5 more."
       );
       await expect(order.next).toBeDisabled();
-      await order.method("scituate");
+      await order.method("scheduled");
       await expect(order.short).toBeHidden();
       await expect(order.next).toBeEnabled();
       await expect(order.total).toHaveText("$35");

@@ -209,6 +209,12 @@ export const validateOrder = (payload, {
     out.onfarm = { window };
   }
 
+  // Nothing is chosen for the customer: a scheduled pickup without its
+  // occurrence is incomplete, like an on-farm pickup without its time.
+  if (method === "scheduled" && posted === "scheduled" && !occurrence) {
+    errors["fulfilment.occurrence"] = "Choose a pickup day and place.";
+  }
+
   if (method === "delivery") {
     const f = fulfilment.delivery || {};
 
@@ -252,7 +258,12 @@ export const validateOrder = (payload, {
   }
 
   // The chosen date must still be valid now, not when the page loaded.
-  if (METHODS.includes(method)) {
+  // A scheduled pickup with nothing chosen has no date to hold yet: the
+  // error above is all there is to say, not a lapsed pickup.
+  const unchosen = method === "scheduled" && posted === "scheduled"
+    && !occurrence;
+
+  if (METHODS.includes(method) && !unchosen) {
     const dates = datesFor(method, now, terms, schedule, farm);
     const date = text(fulfilment.date, 10);
     // The occurrence an order already holds stays valid for the

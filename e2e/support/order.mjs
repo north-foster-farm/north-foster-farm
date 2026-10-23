@@ -94,6 +94,16 @@ export const paymentFakes = async (request) => {
   };
 };
 
+// The scheduled pickup radios, their values, and the one chosen.
+export const pickupRadios = (page) => page.locator(
+  "#scheduled-pickups input"
+);
+export const pickupValues = (page) => pickupRadios(page)
+  .evaluateAll((inputs) => inputs.map((i) => i.value));
+export const pickupChosen = (page) => page.locator(
+  "#scheduled-pickups input:checked"
+);
+
 export class OrderPage {
   constructor(page) {
     this.page = page;
@@ -220,6 +230,24 @@ export class OrderPage {
     );
 
     await select.selectOption(value);
+
+    return value;
+  }
+
+  // Chooses scheduled pickup and the first occurrence of a series
+  // (the drop site's, `VFVQ`, by default); returns the occurrence id
+  // chosen. The pickups are a list of radios whose values are
+  // occurrence ids, "<code>-<YYMMDD>"; none is chosen until one is.
+  async scheduled(code = "VFVQ") {
+    await this.method("scheduled");
+    await expect(pickupRadios(this.page).first()).toBeVisible();
+
+    const value = (await pickupValues(this.page))
+      .find((v) => v.startsWith(`${code}-`));
+
+    expect(value, `a ${code} occurrence on offer`).toBeTruthy();
+    await this.page.locator(`#scheduled-pickups input[value='${value}']`)
+      .check();
 
     return value;
   }

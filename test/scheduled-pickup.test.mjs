@@ -96,6 +96,21 @@ describe("an order for a scheduled pickup", () => {
     assert.equal(saved.fulfilment.site, undefined);
   });
 
+  it("refuses a scheduled pickup with no occurrence chosen", async () => {
+    for (const fulfilment of [
+      { method: "scheduled" },
+      { method: "scheduled", occurrence: "" },
+      { method: "scheduled", occurrence: "", date: "2026-10-17" },
+    ]) {
+      const res = await send(testStores(), fulfilment);
+      const body = await res.json();
+
+      assert.equal(res.status, 422, JSON.stringify(fulfilment));
+      assert.equal(body.errors["fulfilment.occurrence"],
+        "Choose a pickup day and place.");
+    }
+  });
+
   it("takes a date only if it is the occurrence's own", async () => {
     const stores = testStores();
     const same = await send(stores, { ...DROP, date: "2026-10-17" });

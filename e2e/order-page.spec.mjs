@@ -30,14 +30,15 @@ test.describe("order page", () => {
     );
   });
 
-  test("the ways to get an order: the farm first, then the drop site, " +
-    "then delivery", async ({ page }) => {
+  test("the ways to get an order: the farm first, then scheduled " +
+    "pickup, then delivery", async ({ page }) => {
     const order = new OrderPage(page);
 
     await order.open();
     await expect(page.locator(".order-method-title")).toHaveText([
-      "On-farm pickup", "Drop site", "Delivery",
+      "On-farm pickup", "Scheduled pickup", "Delivery",
     ]);
+    await expect(page.locator("#method-onfarm")).toBeChecked();
   });
 
   test("the steps run items, pickup or delivery, contact, payment",
@@ -160,12 +161,12 @@ test.describe("order page", () => {
     const order = new OrderPage(page);
 
     await order.open({ wings: 5 });
-    await order.method("scituate");
+    await order.method("scheduled");
     await page.locator("#customer-first-name").fill("Draft");
     await page.reload();
     await expect(page.locator("#onfarm-date")).toBeEnabled();
     await expect(order.qty("wings")).toHaveValue("5");
-    await expect(page.locator("#method-scituate")).toBeChecked();
+    await expect(page.locator("#method-scheduled")).toBeChecked();
     await expect(page.locator("#customer-first-name")).toHaveValue("Draft");
     await expect(order.total).toHaveText("$45");
   });
