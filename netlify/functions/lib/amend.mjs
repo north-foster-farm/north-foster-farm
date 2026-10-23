@@ -396,15 +396,17 @@ const followInSquare = async (plan, { square, env, fetchImpl, k }) => {
     // `unpaid` leaves an order that has taken a tender alone: with a
     // reused key, it may be an earlier change's paid $0 order.
     let skipped = false;
+    let paid = false;
     const gone = await square.cancelOrder(id, { env, fetchImpl, unpaid: true })
       .then((r) => {
         skipped = !!r && r.cancelled === false;
+        paid = !!r && !!r.paid;
 
         return !!(r && r.cancelled);
       }, () => false);
 
     throw Object.assign(new Error(error && error.message), {
-      created: id, cancelled: gone, skipped,
+      created: id, cancelled: gone, skipped, paid,
     });
   }
 
@@ -451,8 +453,8 @@ export const applyAmend = async (stores, plan, {
 
       if (error && error.created) {
         note = error.skipped
-          ? ` The $0 Square order it used (${left}) has taken payment ` +
-            "and was left in place."
+          ? ` The $0 Square order it used (${error.created}) ` +
+            `was left in place${error.paid ? "; it has taken payment" : ""}.`
           : left
             ? ` A $0 Square order (${left}) was created and could not ` +
               "be cancelled; cancel it in Square."

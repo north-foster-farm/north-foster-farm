@@ -815,9 +815,10 @@ export const cancelOrder = async (squareOrderId, {
   const cfg = { ...settings(env), deadline };
   const current = await currentOrder(cfg, squareOrderId, fetchImpl);
 
-  if ((current.state && current.state !== "OPEN")
-    || (unpaid && (current.tenders || []).length)) {
-    return { id: squareOrderId, cancelled: false };
+  const paid = !!(current.tenders || []).length;
+
+  if ((current.state && current.state !== "OPEN") || (unpaid && paid)) {
+    return { id: squareOrderId, cancelled: false, paid };
   }
 
   await call(cfg, `/v2/orders/${squareOrderId}`, {

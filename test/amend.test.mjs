@@ -503,6 +503,27 @@ describe("orders change, the farm's change to any order", () => {
       assert.match(failed.message, /SQ-4.*left in place/);
     });
 
+  it("names payment as the cause only when the $0 order has tenders",
+    async () => {
+      for (const paid of [true, false]) {
+        const { stores, id } = await delivered();
+        const { square } = fakeSquare();
+
+        square.cancelFulfilment = async () => { throw new Error("stuck"); };
+        square.cancelOrder = async (sid) => ({ id: sid, cancelled: false,
+          paid });
+
+        const failed = await change(stores, id, MARKET,
+          { square, force: true });
+
+        const said = failed.report.square;
+
+        assert.equal(failed.ok, true, JSON.stringify(failed));
+        assert.match(said, /SQC1\) was left in place/);
+        assert.equal(/has taken payment/.test(said), paid, said);
+      }
+    });
+
   it("names the $0 order it could not cancel, and keeps it with --force",
     async () => {
       const { stores, id } = await delivered();
