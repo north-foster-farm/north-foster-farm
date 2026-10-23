@@ -336,7 +336,8 @@ export const validateOrder = (payload, {
       },
       lines: lines.map(({ sku, qty, item }) => ({
         sku,
-        label: item.lineName,
+        label: item.grade
+          ? `${item.lineName} · ${item.grade}` : item.lineName,
         name: item.squareName,
         unitPrice: item.price,
         qty,

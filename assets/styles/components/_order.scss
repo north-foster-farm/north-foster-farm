@@ -365,8 +365,9 @@
 
   // Live stock: a note under the name, "N left" at five or fewer. An
   // item out of stock has no row while Show is on "In stock"; under
-  // "Full catalog" its row is greyed, says its restock label there ("Back in
-  // spring") and has no quantity control (#267).
+  // "Full catalog" its row looks like any other, with its restock label
+  // ("Back in spring") in a disabled button where Add would be and no
+  // quantity control (#267, #318).
   .order-item-stock {
     grid-area: name;
     align-self: end;

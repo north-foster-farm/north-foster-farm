@@ -38,7 +38,7 @@ export const order = (over = {}) => ({
   },
   lines: [
     { sku: "A", label: "Whole Chicken, 3.5 – 3.9 lbs", qty: 3, lineTotal: 90 },
-    { sku: "B", label: "Eggs, Grade A Large", qty: 2, lineTotal: 14 },
+    { sku: "B", label: "Eggs, Large · Grade A", qty: 2, lineTotal: 14 },
   ],
   totals: {
     subtotal: 10400, discountTier: 100, discountAmount: 1000,
@@ -205,7 +205,7 @@ const other = (firstName, lastName) => ({
 const added = order({
   lines: [
     { sku: "A", label: "Whole Chicken, 3.5 – 3.9 lbs", qty: 3, lineTotal: 90 },
-    { sku: "B", label: "Eggs, Grade A Large", qty: 3, lineTotal: 21 },
+    { sku: "B", label: "Eggs, Large · Grade A", qty: 3, lineTotal: 21 },
   ],
   totals: {
     subtotal: 11100, discountTier: 100, discountAmount: 1000,
@@ -216,7 +216,7 @@ const added = order({
 const dropped = order({
   lines: [
     { sku: "A", label: "Whole Chicken, 3.5 – 3.9 lbs", qty: 2, lineTotal: 60 },
-    { sku: "B", label: "Eggs, Grade A Large", qty: 2, lineTotal: 14 },
+    { sku: "B", label: "Eggs, Large · Grade A", qty: 2, lineTotal: 14 },
   ],
   totals: {
     subtotal: 7400, discountTier: 50, discountAmount: 500,
@@ -311,7 +311,7 @@ const afterPrintMail = (kind) => (links) => {
 export const SAMPLE_TEXT = [
   "Dana Whitcomb", "Dana", "Sam Okafor", "Lee Marchetti", "Robin Ashby",
   "Jo Pereira",
-  "Whole Chicken, 3.5 – 3.9 lbs", "Eggs, Grade A Large",
+  "Whole Chicken, 3.5 – 3.9 lbs", "Eggs, Large · Grade A",
   "Green cooler by the garage", "Dog is friendly",
   "Please leave the eggs on top.", "On the front porch",
   "morning", "afternoon", "Village Green",

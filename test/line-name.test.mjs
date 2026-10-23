@@ -109,9 +109,11 @@ describe("line names", () => {
 
       assert.ok(r.ok, JSON.stringify(r.errors));
       assert.deepEqual(r.order.lines.map((l) => l.label), [
-        "Livers, 1.0 – 1.4 lbs", "Wings, 1.0 – 1.9 lbs", "Eggs, Large",
+        "Livers, 1.0 – 1.4 lbs", "Wings, 1.0 – 1.9 lbs",
+        "Eggs, Large · Grade A",
       ]);
-      // The Square line's name keeps the grade for eggs (#300).
+      // The stored label carries the grade as a note (#318, Rhode Island
+      // wants it on the invoice); Square's name keeps it too (#300).
       assert.equal(r.order.lines[2].name, "Eggs, Grade A Large");
     });
 
