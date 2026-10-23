@@ -17,9 +17,10 @@
   lists its series, so the drop site and a market at the Village Green
   share one card with no special case. The build carries the locations
   and the seasons; scripts/map/ reads /api/events at view time for the
-  dates the farm attends and the ones open for pickup orders, puts the
-  locations in the order of their next date, and links each open date
-  to the order page. A series shows until its "end" in the series file:
+  dates the farm attends and the ones open for pickup orders, and puts
+  the locations in the order of their next date. A card gives each
+  series' weekday and hours and its season, never every date, and
+  has no link to the order page (#326). A series shows until its "end" in the series file:
   the build leaves out what has ended, and scripts/map/ hides what ends
   before the next build.
 
@@ -42,7 +43,6 @@
 {{ $money := $terms.money }}
 {{ $zone := "America/New_York" }}
 {{ $today := now.Format "2006-01-02" }}
-{{ $order := relURL "order/" }}
 
 {{/* Every ZIP we deliver to, in either state, and those in a state
      that takes only some groups (Connecticut, eggs). */}}
@@ -69,8 +69,7 @@
     "town" $address.city "nudge" 1
     "blocks" (slice (dict "name" "Pick a time when you order" "line" "On-farm pickup"))
     "where" $address.full
-    "directions" $address.directions
-    "shop" (dict "label" "Shop for pickup" "href" (printf "%s?method=onfarm" $order)))) }}
+    "directions" $address.directions)) }}
 
   {{/* The other locations, by the next day their season has one. */}}
   {{ $all := (partial "scheduled-places.html" .).series }}
@@ -101,19 +100,21 @@
           {{ with $raw.nudge }}{{ $nudge = . }}{{ end }}
           {{ if eq .kind "drop-site" }}{{ $drop = true }}{{ end }}
           {{ $line := printf "%ss, %s" .day .window }}
+          {{ $season := "" }}
           {{ $day := printf "%ss" .day }}
           {{ if and .end (eq .end .start) }}
             {{ $d := time.AsTime .start $zone }}
             {{ $line = printf "%s, %s" ($d.Format "Monday, January 2") .window }}
             {{ $day = $d.Format "Jan 2" }}
           {{ else if .end }}
-            {{ $line = printf "%s · %s" $line (partial "market/season.html" (dict "opens" .start "closes" .end)) }}
+            {{ $season = printf "%s to %s" ((time.AsTime .start $zone).Format "January 2") ((time.AsTime .end $zone).Format "January 2") }}
           {{ else if gt .start $today }}
-            {{ $line = printf "%s · starting %s" $line ((time.AsTime .start $zone).Format "January 2") }}
+            {{ $season = printf "Starting %s" ((time.AsTime .start $zone).Format "January 2") }}
+          {{ else }}
+            {{ $season = "Ongoing" }}
           {{ end }}
           {{ $blocks = $blocks | append (dict
-            "code" .code "name" .name "line" $line "until" .end
-            "order" .order "fallback" (eq .kind "drop-site")) }}
+            "code" .code "name" .name "line" $line "season" $season "until" .end) }}
           {{ $days = $days | append $day }}
           {{ $names = $names | append .name }}
           {{/* No Instagram on a pop-up's card (James, #214). */}}
@@ -272,22 +273,18 @@
                   <small>{{ $p.town }}{{ with $p.names }} · {{ . }}{{ end }}</small>
                 </span>
               </button>
-              {{/* The card: when (a block for each series, its dates
-                   filled in by the script), where, directions, links,
-                   then the shop button. A card leaves a part out and
+              {{/* The card: when (a block for each series: its
+                   day and hours, then its season), where, directions
+                   and links. A card leaves a part out and
                    never reorders one. */}}
               <div class="map-card" id="{{ $id }}-card-{{ add $i 1 }}" data-map-card="{{ add $i 1 }}" role="group" aria-labelledby="{{ $id }}-row-{{ add $i 1 }}" hidden>
                 <p class="map-card-label">When</p>
                 <ul class="map-card-when list-unstyled">
                   {{ range $p.blocks }}
-                    {{ $b := . }}
-                    <li {{- with .code }} data-series="{{ . }}" data-order="{{ $b.order }}"{{ end }} {{- with .until }} data-until="{{ . }}"{{ end }}>
+                    <li {{- with .code }} data-series="{{ . }}"{{ end }} {{- with .until }} data-until="{{ . }}"{{ end }}>
                       <strong>{{ .name }}</strong>
                       <span>{{ .line }}</span>
-                      {{ if .code }}
-                        <ul class="map-card-dates list-unstyled" data-series-dates></ul>
-                        {{ if .fallback }}<a class="map-card-pickup" href="{{ .order }}" data-series-fallback>Shop for pickup here</a>{{ end }}
-                      {{ end }}
+                      {{ with .season }}<small class="map-card-season">{{ . }}</small>{{ end }}
                     </li>
                   {{ end }}
                 </ul>
@@ -300,21 +297,10 @@
                     {{ range . }}<a href="{{ .href }}" target="_blank" rel="noopener" {{- with .until }} data-until="{{ . }}"{{ end }}>{{ .label }}</a>{{ end }}
                   </p>
                 {{ end }}
-                {{ with $p.shop }}
-                  <a class="btn btn-primary btn-sm map-card-shop" href="{{ .href }}">{{ .label }}</a>
-                {{ end }}
               </div>
             </li>
           {{ end }}
         </ul>
-        {{/* One date of a series, as the script fills it in. */}}
-        <template data-map-date>
-          <li>
-            <span class="map-date-when"><strong data-date-label></strong> <span data-date-window></span></span>
-            <a class="map-card-pickup" href="#" data-date-shop>Shop for pickup here</a>
-            <small class="map-date-note" data-date-note>Not open for pickup orders</small>
-          </li>
-        </template>
       </nav>
     {{ end }}
   </div>

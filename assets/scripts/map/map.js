@@ -19,11 +19,10 @@
 //   A place, or a series on its card, past its season goes, and the
 //   rest are numbered again.
 // - The list is one: the farm, then each location by the next date the
-//   farm attends there. The build carries the locations and seasons;
-//   /api/events fills in each series' upcoming dates, with a link to
-//   the order page on those open for pickup, and orders the list. When
-//   it can't load, the cards keep their seasons and only the drop
-//   site keeps its link.
+//   farm attends there. The build carries the locations, their days
+//   and hours and their seasons; /api/events orders the list and says
+//   which locations have a date open for pickup. The cards show no
+//   individual dates and link nowhere to the order page (#326).
 // - "Scheduled pickup only" keeps the locations with a date open for
 //   pickup orders; #places-scheduled opens Places so.
 // - The selected pin is lighter, with a glow, and its town is outlined
@@ -659,36 +658,6 @@ const wire = (map) => {
 
   chip?.addEventListener("click", () => filter(!scheduledOnly));
 
-  // A series' dates, one line each, with a link to the order page on
-  // those open for pickup; the build's link for the drop site goes.
-  const dates = (events) => {
-    const template = map.querySelector("template[data-map-date]");
-
-    for (const block of map.querySelectorAll("[data-series]")) {
-      const dates = block.querySelector("[data-series-dates]");
-
-      dates.replaceChildren();
-      for (const e of events) {
-        if (e.series !== block.dataset.series) continue;
-
-        const li = template.content.firstElementChild.cloneNode(true);
-        const shop = li.querySelector("[data-date-shop]");
-        const note = li.querySelector("[data-date-note]");
-
-        li.querySelector("[data-date-label]").textContent = e.label;
-        li.querySelector("[data-date-window]").textContent = e.window || "";
-        if (e.status === "pickup") {
-          shop.href = block.dataset.order;
-          note.remove();
-        } else {
-          shop.remove();
-        }
-        dates.append(li);
-      }
-      block.querySelector("[data-series-fallback]")?.remove();
-    }
-  };
-
   // The locations by the next date the farm attends: the farm first,
   // those with a date in /api/events in its order, the rest as built.
   const arrange = (events) => {
@@ -724,7 +693,6 @@ const wire = (map) => {
       events = null;
     }
     if (!events) return;
-    dates(events);
     arrange(events);
     pickupAt = new Set(events.filter((e) => e.status === "pickup")
       .map((e) => e.location));
