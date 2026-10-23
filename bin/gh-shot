@@ -2,12 +2,11 @@
 // Upload screenshots for GitHub issues and comments, and print a
 // markdown line for each. See bin/shot/lib.mjs.
 
-import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 
 import {
-  checkImage, currentRepo, ensureBranch, markdown, parseArgs, shotPath,
-  upload, USAGE,
+  checkRepo, currentRepo, ensureBranch, markdown, parseArgs, readImage,
+  shotPath, upload, USAGE,
 } from "./shot/lib.mjs";
 
 function main() {
@@ -18,11 +17,10 @@ function main() {
   }
   // Read and check every file before uploading any.
   const images = opts.files.map((file) => {
-    const data = readFileSync(file);
-    checkImage(file, data.length);
-    return { file, data };
+    return { file, data: readImage(file) };
   });
   const repo = opts.repo ?? currentRepo();
+  checkRepo(repo, opts.anyRepo);
   if (ensureBranch(repo)) {
     console.error(`Created the screenshots branch on ${repo}.`);
   }
