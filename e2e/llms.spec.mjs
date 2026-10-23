@@ -26,7 +26,8 @@ test.describe("llms.txt and the Markdown policy (Q21a)", () => {
       expect(text.startsWith("# Delivery policy\n")).toBe(true);
       for (const heading of ["When we deliver", "What it costs",
         "How you pay", "On delivery day", "Delivery area",
-        "Pickup and the drop site", "Changing or cancelling an order",
+        "On-farm pickup", "Scheduled pickup",
+        "Changing or cancelling an order",
         "Refunds"]) {
         expect(text, heading).toContain(`\n## ${heading}\n`);
       }

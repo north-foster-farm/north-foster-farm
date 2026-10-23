@@ -12,8 +12,9 @@
     news list), with a BreadcrumbList from its ancestors.
   - A news post: a BlogPosting by and from the farm.
   - The home page: each upcoming pop-up in the pop-up series of data/series.json as an Event.
-    Markets are left out: the farm does not run them, and their hours
-    are text.
+    Markets are still not Events: the farm does not run them, and
+    their hours are text. Scheduled pickup adds no JSON-LD; pickup
+    offers on pop-up Events wait for #191.
   - The order page: a Product with an Offer for each catalog item.
 */}}
 {{ $company := hugo.Data.company }}

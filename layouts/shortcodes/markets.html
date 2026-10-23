@@ -37,6 +37,11 @@
           {{ .when }}<br>
           {{ partial "market/season.html" . }}<br>
           <a href="{{ $map }}" target="_blank" rel="noopener">{{ $venue }}<br>{{ $street }}, RI</a>
+          {{/* Shown by schedule.js while the market has a date open
+               for pickup. */}}
+          <span class="d-block" data-pickup-for="{{ .code }}" hidden>
+            <a href="{{ relURL "order/" }}?method=scheduled&amp;series={{ .code }}">Order for pickup here</a>
+          </span>
         </li>
       {{ end }}
     </ul>

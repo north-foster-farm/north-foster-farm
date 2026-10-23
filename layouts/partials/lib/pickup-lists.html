@@ -20,6 +20,7 @@
   {{- end -}}
   {{- if eq $s.kind "market" -}}
     {{- $m := dict
+      "code" $s.code
       "name" $s.name
       "href" $s.href
       "instagram" $s.instagram

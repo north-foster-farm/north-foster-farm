@@ -156,3 +156,41 @@ test.describe("top bar (#139)", () => {
       expect(["", "0rem", "0"]).toContain(reserve.trim());
     });
 });
+
+// #313: the farm may skip an occurrence the build still knows. The bar
+// reads /api/events at view time and leaves out a pop-up the schedule
+// skips; one the farm attends stays.
+test.describe("top bar and the schedule (#313)", () => {
+  test.skip(!EVENT || !EVENT.popUp,
+    "no pop-up ahead in data/series.json; these cover a pop-up");
+
+  const events = (list) => (route) => route.fulfill({
+    json: { now: new Date().toISOString(), events: list },
+  });
+
+  test("a pop-up the schedule skips is left out", async ({ page }) => {
+    await page.route("**/api/events", events([]));
+    await page.goto("/");
+    await expect(bar(page)).toBeHidden();
+  });
+
+  test("a pop-up the farm attends stays", async ({ page }) => {
+    await page.route("**/api/events", events([{
+      date: EVENT.date, series: EVENT.id, status: "attend",
+      kind: "pop-up",
+    }]));
+    await page.goto("/");
+    await expect(bar(page)).toBeVisible();
+  });
+
+  test("a pop-up beyond the two weeks is read from the build",
+    async ({ page }) => {
+      test.skip(
+        (Date.parse(EVENT.date) - Date.now()) / 864e5 < 14,
+        "the pop-up is inside the window"
+      );
+      await page.route("**/api/events", events([]));
+      await page.goto("/");
+      await expect(bar(page)).toBeVisible();
+    });
+});

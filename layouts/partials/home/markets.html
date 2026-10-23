@@ -28,7 +28,7 @@
     <h2 class="home-title">We’ll see you at the market</h2>
     <ul class="places-list list-unstyled">
       {{ range .markets }}
-        <li class="place" data-hide-from="{{ partial "market/ends.html" .closes }}">
+        <li class="place" data-hide-from="{{ partial "market/ends.html" .closes }}" data-series="{{ .code }}" data-start="{{ .opens }}" data-end="{{ .closes }}">
           <span class="home-icon" aria-hidden="true">
             {{ partial "svg.html" "icons/sign" }}
           </span>
@@ -38,13 +38,16 @@
           <p class="place-when">{{ .when }}</p>
           <p class="place-where">{{ .where }}</p>
           <p class="place-note">{{ partial "market/season.html" . }}</p>
+          <p class="place-pickup" data-pickup-for="{{ .code }}" hidden>
+            <a href="{{ relURL "order/" }}?method=scheduled&amp;series={{ .code }}">Order for pickup here</a>
+          </p>
         </li>
       {{ end }}
     </ul>
     <p class="places-note mb-0">
       Between seasons, {{ $orderOnline }} for
-      {{ partial "weekday.html" hugo.Data.delivery.delivery.weekday }} delivery, on-farm pickup, or the
-      {{ partial "weekday.html" hugo.Data.delivery.scituate.weekday }} drop site on the
+      {{ partial "weekday.html" hugo.Data.delivery.delivery.weekday }} delivery, on-farm pickup, or scheduled pickup at the
+      {{ (partial "scheduled-places.html" .).drop.day }} drop site on the
       {{ partial "drop-site.html" "name" }}.
     </p>
   </div>

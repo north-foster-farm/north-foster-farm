@@ -62,10 +62,19 @@ test.describe("no retired words (#150)", () => {
     expect(hit && hit[0]).toBeNull();
   });
 
-  test("llms.txt offers no market pickup", async ({ request }) => {
+  // #313: scheduled pickup is a way to get an order, and llms.txt
+  // says so from the data. Markets and pop-ups appear on the order
+  // page when the farm opens them; no market's dates are listed.
+  test("llms.txt has a Scheduled pickup section", async ({ request }) => {
     const text = await (await request.get("/llms.txt")).text();
+    const section = text.match(/\n## Scheduled pickup\n([\s\S]*?)\n## /);
 
-    expect(text).not.toMatch(/market pickup/i);
+    expect(section, "a Scheduled pickup section").toBeTruthy();
+    expect(section[1]).toMatch(/drop site: Saturdays, 10:00 – 11:00 AM/i);
+    expect(section[1]).toMatch(/46 Institute Lane/);
+    expect(section[1]).toMatch(/11:59 PM the day before/);
+    expect(section[1]).toMatch(/Markets and pop-ups appear on the order page/);
+    expect(section[1]).not.toMatch(/Foster Farmers Market|Tilted Barn/);
   });
 
   test("the paper order form leads to the order page", async ({

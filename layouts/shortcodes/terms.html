@@ -6,15 +6,15 @@
     {{< terms "outside-fee" >}}          $3
     {{< terms "window" "delivery" >}}    10:00 AM to 4:00 PM
     {{< terms "day" "delivery" >}}       Thursday
-    {{< terms "days" "scituate" >}}      Saturdays
+    {{< terms "days" "drop" >}}      Saturdays
     {{< terms "hold" >}}                 7 days
     {{< terms "place" "onFarm" >}}       99 East Killingly Road, Foster
-    {{< terms "place" "scituate" >}}     Village Green, 46 Institute
+    {{< terms "place" "drop" >}}     Village Green, 46 Institute
                                          Lane, North Scituate
-    {{< terms "town" "scituate" >}}      Scituate
-    {{< terms "starting" "scituate" >}}  "starting October 17, " while
+    {{< terms "town" "drop" >}}      Scituate
+    {{< terms "starting" "drop" >}}  "starting October 17, " while
                                          that date is ahead, else ""
-    {{< terms "start" "scituate" >}}     October 17, always (for a dated
+    {{< terms "start" "drop" >}}     October 17, always (for a dated
                                          post)
     {{< terms "cutoff-day" >}}           Wednesday
     {{< terms "cutoff-hour" >}}          noon
@@ -22,14 +22,22 @@
                                          market in the market series of data/series.json
                                          that closes last
     {{< terms "last-market-day" >}}      October 25, the day it closes
-  A place drops its state and ZIP code. The farm's own address is in
-  data/company.json. A cutoff hour of 24 has no word that reads before
+  A place drops its state and ZIP code. The key "drop" reads the drop
+  site series of data/series.json (layouts/partials/scheduled-places.html).
+  The farm's own address is in data/company.json. A cutoff hour of 24 has no word that reads before
   "on Wednesday"; use the cutoff shortcode for that. */ -}}
 {{- $terms := hugo.Data.delivery -}}
 {{- $money := partial "money.html" -}}
 {{- $fact := .Get 0 -}}
 {{- $key := .Get 1 | default "delivery" -}}
-{{- $of := index $terms $key -}}
+{{- $of := "" -}}
+{{- if eq $key "drop" -}}
+  {{- $drop := (partial "scheduled-places.html" .).drop -}}
+  {{- $of = dict "weekday" $drop.weekday "window" $drop.window
+    "location" $drop.place "town" $drop.town "start" $drop.start -}}
+{{- else -}}
+  {{- $of = index $terms $key -}}
+{{- end -}}
 {{- if eq $fact "minimum" -}}
   ${{ $money.deliveryMinimum }}
 {{- else if eq $fact "fee" -}}

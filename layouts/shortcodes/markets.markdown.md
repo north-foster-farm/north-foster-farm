@@ -6,7 +6,7 @@
   {{- errorf "markets: no image at assets/%s (%s)" (.Get "photo") .Position -}}
 {{- end -}}
 {{- range (partial "lib/pickup-lists.html" .).markets }}
-- **{{ .name }}**: {{ .when }}, {{ partial "market/season.html" . }}. {{ .where }}, RI. {{ .href }}
+- **{{ .name }}**: {{ .when }}, {{ partial "market/season.html" . }}. {{ .where }}, RI. {{ .href }}. When the farm opens a date here for pickup, you can order for it: {{ absURL "order/" }}?method=scheduled&series={{ .code }}
 {{- end }}
 
 ![{{ .Get "alt" }}]({{ ($photo.Resize "700x webp q82").Permalink }})

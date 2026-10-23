@@ -254,3 +254,12 @@ test.describe("above the footer (#226)", () => {
     });
   }
 });
+
+// #313: the Shop now band's lead names scheduled pickup.
+test("the Shop now lead names the three ways", async ({ page }) => {
+  await page.goto("/about/");
+  await expect(page.locator(".touch-shop .touch-lead")).toHaveText(
+    new RegExp("Delivery on Thursdays, on-farm pickup, or scheduled " +
+      "pickup at our drop site in Scituate\\.")
+  );
+});

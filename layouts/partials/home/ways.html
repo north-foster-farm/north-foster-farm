@@ -5,12 +5,19 @@
      button opens the order page with that way chosen. Names follow
      the order form; the rest is draft wording for James (#137).
 
+     Scheduled pickup is the farm's pickup places as one way (#309):
+     the build prints the drop site, and schedule.js fills the places
+     open now over it at view time from /api/dates, each with its next
+     day and, on its first day, a "Starting" badge (data-starts, from
+     the series). Its markup is the template at the end, so PurgeCSS
+     keeps its classes.
+
      Each way's when, where and cost are one list, marked by icon
      (#212). The addresses are short: this only says where; the
      footer and contact page carry the full one. The drop site's
-     first Saturday is a badge by its name, not part of its line, so
-     the badge can go once the day is over: the build leaves it out
-     after then, and expiry.js hides it in a page built before.
+     first day is a badge by its name, not part of its line, so the
+     badge can go once the day is over: the build leaves it out after
+     then, and expiry.js hides it in a page built before.
 
      Built in market season, the band is hidden and carries `from`,
      the moment the markets end (index.html); expiry.js shows it
@@ -19,7 +26,13 @@
 {{ $terms := hugo.Data.delivery }}
 {{ $money := partial "money.html" }}
 {{ $address := hugo.Data.company.address }}
-{{ $dropStart := time.AsTime $terms.scituate.start $terms.timeZone }}
+{{ $places := partial "scheduled-places.html" . }}
+{{ $drop := $places.drop }}
+{{ $dropStart := time.AsTime $drop.start $terms.timeZone }}
+{{ $starts := dict }}
+{{ range $places.series }}
+  {{ $starts = merge $starts (dict .code .start) }}
+{{ end }}
 {{ $dropEnd := $dropStart.AddDate 0 0 1 }}
 {{ $dropBadge := "" }}
 {{ if gt $dropEnd.Unix now.Unix }}
@@ -35,14 +48,14 @@
     "cost" "No minimum, no fee"
     "cta" "Shop for pickup")
   (dict
-    "method" "scituate"
+    "method" "scheduled"
     "icon" "lot-location"
-    "name" "Drop site"
+    "name" "Scheduled pickup"
     "badge" $dropBadge
-    "when" (printf "%ss, %s" (partial "weekday.html" hugo.Data.delivery.scituate.weekday) (replace (replace $terms.scituate.window "–" "–\u2060") " " "\u00a0"))
-    "where" $terms.scituate.short
+    "when" (printf "%ss, %s" $drop.day (replace (replace $drop.window "–" "–\u2060") " " "\u00a0"))
+    "where" (printf "The drop site, %s" $drop.short)
     "cost" "No minimum, no fee"
-    "cta" "Shop for the drop site")
+    "cta" "Shop for scheduled pickup")
   (dict
     "method" "delivery"
     "icon" "delivery"
@@ -73,7 +86,7 @@
     <h2 class="home-title">Three ways to get your order</h2>
     <ul class="places-list list-unstyled mb-0">
       {{ range $way := $ways }}
-        <li class="place place-way">
+        <li class="place place-way"{{ if eq $way.method "scheduled" }} data-scheduled-ways data-starts="{{ $starts | jsonify }}"{{ end }}>
           <span class="home-icon" aria-hidden="true">
             {{ partial "svg.html" (printf "icons/%s" $way.icon) }}
           </span>
@@ -83,9 +96,9 @@
               <span class="place-badge badge rounded-pill" data-hide-from="{{ $dropEnd.Format "2006-01-02T15:04:05-07:00" }}">{{ . }}</span>
             {{ end }}
           </div>
-          <ul class="place-facts list-unstyled">
+          <ul class="place-facts list-unstyled"{{ if eq $way.method "scheduled" }} data-scheduled-facts{{ end }}>
             {{ range $facts }}
-              <li class="place-fact place-{{ .key }}">
+              <li class="place-fact place-{{ .key }}"{{ if and (eq $way.method "scheduled") (in (slice "when" "where") .key) }} data-scheduled-static{{ end }}>
                 <span class="place-fact-icon" aria-hidden="true">
                   {{ partial "svg.html" (printf "icons/%s" .icon) }}
                 </span>
@@ -104,3 +117,17 @@
     </ul>
   </div>
 </div>
+{{/* One place open for scheduled pickup, filled by schedule.js. */}}
+<template data-scheduled-open>
+  <li class="place-fact place-open">
+    <span class="place-fact-icon" aria-hidden="true">
+      {{ partial "svg.html" "icons/map-pin" }}
+    </span>
+    <span>
+      <strong class="place-open-name"></strong>
+      <span class="place-badge badge rounded-pill" data-badge hidden></span><br>
+      <span class="place-open-when"></span><br>
+      <span class="place-open-where"></span>
+    </span>
+  </li>
+</template>

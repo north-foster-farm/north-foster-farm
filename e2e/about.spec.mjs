@@ -179,3 +179,34 @@ test.describe("about (#144)", () => {
     });
   }
 });
+
+// #313: a market with a date open for pickup links to order for it,
+// read from /api/dates at view time; the others show no link.
+test.describe("markets on the about page (#313)", () => {
+  const dates = (scheduled) => (route) => route.fulfill({
+    json: { now: new Date().toISOString(), scheduled },
+  });
+
+  test("a market with an open date links to order for it",
+    async ({ page }) => {
+      await page.route("**/api/dates", dates([
+        { date: "2026-10-25", label: "Sunday, October 25",
+          series: "WAC5", name: "Foster Farmers Market" },
+      ]));
+      await page.goto("/about/");
+
+      const open = page.locator("[data-pickup-for='WAC5']");
+      const shut = page.locator("[data-pickup-for='2MPW']");
+
+      await expect(open).toBeVisible();
+      await expect(open.getByRole("link")).toHaveAttribute("href",
+        /\/order\/\?method=scheduled&series=WAC5$/);
+      await expect(shut).toBeHidden();
+    });
+
+  test("no link while nothing is open", async ({ page }) => {
+    await page.route("**/api/dates", dates([]));
+    await page.goto("/about/");
+    await expect(page.locator("[data-pickup-for]:visible")).toHaveCount(0);
+  });
+});

@@ -1,7 +1,7 @@
 ---
 description: >
   How ordering from North Foster Farm works: delivery days, cutoffs,
-  minimums, fees and area, pickup, changes, cancellations and refunds.
+  minimums, fees and area, on-farm and scheduled pickup, changes, cancellations and refunds.
 slug: "delivery-policy"
 title: "Delivery policy"
 type: "policy"
@@ -99,22 +99,32 @@ also request a refund for the order in full. For anywhere else,
 
 {{< delivery-map "policy" >}}
 
-## Pickup and the drop site
+## On-farm pickup
 
-Neither has a minimum or a fee.
+There is no minimum or fee. On-farm pickup is at
+{{< terms "place" "onFarm" >}}. The order page shows the times we have
+open, from tomorrow on; the one you choose is confirmed when you place
+your order. If something at the farm means we can't keep it, we'll
+cancel your order, refund it in full and email you to say so.
 
-**On-farm pickup** is at {{< terms "place" "onFarm" >}}. The order page
-shows the times we have open, from tomorrow on; the one you choose is
-confirmed when you place your order. If something at the farm means we
-can't keep it, we'll cancel your order, refund it in full and email you
-to say so.
+## Scheduled pickup
 
-**The drop site** in {{< terms "town" "scituate" >}} runs on
-{{< terms "days" "scituate" >}} from
-{{< terms "window" "scituate" >}}, {{< terms "starting" "scituate" >}}on
-the {{< terms "place" "scituate" >}}: the same corner of the lot where
-our tent sits in market season. Order by {{< cutoff "scituate" >}} for
-that {{< terms "day" "scituate" >}}.
+Scheduled pickup is pickup at a place and a time we set: the drop
+site, a market or a pop-up. There is no minimum or fee.
+
+**The drop site** in {{< terms "town" "drop" >}} runs on
+{{< terms "days" "drop" >}} from
+{{< terms "window" "drop" >}}, {{< terms "starting" "drop" >}}on
+the {{< terms "place" "drop" >}}: the same corner of the lot where
+our tent sits in market season.
+
+**Markets and pop-ups** are opened one event at a time. When we open
+one, it appears on the order page, with its place and hours, and you
+can choose it there; the place and hours are the event's own. We
+don't open every market or pop-up we attend.
+
+You can order for a pickup through the end of the week after
+this one. Order by 11:59 PM the day before the pickup you choose.
 
 ## Changing or cancelling an order
 
@@ -125,7 +135,8 @@ notes, or cancel the order, until the cutoff:
 
 - **Delivery:** {{< cutoff "delivery" >}}, the day before your
   {{< terms "day" >}}.
-- **Pickup and the drop site:** the end of the day before your pickup.
+- **Scheduled pickup:** 11:59 PM the day before your pickup.
+- **On-farm pickup:** the end of the day before your pickup.
 
 To change what's in an order, cancel it and place a new one. After the
 cutoff, call, text or email us.

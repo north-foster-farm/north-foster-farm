@@ -10,7 +10,8 @@ import {
 // America/New_York, which is 04:00 UTC that day.
 const before = new Date("2026-10-17T03:59:59Z");
 const opened = new Date("2026-10-17T04:00:00Z");
-const drop = "Back on Saturday mornings in Scituate, 10:00 to 11:00 AM";
+const drop = "At the drop site: back on Saturday mornings in Scituate, "
+  + "10:00 to 11:00 AM";
 
 describe("launch email", () => {
   it("fills every fact from data/", () => {
@@ -21,10 +22,12 @@ describe("launch email", () => {
       "Order by noon on Wednesday",
       "$40 minimum, $5 fee, free on orders of $150 or more",
       "99 East Killingly Road, Foster, RI 02825",
-      "Back on Saturday mornings in Scituate, 10:00 to 11:00 AM, " +
+      "back on Saturday mornings in Scituate, 10:00 to 11:00 AM, " +
         "starting October 17",
       "Village Green, 46 Institute Lane, North Scituate, in the same",
       "from $5 off orders of $50 up to $20 off orders of $200",
+      "SCHEDULED PICKUP\n- At the drop site: back on Saturday",
+      "Markets and pop-ups we open for pickup show up on the order",
       "Click it within a week and you're on the new list",
     ]) assert.ok(body.includes(line), line);
   });

@@ -11,6 +11,7 @@ import { wireDotLists } from "./dot-list/dot-list.js";
 import { hideExpired } from "./expiry/expiry.js";
 import { wireHeroVideo } from "./hero/hero.js";
 import { wireNewsSignup } from "./news/signup.js";
+import { wireSchedule } from "./schedule/schedule.js";
 import { wireSearch } from "./search/palette.js";
 import { wireVideos } from "./video/video.js";
 import { Session } from "./session/session.js";
@@ -21,6 +22,7 @@ Extensions.apply();
 Copyright.setYear();
 retireTopBar();
 hideExpired();
+wireSchedule();
 // Now, not on DOMContentLoaded: the order page's own bundle runs after
 // this one and announces its first count before that event.
 wireCartBadge();

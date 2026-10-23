@@ -525,10 +525,10 @@ test.describe("home", () => {
         cost: "No minimum, no fee", cta: "Shop for pickup",
       },
       {
-        method: "scituate", name: "Drop site",
+        method: "scheduled", name: "Scheduled pickup",
         when: /Saturdays, 10:00\s–\u2060\s11:00\sAM/,
-        where: "46 Institute Ln, North Scituate, RI",
-        cost: "No minimum, no fee", cta: "Shop for the drop site",
+        where: "The drop site, 46 Institute Ln, North Scituate, RI",
+        cost: "No minimum, no fee", cta: "Shop for scheduled pickup",
       },
       {
         method: "delivery", name: "Delivery",
@@ -569,7 +569,56 @@ test.describe("home", () => {
         await expect(band.locator(".places-note")).toHaveCount(0);
       });
 
-    // #212: the drop site's first Saturday is a badge by its name
+    // #313: scheduled pickup shows the places open now, read from
+    // /api/dates at view time, over the drop site the build prints.
+    test("scheduled pickup lists the places open, each with its day",
+      async ({ page }) => {
+        await page.route("**/api/dates", (route) => route.fulfill({
+          json: { now: "2026-10-22T12:00:00Z", scheduled: [
+            { date: "2026-10-24", label: "Saturday, October 24",
+              series: "VFVQ", name: "Drop site", window: "10:00 – 11:00 AM",
+              short: "46 Institute Ln, North Scituate, RI" },
+            { date: "2026-10-25", label: "Sunday, October 25",
+              series: "WAC5", name: "Foster Farmers Market",
+              window: "9:00 AM – 1:00 PM",
+              short: "Shady Acres Diner, 164 Danielson Pike, Foster" },
+            { date: "2026-10-31", label: "Saturday, October 31",
+              series: "VFVQ", name: "Drop site", window: "10:00 – 11:00 AM",
+              short: "46 Institute Ln, North Scituate, RI" },
+          ] },
+        }));
+        await page.goto("/");
+
+        const card = page.locator(".ways .place-way[data-scheduled-ways]");
+        const opens = card.locator(".place-open");
+
+        test.skip(!(await card.isVisible()), "built while a market runs");
+        await expect(opens).toHaveCount(2);
+        await expect(opens.nth(0).locator(".place-open-name"))
+          .toHaveText("Drop site");
+        await expect(opens.nth(1).locator(".place-open-name"))
+          .toHaveText("Foster Farmers Market");
+        await expect(opens.nth(1).locator(".place-open-when"))
+          .toHaveText("Sunday, October 25, 9:00 AM – 1:00 PM");
+        await expect(card.locator("[data-scheduled-static]"))
+          .toHaveCount(2);
+        await expect(card.locator("[data-scheduled-static]").first())
+          .toBeHidden();
+      });
+
+    test("scheduled pickup falls back to the drop site",
+      async ({ page }) => {
+        await page.route("**/api/dates", (route) => route.abort());
+        await page.goto("/");
+
+        const card = page.locator(".ways .place-way[data-scheduled-ways]");
+
+        test.skip(!(await card.isVisible()), "built while a market runs");
+        await expect(card.locator(".place-when")).toBeVisible();
+        await expect(card.locator(".place-open")).toHaveCount(0);
+      });
+
+    // #212: the drop site's first day is a badge by its name
     // until that day is over, then gone.
     test("the drop site's start is a badge until it passes",
       async ({ page }) => {

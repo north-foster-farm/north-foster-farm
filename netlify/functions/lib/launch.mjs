@@ -9,7 +9,7 @@ import email from "../../../data/emails/launch-email.json" with {
 };
 import accounts from "../../../data/accounts.json" with { type: "json" };
 import company from "../../../data/company.json" with { type: "json" };
-import terms from "../../../data/delivery.json" with { type: "json" };
+import terms from "./terms.mjs";
 import {
   dayName, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
@@ -35,14 +35,17 @@ const ends = (window) => window.split(/\s*–\s*/);
 // 7 -> "a week", 3 -> "3 days": the email says it in words.
 export const span = (days) => (days === 7 ? "a week" : `${days} days`);
 
-const { delivery, scituate } = terms;
+// The drop site: the series of data/series.json that the order page
+// offers as scheduled pickup, first.
+const { delivery } = terms;
+const drop = terms.model.series.find((s) => s.kind === "drop-site");
 const { address } = company;
 
 // ", starting October 17" while the drop site's first day is ahead in
 // the farm's zone, else nothing, as the terms shortcode's "starting".
 const starting = (now) =>
-  today(now, terms.timeZone) < scituate.start
-    ? `, starting ${monthDay(scituate.start)}`
+  today(now, terms.timeZone) < drop.start
+    ? `, starting ${monthDay(drop.start)}`
     : "";
 
 // The facts as of now, so an email sent after the drop site opens
@@ -62,11 +65,12 @@ export const facts = (now = clock()) => {
     feeWaivedAt: dollars(money.feeWaivedAt),
     farmAddress:
       `${address.street}, ${address.city}, ${address.state} ${address.zip}`,
-    dropDay: dayName(scituate.weekday),
-    dropWindow: ends(scituate.window).join(" to "),
+    dropDay: dayName(drop.weekday),
+    dropTown: drop.town,
+    dropWindow: ends(drop.window).join(" to "),
     dropStarting: starting(now),
     // The place without its state and ZIP, which the list knows.
-    dropPlace: scituate.location.replace(/, [A-Z]{2} \d{5}$/, ""),
+    dropPlace: drop.place.replace(/, [A-Z]{2} \d{5}$/, ""),
     bulkFirstOff: dollars(tiers[0].off),
     bulkFirstAt: dollars(tiers[0].threshold),
     bulkLastOff: dollars(tiers.at(-1).off),

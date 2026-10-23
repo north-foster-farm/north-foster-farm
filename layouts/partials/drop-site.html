@@ -1,9 +1,9 @@
-{{- /* A part of the drop site's location in data/delivery.json
+{{- /* A part of the drop site's location in the drop site series of data/series.json
   ("Village Green, 46 Institute Lane, North Scituate, RI 02857"):
   partial "drop-site.html" "name" gives "Village Green", "street"
   "46 Institute Lane", "locality" "North Scituate". The town
-  people call it by is its own fact, scituate.town ("Scituate"). */ -}}
-{{- $parts := split hugo.Data.delivery.scituate.location ", " -}}
+  people call it by is its own fact, the series' town ("Scituate"). */ -}}
+{{- $parts := split (partial "scheduled-places.html" .).drop.place ", " -}}
 {{- $at := dict "name" 0 "street" 1 "locality" 2 -}}
 {{- $i := index $at . -}}
 {{- if not (isset $at .) -}}

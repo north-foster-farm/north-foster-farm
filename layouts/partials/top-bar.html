@@ -2,7 +2,8 @@
      the next event in the pop-up series of data/series.json and linking to it. Each build
      picks the next event that has not ended, so there is nothing to
      edit to retire one; since no build runs on the day, top-bar.js
-     also drops a bar whose end has passed. An event without times
+     also drops a bar whose end has passed, and schedule.js one the
+     schedule skips (the farm isn't going), read from /api/events. An event without times
      lasts the day. A pop-up opens its card on the home page's map
      (M9 on #214), which carries its own link; any other event without
      a link points at the map. Draft wording for James (#139). */}}
@@ -27,7 +28,7 @@
     {{ $href = printf "%s#place-%s" (relURL "") (.place | urlize) }}
     {{ $away = false }}
   {{ end }}
-  <aside class="top-bar" aria-label="Next event" data-top-bar data-until="{{ .ends.Format "2006-01-02T15:04:05-07:00" }}">
+  <aside class="top-bar" aria-label="Next event" data-top-bar{{ if eq .kind "pop-up" }} data-series="{{ .id }}" data-start="{{ .date }}" data-end="{{ .date }}"{{ end }} data-until="{{ .ends.Format "2006-01-02T15:04:05-07:00" }}">
     <a class="top-bar-link" href="{{ $href }}" {{- if $away }} target="_blank" rel="noopener" {{- end }}>
       <span class="d-sm-none">{{ .name }}, {{ $day.Format "Mon, Jan 2" }}</span>
       <span class="d-none d-sm-inline">{{ .name }} in {{ .address.city }}, {{ $day.Format "Monday, January 2" }}{{ $hours }}</span>
