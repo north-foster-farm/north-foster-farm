@@ -1325,6 +1325,38 @@ export const farmOrderChanged = (order, {
   };
 };
 
+// Someone changed a website order in Square itself (#293). The site's
+// record is untouched and is what the packing slips print from, so the
+// farm is told what differs. A draft; the words are James's.
+export const farmSquareChanged = (order, {
+  changes = [], printed = false, links, squareUrl,
+} = {}) => {
+  const title = `Changed in Square: ${order.id}`;
+  const url = orderAdminUrl(links, order.id);
+  const blocks = [
+    p(`Order ${order.id} was changed in Square, not on the site. The ` +
+      "site's record has not changed, and the packing slips print from it."),
+    heading("What differs"),
+    ...changes.map((c) => p(`- ${c}`)),
+    p(printed
+      ? "**A slip for this order has already printed.** It does not show " +
+        "this change, and no revision sheet will be made for it."
+      : "No slip has printed for this order yet, so the slip will show " +
+        "the site's record, not Square's."),
+    p("Make the change on the site with `bin/nff orders`, or put Square " +
+      "back. Nobody was charged or refunded."),
+  ];
+
+  if (url) blocks.push(button("View order", url));
+  if (squareUrl) blocks.push(button("View order in Square", squareUrl));
+  blocks.push(adminFooter(links));
+
+  return {
+    subject: title,
+    ...render(title, blocks, links, { tag: "Changed in Square" }),
+  };
+};
+
 // The customer moved an on-farm order to another time the schedule
 // offers, from their account page. Booked as it stands (W11d); the
 // farm only hears of it.

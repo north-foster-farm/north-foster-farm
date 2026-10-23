@@ -101,6 +101,12 @@ export const cancelFulfilment = async (squareOrderId) => ({
   id: squareOrderId, cancelled: true,
 });
 
+// Nothing is remembered here, so nothing can differ from the record: an
+// order with no lines or fulfilment to compare (lib/drift.mjs).
+export const getOrder = async (squareOrderId) => ({
+  id: squareOrderId, version: null, state: "OPEN", fulfillments: [],
+});
+
 export const deleteCustomer = async () => ({ deleted: true });
 
 // A fake payment never fails part way, so no order is left open.

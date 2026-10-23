@@ -133,6 +133,9 @@ const CASES = {
       lines: order().lines, totals: order().totals, method: "delivery",
     },
   }), false],
+  farmSquareChanged: [() => templates.farmSquareChanged(order(), {
+    links, changes: [HOSTILE], printed: true, squareUrl: url,
+  }), true],
   farmPickupChanged: [() => templates.farmPickupChanged(order("onfarm"),
     { links }), true],
   farmContactMessage: [() => templates.farmContactMessage({

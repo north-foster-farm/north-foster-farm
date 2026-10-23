@@ -151,6 +151,7 @@ const SQUARE_CALLS = {
     order: order(), squareOrderId: "O1", customerId: "C1", key: KEY,
     source: { sourceId: "fake:ok-1" },
   }, o),
+  getOrder: (o) => square.getOrder("O1", o),
   updateFulfilment: (o) => square.updateFulfilment("O1", order(), o),
   cancelFulfilment: (o) => square.cancelFulfilment("O1", o),
   cancelOrder: (o) => square.cancelOrder("O1", o),

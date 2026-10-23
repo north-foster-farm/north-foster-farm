@@ -781,6 +781,22 @@ refund made in the Square dashboard
 by the `by-payment` index, which holds every payment of an order,
 so `refunds` is right however the money went back.
 
+## An order changed in Square
+
+A line, the date, the place or a cancel changed directly in Square
+never rewrites the record: it holds the money, and the packing slips
+print from it. `order.updated` and `order.fulfillment.updated` (same
+webhook), and a daily check from 07:00 in the jobs for what an event
+missed, compare each paid order with its Square copy
+(`lib/drift.mjs`, #293). On a difference the farm gets one email per
+distinct set of differences, saying whether a slip for the order has
+already printed (it will not get a revision sheet, since the record
+did not change). The farm then makes the change with `bin/nff orders`
+or puts Square back. Not compared: notes and instructions, and the
+lines of an order the customer changed (their items are spread over
+several Square orders). A difference seen within two minutes of the
+site's own change is left to the next check.
+
 ## Changing a paid order
 
 Until the cutoff, the account page's Change items opens
@@ -1171,7 +1187,8 @@ to the function log; Square's receipt still reaches the customer.
    `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENV` (`live` in production,
    `sandbox` elsewhere) and `PAYPAL_WEBHOOK_ID`;
    `SQUARE_WEBHOOK_SIGNATURE_KEY` for the refund webhook.
-2. **Webhooks.** Square: `refund.updated` at
+2. **Webhooks.** Square: `refund.updated`, `order.updated` and
+   `order.fulfillment.updated` at
    `https://www.northfosterfarm.com/api/square/webhook`, the sandbox
    app's at the staging address. PayPal: `PAYMENT.CAPTURE.COMPLETED`
    and `PAYMENT.CAPTURE.REFUNDED` at

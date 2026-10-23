@@ -718,6 +718,18 @@ const currentOrder = async (cfg, squareOrderId, fetchImpl) => {
   return data.order || {};
 };
 
+// Square's copy of an order as it is now, for the check that it still
+// matches the site's record (lib/drift.mjs). Read only.
+// -> the Square order, or null when there is no Square to ask.
+export const getOrder = async (squareOrderId, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  if (isFake(env)) return fake.getOrder(squareOrderId);
+
+  return currentOrder(settings(env), squareOrderId, fetchImpl);
+};
+
 export const updateFulfilment = async (squareOrderId, order, {
   env = process.env,
   fetchImpl = globalThis.fetch,

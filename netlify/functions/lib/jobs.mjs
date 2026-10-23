@@ -45,6 +45,9 @@
 //   refunds     once a day from 07:00: every refund not yet settled
 //               asked of Square or PayPal, and the farm alerted to one
 //               that failed or stalled (lib/settle.mjs, #215)
+//   drift       once a day from 07:00: every paid order from today on
+//               compared with its Square copy, and the farm told of a
+//               change made in Square (lib/drift.mjs, #293)
 //   health      each run ends with invariant checks, a ledger line,
 //               alerts for what went wrong, and a heartbeat ping
 
@@ -65,6 +68,7 @@ import {
   cancelOrder, listMessages, missedUntold, tellMissed,
 } from "./admin.mjs";
 import { announceNew, rescueCheckout, syncSquare } from "./checkout.mjs";
+import { reconcile } from "./drift.mjs";
 import { finishEditVenmo } from "./edit.mjs";
 import { deleteOldMessages, scrubOldOrders } from "./forget.mjs";
 import { alert, escalate, ping, readCount, readMark } from "./health.mjs";
@@ -359,6 +363,9 @@ export const runJobs = async (stores, {
     () => refundCheckDaily(stores, {
       env, mail, now, square, paypal, fetchImpl, fail,
     }));
+
+  report.drift = await attempt(null, "squareDrift",
+    () => driftDaily(stores, { env, mail, now, square, fetchImpl, fail }));
 
   report.invariants = (await attempt(null, "invariants", async () =>
     checkInvariants(await openOrders(stores), now))) || [];
@@ -691,6 +698,37 @@ const refundCheckDaily = async (stores, {
   };
 };
 
+// Orders changed in Square, once a day from DRIFT_CHECK_HOUR (see
+// lib/drift.mjs). A run that errors keeps no mark and tries again.
+// -> the counts, or null when nothing was done this run.
+export const DRIFT_CHECK_HOUR = 7;
+
+const driftDaily = async (stores, {
+  env, mail, now, square, fetchImpl, fail,
+}) => {
+  if (parts(now, tz).hour < DRIFT_CHECK_HOUR) return null;
+  if (!env.SQUARE_ACCESS_TOKEN && env.SQUARE_ENV !== "fake") return null;
+
+  const key = `drift/check/${today(now, tz)}`;
+
+  if (await stores.jobs.get(key)) return null;
+
+  const r = await reconcile(stores, {
+    env, mail, now, fetchImpl, ...(square ? { square } : {}),
+  });
+
+  for (const e of r.errors) fail(e.id, "squareDrift", e.error);
+  if (!r.errors.length) {
+    await stores.jobs.set(key, { at: now.toISOString() });
+  }
+
+  return {
+    checked: r.checked,
+    flagged: r.found.filter((f) => f.status === "flagged").length,
+    errors: r.errors.length,
+  };
+};
+
 // A money change that takes effect on a date (data/delivery.json,
 // money.changes) reaches the order page and the functions by itself;
 // the pages Hugo rendered need a build on or after the day. The first
@@ -757,6 +795,7 @@ export const summarize = (report) => ({
   audience: report.audience || null,
   quiet: report.quiet || null,
   refunds: report.refunds || null,
+  drift: report.drift || null,
   errors: report.errors,
   invariants: report.invariants,
 });
