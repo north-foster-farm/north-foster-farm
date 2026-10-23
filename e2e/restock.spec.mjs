@@ -261,6 +261,23 @@ test.describe("restock types (#267)", () => {
       }
     });
 
+  test("Add and a restock label share one width at 390 (#325)",
+    async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 800 });
+      await open(page);
+      await show(page, "Full catalog");
+
+      const add = await page.locator(
+        ".order-item:not([data-stock='out']) .order-qty-add"
+      ).first().boundingBox();
+      const out = await row(page, OUT.soon).locator(".order-qty-out")
+        .boundingBox();
+
+      expect(add.width).toBeCloseTo(out.width, 0);
+      expect(add.x + add.width / 2)
+        .toBeCloseTo(out.x + out.width / 2, 0);
+    });
+
   test("an out-of-stock product can't be put in the cart by link",
     async ({ page }) => {
       await page.goto(`/order/?add=${OUT.discontinued}:2`);

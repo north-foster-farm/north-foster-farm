@@ -552,14 +552,10 @@
       min-width: 0;
     }
 
-    .order-qty {
-      width: auto;
-    }
-  }
-
-  @media (max-width: 30rem) {
-    .order-item[data-stock="out"] {
-      grid-template-columns: minmax(0, 1fr) max-content;
+    @media (min-width: 30.0625rem) {
+      .order-qty {
+        width: auto;
+      }
     }
   }
 
@@ -1593,9 +1589,18 @@
     }
   }
 
+  // Phones: one quantity column for every row (#325), as wide as the
+  // longest restock label needs on one line. Add, the stepper and the
+  // label fill it, so their centers line up; the name or price wraps
+  // first.
   @media (max-width: 30rem) {
-    .order-item {
-      grid-template-columns: 1fr 6.25rem;
+    .order-item,
+    .order-item[data-stock="out"] {
+      grid-template-columns: minmax(0, 1fr) var(--order-qty-w, 7rem);
+    }
+
+    .order-item .order-qty {
+      width: 100%;
     }
   }
 
