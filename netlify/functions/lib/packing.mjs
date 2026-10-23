@@ -33,7 +33,8 @@ import {
   addDays, label, parts, today, weekday,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { company } from "./company.mjs";
-import { packetCounts, placeOf } from "./describe.mjs";
+import { methodName, packetCounts, placeOf } from "./describe.mjs";
+import { isScheduled } from "../../../assets/scripts/order/lib/dates.mjs";
 import { ping } from "./health.mjs";
 import { now as clock } from "./clock.mjs";
 import { log, scrub } from "./log.mjs";
@@ -119,6 +120,9 @@ export const snapshotOf = (order) => {
       sku: l.sku, label: l.label, qty: l.qty,
     })),
     method: where.method,
+    // Which occurrence, and the farm's name for it, so a move between
+    // two shows by name and a cancelled sheet can name it.
+    ...where.occurrence && { occurrence: where.occurrence, name: where.name },
     date: order.fulfilment.date,
     window: where.window,
     place: hash(where.place),
@@ -133,7 +137,14 @@ export const snapshotOf = (order) => {
   };
 };
 
-const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// A snapshot printed before it carried the occurrence has neither key;
+// that alone is not a change.
+const same = (a, b) => {
+  const now = a.occurrence === undefined
+    ? { ...b, occurrence: undefined, name: undefined } : b;
+
+  return JSON.stringify(a) === JSON.stringify(now);
+};
 
 const linesOf = (snap) => new Map(snap.lines.map((l) => [l.sku, l]));
 
@@ -155,9 +166,14 @@ export const changesBetween = (before, after) => {
   for (const [sku, l] of was) {
     if (!now.has(sku)) out.push(`Removed: ${l.qty} × ${l.label}`);
   }
-  if (before.method !== after.method) {
-    out.push(`Type: was ${placeOf({ fulfilment: { method: before.method } })
-      .name}, now ${placeOf({ fulfilment: { method: after.method } }).name}`);
+  const kind = (snap) => (isScheduled(snap) ? "scheduled" : snap.method);
+  const named = (snap) => snap.name || methodName(kind(snap));
+
+  if (kind(before) !== kind(after)) {
+    out.push(`Type: was ${named(before)}, now ${named(after)}`);
+  } else if (before.occurrence && after.occurrence
+    && before.occurrence !== after.occurrence) {
+    out.push(`Pickup: was ${named(before)}, now ${named(after)}`);
   }
   if (before.date !== after.date) {
     out.push(`Date: was ${label(before.date)}, now ${label(after.date)}`);
@@ -166,7 +182,8 @@ export const changesBetween = (before, after) => {
     out.push(`Window: was ${before.window || "none"}, now ${
       after.window || "none"}`);
   }
-  if (before.place !== after.place && before.method === after.method) {
+  if (before.place !== after.place && kind(before) === kind(after)
+    && before.occurrence === after.occurrence) {
     out.push("Place or address changed: see the new slip");
   }
   if (before.notes !== after.notes) {
@@ -252,6 +269,9 @@ const startOf = (order) => {
   return times ? times.from : "";
 };
 
+// A scheduled pickup's occurrence, so each one's orders sit together.
+const occurrenceOf = (order) => placeOf(order).occurrence || "";
+
 const rank = (method) => {
   const i = METHOD_ORDER.indexOf(method);
 
@@ -265,6 +285,7 @@ export const byFulfilment = (a, b) => {
 
   return fa.date.localeCompare(fb.date)
     || rank(fa.method) - rank(fb.method)
+    || occurrenceOf(a.order).localeCompare(occurrenceOf(b.order))
     || startOf(a.order).localeCompare(startOf(b.order))
     || a.order.id.localeCompare(b.order.id);
 };
@@ -390,7 +411,7 @@ const slipPage = (doc, order, now) => {
   field(doc, at, "Date", label(order.fulfilment.date));
   if (where.window) field(doc, at, "Window", where.window);
   field(doc, at, order.fulfilment.method === "delivery" ? "Address"
-    : "Place", where.place);
+    : "Place", where.address || where.place);
   if (d.cooler) field(doc, at, "Cooler", d.cooler);
   if (d.gate) field(doc, at, "Gate or code", d.gate);
   if (d.notes) field(doc, at, "Delivery notes", d.notes);
@@ -619,6 +640,8 @@ const gather = async (stores, day, { every = true } = {}) => {
         id: record.id, customer: null,
         fulfilment: {
           method: record.snapshot.method, date: record.snapshot.date,
+          ...record.snapshot.occurrence
+            && { occurrence: record.snapshot.occurrence },
         },
       },
       order,

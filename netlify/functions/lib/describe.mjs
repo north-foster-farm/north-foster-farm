@@ -72,6 +72,12 @@ export const packetCounts = ({ slips = 0, revised = 0, cancelled = 0 }) => [
   cancelled && `${cancelled} cancelled`,
 ].filter(Boolean).join(", ");
 
+// A market's place line opens with its name ("Foster Farmers Market,
+// Shady Acres Diner, ..."); a note that already names the series wants
+// the rest.
+const withoutName = (place, name) => (place.startsWith(`${name}, `)
+  ? place.slice(name.length + 2) : place);
+
 // Where and when an order is handed over, for any way of getting it:
 // { method, name, window, place }. `place` is the address the order
 // goes to or is collected from. A fulfilment type added later (a
@@ -90,12 +96,15 @@ export const placeOf = (order) => {
 
       return o
         ? {
-          occurrence: o.id, site: o.series, siteName: o.name,
+          occurrence: o.id, site: o.series, siteName: o.name, kind: o.kind,
           window: hours(o.window), place: o.place,
+          address: withoutName(o.place, o.name),
         }
         : {
-          occurrence: f.occurrence, siteName: `Pickup, ${f.occurrence}`,
-          window: "", place: `Pickup, ${f.occurrence}`,
+          occurrence: f.occurrence, window: "",
+          siteName: f.occurrence ? `Pickup, ${f.occurrence}` : undefined,
+          place: f.occurrence ? `Pickup, ${f.occurrence}` : "",
+          address: f.occurrence ? `Pickup, ${f.occurrence}` : "",
         };
     },
     onfarm: () => ({ window: pickupWindow(order), place: FARM }),

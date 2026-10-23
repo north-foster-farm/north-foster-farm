@@ -88,7 +88,9 @@ const erroringButton = paypal(`setTimeout(() => opts.onError(
 // Every report the page sends, caught before it leaves; and the
 // config held until the form is filled, so the payment section loads
 // after the customer has typed.
-const setUp = async (page, { config = { json: CONFIG }, square, venmo }) => {
+const setUp = async (page, {
+  config = { json: CONFIG }, square, venmo, scheduled = false,
+}) => {
   const reports = [];
   let release;
   const filled = new Promise((resolve) => { release = resolve; });
@@ -116,9 +118,16 @@ const setUp = async (page, { config = { json: CONFIG }, square, venmo }) => {
   const order = new OrderPage(page);
 
   await order.open({ eggs: 1 });
-  await order.method("onfarm");
-  await order.contact(FAKE);
-  await order.firstDate("onfarm");
+  // A scheduled pickup is chosen from the occurrences on offer; the
+  // reports it triggers must keep the customer out just the same.
+  if (scheduled) {
+    await order.scheduled();
+    await order.contact(FAKE);
+  } else {
+    await order.method("onfarm");
+    await order.contact(FAKE);
+    await order.firstDate("onfarm");
+  }
   release();
   await page.locator("#payment").scrollIntoViewIfNeeded();
 
@@ -209,6 +218,17 @@ test.describe("browser error reports keep the customer out (#258)", () => {
       Promise.reject(new Error(`Rejected with ${phone}`));
     });
     await expectReports(reports, ["window.error", "window.rejection"]);
+    expectNoCustomer(reports);
+  });
+
+  test("a scheduled pickup order keeps the customer out too", async ({
+    page,
+  }) => {
+    const { reports } = await setUp(page, {
+      config: { status: 500, json: { error: "down" } }, scheduled: true,
+    });
+
+    await expectReports(reports, ["checkout.config"]);
     expectNoCustomer(reports);
   });
 

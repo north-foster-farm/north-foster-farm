@@ -1176,6 +1176,17 @@ const customerDetails = (order, links) => {
 const farmOrderType = (order) => {
   const f = order.fulfilment;
 
+  if (isScheduled(f)) {
+    const w = placeOf(order);
+
+    // The customer reads "Scheduled pickup"; the farm reads which one.
+    return [p(`Order type: **${methodName(f.method)}**`), list([
+      `Pickup: ${w.name}`,
+      `When: ${label(f.date)}${w.window ? `, between ${
+        between(w.window)}` : ""}`,
+      `Where: ${w.address}`,
+    ])];
+  }
   if (f.method !== "delivery") return orderType(order);
 
   const d = f.delivery || {};
@@ -1227,7 +1238,9 @@ export const paymentPhrase = (order) => {
 // The moment an order is placed, which is the moment it is paid.
 export const farmOrderPlaced = (order, { squareUrl, links } = {}) => {
   const title = `New order ${order.id} — ${dollars(order.totals.total)}, ` +
-    `${methodName(order.fulfilment.method).toLowerCase()}`;
+    `${isScheduled(order.fulfilment)
+      ? `pickup at ${placeOf(order).name}`
+      : methodName(order.fulfilment.method).toLowerCase()}`;
   const url = orderAdminUrl(links, order.id);
   const blocks = [
     ...customerDetails(order, links),
@@ -1304,7 +1317,8 @@ export const farmPickupChanged = (order, { links, before = null } = {}) => {
   const at = (f) => {
     const w = placeOf({ fulfilment: f });
 
-    return `${w.place}, ${label(f.date)}${w.window ? `, ${w.window}` : ""}`;
+    return `${w.name}, ${w.address}, ${label(f.date)}${
+      w.window ? `, ${w.window}` : ""}`;
   };
   const blocks = moved
     ? [
@@ -1949,22 +1963,18 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
       blocks.push(p(`**${o.id}**, ${who(o)}, ${state(o)}`), tree(items));
     }
   }
-  // Each occurrence has its own heading, with its place and hours; the
-  // drop site's first.
-  const kind = (o) => (orderOccurrence(terms, o.fulfilment) || {}).kind;
+  // One heading for each occurrence: the series' name, the day, the
+  // place and the hours, earliest hours first.
   const spot = (o) => placeOf(o).occurrence || placeOf(o).place;
-  const dropFirst = [...scheduled].sort((a, b) =>
-    Number(kind(b) === "drop-site") - Number(kind(a) === "drop-site"));
+  const start = (o) => (orderOccurrence(terms, o.fulfilment) || {}).opens
+    || "";
+  const early = [...scheduled].sort((x, y) =>
+    start(x).localeCompare(start(y)) || spot(x).localeCompare(spot(y)));
 
-  for (const id of new Set(dropFirst.map(spot))) {
+  for (const id of new Set(early.map(spot))) {
     const here = scheduled.filter((o) => spot(o) === id);
-    const where = placeOf(here[0]);
 
-    blocks.push(heading(kind(here[0]) === "drop-site"
-      ? `Drop site, ${orderOccurrence(terms, here[0].fulfilment).window} (${
-        here.length})`
-      : `Pickup at ${where.place}${
-        where.window ? `, ${where.window}` : ""} (${here.length})`));
+    blocks.push(heading(`${occasion(here[0])} (${here.length})`));
     for (const o of here) {
       blocks.push(p(`**${o.id}**, ${who(o)}, ${state(o)}`), tree([pack(o)]));
     }
@@ -1992,12 +2002,49 @@ const PACKET_KIND = {
   cancelled: "**CANCELLED**",
 };
 
+// What a packet or report groups under: "Foster Farmers Market,
+// Sunday, October 25, Shady Acres Diner, 164 Danielson Pike, Foster,
+// 9 AM – 1 PM". The farm's own name for the series, never the
+// customer's "Scheduled pickup".
+const occasion = (order) => {
+  const w = placeOf(order);
+
+  return [w.name, label(order.fulfilment.date), w.address, w.window]
+    .filter(Boolean).join(", ");
+};
+
+// A packet's groups: one per occurrence, one per day of deliveries or
+// of on-farm pickups. Entries come sorted, so a group is a run.
+const packetGroups = (entries) => {
+  const groups = [];
+  const key = (e) => {
+    const f = e.order.fulfilment;
+
+    return isScheduled(f)
+      ? `${placeOf(e.order).occurrence || f.occurrence}`
+      : `${f.method} ${f.date}`;
+  };
+  const title = (e) => {
+    const f = e.order.fulfilment;
+
+    return isScheduled(f) ? occasion(e.order)
+      : `${methodName(f.method)}, ${label(f.date)}`;
+  };
+
+  for (const e of entries) {
+    const last = groups.at(-1);
+
+    if (last && last.key === key(e)) last.entries.push(e);
+    else groups.push({ key: key(e), title: title(e), entries: [e] });
+  }
+
+  return groups;
+};
+
 const packetLine = (e) => {
-  const f = e.order.fulfilment;
   const who = e.order.customer && e.order.customer.name;
 
-  return `**${e.order.id}**${who ? `, ${who}` : ""}, ${
-    placeOf(e.order).name}, ${label(f.date)}: ${PACKET_KIND[e.kind]}`;
+  return `**${e.order.id}**${who ? `, ${who}` : ""}: ${PACKET_KIND[e.kind]}`;
 };
 
 export const farmPackingSlips = (entries, {
@@ -2041,7 +2088,9 @@ export const farmPackingSlips = (entries, {
           "sheet and no slip.")
         : null,
       heading("In this packet"),
-      list(entries.map(packetLine)),
+      ...packetGroups(entries).flatMap((g) => [
+        p(`**${g.title}**`), list(g.entries.map(packetLine)),
+      ]),
       adminFooter(links),
     ].filter(Boolean), links, { tag: "Packing slips" }),
   };

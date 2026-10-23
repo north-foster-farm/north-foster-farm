@@ -254,7 +254,7 @@ describe("buildOrder", () => {
 
     assert.equal(pop.pickup_at, "2026-07-10T22:00:00.000Z");
     assert.match(pop.note,
-      /^Pickup at Summer Celebration, Warwick City Hall Plaza, Warwick/);
+      /^Pickup at Summer Celebration, Warwick City Hall Plaza, 3275 Post/);
   });
 
   it("names the drop site in its note", () => {
@@ -263,7 +263,7 @@ describe("buildOrder", () => {
         date: "2026-10-17", onfarm: null },
     }), "CUST", cfg).fulfillments[0].pickup_details.note;
 
-    assert.match(note, /^Drop site, Village Green/);
+    assert.match(note, /^Pickup at Drop site, Village Green, 46 Institute/);
   });
 
   it("reads a Stage 1 drop site order the same way", () => {
@@ -271,7 +271,7 @@ describe("buildOrder", () => {
       fulfilment: { method: "scituate", date: "2026-10-17", onfarm: null },
     }), "CUST", cfg).fulfillments[0].pickup_details.note;
 
-    assert.match(note, /^Drop site, Village Green/);
+    assert.match(note, /^Pickup at Drop site, Village Green, 46 Institute/);
   });
 
   it("does not call a market gone from the data on-farm", () => {

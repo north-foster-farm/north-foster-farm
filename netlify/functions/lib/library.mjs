@@ -124,6 +124,22 @@ export const dropSite = (over = {}) => order({
   ...over,
 });
 
+// A scheduled pickup at a market's occurrence (the Foster market, its
+// last Sunday), and at a pop-up's (the Village Family Fitness one).
+export const market = (over = {}) => dropSite({
+  fulfilment: { method: "scheduled", occurrence: "WAC5-261025",
+    date: "2026-10-25", onfarm: null, delivery: null },
+  payments: [card],
+  ...over,
+});
+
+export const popUp = (over = {}) => dropSite({
+  fulfilment: { method: "scheduled", occurrence: "VZF5-261018",
+    date: "2026-10-18", onfarm: null, delivery: null },
+  payments: [{ ...card, method: "applepay", brand: null, last4: null }],
+  ...over,
+});
+
 export const customer = {
   firstName: "Dana", name: "Dana Whitcomb", email: "dana@example.com",
   phone: "401-555-0142",
@@ -272,6 +288,13 @@ export const samplePacket = () => {
         kind: "new", changes: [],
       },
       { order: robin, kind: "new", changes: [] },
+      {
+        order: market({
+          id: "NFF-2610-MK5D", customer: other("Ines", "Duarte"),
+          notes: "",
+        }),
+        kind: "new", changes: [],
+      },
       { order: jo, kind: "cancelled", changes: [] },
     ].sort(byFulfilment),
   };
@@ -379,8 +402,24 @@ export const library = [
   {
     id: "order-confirmed-dropsite", name: "Order confirmed, drop site",
     when: "The moment a drop-site order is paid", audience: C,
-    tags: ["paid", "placed", "drop site", "venmo"],
+    tags: ["paid", "placed", "pickup", "drop site", "venmo"],
     build: (links) => t.orderConfirmed(dropSite(),
+      { orderUrl: orderUrl(links), links }),
+  },
+  {
+    id: "order-confirmed-market",
+    name: "Order confirmed, scheduled pickup at a market",
+    when: "The moment an order for a market occurrence is paid",
+    audience: C, tags: ["paid", "placed", "pickup", "market", "card"],
+    build: (links) => t.orderConfirmed(market(),
+      { orderUrl: orderUrl(links), links }),
+  },
+  {
+    id: "order-confirmed-popup",
+    name: "Order confirmed, scheduled pickup at a pop-up",
+    when: "The moment an order for a pop-up occurrence is paid",
+    audience: C, tags: ["paid", "placed", "pickup", "pop-up", "wallet"],
+    build: (links) => t.orderConfirmed(popUp(),
       { orderUrl: orderUrl(links), links }),
   },
   {
@@ -588,10 +627,17 @@ export const library = [
     build: (links) => t.farmOrderPlaced(pickup(), { squareUrl, links }),
   },
   {
-    id: "farm-order-placed-dropsite", name: "New order, drop site",
-    when: "A drop-site order is placed and paid by Venmo", audience: F,
-    tags: ["placed", "paid", "drop site", "venmo"],
+    id: "farm-order-placed-dropsite", name: "New order, scheduled pickup",
+    when: "An order for a scheduled pickup is placed and paid", audience: F,
+    tags: ["placed", "paid", "pickup", "drop site", "venmo"],
     build: (links) => t.farmOrderPlaced(dropSite(), { links }),
+  },
+  {
+    id: "farm-order-placed-market",
+    name: "New order, scheduled pickup at a market",
+    when: "An order for a market occurrence is placed and paid",
+    audience: F, tags: ["placed", "paid", "pickup", "market", "card"],
+    build: (links) => t.farmOrderPlaced(market(), { squareUrl, links }),
   },
   {
     id: "farm-order-changed", name: "Order changed",
@@ -715,6 +761,16 @@ export const library = [
         notes: "",
       }),
     ], { date: "2026-10-08", links }),
+  },
+  {
+    id: "farm-tomorrow-scheduled", name: "Tomorrow's scheduled pickups",
+    when: "Every day at 18:00, when a market or pop-up is the next day",
+    audience: F, tags: ["report", "pickup", "market"],
+    build: (links) => t.farmTomorrow([
+      market(),
+      market({ id: "NFF-2610-MK5D", customer: other("Ines", "Duarte"),
+        notes: "" }),
+    ], { date: "2026-10-25", links }),
   },
   {
     id: "farm-packing-slips", name: "Packing slips",

@@ -578,6 +578,105 @@ describe("the mail seam's attachments", () => {
   });
 });
 
+describe("scheduled pickups in a packet", () => {
+  const sched = (id, occurrence, date, over = {}) => order(id, {
+    method: "scheduled", date,
+    fulfilment: { method: "scheduled", occurrence, date, onfarm: null,
+      delivery: null },
+    ...over,
+  });
+
+  it("stacks each occurrence together, and slips name it", async () => {
+    const entries = choose({
+      open: [
+        sched("M2", "WAC5-261025", "2026-10-25"),
+        sched("D1", "VFVQ-261017", "2026-10-17"),
+        order("F", { method: "onfarm", date: "2026-10-17" }),
+        sched("M1", "WAC5-261025", "2026-10-25"),
+        sched("D2", "VFVQ-261017", "2026-10-17"),
+      ],
+      printed: new Map(), gone: [], day: TUESDAY,
+    });
+
+    assert.deepEqual(entries.map((e) => e.order.id),
+      ["D1", "D2", "F", "M1", "M2"]);
+
+    const text = packetPdf({ entries, now: at(TUESDAY, 6), title: "T" })
+      .toString("latin1");
+
+    assert.ok(text.includes("Foster Farmers Market"), "the series' name");
+    assert.ok(text.includes("Shady Acres Diner"), "its place");
+    assert.ok(text.includes("(Packing slip)"));
+  });
+
+  it("names the old and new occurrence of a move", () => {
+    const was = snapshotOf(sched("A", "VFVQ-261017", "2026-10-17"));
+    const now = snapshotOf(sched("A", "WAC5-261025", "2026-10-25"));
+    const changes = changesBetween(was, now);
+
+    assert.ok(changes.includes("Pickup: was Drop site, now Foster " +
+      "Farmers Market"), changes.join("; "));
+    assert.ok(!changes.some((c) => /^Type:/.test(c)));
+  });
+
+  it("does not read a snapshot from before the occurrence as changed",
+    async () => {
+      const stores = testStores();
+      const h = harness();
+      const a = sched("A", "VFVQ-261017", "2026-10-17");
+
+      await saveOrder(stores, a, placed);
+      await run(stores, h, at(TUESDAY, 6));
+
+      const printed = await readPrinted(stores);
+      const old = { ...printed.get("A").snapshot };
+
+      delete old.occurrence;
+      delete old.name;
+
+      const entries = choose({
+        open: [a], printed: new Map([["A", { snapshot: old }]]),
+        gone: [], day: TUESDAY,
+      });
+
+      assert.deepEqual(entries, []);
+    });
+
+  it("names the occurrence on a cancelled sheet", async () => {
+    const stores = testStores();
+    const h = harness();
+
+    await saveOrder(stores, sched("A", "WAC5-261025", "2026-10-25"), placed);
+    await run(stores, h, at(TUESDAY, 6));
+    await setStatus(stores, "A", "cancelled", at(TUESDAY, 10));
+    await run(stores, h, at("2026-10-07", 6));
+
+    const text = pdfText(h.sent[1]);
+
+    assert.match(text, /\(CANCELLED\)/);
+    assert.ok(text.includes("Foster Farmers Market"));
+    assert.ok(!text.includes("undefined"));
+  });
+
+  it("groups the email's list by occurrence", async () => {
+    const stores = testStores();
+    const h = harness();
+
+    await saveOrder(stores, sched("A", "VFVQ-261017", "2026-10-17"), placed);
+    await saveOrder(stores, sched("B", "WAC5-261025", "2026-10-25"), placed);
+    await saveOrder(stores, order("C", { date: "2026-10-08" }), placed);
+    await run(stores, h, at(TUESDAY, 6));
+
+    const { text } = h.sent[0];
+
+    assert.match(text, /\*\*Delivery, Thursday, October 8\*\*\n- \*\*C/);
+    assert.match(text, /\*\*Drop site, Saturday, October 17, Village Green/);
+    assert.match(text, /\*\*Foster Farmers Market, Sunday, October 25, Shady/);
+    assert.match(text, /9 AM – 1 PM\*\*\n- \*\*B\*\*/);
+    assert.doesNotMatch(text, /Market pickup/);
+  });
+});
+
 describe("the library's sample packet", () => {
   it("builds from fake orders, every kind of sheet", () => {
     const { entries, now } = samplePacket();
@@ -585,7 +684,7 @@ describe("the library's sample packet", () => {
       .toString("latin1");
 
     assert.deepEqual(entries.map((e) => e.kind).sort(),
-      ["cancelled", "changed", "new", "new", "new"]);
+      ["cancelled", "changed", "new", "new", "new", "new"]);
     for (const word of ["(PAID)", "(UNPAID)", "(REVISED)", "(CANCELLED)",
       "(Pick list)"]) {
       assert.ok(text.includes(word), word);

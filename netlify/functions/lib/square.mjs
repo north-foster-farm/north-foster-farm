@@ -16,6 +16,7 @@ import {
 } from "./fake.mjs";
 import { real } from "./clock.mjs";
 import * as fake from "./fake-square.mjs";
+import { placeOf } from "./describe.mjs";
 import { MONEY_FLOOR_MS, timedFetch, timedOut } from "./http.mjs";
 import {
   pickupTimes, windowLabel,
@@ -321,24 +322,20 @@ const fulfillment = (order) => {
     };
   }
 
-  // A pickup's time is its window's start (W11d-D); the drop site's is
-  // when it opens.
+  // A pickup's time is its window's start, with minutes (W11d-D). A
+  // scheduled pickup's is its occurrence's. An occurrence gone from
+  // the data is not the farm, and has no hour: say which it was, and
+  // the update keeps the time Square already holds.
+  const here = placeOf(order);
   const site = orderOccurrence(terms, f);
-  const dropSite = terms.model.series.find((s) => s.kind === "drop-site");
+  const gone = isScheduled(f) && !site;
   const start = f.method === "onfarm"
     && (pickupTimes(f.onfarm) || { from: "09:00" }).from;
   const [hour, minute] = start
     ? start.split(":").map(Number)
-    : [(site || dropSite).opensHour,
-      (site || dropSite).opensMinute || 0];
-  // An occurrence gone from the data is not the farm, and has no hour:
-  // say which it was and keep the time Square already holds.
-  const gone = isScheduled(f) && !site;
-  const where = gone
-    ? `Pickup, ${f.occurrence || f.site}`
-    : site
-      ? (site.kind === "drop-site" ? `Drop site, ${site.place}`
-        : `Pickup at ${site.name}, ${site.short}`)
+    : [site ? site.opensHour : 9, site ? site.opensMinute || 0 : 0];
+  const where = gone ? here.address
+    : isScheduled(f) ? `Pickup at ${here.name}, ${here.address}`
       : "On-farm pickup";
 
   return {

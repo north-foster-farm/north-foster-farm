@@ -94,9 +94,14 @@ const pickupOf = (order) => {
 
   if (!isScheduled(f)) return null;
 
-  const { name, place, window } = placeOf(order);
+  const {
+    name, place, window, occurrence,
+  } = placeOf(order);
 
-  return { name, place, window, gone: !orderOccurrence(terms, f) };
+  return {
+    name, place, window, occurrence: occurrence || null,
+    gone: !orderOccurrence(terms, f),
+  };
 };
 
 export const publicOrder = (order, now = clock()) => ({

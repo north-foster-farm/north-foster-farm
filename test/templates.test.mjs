@@ -3,7 +3,8 @@ import { describe, it } from "node:test";
 
 import {
   CANCEL_REASONS, addressDecision, addressReview, deliveryReminder, farmAlert,
-  farmMorningReport, farmOrderChanged, farmOrderPlaced, farmPickupChanged,
+  farmMorningReport, farmOrderChanged, farmOrderPlaced, farmPackingSlips,
+  farmPickupChanged,
   farmRefundNeeded, farmReturnRequest, farmSquareOutOfSync, farmSupport,
   farmTomorrow, magicLink, missedDelivery, movedDelivery, orderCancelled,
   orderChanged, orderConfirmed, paymentPhrase, summaryLine,
@@ -268,6 +269,66 @@ describe("a booked pickup time (W11d)", () => {
   });
 });
 
+describe("scheduled pickup emails", () => {
+  const library = import("../netlify/functions/lib/library.mjs");
+
+  it("tells a customer the one name and the market's place and hour",
+    async () => {
+      const { market } = await library;
+      const m = orderConfirmed(market(), { links });
+
+      has(m.text, "Order type: **Scheduled pickup**");
+      has(m.text, "- When: Sunday, October 25, between 9 AM and 1 PM");
+      has(m.text, "- Where: Foster Farmers Market, Shady Acres Diner, " +
+        "164 Danielson Pike, Foster");
+    });
+
+  it("tells the farm which pickup, in the subject and the body",
+    async () => {
+      const { popUp } = await library;
+      const m = farmOrderPlaced(popUp(), { links });
+
+      assert.match(m.subject, /, pickup at Pop-up at The Village Family/);
+      has(m.text, "- Pickup: Pop-up at The Village Family Fitness");
+      has(m.text, "- When: Sunday, October 18, between 10 AM and 2 PM");
+    });
+
+  it("names the old and new place when an order moves", async () => {
+    const { dropSite, market } = await library;
+    const m = orderChanged(market(), {
+      before: { lines: market().lines, totals: market().totals,
+        ...dropSite().fulfilment },
+      links,
+    });
+
+    has(m.text, "Before: Village Green, 46 Institute Lane");
+    has(m.text, "Saturday, October 17, between 10 and 11 AM");
+    has(m.text, "- Where: Foster Farmers Market, Shady Acres Diner");
+  });
+
+  it("names both places in the farm's notice of a move", async () => {
+    const { dropSite, market } = await library;
+    const m = farmPickupChanged(market(), {
+      before: dropSite().fulfilment, links,
+    });
+
+    has(m.text, "Was: **Drop site, Village Green, 46 Institute Lane");
+    has(m.text, "Now: **Foster Farmers Market, Shady Acres Diner");
+  });
+
+  it("groups a packet by occurrence, not by a fixed heading", async () => {
+    const { market, dropSite } = await library;
+    const m = farmPackingSlips([
+      { order: dropSite(), kind: "new", changes: [] },
+      { order: market(), kind: "new", changes: [] },
+    ], { day: "2026-10-06", slips: 2, links });
+
+    has(m.text, "**Drop site, Saturday, October 17, Village Green");
+    has(m.text, "**Foster Farmers Market, Sunday, October 25, Shady Acres");
+    assert.doesNotMatch(m.text, /Market pickup/);
+  });
+});
+
 describe("the monitoring emails", () => {
   const stats = {
     placed: 4, paidByCard: 3, paidByVenmo: 1, declined: 1, cancelled: 0,
@@ -412,6 +473,7 @@ describe("the monitoring emails", () => {
     const drop = { ...order("scheduled"), id: "NFF-2610-DROP" };
 
     drop.fulfilment.occurrence = "VFVQ-261017";
+    drop.fulfilment.date = "2026-10-17";
     const farm = { ...order("onfarm"), id: "NFF-2610-FARM", status: "paid" };
 
     delivery.fulfilment.delivery.notes = "Dog in the yard";
@@ -431,7 +493,8 @@ describe("the monitoring emails", () => {
       "(per dozen), Large", "the pack list is nested");
     assert.match(m.html,
       /<li>Pack:<ul style="[^"]*padding-left:1.25em"><li>2 × Whole Chicken/);
-    has(m.text, "\nDrop site, 10:00 – 11:00 AM (1)\n");
+    has(m.text, "\nDrop site, Saturday, October 17, Village Green, 46 " +
+      "Institute Lane, North Scituate, RI 02857, 10 – 11 AM (1)\n");
     has(m.text, "**NFF-2610-DROP**, Pat Example, paid");
     has(m.text, "\nOn-farm pickups (1)\n");
     has(m.text, "**NFF-2610-FARM**, Pat Example, 9 AM – noon, paid");

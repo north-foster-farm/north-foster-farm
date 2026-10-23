@@ -206,7 +206,7 @@ const warningsFor = (order, next, { now, env }) => {
   if (isScheduled(was) && !orderOccurrence(terms, was)) {
     out.push(`The order's pickup "${was.occurrence}" is gone from the ` +
       "data files. Restore it there, archived, so slips and emails can " +
-      "name it.");
+      "name it. Until then Square keeps the order's pickup time.");
   }
 
   const moved = f.method !== was.method || f.date !== was.date
