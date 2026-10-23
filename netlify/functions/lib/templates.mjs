@@ -15,11 +15,16 @@
 // the row leaves it out.
 
 import accounts from "../../../data/accounts.json" with { type: "json" };
+import catalog from "../../../data/catalog.json" with { type: "json" };
+import aliases from "../../../data/skuAliases.json" with { type: "json" };
 import terms from "./terms.mjs";
 import {
   isScheduled, orderOccurrence,
 } from "../../../assets/scripts/order/lib/dates.mjs";
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
+import {
+  current, indexCatalog,
+} from "../../../assets/scripts/order/lib/catalog.mjs";
 import {
   addDays, dayName, label, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
@@ -277,10 +282,25 @@ const customerFooter = (links = {}) => row([
 
 const adminFooter = (links = {}) => row([["Admin", links.admin]]);
 
+const catalogIndex = indexCatalog(catalog);
+
+// What an order line is called now (#321). The record keeps the label
+// the customer saw at checkout, which goes stale when the catalog
+// renames a product, so a line is named from the catalog by its SKU,
+// through the aliases, as the order page names it. A SKU the catalog
+// no longer has keeps its stored label.
+const lineLabel = (l) => {
+  const item = catalogIndex.get(current(l.sku, aliases));
+
+  if (!item) return l.label;
+
+  return item.grade ? `${item.lineName} · ${item.grade}` : item.lineName;
+};
+
 // The payment's own receipt (Square's, or Venmo's) carries the money,
 // so customer messages list what was ordered without pricing it.
 const lines = (order, { prices = false } = {}) => list(order.lines.map(
-  (l) => `${l.qty} × ${l.label}${
+  (l) => `${l.qty} × ${lineLabel(l)}${
     prices ? ` (${dollars(l.lineTotal * 100)})` : ""}`
 ));
 
@@ -295,7 +315,7 @@ const removedGroup = (order, before) => {
   const gone = before.lines
     .map((l) => ({ ...l, qty: l.qty - (now.get(l.sku) || 0) }))
     .filter((l) => l.qty > 0)
-    .map((l) => `${l.qty} × ${l.label}`);
+    .map((l) => `${l.qty} × ${lineLabel(l)}`);
 
   return gone.length ? [heading("Removed"), list(gone)] : [];
 };
@@ -308,7 +328,7 @@ const changedLines = (order, before) => {
   const current = list(order.lines.map((l) => {
     const d = l.qty - (was.get(l.sku) || 0);
 
-    return `${l.qty} × ${l.label}${d > 0 ? ` (${d} added)` : ""}`;
+    return `${l.qty} × ${lineLabel(l)}${d > 0 ? ` (${d} added)` : ""}`;
   }));
 
   return removed.length
@@ -1484,8 +1504,8 @@ export const farmReturnRequest = (order, customer, entry, {
 } = {}) => {
   const who = customer.name || customer.email;
   const named = (sku) => ((order.lines || []).find((l) => l.sku === sku)
-    || { label: sku }).label;
-  const items = entry.skus.map(named);
+    || { sku, label: sku });
+  const items = entry.skus.map(named).map(lineLabel);
 
   return farmCard(
     `Return request: ${order.id} from ${customer.email}`,
@@ -1935,7 +1955,7 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
   const who = (o) => `${o.customer.name || o.customer.email}${
     o.customer.phone ? `, ${o.customer.phone}` : ""}`;
   const pack = (o) => ({
-    text: "Pack:", children: o.lines.map((l) => `${l.qty} × ${l.label}`),
+    text: "Pack:", children: o.lines.map((l) => `${l.qty} × ${lineLabel(l)}`),
   });
   // A delivery is abandoned at the Wednesday cutoff if unpaid, so an
   // unpaid one on this list means that step did not happen.

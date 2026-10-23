@@ -1094,3 +1094,37 @@ describe("the farm's own notices", () => {
     assert.doesNotMatch(m.text, /View customer|View order|Square|Admin:/);
   });
 });
+
+describe("item labels (#321)", () => {
+  const old = {
+    ...order("onfarm"),
+    lines: [
+      { sku: "NFF-CHK-WNG-0000-0200", label: "Wings, under 2.0 lbs",
+        qty: 2, lineTotal: 20 },
+      { sku: "NFF-CHK-LVR-10-14", label: "Other Items, Livers", qty: 1,
+        lineTotal: 7 },
+      { sku: "GONE", label: "Retired Thing", qty: 1, lineTotal: 5 },
+    ],
+  };
+
+  it("name a stored line as the catalog does now", () => {
+    const m = orderConfirmed(old, { links: {} });
+
+    assert.match(m.text, /2 × Wings, 1\.0 – 1\.9 lbs/);
+    assert.match(m.text, /1 × Livers, 1\.0 – 1\.4 lbs/);
+    assert.doesNotMatch(m.text, /under 2\.0|Other Items, Livers/);
+  });
+
+  it("keep the stored label for a SKU the catalog lacks", () => {
+    assert.match(orderConfirmed(old, { links: {} }).text,
+      /1 × Retired Thing/);
+  });
+
+  it("name the pack list and a return request the same way", () => {
+    assert.match(farmTomorrow([old], { date: "2026-10-08", links: {} }).text,
+      /2 × Wings, 1\.0 – 1\.9 lbs/);
+    assert.match(farmReturnRequest(old, old.customer,
+      { skus: ["NFF-CHK-WNG-0000-0200"] }, { links: {} }).text,
+    /Wings, 1\.0 – 1\.9 lbs/);
+  });
+});
