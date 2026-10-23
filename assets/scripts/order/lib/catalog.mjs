@@ -14,29 +14,32 @@ export const packLabel = (label) =>
 // An item's label with its grade, where the catalog gives one (#300,
 // Rhode Island's 250-RICR-40-20-7 wants grade and size on the
 // invoice): "Grade A Large". The catalog's `grade` is the one source.
+// Only Square's line takes it (#318): everywhere else the grade is a
+// note beside the name, never part of it.
 export const graded = (item) => (item.grade
   ? `${item.grade} ${item.label}` : item.label);
 
 // How a line is named in the cart, the emails and errors (#267). Most
-// groups name it "Group, label": "Wings, 1.0 – 1.9 lbs", or with its
-// grade, "Eggs, Grade A Large". A group whose `lines` is "name" uses
-// each item's own name instead, as Other Items does, its group name
-// saying nothing: "Livers, 1.0 – 1.4 lbs". `row` is the line under
-// its group's heading in a grouped cart.
+// groups name it "Group, label": "Wings, 1.0 – 1.9 lbs", "Eggs, Large"
+// (a grade is a note, never in the name, #318). A group whose `lines`
+// is "name" uses each item's own name instead, as Other Items does,
+// its group name saying nothing: "Livers, 1.0 – 1.4 lbs". `row` is
+// the line under its group's heading in a grouped cart.
 const lineNames = (group, item) => (group.lines === "name"
   ? { lineName: item.name, row: item.name }
   : {
-    lineName: `${short(group.label)}, ${graded(item)}`,
-    row: graded(item),
+    lineName: `${short(group.label)}, ${item.label}`,
+    row: item.label,
   });
 
 // The name sent for a Square line that goes without a variation id
 // (lib/square.mjs, no catalog configured): the catalog's own, or for a
-// graded item its line name. A line sent with its variation id, as in
-// production, takes the name from Square's own catalog instead, so
-// the egg variations there carry the grade themselves (#300).
-const squareName = (item, names) => (item.grade
-  ? names.lineName : item.name);
+// graded item its group name and graded label. A line sent with its
+// variation id, as in production, takes the name from Square's own
+// catalog instead, so the egg variations there carry the grade
+// themselves (#300).
+const squareName = (group, item) => (item.grade
+  ? `${short(group.label)}, ${graded(item)}` : item.name);
 
 // A SKU as the catalog knows it now: an old one, from a past order's
 // Reorder link or a saved cart, through the renames in
@@ -58,7 +61,8 @@ export const indexCatalog = (catalog) => {
         groupLabel: group.label,
         groupName: short(group.label),
         ...names,
-        squareName: squareName(item, names),
+        squareName: squareName(group, item),
+        note: item.note || item.grade || "",
       });
     }
   }

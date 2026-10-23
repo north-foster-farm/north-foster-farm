@@ -230,7 +230,7 @@ describe("the cart's lines", () => {
         items: [
           {
             sku: "EGG", label: "Large",
-            lineName: "Eggs, Large", row: "Large",
+            lineName: "Eggs, Large", row: "Large", note: "",
             qtyText: "6 × $7",
             subtotal: "$42",
           },
@@ -243,12 +243,14 @@ describe("the cart's lines", () => {
           {
             sku: "WHL35", label: "3.5 – 3.9 lbs",
             lineName: "Whole Chicken, 3.5 – 3.9 lbs", row: "3.5 – 3.9 lbs",
+            note: "",
             qtyText: "1 × $30",
             subtotal: "$30",
           },
           {
             sku: "WHL40", label: "4.0 – 4.4 lbs",
             lineName: "Whole Chicken, 4.0 – 4.4 lbs", row: "4.0 – 4.4 lbs",
+            note: "",
             qtyText: "2 × $34",
             subtotal: "$68",
           },

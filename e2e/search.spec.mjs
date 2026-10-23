@@ -238,14 +238,14 @@ test.describe("search (#142)", () => {
     await expect(p.qty).toHaveValue("1");
     await expect(p.more).toBeFocused();
     await expect(p.added).toHaveText(
-      "1 × Eggs, Grade A Large in your cart. 1 item in all."
+      "1 × Eggs, Large in your cart. 1 item in all."
     );
     await expect(p.fewer).toHaveAttribute("aria-label", "Remove");
     await p.fewer.click();
     await expect(p.add).toBeVisible();
     await expect(p.add).toBeFocused();
     await expect(p.added).toHaveText(
-      "Removed Eggs, Grade A Large. 0 items in your cart."
+      "Removed Eggs, Large. 0 items in your cart."
     );
     await expect(p.dialog.getByRole("button", { name: "Go to cart" }))
       .toBeHidden();
@@ -267,7 +267,7 @@ test.describe("search (#142)", () => {
     await p.more.click();
     await expect(p.qty).toHaveValue("2");
     await expect(p.added).toHaveText(
-      "2 × Eggs, Grade A Large in your cart. 2 items in all."
+      "2 × Eggs, Large in your cart. 2 items in all."
     );
 
     const order = new OrderPage(page);

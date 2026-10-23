@@ -1,7 +1,7 @@
 // Restock types and the order page's Show control (#267, 6303165805,
 // the `soon` amendment 6303183573 and the control in 6303649455).
 // "In stock", the default, shows what is in stock; "Full catalog"
-// also shows the rest, greyed, with a restock label and no way to add
+// also shows the rest, with a restock label and no way to add
 // it. Search shows every product but an archived one, with its label,
 // whatever the page shows. Stock wins over every type but archived.
 // docs/qa-launch.md OP-26.
@@ -149,8 +149,8 @@ test.describe("restock types (#267)", () => {
       }
     });
 
-  test("Full catalog: out-of-stock rows show greyed with their label " +
-    "and can't be added", async ({ page }) => {
+  test("Full catalog: out-of-stock rows show their label, with no " +
+    "tint on the name, and can't be added", async ({ page }) => {
     await stubStock(page, { ...SAUSAGE_OUT, ...SEASONAL_OUT });
     await open(page);
     await show(page, "Full catalog");
@@ -162,8 +162,18 @@ test.describe("restock types (#267)", () => {
 
       await expect(r, type).toBeVisible();
       await expect(r).toHaveAttribute("data-stock", "out");
-      await expect(r.locator(".order-item-stock")).toHaveText(LABEL[type]);
-      await expect(r.locator(".order-qty")).toBeHidden();
+      // One design for every row (#318): the label is a disabled
+      // button in Add's place, with no border and no gray tint.
+      const out = r.locator(".order-qty-out");
+
+      await expect(out).toHaveText(LABEL[type]);
+      await expect(out).toBeDisabled();
+      await expect(out).toHaveAttribute("aria-disabled", "true");
+      await expect(out).toHaveCSS("border-top-width", "0px");
+      await expect(r.locator(".order-qty-add")).toBeHidden();
+      expect(await r.evaluate((el) => getComputedStyle(el)
+        .backgroundColor), type).toBe(await row(page, SKU.eggs)
+        .evaluate((el) => getComputedStyle(el).backgroundColor));
       // No price but on "Returning soon"; on every row the label stands
       // where Add goes, at the row's right (#274 round 5, #303), and
       // a price stays to its left.
@@ -173,9 +183,9 @@ test.describe("restock types (#267)", () => {
         const box = (s) => el.querySelector(s).getBoundingClientRect();
 
         return {
-          gap: el.getBoundingClientRect().right - box(".order-item-stock")
+          gap: el.getBoundingClientRect().right - box(".order-qty-out")
             .right,
-          left: box(".order-item-stock").left - box(".order-item-price")
+          left: box(".order-qty-out").left - box(".order-item-price")
             .right,
         };
       });
@@ -189,14 +199,14 @@ test.describe("restock types (#267)", () => {
       await expect(r.getByText("Sold out", { exact: true })).toHaveCount(0);
     }
 
-    // Greyed: the name in the secondary color, not the body's.
+    // No tint: the name keeps the body's color (#318).
     const color = (sku) => row(page, sku).locator("label")
       .evaluate((el) => getComputedStyle(el).color);
 
-    expect(await color(OUT.soon)).not.toBe(await color(SKU.eggs));
+    expect(await color(OUT.soon)).toBe(await color(SKU.eggs));
 
     // Every egg says its grade (#303, James, final): Large beside its
-    // price; Medium and Small, on hiatus, under the name with no price.
+    // price; Medium and Small, on hiatus, on the price line with no price.
     await expect(row(page, SKU.eggs).locator(".order-item-price"))
       .toHaveText("$7 · Grade A", { useInnerText: true });
     for (const sku of ["NFF-CHK-EGG-MD", "NFF-CHK-EGG-SM"]) {
@@ -204,7 +214,7 @@ test.describe("restock types (#267)", () => {
         .toHaveText("Grade A", { useInnerText: true });
       await expect(row(page, sku).locator(".order-item-amount"), sku)
         .toBeHidden();
-      await expect(row(page, sku).locator(".order-item-stock"), sku)
+      await expect(row(page, sku).locator(".order-qty-out"), sku)
         .toHaveText("On hiatus");
     }
 
@@ -431,7 +441,7 @@ test.describe("restock types (#267)", () => {
       await archive(page);
       await page.goto(`/order/?add=${sku}:2,${SKU.eggs}:1`);
       await expect(page.locator("#order-added")).toHaveText(
-        "Added to your cart: 1 × Eggs, Grade A Large. " +
+        "Added to your cart: 1 × Eggs, Large. " +
         "Not available: Wings, 2.0 – 2.9 lbs."
       );
       await expect(new OrderPage(page).count).toHaveText("1 item");

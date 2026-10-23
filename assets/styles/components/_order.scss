@@ -390,19 +390,10 @@
     grid-area: stock;
   }
 
-  .order-item[data-stock="out"] {
-    background-color: var(--bs-tertiary-bg);
-    box-shadow: none;
-
-    .order-item-name label {
-      cursor: default;
-    }
-
-    .order-item-name label,
-    .order-item-price,
-    .order-item-stock {
-      color: var(--bs-secondary-color);
-    }
+  // Out of stock is the same row as any other (#318): no tint, the
+  // restock label in Add's place (.order-qty-out below).
+  .order-item[data-stock="out"] .order-item-name label {
+    cursor: default;
   }
 
   @media (max-width: 30rem) {
@@ -513,28 +504,27 @@
     animation: order-tick 200ms var(--order-ease);
   }
 
-  .order-item[data-stock="out"] .order-qty {
-    visibility: hidden;
+  // Out of stock: a disabled button stands where Add goes, labeled
+  // with the restock label, and reads as a label: no border, no
+  // outline (#318). Its row keeps the price and note, except that
+  // "Back in spring", "On hiatus" and "Not available" drop the
+  // price and keep the note (#303).
+  .order-qty-out {
+    display: none;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--bs-secondary-color);
+    opacity: 1;
+    outline: 0;
+    box-shadow: none;
+    letter-spacing: 0;
   }
 
-  // Out of stock: the label stands where Add goes, on every row
-  // (#274 round 5, #303). "Returning soon" keeps its price beside it.
-  // Every row with a label has a restock type.
-  .order-item[data-stock="out"][data-restock] {
+  .order-item[data-stock="out"] {
     grid-template-areas:
       "name  price qty"
       "error error error";
-
-    .order-qty {
-      display: none;
-    }
-
-    .order-item-stock {
-      grid-area: qty;
-      align-self: center;
-      font-size: 0.875rem;
-      text-align: center;
-    }
 
     @media (max-width: 30rem) {
       grid-template-areas:
@@ -542,46 +532,25 @@
         "price qty"
         "error error";
     }
-  }
 
-  // Out until spring, on hiatus or not available: no price either.
-  .order-item[data-stock="out"]:not([data-restock="soon"]) {
-    grid-template-areas:
-      "name  name  qty"
-      "error error error";
-
-    .order-item-price {
+    .order-qty-add,
+    .order-qty-step {
       display: none;
     }
 
-    @media (max-width: 30rem) {
-      grid-template-areas:
-        "name  qty"
-        "error error";
+    .order-qty-out {
+      display: block;
+    }
+  }
+
+  .order-item[data-stock="out"]:not([data-restock="soon"]) {
+    .order-item-price:not(:has(.order-item-note)) {
+      display: none;
     }
 
-    // A note outlives the price: "Grade A" under the name (#303).
-    &:has(.order-item-note) {
-      grid-template-areas:
-        "name  name  qty"
-        "price price qty"
-        "error error error";
-
-      .order-item-price {
-        display: block;
-      }
-
-      .order-item-amount,
-      .order-item-dot {
-        display: none;
-      }
-
-      @media (max-width: 30rem) {
-        grid-template-areas:
-          "name  qty"
-          "price qty"
-          "error error";
-      }
+    .order-item-amount,
+    .order-item-dot {
+      display: none;
     }
   }
 
@@ -979,6 +948,11 @@
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+  }
+
+  .order-cart-item-note {
+    color: var(--bs-secondary-color);
+    font-size: 0.8125rem;
   }
 
   .order-cart-item-qty {
@@ -1576,10 +1550,6 @@
         background-color: transparent;
         box-shadow: inset 3px 0 0 var(--bs-success-border-subtle);
       }
-    }
-
-    .order-item[data-stock="out"] {
-      background-color: transparent;
     }
 
     .order-qty {

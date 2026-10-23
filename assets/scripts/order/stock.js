@@ -114,8 +114,8 @@ export class Stock {
       // label; an archived item has no row at all.
       row.toggleAttribute("data-out", !inStock);
       if (!inStock) {
-        text = row.dataset.restockLabel || "";
-        if (text) row.dataset.stock = "out";
+        // The label is the disabled button in Add's place (#318).
+        if (row.dataset.restockLabel) row.dataset.stock = "out";
         else delete row.dataset.stock;
         if (qty > 0) {
           this.setQty(input, 0);

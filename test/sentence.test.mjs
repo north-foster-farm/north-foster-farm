@@ -10,8 +10,8 @@ import { sentence } from "../assets/scripts/order/lib/sentence.mjs";
 
 describe("sentence", () => {
   it("adds a period where the text has none", () => {
-    assert.equal(sentence("Not available: Eggs, Grade A Medium"),
-      "Not available: Eggs, Grade A Medium.");
+    assert.equal(sentence("Not available: Eggs, Medium"),
+      "Not available: Eggs, Medium.");
   });
 
   it("keeps the one a name ends in", () => {

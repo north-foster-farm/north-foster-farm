@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 import catalog from "../data/catalog.json" with { type: "json" };
 import terms from "../netlify/functions/lib/terms.mjs";
 import {
-  graded, indexCatalog, short,
+  indexCatalog, short,
 } from "../assets/scripts/order/lib/catalog.mjs";
 import { parseSchedule } from "../assets/scripts/order/lib/schedule.mjs";
 import { itemGroups } from "../assets/scripts/order/lib/summary.mjs";
@@ -32,24 +32,25 @@ describe("line names", () => {
       for (const item of group.items) {
         const got = index.get(item.sku);
 
-        assert.equal(got.lineName, `${short(group.label)}, ${graded(item)}`);
-        assert.equal(got.row, graded(item));
+        assert.equal(got.lineName, `${short(group.label)}, ${item.label}`);
+        assert.equal(got.row, item.label);
       }
     }
     assert.equal(index.get(WINGS).lineName, "Wings, 1.0 – 1.9 lbs");
-    assert.equal(index.get(EGGS).lineName, "Eggs, Grade A Large");
-    assert.equal(index.get(EGGS).row, "Grade A Large");
+    assert.equal(index.get(EGGS).lineName, "Eggs, Large");
+    assert.equal(index.get(EGGS).row, "Large");
+    assert.equal(index.get(EGGS).note, "Grade A");
     assert.equal(index.get("NFF-CHK-SAUMPL").lineName,
       "Chicken Sausage, Maple breakfast links");
   });
 
-  // Every egg says its grade, from the catalog's one `grade` (#300);
-  // nothing else has one.
-  it("carry each egg's grade and no one else's", () => {
+  // Every egg has a grade, from the catalog's one `grade` (#300), a
+  // note beside the name and never in it (#318); nothing else has one.
+  it("keep each egg's grade out of its name and no one else's", () => {
     const eggs = catalog.groups.find((g) => g.key === "eggs").items;
 
     assert.deepEqual(eggs.map((i) => index.get(i.sku).lineName), [
-      "Eggs, Grade A Large", "Eggs, Grade A Medium", "Eggs, Grade A Small",
+      "Eggs, Large", "Eggs, Medium", "Eggs, Small",
     ]);
     for (const group of catalog.groups) {
       if (group.key === "eggs") continue;
@@ -108,9 +109,9 @@ describe("line names", () => {
 
       assert.ok(r.ok, JSON.stringify(r.errors));
       assert.deepEqual(r.order.lines.map((l) => l.label), [
-        "Livers, 1.0 – 1.4 lbs", "Wings, 1.0 – 1.9 lbs", "Eggs, Grade A Large",
+        "Livers, 1.0 – 1.4 lbs", "Wings, 1.0 – 1.9 lbs", "Eggs, Large",
       ]);
-      // The Square line's name, graded for eggs (#300).
+      // The Square line's name keeps the grade for eggs (#300).
       assert.equal(r.order.lines[2].name, "Eggs, Grade A Large");
     });
 

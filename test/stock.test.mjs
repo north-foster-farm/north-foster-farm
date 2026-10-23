@@ -82,13 +82,13 @@ describe("checkLines", () => {
 
     assert.equal(bad.ok, false);
     assert.equal(bad.errors[`lines.${EGGS}`],
-      "Only 2 of Eggs, Grade A Large left.");
+      "Only 2 of Eggs, Large left.");
     assert.equal(bad.errors[`lines.${MEDIUM}`],
-      "Eggs, Grade A Medium just sold out.");
+      "Eggs, Medium just sold out.");
 
     await setCount(stores, EGGS, 1);
     assert.equal((await checkLines(stores, [{ sku: EGGS, qty: 2 }]))
-      .errors[`lines.${EGGS}`], "Only 1 Eggs, Grade A Large left.");
+      .errors[`lines.${EGGS}`], "Only 1 Eggs, Large left.");
   });
 });
 
@@ -150,7 +150,7 @@ describe("Square's counts", () => {
         { inventory, deadline: 123 });
 
       assert.equal(bad.errors[`lines.${EGGS}`],
-        "Only 1 Eggs, Grade A Large left.");
+        "Only 1 Eggs, Large left.");
       assert.equal(seen[0].opts.deadline, 123);
     });
 
