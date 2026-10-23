@@ -8,14 +8,14 @@ import { today } from "../../order/lib/zoned.mjs";
 
 export const METHOD = {
   delivery: "Delivery",
-  scituate: "Drop site",
+  scheduled: "Scheduled pickup",
   onfarm: "On-farm pickup",
 };
 
 const STATUS = {
   paid: "Paid",
   fulfilled: "Delivered",
-  cancelled: "Cancelled",
+  cancelled: "Canceled",
   // From before the checkout moved onto the page.
   submitted: "Awaiting payment",
   abandoned: "Not paid",
@@ -60,6 +60,19 @@ export const statusOf = (order) => (order.status === "fulfilled"
   ? "Picked up"
   : STATUS[order.status] || order.status);
 
+// "Delivery", "On-farm pickup" or "Scheduled pickup, {place}". The
+// account's derived pickup names the place, a migrated drop-site order
+// included; one whose occurrence is gone names none.
+export const howOf = (order) => {
+  const f = order.fulfilment || {};
+  const p = order.pickup;
+
+  if (p) return p.gone || !p.name ? METHOD.scheduled
+    : `${METHOD.scheduled}, ${p.name}`;
+
+  return METHOD[f.method] || f.method || "";
+};
+
 // "Visa ending 4242", "Apple Pay", "Venmo".
 export const paidWith = (payment) => {
   const p = payment || {};
@@ -87,7 +100,7 @@ export const ordersCsv = (orders, { timeZone } = {}) => csv([
       o.id,
       day(o.submittedAt, timeZone),
       o.cancelRequested ? "Cancellation requested" : statusOf(o),
-      METHOD[f.method] || f.method || "",
+      howOf(o),
       f.date || "",
       (o.lines || []).map((l) => `${l.qty} x ${l.label}`).join("; "),
       amount(t.subtotal),

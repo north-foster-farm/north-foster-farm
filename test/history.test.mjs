@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  fileName, ordersCsv, receiptsCsv,
+  fileName, howOf, ordersCsv, receiptsCsv,
 } from "../assets/scripts/account/lib/history.mjs";
 
 // Every file starts with a byte-order mark, for Excel.
@@ -73,6 +73,29 @@ describe("ordersCsv", () => {
 
     assert.match(row, /,Picked up,On-farm pickup,/);
     assert.match(row, /,8\.00$/);
+  });
+
+  it("says Canceled with one L", () => {
+    const [, row] = rows(ordersCsv([order({ status: "cancelled" })], NY));
+
+    assert.match(row, /,Canceled,Delivery,/);
+  });
+
+  it("names the place of a scheduled pickup", () => {
+    const pickup = { name: "Foster Farmers Market", gone: false };
+
+    for (const method of ["scheduled", "scituate", "market"]) {
+      assert.equal(howOf(order({
+        fulfilment: { method, date: "2026-09-24" }, pickup,
+      })), "Scheduled pickup, Foster Farmers Market", method);
+    }
+    assert.equal(howOf(order({
+      fulfilment: { method: "scheduled" },
+      pickup: { name: "Old", gone: true },
+    })), "Scheduled pickup", "an occurrence gone from the data");
+    assert.match(rows(ordersCsv([order({
+      fulfilment: { method: "scituate", date: "2026-09-24" }, pickup,
+    })], NY))[1], /,Paid,Scheduled pickup, Foster|,"Scheduled pickup, Foster/);
   });
 
   it("is only a header with no orders", () => {
