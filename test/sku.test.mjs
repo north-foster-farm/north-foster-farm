@@ -11,7 +11,7 @@ import { describe, it } from "node:test";
 import catalog from "../data/catalog.json" with { type: "json" };
 import aliases from "../data/skuAliases.json" with { type: "json" };
 import {
-  archived, current, indexCatalog, shownLines,
+  archived, current, currentLines, indexCatalog, shownLines,
 } from "../assets/scripts/order/lib/catalog.mjs";
 
 const items = [...indexCatalog(catalog).values()];
@@ -113,6 +113,15 @@ describe("shownLines (#322)", () => {
 
     assert.deepEqual(shownLines(lines, names, known),
       [{ sku: "NEW", qty: 3 }]);
+  });
+
+  it("keeps the lines it hides when it only brings SKUs up to date", () => {
+    assert.deepEqual(currentLines([
+      { sku: "OLD", qty: 1 }, { sku: "GONE", qty: 4 },
+      { sku: "NEW", qty: 2 },
+    ], names), [
+      { sku: "NEW", qty: 3 }, { sku: "GONE", qty: 4 },
+    ]);
   });
 
   it("copes with no lines", () => {

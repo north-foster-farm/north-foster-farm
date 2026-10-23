@@ -5,7 +5,7 @@
 
 import { announceCart } from "../cart-badge/announce.js";
 import { Draft } from "../order/draft.js";
-import { shownLines } from "../order/lib/catalog.mjs";
+import { currentLines, shownLines } from "../order/lib/catalog.mjs";
 
 const MAX = 99;
 
@@ -33,16 +33,21 @@ export const pageCatalog = () => {
   }
 };
 
+const savedLines = () => {
+  const saved = new Draft().load();
+
+  return (saved && saved.payload && saved.payload.lines) || [];
+};
+
 // The saved cart's lines the cart can show (#322): renamed SKUs
 // brought up to date, unknown ones and empty ones left out, so the
 // count, the mini cart and the order page agree. A page with no
 // catalog can't tell, and takes the lines as saved.
 export const draftLines = () => {
-  const saved = new Draft().load();
-  const lines = (saved && saved.payload && saved.payload.lines) || [];
   const { products, aliases } = pageCatalog();
 
-  return products.size ? shownLines(lines, aliases, products) : lines;
+  return products.size ? shownLines(savedLines(), aliases, products)
+    : savedLines();
 };
 
 // -> how many of this product are in the cart now.
@@ -83,9 +88,10 @@ export const setCart = (sku, qty) => {
   const draft = new Draft();
   const saved = draft.load();
   const payload = { ...((saved && saved.payload) || {}) };
-  // The lines as shown, so a renamed SKU is not kept beside its new
-  // one.
-  const was = draftLines();
+  // Renamed SKUs brought up to date so one is not kept beside its new
+  // name; a line the page can't show stays in the cart, for an order
+  // being edited may hold it.
+  const was = currentLines(payload.lines, pageCatalog().aliases);
   const at = was.findIndex((l) => l.sku === sku);
   const lines = was.filter((l) => l.sku !== sku);
 

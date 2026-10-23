@@ -48,25 +48,32 @@ const squareName = (group, item) => (item.grade
 export const current = (sku, aliases = {}) =>
   (Object.hasOwn(aliases, sku) ? aliases[sku] : sku);
 
-// A saved cart's lines as the cart can show them (#322): each SKU as
-// the catalog knows it now, a renamed one merged with any line already
-// under its new name, and a line the catalog no longer sells (or with
-// no whole quantity) dropped. The header's count and mini cart both
-// read this, so the badge never counts what the cart can't show.
-// `known` is a Set or Map of the SKUs on sale.
-export const shownLines = (lines, aliases, known) => {
+// A saved cart's lines with each SKU as the catalog knows it now (a
+// renamed one merged into any line already under its new name), and
+// nothing else changed: a line the catalog can't show stays, for an
+// order being edited may hold it (#322).
+export const currentLines = (lines, aliases) => {
   const kept = new Map();
 
   for (const line of Array.isArray(lines) ? lines : []) {
-    const sku = current(line && line.sku, aliases);
-    const qty = Math.floor(Number(line && line.qty)) || 0;
+    if (!line || typeof line.sku !== "string") continue;
 
-    if (!known.has(sku) || qty < 1) continue;
+    const sku = current(line.sku, aliases);
+    const qty = Math.floor(Number(line.qty)) || 0;
+
     kept.set(sku, { ...line, sku, qty: (kept.get(sku)?.qty || 0) + qty });
   }
 
   return [...kept.values()];
 };
+
+// What of a saved cart the header can show: its current lines the
+// catalog sells, at one or more. The count and the mini cart read
+// this, so the badge never counts what the mini cart can't show.
+// `known` is a Set or Map of the SKUs on sale.
+export const shownLines = (lines, aliases, known) => currentLines(
+  lines, aliases
+).filter((line) => known.has(line.sku) && line.qty >= 1);
 
 export const indexCatalog = (catalog) => {
   const index = new Map();
