@@ -278,8 +278,9 @@ test.describe("a scheduled pickup on the account page", () => {
 
       const when = page.locator("[data-out='when']").first();
 
-      await expect(when).toContainText("Scheduled pickup, Canned Market");
-      await expect(when).toContainText(m.label);
+      await expect(when).toContainText(
+        `Scheduled pickup, ${m.label}, 10 AM – 12 PM, at Canned Market`
+      );
       await expect(when).not.toContainText("scheduled,");
       await expect(when).not.toContainText("scituate");
     });
@@ -305,7 +306,7 @@ test.describe("a scheduled pickup on the account page", () => {
           date: drop.date },
         pickup: { name: "Drop site", place: "Village Green",
           window: "10 AM – 12 PM", occurrence: drop.occurrence,
-          gone: false },
+          series: "VFVQ", gone: false },
       } } });
     });
     await page.goto("/account/#orders");
@@ -319,13 +320,15 @@ test.describe("a scheduled pickup on the account page", () => {
       await expect(select.locator(`option[value='${d.occurrence}']`))
         .toHaveCount(1);
     }
+    await expect(select.locator(`option[value='${m.occurrence}']`))
+      .toHaveText(`${m.label}, ${m.window}, at Canned Market`);
     await select.selectOption(drop.occurrence);
     await page.getByRole("button", { name: "Save changes" }).click();
 
     expect(posted.method).toBe("scheduled");
     expect(posted.occurrence).toBe(drop.occurrence);
     await expect(page.locator("[data-out='when']").first())
-      .toContainText("Scheduled pickup, Drop site");
+      .toContainText("10 AM – 12 PM, at the drop site");
   });
 
   test("an occurrence that no longer resolves says to get in touch",

@@ -95,11 +95,12 @@ const pickupOf = (order) => {
   if (!isScheduled(f)) return null;
 
   const {
-    name, place, window, occurrence,
+    name, place, window, occurrence, site,
   } = placeOf(order);
 
   return {
     name, place, window, occurrence: occurrence || null,
+    series: site || null,
     gone: !orderOccurrence(terms, f),
   };
 };

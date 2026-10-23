@@ -229,6 +229,33 @@ describe("a customer's move within scheduled pickup", () => {
         .filter((h) => h.event === "fulfilment.moved").length, 0);
     });
 
+  it("keeps each move of a market order, to a date then the drop site",
+    async () => {
+      const { stores, id } = await place(DROP);
+      const later = "WAC5-261018";
+
+      // A market order the farm booked beyond the usual list.
+      await legacy(stores, id, { occurrence: later, date: "2026-10-18" });
+
+      const first = await move(stores, id, { occurrence: FOSTER });
+
+      assert.equal(first.ok, true, JSON.stringify(first.errors));
+
+      const second = await move(stores, id, { occurrence: "VFVQ-261017" });
+
+      assert.equal(second.ok, true, JSON.stringify(second.errors));
+
+      const saved = await getOrder(stores, id);
+      const moves = saved.history.filter((h) => h.event === "fulfilment.moved");
+
+      assert.deepEqual(moves.map((h) => [h.from, h.to, h.by]), [
+        [later, FOSTER, "customer"],
+        [FOSTER, "VFVQ-261017", "customer"],
+      ]);
+      assert.equal(saved.fulfilment.occurrence, "VFVQ-261017");
+      assert.equal(saved.fulfilment.date, "2026-10-17");
+    });
+
   it("takes only an occurrence the schedule offers", async () => {
     const { stores, id } = await place(DROP);
     const shut = await move(stores, id, { occurrence: "WAC5-261004" });

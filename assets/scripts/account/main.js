@@ -76,6 +76,15 @@ const clone = (id) => document.getElementById(id).content.cloneNode(true);
 
 const hour12 = (h) => `${((h + 11) % 12) + 1} ${h < 12 ? "AM" : "PM"}`;
 
+// The drop site's series code (data/series.json), set by the page.
+let dropSeries = "";
+
+// "10 – 11 AM, at the drop site" or "9 AM – 1 PM, at Foster Farmers
+// Market": the window, then the place, as the order page reads it.
+const at = ({ window, name, series }) => [
+  window, `at ${series && series === dropSeries ? "the drop site" : name}`,
+].filter(Boolean).join(", ");
+
 const when = (order) => {
   const f = order.fulfilment;
   const day = f.date ? label(f.date) : "";
@@ -97,10 +106,7 @@ const when = (order) => {
   const p = order.pickup;
 
   if (p) {
-    const where = p.gone ? "" : `, ${p.name}`;
-    const hours = !p.gone && p.window ? `, ${p.window}` : "";
-
-    return `${METHOD.scheduled}${where}, ${day}${hours}`;
+    return `${METHOD.scheduled}, ${day}${p.gone ? "" : `, ${at(p)}`}`;
   }
 
   return `${METHOD[f.method] || f.method}, ${day}`;
@@ -132,6 +138,8 @@ class Account {
 
     this.avatars = data.avatars;
     this.terms = data.terms;
+    dropSeries = ((data.series || []).find((x) => x.kind === "drop-site")
+      || {}).code || "";
     this.app = document.getElementById("account-app");
     this.region = document.getElementById("account-region");
     this.loading = document.getElementById("account-loading");
@@ -1036,7 +1044,7 @@ class Account {
     // place. The others choose a date.
     const keyOf = (d) => (scheduled ? d.occurrence : d.date);
     const textOf = (d) => (scheduled
-      ? [d.label, d.name, d.window].filter(Boolean).join(", ") : d.label);
+      ? `${d.label}, ${at(d)}` : d.label);
     const held = scheduled ? order.pickup.occurrence : order.fulfilment.date;
 
     if (scheduled) qs(form, "[data-dates-label]").textContent = "Pickup";
