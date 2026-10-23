@@ -604,6 +604,24 @@ test.describe("map (#138, #214)", () => {
       await expect(link).toHaveAttribute("href", /\/#places-scheduled$/);
     });
 
+  test("the locations link is kept through a cart change",
+    async ({ page }) => {
+      await cannedScheduled(page);
+
+      const order = new OrderPage(page);
+
+      await order.open({ eggs: 1 }, { method: "scheduled" });
+
+      const link = page.locator("[data-scheduled-facts] a",
+        { hasText: /locations$/ });
+
+      await link.evaluate((node) => { window.__locationsLink = node; });
+      await order.qty("eggs").fill("2");
+      await order.qty("eggs").dispatchEvent("change");
+      expect(await link.evaluate((node) => node === window.__locationsLink))
+        .toBe(true);
+    });
+
   test.describe("on a touch screen", () => {
     test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
 

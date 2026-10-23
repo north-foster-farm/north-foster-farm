@@ -1845,23 +1845,31 @@ export class OrderForm {
     if (where.dataset.built === undefined) {
       where.dataset.built = where.textContent;
     }
-    where.textContent = none || dropOnly(choices, this.dropSeries)
-      ? where.dataset.built : placesFact(choices);
-
     // Beyond one place, Where counts the locations and links to the
-    // map in a new tab, so the order stays as it is (#places shows the
-    // Places layer; #314 will add a deep link to scheduled pickups).
+    // map in a new tab, so the order stays as it is (#places-scheduled
+    // opens the Places layer on scheduled pickups, #314). The link is
+    // kept while its text and href hold, so a focused one stays focused.
     const places = locationCount(choices);
 
     if (!none && places > 1) {
-      const link = document.createElement("a");
+      const text = `${places} locations`;
+      const href = facts.dataset.placesHref;
+      const kept = where.firstElementChild;
 
-      link.href = facts.dataset.placesHref;
-      link.target = "_blank";
-      link.rel = "noopener";
-      link.textContent = `${places} locations`;
-      where.textContent = "";
-      where.appendChild(link);
+      if (!kept || where.children.length !== 1 || kept.textContent !== text
+        || kept.getAttribute("href") !== href) {
+        const link = document.createElement("a");
+
+        link.href = href;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.textContent = text;
+        where.textContent = "";
+        where.appendChild(link);
+      }
+    } else {
+      where.textContent = none || dropOnly(choices, this.dropSeries)
+        ? where.dataset.built : placesFact(choices);
     }
     facts.hidden = none;
     qs(this.form, "[data-scheduled-none]").hidden = !none;
