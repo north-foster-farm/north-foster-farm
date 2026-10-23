@@ -280,13 +280,13 @@ describe("drop site Saturdays", () => {
     const got = drops(ny("2026-10-16", 23, 59));
 
     assert.deepEqual(dates(got), ["2026-10-17", "2026-10-24"]);
-    assert.equal(got[0].cutoff, "2026-10-17T04:00:00.000Z");
+    assert.equal(got[0].cutoff, "2026-10-17T03:59:00.000Z");
   });
 
-  it("takes an order at exactly midnight, the end of Friday", () => {
+  it("refuses an order at midnight, after the 11:59 PM cutoff", () => {
     const got = dates(drops(ny("2026-10-17", 0)));
 
-    assert.deepEqual(got, ["2026-10-17", "2026-10-24"]);
+    assert.deepEqual(got, ["2026-10-24"]);
   });
 
   it("after midnight rolls forward, before the window opens", () => {
@@ -297,11 +297,11 @@ describe("drop site Saturdays", () => {
     }
   });
 
-  it("puts the cutoff at the end of Friday across the DST change", () => {
+  it("puts the cutoff at 11:59 PM Friday across the DST change", () => {
     const got = drops(ny("2026-10-26"));
 
     assert.deepEqual(got.map((d) => d.cutoff), [
-      "2026-10-31T04:00:00.000Z", "2026-11-07T05:00:00.000Z",
+      "2026-10-31T03:59:00.000Z", "2026-11-07T04:59:00.000Z",
     ]);
   });
 

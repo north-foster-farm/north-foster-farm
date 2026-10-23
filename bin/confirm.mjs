@@ -10,6 +10,8 @@ const DESTRUCTIVE = {
   "orders cancel": { does: "cancel and maybe refund order" },
   "orders refund": { does: "refund order" },
   "orders delete": { does: "delete order" },
+  "orders change": { does: "change the pickup or delivery of order",
+    unless: "dry-run" },
   "orders fulfil": { does: "mark order delivered" },
   "orders fulfill": { does: "mark order delivered" },
   "orders attempted": { does: "mark order attempted" },

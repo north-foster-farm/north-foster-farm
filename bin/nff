@@ -1176,9 +1176,10 @@ const run = async () => {
     });
 
     if (!done.ok) {
-      throw new Error(`${done.message} Nothing was applied${
-        done.refused === "money" ? "; use --force to apply the record" +
-          " without moving money" : ""}.`);
+      throw new Error(done.refused === "money"
+        ? `${done.message} Nothing was applied; use --force to apply the ` +
+          "record without moving money."
+        : done.message);
     }
 
     out("Done:");

@@ -220,6 +220,18 @@ describe("the schedule's occurrence lines", () => {
     assert.equal(check(`${FULL}2026-11-15 BBBB pickup 10:00-12:00`), "");
   });
 
+  it("checks a window against the date's override hours", () => {
+    const over = buildModel(LOCATIONS, SERIES.map((s) => (s.code === "BBBB"
+      ? { ...s, overrides: { "2026-11-15": {
+        opens: "14:00", closes: "16:00" } } }
+      : s)));
+
+    assert.equal(check(`${FULL}2026-11-15 BBBB pickup 14:00-16:00`,
+      { model: over }), "");
+    assert.match(check(`${FULL}2026-11-15 BBBB pickup 09:00-12:00`,
+      { model: over }), /2026-11-15: .* is outside BBBB's hours \(2:00/);
+  });
+
   it("fails on two lines for one occurrence", () => {
     assert.match(check(`${FULL}2026-11-15 BBBB pickup\n`
       + "2026-11-15 BBBB attend"), /two lines/);
@@ -301,10 +313,10 @@ describe("the dates a customer is offered", () => {
     assert.deepEqual(got.map((d) => d.series), ["GGGG", "FFFF"]);
   });
 
-  it("has a cutoff of the end of the day before", () => {
+  it("has a cutoff of 11:59 PM the day before", () => {
     const [got] = scheduledDates(now, t, lines);
 
-    assert.equal(got.cutoff, ny("2026-10-25", 0).toISOString());
+    assert.equal(got.cutoff, ny("2026-10-24", 23, 59).toISOString());
   });
 
   it("drops an occurrence whose cutoff has passed", () => {

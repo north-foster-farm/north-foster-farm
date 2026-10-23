@@ -9,7 +9,7 @@
 
 import terms from "./terms.mjs";
 import { modelled } from "../../../assets/scripts/order/lib/dates.mjs";
-import { allOrders, saveOrder } from "./records.mjs";
+import { allOrders, getOrder, saveOrder } from "./records.mjs";
 import { now as clock } from "./clock.mjs";
 
 const OLD = ["scituate", "market"];
@@ -57,8 +57,27 @@ export const migrateScheduledPickup = async (stores, {
 
   await backup();
 
-  for (const change of changes) {
-    const order = orders.find((o) => o.id === change.id);
+  // The snapshot is stale once the backup is done, and saveOrder
+  // overwrites the whole record: read each order again right before its
+  // write and plan from that.
+  const written = [];
+
+  for (const { id } of changes) {
+    const order = await getOrder(stores, id);
+
+    if (!order) continue;
+
+    const fresh = planMigration([order], model);
+
+    if (fresh.unmapped.length) {
+      return {
+        ok: false, changes: written, unmapped: fresh.unmapped, dryRun,
+      };
+    }
+
+    const [change] = fresh.changes;
+
+    if (!change) continue;
 
     await saveOrder(stores, {
       ...order,
@@ -70,7 +89,8 @@ export const migrateScheduledPickup = async (stores, {
         to: change.to,
       }],
     }, now);
+    written.push(change);
   }
 
-  return { ok: true, changes, unmapped, dryRun };
+  return { ok: true, changes: written, unmapped, dryRun };
 };

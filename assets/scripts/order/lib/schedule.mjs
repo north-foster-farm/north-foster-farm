@@ -24,7 +24,7 @@
 //
 // Times are the farm's wall clock (America/New_York), 24-hour.
 
-import { CODE, hasDate, seriesDates } from "./events.mjs";
+import { CODE, hasDate, occurrenceOf, seriesDates } from "./events.mjs";
 import { addDays, dayName, today, weekday } from "./zoned.mjs";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -192,11 +192,14 @@ const lineErrors = (lines, model) => {
         "notice"}, on ${dayName(s.weekday)}s).`);
       continue;
     }
-    if (l.from && (hhmm(...l.from.split(":")) < hhmm(s.opensHour,
-      s.opensMinute) || hhmm(...l.to.split(":")) > hhmm(s.closesHour,
-      s.closesMinute))) {
+    // The day's own hours, where the series overrides them.
+    const day = occurrenceOf(model, s, l.date);
+
+    if (l.from && (hhmm(...l.from.split(":")) < hhmm(day.opensHour,
+      day.opensMinute) || hhmm(...l.to.split(":")) > hhmm(day.closesHour,
+      day.closesMinute))) {
       errors.push(`${l.date}: ${l.id} is outside ${l.code}'s hours (${
-        s.window}).`);
+        day.window}).`);
     }
   }
 

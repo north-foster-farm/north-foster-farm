@@ -102,6 +102,17 @@ test.describe("orders API", () => {
       const open = await firstScheduled(request);
       const events = await (await request.get("/api/events")).json();
       const attendOnly = events.events.find((e) => e.status === "attend");
+      const skipped = events.events.find((e) => e.status === "skip");
+      const listed = new Set((await (await request.get("/api/dates"))
+        .json()).scheduled.map((d) => d.occurrence));
+      const unlisted = open && [7, 14, 21, 28, 35].map((n) => {
+        const d = new Date(`${open.date}T12:00:00Z`);
+
+        d.setUTCDate(d.getUTCDate() + n);
+
+        return `${open.series}-${d.toISOString().slice(2, 10)
+          .replaceAll("-", "")}`;
+      }).find((id) => !listed.has(id));
       const wrong = [
         ["unknown", "ZZZZ-261101"],
         ["archived", "GR6C-260710"],
@@ -111,6 +122,8 @@ test.describe("orders API", () => {
         ...open ? [["past its cutoff or not a date of the series",
           `${open.series}-${open.occurrence.slice(5, 7)}0101`]] : [],
         ...attendOnly ? [["attend only", attendOnly.occurrence]] : [],
+        ...skipped ? [["skipped", skipped.occurrence]] : [],
+        ...unlisted ? [["no line in the schedule", unlisted]] : [],
       ];
 
       for (const [why, occurrence] of wrong) {

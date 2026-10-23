@@ -189,10 +189,9 @@ export const legacyOccurrence = (model, method, site, iso) => {
   return s && hasDate(s, iso) ? occurrenceId(s.code, iso) : null;
 };
 
-// The last moment to order for an occurrence: 11:59 PM the day before,
-// the end of that day.
+// The last moment to order for an occurrence: 11:59 PM the day before.
 export const cutoffOf = (iso, timeZone) =>
-  instant(addDays(iso, -1), 24, 0, timeZone);
+  instant(addDays(iso, -1), 23, 59, timeZone);
 
 // What is wrong between the registry (every code ever used), the data
 // files and the schedule's lines. Archived, never deleted, so a

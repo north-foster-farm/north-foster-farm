@@ -386,8 +386,20 @@ const followInSquare = async (plan, { square, env, fetchImpl, k }) => {
     switched: true,
   }, k, { env, fetchImpl });
 
-  await square.payZeroOrder(created.squareOrderId, k, { env, fetchImpl });
-  await square.cancelFulfilment(holder, { env, fetchImpl });
+  try {
+    await square.payZeroOrder(created.squareOrderId, k, { env, fetchImpl });
+    await square.cancelFulfilment(holder, { env, fetchImpl });
+  } catch (error) {
+    // The new order exists: take it back if Square lets us, and say
+    // which one is left if it does not.
+    const id = created.squareOrderId;
+    const gone = await square.cancelOrder(id, { env, fetchImpl })
+      .then((r) => !!(r && r.cancelled), () => false);
+
+    throw Object.assign(new Error(error && error.message), {
+      created: id, cancelled: gone,
+    });
+  }
 
   return { ...order.square, fulfilmentOrderId: created.squareOrderId };
 };
@@ -406,6 +418,10 @@ export const applyAmend = async (stores, plan, {
   }
 
   const k = `farm-${id}-${now.getTime()}`;
+  // Square's key names the target, not the moment, so a retry after a
+  // partial failure finds the $0 order it already made.
+  const squareKey = `farm-${id}-${next.fulfilment.method}-${
+    next.fulfilment.occurrence || next.fulfilment.date}`;
   const report = { square: plan.effects.square, email: plan.effects.email };
   let squareNow = order.square;
   let kept = null;
@@ -413,21 +429,31 @@ export const applyAmend = async (stores, plan, {
   if (!noSquare && plan.holder && plan.fulfilmentMoved) {
     try {
       squareNow = (await followInSquare(plan, {
-        square, env, fetchImpl, k,
+        square, env, fetchImpl, k: squareKey,
       })) || order.square;
       report.square = "Square was updated.";
     } catch (error) {
       const why = String(error && error.message);
+      const left = error && error.created && !error.cancelled
+        ? error.created : null;
+      const note = !error || !error.created ? ""
+        : left
+          ? ` A $0 Square order (${left}) was created and could not be ` +
+            "cancelled; cancel it in Square."
+          : ` The $0 Square order it created (${error.created}) was ` +
+            "cancelled.";
 
       if (!force) {
         return { ok: false, refused: "square", message: `Square would not ` +
-          `take the change (${why}). Nothing was applied. Use --force to ` +
-          "apply the record anyway, or --no-square to leave Square alone." };
+          `take the change (${why}).${note} The record was not changed. ` +
+          "Use --force to apply the record anyway, or --no-square to " +
+          "leave Square alone." };
       }
       kept = why;
+      if (left) squareNow = { ...order.square, fulfilmentOrderId: left };
       report.square = `Square refused (${why}) and kept the old ` +
-        `fulfilment: ${describe(order)}. The record was changed anyway ` +
-        "(--force).";
+        `fulfilment: ${describe(order)}.${note} The record was changed ` +
+        "anyway (--force).";
     }
   } else if (noSquare) {
     report.square = "Square was not changed (--no-square).";
@@ -449,6 +475,10 @@ export const applyAmend = async (stores, plan, {
       before: plan.before,
       after: plan.after,
       square: squareState,
+      flags: {
+        noSquare: !!noSquare, force: !!force,
+        noEmail: customerEmailWithheld(),
+      },
       ...plan.warnings.length && { overrode: plan.warnings },
       ...(price.unknown || price.difference) && { forced: true },
     }],

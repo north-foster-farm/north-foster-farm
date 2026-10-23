@@ -77,7 +77,7 @@ export const ORDER_SCHEDULED = {
 // lies 2 to 6 days ahead, inside the horizon and before its cutoff.
 export const CANNED = {
   market: "MKT2", popUp: "PUP3", drop: "DRP4", attend: "ATN5", skip: "SKP6",
-  location: "LOC7",
+  location: "LCK7",
 };
 
 export const cannedSchedule = (now = new Date()) => {

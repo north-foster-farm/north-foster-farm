@@ -94,6 +94,28 @@ const placed = async () => {
 const MARKET = { fulfilment: { method: "scheduled",
   occurrence: "WAC5-261025" } };
 
+// A placed order the customer then moved to delivery.
+const delivered = async () => {
+  const { stores, id } = await placed();
+  const customer = { email: "pat@example.com", name: "Pat Example" };
+  const opts = { now, env, square: fakeSquare().square,
+    mail: async () => ({}), ...quiet };
+  const body = {
+    idempotencyKey: "edit-key-000000-delivery",
+    fulfilment: { method: "delivery", date: "2026-10-08",
+      delivery: { address1: "1 Main St", town: "Foster", zip: "02825",
+        cooler: "Porch" } },
+    payment: { method: "card", sourceId: "cnon:tok" },
+  };
+  const first = await editOrder(stores, customer, id, body, opts);
+
+  await editOrder(stores, customer, id, {
+    ...body, claimedTotal: first.totals.total,
+  }, opts);
+
+  return { stores, id };
+};
+
 // Plans and applies a change, as the CLI does.
 const change = async (stores, id, body, {
   at = now, square = fakeSquare().square, mail = async () => ({}),
@@ -353,6 +375,105 @@ describe("orders change, the farm's change to any order", () => {
       assert.equal(saved.fulfilment.date, "2026-10-25");
       assert.equal(saved.status, "paid");
       assert.equal(sent.length, 0);
+    });
+
+  it("runs Z9J3's command when Square refuses: refuse, then --force",
+    async () => {
+      const { stores, id } = await placed();
+      const later = instant("2026-10-27", 9, 0, "America/New_York");
+      const { square } = fakeSquare({ refuse: true });
+
+      withholdCustomerEmail(true);
+
+      const refused = await change(stores, id, MARKET,
+        { at: later, square });
+
+      assert.equal(refused.ok, false);
+      assert.equal(refused.refused, "square");
+      assert.doesNotMatch(refused.message, /Nothing was applied/);
+      assert.equal((await getOrder(stores, id)).fulfilment.method, "onfarm");
+
+      const forced = await change(stores, id, MARKET,
+        { at: later, square, force: true });
+      const saved = await getOrder(stores, id);
+      const event = saved.history.find((h) => h.event === "farm.changed");
+
+      assert.equal(forced.ok, true, JSON.stringify(forced));
+      assert.equal(saved.fulfilment.occurrence, "WAC5-261025");
+      assert.equal(saved.flags.squareOutOfSync, true);
+      assert.deepEqual(event.flags,
+        { noSquare: false, force: true, noEmail: true });
+    });
+
+  it("runs Z9J3's command with --no-square and records every flag",
+    async () => {
+      const { stores, id } = await placed();
+      const later = instant("2026-10-27", 9, 0, "America/New_York");
+      const { square, calls } = fakeSquare({ refuse: true });
+
+      withholdCustomerEmail(true);
+
+      const r = await change(stores, id, MARKET,
+        { at: later, square, noSquare: true });
+      const saved = await getOrder(stores, id);
+
+      assert.equal(r.ok, true, JSON.stringify(r));
+      assert.deepEqual(calls, []);
+      assert.equal(saved.fulfilment.occurrence, "WAC5-261025");
+      assert.deepEqual(saved.history
+        .find((h) => h.event === "farm.changed").flags,
+      { noSquare: true, force: false, noEmail: true });
+    });
+
+  it("cancels the $0 order it made when a later Square call fails",
+    async () => {
+      const { stores, id } = await delivered();
+      const { square } = fakeSquare();
+      const keys = [];
+      const cancelled = [];
+
+      square.createChangeOrder = async (o, c, key) => {
+        keys.push(key);
+
+        return { squareOrderId: "SQC1", customerId: "CUST" };
+      };
+      square.cancelFulfilment = async () => { throw new Error("stuck"); };
+      square.cancelOrder = async (sid) => {
+        cancelled.push(sid);
+
+        return { id: sid, cancelled: true };
+      };
+
+      const one = await change(stores, id, MARKET, { square, force: true });
+
+      assert.equal(one.ok, true, JSON.stringify(one));
+      assert.deepEqual(cancelled, ["SQC1"]);
+      assert.match(one.report.square, /SQC1.*cancelled/);
+
+      // A retry of the same change, an hour on.
+      const again = instant("2026-10-06", 10, 0, "America/New_York");
+
+      await applyAmend(stores, one.plan, {
+        now: again, env, mail: async () => ({}), square, force: true, ...quiet,
+      });
+      assert.equal(keys.length, 2);
+      assert.equal(keys[0], keys[1], "the key names the target, not the time");
+    });
+
+  it("names the $0 order it could not cancel, and keeps it with --force",
+    async () => {
+      const { stores, id } = await delivered();
+      const { square } = fakeSquare();
+
+      square.cancelFulfilment = async () => { throw new Error("stuck"); };
+      square.cancelOrder = async () => { throw new Error("no"); };
+
+      const forced = await change(stores, id, MARKET, { square, force: true });
+
+      assert.equal(forced.ok, true, JSON.stringify(forced));
+      assert.match(forced.report.square, /SQC1.*could not be cancelled/);
+      assert.equal((await getOrder(stores, id)).square.fulfilmentOrderId,
+        "SQC1");
     });
 
   it("refuses a change that changes nothing", async () => {

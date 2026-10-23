@@ -116,8 +116,8 @@ export const eventDates = (now, terms, schedule = []) =>
     }));
 
 // The farm's own booking: any live occurrence of a series, whatever
-// the schedule says, in the next `count` that fall on or after today.
-export const farmScheduledDates = (now, terms, count = 60) => {
+// the schedule says, in the next 400 days (or the first `count`).
+export const farmScheduledDates = (now, terms, count = Infinity) => {
   const first = today(now, terms.timeZone);
   const last = addDays(first, 400);
   const out = [];

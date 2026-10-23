@@ -9,7 +9,9 @@ import { occurrenceUse } from "../netlify/functions/lib/admin.mjs";
 import {
   migrateScheduledPickup, planMigration,
 } from "../netlify/functions/lib/migrate.mjs";
-import { amendOrder, getOrder } from "../netlify/functions/lib/records.mjs";
+import {
+  amendOrder, getOrder, saveOrder,
+} from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
@@ -128,6 +130,28 @@ describe("an order for a scheduled pickup", () => {
     assert.equal(saved.fulfilment.method, "scheduled");
     assert.equal(saved.fulfilment.occurrence, "VFVQ-261017");
   });
+
+  it("still takes a page that posts a market and its site the old way",
+    async () => {
+      const { stores, id } = await place({
+        method: "market", site: "foster", date: "2026-10-11",
+      });
+      const saved = await getOrder(stores, id);
+
+      assert.equal(saved.fulfilment.method, "scheduled");
+      assert.equal(saved.fulfilment.occurrence, FOSTER);
+      assert.equal(saved.fulfilment.date, "2026-10-11");
+      assert.equal(saved.fulfilment.site, undefined);
+    });
+
+  it("refuses an old market post for a date its site never had",
+    async () => {
+      const res = await send(testStores(), {
+        method: "market", site: "foster", date: "2026-10-12",
+      });
+
+      assert.ok([409, 422].includes(res.status));
+    });
 
   it("refuses an occurrence on an on-farm order", async () => {
     const res = await send(testStores(), {
@@ -446,5 +470,48 @@ describe("the migration to scheduled pickup", () => {
       backup: async () => { throw new Error("no bucket"); },
     }), /no bucket/);
     assert.deepEqual(await getOrder(stores, drop), before);
+  });
+
+  it("keeps a change that lands between the plan and the write",
+    async () => {
+      const { stores, drop } = await fixtures();
+
+      await legacy(stores, drop, { method: "scituate", occurrence: undefined });
+
+      // The backup runs after the plan: an edit lands in that gap.
+      const backup = async () => {
+        const order = await getOrder(stores, drop);
+
+        await saveOrder(stores, {
+          ...order,
+          history: [...order.history, { at: "x", event: "late.note" }],
+        }, now);
+      };
+      const r = await migrateScheduledPickup(stores, { backup, now });
+      const after = await getOrder(stores, drop);
+
+      assert.equal(r.changes.length, 1);
+      assert.equal(after.fulfilment.method, "scheduled");
+      assert.deepEqual(after.history.slice(-2).map((h) => h.event),
+        ["late.note", "fulfilment.migrated"]);
+    });
+
+  it("skips an order that is no longer an old shape", async () => {
+    const { stores, drop } = await fixtures();
+
+    await legacy(stores, drop, { method: "scituate", occurrence: undefined });
+
+    const backup = async () => {
+      const order = await getOrder(stores, drop);
+
+      await saveOrder(stores, {
+        ...order, fulfilment: { ...order.fulfilment, method: "delivery" },
+      }, now);
+    };
+    const r = await migrateScheduledPickup(stores, { backup, now });
+
+    assert.equal(r.changes.length, 0);
+    assert.equal((await getOrder(stores, drop)).fulfilment.method,
+      "delivery");
   });
 });
