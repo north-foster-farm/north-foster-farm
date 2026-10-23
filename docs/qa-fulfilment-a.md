@@ -219,8 +219,10 @@ inbox hears.
       pickups waiting on a decision"). It pings the *Alerts* check
       well; that check is green after 8:00.
 - [ ] 18:00: "Tomorrow, <date>: N orders" arrives every day, grouped
-      delivery, Scituate, on-farm, with pack lines; "Nothing due" on an
-      empty day.
+      delivery, then one heading per scheduled occurrence ("<series
+      name>, <day>, <place>, <hours> (n)": the series' own name,
+      never "Scheduled pickup"), then on-farm, with pack lines;
+      "Nothing due" on an empty day.
 - [ ] Force a checkout failure (a wrong `SQUARE_ACCESS_TOKEN` on a
       preview): the customer sees the failure card and the farm gets
       "Site alert: order.create_failed" or "Site alert:
@@ -239,7 +241,8 @@ inbox hears.
 - [ ] A delivery order pays and is confirmed at once ("Your order is
       confirmed" with "When:"), and gets the cooler reminder the
       evening before (the toolbar's "As 18:00 today" the day before).
-- [ ] A Scituate order likewise.
+- [ ] A scheduled pickup order likewise: at the drop site, and at a
+      market or pop-up (`docs/qa-launch.md`, SP-01 to SP-03).
 - [ ] The About page says "the orders page".
 
 ## Undo

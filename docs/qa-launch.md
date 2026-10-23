@@ -126,15 +126,17 @@ continue" (both projects).
 ### OP-02 On-farm pickup comes first
 
 Automated: `order-page.spec.mjs`, "the ways to get an order: the farm
-first, then the drop site, then delivery" (both projects).
+first, then scheduled pickup, then delivery" (both projects).
 
 - **Scenario:** On-farm pickup is the default and leads the list
-  (#196; it reverses finding 17).
+  (#196; it reverses finding 17). The drop site, the markets and the
+  pop-ups are one way, Scheduled pickup (#309, #311).
 - **Setup:** Fresh browser.
 - **Test:**
   1. Open `/order/`.
+  2. Choose Scheduled pickup (`SP-01` to `SP-03` cover its picker).
 - **Assert:** The method cards read, in order, "On-farm pickup",
-  "Drop site", "Delivery". The sections after the cart read, in
+  "Scheduled pickup", "Delivery". The sections after the cart read, in
   order, "Pickup or delivery", "Contact information", "Payment"
   (`order-page.spec.mjs`, "the steps run items, pickup or delivery,
   contact, payment"), and the farm-news box is the row right under
@@ -240,9 +242,11 @@ projects).
   they left it.
 - **Setup:** 5 wings.
 - **Test:**
-  1. Choose Drop site; type "Draft" as the first name.
+  1. Choose Scheduled pickup and an occurrence; type "Draft" as the
+     first name.
   2. Reload.
-- **Assert:** Wings 5, Scituate checked, first name "Draft", Total $45.
+- **Assert:** Wings 5, Scheduled pickup checked with the same
+  occurrence chosen, first name "Draft", Total $45.
 - **Teardown:** None (the browser context is discarded).
 
 The draft's date and window are `order-draft-date.spec.mjs` (#284):
@@ -654,14 +658,15 @@ tests. Tagged `@regression`.
 
 - **Teardown:** None.
 
-### PR-02 Pickup and the drop site carry no fee
+### PR-02 Pickup and scheduled pickup carry no fee
 
 Automated: `pricing.spec.mjs`, "pickup and the drop site carry no fee".
 
 - **Scenario:** Only delivery is charged for.
 - **Setup:** 7 eggs ($49).
 - **Test:**
-  1. Choose On-farm pickup, then Drop site.
+  1. Choose On-farm pickup, then Scheduled pickup and any occurrence
+     on offer (the drop site's, a market's).
 - **Assert:** No fee row either way; Total $49.
 - **Teardown:** None.
 
@@ -872,7 +877,8 @@ delivery needs a phone" (both projects).
   pickup and the drop site.
 - **Setup:** 5 wings.
 - **Test:**
-  1. Read the phone label with Delivery, On-farm pickup, Scituate.
+  1. Read the phone label with Delivery, On-farm pickup, Scheduled
+     pickup.
 - **Assert:** Delivery: no "(optional)", the field `required`. The
   others: "(optional)" shown.
 - **Teardown:** None.
@@ -976,7 +982,7 @@ policy, above Pay" (both projects).
   terms, so every order agrees to it (W8, #196).
 - **Setup:** 5 wings.
 - **Test:**
-  1. Choose each of On-farm pickup, Drop site and Delivery.
+  1. Choose each of On-farm pickup, Scheduled pickup and Delivery.
 - **Assert:** "By placing an order you agree to our delivery policy."
   shows for each, once, directly above the Pay button, with no
   dismiss.
@@ -1065,10 +1071,16 @@ Manual: automatable; not yet written.
 - **Setup:** Fresh page.
 - **Test:**
   1. Open each method's date list; for On-farm pickup, change the day.
+  2. Choose Scheduled pickup and read its pickups.
 - **Assert:** On-farm: exactly the schedule's days from tomorrow on
   (a Saturday or holiday included if listed), and under Pickup time
-  that day's windows as radios, "9 AM – noon". Scituate: the next two
-  Saturdays from October 17. Delivery: the next two Thursdays whose
+  that day's windows as radios, "9 AM – noon". Scheduled pickup: no
+  date list but one radio per occurrence `/api/dates` lists in
+  `scheduled`, by date, each "<day>, <hours>, <place>, <town>": every
+  date with a `pickup` line in `PICKUP_SCHEDULE` from today through
+  the horizon (never more than 13 days), the cutoff 11:59 PM the day
+  before; none with `attend`, `skip` or no line. None is chosen until
+  the customer chooses. Delivery: the next two Thursdays whose
   Wednesday-noon cutoff has not passed.
 - **Teardown:** None.
 
@@ -1125,7 +1137,8 @@ card pays the new total". Tagged `@regression`.
 
 - **Scenario:** A decline is not a failure; the customer changes the
   cart and pays with another card, and is charged the new figure.
-- **Setup:** 1 egg, Scituate, first date.
+- **Setup:** 1 egg, Scheduled pickup, the drop site's first
+  occurrence.
 - **Test:**
   1. Pay with `4000 0000 0000 0002`.
   2. Add one more egg (Total $14); enter `4111 1111 1111 1111`; pay.
@@ -1586,13 +1599,19 @@ and as shown once their scripts settle (a signed-out `/account/` moves
 on to `/login/`, so its served HTML is what covers it), and
 `llms.txt`, and follows the retired paper form. Passed on staging
 2026-09-25, since ff8afe7 and 704412f, and with "Scituate drop site"
-since 540c9e1. The cancel dialog needs a signed-in customer with an
-order and stays manual. The account menu is settled: "Your orders"
+since 540c9e1 (the identifier rule below changed with #309). The
+cancel dialog needs a signed-in customer with an order and stays
+manual. The account menu is settled: "Your orders"
 has its own icon, and the invoice icon marks "Receipts".
 
 - **Scenario:** The invoice era's words are gone, and "the Scituate
-  drop site" is "the drop site" (James, 2026-09-25; `scituate` stays
-  as the method's identifier, and Scituate as the place).
+  drop site" is "the drop site" (James, 2026-09-25). Since #309 the
+  method is `scheduled` and the thing chosen is an occurrence id, a
+  series code, a dash and the date (`VFVQ-261107`); `scituate` is no
+  longer an identifier anywhere a customer or the farm reads, and
+  Scituate is only a town. An old `?method=scituate` link still works
+  (SP-09), and so does an order stored under it until the migration
+  (SP-06) rewrites it.
 - **Setup:** Staging.
 - **Test:**
   1. Open `/`, `/order/`, `/login/`, `/account/`, `/delivery-policy/`,
@@ -2094,18 +2113,23 @@ place" and one test per button (both projects). Passed on staging
 needs a build in season and is not tested; the switch is in
 `layouts/index.html`.
 
-- **Scenario:** Three ways to buy, each with a button that preselects
-  it on the order page.
+- **Scenario:** Three ways to buy (On-farm pickup, Scheduled pickup,
+  Delivery), each with a button that preselects it on the order page.
+  Scheduled pickup lists the places open now when `/api/dates`
+  answers (#313) and falls back to the drop site's line when it does
+  not.
 - **Setup:** Home page, out of season.
 - **Test:**
   1. Read the three columns; press each button.
 - **Assert:** "No off-season" and "Three ways to get your order, all
   winter"; each column's icon, name, when, where and cost as
   `data/delivery.json` has them (by appointment at the farm's
-  address; Saturdays 10:00 – 11:00 AM at the Village Green, "starting
-  October 17" until then; every Thursday 10:00 AM – 4:00 PM, $40
+  address; scheduled pickup: Saturdays 10:00 – 11:00 AM at the drop
+  site, "starting October 17" until then, and one line per open
+  occurrence once `/api/dates` answers; every Thursday 10:00 AM – 4:00 PM, $40
   minimum, $5 fee); "The farmers markets return in June."; each
-  button lands on `/order/` with that method checked.
+  button lands on `/order/` with that method checked (Scheduled
+  pickup's reads `?method=scheduled`).
 - **Teardown:** None.
 
 ### AR-10 The map's areas (#138)
@@ -2195,34 +2219,38 @@ Automated: `map.spec.mjs`, "the delivery policy carries the same map"
   `autocomplete="off"`; the pin drops as on the home page.
 - **Teardown:** None.
 
-### AR-13 Markets and pop-ups on the map (#138)
+### AR-13 Places on the map (#138, #314)
 
-Partial: `map.spec.mjs`, "the key matches the pins, what is on now
-first" and "no pin hides another" (both projects). The second failed
-until 17b929e stood crowded pins apart. Rewritten for 0660a0d, which
-puts what is on now first and gives the farm its hen. Dropping 2026's
-pop-ups needs a build after New Year and stays manual.
+Partial: `map.spec.mjs`, the Places tests (both projects): "the Places
+list is one list, matching the pins", "pins stand on their places",
+"one location, one card", "every series' open date links to the order
+page for it" and "a skipped date is absent". Since #314 the map is
+built from `data/locations.json` and `data/series.json`; a place is a
+location, and its card lists the series that meet there with their
+next dates. Dropping a finished pop-up from the list needs a build
+after its date and stays manual.
 
-- **Scenario:** What is on now (the farm, the drop site, upcoming
-  pop-ups, markets in season) is solid and listed first; the rest
-  (earlier pop-ups, markets out of season) is hollow and listed last,
-  with inline Instagram icons; 2026 pop-ups disappear when 2027
-  starts.
+- **Scenario:** Every location is a numbered pin and one row of the
+  Places list, with one card naming its series and their dates. A
+  date the schedule marks `skip` is absent; an `attend` date shows
+  but takes no orders; a `pickup` date links to
+  `/order/?method=scheduled&series=<code>`. A series with no date left
+  shows its season.
 - **Setup:** Home page; for the rollover, a build with the clock set to
   2027-01-01 (preview).
 - **Test:**
-  1. Read the pins and the key.
+  1. Read the pins and the list.
   2. Compare every pair of pins' boxes.
-  3. By hand: build on or after 2027-01-01 and read the pins.
-- **Assert:** One pin per key line, alike in number, name and on or
-  off. "Our farm" first, with no number (the hen) and labeled "Our
-  farm"; the rest numbered 1 on in key order. Every "on" line before
-  every "off" line; "off" pins drawn first, so "on" pins sit over
-  them. Headings "Pick up from us", "Upcoming pop-ups", "Earlier
-  pop-ups in 2026", "Farmers markets, out of season"; the three
-  market pins off. Each Instagram link is an icon labeled "on
-  Instagram". No two pins share more than a quarter of their box.
-  After New Year: no 2026 pop-ups.
+  3. Open the drop site's card and a market's; press an open date.
+  4. By hand: after the last date of a pop-up, build and read the
+     pins.
+- **Assert:** One pin per list row, alike in number and name. "Our
+  farm" first, with no number (the hen). One card per location, never
+  two for the same place. A `pickup` date's link lands on
+  `/order/` with Scheduled pickup checked and that series' next date
+  chosen (`?method=scheduled&series=`). No two pins share more than a
+  quarter of their box. When `/api/events` cannot load, seasons stay
+  and only the drop site links.
 - **Teardown:** None.
 
 ### AR-14 The pop-up banner (#139)
@@ -2645,6 +2673,236 @@ on staging 2026-09-25 (c1b1ff6). The wording is a draft for James.
   lands inside `<main>`.
 - **Teardown:** None.
 
+## Scheduled pickup
+
+The drop site, the markets and the pop-ups are one way to get an
+order, Scheduled pickup (#309). An occurrence is one date of a series,
+named by the series code and the date (`VFVQ-261107`). The schedule
+decides each one with a line `<date> <code> pickup|attend|skip`.
+Setup for the cases below: staging, with `PICKUP_SCHEDULE` giving at
+least a drop site occurrence and a market or pop-up occurrence a
+`pickup` line (`bin/nff events` lists the series and their lines).
+
+The order page's scheduled card is described as #323 leaves it: the
+label "Pickup day", white address cards, and the When line "During
+markets, pop-ups, and drops". Until #323 lands, the card reads as it
+does on staging; the specs read the radios, never the card's words.
+
+### SP-01 A scheduled order at a market
+
+Automated: `scheduled-pickup.spec.mjs`, "the order page places a
+market order". Tagged `@regression`. The picker is also
+`order-scheduled.spec.mjs`.
+
+- **Scenario:** A customer pays for an order at a market occurrence.
+- **Setup:** 1 egg, Scheduled pickup, the first occurrence of a series
+  that is not the drop site, name, unique email.
+- **Test:**
+  1. Choose Scheduled pickup; read the list; choose the market's day.
+  2. Pay with `4111 1111 1111 1111`.
+- **Assert:** The list is one radio per open occurrence, by date, each
+  "<day>, <hours>, <place>, <town>"; none is chosen until the customer
+  chooses; the cart's way reads "Scheduled pickup: <day>, <hours>, at
+  <market>". 200. The when line ends "at <market name>." and never
+  says "the drop site". `orders show <id>`: `fulfilment.method`
+  `scheduled`, `occurrence` the id chosen, `date` that day,
+  `state` agreed. Outbox: "Your order is confirmed" naming the market;
+  the farm's "New order <id>" with the market in its subject.
+- **Teardown:** As PY-01.
+
+### SP-02 A scheduled order at a pop-up
+
+Manual: `payment.spec.mjs` covers a market; the pop-up differs in
+its single date.
+
+- **Scenario:** A pop-up is a series with one date; it orders like a
+  market.
+- **Setup:** A pop-up with a `pickup` line. 1 egg.
+- **Test:**
+  1. Open `/order/?method=scheduled&series=<its code>`.
+  2. Pay with the approved card.
+- **Assert:** The pop-up's one date is chosen on load. The thank-you
+  card, the record, the emails and the Square order name the pop-up
+  and its hours, as SP-01 does a market. A pop-up with only an
+  `attend` line, or past the horizon, is not on the list.
+- **Teardown:** As PY-01.
+
+### SP-03 The drop site
+
+Automated: `order-scheduled.spec.mjs`, "a lapsed scheduled pickup";
+the drop site's pay is `payment.spec.mjs`.
+
+- **Scenario:** The drop site is a series like the others.
+- **Setup:** 1 egg, its next Saturday.
+- **Test:**
+  1. Choose Scheduled pickup and the drop site's day; pay.
+- **Assert:** The when line "<day>, 10 – 11 AM, at the drop site."
+  (never "Scituate drop site"). No reminder is sent for a scheduled
+  pickup, and the order closes the day after its date.
+- **Teardown:** As PY-01.
+
+### SP-04 The schedule: pickup, attend, skip, and a missing line
+
+Automated: `bin/check-schedule.mjs` (`npm run check:schedule`, run in
+the Netlify build); the refusal itself is manual.
+
+- **Scenario:** Every in-season date of every live series from
+  tomorrow through the coverage window needs a line.
+- **Setup:** A schedule file with a `pickup`, an `attend` and a `skip`
+  line for three dates of a market, and a copy that drops the line of
+  one date inside the window.
+- **Test:**
+  1. `bin/nff schedule check <file>` on each.
+  2. `bin/nff schedule set <file> --staging`, deploy staging, and read
+     `/api/dates` and the order page.
+- **Assert:** The first passes. The copy fails, naming the series and
+  the date, and `schedule set` is refused; on a deploy the build
+  stops and the last good deploy stays live. After the first is
+  deployed, `pickup` is on the list, `attend` is not (the map shows
+  the farm going but the order page does not offer it), `skip` is on
+  neither; a window narrower than the series' hours shows the narrower
+  hours; a window outside them, an unknown or archived code, a date
+  the series lacks and two lines for one occurrence each fail the
+  check.
+- **Teardown:** Set the staging schedule back.
+
+### SP-05 Moving an order on the account page
+
+Automated: `scheduled-pickup.spec.mjs`, "the account page shows the
+order, and moves it to the drop site" (live), and `account.spec.mjs`,
+"a scheduled pickup on the account page" (canned). Tagged
+`@regression` (live).
+
+- **Scenario:** A customer moves a market order to the drop site and
+  finds the emails.
+- **Setup:** The order of SP-01, the customer signed in by the emailed
+  link.
+- **Test:**
+  1. Open Orders; read the card; press Change.
+  2. Choose the drop site's day; Save changes.
+  3. Read `orders show <id>` and the outbox.
+- **Assert:** The card reads "Scheduled pickup, <day>, <hours>, at
+  <market>"; Change lists every open occurrence and starts on the
+  order's own. After saving it reads "at the drop site", with no
+  mention of the market. `fulfilment.occurrence` is the drop site's,
+  `date` follows, history has `fulfilment.moved` `{ from, to }`.
+  Outbox: "Your order is updated" to the customer naming the drop site
+  only; the farm's "Pickup moved: <id>". An occurrence gone from the
+  data reads "Pickup, <id>", the card says to call, text or email us,
+  and there is no Change button.
+- **Teardown:** As PY-01.
+
+### SP-06 The migration: dry run, then the real run
+
+Manual (`bin/nff migrate scheduled-pickup`, once, staging first).
+
+- **Scenario:** Orders stored before the model (method `scituate`, or
+  `market` with a `site`) become `scheduled` with an occurrence.
+- **Setup:** Staging holds at least one order of each old shape
+  (place them before the deploy that drops the old spelling, or by
+  hand with `orders show` to check).
+- **Test:**
+  1. `bin/nff --staging migrate scheduled-pickup --dry-run`.
+  2. The same without `--dry-run`; then again.
+  3. `orders show <id>` for one of each shape.
+- **Assert:** The dry run lists every change and writes nothing. The
+  real run backs up the orders first, migrates them and prints
+  "N order(s) migrated."; an order it cannot map is listed and stops
+  the run before anything is changed. The second run changes
+  nothing. Every order reads `method` `scheduled` with an
+  `occurrence`; no Square call was made and no money moved. Before
+  the real run, old orders still read the same in the account, the
+  packing slips and the emails.
+- **Teardown:** None; the backup stays.
+
+### SP-07 The farm changes an order's pickup
+
+Manual: `bin/nff orders change`.
+
+- **Scenario:** The farm moves an order to an occurrence a customer
+  could not choose, quietly.
+- **Setup:** A paid market order (SP-01); an occurrence of an
+  archived-free series that customers are not offered (an `attend`
+  date).
+- **Test:**
+  1. `orders change <id> --method scheduled --occurrence <id>
+     --no-email --dry-run`.
+  2. The same without `--dry-run`, with `--no-email`.
+  3. Again with `--no-square`.
+  4. A change that would add a fee (to delivery) without, then with,
+     `--force`.
+- **Assert:** The dry run lists every side effect (emails, Square
+  calls, stock, money, history) and applies nothing. Step 2 overrides
+  the customer's rules with a warning each, sends the customer
+  nothing (`emails[key].suppressed` is set; the history has
+  `mail.suppressed.<key>`) and leaves the farm unemailed; Square's
+  pickup note and time follow. Step 3 says aloud that Square was
+  skipped and records it. Step 4 is refused without `--force`; with
+  it the record changes, no money moves and the CLI reports what
+  Square kept. `--window` with `--occurrence` is refused. An
+  occurrence that does not exist is refused.
+- **Teardown:** As PY-01.
+
+### SP-08 Packing slips, the 6 PM report and the Square order
+
+Manual.
+
+- **Scenario:** Every output the farm reads names the occurrence, in
+  the farm's words.
+- **Setup:** Paid orders at the drop site and at a market on the same
+  day; one more on-farm and one delivery.
+- **Test:**
+  1. Run the 6:00 packing slips (`bin/nff --staging jobs run`, or the
+     toolbar's "As 6:00") and read the PDF.
+  2. The 6 PM "Tomorrow" report the day before.
+  3. Open each order in the Square sandbox dashboard.
+- **Assert:** Slips: Type is the series' name ("Drop site",
+  "Foster Farmers Market"), never "Scheduled pickup"; Place is the
+  address; the Window is the occurrence's; orders of one occurrence
+  sit together. The report: after Deliveries, one heading per
+  occurrence, "<series name>, <day>, <place>, <hours> (n)", earliest
+  hours first, then On-farm pickups. Square: the pickup note reads
+  "Pickup at <name>, <address> · ..." and the pickup time is the
+  occurrence's opening hour on its date. After SP-05 the Square
+  order has moved with it.
+- **Teardown:** As PY-01.
+
+### SP-09 The old `?method=scituate` link
+
+Automated: `order-scheduled.spec.mjs`, "the old ?method=scituate
+chooses the drop site's next date".
+
+- **Scenario:** A link or bookmark from before #309.
+- **Setup:** None.
+- **Test:**
+  1. Open `/order/?method=scituate`.
+  2. By hand: post an order with `method: "scituate"` and a drop site
+     date to a staging deploy.
+- **Assert:** Scheduled pickup is checked with the drop site's next
+  occurrence chosen, and the draft stores `scheduled`. The posted
+  order is stored `scheduled` with the occurrence of that date.
+  `?method=scheduled`, `&series=<code>` and an unknown series (nothing
+  chosen) behave as `order-scheduled.spec.mjs` reads.
+- **Teardown:** As PY-01 for the posted order.
+
+### SP-10 The integrity check refuses a lost code
+
+Automated: `bin/check-events.mjs` (`npm run check:events`, in the
+Netlify build); the refusal is manual.
+
+- **Scenario:** A code once issued is never lost, so an order's
+  occurrence always resolves.
+- **Setup:** A branch that deletes a series from `data/series.json`
+  (not `"archived": true`) and one that adds a series with a code not
+  in `data/registry.json`.
+- **Test:**
+  1. `npm run check:events` on each; push each to a deploy preview.
+- **Assert:** Both fail, naming the code ("a registered code that no
+  longer resolves", "missing from the registry"); the preview build
+  stops. Archiving the series instead passes: it is never offered and
+  still resolves for the orders it holds.
+- **Teardown:** Delete the branches.
+
 ## Staging
 
 ### ST-01 The toolbar is for gate sessions only
@@ -2754,3 +3012,5 @@ wired.
 9. AO-01 A sign-in link, used once
 10. FN-01 Sign up, opted in at once
 11. AO-15 Fewer items in a paid order: the difference goes back
+12. SP-01 A scheduled order at a market
+13. SP-05 Moving an order on the account page
