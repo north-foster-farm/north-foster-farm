@@ -1,5 +1,5 @@
 {
- "revision": 39,
+ "revision": 40,
  "updated": "2026-10-22",
  "notice": null,
  "phases": [
@@ -4565,6 +4565,28 @@
       }
      ],
      "recommendation": "Approve the required sets and the promotion flow as proposed, and turn on secret scanning first: it is a setting, free, and blocks at GitHub."
+    }
+   ]
+  },
+  {
+   "id": "D-303",
+   "section": "rv-decide",
+   "title": "Six calls left in the backlog (#303)",
+   "area": "#303, Tiers 2 and 3",
+   "device": "any",
+   "type": "decide",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-22",
+     "changed": "Every open question in the backlog, gathered in one place, each with a recommendation.",
+     "summary": "Six calls left in the backlog's Tiers 2 and 3. Each has a recommendation, and agents build on it until you say otherwise. Answer on the issue, or here as feedback.\n\n**1. The privacy page for the saved cart and autoplay** ([#149](https://github.com/north-foster-farm/north-foster-farm/issues/149#issuecomment-6333383043), [#161](https://github.com/north-foster-farm/north-foster-farm/issues/161#issuecomment-6333225176); combined sentence [6333609911](https://github.com/north-foster-farm/north-foster-farm/issues/149#issuecomment-6333609911)). Both features have their QA and security go, and they land the moment you approve two sentences on /privacy/.\n- The draft paragraph. Before: \"It never leaves your device.\" After: \"When you're signed in, your account keeps a copy too, so the same cart is waiting on your other devices.\"\n- What the account holds gains \"whether videos autoplay\" and \"the order you're filling out\": \"Your account holds your name, phone number, delivery address and drop-off notes, the picture you chose, your email settings, whether videos autoplay, your orders, the order you're filling out and the messages you have sent us from it.\"\n- *Recommend: approve both as written.*\n\n**2. The history download's words** ([#165](https://github.com/north-foster-farm/north-foster-farm/issues/165#issuecomment-6333687871)). You confirmed CSV, the ledger and the separate tab. The strings are still drafts: buttons \"Download all orders (CSV)\" and \"Download all receipts (CSV)\", and column headers How, For, Kind and From.\n- *Recommend the copy lane's clearer set* ([5877467523](https://github.com/north-foster-farm/north-foster-farm/issues/165#issuecomment-5877467523)): \"Download order history (CSV)\" and \"Download payments and refunds (CSV)\" (a refund isn't a receipt); headers \"Pickup or delivery\", \"Pickup or delivery date\", \"Type\" and \"Paid by\"; \"PayPal transaction\" before a Venmo id; the second file named `north-foster-farm-payments-{date}.csv`.\n- Scheduled pickup (#309) changes one cell: a pickup at the drop site, a market or a pop-up reads \"Scheduled pickup, {place}\" (draft). #312 carries it.\n\n**3. Retention and quiet accounts** ([#189](https://github.com/north-foster-farm/north-foster-farm/issues/189#issuecomment-6333143727)). The rules are on `next` and staging. Five calls, none urgent, since no notice can go before about September 2027:\n- **a. Forget quiet accounts, or keep them?** Your 10/22 comment says forgotten; D-189 and the privacy page say kept until the customer closes it. *Recommend keep (D-189).*\n- **b. A placed order counts as interaction,** guest orders included. *Recommend yes.*\n- **c. Email clicks as interaction.** Resend's click tracking would route sign-in links through its redirect. *Recommend no click tracking.* If you want clicks on farm news, count them later through our own redirect.\n- **d. Approve the privacy sentence and the one-time notice** ([6333314214](https://github.com/north-foster-farm/north-foster-farm/issues/189#issuecomment-6333314214); held as 62f06ce). *Recommend approve as written.*\n- **e. Delivery pass emails** ([#301](https://github.com/north-foster-farm/north-foster-farm/issues/301)). *Recommend:* a single-use pass drops its email once it is used, expires or is revoked; a standing pass goes with its customer when the customer is deleted.\n\n**4. The map's sand and town lines** ([#214](https://github.com/north-foster-farm/north-foster-farm/issues/214#issuecomment-6332195764)). The white town lines on the $8 sand are faint (1.43:1). Crisper lines need a darker sand, which narrows its step from the $5 green.\n- *Recommend a darker sand,* since you asked twice for the lines to read clearly, keeping a visible step to the green. The map lane posts before and after at 390 and 1280.\n- The Places section names (\"Pickup\", \"Markets and pop-ups\") need no answer: scheduled pickup (#314) replaces both with one list.\n\n**5. The cart at mid sizes** ([#274](https://github.com/north-foster-farm/north-foster-farm/issues/274#issuecomment-6330804018)). The workshop shows the floating pane at 768, 1024 and phone landscape: at 768 and 1024 the list column shows one and a half lines, a pane floats even when empty, and the collapsed row leaves a wide gap. You haven't picked a direction.\n- *Recommend:* no floating pane with nothing in the cart, at any width; the phone's one-column pane (Items and Total) up to 1023 px, phone landscape included; from 1024 the right-column cart that xl uses, sticky beside the catalog. The checkout lane mocks these at 768, 1024 and 844 by 390 before building.\n- Also open there: a check of the short-screen change on your iPhone held sideways.\n\n**6. \"cancelled\" or \"canceled\"** ([#159](https://github.com/north-foster-farm/north-foster-farm/issues/159)). About 30 places in customer copy use the British spelling; the stored status key `cancelled` stays either way.\n- *Recommend one sweep to \"canceled\"* in the copy, to match the site's American English.\n\n**Settled, nothing to answer:**\n- #182's code wording is all approved (6333286808, 6334032632) and on staging. Left: one sandbox order with a waive-fee code, which qa runs once the staging token is set.\n- #159's aborted Sign out is fixed on `next`: both Sign out buttons now say \"Something went wrong. Please try again.\"\n- #274's \"Back soon\" is now \"Returning soon\" and keeps its price (#303, Tier 0).",
+     "look": [
+      {
+       "label": "#303, the backlog",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/303"
+      }
+     ]
     }
    ]
   }
