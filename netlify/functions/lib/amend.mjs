@@ -239,7 +239,7 @@ const warningsFor = (order, next, { now, env }) => {
         methodName(f.method).toLowerCase()}.`);
     }
   } else {
-    const open = datesFor("delivery", now, terms, null);
+    const open = datesFor("delivery", now, terms, pickupSchedule(env));
 
     if (!open.some((d) => d.date === f.date)) {
       out.push(`${f.date} is not an open delivery date.`);
@@ -393,11 +393,18 @@ const followInSquare = async (plan, { square, env, fetchImpl, k }) => {
     // The new order exists: take it back if Square lets us, and say
     // which one is left if it does not.
     const id = created.squareOrderId;
-    const gone = await square.cancelOrder(id, { env, fetchImpl })
-      .then((r) => !!(r && r.cancelled), () => false);
+    // `unpaid` leaves an order that has taken a tender alone: with a
+    // reused key, it may be an earlier change's paid $0 order.
+    let skipped = false;
+    const gone = await square.cancelOrder(id, { env, fetchImpl, unpaid: true })
+      .then((r) => {
+        skipped = !!r && r.cancelled === false;
+
+        return !!(r && r.cancelled);
+      }, () => false);
 
     throw Object.assign(new Error(error && error.message), {
-      created: id, cancelled: gone,
+      created: id, cancelled: gone, skipped,
     });
   }
 
@@ -419,9 +426,13 @@ export const applyAmend = async (stores, plan, {
 
   const k = `farm-${id}-${now.getTime()}`;
   // Square's key names the target, not the moment, so a retry after a
-  // partial failure finds the $0 order it already made.
+  // partial failure finds the $0 order it already made. The count of
+  // changes already recorded gives a repeat (A to B to A to B) its own
+  // key, since only a recorded change moves it on (#319).
+  const changes = (order.history || [])
+    .filter((h) => h.event === "farm.changed").length;
   const squareKey = `farm-${id}-${next.fulfilment.method}-${
-    next.fulfilment.occurrence || next.fulfilment.date}`;
+    next.fulfilment.occurrence || next.fulfilment.date}-${changes}`;
   const report = { square: plan.effects.square, email: plan.effects.email };
   let squareNow = order.square;
   let kept = null;
@@ -436,12 +447,18 @@ export const applyAmend = async (stores, plan, {
       const why = String(error && error.message);
       const left = error && error.created && !error.cancelled
         ? error.created : null;
-      const note = !error || !error.created ? ""
-        : left
-          ? ` A $0 Square order (${left}) was created and could not be ` +
-            "cancelled; cancel it in Square."
-          : ` The $0 Square order it created (${error.created}) was ` +
-            "cancelled.";
+      let note = "";
+
+      if (error && error.created) {
+        note = error.skipped
+          ? ` The $0 Square order it used (${left}) has taken payment ` +
+            "and was left in place."
+          : left
+            ? ` A $0 Square order (${left}) was created and could not ` +
+              "be cancelled; cancel it in Square."
+            : ` The $0 Square order it created (${error.created}) was ` +
+              "cancelled.";
+      }
 
       if (!force) {
         return { ok: false, refused: "square", message: `Square would not ` +

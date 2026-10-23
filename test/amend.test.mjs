@@ -460,6 +460,49 @@ describe("orders change, the farm's change to any order", () => {
       assert.equal(keys[0], keys[1], "the key names the target, not the time");
     });
 
+  it("gives a repeat change its own key and leaves a paid $0 order",
+    async () => {
+      const { stores, id } = await delivered();
+      const { square } = fakeSquare();
+      const keys = [];
+      const asked = [];
+      const DELIVERY = { fulfilment: { method: "delivery",
+        date: "2026-10-08", delivery: { address1: "1 Main St",
+          town: "Foster", zip: "02825", cooler: "Porch" } } };
+      const at = (h) => instant("2026-10-06", h, 0, "America/New_York");
+
+      square.createChangeOrder = async (o, c, key) => {
+        keys.push(key);
+
+        return { squareOrderId: `SQ-${keys.length}`, customerId: "CUST" };
+      };
+      square.cancelOrder = async (sid, opts) => {
+        asked.push([sid, opts.unpaid]);
+
+        return { id: sid, cancelled: false };
+      };
+
+      // B, A, B: each lands, so each is a change of its own.
+      for (const [h, body] of [[10, MARKET], [11, DELIVERY], [12, MARKET]]) {
+        const ok = await change(stores, id, body,
+          { at: at(h), square, force: true });
+
+        assert.equal(ok.ok, true, JSON.stringify(ok));
+      }
+      assert.equal(new Set(keys).size, 3, keys.join());
+
+      // A again, but its last Square step fails.
+      square.cancelFulfilment = async () => { throw new Error("stuck"); };
+
+      const failed = await change(stores, id, DELIVERY,
+        { at: at(13), square });
+
+      assert.equal(failed.ok, false);
+      assert.equal(new Set(keys).size, 4, "a repeat reused a key");
+      assert.deepEqual(asked, [["SQ-4", true]]);
+      assert.match(failed.message, /SQ-4.*left in place/);
+    });
+
   it("names the $0 order it could not cancel, and keeps it with --force",
     async () => {
       const { stores, id } = await delivered();
