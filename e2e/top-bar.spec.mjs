@@ -117,7 +117,7 @@ test.describe("top bar (#139)", () => {
 
     await expect(page).toHaveURL(EVENT.href);
     await expect(map).toHaveAttribute("data-layer", "places");
-    await expect(card).toContainText("Pop-up");
+    await expect(card).toContainText(EVENT.name);
     await expect(card).toContainText(EVENT.place);
     await expect(card.getByRole("link", { name: "Instagram" }))
       .toHaveCount(0);

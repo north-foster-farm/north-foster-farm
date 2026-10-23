@@ -451,7 +451,7 @@ test.describe("map (#138, #214)", () => {
         { name: "Shop for pickup here" }))
         .toHaveAttribute("href", /\/order\/\?method=scheduled&series=VFVQ$/);
       await expect(dates.last().getByRole("link")).toHaveCount(0);
-      await expect(dates.last()).toContainText("No pickup orders");
+      await expect(dates.last()).toContainText("Not open for pickup orders");
       // No link the build kept for the drop site once the dates load.
       await expect(drop.locator("[data-series-fallback]")).toHaveCount(0);
       // A market there, while its season runs, shares the card.
@@ -566,6 +566,19 @@ test.describe("map (#138, #214)", () => {
         .toBeGreaterThan(1);
       expect((await names(page))[0]).toBe("Our farm");
     });
+
+  test("a plain #places clears the scheduled filter", async ({ page }) => {
+    await events(page, [on("VFVQ", "G4C6", 2)]);
+    await page.goto(`${HOME.path}#places-scheduled`);
+
+    const chip = map(page).locator("[data-map-filter]");
+
+    await expect(chip).toHaveAttribute("aria-pressed", "true");
+    await page.evaluate(() => { location.hash = "places"; });
+    await expect(chip).toHaveAttribute("aria-pressed", "false");
+    await expect.poll(async () => (await names(page)).length)
+      .toBeGreaterThan(1);
+  });
 
   test("with nothing open for pickup, the filter says so",
     async ({ page }) => {

@@ -962,7 +962,9 @@ const wire = (map) => {
       : map.querySelector(`[data-map-slug="${CSS.escape(hash)}"]`);
 
     setLayer("places");
-    if (hash === "places-scheduled") filter(true);
+    if (hash === "places" || hash === "places-scheduled") {
+      filter(hash === "places-scheduled");
+    }
     if (pin) show(pin.dataset.mapPin);
     frame.scrollIntoView({ block: "center" });
   };
