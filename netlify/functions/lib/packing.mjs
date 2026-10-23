@@ -485,10 +485,10 @@ const revisionPage = (doc, entry, now) => {
   const cancelled = entry.kind === "cancelled";
   const order = entry.order;
   const at = sheet(doc, {
-    title: cancelled ? "Cancelled" : "Revised order", id: order.id, now,
+    title: cancelled ? "Canceled" : "Revised order", id: order.id, now,
   });
 
-  banner(doc, at, cancelled ? "CANCELLED" : "REVISED", { x: M, w: RIGHT - M });
+  banner(doc, at, cancelled ? "CANCELED" : "REVISED", { x: M, w: RIGHT - M });
   at.y += 66;
 
   const f = order.fulfilment || {};
@@ -499,7 +499,7 @@ const revisionPage = (doc, entry, now) => {
   at.y += 10;
 
   if (cancelled) {
-    for (const row of wrap("This order is cancelled. Don't pack it, and " +
+    for (const row of wrap("This order is canceled. Don't pack it, and " +
       "throw away the slip printed for it earlier.", RIGHT - M, {
       size: 13,
     })) {
@@ -536,7 +536,7 @@ const revisionPage = (doc, entry, now) => {
 };
 
 const KIND = {
-  new: "New", changed: "Revised", weekly: "Reprint", cancelled: "CANCELLED",
+  new: "New", changed: "Revised", weekly: "Reprint", cancelled: "CANCELED",
 };
 
 const coverPage = (doc, { entries, now, title }) => {

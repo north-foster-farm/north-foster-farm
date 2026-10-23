@@ -327,7 +327,7 @@ describe("orders from the CLI", () => {
     assert.equal((await getCounts(stores))["NFF-CHK-EGG-LG"], 5);
     assert.deepEqual(calls, [["fulfilment", "SQO"]]);
     assert.equal(sent.length, 1);
-    assert.match(sent[0].subject, /cancelled/);
+    assert.match(sent[0].subject, /canceled/);
     assert.doesNotMatch(sent[0].text, /refund|charged/i);
     assert.equal((await openOrders(stores)).length, 0);
 

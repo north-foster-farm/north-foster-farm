@@ -103,7 +103,7 @@ const USAGE = `Usage:
                                       --no-reason for a customer we
                                       won't serve (write to them)
   bin/nff orders refund <id> [--amount 12.34] [--reason "..."]
-                                      money back without cancelling:
+                                      money back without canceling:
                                       card and wallets through Square,
                                       Venmo through PayPal
   bin/nff orders attempted <id> <cause> [--detail "..."] [--waive "why"]
@@ -1044,7 +1044,7 @@ const run = async () => {
     // James is told what goes back, and the way out, every time
     // (W11a-1, #233).
     if (flags["no-refund"]) {
-      out("Cancelling without a refund (--no-refund).");
+      out("Canceling without a refund (--no-refund).");
     } else if (left > 0 && order.status === "paid") {
       // "Visa ending 4242", "Visa ending 4242, then Venmo".
       const to = paymentPhrase(order).replace(/\$[\d,.]+ by /g, "");
@@ -1323,7 +1323,7 @@ const run = async () => {
     for (const o of found) {
       out(`${o.createdAt.slice(0, 16)}  ${o.orderId}  ${o.squareOrderId}  ${
         dollars(o.total)}  ${o.error ? `error: ${o.error}`
-        : o.cancelled ? "cancelled" : o.later ? "next run"
+        : o.cancelled ? "canceled" : o.later ? "next run"
           : apply ? "left (paid or closed)" : "open"}`);
     }
 

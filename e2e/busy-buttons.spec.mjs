@@ -73,7 +73,7 @@ test.describe("busy buttons", () => {
     const at = await width(button);
 
     await button.click();
-    await expectBusy(page, button, { busyWord: "Cancelling", width: at });
+    await expectBusy(page, button, { busyWord: "Canceling", width: at });
     hold.release();
     await expect(button).toBeHidden();
     expect(hold.calls()).toBe(1);

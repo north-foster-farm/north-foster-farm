@@ -190,7 +190,7 @@ describe("what goes in a packet", () => {
       assert.equal(h.sent[1].subject, "Packing slips, Wednesday, " +
         "October 7: nothing to print");
       assert.match(h.sent[1].text,
-        /No order has come in, changed or been\s+cancelled/);
+        /No order has come in, changed or been\s+canceled/);
       assert.deepEqual(h.sent[1].attachments, []);
     });
 
@@ -269,7 +269,7 @@ describe("what goes in a packet", () => {
   });
 });
 
-describe("changed and cancelled orders", () => {
+describe("changed and canceled orders", () => {
   it("prints a revision sheet and a fresh slip for a change, once",
     async () => {
       const stores = testStores();
@@ -314,7 +314,7 @@ describe("changed and cancelled orders", () => {
     assert.ok(changes.includes("Payment: was PAID, now UNPAID ($32 due)"));
   });
 
-  it("prints a CANCELLED sheet with no slip for a printed order",
+  it("prints a CANCELED sheet with no slip for a printed order",
     async () => {
       const stores = testStores();
       const h = harness();
@@ -333,8 +333,8 @@ describe("changed and cancelled orders", () => {
 
       assert.equal(wed.cancelled, 1);
       assert.equal(wed.slips, 0);
-      assert.match(h.sent[1].subject, /: No slips, 1 cancelled$/);
-      assert.match(text, /\(CANCELLED\)/);
+      assert.match(h.sent[1].subject, /: No slips, 1 canceled$/);
+      assert.match(text, /\(CANCELED\)/);
       assert.doesNotMatch(text, /\(Packing slip\)/);
       assert.doesNotMatch(text, /GHOST/);
       assert.equal((await readPrinted(stores)).get("A").snapshot.status,
@@ -661,7 +661,7 @@ describe("scheduled pickups in a packet", () => {
       assert.deepEqual(entries, []);
     });
 
-  it("names the occurrence on a cancelled sheet", async () => {
+  it("names the occurrence on a canceled sheet", async () => {
     const stores = testStores();
     const h = harness();
 
@@ -672,7 +672,7 @@ describe("scheduled pickups in a packet", () => {
 
     const text = pdfText(h.sent[1]);
 
-    assert.match(text, /\(CANCELLED\)/);
+    assert.match(text, /\(CANCELED\)/);
     assert.ok(text.includes("Foster Farmers Market"));
     assert.ok(!text.includes("undefined"));
   });
@@ -704,7 +704,7 @@ describe("the library's sample packet", () => {
 
     assert.deepEqual(entries.map((e) => e.kind).sort(),
       ["cancelled", "changed", "new", "new", "new", "new"]);
-    for (const word of ["(PAID)", "(UNPAID)", "(REVISED)", "(CANCELLED)",
+    for (const word of ["(PAID)", "(UNPAID)", "(REVISED)", "(CANCELED)",
       "(Pick list)"]) {
       assert.ok(text.includes(word), word);
     }

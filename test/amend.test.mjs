@@ -448,7 +448,7 @@ describe("orders change, the farm's change to any order", () => {
 
       assert.equal(one.ok, true, JSON.stringify(one));
       assert.deepEqual(cancelled, ["SQC1"]);
-      assert.match(one.report.square, /SQC1.*cancelled/);
+      assert.match(one.report.square, /SQC1.*canceled/);
 
       // A retry of the same change, an hour on.
       const again = instant("2026-10-06", 10, 0, "America/New_York");
@@ -535,7 +535,7 @@ describe("orders change, the farm's change to any order", () => {
       const forced = await change(stores, id, MARKET, { square, force: true });
 
       assert.equal(forced.ok, true, JSON.stringify(forced));
-      assert.match(forced.report.square, /SQC1.*could not be cancelled/);
+      assert.match(forced.report.square, /SQC1.*could not be canceled/);
       assert.equal((await getOrder(stores, id)).square.fulfilmentOrderId,
         "SQC1");
     });

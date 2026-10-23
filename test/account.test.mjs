@@ -221,11 +221,11 @@ describe("cancelOrder", () => {
     ]);
     assert.equal((await getCounts(stores))[EGG], 4);
     assert.equal(sent.length, 2);
-    assert.match(sent[0].subject, /cancelled/);
+    assert.match(sent[0].subject, /canceled/);
     assert.match(sent[0].text,
       /as requested\.\n\*\*A refund of \$\d+ is on its way/);
     assert.deepEqual(sent[1].to, ["farm@example.com"]);
-    assert.equal(sent[1].subject, "Cancelled: A by pat@example.com");
+    assert.equal(sent[1].subject, "Canceled: A by pat@example.com");
     assert.match(sent[1].text, /refunded \$12 automatically/);
 
     const saved = await getOrder(stores, "A");
@@ -233,7 +233,7 @@ describe("cancelOrder", () => {
     assert.equal(saved.refunds[0].source, "customer");
     assert.equal(saved.cancelRequested, undefined);
 
-    // Asking twice is refused: it is already cancelled.
+    // Asking twice is refused: it is already canceled.
     const again = await cancelOrder(stores, customerOf(), "A", opts);
 
     assert.equal(again.status, 409);
@@ -264,7 +264,7 @@ describe("cancelOrder", () => {
     assert.equal(sent.length, 2);
     assert.match(sent[0].text, /A refund of \$12 is on its way/);
     assert.equal(sent[1].subject,
-      "Refund needed: A cancelled by pat@example.com");
+      "Refund needed: A canceled by pat@example.com");
     assert.match(sent[1].text, /bin\/nff orders cancel A\n/);
     assert.match(sent[1].html,
       /user-select:all">bin\/nff orders cancel A<\/pre>/);
@@ -444,7 +444,7 @@ describe("changeOrder", () => {
       assert.equal(r.ok, true);
       assert.equal(r.order.status, "cancelled", "refunded on the spot");
       assert.equal(r.order.question.answer, "cancel");
-      assert.match(sent[0].subject, /cancelled/);
+      assert.match(sent[0].subject, /canceled/);
       assert.match(sent[0].text, /A refund of \$\d+ is on its way/);
 
       // Without a question the cutoff still closes the doors.
@@ -722,7 +722,7 @@ describe("returns and support", () => {
       await saveOrder(stores, { ...order("Z"), status: "cancelled" }, now);
       assert.equal((await requestReturn(stores, customerOf(), "Z", {
         reason: "x",
-      }, opts)).status, 409, "a cancelled order has nothing to return");
+      }, opts)).status, 409, "a canceled order has nothing to return");
       await saveOrder(stores, order("A"), now);
       sent.length = 0;
       const r = await requestReturn(stores, customerOf(), "A", {

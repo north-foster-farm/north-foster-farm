@@ -368,7 +368,7 @@ describe("the monitoring emails", () => {
         "October 16; it must reach the week of Monday, October 19.");
     has(m.text, "\n    bin/nff schedule set <file>\n");
     has(m.text, "A failed payment left 1 order open in Square, and the " +
-        "sweep cancelled it. To see it:");
+        "sweep canceled it. To see it:");
     has(m.text, "\n    bin/nff jobs square\n");
     has(m.text, "Square sweep: customer profiles from failed payments");
     has(m.text, "Checkouts whose payment never went through made 2 " +
@@ -403,13 +403,13 @@ describe("the monitoring emails", () => {
     has(left({ open: 2, cancelled: 0 }),
       "Failed payments left 2 orders open in Square. To see them:");
     has(left({ open: 3, cancelled: 1 }), "Failed payments left 3 orders " +
-      "open in Square. The sweep cancelled 1; 2 are still open. To see " +
+      "open in Square. The sweep canceled 1; 2 are still open. To see " +
       "them:");
     has(left({ open: 2, cancelled: 2 }), "Failed payments left 2 orders " +
-      "open in Square, and the sweep cancelled them. To see them:");
+      "open in Square, and the sweep canceled them. To see them:");
     has(left({ open: 1, cancelled: 0 }),
       "Square sweep: open orders from failed payments");
-    // The kill switch set (#241): reported, never cancelled.
+    // The kill switch set (#241): reported, never canceled.
     has(left({ open: 2, cancelled: 0, paused: true }), "Failed payments " +
       "left 2 orders open in Square. The Square deletion kill switch is " +
       "set, so the sweep cancels nothing. To see them:");
@@ -514,7 +514,7 @@ describe("the monitoring emails", () => {
     });
 
     has(odd.text, "**NFF-2610-ABCD**, Pat Example, **UNPAID, past the " +
-      "cutoff: it should have been cancelled; check it before loading**");
+      "cutoff: it should have been canceled; check it before loading**");
     has(odd.text, "**NFF-2610-CONF**, Pat Example, 9 – 11 AM, paid");
 
     const none = farmTomorrow([], { date: "2026-10-09", links });
@@ -604,7 +604,7 @@ describe("delivery reminder", () => {
   });
 });
 
-describe("order changed and cancelled", () => {
+describe("order changed and canceled", () => {
   it("shows the current order with the cooler and notes", () => {
     const o = order();
 
@@ -673,8 +673,8 @@ describe("order changed and cancelled", () => {
   it("states the refund a cancellation sends back (T1a)", () => {
     const m = orderCancelled(order(), { refunded: 6700, links });
 
-    assert.equal(m.subject, "Your order is cancelled");
-    has(m.text, "We cancelled your order for delivery on Thursday, " +
+    assert.equal(m.subject, "Your order is canceled");
+    has(m.text, "We canceled your order for delivery on Thursday, " +
       "October 8.\n**A refund of $67 is on its way.**\nMost refunds " +
       "arrive within a few business days.");
     assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/);
@@ -829,7 +829,7 @@ describe("order changed and cancelled", () => {
       { by: "hold", refunded: 6200, links });
 
     has(m.text, "We held your order for seven days and didn't hear from " +
-      "you, so we've cancelled it.");
+      "you, so we've canceled it.");
     has(m.text, "**A refund of $62 is on its way.**");
   });
 
@@ -970,7 +970,7 @@ describe("the farm's own notices", () => {
       assert.doesNotMatch(m.text, /View order:|View customer/, "T5b");
       has(m.text, "Admin: https://admin.example.com");
     }
-    has(refund.text, "Pat Example cancelled paid order NFF-2610-ABCD, " +
+    has(refund.text, "Pat Example canceled paid order NFF-2610-ABCD, " +
       "delivery on Thursday, October 8. Refund it and close it:\n\n" +
       "    bin/nff orders cancel NFF-2610-ABCD\n");
     has(sync.text, "Check the fulfilment in Square: delivery on " +

@@ -325,7 +325,7 @@ export const planAmend = async (stores, id, body, {
   effects.email = customerEmailWithheld()
     ? "none (--no-email)"
     : order.status === "cancelled"
-      ? "none (the order is cancelled)"
+      ? "none (the order is canceled)"
       : `the customer (${order.customer.email}) gets the "order changed" ` +
         "email; the farm gets none";
 
@@ -339,7 +339,7 @@ export const planAmend = async (stores, id, body, {
     effects.square = `a new $0 Square order carries the ${
       delivering(next) ? "delivery" : "pickup"} fulfilment (its type ` +
       `changes), paid at $0 and linked to ${holder}; the fulfilment on ` +
-      `${holder} is cancelled`;
+      `${holder} is canceled`;
   } else {
     effects.square = `Square order ${holder}: the fulfilment's ${
       delivering(next) ? "delivery time and address" : "pickup time and note"
@@ -457,9 +457,9 @@ export const applyAmend = async (stores, plan, {
             `was left in place${error.paid ? "; it has taken payment" : ""}.`
           : left
             ? ` A $0 Square order (${left}) was created and could not ` +
-              "be cancelled; cancel it in Square."
+              "be canceled; cancel it in Square."
             : ` The $0 Square order it created (${error.created}) was ` +
-              "cancelled.";
+              "canceled.";
       }
 
       if (!force) {

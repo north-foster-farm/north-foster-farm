@@ -732,16 +732,16 @@ export const orderCancelled = (order, {
   by = "farm", refunded = 0, refundedOn = null, reason = null,
   reasonText = "", links,
 } = {}) => {
-  const title = "Your order is cancelled";
+  const title = "Your order is canceled";
   const blocks = [p(`Hi ${firstName(order.customer)},`)];
   const fee = keptFee(order);
-  const cancelled = `We cancelled your order for ${
+  const cancelled = `We canceled your order for ${
     methodName(order.fulfilment.method).toLowerCase()} on ${
     label(order.fulfilment.date)}`;
 
   if (by === "hold") {
     blocks.push(p(`We held your order for ${inWords(HOLD_DAYS)} days and ` +
-      "didn't hear from you, so we've cancelled it."));
+      "didn't hear from you, so we've canceled it."));
   } else if (by === "customer") {
     // After a missed delivery the miss prompted it, so no "as
     // requested" (C4, 2A and 2B).
@@ -1427,10 +1427,10 @@ export const farmRefundNeeded = (order, customer, { links } = {}) => {
   const who = customer.name || customer.email;
 
   return farmCard(
-    `Refund needed: ${order.id} cancelled by ${customer.email}`,
+    `Refund needed: ${order.id} canceled by ${customer.email}`,
     "Refund needed",
     [
-      p(`${who} cancelled paid order ${order.id}, ${
+      p(`${who} canceled paid order ${order.id}, ${
         methodOn(order.fulfilment)}. Refund it and close it:`),
       command(`bin/nff orders cancel ${order.id}`),
     ],
@@ -1476,10 +1476,10 @@ export const farmOrderCancelled = (order, customer, { links } = {}) => {
     .reduce((s, r) => s + (r.amount || 0), 0);
 
   return farmCard(
-    `Cancelled: ${order.id} by ${customer.email}`,
-    "Order cancelled",
+    `Canceled: ${order.id} by ${customer.email}`,
+    "Order canceled",
     [
-      p(`${who} cancelled paid order ${order.id}, ${
+      p(`${who} canceled paid order ${order.id}, ${
         methodOn(order.fulfilment)}. ${back
         ? `We refunded ${dollars(back)} automatically; there's nothing ` +
           "to run."
@@ -1777,7 +1777,7 @@ const VITALS = [
   ["paidByCard", "Paid by card or a wallet", () => PLAIN],
   ["paidByVenmo", "Paid by Venmo", () => PLAIN],
   ["declined", "Payments declined", (s) => within(s.declined <= 3)],
-  ["cancelled", "Cancelled by a customer or the farm", () => PLAIN],
+  ["cancelled", "Canceled by a customer or the farm", () => PLAIN],
   ["refunded", "Refunded", () => PLAIN],
   ["open", "Open orders, paid and not yet fulfilled", () => PLAIN],
   ["mailFailures", "Emails that could not be sent",
@@ -1857,10 +1857,10 @@ export const farmMorningReport = (stats, pickups, {
     let text = `${lead}. To see ${all}:`;
 
     if (square.cancelled && left) {
-      text = `${lead}. The sweep cancelled ${square.cancelled}; ${still}. ` +
+      text = `${lead}. The sweep canceled ${square.cancelled}; ${still}. ` +
         "To see them:";
     } else if (square.cancelled) {
-      text = `${lead}, and the sweep cancelled ${all}. To see ${all}:`;
+      text = `${lead}, and the sweep canceled ${all}. To see ${all}:`;
     }
     if (square.paused) {
       text = `${lead}. The Square deletion kill switch is set, so the ` +
@@ -1961,7 +1961,7 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
   // unpaid one on this list means that step did not happen.
   const state = (o) => (o.status === "paid" ? "paid"
     : o.fulfilment.method === "delivery"
-      ? "**UNPAID, past the cutoff: it should have been cancelled; " +
+      ? "**UNPAID, past the cutoff: it should have been canceled; " +
         "check it before loading**"
       : "UNPAID");
 
@@ -2019,7 +2019,7 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
 // draft.
 const PACKET_KIND = {
   new: "new", weekly: "reprint", changed: "**revised**",
-  cancelled: "**CANCELLED**",
+  cancelled: "**CANCELED**",
 };
 
 // What a packet or report groups under: "Foster Farmers Market,
@@ -2079,7 +2079,7 @@ export const farmPackingSlips = (entries, {
     return {
       subject: title,
       ...render(title, [
-        p("No order has come in, changed or been cancelled since the " +
+        p("No order has come in, changed or been canceled since the " +
           "last packet."),
         adminFooter(links),
       ], links, { tag: "Packing slips" }),
@@ -2099,12 +2099,12 @@ export const farmPackingSlips = (entries, {
       sunday
         ? p(`It's Sunday, so it has a slip for every order due by ${
           label(addDays(day, 6))}, as well as anything new, changed or ` +
-          "cancelled since yesterday, and replaces every earlier slip for " +
+          "canceled since yesterday, and replaces every earlier slip for " +
           "this week.")
         : null,
       revised || cancelled
         ? p("A **revised** order has a sheet saying what changed, then a " +
-          "new slip: throw away its old one. A **CANCELLED** order has a " +
+          "new slip: throw away its old one. A **CANCELED** order has a " +
           "sheet and no slip.")
         : null,
       heading("In this packet"),
@@ -2122,11 +2122,11 @@ export const farmChangedAfterPrint = (entry, { date, links } = {}) => {
   const id = entry.order.id;
   const cancelled = entry.kind === "cancelled";
   const title = cancelled
-    ? `Cancelled after printing: ${id}`
+    ? `Canceled after printing: ${id}`
     : `Changed after printing: ${id}`;
   const blocks = [
     p(cancelled
-      ? `**${id}** is due today, ${label(date)}, and was cancelled after ` +
+      ? `**${id}** is due today, ${label(date)}, and was canceled after ` +
         "this morning's packing slips went out. Don't pack it. The " +
         "attached sheet says so for the packing table."
       : `**${id}** is due today, ${label(date)}, and changed after this ` +

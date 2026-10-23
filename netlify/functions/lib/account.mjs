@@ -223,7 +223,7 @@ export const cancelOrder = async (stores, customer, id, {
 
   if (!order) return fail(404, { order: "We can't find that order." });
   if (!canCancel(order, now)) {
-    return fail(409, { order: "This order can't be cancelled any more." });
+    return fail(409, { order: "This order can't be canceled any more." });
   }
 
   // Cancelling answers whatever the farm asked.
@@ -238,7 +238,7 @@ export const cancelOrder = async (stores, customer, id, {
   try {
     await cancelAndRefund(stores, id, {
       now, env, mail, square, paypal, fetchImpl, source: "customer",
-      key: `refund-cancel-${id}`, reason: `Order ${id}, cancelled by you`,
+      key: `refund-cancel-${id}`, reason: `Order ${id}, canceled by you`,
     });
     const cancelled = await getOrder(stores, id);
 

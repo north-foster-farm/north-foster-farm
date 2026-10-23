@@ -184,7 +184,7 @@ const FORMS = {
   "orders cancel": async ([, , id, ...rest]) => {
     await op("orderCancel", { id, reasonText: flag(rest, "reason-text") });
 
-    return `Cancelled ${id}.`;
+    return `Canceled ${id}.`;
   },
   "orders refund": async ([, , id, ...rest]) => {
     await op("orderRefund", { id, reason: flag(rest, "reason") });

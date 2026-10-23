@@ -1114,7 +1114,7 @@ describe("Square orders left open (#241)", () => {
     assert.match(report.text,
       /Square sweep: open orders from failed payments/);
     assert.ok(report.text.includes("Failed payments left 2 orders open " +
-      "in Square, and the sweep cancelled them. To see them:"), report.text);
+      "in Square, and the sweep canceled them. To see them:"), report.text);
     assert.match(report.text, /\n {4}bin\/nff jobs square\n/);
   });
 

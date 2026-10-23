@@ -77,7 +77,7 @@ Square keeps its own copy of your order, your payment, and your name, email
 address, phone number and delivery details. It does so from the moment you
 press Pay. If the payment doesn't go through, we delete that profile shortly
 afterwards, unless you already had one with us, and the order is marked
-cancelled.
+canceled.
 
 If you start paying with Venmo and don't finish, we delete your order details
 within a day, and PayPal lets the unfinished payment expire.

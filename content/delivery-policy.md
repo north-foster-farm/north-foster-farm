@@ -127,7 +127,7 @@ don't open every market or pop-up we attend.
 You can order for a pickup through the end of next week. Order by
 11:59 PM the day before the pickup you choose.
 
-## Changing or cancelling an order
+## Changing or canceling an order
 
 Sign in with the email address you ordered with. We email you a link
 to sign in; there's no password. Your account page lets you change

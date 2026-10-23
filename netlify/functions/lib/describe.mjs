@@ -69,7 +69,7 @@ export const packetCounts = ({ slips = 0, revised = 0, cancelled = 0 }) => [
     ? `${slips} slip${slips === 1 ? "" : "s"}${
       revised ? ` (${revised} revised)` : ""}`
     : "No slips",
-  cancelled && `${cancelled} cancelled`,
+  cancelled && `${cancelled} canceled`,
 ].filter(Boolean).join(", ");
 
 // A market's place line opens with its name ("Foster Farmers Market,

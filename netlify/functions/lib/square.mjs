@@ -176,7 +176,7 @@ export const DECLINE_MESSAGES = {
   CHIP_INSERTION_REQUIRED: "Your bank declined the payment.",
   ALLOWABLE_PIN_TRIES_EXCEEDED: "Your bank declined the payment.",
   RESERVATION_DECLINED: "Your bank declined the payment.",
-  CUSTOMER_CANCELED: "The payment was cancelled before it completed.",
+  CUSTOMER_CANCELED: "The payment was canceled before it completed.",
   BAD_EXPIRATION: "That expiration date doesn't look right.",
   INVALID_ACCOUNT: "Your bank declined the payment.",
   GIFT_CARD_AVAILABLE_AMOUNT: "That card doesn't have enough on it.",

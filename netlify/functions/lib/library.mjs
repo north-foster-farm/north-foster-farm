@@ -461,23 +461,23 @@ export const library = [
     }),
   },
   {
-    id: "order-cancelled-refund", name: "Cancelled by the customer",
-    when: "The customer cancelled on the account page; all refunded",
+    id: "order-cancelled-refund", name: "Canceled by the customer",
+    when: "The customer canceled on the account page; all refunded",
     audience: C, tags: ["cancelled", "refunded", "account"],
     build: (links) => t.orderCancelled(order({ status: "cancelled" }),
       { by: "customer", refunded: 9400, links }),
   },
   ...Object.entries(REASONS).map(([key, [name, over]]) => ({
-    id: `order-cancelled-${key}`, name: `Cancelled by the farm: ${name}`,
-    when: `The farm cancelled with --reason ${key}; all refunded`,
+    id: `order-cancelled-${key}`, name: `Canceled by the farm: ${name}`,
+    when: `The farm canceled with --reason ${key}; all refunded`,
     audience: C, tags: ["cancelled", "refunded", "reason"],
     build: (links) => t.orderCancelled(order({ status: "cancelled", ...over }),
       { reason: key, refunded: 9400, links }),
   })),
   {
     id: "order-cancelled-refunded-earlier",
-    name: "Cancelled by the farm, refunded earlier",
-    when: "The farm cancelled an order it had already refunded",
+    name: "Canceled by the farm, refunded earlier",
+    when: "The farm canceled an order it had already refunded",
     audience: C, tags: ["cancelled", "refunded"],
     build: (links) => t.orderCancelled(order({ status: "cancelled" }), {
       reason: "delay", refunded: 9400,
@@ -551,16 +551,16 @@ export const library = [
   },
   {
     id: "order-cancelled-missed-fee-kept",
-    name: "Cancelled after a missed delivery, fee kept",
-    when: "A missed delivery cancelled; the items refunded, the fee kept",
+    name: "Canceled after a missed delivery, fee kept",
+    when: "A missed delivery canceled; the items refunded, the fee kept",
     audience: C, tags: ["cancelled", "refunded", "missed delivery"],
     build: (links) => t.orderCancelled(missed(500, { status: "cancelled" }),
       { by: "customer", refunded: 9400, links }),
   },
   {
     id: "order-cancelled-missed-full-refund",
-    name: "Cancelled after a missed delivery, fee waived",
-    when: "A waived or farm miss cancelled; everything refunded",
+    name: "Canceled after a missed delivery, fee waived",
+    when: "A waived or farm miss canceled; everything refunded",
     audience: C, tags: ["cancelled", "refunded", "missed delivery"],
     build: (links) => t.orderCancelled(missed(0, { status: "cancelled" }),
       { by: "customer", refunded: 9900, links }),
@@ -679,7 +679,7 @@ export const library = [
     build: (links) => t.addressReview(customer, { links }),
   },
   {
-    id: "farm-order-cancelled", name: "Cancelled by the customer",
+    id: "farm-order-cancelled", name: "Canceled by the customer",
     when: "A customer cancels a paid order and it refunds on the spot",
     audience: F, tags: ["cancelled", "refunded", "account"],
     build: (links) => t.farmOrderCancelled(order({
@@ -781,7 +781,7 @@ export const library = [
   },
   {
     id: "farm-packing-quiet", name: "Packing slips, nothing to print",
-    when: "Every day at 6:00 when nothing is new, changed or cancelled",
+    when: "Every day at 6:00 when nothing is new, changed or canceled",
     audience: F, tags: ["report"],
     build: (links) => t.farmPackingSlips([], {
       day: "2026-10-06", quiet: true, links,
@@ -789,14 +789,14 @@ export const library = [
   },
   {
     id: "farm-changed-after-print", name: "Changed after printing",
-    when: "An order due today changes or is cancelled after the " +
+    when: "An order due today changes or is canceled after the " +
       "morning's slips go out",
     audience: F, tags: ["alert", "delivery", "pdf"],
     build: afterPrintMail("changed"),
   },
   {
-    id: "farm-cancelled-after-print", name: "Cancelled after printing",
-    when: "An order due today changes or is cancelled after the " +
+    id: "farm-cancelled-after-print", name: "Canceled after printing",
+    when: "An order due today changes or is canceled after the " +
       "morning's slips go out",
     audience: F, tags: ["alert", "drop site", "pdf"],
     build: afterPrintMail("cancelled"),

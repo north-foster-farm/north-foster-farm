@@ -916,7 +916,7 @@ class Account {
       note.hidden = false;
     } else if (order.status === "abandoned") {
       note.textContent = "This order wasn't paid by the cutoff, so it was " +
-        "cancelled.";
+        "canceled.";
       note.hidden = false;
     }
 
@@ -1211,7 +1211,7 @@ class Account {
       // When the refund couldn't go through at once, the order is only
       // flagged for the farm to refund (copy's #158 review; draft).
       this.say(data.order.status === "cancelled"
-        ? "Cancelled. Your refund is on its way."
+        ? "Canceled. Your refund is on its way."
         : "We've asked for this cancellation. We'll refund you the way " +
           "you paid and email you when it's done.");
     });

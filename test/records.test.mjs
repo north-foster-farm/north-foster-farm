@@ -234,7 +234,7 @@ describe("order records", () => {
     assert.equal(await setStatus(stores, "NFF-9", "paid", later), null);
   });
 
-  it("cancelled orders leave the open index; a legacy unpaid one is not " +
+  it("canceled orders leave the open index; a legacy unpaid one is not " +
     "open either", async () => {
     const stores = testStores();
 
