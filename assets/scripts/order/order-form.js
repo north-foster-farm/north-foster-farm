@@ -1850,14 +1850,16 @@ export class OrderForm {
     }
 
     // Beyond one place, Where counts the locations and links to the
-    // map (#places opens its Places layer; #314 will open it to
-    // scheduled pickups).
+    // map in a new tab, so the order stays as it is (#places shows the
+    // Places layer; #314 will add a deep link to scheduled pickups).
     const places = locationCount(choices);
 
     if (!none && places > 1) {
       const link = document.createElement("a");
 
-      link.href = "/#places";
+      link.href = facts.dataset.placesHref;
+      link.target = "_blank";
+      link.rel = "noopener";
       link.textContent = `${places} locations`;
       where.textContent = "";
       where.appendChild(link);

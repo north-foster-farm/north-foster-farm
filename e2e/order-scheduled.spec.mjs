@@ -8,7 +8,8 @@ import {
   OrderPage, expect, pickupChosen, pickupRadios, pickupValues, test,
 } from "./support/order.mjs";
 import {
-  DROP, FOSTER, POPUP, cannedScheduled, datesWith,
+  DROP, FOSTER, POPUP, cannedScheduled, datesWith, payable,
+  saturdays,
 } from "./support/scheduled.mjs";
 
 const draft = (page) => page.evaluate(() => JSON.parse(
@@ -284,7 +285,9 @@ test.describe("a lapsed scheduled pickup", () => {
 
   test("offers the fresh pickups and puts the choice on the form",
     async ({ page }) => {
-      const lists = datesWith();
+      test.skip(saturdays().length < 2, "needs two orderable Saturdays");
+
+      const lists = payable();
 
       await cannedScheduled(page, lists);
       await lapse(page, lists.scheduled);
@@ -306,15 +309,15 @@ test.describe("a lapsed scheduled pickup", () => {
         name: "Choose on-farm pickup or delivery instead",
       })).toBeVisible();
 
-      // Take the market's date, not the first offered.
-      const market = lists.scheduled.find((e) => e.series === FOSTER.series);
+      // Take the other Saturday, not the first offered.
+      const market = lists.scheduled.at(-1);
 
       await dialog.getByLabel(new RegExp(market.label)).check();
       await dialog.getByRole("button", { name: "Use this pickup" }).click();
       await expect(pickupChosen(page)).toHaveValue(market.occurrence);
       await expect(page.locator("[data-lapsed-status]")).toHaveText(
-        `Pickup is now ${market.label}, ${FOSTER.window}, at ` +
-        `${FOSTER.name}. Pay to place your order.`
+        `Pickup is now ${market.label}, ${DROP.window}, at ` +
+        "the drop site. Pay to place your order."
       );
     });
 
@@ -324,7 +327,7 @@ test.describe("a lapsed scheduled pickup", () => {
     ["delivery", "Choose on-farm or scheduled pickup instead"],
   ]) {
     test(`a lapsed ${way} way offers "${instead}"`, async ({ page }) => {
-      const lists = datesWith();
+      const lists = payable();
 
       await cannedScheduled(page, lists);
       await lapse(page, way === "scheduled" ? lists.scheduled : lists[way]);

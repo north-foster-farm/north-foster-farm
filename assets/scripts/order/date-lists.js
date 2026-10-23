@@ -199,7 +199,7 @@ export class DateLists {
 
     const kept = list.some((d) => d.value === current);
     const pick = kept ? current
-      : series && fallbackChoice(list, series).value;
+      : series && (fallbackChoice(list, series) || {}).value;
 
     for (const entry of list) {
       const node = document.getElementById("tpl-pickup").content

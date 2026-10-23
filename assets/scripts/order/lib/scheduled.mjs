@@ -70,8 +70,10 @@ export const dropSeriesCode = (model) => (
 
 // The choice a picker lands on when the one wanted is gone: the next of
 // the series the draft named (the old drop site draft), else the first.
+// A named series with no entry left gives nothing, never another
+// place's date.
 export const fallbackChoice = (list, series = "") => (
-  list.find((d) => series && d.series === series) || list[0]
+  series ? list.find((d) => d.series === series) : list[0]
 );
 
 // How many distinct locations a list reaches (the entry's `location`

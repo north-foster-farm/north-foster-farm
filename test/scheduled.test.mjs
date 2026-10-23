@@ -128,9 +128,12 @@ describe("the choice that replaces a closed one", () => {
     assert.equal(fallbackChoice([foster, nextDrop], "VFVQ"), nextDrop);
   });
 
-  it("is the first where no series is named or the series has none", () => {
+  it("is the first where no series is named", () => {
     assert.equal(fallbackChoice([foster, nextDrop]), foster);
-    assert.equal(fallbackChoice([foster], "VFVQ"), foster);
+  });
+
+  it("is nothing where the named series has no entry left", () => {
+    assert.equal(fallbackChoice([foster], "VFVQ"), undefined);
   });
 });
 

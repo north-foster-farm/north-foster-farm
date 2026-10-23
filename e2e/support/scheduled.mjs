@@ -3,9 +3,18 @@
 // (#310) posted on #309, so a spec can reach every kind of place on a
 // local build, whatever the schedule opens today. VFVQ and WAC5 are
 // the real series codes; the pop-up's is made up.
+//
+// FOSTER and POPUP are for display-only specs: the page runs the real
+// validateOrder before it posts, so an ended series, a made-up code or
+// a weekday the series does not run on never reaches /api/orders. A
+// spec that pays uses payable(): the drop site (VFVQ) on its real
+// Saturdays within the horizon.
 
 import { dates } from "./canned.mjs";
+import { cutoffOf } from "../../assets/scripts/order/lib/events.mjs";
 import { addDays, today } from "../../assets/scripts/order/lib/zoned.mjs";
+
+const ZONE = "America/New_York";
 
 export const DROP = {
   series: "VFVQ", name: "Drop site", location: "G4C6", town: "Scituate",
@@ -36,13 +45,13 @@ export const occurrence = (series, date) => `${series.series}-${
   date.slice(2).replaceAll("-", "")}`;
 
 // An entry of `scheduled` for `place` on `date` ("2026-11-01"), cutoff
-// 11:59 PM New York the day before (03:59 UTC, in daylight time).
+// 11:59 PM New York the day before, as the page computes it.
 const entry = (place, date) => ({
   occurrence: occurrence(place, date),
   date,
   label: LABEL.format(new Date(`${date}T12:00:00Z`)),
   ...place,
-  cutoff: `${date}T03:59:00.000Z`,
+  cutoff: cutoffOf(date, ZONE).toISOString(),
 });
 
 // The canned lists with `scheduled` made from `places`
@@ -67,3 +76,23 @@ export const datesWith = (places = [
 export const cannedScheduled = (page, lists = datesWith()) => page.route(
   "**/api/dates", (route) => route.fulfill({ json: lists }),
 );
+
+// Days from today to each Saturday still orderable, through next
+// week's (the horizon): the evening before is the cutoff, so today, if
+// it is a Saturday, is out.
+export const saturdays = () => {
+  const start = today(new Date(), ZONE);
+  const weekday = new Date(`${start}T12:00:00Z`).getUTCDay();
+  const days = [];
+
+  for (let n = 1; n <= 13 - weekday; n += 1) {
+    if (new Date(`${addDays(start, n)}T12:00:00Z`).getUTCDay() === 6) {
+      days.push(n);
+    }
+  }
+  return days;
+};
+
+// The lists with the drop site on its real Saturdays, for a spec that
+// pays.
+export const payable = () => datesWith([{ place: DROP, days: saturdays() }]);
