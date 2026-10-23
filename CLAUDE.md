@@ -167,7 +167,8 @@ ES6 modules with explicit imports:
 
 Deployment configured in `netlify.toml`:
 - Build command: `npm run check:env && npm run check:schedule &&
-  bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc && npm run
+  npm run check:events && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF
+  hugo --gc && npm run
   build:orphans && npm run check:grid`. `build:orphans` keeps the
   last two words of every paragraph, heading and list item on one
   line (see `bin/orphans/wrap.mjs`); `hugo server` skips it.

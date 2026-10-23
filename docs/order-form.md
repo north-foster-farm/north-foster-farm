@@ -256,10 +256,41 @@ skipped rather than shifted:
   variable (then deploy; `PICKUP_SCHEDULE_HOOK`, a build hook in the
   env file, starts one). The morning report warns while the schedule
   runs short.
-- Scituate: the next two Saturdays on or after 17 October 2026 whose
-  cutoff has not passed: the end of Friday (`scituate.cutoffWeekday`
-  and `cutoffHour`, 24 being midnight). Customers can change or cancel
-  until then too.
+- Scheduled pickup (#309, #310): the drop site, the markets and the
+  pop-ups, all one thing. `data/locations.json` holds the places and
+  `data/series.json` what recurs at them over a season (a pop-up is a
+  series with one date); each has a generated 4-character code from the
+  order-id alphabet, with no meaning, never reused. An occurrence is
+  one date of a series and is named by the series code and the date,
+  `K4Q7-261101`. `data/registry.json` is the append-only list of
+  every code ever used. Nothing is ever deleted: a location or series
+  takes `"archived": true` and is never offered, though it still
+  resolves. A series may give one date its own location or window
+  under `overrides`. `bin/nff events` lists every series with its
+  occurrences in the coverage window and their schedule line;
+  `bin/nff events new` makes an unused code.
+  The same `PICKUP_SCHEDULE` decides each occurrence, with a line
+  `<date> <code> pickup|attend|skip [HH:MM-HH:MM]`: `pickup` opens it
+  for orders (optionally in a narrower window), `attend` means the
+  farm goes and takes no orders, `skip` that it does not go. There
+  is no default: every in-season date of every live series from
+  tomorrow through the coverage window (the horizon, or the day before
+  the schedule must reach) needs a line, or `check:schedule` fails
+  the deploy. It also fails on an unknown or archived code, a date the
+  series lacks, a window outside the series' hours and two lines for
+  one occurrence. An occurrence with no line at run time is not
+  offered. Pickups run from today through `horizon()` (never more than
+  13 days), the cutoff is 11:59 PM the day before, and there is no
+  minimum or fee. `/api/dates` lists them as `scheduled`;
+  `/api/events` lists every one the farm attends. The old `scituate`
+  key stays, derived from the drop site's occurrences, until #312.
+  `bin/check-events.mjs` (`npm run check:events`, in the build) fails
+  on a duplicate code, a code missing from the registry, a registered
+  code that no longer resolves, a series in season at a missing or
+  archived location, and a schedule line naming an unknown code. A
+  build cannot read the production orders store (docs/monitoring.md),
+  so the occurrences real orders name are checked by
+  `bin/nff orders occurrences`, which fails on any that is gone.
 - Delivery: the next two non-holiday Thursdays whose Wednesday-noon
   cutoff has not passed. The cutoff is inclusive.
 
@@ -666,8 +697,8 @@ pay the next trip's fee, on the order page.
 `bin/nff orders change <id>` makes, for the customer and past the
 cutoff, any change they could make themselves, and one they cannot:
 the way they receive the order, with its address. Its flags are
-`--method onfarm|dropsite|market|delivery`, `--site` (the market's id,
-with `--method market`), `--date`, `--window` (a pickup
+`--method onfarm|scheduled|delivery`, `--occurrence` (the
+occurrence's id, with `--method scheduled`), `--date`, `--window` (a pickup
 time), `--address1`, `--address2`, `--town`, `--zip`, `--cooler`,
 `--gate`, `--delivery-notes`, `--phone`, `--contact`, `--notes` and
 `--key` (to retry one change safely). A new method or address goes
@@ -694,23 +725,25 @@ inventory is read only when a change adds items, so a farm change and
 `--dry-run` need no Square. `--dry-run` saves and sends nothing and
 prints the email.
 
-Market and pop-up pickup (#309) is a way to get an order like the
-drop site: functionally a drop site pickup at a public market. Its
-sites are the entries of `data/markets.json` that carry a `pickup`
-block (`id`, `customers`, and optionally `cutoffDaysBefore`,
-`cutoffHour`, `datesToOffer`). The place, hours and season are the
-entry's own, read by `pickupSites` (`lib/sites.mjs`) and merged into
-the terms as `markets` (`lib/terms.mjs`); the cutoff is the drop
-site's rule, the end of the day before. `customers: false` keeps a
-site off the order page and out of the public validator, so only the
-farm's `orders change --method market --site foster --date
-YYYY-MM-DD` books it (`farm: true` in `validateOrder`, which also
-offers every open day, not just the next few). The record is
-`fulfilment: { method: "market", site: "foster", date }`; `siteOf`
-in `dates.mjs` resolves a method and site to its rules, and
-`placeOf` in `describe.mjs` to its words, so emails, packing slips,
-the Square fulfilment note and the CLI summary read the site. The
-drop site stays method `scituate` with no `site`.
+A scheduled pickup (#309, #310) is `fulfilment: { method: "scheduled",
+occurrence: "K4Q7-261101", date }`: the occurrence is the truth and the
+server derives and stores the date from it. A move replaces it and
+appends a `fulfilment.moved` history event `{ from, to, by, at }`. The
+customer's own change (`planChange`) may move within scheduled pickup to
+any occurrence the `scheduled` list offers, never from or to on-farm
+pickup or delivery. The farm's `orders change` (`lib/amend.mjs`) reaches
+any occurrence of a series that is not archived. `resolveOccurrence`
+(`lib/events.mjs`) and `orderOccurrence` (`dates.mjs`) resolve an id,
+and `placeOf` (`describe.mjs`) gives its words, so emails, packing
+slips, the Square note and the CLI summary read the occurrence. An
+occurrence gone from the data reads as "Pickup, <id>" and the account
+API marks the order not changeable. Orders stored before the model
+(method `scituate`, or `market` with a `site`) read the same way until
+`bin/nff migrate scheduled-pickup [--dry-run] [--staging|--production]`
+rewrites them: it backs up the orders first, stops and lists any order
+it cannot map, is safe to run twice and touches neither Square nor
+money. A page or link that still posts `scituate` is mapped to the
+drop site's occurrence on that date.
 
 `--no-email` is on every `bin/nff` command. It calls
 `withholdCustomerEmail` (`lib/payments.mjs`), after which
@@ -724,15 +757,14 @@ farm-news welcome and the confirmation link are not covered, so
 `jobs run` and `audience invite` refuse the flag (`bin/no-email.mjs`),
 and `breaker flush` refuses it too (`--dry-run` still works).
 `breaker reset` sends no customer mail.
-`--no-email=false` is off. A customer editing a market order the
-farm booked keeps its site and day, though customers cannot choose
-that site; the days they are offered are the usual ones. `orders
-change --site` needs `--method market`, and `--window` is refused
-with it.
+`--no-email=false` is off. A customer editing an order the farm booked
+at an occurrence customers cannot choose keeps it, though the days they
+are offered are the usual ones. `--occurrence` needs `--method
+scheduled`, and `--window` is refused with it.
 `--dry-run` with it prints that nothing would be sent. The jobs treat
-a market order as a drop site order: no reminder, closed the day
+a scheduled pickup as a drop site order: no reminder, closed the day
 after its date, listed in the packing slips and the evening report
-under "Market pickup".
+under its own heading.
 
 A customer who cancels from the account page is refunded and
 cancelled at once (T1d), and the farm is emailed "Cancelled: <id>".

@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import terms from "../data/delivery.json" with { type: "json" };
+import { occurrenceSchedule } from "../bin/dev-schedule.mjs";
+import modelTerms from "../netlify/functions/lib/terms.mjs";
 import {
-  cutoffFor, deliveryDates, dropCutoffFor, onFarmDates, scituateDates,
+  cutoffFor, deliveryDates, onFarmDates, scituateDates,
 } from "../assets/scripts/order/lib/dates.mjs";
 import {
   checkSchedule, coverUntil, horizon, parseSchedule, pickupTimes,
@@ -255,46 +257,81 @@ describe("delivery Thursdays and the Wednesday-noon cutoff", () => {
 });
 
 describe("drop site Saturdays", () => {
-  it("before the start date offers 17 and 24 Oct", () => {
-    const got = dates(scituateDates(ny("2026-09-20"), terms));
+  // The drop site's series, with a pickup line on each of its
+  // Saturdays: the schedule leaves nothing to a default.
+  const schedule = Object.assign([], {
+    lines: parseSchedule(`2026-10-01 09:00-12:00\n${
+      occurrenceSchedule("2026-10-01", "2026-12-31")}`).lines,
+  });
+  const drops = (now, lines = schedule) => scituateDates(now, modelTerms,
+    lines);
+
+  it("offers the Saturdays through the horizon, from the start " +
+    "date", () => {
+    assert.deepEqual(dates(drops(ny("2026-09-20"))), [],
+      "the horizon ends before the first Saturday");
+
+    const got = dates(drops(ny("2026-10-12")));
 
     assert.deepEqual(got, ["2026-10-17", "2026-10-24"]);
   });
 
   it("late on the Friday before still offers 17 Oct", () => {
-    const got = scituateDates(ny("2026-10-16", 23, 59), terms);
+    const got = drops(ny("2026-10-16", 23, 59));
 
     assert.deepEqual(dates(got), ["2026-10-17", "2026-10-24"]);
     assert.equal(got[0].cutoff, "2026-10-17T04:00:00.000Z");
   });
 
   it("takes an order at exactly midnight, the end of Friday", () => {
-    const got = dates(scituateDates(ny("2026-10-17", 0), terms));
+    const got = dates(drops(ny("2026-10-17", 0)));
 
     assert.deepEqual(got, ["2026-10-17", "2026-10-24"]);
   });
 
   it("after midnight rolls forward, before the window opens", () => {
     for (const hour of [0, 8]) {
-      const got = dates(scituateDates(
-        ny("2026-10-17", hour, hour ? 0 : 1), terms
-      ));
+      const got = dates(drops(ny("2026-10-17", hour, hour ? 0 : 1)));
 
-      assert.deepEqual(got, ["2026-10-24", "2026-10-31"], `${hour}`);
+      assert.deepEqual(got, ["2026-10-24"], `${hour}`);
     }
   });
 
   it("puts the cutoff at the end of Friday across the DST change", () => {
-    assert.equal(dropCutoffFor("2026-10-31", terms).toISOString(),
-      "2026-10-31T04:00:00.000Z");
-    assert.equal(dropCutoffFor("2026-11-07", terms).toISOString(),
-      "2026-11-07T05:00:00.000Z");
+    const got = drops(ny("2026-10-26"));
+
+    assert.deepEqual(got.map((d) => d.cutoff), [
+      "2026-10-31T04:00:00.000Z", "2026-11-07T05:00:00.000Z",
+    ]);
   });
 
   it("only ever emits Saturdays", () => {
-    const got = scituateDates(ny("2026-12-01"), terms, 6);
+    const got = drops(ny("2026-12-01"));
 
+    assert.ok(got.length);
     for (const d of got) assert.ok(d.label.startsWith("Saturday"));
+  });
+
+  it("offers no Saturday the schedule has no line for", () => {
+    const code = modelTerms.model.series.find((s) =>
+      s.kind === "drop-site").code;
+    const only = Object.assign([], {
+      lines: parseSchedule(`2026-10-01 09:00-12:00\n2026-10-24 ${
+        code} pickup`).lines,
+    });
+
+    assert.deepEqual(dates(drops(ny("2026-10-12"), only)), ["2026-10-24"]);
+  });
+
+  it("offers none for a Saturday the farm skips", () => {
+    const code = modelTerms.model.series.find((s) =>
+      s.kind === "drop-site").code;
+    const lines = Object.assign([], {
+      lines: parseSchedule(`2026-10-01 09:00-12:00\n2026-10-17 ${
+        code} skip\n2026-10-24 ${code} attend`).lines,
+    });
+
+    assert.deepEqual(dates(drops(ny("2026-10-12"), lines)), []);
   });
 });
 

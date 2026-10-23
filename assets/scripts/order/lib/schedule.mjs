@@ -10,12 +10,26 @@
 //   2026-10-07 09:00-12:00
 //   # a comment, and blank lines, are ignored
 //
+// A line that names a series by its code instead of times decides one
+// occurrence of it (data/series.json): `pickup` opens it for orders,
+// `attend` means the farm goes and takes none, `skip` that it doesn't
+// go. A pickup or attend line may narrow the series' window. No
+// occurrence has a default: every in-season date of every series the
+// schedule must cover needs its line.
+//
+//   2026-11-01 K4Q7 pickup
+//   2026-11-08 K4Q7 pickup 10:00-12:00
+//   2026-11-15 K4Q7 attend
+//   2026-11-22 K4Q7 skip
+//
 // Times are the farm's wall clock (America/New_York), 24-hour.
 
-import { addDays, today, weekday } from "./zoned.mjs";
+import { CODE, hasDate, seriesDates } from "./events.mjs";
+import { addDays, dayName, today, weekday } from "./zoned.mjs";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const RANGE = /^(\d{2}):(\d{2})-(\d{2}):(\d{2})$/;
+export const ACTIONS = ["pickup", "attend", "skip"];
 
 // How far ahead the schedule must reach: into the week after next,
 // counted from this week's Monday (James, amendment 3).
@@ -50,16 +64,21 @@ const parseRange = (text) => {
   return { id: text, from: `${fh}:${fm}`, to: `${th}:${tm}` };
 };
 
-// The raw text -> { windows, errors }. `windows` is sorted by date and
-// start, one entry per window: { date, id, from, to }. Every problem
-// is reported, not only the first.
+// The raw text -> { windows, lines, errors }. `windows` is sorted by
+// date and start, one entry per window: { date, id, from, to }.
+// `lines` holds the occurrence lines: { date, code, action } or
+// { date, code, action, id, from, to } for a narrower window. Every
+// problem is reported, not only the first.
 export const parseSchedule = (raw) => {
   const errors = [];
   const windows = [];
+  const lines = [];
   const text = typeof raw === "string" ? raw : "";
 
   if (!text.trim()) {
-    return { windows, errors: ["PICKUP_SCHEDULE is missing or empty."] };
+    return {
+      windows, lines, errors: ["PICKUP_SCHEDULE is missing or empty."],
+    };
   }
 
   const entries = text.split(/\n/)
@@ -77,6 +96,30 @@ export const parseSchedule = (raw) => {
     }
     if (!ranges.length) {
       errors.push(`"${entry}": give the date at least one time range.`);
+      continue;
+    }
+    if (!RANGE.test(ranges[0])) {
+      const [code, action, ...rest] = ranges;
+
+      if (!CODE.test(code)) {
+        errors.push(`${date}: "${code}" is not a time range like ` +
+          "09:00-12:00 or a series code.");
+      } else if (!ACTIONS.includes(action)) {
+        errors.push(`${date} ${code}: say pickup, attend or skip.`);
+      } else if (!rest.length) {
+        lines.push({ date, code, action });
+      } else if (rest.length === 1 && action !== "skip") {
+        const w = parseRange(rest[0]);
+
+        if (w.error) {
+          errors.push(`${date} ${code}: ${w.error}.`);
+        } else {
+          lines.push({ date, code, action, ...w });
+        }
+      } else {
+        errors.push(`"${entry}": a pickup or attend line takes at most ` +
+          "one window, and a skip line none.");
+      }
       continue;
     }
     for (const range of ranges) {
@@ -101,7 +144,17 @@ export const parseSchedule = (raw) => {
     }
   }
 
-  return { windows, errors };
+  lines.sort((a, b) => (a.date + a.code < b.date + b.code ? -1 : 1));
+
+  for (let i = 1; i < lines.length; i += 1) {
+    const [a, b] = [lines[i - 1], lines[i]];
+
+    if (a.date === b.date && a.code === b.code) {
+      errors.push(`${a.date}: ${a.code} has two lines.`);
+    }
+  }
+
+  return { windows, lines, errors };
 };
 
 // This week's Monday, as an ISO date.
@@ -112,11 +165,82 @@ const monday = (iso) => addDays(iso, -((weekday(iso) + 6) % 7));
 export const coverUntil = (now, timeZone) =>
   addDays(monday(today(now, timeZone)), 7 * COVER_WEEKS);
 
+const hhmm = (h, m) => Number(h) * 60 + Number(m || 0);
+
+// What is wrong with the occurrence lines, against the series' own
+// facts: a known, unarchived series, a date it has, a window within its
+// hours. -> [message]
+const lineErrors = (lines, model) => {
+  const errors = [];
+
+  for (const l of lines) {
+    const s = model.seriesOf(l.code);
+
+    if (!s) {
+      errors.push(`${l.date}: "${l.code}" is not a series (the series ` +
+        `are ${model.series.map((k) => k.code).join(", ")}).`);
+      continue;
+    }
+    if (s.archived) {
+      errors.push(`${l.date}: ${l.code} is archived and can't be ` +
+        "scheduled.");
+      continue;
+    }
+    if (!hasDate(s, l.date)) {
+      errors.push(`${l.date}: ${l.code} (${s.name}) has no occurrence ` +
+        `then (its days run ${s.start} to ${s.end || "until further " +
+        "notice"}, on ${dayName(s.weekday)}s).`);
+      continue;
+    }
+    if (l.from && (hhmm(...l.from.split(":")) < hhmm(s.opensHour,
+      s.opensMinute) || hhmm(...l.to.split(":")) > hhmm(s.closesHour,
+      s.closesMinute))) {
+      errors.push(`${l.date}: ${l.id} is outside ${l.code}'s hours (${
+        s.window}).`);
+    }
+  }
+
+  return errors;
+};
+
+// The days whose occurrences need a line: tomorrow through the later of
+// the day before the schedule must reach and the horizon.
+export const coverage = (now, timeZone) => {
+  const until = addDays(coverUntil(now, timeZone), -1);
+  const end = horizon(now, timeZone);
+
+  return {
+    first: addDays(today(now, timeZone), 1), last: end > until ? end : until,
+  };
+};
+
+// Every in-season date of every live series from tomorrow through the
+// coverage window needs a line. -> [message]
+const missingErrors = (lines, model, now, timeZone) => {
+  const { first, last } = coverage(now, timeZone);
+  const errors = [];
+
+  for (const s of model.series.filter((x) => !x.archived)) {
+    for (const date of seriesDates(s, first, last)) {
+      if (!lines.some((l) => l.date === date && l.code === s.code)) {
+        errors.push(`${date}: ${s.code} (${s.name}) needs a line: ` +
+          `"${date} ${s.code} pickup", attend or skip.`);
+      }
+    }
+  }
+
+  return errors;
+};
+
 // Everything a deploy needs of the schedule (amendments 2 and 3): it
 // parses, has the right shape, still offers something, and reaches
 // into the week after next. -> { ok, windows, errors, last }.
-export const checkSchedule = (raw, { now = new Date(), timeZone }) => {
-  const { windows, errors } = parseSchedule(raw);
+//
+// `model` (lib/events.mjs) holds the occurrence lines to the data, and
+// requires a line for every occurrence the coverage window holds.
+export const checkSchedule = (raw, { now = new Date(), timeZone,
+  model } = {}) => {
+  const { windows, lines, errors } = parseSchedule(raw);
   const day = today(now, timeZone);
   const last = windows.length ? windows[windows.length - 1].date : null;
 
@@ -127,6 +251,11 @@ export const checkSchedule = (raw, { now = new Date(), timeZone }) => {
     errors.push(`Every window is already past (the last is ${last}).`);
   }
 
+  if (model) {
+    errors.push(...lineErrors(lines, model),
+      ...missingErrors(lines, model, now, timeZone));
+  }
+
   const until = coverUntil(now, timeZone);
 
   if (windows.length && last < until) {
@@ -134,7 +263,7 @@ export const checkSchedule = (raw, { now = new Date(), timeZone }) => {
       `window is on ${last}.`);
   }
 
-  return { ok: !errors.length, windows, errors, last };
+  return { ok: !errors.length, windows, lines, errors, last };
 };
 
 // The last day offered: the Saturday of the week after this one, weeks

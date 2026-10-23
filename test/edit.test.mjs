@@ -729,7 +729,8 @@ describe("farmEdit", () => {
     const saved = await getOrder(stores, id);
     const events = saved.history.map((h) => h.event);
 
-    assert.equal(saved.fulfilment.method, "scituate");
+    assert.equal(saved.fulfilment.method, "scheduled");
+    assert.equal(saved.fulfilment.occurrence, "VFVQ-261017");
     assert.equal(saved.fulfilment.date, "2026-10-17");
     assert.ok(events.includes("farm.changed"));
     assert.ok(!events.includes("edit.done"));
@@ -774,13 +775,13 @@ describe("farmEdit", () => {
 
     const saved = await getOrder(stores, id);
 
-    assert.equal(saved.fulfilment.method, "market");
-    assert.equal(saved.fulfilment.site, "foster");
+    assert.equal(saved.fulfilment.method, "scheduled");
+    assert.equal(saved.fulfilment.occurrence, "WAC5-261025");
     assert.equal(saved.fulfilment.date, "2026-10-25");
     assert.ok(calls.some((c) => c[0] === "cancelFulfilment"));
     assert.equal(sent.length, 1);
     assert.match(sent[0].text, /Foster Farmers Market/);
-    assert.match(summaryLine(saved), /Market pickup \(Foster Farmers Market\)/);
+    assert.match(summaryLine(saved), /paid \$55 Foster Farmers Market 2026/);
   });
 
   it("refuses a market the schedule or the data lacks", async () => {
@@ -795,10 +796,10 @@ describe("farmEdit", () => {
     }, opts(square, mail));
 
     assert.equal(monday.ok, false);
-    assert.equal(monday.errors["fulfilment.date"],
-      "That date is no longer available.");
+    assert.equal(monday.errors["fulfilment.occurrence"],
+      "That pickup is no longer available.");
     assert.equal(nowhere.ok, false);
-    assert.ok(nowhere.errors["fulfilment.site"]);
+    assert.ok(nowhere.errors["fulfilment.occurrence"]);
     assert.equal((await getOrder(stores, id)).fulfilment.method, "onfarm");
     assert.equal(sent.length, 0);
   });
@@ -894,7 +895,7 @@ describe("farmEdit", () => {
     assert.equal(sent.length, 0);
   });
 
-  it("refuses a market to a customer", async () => {
+  it("refuses a pickup the schedule hasn't opened", async () => {
     const payload = validateOrder({
       customer: { firstName: "A", lastName: "B", email: "a@b.co",
         contact: "text" },
@@ -903,7 +904,7 @@ describe("farmEdit", () => {
     }, { index: new Map(), terms, now });
 
     assert.equal(payload.ok, false);
-    assert.ok(payload.errors["fulfilment.site"]);
+    assert.ok(payload.errors["fulfilment.occurrence"]);
   });
 
   describe("a market order the farm booked", () => {
@@ -931,8 +932,8 @@ describe("farmEdit", () => {
 
       const saved = await getOrder(stores, id);
 
-      assert.equal(saved.fulfilment.method, "market");
-      assert.equal(saved.fulfilment.site, "foster");
+      assert.equal(saved.fulfilment.method, "scheduled");
+      assert.equal(saved.fulfilment.occurrence, "WAC5-261025");
       assert.equal(saved.notes, "Leave the eggs for last");
     });
 
@@ -947,14 +948,17 @@ describe("farmEdit", () => {
       const saved = await getOrder(stores, id);
 
       assert.equal(saved.lines[0].qty, 1);
-      assert.equal(saved.fulfilment.site, "foster");
+      assert.equal(saved.fulfilment.occurrence, "WAC5-261025");
     });
 
     it("lets the customer move to another market day", async () => {
       const { stores, id, square } = await booked();
+      // The schedule opens Foster on the 18th, inside the horizon.
       const r = await edit(stores, id, {
-        idempotencyKey: editKey(), fulfilment: { date: "2026-10-18" },
-      }, square);
+        idempotencyKey: editKey(), fulfilment: { occurrence: "WAC5-261018" },
+      }, square, {
+        now: instant("2026-10-12", 9, 0, "America/New_York"),
+      });
 
       assert.equal(r.ok, true, JSON.stringify(r.errors));
       assert.equal((await getOrder(stores, id)).fulfilment.date,
@@ -972,20 +976,21 @@ describe("farmEdit", () => {
         }, square);
 
         assert.equal(r.ok, false);
-        assert.ok(r.errors["fulfilment.site"]);
+        assert.ok(r.errors["fulfilment.occurrence"]);
       });
 
     it("offers the customer only the usual days", async () => {
       const { stores, id } = await booked();
       const order = await getOrder(stores, id);
       const other = { ...order, fulfilment: {
-        ...order.fulfilment, date: "2026-10-18" } };
-      const mine = planChange(other, { date: "2026-10-25" },
+        ...order.fulfilment, occurrence: "WAC5-261018",
+        date: "2026-10-18" } };
+      const mine = planChange(other, { occurrence: "WAC5-261025" },
         { now, env });
-      const farm = planChange(other, { date: "2026-10-25" },
+      const farm = planChange(other, { occurrence: "WAC5-261025" },
         { now, env, by: "farm" });
 
-      assert.equal(mine.errors.date, "That date isn't available.");
+      assert.equal(mine.errors.occurrence, "That pickup isn't available.");
       assert.equal(farm.errors, undefined);
     });
   });
@@ -1032,8 +1037,8 @@ describe("farmEdit", () => {
     assert.equal(late.ok, false);
     assert.equal(late.errors.date, "That date isn't available.");
     assert.equal(drop.ok, false);
-    assert.equal(drop.errors["fulfilment.date"],
-      "That date is no longer available.");
+    assert.equal(drop.errors["fulfilment.occurrence"],
+      "That pickup is no longer available.");
     assert.equal((await getOrder(stores, id)).fulfilment.method, "onfarm");
     assert.equal(sent.length, 0);
   });
@@ -1237,7 +1242,7 @@ describe("farmEdit", () => {
 
     assert.equal(move.ok, true, JSON.stringify(move.errors));
     assert.equal(move.dryRun, true);
-    assert.equal(move.order.fulfilment.method, "scituate");
+    assert.equal(move.order.fulfilment.method, "scheduled");
     assert.equal(move.email.subject, "Your order is updated");
     assert.equal(quick.order.fulfilment.date, "2026-10-08");
     assert.deepEqual(await getOrder(stores, id), before);

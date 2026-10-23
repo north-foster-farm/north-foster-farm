@@ -3,7 +3,9 @@
 //
 //   GET   /api/account/orders                 the customer's orders
 //   POST  /api/account/orders/:id/cancel
-//   POST  /api/account/orders/:id/change      { date, onfarm, delivery, notes }
+//   POST  /api/account/orders/:id/change      { date, onfarm, delivery,
+//                                               notes, and for a scheduled
+//                                               pickup, method and site }
 //   POST  /api/account/orders/:id/edit        the order as it should be,
 //                                             paying or refunding the
 //                                             difference (lib/edit.mjs)

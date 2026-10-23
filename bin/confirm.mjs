@@ -18,6 +18,10 @@ const DESTRUCTIVE = {
   "customers rename": { does: "move the account of", apply: true },
   "customers forget": { does: "erase the details of", apply: true },
   "stock set": { does: "set the stock count of" },
+  "migrate scheduled-pickup": {
+    does: "rewrite every Stage 1 pickup order, running", unless: "dry-run",
+    whole: true,
+  },
   "jobs square": {
     does: "cancel the abandoned Square orders", apply: true, whole: true,
   },
@@ -33,7 +37,8 @@ const DESTRUCTIVE = {
 export const confirmation = ({ group, action, rest = [], flags = {} }) => {
   const rule = DESTRUCTIVE[`${group} ${action}`];
 
-  if (!rule || (rule.apply && !flags.apply)) return null;
+  if (!rule || (rule.apply && !flags.apply)
+    || (rule.unless && flags[rule.unless])) return null;
 
   const phrase = rule.whole ? `${group} ${action}` : rest[0];
 

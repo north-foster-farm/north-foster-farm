@@ -117,7 +117,8 @@ export const gaveUp = (over = {}) => pickup({
 });
 
 export const dropSite = (over = {}) => order({
-  fulfilment: { method: "scituate", date: "2026-10-17", onfarm: null,
+  fulfilment: { method: "scheduled", occurrence: "VFVQ-261017",
+    date: "2026-10-17", onfarm: null,
     delivery: null },
   payments: [{ amount: 9400, via: "venmo", at: "2026-10-06T13:00:00.000Z" }],
   ...over,

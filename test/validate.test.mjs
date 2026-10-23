@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import catalog from "../data/catalog.json" with { type: "json" };
-import terms from "../data/delivery.json" with { type: "json" };
+import terms from "../netlify/functions/lib/terms.mjs";
 import { indexCatalog } from "../assets/scripts/order/lib/catalog.mjs";
 import {
   findCode, normalizeCode, validateOrder, zipStatus,
@@ -369,7 +369,7 @@ describe("delivery rules", () => {
     const r = validateOrder(small, ctx);
 
     assert.equal(r.status, 422);
-    assert.match(r.errors["delivery.minimum"], /the drop site/);
+    assert.match(r.errors["delivery.minimum"], /scheduled pickup/);
   });
 
   it("records the state and takes eggs to Connecticut", () => {

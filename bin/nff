@@ -10,10 +10,13 @@
 
 import { spawn } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
+import { randomInt } from "node:crypto";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
+import registry from "../data/registry.json" with { type: "json" };
+import { newCode } from "../assets/scripts/order/lib/events.mjs";
 import { loadEnv } from "../netlify/functions/lib/env.mjs";
 import { USAGE as BREAKER_USAGE, breakerCommand } from "./breaker.mjs";
 import { noEmailRefusal } from "./no-email.mjs";
@@ -64,6 +67,29 @@ const USAGE = `Usage:
                                       the developer
   bin/nff address approve|deny <email>
   bin/nff orders list [--open] [--status=paid] [--email=x]
+  bin/nff orders occurrences          every occurrence a stored order
+                                      names (in its fulfilment or the
+                                      history of a move), and any no
+                                      data file defines any more (read
+                                      only; run it against production
+                                      before a release). Fails if one
+                                      is missing
+  bin/nff events                      every series by code with its
+                                      name, location and season, and
+                                      its occurrences in the coverage
+                                      window with their schedule line
+  bin/nff events new                  a generated code no location or
+                                      series has used (the registry's
+                                      codes are never reused)
+  bin/nff migrate scheduled-pickup [--dry-run] [--staging|--production]
+                                      rewrite orders of method
+                                      scituate, or market with a site,
+                                      to method scheduled with its
+                                      occurrence. Backs up the orders
+                                      first, stops and lists any order
+                                      it cannot map, is safe to run
+                                      twice, touches neither Square nor
+                                      money
   bin/nff orders show <id>
   bin/nff orders cancel <id> --reason <why> | --reason-text "..." |
                              --no-reason [--no-refund] [--amount 12.34]
@@ -102,39 +128,36 @@ const USAGE = `Usage:
                                       their own miss that kept the fee:
                                       they pay it again on the order
                                       page
-  bin/nff orders change <id> [--method onfarm|dropsite|market|delivery]
-                             [--site <id>]
+  bin/nff orders change <id> [--method onfarm|scheduled|delivery]
+                             [--occurrence <code-YYMMDD>]
                              [--date YYYY-MM-DD] [--window <id>]
                              [--address1 ... --address2 ... --town ...
                              --zip ...] [--cooler ...] [--gate ...]
                              [--delivery-notes ...] [--phone ...]
                              [--contact text|call] [--notes ...]
-                             [--key <retry key>] [--dry-run]
-                                      what the customer could change on
-                                      their own, for them, by their
-                                      rules and past the cutoff; also
-                                      the way they receive it (method)
-                                      and the address. The customer gets
-                                      the "order changed" email and
-                                      Square follows. The order keeps
-                                      its own prices. A change that
-                                      costs or credits money is
-                                      refused. --notes goes alone or
-                                      with a date, time or drop-off
-                                      detail, not with --method or an
-                                      address. --phone and --contact
-                                      go alone or with any other. The
-                                      key is printed before a method or
-                                      address change applies; after a
-                                      crash, pass it back as --key (a
-                                      key whose change is done succeeds
-                                      and applies nothing new).
-                                      --dry-run saves and sends
-                                      nothing and prints the email.
-                                      --method market needs --site
-                                      (a market in data/markets.json)
-                                      and a --date its schedule has.
-                                      --no-email: see below
+                             [--no-square] [--force] [--dry-run]
+                                      the farm's change to any order,
+                                      past, present or future, in any
+                                      status. A customer's rules (the
+                                      cutoff, open dates, an occurrence
+                                      closed to customers) don't bind
+                                      it; each one it overrides is a
+                                      warning. The occurrence must
+                                      exist. Every side
+                                      effect is listed first: emails,
+                                      Square calls, stock, money and
+                                      history. --dry-run stops there;
+                                      a real run then says what
+                                      happened. Square follows unless
+                                      --no-square (said aloud and
+                                      recorded). A change that could
+                                      move money, or that Square
+                                      refuses, applies nothing unless
+                                      --force, which applies the record
+                                      without moving money and reports
+                                      what Square kept. The customer
+                                      gets the "order changed" email
+                                      unless --no-email.
   bin/nff orders fulfil <id>
   bin/nff orders delete <id>
   bin/nff passes issue [--email <email>] [--days 14] [--note "..."]
@@ -341,10 +364,10 @@ const [
   passes,
   square,
   { checkRefunds },
-  { farmEdit },
-  { customerEmailWithheld, withholdCustomerEmail },
+  { applyAmend, planAmend },
+  { withholdCustomerEmail },
 ] = await Promise.all([
-  import("../data/delivery.json", { with: { type: "json" } }),
+  import("../netlify/functions/lib/terms.mjs"),
   import("../netlify/functions/lib/admin.mjs"),
   import("../netlify/functions/lib/auth.mjs"),
   import("../netlify/functions/lib/jobs.mjs"),
@@ -365,7 +388,7 @@ const [
   import("../netlify/functions/lib/passes.mjs"),
   import("../netlify/functions/lib/square-pause.mjs"),
   import("../netlify/functions/lib/settle.mjs"),
-  import("../netlify/functions/lib/edit.mjs"),
+  import("../netlify/functions/lib/amend.mjs"),
   import("../netlify/functions/lib/payments.mjs"),
 ]);
 
@@ -464,7 +487,7 @@ const checkedSchedule = (file) => {
   if (!file) throw new Error("Which file? bin/nff schedule check <file>");
 
   const r = checkSchedule(readFileSync(file, "utf8"), {
-    timeZone: terms.timeZone,
+    timeZone: terms.timeZone, model: terms.model,
   });
 
   if (!r.ok) {
@@ -478,13 +501,19 @@ const checkedSchedule = (file) => {
     byDate.set(w.date, [...(byDate.get(w.date) || []), w.id]);
   }
 
+  const lines = r.lines.map((l) => `${l.date} ${l.code} ${l.action}${
+    l.id ? ` ${l.id}` : ""}`);
+
   return {
-    value: [...byDate].map(([date, ids]) => `${date} ${ids.join(" ")}`)
-      .join("; "),
+    value: [
+      ...[...byDate].map(([date, ids]) => `${date} ${ids.join(" ")}`),
+      ...lines,
+    ].join("; "),
     summary: `${r.windows.length} window${
       r.windows.length === 1 ? "" : "s"} on ${byDate.size} day${
       byDate.size === 1 ? "" : "s"}, ${r.windows[0].date} through ${
-      r.last}. It passes.`,
+      r.last}, and ${lines.length} occurrence line${
+      lines.length === 1 ? "" : "s"}. It passes.`,
   };
 };
 
@@ -916,6 +945,71 @@ const run = async () => {
 
     return undefined;
   }
+  case "orders occurrences": {
+    const { occurrences, missing } = await admin.occurrenceUse(stores);
+
+    for (const [id, n] of Object.entries(occurrences).sort()) {
+      out(`${id.padEnd(28)}${n} order${n === 1 ? "" : "s"}`);
+    }
+    if (!Object.keys(occurrences).length) out("No scheduled pickup orders.");
+    for (const m of missing) {
+      out(`MISSING  ${m.id} names "${m.occurrence}", which no data file ` +
+        "defines");
+    }
+    if (missing.length) {
+      throw new Error(`${missing.length} order${
+        missing.length === 1 ? "" : "s"} name an occurrence that is ` +
+        "gone. Restore its series in the data file and archive it.");
+    }
+
+    return undefined;
+  }
+  case "events undefined": {
+    const { listEvents } = await import(
+      "../netlify/functions/lib/event-list.mjs");
+    const { pickupSchedule } = await import(
+      "../netlify/functions/lib/pickups.mjs");
+
+    return out(listEvents(terms, pickupSchedule(process.env), new Date())
+      .join("\n"));
+  }
+  case "events new": {
+    const taken = [...terms.model.locations, ...terms.model.series]
+      .map((x) => x.code);
+    const used = [...taken, ...registry.codes];
+
+    return out(newCode(used, randomInt));
+  }
+  case "migrate scheduled-pickup": {
+    const { migrateScheduledPickup } = await import(
+      "../netlify/functions/lib/migrate.mjs");
+    const done = await migrateScheduledPickup(stores, {
+      dryRun: !!flags["dry-run"],
+      backup: async () => {
+        const r = await backup.exportBackup(stores, {
+          label: "before-scheduled-pickup", upload: true,
+        });
+
+        out(`Backed up first: ${r.counts.orders} orders, in ${
+          process.env.BACKUP_R2_BUCKET} as ${r.key}.`);
+      },
+    });
+
+    for (const c of done.changes) {
+      out(`${c.id}  ${c.from.method}${c.from.site ? ` ${c.from.site}` : ""} ${
+        c.from.date}  ->  ${c.to}`);
+    }
+    for (const u of done.unmapped) out(`CANNOT MAP  ${u.id}: ${u.reason}`);
+    if (!done.ok) {
+      throw new Error(`${done.unmapped.length} order${
+        done.unmapped.length === 1 ? "" : "s"} cannot be mapped. Nothing ` +
+        "was changed.");
+    }
+
+    return out(done.dryRun
+      ? `--dry-run: ${done.changes.length} order(s) would change.`
+      : `${done.changes.length} order(s) migrated.`);
+  }
   case "orders show":
     return out(await admin.showOrder(stores, rest[0]));
   case "orders cancel": {
@@ -1018,9 +1112,8 @@ const run = async () => {
     const given = (k) => (typeof flags[k] === "string" ? flags[k] : undefined);
     const pick = (obj) => Object.fromEntries(Object.entries(obj)
       .filter(([, v]) => v !== undefined));
-    const method = given("method") === "dropsite" ? "scituate"
-      : given("method");
-    const site = given("site");
+    const method = given("method");
+    const occurrence = given("occurrence");
     const onfarm = pick({ window: given("window") });
     const delivery = pick({
       address1: given("address1"), address2: given("address2"),
@@ -1032,7 +1125,7 @@ const run = async () => {
     });
     const body = pick({
       fulfilment: pick({
-        method, site, date: given("date"),
+        method, occurrence, date: given("date"),
         onfarm: Object.keys(onfarm).length ? onfarm : undefined,
         delivery: Object.keys(delivery).length ? delivery : undefined,
       }),
@@ -1041,46 +1134,59 @@ const run = async () => {
     });
 
     if (!rest[0]) throw new Error("Which order? orders change <id> ...");
-    if (site !== undefined && method !== "market") {
-      throw new Error("--site needs --method market.");
+    if (occurrence !== undefined && method !== undefined
+      && method !== "scheduled") {
+      throw new Error("--occurrence needs --method scheduled.");
     }
-    if (method === "market" && onfarm.window !== undefined) {
-      throw new Error("--window is for on-farm pickup, not --method market.");
+    if (method === "scheduled" && onfarm.window !== undefined) {
+      throw new Error("--window is for on-farm pickup, not --method " +
+        "scheduled.");
     }
     if (!Object.keys(body.fulfilment).length && !body.customer
       && body.notes === undefined) {
       throw new Error("Nothing to change. Give --method, --date, " +
-        "--site, --window, an address, --cooler, --gate, --phone or --notes.");
+        "--occurrence, --window, an address, --cooler, --gate, --phone " +
+        "or --notes.");
     }
 
-    const r = await farmEdit(stores, rest[0], body, {
-      key: given("key"), dryRun: !!flags["dry-run"],
-      onKey: (k) => out(`Key: ${k} (pass --key ${k} to retry)`),
+    const opts = {
+      noSquare: !!flags["no-square"] && flags["no-square"] !== "false",
+    };
+    const planned = await planAmend(stores, rest[0], body, opts);
+
+    if (!planned.ok) {
+      throw new Error(Object.values(planned.errors).join(" "));
+    }
+
+    const { plan } = planned;
+
+    out(summaryLine(plan.order));
+    out(`Before: ${plan.before}\nAfter:  ${plan.after}`);
+    for (const w of plan.warnings) out(`Overrides a customer rule: ${w}`);
+    out("Side effects:");
+    out(`  email    ${plan.effects.email}`);
+    out(`  square   ${plan.effects.square}`);
+    out(`  stock    ${plan.effects.stock}`);
+    out(`  money    ${plan.effects.money}`);
+    out(`  history  ${plan.effects.history.join("; ")}`);
+    if (flags["dry-run"]) return out("--dry-run: nothing was changed.");
+
+    const done = await applyAmend(stores, plan, {
+      force: !!flags.force && flags.force !== "false",
     });
 
-    if (!r.ok) {
-      throw new Error(Object.values(r.errors).join(" "));
-    }
-    if (r.dryRun) {
-      out(summaryLine(r.order));
-      if (customerEmailWithheld()) {
-        return out("--dry-run: nothing saved or sent. With --no-email the " +
-          "customer would get nothing.");
-      }
-
-      out(`--dry-run: nothing saved or sent. The customer would get:\n`);
-      out(`Subject: ${r.email.subject}\n\n${r.email.text}`);
-
-      return undefined;
+    if (!done.ok) {
+      throw new Error(`${done.message} Nothing was applied${
+        done.refused === "money" ? "; use --force to apply the record" +
+          " without moving money" : ""}.`);
     }
 
-    out(summaryLine(r.order));
-    if (r.outOfSync) {
-      out("Square did not take the change: the order is flagged out of " +
-        "sync. Fix the Square order by hand; the farm has been told.");
-    }
+    out("Done:");
+    out(`  email    ${done.report.email}`);
+    out(`  square   ${done.report.square}`);
+    out(`  history  farm.changed`);
 
-    return undefined;
+    return out(summaryLine(done.order));
   }
   case "orders fulfil":
   case "orders fulfill":

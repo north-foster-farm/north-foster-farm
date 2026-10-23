@@ -1,5 +1,5 @@
 {{/*
-  The About page's markets: the list from data/markets.json on the
+  The About page's markets: the list from the market series of data/series.json on the
   left, a photo on the right. Each market stacks its name, day and
   hours, season and address, one short line each, so none wraps in
   five twelfths of the text column. The row stacks below md, the
@@ -26,7 +26,7 @@
 <div class="markets row g-4 align-items-start mb-3">
   <div class="col-md-5">
     <ul class="markets-list list-unstyled mb-0">
-      {{ range hugo.Data.markets.markets }}
+      {{ range (partial "lib/pickup-lists.html" .).markets }}
         {{ $parts := split .where ", " }}
         {{ $venue := index $parts 0 }}
         {{ $street := delimit (after 1 $parts) ", " }}

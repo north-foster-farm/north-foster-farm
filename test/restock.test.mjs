@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import catalog from "../data/catalog.json" with { type: "json" };
-import terms from "../data/delivery.json" with { type: "json" };
+import terms from "../netlify/functions/lib/terms.mjs";
 import {
   archived, indexCatalog,
 } from "../assets/scripts/order/lib/catalog.mjs";

@@ -28,6 +28,7 @@ import discountCodes from "../../../data/discount-codes.json" with {
 };
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import { indexCatalog } from "../../../assets/scripts/order/lib/catalog.mjs";
+import { modelled } from "../../../assets/scripts/order/lib/dates.mjs";
 import {
   CONTACT, phoneOk, validateOrder,
 } from "../../../assets/scripts/order/lib/validate.mjs";
@@ -71,7 +72,7 @@ export const payloadFor = (order, body = {}) => {
   const c = body.customer && typeof body.customer === "object"
     ? body.customer
     : {};
-  const f = order.fulfilment;
+  const f = modelled(terms, order.fulfilment);
   const next = body.fulfilment && typeof body.fulfilment === "object"
     ? body.fulfilment
     : {};
@@ -91,9 +92,10 @@ export const payloadFor = (order, body = {}) => {
     },
     fulfilment: {
       method,
-      date: next.date || (same ? f.date : null),
-      ...(next.site || (same && f.site)) && {
-        site: next.site || f.site,
+      date: next.date || (same && !next.occurrence ? f.date : null),
+      ...(next.site) && { site: next.site },
+      ...(next.occurrence || (same && f.occurrence)) && {
+        occurrence: next.occurrence || f.occurrence,
       },
       onfarm: { ...old("onfarm"), ...(next.onfarm || {}) },
       delivery: { ...old("delivery"), ...(next.delivery || {}) },
@@ -165,9 +167,7 @@ export const planEdit = async (stores, order, body, {
   const result = validate(payloadFor(order, body), {
     index, terms, now, group, codes, schedule, placed: order.submittedAt,
     farm,
-    kept: order.fulfilment.method === "market" ? order.fulfilment.site
-      : null,
-    keptDate: order.fulfilment.date,
+    kept: modelled(terms, order.fulfilment).occurrence || null,
     held: Object.fromEntries(order.lines.map((l) => [l.sku, l.qty])),
     waive: {
       minimum: !!order.pass,

@@ -1,11 +1,11 @@
 // The thin bar above the header that names the next pop-up (#139),
-// from data/events.json. The build picks the event; the page drops a
+// from data/series.json. The build picks the event; the page drops a
 // bar whose end has passed. docs/qa-launch.md, "The autumn refresh".
 
-import events from "../data/events.json" with { type: "json" };
+import { events } from "./support/series.mjs";
 import { expect, test } from "./support/order.mjs";
 
-// The event the bar shows is worked out here from data/events.json as
+// The event the bar shows is worked out here from data/series.json as
 // layouts/partials/top-bar.html does: the first by date that has not
 // ended, in the farm's zone. A spec that named one event went red the
 // day it ended, on every build after.
@@ -33,7 +33,7 @@ const day = (date, style) => new Date(`${date}T12:00:00Z`)
 const urlize = (text) => text.toLowerCase().replace(/[^a-z0-9\s-]/g, "")
   .trim().replace(/\s+/g, "-");
 
-const next = [...events.events]
+const next = [...events]
   .sort((a, b) => a.date.localeCompare(b.date))
   .map((e) => ({
     ...e, ends: `${e.date}T${e.end || "23:59"}:00${offset(e.date)}`,
@@ -55,7 +55,7 @@ const EVENT = next && {
 const bar = (page) => page.locator("[data-top-bar]");
 
 test.describe("top bar, with no event ahead", () => {
-  test.skip(!!EVENT, "data/events.json has an event ahead");
+  test.skip(!!EVENT, "data/series.json has an event ahead");
 
   test("no page carries a bar", async ({ page }) => {
     for (const path of ["/", "/order/", "/about/"]) {
@@ -67,7 +67,7 @@ test.describe("top bar, with no event ahead", () => {
 
 test.describe("top bar (#139)", () => {
   test.skip(!EVENT || !EVENT.popUp,
-    "no pop-up ahead in data/events.json; these cover a pop-up");
+    "no pop-up ahead in data/series.json; these cover a pop-up");
   test("one line above the header, short on a phone, linking to the map",
     async ({ page }) => {
       await page.goto("/");

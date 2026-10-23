@@ -1,5 +1,5 @@
 {{/* A market's season in words, from its "opens" and "closes" dates
-     in data/markets.json, so the words can't disagree with the dates:
+     in the market series of data/series.json, so the words can't disagree with the dates:
      "June through September". */}}
 {{ $zone := "America/New_York" }}
 {{ $opens := (time.AsTime .opens $zone).Format "January" }}

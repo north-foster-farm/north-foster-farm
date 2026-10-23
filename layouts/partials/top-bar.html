@@ -1,5 +1,5 @@
 {{/* The top bar: one quiet line above the header on every page, naming
-     the next event in data/events.json and linking to it. Each build
+     the next event in the pop-up series of data/series.json and linking to it. Each build
      picks the next event that has not ended, so there is nothing to
      edit to retire one; since no build runs on the day, top-bar.js
      also drops a bar whose end has passed. An event without times
@@ -8,7 +8,7 @@
      a link points at the map. Draft wording for James (#139). */}}
 {{ $zone := "America/New_York" }}
 {{ $next := false }}
-{{ range sort hugo.Data.events.events "date" }}
+{{ range sort (partial "lib/pickup-lists.html" .).events "date" }}
   {{ $ends := time.AsTime (printf "%sT%s:00" .date (.end | default "23:59")) $zone }}
   {{ if and (not $next) (gt $ends.Unix now.Unix) }}
     {{ $next = merge . (dict "ends" $ends) }}

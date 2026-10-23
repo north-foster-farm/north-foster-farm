@@ -16,6 +16,9 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  buildModel, whenOf,
+} from "../../assets/scripts/order/lib/events.mjs";
 import { dayName } from "../../assets/scripts/order/lib/zoned.mjs";
 import { TTL as sessionCacheTtl } from "../../assets/scripts/session/cache.js";
 import { span } from "../../netlify/functions/lib/launch.mjs";
@@ -64,7 +67,17 @@ const CODE = /^(layouts|assets|netlify)\//;
 export const knownFacts = () => {
   const company = json("data/company.json");
   const terms = json("data/delivery.json");
-  const { markets } = json("data/markets.json");
+  const { series } = json("data/series.json");
+  const { locations } = json("data/locations.json");
+  const markets = buildModel(locations, series).series
+    .filter((s) => s.kind === "market").map((s) => {
+      const loc = locations.find((l) => l.code === s.location);
+
+      return {
+        name: s.name, when: whenOf(s),
+        where: [loc.name, loc.street, loc.city].join(", "),
+      };
+    });
   const facts = [];
   // `only`, when given, limits the files the value is looked for in.
   const add = (fact, source, value, pattern = word(value), only) =>
@@ -125,7 +138,7 @@ export const knownFacts = () => {
   add("news invite", a, `${accounts.newsInviteDays} days`);
   add("news invite", a, `within ${span(accounts.newsInviteDays)}`);
 
-  const m = "data/markets.json";
+  const m = "data/series.json";
   for (const market of markets) {
     add("market", m, market.name);
     add("market hours", m, market.when);

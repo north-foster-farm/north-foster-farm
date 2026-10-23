@@ -19,7 +19,7 @@
     {{< terms "cutoff-day" >}}           Wednesday
     {{< terms "cutoff-hour" >}}          noon
     {{< terms "last-market" >}}          Foster Farmers Market, the
-                                         market in data/markets.json
+                                         market in the market series of data/series.json
                                          that closes last
     {{< terms "last-market-day" >}}      October 25, the day it closes
   A place drops its state and ZIP code. The farm's own address is in
@@ -61,7 +61,7 @@
   {{ (time.AsTime $of.start $terms.timeZone).Format "January 2" }}
 {{- else if or (eq $fact "last-market") (eq $fact "last-market-day") -}}
   {{- $last := dict "closes" "" -}}
-  {{- range hugo.Data.markets.markets -}}
+  {{- range (partial "lib/pickup-lists.html" .).markets -}}
     {{- if gt .closes $last.closes }}{{ $last = . }}{{ end -}}
   {{- end -}}
   {{- if eq $fact "last-market" -}}

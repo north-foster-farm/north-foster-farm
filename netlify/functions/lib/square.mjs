@@ -20,7 +20,9 @@ import { MONEY_FLOOR_MS, timedFetch, timedOut } from "./http.mjs";
 import {
   pickupTimes, windowLabel,
 } from "../../../assets/scripts/order/lib/schedule.mjs";
-import { siteOf } from "../../../assets/scripts/order/lib/dates.mjs";
+import {
+  isScheduled, orderOccurrence,
+} from "../../../assets/scripts/order/lib/dates.mjs";
 import { instant } from "../../../assets/scripts/order/lib/zoned.mjs";
 
 const HOSTS = {
@@ -321,18 +323,23 @@ const fulfillment = (order) => {
 
   // A pickup's time is its window's start (W11d-D); the drop site's is
   // when it opens.
-  const site = siteOf(terms, f.method, f.site);
+  const site = orderOccurrence(terms, f);
+  const dropSite = terms.model.series.find((s) => s.kind === "drop-site");
   const start = f.method === "onfarm"
     && (pickupTimes(f.onfarm) || { from: "09:00" }).from;
   const [hour, minute] = start
     ? start.split(":").map(Number)
-    : [(site || terms.scituate).opensHour,
-      (site || terms.scituate).opensMinute || 0];
-  // A market gone from the data is not the farm: say which it was.
-  const where = site
-    ? `${f.method === "market" ? "Market pickup" : "Drop site"}, ${
-      site.location}`
-    : f.method === "market" ? `Market pickup, ${f.site}` : "On-farm pickup";
+    : [(site || dropSite).opensHour,
+      (site || dropSite).opensMinute || 0];
+  // An occurrence gone from the data is not the farm, and has no hour:
+  // say which it was and keep the time Square already holds.
+  const gone = isScheduled(f) && !site;
+  const where = gone
+    ? `Pickup, ${f.occurrence || f.site}`
+    : site
+      ? (site.kind === "drop-site" ? `Drop site, ${site.place}`
+        : `Pickup at ${site.name}, ${site.short}`)
+      : "On-farm pickup";
 
   return {
     type: "PICKUP",
@@ -344,7 +351,8 @@ const fulfillment = (order) => {
         phone_number: e164(phone),
       },
       schedule_type: "SCHEDULED",
-      pickup_at: instant(f.date, hour, minute, tz).toISOString(),
+      pickup_at: gone ? undefined
+        : instant(f.date, hour, minute, tz).toISOString(),
       note: `${where} · ${note}`.slice(0, 500),
     },
   };
@@ -728,6 +736,10 @@ export const updateFulfilment = async (squareOrderId, order, {
   const next = fulfillment(order);
 
   delete next.state;
+  // A pickup at a site the data no longer has keeps its time.
+  if (next.pickup_details && !next.pickup_details.pickup_at) {
+    next.pickup_details.pickup_at = (existing.pickup_details || {}).pickup_at;
+  }
 
   const data = await call(cfg, `/v2/orders/${squareOrderId}`, {
     order: {

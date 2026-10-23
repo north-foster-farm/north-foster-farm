@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { noEmailRefusal } from "../bin/no-email.mjs";
-import { pickupSites } from "../assets/scripts/order/lib/sites.mjs";
+import { buildModel } from "../assets/scripts/order/lib/events.mjs";
 
 describe("--no-email refusals", () => {
   it("refuses the commands that send retention or news email", () => {
@@ -20,20 +20,17 @@ describe("--no-email refusals", () => {
   });
 });
 
-describe("a market's opening hour", () => {
-  const opens = (when) => pickupSites([{
-    name: "Market", when, opens: "2026-05-01", closes: "2026-10-31",
-    pickup: { id: "m" },
-  }])[0].opensHour;
+describe("a series' opening hour and window", () => {
+  const series = (opens, closes) => buildModel([], [{
+    code: "AAAA", name: "Market", location: "BBBB", start: "2026-05-03",
+    end: "2026-10-31", opens, closes,
+  }]).series[0];
 
-  it("gives a single PM to the start when it is the earlier hour", () => {
-    assert.equal(opens("Sundays, 4:00 – 7:00 PM"), 16);
-  });
-
-  it("keeps an AM start that runs past noon", () => {
-    assert.equal(opens("Sundays, 11:00 – 1:00 PM"), 11);
-    assert.equal(opens("Sundays, 10:00 – 12:00 PM"), 10);
-    assert.equal(opens("Sundays, 9:00 AM – 1:00 PM"), 9);
-    assert.equal(opens("Sundays, 12:00 – 4:00 PM"), 12);
+  it("reads a 24-hour opening and prints the farm's window", () => {
+    assert.equal(series("16:00", "19:00").opensHour, 16);
+    assert.equal(series("16:00", "19:00").window, "4:00 – 7:00 PM");
+    assert.equal(series("11:00", "13:00").window, "11:00 AM – 1:00 PM");
+    assert.equal(series("09:00", "13:00").window, "9:00 AM – 1:00 PM");
+    assert.equal(series("12:00", "16:00").window, "12:00 – 4:00 PM");
   });
 });

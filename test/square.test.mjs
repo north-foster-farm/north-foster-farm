@@ -10,7 +10,7 @@ import {
 import {
   KILL_SWITCH, deletionsPaused, readPause, setPause,
 } from "../netlify/functions/lib/square-pause.mjs";
-import { pickupSites } from "../assets/scripts/order/lib/sites.mjs";
+import { buildModel } from "../assets/scripts/order/lib/events.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 
 const env = {
@@ -235,31 +235,64 @@ describe("buildOrder", () => {
     );
   });
 
-  it("schedules a market pickup at the site's opening", () => {
-    const at = (site) => buildOrder(order({
-      fulfilment: { method: "market", site, date: "2026-10-25",
+  it("schedules a market pickup at the occurrence's opening", () => {
+    const at = (occurrence) => buildOrder(order({
+      fulfilment: { method: "scheduled", occurrence, date: "2026-10-25",
         onfarm: null },
     }), "CUST", cfg).fulfillments[0].pickup_details;
 
-    assert.match(at("foster").pickup_at, /T13:00:00/);
-    assert.match(at("foster").note, /^Market pickup, Foster/);
+    assert.match(at("WAC5-261025").pickup_at, /T13:00:00/);
+    assert.match(at("WAC5-261025").note,
+      /^Pickup at Foster Farmers Market, Shady Acres Diner/);
+  });
+
+  it("schedules a pop-up pickup at its start, with minutes", () => {
+    const pop = buildOrder(order({
+      fulfilment: { method: "scheduled", occurrence: "GR6C-260710",
+        date: "2026-07-10", onfarm: null },
+    }), "CUST", cfg).fulfillments[0].pickup_details;
+
+    assert.equal(pop.pickup_at, "2026-07-10T22:00:00.000Z");
+    assert.match(pop.note,
+      /^Pickup at Summer Celebration, Warwick City Hall Plaza, Warwick/);
+  });
+
+  it("names the drop site in its note", () => {
+    const note = buildOrder(order({
+      fulfilment: { method: "scheduled", occurrence: "VFVQ-261017",
+        date: "2026-10-17", onfarm: null },
+    }), "CUST", cfg).fulfillments[0].pickup_details.note;
+
+    assert.match(note, /^Drop site, Village Green/);
+  });
+
+  it("reads a Stage 1 drop site order the same way", () => {
+    const note = buildOrder(order({
+      fulfilment: { method: "scituate", date: "2026-10-17", onfarm: null },
+    }), "CUST", cfg).fulfillments[0].pickup_details.note;
+
+    assert.match(note, /^Drop site, Village Green/);
   });
 
   it("does not call a market gone from the data on-farm", () => {
-    const note = buildOrder(order({
-      fulfilment: { method: "market", site: "gone", date: "2026-10-25",
-        onfarm: null },
-    }), "CUST", cfg).fulfillments[0].pickup_details.note;
+    const gone = buildOrder(order({
+      fulfilment: { method: "scheduled", occurrence: "ZZZZ-261025",
+        date: "2026-10-25", onfarm: null },
+    }), "CUST", cfg).fulfillments[0].pickup_details;
+    const { note } = gone;
 
-    assert.match(note, /^Market pickup, gone/);
+    assert.equal(gone.pickup_at, undefined,
+      "no hour of the drop site's: the update keeps Square's own");
+
+    assert.match(note, /^Pickup, ZZZZ-261025/);
   });
 
   it("reads an evening site's hour and minutes", () => {
-    const [site] = pickupSites([{
-      name: "Evening Market", where: "Somewhere", opens: "2026-06-01",
-      closes: "2026-08-31", when: "Wednesdays, 4:30 – 7:00 PM",
-      pickup: { id: "evening" },
-    }]);
+    const [site] = buildModel([], [{
+      code: "AAAA", name: "Evening Market", location: "BBBB",
+      start: "2026-06-03", end: "2026-08-26", opens: "16:30",
+      closes: "19:00",
+    }]).series;
 
     assert.equal(site.opensHour, 16);
     assert.equal(site.opensMinute, 30);

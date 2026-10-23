@@ -6,17 +6,23 @@ import terms from "./terms.mjs";
 import {
   pickupTimes, windowLabel,
 } from "../../../assets/scripts/order/lib/schedule.mjs";
-import { siteOf } from "../../../assets/scripts/order/lib/dates.mjs";
+import {
+  isScheduled, orderOccurrence,
+} from "../../../assets/scripts/order/lib/dates.mjs";
 import { company } from "./company.mjs";
 
 // "10:00 AM – 4:00 PM" -> "10 AM and 4 PM", for "between ... and ...".
 export const between = (window) =>
   window.replace(/:00/g, "").split(/\s*–\s*/).join(" and ");
 
+// What the customer reads. The drop site, every market and every pop-up
+// are one choice (draft wording); `placeOf(order).name` is the farm's
+// own name for the place.
 export const methodName = (method) => ({
   delivery: "Delivery",
-  scituate: "Drop site",
-  market: "Market pickup",
+  scheduled: "Scheduled pickup",
+  scituate: "Scheduled pickup",
+  market: "Scheduled pickup",
   onfarm: "On-farm pickup",
 }[method] || method);
 
@@ -77,22 +83,31 @@ export const placeOf = (order) => {
       window: hours(terms.delivery.window),
       place: streetAddress(f.delivery || {}),
     }),
-    scituate: () => ({
-      window: hours(terms.scituate.window), place: terms.scituate.location,
-    }),
-    market: () => {
-      const site = siteOf(terms, "market", f.site);
+    // An occurrence gone from the data never reads as the farm or the
+    // drop site: it is named by its id, with no place or hour.
+    scheduled: () => {
+      const o = orderOccurrence(terms, f);
 
-      return site
-        ? { window: hours(site.window), place: site.location }
-        : { window: "", place: "" };
+      return o
+        ? {
+          occurrence: o.id, site: o.series, siteName: o.name,
+          window: hours(o.window), place: o.place,
+        }
+        : {
+          occurrence: f.occurrence, siteName: `Pickup, ${f.occurrence}`,
+          window: "", place: `Pickup, ${f.occurrence}`,
+        };
     },
     onfarm: () => ({ window: pickupWindow(order), place: FARM }),
-  }[f.method];
+  }[isScheduled(f) ? "scheduled" : f.method];
 
+  const where = of ? of() : { window: "", place: "" };
+
+  // `name` is the farm's own word for the place (a slip's heading);
+  // the customer's is `methodName`.
   return {
     method: f.method,
-    name: methodName(f.method),
-    ...(of ? of() : { window: "", place: "" }),
+    name: where.siteName || methodName(f.method),
+    ...where,
   };
 };

@@ -85,7 +85,7 @@ describe("the order details block", () => {
     o.fulfilment.date = "2026-10-17";
     const drop = orderConfirmed(o, { links });
 
-    assert.match(drop.text, /Order type: \*\*Drop site\*\*/);
+    assert.match(drop.text, /Order type: \*\*Scheduled pickup\*\*/);
     assert.match(drop.text,
       /- When: Saturday, October 17, between 10 and 11 AM/);
     assert.match(drop.text, /- Where: Village Green/);
@@ -409,7 +409,9 @@ describe("the monitoring emails", () => {
 
   it("tomorrow: every order due, by method, with what to pack", () => {
     const delivery = { ...order(), status: "paid" };
-    const drop = { ...order("scituate"), id: "NFF-2610-DROP" };
+    const drop = { ...order("scheduled"), id: "NFF-2610-DROP" };
+
+    drop.fulfilment.occurrence = "VFVQ-261017";
     const farm = { ...order("onfarm"), id: "NFF-2610-FARM", status: "paid" };
 
     delivery.fulfilment.delivery.notes = "Dog in the yard";

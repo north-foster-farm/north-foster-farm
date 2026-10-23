@@ -31,6 +31,10 @@ import {
   movedDelivery, orderCancelled, orderChanged, sessionsEnded,
 } from "./templates.mjs";
 import { lastInteraction, quietDue } from "./retention.mjs";
+import siteTerms from "./terms.mjs";
+import {
+  isScheduled, orderOccurrence,
+} from "../../../assets/scripts/order/lib/dates.mjs";
 
 export { forgetCustomer } from "./forget.mjs";
 
@@ -245,6 +249,42 @@ export const listOrders = async (stores, {
   if (open) orders = orders.filter((o) => OPEN.includes(o.status));
 
   return orders;
+};
+
+// The occurrences that stored orders name (in their fulfilment, and in
+// the history of a move), and the orders that name one no data file
+// defines any more (a series is archived, never deleted). Read only;
+// the build cannot read this store (a site-wide store answers 401 from
+// a build, docs/monitoring.md), so this is the check of real
+// references. -> { occurrences: { id: count }, missing: [{ id, occurrence }] }
+export const occurrenceUse = async (stores) => {
+  const occurrences = {};
+  const missing = [];
+
+  for (const o of await allOrders(stores)) {
+    const f = o.fulfilment || {};
+
+    if (!isScheduled(f)) continue;
+
+    const here = orderOccurrence(siteTerms, f);
+    const id = here ? here.id : f.occurrence || f.site || f.method;
+
+    occurrences[id] = (occurrences[id] || 0) + 1;
+    if (!here) missing.push({ id: o.id, occurrence: id });
+
+    for (const e of (o.history || [])) {
+      for (const named of [e.from, e.to]) {
+        if (e.event === "fulfilment.moved" && named
+          && !orderOccurrence(siteTerms, {
+            method: "scheduled", occurrence: named,
+          })) {
+          missing.push({ id: o.id, occurrence: named });
+        }
+      }
+    }
+  }
+
+  return { occurrences, missing };
 };
 
 export const showOrder = async (stores, id) =>

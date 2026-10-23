@@ -30,9 +30,21 @@ export const firstPickup = async (request) => {
   return { date: day.date, window: day.windows[0].id };
 };
 
-// A valid on-farm order for one dozen eggs ($7), ready to send.
+// The first scheduled pickup the farm has opened (an entry of
+// /api/dates `scheduled`), of the series with this code when given.
+// Null when the schedule opens none.
+export const firstScheduled = async (request, code = null) => {
+  const dates = await (await request.get("/api/dates")).json();
+
+  return dates.scheduled.find((d) => !code || d.series === code) || null;
+};
+
+// A valid order for one dozen eggs ($7), ready to send: on-farm
+// pickup, or with `occurrence` (an id from `scheduled`) a scheduled
+// pickup at it.
 export const eggOrder = async (request, {
   email, nonce = NONCE.ok, claimedTotal = 700, qty = 1, extra = {},
+  occurrence = null,
 } = {}) => ({
   customer: {
     firstName: "QA", lastName: "Api", email, phone: "", contact: "text",
@@ -40,6 +52,8 @@ export const eggOrder = async (request, {
   },
   lines: [{ sku: SKU.eggs, qty }],
   fulfilment: await (async () => {
+    if (occurrence) return { method: "scheduled", occurrence };
+
     const { date, window } = await firstPickup(request);
 
     return { method: "onfarm", date, onfarm: { window }, delivery: {} };

@@ -2,7 +2,7 @@
 // now rather than at build time; on-farm pickup's from the farm's
 // schedule (PICKUP_SCHEDULE), each date with its windows.
 
-import terms from "../../data/delivery.json" with { type: "json" };
+import terms from "./lib/terms.mjs";
 import { allDates } from "../../assets/scripts/order/lib/dates.mjs";
 import { now as clock } from "./lib/clock.mjs";
 import { json } from "./lib/http.mjs";

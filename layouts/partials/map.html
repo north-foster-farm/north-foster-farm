@@ -17,8 +17,8 @@
   market are one place, so one pin whose card lists both. The farm and the Foster market stand a little
   apart at the whole map and in their true places once zoomed in. A
   market shows from its "opens" to its "closes" date in
-  data/markets.json and a pop-up until its last date in
-  data/events.json: the build leaves out what has ended, and
+  the market series of data/series.json and a pop-up until its last date in
+  the pop-up series of data/series.json: the build leaves out what has ended, and
   scripts/map/ hides what ends before the next build.
 
   scripts/map/ makes it answer, switches the layers, opens the cards
@@ -79,7 +79,7 @@
   {{ if gt $dropStart.Unix now.Unix }}
     {{ $dropLine = printf "%s, starting %s" $dropLine ($dropStart.Format "January 2") }}
   {{ end }}
-  {{ $scituate := index hugo.Data.markets.markets 0 }}
+  {{ $scituate := index (partial "lib/pickup-lists.html" .).markets 0 }}
   {{ $when := slice }}
   {{ $links := slice }}
   {{ $until := "" }}
@@ -106,7 +106,7 @@
     "shop" (dict "label" "Shop for the drop site" "href" (printf "%s?method=scituate" $order)))) }}
 
   {{/* The other markets, while they run. */}}
-  {{ range after 1 hugo.Data.markets.markets }}
+  {{ range after 1 (partial "lib/pickup-lists.html" .).markets }}
     {{ if ge .closes $today }}
       {{ $places = $places | append (merge (partial "map/xy.html" .) (dict
         "name" .name "key" .name
@@ -124,7 +124,7 @@
   {{/* Pop-ups to come, one place each, its dates in order. */}}
   {{ $at := slice }}
   {{ $dates := dict }}
-  {{ range sort hugo.Data.events.events "date" }}
+  {{ range sort (partial "lib/pickup-lists.html" .).events "date" }}
     {{ if and (eq .kind "pop-up") (ge .date $today) }}
       {{ if not (index $dates .place) }}{{ $at = $at | append . }}{{ end }}
       {{ $dates = merge $dates (dict .place ((index $dates .place | default slice) | append .)) }}

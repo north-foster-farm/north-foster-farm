@@ -16,12 +16,14 @@
 
 import accounts from "../../../data/accounts.json" with { type: "json" };
 import terms from "./terms.mjs";
+import {
+  isScheduled, orderOccurrence,
+} from "../../../assets/scripts/order/lib/dates.mjs";
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import {
   addDays, dayName, label, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { GUIDE, RUNBOOK_ALERTS } from "./alerts-guide.mjs";
-import { siteOf } from "../../../assets/scripts/order/lib/dates.mjs";
 import { company } from "./company.mjs";
 import {
   between, methodName, packetCounts, pickupWindow, placeOf, streetAddress,
@@ -362,7 +364,7 @@ const orderType = (order) => {
       `Arrives: ${when}, between ${between(terms.delivery.window)}`,
       `Address: ${streetAddress(f.delivery)}`,
     ]
-    : f.method === "scituate" || f.method === "market"
+    : isScheduled(f)
       ? [
         `When: ${when}, between ${between(placeOf(order).window)}`,
         `Where: ${placeOf(order).place}`,
@@ -528,6 +530,16 @@ export const orderChanged = (order, {
       blocks.push(p("Your refund can take a few days to reach you."));
     }
   }
+  const idOf = (x) => (orderOccurrence(terms, x) || {}).id || null;
+  const was = before && before.method && before.date
+    && isScheduled(before) && isScheduled(f) && idOf(before) !== idOf(f)
+    ? placeOf({ fulfilment: before }) : null;
+
+  if (was) {
+    // Draft wording, for communications and James.
+    blocks.push(p(`Before: ${was.place}, ${label(before.date)}, between ${
+      between(was.window)}`));
+  }
   blocks.push(...orderType(order));
 
   if (f.method === "delivery" && f.delivery) {
@@ -607,7 +619,8 @@ export const missedDelivery = (order, {
         `Deliver it next ${DELIVERY_DAY}, ${next}, for another ` +
           "delivery fee " +
           `of ${dollars(fee)}`,
-        "Have it ready for pickup at the farm or the drop site, at no " +
+        // Draft wording, for communications and James.
+        "Have it ready for on-farm pickup or a scheduled pickup, at no " +
           "charge",
         `Cancel it, and we'll refund ${items} for your items`,
       ]),
@@ -622,7 +635,7 @@ export const missedDelivery = (order, {
       p("Please choose what you'd like us to do:"),
       list([
         `Deliver it next ${DELIVERY_DAY}, ${next}, at no extra charge`,
-        "Have it ready for pickup at the farm or the drop site",
+        "Have it ready for on-farm pickup or a scheduled pickup",
         `Cancel it for a full refund of ${dollars(order.totals.total)}`,
       ]),
       p(`We'll hold your order until ${hold}. If you haven't chosen by ` +
@@ -656,7 +669,8 @@ export const movedDelivery = (order, { pickUrl, links } = {}) => {
       dayAfter(date, 0)}. You don't need to do anything.`),
     p(`If ${next ? when : "that day"} doesn't suit you, you can choose ` +
       "another day, " +
-      "pick up at the farm or the drop site, or cancel for a full refund " +
+      "choose on-farm pickup or a scheduled pickup, or cancel for a full " +
+      "refund " +
       `of ${dollars(order.totals.total)}, delivery fee included.`),
   ];
 
@@ -756,7 +770,7 @@ export const addressDecision = (customer, decision, { links } = {}) => {
     }
   } else {
     blocks.push(p(`Unfortunately, ${where} is outside of our delivery ` +
-      "range. On-farm pickup and the drop site are open to everyone, " +
+      "range. On-farm pickup and scheduled pickup are open to everyone, " +
       "with no minimum and no fee."));
   }
   blocks.push(customerFooter(links));
@@ -1281,15 +1295,29 @@ export const farmOrderChanged = (order, {
 // The customer moved an on-farm order to another time the schedule
 // offers, from their account page. Booked as it stands (W11d); the
 // farm only hears of it.
-export const farmPickupChanged = (order, { links } = {}) => {
+export const farmPickupChanged = (order, { links, before = null } = {}) => {
   const c = order.customer;
   const title = `Pickup moved: ${order.id}`;
   const url = orderAdminUrl(links, order.id);
-  const blocks = [
-    p(`${c.name || c.email} moved order ${order.id} to a new pickup ` +
-      "time."),
-    p(`Now: **${windowPhrase(order)}**`),
-  ];
+  const scheduled = (x) => isScheduled(x);
+  const moved = before && scheduled(before) && scheduled(order.fulfilment);
+  const at = (f) => {
+    const w = placeOf({ fulfilment: f });
+
+    return `${w.place}, ${label(f.date)}${w.window ? `, ${w.window}` : ""}`;
+  };
+  const blocks = moved
+    ? [
+      p(`${c.name || c.email} moved order ${order.id} to another scheduled ` +
+        "pickup."),
+      p(`Was: **${at(before)}**`),
+      p(`Now: **${at(order.fulfilment)}**`),
+    ]
+    : [
+      p(`${c.name || c.email} moved order ${order.id} to a new pickup ` +
+        "time."),
+      p(`Now: **${windowPhrase(order)}**`),
+    ];
 
   if (url) blocks.push(button("View order", url));
   blocks.push(adminFooter(links));
@@ -1887,8 +1915,7 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
     orders.length === 1 ? "" : "s"}`;
   const by = (method) => orders.filter((o) => o.fulfilment.method === method);
   const deliveries = by("delivery");
-  const drops = by("scituate");
-  const markets = by("market");
+  const scheduled = orders.filter((o) => isScheduled(o.fulfilment));
   const farm = by("onfarm");
   const blocks = [];
   const who = (o) => `${o.customer.name || o.customer.email}${
@@ -1922,17 +1949,25 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
       blocks.push(p(`**${o.id}**, ${who(o)}, ${state(o)}`), tree(items));
     }
   }
-  if (drops.length) {
-    blocks.push(heading(`Drop site, ${terms.scituate.window} (${
-      drops.length})`));
-    for (const o of drops) {
+  // Each occurrence has its own heading, with its place and hours; the
+  // drop site's first.
+  const kind = (o) => (orderOccurrence(terms, o.fulfilment) || {}).kind;
+  const spot = (o) => placeOf(o).occurrence || placeOf(o).place;
+  const dropFirst = [...scheduled].sort((a, b) =>
+    Number(kind(b) === "drop-site") - Number(kind(a) === "drop-site"));
+
+  for (const id of new Set(dropFirst.map(spot))) {
+    const here = scheduled.filter((o) => spot(o) === id);
+    const where = placeOf(here[0]);
+
+    blocks.push(heading(kind(here[0]) === "drop-site"
+      ? `Drop site, ${orderOccurrence(terms, here[0].fulfilment).window} (${
+        here.length})`
+      : `Pickup at ${where.place}${
+        where.window ? `, ${where.window}` : ""} (${here.length})`));
+    for (const o of here) {
       blocks.push(p(`**${o.id}**, ${who(o)}, ${state(o)}`), tree([pack(o)]));
     }
-  }
-  for (const o of markets) {
-    blocks.push(heading(`Market pickup, ${placeOf(o).place}, ${
-      placeOf(o).window}`));
-    blocks.push(p(`**${o.id}**, ${who(o)}, ${state(o)}`), tree([pack(o)]));
   }
   if (farm.length) {
     blocks.push(heading(`On-farm pickups (${farm.length})`));
@@ -1962,7 +1997,7 @@ const packetLine = (e) => {
   const who = e.order.customer && e.order.customer.name;
 
   return `**${e.order.id}**${who ? `, ${who}` : ""}, ${
-    methodName(f.method)}, ${label(f.date)}: ${PACKET_KIND[e.kind]}`;
+    placeOf(e.order).name}, ${label(f.date)}: ${PACKET_KIND[e.kind]}`;
 };
 
 export const farmPackingSlips = (entries, {
@@ -2041,16 +2076,10 @@ export const farmChangedAfterPrint = (entry, { date, links } = {}) => {
   };
 };
 
-// A short line for the CLI and logs.
-const siteSuffix = (order) => {
-  const site = siteOf(terms, order.fulfilment.method, order.fulfilment.site);
-
-  return site && order.fulfilment.method === "market"
-    ? ` (${site.name})` : "";
-};
-
+// A short line for the CLI and logs, with the farm's own name for where
+// the order goes.
 export const summaryLine = (order) =>
   `${order.id} ${order.status} ${dollars(order.totals.total)} ` +
-  `${methodName(order.fulfilment.method)}${siteSuffix(order)} ` +
+  `${placeOf(order).name} ` +
   `${order.fulfilment.date} ` +
   `${order.customer.email}`;

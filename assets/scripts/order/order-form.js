@@ -7,6 +7,7 @@ import { current, indexCatalog, packLabel } from "./lib/catalog.mjs";
 import {
   keyboardInset, moreStop, rowsFloor, visibleArea,
 } from "./lib/cart-scroll.mjs";
+import { buildModel } from "./lib/events.mjs";
 import { moneyOn } from "./lib/money-on.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
 import { sentence } from "./lib/sentence.mjs";
@@ -135,7 +136,11 @@ export class OrderForm {
     this.form = form;
     this.catalog = data.catalog;
     this.aliases = data.aliases || {};
-    this.terms = data.terms;
+    // The scheduled pickups the page validates against, built as the
+    // functions build them (lib/events.mjs).
+    this.terms = {
+      ...data.terms, model: buildModel(data.locations, data.series),
+    };
     this.contact = data.contact;
     // Discount codes, by hash; the plain codes stay on the server.
     this.codes = data.codes || [];

@@ -58,7 +58,10 @@ ln -sf .env.development .env
 `.env`, so reaching production takes the flag, not a relink.
 
 Development needs no `PICKUP_SCHEDULE`: `bin/nff`, `npm test` and
-`npm run start:functions` make one up when `.env` has none.
+`npm run start:functions` make one up when `.env` has none: weekday
+on-farm windows and a `pickup` line for every occurrence of every live
+series (`docs/order-form.md`, scheduled pickup). A real one has a line
+for each: `<date> <code> pickup|attend|skip [HH:MM-HH:MM]`.
 
 Development needs no payment account: with `SITE_CONTEXT=dev`,
 `SQUARE_ENV=fake` and `PAYPAL_ENV=fake`, `npm run start:functions`

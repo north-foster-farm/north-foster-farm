@@ -3,7 +3,9 @@
 // these charges anything or records an order.
 // docs/qa-launch.md, "Payments".
 
-import { NONCE, eggOrder, postOrder } from "./support/api.mjs";
+import {
+  NONCE, eggOrder, firstScheduled, postOrder,
+} from "./support/api.mjs";
 import { expect, test, uniqueEmail } from "./support/order.mjs";
 import {
   BACK_OFFICE_MISSING, backOffice, nff,
@@ -77,6 +79,49 @@ test.describe("orders API", () => {
       "delivery.minimum": expect.stringContaining("$40 or more"),
     });
   });
+
+  // A scheduled pickup names one occurrence (data/series.json); the
+  // server derives its date and refuses any the schedule doesn't offer.
+  test("a scheduled pickup is accepted, with its date derived",
+    async ({ request }) => {
+      const open = await firstScheduled(request);
+
+      test.skip(!open, "the schedule opens no scheduled pickup");
+
+      const { status, body } = await postOrder(request, await eggOrder(
+        request, {
+          email: uniqueEmail("api-scheduled"), occurrence: open.occurrence,
+        }
+      ));
+
+      expect(status, JSON.stringify(body)).toBe(200);
+    });
+
+  test("a scheduled pickup the schedule doesn't offer is refused",
+    async ({ request }) => {
+      const open = await firstScheduled(request);
+      const events = await (await request.get("/api/events")).json();
+      const attendOnly = events.events.find((e) => e.status === "attend");
+      const wrong = [
+        ["unknown", "ZZZZ-261101"],
+        ["archived", "GR6C-260710"],
+        ["past", "VFVQ-261017"],
+        ["far beyond the horizon", "VFVQ-271002"],
+        ["malformed", "not-an-id"],
+        ...open ? [["past its cutoff or not a date of the series",
+          `${open.series}-${open.occurrence.slice(5, 7)}0101`]] : [],
+        ...attendOnly ? [["attend only", attendOnly.occurrence]] : [],
+      ];
+
+      for (const [why, occurrence] of wrong) {
+        const { status, body } = await postOrder(request, await eggOrder(
+          request, { email: uniqueEmail("api-refused"), occurrence }
+        ));
+
+        expect([409, 422], why).toContain(status);
+        expect(body.errors["fulfilment.occurrence"], why).toBeTruthy();
+      }
+    });
 
   test("the honeypot is dropped silently", async ({ request }) => {
     const payload = await eggOrder(request, {

@@ -5,6 +5,7 @@
 import { readFileSync } from "node:fs";
 
 import { allDates } from "../../assets/scripts/order/lib/dates.mjs";
+import { buildModel } from "../../assets/scripts/order/lib/events.mjs";
 import { parseSchedule } from "../../assets/scripts/order/lib/schedule.mjs";
 import {
   addDays, today, weekday,
@@ -51,13 +52,66 @@ export const ORDER = {
   canCancel: true, canChange: true,
 };
 
+// An order for a scheduled pickup, as the account API sends it: the
+// drop site's first Saturday, its place derived server side.
+export const ORDER_SCHEDULED = {
+  ...ORDER,
+  id: "NFF-2610-QA86",
+  fulfilment: {
+    method: "scheduled", occurrence: "VFVQ-261017", date: "2026-10-17",
+    state: "requested", onfarm: null,
+  },
+  pickup: {
+    name: "Drop site",
+    place: "Village Green, 46 Institute Lane, North Scituate, RI 02857",
+    window: "10 – 11 AM", gone: false,
+  },
+};
+
 // The farm's pickup schedule is an environment setting (W11d), so
 // /api/dates answers from a schedule of our own: each weekday of the
 // next three weeks, a morning and an afternoon window.
+// The scheduled pickups every canned list holds, relative to today so a
+// spec runs in any month: a market, a pop-up and the drop site open for
+// pickup, one occurrence the farm only attends and one it skips. Each
+// lies 2 to 6 days ahead, inside the horizon and before its cutoff.
+export const CANNED = {
+  market: "MKT2", popUp: "PUP3", drop: "DRP4", attend: "ATN5", skip: "SKP6",
+  location: "LOC7",
+};
+
+export const cannedSchedule = (now = new Date()) => {
+  const start = today(now, TERMS.timeZone);
+  const at = (n) => addDays(start, n);
+  const series = (code, kind, name, first, over = {}) => ({
+    code, kind, name, location: CANNED.location, start: first,
+    opens: "10:00", closes: "12:00", ...over,
+  });
+  const model = buildModel([{
+    code: CANNED.location, name: "Town Common", street: "1 Main St",
+    city: "Foster", state: "RI", town: "Foster", lat: 41.8, lng: -71.7,
+  }], [
+    series(CANNED.market, "market", "Canned Market", addDays(at(2), -7)),
+    series(CANNED.popUp, "pop-up", "Canned Fair", at(3), { end: at(3) }),
+    series(CANNED.drop, "drop-site", "Drop site", at(4)),
+    series(CANNED.attend, "market", "Canned Attend", at(5), { end: at(5) }),
+    series(CANNED.skip, "market", "Canned Skip", at(6), { end: at(6) }),
+  ]);
+  const id = (code, n) => `${at(n)} ${code}`;
+  const lines = [
+    `${id(CANNED.market, 2)} pickup`, `${id(CANNED.popUp, 3)} pickup`,
+    `${id(CANNED.drop, 4)} pickup`, `${id(CANNED.attend, 5)} attend`,
+    `${id(CANNED.skip, 6)} skip`,
+  ];
+
+  return { model, lines, start };
+};
+
 export const dates = () => {
   const now = new Date();
   const start = today(now, TERMS.timeZone);
   const days = [];
+  const canned = cannedSchedule(now);
 
   for (let i = 1; i <= 21; i += 1) {
     const day = addDays(start, i);
@@ -67,7 +121,10 @@ export const dates = () => {
     }
   }
 
-  return allDates(now, TERMS, parseSchedule(days.join("\n")).windows);
+  const parsed = parseSchedule([...days, ...canned.lines].join("\n"));
+
+  return allDates(now, { ...TERMS, model: canned.model },
+    Object.assign(parsed.windows, { lines: parsed.lines }));
 };
 
 export const cannedDates = (page) => page.route(

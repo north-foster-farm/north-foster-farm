@@ -456,7 +456,7 @@ test.describe("home", () => {
   });
 
   // #214: while any market runs (from its own opens to its closes in
-  // data/markets.json, decided at build time) the band lists the
+  // data/series.json, decided at build time) the band lists the
   // markets running, and only those.
   test("the market band lists only the markets running", async ({ page }) => {
     await page.goto("/");
@@ -464,8 +464,7 @@ test.describe("home", () => {
     const band = page.locator(".places.home-band:not(.ways)");
 
     test.skip(await band.count() === 0, "built with no market running");
-    const markets = (await import("../data/markets.json",
-      { with: { type: "json" } })).default.markets;
+    const { markets } = await import("./support/series.mjs");
     const built = await band.getAttribute("data-built");
     const running = markets
       .filter((m) => m.opens <= built && m.closes >= built)
@@ -487,8 +486,7 @@ test.describe("home", () => {
       const ways = page.locator(".ways");
 
       test.skip(await band.count() === 0, "built with no market running");
-      const markets = (await import("../data/markets.json",
-        { with: { type: "json" } })).default.markets;
+      const { markets } = await import("./support/series.mjs");
       const last = markets.map((m) => m.closes).sort().at(-1);
       const ends = await band.getAttribute("data-hide-from");
 

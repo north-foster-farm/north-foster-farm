@@ -50,8 +50,11 @@
 
 import terms from "./terms.mjs";
 import {
-  cutoffFor, dropCutoffFor, siteCutoffFor, siteOf,
+  cutoffFor, isScheduled,
 } from "../../../assets/scripts/order/lib/dates.mjs";
+import {
+  cutoffOf as eveningBefore,
+} from "../../../assets/scripts/order/lib/events.mjs";
 import {
   coverUntil, parseSchedule,
 } from "../../../assets/scripts/order/lib/schedule.mjs";
@@ -116,12 +119,7 @@ export const cutoffAt = (order) => {
   const { date, method } = order.fulfilment;
 
   if (method === "delivery") return cutoffFor(date, terms);
-  if (method === "scituate") return dropCutoffFor(date, terms);
-  if (method === "market") {
-    const site = siteOf(terms, method, order.fulfilment.site);
-
-    if (site) return siteCutoffFor(date, site, terms);
-  }
+  if (isScheduled(order.fulfilment)) return eveningBefore(date, tz);
 
   return instant(date, 0, 0, tz);
 };

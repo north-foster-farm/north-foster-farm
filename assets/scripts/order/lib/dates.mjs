@@ -1,10 +1,16 @@
 // The three date rules, computed at request time. Every function takes
-// `now` (a Date) and `terms` (data/delivery.json) and returns ISO dates
-// with labels, so the browser and the functions cannot disagree. On-farm
-// pickup also takes the farm's schedule (lib/schedule.mjs), the parsed
-// windows, which alone decides its days and times (W11d).
+// `now` (a Date) and `terms` (data/delivery.json, with `model` from
+// lib/events.mjs added) and returns ISO dates with labels, so the
+// browser and the functions cannot disagree. On-farm pickup also takes
+// the farm's schedule (lib/schedule.mjs), the parsed windows, which
+// alone decides its days and times (W11d); scheduled pickup its
+// occurrence lines.
 
-import { bookable, windowLabel } from "./schedule.mjs";
+import {
+  cutoffOf as eveningBefore, legacyOccurrence, occurrenceOf,
+  resolveOccurrence, seriesDates,
+} from "./events.mjs";
+import { bookable, horizon, windowLabel } from "./schedule.mjs";
 import {
   addDays, instant, label, today, weekday,
 } from "./zoned.mjs";
@@ -22,63 +28,148 @@ export const onFarmDates = (now, terms, schedule = []) =>
       windows: windows.map((w) => ({ ...w, label: windowLabel(w) })),
     }));
 
-// The last moment to order for a day: its `cutoffHour` on the
-// `cutoffWeekday` at or before it. Hour 24 is the end of that day.
-const cutoffOf = (iso, rules, timeZone) => {
-  const { cutoffHour, weekday: day, cutoffWeekday } = rules;
+// The Wednesday-noon cutoff that governs a delivery Thursday.
+export const cutoffFor = (iso, terms) => {
+  const { cutoffHour, weekday: day, cutoffWeekday } = terms.delivery;
   const back = (day - cutoffWeekday + 7) % 7;
 
-  return instant(addDays(iso, -back), cutoffHour, 0, timeZone);
+  return instant(addDays(iso, -back), cutoffHour, 0, terms.timeZone);
 };
 
-// The Wednesday-noon cutoff that governs a delivery Thursday.
-export const cutoffFor = (iso, terms) =>
-  cutoffOf(iso, terms.delivery, terms.timeZone);
-
-// The drop site's cutoff for its Saturday: the end of Friday.
-export const dropCutoffFor = (iso, terms) =>
-  cutoffOf(iso, terms.scituate, terms.timeZone);
-
-// The pickup site an order names. The drop site is `scituate`, the
-// one every stored order of that method means; a market is one of
-// `terms.markets`, named by the order's `fulfilment.site`. -> the site
-// (its id added) or null for a way that has none.
-export const siteOf = (terms, method, siteId) => {
-  if (method === "scituate") return { id: "scituate", ...terms.scituate };
-
-  const found = method === "market"
-    && (terms.markets || []).find((m) => m.id === siteId);
-
-  return found || null;
-};
-
-// A site's cutoff for one of its days, by its own rules.
-export const siteCutoffFor = (iso, site, terms) =>
-  cutoffOf(iso, site, terms.timeZone);
-
-// The next days of a site on or after its start whose cutoff has not
-// passed (inclusive, as for delivery), up to its `end` when it has one.
-export const siteDates = (now, terms, site, count) => {
-  const wanted = count || site.datesToOffer;
-  const { start, weekday: day } = site;
-  const current = today(now, terms.timeZone);
+// Every occurrence the schedule has a line for, from today through
+// the horizon, with its line's action: [{ occurrence, action }], by
+// date and then opening time. An occurrence with no line is not
+// offered, and is left out here. An archived series never appears.
+export const scheduledLines = (now, terms, schedule = []) => {
+  const { model } = terms;
+  const first = today(now, terms.timeZone);
+  const last = horizon(now, terms.timeZone);
+  const lines = schedule.lines || [];
   const out = [];
-  let d = current > start ? current : start;
 
-  for (let i = 0; out.length < wanted && i < 120; i++) {
-    if (weekday(d) === day && !isHoliday(d, terms)
-      && (!site.end || d <= site.end)) {
-      const cutoff = siteCutoffFor(d, site, terms);
+  for (const s of model.series.filter((x) => !x.archived)) {
+    for (const date of seriesDates(s, first, last)) {
+      const line = lines.find((l) => l.date === date && l.code === s.code);
 
-      if (now.getTime() <= cutoff.getTime()) {
-        out.push(entry(d, { cutoff: cutoff.toISOString() }));
+      if (!line) continue;
+
+      const occurrence = occurrenceOf(model, s, date, line);
+
+      if (!occurrence.archived) {
+        out.push({ occurrence, action: line.action });
       }
     }
-
-    d = addDays(d, 1);
   }
 
-  return out;
+  return out.sort((a, b) => a.occurrence.date.localeCompare(b.occurrence.date)
+    || a.occurrence.opens.localeCompare(b.occurrence.opens));
+};
+
+// What a customer reads of an occurrence: where, and when it hands
+// over.
+const read = (o, extra = {}) => entry(o.date, {
+  occurrence: o.id,
+  series: o.series,
+  name: o.name,
+  location: o.location,
+  town: o.town,
+  place: o.place,
+  short: o.short,
+  window: o.window,
+  ...extra,
+});
+
+// The occurrences open for pickup: from tomorrow through the horizon,
+// by date and then start time, whose cutoff (11:59 PM the day before)
+// has not passed. No minimum, no fee.
+export const scheduledDates = (now, terms, schedule = []) =>
+  scheduledLines(now, terms, schedule)
+    .filter(({ action }) => action === "pickup")
+    .map(({ occurrence: o }) => ({
+      o, cutoff: eveningBefore(o.date, terms.timeZone),
+    }))
+    .filter(({ cutoff }) => now.getTime() <= cutoff.getTime())
+    .map(({ o, cutoff }) => read(o, { cutoff: cutoff.toISOString() }));
+
+// The old `scituate` list, until #312: the drop site's occurrences.
+export const scituateDates = (now, terms, schedule = []) => {
+  const drop = new Set(terms.model.series
+    .filter((s) => s.kind === "drop-site").map((s) => s.code));
+
+  return scheduledDates(now, terms, schedule)
+    .filter((d) => drop.has(d.series))
+    .map(({ date, label: text, cutoff }) => ({ date, label: text, cutoff }));
+};
+
+// Every occurrence the farm attends (pickup or attend) in the same
+// stretch, with its status, for the home page and the map. Skipped
+// ones are left out.
+export const eventDates = (now, terms, schedule = []) =>
+  scheduledLines(now, terms, schedule)
+    .filter(({ action }) => action !== "skip")
+    .map(({ occurrence: o, action }) => read(o, {
+      kind: o.kind,
+      status: action,
+      lat: o.lat,
+      lng: o.lng,
+      ...o.href && { href: o.href },
+    }));
+
+// The farm's own booking: any live occurrence of a series, whatever
+// the schedule says, in the next `count` that fall on or after today.
+export const farmScheduledDates = (now, terms, count = 60) => {
+  const first = today(now, terms.timeZone);
+  const last = addDays(first, 400);
+  const out = [];
+
+  for (const s of terms.model.series.filter((x) => !x.archived)) {
+    for (const date of seriesDates(s, first, last)) {
+      const o = occurrenceOf(terms.model, s, date);
+
+      if (!o.archived) {
+        out.push(read(o, {
+          cutoff: eveningBefore(date, terms.timeZone).toISOString(),
+        }));
+      }
+    }
+  }
+
+  return out.sort((a, b) => a.date.localeCompare(b.date)
+    || a.window.localeCompare(b.window)).slice(0, count);
+};
+
+// An occurrence by id, however old (the farm's change to a past order
+// reaches it), or null. An archived one resolves too.
+export const occurrenceFor = (terms, id) =>
+  resolveOccurrence(terms.model, id);
+
+// Whether an order's fulfilment is a scheduled pickup, in the model's
+// shape or in the Stage 1 shape (`scituate`, or `market` and a site)
+// that the migration has not yet rewritten.
+export const isScheduled = (f) => Boolean(f)
+  && ["scheduled", "scituate", "market"].includes(f.method);
+
+// A fulfilment in the model's shape: a Stage 1 scheduled pickup
+// (`scituate`, or `market` and a site) read as `scheduled` and the
+// occurrence it means; anything else as it is.
+export const modelled = (terms, f) => {
+  if (!f || !isScheduled(f) || f.method === "scheduled") return f;
+
+  const { site, ...rest } = f;
+  const id = legacyOccurrence(terms.model, f.method, site, f.date);
+
+  return { ...rest, method: "scheduled", ...id && { occurrence: id } };
+};
+
+// The occurrence an order's fulfilment names, either shape, or null
+// when it names none or the one it names no longer resolves.
+export const orderOccurrence = (terms, f) => {
+  if (!isScheduled(f)) return null;
+
+  const id = f.method === "scheduled" ? f.occurrence
+    : legacyOccurrence(terms.model, f.method, f.site, f.date);
+
+  return id ? occurrenceFor(terms, id) : null;
 };
 
 // The next delivery Thursdays whose cutoff has not passed. The cutoff
@@ -103,44 +194,19 @@ export const deliveryDates = (now, terms, count) => {
   return out;
 };
 
-// The next Scituate Saturdays on or after the published start whose
-// cutoff has not passed (inclusive, as for delivery).
-export const scituateDates = (now, terms, count) => {
-  const wanted = count || terms.scituate.datesToOffer;
-  const { start, weekday: dropDay } = terms.scituate;
-  const current = today(now, terms.timeZone);
-  const out = [];
-  let d = current > start ? current : start;
-
-  for (let i = 0; out.length < wanted && i < 120; i++) {
-    if (weekday(d) === dropDay && !isHoliday(d, terms)) {
-      const cutoff = dropCutoffFor(d, terms);
-
-      if (now.getTime() <= cutoff.getTime()) {
-        out.push(entry(d, { cutoff: cutoff.toISOString() }));
-      }
-    }
-
-    d = addDays(d, 1);
-  }
-
-  return out;
-};
-
 export const allDates = (now, terms, schedule) => ({
   now: now.toISOString(),
   onfarm: onFarmDates(now, terms, schedule),
-  scituate: scituateDates(now, terms),
+  scituate: scituateDates(now, terms, schedule),
   delivery: deliveryDates(now, terms),
+  scheduled: scheduledDates(now, terms, schedule),
 });
 
-// `all` lists a market's every open day, not just the next few: the
-// farm's own booking.
-export const datesFor = (method, now, terms, schedule, siteId, all) => {
-  if (method === "market") {
-    const site = siteOf(terms, method, siteId);
-
-    return site ? siteDates(now, terms, site, all ? 60 : undefined) : [];
+// The dates a way of getting the order offers. `all` lists every live
+// occurrence, not just the schedule's: the farm's own booking.
+export const datesFor = (method, now, terms, schedule, all) => {
+  if (method === "scheduled" && all) {
+    return farmScheduledDates(now, terms);
   }
 
   return allDates(now, terms, schedule)[method] || [];

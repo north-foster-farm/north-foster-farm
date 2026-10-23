@@ -11,7 +11,7 @@
   - The page: a WebPage (ContactPage, AboutPage, CollectionPage for the
     news list), with a BreadcrumbList from its ancestors.
   - A news post: a BlogPosting by and from the farm.
-  - The home page: each upcoming pop-up in data/events.json as an Event.
+  - The home page: each upcoming pop-up in the pop-up series of data/series.json as an Event.
     Markets are left out: the farm does not run them, and their hours
     are text.
   - The order page: a Product with an Offer for each catalog item.
@@ -174,7 +174,7 @@
 
 {{ if .IsHome }}
   {{ $today := now.Format "2006-01-02" }}
-  {{ range sort (where hugo.Data.events.events "date" "ge" $today) "date" }}
+  {{ range sort (where (partial "lib/pickup-lists.html" .).events "date" "ge" $today) "date" }}
     {{ $start := time.AsTime (print .date "T" .start ":00") $zone }}
     {{ $end := time.AsTime (print .date "T" .end ":00") $zone }}
     {{ $graph = $graph | append (dict

@@ -10,11 +10,17 @@ import avatars from "../../../data/avatars.json" with { type: "json" };
 import catalog from "../../../data/catalog.json" with { type: "json" };
 import terms from "./terms.mjs";
 import { indexCatalog } from "../../../assets/scripts/order/lib/catalog.mjs";
-import { datesFor } from "../../../assets/scripts/order/lib/dates.mjs";
+import {
+  datesFor, isScheduled, orderOccurrence,
+} from "../../../assets/scripts/order/lib/dates.mjs";
+import {
+  legacyOccurrence, occurrenceId,
+} from "../../../assets/scripts/order/lib/events.mjs";
 import {
   phoneOk, zipInfo,
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { cancelOrder as cancelAndRefund } from "./admin.mjs";
+import { placeOf } from "./describe.mjs";
 import { cutoffAt } from "./jobs.mjs";
 import { now as clock } from "./clock.mjs";
 import { farmEmails, mailbox, sendMail } from "./mail.mjs";
@@ -83,6 +89,16 @@ const tellFarm = async (stores, template, message, {
 };
 
 // The order as the account page shows it: nothing internal.
+const pickupOf = (order) => {
+  const f = order.fulfilment;
+
+  if (!isScheduled(f)) return null;
+
+  const { name, place, window } = placeOf(order);
+
+  return { name, place, window, gone: !orderOccurrence(terms, f) };
+};
+
 export const publicOrder = (order, now = clock()) => ({
   id: order.id,
   status: order.status,
@@ -105,6 +121,10 @@ export const publicOrder = (order, now = clock()) => ({
     contact: order.customer.contact || "",
   },
   fulfilment: order.fulfilment,
+  // Where and when a pickup is handed over, read from the data files
+  // (nothing of it is stored), so the page prints the place without a
+  // copy. `gone` is a site no data file has any more.
+  pickup: pickupOf(order),
   notes: order.notes || "",
   payments: paymentsOf(order).map((p) => ({
     at: p.at || order.paidAt || null,
@@ -156,12 +176,23 @@ export const canCancel = actionable;
 
 const index = indexCatalog(catalog);
 
+// A pickup at an occurrence that no data file defines any more (a
+// series is archived, never deleted, so this should not happen): there
+// is no day to move it to, so the page shows the order without the
+// change control and says to call, text or email.
+const siteGone = (order) => {
+  const f = order.fulfilment;
+
+  return isScheduled(f) && !orderOccurrence(terms, f);
+};
+
 // A change replays the order's lines through the catalog, so an order
 // holding a SKU the catalog doesn't know (one placed before the SKUs
 // were renamed, #267) can't be changed: saving would drop that line
 // and refund it. Cancelling, and calling the farm, still can.
 export const canChange = (order, now) => actionable(order, now)
-  && (order.lines || []).every((l) => index.has(l.sku));
+  && (order.lines || []).every((l) => index.has(l.sku))
+  && !siteGone(order);
 
 export const listOrders = async (stores, customer, { now = clock() } = {}) =>
   ({
@@ -249,17 +280,64 @@ export const planChange = (order, changes, { now, env, by = "customer" }) => {
   const c = changes && typeof changes === "object" ? changes : {};
   const errors = {};
   const f = JSON.parse(JSON.stringify(order.fulfilment));
-  const method = f.method;
+  const was = order.fulfilment;
+  const wasScheduled = isScheduled(was);
+  const here = orderOccurrence(terms, was);
+  const wasId = here ? here.id : was.occurrence || null;
+  const method = wasScheduled ? "scheduled" : f.method;
+  // The occurrence the change asks for, if it asks for one.
+  let target = null;
 
-  const allowed = datesFor(method, now, terms, pickupSchedule(env),
-    f.site, by === "farm");
+  // Within scheduled pickup the customer may choose any open
+  // occurrence, not only another date of the same series. On-farm
+  // pickup and delivery cannot switch this way.
+  if (c.method !== undefined || c.occurrence !== undefined
+    || c.site !== undefined) {
+    const to = c.method !== undefined ? text(c.method, 20) : method;
+
+    if (!wasScheduled || !isScheduled({ method: to })) {
+      errors.method = "Only a scheduled pickup can move to another " +
+        "pickup.";
+    } else if (c.occurrence !== undefined) {
+      target = text(c.occurrence, 20);
+    } else {
+      target = legacyOccurrence(terms.model, to, text(c.site, 40),
+        text(c.date, 10)) || "";
+    }
+  } else if (wasScheduled && c.date !== undefined
+    && text(c.date, 10) !== was.date) {
+    // A new date alone means the same series on that date.
+    target = here ? occurrenceId(here.series, text(c.date, 10)) : "";
+  }
+
+  const sameSite = target === null || target === wasId;
+
+  // The held occurrence stays valid for the order that already holds
+  // it (the farm booked it beyond the usual list).
+  const allowed = errors.method ? []
+    : datesFor(method, now, terms, pickupSchedule(env), by === "farm");
+
+  if (!sameSite && !errors.method) {
+    const day = allowed.find((d) => d.occurrence === target);
+
+    if (!day) {
+      errors[c.occurrence === undefined && c.date !== undefined
+        ? "date" : "occurrence"] = "That pickup isn't available.";
+    } else {
+      f.method = "scheduled";
+      f.occurrence = target;
+      f.date = day.date;
+      delete f.site;
+    }
+  }
 
   // After the customer's miss, another delivery day charges the fee
   // again (C1), which only the order page can take. Draft wording.
   const refee = questionOpen(order) && order.question.kind === "missed"
     && keptFee(order) > 0;
 
-  if (c.date !== undefined && text(c.date, 10) !== order.fulfilment.date) {
+  if (!wasScheduled && c.date !== undefined
+    && text(c.date, 10) !== order.fulfilment.date) {
     const date = text(c.date, 10);
 
     if (refee) {
@@ -313,11 +391,19 @@ export const planChange = (order, changes, { now, env, by = "customer" }) => {
   const patch = { fulfilment: f, notes };
 
   if (moved) f.state = "agreed";
-  if (moved || f.date !== order.fulfilment.date) {
+  if (moved || f.date !== order.fulfilment.date || !sameSite) {
     patch.question = answerQuestion(order, "reschedule", by, now);
   }
+  // A move to another occurrence is told in the history, before the
+  // change itself: where from, where to, by whom.
+  if (!sameSite) {
+    patch.history = [...(order.history || []), {
+      at: now.toISOString(), event: "fulfilment.moved", from: wasId,
+      to: target, by,
+    }];
+  }
 
-  return { patch, moved };
+  return { patch, moved, from: !sameSite ? was : null };
 };
 
 // Saves a planned change, keeps Square's fulfilment in step and tells
@@ -327,7 +413,7 @@ export const applyChange = async (stores, order, plan, {
   now, env, mail, square, by = "customer",
 }) => {
   const { id } = order;
-  const { patch, moved } = plan;
+  const { patch, moved, from } = plan;
   const f = patch.fulfilment;
   const changed = await amendOrder(stores, id, patch, `${by}.changed`, now);
 
@@ -355,13 +441,17 @@ export const applyChange = async (stores, order, plan, {
   await sendForOrder(stores, changed, `orderChanged-${now.getTime()}`,
     orderChanged(changed, {
       orderUrl: orderUrlFor(env, changed.id), links: mailLinks(env),
+      // A move to another site names both places.
+      before: from ? { lines: changed.lines, totals: changed.totals,
+        method: from.method, site: from.site,
+        occurrence: from.occurrence, date: from.date } : null,
     }),
     { mail, env, now });
 
-  if (moved && by === "customer") {
+  if ((moved || from) && by === "customer") {
     await notifyFarm(stores, await getOrder(stores, id),
       `farmPickupChanged-${now.getTime()}`,
-      farmPickupChanged(changed, { links: mailLinks(env) }),
+      farmPickupChanged(changed, { links: mailLinks(env), before: from }),
       { mail, env, now });
   }
 
@@ -376,6 +466,11 @@ export const changeOrder = async (stores, customer, id, changes, {
   const order = await owned(stores, customer, id);
 
   if (!order) return fail(404, { order: "We can't find that order." });
+  if (siteGone(order)) {
+    // Draft wording, for communications and James.
+    return fail(409, { order: "We can't change this pickup here. Please " +
+      "call, text or email us and we'll sort it out." });
+  }
   if (!canChange(order, now)) {
     return fail(409, { order: "This order can't be changed any more." });
   }

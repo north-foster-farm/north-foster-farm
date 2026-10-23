@@ -16,7 +16,7 @@ import {
 import { orderForSubmission } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import catalog from "../data/catalog.json" with { type: "json" };
-import terms from "../data/delivery.json" with { type: "json" };
+import terms from "../netlify/functions/lib/terms.mjs";
 import { indexCatalog } from "../assets/scripts/order/lib/catalog.mjs";
 import { feeCell } from "../assets/scripts/order/lib/summary.mjs";
 import { computeTotals } from "../assets/scripts/order/lib/totals.mjs";
