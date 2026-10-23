@@ -67,15 +67,15 @@ We email you a reminder the evening before.
 If we can't make it due to unforeseen circumstances, such as
 inclement weather, we'll notify you via email and postpone your
 delivery until the following {{< terms "day" >}}. Alternatively, you
-can choose to pick up your order at the farm or drop site, or cancel your order
-for a full refund.
+can choose to pick up your order at the farm or at a scheduled pickup,
+or cancel your order for a full refund.
 
 You don't need to be home. If there's no cooler where you told us, we
 can't get to that spot, or we can't find your address as you gave it,
 we'll try to reach you by phone, text or the doorbell. If we can't
 reach you, we won't leave your order. You can choose to have it
-delivered the following {{< terms "day" >}}, pick it up at the farm or
-drop site, or cancel your order for a refund of your items. We hold
+delivered the following {{< terms "day" >}}, pick it up at the farm or at
+a scheduled pickup, or cancel your order for a refund of your items. We hold
 your order for {{< terms "hold" >}} while you choose. If you haven't
 chosen by then, we cancel it, refund your items and email you to say so.
 
@@ -124,7 +124,8 @@ one, it appears on the order page, with its place and hours, and you
 can choose it there; the place and hours are the event's own. We
 don't open every market or pop-up we attend.
 
-You can order for a pickup through the end of next week. Order by 11:59 PM the day before the pickup you choose.
+You can order for a pickup through the end of next week. Order by
+11:59 PM the day before the pickup you choose.
 
 ## Changing or cancelling an order
 

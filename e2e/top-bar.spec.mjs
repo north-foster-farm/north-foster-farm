@@ -171,7 +171,13 @@ test.describe("top bar and the schedule (#313)", () => {
   test("a pop-up the schedule skips is left out", async ({ page }) => {
     await page.route("**/api/events", events([]));
     await page.goto("/");
-    await expect(bar(page)).toBeHidden();
+    await expect(bar(page)).toHaveCount(0);
+
+    const reserve = await page.locator(".home-hero").evaluate(
+      (el) => getComputedStyle(el).getPropertyValue("--top-bar-height")
+    );
+
+    expect(["", "0rem", "0"]).toContain(reserve.trim());
   });
 
   test("a pop-up the farm attends stays", async ({ page }) => {

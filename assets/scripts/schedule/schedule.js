@@ -129,7 +129,12 @@ const wireSkips = async () => {
       end: el.dataset.end,
     };
 
-    if (skipped(series, data.events, now)) el.hidden = true;
+    if (!skipped(series, data.events, now)) continue;
+
+    // A hidden top bar still matches :root:has(.top-bar) and keeps the
+    // hero's reserve; remove it as retireTopBar does.
+    if (el.hasAttribute("data-top-bar")) el.remove();
+    else el.hidden = true;
   }
 };
 
