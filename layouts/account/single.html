@@ -406,10 +406,11 @@
       <p class="account-panel-title">Change this pickup</p>
       <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label">Day
+          <label class="form-label"><span data-dates-label>Day</span>
             <select class="form-select" name="date" data-dates></select>
           </label>
           <div class="invalid-feedback" data-error-for="date"></div>
+          <div class="invalid-feedback" data-error-for="occurrence"></div>
         </div>
         <div class="col-md-6" data-onfarm>
           {{/* The chosen day's times from the farm's schedule (W11d),

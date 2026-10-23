@@ -59,7 +59,7 @@ const total = (items) => (items || [])
 
 const METHOD = {
   delivery: "Delivery",
-  scituate: "Drop site",
+  scheduled: "Scheduled pickup",
   onfarm: "On-farm pickup",
 };
 
@@ -89,6 +89,18 @@ const when = (order) => {
       : times ? windowLabel(times) : f.onfarm.window;
 
     return `${METHOD.onfarm}, ${day}, ${window}`;
+  }
+
+  // A scheduled pickup reads from the order's derived pickup (#316),
+  // never from a copy of the data. One that no longer resolves names
+  // only the day.
+  const p = order.pickup;
+
+  if (p) {
+    const where = p.gone ? "" : `, ${p.name}`;
+    const hours = !p.gone && p.window ? `, ${p.window}` : "";
+
+    return `${METHOD.scheduled}${where}, ${day}${hours}`;
   }
 
   return `${METHOD[f.method] || f.method}, ${day}`;
@@ -519,8 +531,8 @@ class Account {
         "deliver here and will email you.";
       tone = "wait";
     } else if (a && a.status === "denied") {
-      text = "We can't deliver to this address. On-farm pickup and the " +
-        "drop site are open to everyone.";
+      text = "We can't deliver to this address. On-farm pickup and " +
+        "scheduled pickup are open to everyone.";
       tone = "no";
     }
     status.textContent = text;
@@ -826,6 +838,14 @@ class Account {
     const pickup = qs(node, "[data-out='pickup']");
     const q = order.question;
 
+    // A scheduled pickup whose occurrence no longer resolves has no
+    // change control. Draft wording.
+    if (order.pickup && order.pickup.gone) {
+      pickup.textContent = "We can't change this pickup here. Please " +
+        "call, text or email us and we'll sort it out.";
+      pickup.hidden = false;
+    }
+
     if (q && !q.answeredAt && q.kind === "window") {
       pickup.textContent = "We can't make that pickup time" +
         `${q.reason ? `: ${q.reason}` : "."} Please choose another day and ` +
@@ -1008,23 +1028,35 @@ class Account {
     );
     const form = qs(node, "form");
     const select = qs(form, "[data-dates]");
-    const dates = await this.dateList(order.fulfilment.method);
+    const scheduled = !!order.pickup;
+    const dates = await this.dateList(
+      scheduled ? "scheduled" : order.fulfilment.method
+    );
+    // A scheduled pickup chooses an occurrence: any open date at any
+    // place. The others choose a date.
+    const keyOf = (d) => (scheduled ? d.occurrence : d.date);
+    const textOf = (d) => (scheduled
+      ? [d.label, d.name, d.window].filter(Boolean).join(", ") : d.label);
+    const held = scheduled ? order.pickup.occurrence : order.fulfilment.date;
 
+    if (scheduled) qs(form, "[data-dates-label]").textContent = "Pickup";
     for (const d of dates) {
       const option = document.createElement("option");
 
-      option.value = d.date;
-      option.textContent = d.label;
+      option.value = keyOf(d);
+      option.textContent = textOf(d);
       select.appendChild(option);
     }
-    if (!dates.some((d) => d.date === order.fulfilment.date)) {
+    if (!dates.some((d) => keyOf(d) === held)) {
       const option = document.createElement("option");
 
-      option.value = order.fulfilment.date;
-      option.textContent = `${label(order.fulfilment.date)} (as booked)`;
+      option.value = held;
+      option.textContent = `${when(order).replace(
+        /^Scheduled pickup, /, ""
+      )} (as booked)`;
       select.prepend(option);
     }
-    select.value = order.fulfilment.date;
+    select.value = held;
     qs(form, "[name='notes']").value = order.notes || "";
 
     if (isDelivery) {
@@ -1051,9 +1083,14 @@ class Account {
       e.preventDefault();
       if (isBusy(busyButton(form))) return;
 
-      const body = {
-        date: select.value, notes: qs(form, "[name='notes']").value,
-      };
+      const body = { notes: qs(form, "[name='notes']").value };
+
+      if (scheduled) {
+        body.method = "scheduled";
+        body.occurrence = select.value;
+      } else {
+        body.date = select.value;
+      }
 
       if (isDelivery) {
         body.delivery = {

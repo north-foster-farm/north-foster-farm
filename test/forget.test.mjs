@@ -60,6 +60,20 @@ const news = () => {
 };
 
 describe("scrubOrder", () => {
+  it("keeps a scheduled pickup's occurrence and its moves", () => {
+    const o = order("S");
+
+    o.fulfilment = { method: "scheduled", occurrence: "K4Q7-261101",
+      date: "2026-11-01" };
+    o.history = [{ at: "2026-09-01T12:00:00Z", event: "moved",
+      from: "K4Q7-261025", to: "K4Q7-261101", by: "customer" }];
+
+    const s = scrubOrder(o, now);
+
+    assert.equal(s.fulfilment.occurrence, "K4Q7-261101");
+    assert.deepEqual(s.history, o.history);
+  });
+
   it("keeps the facts and loses the person", () => {
     const s = scrubOrder(order("A"), now);
 

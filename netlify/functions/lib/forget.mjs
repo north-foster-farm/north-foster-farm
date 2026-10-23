@@ -17,8 +17,10 @@
 //   sent, or at once when its sender deletes their details.
 //
 // A scrubbed order keeps its date, lines, prices, totals, payments,
-// how it was fulfilled, the drop site or pickup window, and the town,
-// state and ZIP. It loses the name, email, phone, street address, the
+// how it was fulfilled, the pickup window or the scheduled pickup's
+// occurrence (and the moves between occurrences in its history), and
+// the town, state and ZIP. None of that is personal, and the farm's
+// records need it. It loses the name, email, phone, street address, the
 // notes and anything else the customer wrote.
 
 import { normalizeEmail } from "./auth.mjs";

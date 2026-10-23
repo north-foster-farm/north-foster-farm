@@ -342,7 +342,7 @@ describe("the dates a customer is offered", () => {
     const got = allDates(now, t, lines);
 
     assert.equal(got.scheduled.length, 1);
-    assert.deepEqual(got.scituate, [], "the drop site isn't in this data");
+    assert.equal(got.scituate, undefined, "the legacy list is gone");
     assert.ok(got.onfarm && got.delivery);
     assert.equal(got.pickup, undefined);
   });
@@ -357,15 +357,14 @@ describe("the dates a customer is offered", () => {
 });
 
 describe("the drop site", () => {
-  it("keeps the old scituate list, from the drop site's occurrences", () => {
+  it("lists the drop site in scheduled, with no scituate key", () => {
     const drop = terms.model.series.find((s) => s.kind === "drop-site");
     const monday = ny("2026-10-19");
     const lines = withLines(`2026-10-24 ${drop.code} pickup`);
     const got = allDates(monday, terms, lines);
 
-    assert.deepEqual(got.scituate.map((d) => d.date), ["2026-10-24"]);
-    assert.deepEqual(Object.keys(got.scituate[0]),
-      ["date", "label", "cutoff"]);
+    assert.equal(got.scituate, undefined);
+    assert.deepEqual(got.scheduled.map((d) => d.date), ["2026-10-24"]);
     assert.equal(got.scheduled[0].name, "Drop site");
     assert.equal(got.scheduled[0].town, "Scituate");
   });

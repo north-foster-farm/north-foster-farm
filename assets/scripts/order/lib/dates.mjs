@@ -91,16 +91,6 @@ export const scheduledDates = (now, terms, schedule = []) =>
     .filter(({ cutoff }) => now.getTime() <= cutoff.getTime())
     .map(({ o, cutoff }) => read(o, { cutoff: cutoff.toISOString() }));
 
-// The old `scituate` list, until #312: the drop site's occurrences.
-export const scituateDates = (now, terms, schedule = []) => {
-  const drop = new Set(terms.model.series
-    .filter((s) => s.kind === "drop-site").map((s) => s.code));
-
-  return scheduledDates(now, terms, schedule)
-    .filter((d) => drop.has(d.series))
-    .map(({ date, label: text, cutoff }) => ({ date, label: text, cutoff }));
-};
-
 // Every occurrence the farm attends (pickup or attend) in the same
 // stretch, with its status, for the home page and the map. Skipped
 // ones are left out.
@@ -197,7 +187,6 @@ export const deliveryDates = (now, terms, count) => {
 export const allDates = (now, terms, schedule) => ({
   now: now.toISOString(),
   onfarm: onFarmDates(now, terms, schedule),
-  scituate: scituateDates(now, terms, schedule),
   delivery: deliveryDates(now, terms),
   scheduled: scheduledDates(now, terms, schedule),
 });

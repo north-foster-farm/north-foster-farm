@@ -5,6 +5,9 @@
 // order".
 
 import { NONCE, eggOrder, postOrder } from "./support/api.mjs";
+import {
+  CANNED, CUSTOMER, ORDER_SCHEDULED, cannedDates, dates,
+} from "./support/canned.mjs";
 import { expect, test, uniqueEmail } from "./support/order.mjs";
 import {
   BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, deleteCustomer,
@@ -226,4 +229,137 @@ test.describe("the Account menu on a desktop", () => {
       await expect(menu).toBeHidden();
     });
   }
+});
+
+// #312: the order card and the change panel for a scheduled pickup.
+// The account's endpoints are canned, so this runs on a local build,
+// and nothing is saved anywhere.
+test.describe("a scheduled pickup on the account page", () => {
+  const MARKET = {
+    ...ORDER_SCHEDULED,
+    pickup: {
+      name: "Canned Market", place: "Town Common, 1 Main St, Foster, RI",
+      window: "10 AM – 12 PM", occurrence: null, gone: false,
+    },
+  };
+
+  const setUp = async (page, context, baseURL, order) => {
+    await context.addCookies([{
+      name: "nff_signed_in", value: "1", url: baseURL,
+    }]);
+    await page.route("**/api/me", (route) => route.fulfill({
+      json: { signedIn: true, customer: CUSTOMER },
+    }));
+    await page.route("**/api/account/orders", (route) => route.fulfill({
+      json: { orders: [order] },
+    }));
+    await page.route("**/api/account/cart", (route) => route.fulfill({
+      json: { ok: true, cart: null },
+    }));
+    await cannedDates(page);
+  };
+
+  // The market's first open occurrence, to book the order on.
+  const market = () => dates().scheduled
+    .find((d) => d.series === CANNED.market);
+
+  test("the card names the way, the place and the window",
+    async ({ page, context, baseURL }) => {
+      const m = market();
+      const order = {
+        ...MARKET,
+        fulfilment: { ...MARKET.fulfilment, occurrence: m.occurrence,
+          date: m.date },
+        pickup: { ...MARKET.pickup, occurrence: m.occurrence },
+      };
+
+      await setUp(page, context, baseURL, order);
+      await page.goto("/account/#orders");
+
+      const when = page.locator("[data-out='when']").first();
+
+      await expect(when).toContainText("Scheduled pickup, Canned Market");
+      await expect(when).toContainText(m.label);
+      await expect(when).not.toContainText("scheduled,");
+      await expect(when).not.toContainText("scituate");
+    });
+
+  test("Change this pickup lists every open occurrence and posts the " +
+    "one chosen", async ({ page, context, baseURL }) => {
+    const m = market();
+    const drop = dates().scheduled.find((d) => d.series === CANNED.drop);
+    const order = {
+      ...MARKET,
+      fulfilment: { ...MARKET.fulfilment, occurrence: m.occurrence,
+        date: m.date },
+      pickup: { ...MARKET.pickup, occurrence: m.occurrence },
+    };
+    let posted;
+
+    await setUp(page, context, baseURL, order);
+    await page.route("**/api/account/orders/*/change", async (route) => {
+      posted = route.request().postDataJSON();
+      await route.fulfill({ json: { ok: true, order: {
+        ...order,
+        fulfilment: { ...order.fulfilment, occurrence: drop.occurrence,
+          date: drop.date },
+        pickup: { name: "Drop site", place: "Village Green",
+          window: "10 AM – 12 PM", occurrence: drop.occurrence,
+          gone: false },
+      } } });
+    });
+    await page.goto("/account/#orders");
+    await page.getByRole("button", { name: "Change", exact: true })
+      .first().click();
+
+    const select = page.locator("[data-dates]");
+
+    await expect(select).toHaveValue(m.occurrence);
+    for (const d of dates().scheduled) {
+      await expect(select.locator(`option[value='${d.occurrence}']`))
+        .toHaveCount(1);
+    }
+    await select.selectOption(drop.occurrence);
+    await page.getByRole("button", { name: "Save changes" }).click();
+
+    expect(posted.method).toBe("scheduled");
+    expect(posted.occurrence).toBe(drop.occurrence);
+    await expect(page.locator("[data-out='when']").first())
+      .toContainText("Scheduled pickup, Drop site");
+  });
+
+  test("an occurrence that no longer resolves says to get in touch",
+    async ({ page, context, baseURL }) => {
+      const order = {
+        ...MARKET, canChange: false,
+        pickup: { name: "Pickup, ZZZZ-261101", place: "", window: "",
+          occurrence: "ZZZZ-261101", gone: true },
+      };
+
+      await setUp(page, context, baseURL, order);
+      await page.goto("/account/#orders");
+
+      await expect(page.locator("[data-out='pickup']").first())
+        .toContainText("call, text or email us");
+      await expect(page.getByRole("button", { name: "Change", exact: true }))
+        .toHaveCount(0);
+      await expect(page.locator("[data-out='when']").first())
+        .not.toContainText("ZZZZ");
+    });
+
+  test("a denied address points to scheduled pickup (draft)",
+    async ({ page, context, baseURL }) => {
+      await setUp(page, context, baseURL, MARKET);
+      await page.route("**/api/me", (route) => route.fulfill({ json: {
+        signedIn: true, customer: { ...CUSTOMER, address: {
+          address1: "1 Far Rd", town: "Faraway", zip: "99999",
+          status: "denied",
+        } },
+      } }));
+      await page.goto("/account/#address");
+
+      await expect(page.locator("body")).toContainText(
+        "On-farm pickup and scheduled pickup are open to everyone."
+      );
+    });
 });

@@ -5,7 +5,7 @@ import terms from "../data/delivery.json" with { type: "json" };
 import { occurrenceSchedule } from "../bin/dev-schedule.mjs";
 import modelTerms from "../netlify/functions/lib/terms.mjs";
 import {
-  cutoffFor, deliveryDates, onFarmDates, scituateDates,
+  cutoffFor, deliveryDates, onFarmDates, scheduledDates,
 } from "../assets/scripts/order/lib/dates.mjs";
 import {
   checkSchedule, coverUntil, horizon, parseSchedule, pickupTimes,
@@ -263,8 +263,10 @@ describe("drop site Saturdays", () => {
     lines: parseSchedule(`2026-10-01 09:00-12:00\n${
       occurrenceSchedule("2026-10-01", "2026-12-31")}`).lines,
   });
-  const drops = (now, lines = schedule) => scituateDates(now, modelTerms,
-    lines);
+  const dropCodes = new Set(modelTerms.model.series
+    .filter((s) => s.kind === "drop-site").map((s) => s.code));
+  const drops = (now, lines = schedule) => scheduledDates(now, modelTerms,
+    lines).filter((d) => dropCodes.has(d.series));
 
   it("offers the Saturdays through the horizon, from the start " +
     "date", () => {
