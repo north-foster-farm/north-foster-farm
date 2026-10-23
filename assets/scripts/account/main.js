@@ -163,10 +163,11 @@ class Account {
     this.renderAddress();
     this.renderProfile();
     this.orders = orders;
-    // The downloads (#165) show once there is an order to download.
-    for (const row of all(document, "[data-download-row]")) {
-      row.hidden = this.orders.length === 0;
-    }
+    // The orders download (#165) shows once there is an order to
+    // download; the receipts one, in renderReceipts, once there is a
+    // payment.
+    document.querySelector("[data-download='orders']")
+      .closest("[data-download-row]").hidden = this.orders.length === 0;
     this.renderOrders();
     this.renderReceipts();
     this.renderSupportOrders();
@@ -1283,6 +1284,8 @@ class Account {
     list.textContent = "";
     document.getElementById("receipts-empty").hidden = rows.length > 0;
     list.hidden = rows.length === 0;
+    document.querySelector("[data-download='receipts']")
+      .closest("[data-download-row]").hidden = rows.length === 0;
 
     for (const { order, payment, i } of rows) {
       const node = clone("tpl-receipt");

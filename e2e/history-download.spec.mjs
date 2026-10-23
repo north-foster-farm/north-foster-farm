@@ -83,6 +83,21 @@ test.describe("history downloads (#165)", () => {
       });
   });
 
+  test("Receipts has no button for an order with no payment",
+    async ({ page }) => {
+      await signedIn(page);
+      await page.route("**/api/account/orders", (route) => route.fulfill({
+        json: { orders: [{ ...ORDER, payments: [] }] },
+      }));
+      await page.goto("/account/#orders");
+      await expect(page.getByRole("button",
+        { name: "Download all orders (CSV)" })).toBeVisible();
+      await page.goto("/account/#receipts");
+      await expect(page.locator("#receipts-empty")).toBeVisible();
+      await expect(page.locator("[data-download='receipts']"))
+        .toBeHidden();
+    });
+
   test("neither button shows with no orders", async ({ page }) => {
     await page.route("**/api/me", (route) => route.fulfill({
       json: { signedIn: true, customer: CUSTOMER },
