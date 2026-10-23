@@ -1,5 +1,5 @@
 ---
-description: "An accessibility statement from North Foster Farm."
+description: "How the North Foster Farm site is intended to work with a keyboard and a screen reader, and where we see room for improvement."
 slug: "accessibility"
 title: "Accessibility"
 type: "policy"

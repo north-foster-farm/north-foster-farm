@@ -1,5 +1,5 @@
 ---
-description: "The North Foster Farm website privacy policy."
+description: "A detailed policy that describes what the North Foster Farm site collects when you order or sign in, who sees it, and how to see, change, or delete your data."
 slug: "privacy"
 title: "Privacy policy"
 type: "policy"
