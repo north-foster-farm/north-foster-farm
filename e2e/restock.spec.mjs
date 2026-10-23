@@ -239,6 +239,28 @@ test.describe("restock types (#267)", () => {
     await expect(new OrderPage(page).count).toHaveText("0 items");
   });
 
+  test("every restock label stays on one line at 320 (#324)",
+    async ({ page }) => {
+      await page.setViewportSize({ width: 320, height: 800 });
+      await stubStock(page, { ...SAUSAGE_OUT, ...SEASONAL_OUT });
+      await open(page);
+      await show(page, "Full catalog");
+
+      for (const [type, sku] of Object.entries({
+        ...OUT, seasonal: SEASONAL,
+      })) {
+        const out = row(page, sku).locator(".order-qty-out");
+        const box = await out.boundingBox();
+        const lineHeight = await out.evaluate((el) =>
+          parseFloat(getComputedStyle(el).lineHeight));
+
+        await expect(out, type).toHaveText(LABEL[type]);
+        // One line: the button is no taller than a line plus its
+        // padding and border.
+        expect(box.height, type).toBeLessThan(lineHeight * 2);
+      }
+    });
+
   test("an out-of-stock product can't be put in the cart by link",
     async ({ page }) => {
       await page.goto(`/order/?add=${OUT.discontinued}:2`);

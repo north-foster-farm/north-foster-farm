@@ -515,7 +515,9 @@
     width: 100%;
     border: 0;
     background: transparent;
+    padding-inline: 0.25rem;
     color: var(--bs-secondary-color);
+    white-space: nowrap;
     opacity: 1;
     outline: 0;
     box-shadow: none;
@@ -541,6 +543,29 @@
 
     .order-qty-out {
       display: block;
+    }
+
+    // The label never wraps (#324): its column is as wide as the
+    // longest label needs, and the name or price gives way instead.
+    .order-item-name,
+    .order-item-price {
+      min-width: 0;
+    }
+
+    .order-qty {
+      width: auto;
+    }
+  }
+
+  @media (max-width: 30rem) {
+    .order-item[data-stock="out"] {
+      grid-template-columns: minmax(0, 1fr) max-content;
+    }
+  }
+
+  @media (min-width: 30.0625rem) {
+    .order-item[data-stock="out"] {
+      grid-template-columns: minmax(0, 1fr) max-content max-content;
     }
   }
 
