@@ -2049,8 +2049,9 @@ export class OrderForm {
     }
     // Beyond one place, Where counts the locations and links to the
     // map in a new tab, so the order stays as it is (#places-scheduled
-    // opens the Places layer on scheduled pickups, #314). The link is
-    // kept while its text and href hold, so a focused one stays focused.
+    // opens the plain Places list: the filter it once set is gone,
+    // #214). The link is kept while its text and href hold, so a
+    // focused one stays focused.
     const places = locationCount(choices);
 
     if (!none && places > 1) {
