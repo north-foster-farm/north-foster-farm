@@ -149,6 +149,18 @@ describe("differences", () => {
     ]);
   });
 
+  it("keeps ** in a Square item name from rendering bold", () => {
+    const o = order();
+    const copy = squareCopy(o, (s) => ({
+      ...s, line_items: [...s.line_items,
+        { name: "**Free** eggs", quantity: "1" }],
+    }));
+    const [line] = differences(o, { original: copy, carrier: copy });
+
+    assert.ok(!line.includes("**"));
+    assert.match(line, /Free/);
+  });
+
   it("finds a fulfilment canceled in Square", () => {
     const o = order();
     const copy = squareCopy(o, (s) => {
@@ -246,6 +258,29 @@ describe("checkOrder", () => {
 
     assert.equal(r.status, "flagged");
     assert.equal(box.sent.length, 1);
+  });
+
+  it("does not flag the site's own completion in Square (#328)", async () => {
+    const stores = testStores();
+    const done = { ...order(), status: "fulfilled" };
+    const { box, options } = opts(done, (s) => ({
+      ...s, state: "COMPLETED",
+      fulfillments: s.fulfillments.map((f) => ({ ...f, state: "COMPLETED" })),
+    }));
+    const r = await checkOrder(stores, done, options);
+
+    assert.equal(r.status, "skipped");
+    assert.equal(box.sent.length, 0);
+
+    const paid = order();
+    const early = opts(paid, (s) => ({
+      ...s, state: "COMPLETED",
+      fulfillments: s.fulfillments.map((f) => ({ ...f, state: "COMPLETED" })),
+    }));
+
+    assert.equal((await checkOrder(stores, paid, early.options)).status,
+      "match", "completed before the record catches up is no difference");
+    assert.equal(early.box.sent.length, 0);
   });
 
   it("says when a slip has already printed", async () => {

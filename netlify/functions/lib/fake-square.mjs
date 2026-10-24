@@ -101,6 +101,10 @@ export const cancelFulfillment = async (squareOrderId) => ({
   id: squareOrderId, cancelled: true,
 });
 
+export const completeOrder = async (squareOrderId) => ({
+  id: squareOrderId, completed: true,
+});
+
 // Nothing is remembered here, so nothing can differ from the record: an
 // order with no lines or fulfillment to compare (lib/drift.mjs).
 export const getOrder = async (squareOrderId) => ({

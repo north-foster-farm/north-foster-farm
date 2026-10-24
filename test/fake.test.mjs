@@ -155,6 +155,7 @@ const SQUARE_CALLS = {
   updateFulfillment: (o) => square.updateFulfillment("O1", order(), o),
   cancelFulfillment: (o) => square.cancelFulfillment("O1", o),
   cancelOrder: (o) => square.cancelOrder("O1", o),
+  completeOrder: (o) => square.completeOrder("O1", o),
   refundPayment: (o) => square.refundPayment({
     squarePaymentId: "P1", amount: 100, key: KEY, reason: "test",
   }, o),

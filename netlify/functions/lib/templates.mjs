@@ -1529,6 +1529,15 @@ export const farmSquareOutOfSync = (order, customer, { links } = {}) =>
       `${methodOn(order.fulfilment)}.`),
   ], links, { orderId: order.id });
 
+// A fulfilled order Square could not be told about (#328): it stays
+// open in Square until someone completes it there.
+export const farmSquareNotCompleted = (order, { links } = {}) =>
+  farmCard(`Square still open: ${order.id}`, "Square still open", [
+    p(`Order ${order.id} is fulfilled here, but Square could not be ` +
+      "told, so it is still open there. Complete it in Square: " +
+      `${methodOn(order.fulfilment)}.`),
+  ], links, { orderId: order.id });
+
 // A return or problem report; `entry` is the request as recorded, its
 // items by SKU, named here by the order's lines.
 export const farmReturnRequest = (order, customer, entry, {

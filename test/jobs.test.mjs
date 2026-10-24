@@ -161,6 +161,42 @@ describe("runJobs", () => {
       assert.equal((await getOrder(stores, "A")).status, "fulfilled");
     });
 
+  it("completes a closed order in Square (#328)", async () => {
+    const stores = testStores();
+    const { opts } = harness();
+    const done = [];
+    const square = {
+      completeOrder: async (id) => { done.push(id); return { id }; },
+    };
+
+    await saveOrder(stores, order("A"), placed);
+    await runJobs(stores, { ...opts, square, now: at("2026-10-09", 9) });
+    assert.deepEqual(done, ["SQO"]);
+    assert.equal((await getOrder(stores, "A")).status, "fulfilled");
+  });
+
+  it("closes the order and tells the farm when Square cannot (#328)",
+    async () => {
+      const stores = testStores();
+      const { sent, opts } = harness();
+      const square = {
+        completeOrder: async () => { throw new Error("503"); },
+      };
+      const env = { FARM_NOTIFICATIONS_EMAIL: "farm@example.com" };
+
+      await saveOrder(stores, order("A"), placed);
+
+      const r = await runJobs(stores, {
+        ...opts, env, square, now: at("2026-10-09", 9),
+      });
+      const kept = await getOrder(stores, "A");
+
+      assert.deepEqual(r.closed, ["A"]);
+      assert.equal(kept.status, "fulfilled");
+      assert.equal(kept.flags.squareOutOfSync, true);
+      assert.ok(sent.some((m) => /Square still open: A/.test(m.subject)));
+    });
+
   it("skips the delivery reminder when it is turned off and still " +
     "closes the order", async () => {
     const stores = testStores();

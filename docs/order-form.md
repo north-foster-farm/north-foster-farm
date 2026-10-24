@@ -429,7 +429,18 @@ dashboard, the reports and the refunds keep one shape.
 
 `refundPayment` refunds a Square payment, whole or part;
 `cancelFulfillment` closes the fulfillment when an order is cancelled;
-`updateFulfillment` carries a customer's date or detail change across.
+`updateFulfillment` carries a customer's date or detail change across;
+`completeOrder` sets the fulfillment and the order to `COMPLETED` in
+one call when an order is fulfilled (#328), whether by
+`bin/nff orders fulfill <id>` or by the close job. Square takes a
+`PROPOSED` fulfillment straight to `COMPLETED`, stamps the pickup time
+itself and leaves the order `OPEN`, hence both. An order already
+complete in Square is no failure. When Square refuses, the record is
+still `fulfilled`; it is flagged `squareOutOfSync` and the farm gets
+one "Square still open" email (log event `square.complete_failed`) to
+complete the order in Square by hand. The order is no longer `paid`,
+so neither the webhook nor the 07:00 check (`lib/drift.mjs`) reads
+the completion as a change. Ids in Square paths are URL-encoded.
 `GET /api/checkout/config` gives the page the application id, the
 location and the SDK host (`clientConfig`).
 
@@ -830,7 +841,7 @@ function) and calls `lib/jobs.mjs`, which decides in
 | -------------------------------------- | --------------------------- |
 | every run, a Venmo order without its Square copy | `squareSync`      |
 | 18:00 the day before a delivery        | cooler reminder             |
-| the day after fulfillment               | `fulfilled`                 |
+| the day after fulfillment               | `fulfilled`, and complete in Square |
 | every run                              | checkouts older than a day swept |
 | 8:00 daily, always                     | "Morning report"            |
 | 18:00 daily, always                    | "Tomorrow", the manifest    |

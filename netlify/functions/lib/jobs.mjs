@@ -4,7 +4,8 @@
 // nothing here chases money; the jobs mind what happens after.
 //
 //   delivery    18:00 the day before a delivery: cooler reminder
-//   close       an order the day after fulfillment is fulfilled
+//   close       an order the day after fulfillment is fulfilled,
+//               and completed in Square (lib/complete.mjs)
 //   square      a Venmo order whose Square copy failed gets another
 //               try, so the dashboard sees it
 //   question    an order with an open question from the farm (a
@@ -75,6 +76,7 @@ import { alert, escalate, ping, readCount, readMark } from "./health.mjs";
 import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { quietAccounts } from "./retention.mjs";
+import { completeInSquare } from "./complete.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { audienceConfigured, syncAudience } from "./news.mjs";
 import { changedAfterPrint, packingDaily } from "./packing.mjs";
@@ -282,7 +284,13 @@ export const runJobs = async (stores, {
     }
 
     if (today(now, tz) > order.fulfilment.date) {
-      await setStatus(stores, order.id, "fulfilled", now, { source: "jobs" });
+      const closed = await setStatus(
+        stores, order.id, "fulfilled", now, { source: "jobs" }
+      );
+
+      await completeInSquare(stores, closed, {
+        now, env, mail, square, fetchImpl,
+      });
       report.closed.push(order.id);
     }
   };

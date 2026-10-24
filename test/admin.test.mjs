@@ -67,6 +67,11 @@ const harness = () => {
         return { id: `m${sent.length}`, driver: "test" };
       },
       square: {
+        completeOrder: async (id) => {
+          calls.push(["completeOrder", id]);
+
+          return { id, completed: true };
+        },
         refundPayment: async ({ squarePaymentId, amount, key, reason }) => {
           calls.push(["square.refund", squarePaymentId, amount]);
           assert.match(key, /^refund-/);
@@ -175,6 +180,44 @@ describe("orders from the CLI", () => {
     await assert.rejects(removeOrder(stores, "A"), /No such order/);
     await assert.rejects(fulfillOrder(stores, "A", opts), /No such order/);
   });
+
+  it("completes the order in Square when it is fulfilled (#328)",
+    async () => {
+      const stores = testStores();
+      const { opts, calls, sent } = harness();
+
+      await saveOrder(stores, order("A"), now);
+      await fulfillOrder(stores, "A", opts);
+      assert.deepEqual(calls.filter((c) => c[0] === "completeOrder"),
+        [["completeOrder", "SQO"]]);
+      assert.equal(sent.length, 0);
+      assert.equal((await getOrder(stores, "A")).flags, undefined);
+    });
+
+  it("flags and tells the farm when Square cannot, and still fulfills",
+    async () => {
+      const stores = testStores();
+      const { opts, sent } = harness();
+      const mail = async (m) => { sent.push(m); return { id: "m" }; };
+      const failing = {
+        ...opts, mail, env: { FARM_NOTIFICATIONS_EMAIL: "farm@example.com" },
+        square: { completeOrder: async () => { throw new Error("503"); } },
+      };
+
+      await saveOrder(stores, order("A"), now);
+
+      const done = await fulfillOrder(stores, "A", failing);
+      const kept = await getOrder(stores, "A");
+
+      assert.equal(done.status, "fulfilled");
+      assert.equal(kept.status, "fulfilled");
+      assert.equal(kept.flags.squareOutOfSync, true);
+      assert.equal(sent.length, 1);
+      assert.match(sent[0].subject, /Square still open: A/);
+
+      await fulfillOrder(stores, "A", failing);
+      assert.equal(sent.length, 1, "the farm hears once");
+    });
 
   it("refund a card order through Square, whole or part, once", async () => {
     const stores = testStores();

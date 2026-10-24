@@ -83,6 +83,11 @@ const addressOf = (f) => {
   return [a.address_line_1, a.postal_code];
 };
 
+// Square's words go into an email whose text turns ** into bold, so a
+// line name or note cannot carry the mark: its asterisks become the
+// look-alike asterisk operator.
+const quiet = (text) => String(text).replace(/\*/g, "\u2217");
+
 const lineDifferences = (order, squareOrder) => {
   const have = squareOrder.line_items || [];
   const out = [];
@@ -110,8 +115,8 @@ const lineDifferences = (order, squareOrder) => {
   }
   have.forEach((s, i) => {
     if (!matched.has(i)) {
-      out.push(`${s.quantity} × ${s.name || "an item"} in Square, not on ` +
-        "the site");
+      out.push(`${s.quantity} × ${quiet(s.name || "an item")} in ` +
+        "Square, not on the site");
     }
   });
 
@@ -156,7 +161,7 @@ export const differences = (order, { original, carrier }) => {
       if (want.type === "PICKUP"
         && !sameText(placeOfNote(want), placeOfNote(got))) {
         out.push(`Pickup place: "${placeOfNote(want)}" on the site, "${
-          placeOfNote(got)}" in Square`);
+          quiet(placeOfNote(got))}" in Square`);
       }
     }
   }

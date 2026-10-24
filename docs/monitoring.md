@@ -429,6 +429,13 @@ from Square. Check Square status and the log (`event:
 square.update_failed`), then fix the fulfillment in the Square
 dashboard by hand.
 
+**`square.complete_failed`.** An order was fulfilled, from the CLI or
+by the close job, and the site's record says so, but Square could not
+be told, so the order stays open there (#328). The order is flagged
+`squareOutOfSync` and the farm gets one "Square still open" email.
+Complete the order in the Square dashboard by hand; the log
+(`event: square.complete_failed`) has Square's answer.
+
 **`square.refund_failed`.** A refund made in PayPal could not be
 repeated on the Square copy of the Venmo payment. The customer has
 the money back and the order records the refund; only Square's books

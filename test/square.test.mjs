@@ -3,9 +3,9 @@ import { describe, it } from "node:test";
 
 import {
   SOURCE_NAME, SquareError, buildOrder, cancelFulfillment, cancelOrder,
-  clientConfig, createOrder, createPayment, customerOrders, dashboardUrl,
-  deleteCustomer, e164, getPayment, inventoryCounts, refundPayment,
-  searchOpenOrders, settings, updateFulfillment,
+  clientConfig, completeOrder, createOrder, createPayment, customerOrders,
+  dashboardUrl, deleteCustomer, e164, getPayment, inventoryCounts,
+  refundPayment, searchOpenOrders, settings, updateFulfillment,
 } from "../netlify/functions/lib/square.mjs";
 import {
   KILL_SWITCH, deletionsPaused, readPause, setPause,
@@ -1036,5 +1036,74 @@ describe("dashboardUrl", () => {
     assert.equal(dashboardUrl({ invoiceId: "INV-1" }, env), "",
       "an invoice-era record without an order id links nowhere");
     assert.equal(dashboardUrl(null, env), "");
+  });
+});
+
+// #328: a fulfilled order goes COMPLETED in Square, fulfillment and
+// order in one call, at the order's own location and version.
+describe("completeOrder", () => {
+  const placed = {
+    id: "SQO", state: "OPEN", version: 5, location_id: "OLD",
+    fulfillments: [{ uid: "F1", type: "PICKUP", state: "PROPOSED" }],
+  };
+  const serve = (order) => fakeFetch({
+    "/v2/orders/SQO": () => new Response(JSON.stringify({ order })),
+  });
+
+  it("completes the fulfillment and the order in one call", async () => {
+    const { impl, calls } = serve(placed);
+    const out = await completeOrder("SQO", { env, fetchImpl: impl });
+    const puts = calls.filter((c) => c.method === "PUT");
+
+    assert.deepEqual(out, { id: "SQO", completed: true });
+    assert.equal(puts.length, 1);
+    assert.deepEqual(puts[0].body.order, {
+      location_id: "OLD", version: 5, state: "COMPLETED",
+      fulfillments: [{ uid: "F1", state: "COMPLETED" }],
+    });
+  });
+
+  it("counts an order already COMPLETED as success, sending nothing",
+    async () => {
+      const { impl, calls } = serve({
+        ...placed, state: "COMPLETED",
+        fulfillments: [{ uid: "F1", state: "COMPLETED" }],
+      });
+      const out = await completeOrder("SQO", { env, fetchImpl: impl });
+
+      assert.equal(out.completed, false);
+      assert.equal(calls.filter((c) => c.method === "PUT").length, 0);
+    });
+
+  it("closes an order whose fulfillment was completed by hand",
+    async () => {
+      const { impl, calls } = serve({
+        ...placed, fulfillments: [{ uid: "F1", state: "COMPLETED" }],
+      });
+      const out = await completeOrder("SQO", { env, fetchImpl: impl });
+      const put = calls.find((c) => c.method === "PUT").body.order;
+
+      assert.equal(out.completed, true);
+      assert.equal(put.state, "COMPLETED");
+      assert.equal(put.fulfillments, undefined);
+    });
+
+  it("throws when Square refuses it", async () => {
+    const { impl } = fakeFetch({
+      "/v2/orders/SQO": (n) => (n === 1
+        ? new Response(JSON.stringify({ order: placed }))
+        : new Response("{}", { status: 400 })),
+    });
+
+    await assert.rejects(
+      completeOrder("SQO", { env, fetchImpl: impl }), SquareError
+    );
+  });
+
+  it("encodes the id it puts in the path", async () => {
+    const { impl, calls } = fakeFetch({});
+
+    await completeOrder("a/../b?x", { env, fetchImpl: impl });
+    assert.equal(calls[0].path, "/v2/orders/a%2F..%2Fb%3Fx");
   });
 });

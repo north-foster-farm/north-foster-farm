@@ -148,6 +148,8 @@ const CASES = {
     customer(), { links }), true],
   farmSquareOutOfSync: [() => templates.farmSquareOutOfSync(order(),
     customer(), { links }), true],
+  farmSquareNotCompleted: [() => templates.farmSquareNotCompleted(order(),
+    { links }), false],
   farmReturnRequest: [() => templates.farmReturnRequest(order(), customer(),
     { id: "r1", reason: HOSTILE, skus: [HOSTILE] }, { links }), true],
   farmSupport: [() => templates.farmSupport(customer(), {

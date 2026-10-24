@@ -708,6 +708,12 @@ export const library = [
     build: (links) => t.farmSquareOutOfSync(order(), customer, { links }),
   },
   {
+    id: "farm-square-not-completed", name: "Square still open",
+    when: "A fulfilled order could not be completed in Square",
+    audience: F, tags: ["alert", "fulfilled"],
+    build: (links) => t.farmSquareNotCompleted(order(), { links }),
+  },
+  {
     id: "farm-alert", name: "Site alert",
     when: "A failure on the order path, once an hour per kind",
     audience: F, tags: ["alert"],

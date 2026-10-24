@@ -73,7 +73,8 @@ export const dashboardUrl = (square, env = process.env) => {
 
   if (!base || !square || !square.squareOrderId) return "";
 
-  return `${base}/orders/overview/${square.squareOrderId}`;
+  return `${base}/orders/overview/${
+    encodeURIComponent(square.squareOrderId)}`;
 };
 
 // A payment that Square would not take: the customer can try another
@@ -188,6 +189,11 @@ export const DECLINE_MESSAGES = {
 // request's own end (lib/http.mjs) and cuts either short.
 export const CALL_MS = 3500;
 export const PAYMENT_MS = 6000;
+
+// An order's path. The id comes from our own record, but is encoded
+// all the same so it can never reach past its segment.
+const orderPath = (squareOrderId) => `/v2/orders/${
+  encodeURIComponent(squareOrderId)}`;
 
 const call = async (cfg, path, body, fetchImpl, method = "POST") => {
   const res = await timedFetch(fetchImpl, `${cfg.host}${path}`, {
@@ -541,7 +547,7 @@ export const payZeroOrder = async (squareOrderId, key, {
 
   const cfg = settings(env);
 
-  await call(cfg, `/v2/orders/${squareOrderId}/pay`, {
+  await call(cfg, `${orderPath(squareOrderId)}/pay`, {
     idempotency_key: `${key}-pay`,
     payment_ids: [],
   }, fetchImpl);
@@ -712,7 +718,7 @@ export const findPaid = async (order, {
 // before SQUARE_LOCATION_ID moved is changed where it lives (#267).
 const currentOrder = async (cfg, squareOrderId, fetchImpl) => {
   const data = await call(
-    cfg, `/v2/orders/${squareOrderId}`, null, fetchImpl, "GET"
+    cfg, orderPath(squareOrderId), null, fetchImpl, "GET"
   );
 
   return data.order || {};
@@ -750,7 +756,7 @@ export const updateFulfillment = async (squareOrderId, order, {
     next.pickup_details.pickup_at = (existing.pickup_details || {}).pickup_at;
   }
 
-  const data = await call(cfg, `/v2/orders/${squareOrderId}`, {
+  const data = await call(cfg, orderPath(squareOrderId), {
     order: {
       location_id: current.location_id || cfg.locationId,
       version: current.version,
@@ -775,7 +781,7 @@ export const cancelFulfillment = async (squareOrderId, {
     return { id: squareOrderId, cancelled: false };
   }
 
-  await call(cfg, `/v2/orders/${squareOrderId}`, {
+  await call(cfg, orderPath(squareOrderId), {
     order: {
       location_id: current.location_id || cfg.locationId,
       version: current.version,
@@ -784,6 +790,44 @@ export const cancelFulfillment = async (squareOrderId, {
   }, fetchImpl, "PUT");
 
   return { id: squareOrderId, cancelled: true };
+};
+
+// Closes a fulfilled order in Square (#328): the fulfillment and the
+// order go to COMPLETED in one call. Square takes PROPOSED straight to
+// COMPLETED and stamps the pickup time itself, but leaves the order
+// OPEN, so both are set. A fulfillment that is already COMPLETED or
+// CANCELED and an order that is already closed are left as they are, so
+// a repeat, or a hand-made completion, is no error.
+// -> { id, completed: true } or { id, completed: false }.
+export const completeOrder = async (squareOrderId, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  if (isFake(env)) return fake.completeOrder(squareOrderId, { env });
+
+  const cfg = settings(env);
+  const current = await currentOrder(cfg, squareOrderId, fetchImpl);
+  const open = (current.fulfillments || []).filter(
+    (f) => !["COMPLETED", "CANCELED", "FAILED"].includes(f.state)
+  );
+  const closed = current.state && current.state !== "OPEN";
+
+  if (closed || (!open.length && current.state === "COMPLETED")) {
+    return { id: squareOrderId, completed: false };
+  }
+
+  await call(cfg, orderPath(squareOrderId), {
+    order: {
+      location_id: current.location_id || cfg.locationId,
+      version: current.version,
+      state: "COMPLETED",
+      ...open.length && {
+        fulfillments: open.map((f) => ({ uid: f.uid, state: "COMPLETED" })),
+      },
+    },
+  }, fetchImpl, "PUT");
+
+  return { id: squareOrderId, completed: true };
 };
 
 // Deletes a customer profile (#189, D-189). Only ever one an order's
@@ -833,7 +877,7 @@ export const cancelOrder = async (squareOrderId, {
     return { id: squareOrderId, cancelled: false, paid };
   }
 
-  await call(cfg, `/v2/orders/${squareOrderId}`, {
+  await call(cfg, orderPath(squareOrderId), {
     order: {
       location_id: current.location_id || cfg.locationId,
       version: current.version,

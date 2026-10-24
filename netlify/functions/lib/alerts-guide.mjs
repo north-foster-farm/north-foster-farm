@@ -149,6 +149,13 @@ export const GUIDE = {
       "Square status and the log (event square.update_failed), then fix " +
       "the fulfillment in the Square dashboard by hand.",
   },
+  "square.complete_failed": {
+    means: "An order was fulfilled and the record says so, but Square " +
+      "could not be told, so the order stays open there. The order is " +
+      "flagged squareOutOfSync and the farm has its own email.",
+    action: "Complete the order in the Square dashboard by hand. The " +
+      "log (event square.complete_failed) has Square's answer.",
+  },
   "square.refund_failed": {
     means: "A refund made in PayPal could not be repeated on the Square " +
       "copy of the Venmo payment. The customer has the money back and " +

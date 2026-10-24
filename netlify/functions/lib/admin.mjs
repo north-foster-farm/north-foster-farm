@@ -12,6 +12,7 @@ import { adjust, getCounts, setCount } from "./stock.mjs";
 import { normalizeEmail, validEmail } from "./auth.mjs";
 import { company } from "./company.mjs";
 import { DELIVERING } from "./health.mjs";
+import { completeInSquare } from "./complete.mjs";
 import { devEmails, sendMail } from "./mail.mjs";
 import * as newsApi from "./news.mjs";
 import {
@@ -667,9 +668,22 @@ export const moveDelivery = async (stores, id, date, {
     { mail, env, now });
 };
 
-export const fulfillOrder = async (stores, id, { now = new Date() } = {}) =>
-  need(await setStatus(stores, id, "fulfilled", now, { source: "farm" }),
-    "order");
+// The record first, then Square (#328): the order and its fulfillment
+// are completed there. A Square that cannot follow flags the record and
+// tells the farm; the status change stands either way.
+export const fulfillOrder = async (stores, id, {
+  now = new Date(), env = process.env, mail = sendMail, square = squareApi,
+  fetchImpl,
+} = {}) => {
+  const order = need(
+    await setStatus(stores, id, "fulfilled", now, { source: "farm" }),
+    "order"
+  );
+
+  return completeInSquare(stores, order, {
+    now, env, mail, square, fetchImpl,
+  });
+};
 
 export const removeOrder = async (stores, id) => {
   need(await getOrder(stores, id), "order");
