@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  FLOAT_AGAIN, floatsAgain, look, segOn,
+  FLOAT_AGAIN, PANEL_AGAIN, floatAgain, floatsAgain, look, segOn,
+  segShown,
 } from "../assets/scripts/order/lib/cart-float.mjs";
 
 const SETTLED = { items: "open", money: "open" };
@@ -125,5 +126,31 @@ describe("segOn", () => {
     assert.deepEqual(segOn({ items: "closed", money: "open" }, true),
       { items: false, money: true });
     assert.deepEqual(segOn(SETTLED, true), { items: true, money: false });
+  });
+});
+
+describe("PANEL_AGAIN", () => {
+  it("floats a panel shut on its right column, the lines folded", () => {
+    assert.deepEqual({ ...PANEL_AGAIN },
+      { open: true, items: "closed", money: "closed" });
+  });
+
+  it("picks the panel or the pane by where the cart is", () => {
+    assert.equal(floatAgain(true), PANEL_AGAIN);
+    assert.equal(floatAgain(false), FLOAT_AGAIN);
+  });
+});
+
+describe("segShown", () => {
+  it("lights a panel's count shut or open, and the total when open", () => {
+    assert.deepEqual(segShown(PANEL_AGAIN, false, true),
+      { items: true, money: false });
+    assert.deepEqual(segShown({ items: "closed", money: "open" }, false, true),
+      { items: true, money: true });
+  });
+
+  it("says what segOn says anywhere but a panel", () => {
+    assert.deepEqual(segShown(PANEL_AGAIN, false, false),
+      segOn(PANEL_AGAIN, false));
   });
 });

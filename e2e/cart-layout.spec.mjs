@@ -6,7 +6,7 @@
 // docs/qa-launch.md, "The order page and cart".
 
 import {
-  FULL_CART, OrderPage, expect, paymentFakes, test,
+  FULL_CART, OrderPage, expect, foldCart, paymentFakes, test,
 } from "./support/order.mjs";
 
 const WIDTHS = [
@@ -107,9 +107,9 @@ for (const size of WIDTHS) {
       const subtotal = await box(order.subtotal);
 
       expect(Math.abs(total.right - subtotal.right)).toBeLessThanOrEqual(2);
-      // Where the lines share the column (xl and up, and below md),
+      // Where the lines share the column (xl and up, and below 576),
       // the total also lines up with the line prices.
-      if (size.width >= XL || size.width < 768) {
+      if (size.width >= XL || size.width < 576) {
         const sub = await box(order.cart.locator(".order-cart-item-sub")
           .first());
 
@@ -127,7 +127,7 @@ for (const size of WIDTHS) {
       } else {
         await toggle.scrollIntoViewIfNeeded();
         await expect(toggle).toBeVisible();
-        await expect(toggle).toHaveText("Hide");
+        await expect(toggle).toHaveText(/^(Hide|Expand)$/);
 
         const t = await box(toggle);
         const next = await box(order.next);
@@ -177,8 +177,7 @@ for (const size of WIDTHS) {
       await page.waitForTimeout(800);
       expect(await covered(order.cart)).toEqual([]);
       if (size.width < XL) {
-        await order.cart.locator("[data-cart-toggle]").click();
-        await expect(order.cart).toHaveAttribute("data-open", "false");
+        await foldCart(page, order.cart);
         await page.waitForTimeout(600);
         expect(await covered(order.cart)).toEqual([]);
       }

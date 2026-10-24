@@ -21,11 +21,13 @@ $cart-more-strip:  1.75rem; // Under the lines: the "more" pills' own.
 
 // Where the cart is a one-column sheet, its count and total a pair of
 // tabs: a phone upright, or on its side, tablet-wide but too short for
-// the tablet's two columns (#278). Below xl, the rest of the range
-// (a tablet) is $cart-split. order-form.js's SHEET is the same query.
-$cart-sheet: "(max-width: 767.98px), "
+// the floating panel (#278). Below xl, the rest of the range, 576 up
+// (#274, round 6), is $cart-split: two columns settled, a panel at the
+// foot of the content column floating. order-form.js's SHEET and PANEL
+// are the same queries.
+$cart-sheet: "(max-width: 575.98px), "
   + "(max-width: 1199.98px) and (max-height: 500px)";
-$cart-split: "(min-width: 768px) and (max-width: 1199.98px) "
+$cart-split: "(min-width: 576px) and (max-width: 1199.98px) "
   + "and (min-height: 500.02px)";
 
 // Too short for anything to ride along over the page, at any width: a

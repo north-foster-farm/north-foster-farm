@@ -21,7 +21,9 @@
 // The order page's lapsed dialog opens only after a card is taken, so
 // it isn't reached here.
 
-import { FULL_CART, OrderPage, expect, test } from "./support/order.mjs";
+import {
+  FULL_CART, OrderPage, PANEL, expect, test,
+} from "./support/order.mjs";
 import {
   ACCOUNT_TABS, cannedDates, keepHome, signedIn, sitemap,
 } from "./support/canned.mjs";
@@ -415,10 +417,22 @@ for (const width of WIDTHS) {
         ));
 
         test.skip(!await floats(), "the cart doesn't float this wide");
+
+        // A panel folds its lines, which it shows once Expand is
+        // pressed (#274, round 6).
+        const panel = await page.evaluate(
+          (q) => matchMedia(q).matches, PANEL
+        );
+
+        if (panel) {
+          await toggle.click();
+          await expect(order.cart).toHaveAttribute("data-items", "open");
+        }
         await order.cart.locator("[data-checkout]").focus();
         await page.keyboard.press("Escape");
         await expect.soft(order.cart, "Escape folds it")
-          .toHaveAttribute("data-open", "false");
+          .toHaveAttribute(panel ? "data-items" : "data-open",
+            panel ? "closed" : "false");
         await expect.soft(toggle, "the focus goes to its toggle")
           .toBeFocused();
       });

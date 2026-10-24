@@ -1,7 +1,7 @@
 import Tooltip from "bootstrap/js/dist/tooltip.js";
 
 import {
-  FLOAT_AGAIN, floatsAgain, look, segOn,
+  floatAgain, floatsAgain, look, segOn, segShown,
 } from "./lib/cart-float.mjs";
 import { current, indexCatalog, packLabel } from "./lib/catalog.mjs";
 import {
@@ -104,10 +104,17 @@ const keepInRail = (link) => {
 
 // Where the cart is a one-column sheet with the total row's two as
 // tabs: a phone, upright or on its side (#278). A phone on its side is
-// tablet-wide but too short for the tablet's two columns. The
-// stylesheet's $cart-sheet is the same query.
-const SHEET = "(max-width: 767.98px), "
+// tablet-wide but too short for the panel. The stylesheet's
+// $cart-sheet is the same query.
+const SHEET = "(max-width: 575.98px), "
   + "(max-width: 1199.98px) and (max-height: 500px)";
+
+// Where the floating cart is a panel at the foot of the content
+// column, its Expand and Hide folding the lines alone (#274, round 6).
+// The rest of the range below xl is SHEET. The stylesheet's
+// $cart-split.
+const PANEL = "(min-width: 576px) and (max-width: 1199.98px) "
+  + "and (min-height: 500.02px)";
 
 // Too short for the cart to float or a bar to ride along, at any
 // width: a phone on its side, whatever Safari's bars are doing (#274,
@@ -515,17 +522,28 @@ export class OrderForm {
       });
     }
     cartToggle.addEventListener("click", () => {
+      if (this.panel()) {
+        this.setPart("items", this.cart.dataset.items !== "open");
+
+        return;
+      }
       this.setOpen(this.cart.dataset.open !== "true");
     });
     // Escape folds it while it floats, and leaves the focus on the
-    // toggle that opens it again (#159).
+    // toggle that opens it again (#159). A panel folds its lines.
     this.cart.addEventListener("keydown", (e) => {
       if (e.key !== "Escape" || this.cart.dataset.stuck !== "true"
         || this.cart.dataset.open !== "true") return;
+
+      const panel = this.panel();
+
+      if (panel && this.cart.dataset.items !== "open") return;
       e.preventDefault();
-      this.setOpen(false);
+      if (panel) this.setPart("items", false);
+      else this.setOpen(false);
       cartToggle.focus();
     });
+    matchMedia(PANEL).addEventListener("change", () => this.syncToggle());
     // A control the Tab key reaches under the floating cart scrolls up
     // clear of it, never under the top bar (#159, WCAG 2.4.11). The
     // cart's own are its own, and a scroller taller than the room is
@@ -605,6 +623,9 @@ export class OrderForm {
       (part === "items" ? itemsToggle : moneyToggle).focus();
     });
     narrow.addEventListener("change", () => this.syncSeg());
+    // A panel starts shut on its right column; a first Add shows the
+    // line, then shuts it again.
+    if (this.panel()) this.setPart("items", false);
     this.syncSeg();
     // Settled, the cart shows everything and the two are plain text
     // too (#203): stuckWatch below calls this when it settles.
@@ -697,9 +718,11 @@ export class OrderForm {
         // On the way back up it lifts off hidden, on its lines,
         // whatever it was when it settled (#274, round 5).
         if (below && floatsAgain(was, floating)) {
-          this.setOpen(FLOAT_AGAIN.open);
-          this.setPart("items", FLOAT_AGAIN.items === "open");
-          this.setPart("money", FLOAT_AGAIN.money === "open");
+          const lift = floatAgain(this.panel());
+
+          this.setOpen(lift.open);
+          this.setPart("items", lift.items === "open");
+          this.setPart("money", lift.money === "open");
         }
         // The cap and what gives way to it apply only while it floats.
         this.syncScroll();
@@ -707,6 +730,13 @@ export class OrderForm {
       // Settled, the cart is always open and its toggle fades.
       if (below && !floating && this.cart.dataset.open === "false") {
         this.setOpen(true);
+      }
+      // A panel with lines is never folded to its total row: it shuts
+      // on its right column, the lines folded (#274, round 6).
+      if (floating && this.panel() && this.cart.dataset.open === "false"
+        && !this.cart.hasAttribute("data-empty")) {
+        this.setOpen(true);
+        this.setPart("items", false);
       }
       // So are the lines and the sums, subtotal included (#203).
       if (below && !floating) {
@@ -1232,6 +1262,7 @@ export class OrderForm {
   setPart(part, open) {
     this.cart.dataset[part] = open ? "open" : "closed";
     this.syncSeg();
+    if (part === "items") this.syncToggle();
     if (part === "items" && open) this.syncScroll();
   }
 
@@ -1260,12 +1291,15 @@ export class OrderForm {
     // the fill is. "Total" lit white beside it was white on the grey
     // track (#274).
     const on = segOn(this.cart.dataset, narrow);
+    const shown = segShown(
+      this.cart.dataset, narrow, this.panel() && !narrow
+    );
 
     for (const [part, [button, panelId]] of Object.entries(parts)) {
       const open = on[part];
       const panel = document.getElementById(panelId);
 
-      button.dataset.on = String(open);
+      button.dataset.on = String(shown[part]);
       if (narrow) {
         button.setAttribute("role", "tab");
         button.setAttribute("aria-selected", String(open));
@@ -1295,11 +1329,13 @@ export class OrderForm {
     ghost.removeAttribute("id");
     ghost.inert = true;
     ghost.setAttribute("aria-hidden", "true");
+    const lift = floatAgain(this.panel());
+
     Object.assign(ghost.dataset, {
       stuck: "true",
-      open: String(FLOAT_AGAIN.open),
-      items: FLOAT_AGAIN.items,
-      money: FLOAT_AGAIN.money,
+      open: String(lift.open),
+      items: lift.items,
+      money: lift.money,
     });
     Object.assign(ghost.style, {
       position: "absolute",
@@ -1323,12 +1359,28 @@ export class OrderForm {
   // Folds or opens the cart (below xl; the column ignores it).
   setOpen(open) {
     this.cart.dataset.open = String(open);
+    this.syncToggle();
+    if (open) this.syncScroll();
+    if (this.plainTotals) this.plainTotals();
+  }
+
+  // True where the cart is a panel (#274, round 6).
+  panel() {
+    return matchMedia(PANEL).matches;
+  }
+
+  // Hide or Expand, and aria-expanded to match what it folds: the
+  // whole pane, or in a panel the lines beside the right column. The
+  // button keeps the focus through it, being the same element.
+  syncToggle() {
+    const open = this.panel() && this.cart.dataset.open === "true"
+      ? this.cart.dataset.items === "open"
+      : this.cart.dataset.open === "true";
+
     qs(this.cart, "[data-cart-toggle]").setAttribute(
       "aria-expanded", String(open)
     );
     qs(this.cart, "[data-cart-word]").textContent = open ? "Hide" : "Expand";
-    if (open) this.syncScroll();
-    if (this.plainTotals) this.plainTotals();
   }
 
   // Marks the scroller's wrapper with which edges have more beyond
@@ -1515,6 +1567,8 @@ export class OrderForm {
     clearTimeout(this.closeTimer);
 
     if (first && floating) {
+      const panel = this.panel();
+
       this.setOpen(true);
       this.setPart("items", true);
       this.setPart("money", false);
@@ -1522,7 +1576,8 @@ export class OrderForm {
       // view inside the list.
       setTimeout(() => this.reveal(sku), reduced ? 0 : 260);
       this.closeTimer = setTimeout(() => {
-        this.setOpen(false);
+        if (panel) this.setPart("items", false);
+        else this.setOpen(false);
         this.pulsePill(pill, "teach");
       }, TEACH_DWELL);
 

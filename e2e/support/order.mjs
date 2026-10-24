@@ -20,6 +20,26 @@ export const SKU = {
   necks: "NFF-CHK-NCK-10-19", // $5
 };
 
+// Where the floating cart is a panel and Expand folds only its lines
+// (#274, round 6); the stylesheet's $cart-split.
+export const PANEL = "(min-width: 576px) and (max-width: 1199.98px) "
+  + "and (min-height: 500.02px)";
+
+// Folds a floating cart as a customer does, with its toggle: a pane
+// folds to its total row (data-open false), a panel to its right
+// column (data-items closed).
+export const foldCart = async (page, cart) => {
+  const panel = await page.evaluate((q) => matchMedia(q).matches, PANEL);
+
+  const [attr, folded] = panel ? ["data-items", "closed"]
+    : ["data-open", "false"];
+
+  if (await cart.getAttribute(attr) !== folded) {
+    await cart.locator("[data-cart-toggle]").click();
+  }
+  await expect(cart).toHaveAttribute(attr, folded);
+};
+
 // A cart as ?add= wants it: { eggs: 2 } -> "NFF-CHK-EGG-LG:2".
 export const addQuery = (cart) => Object.entries(cart)
   .map(([name, qty]) => `${SKU[name] || name}:${qty}`)
@@ -189,13 +209,16 @@ export class OrderPage {
     // The cart's scroll watch runs on the next frames.
     await this.scrollSettled();
 
+    // A panel shut on its right column floats over a corner only, and
+    // the row at the middle is clear of it.
     const floating = await this.cart.evaluate(
-      (el) => el.dataset.stuck === "true" && el.dataset.open === "true"
+      (el, q) => el.dataset.stuck === "true" && el.dataset.open === "true"
+        && !(matchMedia(q).matches && el.dataset.items === "closed"),
+      PANEL
     );
 
     if (floating) {
-      await this.cart.locator("[data-cart-toggle]").click();
-      await expect(this.cart).toHaveAttribute("data-open", "false");
+      await foldCart(this.page, this.cart);
       await this.item(name).evaluate(
         (el) => el.scrollIntoView({ block: "center" })
       );

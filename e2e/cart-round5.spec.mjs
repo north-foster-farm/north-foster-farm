@@ -34,21 +34,35 @@ const settleThenTop = async (page, order) => {
   await expect(order.cart).toHaveAttribute("data-stuck", "true");
 };
 
-for (const [name, size] of [["tablet", TABLET], ["phone", PHONE]]) {
-  test(`on a ${name} the cart floats again hidden, on its lines`, async ({
-    page,
-  }) => {
-    await page.setViewportSize(size);
+test("on a phone the cart floats again hidden, on its lines", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
 
-    const order = new OrderPage(page);
+  const order = new OrderPage(page);
 
-    await order.open(FULL_CART);
-    await settleThenTop(page, order);
-    await expect(order.cart).toHaveAttribute("data-open", "false");
-    await expect(order.cart).toHaveAttribute("data-items", "open");
-    await expect(order.cart).toHaveAttribute("data-money", "closed");
-  });
-}
+  await order.open(FULL_CART);
+  await settleThenTop(page, order);
+  await expect(order.cart).toHaveAttribute("data-open", "false");
+  await expect(order.cart).toHaveAttribute("data-items", "open");
+  await expect(order.cart).toHaveAttribute("data-money", "closed");
+});
+
+// A tablet's cart is a panel (#274, round 6): it floats again open on
+// its right column, the lines folded.
+test("on a tablet the cart floats again as a shut panel", async ({
+  page,
+}) => {
+  await page.setViewportSize(TABLET);
+
+  const order = new OrderPage(page);
+
+  await order.open(FULL_CART);
+  await settleThenTop(page, order);
+  await expect(order.cart).toHaveAttribute("data-open", "true");
+  await expect(order.cart).toHaveAttribute("data-items", "closed");
+  await expect(order.cart).toHaveAttribute("data-money", "closed");
+});
 
 // Settled, both parts open; floating again, a tablet's total row lit
 // both its pills green.

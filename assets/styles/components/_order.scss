@@ -2713,17 +2713,27 @@
     }
   }
 
-  // From md to xl the pane is two columns: the lines on the left, the
-  // sums to the code on the right, the foot across both. The fold
-  // wrappers dissolve into the grid, so a fold simply hides the parts.
-  // The lines add nothing to the height (contain: size): the right
-  // column sets it, and the lines scroll in what it leaves them.
+  // From 576 to xl the pane is two columns: the lines on the left, the
+  // sums to the code on the right. Settled, the foot runs across both;
+  // floating, it is a panel (#274, round 6) at the bottom right of the
+  // content column, half its width, the right column alone. Expand
+  // widens it leftward to the column's full width for the lines, and
+  // the right column does not move. The fold wrappers dissolve into
+  // the grid, so a fold simply hides the parts. The lines add nothing
+  // to the height (contain: size): the right column sets it, and the
+  // lines scroll in what it leaves them.
   @media #{$cart-split} {
+    // The panel measures the content column, which is the form.
+    .order-form {
+      container: form / inline-size;
+    }
+
     .order-cart {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       column-gap: 1.5rem;
       max-height: none;
+      border-top: 3px solid var(--bs-primary);
     }
 
     .order-cart-fold,
@@ -2779,7 +2789,7 @@
       grid-template-columns: minmax(0, 1fr);
 
       .order-cart-money,
-      > .order-cart-lines,
+      .order-cart-lines,
       .order-cart-rule-dark,
       .order-cart-total-row,
       .order-badges,
@@ -2803,6 +2813,114 @@
 
       .order-cart-total-row {
         grid-column: 1;
+      }
+    }
+
+    // Floating, with lines: half the column, but room enough for the
+    // way and the code side by side. The right track is that width less
+    // the pane's padding and border, so it is the same shut or open.
+    .order-cart[data-stuck="true"][data-open="true"]:not([data-empty]) {
+      --panel-w: min(100cqw, max(50cqw, 22rem));
+      --cart-w: var(--panel-w);
+
+      grid-template-columns:
+        minmax(0, 1fr)
+        calc(var(--panel-w) - 2 * var(--order-gutter) - 2px);
+      column-gap: 0;
+      width: var(--cart-w);
+      margin-left: calc(100% - var(--cart-w));
+      transition:
+        width var(--order-slow) var(--order-ease),
+        margin var(--order-slow) var(--order-ease),
+        column-gap var(--order-slow) var(--order-ease),
+        padding var(--order-slow) var(--order-ease),
+        border-color var(--order-slow) ease,
+        box-shadow var(--order-slow) ease;
+
+      &[data-items="open"] {
+        --cart-w: 100%;
+
+        column-gap: 1.5rem;
+      }
+
+      .order-cart-money,
+      .order-cart-lines,
+      .order-cart-rule-dark,
+      .order-cart-total-row,
+      .order-badges,
+      .order-cart-share,
+      .order-cart-code-note,
+      .order-cart-rule-end,
+      .order-cart-end {
+        grid-column: 2;
+      }
+
+      // The lines run the pane's whole height, the foot's rows too.
+      .order-cart-scroll {
+        grid-row: 1 / span 12;
+      }
+
+      // The lines scroll in the room the right column leaves: no
+      // pills, no strip kept for them.
+      .order-cart-more {
+        display: none;
+      }
+
+      .order-cart-scroll[data-scroll] {
+        padding-bottom: 0;
+
+        &::after {
+          bottom: 0;
+        }
+      }
+
+      // Where the column leaves the lines too little room for four
+      // parts on a row, the name has the row to itself and the
+      // quantity and the line total take the one under it.
+      @container form (max-width: 44rem) {
+        .order-cart-item {
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          row-gap: 0;
+        }
+
+        .order-cart-remove {
+          grid-row: 1 / span 2;
+        }
+
+        .order-cart-item-name {
+          grid-column: 2 / -1;
+        }
+
+        .order-cart-item-qty {
+          grid-column: 2;
+          font-size: 0.8125rem;
+        }
+
+        .order-cart-item-sub {
+          grid-column: 3;
+          min-width: 0;
+        }
+      }
+
+      // Expand points left at the lines it brings, Hide right at them
+      // going.
+      .order-cart-toggle .order-cart-icon {
+        rotate: 90deg;
+      }
+
+      .order-cart-toggle[aria-expanded="true"] > .order-cart-icon {
+        rotate: -90deg;
+      }
+    }
+
+    // Settled, the pane is the page's own width again.
+    .order-cart[data-stuck="false"] {
+      width: calc(100% + 2px);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .order-cart {
+        transition: none !important;
       }
     }
   }
