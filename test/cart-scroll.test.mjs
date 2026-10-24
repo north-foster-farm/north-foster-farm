@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  keyboardInset, moreStop, ringsCart, rowsFloor, visibleArea,
+  keyboardInset, moreStop, ringsCart, rowsFloor, scrollIntoPane,
+  visibleArea,
 } from "../assets/scripts/order/lib/cart-scroll.mjs";
 
 // Ten rows of 40px, 100px of view in a 400px list.
@@ -49,6 +50,21 @@ describe("keyboardInset", () => {
   it("is none for a toolbar's worth or no visual viewport", () => {
     assert.equal(keyboardInset(844, { offsetTop: 0, height: 790 }), 0);
     assert.equal(keyboardInset(844, null), 0);
+  });
+});
+
+describe("scrollIntoPane", () => {
+  it("is the gap between the row's foot and the pane's", () => {
+    assert.equal(scrollIntoPane({ bottom: 411 }, { bottom: 356 }), 55);
+  });
+
+  it("rounds to a whole pixel", () => {
+    assert.equal(scrollIntoPane({ bottom: 400.6 }, { bottom: 356 }), 45);
+  });
+
+  it("is nothing for a row already inside", () => {
+    assert.equal(scrollIntoPane({ bottom: 300 }, { bottom: 356 }), 0);
+    assert.equal(scrollIntoPane({ bottom: 356 }, { bottom: 356 }), 0);
   });
 });
 
