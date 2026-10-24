@@ -564,6 +564,8 @@ test.describe("map (#138, #214)", () => {
         { hasText: /locations$/ });
 
       await expect(link).toHaveAttribute("href", /\/#places-scheduled$/);
+      await expect(link).toHaveAttribute("target", "_blank");
+      await expect(link).toHaveAttribute("rel", "noopener");
     });
 
   test("the locations link is kept through a cart change",
