@@ -22,7 +22,7 @@
       {{/* A graded item (eggs, #300) shows its grade where a note
            goes, "$7 · Grade A"; `graded` is the label with it, as
            order/lib/catalog.mjs names a line. */}}
-      {{ $graded := cond (isset . "grade") (printf "%s %s" .grade .label) .label }}
+      {{ $graded := cond (isset . "grade") (printf "%s · %s" .grade .label) .label }}
       {{ $items = $items | append (merge . (dict
         "out" $out
         "note" (or .note .grade "")

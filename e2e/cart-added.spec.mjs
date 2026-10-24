@@ -102,10 +102,10 @@ test.describe("the cart's word for an Add", () => {
       await add(order, "eggs");
       await expect(order.cart).toHaveAttribute("data-open", "false");
       await expect(order.cart.locator("[data-cart-added]"))
-        .toHaveText("Added: Eggs, Large");
+        .toHaveText("Added: Eggs, Grade A · Large");
       await expect(order.count).toHaveText("2 items");
       await expect(pill).toHaveAttribute("data-pulse", "once");
-      await expect(live).toHaveText("Added Eggs, Large to cart");
+      await expect(live).toHaveText("Added Eggs, Grade A · Large to cart");
 
       // The word in the bar is gone again after a moment.
       await expect(order.cart.locator("[data-cart-added-box]"))
@@ -142,7 +142,7 @@ test.describe("the cart's word for an Add", () => {
     await page.waitForTimeout(600);
     await expect(order.cart).toHaveAttribute("data-open", "false");
     await expect(order.cart.locator("[data-cart-added]"))
-      .toHaveText("Added: Eggs, Large");
+      .toHaveText("Added: Eggs, Grade A · Large");
   });
 });
 

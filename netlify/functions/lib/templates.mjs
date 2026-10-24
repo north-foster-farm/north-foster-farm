@@ -292,9 +292,7 @@ const catalogIndex = indexCatalog(catalog);
 const lineLabel = (l) => {
   const item = catalogIndex.get(current(l.sku, aliases));
 
-  if (!item) return l.label;
-
-  return item.grade ? `${item.lineName} · ${item.grade}` : item.lineName;
+  return item ? item.lineName : l.label;
 };
 
 // The payment's own receipt (Square's, or Venmo's) carries the money,

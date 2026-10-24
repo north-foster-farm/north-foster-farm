@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 import catalog from "../data/catalog.json" with { type: "json" };
 import terms from "../netlify/functions/lib/terms.mjs";
 import {
-  indexCatalog, short,
+  graded, indexCatalog, short,
 } from "../assets/scripts/order/lib/catalog.mjs";
 import { parseSchedule } from "../assets/scripts/order/lib/schedule.mjs";
 import { itemGroups } from "../assets/scripts/order/lib/summary.mjs";
@@ -32,25 +32,27 @@ describe("line names", () => {
       for (const item of group.items) {
         const got = index.get(item.sku);
 
-        assert.equal(got.lineName, `${short(group.label)}, ${item.label}`);
-        assert.equal(got.row, item.label);
+        assert.equal(got.lineName,
+          `${short(group.label)}, ${graded(item)}`);
+        assert.equal(got.row, graded(item));
       }
     }
     assert.equal(index.get(WINGS).lineName, "Wings, 1.0 – 1.9 lbs");
-    assert.equal(index.get(EGGS).lineName, "Eggs, Large");
-    assert.equal(index.get(EGGS).row, "Large");
+    assert.equal(index.get(EGGS).lineName, "Eggs, Grade A · Large");
+    assert.equal(index.get(EGGS).row, "Grade A · Large");
     assert.equal(index.get(EGGS).note, "Grade A");
     assert.equal(index.get("NFF-CHK-SAUMPL").lineName,
       "Chicken Sausage, Maple breakfast links");
   });
 
-  // Every egg has a grade, from the catalog's one `grade` (#300), a
-  // note beside the name and never in it (#318); nothing else has one.
-  it("keep each egg's grade out of its name and no one else's", () => {
+  // Every egg has a grade, from the catalog's one `grade` (#300), in
+  // its name (#336); nothing else has one.
+  it("put each egg's grade in its name and no one else's", () => {
     const eggs = catalog.groups.find((g) => g.key === "eggs").items;
 
     assert.deepEqual(eggs.map((i) => index.get(i.sku).lineName), [
-      "Eggs, Large", "Eggs, Medium", "Eggs, Small",
+      "Eggs, Grade A · Large", "Eggs, Grade A · Medium",
+      "Eggs, Grade A · Small",
     ]);
     for (const group of catalog.groups) {
       if (group.key === "eggs") continue;
@@ -58,10 +60,10 @@ describe("line names", () => {
     }
   });
 
-  // Square's line takes the grade too; other lines keep the catalog's
+  // Square's line takes the line name; other lines keep the catalog's
   // own name, which for the sausages differs from the line name.
   it("name the Square line with the grade", () => {
-    assert.equal(index.get(EGGS).squareName, "Eggs, Grade A Large");
+    assert.equal(index.get(EGGS).squareName, "Eggs, Grade A · Large");
     assert.equal(index.get("NFF-CHK-SAUMPL").squareName,
       "Maple Breakfast Sausage, Links");
     assert.equal(index.get(WINGS).squareName, index.get(WINGS).name);
@@ -84,11 +86,13 @@ describe("line names", () => {
     assert.equal(group.items[0].lineName, "Livers, 1.0 – 1.4 lbs");
   });
 
-  it("keep the egg grade out of the cart (#320)", () => {
+  it("show the egg grade in the cart (#336)", () => {
     const [group] = itemGroups([{ sku: EGGS, qty: 1 }], index);
 
+    assert.equal(group.label, "Eggs");
     assert.equal(group.items[0].note, undefined);
-    assert.doesNotMatch(JSON.stringify(group), /Grade/);
+    assert.equal(group.items[0].row, "Grade A · Large");
+    assert.equal(group.items[0].lineName, "Eggs, Grade A · Large");
   });
 
   describe("in an order", () => {
@@ -117,11 +121,11 @@ describe("line names", () => {
       assert.ok(r.ok, JSON.stringify(r.errors));
       assert.deepEqual(r.order.lines.map((l) => l.label), [
         "Livers, 1.0 – 1.4 lbs", "Wings, 1.0 – 1.9 lbs",
-        "Eggs, Large · Grade A",
+        "Eggs, Grade A · Large",
       ]);
-      // The stored label carries the grade as a note (#318, Rhode Island
-      // wants it on the invoice); Square's name keeps it too (#300).
-      assert.equal(r.order.lines[2].name, "Eggs, Grade A Large");
+      // The stored label and Square's name both carry the grade (#300,
+      // Rhode Island wants it on the invoice) in the one line name.
+      assert.equal(r.order.lines[2].name, "Eggs, Grade A · Large");
     });
 
     it("name a sold-out line", () => {

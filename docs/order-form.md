@@ -77,15 +77,16 @@ the grouped cart; `order/groups.html` gives the templates `row`.
 
 An item with a `grade` (the eggs, "Grade A"; #300, Rhode Island's
 250-RICR-40-20-7) says it before its label wherever a line is named:
-"Eggs, Grade A Large" in the cart, the stored order and so the
-emails, the account page and the pick list, and search. Square names
-a line sent with its variation id, as in production, from its own
-catalog, so the egg variations there are named "Grade A Large",
-"Grade A Medium" and "Grade A Small" (a step in Square, #300);
-`squareName` only names a line sent without one. The order
-page's row keeps "Large" and shows the grade where a note goes. Orders
-placed before keep the names they were stored with. The catalog's
-`grade` is the one source (`graded` in `lib/catalog.mjs`).
+"Eggs, Grade A · Large" (#336) in the cart, the stored order and so
+the emails, the account page, the pick list, the CLI and search.
+Square names a line sent with its variation id, as in production,
+from its own catalog, so the egg variations there are named "Eggs,
+Grade A · Large", "Eggs, Grade A · Medium" and "Eggs, Grade A ·
+Small" (a step in Square, #237); `squareName` only names a line sent
+without one, and takes the same line name. The order page's row keeps
+"Large" and shows the grade where a note goes. Orders placed before
+keep the names they were stored with. The catalog's `grade` is the one
+source (`graded` in `lib/catalog.mjs`).
 
 Pack weights (#267, James, 2026-10-20 and 21). The smallest pack sold
 is 1.0 lb; anything lighter is a family pack, kept by the farm and
