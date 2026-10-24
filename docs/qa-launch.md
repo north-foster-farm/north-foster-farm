@@ -118,9 +118,9 @@ continue" (both projects).
   1. Open `/order/`.
 - **Assert:** On-farm pickup is checked. With Delivery chosen, the cart
   reads "0 items", Subtotal $0, Total $0, with no Delivery fee row and
-  no discount row. Proceed to checkout is disabled. The nudge reads "Delivery
-  orders need a $40 minimum." The Delivery card reads "You need $40 or
-  more in your cart to use this option."
+  no discount row. Proceed to checkout is disabled. The nudge reads
+  "Delivery orders need a $40 minimum." The Delivery card reads "You
+  need $40 or more in your cart to use this option."
 - **Teardown:** None.
 
 ### OP-02 On-farm pickup comes first
@@ -1013,8 +1013,9 @@ email" (both projects).
   1. Type the email; tick "Sign up and stay up-to-date with North Foster
      Farm."; move to the phone field.
 - **Assert:** The box is ticked and its label still reads "Sign up and
-  stay up-to-date with North Foster Farm."; chicks hop out of it (none under reduced motion);
-  no note under it; no request to `/api/news/`; no order is sent.
+  stay up-to-date with North Foster Farm."; chicks hop out of it (none
+  under reduced motion); no note under it; no request to `/api/news/`;
+  no order is sent.
 - **Teardown:** None.
 
 ### FM-11 Autofill on an iPhone
@@ -2653,9 +2654,9 @@ with the split Order button of a8e6e52.
   keeps its width when the cart empties and the cart half goes.
   Search's add shows "2" at once; the second tab goes from "1" to "2"
   with no reload. The mini cart lists one line "× 2" and a subtotal;
-  Check out lands on `/order/#details`, in view, with "2 items".
-  Blocked storage shows no badge and no page error; a placed order
-  leaves no badge.
+  Proceed to checkout lands on `/order/#details`, in view, with "2
+  items". Blocked storage shows no badge and no page error; a placed
+  order leaves no badge.
 - **Teardown:** None.
 
 ### AR-30 The skip link (#159)

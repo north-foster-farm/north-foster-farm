@@ -4,7 +4,9 @@
 // browser sets after signing up and the unsubscribe page clears.
 // /api/me and the sign-up request are stubbed.
 
-import { expect, test } from "./support/order.mjs";
+import {
+  OrderPage, expect, test, uniqueEmail,
+} from "./support/order.mjs";
 
 const PAGES = [
   { name: "the footer", path: "/about/", block: "footer [data-news-block]" },
@@ -118,6 +120,44 @@ test.describe("the order page's farm news opt-in (#391)", () => {
       await page.goto("/order/");
       await expect(page.locator(block)).toBeHidden();
       await expect(page.locator("#customer-marketing")).not.toBeChecked();
+    });
+
+  test("a hidden block sends marketing false, never a no",
+    async ({ page, context, baseURL }) => {
+      let body = null;
+
+      await stamp(context, baseURL);
+      await me(page, true);
+      // Stubbed, so no order is placed; only the request is read.
+      await page.route("**/api/orders", (route) => {
+        body = route.request().postDataJSON();
+
+        return route.fulfill({
+          status: 429,
+          contentType: "application/json",
+          headers: { "Retry-After": "600" },
+          body: JSON.stringify({ message: "Stubbed." }),
+        });
+      });
+
+      const order = new OrderPage(page);
+
+      await order.open({ eggs: 1 });
+      await order.method("onfarm");
+      await order.contact({
+        first: "Hide", email: uniqueEmail("hide"),
+      });
+      await order.firstDate("onfarm");
+      await expect(page.locator(block)).toBeHidden();
+      await order.openCard();
+      await order.card();
+      await order.submit.click();
+      await expect(order.payError).toBeVisible();
+
+      expect(body, "the order was posted").not.toBeNull();
+      expect(body.customer.marketing,
+        "a hidden block says false, which changes no record")
+        .toBe(false);
     });
 
   test("shows for a signed-in customer who is not on the list",

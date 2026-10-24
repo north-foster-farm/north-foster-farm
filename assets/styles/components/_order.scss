@@ -595,6 +595,12 @@
   // agreement (#352; #228 had it under the email).
   .order-optin-title {
     margin: 1.5rem 0 0.5rem;
+
+    // On a phone the subheading aligns right with the box under it,
+    // as one column with the button above.
+    @media (max-width: 767.98px) {
+      text-align: right;
+    }
   }
 
   .order-optin {
