@@ -1,5 +1,5 @@
 {
- "revision": 44,
+ "revision": 45,
  "updated": "2026-10-24",
  "notice": null,
  "phases": [
@@ -2831,6 +2831,501 @@
    ],
    "device": "any",
    "type": "look"
+  },
+  {
+   "id": "D-354-31",
+   "section": "rv-decide",
+   "title": "The off-season band after October 25 (urgent: it swaps on October 26)",
+   "area": "#354 D31",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "**Urgent: this goes live at midnight on October 26.** The home page swaps the market band for \"Three ways to get your order\" in the browser at midnight on October 26, whatever date the page was built. Its wording has been a draft since September 24 and was never approved. Its exact text is below.\n\n- Approve as it stands (recommended).\n- Mark up: name the line.",
+     "look": [],
+     "recommendation": "Approve as it stands.",
+     "text": "No off-season. Three ways to get your order.\nOn-farm pickup: Pick a time when you order; 99 E Killingly Rd, Foster, RI; No minimum, no fee.\nDrop site: Saturdays, 10:00 to 11:00 AM; 46 Institute Ln, North Scituate, RI; No minimum, no fee.\nDelivery: Every Thursday, 10:00 AM to 4:00 PM; Most of central Rhode Island and parts of eastern Connecticut; $40 minimum, $5 fee."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-05",
+   "section": "rv-decide",
+   "title": "Policy pages: your final pass",
+   "area": "#354 D5",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#157 (closed; every page has a first pass on staging and every answer you gave is applied). Pages: delivery policy, accessibility statement, About markets, privacy (own entries D1, D2). Any decided item can still be overruled here. The sentence \"We email you a reminder the evening before.\" waits on the proof in #355.\n\n- Approve the pages as they stand on staging (recommended), after the proof in #355.\n- Mark up: name the page and the line.",
+     "look": [],
+     "recommendation": "Approve the pages as they stand on staging, after the proof in #355."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-08",
+   "section": "rv-decide",
+   "title": "Approve or rewrite the 17 emails waiting in the library",
+   "area": "#354 D8",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#187. The staging toolbar's Emails library ([Staging](https://staging--north-foster-farm.netlify.app/#emails) once `next` is promoted) holds 45 emails; 28 are approved and 17 wait on you, filtered under \"To approve\". Open each, then Approve, or Rewrite it in the browser. Together with D4 (the launch email).\n\n- Review and approve or rewrite all 17 before launch (recommended).\n- Approve the ones you have read and leave the rest for after launch; say which.",
+     "look": [
+      {
+       "label": "Staging",
+       "url": "https://staging--north-foster-farm.netlify.app/#emails"
+      }
+     ],
+     "recommendation": "Review and approve or rewrite all 17 before launch."
+    }
+   ],
+   "device": "any",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-10",
+   "section": "rv-decide",
+   "title": "Quiet accounts: approve the privacy sentence and the notice email",
+   "area": "#354 D10",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#189 ([#189 comment](https://github.com/north-foster-farm/north-foster-farm/issues/189#issuecomment-6333314214)). Held in 62f06ce. Privacy page: \"Your account stays until you close it, even if you stop using it. If a year goes by without you signing in or ordering, we take you off our farm news and email you once to say so. Deleting your details takes one click in your account settings.\" Notice email, subject \"Your account is still here\", sent once after a quiet year. No customer can be quiet that long before about September 2027.\n\n- Approve both as drafted (recommended).\n- Mark up: name the line.",
+     "look": [
+      {
+       "label": "#189 comment",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/189#issuecomment-6333314214"
+      }
+     ],
+     "recommendation": "Approve both as drafted."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-13",
+   "section": "rv-decide",
+   "title": "Where does the cooked-chicken photo go on the site?",
+   "area": "#354 D13",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#230. Option 1 is built on `next` (5163122), pending your look on staging. Mock-ups: [Review page](https://claude.ai/artifact/5KwSNTFCGyZxGrjN8BMuZh). Credit \"Photo: @fussica\"; alt text \"One of our chickens, roasted in a pan with red onion and bay leaves.\"\n\n- Option 1, beside How to buy on the home page (recommended, built).\n- Option 2, the About page's What we sell, photo on the left.\n- Option 3, a full-width strip under How to buy on the home page; the photo's soft patches show at that size.",
+     "look": [
+      {
+       "label": "Review page",
+       "url": "https://claude.ai/artifact/5KwSNTFCGyZxGrjN8BMuZh"
+      }
+     ],
+     "recommendation": "Option 1, beside How to buy on the home page."
+    }
+   ],
+   "device": "any",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-14",
+   "section": "rv-decide",
+   "title": "Loading-failure wording (skeletons)",
+   "area": "#354 D14",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#271. Each line is followed by a \"Try again\" link: \"We couldn't load your account.\" / \"We couldn't load the dates.\" / \"We couldn't check what's in stock.\" / \"The card form is taking too long to load.\" / \"We couldn't load your orders.\" / \"We couldn't load older posts.\" Communications reviewed them.\n\n- Approve as drafted (recommended).\n- Mark up: name the line.",
+     "look": [],
+     "recommendation": "Approve as drafted."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-15",
+   "section": "rv-decide",
+   "title": "List-mail photos: a folder of resized copies",
+   "area": "#354 D15",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#273 ([#273 comment](https://github.com/north-foster-farm/north-foster-farm/issues/273#issuecomment-6286015594)). Hugo fingerprints every photo it serves, so a newsletter cannot point at one that stays put. The fix is `static/images/email/`, holding resized copies of photos already recorded in the provenance log, one per send. A new served file needs your go.\n\n- Yes, add the folder, and add copies only for photos in the log, one per send (recommended).\n- No: list mail goes out without photos.",
+     "look": [
+      {
+       "label": "#273 comment",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/273#issuecomment-6286015594"
+      }
+     ],
+     "recommendation": "Yes, add the folder, and add copies only for photos in the log, one per send."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-16",
+   "section": "rv-decide",
+   "title": "The invitation's confirm link is a GET",
+   "area": "#354 D16",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#273 ([#273 comment](https://github.com/north-foster-farm/north-foster-farm/issues/273#issuecomment-6286702924)) and #153. A mail scanner that opens links in advance (Outlook Safe Links and similar) would opt the address in and trigger the welcome. The link only ever reaches the invited address.\n\n- Keep it for the invitation (recommended): the people invited already joined the old list, so an early confirm costs little.\n- Change it to a confirm page with a button, a small build before the invitation goes out.",
+     "look": [
+      {
+       "label": "#273 comment",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/273#issuecomment-6286702924"
+      }
+     ],
+     "recommendation": "Keep it for the invitation: the people invited already joined the old list, so an early confirm costs little."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-17",
+   "section": "rv-decide",
+   "title": "Confirm the missed-delivery wording",
+   "area": "#354 D17",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#304 (from #193). Six drafts shipped marked \"draft wording\" in the code: the missedDelivery and movedDelivery emails (both also in the email library, D8), the hold-expired text, the cancel panel's line that the kept fee is not refunded, the \"Kept for the missed delivery\" row, and the account page's wording for a missed delivery.\n\n- Approve all six as drafted (recommended), and the draft marker comes out.\n- Rewrite any: name the one and give the words.",
+     "look": [],
+     "recommendation": "Approve all six as drafted, and the draft marker comes out."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-18",
+   "section": "rv-decide",
+   "title": "On-farm pickup: five two-hour windows, before or after launch?",
+   "area": "#354 D18",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#353 (your 2026-10-24 walkthrough). You asked for windows of 8 to 10, 10 to 12, 12 to 2, 2 to 4 and 4 to 6 from the schedule, with a default weekly schedule and per-date overrides. It changes what customers can pick and the confirm flow, so it is bigger than a fix.\n\n- After launch (recommended): launch with today's two windows, 9 to 1 and 1 to 5, which are what the current schedule file holds.\n- Before launch: the five windows become the default for everyone. Orders already placed keep the window they chose.",
+     "look": [],
+     "recommendation": "After launch: launch with today's two windows, 9 to 1 and 1 to 5, which are what the current schedule file holds."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-19",
+   "section": "rv-decide",
+   "title": "How to buy, step 4: pick the line",
+   "area": "#354 D19",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#338. Step 4's heading stays; its text is yours. The live draft is \"Our customers tell us the difference time and time again.\"\n\n- \"Try our chicken and eggs once, and you'll see why customers keep coming back.\" (communications' draft; it does not repeat \"difference\" and claims nothing we cannot back; recommended)\n- \"Our chicken and eggs, raised here on the farm. You'll taste it.\"\n- The live draft as it stands, or your own line.",
+     "look": [],
+     "recommendation": "\"Try our chicken and eggs once, and you'll see why customers keep coming back.\" (communications' draft; it does not repeat \"difference\" and claims nothing we cannot back)"
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-20",
+   "section": "rv-decide",
+   "title": "Map: the $5 and $8 swatch rows, and the outside-area line",
+   "area": "#354 D20",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#214, [#214 comment](https://github.com/north-foster-farm/north-foster-farm/issues/214#issuecomment-6383759922). Two open picks on the map key. The outside-area town line is built at the lighter #dfdacd you asked for (below 3:1 against the land, which you accepted; the \"No delivery\" tag carries the meaning too); the other candidates run from #c0baac to #e7e2d6.\n\n- Keep the $5 and $8 swatch rows as the key to the shading (recommended), or drop them.\n- Keep #dfdacd (recommended), or name another from the five on the issue.",
+     "look": [
+      {
+       "label": "#214 comment",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/214#issuecomment-6383759922"
+      }
+     ],
+     "recommendation": "Keep the $5 and $8 swatch rows as the key to the shading, or drop them."
+    }
+   ],
+   "device": "any",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-21",
+   "section": "rv-decide",
+   "title": "Approve the three environment sample files",
+   "area": "#354 D21",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#372. The `.env.production.sample`, `.env.staging.sample` and `.env.development.sample` files are committed. They reach you through the launch guide's review, and agents may not change them after you approve.\n\n- Approve as committed, once #372 removes the old `.env.sample` (recommended).\n- Amend names: say which.",
+     "look": [],
+     "recommendation": "Approve as committed, once #372 removes the old `.env.sample`."
+    }
+   ],
+   "device": "any",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-22",
+   "section": "rv-decide",
+   "title": "Two GitHub secret-scanning alerts on the site",
+   "area": "#354 D22",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#283 ([#283 comment](https://github.com/north-foster-farm/north-foster-farm/issues/283#issuecomment-6302987036)). Both were judged test fixtures without printing a value: alert 1 is Svix's public documentation example secret (`test/venmo.test.mjs:106`); alert 2 is a hand-typed development value (`.env.development.sample:135` and its launch-guide copies). Closing an alert is your call.\n\n- Close both as fixtures (recommended; replace alert 2's value with an obvious placeholder first so it cannot recur).\n- Leave them open and have the values replaced.",
+     "look": [
+      {
+       "label": "#283 comment",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/283#issuecomment-6302987036"
+      }
+     ],
+     "recommendation": "Close both as fixtures."
+    }
+   ],
+   "device": "laptop",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-23",
+   "section": "rv-decide",
+   "title": "Show Netlify build failures as commit statuses",
+   "area": "#354 D23",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#283 (same comment). Netlify reports nothing to GitHub on the site, so a `check:env`, `check:schedule` or gate failure shows only on Netlify. Adding GitHub commit statuses is a Netlify setting (Notifications, Deploy notifications).\n\n- Turn it on (recommended); it costs nothing and puts those failures on the commit.\n- Leave it off.",
+     "look": [],
+     "recommendation": "Turn it on; it costs nothing and puts those failures on the commit."
+    }
+   ],
+   "device": "laptop",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-24",
+   "section": "rv-decide",
+   "title": "Gym drop site: go or no-go",
+   "area": "#354 D24",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "[#267 comment](https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6308538356) and [#267 comment](https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6322825404). About three working days plus review, roughly a week. An every-other-week cadence fits as a small change.\n\n- After launch (recommended): say go and a start date after your meeting, and an issue is filed.\n- Before launch.\n- No.",
+     "look": [
+      {
+       "label": "#267 comment",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6308538356"
+      },
+      {
+       "label": "#267 comment",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6322825404"
+      }
+     ],
+     "recommendation": "After launch: say go and a start date after your meeting, and an issue is filed."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-25",
+   "section": "rv-decide",
+   "title": "Copy only you can approve or write",
+   "area": "#354 D25",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#267. The ordering-tour post rewrite and the About page rewrite gate the code freeze ([#267 comment](https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6249993960)); the About page paragraphs ([#267 comment](https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6305459314)) and the launch email's P1 to P12 ([#267 comment](https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6305482339), text in [#267 comment](https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6336074878)) await your read-through; the 2027 minimum wording ($40 to $50, [#267 comment](https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6333111898)); and the reorder fallback \"Some items from that order have changed. Please add them again.\" ([#267 comment](https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6306544369)).\n\n- Read and approve each at the staging build (recommended): say \"approved\" or the rewrite.",
+     "look": [
+      {
+       "label": "#267 comment",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6249993960"
+      },
+      {
+       "label": "#267 comment",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6305459314"
+      },
+      {
+       "label": "#267 comment",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6305482339"
+      },
+      {
+       "label": "#267 comment",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6336074878"
+      },
+      {
+       "label": "#267 comment",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6333111898"
+      },
+      {
+       "label": "#267 comment",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6306544369"
+      }
+     ],
+     "recommendation": "Read and approve each at the staging build: say \"approved\" or the rewrite."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-26",
+   "section": "rv-decide",
+   "title": "Dashboard: what was the \"Metrics and KPI framework\" meant to be?",
+   "area": "#354 D26",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "nff-dashboard#27. Its body is only a path to a scratch file from another session (`issue-metrics.txt`) that no longer exists, so the request cannot be recovered.\n\n- Drop it, and file a fresh issue when you want metrics (recommended).\n- Restate what you wanted in a comment there and it becomes a spec.",
+     "look": [],
+     "recommendation": "Drop it, and file a fresh issue when you want metrics."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-27",
+   "section": "rv-decide",
+   "title": "Dashboard households: do other members get an email when a household is deleted?",
+   "area": "#354 D27",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "nff-dashboard#28. When \"Delete my details\" deletes a whole household, other people's details go too.\n\n- Yes, one short note to each member saying their household's details were deleted at a member's request, without naming who (recommended).\n- No email.",
+     "look": [],
+     "recommendation": "Yes, one short note to each member saying their household's details were deleted at a member's request, without naming who."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-29",
+   "section": "rv-decide",
+   "title": "The escalation email's wording",
+   "area": "#354 D29",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#375 (the detector that sends it is not built yet). The email goes to Jim an hour after an alert and every hour while it stays open. Subject \"Please switch on the order pause\"; body: \"James hasn't responded to an urgent problem with online orders: some payments may be going through without an order being saved.\" then \"To stop more orders from coming in until James can look, switch on maintenance mode with the button below. Customers will see a short notice that the site is under maintenance.\"; button \"Switch on maintenance mode\".\n\n- Approve the body and button, change the subject to \"Please switch on maintenance mode\" so the subject and the button use the same words, and add \"This message repeats every hour until someone responds.\" before the button (recommended).\n- Keep the draft as is, or give your own words.",
+     "look": [],
+     "recommendation": "Approve the body and button, change the subject to \"Please switch on maintenance mode\" so the subject and the button use the same words, and add \"This message repeats every hour until someone responds.\" before the button."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-30",
+   "section": "rv-decide",
+   "title": "Swap `E2E_STAGING_TOKEN` at once, with no 31-day overlap?",
+   "area": "#354 D30",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#237 (the staging token line). You named `STAGING_TOKEN` and the maintenance secret as swapped at once. `docs/secrets.md` (rule 6) lists `E2E_STAGING_TOKEN` the same way: we generate it, only staging and the test suite hold it, and it unlocks only the staging back-office API. An overlap would need code that accepts two values.\n\n- Swap it at once, in one sitting (Netlify's staging context, the GitHub secret, `.env.e2e-staging`, the password manager) (recommended).\n- Keep an overlap: say how long.",
+     "look": [],
+     "recommendation": "Swap it at once, in one sitting (Netlify's staging context, the GitHub secret, `.env.e2e-staging`, the password manager)."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-32",
+   "section": "rv-decide",
+   "title": "News post addresses without the date, and two retitled posts",
+   "area": "#354 D32",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "the guide's R-NEWSURL (draft on `lane/pages`, 938eb99). A post's address becomes its title with no date (`news/september-update`), all 18 old addresses redirect with a 301, and a build check fails on a repeated title. Two titles change on the page so no two posts share one: \"June 2025 Update\" and \"December 2024 Update\".\n\n- Approve the two new titles (recommended).\n- Keep the old titles and give the colliding posts other addresses.",
+     "look": [],
+     "recommendation": "Approve the two new titles."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-33",
+   "section": "rv-decide",
+   "title": "Two privacy page changes",
+   "area": "#354 D33",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#146, the guide's R-PRIVACY. Logs no longer hold contact details (26b0501 scrubs them), so the page's current line is false, and a new line is needed for the farm-news forms that hide for subscribers (2c17b51). After (logs): \"Log lines never hold your contact details: your name, email address, phone number and address are removed before a line is written.\" New, under What your browser keeps: \"If you sign up for farm news, this browser remembers that you did, so it can hide the sign-up forms. That note holds no personal information and never your email address. It stays until you unsubscribe or turn farm news off.\"\n\n- Approve both (recommended). Retention (30 days) stays as written until you confirm Axiom's setting.\n- Mark up: name the sentence.",
+     "look": [],
+     "recommendation": "Approve both. Retention (30 days) stays as written until you confirm Axiom's setting."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-34",
+   "section": "rv-decide",
+   "title": "The In stock switch: on the heading row, or under it?",
+   "area": "#354 D34",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "#370. The pick only changes desktop; at 390 both are identical. Mock-ups are in the guide's D-STOCK item.\n\n- A, on the heading row at the right edge of the catalog column (recommended; no height above the catalog, and your preference in #303).\n- B, directly under the heading on the left.",
+     "look": [],
+     "recommendation": "A, on the heading row at the right edge of the catalog column."
+    }
+   ],
+   "device": "any",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-35",
+   "section": "rv-decide",
+   "title": "Retire the launch guide in favor of #237 and this issue?",
+   "area": "#354 D35",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "the guide (branch `launch-guide`, revision 44) overlaps two GitHub places: #237 (your steps) and this issue (your questions). On 2026-10-24 the curator reconciled all 179 guide items: 34 retired as done or superseded, 23 review items now point at their entry here, and its missing steps now have lines in #237. The guide still adds the env builder, copy buttons and your saved progress. Having two lists risks them drifting again; the conflicts found today (Venmo flag D28, Square app, backups, rulesets, invitation) came from exactly that.\n\n- Keep the guide as a read-only appendix until launch, answer questions here and run steps from #237, then retire it after launch (recommended). Before then #237 absorbs the exact commands the env builder generates.\n- Keep both as they are: agents then update both on every change, as the guide's README says.\n- Retire it now: #237 and this issue are the only lists.",
+     "look": [],
+     "recommendation": "Keep the guide as a read-only appendix until launch, answer questions here and run steps from #237, then retire it after launch. Before then #237 absorbs the exact commands the env builder generates."
+    }
+   ],
+   "device": "any",
+   "type": "decide"
   },
   {
    "id": "D-VENMO",
