@@ -521,11 +521,6 @@ export const slipAddress = () => [
     company.address.zip}`,
 ];
 
-// A payment's date, "Nov 1, 2026", by the farm's clock.
-export const paymentDate = (at) => (at ? new Intl.DateTimeFormat("en-US", {
-  timeZone: tz, month: "short", day: "numeric", year: "numeric",
-}).format(new Date(at)) : "");
-
 // The phone, the sales address, the website and the Instagram handle,
 // from the site's data. The website is the sales address's domain.
 export const slipContacts = () => [
@@ -695,70 +690,50 @@ const slipPage = (doc, order, env) => {
     at.y += 18;
   }
 
+  // The totals as one right-aligned ledger (James, 2026-10-24, round
+  // 4): each line's label ends where the amounts' column begins, a
+  // rule sets off the bold Total, each payment is "Paid by Visa *4242"
+  // with its amount taken off, and a second rule sets off the bold Due.
   const t = order.totals;
-  const sums = [["Subtotal", dollars(t.subtotal)]];
+  const paid = paymentsOf(order).filter((p) => p.amount > 0);
+  const lines = [["Subtotal", dollars(t.subtotal)]];
 
   if (t.discountAmount) {
-    sums.push([t.discountLabel || "Discount", `-${dollars(t.discountAmount)}`]);
+    lines.push([t.discountLabel || "Discount",
+      `-${dollars(t.discountAmount)}`]);
   }
-  if (t.deliveryFee) sums.push(["Delivery fee", dollars(t.deliveryFee)]);
-  sums.push(["Total", dollars(t.total)]);
+  if (t.deliveryFee) lines.push(["Delivery fee", dollars(t.deliveryFee)]);
 
-  // What has been paid, below the total: a ledger line for each, its
-  // date, method and amount, then a rule and what is still due.
-  const paid = paymentsOf(order).filter((p) => p.amount > 0);
-  const rows = sums.length + paid.length + (state.refunded ? 1 : 0)
-    + (paid.length ? 2 : 0);
-  const RULE_X = RIGHT - 270;
-  const money = (name, value, bold) => {
+  const LABEL_X = RIGHT - 70;
+  const RULE_X = RIGHT - 250;
+  const row = (name, value, bold) => {
     const size = bold ? 12 : 11;
 
-    doc.text(name, RIGHT - 110, at.y, {
+    doc.text(name, LABEL_X, at.y, {
       ...ALLER, size, bold, color: INK, align: "right",
     });
     doc.text(value, RIGHT - 8, at.y, {
       ...ALLER, size, bold, color: INK, align: "right",
     });
+    at.y += LINE;
   };
-
-  at.room(rows * LINE + 24);
-  for (const [name, value] of sums) {
-    if (name === "Total") {
-      doc.line(RIGHT - 220, at.y - 9, RIGHT, at.y - 9, {
-        width: 0.75, color: GREEN,
-      });
-      at.y += 9;
-    }
-    money(name, value, name === "Total");
-    at.y += name === "Total" ? LINE + 3 : LINE;
-  }
-  for (const p of paid) {
-    doc.text(paymentDate(p.at), RULE_X, at.y, {
-      ...ALLER, size: 11, color: INK,
-    });
-    doc.text(paymentName(p), RIGHT - 70, at.y, {
-      ...ALLER, size: 11, color: INK, align: "right",
-    });
-    doc.text(`-${dollars(p.amount)}`, RIGHT - 8, at.y, {
-      ...ALLER, size: 11, color: INK, align: "right",
-    });
-    at.y += LINE;
-  }
-  if (state.refunded) {
-    money("Refunded", dollars(state.refunded));
-    at.y += LINE;
-  }
-  if (paid.length) {
+  const rule = () => {
     doc.line(RULE_X, at.y - 9, RIGHT, at.y - 9, {
       width: 0.75, color: GREEN,
     });
-    at.y += 6;
-    doc.text("Due", RULE_X, at.y, {
-      ...ALLER, size: 12, bold: true, color: INK,
-    });
-    doc.text(dollars(state.due), RIGHT - 8, at.y, {
-      ...ALLER, size: 12, bold: true, color: INK, align: "right",
-    });
+    at.y += 9;
+  };
+
+  at.room((lines.length + paid.length + 4) * LINE + 40);
+  for (const [name, value] of lines) row(name, value);
+  rule();
+  row("Total", dollars(t.total), true);
+  for (const p of paid) row(`Paid by ${paymentName(p)}`,
+    `-${dollars(p.amount)}`);
+  if (state.refunded) row("Refunded", dollars(state.refunded));
+  if (paid.length) {
+    rule();
+    row("Due", dollars(state.due), true);
   }
 };
 

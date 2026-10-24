@@ -13,7 +13,7 @@ import { company } from "../netlify/functions/lib/company.mjs";
 import { samplePacket } from "../netlify/functions/lib/library.mjs";
 import {
   FARM_COPY, PAY_WORDS, acceptedWays, dueLines, packetPdf, paidLine,
-  paymentDate, paymentName, paymentState, slipAddress, slipContacts, slipLabel,
+  paymentName, paymentState, slipAddress, slipContacts, slipLabel,
 } from "../netlify/functions/lib/packing.mjs";
 import { readWoff } from "../netlify/functions/lib/ttf.mjs";
 
@@ -126,16 +126,11 @@ describe("the slip's round 2 (James, 2026-10-24)", () => {
     assert.match(pdf, /\(Amount\)/);
     assert.match(pdf, /\(\$30\)/, "the chicken's unit price");
     assert.match(pdf, /\(\$90\)/, "its row's amount");
-    assert.match(pdf, /\(Visa \*4242\)/);
+    assert.match(pdf, /\(Paid by Visa \*4242\)/);
     assert.match(pdf, /\(-\$94\)/);
     assert.match(pdf, /\(Due\)/);
     assert.match(pdf, /\(\$0\)/);
-    assert.ok(!pdf.includes("(Paid by Visa"), "no round 2 lines");
-  });
-
-  it("dates a payment by the farm's clock", () => {
-    assert.equal(paymentDate("2026-11-02T03:30:00Z"), "Nov 1, 2026");
-    assert.equal(paymentDate(undefined), "");
+    assert.ok(!/\(Nov |\(Oct /.test(pdf), "no payment date");
   });
 
   it("drops the packer's fields and the Printed line", () => {
