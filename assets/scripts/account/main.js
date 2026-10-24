@@ -471,10 +471,13 @@ class Account {
     }
 
     if (result.ok) {
-      this.saveLine(line, "saved", "Saved 👍");
+      this.saveLine(line, "saved", "Saved ", "👍");
     } else {
       console.error("Account save failed", { field, error: result.error });
       this.saveLine(line, "failed", `Failed to save: ${result.error}`);
+      // The Address tab's one group is a screen tall on a phone, so the
+      // heading's status can sit out of sight above the field.
+      line.scrollIntoView({ block: "nearest" });
     }
 
     return result.ok;
@@ -488,12 +491,22 @@ class Account {
     return qs(group || form, "[data-autosave]");
   }
 
-  saveLine(line, state, text) {
+  // `mark` is a decoration the screen reader skips.
+  saveLine(line, state, text, mark = "") {
     this.fades ||= new Map();
     clearTimeout(this.fades.get(line));
     line.classList.remove("is-fading");
     line.dataset.save = state;
-    qs(line, "[data-save-text]").textContent = text;
+    const out = qs(line, "[data-save-text]");
+
+    out.textContent = text;
+    if (mark) {
+      const span = document.createElement("span");
+
+      span.setAttribute("aria-hidden", "true");
+      span.textContent = mark;
+      out.append(span);
+    }
     if (state !== "saved") return;
 
     this.fades.set(line, setTimeout(() => {
