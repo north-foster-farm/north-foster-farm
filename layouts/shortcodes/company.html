@@ -6,10 +6,8 @@
     {{% company "phone" %}}        [(401) …](tel:+1401…)
   A second argument is the link's text instead:
     {{% company "email" "email us" %}}
-  "email" is sales@, for anything commercial (ordering, orders,
-  pickup, delivery, order problems). "email-info" is info@, for
-  anything non-commercial (privacy, accessibility, data requests,
-  press, legal). */ -}}
+  Contact links go to info@, "email-info" (#400). "email" is sales@,
+  the order mailbox, which no page links any more. */ -}}
 {{- $company := hugo.Data.company -}}
 {{- $fact := .Get 0 -}}
 {{- $link := "" -}}

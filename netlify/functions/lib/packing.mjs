@@ -497,12 +497,12 @@ export const slipAddress = () => [
     company.address.zip}`,
 ];
 
-// The phone, the sales address, the website and the Instagram handle,
-// from the site's data. The website is the sales address's domain.
+// The phone, the contact address, the website and the Instagram
+// handle, from the site's data. The website is the address's domain.
 export const slipContacts = () => [
   company.phone.display,
-  company.email,
-  company.email.split("@")[1],
+  company.emailInfo,
+  company.emailInfo.split("@")[1],
   `@${new URL(signatures.shared.instagram.url).pathname.replace(/\//g, "")}`,
 ].join("  ·  ");
 

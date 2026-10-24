@@ -214,7 +214,7 @@ const footerLines = [
   `${company.address.short || company.address.street}, ` +
     `${company.address.city}, ${company.address.state} ` +
     `${company.address.zip}`,
-  company.email,
+  company.emailInfo,
   company.phone && company.phone.display,
 ].filter(Boolean);
 const footer = {
@@ -267,7 +267,7 @@ const render = (title, blocks, links = {}, {
 };
 
 const contactUrl = (links) =>
-  (links && links.contact) || `mailto:${company.email}`;
+  (links && links.contact) || `mailto:${company.emailInfo}`;
 
 // The support address, a mailto link (#240): "[contact us]" in a
 // paragraph is a link to it in the HTML and "contact us at info@..."

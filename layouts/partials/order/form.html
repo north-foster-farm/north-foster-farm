@@ -12,7 +12,7 @@
   "locations" hugo.Data.locations.locations
   "series" hugo.Data.series.series
   "codes" $codes
-  "contact" (dict "name" hugo.Data.company.name "email" hugo.Data.company.email "phone" hugo.Data.company.phone)
+  "contact" (dict "name" hugo.Data.company.name "email" hugo.Data.company.emailInfo "phone" hugo.Data.company.phone)
 }}
 <script type="application/json" id="order-data">{{ $data | jsonify | safeJS }}</script>
 
@@ -132,7 +132,7 @@
       for news from the farm between orders.
     </p>
     <p class="mb-0 text-body-secondary">
-      Questions? Email us at <a href="mailto:{{ hugo.Data.company.email }}">{{ hugo.Data.company.email }}</a>
+      Questions? Email us at <a href="mailto:{{ hugo.Data.company.emailInfo }}">{{ hugo.Data.company.emailInfo }}</a>
     </p>
   </div>
 </template>

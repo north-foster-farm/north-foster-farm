@@ -96,7 +96,7 @@ any other Rhode Island ZIP code that is *not* in our delivery area for
 we'll call, text, or email you. If we aren't able to get your order to
 you, we will hold your order for up to {{< terms "hold" >}}. You may
 also request a refund for the order in full. For anywhere else,
-{{% company "email" "email us" %}} before you order.
+{{% company "email-info" "email us" %}} before you order.
 
 {{< delivery-area >}}
 
@@ -163,4 +163,4 @@ By placing an order, you agree to this policy.
 ## Contacting us
 
 If you have questions about this policy, email
-{{% company "email" %}}, or call or text {{% company "phone" %}}.
+{{% company "email-info" %}}, or call or text {{% company "phone" %}}.

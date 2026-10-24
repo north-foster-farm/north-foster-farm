@@ -1,7 +1,7 @@
 {{ define "main" }}
   {{ $address := partial "address.html" . }}
   {{ $phone := partial "phone.html" . }}
-  {{ $email := hugo.Data.company.email }}
+  {{ $email := hugo.Data.company.emailInfo }}
   {{ $instagram := hugo.Data.socialMedia.instagram.url }}
   <section class="contact">
     <div class="page container py-5">

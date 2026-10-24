@@ -92,7 +92,7 @@ describe("the slip's words", () => {
 
   it("ends with the farm's phone, email, website and Instagram", () => {
     assert.deepEqual(slipContacts().split("  ·  "), [
-      company.phone.display, company.email, "northfosterfarm.com",
+      company.phone.display, company.emailInfo, "northfosterfarm.com",
       "@northfosterfarm",
     ]);
   });

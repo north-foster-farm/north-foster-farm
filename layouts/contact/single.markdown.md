@@ -9,7 +9,7 @@
 {{ .Params.lead | replaceRE `\]\(#contact-form\)` (printf "](%s#contact-form)" .Permalink) }}
 
 - Call or text: {{ $phone.display }}
-- Email: {{ hugo.Data.company.email }}
+- Email: {{ hugo.Data.company.emailInfo }}
 - Instagram: [@{{ path.Base $instagram }}]({{ $instagram }})
 - The farm: {{ $address.street }}, {{ $address.city }}, {{ $address.state }} {{ $address.zip }}
 

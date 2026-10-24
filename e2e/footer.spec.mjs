@@ -68,12 +68,12 @@ test.describe("footer (#141)", () => {
 
       await expect(links).toHaveText(expected);
       await expect(reach).toHaveText([
-        "(401) 578-3713", "sales@northfosterfarm.com", "@northfosterfarm",
+        "(401) 578-3713", "info@northfosterfarm.com", "@northfosterfarm",
       ]);
       await expect(reach.nth(0).locator("a"))
         .toHaveAttribute("href", "tel:+14015783713");
       await expect(reach.nth(1).locator("a"))
-        .toHaveAttribute("href", "mailto:sales@northfosterfarm.com");
+        .toHaveAttribute("href", "mailto:info@northfosterfarm.com");
       await expect(reach.nth(2).locator("a"))
         .toHaveAttribute("href", /instagram\.com\/northfosterfarm$/);
 

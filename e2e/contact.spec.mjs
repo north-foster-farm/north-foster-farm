@@ -89,7 +89,7 @@ test.describe("contact (#140)", () => {
 
       await expect(ways.nth(0)).toHaveAttribute("href", "tel:+14015783713");
       await expect(ways.nth(1))
-        .toHaveAttribute("href", "mailto:sales@northfosterfarm.com");
+        .toHaveAttribute("href", "mailto:info@northfosterfarm.com");
       await expect(ways.nth(2))
         .toHaveAttribute("href", /instagram\.com\/northfosterfarm$/);
       await expect(page.locator(".contact-rail .contact-note"))

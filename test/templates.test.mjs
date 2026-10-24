@@ -145,10 +145,10 @@ describe("the site's look", () => {
     const m = orderConfirmed(order(), { links });
 
     assert.ok(m.text.endsWith("\nNorth Foster Farm\n" +
-      "99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n" +
+      "99 E Killingly Rd, Foster, RI 02825\ninfo@northfosterfarm.com\n" +
       "(401) 578-3713"));
     has(m.html, 'text-align:center;color:#5e5e5f">North Foster Farm<br>' +
-      "99 E Killingly Rd, Foster, RI 02825<br>sales@northfosterfarm.com" +
+      "99 E Killingly Rd, Foster, RI 02825<br>info@northfosterfarm.com" +
       "<br>(401) 578-3713</p>");
   });
 
@@ -169,10 +169,10 @@ describe("the footer row", () => {
       orderConfirmed(order(), { links }),
       orderCancelled(order(), { links })]) {
       has(m.html, '<a href="https://x/account/" style="color:#186243">' +
-        'Your orders</a> | <a href="mailto:sales@northfosterfarm.com" ' +
+        'Your orders</a> | <a href="mailto:info@northfosterfarm.com" ' +
         'style="color:#186243">Contact us</a>');
       assert.match(m.text, /Your orders: https:\/\/x\/account\//);
-      assert.match(m.text, /Contact us: mailto:sales@northfosterfarm.com/);
+      assert.match(m.text, /Contact us: mailto:info@northfosterfarm.com/);
     }
   });
 
@@ -180,7 +180,7 @@ describe("the footer row", () => {
     const m = orderConfirmed(order());
 
     assert.doesNotMatch(m.text, /Your orders/);
-    assert.match(m.text, /Contact us: mailto:sales@northfosterfarm.com/);
+    assert.match(m.text, /Contact us: mailto:info@northfosterfarm.com/);
   });
 
   it("uses CONTACT_URL when the site has a contact page", () => {
@@ -894,7 +894,7 @@ describe("addresses and sign-in", () => {
     assert.match(m.html, /href="https:\/\/x\/api\/auth\/verify\?t=1"/);
     has(m.text, "If you didn't request this email, you can safely ignore " +
       "it.");
-    has(m.text, "Need help? Contact us: mailto:sales@northfosterfarm.com");
+    has(m.text, "Need help? Contact us: mailto:info@northfosterfarm.com");
   });
 
   it("centers the account emails and no other", () => {
@@ -920,7 +920,7 @@ describe("addresses and sign-in", () => {
   it("carries the farm's contact details in every message", () => {
     for (const m of [orderConfirmed(order("onfarm")),
       orderConfirmed(order())]) {
-      assert.match(both(m), /sales@northfosterfarm.com/);
+      assert.match(both(m), /info@northfosterfarm.com/);
       assert.match(both(m), /\(401\) 578-3713/);
     }
   });
