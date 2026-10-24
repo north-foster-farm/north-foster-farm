@@ -1,14 +1,15 @@
-{{/* Draft wording for James (#173), revising his of 2026-09-24
-     (#150) after the reviewer found it flat. */}}
+{{/* Steps 1 and 2 are James's words of 2026-10-24 (#338); step 3 is
+     his of 2026-09-24 (#150). DRAFT: step 4's text is mine, not his;
+     he has not settled it and will send the line. */}}
 {{ $steps := slice
-  (dict "icon" "cart" "title" "Shop what’s fresh"
-    "copy" "Everything we bring to market on one page, showing what’s in stock now.")
+  (dict "icon" "cart" "title" "Build your cart"
+    "copy" "Browse what’s in stock, or check out the whole catalog.")
   (dict "icon" "sign" "title" "Pickup or delivery"
-    "copy" (printf "Pick up at our farm, choose a scheduled pickup, or have it delivered %s." (partial "weekday.html" hugo.Data.delivery.delivery.weekday)))
+    "copy" "Pick up at our farm, choose a scheduled pickup, or get it delivered to your door.")
   (dict "icon" "changes" "title" "Change of plans?"
     "copy" "Sign in with just your email, no password, and update your order.")
   (dict "icon" "tractor" "title" "Taste the difference"
-    "copy" "Pick it up from us or have it hand-delivered to your door. Then dig in.")
+    "copy" "Our customers tell us the difference time and time again.")
 }}
 {{/* The photo beside the steps (#230, option 1). James approved the
      alt text and asked for the credit to link to her Instagram. */}}

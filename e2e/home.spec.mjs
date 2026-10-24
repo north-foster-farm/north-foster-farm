@@ -32,7 +32,8 @@ const hovered = async (page, locator) => {
 };
 
 test.describe("home", () => {
-  // James's wording, 2026-09-24 (#150).
+  // James's wording, 2026-09-24 (#150), and for steps 1 and 2,
+  // 2026-10-24 (#338). Step 4's text is a draft until he settles it.
   test("How to buy walks four steps without the invoice era",
     async ({ page }) => {
       await page.goto("/");
@@ -43,12 +44,19 @@ test.describe("home", () => {
       await expect(how.locator(".home-title"))
         .toHaveText("Order our chicken and eggs all year round");
       await expect(how.locator(".how-step-title")).toHaveText([
-        "Step 1: Shop what’s fresh",
+        "Step 1: Build your cart",
         "Step 2: Pickup or delivery",
         "Step 3: Change of plans?",
         "Step 4: Taste the difference",
       ]);
       await expect(steps).toHaveCount(4);
+      await expect(how.locator(".how-step-copy")).toHaveText([
+        "Browse what’s in stock, or check out the whole catalog.",
+        "Pick up at our farm, choose a scheduled pickup, or get it "
+          + "delivered to your door.",
+        "Sign in with just your email, no password, and update your order.",
+        "Our customers tell us the difference time and time again.",
+      ]);
       for (const step of await steps.all()) {
         await expect(step.locator(".home-icon svg")).toBeVisible();
       }
