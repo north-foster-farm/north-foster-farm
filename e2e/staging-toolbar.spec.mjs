@@ -3,6 +3,7 @@
 // docs/qa-launch.md, "Staging".
 
 import { expect, test } from "./support/order.mjs";
+import { orderLimitHeaders } from "./support/staging.mjs";
 
 // A pull request preview is deploy-preview-<n>--<site>, and a branch
 // deploy <branch>--<site>; the toolbar is for the staging branch deploy
@@ -137,43 +138,212 @@ test.describe("staging toolbar", () => {
       await expect(page.locator("footer [data-news-block]")).toBeVisible();
     });
 
-  // #350: the reset empties the cart on the order page, whose quantity
-  // boxes a plain reload would refill from the browser's form memory,
-  // and starts the toolbar's list of this session's emails afresh. The
-  // gate session and the open toolbar stay.
-  test("Reset to first visit empties the cart and the session's mail",
-    async ({ page, context, baseURL }) => {
-      test.skip(!branch(baseURL), "only on a branch deploy");
-      test.skip(!process.env.E2E_GATE_SESSION,
-        "needs the toolbar owner's gate session");
+  // #350: the reset empties the cart on the order page, signed in or
+  // not, and starts the toolbar's list of this session's emails afresh.
+  // The gate session and the open toolbar stay. Written, not run here:
+  // it needs a gate session and the staging deploy.
+  test.describe("Reset to first visit (#350)", () => {
+    const EGGS = "NFF-CHK-EGG-LG";
+    const WIDTHS = [
+      { name: "phone", width: 375, height: 800 },
+      { name: "tablet", width: 768, height: 1000 },
+      { name: "desktop", width: 1280, height: 900 },
+    ];
+    const qty = (page) => page.locator(`#order-form [data-qty="${EGGS}"]`);
+
+    const enter = async (context, baseURL) => {
       await context.addCookies([{
         name: "nff_gate", value: process.env.E2E_GATE_SESSION,
         domain: new URL(baseURL).hostname, path: "/",
         httpOnly: true, secure: true, sameSite: "Lax",
       }]);
-      await page.goto("/order/");
-      await page.evaluate(() => {
-        localStorage.setItem("staging.open", "1");
-        localStorage.setItem("nff-order-draft", JSON.stringify({
-          payload: { lines: [{ sku: "NFF-CHK-EGG-LG", qty: 2 }] },
-          savedAt: Date.now(),
-        }));
+    };
+
+    // One email filed under this gate session: a contact message, whose
+    // copy to the farm lands in the outbox.
+    const seedMail = async (page) => {
+      const sent = await page.request.post("/api/contact", {
+        headers: orderLimitHeaders(),
+        data: {
+          name: "Reset QA", email: "qa-e2e-reset@example.com",
+          message: "Seed for the staging reset test",
+        },
       });
-      await page.reload();
+
+      expect(sent.status()).toBe(200);
+      await page.locator("[data-staging-refresh]").click();
+      await expect(page.locator("[data-staging-list] li").first())
+        .toBeVisible({ timeout: 15_000 });
+    };
+
+    const resetAndReload = async (page) => {
       await Promise.all([
         page.waitForEvent("load"),
         page.locator("[data-staging-forget]").click(),
       ]);
+    };
 
-      expect(await page.evaluate(() => localStorage.getItem(
-        "nff-order-draft"))).toBeNull();
-      await expect(page.locator('#order-form [data-qty="NFF-CHK-EGG-LG"]'))
-        .toHaveValue("0");
-      await expect(page.locator("[data-staging-list] li")).toHaveCount(0);
+    // What must hold after any reset: the gate session answers, the
+    // toolbar is still open and its list of this session's emails is
+    // empty.
+    const stays = async (page) => {
       await expect(page.locator("[data-staging-panel]")).toBeVisible();
       expect((await page.request.get("/api/staging/info")).status())
         .toBe(200);
-    });
+      await page.locator("[data-staging-refresh]").click();
+      await expect(page.locator("[data-staging-list] li")).toHaveCount(0);
+    };
+
+    for (const size of WIDTHS) {
+      test(`empties the draft cart and the session's mail at ${size.name}`,
+        async ({ page, context, baseURL }) => {
+          test.skip(!branch(baseURL), "only on a branch deploy");
+          test.skip(!process.env.E2E_GATE_SESSION,
+            "needs the toolbar owner's gate session");
+          await page.setViewportSize(size);
+          await enter(context, baseURL);
+          await page.goto("/order/");
+          await page.evaluate(() => {
+            localStorage.setItem("staging.open", "1");
+          });
+          await page.reload();
+          await seedMail(page);
+          await page.evaluate((sku) => {
+            localStorage.setItem("nff-order-draft", JSON.stringify({
+              payload: { lines: [{ sku, qty: 2 }] }, savedAt: Date.now(),
+            }));
+          }, EGGS);
+          await page.reload();
+          await resetAndReload(page);
+
+          expect(await page.evaluate(() => localStorage.getItem(
+            "nff-order-draft"))).toBeNull();
+          await expect(qty(page)).toHaveValue("0");
+          await stays(page);
+        });
+    }
+
+    // The form-memory cause: a quantity typed into the box, with no
+    // draft stored, is put back by the browser on a plain reload.
+    test("empties a quantity the browser remembers, with no draft",
+      async ({ page, context, baseURL }) => {
+        test.skip(!branch(baseURL), "only on a branch deploy");
+        test.skip(!process.env.E2E_GATE_SESSION,
+          "needs the toolbar owner's gate session");
+        await enter(context, baseURL);
+        await page.goto("/order/");
+        await page.evaluate(() => {
+          localStorage.setItem("staging.open", "1");
+        });
+        await page.reload();
+        await qty(page).fill("3");
+        await qty(page).press("Tab");
+        await page.evaluate(() => {
+          localStorage.removeItem("nff-order-draft");
+        });
+        await resetAndReload(page);
+
+        expect(await page.evaluate(() => localStorage.getItem(
+          "nff-order-draft"))).toBeNull();
+        await expect(qty(page)).toHaveValue("0");
+        await stays(page);
+      });
+
+    // Signed in: the account's cart comes back on a reload while the
+    // session lives, so the reset must end it first. The account's
+    // endpoints are canned and flip to signed out once the sign-out
+    // POST has been made.
+    for (const size of WIDTHS) {
+      test(`signs out and empties the account's cart at ${size.name}`,
+        async ({ page, context, baseURL }) => {
+          test.skip(!branch(baseURL), "only on a branch deploy");
+          test.skip(!process.env.E2E_GATE_SESSION,
+            "needs the toolbar owner's gate session");
+
+          let signedIn = true;
+          let signOuts = 0;
+
+          await page.setViewportSize(size);
+          await enter(context, baseURL);
+          await context.addCookies([{
+            name: "nff_signed_in", value: "1", url: baseURL,
+          }]);
+          await page.route("**/api/me", (route) => route.fulfill({
+            json: signedIn
+              ? {
+                signedIn: true,
+                customer: {
+                  email: "qa-e2e-reset@example.com",
+                  firstName: "Ada", lastName: "Hen",
+                },
+              }
+              : { signedIn: false },
+          }));
+          await page.route("**/api/account/cart", (route) => {
+            if (route.request().method() === "PUT") {
+              return route.fulfill({ json: { ok: true, kept: true } });
+            }
+
+            return route.fulfill({
+              json: {
+                ok: true,
+                cart: signedIn ? {
+                  payload: {
+                    lines: [{ sku: EGGS, qty: 2 }],
+                    fulfilment: { method: "onfarm" }, code: "",
+                  },
+                  savedAt: Date.now(),
+                } : null,
+              },
+            });
+          });
+          await page.route("**/api/auth/signout", (route) => {
+            signedIn = false;
+            signOuts += 1;
+
+            return route.fulfill({ json: { ok: true } });
+          });
+          await page.goto("/order/");
+          await page.evaluate(() => {
+            localStorage.setItem("staging.open", "1");
+          });
+          await page.reload();
+          await expect(qty(page)).toHaveValue("2");
+          await resetAndReload(page);
+
+          expect(signOuts).toBe(1);
+          await expect(qty(page)).toHaveValue("0");
+          expect((await context.cookies()).some(
+            (c) => c.name === "nff_signed_in")).toBe(false);
+          await expect(page.locator("[data-staging-panel]")).toBeVisible();
+        });
+    }
+
+    test("says so, and keeps the page, when the server refuses",
+      async ({ page, context, baseURL }) => {
+        test.skip(!branch(baseURL), "only on a branch deploy");
+        test.skip(!process.env.E2E_GATE_SESSION,
+          "needs the toolbar owner's gate session");
+        await enter(context, baseURL);
+        await page.route("**/api/auth/signout", (route) => route.fulfill({
+          status: 403, json: { ok: false },
+        }));
+        await page.route("**/api/staging/outbox", (route) => (
+          route.request().method() === "DELETE"
+            ? route.fulfill({ status: 403, json: { ok: false } })
+            : route.continue()));
+        await page.goto("/order/");
+        await page.evaluate(() => {
+          localStorage.setItem("staging.open", "1");
+        });
+        await page.reload();
+        await page.locator("[data-staging-forget]").click();
+        await expect(page.locator("[data-staging-out]")).toHaveText(
+          "The browser is reset, but the server did not end the " +
+          "sign-in or empty this session's emails."
+        );
+      });
+  });
 
   // #294 §4: the first time a gate session opens the order page, the
   // sandbox card takes the page as a modal until it is closed; it

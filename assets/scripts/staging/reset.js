@@ -84,6 +84,19 @@ const ask = async (path, method, body) => {
   if (!res.ok) throw new Error(`${method} ${path}: ${res.status}`);
 };
 
+// What the toolbar says when the server left a step undone, every such
+// step named; "" when it did them all.
+export const unfinished = ({ signedOut, mailCleared }) => {
+  const missed = [];
+
+  if (!signedOut) missed.push("end the sign-in");
+  if (!mailCleared) missed.push("empty this session's emails");
+
+  return missed.length
+    ? `The browser is reset, but the server did not ${missed.join(" or ")}.`
+    : "";
+};
+
 // -> { signedOut, mailCleared }: whether the server ended the sign-in
 // and emptied this gate session's emails. The browser is cleared
 // either way; the caller says what the server did not do.

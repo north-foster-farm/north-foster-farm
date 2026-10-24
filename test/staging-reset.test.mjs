@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 
 import {
-  STAY, forgetEverything,
+  STAY, forgetEverything, unfinished,
 } from "../assets/scripts/staging/reset.js";
 
 // Just enough of Storage and document.cookie for the reset.
@@ -131,6 +131,64 @@ describe("Reset to first visit (#267)", () => {
       });
       assert.deepEqual(reset, [1, 2]);
     });
+
+  it("reports a refused sign-out and mail clear (#350)", async () => {
+    const { local, session, cookies } = seed();
+    const real = globalThis.fetch;
+    const calls = [];
+
+    // Fetch resolves on a 403, as the real one does; only ok says no.
+    globalThis.fetch = async (path, init) => {
+      calls.push(`${init.method} ${path}`);
+
+      return { ok: false, status: 403 };
+    };
+    try {
+      const done = await forgetEverything({
+        local: () => local, session: () => session, jar: cookies,
+      });
+
+      assert.deepEqual(done, { signedOut: false, mailCleared: false });
+      assert.deepEqual(calls, [
+        "POST /api/auth/signout", "DELETE /api/staging/outbox",
+      ]);
+      assert.equal(local.map.has("nff-order-draft"), false);
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+
+  it("reports both steps done on a 200 (#350)", async () => {
+    const { local, session, cookies } = seed();
+    const real = globalThis.fetch;
+
+    globalThis.fetch = async () => ({ ok: true, status: 200 });
+    try {
+      assert.deepEqual(await forgetEverything({
+        local: () => local, session: () => session, jar: cookies,
+      }), { signedOut: true, mailCleared: true });
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+
+  it("names every step the server left undone (#350)", () => {
+    assert.equal(unfinished({ signedOut: true, mailCleared: true }), "");
+    assert.equal(
+      unfinished({ signedOut: false, mailCleared: true }),
+      "The browser is reset, but the server did not end the sign-in."
+    );
+    assert.equal(
+      unfinished({ signedOut: true, mailCleared: false }),
+      "The browser is reset, but the server did not empty this " +
+        "session's emails."
+    );
+    assert.equal(
+      unfinished({ signedOut: false, mailCleared: false }),
+      "The browser is reset, but the server did not end the sign-in or " +
+        "empty this session's emails."
+    );
+  });
 
   it("survives storage that throws", async () => {
     const { cookies } = seed();
