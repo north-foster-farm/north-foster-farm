@@ -70,6 +70,24 @@ describe("the market band giving way to the off-season band", () => {
     assert.equal(ways.hidden, false);
   });
 
+  // The staging toolbar's clock (#385) calls hideExpired again with its
+  // own time, after the page ran it with the real one.
+  it("follows a set clock before the real time, and back", () => {
+    const { band, ways, root } = page(ends);
+
+    hideExpired(root, Date.parse("2026-11-01T09:00:00-05:00"));
+    assert.equal(band.hidden, true);
+    assert.equal(ways.hidden, false);
+
+    hideExpired(root, Date.parse("2026-10-20T09:00:00-04:00"));
+    assert.equal(band.hidden, false);
+    assert.equal(ways.hidden, true);
+
+    hideExpired(root, Date.parse("2026-10-26T00:00:00-04:00"));
+    assert.equal(band.hidden, true);
+    assert.equal(ways.hidden, false);
+  });
+
   it("leaves a band whose moment cannot be read as built", () => {
     const { band, ways, root } = page("");
 
