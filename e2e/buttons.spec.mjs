@@ -16,7 +16,7 @@ const look = (el) => el.evaluate((node) => {
   };
 });
 
-const signUp = (page) => page.locator("footer [data-news-signup] button");
+const signUp = (page) => page.locator("footer [data-farm-list-form] button");
 
 test.describe("button states", () => {
   test("a tapped button returns to rest", async ({ page }, info) => {
@@ -29,7 +29,7 @@ test.describe("button states", () => {
     const rest = await look(button);
 
     await button.tap();
-    await expect(page.locator("footer [data-news-note]"))
+    await expect(page.locator("footer [data-farm-list-note]"))
       .toHaveText("Please enter an email address.");
     await page.waitForTimeout(400);
     expect(await look(button)).toEqual(rest);
@@ -53,7 +53,7 @@ test.describe("button states", () => {
       expect(hovered.shadow).not.toBe(rest.shadow);
 
       await page.mouse.move(0, 0);
-      await page.locator("footer [data-news-signup] input").focus();
+      await page.locator("footer [data-farm-list-form] input").focus();
       await page.keyboard.press("Tab");
       await expect(button).toBeFocused();
       await page.waitForTimeout(400);

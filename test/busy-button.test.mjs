@@ -38,7 +38,7 @@ const SCRIPTS = files("assets/scripts", /\.m?js$/);
 // template that draws it and its idle label.
 const REQUEST_BUTTONS = [
   ["layouts/contact/single.html", "Send"],
-  ["layouts/partials/news-signup.html", null],
+  ["layouts/partials/farm-list.html", null],
   ["layouts/partials/order/wrap.html", "Pay and place your order"],
   ["layouts/partials/order/wrap.html", "Save changes"],
   ["layouts/login/single.html", "Send a sign-in link"],

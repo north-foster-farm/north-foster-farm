@@ -16,9 +16,9 @@
   <div class="container">
     <div class="footer-lists">
       {{ partial "footer/menu.html" . }}
-      <div class="footer-signup" data-news-block>
-        <h2 class="news-signup-heading">Want occasional farm news by email?</h2>
-        {{ partial "news-signup.html" (dict "id" "news-footer" "button" "Yes") }}
+      <div class="farm-list" data-farm-list-block>
+        <h2 class="farm-list-heading">Want occasional farm news by email?</h2>
+        {{ partial "farm-list.html" (dict "id" "farm-list-footer" "button" "Sign up") }}
       </div>
       {{/* How to reach the farm, on one dotted line like the links. */}}
       <ul class="dot-list footer-contact" data-dot-list>

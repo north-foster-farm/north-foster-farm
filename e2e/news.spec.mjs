@@ -16,13 +16,13 @@ test.describe("farm news", () => {
     { tag: "@regression" }, async ({ page }) => {
       const email = uniqueEmail("news");
       const since = new Date();
-      const form = page.locator("footer [data-news-signup]");
+      const form = page.locator("footer [data-farm-list-form]");
 
       try {
         await page.goto("/");
         await form.locator("input[type='email']").fill(email);
         await form.getByRole("button").click();
-        await expect(form.locator("[data-news-note]"))
+        await expect(form.locator("[data-farm-list-note]"))
           .toHaveText("You're on the list. Thanks!");
         await expect(form.locator("input[type='email']")).toHaveValue("");
 
@@ -45,7 +45,7 @@ test.describe("farm news", () => {
 
   test("an address that is not one is refused at the field",
     async ({ page }) => {
-      const form = page.locator("footer [data-news-signup]");
+      const form = page.locator("footer [data-farm-list-form]");
       let sent = 0;
 
       page.on("request", (req) => {
@@ -54,14 +54,14 @@ test.describe("farm news", () => {
       await page.goto("/");
       await form.locator("input[type='email']").fill("not-an-email");
       await form.getByRole("button").click();
-      await expect(form.locator("[data-news-note]"))
+      await expect(form.locator("[data-farm-list-note]"))
         .toHaveText("Please enter a valid email address.");
       expect(sent, "no request for a malformed address").toBe(0);
     });
 
   test("the news page carries the same sign-up", async ({ page }) => {
     await page.goto("/news/");
-    await expect(page.locator("main [data-news-signup], " +
-      "[data-news-signup]").first()).toBeVisible();
+    await expect(page.locator("main [data-farm-list-form], " +
+      "[data-farm-list-form]").first()).toBeVisible();
   });
 });

@@ -34,7 +34,7 @@ const say = (note, text, tone) => {
 
 export const wire = (form) => {
   const input = form.querySelector("input[type='email']");
-  const note = form.querySelector("[data-news-note]");
+  const note = form.querySelector("[data-farm-list-note]");
   const button = form.querySelector("button");
 
   const setInvalid = (on) => {
@@ -86,8 +86,8 @@ export const wire = (form) => {
   });
 };
 
-export const wireNewsSignup = () => {
-  const forms = [...document.querySelectorAll("[data-news-signup]")];
+export const wireFarmList = () => {
+  const forms = [...document.querySelectorAll("[data-farm-list-form]")];
 
   if (!forms.length) return;
 
@@ -96,7 +96,7 @@ export const wireNewsSignup = () => {
   const params = new URLSearchParams(location.search);
   const landed = params.get("news");
   const token = params.get("unsubscribe");
-  const note = forms[0].querySelector("[data-news-note]");
+  const note = forms[0].querySelector("[data-farm-list-note]");
   const clean = (name) => {
     forms[0].scrollIntoView({ block: "center" });
     params.delete(name);

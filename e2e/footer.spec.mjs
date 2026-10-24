@@ -80,7 +80,7 @@ test.describe("footer (#141)", () => {
       // In reading order (#226, R-FT, #303): sign-up, links, contact
       // line, copyright. The APPPA mark is gone.
       const order = await footer.evaluate((el) => [
-        "[data-news-signup]", "nav[aria-label='Footer']",
+        "[data-farm-list-form]", "nav[aria-label='Footer']",
         ".footer-contact", "#copyright-year",
       ].map((sel) => {
         const all = [...el.querySelectorAll("*")];
@@ -125,9 +125,9 @@ test.describe("footer (#141)", () => {
 
   test("a bad address is marked at the field, and fixing it clears it",
     async ({ page }) => {
-      const form = page.locator("footer [data-news-signup]");
+      const form = page.locator("footer [data-farm-list-form]");
       const input = form.locator("input[type='email']");
-      const note = form.locator("[data-news-note]");
+      const note = form.locator("[data-farm-list-note]");
 
       await page.goto("/");
       await expect(form.locator("label"))
@@ -156,7 +156,7 @@ test.describe("footer (#141)", () => {
 
   test("the focus ring goes round the field and its button (#226)",
     async ({ page }) => {
-      const form = page.locator("footer [data-news-signup]");
+      const form = page.locator("footer [data-farm-list-form]");
       const input = form.locator("input[type='email']");
       const shadow = (el) =>
         el.evaluate((node) => getComputedStyle(node).boxShadow);
@@ -174,9 +174,9 @@ test.describe("footer (#141)", () => {
   // when focused, take the red of the message under the field.
   test("an invalid field is outlined in the message's red (#280)",
     async ({ page }) => {
-      const form = page.locator("footer [data-news-signup]");
+      const form = page.locator("footer [data-farm-list-form]");
       const input = form.locator("input[type='email']");
-      const note = form.locator("[data-news-note]");
+      const note = form.locator("[data-farm-list-note]");
       const style = (el, prop) =>
         el.evaluate((node, p) => getComputedStyle(node)[p], prop);
 
@@ -206,14 +206,14 @@ test.describe("footer (#141)", () => {
 
   test("while it sends, the button shows the egg, grows and settles back",
     async ({ page }) => {
-      const form = page.locator("footer [data-news-signup]");
+      const form = page.locator("footer [data-farm-list-form]");
       const button = form.locator(".busy-button");
       const hold = await holdRequests(page, "**/api/news/subscribe");
 
       await page.goto("/");
 
       const email = "qa-e2e-footer@example.com";
-      // At rest the button fits "Yes" (#223); while it sends, it fits
+      // At rest the button fits "Sign up" (#223); while it sends, it fits
       // the spinner and "Sending".
       const width = (await button.boundingBox()).width;
       const busyWidth = await button.evaluate((el) => {
@@ -232,14 +232,14 @@ test.describe("footer (#141)", () => {
       await expectBusy(page, button, {
         busyWord: "Sending", width: busyWidth,
       });
-      await expect(form.locator("[data-news-note]")).toHaveText("");
+      await expect(form.locator("[data-farm-list-note]")).toHaveText("");
 
       // A second press while it sends sends nothing more. The button is
       // only aria-disabled, so a person can still press it.
       await button.click({ force: true });
       hold.release();
 
-      await expect(form.locator("[data-news-note]"))
+      await expect(form.locator("[data-farm-list-note]"))
         .toHaveText("You're on the list. Thanks!");
       await page.waitForTimeout(400);
       await expectIdle(button, { width });

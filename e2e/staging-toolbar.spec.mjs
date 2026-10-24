@@ -135,7 +135,7 @@ test.describe("staging toolbar", () => {
       }));
 
       expect(kept).toEqual({ local: [], session: false, cookie: "" });
-      await expect(page.locator("footer [data-news-block]")).toBeVisible();
+      await expect(page.locator("footer [data-farm-list-block]")).toBeVisible();
     });
 
   // #350: the reset empties the cart on the order page, signed in or

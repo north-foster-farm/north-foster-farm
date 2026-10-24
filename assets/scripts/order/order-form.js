@@ -2501,7 +2501,7 @@ export class OrderForm {
         // A customer on the list is not shown the box (news/hide.js),
         // so a hidden one says nothing. Unticked never changes a
         // record that says yes (records.mjs) either way.
-        marketing: !qs(this.form, "[data-news-block]")?.hidden
+        marketing: !qs(this.form, "[data-farm-list-block]")?.hidden
           && value("customer.marketing") === true,
       },
       lines: this.lines(),

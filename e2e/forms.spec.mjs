@@ -260,7 +260,7 @@ test.describe("contact and pickup forms", () => {
     await page.locator("label[for='customer-marketing']").click();
     await page.locator("#customer-phone").focus();
     await expect(page.locator("#customer-marketing")).toBeChecked();
-    await expect(page.locator("#confirm [data-news-note]")).toHaveCount(0);
+    await expect(page.locator("#confirm [data-farm-list-note]")).toHaveCount(0);
     expect(asked, "the box joins with the order, not before").toBe(0);
     expect(posted).toBe(0);
   });

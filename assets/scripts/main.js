@@ -10,7 +10,7 @@ import { Copyright } from "./copyright/copyright.js";
 import { wireDotLists } from "./dot-list/dot-list.js";
 import { hideExpired } from "./expiry/expiry.js";
 import { wireHeroVideo } from "./hero/hero.js";
-import { wireNewsSignup } from "./news/signup.js";
+import { wireFarmList } from "./news/farm-list.js";
 import { wireSchedule } from "./schedule/schedule.js";
 import { wireSearch } from "./search/palette.js";
 import { followAccount } from "./video/follow.js";
@@ -106,7 +106,7 @@ const trackMenu = () => {
 document.addEventListener("DOMContentLoaded", () => {
   Session.show().then(followAccount);
   trackMenu();
-  wireNewsSignup();
+  wireFarmList();
   wireDotLists();
   wireVideos();
   wireHeroVideo();

@@ -134,7 +134,7 @@ body {
 
   // The sign-up under the links (#341): a field and a button with no
   // fill of their own, so the footer's gradient shows through.
-  .footer-signup {
+  .farm-list {
     margin-bottom: 1.5rem;
 
     @include media-breakpoint-down(md) {
@@ -142,7 +142,7 @@ body {
     }
   }
 
-  .news-signup .form-control {
+  .farm-list-form .form-control {
     background-color: transparent;
 
     &:focus {
@@ -154,7 +154,7 @@ body {
     }
   }
 
-  .news-signup .btn {
+  .farm-list-form .btn {
     @include dark-outline-btn;
   }
 
@@ -162,12 +162,12 @@ body {
   // the button beside it is one control with it, so the ring goes
   // round both, not the field alone. A phone drops the keyboard, and
   // the field's focus, after the first try.
-  .news-signup .input-group:has(> .is-invalid) {
+  .farm-list-form .input-group:has(> .is-invalid) {
     border-radius: $input-border-radius;
     box-shadow: $band-dark-invalid-ring;
   }
 
-  .news-signup .input-group:has(> .form-control:focus) {
+  .farm-list-form .input-group:has(> .form-control:focus) {
     box-shadow: $band-dark-focus-ring;
 
     &:has(> .is-invalid) {
@@ -175,7 +175,7 @@ body {
     }
   }
 
-  .news-signup-note {
+  .farm-list-note {
     color: $band-dark-text;
 
     &[data-tone="ok"] {

@@ -23,9 +23,9 @@
           {{ partial "page-heading.html" . }}
           {{ with $lead }}
             {{ partial "news/lead.html" . }}
-            <aside class="news-inline-signup" data-news-block aria-labelledby="news-signup-title">
-              <h2 class="news-inline-signup-title" id="news-signup-title">Farm news and updates, wrote good by a real farmer</h2>
-              {{ partial "news-signup.html" (dict "id" "news-page") }}
+            <aside class="farm-list-inline" data-farm-list-block aria-labelledby="farm-list-title">
+              <h2 class="farm-list-inline-title" id="farm-list-title">Farm news and updates, wrote good by a real farmer</h2>
+              {{ partial "farm-list.html" (dict "id" "farm-list-page") }}
             </aside>
           {{ end }}
           <div class="news-years" data-news-years>

@@ -63,8 +63,8 @@ wanted, come from our own records.
 
 ## Signing up
 
-A field in the footer and on the news page (`news-signup.html`,
-`scripts/news/signup.js`). `POST /api/news/subscribe` opts the record
+A field in the footer and on the news page (`farm-list.html`,
+`scripts/news/farm-list.js`). `POST /api/news/subscribe` opts the record
 in, dated, source `signup`, creating the record if there is none. It
 is rate-limited per address like sign-in. The answer is
 `{ ok: true }` for any address that looks like one, rate limit

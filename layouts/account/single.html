@@ -274,13 +274,13 @@
                   <button class="btn btn-outline-secondary btn-sm" type="button" id="delete-copy">Copy</button>
                   <span class="visually-hidden" id="delete-copied" role="status"></span>
                 </div>
-                <form class="news-signup account-delete-form" id="delete-confirm-form" novalidate>
+                <form class="farm-list-form account-delete-form" id="delete-confirm-form" novalidate>
                   <label class="visually-hidden" for="delete-confirm-email">Your email address</label>
                   <div class="input-group">
                     <input class="form-control" type="email" id="delete-confirm-email" name="email" placeholder="Email address" autocomplete="off" inputmode="email" enterkeyhint="done" required autofocus aria-describedby="delete-confirm-note">
                     {{ partial "busy-button.html" (dict "label" "Confirm" "busy" "Deleting" "class" "btn-danger" "fit" true) }}
                   </div>
-                  <p class="news-signup-note account-delete-note" id="delete-confirm-note" role="status" aria-live="polite"></p>
+                  <p class="farm-list-note account-delete-note" id="delete-confirm-note" role="status" aria-live="polite"></p>
                 </form>
               </div>
             </dialog>

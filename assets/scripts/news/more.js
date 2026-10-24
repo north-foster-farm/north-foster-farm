@@ -6,7 +6,7 @@
 // works and comes back if a fetch fails, so the links are always a way
 // on.
 
-import { wire } from "./signup.js";
+import { wire } from "./farm-list.js";
 import { whileLoading } from "../utils/skeleton.js";
 
 // How far ahead of the end, in pixels, the next page starts loading.
@@ -45,7 +45,7 @@ export const wireMore = () => {
       const items = section.querySelectorAll(".news-item");
 
       added += items.length;
-      section.querySelectorAll("[data-news-signup]").forEach(wire);
+      section.querySelectorAll("[data-farm-list-form]").forEach(wire);
       if (last && last.dataset.year === section.dataset.year) {
         // The year goes on under its heading: this page's posts join
         // the last page's list, so the rule between neighbours (an

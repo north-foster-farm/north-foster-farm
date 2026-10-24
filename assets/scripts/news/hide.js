@@ -45,7 +45,7 @@ export const showForms = (who, joined) => (who && who.signedIn
 // blocks keep their space, unseen, until it arrives: a form that
 // stays never jumps, and one that goes collapses once.
 export const wireNewsHiding = async () => {
-  const blocks = [...document.querySelectorAll("[data-news-block]")];
+  const blocks = [...document.querySelectorAll("[data-farm-list-block]")];
 
   if (!blocks.length) return;
 

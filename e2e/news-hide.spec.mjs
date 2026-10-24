@@ -9,8 +9,16 @@ import {
 } from "./support/order.mjs";
 
 const PAGES = [
-  { name: "the footer", path: "/about/", block: "footer [data-news-block]" },
-  { name: "the news page", path: "/news/", block: "main [data-news-block]" },
+  {
+    name: "the footer",
+    path: "/about/",
+    block: "footer [data-farm-list-block]",
+  },
+  {
+    name: "the news page",
+    path: "/news/",
+    block: "main [data-farm-list-block]",
+  },
 ];
 
 const me = (page, marketing) => page.route("**/api/me", (route) =>
@@ -36,11 +44,11 @@ for (const { name, path, block } of PAGES) {
           route.fulfill({ json: { ok: true } }));
         await page.goto(path);
 
-        const form = page.locator(`${block} [data-news-signup]`);
+        const form = page.locator(`${block} [data-farm-list-form]`);
 
         await form.locator("input[type='email']").fill("you@example.com");
         await form.getByRole("button").click();
-        await expect(form.locator("[data-news-note]"))
+        await expect(form.locator("[data-farm-list-note]"))
           .toHaveText("You're on the list. Thanks!");
 
         const kept = await page.evaluate(() =>
@@ -61,7 +69,7 @@ for (const { name, path, block } of PAGES) {
         await page.route("**/api/news/unsubscribe", (route) =>
           route.fulfill({ json: { ok: true } }));
         await page.goto("/news/?unsubscribe=abc");
-        await expect(page.locator("[data-news-note]").first())
+        await expect(page.locator("[data-farm-list-note]").first())
           .toHaveText("You're off the list. We won't send you farm news.");
         expect(await page.evaluate(() => localStorage.getItem("nff-news")))
           .toBeNull();
@@ -93,7 +101,7 @@ for (const { name, path, block } of PAGES) {
 }
 
 test.describe("the order page's farm news opt-in (#391)", () => {
-  const block = "#confirm [data-news-block]";
+  const block = "#confirm [data-farm-list-block]";
 
   test("shows, subheading and box, to a visitor with no flag",
     async ({ page }) => {
@@ -179,7 +187,7 @@ test("a hidden form leaves no gap, a shown one does not move",
 
     await page.evaluate(() => localStorage.setItem("nff-news", "joined"));
     await page.reload();
-    await expect(page.locator("footer [data-news-block]")).toBeHidden();
+    await expect(page.locator("footer [data-farm-list-block]")).toBeHidden();
     expect(await height()).toBeLessThan(shown);
 
     await stamp(context, baseURL);
@@ -187,7 +195,7 @@ test("a hidden form leaves no gap, a shown one does not move",
     await me(page, false);
     await page.reload();
 
-    const block = page.locator("footer [data-news-block]");
+    const block = page.locator("footer [data-farm-list-block]");
 
     await expect(block).toBeVisible();
     expect(await height(), "the same page as the first view")

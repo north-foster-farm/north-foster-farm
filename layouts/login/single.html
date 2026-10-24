@@ -1,6 +1,6 @@
 {{ define "main" }}
   {{/* #303: one line, then the field and its button straight on the
-       page, as the farm news sign-up has them (partials/news-signup
+       page, as the farm news sign-up has them (partials/farm-list-form
        .html), sharing its styles. The page states no link lifetime;
        the email does (test/link-lifetimes.test.mjs). */}}
   <section class="{{ .Type }}">
@@ -11,13 +11,13 @@
         <div id="login-ask">
           <p class="mb-3">Type the email you order with, and we'll send you a link that signs you in.</p>
           <div class="alert alert-warning" role="alert" data-login-notice data-support="{{ hugo.Data.company.emailInfo }}" hidden></div>
-          <form class="news-signup login-form" id="login-form" novalidate>
+          <form class="farm-list-form login-form" id="login-form" novalidate>
             <label class="visually-hidden" for="login-email">Email address</label>
             <div class="input-group">
               <input class="form-control" type="email" id="login-email" name="email" placeholder="Email address" autocomplete="email" inputmode="email" enterkeyhint="send" required aria-describedby="err-login-email">
               {{ partial "busy-button.html" (dict "label" "Send a sign-in link" "busy" "Sending" "class" "btn-primary" "id" "login-submit" "fit" true) }}
             </div>
-            {{/* Outside the group: the invalid ring (.news-signup
+            {{/* Outside the group: the invalid ring (.farm-list-form
                  .input-group:has(> .is-invalid)) wraps the field and
                  button only, never the message (#399). */}}
             <div class="invalid-feedback d-block text-center" id="err-login-email" data-error-for="email"></div>

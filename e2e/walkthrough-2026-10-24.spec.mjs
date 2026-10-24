@@ -66,16 +66,16 @@ test.describe("walkthrough of 2026-10-24", () => {
       const footer = page.locator("footer");
       const y = async (locator) => (await locator.boundingBox()).y;
 
-      await expect(footer.locator("[data-news-block]")).toBeVisible();
+      await expect(footer.locator("[data-farm-list-block]")).toBeVisible();
       expect(await y(footer.locator("nav")))
-        .toBeLessThan(await y(footer.locator("[data-news-block]")));
-      expect(await y(footer.locator("[data-news-block]")))
+        .toBeLessThan(await y(footer.locator("[data-farm-list-block]")));
+      expect(await y(footer.locator("[data-farm-list-block]")))
         .toBeLessThan(await y(footer.locator(".footer-contact")));
 
       const field = footer.getByPlaceholder("Email address");
 
       expect(await background(field)).toBe("rgba(0, 0, 0, 0)");
-      expect(await background(footer.getByRole("button", { name: "Yes" })))
+      expect(await background(footer.getByRole("button", { name: "Sign up" })))
         .toBe("rgba(0, 0, 0, 0)");
     });
 });
