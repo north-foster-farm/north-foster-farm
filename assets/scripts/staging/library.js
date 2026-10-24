@@ -608,8 +608,10 @@ export const mountLibrary = ({
     }
     setTimeout(() => { b.textContent = "Copy link"; }, 1200);
   });
-  qs("[data-staging-library-open]").addEventListener("click", () => open());
-  qs("[data-staging-library-close]").addEventListener("click", close);
+  // The toolbar's button is a link that opens #emails in a new tab.
+  for (const b of root.querySelectorAll("[data-staging-library-close]")) {
+    b.addEventListener("click", close);
+  }
   document.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape" && !box.hidden && !editing) close();
   });

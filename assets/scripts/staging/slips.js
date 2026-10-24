@@ -140,8 +140,10 @@ export const mountSlips = ({ root, api, onOpen }) => {
     history.replaceState(null, "", "#slips");
     drawList();
   });
-  qs("[data-staging-slips-open]").addEventListener("click", () => open());
-  qs("[data-staging-slips-close]").addEventListener("click", close);
+  // The toolbar's button is a link that opens #slips in a new tab.
+  for (const b of root.querySelectorAll("[data-staging-slips-close]")) {
+    b.addEventListener("click", close);
+  }
   document.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape" && !box.hidden) close();
   });

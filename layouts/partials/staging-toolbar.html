@@ -78,12 +78,12 @@
               <div data-staging-scope="emails">
                 <h3>Email library</h3>
                 <p class="staging-muted" data-staging-library-count></p>
-                <p><button type="button" class="staging-action" data-staging-library-open>Email library</button></p>
+                <p><a class="staging-action staging-link" href="/#emails" target="_blank" rel="noopener" data-staging-library-open>Email library</a></p>
               </div>
               <div data-staging-scope="signatures">
                 <h3>Signatures</h3>
                 <p class="staging-muted" data-staging-sigs-count></p>
-                <p><button type="button" class="staging-action" data-staging-sigs-open>Signature library</button></p>
+                <p><a class="staging-action staging-link" href="/#signatures" target="_blank" rel="noopener" data-staging-sigs-open>Signature library</a></p>
               </div>
             </section>
             <section id="staging-slips" tabindex="-1" aria-labelledby="staging-slips-h" data-staging-section="slips">
@@ -91,7 +91,7 @@
               <div data-staging-scope="slips">
                 <h3>Packing slips</h3>
                 <p class="staging-muted" data-staging-slips-count></p>
-                <p><button type="button" class="staging-action" data-staging-slips-open>Packing slips</button></p>
+                <p><a class="staging-action staging-link" href="/#slips" target="_blank" rel="noopener" data-staging-slips-open>Packing slips</a></p>
               </div>
             </section>
             <section id="staging-jobs" tabindex="-1" aria-labelledby="staging-jobs-h" data-staging-section="jobs">
@@ -165,6 +165,7 @@
             <button type="button" class="staging-filter" data-staging-view="rewrite" aria-pressed="false" hidden>Rewritten</button>
           </div>
           <button type="button" class="staging-action" data-staging-copy-link>Copy link</button>
+          <button type="button" class="staging-icon" data-staging-library-close title="Close the library" aria-label="Close">×</button>
         </header>
         <p class="staging-reader-meta">
           <span class="staging-badge" data-staging-reader-approval></span>
@@ -234,6 +235,7 @@
           </div>
           <button type="button" class="staging-action staging-primary" data-signature-copy>Copy</button>
           <a class="staging-action staging-link" data-signature-alone target="_blank" rel="noopener">Open alone</a>
+          <button type="button" class="staging-icon" data-staging-sigs-close title="Close the signatures" aria-label="Close">×</button>
         </header>
         <p class="staging-reader-meta">
           <span class="staging-badge" data-approval="to approve" data-staging-sigs-gap hidden></span>
@@ -275,6 +277,7 @@
           </div>
           <a class="staging-action staging-link" data-staging-slips-alone target="_blank" rel="noopener">Open alone</a>
           <a class="staging-action staging-link" data-staging-slips-download>Download</a>
+          <button type="button" class="staging-icon" data-staging-slips-close title="Close the packing slips" aria-label="Close">×</button>
         </header>
         <p class="staging-reader-meta">
           <label data-staging-slips-day hidden>Packet for <input type="date" class="staging-edit" data-staging-slips-date></label>

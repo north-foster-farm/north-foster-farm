@@ -142,8 +142,10 @@ export const mountSignatures = ({ root, api, aloneUrl, onOpen }) => {
     history.replaceState(null, "", "#signatures");
     drawList();
   });
-  qs("[data-staging-sigs-open]").addEventListener("click", () => open());
-  qs("[data-staging-sigs-close]").addEventListener("click", close);
+  // The toolbar's button is a link that opens #signatures in a new tab.
+  for (const b of root.querySelectorAll("[data-staging-sigs-close]")) {
+    b.addEventListener("click", close);
+  }
   document.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape" && !box.hidden) close();
   });
