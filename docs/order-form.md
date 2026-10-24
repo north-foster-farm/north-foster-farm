@@ -411,6 +411,17 @@ Environment variables, set in Netlify, never in the repo:
 - `SQUARE_WEBHOOK_SIGNATURE_KEY` and, if the registered URL is not the
   site's own `/api/square/webhook`, `SQUARE_WEBHOOK_URL`.
 
+**Which release made an order (#331).** Every Square order the site
+creates, and every change order, carries `metadata { site_version,
+order_flow: "order-page" }` and a `source.name` of the domain and
+the release's major.minor ("northfosterfarm.com v1.0"). The version
+is `version` in `package.json`, read once in `lib/square.mjs`
+(`SITE_VERSION`, `SOURCE_NAME`, `ORDER_METADATA`); each production
+release bumps it. The `reference_id` stays the bare order id, and
+there is no custom attribute. Nothing reads `source.name` back: the
+left-open sweep (`searchOpenOrders`, `leftOpen`) trusts the metadata,
+and a test fails on any read of `source.name` in the functions.
+
 Per card or wallet payment (`payWithSquare` in `lib/checkout.mjs`):
 search the customer by email or create one; create the order with a
 `PICKUP` or `DELIVERY` fulfillment scheduled for the chosen day, an

@@ -8,7 +8,7 @@ import {
   leftOpen, runJobs, runsSince, sweepMadeCustomers, sweepSquareOrders,
 } from "../netlify/functions/lib/jobs.mjs";
 import { answerMessage } from "../netlify/functions/lib/admin.mjs";
-import { SOURCE_NAME } from "../netlify/functions/lib/square.mjs";
+import { SITE_VERSION } from "../netlify/functions/lib/square.mjs";
 import { setPause } from "../netlify/functions/lib/square-pause.mjs";
 import { readMark } from "../netlify/functions/lib/health.mjs";
 import {
@@ -994,11 +994,29 @@ describe("runJobs", () => {
   });
 });
 
+describe("a Square order left open is the site's by its tag (#331)", () => {
+  const found = (extra) => ({
+    id: "SQ", referenceId: "NFF-2610-ABCD", siteVersion: SITE_VERSION,
+    tenders: 0, ...extra,
+  });
+
+  it("does not look at the source name", () => {
+    assert.equal(leftOpen(found({ source: "anything" })), true);
+    assert.equal(leftOpen(found({ source: null })), true);
+  });
+
+  it("skips an order with no tag, a paid one or a stray reference", () => {
+    assert.equal(leftOpen(found({ siteVersion: null })), false);
+    assert.equal(leftOpen(found({ tenders: 1 })), false);
+    assert.equal(leftOpen(found({ referenceId: "INV-1" })), false);
+  });
+});
+
 describe("Square orders left open (#241)", () => {
   const squareEnv = { SQUARE_ACCESS_TOKEN: "tok", SQUARE_LOCATION_ID: "LOC" };
   const now = at("2026-10-07", 9);
   const open = (id, referenceId, extra = {}) => ({
-    id, referenceId, source: SOURCE_NAME, createdAt: placed.toISOString(),
+    id, referenceId, siteVersion: SITE_VERSION, createdAt: placed.toISOString(),
     tenders: 0, total: 1200, ...extra,
   });
   const fakeSquare = (found, { fails = [] } = {}) => {
@@ -1024,8 +1042,8 @@ describe("Square orders left open (#241)", () => {
     assert.equal(leftOpen(open("S", "NFF-2610-ABCD")), true);
     assert.equal(leftOpen(open("S", "NFF-2610-ABCD", { tenders: 1 })), false,
       "paid");
-    assert.equal(leftOpen(open("S", "NFF-2610-ABCD", { source: null })),
-      false, "made before the source was set, or by the farm");
+    assert.equal(leftOpen(open("S", "NFF-2610-ABCD", { siteVersion: null })),
+      false, "made before the tag was set, or by the farm");
     assert.equal(leftOpen(open("S", "INV-0042")), false, "an invoice");
     assert.equal(leftOpen(open("S", null)), false, "the POS");
   });

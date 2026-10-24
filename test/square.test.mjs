@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
+import pkg from "../package.json" with { type: "json" };
 import {
-  SOURCE_NAME, SquareError, buildOrder, cancelFulfillment, cancelOrder,
-  clientConfig, completeOrder, createOrder, createPayment, customerOrders,
-  dashboardUrl, deleteCustomer, e164, getPayment, inventoryCounts,
-  refundPayment, searchOpenOrders, settings, updateFulfillment,
+  ORDER_METADATA, SITE_VERSION, SOURCE_NAME, SquareError, buildChangeOrder,
+  buildOrder, cancelFulfillment, cancelOrder, clientConfig, completeOrder,
+  createOrder, createPayment, customerOrders, dashboardUrl, deleteCustomer,
+  e164, getPayment, inventoryCounts, refundPayment, searchOpenOrders,
+  settings, updateFulfillment,
 } from "../netlify/functions/lib/square.mjs";
 import {
   KILL_SWITCH, deletionsPaused, readPause, setPause,
@@ -172,6 +175,55 @@ describe("e164", () => {
   });
 });
 
+describe("the site version tag (#331)", () => {
+  it("reads the version from package.json, nowhere else", () => {
+    assert.equal(SITE_VERSION, pkg.version);
+    assert.deepEqual(ORDER_METADATA, {
+      site_version: pkg.version, order_flow: "order-page",
+    });
+
+    const [major, minor] = pkg.version.split(".");
+
+    assert.equal(SOURCE_NAME, `northfosterfarm.com v${major}.${minor}`);
+  });
+
+  it("tags the first order and a change order alike", () => {
+    const change = {
+      added: [{ name: "Eggs", qty: 1, unitPrice: 6 }],
+      difference: 600,
+    };
+
+    for (const o of [
+      buildOrder(order(), "CUST", cfg),
+      buildChangeOrder(order(), change, "CUST", cfg),
+    ]) {
+      assert.deepEqual(o.source, { name: SOURCE_NAME });
+      assert.deepEqual(o.metadata, ORDER_METADATA);
+      assert.equal(o.reference_id, "NFF-2610-ABCD");
+      assert.equal(o.custom_attributes, undefined);
+    }
+  });
+
+  it("is not read back from source.name anywhere", () => {
+    const dir = new URL("../netlify/functions/", import.meta.url);
+    const files = readdirSync(dir, { recursive: true })
+      .filter((f) => f.endsWith(".mjs"));
+    const readers = files.filter((f) => (
+      /\.source\??\.name\b|\bsource\??\.name\b/.test(
+        readFileSync(new URL(f, dir), "utf8"))));
+
+    assert.ok(files.length > 10);
+    assert.deepEqual(readers, []);
+  });
+
+  it("gives each order its own copy of the metadata", () => {
+    const o = buildOrder(order(), "CUST", cfg);
+
+    o.metadata.site_version = "x";
+    assert.equal(ORDER_METADATA.site_version, pkg.version);
+  });
+});
+
 describe("buildOrder", () => {
   it("uses an ad hoc line while the variation id is null", () => {
     const o = buildOrder(order(), "CUST", cfg);
@@ -179,6 +231,7 @@ describe("buildOrder", () => {
     assert.equal(o.location_id, "LOC");
     assert.equal(o.reference_id, "NFF-2610-ABCD");
     assert.deepEqual(o.source, { name: SOURCE_NAME });
+    assert.deepEqual(o.metadata, ORDER_METADATA);
     assert.deepEqual(o.line_items[0], {
       name: "Whole Chicken (per each), 3.5 – 3.9 lbs",
       quantity: "2",
@@ -704,7 +757,8 @@ describe("searchOpenOrders", () => {
       "/v2/orders/search": (n) => (n === 1
         ? page([{
           id: "SQ1", reference_id: "NFF-2610-ABCD",
-          source: { name: SOURCE_NAME }, created_at: "2026-10-01T12:00:00Z",
+          metadata: { site_version: SITE_VERSION },
+          created_at: "2026-10-01T12:00:00Z",
           total_money: { amount: 1200, currency: "USD" },
         }], "next")
         : page([{
@@ -716,10 +770,10 @@ describe("searchOpenOrders", () => {
     const out = await searchOpenOrders({ before }, { env, fetchImpl: impl });
 
     assert.deepEqual(out, [{
-      id: "SQ1", referenceId: "NFF-2610-ABCD", source: SOURCE_NAME,
+      id: "SQ1", referenceId: "NFF-2610-ABCD", siteVersion: SITE_VERSION,
       createdAt: "2026-10-01T12:00:00Z", tenders: 0, total: 1200,
     }, {
-      id: "SQ2", referenceId: null, source: null,
+      id: "SQ2", referenceId: null, siteVersion: null,
       createdAt: "2026-09-30T12:00:00Z", tenders: 1, total: 0,
     }]);
     assert.equal(calls.length, 2);

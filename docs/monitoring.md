@@ -445,14 +445,14 @@ so no money moves. The alert names the order and the PayPal refund.
 
 **Square orders left open (#241).** A card payment that fails for any
 reason but a decline leaves its Square order OPEN. Once a day, the
-first run from 7:00, the jobs list the site's orders (source "North
-Foster Farm website", an `NFF-` reference) that are a day old with no
+first run from 7:00, the jobs list the site's orders (metadata
+`site_version`, an `NFF-` reference) that are a day old with no
 tender, no record and no Venmo checkout waiting: `squareOpen` in that
 run's report, `open` in `bin/nff jobs history`, a "Square sweep"
 section in the 8:00 morning report, and `bin/nff jobs square` on
 demand. The jobs cancel them unless the Square deletion kill switch
 is set; `bin/nff jobs square --apply` cancels them once. Orders made
-before the source was set are never listed.
+before the tag was set are never listed.
 
 **Square profiles a failed checkout made (#236).** Pressing Pay makes
 a Square customer profile when the email is new to the farm, before

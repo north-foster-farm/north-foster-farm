@@ -11,6 +11,7 @@
 
 import terms from "./terms.mjs";
 import { company } from "./company.mjs";
+import pkg from "../../../package.json" with { type: "json" };
 import {
   FAKE, FAKE_SDK_URLS, fakeAllowed, refusal,
 } from "./fake.mjs";
@@ -244,10 +245,18 @@ const call = async (cfg, path, body, fetchImpl, method = "POST") => {
 
 const money = (amount) => ({ amount, currency: "USD" });
 
-// Every order the site makes says so, and carries its order id as the
-// reference, so a sweep can tell the site's orders from the farm's own
-// (the POS, invoices) at the same location.
-export const SOURCE_NAME = `${company.name} website`;
+// Every order the site makes, and every change order, says which
+// release made it (#331). The version is package.json's, the one place
+// it is spelled: metadata carries it whole and the Source column its
+// major.minor. The order id stays the reference, unprefixed. Nothing
+// reads the Source column back: the metadata is what a sweep trusts.
+export const SITE_VERSION = pkg.version;
+export const SOURCE_NAME = `${company.email.split("@")[1]} v${
+  SITE_VERSION.split(".").slice(0, 2).join(".")}`;
+export const ORDER_METADATA = Object.freeze({
+  site_version: SITE_VERSION,
+  order_flow: "order-page",
+});
 export const ORDER_ID = /^NFF-\d{4}-[A-Z0-9]{4}$/;
 
 export const e164 = (phone) => {
@@ -367,6 +376,7 @@ export const buildOrder = (order, customerId, cfg) => {
     location_id: cfg.locationId,
     reference_id: order.id,
     source: { name: SOURCE_NAME },
+    metadata: { ...ORDER_METADATA },
     customer_id: customerId,
     line_items: order.lines.map((line) => (
       cfg.catalog && line.squareVariationId
@@ -501,6 +511,7 @@ export const buildChangeOrder = (order, change, customerId, cfg) => {
     location_id: cfg.locationId,
     reference_id: order.id,
     source: { name: SOURCE_NAME },
+    metadata: { ...ORDER_METADATA },
     customer_id: customerId,
     line_items: lines,
   };
@@ -892,7 +903,7 @@ export const cancelOrder = async (squareOrderId, {
 // at most `max` of them, for the sweep in jobs.mjs (#241). Paid orders
 // stay OPEN until their fulfillment completes, so the newest come first
 // and the old paid ones fall past the cap.
-// -> [{ id, referenceId, source, createdAt, tenders, total }]
+// -> [{ id, referenceId, siteVersion, createdAt, tenders, total }]
 export const searchOpenOrders = async ({ before, max = 500 }, {
   env = process.env,
   fetchImpl = globalThis.fetch,
@@ -923,7 +934,8 @@ export const searchOpenOrders = async ({ before, max = 500 }, {
       found.push({
         id: o.id,
         referenceId: o.reference_id || null,
-        source: (o.source && o.source.name) || null,
+        siteVersion: (o.metadata && o.metadata.site_version)
+          || null,
         createdAt: o.created_at,
         tenders: (o.tenders || []).length,
         total: o.total_money ? o.total_money.amount : 0,

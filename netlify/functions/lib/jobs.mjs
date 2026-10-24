@@ -95,7 +95,7 @@ import { archivedOnHand } from "./stock.mjs";
 import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import { deletionsPaused } from "./square-pause.mjs";
-import { ORDER_ID, SOURCE_NAME } from "./square.mjs";
+import { ORDER_ID, SITE_VERSION } from "./square.mjs";
 import {
   deliveryReminder, farmMorningReport, farmTomorrow,
 } from "./templates.mjs";
@@ -516,7 +516,7 @@ const squareFinds = async (stores, day) => {
 // A card payment that fails for any reason but a decline leaves its
 // Square order OPEN: the page may still retry it under the same keys,
 // so nothing cancels it then. A day on, it is left over. Only an order
-// the site made (its source and an order id for reference) with no
+// the site made (its version tag and an order id for reference) with no
 // tender, no record and no Venmo checkout waiting is one: the farm's
 // own orders, paid orders and change orders to a recorded order never
 // are. The sweep reports them and cancels them, unless the Square
@@ -528,7 +528,7 @@ const squareFinds = async (stores, day) => {
 export const SQUARE_OPEN_GRACE = 24 * HOUR;
 export const SQUARE_SWEEP_MAX = 25;
 
-export const leftOpen = (o) => o.tenders === 0 && o.source === SOURCE_NAME
+export const leftOpen = (o) => o.tenders === 0 && o.siteVersion === SITE_VERSION
   && ORDER_ID.test(o.referenceId || "");
 
 // -> [{ squareOrderId, orderId, createdAt, total, cancelled, later?,
