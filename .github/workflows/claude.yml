@@ -17,10 +17,11 @@ name: Claude
 # The one secret is CLAUDE_CODE_OAUTH_TOKEN. The action trades the run's
 # OIDC token for a short-lived token of the Claude GitHub app, scoped to
 # this repository, which is why id-token is granted. Checkout leaves no
-# credentials in .git/config. The run itself never pushes: the tool
-# allowlist has no `git push`, and the last step of the job, which the
-# model does not control, pushes HEAD to lane/cloud-<issue> and nothing
-# else. That step cannot reach next, staging or main.
+# credentials in .git/config. The tool allowlist has no `git push`, and
+# the action's own git-push.sh wrapper, which it adds when commit
+# signing is off, is denied by name. The last step of the job, which
+# the model does not control, pushes HEAD to lane/cloud-<issue> and
+# nothing else. That step cannot reach next, staging or main.
 #
 # What the workflow cannot enforce: the deny rules on Write and Edit
 # keep the run out of .github/ and .git/, but they are the action's
@@ -94,7 +95,7 @@ jobs:
             --max-turns 200
             --append-system-prompt "You are a cloud lane of the North Foster Farm bullpen. Read docs/cloud-lanes.md first and follow it for the whole run. Work only on the issue or pull request that started this run. Commit on the lane/cloud-<issue> branch; the workflow pushes it after you finish, so never run git push. Never merge into or deploy next, staging or main, and never touch workflows, secrets or settings."
             --allowedTools "Read,Write,Edit,Glob,Grep,Bash(git fetch origin),Bash(git checkout:*),Bash(git switch:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git rebase origin/next),Bash(npm run lint:*),Bash(npm test),Bash(npm run check:*),Bash(hugo:*),Bash(node bin/audit/check.mjs:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh search issues:*)"
-            --disallowedTools "Write(.github/**),Edit(.github/**),Write(.git/**),Edit(.git/**)"
+            --disallowedTools "Bash(*git-push.sh*),Write(.github/**),Edit(.github/**),Write(.git/**),Edit(.git/**)"
 
       # The only push of the run. The model has no push rule, and this
       # step names the one ref it may update. It runs even when the
