@@ -31,14 +31,14 @@ const row = (pad, inner) => `  <tr>
 // James's markup for a signature (2026-10-24), the same for every
 // variant but the name. The pictures load from the live site, which
 // serves them only once a release carries static/email-signature/.
-export const render = (v) => {
+const build = (v, images) => {
   const { shared } = data;
   const link = (href, text) => `<a href="${escape(href)}" style="color: ${
     shared.color}; text-decoration: none;">${escape(text)}</a>`;
   const icon = (file) => `<img src="${escape(
-    `${shared.images}/${file}`)}" alt="" width="13" height="13" ` +
+    `${images}/${file}`)}" alt="" width="13" height="13" ` +
     `style="${ICON}">`;
-  const logo = `<img src="${escape(`${shared.images}/${shared.logo}`)}" ` +
+  const logo = `<img src="${escape(`${images}/${shared.logo}`)}" ` +
     `alt="${escape(company.name)}" width="192" height="16" style="display: ` +
     `block; border: 0; width: 192px; max-width: 100%; height: auto;">`;
 
@@ -69,6 +69,16 @@ ${row(11, `<i>${escape(shared.thanks)}</i>`)}
   return { html, text };
 };
 
+export const render = (v) => build(v, data.shared.images);
+
+// The staging panel's own preview. Its srcdoc frame answers to the
+// page's CSP, whose img-src leaves out the live site's host, so the
+// preview takes the pictures from the deploy's own /email-signature/
+// instead. Copy and Open alone keep the live URLs (#335).
+const previewImages = new URL(data.shared.images).pathname;
+
+export const preview = (v) => build(v, previewImages).html;
+
 // The page "Open alone" shows: the signature and nothing else, so
 // Select All and Copy picks up only that (James, 2026-10-17).
 export const alone = (html) =>
@@ -79,4 +89,5 @@ export const library = () => data.variants.map((v) => ({
   label: v.label,
   missing: missing(v),
   ...render(v),
+  preview: preview(v),
 }));

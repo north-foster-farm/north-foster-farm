@@ -40,6 +40,15 @@ describe("email signatures", () => {
     }
   });
 
+  it("preview from the deploy's own pictures, copy from the live site", () => {
+    for (const s of library()) {
+      assert.match(s.preview, /src="\/email-signature\/[a-z-]+\.png"/);
+      assert.doesNotMatch(s.preview, /northfosterfarm\.com\/email-signature/);
+      assert.match(s.html, /src="https:\/\/www\.northfosterfarm\.com\//);
+      assert.doesNotMatch(s.html, /src="\/email-signature/);
+    }
+  });
+
   it("match James's final markup, whitespace aside", () => {
     // His james and jim files carry a stray nested <tr>; the team file
     // does not. One template serves all three, so drop the stray one.

@@ -75,7 +75,7 @@ export const mountSignatures = ({ root, api, aloneUrl, onOpen }) => {
     if (!s) return;
     current = s;
     name.textContent = s.label;
-    frame.srcdoc = PREVIEW(s.html);
+    frame.srcdoc = PREVIEW(s.preview);
     said.textContent = HINT;
     gap.hidden = !s.missing.length;
     gap.textContent = `placeholder: ${s.missing.join(", ")}`;
