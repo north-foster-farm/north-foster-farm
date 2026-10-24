@@ -10,11 +10,12 @@ import { expect, test } from "./support/order.mjs";
 const HEADING = "Contact";
 const LEAD = "Get in touch by calling, texting, sending us an email, or " +
   "leaving us a message through the contact form below.";
-const NOTE = "Visits are by appointment only. Contact us to set up a " +
-  "farm visit. To pick up an order at the farm, choose on-farm pickup " +
-  "on the order page.";
-const LIMITED = "There have been too many messages from here. Wait a " +
-  "few minutes and send it again; what you wrote is still here.";
+const NOTE = "Visitors to our farm are welcome by appointment. To pick " +
+  "up an order here, choose on-farm pickup when you order. To stop by " +
+  "for a visit, you can call us, text us, send us an email, or submit " +
+  "our contact form.";
+const LIMITED = "There have been too many messages from here. Please " +
+  "wait a few minutes and send it again. What you wrote is still here.";
 
 const fields = (page) => ({
   name: page.locator("#contact-name"),
@@ -94,8 +95,10 @@ test.describe("contact (#140)", () => {
         .toHaveAttribute("href", /instagram\.com\/northfosterfarm$/);
       await expect(page.locator(".contact-rail .contact-note"))
         .toHaveText(NOTE);
-      await expect(page.locator(".contact-note a"))
-        .toHaveAttribute("href", /\/order\/$/);
+      // The note's "by appointment" is bold; it links nowhere (e587afd6).
+      await expect(page.locator(".contact-note strong"))
+        .toHaveText("by appointment");
+      await expect(page.locator(".contact-note a")).toHaveCount(0);
 
       // The lead names the form without linking it: the form sits
       // directly below (#267).
