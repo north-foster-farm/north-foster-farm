@@ -1,5 +1,5 @@
 {
- "revision": 47,
+ "revision": 48,
  "updated": "2026-10-24",
  "notice": null,
  "phases": [
@@ -2614,6 +2614,20 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354#issuecomment-6385499049"
       }
      ]
+    },
+    {
+     "rev": 4,
+     "date": "2026-10-24",
+     "changed": "Checked in a real browser; one small wording fix is drafted (curator, 2026-10-24).",
+     "summary": "You asked for this to be confirmed. The template lane tested PayPal's script in a real browser: the line **holds**. The script wrote no cookies and no `sessionStorage`, only one `localStorage` key, `__paypal_storage__`, on the page's and PayPal's origins. It holds a random id, a random session guid, a created timestamp and an empty funding object, nothing personal. It loads only on `/order/`, once the payment section is near or focused.\n\n**Draft fix for you:** the timestamp is not a \"random code\", so the sentence now adds \"with the time it first stored them\". **Caveat:** this was tested against PayPal's sandbox.",
+     "look": [
+      {
+       "label": "The test on #146",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/146#issuecomment-6387341616"
+      }
+     ],
+     "text": "…two random codes that PayPal's script stores, with the time it first stored them, when the payment buttons appear on the order page. They hold nothing about you.",
+     "recommendation": "Approve the one added phrase."
     }
    ],
    "device": "any",
