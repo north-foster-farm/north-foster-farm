@@ -253,11 +253,13 @@ const MESSAGE_HEADERS = {
 };
 
 // A PDF to show in the reader, open alone or download. Same-origin
-// framing only; the toolbar's reader embeds it.
+// framing only; the toolbar's reader embeds it, and the site-wide
+// frame-ancestors 'none' would blank that frame.
 const pdfResponse = (bytes, filename) => new Response(bytes, {
   status: 200,
   headers: {
     "Content-Type": "application/pdf",
+    "Content-Security-Policy": "frame-ancestors 'self'",
     "Content-Disposition": `inline; filename="${filename}"`,
     "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
@@ -593,7 +595,12 @@ export const handle = async (req, {
     const date = url.searchParams.get("date")
       || today(now, terms.timeZone);
 
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const day = new Date(`${date}T00:00:00Z`);
+    const real = /^\d{4}-\d{2}-\d{2}$/.test(date)
+      && !Number.isNaN(day.getTime())
+      && day.toISOString().startsWith(date);
+
+    if (!real) {
       return json(400, { error: "Give the date as YYYY-MM-DD." });
     }
 
@@ -605,9 +612,15 @@ export const handle = async (req, {
   }
 
   if (req.method === "GET" && path.startsWith("/api/staging/slips/")) {
-    const id = decodeURIComponent(path.slice("/api/staging/slips/".length));
+    let id = null;
 
-    return has(id) ? pdfResponse(buildSlip(id, env), `${id}.pdf`)
+    try {
+      id = decodeURIComponent(path.slice("/api/staging/slips/".length));
+    } catch {
+      // Bad percent-encoding names no page.
+    }
+
+    return id !== null && has(id) ? pdfResponse(buildSlip(id, env), `${id}.pdf`)
       : json(404, { error: "No such page." });
   }
 

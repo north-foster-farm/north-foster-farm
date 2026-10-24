@@ -46,6 +46,48 @@ test.describe("staging toolbar", () => {
         .toBe(401);
     });
 
+  // The packing slips view (#334): ten pages and today's packet, and
+  // the reader's Open alone and Download each lead to a PDF.
+  //
+  // Runs only with a gate session cookie in E2E_GATE_SESSION, as the
+  // reset test below does.
+  test("the packing slips list every page and open as PDFs",
+    async ({ page, context, baseURL }) => {
+      test.skip(!branch(baseURL), "only on a branch deploy");
+      test.skip(!process.env.E2E_GATE_SESSION,
+        "needs the toolbar owner's gate session");
+      await context.addCookies([
+        {
+          name: "nff_gate", value: process.env.E2E_GATE_SESSION,
+          domain: new URL(baseURL).hostname, path: "/",
+          httpOnly: true, secure: true, sameSite: "Lax",
+        },
+      ]);
+      await page.goto("/about/#slips");
+
+      const items = page.locator("[data-staging-slips-list] a[data-id]");
+
+      await expect(items).toHaveCount(11);
+      await expect(items.last()).toContainText("Today's packet");
+
+      await items.first().click();
+
+      const alone = page.locator("[data-staging-slips-alone]");
+      const download = page.locator("[data-staging-slips-download]");
+      const id = await items.first().getAttribute("data-id");
+
+      await expect(alone).toHaveAttribute("href", `/api/staging/slips/${id}`);
+      await expect(download).toHaveAttribute("download", `${id}.pdf`);
+
+      for (const link of [alone, download]) {
+        const res = await page.request.get(await link.getAttribute("href"));
+
+        expect(res.status()).toBe(200);
+        expect(res.headers()["content-type"]).toBe("application/pdf");
+        expect((await res.body()).subarray(0, 5).toString()).toBe("%PDF-");
+      }
+    });
+
   // A page after the reset is the page a stranger gets: nothing the
   // site keeps in the browser survives, and the farm news forms,
   // hidden for someone on the list, are back (#267).

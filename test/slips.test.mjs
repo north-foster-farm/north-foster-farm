@@ -116,6 +116,34 @@ describe("the packing slip routes", () => {
       assert.equal(bad.status, 400);
     });
 
+  it("let the reader frame the PDF despite the site's frame-ancestors",
+    async () => {
+      const res = await handle(ask("/api/staging/slips/card"), {
+        stores: signed(), env,
+      });
+
+      assert.equal(res.headers.get("content-security-policy"),
+        "frame-ancestors 'self'");
+    });
+
+  it("answer a malformed page id with a 404", async () => {
+    const res = await handle(ask("/api/staging/slips/%E0%A4%A"), {
+      stores: signed(), env,
+    });
+
+    assert.equal(res.status, 404);
+  });
+
+  it("reject a date that is not on the calendar", async () => {
+    for (const date of ["9999-99-99", "2026-02-30", "2026-13-01"]) {
+      const res = await handle(ask(`${TODAY}${date}`), {
+        stores: signed(), env,
+      });
+
+      assert.equal(res.status, 400, date);
+    }
+  });
+
   it("are a 404 in production and a 401 without a session", async () => {
     const prod = await handle(ask("/api/staging/slips"), {
       stores: signed(),
