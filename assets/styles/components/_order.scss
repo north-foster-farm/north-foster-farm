@@ -1223,56 +1223,56 @@
     rotate: 180deg;
   }
 
-  // The total row's two controls are one segmented control (#267): a
-  // track that binds them before any tap, and a fill that slides to
-  // the side showing. Only the count, the word Total and the amount
-  // take a tap. Settled, in the column and on a tablet's two columns
-  // the fill gives way to plain text, or to a fill under each part
-  // that is open.
+  // One design for both segmented controls (#392): the top Show control
+  // and the cart's count and total. A grey track with a hairline ring,
+  // and a fill that slides to the chosen side, the page's white lifted
+  // by the small shadow, so the chosen side is lighter, never darker.
+  // A transform, not layout: the fill is half the track and moves by
+  // its own width, with the pane's easing and duration.
+  .order-filter-seg,
   .order-cart-seg {
     position: relative;
     display: grid;
-    flex: 1 1 auto;
-
-    // The track reaches out by the padding, so the text still stands
-    // where it did: the total under the column of line prices.
-    margin-inline: -0.75rem;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     border-radius: 999px;
     background-color: $pill-bg;
     box-shadow: inset 0 0 0 1px var(--bs-border-color-translucent);
-    transition:
-      background-color var(--order-base) var(--order-ease),
-      box-shadow var(--order-base) var(--order-ease);
-
-    // Past a phone, a track across the whole pane no longer read as a
-    // two-part control (#274): it keeps a phone's width, at the right,
-    // so the total still stands under the column of prices.
-    @media (min-width: 576px) {
-      flex: 0 1 24rem;
-      margin-left: auto;
-    }
   }
 
-  // A transform, not layout: the fill is half the track and moves by
-  // its own width, with the pane's easing and duration.
+  .order-filter-fill,
   .order-cart-seg-fill {
     position: absolute;
-    inset: 0 50% 0 0;
+    inset: 2px calc(50% + 2px) 2px 2px;
     border-radius: 999px;
-    background-color: var(--bs-primary);
+    background-color: var(--bs-body-bg);
+    box-shadow: var(--bs-box-shadow-sm);
     transition:
       transform var(--order-base) var(--order-ease),
       opacity var(--order-base) ease;
+  }
+
+  // The total row's two controls are one segmented control (#267). Only
+  // the count, the word Total and the amount take a tap. Bigger than
+  // the Show control (#392): 2.5rem tall to its 2rem, 1rem text to its
+  // 0.875rem, and 20rem wide to its 12.5rem or so, short of the pane's
+  // whole width. Settled, in the column the track gives way to plain
+  // text; a tablet's panel keeps the look as a readout (#274).
+  .order-cart-seg {
+    flex: 0 1 20rem;
+    margin-inline: auto;
+    transition:
+      background-color var(--order-base) var(--order-ease),
+      box-shadow var(--order-base) var(--order-ease);
   }
 
   .order-cart-disclose {
     position: relative;
     display: inline-flex;
     align-items: baseline;
-    gap: 0.5rem;
-    min-height: 2rem;
-    padding: 0 0.75rem;
+    justify-content: center;
+    gap: 0.375rem;
+    min-height: 2.5rem;
+    padding: 0 0.5rem;
     border: 0;
     border-radius: 999px;
     background: none;
@@ -1293,14 +1293,12 @@
     }
 
     &[data-on="true"] {
-      color: #fff;
+      color: var(--bs-body-color);
     }
   }
 
   .order-cart-count {
     align-items: center;
-    justify-content: flex-start;
-    font-size: 0.875rem;
     color: var(--bs-secondary-color);
   }
 
@@ -1327,6 +1325,20 @@
     .order-cart-count {
       color: var(--bs-secondary-color);
     }
+
+    // A tablet's panel is a readout (#274): the same track, no tap.
+    @media (min-width: 576px) and (max-width: 1199.98px) {
+      flex: 0 1 20rem;
+      margin-inline: auto;
+      background-color: $pill-bg;
+      box-shadow: inset 0 0 0 1px var(--bs-border-color-translucent);
+      pointer-events: none;
+
+      .order-cart-disclose,
+      .order-cart-disclose[data-on="true"] {
+        padding-inline: 0.5rem;
+      }
+    }
   }
 
   // A tablet's two columns fold their parts on their own, so there is
@@ -1337,12 +1349,13 @@
 
   .order-cart-seg[data-multi]:not([data-plain]) {
     .order-cart-disclose[data-on="true"] {
-      background-color: var(--bs-primary);
+      background-color: var(--bs-body-bg);
+      box-shadow: var(--bs-box-shadow-sm);
     }
   }
 
   .order-cart[data-money="open"][data-items="closed"] .order-cart-seg-fill {
-    transform: translateX(100%);
+    transform: translateX(calc(100% + 4px));
   }
 
   // The bar's word for an Add while the pane is shut (#267): it slides
@@ -1450,10 +1463,6 @@
     visibility: hidden;
   }
 
-  .order-cart-sum {
-    justify-content: flex-end;
-  }
-
   .order-cart-sum-label {
     font-weight: bold;
   }
@@ -1481,7 +1490,7 @@
     --order-flash-glow: none;
 
     display: inline-block;
-    font-size: 1.375rem;
+    font-size: 1.125rem;
     font-weight: bold;
     font-variant-numeric: tabular-nums;
 
@@ -1489,13 +1498,6 @@
       animation: order-bump 260ms var(--order-ease);
     }
   }
-
-  .order-cart-seg:not([data-plain])
-    .order-cart-disclose[data-on="true"] .order-cart-total {
-    --order-flash: #{tint-color($green, 70%)};
-    --order-flash-glow: 0 0 0.5rem rgb(255 255 255 / 55%);
-  }
-
 
   .order-cart-nudge {
     flex: 1 0 100%;
@@ -1934,24 +1936,6 @@
     flex: none;
     gap: 0.75rem;
     align-items: center;
-  }
-
-  .order-filter-seg {
-    position: relative;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    border-radius: 999px;
-    background-color: $pill-bg;
-    box-shadow: inset 0 0 0 1px var(--bs-border-color-translucent);
-  }
-
-  .order-filter-fill {
-    position: absolute;
-    inset: 2px calc(50% + 2px) 2px 2px;
-    border-radius: 999px;
-    background-color: var(--bs-body-bg);
-    box-shadow: var(--bs-box-shadow-sm);
-    transition: transform var(--order-base) var(--order-ease);
   }
 
   .order-filter-seg:has(.order-filter-input[value="all"]:checked)
