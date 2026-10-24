@@ -58,13 +58,48 @@ export const mountSlips = ({ root, api, onOpen }) => {
     summary.textContent = `${slips.length} pages`;
   };
 
-  const show = () => {
-    const url = urlOf(current);
+  const link = (url) => {
+    for (const a of [alone, download]) {
+      if (url) a.href = url;
+      else a.removeAttribute("href");
+      a.toggleAttribute("aria-disabled", !url);
+    }
+    download.download = url ? `${current.id}.pdf` : "";
+  };
 
+  // A day with nothing to pack says so, plainly.
+  const none = () => {
+    frame.removeAttribute("src");
+    frame.hidden = true;
+    link(null);
+    note.textContent = "No orders to pack";
+  };
+
+  const show = async () => {
+    const url = urlOf(current);
+    const shown = current;
+
+    frame.hidden = false;
+    note.textContent = shown.note;
+    if (shown.id !== "today") {
+      frame.src = url;
+      link(url);
+
+      return;
+    }
+
+    const day = date.value;
+    const res = await fetch(url);
+
+    // The reader moved on while the packet was built.
+    if (current !== shown || date.value !== day) return;
+    if (res.status === 404) {
+      none();
+
+      return;
+    }
     frame.src = url;
-    alone.href = url;
-    download.href = url;
-    download.download = `${current.id}.pdf`;
+    link(url);
   };
 
   const read = (id) => {
