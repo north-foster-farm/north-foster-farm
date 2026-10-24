@@ -253,7 +253,8 @@ class Account {
         );
       }
       showChick(document, e.target.value);
-      this.saving(profile, "avatar", () => this.saveAvatar(e.target.value));
+      this.saving(profile, "avatar", () => this.saveAvatar(e.target.value),
+        e.target);
     });
     // Videos playing on their own save the moment the box changes,
     // and this page follows at once (#161).
@@ -263,7 +264,8 @@ class Account {
       const on = e.target.checked;
 
       Autoplay.set(on, { from: "account" });
-      this.saving(profile, "autoplay", () => this.saveAutoplay(on));
+      this.saving(profile, "autoplay", () => this.saveAutoplay(on),
+        e.target);
     });
     document.getElementById("support-form").addEventListener("submit",
       (e) => this.sendSupport(e));
@@ -393,7 +395,8 @@ class Account {
 
       if (now === last || !ready(values())) return;
       last = now;
-      await this.saving(form, e && e.target && e.target.name, save);
+      await this.saving(form, e && e.target && e.target.name, save,
+        e && e.target);
     };
 
     // The values are the saved ones once the page has filled them in,
@@ -408,13 +411,16 @@ class Account {
     });
   }
 
-  // One save, told on the form's line (#238): "Saving…" with a
-  // spinner while it is out, "Saved 👍" for ten seconds, or "Failed
-  // to save: <why>" until the next save. A failure also goes to the
-  // console with the field that sent it. `save` resolves to { ok,
-  // error }.
-  async saving(form, field, save) {
-    this.saveLine(form, "saving", "Saving…");
+  // One save, told beside the heading of the group that changed
+  // (#238, #344): "Saving…" with a spinner while it is out, "Saved 👍"
+  // for ten seconds, or "Failed to save: <why>" until the next save.
+  // `anchor` is the field that changed; with none (Enter), the form's
+  // first group tells it. A failure also goes to the console with the
+  // field that sent it. `save` resolves to { ok, error }.
+  async saving(form, field, save, anchor = null) {
+    const line = Account.lineFor(form, anchor);
+
+    this.saveLine(line, "saving", "Saving…");
 
     let result;
 
@@ -427,28 +433,34 @@ class Account {
     }
 
     if (result.ok) {
-      this.saveLine(form, "saved", "Saved 👍");
+      this.saveLine(line, "saved", "Saved 👍");
     } else {
       console.error("Account save failed", { field, error: result.error });
-      this.saveLine(form, "failed", `Failed to save: ${result.error}`);
+      this.saveLine(line, "failed", `Failed to save: ${result.error}`);
     }
 
     return result.ok;
   }
 
-  saveLine(form, state, text) {
-    const line = qs(form, "[data-autosave]");
+  // The status line of the group `anchor` sits in, else the form's
+  // first.
+  static lineFor(form, anchor) {
+    const group = anchor && anchor.closest && anchor.closest(".account-group");
 
+    return qs(group || form, "[data-autosave]");
+  }
+
+  saveLine(line, state, text) {
     this.fades ||= new Map();
-    clearTimeout(this.fades.get(form));
+    clearTimeout(this.fades.get(line));
     line.classList.remove("is-fading");
     line.dataset.save = state;
     qs(line, "[data-save-text]").textContent = text;
     if (state !== "saved") return;
 
-    this.fades.set(form, setTimeout(() => {
+    this.fades.set(line, setTimeout(() => {
       line.classList.add("is-fading");
-      this.fades.set(form, setTimeout(() => {
+      this.fades.set(line, setTimeout(() => {
         line.dataset.save = "";
         qs(line, "[data-save-text]").textContent = "";
         line.classList.remove("is-fading");

@@ -116,10 +116,6 @@
     }
   }
 
-  .account-section > h2 {
-    margin-bottom: 0.75rem;
-  }
-
   .account-empty {
     color: var(--bs-secondary-color);
   }
@@ -434,45 +430,51 @@
     }
   }
 
-  // Settings in three groups, each under its heading and set apart by
-  // a rule, so a label sits closer to its field than one group to the
-  // next (#238).
-  .account-group + .account-group {
-    margin-top: 2rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--bs-border-color-translucent);
+  // One gap for the Address, Settings and Help panes (#344): above
+  // each heading, between a heading and its first row, and between
+  // rows. Headings are one size, larger than a field's label.
+  .account-section {
+    --account-gap: 1.5rem;
+    --bs-gutter-x: var(--account-gap);
+    --bs-gutter-y: var(--account-gap);
   }
 
-  // A section of the Settings pane: small capitals in the brand green,
-  // so it reads as a step below the pane's own heading (#303).
+  .account-group + .account-group,
+  .account-review,
+  .account-delete {
+    margin-top: var(--account-gap);
+  }
+
+  // A heading with the status of what it covers beside it.
+  .account-group-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 1rem;
+    margin-bottom: var(--account-gap);
+  }
+
   .account-group-title {
-    margin: 0 0 1rem;
-    font-size: 0.8125rem;
-    font-weight: bold;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--bs-primary-text-emphasis);
+    margin: 0;
   }
 
-  // A subsection's name, set like a field's label.
-  .account-legend {
-    margin-bottom: 0;
-    font-size: inherit;
+  // Review and Delete have no status, so their heading stands alone.
+  .account-review > .account-group-title,
+  .account-delete > .account-group-title {
+    margin-bottom: var(--account-gap);
   }
 
-  // Checkboxes line up with the label beside them from md up.
-  .account-checks {
-    @include media-breakpoint-up(md) {
-      padding-top: calc(#{$input-padding-y} + #{$input-border-width});
-    }
+  .account-group > p,
+  .account-review > p,
+  .account-delete > p,
+  .account-lede {
+    margin-bottom: var(--account-gap);
   }
 
-  // The sign-in email reads as a value under its label on a phone, and
-  // level with it from md up.
+  // The sign-in email reads as a value under its label.
   .account-email-value {
-    @include media-breakpoint-down(md) {
-      padding-top: 0;
-    }
+    padding-top: 0;
+    padding-bottom: 0;
   }
 
   // The address with its Change button beside it (#240); the address
@@ -500,13 +502,15 @@
   }
 
   // What the last save did: "Saving…" with the egg spinner, "Saved 👍",
-  // which fades, or why it failed. It keeps a line's height empty, so
-  // the card doesn't jump.
+  // which fades, or why it failed. It sits beside its group's heading
+  // (#344) and takes no height when empty.
   .account-save {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    min-height: 1.5em;
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
     transition: opacity 0.6s ease;
 
     &.is-fading {
@@ -515,55 +519,6 @@
 
     &[data-save="failed"] {
       color: var(--bs-danger-text-emphasis);
-    }
-
-    // Under the fields' column, beside nothing.
-    @include media-breakpoint-up(md) {
-      margin-left: calc((100% + var(--bs-gutter-x, 1.5rem)) / 3);
-    }
-
-    // On a phone the field being typed in is often far above the line,
-    // so it rides the screen's bottom edge while the form is in view
-    // (#303).
-    @include media-breakpoint-down(md) {
-      position: sticky;
-      bottom: 0;
-      z-index: 1;
-      margin-inline: -0.75rem;
-      padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom));
-      background-color: var(--bs-body-bg);
-
-      &[data-save="saving"],
-      &[data-save="saved"],
-      &[data-save="failed"] {
-        box-shadow: 0 -1px 0 var(--bs-border-color-translucent);
-      }
-    }
-  }
-
-  .account-zip {
-    max-width: 9rem;
-  }
-
-  // Delete your details: a section like the others, set off by the
-  // same rule, its warning in the danger red (#303).
-  .account-review,
-  .account-delete {
-    margin-top: 2rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--bs-border-color-translucent);
-  }
-
-  // The Settings form ends in its save line, which holds most of the
-  // space a section break needs, so the break under Farm news matches
-  // the others rather than adding to it (#303). On a phone the line's
-  // own padding is the rest.
-  .account-form + .account-review,
-  .account-form + .account-review[hidden] + .account-delete {
-    margin-top: 0.5rem;
-
-    @include media-breakpoint-down(md) {
-      margin-top: 0;
     }
   }
 
@@ -653,22 +608,6 @@
     font-weight: bold;
   }
 
-  // A form on the account page: label beside field from md up,
-  // stacked on a phone (#303).
-  .account-row {
-    margin-bottom: 1rem;
-
-    @include media-breakpoint-up(md) {
-      align-items: start;
-    }
-  }
-
-  .account-form .col-form-label {
-    @include media-breakpoint-down(md) {
-      padding-top: 0;
-      padding-bottom: 0.375rem;
-    }
-  }
 }
 
 // The sign-in page reads like a policy page: the same 700px column.

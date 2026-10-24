@@ -36,16 +36,15 @@
 
           <div class="alert alert-success" id="account-flash" role="status" aria-live="polite" hidden></div>
 
-          <section class="account-section" id="acct-orders" data-section="orders" aria-labelledby="acct-orders-h">
-            <h2 class="h4" id="acct-orders-h">Your orders</h2>
+          {{/* The tabs name the panes (#344): no heading repeats them. */}}
+          <section class="account-section" id="acct-orders" data-section="orders" aria-label="Orders">
             {{/* #165: the whole history as a CSV; the wording is a draft. */}}
             <p class="mb-3" data-download-row hidden><button type="button" class="btn btn-sm btn-outline-primary" data-download="orders">Download all orders (CSV)</button></p>
             <p class="account-empty" id="orders-empty" hidden>No orders yet.</p>
             <div id="orders-list"></div>
           </section>
 
-          <section class="account-section" id="acct-receipts" data-section="receipts" aria-labelledby="acct-receipts-h" hidden>
-            <h2 class="h4" id="acct-receipts-h">Receipts</h2>
+          <section class="account-section" id="acct-receipts" data-section="receipts" aria-label="Receipts" hidden>
             <p class="mb-3" data-download-row hidden><button type="button" class="btn btn-sm btn-outline-primary" data-download="receipts">Download all receipts (CSV)</button></p>
             <ul class="account-receipts" id="receipts-list" hidden></ul>
             <p class="account-empty" id="receipts-empty" hidden>No payments yet.</p>
@@ -65,96 +64,87 @@
             </div>
           </section>
 
+          {{/* Forms here are Bootstrap grid forms (Forms, Layout,
+               Gutters): labels above the fields, no placeholders, one
+               gap everywhere (--account-gap, _account.scss). */}}
           <section class="account-section" id="acct-address" data-section="address" aria-labelledby="acct-address-h" hidden>
-            <h2 class="h4" id="acct-address-h">Delivery address</h2>
-            <p>Save your delivery address. This address is automatically added to new orders on the order page.</p>
-            <p class="account-address-status" id="address-status" hidden></p>
             <form class="account-form" id="address-form" novalidate>
-              <div class="row account-row">
-                <label class="col-md-4 col-form-label" for="addr-address1">Street address</label>
-                <div class="col-md-8">
-                  <input class="form-control" type="text" id="addr-address1" name="address1" autocomplete="shipping address-line1" data-field="address1" aria-describedby="err-addr-address1">
-                  <div class="invalid-feedback" id="err-addr-address1" data-error-for="address1"></div>
+              <section class="account-group" aria-labelledby="acct-address-h">
+                <div class="account-group-head">
+                  <h2 class="h4 account-group-title" id="acct-address-h">Save a delivery address</h2>
+                  {{ partial "account/save.html" . }}
                 </div>
-              </div>
-              <div class="row account-row">
-                <label class="col-md-4 col-form-label" for="addr-address2">Apartment, unit, or floor <span class="text-body-secondary">(optional)</span></label>
-                <div class="col-md-8">
-                  <input class="form-control" type="text" id="addr-address2" name="address2" autocomplete="shipping address-line2" data-field="address2">
+                <p>This address is automatically pre-filled for new orders on the order page.</p>
+                <p class="account-address-status" id="address-status" hidden></p>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label" for="addr-address1">Street address</label>
+                    <input class="form-control" type="text" id="addr-address1" name="address1" autocomplete="shipping address-line1" data-field="address1" aria-describedby="err-addr-address1">
+                    <div class="invalid-feedback" id="err-addr-address1" data-error-for="address1"></div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="addr-address2">Apartment, unit, or floor <span class="text-body-secondary">(optional)</span></label>
+                    <input class="form-control" type="text" id="addr-address2" name="address2" autocomplete="shipping address-line2" data-field="address2">
+                  </div>
+                  <div class="col-md-8">
+                    <label class="form-label" for="addr-town">City or town</label>
+                    <input class="form-control" type="text" id="addr-town" name="town" autocomplete="shipping address-level2" data-field="town" aria-describedby="err-addr-town">
+                    <div class="invalid-feedback" id="err-addr-town" data-error-for="town"></div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label" for="addr-zip">ZIP</label>
+                    <input class="form-control" type="text" id="addr-zip" name="zip" autocomplete="shipping postal-code" inputmode="numeric" maxlength="10" data-field="zip" aria-describedby="err-addr-zip">
+                    <div class="invalid-feedback" id="err-addr-zip" data-error-for="zip"></div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="addr-cooler">Where will we find your cooler?</label>
+                    <input class="form-control" type="text" id="addr-cooler" name="cooler" data-field="cooler">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="addr-gate">Gate or keypad code <span class="text-body-secondary">(optional)</span></label>
+                    <input class="form-control" type="text" id="addr-gate" name="gate" autocomplete="off" data-field="gate">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="addr-notes">Anything we should know about the drop-off? <span class="text-body-secondary">(optional)</span></label>
+                    <textarea class="form-control" id="addr-notes" name="notes" rows="2" data-field="notes"></textarea>
+                  </div>
                 </div>
-              </div>
-              <div class="row account-row">
-                <label class="col-md-4 col-form-label" for="addr-town">Town</label>
-                <div class="col-md-8">
-                  <input class="form-control" type="text" id="addr-town" name="town" autocomplete="shipping address-level2" data-field="town" aria-describedby="err-addr-town">
-                  <div class="invalid-feedback" id="err-addr-town" data-error-for="town"></div>
-                </div>
-              </div>
-              <div class="row account-row">
-                <label class="col-md-4 col-form-label" for="addr-zip">ZIP</label>
-                <div class="col-md-8">
-                  <input class="form-control account-zip" type="text" id="addr-zip" name="zip" autocomplete="shipping postal-code" inputmode="numeric" maxlength="10" data-field="zip" aria-describedby="err-addr-zip">
-                  <div class="invalid-feedback" id="err-addr-zip" data-error-for="zip"></div>
-                </div>
-              </div>
-              <div class="row account-row">
-                <label class="col-md-4 col-form-label" for="addr-cooler">Where will we find your cooler?</label>
-                <div class="col-md-8">
-                  <input class="form-control" type="text" id="addr-cooler" name="cooler" data-field="cooler">
-                </div>
-              </div>
-              <div class="row account-row">
-                <label class="col-md-4 col-form-label" for="addr-gate">Gate or keypad code <span class="text-body-secondary">(optional)</span></label>
-                <div class="col-md-8">
-                  <input class="form-control" type="text" id="addr-gate" name="gate" autocomplete="off" data-field="gate">
-                </div>
-              </div>
-              <div class="row account-row">
-                <label class="col-md-4 col-form-label" for="addr-notes">Anything we should know about the drop-off? <span class="text-body-secondary">(optional)</span></label>
-                <div class="col-md-8">
-                  <textarea class="form-control" id="addr-notes" name="notes" rows="2" data-field="notes"></textarea>
-                </div>
-              </div>
-              {{/* What the last save did (#238): Saving… with a spinner, Saved,
-                   or why it failed; main.js sets data-save and the words. */}}
-              <p class="form-text mt-3 mb-0 account-save" data-autosave aria-live="polite">{{ partial "svg.html" (dict "src" "icons/egg-spinner" "class" "egg-spinner account-save-spin" "aria-hidden" "true" "focusable" "false") }}<span data-save-text></span></p>
+              </section>
             </form>
           </section>
 
-          <section class="account-section" id="acct-settings" data-section="settings" aria-labelledby="acct-settings-h" hidden>
-            <h2 class="h4" id="acct-settings-h">Settings</h2>
-            {{/* Three groups under headings (#238): a label sits closer to
-                 its field than a group to the next. */}}
+          <section class="account-section" id="acct-settings" data-section="settings" aria-label="Settings" hidden>
+            {{/* Groups under headings (#238, #344): the first is the
+                 pane's own heading, so every group carries the same
+                 one. */}}
             <form class="account-form" id="profile-form" novalidate>
               <section class="account-group" aria-labelledby="prof-details-h">
-                <h3 class="account-group-title" id="prof-details-h">Your details</h3>
-                <div class="row account-row">
-                  <label class="col-md-4 col-form-label" for="prof-first">First name</label>
-                  <div class="col-md-8">
+                <div class="account-group-head">
+                  <h2 class="h4 account-group-title" id="prof-details-h">Your details</h2>
+                  {{ partial "account/save.html" . }}
+                </div>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label" for="prof-first">First name</label>
                     <input class="form-control" type="text" id="prof-first" name="firstName" autocomplete="given-name" data-field="firstName" aria-describedby="err-prof-first">
                     <div class="invalid-feedback" id="err-prof-first" data-error-for="firstName"></div>
                   </div>
-                </div>
-                <div class="row account-row">
-                  <label class="col-md-4 col-form-label" for="prof-last">Last name</label>
-                  <div class="col-md-8">
+                  <div class="col-md-6">
+                    <label class="form-label" for="prof-last">Last name</label>
                     <input class="form-control" type="text" id="prof-last" name="lastName" autocomplete="family-name" data-field="lastName" aria-describedby="err-prof-last">
                     <div class="invalid-feedback" id="err-prof-last" data-error-for="lastName"></div>
                   </div>
-                </div>
-                <div class="row account-row">
-                  <label class="col-md-4 col-form-label" for="prof-phone">Phone <span class="text-body-secondary">(optional)</span></label>
-                  <div class="col-md-8">
+                  <div class="col-md-6">
+                    <label class="form-label" for="prof-phone">Phone <span class="text-body-secondary">(optional)</span></label>
                     <input class="form-control" type="tel" id="prof-phone" name="phone" autocomplete="tel" inputmode="tel" data-field="phone" aria-describedby="err-prof-phone">
                     <div class="invalid-feedback" id="err-prof-phone" data-error-for="phone"></div>
                   </div>
-                </div>
-                {{/* The sign-in address. The email changes by a link to the
-                     new email address (#240), never by the autosave:
-                     data-own-save keeps it out. Keep the row's id. */}}
-                <div class="row account-row" id="prof-email-row">
-                  <label class="col-md-4 col-form-label" for="prof-email">Email address</label>
-                  <div class="col-md-8" data-own-save>
+                  {{/* The sign-in address. The email changes by a link to
+                       the new email address (#240), never by the
+                       autosave: data-own-save keeps it out. Keep the
+                       row's id. */}}
+                  <div class="col-12" id="prof-email-row" data-own-save>
+                    <label class="form-label" for="prof-email">Email address</label>
                     <div class="account-email-row">
                       <input class="form-control-plaintext account-email-value" type="email" id="prof-email" readonly tabindex="-1" aria-describedby="prof-email-note">
                       <button class="btn btn-outline-primary btn-sm" type="button" id="email-change-open" aria-expanded="false" aria-controls="email-change">Change</button>
@@ -171,16 +161,17 @@
                     </div>
                     <p class="form-text mb-0" id="email-change-sent" role="status"></p>
                   </div>
-                </div>
-                <div class="row account-row" id="prof-group-row" hidden>
-                  <span class="col-md-4 col-form-label">Your pricing</span>
-                  <div class="col-md-8">
-                    <p class="mb-0 account-email-value" id="prof-group"></p>
+                  <div class="col-12" id="prof-group-row" hidden>
+                    <span class="form-label d-block">Your pricing</span>
+                    <p class="mb-0" id="prof-group"></p>
                   </div>
                 </div>
               </section>
               <section class="account-group" aria-labelledby="prof-chicken-h">
-                <h3 class="account-group-title" id="prof-chicken-h">Your chicken</h3>
+                <div class="account-group-head">
+                  <h2 class="h4 account-group-title" id="prof-chicken-h">Your chicken</h2>
+                  {{ partial "account/save.html" . }}
+                </div>
                 <div class="account-avatars" id="avatar-picker" role="radiogroup" aria-labelledby="prof-chicken-h">
                   {{ range hugo.Data.avatars }}
                     <label class="account-avatar-choice">
@@ -193,46 +184,48 @@
                 <div class="invalid-feedback d-block" data-error-for="avatar"></div>
               </section>
               <section class="account-group" aria-labelledby="prof-email-h">
-                <h3 class="account-group-title" id="prof-email-h">Email preferences</h3>
-                {{/* A fieldset cannot be a flex row (grid check G13), so
-                     the row sits inside it and the label names it. */}}
-                <fieldset aria-labelledby="prof-remind-l">
-                  <div class="row account-row">
-                    <span class="col-md-4 col-form-label account-legend" id="prof-remind-l">Reminders</span>
-                    <div class="col-md-8 account-checks">
+                <div class="account-group-head">
+                  <h2 class="h4 account-group-title" id="prof-email-h">Email preferences</h2>
+                  {{ partial "account/save.html" . }}
+                </div>
+                <div class="row g-3">
+                  {{/* A fieldset cannot be a flex item (grid check G13),
+                       so it sits inside the column and the label names
+                       it. */}}
+                  <div class="col-12">
+                    <fieldset aria-labelledby="prof-remind-l">
+                      <span class="form-label d-block" id="prof-remind-l">Reminders</span>
                       <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="prof-remind-delivery" name="remind-delivery" data-reminder="delivery">
                         <label class="form-check-label" for="prof-remind-delivery">Remind me the evening before delivery.</label>
                       </div>
-                    </div>
+                    </fieldset>
                   </div>
-                </fieldset>
-                <fieldset aria-labelledby="prof-news-l">
-                  <div class="row account-row mb-0">
-                    <span class="col-md-4 col-form-label account-legend" id="prof-news-l">Farm news</span>
-                    <div class="col-md-8 account-checks">
+                  <div class="col-12">
+                    <fieldset aria-labelledby="prof-news-l">
+                      <span class="form-label d-block" id="prof-news-l">Farm news</span>
                       <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="prof-marketing" name="marketing" data-field="marketing">
                         <label class="form-check-label" for="prof-marketing">Receive an occasional newsletter from {{ hugo.Data.company.name }}.</label>
                       </div>
-                    </div>
+                    </fieldset>
                   </div>
-                </fieldset>
+                </div>
               </section>
               {{/* Saved on its own, like the chicken (#161). Until the
                    customer chooses, main.js ticks it by what this browser
                    does. Wording approved by James, 2026-10-22. */}}
               <section class="account-group" aria-labelledby="prof-videos-h">
-                <h3 class="account-group-title" id="prof-videos-h">Videos</h3>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="prof-autoplay" name="autoplay" data-field="autoplay">
+                <div class="account-group-head">
+                  <h2 class="h4 account-group-title" id="prof-videos-h">Accessibility</h2>
+                  {{ partial "account/save.html" . }}
+                </div>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="prof-autoplay" name="autoplay" data-field="autoplay">
                   <label class="form-check-label" for="prof-autoplay">Autoplay videos</label>
                 </div>
                 <div class="invalid-feedback d-block" data-error-for="autoplay"></div>
               </section>
-              {{/* What the last save did (#238): Saving… with a spinner, Saved,
-                   or why it failed; main.js sets data-save and the words. */}}
-              <p class="form-text my-0 account-save" data-autosave aria-live="polite">{{ partial "svg.html" (dict "src" "icons/egg-spinner" "class" "egg-spinner account-save-spin" "aria-hidden" "true" "focusable" "false") }}<span data-save-text></span></p>
             </form>
             {{/* Deleting your details (#189, #303): the button opens the
                  dialog below, where the address typed must be this
@@ -242,7 +235,7 @@
                  customer dismisses it, which the customer record keeps
                  (reviewDismissedAt), so it stays gone on every device. */}}
             <section class="account-review" id="account-review" aria-labelledby="prof-review-h" hidden>
-              <h3 class="account-group-title" id="prof-review-h">Leave us a review</h3>
+              <h2 class="h4 account-group-title" id="prof-review-h">Leave us a review</h2>
               <p>If you enjoy {{ hugo.Data.company.name }} products and would like to leave us a review, we would truly appreciate it.</p>
               <div class="account-review-actions">
                 <a class="btn btn-primary" href="{{ hugo.Data.company.reviews.google }}" target="_blank" rel="noopener">Review us on Google<span class="visually-hidden"> (opens in a new tab)</span></a>
@@ -250,7 +243,7 @@
               </div>
             </section>
             <section class="account-delete" aria-labelledby="prof-delete-h">
-              <h3 class="account-group-title" id="prof-delete-h" tabindex="-1">Delete your details</h3>
+              <h2 class="h4 account-group-title" id="prof-delete-h" tabindex="-1">Delete your details</h2>
               <p class="mb-2">This deletes your account:</p>
               <ul class="account-delete-list">
                 <li>Your name</li>
@@ -284,37 +277,30 @@
             </dialog>
           </section>
 
-          <section class="account-section" id="acct-help" data-section="help" aria-labelledby="acct-help-h" hidden>
-            <h2 class="h4" id="acct-help-h">Help</h2>
-            <p class="text-body-secondary">
+          <section class="account-section" id="acct-help" data-section="help" aria-label="Help" hidden>
+            <p class="account-lede">
               Something wrong with an order? Open it under Orders and use
               "Report a problem". For anything else, write to us here and
               we'll answer by email.
             </p>
             <form class="account-form" id="support-form" novalidate>
-              <div class="row account-row">
-                <label class="col-md-4 col-form-label" for="sup-subject">Subject <span class="text-body-secondary">(optional)</span></label>
-                <div class="col-md-8">
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label" for="sup-subject">Subject <span class="text-body-secondary">(optional)</span></label>
                   <input class="form-control" type="text" id="sup-subject" name="subject" data-field="subject">
                 </div>
-              </div>
-              <div class="row account-row">
-                <label class="col-md-4 col-form-label" for="sup-order">About an order <span class="text-body-secondary">(optional)</span></label>
-                <div class="col-md-8">
+                <div class="col-12">
+                  <label class="form-label" for="sup-order">About an order <span class="text-body-secondary">(optional)</span></label>
                   <select class="form-select" id="sup-order" name="orderId" data-field="orderId">
                     <option value="">No particular order</option>
                   </select>
                 </div>
-              </div>
-              <div class="row account-row">
-                <label class="col-md-4 col-form-label" for="sup-message">Your message</label>
-                <div class="col-md-8">
+                <div class="col-12">
+                  <label class="form-label" for="sup-message">Your message</label>
                   <textarea class="form-control" id="sup-message" name="message" rows="4" data-field="message" aria-describedby="err-sup-message"></textarea>
                   <div class="invalid-feedback" id="err-sup-message" data-error-for="message"></div>
                 </div>
-              </div>
-              <div class="row">
-                <div class="col-md-8 offset-md-4">
+                <div class="col-12">
                   {{ partial "busy-button.html" (dict "label" "Send" "busy" "Sending" "class" "btn-primary") }}
                 </div>
               </div>
