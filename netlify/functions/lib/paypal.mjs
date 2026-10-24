@@ -133,8 +133,8 @@ export const DECLINE_MESSAGES = {
   PAYER_CANNOT_PAY: "Venmo can't take this payment. Pay another way.",
   TRANSACTION_REFUSED: "Venmo declined the payment. Pay another way.",
   COMPLIANCE_VIOLATION: "Venmo declined the payment. Pay another way.",
-  MAX_NUMBER_OF_PAYMENT_ATTEMPTS_EXCEEDED: "Too many tries. Pay another " +
-    "way.",
+  MAX_NUMBER_OF_PAYMENT_ATTEMPTS_EXCEEDED: "There have been too many Venmo " +
+    "tries. Pay another way.",
 };
 
 // A bearer token, kept for its lifetime. One per process; a function

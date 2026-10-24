@@ -41,7 +41,9 @@ export const handle = async (req, {
 } = {}) => {
   if (rateLimited(ip, now.getTime())) {
     return json(429, {
-      ok: false, message: "Too many tries. Wait a few minutes.",
+      ok: false,
+      message: "There have been too many tries from here. Wait a few " +
+        "minutes and try again.",
     });
   }
 
