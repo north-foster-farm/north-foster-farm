@@ -103,10 +103,9 @@ logs.
 The site's server code keeps a log of what it does, stored by Axiom. Netlify,
 which runs that code, also keeps them. Log lines name orders by number, not by
 customer. When something goes wrong with an order, the line may hold the order
-as it was sent, including your contact details, so we can put it right. The
-order page reports its own errors to that log: what went wrong, on which page,
-and your browser and its version, but never your name, your contact details or
-your order. Axiom deletes log lines after 30 days.
+as it was sent, so we can put it right. The order page reports its own errors
+to that log: what went wrong, on which page, and your browser and its version,
+but never your name, your contact details or your order. Axiom deletes log lines after 30 days.
 
 ### What your browser keeps
 
@@ -124,6 +123,10 @@ Your browser also keeps:
   goes through or you change it.
 - a note that you've seen the delivery policy on the order form.
 - whether you turned off videos playing on their own.
+- your choices on the order page: whether it shows only what's in stock or
+  the full catalog, and whether the Venmo button is turned on.
+- a note that you signed up for farm news, so the sign-up forms stay out of
+  your way. It holds no email address.
 - for up to {{< fact "accounts" "sessionCacheMinutes" >}} minutes at a time,
   whether you're signed in and your account
   details, so each page doesn't have to ask the site again. This is gone when
