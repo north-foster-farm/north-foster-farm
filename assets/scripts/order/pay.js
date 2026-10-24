@@ -517,7 +517,11 @@ export class Payment {
       createOrder: async () => {
         const payload = await this.form.prepareAsync();
 
-        if (!payload) throw new Error("Ordering isn't available right now.");
+        if (!payload) {
+          throw new Error(this.form.stock.locked
+            ? "Ordering isn't available right now."
+            : "Check the form and try again.");
+        }
         this.venmoPayload = payload;
         this.clearError();
 
