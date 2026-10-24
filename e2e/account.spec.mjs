@@ -51,7 +51,8 @@ test.describe("accounts", () => {
       await page.locator("#login-submit").click();
       await expect(page.locator("#login-sent")).toBeVisible();
       await expect(page.locator("#login-sent"))
-        .toContainText("Check your email.");
+        .toContainText("Check your email. If your email address is in our "
+          + "system, a sign-in link is on its way.");
 
       const mail = await waitForMail({ to: email, subject: SIGN_IN,
         since: asked });

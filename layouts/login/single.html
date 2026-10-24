@@ -1,10 +1,8 @@
 {{ define "main" }}
   {{/* #303: one line, then the field and its button straight on the
        page, as the farm news sign-up has them (partials/news-signup
-       .html), sharing its styles. The link's lifetime is the one
-       lib/auth.mjs enforces, from data/accounts.json;
-       test/link-lifetimes.test.mjs holds the two together. */}}
-  {{ $minutes := hugo.Data.accounts.signInLinkMinutes }}
+       .html), sharing its styles. The page states no link lifetime;
+       the email does (test/link-lifetimes.test.mjs). */}}
   <section class="{{ .Type }}">
     <div class="page container py-5">
       <div class="account-wide mb-5">
@@ -28,7 +26,7 @@
         </div>
 
         <div id="login-sent" role="status" aria-live="polite" hidden>
-          <p data-login-sent-text>Check your email. If your email address is an address we know or one we can create an account for, a sign-in link is on its way. It works only once and expires in {{ $minutes }} minutes.</p>
+          <p data-login-sent-text>Check your email. If your email address is in our system, a sign-in link is on its way.</p>
           <p class="mb-0 text-body-secondary">
             Nothing after a few minutes? Check spam, or
             <button type="button" class="btn btn-link p-0 align-baseline" id="login-again">try again</button>.

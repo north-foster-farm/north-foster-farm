@@ -34,15 +34,14 @@ describe("link lifetimes", () => {
     assert.equal(gate, data("gate.json").linkMinutes);
   });
 
-  it("the sign-in page states the sign-in link's", () => {
+  it("the sign-in page says only that the email is on its way", () => {
     const page = readFileSync(join(root, "layouts/login/single.html"),
       "utf8");
-    const sent = /data-login-sent-text>([^\n]*)/.exec(page);
+    const sent = /data-login-sent-text>([^\n]*)</.exec(page);
 
     assert.ok(sent, "the after-send text is on the page");
-    assert.match(page,
-      /\$minutes := hugo\.Data\.accounts\.signInLinkMinutes/);
-    assert.match(sent[1], /expires in \{\{ \$minutes \}\} minutes\./);
+    assert.equal(sent[1], "Check your email. If your email address is in "
+      + "our system, a sign-in link is on its way.");
     assert.deepEqual(stated(page), [], "no minutes written out by hand");
   });
 
