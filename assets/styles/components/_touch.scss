@@ -37,6 +37,13 @@
   color: $band-dark-text;
 }
 
+// A link in the lead never breaks across two lines (#358): at 390 the
+// "contact form" link split after "contact". Its two words are 12
+// characters, far inside the lead's 36rem.
+.touch-link {
+  white-space: nowrap;
+}
+
 // The buttons stay as wide as their words, like every button outside
 // the hero, side by side where they fit and wrapping where not.
 .touch-actions {
