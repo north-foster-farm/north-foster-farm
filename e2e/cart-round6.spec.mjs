@@ -198,3 +198,69 @@ test("a short viewport keeps the settled cart", async ({ page }) => {
   await order.scrollSettled();
   await expect(order.cart).toHaveAttribute("data-stuck", "false");
 });
+
+// The count and total are a readout in a panel: no role, no focus
+// stop, no slide. Expand and Hide are its one control.
+for (const size of WIDTHS) {
+  test(`at ${size.width} px the count and total are not controls`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(size);
+
+    const order = new OrderPage(page);
+
+    await order.open(FULL_CART);
+    await float(page, order);
+    await eased(page);
+
+    const parts = order.cart.locator(".order-cart-disclose");
+
+    await expect(parts).toHaveCount(2);
+    for (const part of await parts.all()) {
+      await expect(part).toBeDisabled();
+      await expect(part).toHaveAttribute("role", "presentation");
+      await expect(part).not.toHaveAttribute("aria-expanded", /.*/);
+      await expect(part).not.toHaveAttribute("tabindex", /.*/);
+    }
+    await expect(order.cart.getByRole("button", { name: /items$/ }))
+      .toHaveCount(0);
+    await expect(order.cart.getByRole("button", { name: /^Total/ }))
+      .toHaveCount(0);
+    await expect(order.cart.locator("[data-cart-count]")).toBeVisible();
+    await expect(order.cart.locator("[data-total=total]")).toBeVisible();
+    await expect(order.cart.locator("[data-cart-toggle]")).toBeEnabled();
+  });
+}
+
+// The lines' "N more" pills come back in the panel's items column
+// while the list overflows, and follow its scroll.
+for (const size of [WIDTHS[1], WIDTHS[2]]) {
+  test(`at ${size.width} px a long list shows its "more" pills`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(size);
+
+    const order = new OrderPage(page);
+
+    await order.open({
+      eggs: 2, wings: 2, thighs: 2, drums: 1, breasts: 1, sausage: 1,
+      necks: 3,
+    });
+    await float(page, order);
+    await order.cart.locator("[data-cart-toggle]").click();
+    await eased(page);
+
+    const below = order.cart.locator("[data-cart-more]");
+    const above = order.cart.locator("[data-cart-more-top]");
+
+    await expect(below).toBeVisible();
+    await expect(below).toHaveText(/^\d+ more ↓$/);
+    await expect(above).toBeHidden();
+    await order.cart.locator("[data-cart-items]").evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+    await expect(above).toBeVisible();
+    await expect(above).toHaveText(/^\d+ more ↑$/);
+    await expect(below).toBeHidden();
+  });
+}

@@ -106,7 +106,9 @@ for (const [name, size] of [["phone", PHONE], ["md", MD]]) {
   });
 }
 
-test("the toggle keeps a phone's width above a phone", async ({ page }) => {
+// A panel's count and total are a readout, not a control (#274, round
+// 6): cart-round6.spec.mjs.
+test("a panel's count and total are plain text", async ({ page }) => {
   for (const size of [{ width: 600, height: 900 }, MD, LG]) {
     await page.setViewportSize(size);
 
@@ -114,12 +116,8 @@ test("the toggle keeps a phone's width above a phone", async ({ page }) => {
 
     await order.open({ wings: 1 });
     await page.evaluate(() => window.scrollTo(0, 300));
-
-    const seg = order.cart.locator("[data-cart-seg]");
-
-    await expect(seg).not.toHaveAttribute("data-plain", "");
-    expect((await seg.boundingBox()).width, `${size.width}px`)
-      .toBeLessThanOrEqual(24 * 16 + 1);
+    await expect(order.cart.locator("[data-cart-seg]"))
+      .toHaveAttribute("data-plain", "");
   }
 });
 

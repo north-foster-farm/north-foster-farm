@@ -543,7 +543,10 @@ export class OrderForm {
       else this.setOpen(false);
       cartToggle.focus();
     });
-    matchMedia(PANEL).addEventListener("change", () => this.syncToggle());
+    matchMedia(PANEL).addEventListener("change", () => {
+      this.syncToggle();
+      this.plainTotals();
+    });
     // A control the Tab key reaches under the floating cart scrolls up
     // clear of it, never under the top bar (#159, WCAG 2.4.11). The
     // cart's own are its own, and a scroller taller than the room is
@@ -632,7 +635,10 @@ export class OrderForm {
     const column = matchMedia("(min-width: 1200px)");
     const folds = all(this.cart, ".order-cart-fold");
     const plain = () => {
-      const still = column.matches || this.cart.dataset.stuck === "false";
+      // A panel's pill is a readout: Expand and Hide are its one
+      // control (#274, round 6).
+      const still = column.matches || this.panel()
+        || this.cart.dataset.stuck === "false";
 
       itemsToggle.disabled = still;
       moneyToggle.disabled = still;
@@ -1300,7 +1306,15 @@ export class OrderForm {
       const panel = document.getElementById(panelId);
 
       button.dataset.on = String(shown[part]);
-      if (narrow) {
+      if (this.panel() && !narrow) {
+        // Text: no role, no state, no stop in the Tab order.
+        button.setAttribute("role", "presentation");
+        button.removeAttribute("aria-selected");
+        button.removeAttribute("aria-expanded");
+        button.removeAttribute("tabindex");
+        panel.removeAttribute("role");
+        panel.removeAttribute("aria-labelledby");
+      } else if (narrow) {
         button.setAttribute("role", "tab");
         button.setAttribute("aria-selected", String(open));
         button.tabIndex = open ? 0 : -1;

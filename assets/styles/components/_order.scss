@@ -2860,20 +2860,6 @@
         grid-row: 1 / span 12;
       }
 
-      // The lines scroll in the room the right column leaves: no
-      // pills, no strip kept for them.
-      .order-cart-more {
-        display: none;
-      }
-
-      .order-cart-scroll[data-scroll] {
-        padding-bottom: 0;
-
-        &::after {
-          bottom: 0;
-        }
-      }
-
       // Where the column leaves the lines too little room for four
       // parts on a row, the name has the row to itself and the
       // quantity and the line total take the one under it.
