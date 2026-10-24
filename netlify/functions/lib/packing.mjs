@@ -44,7 +44,7 @@ import { MailError, farmEmails, sendMail } from "./mail.mjs";
 import {
   configured as paypalConfigured, venmoHidden,
 } from "./paypal.mjs";
-import { pdf, wrap } from "./pdf.mjs";
+import { pdf, widthOf, wrap } from "./pdf.mjs";
 import {
   allOrders, getOrder, paidTotal, paymentsOf, settledRefunds,
 } from "./records.mjs";
@@ -685,9 +685,10 @@ const slipPage = (doc, order, env) => {
   // The totals as one right-aligned ledger (James, 2026-10-24, round
   // 4): each line's label ends where the amounts' column begins, a
   // space sets off the bold Total, each payment is "Paid by Visa *4242"
-  // with its amount taken off, and space sets off the bold Due. No
-  // rules: they read as the arithmetic's sum lines (James, 2026-10-24,
-  // round 5).
+  // with its amount taken off, and space sets off the bold Due. A rule
+  // above Total and above Due separates the sections (round 6, after
+  // round 5 dropped them), each from the left edge of the "T" in
+  // "Total" to the right margin.
   const t = order.totals;
   const paid = paymentsOf(order).filter((p) => p.amount > 0);
   const lines = [["Subtotal", dollars(t.subtotal)]];
@@ -710,8 +711,11 @@ const slipPage = (doc, order, env) => {
     });
     at.y += LINE;
   };
+  const RULE_X = LABEL_X
+    - widthOf("Total", { ...ALLER, size: 12, bold: true });
   const gap = () => {
-    at.y += 9;
+    doc.line(RULE_X, at.y, RIGHT, at.y, { width: 0.5, color: RULE });
+    at.y += 21;
   };
 
   at.room((lines.length + paid.length + 4) * LINE + 40);

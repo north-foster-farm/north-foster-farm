@@ -162,14 +162,16 @@ describe("the slip's round 5 (James, 2026-10-24)", () => {
     assert.deepEqual(addressLines(""), []);
   });
 
-  it("draws no rule above Total or Due", () => {
+  it("draws a rule above Total and above Due (round 6)", () => {
     const pdf = text([entries.find((e) => e.kind === "new")]);
 
     // The slip's lines are the header and footer rules and one under
-    // each item; the totals add none.
+    // each item; the totals add one above Total, and one above Due when
+    // a payment is applied (this slip is unpaid).
     const lines = (pdf.match(/ l S/g) || []).length;
+    const items = entries.find((e) => e.kind === "new").order.lines.length;
 
-    assert.ok(lines <= 4, `${lines} stroked lines`);
+    assert.equal(lines, 2 + items + 1, `${lines} stroked lines`);
   });
 
   it("gives the cover sheet its column headers", () => {
