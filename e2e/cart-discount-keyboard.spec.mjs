@@ -2,7 +2,7 @@
 // keyboard shrinks the visual viewport and fires no window resize, so
 // the pane's floor was never measured against the smaller room: the
 // parts under the total row did not scroll and the row, Hide and
-// Check out ran past the pane's foot. The spec plays the keyboard's
+// Proceed to checkout ran past the pane's foot. The spec plays the keyboard's
 // part with a stand-in visual viewport that shrinks on cue.
 
 import { FULL_CART, OrderPage, expect, test } from "./support/order.mjs";
@@ -44,7 +44,7 @@ for (const size of WIDTHS) {
       });
     });
 
-    test("the open row, Hide and Check out stay inside the pane",
+    test("the open row, Hide and Proceed to checkout stay inside the pane",
       async ({ page }) => {
         const order = new OrderPage(page);
 

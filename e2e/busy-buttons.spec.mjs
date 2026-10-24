@@ -133,7 +133,7 @@ test.describe("busy buttons", () => {
       await page.goto("/account/#settings");
 
       // The full-screen confirm (#303): the account's own address,
-      // then Confirm, the busy button.
+      // then Place your order, the busy button.
       await page.locator("#account-delete").click();
       await page.locator("#delete-confirm-email").fill(CUSTOMER.email);
 

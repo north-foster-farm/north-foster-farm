@@ -118,7 +118,7 @@ continue" (both projects).
   1. Open `/order/`.
 - **Assert:** On-farm pickup is checked. With Delivery chosen, the cart
   reads "0 items", Subtotal $0, Total $0, with no Delivery fee row and
-  no discount row. Check out is disabled. The nudge reads "Delivery
+  no discount row. Proceed to checkout is disabled. The nudge reads "Delivery
   orders need a $40 minimum." The Delivery card reads "You need $40 or
   more in your cart to use this option."
 - **Teardown:** None.
@@ -255,14 +255,14 @@ delivery, with `/api/dates` answering at once and 2.5 seconds late.
 
 ### OP-10 The cart button goes to Pickup or delivery
 
-Automated: `order-page.spec.mjs`, "Check out takes the customer to
-Pickup or delivery" (both projects).
+Automated: `order-page.spec.mjs`, "Proceed to checkout takes the
+customer to Pickup or delivery" (both projects).
 
 - **Scenario:** The cart's way on lands the customer on the next step,
   choosing how to get the order (#196).
 - **Setup:** 5 wings.
 - **Test:**
-  1. Press Check out.
+  1. Press Proceed to checkout.
 - **Assert:** The "Pickup or delivery" legend has focus and is on
   screen.
 - **Teardown:** None.
@@ -295,10 +295,10 @@ an Add button" (both projects).
   `available` not 0.
 - **Teardown:** None.
 
-### OP-13 Check out can always be reached
+### OP-13 Proceed to checkout can always be reached
 
-Automated: `cart-layout.spec.mjs`, "Check out can be reached and
-pressed", at 1500, 1198, 990, 575 and 390. Tagged `@regression`.
+Automated: `cart-layout.spec.mjs`, "Proceed to checkout can be reached
+and pressed", at 1500, 1198, 990, 575 and 390. Tagged `@regression`.
 
 - **Scenario:** With a long cart the sticky pane was taller than the
   window and cut the button off (finding 2).
@@ -311,10 +311,10 @@ pressed", at 1500, 1198, 990, 575 and 390. Tagged `@regression`.
   "Pickup or delivery" legend takes focus.
 - **Teardown:** None.
 
-### OP-14 Check out is never wider than 370px
+### OP-14 Proceed to checkout is never wider than 370px
 
-Automated: `cart-layout.spec.mjs`, "Check out is never wider than
-370px", every width.
+Automated: `cart-layout.spec.mjs`, "Proceed to checkout is never wider
+than 370px", every width.
 
 - **Scenario:** Finding 21.
 - **Setup:** `FULL_CART`.
@@ -1010,8 +1010,8 @@ email" (both projects).
   the list when the order is placed, and ticking it asks for nothing.
 - **Setup:** 1 egg; a unique email.
 - **Test:**
-  1. Type the email; tick "Get news and updates from us?"; move to the
-     phone field.
+  1. Type the email; tick "Sign up and stay up-to-date with North Foster
+     Farm."; move to the phone field.
 - **Assert:** The box is ticked and its label reads "Getting news and
   updates from us."; chicks hop out of it (none under reduced motion);
   no note under it; no request to `/api/news/`; no order is sent.
@@ -3008,7 +3008,7 @@ wired.
 5. PR-06 Under the minimum, delivery is blocked
 6. FM-02 An empty delivery order names every field
 7. FM-04 Errors clear as fields are fixed
-8. OP-13 Check out can always be reached
+8. OP-13 Proceed to checkout can always be reached
 9. AO-01 A sign-in link, used once
 10. FN-01 Sign up, opted in at once
 11. AO-15 Fewer items in a paid order: the difference goes back

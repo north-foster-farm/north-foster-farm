@@ -591,8 +591,12 @@
     }
   }
 
-  // The farm-news box closes the Confirm section, under the agreement
-  // (#352; #228 had it under the email).
+  // The farm-news box closes the Place your order pane, under the
+  // agreement (#352; #228 had it under the email).
+  .order-optin-title {
+    margin: 1.5rem 0 0.5rem;
+  }
+
   .order-optin {
     margin: 0.25rem 0 0;
 
@@ -1666,7 +1670,8 @@
 
   // The four fields in a frame like the cart pane's: its border,
   // radius, padding and shadow (#352).
-  .order-details .order-hform {
+  .order-details .order-hform,
+  .order-confirm .order-pane {
     padding: 1rem var(--order-gutter);
     border: 1px solid var(--bs-border-color-translucent);
     border-radius: var(--order-radius);
@@ -1686,7 +1691,7 @@
     }
   }
 
-  // The news opt-in closes the Confirm section, under the agreement
+  // The news opt-in closes the Place your order pane, under the agreement
   // (#352). On a phone it aligns right with the button and the line
   // above it, as one column; from md it stands at the left.
   .order-confirm .order-optin {
@@ -2443,7 +2448,8 @@
 
     > :not(.order-rest),
     .order-rest > :not(.order-submit, .order-confirm),
-    .order-confirm > :not(.order-submit) {
+    .order-confirm > :not(.order-pane),
+    .order-pane > :not(.order-submit) {
       opacity: 0.6;
     }
   }

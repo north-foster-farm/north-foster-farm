@@ -48,9 +48,10 @@ test.describe("order page", () => {
       await order.open();
       await expect(page.locator(".order-rest > .order-section > legend"))
         .toHaveText([
-          "Pickup or delivery", "Contact information", "Payment", "Confirm",
+          "Pickup or delivery", "Contact information", "Payment",
+          "Place your order",
         ]);
-      // Farm news closes the Confirm section, after the agreement
+      // Farm news closes the Place your order pane, after the agreement
       // (#352).
       expect(await page.locator("#confirm").evaluate((el) => {
         const agree = el.querySelector(".order-agree");
@@ -181,7 +182,7 @@ test.describe("order page", () => {
     await expect(order.total).toHaveText("$45");
   });
 
-  test("Check out takes the customer to Pickup or delivery",
+  test("Proceed to checkout takes the customer to Pickup or delivery",
     async ({ page }) => {
       const order = new OrderPage(page);
 

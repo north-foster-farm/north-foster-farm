@@ -4,9 +4,10 @@
 </div>
 
 {{/* The last section (#352): the button, the agreement, then the news
-     opt-in. "Confirm" is a draft heading. */}}
+     opt-in, in a framed pane like the contact box (#391). */}}
 <fieldset class="order-section order-confirm mb-5" id="confirm">
-  <legend class="h2" tabindex="-1">Confirm</legend>
+  <legend class="h2" tabindex="-1">Place your order</legend>
+<div class="order-pane">
 <div class="order-submit">
   <div class="alert alert-danger" role="alert" data-form-error hidden></div>
   {{/* The policy covers pickup, cancellation and refunds as well as
@@ -36,8 +37,10 @@
      email (W1), and an unticked box changes nothing on a record that
      already says yes. The account page's settings tab has the same
      box. It closes the page, under the agreement (#352). */}}
+<h3 class="h5 order-optin-title" id="order-optin-title">Farm news and updates</h3>
 <div class="form-check order-optin">
   <input class="form-check-input" type="checkbox" id="customer-marketing" name="customer.marketing" data-field="customer.marketing">
-  <label class="form-check-label" for="customer-marketing"><span class="order-optin-off">Get news and updates from us?</span><span class="order-optin-on">Getting news and updates from us.</span></label>
+  <label class="form-check-label" for="customer-marketing"><span class="order-optin-off">Sign up and stay up-to-date with {{ hugo.Data.company.name }}.</span><span class="order-optin-on">Getting news and updates from us.</span></label>
+</div>
 </div>
 </fieldset>
