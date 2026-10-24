@@ -227,7 +227,11 @@ const footer = {
 // The subject is the title; the body does not repeat it. A farm email
 // carries a `tag`, a small gray capital line at the top of the card
 // naming the kind of message, so the inbox reads at a glance.
-const render = (title, blocks, links = {}, { tag = null } = {}) => {
+// `center` aligns the card's text, button and links to the middle, as
+// the footer already is (the account emails, #360).
+const render = (title, blocks, links = {}, {
+  tag = null, center = false,
+} = {}) => {
   const tagged = tag
     ? [{
       text: tag.toUpperCase(),
@@ -254,6 +258,7 @@ const render = (title, blocks, links = {}, { tag = null } = {}) => {
     `${header(links.site)}` +
     `<div style="background:#fff;border:1px solid rgba(0,0,0,.175);` +
     `border-radius:5px;padding:20px 24px;` +
+    `${center ? "text-align:center;" : ""}` +
     `box-shadow:0 2px 3px rgba(7,6,6,.2)">${
       tagged.map((b) => b.html).join("")
     }</div>${footer.html}</div></body></html>`;
@@ -809,7 +814,7 @@ export const magicLink = (email, url, {
     row([["Need help? Contact us", contactUrl(links)]]),
   ];
 
-  return { subject: title, ...render(title, blocks, links) };
+  return { subject: title, ...render(title, blocks, links, { center: true }) };
 };
 
 // A customer's own email change (#240), in two parts: the link to the
@@ -826,7 +831,7 @@ export const emailChangeLink = (email, url, {
     p("If you didn't request this change, you can safely ignore it."),
   ];
 
-  return { subject: title, ...render(title, blocks, links) };
+  return { subject: title, ...render(title, blocks, links, { center: true }) };
 };
 
 export const emailChanged = (from, to, { links } = {}) => {
@@ -840,7 +845,7 @@ export const emailChanged = (from, to, { links } = {}) => {
       "additional support right away."),
   ];
 
-  return { subject: title, ...render(title, blocks, links) };
+  return { subject: title, ...render(title, blocks, links, { center: true }) };
 };
 
 // --- List mail (#273) ----------------------------------------------
