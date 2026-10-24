@@ -93,4 +93,60 @@ test.describe("the toggle still toggles on a phone", () => {
     );
     await expect(money).toBeDisabled();
   });
+
+  test("the keyboard's focus ring still shows", async ({ page }) => {
+    const order = new OrderPage(page);
+
+    await order.open(FULL_CART);
+
+    const money = order.cart.locator("[data-cart-money-toggle]");
+
+    await page.keyboard.press("Tab");
+    await money.focus();
+    await expect(money).toHaveCSS("outline-style", "solid");
+    await expect(money).toHaveCSS("outline-width", "2px");
+  });
+});
+
+test.describe("on a short viewport", () => {
+  test("the toggle still flips the view", async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 420 });
+
+    const order = new OrderPage(page);
+
+    await order.open(FULL_CART);
+
+    const seg = order.cart.locator("[data-cart-seg]");
+
+    if ((await seg.getAttribute("data-plain")) !== null) {
+      return;
+    }
+
+    const money = order.cart.locator("[data-cart-money-toggle]");
+
+    await money.click();
+    await expect(money).toHaveAttribute("aria-expanded", "true");
+  });
+});
+
+test.describe("a tablet's readout", () => {
+  test("keeps the look and ignores taps", async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+
+    const order = new OrderPage(page);
+
+    await order.open(FULL_CART);
+
+    const seg = order.cart.locator("[data-cart-seg]");
+    const top = page.locator(".order-filter-seg");
+
+    await expect(seg).toHaveCSS("pointer-events", "none");
+    await expect(seg).toHaveCSS(
+      "background-color",
+      await top.evaluate((el) => getComputedStyle(el).backgroundColor)
+    );
+    await expect(
+      order.cart.locator("[data-cart-money-toggle]")
+    ).toBeDisabled();
+  });
 });
