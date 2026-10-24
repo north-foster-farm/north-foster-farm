@@ -1553,11 +1553,20 @@
     }
 
     // 56px exactly, the name centered in it (O6); the total button
-    // alone would make it 57.3.
+    // alone would make it 57.3. At the top of the page the bar is
+    // blank (#327), so it takes no room there: the negative margin
+    // cancels its height and it is invisible until it sticks.
+    // Appearing then moves nothing, as it overlays what scrolled under
+    // it (#384).
     .order-topbar {
       height: var(--order-topbar-h);
-      margin-bottom: 1.25rem;
+      margin-bottom: calc(-1 * var(--order-topbar-h));
       padding: 0 var(--order-edge-r) 0 var(--order-edge-l);
+      visibility: hidden;
+
+      &[data-stuck="true"] {
+        visibility: visible;
+      }
     }
 
     .order-cat + .order-cat {

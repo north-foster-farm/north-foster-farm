@@ -106,6 +106,42 @@ for (const [name, size] of [["phone", PHONE], ["md", MD]]) {
   });
 }
 
+// The blank bar takes no room at the top of the page (#384): the
+// switcher sits a section gap under the header, and the bar appearing
+// moves nothing.
+for (const width of [375, 390, 576, 768]) {
+  test(`no empty band above the switcher at ${width} (#384)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+
+    const order = new OrderPage(page);
+
+    await order.open();
+
+    const bar = page.locator(".order-topbar");
+    const filter = page.locator(".order-filter");
+    const gap = await page.evaluate(() => {
+      const header = document.querySelector("body > header, header");
+
+      return document.querySelector(".order-filter")
+        .getBoundingClientRect().top
+        - header.getBoundingClientRect().bottom;
+    });
+
+    expect(gap).toBeLessThan(60);
+    await expect(bar).toBeHidden();
+
+    const before = (await filter.boundingBox()).y;
+
+    await page.evaluate(() => window.scrollTo(0, 1200));
+    await expect(bar).toBeVisible();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(bar).toBeHidden();
+    expect((await filter.boundingBox()).y).toBe(before);
+  });
+}
+
 // A panel's count and total are a readout, not a control (#274, round
 // 6): cart-round6.spec.mjs.
 test("a panel's count and total are plain text", async ({ page }) => {
