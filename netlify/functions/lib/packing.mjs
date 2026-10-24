@@ -360,7 +360,7 @@ const ALLER = { font: "aller" };
 
 // The slip's body ends here; its footer sits below, clear of the half
 // inch a printer may crop.
-const SLIP_BOTTOM = 684;
+const SLIP_BOTTOM = 664;
 // The Price column's right edge; Amount ends at the table's.
 const PRICE_X = RIGHT - 90;
 
@@ -437,7 +437,7 @@ const byLineName = new Map([...catalogIndex.values()]
   .map((item) => [item.lineName, item]));
 
 // A line as the slip names it: an item graded in the catalog shows its
-// grade, "Eggs, Grade A Large", as Rhode Island wants on the invoice
+// grade, "Eggs, Grade A · Large", as Rhode Island wants on the invoice
 // (250-RICR-40-20-7). Found by SKU, or for an older record by the
 // name it was sold under (with or without its grade); anything else
 // keeps its own name.
@@ -446,7 +446,7 @@ export const slipLabel = (line) => {
     || byLineName.get(line.label.replace(/ · Grade .*$/, ""));
 
   return item && /^Grade /.test(item.note || "")
-    ? `${item.groupName}, ${item.note} ${item.label}`
+    ? `${item.groupName}, ${item.note} · ${item.label}`
     : line.label;
 };
 
@@ -490,8 +490,8 @@ const BRANDS = {
 const brandName = (brand) => BRANDS[brand] || String(brand).toLowerCase()
   .split("_").map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
 
-// "Visa ending in 4242" for a card, else the method's name: "Venmo",
-// "Apple Pay". A card the record has no brand or digits for is "Card".
+// "Visa *4242" for a card, else the method's name: "Venmo", "Apple
+// Pay". A card the record has no brand or digits for is "Card".
 export const paymentName = (p) => {
   if (p.via === "venmo") return PAY_WORDS.venmo;
   if (p.method && p.method !== "card" && PAY_WORDS[p.method]) {
@@ -499,7 +499,7 @@ export const paymentName = (p) => {
   }
   if (!p.last4) return p.brand ? brandName(p.brand) : "Card";
 
-  return `${p.brand ? brandName(p.brand) : "Card"} ending in ${p.last4}`;
+  return `${p.brand ? brandName(p.brand) : "Card"} *${p.last4}`;
 };
 
 // "Amount due at pickup: $94", and the ways to pay it. Cash leads: the
@@ -512,13 +512,19 @@ export const dueLines = (order, state, env) => [
     ? "cards" : w))])}.`,
 ];
 
-export const SLIP_THANKS = `Thank you for supporting ${company.name} ` +
-  "and local farms.";
+export const SLIP_THANKS = "Thank you for supporting local farms.";
 
-// The farm's street address, as it goes on an envelope.
-export const slipAddress = () => `${company.name}  ·  ${
-  company.address.street}, ${company.address.city}, ${
-  company.address.state} ${company.address.zip}`;
+// The farm's address as it goes on an envelope, one line each.
+export const slipAddress = () => [
+  company.name, company.address.street,
+  `${company.address.city}, ${company.address.state} ${
+    company.address.zip}`,
+];
+
+// A payment's date, "Nov 1, 2026", by the farm's clock.
+export const paymentDate = (at) => (at ? new Intl.DateTimeFormat("en-US", {
+  timeZone: tz, month: "short", day: "numeric", year: "numeric",
+}).format(new Date(at)) : "");
 
 // The phone, the sales address, the website and the Instagram handle,
 // from the site's data. The website is the sales address's domain.
@@ -530,16 +536,16 @@ export const slipContacts = () => [
 ].join("  ·  ");
 
 const slipFooter = (doc) => {
-  doc.line(M, 700, RIGHT, 700, { width: 0.75, color: GREEN });
-  doc.text(SLIP_THANKS, CENTER, 720, {
+  doc.line(M, 680, RIGHT, 680, { width: 0.75, color: GREEN });
+  doc.text(SLIP_THANKS, CENTER, 698, {
     ...ALLER, size: 11, bold: true, color: GREEN, align: "center",
   });
-  doc.text(slipContacts(), CENTER, 736, {
+  doc.text(slipContacts(), CENTER, 714, {
     ...ALLER, size: 9, color: INK, align: "center",
   });
-  doc.text(slipAddress(), CENTER, 751, {
+  slipAddress().forEach((row, i) => doc.text(row, CENTER, 729 + i * 10.5, {
     ...ALLER, size: 8, color: MUTED, align: "center",
-  });
+  }));
 };
 
 // The header on each page of a slip: the hen and wordmark, the order
@@ -698,31 +704,61 @@ const slipPage = (doc, order, env) => {
   if (t.deliveryFee) sums.push(["Delivery fee", dollars(t.deliveryFee)]);
   sums.push(["Total", dollars(t.total)]);
 
-  // What has been paid, below the total, each by its method.
+  // What has been paid, below the total: a ledger line for each, its
+  // date, method and amount, then a rule and what is still due.
   const paid = paymentsOf(order).filter((p) => p.amount > 0);
+  const rows = sums.length + paid.length + (state.refunded ? 1 : 0)
+    + (paid.length ? 2 : 0);
+  const RULE_X = RIGHT - 270;
+  const money = (name, value, bold) => {
+    const size = bold ? 12 : 11;
 
-  for (const p of paid) sums.push([`Paid by ${paymentName(p)}`,
-    `-${dollars(p.amount)}`]);
-  if (state.refunded) sums.push(["Refunded", dollars(state.refunded)]);
-  if (paid.length && state.due) sums.push(["Amount due", dollars(state.due)]);
+    doc.text(name, RIGHT - 110, at.y, {
+      ...ALLER, size, bold, color: INK, align: "right",
+    });
+    doc.text(value, RIGHT - 8, at.y, {
+      ...ALLER, size, bold, color: INK, align: "right",
+    });
+  };
 
-  at.room(sums.length * LINE + 12);
+  at.room(rows * LINE + 24);
   for (const [name, value] of sums) {
-    const bold = name === "Total" || name === "Amount due";
-
     if (name === "Total") {
       doc.line(RIGHT - 220, at.y - 9, RIGHT, at.y - 9, {
         width: 0.75, color: GREEN,
       });
       at.y += 9;
     }
-    doc.text(name, RIGHT - 110, at.y, {
-      ...ALLER, size: bold ? 12 : 11, bold, color: INK, align: "right",
-    });
-    doc.text(value, RIGHT - 8, at.y, {
-      ...ALLER, size: bold ? 12 : 11, bold, color: INK, align: "right",
-    });
+    money(name, value, name === "Total");
     at.y += name === "Total" ? LINE + 3 : LINE;
+  }
+  for (const p of paid) {
+    doc.text(paymentDate(p.at), RULE_X, at.y, {
+      ...ALLER, size: 11, color: INK,
+    });
+    doc.text(paymentName(p), RIGHT - 70, at.y, {
+      ...ALLER, size: 11, color: INK, align: "right",
+    });
+    doc.text(`-${dollars(p.amount)}`, RIGHT - 8, at.y, {
+      ...ALLER, size: 11, color: INK, align: "right",
+    });
+    at.y += LINE;
+  }
+  if (state.refunded) {
+    money("Refunded", dollars(state.refunded));
+    at.y += LINE;
+  }
+  if (paid.length) {
+    doc.line(RULE_X, at.y - 9, RIGHT, at.y - 9, {
+      width: 0.75, color: GREEN,
+    });
+    at.y += 6;
+    doc.text("Due", RULE_X, at.y, {
+      ...ALLER, size: 12, bold: true, color: INK,
+    });
+    doc.text(dollars(state.due), RIGHT - 8, at.y, {
+      ...ALLER, size: 12, bold: true, color: INK, align: "right",
+    });
   }
 };
 

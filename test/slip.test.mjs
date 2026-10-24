@@ -13,7 +13,7 @@ import { company } from "../netlify/functions/lib/company.mjs";
 import { samplePacket } from "../netlify/functions/lib/library.mjs";
 import {
   FARM_COPY, PAY_WORDS, acceptedWays, dueLines, packetPdf, paidLine,
-  paymentName, paymentState, slipAddress, slipContacts, slipLabel,
+  paymentDate, paymentName, paymentState, slipAddress, slipContacts, slipLabel,
 } from "../netlify/functions/lib/packing.mjs";
 import { readWoff } from "../netlify/functions/lib/ttf.mjs";
 
@@ -53,9 +53,9 @@ describe("the slip's embedded files", () => {
 describe("the slip's words", () => {
   it("names eggs with their grade, by SKU or an older record's name", () => {
     assert.equal(slipLabel({ sku: "NFF-CHK-EGG-LG", label: "Eggs, Large" }),
-      "Eggs, Grade A Large");
+      "Eggs, Grade A · Large");
     assert.equal(slipLabel({ sku: "OLD", label: "Eggs, Medium" }),
-      "Eggs, Grade A Medium");
+      "Eggs, Grade A · Medium");
     assert.equal(slipLabel({ sku: "X", label: "Wings, 1.0 – 1.9 lbs" }),
       "Wings, 1.0 – 1.9 lbs");
   });
@@ -111,10 +111,10 @@ describe("the slip's round 2 (James, 2026-10-24)", () => {
 
   it("names a payment by its method, a card by brand and last 4", () => {
     assert.equal(paymentName({ method: "card", brand: "VISA", last4: "4242" }),
-      "Visa ending in 4242");
+      "Visa *4242");
     assert.equal(paymentName({
       method: "card", brand: "AMERICAN_EXPRESS", last4: "1005",
-    }), "American Express ending in 1005");
+    }), "American Express *1005");
     assert.equal(paymentName({ method: "card" }), "Card");
     assert.equal(paymentName({ method: "applepay" }), "Apple Pay");
     assert.equal(paymentName({ via: "venmo" }), "Venmo");
@@ -126,8 +126,16 @@ describe("the slip's round 2 (James, 2026-10-24)", () => {
     assert.match(pdf, /\(Amount\)/);
     assert.match(pdf, /\(\$30\)/, "the chicken's unit price");
     assert.match(pdf, /\(\$90\)/, "its row's amount");
-    assert.match(pdf, /\(Paid by Visa ending in 4242\)/);
+    assert.match(pdf, /\(Visa \*4242\)/);
     assert.match(pdf, /\(-\$94\)/);
+    assert.match(pdf, /\(Due\)/);
+    assert.match(pdf, /\(\$0\)/);
+    assert.ok(!pdf.includes("(Paid by Visa"), "no round 2 lines");
+  });
+
+  it("dates a payment by the farm's clock", () => {
+    assert.equal(paymentDate("2026-11-02T03:30:00Z"), "Nov 1, 2026");
+    assert.equal(paymentDate(undefined), "");
   });
 
   it("drops the packer's fields and the Printed line", () => {
@@ -142,9 +150,11 @@ describe("the slip's round 2 (James, 2026-10-24)", () => {
   it("ends with the thanks and the farm's address", () => {
     const pdf = slip();
 
-    assert.match(pdf, /\(Thank you for supporting North Foster Farm and local/);
-    assert.ok(pdf.includes(`(${slipAddress().replace("·", "\\267")})`));
-    assert.match(slipAddress(), /99 East Killingly Road, Foster, RI 02825$/);
+    assert.ok(pdf.includes("(Thank you for supporting local farms.)"));
+    assert.deepEqual(slipAddress(), [
+      "North Foster Farm", "99 East Killingly Road", "Foster, RI 02825",
+    ]);
+    for (const row of slipAddress()) assert.ok(pdf.includes(`(${row})`));
   });
 
   it("leaves the farm's sheets their Printed timestamp", () => {
@@ -159,7 +169,7 @@ describe("which pages carry what", () => {
 
     assert.match(pdf, /\(Your order\)/);
     assert.match(pdf, /\(PAID\)/);
-    assert.match(pdf, /\(Eggs, Grade A Large\)/);
+    assert.match(pdf, /\(Eggs, Grade A \\267 Large\)/);
     assert.match(pdf, /\/BaseFont \/Aller-Bold/);
     assert.match(pdf, /\/FontFile2/);
     assert.ok(!pdf.includes(farmCopy), "no FARM COPY on a slip");
