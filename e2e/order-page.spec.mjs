@@ -111,7 +111,7 @@ test.describe("order page", () => {
     await order.open({ eggs: 3, wings: 2 });
     await expect(order.count).toHaveText("5 items");
     await order.cart.getByRole("button", {
-      name: "Remove Wings, 1.0 – 1.9 lbs from the cart",
+      name: "Remove Wings, 1.0 – 1.9 lbs from your cart",
     }).click();
     await expect(order.qty("wings")).toHaveValue("0");
     await expect(order.count).toHaveText("3 items");
@@ -127,7 +127,7 @@ test.describe("order page", () => {
       // that caused the blur must still land on its ×.
       await order.zip.fill("02857");
       await order.cart.getByRole("button", {
-        name: "Remove Wings, 1.0 – 1.9 lbs from the cart",
+        name: "Remove Wings, 1.0 – 1.9 lbs from your cart",
       }).click();
       await expect(order.qty("wings")).toHaveValue("0");
       await expect(order.count).toHaveText("1 item");

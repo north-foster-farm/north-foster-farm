@@ -291,7 +291,7 @@ test("pack labels show as the catalog writes them, in rows and lines",
     await expect(order.cart.locator(".order-cart-group-name").last())
       .toHaveText("Other Items");
     await expect(order.cart.getByRole("button", {
-      name: "Remove Livers, 1.0 – 1.4 lbs from the cart",
+      name: "Remove Livers, 1.0 – 1.4 lbs from your cart",
     })).toBeAttached();
 
   });

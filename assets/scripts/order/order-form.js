@@ -2316,7 +2316,7 @@ export class OrderForm {
         remove.type = "button";
         remove.dataset.remove = item.sku;
         remove.setAttribute(
-          "aria-label", `Remove ${item.lineName} from the cart`
+          "aria-label", `Remove ${item.lineName} from your cart`
         );
         row.appendChild(remove);
         row.appendChild(

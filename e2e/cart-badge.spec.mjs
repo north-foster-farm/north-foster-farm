@@ -139,7 +139,7 @@ test.describe("cart count on the Order link (#166)", () => {
 
       const mini = page.locator(".site-mini-cart");
 
-      await mini.getByRole("button", { name: /^Remove .* from the cart$/ })
+      await mini.getByRole("button", { name: /^Remove .* from your cart$/ })
         .click();
       await expect(mini.locator(".site-mini-cart-line")).toHaveCount(0);
       await expect(mini.locator("[data-mini-cart-subtotal]"))

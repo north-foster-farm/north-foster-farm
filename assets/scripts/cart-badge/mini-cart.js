@@ -86,7 +86,7 @@ export const wireMiniCart = () => {
 
       remove.dataset.miniCartRemove = p.sku;
       remove.setAttribute(
-        "aria-label", `Remove ${packLabel(p.label)} from the cart`
+        "aria-label", `Remove ${packLabel(p.label)} from your cart`
       );
       set("label", packLabel(p.label));
       set("qty", `× ${qty}`);
