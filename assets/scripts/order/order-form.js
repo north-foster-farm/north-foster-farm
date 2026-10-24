@@ -664,30 +664,42 @@ export class OrderForm {
     // still be gliding when the link is pressed), so the glide ends
     // short of the target or at the foot of the page. When it ends,
     // look again and jump the rest, until the target holds still. A
-    // wheel, touch or key press by the customer ends the watch (#337).
+    // wheel, touch or key press by the customer ends the watch (#337),
+    // the look after a jump included, so the page never fights them.
     const landOn = (target, block) => {
       const place = () => target.getBoundingClientRect().top + scrollY;
       const stop = ["wheel", "touchstart", "keydown", "pointerdown"];
       let tries = 4;
       let quiet = null;
+      let cancelled = false;
       const settle = () => {
+        if (cancelled) return;
+
         const was = place();
 
         target.scrollIntoView({ behavior: "instant", block });
         // The jump may itself shift the layout: look once more after.
         requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (cancelled) return;
           tries -= 1;
           if (tries > 0 && Math.abs(place() - was) > 1) settle();
+          else end();
         }));
       };
-      const end = () => {
+      // The glide is over: stop watching it, but keep listening for
+      // the customer until the target holds still.
+      const glided = () => {
         clearTimeout(quiet);
         window.removeEventListener("scroll", wait);
         window.removeEventListener("scrollend", done);
+      };
+      const end = () => {
+        cancelled = true;
+        glided();
         for (const type of stop) window.removeEventListener(type, end);
       };
       const done = () => {
-        end();
+        glided();
         settle();
       };
       // The scrollend event where the browser has it, a pause in the
