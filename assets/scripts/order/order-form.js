@@ -15,6 +15,7 @@ import {
 } from "./lib/scheduled.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
 import { sentence } from "./lib/sentence.mjs";
+import { awayFrom } from "./lib/share-away.mjs";
 import { summarize } from "./lib/summary.mjs";
 import {
   computeTotals, dollars, meetsMinimum, toCents,
@@ -1243,7 +1244,7 @@ export class OrderForm {
     });
 
     const away = (e) => {
-      if (share.dataset.share && !share.contains(e.target)) {
+      if (awayFrom(share, e.target, e.type === "focusin")) {
         this.setShare("");
       }
     };
