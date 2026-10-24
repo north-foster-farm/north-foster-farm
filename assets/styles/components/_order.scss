@@ -616,6 +616,12 @@
     container: cart / inline-size;
     position: sticky;
 
+    // Focused by the rail's Cart link from xl, where the heading is
+    // hidden (#337); the pane needs no ring for it.
+    &:focus {
+      outline: 0;
+    }
+
     // --cart-kb: the keyboard's height while the code field is open
     // (order-form.js watchKeyboard); the cart rides above it.
     bottom: calc(0.75rem + var(--cart-kb, 0px));

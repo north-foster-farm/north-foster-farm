@@ -660,14 +660,39 @@ export class OrderForm {
 
     // The header's total, once the cart has scrolled away, goes back
     // to it (#203).
-    for (const button of all(this.form, "[data-to-cart]")) {
-      button.addEventListener("click", () => {
-        const heading = document.getElementById("order-cart-heading");
+    // From xl the heading is hidden and the column rides beside the
+    // catalog, so the pane itself is brought into view, only as far
+    // as it takes, and takes focus.
+    const toCart = (smooth) => {
+      const column = matchMedia("(min-width: 1200px)").matches;
+      const target = column
+        ? this.cart : document.getElementById("order-cart-heading");
 
-        heading.scrollIntoView({ behavior: "smooth", block: "start" });
-        heading.focus({ preventScroll: true });
+      target.scrollIntoView({
+        behavior: smooth ? "smooth" : "auto",
+        block: column ? "nearest" : "start",
       });
+      target.focus({ preventScroll: true });
+    };
+
+    for (const button of all(this.form, "[data-to-cart]")) {
+      button.addEventListener("click", () => toCart(true));
     }
+
+    // The rail's Cart link and the mini-cart's Go to cart (#337) name
+    // #order-cart. From xl that is a column stuck beside the catalog,
+    // which the browser's own jump leaves where it is, so both bring
+    // the cart into view and focus it at every width.
+    document.getElementById("order-nav")
+      ?.querySelector("a[href='#order-cart']")
+      ?.addEventListener("click", (e) => {
+        e.preventDefault();
+        toCart(true);
+      });
+    window.addEventListener("hashchange", () => {
+      if (location.hash === "#order-cart") toCart(true);
+    });
+    if (location.hash === "#order-cart") toCart(false);
 
     // Below xl the pane floats at the foot of the screen while its
     // place in the page is further down, and settles into the flow

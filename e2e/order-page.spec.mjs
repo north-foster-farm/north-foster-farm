@@ -284,4 +284,16 @@ test.describe("order page", () => {
       .toContainText("Large sold out and was removed");
     await expect(order.count).toHaveText("0 items");
   });
+
+  test("the rail's Cart link reaches the cart in the xl column (#337)",
+    async ({ page }) => {
+      const order = new OrderPage(page);
+
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await order.open({ eggs: 1 });
+      await page.evaluate(() => window.scrollTo(0, 1200));
+      await page.locator("#order-nav a[href='#order-cart']").click();
+      await expect(page.locator("#order-cart")).toBeInViewport();
+      await expect(page.locator("#order-cart")).toBeFocused();
+    });
 });

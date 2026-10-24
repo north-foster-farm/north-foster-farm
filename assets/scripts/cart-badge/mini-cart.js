@@ -5,7 +5,7 @@
 // and discounts are the order page's; this only adds up prices.
 
 import { packLabel } from "../order/lib/catalog.mjs";
-import { draftLines, pageCatalog } from "../search/cart.js";
+import { draftLines, pageCatalog, setCart } from "../search/cart.js";
 
 const money = (d) => (Number.isInteger(d) ? `$${d}` : `$${d.toFixed(2)}`);
 
@@ -46,7 +46,7 @@ export const wireMiniCart = () => {
   window.addEventListener("resize", place);
   menu.addEventListener("show.bs.dropdown", place);
 
-  menu.addEventListener("show.bs.dropdown", () => {
+  const draw = () => {
     const lines = draftLines();
     const { products } = pageCatalog();
 
@@ -82,6 +82,12 @@ export const wireMiniCart = () => {
         li.querySelector(`[data-mini-cart-${name}]`).textContent = text;
       };
 
+      const remove = li.querySelector("[data-mini-cart-remove]");
+
+      remove.dataset.miniCartRemove = p.sku;
+      remove.setAttribute(
+        "aria-label", `Remove ${packLabel(p.label)} from the cart`
+      );
       set("label", packLabel(p.label));
       set("qty", `× ${qty}`);
       set("price", money(p.price * qty));
@@ -89,5 +95,22 @@ export const wireMiniCart = () => {
       sum += p.price * qty;
     }
     subtotal.textContent = money(sum);
+  };
+
+  menu.addEventListener("show.bs.dropdown", draw);
+
+  // The × takes every unit of that product out, as the cart's does,
+  // and the panel stays open on the lines that remain (#337).
+  list.addEventListener("click", (e) => {
+    const button = e.target.closest("[data-mini-cart-remove]");
+
+    if (!button) return;
+
+    setCart(button.dataset.miniCartRemove, 0);
+    draw();
+    // The button that had focus is gone: the next × or, with the
+    // cart empty, the way into the cart takes it.
+    (list.querySelector("[data-mini-cart-remove]")
+      || panel.querySelector("[data-mini-cart-go]"))?.focus();
   });
 };
