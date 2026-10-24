@@ -54,7 +54,7 @@ for (const size of WIDTHS) {
   test.describe(`cart at ${size.width}px`, () => {
     test.use({ viewport: size });
 
-    test("Continue to payment can be reached and pressed",
+    test("Continue to pickup or delivery can be reached and pressed",
       { tag: "@regression" }, async ({
         page,
       }) => {
@@ -70,7 +70,7 @@ for (const size of WIDTHS) {
         await expect(page.locator("#pickup legend")).toBeFocused();
       });
 
-    test("Continue to payment is never wider than 370px", async ({
+    test("Continue to pickup or delivery is never wider than 370px", async ({
       page,
     }) => {
       const order = new OrderPage(page);
