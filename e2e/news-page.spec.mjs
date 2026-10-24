@@ -94,6 +94,27 @@ test.describe("news page (#143)", () => {
       );
 
       expect(misplaced).toEqual([]);
+
+      // One rule between every pair of neighbours, none above the
+      // first post of a year or below the last, however the pages
+      // were joined: the same 1px line and the same spacing.
+      const rules = await page.locator(".news-year").evaluateAll(
+        (els) => els.map((el) => [...el.querySelectorAll(".news-item")]
+          .map((item) => {
+            const s = getComputedStyle(item);
+
+            return [s.borderTopWidth, s.borderBottomWidth,
+              s.paddingTop, s.paddingBottom];
+          }))
+      );
+
+      for (const year of rules) {
+        year.forEach(([top, bottom, padTop, padBottom], i) => {
+          expect(top).toBe(i === 0 ? "0px" : "1px");
+          expect(bottom).toBe("0px");
+          expect(padTop).toBe(padBottom);
+        });
+      }
       expect(failed, "nothing the appended posts ask for is missing")
         .toEqual([]);
     });
