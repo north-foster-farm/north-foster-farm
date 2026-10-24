@@ -918,7 +918,9 @@ Settings, Help) rendered from `GET /api/me` and
   news opt-in (`marketing`, off unless the customer ticks it, with
   `marketingAt` the date it last changed; the checkout has the same
   box as `customer.marketing` on the payload, and only a ticked box
-  changes the record) and the delivery reminder as a checkbox, saved
+  changes the record; the checkout hides its box and subheading from
+  a customer already on the list, by `data-news-block`) and the
+  delivery reminder as a checkbox, saved
   through `PATCH /api/account/profile` as `reminders: { delivery }`.
   The confirmation, the receipt and order changes cannot be turned
   off.

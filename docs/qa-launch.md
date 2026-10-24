@@ -1012,8 +1012,8 @@ email" (both projects).
 - **Test:**
   1. Type the email; tick "Sign up and stay up-to-date with North Foster
      Farm."; move to the phone field.
-- **Assert:** The box is ticked and its label reads "Getting news and
-  updates from us."; chicks hop out of it (none under reduced motion);
+- **Assert:** The box is ticked and its label still reads "Sign up and
+  stay up-to-date with North Foster Farm."; chicks hop out of it (none under reduced motion);
   no note under it; no request to `/api/news/`; no order is sent.
 - **Teardown:** None.
 

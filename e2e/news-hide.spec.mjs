@@ -90,6 +90,45 @@ for (const { name, path, block } of PAGES) {
   });
 }
 
+test.describe("the order page's farm news opt-in (#391)", () => {
+  const block = "#confirm [data-news-block]";
+
+  test("shows, subheading and box, to a visitor with no flag",
+    async ({ page }) => {
+      await page.goto("/order/");
+      await expect(page.locator(block)).toBeVisible();
+      await expect(page.locator(`${block} h3`))
+        .toHaveText("Farm news and updates");
+      await expect(page.locator("#customer-marketing")).toBeVisible();
+    });
+
+  test("hides, subheading and box, once this browser has joined",
+    async ({ page }) => {
+      await page.addInitScript(() => localStorage.setItem("nff-news",
+        "joined"));
+      await page.goto("/order/");
+      await expect(page.locator(block)).toBeHidden();
+      await expect(page.locator(`${block} h3`)).toBeHidden();
+    });
+
+  test("hides for a signed-in customer on the list and sends no yes",
+    async ({ page, context, baseURL }) => {
+      await stamp(context, baseURL);
+      await me(page, true);
+      await page.goto("/order/");
+      await expect(page.locator(block)).toBeHidden();
+      await expect(page.locator("#customer-marketing")).not.toBeChecked();
+    });
+
+  test("shows for a signed-in customer who is not on the list",
+    async ({ page, context, baseURL }) => {
+      await stamp(context, baseURL);
+      await me(page, false);
+      await page.goto("/order/");
+      await expect(page.locator(block)).toBeVisible();
+    });
+});
+
 test("a hidden form leaves no gap, a shown one does not move",
   async ({ page, context, baseURL }) => {
     await page.goto("/about/");

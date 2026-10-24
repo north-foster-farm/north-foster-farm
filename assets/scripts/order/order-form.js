@@ -428,15 +428,6 @@ export class OrderForm {
     }
     this.formatPhone();
 
-    // A customer who already said yes to farm news sees the box ticked;
-    // it starts unticked for everyone else.
-    const news = qs(this.form, "[data-field='customer.marketing']");
-
-    if (news && customer.marketing === true && !news.checked) {
-      news.checked = true;
-      any = true;
-    }
-
     this.showContact();
     if (any) this.draft.save(this.collect());
   }
@@ -2507,7 +2498,11 @@ export class OrderForm {
         email: value("customer.email"),
         phone: value("customer.phone"),
         contact: value("customer.contact"),
-        marketing: value("customer.marketing") === true,
+        // A customer on the list is not shown the box (news/hide.js),
+        // so a hidden one says nothing. Unticked never changes a
+        // record that says yes (records.mjs) either way.
+        marketing: !qs(this.form, "[data-news-block]")?.hidden
+          && value("customer.marketing") === true,
       },
       lines: this.lines(),
       fulfilment: {

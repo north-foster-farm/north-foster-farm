@@ -36,11 +36,16 @@
      joins the list when the order is placed, with no confirmation
      email (W1), and an unticked box changes nothing on a record that
      already says yes. The account page's settings tab has the same
-     box. It closes the page, under the agreement (#352). */}}
+     box. It closes the page, under the agreement (#352). A customer
+     already on the list is not shown the block, subheading and box
+     together: news/hide.js hides it, as it does the footer's
+     sign-up (#391). */}}
+<div class="order-news" data-news-block>
 <h3 class="h5 order-optin-title" id="order-optin-title">Farm news and updates</h3>
 <div class="form-check order-optin">
   <input class="form-check-input" type="checkbox" id="customer-marketing" name="customer.marketing" data-field="customer.marketing">
-  <label class="form-check-label" for="customer-marketing"><span class="order-optin-off">Sign up and stay up-to-date with {{ hugo.Data.company.name }}.</span><span class="order-optin-on">Getting news and updates from us.</span></label>
+  <label class="form-check-label" for="customer-marketing">Sign up and stay up-to-date with {{ hugo.Data.company.name }}.</label>
+</div>
 </div>
 </div>
 </fieldset>

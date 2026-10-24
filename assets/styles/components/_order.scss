@@ -599,17 +599,6 @@
 
   .order-optin {
     margin: 0.25rem 0 0;
-
-    // The label says which way the box stands: a question while it is
-    // unticked, a statement once it is.
-    .order-optin-on,
-    .form-check-input:checked ~ .form-check-label .order-optin-off {
-      display: none;
-    }
-
-    .form-check-input:checked ~ .form-check-label .order-optin-on {
-      display: inline;
-    }
   }
 
   // The cart. Below xl it floats above the list while it scrolls and
