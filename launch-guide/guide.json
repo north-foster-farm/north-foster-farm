@@ -1,5 +1,5 @@
 {
- "revision": 45,
+ "revision": 46,
  "updated": "2026-10-24",
  "notice": null,
  "phases": [
@@ -1728,7 +1728,7 @@
     {
      "id": "ld-venmo",
      "title": "Leave VENMO_HIDDEN empty",
-     "body": "You decided (V1, #192) that Venmo launches **live** for everyone. Nothing to set: production's `VENMO_HIDDEN` stays empty, and the env builder writes it that way. Launching live is the test, and the setting is the safety net: if Venmo misbehaves after the release, set `VENMO_HIDDEN=1` on the production context and redeploy. The button then greys out with \"Coming soon\".\n\n**Note, 2026-10-24:** Open conflict: #237 and #381 say to set `VENMO_HIDDEN` before the release and unset it after the $1 test. Which one stands is D28 in Decisions for James (#354).",
+     "body": "You decided (V1, #192) that Venmo launches **live** for everyone. Nothing to set: production's `VENMO_HIDDEN` stays empty, and the env builder writes it that way. Launching live is the test, and the setting is the safety net: if Venmo misbehaves after the release, set `VENMO_HIDDEN=1` on the production context and redeploy. The button then greys out with \"Coming soon\".\n\n**Decided, 2026-10-24 (D28):** this is the plan. #237 and #381 now say the same.",
      "minutes": 1,
      "device": "laptop",
      "type": "look"
@@ -2433,6 +2433,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 4,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "The question moved into this guide: the map pick is the decide item **D-354-20**, under Decisions. Answer it there. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ],
    "device": "any",
@@ -2491,6 +2498,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 4,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "The question moved into this guide: the placement pick is the decide item **D-354-13**, under Decisions. Answer it there. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ],
    "device": "any",
@@ -2529,6 +2543,18 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "You answered D1 on #354: approved, if the two-cookie paragraph is confirmed to still be true. The privacy page also changes under **D-354-33**, so check the cookie paragraph against it.",
+     "look": [
+      {
+       "label": "Your answer",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354#issuecomment-6385499049"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -2562,6 +2588,18 @@
       {
        "label": "Decisions for James (D2)",
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "You answered D2 on #354: approved, if the PayPal line is confirmed to still be true. It stays as written unless the PayPal script changes.",
+     "look": [
+      {
+       "label": "Your answer",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354#issuecomment-6385499049"
       }
      ]
     }
@@ -2610,6 +2648,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "The question moved into this guide: the final pass is the decide item **D-354-05**, under Decisions. Answer it there. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ],
    "device": "any",
@@ -2646,6 +2691,18 @@
       {
        "label": "Decisions for James (D8, D9)",
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "**D8**, the 17 emails, moved into this guide as **D-354-08**, under Decisions. **D9** is answered: you said to clear the stale staging records, so an agent runs `bin/nff library clear <id> --staging` for them.",
+     "look": [
+      {
+       "label": "Your answer",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354#issuecomment-6385693659"
       }
      ]
     }
@@ -2696,6 +2753,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "The question moved into this guide: the tour post rewrite is the decide item **D-354-25**, under Decisions. Answer it there. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ],
    "device": "any",
@@ -2789,6 +2853,18 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 7,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "You answered D4 on #354: you still want something like the original email, sent from Resend with a nicer template. The rewrite has to account for the three emails already sent (\"Scituate drop-site reminder\", October 9; \"The drop site is back\", October 16; \"Final Market\", October 23). The P1 to P12 read-through moved into this guide as **D-354-25**.",
+     "look": [
+      {
+       "label": "Your answer",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354#issuecomment-6385499049"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -2825,6 +2901,18 @@
       {
        "label": "Decisions for James (D3)",
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "You answered D3 on #354: the post is great, but you already used parts of it, so it needs reworking. You posted the drop-site-is-back image and caption on Instagram. The rework starts from what you posted.",
+     "look": [
+      {
+       "label": "Your answer",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354#issuecomment-6385499049"
       }
      ]
     }
@@ -3368,6 +3456,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 5,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "**Decided (D28, 2026-10-24):** Venmo is visible at launch, live-tested right after the deploy, and hidden with `VENMO_HIDDEN=1` only if the test fails. #237 and #381 now match.",
+     "look": []
     }
    ],
    "device": "any",
@@ -3447,6 +3542,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 7,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "The question moved into this guide: the quiet-account sentence and notice is the decide item **D-354-10**, under Decisions. Answer it there. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ],
    "device": "any",
@@ -3630,6 +3732,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "The question moved into this guide: the wording is the decide item **D-354-29**, under Decisions. Answer it there. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ]
   },
@@ -3658,6 +3767,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "The question moved into this guide: the swap question is the decide item **D-354-30**, under Decisions. Answer it there. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ]
   },
@@ -3692,6 +3808,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "The red audit is #330 and clears 2026-10-26; its open advisories are on that issue. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ]
   },
@@ -3726,6 +3849,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "The second GitHub login is a line in #377. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ]
   },
@@ -3760,6 +3890,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "Where scan reports go is a line in #377. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ]
   },
@@ -3819,6 +3956,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "The question moved into this guide: the wording approval (urgent: the band swaps on October 26) is the decide item **D-354-31**, under Decisions. Answer it there. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ],
    "device": "any",
@@ -3855,6 +3999,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "The question moved into this guide: the title approval is the decide item **D-354-32**, under Decisions. Answer it there. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ],
    "device": "any",
@@ -3924,6 +4075,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "The question moved into this guide: the approval is the decide item **D-354-33**, under Decisions. Answer it there. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ],
    "device": "any",
@@ -3958,6 +4116,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "The question moved into this guide: the approval (#372) is the decide item **D-354-21**, under Decisions. Answer it there. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ],
    "device": "any",
@@ -4050,6 +4215,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "The rebuild is tracked on #214. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ]
   },
@@ -4130,6 +4302,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "The rulesets are a line in #237. The two open calls moved into this guide as **D-354-22** and **D-354-23**, under Decisions. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ]
   },
@@ -4219,6 +4398,13 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved into the guide; #354 is closed (curator, 2026-10-24).",
+     "summary": "The question moved into this guide: the placement pick (#370) is the decide item **D-354-34**, under Decisions. Answer it there. Nothing in this item changed; it stays here as the history.",
+     "look": []
     }
    ]
   }
@@ -5055,7 +5241,7 @@
   "R-CHECKS": "Retired 2026-10-24: Q3b and H16 were superseded (#192 closing comment).",
   "R-PICKUP": "Retired 2026-10-24: superseded by scheduled pickup (#309).",
   "R-ORDERS": "Retired 2026-10-24: superseded by the cart rounds on #274.",
-  "D-OPEN": "Retired 2026-10-24: replaced by #354 (questions) and #237 (steps).",
+  "D-OPEN": "Retired 2026-10-24: replaced by the D-354 items under Decide (questions) and #237 (steps).",
   "R-STG-STALE": "Retired 2026-10-24: done: staging deploys again.",
   "R-204": "Retired 2026-10-24: done: #204 closed; two unverified checks are #366.",
   "R-H14": "Retired 2026-10-24: done: #205 closed.",
