@@ -1,76 +1,424 @@
 #!/usr/bin/env node
 // The farm's command line for orders, customers, stock and sign-in.
-// Reads .env from the repo root. Off Netlify the records live in the
-// site's Blobs stores only when NETLIFY_SITE_ID and NETLIFY_AUTH_TOKEN
-// are set; otherwise everything is in memory and lost on exit, which
-// the banner says.
+// Reads one env file from the repo root: .env (linked to
+// .env.development) with no flag, or .env.production, .env.staging or
+// .env.preview when that flag is given. Off Netlify the records live
+// in the site's Blobs stores only with a context flag (or --scratch)
+// and a NETLIFY_SITE_ID; the token is read from the macOS Keychain
+// (bin/env/keychain.mjs), never an env file. Otherwise everything is
+// in memory and lost on exit, which the banner says.
 
 import { spawn } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
+import { randomInt } from "node:crypto";
 import { dirname, join } from "node:path";
+import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
+import registry from "../data/registry.json" with { type: "json" };
+import { newCode } from "../assets/scripts/order/lib/events.mjs";
 import { loadEnv } from "../netlify/functions/lib/env.mjs";
+import { USAGE as BREAKER_USAGE, breakerCommand } from "./breaker.mjs";
+import { noEmailRefusal } from "./no-email.mjs";
+import { confirmed } from "./confirm.mjs";
+import { USAGE as GATE_USAGE, gateCommand } from "./gate.mjs";
+import { devSchedule } from "./dev-schedule.mjs";
+import { NETLIFY_NPX, runNetlify } from "./env/cli.mjs";
+import { deployAfterPush } from "./env/deploy.mjs";
+import {
+  PREVIEW_ALLOWED, PREVIEW_CONTEXTS, TARGETS, checkEnv, envRunner, planPush,
+  preflight, previewLeaks, pushEnv, redact, remoteFor, remoteVars,
+} from "./env/netlify.mjs";
+import { keychainToken, tokenInFiles } from "./env/keychain.mjs";
+import { readSample, readValues, sampleFile } from "./env/sample.mjs";
+import { verifyEnv } from "./env/verify.mjs";
+import { setSchedule } from "./schedule-env.mjs";
+import { USAGE as PROMOTE_USAGE, promoteCommand } from "./promote.mjs";
+import { USAGE as SUPPLY_USAGE, supplyCommand } from "./supply/waive.mjs";
 
 const USAGE = `Usage:
+  --no-email skips a customer's transactional emails (an order's
+  notice, a cancellation, a refund, an address decision). Each unsent
+  email is noted on the order as suppressed (history
+  mail.suppressed.<name>), so the jobs never send it later. The
+  farm's own notices still go. It does not cover the retention and
+  farm-news emails, so jobs run and audience invite refuse it.
   bin/nff customers list
   bin/nff customers show <email>
   bin/nff customers set <email> name=.. phone=.. group=friends|none
   bin/nff customers delete <email>
+  bin/nff customers forget <email> [--apply]
+                                      delete a customer's details:
+                                      orders stay, re-pointed to the
+                                      deleted household; the rest goes.
+                                      Final. A dry run unless --apply
+  bin/nff customers quiet             who is due the quiet-account
+                                      notice, a year without
+                                      interaction. Read only: the
+                                      daily jobs send it
+  bin/nff customers rename <old> <new> [--apply]
+                                      a customer's email changed: the
+                                      record, orders, links, the Resend
+                                      contact and the Square customer
+                                      move; sessions end. A dry run
+                                      unless --apply
+  bin/nff sessions end-all [--yes]    end every customer session; asks
+                                      first unless --yes, and emails
+                                      the developer
   bin/nff address approve|deny <email>
-  bin/nff orders list [--open] [--held] [--status=paid] [--email=x]
+  bin/nff orders list [--open] [--status=paid] [--email=x]
+  bin/nff orders occurrences          every occurrence a stored order
+                                      names (in its fulfillment or the
+                                      history of a move), and any no
+                                      data file defines any more (read
+                                      only; run it against production
+                                      before a release). Fails if one
+                                      is missing
+  bin/nff events                      every series by code with its
+                                      name, location and season, and
+                                      its occurrences in the coverage
+                                      window with their schedule line
+  bin/nff events new                  a generated code no location or
+                                      series has used (the registry's
+                                      codes are never reused)
+  bin/nff migrate scheduled-pickup [--dry-run] [--staging|--production]
+                                      rewrite orders of method
+                                      scituate, or market with a site,
+                                      to method scheduled with its
+                                      occurrence. Backs up the orders
+                                      first, stops and lists any order
+                                      it cannot map, is safe to run
+                                      twice, touches neither Square nor
+                                      money
   bin/nff orders show <id>
-  bin/nff orders paid <id> [--via venmo|cash|check]   paid by hand
-  bin/nff orders unpaid <id>          nothing arrived: lift the Venmo hold
-  bin/nff orders confirm [<id>] [--at 9] [--until 11]
-                                      agree to a pickup: the first two
-                                      hours of the window unless told;
-                                      no id: how many wait, and the next
-  bin/nff orders deny <id> --reason "..."   have them pick another
-  bin/nff orders cancel <id> [--refund]
-  bin/nff orders fulfil <id>
+  bin/nff orders cancel <id> --reason <why> | --reason-text "..." |
+                             --no-reason [--no-refund] [--amount 12.34]
+                                      the money back first, all of it
+                                      unless told; then stock back and
+                                      the fulfillment closed in Square;
+                                      --no-refund only on purpose. The
+                                      customer is told why: sold-out,
+                                      delay, weather, emergency or
+                                      mistake, or your own words;
+                                      --no-reason for a customer we
+                                      won't serve (write to them)
+  bin/nff orders refund <id> [--amount 12.34] [--reason "..."]
+                                      money back without canceling:
+                                      card and wallets through Square,
+                                      Venmo through PayPal
+  bin/nff orders attempted <id> <cause> [--detail "..."] [--waive "why"]
+                                      a delivery we could not leave. The
+                                      cause: no-cooler, no-access or
+                                      no-address (the customer's miss:
+                                      the fee is kept through any refund
+                                      unless waived; waive a no-address
+                                      when in doubt), or weather or farm
+                                      (waived). --detail: where we
+                                      couldn't get to, for the email.
+                                      The customer's miss emails them to
+                                      choose, held seven days from when
+                                      the email goes; weather or farm
+                                      moves it to the next delivery day
+                                      and says so. Mark it by two days
+                                      after the delivery day. Run again
+                                      to resend an email that failed
+  bin/nff orders move <id> <date>     a delivery to another delivery
+                                      day, past the cutoff; the
+                                      customer is emailed. Not after
+                                      their own miss that kept the fee:
+                                      they pay it again on the order
+                                      page
+  bin/nff orders change <id> [--method onfarm|scheduled|delivery]
+                             [--occurrence <code-YYMMDD>]
+                             [--date YYYY-MM-DD] [--window <id>]
+                             [--address1 ... --address2 ... --town ...
+                             --zip ...] [--cooler ...] [--gate ...]
+                             [--delivery-notes ...] [--phone ...]
+                             [--contact text|call] [--notes ...]
+                             [--no-square] [--force] [--dry-run]
+                                      the farm's change to any order,
+                                      past, present or future, in any
+                                      status. A customer's rules (the
+                                      cutoff, open dates, an occurrence
+                                      closed to customers) don't bind
+                                      it; each one it overrides is a
+                                      warning. The occurrence must
+                                      exist. Every side
+                                      effect is listed first: emails,
+                                      Square calls, stock, money and
+                                      history. --dry-run stops there;
+                                      a real run then says what
+                                      happened. Square follows unless
+                                      --no-square (said aloud and
+                                      recorded). A change that could
+                                      move money, or that Square
+                                      refuses, applies nothing unless
+                                      --force, which applies the record
+                                      without moving money and reports
+                                      what Square kept. The customer
+                                      gets the "order changed" email
+                                      unless --no-email.
+  bin/nff orders fulfill <id>
   bin/nff orders delete <id>
+  bin/nff passes issue [--email <email>] [--days 14] [--note "..."]
+                     [--standing] [--waive-fee]
+                                      a code that lets one delivery
+                                      order under the minimum; single
+                                      use, tied to --email if given.
+                                      --standing (needs --email): every
+                                      order from that email, never used
+                                      up, no expiry unless --days.
+                                      --waive-fee: the delivery fee is
+                                      $0 too (Square gets a $0 charge)
+  bin/nff passes list
+  bin/nff passes revoke <code>
+  bin/nff refunds check               every refund not yet settled,
+                                      asked of Square or PayPal: the
+                                      jobs do it daily; alerts as they
+                                      do for one that failed or stalled
   bin/nff returns resolve <id> <returnId> [note...]
-  bin/nff venmo list                  every Venmo payment the site saw
+  bin/nff messages [--all]            messages to the farm not yet
+                                      answered, from the contact page
+                                      and the help form, oldest first;
+                                      --all adds the answered ones
+  bin/nff messages done <id>          mark one answered, which takes it
+                                      off the morning report
   bin/nff stock list
   bin/nff stock set <sku> <count|none>
   bin/nff login <email>               print a sign-in link
   bin/nff masquerade <email>          open a sign-in link as them
+  bin/nff audience invite <csv> [--dry-run]   the confirmation email,
+                                      once, to each address not yet in
+  bin/nff audience sync [--dry-run]   the Resend audience and the
+                                      records, made to agree
+  bin/nff schedule check <file>       the pickup schedule, checked as a
+                                      deploy checks it (W11d)
+  bin/nff schedule set <file> --staging|--production
+                                      check it, set PICKUP_SCHEDULE on
+                                      Netlify, and start a deploy with
+                                      PICKUP_SCHEDULE_HOOK if the env
+                                      file has one
+  bin/nff netlify <netlify args...>   the Netlify CLI with the
+                                      Keychain's token, for runbook
+                                      commands (env:set, api, blobs:*);
+                                      no netlify login needed
+  bin/nff env push --staging|--production
+                                      set each key of .env.staging or
+                                      .env.production that the tracked
+                                      sample lists on Netlify, secrets as
+                                      secret, and read the rest back.
+                                      Never deletes; skips local-only keys
+                                      Then asks "Deploy <context> now?
+                                      [Y/n]", or --allow-deploy goes
+                                      ahead; otherwise ends on a "not
+                                      live until deployed" line
+  bin/nff env verify --staging|--production
+                                      after a push and the deploy: one
+                                      harmless call per service (Square,
+                                      PayPal, Resend, Axiom, R2), by
+                                      name, pass or fail
+  bin/nff env check --staging|--production
+                                      the sample, the env file and
+                                      Netlify, compared by name; fails on
+                                      a difference, a shared value, or
+                                      any value on deploy-preview or dev
+                                      beyond SITE_CONTEXT and the
+                                      pickup schedule
+  bin/nff --production export [--label before-release] [--out <file>]
+                                      the backup export, now: encrypted
+                                      to BACKUP_AGE_RECIPIENT and put in
+                                      the R2 bucket, or with --out kept
+                                      in that file instead (docs/backup.md)
+  bin/nff restore <file.json> --scratch
+                                      a decrypted backup, into empty
+                                      scratch stores, counted back
+  bin/nff restore --clear --scratch   empty the scratch stores
   bin/nff jobs run
   bin/nff jobs history [--n=20]       the last runs: errors, invariants
-  bin/nff health                      what /api/health would answer`;
+  bin/nff jobs square [--apply]       the site's Square orders a failed
+                                      payment left open a day or more;
+                                      a report unless --apply, which
+                                      cancels them (#241)
+  bin/nff jobs customers [--apply]    Square profiles a checkout made
+                                      whose payment never succeeded; a
+                                      report unless --apply, which
+                                      deletes them (#236)
+  bin/nff square deletions status|pause|resume
+                                      the Square deletion kill switch:
+                                      pause stops both cleanups from the
+                                      next jobs run, no deploy needed
+  bin/nff maintenance status|on|off [--staging|--production]
+                                      the maintenance switch (#267): on
+                                      closes ordering, sign-in and the
+                                      account area; the farm is emailed
+  bin/nff maintenance links           the signed ON and OFF links for a
+                                      phone (needs MAINTENANCE_SECRET)
+  bin/nff maintenance rotate          kill every link handed out before
+${BREAKER_USAGE}
+${GATE_USAGE}
+${SUPPLY_USAGE}
+${PROMOTE_USAGE}
+  bin/nff health                     what /api/health would answer
+  bin/nff alert test [--production|--staging]
+                                      one real alert, past the hourly
+                                      limit: the farm email and the
+                                      phone push (down, then up). Says
+                                      what it reached
+  bin/nff mail test-dev [--production|--staging]
+                                      one real message to
+                                      DEV_NOTIFICATIONS_EMAIL, the way
+                                      deploy-failed, alert and rotation
+                                      notices go. Says sent or failed,
+                                      never an address
+  bin/nff errors show <file|-> [--sha <commit>] [--deploy <id>]
+                                      a browser error report's stack
+                                      (its log line, or a bare stack
+                                      with --sha), mapped to the
+                                      source by the maps of the deploy
+                                      that built it (--staging or
+                                      --production finds it)
+  bin/nff library [--staging]         James's approvals and rewrites
+                                      from the email library, to port
+  bin/nff library clear <id>          drop an email's, once ported
+
+  --production, --staging, --preview  act on that deploy context's
+                                      data; with none, on the dev
+                                      stores, never production's
+  --yes                               with --production, skip the typed
+                                      confirmation that every cancel,
+                                      refund, delete and stock or order
+                                      change asks for (for a script)`;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-loadEnv(join(root, ".env"));
+// Each env file is complete (.env.sample names every key), so a flag
+// reads its own file and nothing else: production's keys never mix
+// with the sandbox's. The deploy context is set by the flag, not the
+// file, so no flag can reach production's stores by accident.
+const CONTEXTS = {
+  production: "production",
+  staging: "branch-deploy",
+  preview: "deploy-preview",
+};
+const context = Object.keys(CONTEXTS)
+  .find((name) => process.argv.includes(`--${name}`)) || null;
+
+loadEnv(join(root, context ? `.env.${context}` : ".env"));
+
+// The Netlify token comes from the Keychain and nowhere else (#267):
+// not from an env file, not from the shell. Development runs on
+// memory stores and never looks; a context, or --scratch's stores in
+// Blobs, needs it. A missing item stops here, saying so, rather than
+// falling back to memory stores that lose the work.
+delete process.env.NETLIFY_AUTH_TOKEN;
+const passthrough = process.argv[2] === "netlify";
+
+if (context || passthrough || process.argv.includes("--scratch")) {
+  try {
+    process.env.NETLIFY_AUTH_TOKEN = keychainToken();
+  } catch (error) {
+    console.error(`[nff] ${error.message}`);
+    process.exit(1);
+  }
+}
+
+// `bin/nff netlify <args>`: the Netlify CLI itself, as the Keychain's
+// token, so the runbooks need no `netlify login` and the CLI's own
+// plaintext login can be removed. Everything after `netlify` goes to
+// it untouched.
+if (passthrough) {
+  try {
+    process.exit(await runNetlify(process.argv.slice(3),
+      process.env.NETLIFY_AUTH_TOKEN));
+  } catch (error) {
+    console.error(`[nff] netlify would not start: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+// Development's pickup schedule is made up, from today (#264), so
+// .env needs none; a context's comes from `schedule set`.
+if (!context && !process.env.PICKUP_SCHEDULE) {
+  process.env.PICKUP_SCHEDULE = devSchedule();
+}
 
 const [
   { default: terms },
   admin,
   { requestLink },
-  { runJobs, runsSince },
+  { runJobs, runsSince, sweepMadeCustomers, sweepSquareOrders },
   { stores: makeStores },
-  { summaryLine },
-  { allPayments },
-  { dollars },
+  { CANCEL_REASONS, paymentPhrase, summaryLine },
+  { inviteSubscribers, parseCsv, syncAudience },
+  { dollars, toCents },
   { snapshot },
+  { keptFee, paidTotal, refundedTotal },
+  { library },
+  review,
+  { mailLinks },
+  sourcemaps,
+  { checkSchedule },
+  { alertTest },
+  backup,
+  maintenance,
+  passes,
+  square,
+  { checkRefunds },
+  { applyAmend, planAmend },
+  { withholdCustomerEmail },
 ] = await Promise.all([
-  import("../data/delivery.json", { with: { type: "json" } }),
+  import("../netlify/functions/lib/terms.mjs"),
   import("../netlify/functions/lib/admin.mjs"),
   import("../netlify/functions/lib/auth.mjs"),
   import("../netlify/functions/lib/jobs.mjs"),
   import("../netlify/functions/lib/store.mjs"),
   import("../netlify/functions/lib/templates.mjs"),
-  import("../netlify/functions/lib/venmo.mjs"),
+  import("../netlify/functions/lib/news.mjs"),
   import("../assets/scripts/order/lib/totals.mjs"),
   import("../netlify/functions/health.mjs"),
+  import("../netlify/functions/lib/records.mjs"),
+  import("../netlify/functions/lib/library.mjs"),
+  import("../netlify/functions/lib/review.mjs"),
+  import("../netlify/functions/lib/site.mjs"),
+  import("../netlify/functions/lib/sourcemaps.mjs"),
+  import("../assets/scripts/order/lib/schedule.mjs"),
+  import("../netlify/functions/lib/health.mjs"),
+  import("../netlify/functions/lib/backup.mjs"),
+  import("../netlify/functions/lib/maintenance.mjs"),
+  import("../netlify/functions/lib/passes.mjs"),
+  import("../netlify/functions/lib/square-pause.mjs"),
+  import("../netlify/functions/lib/settle.mjs"),
+  import("../netlify/functions/lib/amend.mjs"),
+  import("../netlify/functions/lib/payments.mjs"),
 ]);
+
+// --scratch: development's env, but stores of their own
+// (scratch-orders, ...), for the restore rehearsal (docs/backup.md).
+const scratch = !context && process.argv.includes("--scratch");
+
+process.env.SITE_CONTEXT = context ? CONTEXTS[context]
+  : scratch ? "scratch" : "dev";
+if (context === "production") console.error("[nff] Production.");
+
+// Emails from here go by MAIL_DRIVER, as on Netlify. Unset, every
+// message is logged to this terminal and nobody receives it, which
+// is worth hearing before a confirm or a deny.
+if (!["resend", "outbox", "file"].includes(process.env.MAIL_DRIVER || "")) {
+  console.error("Mail: MAIL_DRIVER is not set, so emails are logged here"
+    + " and not sent. Set it in .env.production (resend) or"
+    + " .env.staging (outbox).");
+}
 
 const stores = makeStores();
 const flags = {};
 const words = [];
 
 // Flags that take a value: `--reason "..."` as well as `--reason=...`.
-const VALUED = ["reason", "via", "note", "at", "until", "n"];
+const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
+  "to", "waive", "detail", "reason-text", "sha", "deploy", "label",
+  "out", "count", "hours", "advisory", "file", "email", "days", "method",
+  "date", "window", "phone", "contact", "address1", "address2", "town",
+  "zip", "cooler", "gate", "delivery-notes", "notes", "key", "site"];
 const args = process.argv.slice(2);
 
 for (let i = 0; i < args.length; i += 1) {
@@ -89,6 +437,19 @@ for (let i = 0; i < args.length; i += 1) {
   }
 }
 
+// --no-email, on any command: no customer is sent an email (an order's
+// notice, an address decision, a refund's). Each send is noted on the
+// order as suppressed; the farm's own notices still go.
+if (flags["no-email"] && flags["no-email"] !== "false") {
+  const refusal = noEmailRefusal(words[0], words[1]);
+
+  if (refusal) {
+    console.error(refusal);
+    process.exit(1);
+  }
+  withholdCustomerEmail();
+}
+
 const [group, action, ...rest] = words;
 const out = (value) => console.log(
   typeof value === "string" ? value : JSON.stringify(value, null, 2)
@@ -100,7 +461,7 @@ const kv = (pairs) => Object.fromEntries(pairs.map((p) => {
 }));
 
 if (!stores.persistent) {
-  console.error("[nff] No NETLIFY_SITE_ID/NETLIFY_AUTH_TOKEN: using memory " +
+  console.error("[nff] No NETLIFY_SITE_ID or Keychain token: using memory " +
     "stores. Nothing here persists.");
 }
 
@@ -119,9 +480,416 @@ const signIn = async (email, open) => {
   }
 };
 
+// A schedule file, checked as a deploy checks it (W11d). -> { value,
+// summary }: the variable's value, one date per entry, and a line to
+// print. Throws with every problem.
+const checkedSchedule = (file) => {
+  if (!file) throw new Error("Which file? bin/nff schedule check <file>");
+
+  const r = checkSchedule(readFileSync(file, "utf8"), {
+    timeZone: terms.timeZone, model: terms.model,
+  });
+
+  if (!r.ok) {
+    throw new Error(`The schedule has ${r.errors.length} problem${
+      r.errors.length === 1 ? "" : "s"}:\n  ${r.errors.join("\n  ")}`);
+  }
+
+  const byDate = new Map();
+
+  for (const w of r.windows) {
+    byDate.set(w.date, [...(byDate.get(w.date) || []), w.id]);
+  }
+
+  const lines = r.lines.map((l) => `${l.date} ${l.code} ${l.action}${
+    l.id ? ` ${l.id}` : ""}`);
+
+  return {
+    value: [
+      ...[...byDate].map(([date, ids]) => `${date} ${ids.join(" ")}`),
+      ...lines,
+    ].join("; "),
+    summary: `${r.windows.length} window${
+      r.windows.length === 1 ? "" : "s"} on ${byDate.size} day${
+      byDate.size === 1 ? "" : "s"}, ${r.windows[0].date} through ${
+      r.last}, and ${lines.length} occurrence line${
+      lines.length === 1 ? "" : "s"}. It passes.`,
+  };
+};
+
+// The Netlify CLI, as the env file's site and token, for the one
+// command that changes a deploy's settings. -> its stdout.
+const netlify = (args) => new Promise((resolve, reject) => {
+  const child = spawn("npx", [...NETLIFY_NPX, ...args], {
+    stdio: ["ignore", "pipe", "inherit"],
+    env: process.env,
+  });
+  let stdout = "";
+
+  child.stdout.on("data", (chunk) => { stdout += chunk; });
+  child.on("error", reject);
+  child.on("close", (code) => (code === 0 ? resolve(stdout)
+    : reject(new Error(`netlify ${args[0]} failed (${code}).`))));
+});
+
+// What James approved or rewrote in the staging email library and
+// is not yet in the code (lib/review.mjs).
+const HOW = {
+  port: { approval: "add it to APPROVED in lib/library.mjs",
+    rewrite: "apply it to lib/templates.mjs" },
+  stale: "made against an earlier version: clear it",
+  code: "approved in the code since: clear it",
+};
+
+const libraryReview = async () => {
+  if (action === "clear" && rest[0]) {
+    await review.clear(stores, rest[0]);
+
+    return out(`Cleared ${rest[0]}.`);
+  }
+
+  const items = await review.pending(stores, library, mailLinks());
+
+  for (const r of items) {
+    const how = r.state === "port" ? HOW.port[r.kind] : HOW[r.state];
+
+    out(`${r.state.toUpperCase().padEnd(6)}${r.kind.padEnd(10)}${r.id}  ${
+      (r.at || "").slice(0, 16)}\n      ${r.name || "(no such email)"}: ${
+      how}`);
+    if (r.diff) out(r.diff.map((l) => `      ${l}`).join("\n"));
+  }
+
+  return items.length ? undefined : out("Nothing waits to be ported.");
+};
+
+// The env file and its tracked sample, for env push and env check
+// (#264). Values stay in memory; every line printed names keys only.
+let held = [];
+
+const envFiles = () => {
+  if (!["production", "staging"].includes(context)) {
+    throw new Error("Say which: --staging or --production.");
+  }
+
+  const file = `.env.${context}`;
+  const read = (name) => {
+    try {
+      return readFileSync(join(root, name), "utf8");
+    } catch {
+      throw new Error(`No ${name} in ${root}.`);
+    }
+  };
+
+  const local = readValues(read(file));
+
+  // Whatever is printed from here on is scrubbed of these, errors
+  // included (the catch at the foot of this file).
+  held = [...local.values.values(), process.env.NETLIFY_AUTH_TOKEN];
+
+  return {
+    file,
+    sample: readSample(read(sampleFile(context)), context),
+    local,
+  };
+};
+
+// The Netlify CLI for env commands: its output is kept, and an error
+// shows it with every value blanked.
+const envNetlify = (values) => (args) => new Promise((resolve, reject) => {
+  const child = spawn("npx", [...NETLIFY_NPX, ...args], {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: process.env,
+  });
+  let stdout = "";
+  let stderr = "";
+
+  child.stdout.on("data", (chunk) => { stdout += chunk; });
+  child.stderr.on("data", (chunk) => { stderr += chunk; });
+  child.on("error", reject);
+  child.on("close", (code) => (code === 0 ? resolve(stdout)
+    : reject(new Error(`netlify ${args[0]} ${args[1] || ""} failed (${
+      code}):\n${redact(`${stderr}${stdout}`, values).trim()}`))));
+});
+
+// After a push and the deploy: one harmless call per service, by name
+// (bin/env/verify.mjs). Reads the env file only, never Netlify.
+const envVerify = async (file, local) => {
+  const r = await verifyEnv(context, local.values);
+
+  for (const line of r.lines) out(line);
+  out(`Not checked, no harmless call exists: ${r.unchecked.join(", ")}.`);
+  if (r.failed) {
+    throw new Error(`Env verify: ${r.failed} credential${
+      r.failed === 1 ? "" : "s"} in ${file} failed.`);
+  }
+
+  return out(`Env verify: every credential tried in ${file} works.`);
+};
+
+const askLine = (question) => new Promise((resolve) => {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+
+  rl.question(question, (answer) => {
+    rl.close();
+    resolve(answer);
+  });
+});
+
+const envCommand = async () => {
+  const { file, sample, local } = envFiles();
+  const { context: target } = TARGETS[context];
+
+  if (action === "verify") return envVerify(file, local);
+
+  const secrets = [...local.values.values()];
+  const cli = envRunner({
+    cli: envNetlify(secrets),
+    token: process.env.NETLIFY_AUTH_TOKEN,
+    values: secrets,
+  });
+  const site = local.values.get("NETLIFY_SITE_ID")
+    || process.env.NETLIFY_SITE_ID;
+
+  if (!site) throw new Error(`No NETLIFY_SITE_ID in ${file}. Nothing done.`);
+
+  if (action === "push") {
+    const plan = planPush(sample, local, file);
+    const errors = plan.errors.length ? plan.errors
+      : preflight(plan, await remoteVars(cli, site));
+
+    if (errors.length) {
+      throw new Error(`Nothing set. Fix these first:\n  ${
+        errors.join("\n  ")}`);
+    }
+
+    const pushed = await pushEnv(cli, plan, target, site);
+
+    out(`Set ${pushed.set.length} keys on ${target} of site ${site}${
+      plan.skipped.length ? `; skipped ${plan.skipped.join(", ")}` : ""}.`);
+    if (pushed.error) {
+      const { name, message } = pushed.error;
+      const took = pushed.set.filter((n) => n !== name);
+
+      throw new Error(`Stopped at ${name}: ${message.startsWith("set, but")
+        ? message : `failed: ${message}`}\nSet: ${
+        took.join(", ") || "none"}.\n${
+        pushed.failed.length ? `Didn't read back: ${
+          pushed.failed.join(", ")}.\n` : ""}Not tried: ${
+        pushed.untried.join(", ") || "none"}. Push again once it's fixed.`);
+    }
+    if (pushed.failed.length) {
+      throw new Error(`These didn't read back: ${pushed.failed.join(", ")}.`);
+    }
+
+    // Secrets can't be read back: confirm them by name.
+    const remote = remoteFor(await remoteVars(cli, site), context);
+    const absent = plan.sets.filter((s) => s.secret && !remote.has(s.name))
+      .map((s) => s.name);
+
+    if (absent.length) {
+      throw new Error(`These secrets aren't on ${target}: ${
+        absent.join(", ")}.`);
+    }
+
+    out("Every value read back, and every secret is there by name. " +
+      "Now `bin/nff env check`.");
+
+    const tty = process.stdin.isTTY && process.stdout.isTTY;
+    const lines = await deployAfterPush({
+      context,
+      hook: local.values.get("PICKUP_SCHEDULE_HOOK"),
+      allow: !!flags["allow-deploy"],
+      ask: tty ? askLine : null,
+    });
+
+    for (const line of lines) out(line);
+
+    return undefined;
+  }
+
+  if (action === "check") {
+    const vars = await remoteVars(cli, site);
+    const remote = remoteFor(vars, context);
+    const found = checkEnv({
+      env: context, sample, local, remote, file,
+    });
+
+    found.problems.push(...tokenInFiles(root));
+    const leaks = previewLeaks(vars);
+    const problems = [...found.problems, ...leaks.problems];
+    const unset = [...found.unset, ...leaks.unset];
+
+    if (!problems.length) {
+      return out(`${sampleFile(context)}, ${file} and ${target} agree on ${
+        sample.keys.length} keys, none shared. ${
+        PREVIEW_CONTEXTS.join(" and ")} hold only ${
+        [...PREVIEW_ALLOWED].join(" and ")}: no production value.`);
+    }
+    for (const p of problems) console.error(`  ${p}`);
+    if (unset.length) {
+      console.error("Push never deletes. To clear those names, run:");
+      for (const u of unset) console.error(`  ${u}`);
+    }
+    throw new Error(`Env check: ${problems.length} problem${
+      problems.length === 1 ? "" : "s"}.`);
+  }
+
+  console.error(USAGE);
+
+  return process.exit(1);
+};
+
+// A report as the log keeps it (one JSON line, from Axiom or the
+// console), or a bare stack and --sha. The maps are the deploy's that
+// built the report's commit, found on the context's branch (--staging,
+// --production), or the one --deploy names.
+const BRANCHES = { production: "main", staging: "staging" };
+
+const errorsShow = async (file) => {
+  if (!file) {
+    throw new Error("Usage: bin/nff errors show <file|-> [--sha <commit>] " +
+      "[--deploy <id>]");
+  }
+
+  const raw = readFileSync(file === "-" ? 0 : file, "utf8");
+  let report;
+
+  try {
+    report = JSON.parse(raw);
+  } catch {
+    report = { stack: raw };
+  }
+
+  const sha = flags.sha || report.build;
+  const siteID = process.env.NETLIFY_SITE_ID;
+  const token = process.env.NETLIFY_AUTH_TOKEN;
+
+  if (!siteID || !token) {
+    throw new Error("Needs NETLIFY_SITE_ID in the env file and the " +
+      "Keychain's Netlify token (a context flag reads it).");
+  }
+  if (!sha && typeof flags.deploy !== "string") {
+    throw new Error("No build in the report: pass --sha or --deploy.");
+  }
+
+  let deployID = typeof flags.deploy === "string" ? flags.deploy : null;
+
+  if (!deployID) {
+    const branch = BRANCHES[context] || null;
+    const deploy = await sourcemaps.findDeploy({ sha, siteID, token, branch });
+
+    if (!deploy) {
+      throw new Error(`No ready deploy of ${sha}${
+        branch ? ` on ${branch}` : ""}: its maps went with it, or pass ` +
+        "--deploy <id>.");
+    }
+    deployID = deploy.id;
+  }
+  out(`${report.kind || report.event || "report"}  ${
+    report.where || ""}  build ${sha || "?"}  deploy ${deployID}`);
+  if (report.message) out(`  ${report.message}`);
+
+  const maps = sourcemaps.deployMaps({ deployID, siteID, token });
+  const mapped = await sourcemaps.mapStack(report.stack,
+    (key) => maps.get(key));
+
+  if (!mapped.length) return out("No frames in the stack.");
+
+  return out(sourcemaps.formatMapped(mapped).join("\n"));
+};
+
+// A copy before and after a release, or whenever: the nightly run's
+// export, labelled. No ping, so it never stands in for a missed night.
+const exportCommand = async () => {
+  const label = String(flags.label || "manual").replace(/[^a-z0-9-]/gi, "-");
+  const r = await backup.exportBackup(stores, {
+    label, upload: !flags.out,
+  });
+
+  if (flags.out) writeFileSync(flags.out, r.encrypted);
+  out(`Backup: ${r.counts.orders} orders, ${r.counts.customers} ` +
+    `customers (${r.counts.subscribers} subscribed), ${r.bytes} bytes, ` +
+    `encrypted.`);
+  out(flags.out ? `  Written to ${flags.out}.`
+    : `  In ${process.env.BACKUP_R2_BUCKET} as ${r.key}.`);
+};
+
+// The rehearsal's restore (docs/backup.md): never into production.
+const restoreCommand = async (file) => {
+  if (!scratch) throw new Error("Restore writes only with --scratch.");
+  if (flags.clear) {
+    for (const name of backup.BACKED_UP) {
+      for (const { key } of await stores[name].list("")) {
+        await stores[name].delete(key);
+      }
+    }
+
+    return out("Scratch stores emptied.");
+  }
+  if (!file) throw new Error("Usage: bin/nff restore <file.json> --scratch");
+
+  const r = await backup.restore(stores,
+    JSON.parse(readFileSync(file, "utf8")));
+  const same = JSON.stringify(r.expected) === JSON.stringify(r.found);
+
+  out({ expected: r.expected, found: r.found });
+  out(same ? "Restore: every count matches." : "Restore: counts DIFFER.");
+  if (!same) process.exitCode = 1;
+};
+
+// Messages to the farm (#167): listed until marked answered, and the
+// morning report lists them too.
+const messages = async () => {
+  if (action === "done") {
+    if (!rest[0]) throw new Error("Which? bin/nff messages done <id>");
+
+    const m = await admin.answerMessage(stores, rest[0]);
+
+    return out(admin.answeredLine(m));
+  }
+  if (action) {
+    console.error(USAGE);
+    process.exit(1);
+  }
+
+  const now = new Date();
+  const list = await admin.listMessages(stores, { all: !!flags.all });
+
+  for (const m of list) out(admin.messageLine(m, now));
+
+  return list.length ? undefined : out("No messages waiting on an answer.");
+};
+
 const run = async () => {
+  if (group === "env") return envCommand();
+  if (group === "breaker") {
+    return breakerCommand(action, { stores, flags, out, root });
+  }
+  if (group === "gate") {
+    return gateCommand(action, rest, {
+      stores, flags, out, context: process.env.SITE_CONTEXT,
+    });
+  }
+  if (group === "promote") {
+    return promoteCommand(action, rest, { flags, out });
+  }
+  if (group === "supply") {
+    return supplyCommand(action, rest, { flags, out, root });
+  }
+  if (group === "messages") return messages();
+  if (group === "library") return libraryReview();
+  if (group === "export") return exportCommand();
+  if (group === "restore") return restoreCommand(action);
   if (group === "login" && action) return signIn(action, false);
   if (group === "masquerade" && action) return signIn(action, true);
+
+  // Production asks first for anything that cancels, refunds, deletes
+  // or changes an order or stock (#268); --yes is for a script.
+  if (!await confirmed({ group, action, rest }, {
+    context, flags, ask: process.stdin.isTTY ? askLine : null,
+  })) {
+    process.exit(1);
+  }
 
   switch (`${group} ${action}`) {
   case "customers list": {
@@ -140,6 +908,25 @@ const run = async () => {
   case "customers set":
     return out(await admin.setCustomer(stores, rest[0], kv(rest.slice(1)),
       terms.money));
+  case "customers quiet": {
+    const list = await admin.quietCustomers(stores);
+
+    for (const c of list) {
+      out(`${c.email}  last ${c.lastInteraction}${
+        c.onFarmNews ? "  on farm news" : ""}`);
+    }
+    if (!list.length) out("No quiet accounts due.");
+
+    return undefined;
+  }
+  case "customers rename":
+    return out(await admin.renameCustomer(stores, rest[0], rest[1], {
+      apply: !!flags.apply,
+    }));
+  case "customers forget":
+    return out(await admin.forgetCustomer(stores, rest[0], {
+      apply: !!flags.apply,
+    }));
   case "customers delete":
     await admin.removeCustomer(stores, rest[0]);
 
@@ -151,7 +938,6 @@ const run = async () => {
   case "orders list": {
     const list = await admin.listOrders(stores, {
       status: flags.status, email: flags.email, open: !!flags.open,
-      held: !!flags.held,
     });
 
     for (const o of list) out(summaryLine(o));
@@ -159,88 +945,419 @@ const run = async () => {
 
     return undefined;
   }
-  case "orders show":
-    return out(await admin.showOrder(stores, rest[0]));
-  case "orders paid":
-    return out(summaryLine(await admin.payOrder(stores, rest[0], {
-      via: typeof flags.via === "string" ? flags.via : "cash",
-    })));
-  case "orders unpaid":
-    return out(summaryLine(await admin.unholdOrder(stores, rest[0])));
-  case "orders confirm": {
-    if (rest[0]) {
-      return out(summaryLine(await admin.confirmPickup(stores, rest[0], {
-        at: flags.at, until: flags.until,
-      })));
+  case "orders occurrences": {
+    const { occurrences, missing } = await admin.occurrenceUse(stores);
+
+    for (const [id, n] of Object.entries(occurrences).sort()) {
+      out(`${id.padEnd(28)}${n} order${n === 1 ? "" : "s"}`);
     }
-
-    const waiting = await admin.pickupsNeedingConfirmation(stores);
-
-    out(`${waiting.length} pickup${waiting.length === 1 ? "" : "s"} ` +
-      "waiting for confirmation.");
-    if (!waiting[0]) return undefined;
-
-    const next = waiting[0];
-    const o = next.fulfilment.onfarm;
-    const w = (terms.onFarm.windows || {})[o.window] || {};
-
-    out("");
-    out(`Next, oldest first: ${summaryLine(next)}`);
-    out(`  ${next.customer.name || next.customer.email}${
-      next.customer.phone ? `, ${next.customer.phone}` : ""}`);
-    out(`  Requested: ${next.fulfilment.date}, ${o.window} (${w.from}:00 ` +
-      `to ${w.to}:00), placed ${next.submittedAt.slice(0, 16)}`);
-    out(`  Lines: ${next.lines.map((l) => `${l.qty} × ${l.label}`)
-      .join("; ")}`);
-    out("");
-    out(`  bin/nff orders confirm ${next.id}            (${w.from}:00 to ${
-      w.from + admin.PICKUP_HOURS}:00)`);
-    out(`  bin/nff orders confirm ${next.id} --at H     (H to H+2)`);
-    out(`  bin/nff orders deny ${next.id} --reason "..."`);
+    if (!Object.keys(occurrences).length) out("No scheduled pickup orders.");
+    for (const m of missing) {
+      out(`MISSING  ${m.id} names "${m.occurrence}", which no data file ` +
+        "defines");
+    }
+    if (missing.length) {
+      throw new Error(`${missing.length} order${
+        missing.length === 1 ? "" : "s"} name an occurrence that is ` +
+        "gone. Restore its series in the data file and archive it.");
+    }
 
     return undefined;
   }
-  case "orders deny":
-    if (flags.reason === true) flags.reason = "";
+  case "events undefined": {
+    const { listEvents } = await import(
+      "../netlify/functions/lib/event-list.mjs");
+    const { pickupSchedule } = await import(
+      "../netlify/functions/lib/pickups.mjs");
 
-    return out(summaryLine(await admin.denyPickup(stores, rest[0], {
-      reason: flags.reason || "",
-    })));
-  case "orders cancel":
+    return out(listEvents(terms, pickupSchedule(process.env), new Date())
+      .join("\n"));
+  }
+  case "events new": {
+    const taken = [...terms.model.locations, ...terms.model.series]
+      .map((x) => x.code);
+    const used = [...taken, ...registry.codes];
+
+    return out(newCode(used, randomInt));
+  }
+  case "migrate scheduled-pickup": {
+    const { migrateScheduledPickup } = await import(
+      "../netlify/functions/lib/migrate.mjs");
+    const done = await migrateScheduledPickup(stores, {
+      dryRun: !!flags["dry-run"],
+      backup: async () => {
+        const r = await backup.exportBackup(stores, {
+          label: "before-scheduled-pickup", upload: true,
+        });
+
+        out(`Backed up first: ${r.counts.orders} orders, in ${
+          process.env.BACKUP_R2_BUCKET} as ${r.key}.`);
+      },
+    });
+
+    for (const c of done.changes) {
+      out(`${c.id}  ${c.from.method}${c.from.site ? ` ${c.from.site}` : ""} ${
+        c.from.date}  ->  ${c.to}`);
+    }
+    for (const u of done.unmapped) out(`CANNOT MAP  ${u.id}: ${u.reason}`);
+    if (!done.ok) {
+      throw new Error(`${done.unmapped.length} order${
+        done.unmapped.length === 1 ? "" : "s"} cannot be mapped. Nothing ` +
+        "was changed.");
+    }
+
+    return out(done.dryRun
+      ? `--dry-run: ${done.changes.length} order(s) would change.`
+      : `${done.changes.length} order(s) migrated.`);
+  }
+  case "orders show":
+    return out(await admin.showOrder(stores, rest[0]));
+  case "orders cancel": {
+    // The customer is told why, from the list or in the farm's words
+    // (T2a); saying nothing takes --no-reason (T2b).
+    const reasons = Object.keys(CANCEL_REASONS);
+    const reason = typeof flags.reason === "string" ? flags.reason : "";
+    const reasonText = typeof flags["reason-text"] === "string"
+      ? flags["reason-text"].trim() : "";
+    const given = [!!reason, !!reasonText, !!flags["no-reason"]]
+      .filter(Boolean).length;
+
+    if (reason && !reasons.includes(reason)) {
+      throw new Error(`--reason is one of: ${reasons.join(", ")}. ` +
+        "Anything else goes in --reason-text \"...\".");
+    }
+    // A customer's own cancel was already emailed; the farm only
+    // finishes it.
+    const order = await admin.showOrder(stores, rest[0]);
+    const asked = !!order.cancelRequested;
+
+    if (given !== 1 && !(asked && given === 0)) {
+      throw new Error(`Say why, once: --reason <${reasons.join("|")}>, ` +
+        "--reason-text \"...\", or --no-reason for a customer we won't " +
+        "serve.");
+    }
+
+    const amount = typeof flags.amount === "string" ? toCents(flags.amount)
+      : undefined;
+    const left = paidTotal(order) - keptFee(order) - refundedTotal(order);
+
+    // James is told what goes back, and the way out, every time
+    // (W11a-1, #233).
+    if (flags["no-refund"]) {
+      out("Canceling without a refund (--no-refund).");
+    } else if (left > 0 && order.status === "paid") {
+      // "Visa ending 4242", "Visa ending 4242, then Venmo".
+      const to = paymentPhrase(order).replace(/\$[\d,.]+ by /g, "");
+
+      out(`Refunding ${dollars(amount === undefined ? left : amount)} to ${
+        to}… Pass --no-refund to cancel without refunding.`);
+    }
+
     return out(summaryLine(await admin.cancelOrder(stores, rest[0], {
-      refund: !!flags.refund,
+      // A refund unless the farm says otherwise (T1c); --refund,
+      // once required, still reads as the default.
+      refund: !flags["no-refund"],
+      amount,
+      reason,
+      reasonText,
     })));
+  }
+  case "orders refund": {
+    const before = await admin.showOrder(stores, rest[0]);
+    const refunded = await admin.refundOrder(stores, rest[0], {
+      amount: typeof flags.amount === "string" ? toCents(flags.amount)
+        : undefined,
+      reason: typeof flags.reason === "string" ? flags.reason : "",
+    });
+
+    out(summaryLine(refunded));
+
+    return out(`Refunded ${dollars(refundedTotal(refunded)
+      - refundedTotal(before))} of ${paymentPhrase(refunded)}.`);
+  }
+  case "orders attempted": {
+    if (flags.waive === true) throw new Error("--waive needs a reason.");
+    if (flags.detail === true) throw new Error("--detail needs the words.");
+
+    const marked = await admin.markAttempted(stores, rest[0], {
+      cause: rest[1],
+      waive: typeof flags.waive === "string" ? flags.waive : "",
+      detail: typeof flags.detail === "string" ? flags.detail : "",
+    });
+    const { at, cause, fee, date } = marked.attempted;
+    const moved = !!date && marked.fulfilment.date !== date;
+    const asked = marked.question && marked.question.kind === "missed";
+
+    out(summaryLine(marked));
+    out(`Attempted ${at} (${cause || "no cause recorded"}); ${fee
+      ? `the delivery fee of ${dollars(fee)} stays with the farm.`
+      : "the delivery fee is waived."}`);
+
+    if (moved) {
+      return out(`Moved to ${marked.fulfilment.date}; the customer is told.`);
+    }
+    if (admin.missedUntold(marked)) {
+      return out("The email to the customer failed, so nothing is held yet. " +
+        "Run this again to resend it; the jobs also try each run.");
+    }
+
+    return asked
+      ? out(`The customer is asked to choose by ${marked.question.until}.`)
+      : undefined;
+  }
+  case "orders move":
+    return out(summaryLine(await admin.moveDelivery(stores, rest[0],
+      rest[1])));
+  case "orders change": {
+    const given = (k) => (typeof flags[k] === "string" ? flags[k] : undefined);
+    const pick = (obj) => Object.fromEntries(Object.entries(obj)
+      .filter(([, v]) => v !== undefined));
+    const method = given("method");
+    const occurrence = given("occurrence");
+    const onfarm = pick({ window: given("window") });
+    const delivery = pick({
+      address1: given("address1"), address2: given("address2"),
+      town: given("town"), zip: given("zip"), cooler: given("cooler"),
+      gate: given("gate"), notes: given("delivery-notes"),
+    });
+    const customer = pick({
+      phone: given("phone"), contact: given("contact"),
+    });
+    const body = pick({
+      fulfilment: pick({
+        method, occurrence, date: given("date"),
+        onfarm: Object.keys(onfarm).length ? onfarm : undefined,
+        delivery: Object.keys(delivery).length ? delivery : undefined,
+      }),
+      customer: Object.keys(customer).length ? customer : undefined,
+      notes: given("notes"),
+    });
+
+    if (!rest[0]) throw new Error("Which order? orders change <id> ...");
+    if (occurrence !== undefined && method !== undefined
+      && method !== "scheduled") {
+      throw new Error("--occurrence needs --method scheduled.");
+    }
+    if (method === "scheduled" && onfarm.window !== undefined) {
+      throw new Error("--window is for on-farm pickup, not --method " +
+        "scheduled.");
+    }
+    if (!Object.keys(body.fulfilment).length && !body.customer
+      && body.notes === undefined) {
+      throw new Error("Nothing to change. Give --method, --date, " +
+        "--occurrence, --window, an address, --cooler, --gate, --phone " +
+        "or --notes.");
+    }
+
+    const opts = {
+      noSquare: !!flags["no-square"] && flags["no-square"] !== "false",
+    };
+    const planned = await planAmend(stores, rest[0], body, opts);
+
+    if (!planned.ok) {
+      throw new Error(Object.values(planned.errors).join(" "));
+    }
+
+    const { plan } = planned;
+
+    out(summaryLine(plan.order));
+    out(`Before: ${plan.before}\nAfter:  ${plan.after}`);
+    for (const w of plan.warnings) out(`Overrides a customer rule: ${w}`);
+    out("Side effects:");
+    out(`  email    ${plan.effects.email}`);
+    out(`  square   ${plan.effects.square}`);
+    out(`  stock    ${plan.effects.stock}`);
+    out(`  money    ${plan.effects.money}`);
+    out(`  history  ${plan.effects.history.join("; ")}`);
+    if (flags["dry-run"]) return out("--dry-run: nothing was changed.");
+
+    const done = await applyAmend(stores, plan, {
+      force: !!flags.force && flags.force !== "false",
+    });
+
+    if (!done.ok) {
+      throw new Error(done.refused === "money"
+        ? `${done.message} Nothing was applied; use --force to apply the ` +
+          "record without moving money."
+        : done.message);
+    }
+
+    out("Done:");
+    out(`  email    ${done.report.email}`);
+    out(`  square   ${done.report.square}`);
+    out(`  history  farm.changed`);
+
+    return out(summaryLine(done.order));
+  }
   case "orders fulfil":
   case "orders fulfill":
-    return out(summaryLine(await admin.fulfilOrder(stores, rest[0])));
+    return out(summaryLine(await admin.fulfillOrder(stores, rest[0])));
   case "orders delete":
     await admin.removeOrder(stores, rest[0]);
 
     return out(`Deleted ${rest[0]}.`);
+  case "refunds check": {
+    const r = await checkRefunds(stores);
+    const line = (word, x) => out(`${word.padEnd(10)}${x.id}  ${
+      dollars(x.amount)}  ${x.via || "no id"} ${x.refund || ""}  ${
+      (x.at || "").slice(0, 10)}  ${x.status || x.error || ""}`);
+
+    for (const x of r.failed) line("FAILED", x);
+    for (const x of r.stalled) line("STALLED", x);
+    for (const x of r.errors) line("ERROR", x);
+    for (const x of r.pending) line("pending", x);
+    for (const x of r.completed) line("settled", x);
+
+    return out(r.checked ? `Checked ${r.checked}.`
+      : "Every refund has settled.");
+  }
   case "returns resolve":
     return out(summaryLine(await admin.resolveReturn(stores, rest[0],
       rest[1], {
         note: rest.slice(2).join(" "),
         outcome: flags.outcome || "resolved",
       })));
-  case "venmo list": {
-    const list = await allPayments(stores);
-
-    for (const v of list) {
-      out(`${v.at.slice(0, 16)}  ${dollars(v.cents).padStart(8)}  ${
-        v.payer}  "${v.note}"  ${v.orderId || "-"}  ${
-        v.matched ? "applied" : "unmatched"}  ${v.transactionId}`);
-    }
-    if (!list.length) out("No Venmo payments seen.");
-
-    return undefined;
-  }
   case "stock list":
     return out(await admin.stockList(stores));
   case "stock set":
     return out(await admin.stockSet(stores, rest[0], rest[1]));
+  case "audience invite": {
+    if (!rest[0]) throw new Error("Which CSV? bin/nff audience invite <csv>");
+
+    const rows = parseCsv(readFileSync(rest[0], "utf8"));
+
+    return out(await inviteSubscribers(stores, rows, {
+      dryRun: !!flags["dry-run"],
+    }));
+  }
+  case "audience sync":
+    return out(await syncAudience(stores, { dryRun: !!flags["dry-run"] }));
+  case "schedule check": {
+    const checked = checkedSchedule(rest[0]);
+
+    return out(checked.summary);
+  }
+  case "schedule set": {
+    if (!context || context === "preview") {
+      throw new Error("Say which: --staging or --production.");
+    }
+
+    const checked = checkedSchedule(rest[0]);
+    // Staging is the staging branch's deploys.
+    const targets = context === "production"
+      ? ["production"] : ["branch:staging"];
+
+    await setSchedule(netlify, checked.value, targets,
+      process.env.NETLIFY_SITE_ID);
+    out(checked.summary);
+    out(`Set PICKUP_SCHEDULE for ${targets.join(" and ")} on site ${
+      process.env.NETLIFY_SITE_ID}, and read it back.`);
+
+    // The functions read the variable as of their deploy.
+    const hook = process.env.PICKUP_SCHEDULE_HOOK;
+
+    if (!hook) {
+      return out("Now deploy for it to take effect: Netlify, Deploys, " +
+        "Trigger deploy (or PICKUP_SCHEDULE_HOOK, a build hook, in the " +
+        "env file does it from here).");
+    }
+
+    const res = await fetch(hook, { method: "POST" });
+
+    if (!res.ok) throw new Error(`The build hook answered ${res.status}.`);
+
+    return out("Deploy started. It fails, and the last good one stays " +
+      "live, if the schedule doesn't pass there either.");
+  }
+  case "passes issue": {
+    const email = typeof flags.email === "string" ? flags.email : null;
+    const standing = flags.standing === true;
+    const waiveFee = flags["waive-fee"] === true;
+    let days = passes.PASS_DAYS;
+
+    if (flags.days !== undefined) days = Number(flags.days);
+    else if (standing) days = null;
+
+    const pass = await passes.issuePass(stores, {
+      email, days, standing, waiveFee,
+      note: typeof flags.note === "string" ? flags.note : "",
+    });
+    const what = waiveFee ? "the delivery minimum and fee"
+      : "the delivery minimum";
+    const which = standing ? "every order" : "one order";
+    const until = pass.expiresAt ? `, until ${pass.expiresAt.slice(0, 10)}`
+      : ", until revoked";
+
+    return out(`${pass.code}  lifts ${what} on ${which}${
+      pass.email ? ` from ${pass.email}` : ""}${until}.`);
+  }
+  case "passes list": {
+    const list = await passes.listPasses(stores);
+
+    for (const p of list) {
+      out(`${p.code}  ${passes.passState(p)}  ${p.email || "any email"}${
+        p.note ? `  ${p.note}` : ""}`);
+    }
+    if (!list.length) out("No passes.");
+
+    return undefined;
+  }
+  case "passes revoke":
+    return out(`Revoked ${(await passes.revokePass(stores, rest[0])).code}.`);
   case "jobs run":
     return out(await runJobs(stores));
+  case "jobs square": {
+    const apply = !!flags.apply;
+    const paused = await square.deletionsPaused(stores);
+
+    // The kill switch stops a cancel asked for here too (#241).
+    if (apply && paused) {
+      throw new Error("The Square deletion kill switch is set: the " +
+        "cleanups are paused, so --apply cancels nothing. Run bin/nff " +
+        "square deletions status to see why.");
+    }
+
+    const found = await sweepSquareOrders(stores, { cancel: apply });
+
+    if (!found) return out("Square is not configured here.");
+    for (const o of found) {
+      out(`${o.createdAt.slice(0, 16)}  ${o.orderId}  ${o.squareOrderId}  ${
+        dollars(o.total)}  ${o.error ? `error: ${o.error}`
+        : o.cancelled ? "canceled" : o.later ? "next run"
+          : apply ? "left (paid or closed)" : "open"}`);
+    }
+
+    return out(`${found.length} left open.${apply ? ""
+      : paused ? " This is only a report: the Square deletion kill " +
+        "switch is set, so the daily sweep cancels nothing."
+        : " This is only a report; --apply cancels them."}`);
+  }
+  case "jobs customers": {
+    const apply = !!flags.apply;
+    const paused = await square.deletionsPaused(stores);
+
+    // The kill switch stops a delete asked for here too (#236).
+    if (apply && paused) {
+      throw new Error("The Square deletion kill switch is set: the " +
+        "cleanups are paused, so --apply deletes nothing. Run bin/nff " +
+        "square deletions status to see why.");
+    }
+
+    const found = await sweepMadeCustomers(stores, { remove: apply });
+
+    if (!found) return out("Square is not configured here.");
+    for (const c of found) {
+      out(`${c.at.slice(0, 16)}  ${c.orderId}  ${c.customerId}  ${
+        c.error ? `error: ${c.error}` : c.deleted ? "deleted"
+          : c.later ? "next run" : "unpaid"}`);
+    }
+
+    return out(`${found.length} profiles made for payments that never ` +
+      `went through.${apply ? ""
+        : paused ? " This is only a report: the Square deletion kill " +
+          "switch is set, so the daily sweep deletes nothing."
+          : " This is only a report; --apply deletes them."}`);
+  }
   case "jobs history": {
     const n = Number(flags.n) || 20;
     const runs = await runsSince(stores, new Date(0));
@@ -248,9 +1365,16 @@ const run = async () => {
     for (const r of runs.slice(0, n)) {
       const bad = (r.errors || []).length + (r.invariants || []).length;
 
-      out(`${r.at.slice(0, 16)}  ${bad ? "FAIL" : "ok  "}  paid ${
-        r.counts.paid}  reminded ${r.counts.reminded}  abandoned ${
-        r.counts.abandoned}  closed ${r.counts.closed}${
+      const c = r.counts || {};
+
+      out(`${r.at.slice(0, 16)}  ${bad ? "FAIL" : "ok  "}  reminded ${
+        c.deliveryReminded ?? 0}  closed ${c.closed ?? 0}  synced ${
+        c.squareSynced ?? 0}  told ${c.missedTold ?? 0}  held ${
+        c.holdsExpired ?? 0}  pickups ${
+        c.pickupsToConfirm ?? 0}  swept ${
+        r.checkoutsSwept ?? 0}  signins ${r.authSwept ?? 0}  scrubbed ${
+        c.scrubbed ?? 0}  open ${c.squareOpen ?? 0}  profiles ${
+        c.customersMade ?? 0}${
         (r.errors || []).map((e) => `\n    error ${e.id || "-"}: ${e.error}`)
           .join("")}${(r.invariants || []).map((v) =>
         `\n    invariant ${v.rule}: ${v.id}`).join("")}`);
@@ -261,6 +1385,128 @@ const run = async () => {
   }
   case "health":
     return out(await snapshot(stores));
+  case "alert test": {
+    const r = await alertTest(stores);
+    const host = new URL(process.env.HEALTHCHECKS_ALERT_URL).host;
+
+    out(`Alert test (alert.test) on ${process.env.SITE_CONTEXT}.`);
+    if (r.delivered) {
+      out(`  Email: sent to ${r.to.join(", ")} (MAIL_DRIVER ${r.driver}).`);
+    } else if (r.status === "sent") {
+      out(`  Email: logged only, not sent (MAIL_DRIVER ${r.driver}; ` +
+        "resend or outbox delivers).");
+    } else {
+      out(`  Email: NOT sent: ${r.mailError || "no recipients"}.`);
+    }
+    out(`  Phone: /fail ${r.failed ? "accepted" : "NOT accepted"} by ${
+      host}; re-arm ${r.rearmed ? "accepted" : "NOT accepted"}.`);
+    out(r.failed && r.rearmed
+      ? "  A down push, then an up push, should reach the phone within a " +
+        "minute."
+      : "  The phone will not hear of this one.");
+    if (!r.delivered || !r.failed || !r.rearmed) process.exitCode = 1;
+
+    return undefined;
+  }
+  case "mail test-dev": {
+    const r = await admin.devMailTest(stores);
+    const where = process.env.SITE_CONTEXT || "this context";
+
+    out(`Developer mail test on ${where} (MAIL_DRIVER ${r.driver}).`);
+    if (r.delivered) {
+      out(`  Sent to ${r.variable} (${r.count} address${
+        r.count === 1 ? "" : "es"}). Check the inbox.`);
+    } else if (!r.error) {
+      out(`  Logged only, not sent: MAIL_DRIVER ${r.driver} writes the ` +
+        "message where nobody reads it (resend or outbox delivers).");
+    } else {
+      out(`  FAILED: ${r.variable} ${r.error}.`);
+    }
+    if (!r.delivered) process.exitCode = 1;
+
+    return undefined;
+  }
+  case "square deletions": {
+    const what = rest[0] || "status";
+
+    if (what === "pause" || what === "resume") {
+      const r = await square.setPause(stores, what === "pause", {
+        by: "bin/nff",
+      });
+
+      out(r.changed
+        ? `Square deletions are now ${r.paused ? "PAUSED" : "running"} on ${
+          process.env.SITE_CONTEXT}. The next jobs run reads it.`
+        : `Square deletions were already ${
+          r.paused ? "paused" : "running"}.`);
+    } else if (what !== "status") {
+      throw new Error("Say status, pause or resume.");
+    }
+
+    const flag = await square.readPause(stores);
+    const env = square.envPaused();
+
+    return out(`Flag: ${flag.unreadable ? "unreadable, so paused"
+      : flag.paused ? `paused (since ${flag.at} by ${flag.by})`
+        : "not set"}. ${square.KILL_SWITCH} in this env file: ${
+      env ? "set" : "unset"} (Netlify's takes effect at a deploy). ` +
+      `Cleanups ${flag.paused || env ? "PAUSED" : "run"}.`);
+  }
+  case "maintenance status": {
+    const s = await maintenance.readState(stores);
+
+    return out(`Maintenance is ${s.on ? "ON" : "off"} on ${
+      process.env.SITE_CONTEXT}${s.at ? ` (since ${s.at} by ${s.by})` : ""}.`
+      + `${process.env.MAINTENANCE_SECRET ? "" : " MAINTENANCE_SECRET is not"
+        + " set, so there are no phone links."}`);
+  }
+  case "maintenance on":
+  case "maintenance off": {
+    const on = action === "on";
+    const r = await maintenance.setState(stores, on, { by: "bin/nff" });
+
+    return out(r.changed
+      ? `Maintenance is now ${on ? "ON" : "off"} on ${
+        process.env.SITE_CONTEXT}. The farm was emailed.`
+      : `Maintenance was already ${on ? "ON" : "off"}.`);
+  }
+  case "maintenance links": {
+    const s = await maintenance.readState(stores);
+    const l = maintenance.links(process.env, s.epoch);
+
+    if (!l) throw new Error("MAINTENANCE_SECRET is not set in this env file.");
+    out(`Open on the phone; each asks before it acts.\nON:  ${l.on}\nOFF: ${
+      l.off}`);
+
+    return undefined;
+  }
+  case "maintenance rotate": {
+    const s = await maintenance.rotate(stores);
+
+    return out(`Every earlier link is dead (epoch ${s.epoch}). Run ` +
+      "`maintenance links` for the new ones.");
+  }
+  case "sessions end-all": {
+    const where = process.env.SITE_CONTEXT || "this";
+    const { count } = await admin.endAllSessions(stores);
+
+    out(`${count} session${count === 1 ? "" : "s"} on ${where}.`);
+    if (!flags.yes) {
+      const answer = await askLine(
+        `End every session on ${where}? Type "end all" to go ahead: `
+      );
+
+      if (answer.trim() !== "end all") return out("Nothing changed.");
+    }
+
+    const r = await admin.endAllSessions(stores, { apply: true });
+
+    return out(`Ended ${r.count}. ${r.notified
+      ? "The developer was emailed."
+      : "No DEV_NOTIFICATIONS_EMAIL, so no email."}`);
+  }
+  case "errors show":
+    return errorsShow(rest[0]);
   default:
     console.error(USAGE);
     process.exit(1);
@@ -272,6 +1518,6 @@ const run = async () => {
 try {
   await run();
 } catch (error) {
-  console.error(error.message);
+  console.error(redact(error.message, held));
   process.exit(1);
 }

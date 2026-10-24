@@ -82,15 +82,22 @@ module.exports = [
     },
   },
   {
-    // Square's request and response bodies are snake_case.
-    "files": ["netlify/functions/lib/square.mjs", "test/square.test.mjs"],
+    // Square's, PayPal's and Netlify's request and response bodies are
+    // snake_case.
+    "files": [
+      "netlify/functions/lib/square.mjs", "test/square.test.mjs",
+      "netlify/functions/lib/paypal.mjs", "test/paypal.test.mjs",
+      "netlify/functions/paypal-webhook.mjs", "test/checkout.test.mjs",
+      "test/payments.test.mjs", "test/fake.test.mjs", "test/webhooks.test.mjs",
+      "test/sourcemaps.test.mjs",
+    ],
     "rules": {
       "camelcase": ["error", { "properties": "never" }],
     },
   },
   {
-    // The CLI has no extension; it is an ES module all the same.
-    "files": ["bin/nff"],
+    // The CLIs have no extension; they are ES modules all the same.
+    "files": ["bin/nff", "bin/gh-shot"],
     "languageOptions": {
       "sourceType": "module",
     },

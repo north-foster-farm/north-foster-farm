@@ -1,0 +1,8 @@
+{{- /*
+  /version.json: the commit this build came from (Netlify's COMMIT_REF,
+  passed in as HUGO_BUILD_SHA) and package.json's version, nothing else.
+  The staging gate opens this one path to anyone (gate-edge.mjs), so
+  never add a field here without asking whether it is safe to publish.
+*/ -}}
+{{- $pkg := readFile "package.json" | transform.Unmarshal -}}
+{{- dict "commit" (getenv "HUGO_BUILD_SHA") "version" $pkg.version | jsonify -}}

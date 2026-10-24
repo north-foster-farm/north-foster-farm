@@ -1,0 +1,4 @@
+{{/* What the last save did (#238, #344): Saving… with a spinner, Saved,
+     or why it failed. main.js sets data-save and the words; it sits
+     beside the heading of the group that changed. */}}
+<p class="account-save" data-autosave aria-live="polite">{{ partial "svg.html" (dict "src" "icons/egg-spinner" "class" "egg-spinner account-save-spin" "aria-hidden" "true" "focusable" "false") }}<span data-save-text></span></p>

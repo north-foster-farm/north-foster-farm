@@ -1,0 +1,31 @@
+{{/*
+  A post's header wherever the post is shown in full: the title
+  centered above its dateline, and no breadcrumbs (the links at the
+  foot of the post do that job). #232.
+
+  Params:
+    page   The post
+    level  The title's heading level (optional, default 1; the home
+           page, whose h1 is the hero's, passes 2)
+    link   Link the title to the post's own page (optional)
+
+  The visible title can differ from the one the tab uses: set
+  `heading` in front matter, which may carry a hand-set nowrap span
+  for a long title's last words.
+*/}}
+{{ $page := .page }}
+{{ $tag := printf "h%d" (.level | default 1) }}
+{{ $title := $page.Title }}
+{{ with $page.Params.heading }}{{ $title = . | safeHTML }}{{ end }}
+<div class="news-header text-center">
+  {{ printf "<%s class=%q>" $tag "news-header-title fst-italic fw-light" | safeHTML }}
+    {{- if .link -}}
+      <a class="news-header-link" href="{{ $page.RelPermalink }}">{{ $title }}</a>
+    {{- else -}}
+      {{ $title }}
+    {{- end -}}
+  {{ printf "</%s>" $tag | safeHTML }}
+  <time class="news-date d-block" datetime="{{ $page.Date.Format "2006-01-02" }}">
+    {{ $page.Date | time.Format "January 2, 2006" }}
+  </time>
+</div>

@@ -1,0 +1,12 @@
+{{- /* One value from a data file, so a page states what the code uses
+  (Q21b): {{< fact "accounts" "sessionDays" >}} gives 30, from
+  data/accounts.json. */ -}}
+{{- $file := index hugo.Data (.Get 0) -}}
+{{- if not $file -}}
+  {{- errorf "fact: no data file %q in %s" (.Get 0) .Position -}}
+{{- end -}}
+{{- $value := index $file (.Get 1) -}}
+{{- if eq $value nil -}}
+  {{- errorf "fact: no %q in data/%s.json in %s" (.Get 1) (.Get 0) .Position -}}
+{{- end -}}
+{{- $value -}}

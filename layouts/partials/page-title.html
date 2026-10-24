@@ -4,6 +4,9 @@
   {{ $title = print .Site.Title }}
 {{ else if (eq .RelPermalink "/404.html") }}
   {{ $title = print "404" }}
+{{ else if and .IsSection (eq .Section "news") (gt .Paginator.PageNumber 1) }}
+  {{/* The list's later pages would repeat the first's title. */}}
+  {{ $title = print .Title ", page " .Paginator.PageNumber }}
 {{ else }}
   {{ $title = print .Title }}
 {{ end }}

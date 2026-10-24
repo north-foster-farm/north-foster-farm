@@ -1,0 +1,57 @@
+{{/* The account slot: a Sign in link, or the Account menu, settled
+     by session.js once /api/me answers. Used twice in the header row:
+     with the links from md up, and with the actions below md
+     (#303), where `compact` makes both an icon among the icons:
+     the words stay for screen readers. */}}
+{{ $ctx := .ctx }}
+{{ $compact := .compact }}
+<div class="site-account skeleton-slot dropdown{{ if $compact }} is-compact{{ end }}" data-account>
+  {{/* The Sign in link's place while /api/me is slow (#271). */}}
+  {{ partial "skeleton.html" (dict "over" true) }}
+  {{ partial "skeleton/status.html" (dict "quiet" true) }}
+  <a class="site-nav-link site-signin" href="{{ relURL "login/" }}" data-account-signin {{- if $ctx.onLogin }} aria-current="page" {{ end }}>
+    {{- if $compact -}}
+      <span class="site-account-icon" aria-hidden="true">{{ partial "svg.html" "icons/account" }}</span><span class="visually-hidden">Sign in</span>
+    {{- else -}}
+      Sign in
+    {{- end -}}
+  </a>
+  {{/* The customer's chicken is the button, in place of the word
+       (#347); none chosen, the brown hen the account page shows.
+       The word stays for screen readers. The compact button has no
+       caret, like the cart beside it. */}}
+  <button class="site-nav-link site-account-btn" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" data-account-menu hidden>
+    {{ partial "svg.html" (dict "use" "avatar-hen-brown" "class" "site-account-chick" "aria-hidden" "true" "focusable" "false" "data-account-chick" "" "hidden" "") }}
+    {{ if $compact }}
+      <span class="site-account-icon" aria-hidden="true">{{ partial "svg.html" "icons/account" }}</span>
+      <span class="visually-hidden">Account</span>
+    {{ else }}
+      <span class="visually-hidden">Account</span>
+      <span class="site-nav-caret" aria-hidden="true">{{ partial "svg.html" "icons/chevron-down" }}</span>
+    {{ end }}
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end site-account-menu">
+    <li>
+      <a class="dropdown-item" href="{{ relURL "account/" }}#orders">
+        <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/orders" }}</span>
+        Your orders
+      </a>
+    </li>
+    <li>
+      <a class="dropdown-item" href="{{ relURL "account/" }}#receipts">
+        <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/receipt" }}</span>
+        Receipts
+      </a>
+    </li>
+    <li>
+      <a class="dropdown-item" href="{{ relURL "account/" }}#settings">
+        <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/account" }}</span>
+        Settings
+      </a>
+    </li>
+    <li><hr class="dropdown-divider"></li>
+    <li>
+      {{ partial "busy-button.html" (dict "label" "Sign out" "busy" "Signing out" "class" "dropdown-item" "type" "button" "plain" true "start" true "icon" "icons/sign-out" "iconClass" "site-menu-icon" "attrs" (dict "data-account-signout" "") "error" true) }}
+    </li>
+  </ul>
+</div>

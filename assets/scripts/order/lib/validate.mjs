@@ -2,10 +2,14 @@
 // guidance, but this is the gate: nothing the client claims about
 // money or dates is trusted.
 
-import { datesFor } from "./dates.mjs";
+import { archived } from "./catalog.mjs";
+import { datesFor, occurrenceFor } from "./dates.mjs";
+import { legacyOccurrence } from "./events.mjs";
+import { moneyOn } from "./money-on.mjs";
 import { computeTotals, meetsMinimum } from "./totals.mjs";
+import { today } from "./zoned.mjs";
 
-export const METHODS = ["onfarm", "scituate", "delivery"];
+export const METHODS = ["onfarm", "scheduled", "delivery"];
 export const CONTACT = ["text", "call"];
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -49,15 +53,53 @@ export const disallowedFor = (lines, state) => {
   return lines.filter((line) => !state.onlyGroups.includes(line.groupKey));
 };
 
+// The typed code, normalised: upper case, letters and digits only.
+export const normalizeCode = (value) =>
+  text(value, 40).toUpperCase().replace(/[^A-Z0-9-]/g, "");
+
+// The entry for a typed code, or null. Unknown codes are harmless:
+// the order goes through without one, and the page says so.
+export const findCode = (value, codes) => {
+  const wanted = normalizeCode(value);
+
+  if (!wanted) return null;
+
+  const found = (codes || []).find((c) => normalizeCode(c.code) === wanted);
+
+  return found ? { ...found, code: wanted } : null;
+};
+
 // Returns { ok: true, order } or { ok: false, status, errors, dates? }.
 // `group` is the signed-in customer's discount group, never the
-// payload's: the server decides who gets it.
-export const validateOrder = (payload, { index, terms, now, group }) => {
+// payload's: the server decides who gets it. `codes` is the list of
+// discount codes, on the server; the page, which has no list, passes
+// the entry it resolved as `code`. `schedule` is the farm's parsed
+// pickup windows (lib/schedule.mjs): the functions read them from the
+// environment, the page from /api/dates.
+// `held`, for a paid order being changed, is { [sku]: qty } of what it
+// already holds: a line that sold out or was archived since may keep
+// up to that many, and never gain (6305650920).
+// `farm` is the farm's own change from the CLI: it may book any
+// occurrence of a series that isn't archived, whatever the pickup
+// schedule has opened.
+// `kept` is the occurrence the order already holds: the customer's own
+// edit may keep it, though no customer could choose it now.
+// `waive.minimum` lets a delivery under the minimum through, and
+// `waive.fee` takes the delivery fee off: the caller has checked the
+// customer's pass (lib/passes.mjs, #182), and the order says it used
+// one in `flags.minimumWaived` and `totals.feeWaived`.
+export const validateOrder = (payload, {
+  index, terms, now, group, codes, code, schedule = [], held = {},
+  waive = {}, placed = null, farm = false, kept = null,
+}) => {
   const errors = {};
   const p = payload && typeof payload === "object" ? payload : {};
+  const discountCode = codes ? findCode(p.code, codes) : code || null;
   const customer = p.customer || {};
   const fulfilment = p.fulfilment || {};
-  const money = terms.money;
+  // An order being changed keeps the prices of the day it was placed.
+  const money = moneyOn(terms.money,
+    today(placed ? new Date(placed) : now, terms.timeZone));
 
   const firstName = text(customer.firstName, 60);
   const lastName = text(customer.lastName, 60);
@@ -67,6 +109,9 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
   const email = text(customer.email, 254).toLowerCase();
   const phone = text(customer.phone, 40);
   const contact = text(customer.contact, 10);
+  // The farm-news box. Only a ticked box means anything: it opts the
+  // customer in; unticked leaves the record as it was.
+  const marketing = customer.marketing === true;
 
   if (!firstName) {
     errors["customer.firstName"] = "Please enter your first name.";
@@ -75,8 +120,12 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
   if (!EMAIL.test(email)) {
     errors["customer.email"] = "That email address doesn't look right.";
   }
+  // Delivery needs a phone for the driver; pickup and the drop site
+  // can do without. A number given must be one we could use.
   if (!phone) {
-    errors["customer.phone"] = "Please enter a phone number.";
+    if (fulfilment.method === "delivery") {
+      errors["customer.phone"] = "Please enter a phone number.";
+    }
   } else if (!phoneOk(phone)) {
     errors["customer.phone"] = "That phone number doesn't look right.";
   }
@@ -99,8 +148,10 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
       errors[`lines.${sku}`] = "Quantities are whole numbers from 1 to 99.";
       continue;
     }
-    if (!item.inStock) {
-      errors[`lines.${sku}`] = `${item.groupName}, ${item.label} is sold out.`;
+    if ((!item.inStock || archived(item)) && qty > (held[sku] || 0)) {
+      errors[`lines.${sku}`] = archived(item)
+        ? `${item.lineName} is not available.`
+        : `${item.lineName} is sold out.`;
       continue;
     }
 
@@ -113,34 +164,67 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
     errors.lines = "Add at least one item.";
   }
 
-  const method = text(fulfilment.method, 20);
+  // A page from before the model posts `scituate`, or `market` and a
+  // site, with a date: the same occurrence, named the old way.
+  const posted = text(fulfilment.method, 20);
+  const method = posted === "scituate" || posted === "market"
+    ? "scheduled" : posted;
 
   if (!METHODS.includes(method)) {
     errors["fulfilment.method"] = "Choose how you'd like to get your order.";
   }
 
-  const totals = computeTotals({ lines, method, index, money, group });
+  // A scheduled pickup names its occurrence; the date check below holds
+  // a customer to the ones the pickup schedule has opened.
+  const occurrence = method !== "scheduled" ? null
+    : posted === "scheduled" ? text(fulfilment.occurrence, 20)
+      : legacyOccurrence(terms.model, posted, text(fulfilment.site, 40),
+        text(fulfilment.date, 10)) || "";
+
+  if (method !== "scheduled" && text(fulfilment.occurrence, 20)) {
+    errors["fulfilment.occurrence"] = "Choose where you'd like to pick up.";
+  }
+
+  // The ZIP's status feeds the totals (an unlisted Rhode Island ZIP
+  // adds the outside-area fee) before the delivery block reads it.
+  const zipStatus = method === "delivery"
+    ? zipInfo((fulfilment.delivery || {}).zip, terms.area).status
+    : null;
+  const totals = computeTotals({
+    lines, method, index, money, group, code: discountCode, zipStatus,
+    waiveFee: !!waive.fee,
+  });
   const out = {
-    customer: { firstName, lastName, name, email, phone, contact }, method,
+    customer: {
+      firstName, lastName, name, email, phone, contact, marketing,
+    },
+    method,
   };
 
   if (method === "onfarm") {
     const f = fulfilment.onfarm || {};
     const window = text(f.window, 20);
 
-    if (!["morning", "afternoon"].includes(window)) {
-      errors["onfarm.window"] = "Morning or afternoon?";
-    }
+    if (!window) errors["onfarm.window"] = "Choose a pickup time.";
     out.onfarm = { window };
+  }
+
+  // Nothing is chosen for the customer: a scheduled pickup without its
+  // occurrence is incomplete, like an on-farm pickup without its time.
+  if (method === "scheduled" && posted === "scheduled" && !occurrence) {
+    errors["fulfilment.occurrence"] = "Choose a pickup day and place.";
   }
 
   if (method === "delivery") {
     const f = fulfilment.delivery || {};
 
-    if (!meetsMinimum(totals, money)) {
+    // A pass is used only when the order needs it.
+    if (!meetsMinimum(totals, money) && waive.minimum) {
+      out.minimumWaived = true;
+    } else if (!meetsMinimum(totals, money)) {
       errors["delivery.minimum"] =
         `Delivery orders are $${money.deliveryMinimum} or more after ` +
-        "discounts. On-farm pickup and the Scituate drop site have no " +
+        "discounts. On-farm pickup and scheduled pickup have no " +
         "minimum.";
     }
 
@@ -174,11 +258,31 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
   }
 
   // The chosen date must still be valid now, not when the page loaded.
-  if (METHODS.includes(method)) {
-    const dates = datesFor(method, now, terms);
-    const date = text(fulfilment.date, 10);
+  // A scheduled pickup with nothing chosen has no date to hold yet: the
+  // error above is all there is to say, not a lapsed pickup.
+  const unchosen = method === "scheduled" && posted === "scheduled"
+    && !occurrence;
 
-    if (!dates.some((d) => d.date === date)) {
+  if (METHODS.includes(method) && !unchosen) {
+    const dates = datesFor(method, now, terms, schedule, farm);
+    const date = text(fulfilment.date, 10);
+    // The occurrence an order already holds stays valid for the
+    // customer's own edit of it, though no longer offered to choose.
+    const holding = method === "scheduled" && occurrence === kept
+      ? occurrenceFor(terms, occurrence) : null;
+    const day = method === "scheduled"
+      ? (dates.find((d) => d.occurrence === occurrence)
+        || (holding && { date: holding.date }))
+      : dates.find((d) => d.date === date);
+    // A date sent with an occurrence must be the occurrence's own.
+    const mismatch = method === "scheduled" && day && date
+      && date !== day.date && posted === "scheduled";
+    // A pickup time the schedule no longer has is as stale as a closed
+    // date: 409 with the fresh list, so the page can offer the rest.
+    const gone = method === "onfarm" && day && out.onfarm.window
+      && !day.windows.some((w) => w.id === out.onfarm.window);
+
+    if (gone) {
       const status = Object.keys(errors).length ? 422 : 409;
 
       return {
@@ -186,12 +290,35 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
         status,
         errors: {
           ...errors,
-          "fulfilment.date": "That date is no longer available.",
+          "onfarm.window": "That pickup time is no longer available.",
         },
         dates,
       };
     }
-    out.date = date;
+    if (!day || mismatch) {
+      const status = Object.keys(errors).length ? 422 : 409;
+
+      return {
+        ok: false,
+        status,
+        errors: {
+          ...errors,
+          ...method === "scheduled"
+            ? { "fulfilment.occurrence": "That pickup is no longer " +
+              "available." }
+            : { "fulfilment.date": "That date is no longer available." },
+        },
+        dates,
+      };
+    }
+    out.date = day.date;
+
+    // The window's own times go on the record, so everything after
+    // (Square, the emails, the CLI) reads them without the schedule.
+    const w = method === "onfarm"
+      && day.windows.find((x) => x.id === out.onfarm.window);
+
+    if (w) out.onfarm = { window: w.id, from: w.from, to: w.to };
   }
 
   if (Object.keys(errors).length) return { ok: false, status: 422, errors };
@@ -203,23 +330,26 @@ export const validateOrder = (payload, { index, terms, now, group }) => {
       fulfilment: {
         method,
         date: out.date || null,
+        ...occurrence && { occurrence },
         onfarm: out.onfarm || null,
         delivery: out.delivery || null,
       },
       lines: lines.map(({ sku, qty, item }) => ({
         sku,
-        label: `${item.groupName}, ${item.label}`,
-        name: item.name,
+        label: item.lineName,
+        name: item.squareName,
         unitPrice: item.price,
         qty,
         lineTotal: qty * item.price,
         squareVariationId: item.squareVariationId || null,
       })),
       totals,
+      code: totals.discountCode,
       notes: text(p.notes, 2000),
       source: text(p.source, 100),
       flags: {
         zipUnlisted: !!(out.delivery && out.delivery.zipStatus === "unlisted"),
+        minimumWaived: !!out.minimumWaived,
         totalMismatch: Number(p.claimedTotal) !== totals.total,
       },
     },

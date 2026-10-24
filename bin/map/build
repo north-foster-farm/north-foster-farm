@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Rebuild data/map.json, the delivery map, from the Census 2020
+# cartographic boundary files: every ZIP code area (ZCTA) in the
+# frame, simplified together so neighbours share their edges exactly,
+# the state lines drawn from those same edges, and each ZIP's town
+# from the Census ZCTA-to-town relationship file. Run it from the
+# repository root when the delivery area or the frame changes:
+#
+#   bin/map/build
+#
+# Needs curl, unzip and Node; mapshaper comes through npx.
+set -euo pipefail
+
+# The frame: Rhode Island's mainland and the Connecticut border towns.
+# Block Island falls outside it.
+west=-72.02 south=41.30 east=-71.10 north=42.03
+bbox="$west,$south,$east,$north"
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+geo=https://www2.census.gov/geo
+zcta=cb_2020_us_zcta520_500k
+curl -fsSL -o "$work/$zcta.zip" "$geo/tiger/GENZ2020/shp/$zcta.zip"
+unzip -q -o "$work/$zcta.zip" -d "$work/$zcta"
+curl -fsSL -o "$work/towns.txt" \
+  "$geo/docs/maps-data/data/rel2020/zcta520/tab20_zcta520_cousub20_natl.txt"
+
+# One layer, one topology: Massachusetts (01, 020-027), Rhode Island
+# (028-029) and Connecticut (06) ZIPs, clipped to the frame.
+npx -y mapshaper@0.7 \
+  -i "$work/$zcta/$zcta.shp" name=zips \
+  -filter '/^0[126]/.test(ZCTA5CE20)' \
+  -clip bbox="$bbox" \
+  -each 'zip = ZCTA5CE20;
+    state = /^02[89]/.test(zip) ? "RI" : /^06/.test(zip) ? "CT" : "MA"' \
+  -filter-fields zip,state \
+  -simplify 30% keep-shapes \
+  -o "$work/zips.json" format=geojson precision=0.0001 \
+  -innerlines where='A.state !== B.state' + name=borders \
+  -o "$work/borders.json" format=geojson precision=0.0001 \
+  -points inner target=zips + name=centres \
+  -o "$work/centres.json" format=geojson precision=0.0001
+
+node bin/map/project.mjs "$west" "$south" "$east" "$north" \
+  "$work/zips.json" "$work/borders.json" "$work/centres.json" \
+  "$work/towns.txt" data/delivery.json \
+  > data/map.json
+echo "data/map.json: $(wc -c data/map.json | awk '{print $1}') bytes"

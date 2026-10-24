@@ -1,0 +1,38 @@
+[
+  {
+    "package": "fast-uri",
+    "advisory": "GHSA-w74x-v6f9-j3xg",
+    "why": "fast-uri 3.1.9 fixes it, but it was published 2026-10-19 23:05 UTC and check:supply holds it until 2026-10-26 23:05 UTC (the 7-day cooldown), so the lockfile cannot take it yet. reraisedFor names 2.4.8, the first patched line the check reports; the 3.x fix is 3.1.9.",
+    "exposure": "Development only: stylelint reaches fast-uri through table and ajv. Nothing shipped to the browser or the Netlify functions uses it, and no customer or request input reaches it.",
+    "plan": "Bump fast-uri to 3.1.9 after 2026-10-26 23:05 UTC and drop this exception (north-foster-farm#330). Expires 2026-10-27.",
+    "reraisedFor": "2.4.8",
+    "approved": "James, 2026-10-24, north-foster-farm#330"
+  },
+  {
+    "package": "fast-uri",
+    "advisory": "GHSA-wjr9-j795-jxcr",
+    "why": "fast-uri 3.1.9 fixes it, but it was published 2026-10-19 23:05 UTC and check:supply holds it until 2026-10-26 23:05 UTC (the 7-day cooldown), so the lockfile cannot take it yet. reraisedFor names 2.4.8, the first patched line the check reports; the 3.x fix is 3.1.9.",
+    "exposure": "Development only: stylelint reaches fast-uri through table and ajv. Nothing shipped to the browser or the Netlify functions uses it, and no customer or request input reaches it.",
+    "plan": "Bump fast-uri to 3.1.9 after 2026-10-26 23:05 UTC and drop this exception (north-foster-farm#330). Expires 2026-10-27.",
+    "reraisedFor": "2.4.8",
+    "approved": "James, 2026-10-24, north-foster-farm#330"
+  },
+  {
+    "package": "fast-uri",
+    "advisory": "GHSA-xhq7-xmqj-769h",
+    "why": "fast-uri 3.1.9 fixes it, but it was published 2026-10-19 23:05 UTC and check:supply holds it until 2026-10-26 23:05 UTC (the 7-day cooldown), so the lockfile cannot take it yet. reraisedFor names 2.4.8, the first patched line the check reports; the 3.x fix is 3.1.9.",
+    "exposure": "Development only: stylelint reaches fast-uri through table and ajv. Nothing shipped to the browser or the Netlify functions uses it, and no customer or request input reaches it.",
+    "plan": "Bump fast-uri to 3.1.9 after 2026-10-26 23:05 UTC and drop this exception (north-foster-farm#330). Expires 2026-10-27.",
+    "reraisedFor": "2.4.8",
+    "approved": "James, 2026-10-24, north-foster-farm#330"
+  },
+  {
+    "package": "fast-uri",
+    "advisory": "GHSA-333x-w4r6-6crp",
+    "why": "fast-uri 3.1.9 fixes it, but it was published 2026-10-19 23:05 UTC and check:supply holds it until 2026-10-26 23:05 UTC (the 7-day cooldown), so the lockfile cannot take it yet. reraisedFor names 2.4.8, the first patched line the check reports; the 3.x fix is 3.1.9.",
+    "exposure": "Development only: stylelint reaches fast-uri through table and ajv. Nothing shipped to the browser or the Netlify functions uses it, and no customer or request input reaches it.",
+    "plan": "Bump fast-uri to 3.1.9 after 2026-10-26 23:05 UTC and drop this exception (north-foster-farm#330). Expires 2026-10-27.",
+    "reraisedFor": "2.4.8",
+    "approved": "James, 2026-10-24, north-foster-farm#330"
+  }
+]

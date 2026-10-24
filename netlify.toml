@@ -1,38 +1,67 @@
 [build]
 publish = "public"
-command = "npm run deploy && hugo --gc"
+command = "npm run check:env && npm run check:schedule && npm run check:events && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc && npm run build:orphans && npm run check:grid && npm run check:schema && npm run check:fresh && npm run check:news"
 
 [build.environment]
 HUGO_VERSION = "0.164.0"
-NODE_VERSION = "26"
+NODE_VERSION = "26.12.0"
 HUGO_ENV = "production"
 HUGO_ENABLEGITINFO = "true"
 
 [context.deploy-preview]
-command = "npm run deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL"
+command = "npm run check:env && npm run check:schedule && npm run check:events && node bin/install-gate.mjs && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL && npm run build:orphans && npm run check:grid && npm run check:schema && npm run check:fresh && npm run check:news"
 
 [context.branch-deploy]
-command = "npm run deploy && hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL"
+command = "npm run check:env && npm run check:schedule && npm run check:events && node bin/install-gate.mjs && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc --buildDrafts --buildExpired --buildFuture -b $DEPLOY_PRIME_URL && npm run build:orphans && npm run check:grid && npm run check:schema && npm run check:fresh && npm run check:news"
+
+# After the build, before the upload: the source maps go into Blobs,
+# out of the site (#246; docs/monitoring.md, "Source maps").
+[[plugins]]
+package = "./plugins/source-maps"
 
 # The order form's API. Each function declares its own /api/* path.
 [functions]
 directory = "netlify/functions"
 node_bundler = "esbuild"
+# The jobs read the rotation log to remind the developer what is due
+# (netlify/functions/lib/rotation.mjs); a missing file is tolerated.
+included_files = ["docs/rotation-log.md"]
 
 # `netlify dev` runs the Hugo server and proxies the functions in
 # front of it, so /api/* is exercisable locally.
+# `npm run start:functions` overrides targetPort with a free port and
+# passes it to bin/dev as HUGO_PORT, so several can run at once (#276).
 [dev]
 command = "bin/dev"
 targetPort = 1313
 port = 8888
 publish = "public"
 framework = "#custom"
+# Agents run netlify dev often; without this it opens a browser each time.
+autoLaunch = false
 
 # One order, deep-linked from the emails about it. The account page
 # reads the id off the path; the session decides whose order it is.
 [[redirects]]
   from = "/account/orders/*"
   to = "/account/"
+  status = 200
+
+# Browsers, feed readers and link previews ask for these at the root
+# whatever the page says; the set lives in /favicons/.
+[[redirects]]
+  from = "/favicon.ico"
+  to = "/favicons/favicon.ico"
+  status = 200
+
+[[redirects]]
+  from = "/apple-touch-icon.png"
+  to = "/favicons/apple-touch-icon.png"
+  status = 200
+
+[[redirects]]
+  from = "/apple-touch-icon-precomposed.png"
+  to = "/favicons/apple-touch-icon.png"
   status = 200
 
 [[redirects]]
@@ -48,8 +77,145 @@ framework = "#custom"
   force = true
 
 [[redirects]]
+  from = "/staging"
+  to = "https://staging--north-foster-farm.netlify.app/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/staging/*"
+  to = "https://staging--north-foster-farm.netlify.app/:splat"
+  status = 302
+  force = true
+
+[[redirects]]
   from = "/venmo"
   to = "https://venmo.com/u/northfosterfarm"
+  status = 301
+  force = false
+
+# News posts moved from dated addresses to their titles'. The
+# old ones are in past newsletters and search results, so each
+# leads to its post. bin/check-news.mjs holds the new ones unique.
+[[redirects]]
+  from = "/news/2024-09-12-new-farmers-market-schedule/"
+  to = "/news/update-new-farmers-market-schedule/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2024-10-12-mid-october-update/"
+  to = "/news/mid-october-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2024-11-09-mid-november-update/"
+  to = "/news/mid-november-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2024-11-21-thanksgiving-update/"
+  to = "/news/thanksgiving-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2024-12-05-december-update/"
+  to = "/news/december-2024-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-01-19-winter-update/"
+  to = "/news/winter-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-02-08-mid-winter-update/"
+  to = "/news/mid-winter-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-04-02-spring-update/"
+  to = "/news/spring-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-05-30-june-update/"
+  to = "/news/june-2025-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-09-24-fall-update/"
+  to = "/news/fall-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-10-02-weekly-schedule-update/"
+  to = "/news/weekly-schedule-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-10-23-mid-fall-update/"
+  to = "/news/mid-fall-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-11-11-late-fall-update/"
+  to = "/news/late-fall-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2025-12-08-december-update/"
+  to = "/news/december-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2026-02-10-2026-update/"
+  to = "/news/2026-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2026-06-01-june-update/"
+  to = "/news/june-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2026-07-29-august-update/"
+  to = "/news/august-update/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2026-09-22-september-update/"
+  to = "/news/ordering-tour/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/news/2026-10-18-ordering-tour/"
+  to = "/news/ordering-tour/"
+  status = 301
+  force = true
+
+# The paper order form, retired when ordering moved onto the site. Its
+# URL was handed out directly, so it leads to the order page.
+[[redirects]]
+  from = "/order-form.pdf"
+  to = "/order/"
   status = 301
   force = false
 
@@ -78,18 +244,65 @@ framework = "#custom"
       must-revalidate
     '''
     X-Content-Type-Options = "nosniff"
-    Content-Security-Policy = '''
-      default-src 'none';
-      base-uri 'self';
-      connect-src 'self';
-      font-src 'self';
-      form-action 'self';
-      frame-ancestors 'none';
-      img-src 'self' data:;
-      manifest-src 'self';
-      script-src 'self';
-      style-src 'self';
-    '''
+    # The payment SDKs on the order page need their vendors' hosts:
+    # Square's Web Payments SDK (sandbox and production; the card
+    # fields are an iframe, and Square wants 'unsafe-inline' styles),
+    # Google Pay and Cash App Pay through it, and PayPal's SDK for the
+    # Venmo button. Netlify does not say how two header rules for one
+    # path merge, so one policy covers every page. Each line ends in a
+    # backslash, which TOML folds away: the value is one line, since
+    # `netlify dev` stops at a header with a newline in it. frame-src
+    # allows blob: for the staging toolbar's packing-slip reader, which
+    # frames the PDF it fetched rather than building it twice (#159).
+    Content-Security-Policy = """\
+      default-src 'none'; \
+      base-uri 'self'; \
+      connect-src 'self' \
+        https://web.squarecdn.com https://sandbox.web.squarecdn.com \
+        https://pci-connect.squareup.com \
+        https://pci-connect.squareupsandbox.com \
+        https://o160250.ingest.sentry.io \
+        https://google.com/pay https://pay.google.com \
+        https://api.cash.app https://sandbox.api.cash.app \
+        https://*.paypal.com https://*.paypalobjects.com \
+        https://*.venmo.com; \
+      font-src 'self' data: \
+        https://square-fonts-production-f.squarecdn.com \
+        https://d1g145x70srn7h.cloudfront.net \
+        https://cash-f.squarecdn.com https://fonts.gstatic.com; \
+      form-action 'self'; \
+      frame-ancestors 'none'; \
+      frame-src 'self' blob: https://www.youtube-nocookie.com \
+        https://web.squarecdn.com https://sandbox.web.squarecdn.com \
+        https://pay.google.com \
+        https://kit.cash.app https://sandbox.kit.cash.app \
+        https://*.paypal.com https://*.paypalobjects.com \
+        https://*.venmo.com; \
+      img-src 'self' data: \
+        https://web.squarecdn.com https://sandbox.web.squarecdn.com \
+        https://api.cash.app https://sandbox.api.cash.app \
+        https://www.gstatic.com \
+        https://franklin-assets.s3.amazonaws.com \
+        https://*.paypal.com https://*.paypalobjects.com \
+        https://*.venmo.com; \
+      manifest-src 'self'; \
+      media-src 'self'; \
+      script-src 'self' \
+        https://web.squarecdn.com https://sandbox.web.squarecdn.com \
+        https://pay.google.com \
+        https://kit.cash.app https://sandbox.kit.cash.app \
+        https://*.paypal.com https://*.paypalobjects.com \
+        https://*.venmo.com; \
+      style-src 'self' 'unsafe-inline' \
+        https://web.squarecdn.com https://sandbox.web.squarecdn.com \
+        https://kit.cash.app https://sandbox.kit.cash.app \
+        https://fonts.googleapis.com \
+        https://*.paypal.com https://*.paypalobjects.com;"""
+    # Google Pay opens a popup; the stricter value breaks it on iOS.
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
+    # Nothing on the site asks for these; the payment iframes keep
+    # their own rights, so `payment` is left alone.
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
     Referrer-Policy = "same-origin"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"
 
@@ -122,11 +335,15 @@ framework = "#custom"
 
   [headers.values]
     Cache-Control = "public, max-age=604800"
-    # The emails load Aller from here, so mail clients need CORS.
-    Access-Control-Allow-Origin = "*"
 
 [[headers]]
   for = "/images/*"
+
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/videos/*"
 
   [headers.values]
     Cache-Control = "public, max-age=604800"
@@ -136,3 +353,18 @@ framework = "#custom"
 
   [headers.values]
     Cache-Control = "public, max-age=604800"
+
+# The delivery policy as Markdown, which llms.txt links (Q21a). Named
+# here so it reads as UTF-8 text in a browser, not a download.
+[[headers]]
+  for = "/delivery-policy/index.md"
+
+  [headers.values]
+    Content-Type = "text/markdown; charset=utf-8"
+
+# Netlify serves .webmanifest as application/octet-stream by default.
+[[headers]]
+  for = "/favicons/site.webmanifest"
+
+  [headers.values]
+    Content-Type = "application/manifest+json"

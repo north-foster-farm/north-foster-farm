@@ -1,43 +1,69 @@
 name: LGTM auto-merge
 
 # James can't approve his own PRs on GitHub (he's the author), so the
-# LGTM label stands in for a review. This waits for the Netlify
-# deploy preview status, then merges: squash first, falling back to
-# rebase, then a plain merge commit if both are rejected.
+# LGTM label stands in for a review. This waits for the lint-and-test
+# check (ci.yml) on the head that was labeled, then rebase-merges that
+# exact head: a push after the label makes the merge fail rather than
+# land untested. The repository allows nothing but rebase merges.
+#
+# Only a PR into next is merged. staging and main never take a merge:
+# they move only by fast-forwarding to a SHA already checked. A PR
+# against either skips this job, so the LGTM on the staging-to-main PR
+# that `bin/nff promote main` opens leaves no red run (#283); a PR into
+# staging is refused, as it should never exist.
+#
+# A merge made with GITHUB_TOKEN starts no push workflow, and a rebase
+# writes new SHAs, so the merged commits would carry no check and a
+# later fast-forward to them would be refused. The last step therefore
+# runs ci.yml on the base branch by hand.
 
 on:
   pull_request:
     types: [labeled]
 
 permissions:
+  actions: write
+  checks: read
   contents: write
   pull-requests: write
 
 jobs:
   automerge:
-    if: github.event.label.name == 'LGTM'
+    if: >-
+      github.event.label.name == 'LGTM'
+      && github.event.pull_request.base.ref != 'main'
     runs-on: ubuntu-latest
     steps:
-      - name: Wait for Netlify deploy preview
+      - name: Refuse any base but next
+        if: github.event.pull_request.base.ref != 'next'
+        env:
+          BASE: ${{ github.event.pull_request.base.ref }}
+        run: |
+          echo "$BASE moves only by fast-forward; not merging." >&2
+          exit 1
+
+      - name: Wait for lint-and-test
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          for i in $(seq 1 20); do
-            state=$(gh api "repos/$REPO/commits/$SHA/status" --jq '
-              .statuses[] | select(.context == "deploy/netlify") | .state
-            ')
-            if [ "$state" = "success" ]; then
-              exit 0
-            fi
-            if [ "$state" = "failure" ] || [ "$state" = "error" ]; then
-              echo "Deploy preview $state — not merging." >&2
-              exit 1
-            fi
+          for i in $(seq 1 60); do
+            run=$(gh api \
+              "repos/$REPO/commits/$SHA/check-runs?check_name=lint-and-test" \
+              --jq '.check_runs | sort_by(.id) | last
+                | if . == null then "" else .status + " " +
+                  (.conclusion // "") end')
+            case "$run" in
+              "completed success")
+                exit 0 ;;
+              completed*)
+                echo "lint-and-test ${run#completed }; not merging." >&2
+                exit 1 ;;
+            esac
             sleep 15
           done
-          echo "Timed out waiting for deploy preview status." >&2
+          echo "Timed out waiting for lint-and-test." >&2
           exit 1
 
       - name: Merge PR
@@ -45,10 +71,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          merge_pr() {
-            gh pr merge "$PR_NUMBER" --repo "$REPO" --delete-branch "$1"
-          }
-          merge_pr --squash && exit 0
-          merge_pr --rebase && exit 0
-          merge_pr --merge
+          gh pr merge "$PR_NUMBER" --repo "$REPO" --rebase \
+            --match-head-commit "$SHA" --delete-branch
+
+      - name: Check the base branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BASE: ${{ github.event.pull_request.base.ref }}
+        run: gh workflow run ci.yml --repo "$REPO" --ref "$BASE"

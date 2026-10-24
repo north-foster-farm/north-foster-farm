@@ -1,0 +1,22 @@
+{
+  "_comment": "Append only. Every location and series code ever used. A location or series is archived (archived: true), never deleted, so the orders that name it still resolve. bin/check-events.mjs fails the deploy if a registered code stops resolving, if one is missing here, or if a code is used twice.",
+  "codes": [
+    "G4C6",
+    "D8RW",
+    "UTHW",
+    "QPJP",
+    "VTGM",
+    "NR9D",
+    "VFVQ",
+    "2MPW",
+    "WAC5",
+    "NB5P",
+    "GR6C",
+    "R6N4",
+    "ARBC",
+    "25XV",
+    "YJGT",
+    "Y2UC",
+    "VZF5"
+  ]
+}

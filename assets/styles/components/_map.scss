@@ -1,0 +1,721 @@
+// The map (partials/map.html), in two layers (#214): water behind, the
+// ZIPs over it. On Delivery, the ZIPs we deliver to in green, the rest
+// of Rhode Island in sand at the higher price, and the neighbouring
+// states as plain land, with one dark green pin that drops where the
+// visitor asks. On Places, all land is plain and every place is a dark
+// green pin with its number; the chosen one is lighter, never darker.
+// Water is the only blue. Everything drawn keeps its line weight and
+// the pins their size as the map zooms.
+
+// The emphasis falls on where we deliver (#214, 2026-10-22): the green
+// reads strongest, the sand of the higher price next, and the
+// neighbours, where we don't deliver, take the lightest warm tint. Rhode
+// Island's town lines are white on the green and the sand, both dark
+// enough for them to read at phone size; the neighbours' are a grey.
+$map-water: tint-color($teal, 84%);
+$map-land: #f2eee5;
+$map-land-line: #dfdacd;
+$map-away: #e5d7b7;
+$map-ours: tint-color($green, 40%);
+$map-border: #868276;
+$map-place: $primary;
+$map-place-chosen: tint-color($green, 6%);
+
+// The hover on a row or a pin: a pale warm wash from the sand family,
+// under text at AA.
+$map-hover: #fbf8ef;
+
+// A link to the map (the delivery policy's "See where we deliver")
+// lands with the map a little below the top of the window. Stacked, the
+// switch, the map and its key follow one another; side by side, a map
+// capped at 608px and a 300px column, centered together, the column
+// level with the top of the map.
+.map {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  scroll-margin-top: 1.5rem;
+
+  @media (min-width: 992px) {
+    grid-template-columns: minmax(0, 608px) 300px;
+    column-gap: 2.5rem;
+    justify-content: center;
+  }
+}
+
+// The switch, the map and the key are the grid's own items.
+.map-view {
+  display: contents;
+}
+
+// The layer switch, alone above the map.
+.map-bar {
+  grid-column: 1;
+  grid-row: 1;
+  margin-bottom: 0.75rem;
+}
+
+.map-frame {
+  position: relative;
+  grid-column: 1;
+  grid-row: 2;
+  overflow: hidden;
+  border: 1px solid var(--bs-border-color-translucent);
+  border-radius: var(--bs-border-radius-lg);
+  background-color: $map-water;
+}
+
+.map-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.map-zip,
+.map-borders,
+.map-pick,
+.map-pick-casing,
+.map-town,
+.map-town-casing,
+.map-pin path,
+.map-drop-pin {
+  vector-effect: non-scaling-stroke;
+}
+
+.map-zip {
+  cursor: pointer;
+  stroke: $white;
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+  transition: fill 0.12s ease-out;
+
+  &.is-ours {
+    fill: $map-ours;
+
+    &:hover {
+      fill: shade-color($map-ours, 12%);
+    }
+  }
+
+  &.is-away {
+    fill: $map-away;
+
+    &:hover {
+      fill: shade-color($map-away, 8%);
+    }
+  }
+
+  // The neighbours, where we don't deliver: plain land, with each
+  // town outlined at rest (James, #214), the lines a pale grey. James
+  // chose them light, below 3:1 on the land: the "No delivery" tag
+  // carries the meaning too.
+  &.is-land {
+    fill: $map-land;
+    stroke: $map-land-line;
+
+    &:hover {
+      fill: shade-color($map-land, 4%);
+    }
+  }
+}
+
+.map-borders {
+  fill: none;
+  stroke: $map-border;
+  stroke-width: 1.2;
+  stroke-dasharray: 5 3;
+  pointer-events: none;
+}
+
+// A place's pin: dark green, outlined in white so it stands off the
+// land, and numbered as its row is. It rises a little under the pointer
+// or its row's, and while its card is open it turns a lighter green and
+// glows.
+.map-pin {
+  cursor: pointer;
+  outline: none;
+  filter: drop-shadow(0 2px 2px rgba($black, 0.3));
+
+  path {
+    fill: $map-place;
+    stroke: $white;
+    stroke-width: 2;
+    transition: fill 0.12s ease-out, stroke 0.12s ease-out;
+  }
+
+  // Selected, a pin lightens and glows; it never darkens. Keyboard
+  // focus alone takes the dark outline.
+  &[aria-pressed="true"] {
+    filter: drop-shadow(0 0 5px rgba($map-place-chosen, 0.8))
+      drop-shadow(0 2px 2px rgba($black, 0.25));
+
+    path {
+      fill: $map-place-chosen;
+    }
+  }
+
+  &:focus-visible path {
+    stroke: $gray-800;
+    stroke-width: 3;
+  }
+}
+
+// The number, white in the pin's head, in the page's own face.
+.map-pin-num {
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: bold;
+  text-anchor: middle;
+  fill: $white;
+  pointer-events: none;
+  user-select: none;
+}
+
+.map-pin-body {
+  transition: transform 0.16s ease-out;
+}
+
+.map-pin:hover .map-pin-body,
+.map-pin[data-hot] .map-pin-body,
+.map-pin[aria-pressed="true"] .map-pin-body {
+  transform: translateY(-4px) scale(1.12);
+}
+
+// The dropped pin: the ZIP typed or tapped, outlined in dark green
+// over a white casing, and a dark green pin that falls onto its middle
+// from above the map with a small bounce. The shading and the tag say
+// what the answer is, so the pin looks the same whatever it is.
+.map-drop {
+  pointer-events: none;
+}
+
+.map-pick,
+.map-pick-casing {
+  fill: none;
+  stroke: $primary;
+  stroke-width: 3;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+// Where we don't deliver the outline is a plain grey, never the green
+// that means yes.
+.map-pick[data-tone="no"] {
+  stroke: $gray-600;
+}
+
+.map-pick-casing {
+  stroke: $white;
+  stroke-width: 6;
+}
+
+// Places: the selected pin's town, outlined in the brand green over the
+// same white casing.
+.map-town,
+.map-town-casing {
+  fill: none;
+  stroke: $primary;
+  stroke-width: 3;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.map-town-casing {
+  stroke: $white;
+  stroke-width: 6;
+}
+
+.map-drop-pin {
+  fill: $primary;
+  stroke: $white;
+  stroke-width: 2;
+}
+
+.map-drop-dot {
+  fill: $white;
+}
+
+.map-drop-fall {
+  animation: map-drop 0.75s cubic-bezier(0.3, 0, 0.6, 1) both;
+}
+
+@keyframes map-drop {
+  0% {
+    transform: translateY(-1100px);
+  }
+
+  70% {
+    transform: translateY(0);
+  }
+
+  84% {
+    transform: translateY(-14px);
+  }
+
+  100% {
+    transform: translateY(0);
+  }
+}
+
+// The tag: over the dropped pin, fading in as it lands, and beside the
+// pointer over a town. The town, then the egg and the hen and the
+// price. What we don't deliver there is grey and struck through, so
+// the colour is not the only sign.
+.map-tag {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 0.25rem;
+  justify-items: center;
+  padding: 0.375rem 0.625rem 0.4375rem;
+  border-radius: var(--bs-border-radius);
+  font-size: 0.9375rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  background-color: $white;
+  box-shadow: $btn-lift-shadow;
+  animation: map-tag 0.2s 0.6s ease-out both;
+
+  &.is-tip {
+    pointer-events: none;
+    animation: none;
+  }
+}
+
+@keyframes map-tag {
+  from {
+    opacity: 0;
+  }
+}
+
+.map-tag-town {
+  font-weight: bold;
+}
+
+.map-tag-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.map-tag-fee {
+  font-size: 1.0625rem;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+}
+
+.map-tag-none {
+  font-weight: bold;
+  color: var(--bs-secondary-color);
+}
+
+.map-tag-link {
+  font-weight: bold;
+}
+
+.map-tag-icon {
+  position: relative;
+  display: inline-grid;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: $primary;
+
+  svg {
+    width: 100%;
+    height: 100%;
+    fill: currentcolor;
+  }
+
+  &.is-off {
+    color: $gray-400;
+
+    &::after {
+      position: absolute;
+      top: 50%;
+      left: -12%;
+      width: 124%;
+      height: 2px;
+      content: "";
+      border-radius: 1px;
+      background-color: var(--bs-secondary-color);
+      box-shadow: 0 0 0 1.5px $white;
+      transform: rotate(-45deg);
+    }
+  }
+}
+
+// A place's card, open in its row: when, where, directions, links
+// and, for the two ways to pick up, a button. It leaves a part out and
+// never reorders one.
+.map-card {
+  padding: 0 1rem 1rem 3.25rem;
+  font-size: 0.875rem;
+
+  p {
+    margin: 0;
+  }
+}
+
+.map-card-label,
+.map-card-directions .directions-label {
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.125rem !important;
+  font-size: 0.6875rem;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+
+.map-card-when {
+  display: grid;
+  gap: 0.625rem;
+  margin: 0;
+
+  strong,
+  span,
+  small {
+    display: block;
+  }
+}
+
+.map-card-season {
+  color: var(--bs-secondary-color);
+}
+
+.map-pin[hidden] {
+  display: none;
+}
+
+.map-card-directions .directions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.map-card-directions .directions-label {
+  flex-basis: 100%;
+  margin-bottom: 0 !important;
+}
+
+// A direction is a chip, 36px tall to tap.
+.map-card-directions .directions-link {
+  min-height: 2.25rem;
+  padding: 0 0.875rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 50rem;
+  font-weight: bold;
+  background-color: $white;
+}
+
+.map-card-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  font-weight: bold;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-drop-fall,
+  .map-tag {
+    animation: none;
+  }
+
+  .map-pin-body,
+  .map-zip {
+    transition: none;
+  }
+}
+
+// The key beside the map, under it on a phone: a card with the map's
+// border and radius, as tall as its content. On Delivery, the shading
+// by price and the icons on the tag; on Places, every place by number
+// and name, each row opening its card.
+
+.map-key {
+  grid-column: 1;
+  grid-row: 3;
+  margin-top: 1.25rem;
+  font-size: 0.9375rem;
+
+  @media (min-width: 992px) {
+    grid-column: 2;
+    grid-row: 2;
+    margin-top: 0;
+  }
+}
+
+.map-key-card {
+  padding: 1rem;
+  border: 1px solid var(--bs-border-color-translucent);
+  border-radius: var(--bs-border-radius-lg);
+  background-color: $white;
+}
+
+// The places are a list of cards on the page, no box around them
+// (James, #214). Beside the map, the list ends where the map does
+// (scripts/map/ sets its max-height) and scrolls past that.
+.map-key-card.map-places {
+  padding: 0.25rem 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+// The delivery key is as wide as its rows, with no empty space beside
+// them.
+.map-key-delivery {
+  width: fit-content;
+  max-width: 100%;
+}
+
+// Swatches and icons share one column, the labels the next, so both
+// align down the key.
+.map-key-areas {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0.75rem;
+  justify-content: start;
+  align-items: center;
+  margin: 0;
+
+  li {
+    display: contents;
+  }
+}
+
+.map-swatch {
+  width: 2.75rem;
+  height: 1.25rem;
+  border-radius: 0.25rem;
+
+  &.is-ours {
+    border: 1px solid shade-color($map-ours, 15%);
+    background-color: $map-ours;
+  }
+
+  &.is-away {
+    border: 1px solid shade-color($map-away, 15%);
+    background-color: $map-away;
+  }
+}
+
+.map-key-icons {
+  display: inline-flex;
+  flex: none;
+  gap: 0.25rem;
+}
+
+.map-key-head {
+  margin: 0 0 0.625rem;
+  font-size: 0.75rem;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+
+  * + & {
+    margin-top: 1rem;
+  }
+
+  .map-places & {
+    padding-inline: 0.5rem;
+    margin-bottom: 0.25rem;
+  }
+}
+
+// Each place is a card like the order page's fulfilment cards: a
+// hairline border, a small shadow, and for the open one the brand
+// border, a 3px bar and a pale green wash (#326).
+.map-key-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+
+  > li {
+    border: 1px solid var(--bs-border-color-translucent);
+    border-radius: var(--bs-border-radius);
+    box-shadow: var(--bs-box-shadow-sm);
+    transition:
+      border-color 0.15s ease,
+      background-color 0.15s ease;
+
+    &:hover {
+      border-color: var(--bs-border-color);
+    }
+  }
+
+  > li[data-open] {
+    border-color: var(--bs-primary);
+    background-color: var(--bs-primary-bg-subtle);
+    box-shadow: inset 3px 0 0 var(--bs-primary), var(--bs-box-shadow-sm);
+  }
+}
+
+.map-key-show {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: var(--bs-border-radius);
+  text-align: left;
+  color: inherit;
+  background: none;
+
+  strong,
+  small {
+    display: block;
+  }
+
+  small {
+    color: var(--bs-secondary-color);
+  }
+
+  &::after {
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-right: 0.25rem;
+    content: "";
+    border: solid var(--bs-secondary-color);
+    border-width: 0 2px 2px 0;
+    transform: rotate(-45deg);
+  }
+
+  &[aria-expanded="true"]::after {
+    transform: rotate(45deg);
+  }
+
+  &:hover,
+  &[data-hot] {
+    background-color: $map-hover;
+  }
+
+  &[aria-expanded="true"] {
+    background: none;
+  }
+}
+
+// The row's number, in the style of the step number below the hero
+// (.how-num): a small dark green circle with a white numeral.
+.map-num {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: bold;
+  line-height: 1;
+  color: $white;
+  background-color: shade-color($green, 35%);
+}
+
+// The two layers as one pill, the chosen one filled.
+.map-layers {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid $primary;
+  border-radius: 50rem;
+  background-color: $white;
+
+  button {
+    min-height: 2.5rem;
+    padding: 0 1.125rem;
+    border: 0;
+    border-radius: 50rem;
+    font-weight: bold;
+    color: $primary;
+    background: none;
+
+    &[aria-selected="true"] {
+      color: $white;
+      background-color: $primary;
+    }
+  }
+}
+
+// The zoom, over the map's top right, under the tag.
+.map-zoom {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+
+  button {
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 50%;
+    font-size: 1.25rem;
+    font-weight: bold;
+    line-height: 1;
+    color: var(--bs-body-color);
+    background-color: $white;
+    box-shadow: $btn-lift-shadow;
+
+    &:disabled {
+      color: var(--bs-secondary-color);
+      opacity: 0.6;
+    }
+
+    svg {
+      width: 1.125rem;
+      height: 1.125rem;
+    }
+  }
+}
+
+// Each layer shows only its own: Delivery its shading, the picked ZIP,
+// its pin and tag; Places its pins and cards over plain land, Rhode
+// Island in sand off its lighter neighbours.
+.map[data-layer="delivery"] {
+  .map-town,
+  .map-town-casing,
+  .map-pins {
+    display: none;
+  }
+}
+
+.map[data-layer="places"] {
+  .map-pick,
+  .map-pick-casing,
+  .map-drop,
+  .map-tag {
+    display: none;
+  }
+
+  .map-zip {
+    cursor: default;
+    fill: $map-away;
+    stroke: $white;
+  }
+
+  .map-zip.is-land {
+    fill: $map-land;
+    stroke: $map-land;
+  }
+}
+
+// On the home page the row sits on white between the bands.
+.home-map {
+  padding-block: 3.5rem;
+
+  @media (min-width: 992px) {
+    padding-block: 4.5rem;
+  }
+}

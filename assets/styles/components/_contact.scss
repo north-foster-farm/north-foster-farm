@@ -1,0 +1,98 @@
+// The contact page: a rail of the ways to reach the farm and a main
+// column of the heading and the form, as on the order page. The form
+// takes the order page's horizontal field layout (.order-hform).
+
+.contact {
+  // Stacked: the heading, the ways, then the form. The ways come
+  // before the form because calling or emailing is instant.
+  .contact-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "head"
+      "rail"
+      "main";
+  }
+
+  .contact-head {
+    grid-area: head;
+  }
+
+  .contact-rail {
+    grid-area: rail;
+    margin-bottom: 2.5rem;
+  }
+
+  .contact-main {
+    grid-area: main;
+  }
+
+  .contact-head .lead {
+    max-width: 40rem;
+  }
+
+  // Spacing shows what belongs to what: a label sits close to its
+  // lines, the blocks sit well apart, and the note further still.
+  .contact-ways {
+    margin: 0;
+
+    > div + div {
+      margin-top: 1.5rem;
+    }
+
+    dt {
+      margin-bottom: 0.25rem;
+      font-size: 0.875rem;
+      font-weight: bold;
+      line-height: 1.2;
+      color: var(--bs-secondary-color);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    dd {
+      margin-bottom: 0;
+      font-size: 1.125rem;
+    }
+
+    .contact-directions {
+      margin-top: 0.375rem;
+      font-size: 1rem;
+    }
+  }
+
+  .contact-note {
+    max-width: 22rem;
+    margin: 2.5rem 0 0;
+    font-size: 0.9375rem;
+    color: var(--bs-secondary-color);
+  }
+
+  #contact-sent[hidden] {
+    display: none;
+  }
+
+  // From lg the rail sits left of the head and the form, with a rule
+  // between; below it the rule gives way to the stack's spacing. The
+  // rule's color is the rail's border-light, the page heading's rule.
+  @media (min-width: 992px) {
+    .contact-layout {
+      grid-template:
+        "rail head" auto
+        "rail main" 1fr
+        / 18rem minmax(0, 1fr);
+    }
+
+    .contact-rail {
+      margin-bottom: 0;
+      padding-top: 0.5rem;
+      padding-right: 2.5rem;
+      border-right: var(--bs-border-width) var(--bs-border-style);
+    }
+
+    .contact-head,
+    .contact-main {
+      padding-left: 2.5rem;
+    }
+  }
+}

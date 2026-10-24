@@ -4,30 +4,36 @@
 // same way to sign in as a customer.
 //
 // Store layout (the `auth` store):
-//   token/<sha256(token)>   { email, expires, next }   one use, 15 min
-//   session/<id>            { email, createdAt, expires, via }
+//   token/<sha256(token)>   { email, expires, next, changeFrom? }
+//                           one use, 15 min
+//   session/<sha256(id)>    { email, createdAt, expires, via }
 //   rate/<email>            { times: [...] }             link requests
 
 import { createHash, randomBytes } from "node:crypto";
 
+import { now as clock, real } from "./clock.mjs";
 import { sendMail } from "./mail.mjs";
-import { resendInvoice } from "./payments.mjs";
 import {
-  getCustomer, getOrder, reminderPrefs, saveCustomer,
+  getCustomer, reminderPrefs, saveCustomer,
 } from "./records.mjs";
-import { mailLinks, orderPathFor, siteUrl } from "./site.mjs";
-import { magicLink } from "./templates.mjs";
+import { mailLinks, siteUrl } from "./site.mjs";
+import { emailChangeLink, magicLink } from "./templates.mjs";
+import accounts from "../../../data/accounts.json" with { type: "json" };
 
 const MINUTE = 60_000;
 
-export const LINK_TTL = 15 * MINUTE;
+// The lifetimes the privacy policy and the emails state, from
+// data/accounts.json (Q21b).
+export const LINK_TTL = accounts.signInLinkMinutes * MINUTE;
 // A link the farm puts in an email the customer may not open for
 // days, such as "Pick a new time" after a denied pickup window.
-export const LONG_LINK_TTL = 7 * 24 * 60 * MINUTE;
-export const SESSION_TTL = 30 * 24 * 60 * MINUTE;
+export const LONG_LINK_TTL = accounts.orderLinkDays * 24 * 60 * MINUTE;
+export const SESSION_TTL = accounts.sessionDays * 24 * 60 * MINUTE;
 export const LINKS_PER_WINDOW = 3;
 export const LINK_WINDOW = 15 * MINUTE;
 export const COOKIE = "nff_session";
+// A customer's choice for videos playing on their own.
+export const AUTOPLAY = ["on", "off"];
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -38,6 +44,26 @@ export const validEmail = (email) => EMAIL.test(normalizeEmail(email));
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const secret = () => randomBytes(32).toString("base64url");
+
+// Sessions, like links, are stored under a hash of the id, so reading
+// Blobs does not give a live session id. The id lives only in the
+// customer's cookie.
+export const sessionKey = (id) => `session/${hash(id)}`;
+
+// A sliding-window hit counter in the auth store, shared by every
+// per-address, per-account and per-IP limit in this file and in
+// lib/email-change.mjs. -> { limited } and records the hit unless it
+// was already over.
+export const hit = async (stores, key, now, { windowMs, max }) => {
+  const rate = (await stores.auth.get(key)) || { times: [] };
+  const recent = rate.times.filter((t) => now - t < windowMs);
+
+  if (recent.length >= max) return { limited: true };
+
+  await stores.auth.set(key, { times: [...recent, now] });
+
+  return { limited: false };
+};
 
 // Only a same-site path may follow a sign-in, never another site.
 export const safeNext = (next) => {
@@ -70,28 +96,30 @@ export const ensureCustomer = async (stores, email, now) => {
 // URL is returned for the CLI; the API never shows it to the browser.
 // The rate limit is for the public request form; a link the farm
 // mints itself (`limit: false`) counts against nobody and may live
-// longer (`ttl`).
+// longer (`ttl`). With `changeFrom`, the link confirms a signed-in
+// customer's new address (#240): it goes to that address, and
+// following it moves the account from `changeFrom` (lib/email-change).
 export const requestLink = async (stores, { email, next }, {
-  now = new Date(),
+  now = clock(),
   env = process.env,
   mail = sendMail,
   send = true,
   limit = true,
   ttl = LINK_TTL,
+  changeFrom = null,
 } = {}) => {
   const address = normalizeEmail(email);
 
   if (!validEmail(address)) return { ok: false, reason: "invalid" };
 
   if (limit) {
-    const rateKey = `rate/${address}`;
-    const rate = (await stores.auth.get(rateKey)) || { times: [] };
-    const recent = rate.times.filter((t) => now.getTime() - t < LINK_WINDOW);
+    // Real time: a tester's clock must not reopen the limit.
+    const at = real(now).getTime();
+    const limited = await hit(stores, `rate/${address}`, at, {
+      windowMs: LINK_WINDOW, max: LINKS_PER_WINDOW,
+    });
 
-    if (recent.length >= LINKS_PER_WINDOW) {
-      return { ok: false, reason: "rate" };
-    }
-    await stores.auth.set(rateKey, { times: [...recent, now.getTime()] });
+    if (limited.limited) return { ok: false, reason: "rate" };
   }
 
   const token = secret();
@@ -101,15 +129,20 @@ export const requestLink = async (stores, { email, next }, {
     next: safeNext(next),
     expires: now.getTime() + ttl,
     createdAt: now.toISOString(),
+    ...(changeFrom ? { changeFrom: normalizeEmail(changeFrom) } : {}),
   });
 
   const url = `${siteUrl(env)}/api/auth/verify?token=${token}`;
+  const letter = changeFrom ? emailChangeLink : magicLink;
 
   if (send) {
     await mail({
       to: address,
       idempotencyKey: `link-${hash(token).slice(0, 16)}`,
-      ...magicLink(address, url, {
+      // A sign-in link: the staging toolbar shows it to that
+      // address's own session only (#294).
+      credential: true,
+      ...letter(address, url, {
         minutes: ttl / MINUTE, links: mailLinks(env),
       }),
     }, { env });
@@ -118,89 +151,85 @@ export const requestLink = async (stores, { email, next }, {
   return { ok: true, url, email: address };
 };
 
-// "Find my order": an order number and the email it was placed with.
-// A match mails a sign-in link straight to that order's page; for an
-// unpaid order the link rides in the pay-link email itself, so
-// looking the order up is also how the invoice is resent. No match
-// mails nothing, and the caller answers the same either way. The
-// usual rate limit applies to the address.
-// -> { ok: true, matched } or { ok: false, reason }.
-export const requestOrderLink = async (stores, { email, orderId }, {
-  now = new Date(),
-  env = process.env,
-  mail = sendMail,
-} = {}) => {
-  const address = normalizeEmail(email);
-
-  if (!validEmail(address)) return { ok: false, reason: "invalid" };
-
-  const id = String(orderId || "").trim().toUpperCase();
-  const order = /^[A-Z0-9-]{1,32}$/.test(id)
-    ? await getOrder(stores, id)
-    : null;
-
-  if (!order || normalizeEmail(order.customer.email) !== address) {
-    return { ok: true, matched: false };
-  }
-
-  const link = await requestLink(stores, {
-    email: address, next: orderPathFor(id),
-  }, { now, env, send: false });
-
-  if (!link.ok) return link;
-
-  if (order.status === "submitted") {
-    const r = await resendInvoice(stores, order, {
-      orderUrl: link.url, mail, env, now,
-    });
-
-    return { ok: true, matched: true, sent: r.ok ? "invoice" : null };
-  }
-
-  await mail({
-    to: address,
-    idempotencyKey: `link-${hash(link.url).slice(0, 16)}`,
-    ...magicLink(address, link.url, {
-      minutes: LINK_TTL / MINUTE, links: mailLinks(env),
-    }),
-  }, { env });
-
-  return { ok: true, matched: true, sent: "link" };
-};
-
-// Consumes a token. -> { ok: true, email, next } or { ok: false, reason }.
-export const verifyToken = async (stores, token, { now = new Date() } = {}) => {
+const lookupToken = async (stores, token) => {
   if (!token || typeof token !== "string" || token.length > 200) {
-    return { ok: false, reason: "invalid" };
+    return { reason: "invalid" };
   }
 
   const key = `token/${hash(token)}`;
   const found = await stores.auth.get(key);
 
-  if (!found) return { ok: false, reason: "unknown" };
+  return found ? { key, found } : { reason: "unknown" };
+};
 
-  await stores.auth.delete(key);
+// An expired link says so; one that was to change the email address
+// says that instead, since a change starts from Settings, not the
+// sign-in form (#240).
+const expired = (found) => ({
+  ok: false, reason: found.changeFrom ? "change-expired" : "expired",
+});
 
-  if (now.getTime() > found.expires) return { ok: false, reason: "expired" };
+const tokenResult = (found) => ({
+  ok: true,
+  email: found.email,
+  next: found.next || "/account/",
+  changeFrom: found.changeFrom || null,
+});
 
-  return { ok: true, email: found.email, next: found.next || "/account/" };
+// Reads a token without spending it, so a prefetch or a scanner
+// following the emailed link can't move the account on its own
+// (#240): the confirm step on /login/ peeks first and only a POST
+// consumes. -> the same shape as verifyToken, but the token still
+// works afterward.
+export const peekToken = async (stores, token, { now = clock() } = {}) => {
+  const look = await lookupToken(stores, token);
+
+  if (look.reason) return { ok: false, reason: look.reason };
+  if (now.getTime() > look.found.expires) {
+    return expired(look.found);
+  }
+
+  return tokenResult(look.found);
+};
+
+// Consumes a token. -> { ok: true, email, next } or { ok: false, reason }.
+export const verifyToken = async (stores, token, { now = clock() } = {}) => {
+  const look = await lookupToken(stores, token);
+
+  if (look.reason) return { ok: false, reason: look.reason };
+
+  await stores.auth.delete(look.key);
+
+  if (now.getTime() > look.found.expires) {
+    return expired(look.found);
+  }
+
+  return tokenResult(look.found);
+};
+
+// Whose address a sign-in token carries, without spending it. Under
+// maintenance an admin's link still works.
+export const tokenEmail = async (stores, token) => {
+  if (!token || typeof token !== "string" || token.length > 200) return null;
+
+  const found = await stores.auth.get(`token/${hash(token)}`);
+
+  return found ? found.email : null;
 };
 
 export const createSession = async (stores, email, {
-  now = new Date(),
+  now = clock(),
   via = "link",
-  userAgent = "",
 } = {}) => {
   const id = secret();
   const address = normalizeEmail(email);
 
   await ensureCustomer(stores, address, now);
-  await stores.auth.set(`session/${id}`, {
+  await stores.auth.set(sessionKey(id), {
     email: address,
     createdAt: now.toISOString(),
     expires: now.getTime() + SESSION_TTL,
     via,
-    userAgent: String(userAgent || "").slice(0, 200),
   });
 
   return { id, email: address };
@@ -213,6 +242,26 @@ export const cookieHeader = (id, { maxAge = SESSION_TTL / 1000 } = {}) =>
 export const clearCookieHeader = () =>
   `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 
+// A stamp beside the session cookie that scripts can read, with no
+// secret in it: a new one at each sign-in, none after signing out.
+// Pages cache /api/me against it (scripts/session/), so a sign-in or
+// sign-out shows at once on every page, in every tab.
+export const STAMP = "nff_signed_in";
+
+export const stampHeader = (now, { maxAge = SESSION_TTL / 1000 } = {}) =>
+  `${STAMP}=${now.getTime().toString(36)}; Path=/; Secure; ` +
+  `SameSite=Lax; Max-Age=${maxAge}`;
+
+export const clearStampHeader = () =>
+  `${STAMP}=; Path=/; Secure; SameSite=Lax; Max-Age=0`;
+
+// Whether the request carries a stamp: a page that thinks it is signed
+// in. With no live session behind it (it ended on the server: the
+// account deleted, the CLI, the sweep), the answer clears it, so the
+// page knows it is signed out (#149).
+export const hasStamp = (req) => new RegExp(`(?:^|;\\s*)${STAMP}=[^;]`)
+  .test(req.headers.get("cookie") || "");
+
 export const cookieFrom = (req) => {
   const raw = req.headers.get("cookie") || "";
   const match = raw.match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]+)`));
@@ -221,16 +270,17 @@ export const cookieFrom = (req) => {
 };
 
 // -> { id, email, customer } for a live session on the request, else null.
-export const sessionFrom = async (stores, req, { now = new Date() } = {}) => {
+export const sessionFrom = async (stores, req, { now = clock() } = {}) => {
   const id = cookieFrom(req);
 
   if (!id || !/^[A-Za-z0-9_-]{20,64}$/.test(id)) return null;
 
-  const session = await stores.auth.get(`session/${id}`);
+  const key = sessionKey(id);
+  const session = await stores.auth.get(key);
 
   if (!session) return null;
   if (now.getTime() > session.expires) {
-    await stores.auth.delete(`session/${id}`);
+    await stores.auth.delete(key);
 
     return null;
   }
@@ -241,7 +291,7 @@ export const sessionFrom = async (stores, req, { now = new Date() } = {}) => {
 };
 
 export const endSession = async (stores, id) => {
-  if (id) await stores.auth.delete(`session/${id}`);
+  if (id) await stores.auth.delete(sessionKey(id));
 };
 
 // A state-changing request with a session must come from this site.
@@ -287,4 +337,9 @@ export const publicCustomer = (customer) => ({
   discountGroup: customer.discountGroup || null,
   address: customer.address || null,
   reminders: reminderPrefs(customer),
+  marketing: customer.marketing === true,
+  reviewDismissed: !!customer.reviewDismissedAt,
+  // "on" or "off" once the customer chose; until then null, and each
+  // browser follows its own rules (#161).
+  autoplay: AUTOPLAY.includes(customer.autoplay) ? customer.autoplay : null,
 });

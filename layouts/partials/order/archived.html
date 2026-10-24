@@ -1,0 +1,18 @@
+{{/* The archived items, for the product list's hidden "Not
+     available" section (#267, 6305650920): never sold, never in the
+     sidebar or search, but a paid order being changed (?edit=) can
+     hold one, and its row shows then, so the line stays in the order
+     rather than vanishing and being refunded on save. Each row is
+     named in full ("Cornish Hens, under 3.0 lbs") and says what a
+     discontinued item says. order/order-form.js shows a held one. */}}
+{{ $label := partial "order/restock-label.html" (dict "restock" "discontinued") }}
+{{ $items := slice }}
+{{ range hugo.Data.catalog.groups }}
+  {{ range .items }}
+    {{ if eq .restock "archived" }}
+      {{ $items = $items | append (merge . (dict
+        "out" true "row" .name "restockLabel" $label)) }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+{{ return $items }}

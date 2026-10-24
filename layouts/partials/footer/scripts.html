@@ -1,6 +1,7 @@
 {{ $options := dict
   "params" (partial "footer/params.html" .)
   "minify" hugo.IsProduction
+  "sourceMap" (cond hugo.IsProduction "external" "")
 }}
 
 {{ $script :=

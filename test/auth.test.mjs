@@ -2,12 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  LINK_TTL, SESSION_TTL, createSession, requestLink, requestOrderLink,
-  safeNext, sessionFrom, verifyToken,
+  LINK_TTL, SESSION_TTL, createSession, endSession, hit, peekToken,
+  requestLink, safeNext, sessionFrom, sessionKey, verifyToken,
 } from "../netlify/functions/lib/auth.mjs";
-import {
-  getCustomer, getOrder, saveOrder,
-} from "../netlify/functions/lib/records.mjs";
+import { getCustomer } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle } from "../netlify/functions/auth.mjs";
 
@@ -107,98 +105,29 @@ describe("a link the farm mints", () => {
   });
 });
 
-describe("find my order", () => {
-  const order = (id, status = "submitted", email = "pat@example.com") => ({
-    id,
-    status,
-    submittedAt: now.toISOString(),
-    customer: { name: "Pat Example", email, phone: "" },
-    lines: [{ sku: "A", label: "Eggs (per dozen), Large", qty: 1,
-      lineTotal: 7 }],
-    totals: { subtotal: 700, discountAmount: 0, deliveryFee: 0, total: 700 },
-    fulfilment: {
-      method: "onfarm", date: "2026-10-08", state: "agreed",
-      onfarm: { window: "morning" },
-    },
-    square: { invoiceId: `INV-${id}`, invoiceUrl: "https://pay/x" },
-  });
-
-  it("resends the invoice, with a link to the order, when the pair match",
-    async () => {
-      const stores = testStores();
-      const { sent, mail } = mailbox();
-
-      await saveOrder(stores, order("NFF-2610-K3WM"), now);
-      const r = await requestOrderLink(stores, {
-        email: " Pat@Example.com ", orderId: "nff-2610-k3wm",
-      }, { now, env, mail });
-
-      assert.deepEqual(r, { ok: true, matched: true, sent: "invoice" });
-      assert.equal(sent.length, 1);
-      assert.equal(sent[0].subject, "One more step: pay for your order");
-      assert.match(sent[0].text, /Pay and confirm your order: https:\/\/pay/);
-
-      const link = sent[0].text.match(/View or edit this order: (\S+)/)[1];
-      const v = await verifyToken(stores, tokenIn(link), { now });
-
-      assert.equal(v.ok, true);
-      assert.equal(v.next, "/account/orders/NFF-2610-K3WM/");
-      assert.equal((await getOrder(stores, "NFF-2610-K3WM")).emails[
-        "invoiceResent-1"].id, "m1");
-    });
-
-  it("sends a plain sign-in link for a paid order, nothing for a mismatch",
-    async () => {
-      const stores = testStores();
-      const { sent, mail } = mailbox();
-
-      await saveOrder(stores, order("NFF-2610-K3WM", "paid"), now);
-      const paid = await requestOrderLink(stores, {
-        email: "pat@example.com", orderId: "NFF-2610-K3WM",
-      }, { now, env, mail });
-
-      assert.equal(paid.sent, "link");
-      assert.match(sent[0].subject, /sign-in link/);
-      assert.match(sent[0].text, /Sign in: https:\S+token=/);
-
-      const wrong = await requestOrderLink(stores, {
-        email: "other@example.com", orderId: "NFF-2610-K3WM",
-      }, { now, env, mail });
-      const missing = await requestOrderLink(stores, {
-        email: "pat@example.com", orderId: "NFF-0000-XXXX",
-      }, { now, env, mail });
-
-      assert.deepEqual(wrong, { ok: true, matched: false });
-      assert.deepEqual(missing, { ok: true, matched: false });
-      assert.equal(sent.length, 1);
-      assert.equal((await requestOrderLink(stores, {
-        email: "nope", orderId: "NFF-2610-K3WM",
-      }, { now, env, mail })).ok, false);
-    });
-
-  it("answers the endpoint the same way matched or not", async () => {
+describe("an order number in the request", () => {
+  it("is ignored: the link is the plain sign-in link", async () => {
+    // "Find my order" is gone (#150), but a page cached before the
+    // deploy can still send one.
     const stores = testStores();
     const { sent, mail } = mailbox();
-    const post = (body) => new Request("https://x/api/auth/request", {
+    const res = await handle(new Request("https://x/api/auth/request", {
       method: "POST",
       headers: {
         "Content-Type": "application/json", "sec-fetch-site": "same-origin",
       },
-      body: JSON.stringify(body),
-    });
-
-    await saveOrder(stores, order("NFF-2610-K3WM"), now);
-    const hit = await handle(post({
-      email: "pat@example.com", orderId: "NFF-2610-K3WM",
-    }), { stores, env, now, mail });
-    const miss = await handle(post({
-      email: "pat@example.com", orderId: "NFF-2610-ZZZZ",
+      body: JSON.stringify({
+        email: "pat@example.com", orderId: "NFF-2610-K3WM",
+      }),
     }), { stores, env, now, mail });
 
-    assert.equal(hit.status, 200);
-    assert.equal(miss.status, 200);
-    assert.deepEqual(await hit.json(), await miss.json());
+    assert.equal(res.status, 200);
     assert.equal(sent.length, 1);
+
+    const link = sent[0].text.match(/Sign in: (\S+)/)[1];
+    const found = await verifyToken(stores, tokenIn(link), { now });
+
+    assert.equal(found.next, "/account/");
   });
 });
 
@@ -214,6 +143,7 @@ describe("verifyToken", () => {
 
     assert.deepEqual(await verifyToken(stores, token, { now: soon }), {
       ok: true, email: "pat@example.com", next: "/account/orders/",
+      changeFrom: null,
     });
     assert.equal((await verifyToken(stores, token, { now: soon })).reason,
       "unknown", "second use fails");
@@ -242,6 +172,61 @@ describe("verifyToken", () => {
   });
 });
 
+describe("peekToken", () => {
+  it("reads a token without spending it (#240)", async () => {
+    const stores = testStores();
+    const { mail } = mailbox();
+    const r = await requestLink(stores, {
+      email: "pat@example.com", next: "/account/orders/",
+    }, { now, env, mail });
+    const token = tokenIn(r.url);
+
+    assert.deepEqual(await peekToken(stores, token, { now }), {
+      ok: true, email: "pat@example.com", next: "/account/orders/",
+      changeFrom: null,
+    });
+    // Still there: a second peek reads the same thing.
+    assert.equal((await peekToken(stores, token, { now })).ok, true);
+    assert.equal((await verifyToken(stores, token, { now })).ok, true,
+      "peeking never spends it");
+  });
+
+  it("expires and refuses junk without deleting an expired token",
+    async () => {
+      const stores = testStores();
+      const { mail } = mailbox();
+      const r = await requestLink(stores, { email: "pat@example.com" }, {
+        now, env, mail,
+      });
+      const late = new Date(now.getTime() + LINK_TTL + 1);
+
+      assert.equal((await peekToken(stores, tokenIn(r.url), { now: late }))
+        .reason, "expired");
+      assert.equal((await peekToken(stores, "", { now })).reason, "invalid");
+    });
+});
+
+describe("hit", () => {
+  it("allows up to max, then refuses within the window", async () => {
+    const stores = testStores();
+    const opts = { windowMs: 1000, max: 2 };
+
+    assert.equal((await hit(stores, "k", 0, opts)).limited, false);
+    assert.equal((await hit(stores, "k", 100, opts)).limited, false);
+    assert.equal((await hit(stores, "k", 200, opts)).limited, true);
+    assert.equal((await hit(stores, "k", 1_200, opts)).limited, false,
+      "the first hit fell out of the window");
+  });
+
+  it("keeps separate keys apart", async () => {
+    const stores = testStores();
+    const opts = { windowMs: 1000, max: 1 };
+
+    assert.equal((await hit(stores, "a", 0, opts)).limited, false);
+    assert.equal((await hit(stores, "b", 0, opts)).limited, false);
+  });
+});
+
 describe("sessions", () => {
   it("create a customer record and read back from the cookie", async () => {
     const stores = testStores();
@@ -255,6 +240,37 @@ describe("sessions", () => {
     assert.equal(found.customer.email, "pat@example.com");
     assert.ok(await getCustomer(stores, "pat@example.com"));
   });
+
+  it("are stored under a hash, never the id", async () => {
+    const stores = testStores();
+    const session = await createSession(stores, "pat@example.com", { now });
+    const keys = (await stores.auth.list("session/")).map((k) => k.key);
+
+    assert.deepEqual(keys, [sessionKey(session.id)]);
+    assert.ok(!keys[0].includes(session.id));
+    assert.match(keys[0], /^session\/[0-9a-f]{64}$/);
+  });
+
+  it("end by id, and a session under its raw id is not honored",
+    async () => {
+      const stores = testStores();
+      const session = await createSession(stores, "pat@example.com", { now });
+      const req = (id) => new Request("http://x/api/me", {
+        headers: { cookie: `nff_session=${id}` },
+      });
+
+      await stores.auth.set("session/legacyid-legacyid-legacyid", {
+        email: "pat@example.com", expires: now.getTime() + 60_000,
+      });
+
+      assert.equal(
+        await sessionFrom(stores, req("legacyid-legacyid-legacyid"), { now }),
+        null);
+
+      await endSession(stores, session.id);
+
+      assert.equal(await sessionFrom(stores, req(session.id), { now }), null);
+    });
 
   it("expire and ignore unknown ids", async () => {
     const stores = testStores();
@@ -309,6 +325,15 @@ describe("the auth endpoints", () => {
       /^nff_session=[A-Za-z0-9_-]+; Path=\/; HttpOnly; Secure; SameSite=Lax/
     );
 
+    // Beside it, a stamp scripts can read, so pages drop a cached
+    // "signed out" at once.
+    const stamp = verified.headers.getSetCookie()
+      .find((c) => c.startsWith("nff_signed_in="));
+
+    assert.match(stamp,
+      /^nff_signed_in=[a-z0-9]+; Path=\/; Secure; SameSite=Lax; Max-Age=/);
+    assert.doesNotMatch(stamp, /HttpOnly/);
+
     const id = cookie.match(/nff_session=([^;]+)/)[1];
     const me = await handle(new Request("https://x/api/me", {
       headers: { cookie: `nff_session=${id}` },
@@ -324,6 +349,9 @@ describe("the auth endpoints", () => {
 
     assert.equal(out.status, 204);
     assert.match(out.headers.get("set-cookie"), /Max-Age=0/);
+    assert.deepEqual(out.headers.getSetCookie().map((c) => c.split("=")[0]),
+      ["nff_session", "nff_signed_in"]);
+    assert.ok(out.headers.getSetCookie().every((c) => /Max-Age=0$/.test(c)));
 
     const gone = await (await handle(new Request("https://x/api/me", {
       headers: { cookie: `nff_session=${id}` },
@@ -340,6 +368,40 @@ describe("the auth endpoints", () => {
 
     assert.equal(res.status, 302);
     assert.equal(res.headers.get("location"), "/login/?error=unknown");
+  });
+
+  it("also verifies a plain link by POST, sameSite only", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await handle(post("/api/auth/request", { email: "pat@example.com" }), {
+      stores, env, now, mail,
+    });
+
+    const token = tokenIn(sent[0].text.match(/https:\S+/)[0]);
+    const res = await handle(post("/api/auth/verify", { token }), {
+      stores, env, now,
+    });
+
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { ok: true, next: "/account/" });
+    assert.match(res.headers.get("set-cookie"), /^nff_session=/);
+
+    const cross = await handle(new Request("https://x/api/auth/verify", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json", Origin: "https://evil.example",
+      },
+      body: JSON.stringify({ token: "x" }),
+    }), { stores, env, now });
+
+    assert.equal(cross.status, 403);
+
+    const junk = await handle(post("/api/auth/verify", {}), {
+      stores, env, now,
+    });
+
+    assert.equal(junk.status, 400);
   });
 
   it("answers 200 to a rate-limited request and 422 to junk", async () => {

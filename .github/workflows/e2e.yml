@@ -1,0 +1,68 @@
+name: E2E
+
+# The e2e checks on every push to next (James, #283, 6302479835):
+#
+#   e2e                  the full suite, run twice with retries off; a
+#                        test must pass both times. Required on staging
+#                        and main, which take only commits next had.
+#   e2e-burn-in-advisory every spec added or changed since staging, ten
+#                        times over, retries off. It blocks nothing
+#                        here, so the agent sees a flaky new spec
+#                        first; the PR into staging runs the same as
+#                        e2e-burn-in (e2e-burn-in.yml), which is
+#                        required. The names differ so this run can
+#                        never satisfy that one.
+#
+# A newer push to next cancels the run on the older one: a promotion
+# takes the newest commit. A dispatched run is the same, for a branch.
+
+on:
+  push:
+    branches: [next]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full:
+    uses: ./.github/workflows/e2e-run.yml
+    with:
+      passes: 2
+
+  e2e:
+    name: e2e
+    needs: full
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every shard passed both passes
+        env:
+          RESULT: ${{ needs.full.result }}
+        run: test "$RESULT" = success
+
+  burn-in:
+    uses: ./.github/workflows/e2e-run.yml
+    with:
+      passes: 1
+      args: >-
+        --only-changed=origin/staging --repeat-each=10
+        --pass-with-no-tests
+      shards: "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]"
+      total: 12
+      timeout: 240
+
+  e2e-burn-in-advisory:
+    name: e2e-burn-in-advisory
+    needs: burn-in
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every changed spec passed ten times
+        env:
+          RESULT: ${{ needs.burn-in.result }}
+        run: test "$RESULT" = success

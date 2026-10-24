@@ -1,5 +1,5 @@
-// Sign-in and account pages: narrow columns of cards, the same soft
-// shadow and radius as the order page.
+// Sign-in and account pages. The sign-in page keeps its card; the
+// account page sets its content straight on the page (#303).
 
 .login,
 .account {
@@ -39,7 +39,8 @@
     color: var(--bs-secondary-color);
   }
 
-  // Head: avatar, name, sign out
+  // Head: the avatar, the address in the headings' type, and Sign out
+  // under it as a quiet link (#303).
 
   .account-head {
     display: flex;
@@ -60,16 +61,29 @@
     min-width: 0;
   }
 
-  .account-name {
-    margin: 0;
-    font-weight: bold;
-  }
-
   .account-email {
     margin: 0;
+    font-family: $headings-font-family;
+    font-size: 1.25rem;
+    font-weight: bold;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+
+  .account-signout {
+    padding: 0;
+    border: 0;
+    background: none;
     font-size: 0.875rem;
     color: var(--bs-secondary-color);
-    overflow-wrap: anywhere;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, currentcolor 45%, transparent);
+    text-underline-offset: 0.18em;
+
+    &:hover {
+      color: var(--bs-body-color);
+      text-decoration-color: currentcolor;
+    }
   }
 
   // Tabs
@@ -102,15 +116,18 @@
     }
   }
 
-  .account-section > h2 {
-    margin-bottom: 0.75rem;
-  }
-
   .account-empty {
     color: var(--bs-secondary-color);
   }
 
   // Orders
+
+  // Orders sit on the page, a rule between one and the next.
+  .account-order + .account-order {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--bs-border-color-translucent);
+  }
 
   // Followed a link from an email about this one order.
   .account-order.is-linked {
@@ -123,7 +140,13 @@
     align-items: start;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  // When and where it goes, on its own row under the number.
+  .account-order-when {
+    margin: 0 0 0.75rem;
+    font-weight: bold;
   }
 
   .account-order-title {
@@ -147,19 +170,19 @@
     white-space: nowrap;
   }
 
-  .account-order[data-status="submitted"] .account-status {
+  [data-status="submitted"] > * > .account-status {
     background-color: var(--bs-warning-bg-subtle);
     color: var(--bs-warning-text-emphasis);
   }
 
-  .account-order[data-status="paid"] .account-status,
-  .account-order[data-status="fulfilled"] .account-status {
+  [data-status="paid"] > * > .account-status,
+  [data-status="fulfilled"] > * > .account-status {
     background-color: var(--bs-success-bg-subtle);
     color: var(--bs-success-text-emphasis);
   }
 
-  .account-order[data-status="cancelled"] .account-status,
-  .account-order[data-status="abandoned"] .account-status {
+  [data-status="cancelled"] > * > .account-status,
+  [data-status="abandoned"] > * > .account-status {
     background-color: var(--bs-danger-bg-subtle);
     color: var(--bs-danger-text-emphasis);
   }
@@ -173,21 +196,29 @@
   }
 
   .account-lines {
-    margin: 0 0 0.5rem;
+    margin: 0 0 1rem;
     padding: 0;
     list-style: none;
   }
 
+  // A line over two rows: quantity, item and price, then Add again
+  // under the item.
   .account-line {
     display: grid;
-    grid-template-columns: 2.5rem 1fr auto auto;
-    gap: 0.5rem;
+    grid-template-columns: 2.5rem 1fr auto;
+    gap: 0.125rem 0.5rem;
     align-items: baseline;
-    padding: 0.25rem 0;
+    padding: 0.5rem 0;
     font-size: 0.9375rem;
+
+    + .account-line {
+      border-top: 1px solid var(--bs-border-color-translucent);
+    }
   }
 
   .account-line-add {
+    grid-column: 2;
+    justify-self: start;
     font-size: 0.8125rem;
     white-space: nowrap;
   }
@@ -201,11 +232,29 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .account-receipt-lines {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.25rem 1rem;
+    margin: 0 0 0.75rem;
+
+    dt {
+      font-weight: normal;
+      color: var(--bs-secondary-color);
+    }
+
+    dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+  }
+
   .account-totals {
     display: grid;
     grid-template-columns: 1fr auto;
-    margin: 0 0 0.75rem;
-    padding-top: 0.5rem;
+    gap: 0.25rem 1rem;
+    margin: 0 0 1rem;
+    padding-top: 0.75rem;
     border-top: 1px solid var(--bs-border-color);
     font-size: 0.9375rem;
 
@@ -275,15 +324,51 @@
     margin-bottom: 0.75rem;
   }
 
-  // Invoices, address, avatars
-
-  .account-table {
-    font-size: 0.9375rem;
+  // Receipts: one payment over three rows, a rule between payments.
+  .account-receipts {
+    margin: 0;
+    padding: 0;
+    list-style: none;
 
     &[hidden] {
       display: none;
     }
   }
+
+  .account-receipt-item {
+    display: grid;
+    gap: 0.375rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+
+    &:first-child {
+      padding-top: 0;
+    }
+  }
+
+  .account-receipt-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+  }
+
+  .account-receipt-id {
+    font-weight: bold;
+  }
+
+  .account-receipt-amount {
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .account-receipt-sub {
+    font-size: 0.9375rem;
+    color: var(--bs-secondary-color);
+  }
+
+  // Invoices, address, avatars
 
   .account-address-status {
     padding: 0.5rem 0.75rem;
@@ -344,9 +429,220 @@
       grid-template-columns: repeat(6, 1fr);
     }
   }
+
+  // One gap for the Address, Settings and Help panes (#344): above
+  // each heading, between a heading and its first row, and between
+  // rows. Headings are one size, larger than a field's label.
+  .account-section {
+    --account-gap: 1.5rem;
+    --bs-gutter-x: var(--account-gap);
+    --bs-gutter-y: var(--account-gap);
+  }
+
+  .account-group + .account-group,
+  .account-review,
+  .account-delete {
+    margin-top: var(--account-gap);
+  }
+
+  // A heading with the status of what it covers beside it.
+  .account-group-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 1rem;
+    margin-bottom: var(--account-gap);
+  }
+
+  .account-group-title {
+    margin: 0;
+  }
+
+  // Review and Delete have no status, so their heading stands alone.
+  .account-review > .account-group-title,
+  .account-delete > .account-group-title {
+    margin-bottom: var(--account-gap);
+  }
+
+  .account-group > p,
+  .account-review > p,
+  .account-delete > p,
+  .account-lede {
+    margin-bottom: var(--account-gap);
+  }
+
+  // The sign-in email reads as a value under its label.
+  .account-email-value {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  // The address with its Change button beside it (#240); the address
+  // gives way first on a narrow screen.
+  .account-email-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+
+    // Sized to the address by main.js, so the button sits beside it.
+    .account-email-value {
+      flex: 0 1 auto;
+      width: auto;
+      min-width: 0;
+      text-overflow: ellipsis;
+    }
+
+    .btn {
+      flex: none;
+    }
+  }
+
+  .account-email-change {
+    margin-top: 0.75rem;
+  }
+
+  // The card that confirms a new address (#345): the question, one
+  // red banner, then the two buttons side by side.
+  .account-confirm {
+    margin-bottom: var(--account-gap, 1.25rem);
+  }
+
+  .account-confirm-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  // What the last save did: "Saving…" with the egg spinner, "Saved 👍",
+  // which fades, or why it failed. It sits beside its group's heading
+  // (#344) and takes no height when empty.
+  .account-save {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+    transition: opacity 0.6s ease;
+
+    &.is-fading {
+      opacity: 0;
+    }
+
+    &[data-save="failed"] {
+      color: var(--bs-danger-text-emphasis);
+    }
+  }
+
+  .account-review-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .account-delete-list {
+    margin-bottom: 1rem;
+    padding-left: 1.25rem;
+  }
+
+  .account-delete-warning {
+    padding-left: 0.75rem;
+    border-left: 3px solid var(--bs-danger);
+    color: var(--bs-danger-text-emphasis);
+    font-size: 1.0625rem;
+  }
+
+  // The confirm dialog takes the whole screen: the page's white, its
+  // content in a narrow column near the top, the close button in the
+  // corner.
+  .account-delete-dialog {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+
+    &::backdrop {
+      background-color: var(--bs-body-bg);
+    }
+  }
+
+  .account-delete-dialog-inner {
+    max-width: 32rem;
+    margin: 0 auto;
+    padding: calc(4rem + env(safe-area-inset-top)) 1rem 2rem;
+    text-align: left;
+
+    @include media-breakpoint-up(md) {
+      padding-top: 18vh;
+    }
+  }
+
+  .account-delete-close {
+    position: absolute;
+    top: calc(1rem + env(safe-area-inset-top));
+    right: 1rem;
+  }
+
+  // The address to copy, between the sentence and the field (#346).
+  .account-delete-copy {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .account-delete-address {
+    font-weight: bold;
+    overflow-wrap: anywhere;
+  }
+
+  .account-delete-form {
+    max-width: none;
+    margin: 1.5rem 0 0;
+  }
+
+
+  // The egg spinner (#299), drawn by _busy-button.scss, shown while
+  // saving.
+  .account-save-spin {
+    display: none;
+  }
+
+  .account-save[data-save="saving"] > .account-save-spin {
+    display: inline-block;
+  }
+
+  // Our receipt for a Venmo payment, under the table.
+  .account-receipt {
+    max-width: 26rem;
+    margin-top: 1rem;
+
+    &:focus {
+      outline: 0;
+    }
+  }
+
+  .account-receipt-title {
+    margin: 0 0 0.5rem;
+    font-weight: bold;
+  }
+
 }
 
 // The sign-in page reads like a policy page: the same 700px column.
 .login .account-wide {
   max-width: 700px;
+}
+
+// The sign-in form is the farm news form (.news-signup, #303), set at
+// the start of the column under its line rather than centered.
+.login .login-form {
+  margin-inline: 0;
 }
