@@ -47,9 +47,10 @@ export const wireMore = () => {
       added += items.length;
       section.querySelectorAll("[data-news-signup]").forEach(wire);
       if (last && last.dataset.year === section.dataset.year) {
-        // The year goes on under its heading: this page's list
-        // follows the last page's.
-        last.append(...section.querySelectorAll(":scope > .news-list"));
+        // The year goes on under its heading: this page's posts join
+        // the last page's list, so the rule between neighbours (an
+        // adjacent-sibling rule) reaches across the page break.
+        last.querySelector(":scope > .news-list").append(...items);
       } else {
         years.append(section);
       }
