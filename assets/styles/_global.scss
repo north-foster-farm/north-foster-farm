@@ -69,12 +69,24 @@ svg {
   }
 }
 
-// Outline buttons keep their color and gain a tint of it, rather
-// than filling with it and swapping the type to white. Named one by
-// one because PurgeCSS drops an attribute selector; add a variant
-// here when a template first uses it.
+// Outline buttons keep their color and sit on a white face, like the
+// header's Order button (#339). Hover and focus leave the white alone;
+// the lift and shadow above are the hover. A press tints it. Outline
+// buttons on a dark band are transparent again (_dark_band). Named
+// one by one because PurgeCSS drops an attribute selector; add a
+// variant here when a template first uses it.
 .btn-outline-primary,
-.btn-outline-secondary,
+.btn-outline-secondary {
+  --bs-btn-bg: #{$white};
+  --bs-btn-hover-color: var(--bs-btn-color);
+  --bs-btn-hover-bg: #{$white};
+  --bs-btn-hover-border-color: var(--bs-btn-border-color);
+  --bs-btn-active-color: var(--bs-btn-color);
+  --bs-btn-active-bg: color-mix(in srgb, currentcolor 12%, #{$white});
+  --bs-btn-active-border-color: var(--bs-btn-border-color);
+}
+
+// Light on dark, so no white face: a tint of its own color.
 .btn-outline-light {
   --bs-btn-hover-color: var(--bs-btn-color);
   --bs-btn-hover-bg: color-mix(in srgb, currentcolor 20%, transparent);
