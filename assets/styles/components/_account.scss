@@ -641,8 +641,10 @@
   max-width: 700px;
 }
 
-// The sign-in form is the farm news form (.news-signup, #303), set at
-// the start of the column under its line rather than centered.
-.login .login-form {
-  margin-inline: 0;
+// The sign-in form is the farm news form (.news-signup, #303), and the
+// block (line, field with button, message) is centered on the page
+// (#399).
+.login #login-ask,
+.login #login-sent {
+  text-align: center;
 }

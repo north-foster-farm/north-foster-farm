@@ -13,11 +13,14 @@
           <div class="alert alert-warning" role="alert" data-login-notice data-support="{{ hugo.Data.company.emailInfo }}" hidden></div>
           <form class="news-signup login-form" id="login-form" novalidate>
             <label class="visually-hidden" for="login-email">Email address</label>
-            <div class="input-group has-validation">
+            <div class="input-group">
               <input class="form-control" type="email" id="login-email" name="email" placeholder="Email address" autocomplete="email" inputmode="email" enterkeyhint="send" required aria-describedby="err-login-email">
-              {{ partial "busy-button.html" (dict "label" "Email me a sign-in link" "busy" "Sending" "class" "btn-primary" "id" "login-submit" "fit" true) }}
-              <div class="invalid-feedback" id="err-login-email" data-error-for="email"></div>
+              {{ partial "busy-button.html" (dict "label" "Send a sign-in link" "busy" "Sending" "class" "btn-primary" "id" "login-submit" "fit" true) }}
             </div>
+            {{/* Outside the group: the invalid ring (.news-signup
+                 .input-group:has(> .is-invalid)) wraps the field and
+                 button only, never the message (#399). */}}
+            <div class="invalid-feedback d-block text-center" id="err-login-email" data-error-for="email"></div>
             <div class="order-hp" aria-hidden="true">
               <label for="login-website">Website</label>
               <input type="text" id="login-website" name="website" tabindex="-1" autocomplete="off">
