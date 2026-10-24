@@ -47,6 +47,16 @@ keeps its `#on-farm-pickup` and `#scheduled-pickup` anchors, which
 `about.md` links. Only the money rules for pickup (cancel, refund, the
 cutoff) live in the sales policy, once, so they cannot drift apart.
 
+## Order of landing
+
+PR #416 rewrites `content/delivery-policy.md` and `content/privacy.md`
+and lands first. Section 4 must start from its text. The delivery
+draft here is #416's page with the moved sections removed, so its diff
+against #416 is only the restructure. The `#on-farm-pickup`,
+`#scheduled-pickup` and `#delivery-area` anchors and the headings the
+sales draft links to (`#what-it-costs`, `#on-delivery-day`) are
+unchanged by #416.
+
 ## Links that change (section 4, after approval)
 
 - `#how-you-pay`, `#changing-or-canceling-an-order`, `#refunds` and
@@ -66,7 +76,8 @@ cutoff) live in the sales policy, once, so they cannot drift apart.
   a cloud lane, so the coordinator adds it.
 - Confirmation email, cancel email, account page cancel panel and the
   packing slip: link to the sales policy (Q13).
-- `privacy.md:125` names the sales policy.
+- `privacy.md:125` names the sales policy, and the page's "Last
+  updated" date (October 24, 2026 in #416) moves with it.
 - `accessibility.md` link to the delivery area stays valid.
 - The fee table shortcode (`bulk-tiers`) has a delivery-fee column. The
   sales page does not need it, so the draft describes discounts in

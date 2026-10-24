@@ -1,7 +1,8 @@
 # 1. Review of what exists (#415)
 
-Read on 2026-10-24 at `next` (c5283319). Nothing here is live text. It
-is a map for James.
+Read on 2026-10-24 at `next` (c5283319), then reworked against PR #416
+(`lane/writer1-policy`, 7d62dcc8), whose privacy and delivery text is
+the current wording. Nothing here is live text. It is a map for James.
 
 ## Where policy-like text lives today
 
@@ -85,8 +86,14 @@ and listed in `behaviour-map.md`.
 | D11 | Silent on a cancelled fulfilled order. | Cannot be cancelled. Handled as a return by hand. | Folded into D5. |
 | D12 | Silent on how a failed automatic refund is handled. | Flagged, farm refunds by hand, customer told. | Add one sentence. |
 | D13 | Silent on discount codes and groups. | Never combine (policy says so). Codes and groups exist. | Needs Q9. |
-| D14 | Policy intro and `description` front matter promise "cancellations and refunds" under a delivery title. | Parent-child fix, see 02. | Structure. |
-| D15 | `privacy.md:125` calls the stored note "the delivery policy". | Will name the sales policy once D1 is fixed. | Wiring (section 4). |
+| D14 | Policy intro and `description` front matter promise "changes, cancellations, and refunds" under a delivery title (#416 reworded both, same promise). | Parent-child fix, see 02. | Structure. |
+| D15 | `privacy.md:125` (same line in #416) calls the stored note "the delivery policy". | Will name the sales policy once D1 is fixed. | Wiring (section 4). The edit must bump #416's "Last updated October 24, 2026" line. |
+
+#416 is a wording pass and fixed none of D1 to D15.
+D3 still stands in its "Delivery area" section. D2's sentence is
+unchanged ("To change what's in an order, cancel it and place a new
+one"). The delivery policy line numbers I gave earlier moved by a few
+lines, and no finding changed.
 
 Checked and consistent: the delivery cutoff (Wednesday at noon), the
 pickup cutoff (end of the day before), the 7-day hold, farm cancellation

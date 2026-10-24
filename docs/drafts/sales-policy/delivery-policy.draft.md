@@ -1,7 +1,8 @@
 ---
 description: >
   How your North Foster Farm order reaches you: delivery days,
-  cutoffs, minimums, fees and area, and on-farm and scheduled pickup.
+  cutoffs, minimums, fees, our delivery area, on-farm pickup, and
+  pickup days.
 slug: "delivery-policy"
 title: "Delivery and pickup"
 type: "policy"
@@ -13,19 +14,20 @@ pageScript: "zip-check"
 {{< delivery-area-button >}}
 This policy is part of our [sales policy](/sales-policy/). It covers
 how we get your order to you: delivery to an address you choose, and
-pickup. Prices, payment, changes, cancellations and refunds are in the
-sales policy, and they apply to every order.
+pickup. Prices, payment, changes, cancellations, and refunds are in
+the sales policy, and they apply to every order.
 {{< /delivery-area-button >}}
 
 <!--
-  DRAFT for James's approval (#415). Changes from the live page:
+  DRAFT for James's approval (#415). The base is the text in PR #416
+  (branch lane/writer1-policy, commit 7d62dcc8), which lands before
+  this policy, not the text on next. Changes from that text:
   the title and intro, the removal of "How you pay", "Changing or
   canceling an order", "Refunds" and "Your consent" (moved to the
   sales policy), the fix for D3 in "Delivery area", the waiver
-  sentence for D4, and the new closing sections. The rest is the live
+  sentence for D4, and the new closing sections. The rest is #416's
   text, unchanged.
 -->
-
 
 ## When we deliver
 
@@ -46,8 +48,8 @@ your items come to {{< terms "waived-at" >}} or more.
 
 {{% bulk-tiers %}}
 
-Bulk discounts apply to every order, on-farm and scheduled pickup
-included. The highest tier you reach applies, automatically.
+Bulk discounts apply to every order, pickup orders included. The
+highest tier you reach applies, automatically.
 Discounts never combine: if more than one applies, your order takes
 whichever saves you more.
 
@@ -134,7 +136,7 @@ don't open every market or pop-up we attend.
 You can order for a pickup through the end of next week. Order by
 11:59 PM the day before the pickup you choose.
 
-## Changes, cancellations and refunds
+## Changes, cancellations, and refunds
 
 Changing or canceling an order, refunds, and what to do if something
 is wrong with your order are in our

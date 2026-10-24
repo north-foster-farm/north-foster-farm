@@ -19,6 +19,9 @@ outputs: ["html", "markdown"]
   03-questions.md has the question. Where one is open, the wording is
   my recommendation, not a policy James has chosen.
   Shortcodes are the live ones, so no number is copied.
+  Wording that moves here from the delivery policy follows PR #416's
+  copy pass (lane/writer1-policy, 7d62dcc8): serial commas, no
+  semicolons, short sentences.
 -->
 
 This policy covers every order from North Foster Farm, whether it
@@ -60,8 +63,8 @@ dozen.
 <!-- B5 -->
 Orders of enough dollars get a discount off the items. The tiers are
 in the [delivery and pickup policy](/delivery-policy/#what-it-costs),
-and they apply to every order, including pickup. The highest tier you
-reach applies on its own.
+and they apply to every order, pickup orders included. The highest
+tier you reach applies on its own.
 
 <!-- B5 Q9 -->
 Discounts never combine. If more than one applies, your order takes
@@ -71,8 +74,8 @@ whichever saves you more.
 
 <!-- B1 -->
 Orders are prepaid when you place them. You can pay by credit card,
-Apple Pay, Google Pay, Cash App Pay or Venmo. Card, Apple Pay, Google
-Pay and Cash App Pay payments go through Square. Venmo payments go
+Apple Pay, Google Pay, Cash App Pay, or Venmo. Card, Apple Pay, Google
+Pay, and Cash App Pay payments go through Square. Venmo payments go
 through PayPal. We never see your card number.
 
 ## Items that sell out
@@ -89,10 +92,10 @@ as placed, we ask you first.
 ## Changing or canceling an order
 
 <!-- B8 -->
-Sign in with the email address you ordered with. We email you a link,
-and there is no password. Your account page lets you change the day,
-your pickup time, where we'll find your cooler and your notes, or
-cancel the order, until the cutoff:
+Sign in with the email address you ordered with. We email you a link
+to sign in. There's no password. Your account page lets you change
+the day, your pickup time, where we'll find your cooler, and your
+notes, or cancel the order, until the cutoff:
 
 - **Delivery:** {{< cutoff "delivery" >}}, the day before your
   {{< terms "day" >}}.
@@ -110,7 +113,7 @@ delivery, you can change or cancel until you have answered.
 
 <!-- B11 Q7 -->
 After the cutoff, we have already started your order, and you can no
-longer change or cancel it yourself. Call, text or email us. We'll do
+longer change or cancel it yourself. Call, text, or email us. We'll do
 what we can, but we can't promise a refund.
 
 ## Refunds
