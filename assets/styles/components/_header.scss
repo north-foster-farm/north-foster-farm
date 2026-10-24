@@ -691,13 +691,11 @@ $nav-link-transition:
   }
 }
 
-// The customer's chicken before "Account", smaller than on the
-// settings page (#238).
+// The customer's chicken in place of "Account", smaller than on the
+// settings page (#238, #347).
 .site-account-chick {
-  width: 1.5rem;
-  height: 1.5rem;
-  margin-right: 0.125rem;
-  margin-left: -0.25rem;
+  width: 1.75rem;
+  height: 1.75rem;
 }
 
 // Below md the slot is an icon among the row's icons (#303), the size

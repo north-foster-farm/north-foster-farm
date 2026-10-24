@@ -86,14 +86,17 @@ export const me = async () => {
   return result;
 };
 
-// The customer's chicken before "Account" (#238), or none. The account
-// page calls it again when a new one is picked.
+// The customer's chicken in place of "Account" (#238, #347), the
+// brown hen when none is picked. The account page calls it again when
+// a new one is picked.
 export const showChick = (root, avatar) => {
+  const name = avatar || "hen-brown";
+
   for (const chick of root.querySelectorAll("[data-account-chick]")) {
     // An <svg> has no `hidden` property; the attribute works.
-    chick.toggleAttribute("hidden", !avatar);
-    if (avatar && /^[\w-]+$/.test(avatar)) {
-      chick.querySelector("use").setAttribute("href", `#avatar-${avatar}`);
+    chick.removeAttribute("hidden");
+    if (/^[\w-]+$/.test(name)) {
+      chick.querySelector("use").setAttribute("href", `#avatar-${name}`);
     }
   }
 };

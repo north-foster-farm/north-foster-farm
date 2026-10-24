@@ -16,17 +16,17 @@
       Sign in
     {{- end -}}
   </a>
-  {{/* The customer's chicken leads the button, once session.js
-       knows it; none chosen, none shown (#238). The compact
-       button shows the account icon in its place, and no caret, like
-       the cart beside it. */}}
+  {{/* The customer's chicken is the button, in place of the word
+       (#347); none chosen, the brown hen the account page shows.
+       The word stays for screen readers. The compact button has no
+       caret, like the cart beside it. */}}
   <button class="site-nav-link site-account-btn" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" data-account-menu hidden>
     {{ partial "svg.html" (dict "use" "avatar-hen-brown" "class" "site-account-chick" "aria-hidden" "true" "focusable" "false" "data-account-chick" "" "hidden" "") }}
     {{ if $compact }}
       <span class="site-account-icon" aria-hidden="true">{{ partial "svg.html" "icons/account" }}</span>
       <span class="visually-hidden">Account</span>
     {{ else }}
-      Account
+      <span class="visually-hidden">Account</span>
       <span class="site-nav-caret" aria-hidden="true">{{ partial "svg.html" "icons/chevron-down" }}</span>
     {{ end }}
   </button>
