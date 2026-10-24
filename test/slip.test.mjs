@@ -87,7 +87,7 @@ describe("the slip's words", () => {
     assert.equal(at("delivery"), "Amount due at delivery: $94");
     assert.equal(dueLines({ fulfilment: { method: "onfarm" } }, state,
       PAYPAL)[1], "We accept cash, cards, Apple Pay, Google Pay, " +
-      "Cash App Pay and Venmo.");
+      "Cash App Pay, and Venmo.");
   });
 
   it("ends with the farm's phone, email, website and Instagram", () => {
