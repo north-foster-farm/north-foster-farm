@@ -7,11 +7,15 @@
 
 import { FULL_CART, OrderPage, expect, test } from "./support/order.mjs";
 
+// Three phones, and one width of the panel (576 to 1199).
 const WIDTHS = [
   { width: 320, height: 664 },
   { width: 375, height: 667 },
   { width: 390, height: 664 },
+  { width: 768, height: 664 },
 ];
+
+const INNER = ".order-cart-after > .order-cart-inner";
 
 for (const size of WIDTHS) {
   test.describe(`at ${size.width} px`, () => {
@@ -36,6 +40,7 @@ for (const size of WIDTHS) {
           fake.kb = n;
           fake.dispatchEvent(new Event("resize"));
         };
+        window.__visualScroll = () => fake.dispatchEvent(new Event("scroll"));
       });
     });
 
@@ -44,6 +49,12 @@ for (const size of WIDTHS) {
         const order = new OrderPage(page);
 
         await order.open(FULL_CART);
+
+        // The pane's shape before the row opens is the one it returns to.
+        const baseline = await order.cart.evaluate(
+          (el) => el.hasAttribute("data-tight")
+        );
+
         await order.cart.locator("[data-code-toggle]").click();
         await page.evaluate(() => window.__keyboard(300));
 
@@ -68,7 +79,31 @@ for (const size of WIDTHS) {
         await page.keyboard.press("Escape");
         await expect(order.cart.locator("[data-share]"))
           .toHaveAttribute("data-share", "");
-        await expect(order.cart).not.toHaveAttribute("data-tight", "");
+        expect(await order.cart.evaluate(
+          (el) => el.hasAttribute("data-tight")
+        )).toBe(baseline);
+      });
+
+    test("a scroll after the row is open is not pulled back",
+      async ({ page }) => {
+        const order = new OrderPage(page);
+
+        await order.open(FULL_CART);
+        await order.cart.locator("[data-code-toggle]").click();
+        await page.evaluate(() => window.__keyboard(300));
+
+        const inner = order.cart.locator(INNER);
+        const scrolls = await inner.evaluate(
+          (el) => el.scrollHeight > el.clientHeight
+        );
+
+        // Not tight here (a roomier pane): nothing scrolls to test.
+        test.skip(!scrolls, "the pane holds the row without scrolling");
+
+        await inner.evaluate((el) => { el.scrollTop = 0; });
+        await page.evaluate(() => window.__visualScroll());
+        await page.evaluate(() => window.__keyboard(300));
+        expect(await inner.evaluate((el) => el.scrollTop)).toBe(0);
       });
   });
 }

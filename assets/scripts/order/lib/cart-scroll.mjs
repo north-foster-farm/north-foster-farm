@@ -26,6 +26,13 @@ export const moreStop = (rows, view, dir) => {
   return Math.min(max, Math.max(0, Math.round(top)));
 };
 
+// How far a scrolling pane must move to bring a row's foot into its
+// view: the gap between the row's bottom and the pane's, never
+// negative. Both are { bottom } in the viewport; a row already inside
+// needs none.
+export const scrollIntoPane = (row, pane) =>
+  Math.max(0, Math.round(row.bottom - pane.bottom));
+
 // Safari on iOS keeps the layout viewport at full height under the
 // keyboard and shrinks only the visual one. The gap under the visual
 // viewport is the keyboard. A gap under a toolbar's worth is not one.
