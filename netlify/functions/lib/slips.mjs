@@ -69,8 +69,8 @@ const PAGES = [
     entries: () => [of("changed")],
   },
   {
-    id: "cancelled", name: "Cancelled sheet",
-    note: "An order cancelled since its slip printed. No slip follows.",
+    id: "cancelled", name: "Canceled sheet",
+    note: "An order canceled since its slip printed. No slip follows.",
     entries: () => [of("cancelled")],
   },
 ];

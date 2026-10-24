@@ -58,7 +58,7 @@ describe("the packing slip fixtures", () => {
       assert.match(text(build(id)), /Amount due/, id);
     }
     assert.match(text(build("unpaid-pickup")), /cash/);
-    assert.match(text(build("cancelled")), /CANCELLED/i);
+    assert.match(text(build("cancelled")), /CANCELED/i);
   });
 });
 
