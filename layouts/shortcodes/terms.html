@@ -9,6 +9,9 @@
     {{< terms "days" "drop" >}}      Saturdays
     {{< terms "hold" >}}                 7 days
     {{< terms "place" "onFarm" >}}       99 East Killingly Road, Foster
+    {{< terms "farm-name" >}}            North Foster Farm
+    {{< terms "farm-address" >}}        99 East Killingly Road, in
+                                         Foster, RI
     {{< terms "place" "drop" >}}     Village Green, 46 Institute
                                          Lane, North Scituate
     {{< terms "town" "drop" >}}      Scituate
@@ -60,6 +63,10 @@
   {{- else -}}
     {{ replaceRE `, [A-Z]{2} \d{5}$` "" $of.location }}
   {{- end -}}
+{{- else if eq $fact "farm-name" -}}
+  {{ hugo.Data.company.name }}
+{{- else if eq $fact "farm-address" -}}
+  {{ hugo.Data.company.address.street }}, in {{ hugo.Data.company.address.city }}, {{ hugo.Data.company.address.state }}
 {{- else if eq $fact "town" -}}
   {{ $of.town }}
 {{- else if eq $fact "starting" -}}

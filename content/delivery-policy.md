@@ -75,9 +75,11 @@ can't get to that spot, or we can't find your address as you gave it,
 we'll try to reach you by phone, text or the doorbell. If we can't
 reach you, we won't leave your order. You can choose to have it
 delivered the following {{< terms "day" >}}, pick it up at the farm or at
-a scheduled pickup, or cancel your order for a refund of your items. We hold
-your order for {{< terms "hold" >}} while you choose. If you haven't
-chosen by then, we cancel it, refund your items and email you to say so.
+a scheduled pickup, or cancel your order for a refund of your items. We
+hold your order for {{< terms "hold" >}} while you choose a new way to
+get your order. If you haven't chosen after {{< terms "hold" >}}, we
+cancel your order, refund your items, and send you an email to confirm
+the cancellation.
 
 If we couldn't complete a delivery because there was no cooler out, no
 access to the address you gave us, or no way to find the address as
@@ -102,11 +104,13 @@ also request a refund for the order in full. For anywhere else,
 
 ## On-farm pickup
 
-There is no minimum or fee. On-farm pickup is at
-{{< terms "place" "onFarm" >}}. The order page shows the times we have
-open, from tomorrow on; the one you choose is confirmed when you place
-your order. If something at the farm means we can't keep it, we'll
-cancel your order, refund it in full and email you to say so.
+There is no minimum or fee. On-farm pickup occurs at
+{{< terms "farm-name" >}}, located at {{< terms "farm-address" >}}. The order
+page lists the time slots we have available for pickup in the coming
+one to two weeks. You select your pick-up time when you place your
+order. If we can't accommodate your pick-up appointment, we'll cancel
+your order, refund it in full, and send you an email to confirm the
+cancellation.
 
 ## Scheduled pickup
 
