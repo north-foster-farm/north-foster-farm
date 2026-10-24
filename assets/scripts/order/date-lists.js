@@ -194,7 +194,7 @@ export class DateLists {
       const none = document.createElement("p");
 
       none.className = "order-windows-none";
-      none.textContent = "No scheduled pickups are open right now";
+      none.textContent = "No scheduled pickups are open right now.";
       box.appendChild(none);
 
       return;
@@ -327,8 +327,8 @@ export class DateLists {
     }
 
     this.note(`Order in the next ${countdown(days, hours % 24,
-      Math.max(minutes % 60, days || hours ? 0 : 1))} to get your order on ` +
-      "our next delivery day.", urgency);
+      Math.max(minutes % 60, days || hours ? 0 : 1))} to make the next ` +
+      "delivery.", urgency);
     this.timer = setTimeout(() => this.tick(), every);
   }
 }

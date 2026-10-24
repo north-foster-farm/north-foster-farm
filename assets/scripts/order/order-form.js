@@ -404,8 +404,8 @@ export class OrderForm {
     qs(box, "[data-total='kept']").textContent = `−${dollars(kept)}`;
     // Draft wording.
     qs(box, "[data-total='due-label']").textContent = diff < 0
-      ? "To refund"
-      : "To pay";
+      ? "We refund"
+      : "You pay";
     qs(box, "[data-total='due']").textContent = dollars(Math.abs(diff));
     this.payment.root.hidden = diff <= 0;
     this.saveButton.hidden = diff > 0;

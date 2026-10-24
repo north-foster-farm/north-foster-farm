@@ -133,7 +133,7 @@ export const validateOrder = (payload, {
     errors["customer.phone"] = fieldError("phone", phone);
   }
   if (!CONTACT.includes(contact)) {
-    errors["customer.contact"] = "Text or call?";
+    errors["customer.contact"] = "Choose text or call.";
   }
 
   const lines = [];
@@ -243,7 +243,9 @@ export const validateOrder = (payload, {
     if (!text(f.address1)) {
       errors["delivery.address1"] = "Please enter your street address.";
     }
-    if (!text(f.town)) errors["delivery.town"] = "Please enter your town.";
+    if (!text(f.town)) {
+      errors["delivery.town"] = "Please enter your city or town.";
+    }
     if (!text(f.cooler)) {
       errors["delivery.cooler"] = "Tell us where the cooler will be.";
     }

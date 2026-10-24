@@ -436,7 +436,7 @@ export const orderConfirmed = (order, {
   const blocks = [
     order.fulfilment.method === "onfarm"
       ? p(`Thanks, ${firstName(order.customer)}. Your payment of ${total} ` +
-        "came through and your pickup time is set, so your order is " +
+        "came through and your pickup time is set. Your order is " +
         "confirmed.")
       : p(`Thanks, ${firstName(order.customer)}. Your payment of ${total} ` +
         "came through and your order is confirmed."),

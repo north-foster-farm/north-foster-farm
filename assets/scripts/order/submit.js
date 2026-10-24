@@ -74,7 +74,7 @@ export class Submitter {
       return {
         kind: "busy",
         message: data.message || "There have been too many tries from " +
-          "here. Wait a few minutes and try again; your order is saved on " +
+          "here. Wait a few minutes and try again. Your order is saved on " +
           "this page.",
       };
     }
