@@ -1288,6 +1288,21 @@ export class OrderForm {
       this.cart.style.setProperty("--cart-gap", `${area.gap}px`);
       this.cart.style.setProperty("--cart-vis", `${area.height}px`);
 
+      // The keyboard fires no window resize on iOS, so nothing else
+      // re-measures the floor against the smaller room: without this
+      // the parts under the total row never learn to scroll (#389).
+      this.syncScroll();
+
+      // Tight, what is under the total row scrolls inside the pane:
+      // bring the open row into its view, the field and Apply with it.
+      if (inset && this.cart.hasAttribute("data-tight")) {
+        const inner = qs(this.cart, ".order-cart-after > .order-cart-inner");
+        const over = share.getBoundingClientRect().bottom
+          - inner.getBoundingClientRect().bottom;
+
+        if (over > 0) inner.scrollTop += over;
+      }
+
       // Settled in the page's flow, the cart does not ride: the page
       // scrolls the field above the keyboard instead.
       const field = qs(share, "[data-field='code']");
