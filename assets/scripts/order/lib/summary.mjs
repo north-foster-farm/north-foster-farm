@@ -54,7 +54,7 @@ export const nudge = (totals, method, money) => {
 
   if (s === 0) {
     return isDelivery
-      ? `Delivery orders are ${
+      ? `Delivery requires ${
         dollars(toCents(money.deliveryMinimum))} or more.`
       : "";
   }
@@ -89,7 +89,7 @@ export const deliveryShort = (totals, money) => {
   if (meetsMinimum(totals, money)) return "";
 
   const minimum = toCents(money.deliveryMinimum);
-  const need = `Delivery orders are ${dollars(minimum)} or more after ` +
+  const need = `Delivery requires ${dollars(minimum)} or more after ` +
     "discounts.";
   const gap = minimum - (totals.subtotal - totals.discountAmount);
 

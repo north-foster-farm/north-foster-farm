@@ -5,6 +5,7 @@
 import {
   fallbackChoice, pickupParts, scheduledChoices,
 } from "./lib/scheduled.mjs";
+import { dayName, weekday } from "./lib/zoned.mjs";
 import { clear, whileLoading } from "../utils/skeleton.js";
 
 const RETRY = [2000, 5000, 15000, 30000];
@@ -194,7 +195,7 @@ export class DateLists {
       const none = document.createElement("p");
 
       none.className = "order-windows-none";
-      none.textContent = "No scheduled pickups are open right now.";
+      none.textContent = "No pickup days are open right now.";
       box.appendChild(none);
 
       return;
@@ -326,9 +327,9 @@ export class DateLists {
       urgency = "soon";
     }
 
-    this.note(`Order in the next ${countdown(days, hours % 24,
-      Math.max(minutes % 60, days || hours ? 0 : 1))} to make the next ` +
-      "delivery.", urgency);
+    this.note(`Order within ${countdown(days, hours % 24,
+      Math.max(minutes % 60, days || hours ? 0 : 1))} for delivery on ${
+      dayName(weekday(next.date))}.`, urgency);
     this.timer = setTimeout(() => this.tick(), every);
   }
 }

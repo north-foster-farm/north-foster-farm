@@ -70,7 +70,7 @@ test.describe("changing a paid order", () => {
       await qty.fill("1");
       await qty.blur();
       await expect(money.locator("[data-total='due-label']"))
-        .toHaveText("To refund");
+        .toHaveText("We refund");
       await expect(money.locator("[data-total='due']")).toHaveText("$7");
       await expect(page.locator("#payment")).toBeHidden();
       await expect(page.locator("#order-submit")).toBeHidden();

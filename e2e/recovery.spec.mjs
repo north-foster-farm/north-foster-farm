@@ -105,7 +105,7 @@ test.describe("recovery", () => {
   test("too many tries says so by the Pay button and keeps the order",
     async ({ page }) => {
       const message = "There have been too many tries from here. Wait a " +
-        "few minutes and try again; your order is saved on this page.";
+        "few minutes and try again. Your order is saved on this page.";
 
       await page.route("**/api/orders", (route) => route.fulfill({
         status: 429,

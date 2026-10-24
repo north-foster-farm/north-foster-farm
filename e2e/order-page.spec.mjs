@@ -23,10 +23,10 @@ test.describe("order page", () => {
     await expect(order.discountRow).toBeHidden();
     await expect(order.next).toBeDisabled();
     await expect(order.nudge).toHaveText(
-      "Delivery orders need a $40 minimum."
+      "Delivery requires $40 or more."
     );
     await expect(order.short).toHaveText(
-      "You need $40 or more in your cart to use this option."
+      "Delivery requires $40 or more after discounts."
     );
   });
 

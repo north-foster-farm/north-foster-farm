@@ -67,7 +67,7 @@ describe("badges", () => {
 });
 
 describe("the Delivery card's warning", () => {
-  const need = "Delivery orders are $40 or more after discounts.";
+  const need = "Delivery requires $40 or more after discounts.";
 
   it("names the minimum on an empty cart", () => {
     assert.equal(deliveryShort(at(0, "delivery"), money), need);
@@ -100,7 +100,7 @@ describe("the nudge", () => {
   it("says nothing on an empty cart", () => {
     assert.equal(nudge(at(0), "", money), "");
     assert.equal(nudge(at(0, "delivery"), "delivery", money),
-      "Delivery orders are $40 or more.");
+      "Delivery requires $40 or more.");
   });
 
   it("names the next discount and the exact gap", () => {

@@ -7,7 +7,7 @@
      until it answers. The wording is a draft. */}}
 {{ with hugo.Data.company }}
 <div id="order-stock-down" class="alert alert-danger order-stock-down" role="alert" hidden>
-  <p class="mb-2"><strong>Ordering isn't available right now.</strong> We can't check what's in stock. This page keeps trying and will open again on its own.</p>
+  <p class="mb-2"><strong>Ordering isn't available right now.</strong> We can't check what's in stock, so we're not taking orders yet. This page keeps trying and will open on its own.</p>
   <p class="mb-3">To order now, call <a class="alert-link" href="tel:{{ .phone.plain }}">{{ .phone.display }}</a> or email <a class="alert-link" href="mailto:{{ .email }}">{{ .email }}</a>.</p>
   <button type="button" class="btn btn-outline-danger btn-sm" data-stock-retry>Try again</button>
 </div>

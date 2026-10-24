@@ -20,7 +20,7 @@ import {
 } from "./support/staging.mjs";
 
 const MESSAGE = "There have been too many tries from here. Wait a few " +
-  "minutes and try again; your order is saved on this page.";
+  "minutes and try again. Your order is saved on this page.";
 
 // The limit is 12 per address, but each function instance keeps its
 // own count, so more may be needed when Netlify runs several.

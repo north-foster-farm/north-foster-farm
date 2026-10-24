@@ -460,8 +460,8 @@ describe("changeOrder", () => {
     const { sent, opts } = harness();
     const missed = (id, fee) => ({
       ...order(id),
-      attempted: { at: "2026-10-08T17:00:00Z", cause: "no-cooler", fee,
-        waived: !fee, note: "", detail: "" },
+      attempted: { at: "2026-10-08T17:00:00Z", date: "2026-10-08",
+        cause: "no-cooler", fee, waived: !fee, note: "", detail: "" },
       question: { kind: "missed", reason: "", until: "2026-10-15",
         openedAt: "2026-10-08T17:00:00Z", answeredAt: null, answer: null,
         by: null },
@@ -477,6 +477,7 @@ describe("changeOrder", () => {
     assert.equal(a.canChange, true);
     assert.equal(a.canCancel, true);
     assert.equal(a.keptFee, 500);
+    assert.equal(a.keptDate, "2026-10-08");
     assert.equal(a.question.until, "2026-10-15");
 
     // The same day with a new cooler spot: fine, and still open.

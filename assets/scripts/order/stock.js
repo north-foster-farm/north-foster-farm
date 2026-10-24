@@ -263,7 +263,7 @@ export class Stock {
     showRows(this.form, this.inStockOnly());
 
     if (changed.length) {
-      this.onChange(`Stock changed while you were shopping: ${
+      this.onChange(`Stock moved while you were shopping: ${
         changed.join("; ")}. Your cart was updated.`);
     }
   }

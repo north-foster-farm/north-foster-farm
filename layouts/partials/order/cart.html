@@ -1,6 +1,6 @@
 {{ $money := partial "money.html" }}
-{{ $deliveryTip := printf "Orders of $%v or more after discounts can be delivered on %ss. The $%v fee is waived at $%v." $money.deliveryMinimum (partial "weekday.html" "delivery") $money.deliveryFee $money.feeWaivedAt }}
-{{ $freeTip := printf "Orders of $%v or more are delivered free." $money.feeWaivedAt }}
+{{ $deliveryTip := printf "Orders of $%v or more after discounts can be delivered on %ss. $%v fee, waived at $%v." $money.deliveryMinimum (partial "weekday.html" "delivery") $money.deliveryFee $money.feeWaivedAt }}
+{{ $freeTip := printf "No delivery fee on orders of $%v or more." $money.feeWaivedAt }}
 {{/* The ways, in the order the page lists them (#196), named as the
      cart's switch names them. */}}
 {{ $ways := slice
@@ -92,7 +92,7 @@
     </div>
     {{/* A fee a missed delivery kept (#193). Draft wording. */}}
     <div class="order-cart-row" data-edit-kept hidden>
-      <dt>Missed-delivery fee</dt>
+      <dt data-total="kept-label">Delivery fee for the trip</dt>
       <dd data-total="kept">$0</dd>
     </div>
     <div class="order-cart-row">
@@ -115,7 +115,7 @@
         <li><button type="button" class="order-badge" data-badge="free-delivery" data-tip="{{ $freeTip }}">Free delivery</button></li>
         <li class="order-badges-break" aria-hidden="true"></li>
         {{ range $money.bulkTiers }}
-          <li><button type="button" class="order-badge" data-badge="tier-{{ .threshold }}" data-tip="Orders of ${{ .threshold }} or more get ${{ .off }} off.">${{ .threshold }}+</button></li>
+          <li><button type="button" class="order-badge" data-badge="tier-{{ .threshold }}" data-tip="${{ .off }} off orders of ${{ .threshold }} or more.">${{ .threshold }}+</button></li>
         {{ end }}
       </ul>
       {{/* One row shared by the way and the discount code (#203): two
