@@ -256,10 +256,9 @@ test.describe("map (#138, #214)", () => {
     const rows = map(page).locator(".map-key-areas li");
 
     await expect(rows).toHaveText([
-      "$5 delivery", "$8 delivery", "Available for delivery",
-      "Unavailable for delivery",
+      "$5 delivery", "$8 delivery", "Available", "Unavailable",
     ]);
-    await expect(rows.nth(3).locator(".map-tag-icon.is-off")).toHaveCount(1);
+    await expect(rows.nth(3).locator(".map-tag-icon.is-off")).toHaveCount(2);
     await expect(map(page).locator(".map-swatch.is-eggs")).toHaveCount(0);
   });
 
@@ -502,54 +501,54 @@ test.describe("map (#138, #214)", () => {
       })).toBeVisible();
     });
 
-  // The order page's "{n} locations" link opens the map to the
-  // locations with a date open for pickup (#314).
-  test("#places-scheduled keeps the scheduled pickup locations",
+  // The Places list has no filter (James, #214): it is a list of
+  // places. The order page's older #places-scheduled link just opens it.
+  test("the Places list has no filter and every place stays",
     async ({ page }) => {
       await events(page, [on("VFVQ", "G4C6", 2)]);
       await page.goto(`${HOME.path}#places-scheduled`);
       await expect(map(page)).toHaveAttribute("data-layer", "places");
-
-      const chip = map(page).locator("[data-map-filter]");
-
-      await expect(chip).toHaveAttribute("aria-pressed", "true");
-      await expect.poll(() => names(page)).toEqual(["The Village Green"]);
-      await expect(map(page).locator("[data-map-pin]:not([hidden])"))
-        .toHaveCount(1);
-      await expect(map(page).locator("[data-map-num]:visible"))
-        .toHaveText("1");
-      // The chip puts the rest back.
-      await chip.click();
-      await expect(chip).toHaveAttribute("aria-pressed", "false");
+      await expect(map(page).locator("[data-map-filter]")).toHaveCount(0);
+      await expect(map(page).locator("[data-map-filter-none]"))
+        .toHaveCount(0);
       await expect.poll(async () => (await names(page)).length)
         .toBeGreaterThan(1);
       expect((await names(page))[0]).toBe("Our farm");
     });
 
-  test("a plain #places clears the scheduled filter", async ({ page }) => {
-    await events(page, [on("VFVQ", "G4C6", 2)]);
-    await page.goto(`${HOME.path}#places-scheduled`);
+  // The list is cards on the page, with no box of its own, and each
+  // card fills the list's width.
+  test("the Places list has no outer border", async ({ page }) => {
+    await page.goto(HOME.path);
+    await places(page);
 
-    const chip = map(page).locator("[data-map-filter]");
+    const list = map(page).locator(".map-places");
 
-    await expect(chip).toHaveAttribute("aria-pressed", "true");
-    await page.evaluate(() => { location.hash = "places"; });
-    await expect(chip).toHaveAttribute("aria-pressed", "false");
-    await expect.poll(async () => (await names(page)).length)
-      .toBeGreaterThan(1);
+    await expect(list).toHaveCSS("border-top-width", "0px");
+    await expect(list).toHaveCSS("padding-left", "0px");
+
+    const [box, card] = await Promise.all([
+      list.boundingBox(),
+      map(page).locator(".map-key-list > li").first().boundingBox(),
+    ]);
+
+    expect(Math.abs(card.width - box.width)).toBeLessThanOrEqual(1);
   });
 
-  test("with nothing open for pickup, the filter says so",
+  // Where we don't deliver, the towns are outlined at rest, not only
+  // under the pointer (James, #214).
+  test("the towns we don't deliver to are outlined at rest",
     async ({ page }) => {
-      await events(page, [on("VFVQ", "G4C6", 2, "attend")]);
-      await page.goto(`${HOME.path}#places-scheduled`);
-      await expect(map(page).locator("[data-map-filter-none]"))
-        .toBeVisible();
-      await expect(map(page).locator("[data-map-pin]:not([hidden])"))
-        .toHaveCount(0);
+      await page.goto(HOME.path);
+
+      const land = map(page).locator(".map-zip.is-land").first();
+
+      await expect.poll(() => land.evaluate(
+        (el) => getComputedStyle(el).stroke
+      )).not.toBe(await land.evaluate((el) => getComputedStyle(el).fill));
     });
 
-  test("the order page's locations link opens the filtered map",
+  test("the order page's locations link opens the map",
     async ({ page }) => {
       await cannedScheduled(page);
 

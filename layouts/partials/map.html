@@ -248,12 +248,12 @@
     {{/* Each label sits in its own span: an li here is a flex row, and
          the build's orphan pass (bin/orphans/wrap.mjs) would otherwise
          make its last words a flex item of their own (#303). */}}
-    <div class="map-key-card" data-map-for="delivery">
+    <div class="map-key-card map-key-delivery" data-map-for="delivery">
       <ul class="map-key-areas list-unstyled">
         <li><span class="map-swatch is-ours" aria-hidden="true"></span><span>${{ $money.deliveryFee }} delivery</span></li>
         <li><span class="map-swatch is-away" aria-hidden="true"></span><span>${{ add $money.deliveryFee $money.outsideAreaFee }} delivery</span></li>
-        <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon">{{ $egg }}</span><span class="map-tag-icon">{{ $hen }}</span></span><span>Available for delivery</span></li>
-        <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon is-off">{{ $hen }}</span></span><span>Unavailable for delivery</span></li>
+        <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon">{{ $egg }}</span><span class="map-tag-icon">{{ $hen }}</span></span><span>Available</span></li>
+        <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon is-off">{{ $egg }}</span><span class="map-tag-icon is-off">{{ $hen }}</span></span><span>Unavailable</span></li>
       </ul>
     </div>
 
@@ -261,8 +261,6 @@
       {{/* Places: every place by name, a row with its number, in one
            list. A row opens its card in place, one at a time. */}}
       <nav class="map-key-card map-places" aria-label="Places on the map" data-map-for="places" hidden>
-        <button type="button" class="map-filter" aria-pressed="false" data-map-filter>Scheduled pickup only</button>
-        <p class="map-filter-none" data-map-filter-none hidden>No scheduled pickups are open right now.</p>
         <ul class="map-key-list list-unstyled">
           {{ range $i, $p := $places }}
             <li {{- with $p.code }} data-location="{{ . }}"{{ end }} {{- if $p.drop }} data-drop{{ end }} {{- with $p.until }} data-until="{{ . }}"{{ end }}>

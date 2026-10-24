@@ -20,11 +20,8 @@
 //   rest are numbered again.
 // - The list is one: the farm, then each location by the next date the
 //   farm attends there. The build carries the locations, their days
-//   and hours and their seasons; /api/events orders the list and says
-//   which locations have a date open for pickup. The cards show no
-//   individual dates and link nowhere to the order page (#326).
-// - "Scheduled pickup only" keeps the locations with a date open for
-//   pickup orders; #places-scheduled opens Places so.
+//   and hours and their seasons; /api/events orders the list. The
+//   cards show no individual dates and link nowhere to the order page (#326).
 // - The selected pin is lighter, with a glow, and its town is outlined
 //   in the brand green, as Delivery outlines the ZIP picked.
 // - The top bar's link to a pop-up, #place-…, opens its card.
@@ -610,7 +607,7 @@ const wire = (map) => {
 
     expire(map);
     pins = [...map.querySelectorAll("[data-map-pin]")];
-    refresh();
+    number(map);
     if (open && !open.isConnected) {
       open = null;
       pressed(null);
@@ -620,43 +617,9 @@ const wire = (map) => {
   });
 
   // The schedule, read at view time (/api/events: what the farm
-  // attends, with the status "pickup" where orders are open). The
-  // locations with a date open for pickup; until it loads, the drop
-  // site's, which the build knows.
+  // attends).
   const rows = () => (list
     ? [...list.querySelectorAll(".map-key-list > li")] : []);
-  let pickupAt = new Set(rows().filter((li) => "drop" in li.dataset)
-    .map((li) => li.dataset.location));
-  let scheduledOnly = false;
-  const chip = list?.querySelector("[data-map-filter]");
-  const none = list?.querySelector("[data-map-filter-none]");
-
-  // Shows the rows and pins the filter keeps, and numbers them again.
-  function refresh() {
-    if (!list) return;
-    const kept = (li) => !scheduledOnly || pickupAt.has(li.dataset.location);
-
-    for (const li of rows()) {
-      const on = kept(li);
-      const pin = pinOf(li.querySelector("[data-map-show]").dataset.mapShow);
-
-      li.hidden = !on;
-      pin?.toggleAttribute("hidden", !on);
-    }
-    if (chip) chip.setAttribute("aria-pressed", String(scheduledOnly));
-    if (none) none.hidden = !scheduledOnly || pickupAt.size > 0;
-    number(map);
-  }
-
-  function filter(on) {
-    if (!list || scheduledOnly === on) return;
-    scheduledOnly = on;
-    close();
-    refresh();
-    if (layer() === "places") go(home());
-  }
-
-  chip?.addEventListener("click", () => filter(!scheduledOnly));
 
   // The locations by the next date the farm attends: the farm first,
   // those with a date in /api/events in its order, the rest as built.
@@ -694,9 +657,7 @@ const wire = (map) => {
     }
     if (!events) return;
     arrange(events);
-    pickupAt = new Set(events.filter((e) => e.status === "pickup")
-      .map((e) => e.location));
-    refresh();
+    number(map);
     if (layer() === "places") go(home());
   }
 
@@ -920,8 +881,8 @@ const wire = (map) => {
     tabs.find((t) => t.dataset.mapLayer === "places").focus();
   });
 
-  // #places opens the Places layer, #places-scheduled with only the
-  // scheduled pickup locations; #place-… opens that place's card.
+  // #places opens the Places layer (so does the order page's older
+  // #places-scheduled); #place-… opens that place's card.
   const follow = () => {
     const hash = decodeURIComponent(location.hash.slice(1));
 
@@ -930,9 +891,6 @@ const wire = (map) => {
       : map.querySelector(`[data-map-slug="${CSS.escape(hash)}"]`);
 
     setLayer("places");
-    if (hash === "places" || hash === "places-scheduled") {
-      filter(hash === "places-scheduled");
-    }
     if (pin) show(pin.dataset.mapPin);
     frame.scrollIntoView({ block: "center" });
   };
