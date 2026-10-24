@@ -121,15 +121,24 @@ for (const width of [375, 390, 576, 768]) {
 
     const bar = page.locator(".order-topbar");
     const filter = page.locator(".order-filter");
-    const gap = await page.evaluate(() => {
+    const gaps = await page.evaluate(() => {
       const header = document.querySelector("body > header, header");
+      const filter = document.querySelector(".order-filter")
+        .getBoundingClientRect();
+      const title = document
+        .querySelector(".order-cat:not([hidden]) .order-cat-title")
+        .getBoundingClientRect();
 
-      return document.querySelector(".order-filter")
-        .getBoundingClientRect().top
-        - header.getBoundingClientRect().bottom;
+      return {
+        above: filter.top - header.getBoundingClientRect().bottom,
+        below: title.top - filter.bottom,
+      };
     });
 
-    expect(gap).toBeLessThan(60);
+    // The same room above the switcher as below it: 1.5rem each.
+    expect(gaps.above).toBeCloseTo(24, 0);
+    expect(gaps.below).toBeCloseTo(24, 0);
+    expect(gaps.above).toBeCloseTo(gaps.below, 0);
     await expect(bar).toBeHidden();
 
     const before = (await filter.boundingBox()).y;

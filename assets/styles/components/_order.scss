@@ -2,6 +2,7 @@
 // @extend, no mixins, no colour functions, so it survives the
 // Tailwind migration unchanged.
 
+@use "sass:map";
 @use "sass:math";
 
 .order {
@@ -1544,6 +1545,13 @@
     // Room at the sides, less of it on a phone.
     .order-page {
       padding-inline: var(--order-edge-l) var(--order-edge-r);
+    }
+
+    // The switcher has the same room above it, to the header, as below
+    // it, to the first category: spacer 4 (1.5rem), which is the
+    // intro's mb-4 (#384). The page's own top padding is off below lg.
+    .order-layout {
+      padding-top: map.get($spacers, 4);
     }
 
     @media (max-width: 575.98px) {
