@@ -195,6 +195,11 @@ test.describe("footer (#141)", () => {
       await input.blur();
       await expect.poll(() => style(input, "borderTopColor"),
         "at rest: the border").toBe(red);
+      expect(await style(form.locator(".input-group"), "boxShadow"),
+        "at rest: the ring wraps the field and the button (#393)")
+        .toContain(red);
+      expect(await style(input, "boxShadow"), "no ring of its own")
+        .toBe("none");
       expect(await style(input, "backgroundImage"), "no warning icon")
         .toBe("none");
     });

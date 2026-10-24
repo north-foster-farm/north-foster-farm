@@ -158,6 +158,15 @@ body {
     @include dark-outline-btn;
   }
 
+  // Invalid, focused or not (#393): the field turns red at rest, and
+  // the button beside it is one control with it, so the ring goes
+  // round both, not the field alone. A phone drops the keyboard, and
+  // the field's focus, after the first try.
+  .news-signup .input-group:has(> .is-invalid) {
+    border-radius: $input-border-radius;
+    box-shadow: $band-dark-invalid-ring;
+  }
+
   .news-signup .input-group:has(> .form-control:focus) {
     box-shadow: $band-dark-focus-ring;
 
