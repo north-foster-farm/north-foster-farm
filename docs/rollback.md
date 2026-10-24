@@ -26,7 +26,8 @@ production release on: publishing the previous deploy of the new site.
    bin/nff netlify blobs:list orders --prefix checkout/
    ```
    Note each key. Also look in Square and PayPal for a payment with no
-   order record; each is refunded with `bin/nff` (below).
+   order record, as in the daily payments check
+   (`docs/daily-check.md`), and refund each where it was taken.
 3. **Fix on `next`**, let it reach `staging`, check it there, then the
    coordinator fast-forwards `main` after James's go. The usual path
    applies, including `lint-and-test`.
@@ -43,9 +44,11 @@ production release on: publishing the previous deploy of the new site.
 Step 2 is manual on purpose for launch: it needs the Mac, and looking
 in Square and PayPal for a payment with no order is done by hand, with
 James at his desk for the whole launch. Catching "payment
-taken, no order" early belongs to the planned detector (below); the
-order page's health relies on the telemetry already decided. Hardening
-is post-launch work, not a blocker.
+taken, no order" early belongs to the planned detector (below, #375);
+until it lands James runs the same look every morning
+(`docs/daily-check.md`). The order page's health relies on the
+telemetry already decided. Hardening is post-launch work, not a
+blocker.
 
 A wrong word or a layout fault needs no maintenance mode; fix it
 forward and say nothing.
@@ -213,7 +216,8 @@ design is the open item. What he has decided:
   and is required in production; staging has its own value, never
   production's.
 - **Not built yet.** The detector that raises `orders.not_recorded`
-  does not exist, so the escalation has nothing to watch. The
+  does not exist (#375), so the escalation has nothing to watch; the
+  daily payments check (`docs/daily-check.md`) stands in until then. The
   acknowledgement is `acknowledge` in `lib/health.mjs`, but no CLI
   command or dashboard button calls it. Build one with the detector,
   or the escalation cannot be stopped short of the next alert after
