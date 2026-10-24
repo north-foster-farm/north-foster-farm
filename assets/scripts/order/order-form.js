@@ -922,7 +922,11 @@ export class OrderForm {
       const cat = !!current && current.hash.startsWith("#cat-");
 
       for (const title of titles) {
-        if (title.textContent !== name) title.textContent = name;
+        // Below lg the bar drops the page name: it shows a category's
+        // name or nothing (#327).
+        const text = !cat && title.closest(".order-topbar") ? "" : name;
+
+        if (title.textContent !== text) title.textContent = text;
         title.parentElement.toggleAttribute("data-cat", cat);
       }
     };

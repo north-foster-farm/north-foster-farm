@@ -84,6 +84,28 @@ for (const [name, size] of [["phone", PHONE], ["md", MD], ["lg", LG]]) {
   });
 }
 
+for (const [name, size] of [["phone", PHONE], ["md", MD]]) {
+  test(`the bar never shows the page name at ${name} (#327)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(size);
+
+    const order = new OrderPage(page);
+
+    await order.open();
+
+    const title = page.locator(".order-topbar .order-bar-name");
+
+    await expect(title).not.toHaveText(/Place an order/);
+    await expect(title).toHaveText("");
+    await page.evaluate(() => window.scrollTo(0, 1200));
+    await expect(title).not.toHaveText("");
+    await expect(title).not.toHaveText(/Place an order/);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(title).toHaveText("");
+  });
+}
+
 test("the toggle keeps a phone's width above a phone", async ({ page }) => {
   for (const size of [{ width: 600, height: 900 }, MD, LG]) {
     await page.setViewportSize(size);
