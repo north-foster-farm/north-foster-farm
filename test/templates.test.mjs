@@ -651,7 +651,7 @@ describe("order changed and canceled", () => {
     const back = orderChanged(o, { links, difference: -2500, before });
 
     has(back.text, "- Total $101 (was $94, you were refunded $25)\n");
-    has(back.text, "Your refund can take a few days to reach you.");
+    has(back.text, "Most refunds arrive within a few business days.");
   });
 
   it("groups part of a line taken out, and nothing when none was", () => {
@@ -717,7 +717,7 @@ describe("order changed and canceled", () => {
     has(says(order(), { reason: "emergency" }), "Something urgent came up " +
       "on the farm that needs us that day.");
     has(says(order(), { reason: "mistake" }), "We made a mistake with " +
-      "your order so we had to cancel it. We're sorry we didn't catch it " +
+      "your order, so we had to cancel it. We're sorry we didn't catch it " +
       "before you placed your order.");
     has(says(order(), { reasonText: "The truck broke down." }),
       "October 8.\nThe truck broke down.\n**A refund");

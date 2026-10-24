@@ -447,7 +447,7 @@ export const orderConfirmed = (order, {
     // Wording approved by James, 2026-10-22 (#114).
     if (firstOrder) {
       blocks.push(p("Your email address is your account with us. Sign " +
-        "in any time with a link we email you; there's no password."));
+        "in any time with a link we email you. There's no password."));
     }
     blocks.push(button("View or edit this order", orderUrl));
     if (order.fulfilment.method === "onfarm") {
@@ -550,7 +550,7 @@ export const orderChanged = (order, {
       total: was.length ? `(${was.join(", ")})` : "",
     }));
     if (difference < 0) {
-      blocks.push(p("Your refund can take a few days to reach you."));
+      blocks.push(p("Most refunds arrive within a few business days."));
     }
   }
   const idOf = (x) => (orderOccurrence(terms, x) || {}).id || null;
@@ -720,7 +720,7 @@ export const CANCEL_REASONS = {
   } on ${label(order.fulfilment.date)} due to severe weather.`,
   emergency: () => "Something urgent came up on the farm that needs us " +
     "that day.",
-  mistake: () => "We made a mistake with your order so we had to cancel " +
+  mistake: () => "We made a mistake with your order, so we had to cancel " +
     "it. We're sorry we didn't catch it before you placed your order.",
 };
 
@@ -738,8 +738,10 @@ export const orderCancelled = (order, {
   const title = "Your order is canceled";
   const blocks = [p(`Hi ${firstName(order.customer)},`)];
   const fee = keptFee(order);
-  const cancelled = `We canceled your order for ${
-    methodName(order.fulfilment.method).toLowerCase()} on ${
+  // The way as a customer names it, not the model's name.
+  const way = order.fulfilment.method === "delivery" ? "delivery"
+    : order.fulfilment.method === "onfarm" ? "on-farm pickup" : "pickup";
+  const cancelled = `We canceled your order for ${way} on ${
     label(order.fulfilment.date)}`;
 
   if (by === "hold") {
@@ -792,8 +794,8 @@ export const addressDecision = (customer, decision, { links } = {}) => {
       blocks.push(button("Start a delivery order", links.order));
     }
   } else {
-    blocks.push(p(`Unfortunately, ${where} is outside of our delivery ` +
-      "range. On-farm pickup and scheduled pickup are open to everyone, " +
+    blocks.push(p(`Unfortunately, ${where} is outside our delivery ` +
+      "area. On-farm pickup and our pickup days are open to everyone, " +
       "with no minimum and no fee."));
   }
   blocks.push(customerFooter(links));
@@ -825,7 +827,7 @@ export const emailChangeLink = (email, url, {
 } = {}) => {
   const title = `Confirm your new email address for ${company.name}`;
   const blocks = [
-    p(`Click the link below to change your ${company.name} email ` +
+    p(`Click the button below to change your ${company.name} email ` +
       `address. This link expires in ${minutes} minutes.`),
     button("Confirm new email address", url),
     p("If you didn't request this change, you can safely ignore it."),
@@ -841,8 +843,7 @@ export const emailChanged = (from, to, { links } = {}) => {
     p(`Your email address has been changed from ${from} to ${to}. ` +
       "Order emails and farm news, if you get it, will be sent to the " +
       "new email address from now on."),
-    pSupport("If you didn't make this change, [contact us] for " +
-      "additional support right away."),
+    pSupport("If you didn't make this change, [contact us] right away."),
   ];
 
   return { subject: title, ...render(title, blocks, links, { center: true }) };
