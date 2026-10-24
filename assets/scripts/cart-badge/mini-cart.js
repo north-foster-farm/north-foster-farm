@@ -108,9 +108,11 @@ export const wireMiniCart = () => {
 
     setCart(button.dataset.miniCartRemove, 0);
     draw();
-    // The button that had focus is gone: the next × or, with the
-    // cart empty, the way into the cart takes it.
+    // The button that had focus is gone: the next × takes it. With
+    // the cart empty the menu closes and its buttons hide, so the
+    // header's Order link does.
     (list.querySelector("[data-mini-cart-remove]")
-      || panel.querySelector("[data-mini-cart-go]"))?.focus();
+      || menu.closest(".site-order-group")?.querySelector(".site-order"))
+      ?.focus();
   });
 };

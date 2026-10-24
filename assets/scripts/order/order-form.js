@@ -659,10 +659,9 @@ export class OrderForm {
     this.watchKeyboard();
 
     // The header's total, once the cart has scrolled away, goes back
-    // to it (#203).
-    // From xl the heading is hidden and the column rides beside the
-    // catalog, so the pane itself is brought into view, only as far
-    // as it takes, and takes focus.
+    // to it (#203). From xl the heading is hidden and the column rides
+    // beside the catalog, so the pane itself is brought into view, only
+    // as far as it takes, and takes focus.
     const toCart = (smooth) => {
       const column = matchMedia("(min-width: 1200px)").matches;
       const target = column

@@ -145,6 +145,9 @@ test.describe("cart count on the Order link (#166)", () => {
       await expect(mini.locator("[data-mini-cart-subtotal]"))
         .toHaveText("$0");
       await expect(rowBadge(page)).toBeHidden();
+      // The menu closed with the cart empty: focus lands on Order.
+      await expect(page.locator(".site-order-group .site-order"))
+        .toBeFocused();
     });
 
   test("a saved cart from before a SKU rename still shows (#322)",
