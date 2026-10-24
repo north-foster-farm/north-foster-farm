@@ -2821,7 +2821,8 @@ export class OrderForm {
     }
 
     this.settle(outcome, payload);
-    throw new Error(outcome.message || "Couldn't start the Venmo payment.");
+    throw new Error(outcome.message
+      || "We couldn't start the Venmo payment.");
   }
 
   venmoCapture(payload, paypalOrderId) {

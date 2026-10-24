@@ -322,7 +322,7 @@ test.describe("a lapsed scheduled pickup", () => {
 
       await expect(dialog).toBeVisible();
       await expect(dialog.locator("[data-lapsed-legend]"))
-        .toHaveText("Scheduled pickups");
+        .toHaveText("Pickup days");
       await expect(dialog.getByRole("button", { name: "Use this pickup" }))
         .toBeVisible();
       await expect(dialog.getByRole("button", {
@@ -343,8 +343,8 @@ test.describe("a lapsed scheduled pickup", () => {
 
   for (const [way, instead] of [
     ["scheduled", "Choose on-farm pickup or delivery instead"],
-    ["onfarm", "Choose scheduled pickup or delivery instead"],
-    ["delivery", "Choose on-farm or scheduled pickup instead"],
+    ["onfarm", "Choose a pickup day or delivery instead"],
+    ["delivery", "Choose on-farm pickup or a pickup day instead"],
   ]) {
     test(`a lapsed ${way} way offers "${instead}"`, async ({ page }) => {
       const lists = payable();

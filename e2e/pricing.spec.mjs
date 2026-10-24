@@ -166,8 +166,8 @@ test.describe("pricing and discounts", () => {
     await order.open({ wings: 5 }, { method: "delivery" });
     await order.zip.fill("10001");
     await expect(order.zipNote).toHaveText(
-      "That's outside our delivery area. On-farm pickup and the drop " +
-      "site are open to everyone."
+      "That's outside our delivery area. On-farm pickup and our pickup " +
+      "days are open to everyone."
     );
     await expect(order.fee).toHaveText("+$5");
   });
