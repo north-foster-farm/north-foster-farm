@@ -278,7 +278,7 @@ describe("a customer's move within scheduled pickup", () => {
     const r = await move(stores, id, { occurrence: FOSTER });
 
     assert.equal(r.ok, false);
-    assert.match(r.errors.method, /Only a scheduled pickup/);
+    assert.match(r.errors.method, /Only an order for a pickup day/);
   });
 
   it("moves an order stored the Stage 1 way, and rewrites its shape",
