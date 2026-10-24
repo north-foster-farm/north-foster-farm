@@ -2268,15 +2268,8 @@ export class OrderForm {
       }
     }
 
-    // A scheduled pickup names its day, window and place, from the
-    // picker, as the summary line does.
-    const picked = method === "scheduled"
-      && this.dates.occurrence(this.dates.scheduledValue());
-
-    if (picked) {
-      wayName += `: ${picked.label}, ${
-        this.pickupAt({ occurrence: picked.occurrence })}`;
-    }
+    // Only the method (#352): the day, time and place stay in the
+    // method's card and the order summary.
     qs(c, "[data-way-name]").textContent = wayName || "Pickup or delivery";
     c.toggleAttribute("data-empty", count === 0);
     this.syncScroll();

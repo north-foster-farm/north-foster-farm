@@ -1647,6 +1647,27 @@
     max-width: 24rem;
   }
 
+  // The four fields in a frame like the cart pane's: its border,
+  // radius, padding and shadow (#352).
+  .order-details .order-hform {
+    padding: 1rem var(--order-gutter);
+    border: 1px solid var(--bs-border-color-translucent);
+    border-radius: var(--order-radius);
+    background-color: var(--bs-body-bg);
+    box-shadow:
+      var(--order-shadow),
+      0 0.75rem 2rem rgb(0 0 0 / 12%);
+
+    @media (max-width: 575.98px) {
+      padding: 0.75rem var(--order-gutter);
+    }
+  }
+
+  // The news opt-in closes the page, under the agreement (#352).
+  .order-confirm .order-optin {
+    margin-top: 0;
+  }
+
   // "Prefer text or call?" is hidden until there is a phone number,
   // and fades in when it appears (order-form.js showContact).
   .order-contact-row {
@@ -2372,7 +2393,8 @@
     pointer-events: none;
 
     > :not(.order-rest),
-    .order-rest > :not(.order-submit) {
+    .order-rest > :not(.order-submit, .order-confirm),
+    .order-confirm > :not(.order-submit) {
       opacity: 0.6;
     }
   }
