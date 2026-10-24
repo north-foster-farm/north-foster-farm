@@ -267,7 +267,7 @@ describe("GET /api/stock", () => {
     assert.equal(res.headers.get("cache-control"), "no-store");
   });
 
-  it("answers before the farm's notice is done,",
+  it("answers before the farm's notice is done",
     async () => {
       const stores = testStores();
       const work = [];

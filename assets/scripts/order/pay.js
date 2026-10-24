@@ -517,7 +517,7 @@ export class Payment {
       createOrder: async () => {
         const payload = await this.form.prepareAsync();
 
-        if (!payload) throw new Error("Check the form and try again.");
+        if (!payload) throw new Error("Ordering isn't available right now.");
         this.venmoPayload = payload;
         this.clearError();
 

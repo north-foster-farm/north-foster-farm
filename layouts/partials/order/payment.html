@@ -30,7 +30,7 @@
     <div class="order-pay-card skeleton-slot" id="pay-card-panel">
       <div class="order-card-fields" data-card aria-label="Card details"></div>
       {{ partial "skeleton.html" (dict "over" true) }}
-      {{ partial "skeleton/status.html" (dict "failed" "The card form is taking too long to load.") }}
+      {{ partial "skeleton/status.html" (dict "failed" "We couldn't load the card form.") }}
     </div>
     <p class="order-pay-card-down" role="status">
       Card payments aren't available right now. Pay with one of the

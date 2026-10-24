@@ -42,7 +42,7 @@ test.describe("stock that cannot be checked", () => {
       await page.clock.runFor(2_000 + 5_000 + 15_000 + 1_000);
       await expect(callout).toBeVisible();
       await expect(callout).toHaveClass(/alert-danger/);
-      await expect(callout).toContainText("Ordering is paused");
+      await expect(callout).toContainText("Ordering isn't available right now");
       await expect(callout.locator("a[href^='tel:']")).toBeVisible();
       await expect(callout.locator("a[href^='mailto:']")).toBeVisible();
       expect(state.asked).toBe(4);
@@ -81,7 +81,7 @@ test.describe("stock that cannot be checked", () => {
       expect(await page.evaluate(() => window.sameDocument)).toBe(true);
     });
 
-  test("Check again asks at once", async ({ page }) => {
+  test("Try again asks at once", async ({ page }) => {
     const state = { up: false };
 
     await flaky(page, state);
@@ -92,7 +92,7 @@ test.describe("stock that cannot be checked", () => {
 
     await expect(callout).toBeVisible();
     state.up = true;
-    await callout.getByRole("button", { name: "Check again" }).click();
+    await callout.getByRole("button", { name: "Try again" }).click();
     await expect(callout).toBeHidden();
   });
 
