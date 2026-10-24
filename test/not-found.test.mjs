@@ -2,10 +2,11 @@
 // own origin, so the page must load its CSS, scripts and images from
 // that origin at any depth. It once set its base to .Site.BaseURL, which
 // a plain `hugo` (or a local build) leaves at production's address.
-// Builds the site with a base URL that is not production's, as a deploy
-// preview does, and resolves the page's assets the way a browser would
-// at a missing path three levels down. Where Hugo is not installed
-// (CI's test job), CI's build job builds the same page.
+// Builds the site with no -b, as staging and a local build do, so the
+// base URL is production's. Then serves the page from another origin (a
+// deploy preview) and resolves its assets the way a browser would at a
+// missing path three levels down. Where Hugo is not installed (CI's
+// test job), CI's build job builds the same page.
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -17,8 +18,8 @@ import { after, before, describe, it } from "node:test";
 const root = join(import.meta.dirname, "..");
 const hasHugo = spawnSync("hugo", ["version"]).status === 0;
 
-const DEPLOY = "https://deploy-preview-1--nff.example/";
-const MISSING = `${DEPLOY}a/b/c`;
+const SERVED = "https://deploy-preview-1--nff.example/";
+const MISSING = `${SERVED}a/b/c`;
 
 const decode = (text) => text.replaceAll("&sol;", "/")
   .replaceAll("&#43;", "+").replaceAll("&amp;", "&");
@@ -38,7 +39,7 @@ describe("the 404 page", {
   before(() => {
     out = mkdtempSync(join(tmpdir(), "nff-404-"));
     const run = spawnSync("hugo", ["--gc", "--quiet", "--environment",
-      "production", "-b", DEPLOY, "-d", out], {
+      "production", "-d", out], {
       cwd: root, encoding: "utf8",
       env: { PATH: process.env.PATH, HOME: process.env.HOME },
     });
@@ -54,7 +55,7 @@ describe("the 404 page", {
     const bases = tags(html, "base");
 
     assert.equal(bases.length, 1);
-    assert.equal(new URL(bases[0].href, MISSING).href, DEPLOY);
+    assert.equal(new URL(bases[0].href, MISSING).href, SERVED);
   });
 
   it("loads every asset from that origin, at any missing path", () => {
@@ -70,7 +71,7 @@ describe("the 404 page", {
     assert.ok(assets.some((url) => url.includes("scripts/main.")));
 
     for (const url of assets) {
-      assert.equal(new URL(url, base).origin, new URL(DEPLOY).origin, url);
+      assert.equal(new URL(url, base).origin, new URL(SERVED).origin, url);
     }
   });
 
