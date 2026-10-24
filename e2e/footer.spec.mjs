@@ -136,14 +136,14 @@ test.describe("footer (#141)", () => {
         .toHaveText("");
 
       await form.getByRole("button").click();
-      await expect(note).toHaveText("Enter your email address.");
+      await expect(note).toHaveText("Please enter an email address.");
 
       // A bare type="email" would let "you@farm" through.
       for (const bad of ["nope", "you@farm"]) {
         await input.fill(bad);
         await form.getByRole("button").click();
         await expect(note)
-          .toHaveText("Enter a valid email address, like you@example.com.");
+          .toHaveText("Please enter a valid email address.");
         await expect(input).toHaveClass(/\bis-invalid\b/);
         await expect(input).toHaveAttribute("aria-invalid", "true");
         await expect(input).toBeFocused();

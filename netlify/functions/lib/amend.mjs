@@ -35,6 +35,9 @@ import {
   CONTACT, phoneOk, validateOrder, zipInfo,
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
+import {
+  fieldError,
+} from "../../../assets/scripts/utils/field-errors.mjs";
 import { planEdit } from "./edit.mjs";
 import { now as clock } from "./clock.mjs";
 import { sendMail } from "./mail.mjs";
@@ -178,7 +181,7 @@ const build = (order, body, { now, env }) => {
   if (c.phone !== undefined) {
     customer.phone = String(c.phone).trim();
     if (!phoneOk(customer.phone)) {
-      errors["customer.phone"] = "That phone number doesn't look right.";
+      errors["customer.phone"] = fieldError("phone", customer.phone);
     }
   }
   if (c.contact !== undefined) {

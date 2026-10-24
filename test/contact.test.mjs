@@ -60,8 +60,9 @@ describe("validate", () => {
     assert.equal(r.ok, false);
     assert.deepEqual(Object.keys(r.errors).sort(),
       ["email", "message", "name"]);
-    assert.match(r.errors.email, /valid email/);
-    assert.match(validate({}).errors.email, /so we can answer/);
+    assert.equal(r.errors.email, "Please enter a valid email address.");
+    assert.equal(validate({}).errors.email,
+      "Please enter an email address.");
   });
 
   it("trims, lowercases the email and tidies the order number", () => {

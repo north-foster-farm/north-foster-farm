@@ -28,6 +28,9 @@ import discountCodes from "../../../data/discount-codes.json" with {
 };
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import { indexCatalog } from "../../../assets/scripts/order/lib/catalog.mjs";
+import {
+  fieldError,
+} from "../../../assets/scripts/utils/field-errors.mjs";
 import { modelled } from "../../../assets/scripts/order/lib/dates.mjs";
 import {
   CONTACT, phoneOk, validateOrder,
@@ -778,7 +781,7 @@ export const farmEdit = async (stores, id, body, {
     const errors = { ...plan.errors };
 
     if (phone !== undefined && !phoneOk(phone)) {
-      errors["customer.phone"] = "That phone number doesn't look right.";
+      errors["customer.phone"] = fieldError("phone", phone);
     }
     if (contact !== undefined && !CONTACT.includes(contact)) {
       errors["customer.contact"] = "Text or call?";

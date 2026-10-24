@@ -60,7 +60,7 @@ test.describe("contact and pickup forms", () => {
     await expect(order.errorFor("customer.lastName"))
       .toHaveText("Please enter your last name.");
     await expect(order.errorFor("customer.email"))
-      .toHaveText("That email address doesn't look right.");
+      .toHaveText("Please enter an email address.");
     await expect(order.errorFor("customer.phone"))
       .toHaveText("Please enter a phone number.");
     await expect(order.errorFor("delivery.address1"))
@@ -68,7 +68,7 @@ test.describe("contact and pickup forms", () => {
     await expect(order.errorFor("delivery.town"))
       .toHaveText("Please enter your town.");
     await expect(order.errorFor("delivery.zip"))
-      .toHaveText("Please enter a five-digit ZIP code.");
+      .toHaveText("Please enter a ZIP code.");
     await expect(order.errorFor("delivery.cooler"))
       .toHaveText("Tell us where the cooler will be.");
     await expect(page.locator("#customer-first-name")).toHaveClass(
@@ -103,7 +103,7 @@ test.describe("contact and pickup forms", () => {
       await page.locator("#customer-phone").fill("401555");
       await attempt(order);
       await expect(order.errorFor("customer.phone"))
-        .toHaveText("That phone number doesn't look right.");
+        .toHaveText("Please enter a valid phone number.");
       expect(posted).toBe(0);
     });
 
@@ -143,7 +143,7 @@ test.describe("contact and pickup forms", () => {
       await email.fill("ada@");
       await email.blur();
       await expect(order.errorFor("customer.email"))
-        .toHaveText("That email address doesn't look right.");
+        .toHaveText("Please enter a valid email address.");
       await email.click();
       await email.fill("ada@example.com");
       await email.blur();

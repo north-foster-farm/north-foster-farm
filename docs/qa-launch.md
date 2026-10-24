@@ -893,10 +893,10 @@ missing field and sends nothing" (both projects). Tagged `@regression`.
 - **Test:**
   1. Open Card and press Place your order with every field empty.
 - **Assert:** "Please enter your first name.", "Please enter your last
-  name.", "That email address doesn't look right.", "Please enter a
-  phone number.", "Please enter your street address.", "Please enter
-  your town.", "Please enter a five-digit ZIP code.", "Tell us where the
-  cooler will be."; first name marked invalid and focused; every field
+  name.", "Please enter an email address.", "Please enter a phone
+  number.", "Please enter your street address.", "Please enter your
+  town.", "Please enter a ZIP code.", "Tell us where the cooler will
+  be."; first name marked invalid and focused; every field
   marked red is `aria-invalid="true"` (f27ed0e); no request to
   `/api/orders`.
 - **Teardown:** None.
@@ -912,7 +912,7 @@ given must work" (both projects).
   1. Press Place your order with an empty card form.
   2. Type `401555` as the phone; press again.
 - **Assert:** Step 1: no phone error, the card form's own error shows,
-  nothing sent. Step 2: "That phone number doesn't look right.", nothing
+  nothing sent. Step 2: "Please enter a valid phone number.", nothing
   sent.
 - **Teardown:** None.
 
@@ -930,8 +930,8 @@ without refocusing" (both projects). Tagged `@regression`.
      focus).
   3. Type `ada@`, leave; click it, type `ada@example.com`, leave.
 - **Assert:** Each error disappears as its field becomes valid, and
-  with it the red border and `aria-invalid`; "That email address
-  doesn't look right." shows while it is wrong.
+  with it the red border and `aria-invalid`; "Please enter a valid
+  email address." shows while it is wrong.
 - **Teardown:** None.
 
 ### FM-05 A field emptied later shows its error on leaving

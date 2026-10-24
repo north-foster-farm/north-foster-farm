@@ -14,6 +14,7 @@ import {
   FAILED, isBusy, setBusy, whileBusy,
 } from "../utils/busy-button.js";
 import { say } from "../utils/contact-link.js";
+import { fieldError } from "../utils/field-errors.mjs";
 import {
   confirmHash, isFor, readConfirm, showConfirm,
 } from "../utils/email-confirm.js";
@@ -344,7 +345,7 @@ class Account {
       const email = input.value.trim();
 
       if (!email) {
-        fail("Enter your new email address.");
+        fail(fieldError("email", email));
 
         return;
       }

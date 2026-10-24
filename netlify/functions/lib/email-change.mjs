@@ -7,6 +7,9 @@
 // ends the old address's sessions and voids its waiting links, and
 // the old address is told.
 
+import {
+  fieldError,
+} from "../../../assets/scripts/utils/field-errors.mjs";
 import { renameCustomer } from "./admin.mjs";
 import {
   LINK_WINDOW, LINKS_PER_WINDOW, hit, normalizeEmail, requestLink,
@@ -56,7 +59,7 @@ export const requestEmailChange = async (stores, customer, email, {
   const to = normalizeEmail(email);
 
   if (!validEmail(to)) {
-    return refuse("That email address doesn't look right.");
+    return refuse(fieldError("email", email));
   }
   if (to === from) return refuse("That's already your email address.");
 

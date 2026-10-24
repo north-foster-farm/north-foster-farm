@@ -189,7 +189,7 @@ test.describe("contact messages (#140)", () => {
       expect(bad.status()).toBe(422);
       expect((await bad.json()).errors).toEqual({
         name: "Tell us your name.",
-        email: "Enter a valid email address, like you@example.com.",
+        email: "Please enter a valid email address.",
         message: "Write us a message first.",
       });
 

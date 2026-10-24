@@ -7,6 +7,7 @@
 import { dollars } from "../order/lib/totals.mjs";
 import { api } from "../utils/api.js";
 import { looksLikeEmail } from "../utils/email.js";
+import { fieldError } from "../utils/field-errors.mjs";
 import { isBusy, whileBusy } from "../utils/busy-button.js";
 import { me } from "../session/session.js";
 import { whileLoading } from "../utils/skeleton.js";
@@ -18,10 +19,8 @@ const check = (body) => {
   const errors = {};
 
   if (!body.name.trim()) errors.name = "Tell us your name.";
-  if (!body.email.trim()) {
-    errors.email = "Enter your email address, so we can answer.";
-  } else if (!looksLikeEmail(body.email)) {
-    errors.email = "Enter a valid email address, like you@example.com.";
+  if (!looksLikeEmail(body.email)) {
+    errors.email = fieldError("email", body.email);
   }
   if (!body.message.trim()) errors.message = "Write us a message first.";
 

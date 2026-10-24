@@ -135,7 +135,7 @@ test.describe("contact (#140)", () => {
       await f.submit.click();
       await expect(errorFor(page, "name")).toHaveText("Tell us your name.");
       await expect(errorFor(page, "email"))
-        .toHaveText("Enter your email address, so we can answer.");
+        .toHaveText("Please enter an email address.");
       await expect(errorFor(page, "message"))
         .toHaveText("Write us a message first.");
       await expect(errorFor(page, "orderId")).toHaveText("");
@@ -156,7 +156,7 @@ test.describe("contact (#140)", () => {
     await fill(f, { email: "you@farm" });
     await f.submit.click();
     await expect(errorFor(page, "email"))
-      .toHaveText("Enter a valid email address, like you@example.com.");
+      .toHaveText("Please enter a valid email address.");
     await expect(f.email).toBeFocused();
     await expect(errorFor(page, "name")).toHaveText("");
 
@@ -206,7 +206,7 @@ test.describe("contact (#140)", () => {
   test("the function's field errors land under their fields",
     async ({ page }) => {
       // An address the page lets through and the function refuses.
-      const refused = "Enter a valid email address, like you@example.com.";
+      const refused = "Please enter a valid email address.";
 
       await holdRequests(page, "**/api/contact", {
         status: 422,

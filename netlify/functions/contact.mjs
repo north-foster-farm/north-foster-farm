@@ -15,6 +15,9 @@
 
 import { randomBytes } from "node:crypto";
 
+import {
+  fieldError,
+} from "../../assets/scripts/utils/field-errors.mjs";
 import { normalizeEmail, sameSite, validEmail } from "./lib/auth.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import { alert, noteMail } from "./lib/health.mjs";
@@ -63,10 +66,8 @@ export const validate = (body) => {
   const errors = {};
 
   if (!message.name) errors.name = "Tell us your name.";
-  if (!message.email) {
-    errors.email = "Enter your email address, so we can answer.";
-  } else if (!validEmail(message.email)) {
-    errors.email = "Enter a valid email address, like you@example.com.";
+  if (!validEmail(message.email)) {
+    errors.email = fieldError("email", message.email);
   }
   if (!message.message) errors.message = "Write us a message first.";
 

@@ -26,6 +26,9 @@ import {
   isScheduled, orderOccurrence,
 } from "../../../assets/scripts/order/lib/dates.mjs";
 import { instant } from "../../../assets/scripts/order/lib/zoned.mjs";
+import {
+  validField,
+} from "../../../assets/scripts/utils/field-errors.mjs";
 
 const HOSTS = {
   production: "https://connect.squareup.com",
@@ -161,12 +164,12 @@ export const DECLINE_MESSAGES = {
   ADDRESS_VERIFICATION_FAILURE: "The ZIP code doesn't match the card.",
   VERIFY_AVS_FAILURE: "The ZIP code doesn't match the card.",
   INVALID_POSTAL_CODE: "The ZIP code doesn't match the card.",
-  INVALID_CARD: "That card number doesn't look right.",
-  INVALID_CARD_DATA: "That card number doesn't look right.",
-  PAN_FAILURE: "That card number doesn't look right.",
+  INVALID_CARD: validField("card"),
+  INVALID_CARD_DATA: validField("card"),
+  PAN_FAILURE: validField("card"),
   CARD_EXPIRED: "That card has expired.",
-  INVALID_EXPIRATION: "That expiration date doesn't look right.",
-  EXPIRATION_FAILURE: "That expiration date doesn't look right.",
+  INVALID_EXPIRATION: validField("expiration"),
+  EXPIRATION_FAILURE: validField("expiration"),
   UNSUPPORTED_CARD_BRAND: "We can't take that kind of card.",
   CARD_NOT_SUPPORTED: "We can't take that kind of card.",
   TRANSACTION_LIMIT: "That's over your card's limit for one payment.",
@@ -179,7 +182,7 @@ export const DECLINE_MESSAGES = {
   ALLOWABLE_PIN_TRIES_EXCEEDED: "Your bank declined the payment.",
   RESERVATION_DECLINED: "Your bank declined the payment.",
   CUSTOMER_CANCELED: "The payment was canceled before it completed.",
-  BAD_EXPIRATION: "That expiration date doesn't look right.",
+  BAD_EXPIRATION: validField("expiration"),
   INVALID_ACCOUNT: "Your bank declined the payment.",
   GIFT_CARD_AVAILABLE_AMOUNT: "That card doesn't have enough on it.",
   AMOUNT_TOO_HIGH: "That's over the limit for one payment.",

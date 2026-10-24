@@ -8,6 +8,9 @@ import { legacyOccurrence } from "./events.mjs";
 import { moneyOn } from "./money-on.mjs";
 import { computeTotals, meetsMinimum } from "./totals.mjs";
 import { today } from "./zoned.mjs";
+import {
+  enterField, fieldError,
+} from "../../utils/field-errors.mjs";
 
 export const METHODS = ["onfarm", "scheduled", "delivery"];
 export const CONTACT = ["text", "call"];
@@ -118,16 +121,16 @@ export const validateOrder = (payload, {
   }
   if (!lastName) errors["customer.lastName"] = "Please enter your last name.";
   if (!EMAIL.test(email)) {
-    errors["customer.email"] = "That email address doesn't look right.";
+    errors["customer.email"] = fieldError("email", email);
   }
   // Delivery needs a phone for the driver; pickup and the drop site
   // can do without. A number given must be one we could use.
   if (!phone) {
     if (fulfilment.method === "delivery") {
-      errors["customer.phone"] = "Please enter a phone number.";
+      errors["customer.phone"] = enterField("phone");
     }
   } else if (!phoneOk(phone)) {
-    errors["customer.phone"] = "That phone number doesn't look right.";
+    errors["customer.phone"] = fieldError("phone", phone);
   }
   if (!CONTACT.includes(contact)) {
     errors["customer.contact"] = "Text or call?";
@@ -231,7 +234,7 @@ export const validateOrder = (payload, {
     const { status, state } = zipInfo(f.zip, terms.area);
 
     if (status === "invalid") {
-      errors["delivery.zip"] = "Please enter a five-digit ZIP code.";
+      errors["delivery.zip"] = fieldError("zip", f.zip);
     } else if (status === "outside") {
       errors["delivery.zip"] = "That's outside our delivery area.";
     } else if (disallowedFor(lines, state).length) {

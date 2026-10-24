@@ -1211,7 +1211,7 @@ describe("farmEdit", () => {
 
     assert.equal(bad.ok, false);
     assert.equal(bad.errors["customer.phone"],
-      "That phone number doesn't look right.");
+      "Please enter a valid phone number.");
     assert.equal(result.ok, true, JSON.stringify(result.errors));
 
     const saved = await getOrder(stores, id);

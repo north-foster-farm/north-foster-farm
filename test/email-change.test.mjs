@@ -97,7 +97,8 @@ describe("asking to change the email (#240)", () => {
         email, { now, env, mail });
 
       await saveCustomer(stores, { email: "taken@example.com", name: "T" });
-      assert.match((await ask("nope")).errors.email, /doesn't look right/);
+      assert.equal((await ask("nope")).errors.email,
+        "Please enter a valid email address.");
       assert.match((await ask(" PAT@example.com")).errors.email,
         /already your email address\./);
       assert.match((await ask("taken@example.com")).errors.email,
