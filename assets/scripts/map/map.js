@@ -36,6 +36,8 @@
 //
 // Wording is a draft for James (#138, #214).
 
+import { clearance, fit } from "./fit.mjs";
+
 const MAX_ZOOM = 5;
 
 // Pins stand this tall on screen at any zoom and any width; the shape
@@ -539,6 +541,34 @@ const wire = (map) => {
     });
   };
 
+  // The picked town's whole outline in view (#409): a pin's height and
+  // more of room around it, and more on a side where the zoom, a tag or
+  // the ZIP field covers the map. The pin stands above its tip, so the
+  // top keeps its height too.
+  const frameTown = (town, pin) => {
+    const box = svg.getBoundingClientRect();
+    const bb = town.getBBox();
+
+    if (!box.width || !box.height || !bb.width || !bb.height) {
+      bringIn(pin);
+      return;
+    }
+
+    const covers = [...map.querySelectorAll(
+      ".map-zoom, .map-tag:not(.is-tip):not([hidden]), "
+      + ".map-field:not([hidden])"
+    )].map((el) => el.getBoundingClientRect());
+    const base = {
+      top: FIT_PAD_PX + PIN_PX,
+      right: FIT_PAD_PX,
+      bottom: FIT_PAD_PX,
+      left: FIT_PAD_PX,
+    };
+
+    go(fit(bb, box, clearance(box, covers, base), { w: W, h: H },
+      FIT_MAX_ZOOM));
+  };
+
   const show = (n, { focus = false } = {}) => {
     const card = map.querySelector(`[data-map-card="${n}"]`);
     const pin = pinOf(n);
@@ -558,7 +588,10 @@ const wire = (map) => {
     reveal(row);
     // SVG paints in source order: the selected pin goes on top.
     pin.parentNode.append(pin);
-    bringIn(pin);
+    const town = homeOf(pin);
+
+    if (town) frameTown(town, pin);
+    else bringIn(pin);
     if (focus) row.focus();
   };
 
