@@ -156,7 +156,11 @@ svg {
 // sits just under the 3:1 contrast against body text that WCAG asks
 // of an undecorated link; the underline is the second cue. Buttons,
 // navigation (.nav-item), breadcrumbs and headings are untouched.
-main :is(p, li:not(.breadcrumb-item, .nav-item), dd, td, figcaption) a:not(.btn) {
+//
+// A .btn-link is a link that happens to be a button (Try again,
+// Dismiss, Cancel), so it gets the same underline wherever it sits.
+main :is(p, li:not(.breadcrumb-item, .nav-item), dd, td, figcaption) a:not(.btn),
+.btn-link {
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.18em;
@@ -164,6 +168,8 @@ main :is(p, li:not(.breadcrumb-item, .nav-item), dd, td, figcaption) a:not(.btn)
 
   &:hover,
   &:focus-visible {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
     text-decoration-color: currentcolor;
   }
 }
