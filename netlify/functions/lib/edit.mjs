@@ -695,7 +695,8 @@ export const editOrder = async (stores, customer, id, body, {
     }
     if (payment.method === "venmo") {
       if (payment.stage !== "create") {
-        return fail(422, { payment: "Which Venmo step?" });
+        return fail(422, { payment: "The Venmo payment didn't come " +
+          "through. Start it again." });
       }
 
       return guarded(stores, id, opts, async () => ({

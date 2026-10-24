@@ -307,8 +307,8 @@ export const planChange = (order, changes, { now, env, by = "customer" }) => {
     const to = c.method !== undefined ? text(c.method, 20) : method;
 
     if (!wasScheduled || !isScheduled({ method: to })) {
-      errors.method = "Only a scheduled pickup can move to another " +
-        "pickup.";
+      errors.method = "Only an order for a pickup day can move to " +
+        "another pickup day.";
     } else if (c.occurrence !== undefined) {
       target = text(c.occurrence, 20);
     } else {
