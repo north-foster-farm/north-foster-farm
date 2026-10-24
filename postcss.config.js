@@ -147,6 +147,8 @@ const plugins = [
         "is-new",
         "is-ringed",
         "is-ticked",
+        // Square's card form adds it once the SDK renders (#388).
+        "sq-card-message",
         // The account page marks the order an email linked to.
         "is-linked",
         // The search palette's JavaScript: open, and a real photo.
