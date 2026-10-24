@@ -102,11 +102,13 @@ const wireWays = async (card) => {
 
   list.prepend(...items);
   for (const el of card.querySelectorAll("[data-scheduled-static]")) {
+    delete el.dataset.expiry;
     el.hidden = true;
   }
   // The build's "Starting" badge is the drop site's; each place wears
   // its own now.
   for (const el of card.querySelectorAll(".place-head .place-badge")) {
+    delete el.dataset.expiry;
     el.hidden = true;
   }
 };
@@ -134,7 +136,10 @@ const wireSkips = async () => {
     // A hidden top bar still matches :root:has(.top-bar) and keeps the
     // hero's reserve; remove it as retireTopBar does.
     if (el.hasAttribute("data-top-bar")) el.remove();
-    else el.hidden = true;
+    else {
+      delete el.dataset.expiry;
+      el.hidden = true;
+    }
   }
 };
 
