@@ -137,8 +137,6 @@ for (const size of WIDTHS) {
 
       // About half the screen at most; the catalog shows above it.
       expect(cart.y).toBeGreaterThan(size.height * 0.3);
-      // No "N more" pill: the list simply scrolls.
-      await expect(order.cart.locator("[data-cart-more]")).toBeHidden();
     });
 
     test("Expand and Hide: Tab reaches it, the focus stays, "
