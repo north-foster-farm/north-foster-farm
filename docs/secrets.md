@@ -770,6 +770,7 @@ each stays closed without its credential:
 | `/api/staging/jobs/run` and `/api/health` | `STAGING_TOKEN`, as a header |
 | The end-to-end suite | `E2E_STAGING_TOKEN`, as a header or the `nff_gate_machine` cookie |
 | `/api/gate/*` | none: it is the sign-in itself |
+| `/version.json` (exact path) | none: the build's commit and version, both public in the repository |
 
 **`STAGING_TOKEN`** is for machines only: the Staging jobs workflow
 and health checks. It is never typed into a browser, and there is no

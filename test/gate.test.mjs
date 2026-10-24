@@ -695,8 +695,22 @@ describe("the edge", () => {
         ["PayPal sandbox webhook", "signature", undefined],
         ["staging jobs workflow", "token", "STAGING_TOKEN"],
         ["health check", "token", "STAGING_TOKEN"],
+        ["build version", "none", undefined],
         ["end-to-end suite", "token", "E2E_STAGING_TOKEN"],
       ]);
+    });
+
+    it("opens /version.json to anyone, and no other path", async () => {
+      const res = await edge("/version.json", { values: {} });
+
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get("x-robots-tag"), NOINDEX);
+
+      for (const path of ["/version.json/", "/version.jsonx", "/version",
+        "/version.json.map", "/a/version.json", "/VERSION.JSON",
+        "/version.json/x", "/", "/api/orders", "/llms.txt"]) {
+        assert.equal((await edge(path, { values: {} })).status, 401, path);
+      }
     });
 
     for (const path of ["/api/staging/jobs/run", "/api/health"]) {

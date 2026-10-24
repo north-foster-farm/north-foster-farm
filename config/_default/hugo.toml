@@ -65,8 +65,15 @@ timeZone = "America/New_York"
     mediaType = "text/plain"
     notAlternative = true
 
+# /version.json names the build; see layouts/index.version.json.
+  [outputFormats.version]
+    baseName = "version"
+    isPlainText = true
+    mediaType = "application/json"
+    notAlternative = true
+
 [outputs]
-  home = ["html", "llms"]
+  home = ["html", "llms", "version"]
 
 # A post's address is its title, never its file's date: the title
 # makes the slug unless the post sets `slug`, and bin/check-news.mjs

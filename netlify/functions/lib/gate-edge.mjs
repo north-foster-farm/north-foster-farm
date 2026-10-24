@@ -31,6 +31,9 @@ export const NOINDEX = "noindex, nofollow, noarchive";
 //   variable's value, as `Authorization: Bearer` or `X-Staging-Token`.
 //   credential "sign-in": the gate's own endpoints, which answer the
 //   same to anyone and send mail only to the allowlist.
+//   credential "none": one exact path that is public on purpose. Only
+//   /version.json, which holds the build's commit and version; the
+//   repository is public, so it reveals nothing.
 export const EXEMPTIONS = [
   { name: "sign-in", credential: "sign-in", paths: ["/api/gate/"],
     prefix: true },
@@ -42,6 +45,7 @@ export const EXEMPTIONS = [
     env: "STAGING_TOKEN", paths: ["/api/staging/jobs/run"] },
   { name: "health check", credential: "token",
     env: "STAGING_TOKEN", paths: ["/api/health"] },
+  { name: "build version", credential: "none", paths: ["/version.json"] },
   { name: "end-to-end suite", credential: "token",
     env: "E2E_STAGING_TOKEN", paths: null },
 ];
