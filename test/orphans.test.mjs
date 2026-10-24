@@ -200,7 +200,10 @@ describe("the flex rows the pass must not split", () => {
 
     assert.ok(lis.length >= 4);
     for (const li of lis) {
-      assert.match(li, /<span>[^<]+<\/span><\/li>$/, li);
+      // A label may end in a visually hidden span, for screen readers.
+      const hidden = '(<span class="visually-hidden">[^<]+</span>)?';
+
+      assert.match(li, new RegExp(`<span>[^<]+${hidden}</span></li>$`), li);
     }
   });
 

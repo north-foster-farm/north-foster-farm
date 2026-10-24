@@ -881,8 +881,9 @@ const wire = (map) => {
     tabs.find((t) => t.dataset.mapLayer === "places").focus();
   });
 
-  // #places opens the Places layer (so does the order page's older
-  // #places-scheduled); #place-… opens that place's card.
+  // #places opens the Places layer. #places-scheduled is the older
+  // link, from when Places had a filter, and opens plain Places too;
+  // #place-… opens that place's card.
   const follow = () => {
     const hash = decodeURIComponent(location.hash.slice(1));
 

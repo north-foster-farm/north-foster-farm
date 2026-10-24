@@ -252,8 +252,8 @@
       <ul class="map-key-areas list-unstyled">
         <li><span class="map-swatch is-ours" aria-hidden="true"></span><span>${{ $money.deliveryFee }} delivery</span></li>
         <li><span class="map-swatch is-away" aria-hidden="true"></span><span>${{ add $money.deliveryFee $money.outsideAreaFee }} delivery</span></li>
-        <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon">{{ $egg }}</span><span class="map-tag-icon">{{ $hen }}</span></span><span>Available</span></li>
-        <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon is-off">{{ $egg }}</span><span class="map-tag-icon is-off">{{ $hen }}</span></span><span>Unavailable</span></li>
+        <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon">{{ $egg }}</span><span class="map-tag-icon">{{ $hen }}</span></span><span>Available<span class="visually-hidden"> for delivery</span></span></li>
+        <li><span class="map-key-icons" aria-hidden="true"><span class="map-tag-icon is-off">{{ $egg }}</span><span class="map-tag-icon is-off">{{ $hen }}</span></span><span>Unavailable<span class="visually-hidden"> for delivery</span></span></li>
       </ul>
     </div>
 
