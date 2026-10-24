@@ -27,16 +27,13 @@
   <div class="col-md-5">
     <ul class="markets-list list-unstyled mb-0">
       {{ range (partial "lib/pickup-lists.html" .).markets }}
-        {{ $parts := split .where ", " }}
-        {{ $venue := index $parts 0 }}
-        {{ $street := delimit (after 1 $parts) ", " }}
         {{ $map := printf "https://www.google.com/maps/search/?api=1&query=%s"
           (urlquery (printf "%s, RI" .where)) }}
         <li class="market">
           <strong class="d-block">{{ .name }}</strong>
           {{ .when }}<br>
           {{ partial "market/season.html" . }}<br>
-          <a href="{{ $map }}" target="_blank" rel="noopener">{{ $venue }}<br>{{ $street }}, RI</a>
+          <a href="{{ $map }}" target="_blank" rel="noopener">{{ .venue }}<br>{{ .street }}<br>{{ .city }}, Rhode Island</a>
           {{/* Shown by schedule.js while the market has a date open
                for pickup. */}}
           <span class="d-block" data-pickup-for="{{ .code }}" hidden>

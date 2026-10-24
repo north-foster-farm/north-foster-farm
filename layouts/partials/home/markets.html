@@ -7,11 +7,6 @@
      ends (expiry.js; `ends` is when the last one does). See
      index.html. */}}
 {{ $ends := .ends }}
-{{ $orderOnline := partial "link.html" (dict
-  "href" (relURL "order/")
-  "innerHTML" "order online"
-  "title" (print "Order online from " hugo.Data.company.name))
-}}
 {{ $market := resources.Get "images/tilted-market.jpg" }}
 {{ $widths := slice 800 1200 1600 2200 }}
 {{ $srcset := slice }}
@@ -36,7 +31,7 @@
             <a href="{{ .href }}" target="_blank" rel="noopener" title="{{ .name }} website">{{ .name }}</a>
           </h3>
           <p class="place-when">{{ .when }}</p>
-          <p class="place-where">{{ .where }}</p>
+          <p class="place-where"><span class="place-line">{{ .venue }}</span><span class="place-line">{{ .street }}</span><span class="place-line">{{ .city }}, Rhode Island</span></p>
           <p class="place-note">{{ partial "market/season.html" . }}</p>
           <p class="place-pickup" data-pickup-for="{{ .code }}" hidden>
             <a href="{{ relURL "order/" }}?method=scheduled&amp;series={{ .code }}">Order for pickup here</a>
@@ -44,11 +39,5 @@
         </li>
       {{ end }}
     </ul>
-    <p class="places-note mb-0">
-      Between seasons, {{ $orderOnline }} for
-      {{ partial "weekday.html" hugo.Data.delivery.delivery.weekday }} delivery, on-farm pickup, or scheduled pickup at the
-      {{ (partial "scheduled-places.html" .).drop.day }} drop site on the
-      {{ partial "drop-site.html" "name" }}.
-    </p>
   </div>
 </div>

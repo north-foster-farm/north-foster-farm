@@ -26,6 +26,9 @@
       "instagram" $s.instagram
       "when" (print (printf "%ss" (time.AsTime $s.start).Weekday) ", " $window)
       "where" (print $loc.name ", " $loc.street ", " $loc.city)
+      "venue" $loc.name
+      "street" $loc.street
+      "city" $loc.city
       "opens" $s.start
       "closes" $s.end
       "lat" $loc.lat

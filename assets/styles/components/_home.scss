@@ -489,9 +489,16 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     font-weight: 600;
   }
 
+  // One line each for the venue, the street and the town, none
+  // wrapping inside (#340).
   .place-where {
     grid-area: where;
     margin: 0;
+  }
+
+  .place-line {
+    display: block;
+    white-space: nowrap;
   }
 
   .place-note {
@@ -509,12 +516,6 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
   // The tunnel sits right of centre, low in the frame.
   .ways .home-band-img {
     object-position: 60% 70%;
-  }
-
-  .places-note {
-    max-width: 36rem;
-    margin-inline: auto;
-    text-align: center;
   }
 
   // The three ways (#212): when, where and cost are one list, each
