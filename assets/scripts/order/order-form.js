@@ -658,6 +658,53 @@ export class OrderForm {
     this.wireShare();
     this.watchKeyboard();
 
+    // A smooth scroll measures its destination once, as it starts. The
+    // layout between here and there keeps moving (a cart lifting off or
+    // settling resizes the page, and a flick up from the bottom may
+    // still be gliding when the link is pressed), so the glide ends
+    // short of the target or at the foot of the page. When it ends,
+    // look again and jump the rest, until the target holds still. A
+    // wheel, touch or key press by the customer ends the watch (#337).
+    const landOn = (target, block) => {
+      const place = () => target.getBoundingClientRect().top + scrollY;
+      const stop = ["wheel", "touchstart", "keydown", "pointerdown"];
+      let tries = 4;
+      let quiet = null;
+      const settle = () => {
+        const was = place();
+
+        target.scrollIntoView({ behavior: "instant", block });
+        // The jump may itself shift the layout: look once more after.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          tries -= 1;
+          if (tries > 0 && Math.abs(place() - was) > 1) settle();
+        }));
+      };
+      const end = () => {
+        clearTimeout(quiet);
+        window.removeEventListener("scroll", wait);
+        window.removeEventListener("scrollend", done);
+        for (const type of stop) window.removeEventListener(type, end);
+      };
+      const done = () => {
+        end();
+        settle();
+      };
+      // The scrollend event where the browser has it, a pause in the
+      // scrolling where it does not.
+      const wait = () => {
+        clearTimeout(quiet);
+        quiet = setTimeout(done, 150);
+      };
+
+      window.addEventListener("scroll", wait, { passive: true });
+      window.addEventListener("scrollend", done);
+      for (const type of stop) {
+        window.addEventListener(type, end, { passive: true });
+      }
+      wait();
+    };
+
     // The header's total, once the cart has scrolled away, goes back
     // to it (#203). From xl the heading is hidden and the column rides
     // beside the catalog, so the pane itself is brought into view, only
@@ -667,11 +714,11 @@ export class OrderForm {
       const target = column
         ? this.cart : document.getElementById("order-cart-heading");
 
-      target.scrollIntoView({
-        behavior: smooth ? "smooth" : "auto",
-        block: column ? "nearest" : "start",
-      });
+      const block = column ? "nearest" : "start";
+
+      target.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block });
       target.focus({ preventScroll: true });
+      if (smooth) landOn(target, block);
     };
 
     for (const button of all(this.form, "[data-to-cart]")) {

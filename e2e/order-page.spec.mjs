@@ -296,4 +296,39 @@ test.describe("order page", () => {
       await expect(page.locator("#order-cart")).toBeInViewport();
       await expect(page.locator("#order-cart")).toBeFocused();
     });
+
+  // The glide measures its destination as it starts, and the layout
+  // moves under it (a cart lifting off or settling resizes the page),
+  // so it ended short or at the foot. The link now looks again when
+  // the glide ends and jumps the rest (#337, James, walkthrough b).
+  for (const size of [
+    { width: 1010, height: 900 },
+    { width: 1100, height: 700 },
+  ]) {
+    test(`the rail's Cart link lands on the cart after a flick up at ${
+      size.width} px (#337)`, async ({ page }) => {
+      const order = new OrderPage(page);
+
+      await page.setViewportSize(size);
+      await order.open({ eggs: 1, wings: 1, thighs: 1, drums: 1 });
+      await page.evaluate(
+        () => window.scrollTo({ top: document.body.scrollHeight })
+      );
+      await order.scrollSettled();
+      // Up in a flick, and the link at once, as the cart lifts off.
+      await page.evaluate(() => {
+        window.scrollTo({ top: 0, behavior: "instant" });
+        document.querySelector("#order-nav a[href='#order-cart']").click();
+      });
+      await order.scrollSettled();
+
+      const heading = page.locator("#order-cart-heading");
+
+      await expect(heading).toBeInViewport();
+      await expect.poll(async () => (await heading.boundingBox()).y, {
+        message: "the heading sits at the top of the page",
+      }).toBeLessThan(120);
+      await expect(heading).toBeFocused();
+    });
+  }
 });
