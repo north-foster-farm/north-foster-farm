@@ -84,30 +84,34 @@ test.describe("changing your own email", () => {
 
       const mail = await waitForMail({ to, subject: CONFIRM, since: asked });
 
-      // Following the link only peeks at it: the confirm step shows,
-      // and nothing has moved yet (#240).
+      // Following the link only peeks at it: the confirm card shows on
+      // the account's Settings tab, still signed in, and nothing has
+      // moved yet (#240, #345).
       await page.goto(linkIn(mail, VERIFY));
-      await expect(page).toHaveURL(/\/login\/#confirm=/);
-      await expect(page.locator("#login-confirm")).toBeVisible();
-      await expect(page.locator("[data-confirm-email]")).toHaveText(to);
+      await expect(page).toHaveURL(/\/account\/#settings$/);
+      await expect(page.locator("#account-confirm")).toBeVisible();
+      await expect(page.locator("#account-confirm [data-confirm-email]"))
+        .toHaveText(to);
+      await expect(page.locator("#account-email")).toHaveText(from);
       expect(await customerRecord(from)).not.toBeNull();
       expect(await customerRecord(to)).toBeNull();
 
       // Reloading the same link is another bare GET: still nothing
-      // moved, and the confirm step still shows.
+      // moved, and the card still shows.
       await page.goto(linkIn(mail, VERIFY));
-      await expect(page.locator("#login-confirm")).toBeVisible();
+      await expect(page.locator("#account-confirm")).toBeVisible();
       expect(await customerRecord(to)).toBeNull();
 
-      // Cancel backs out without confirming.
-      await page.locator("#login-confirm-cancel").click();
-      await expect(page.locator("#login-confirm")).toBeHidden();
-      await expect(page.locator("#login-form")).toBeVisible();
+      // Cancel backs out without confirming, beside Confirm.
+      await expect(page.locator("#account-confirm-submit")).toBeVisible();
+      await page.locator("#account-confirm-cancel").click();
+      await expect(page.locator("#account-confirm")).toBeHidden();
+      await expect(page.locator("#email-change-open")).toBeFocused();
       expect(await customerRecord(to)).toBeNull();
 
       // The button is what actually moves it.
       await page.goto(linkIn(mail, VERIFY));
-      await page.locator("#login-confirm-submit").click();
+      await page.locator("#account-confirm-submit").click();
       await expect(page).toHaveURL(/\/account\/?#settings$/);
       await expect(page.locator("#account-email")).toHaveText(to);
       await expect(page.locator("#prof-email")).toHaveValue(to);
@@ -170,9 +174,11 @@ test.describe("changing your own email", () => {
       await signIn(page, late);
       await page.context().clearCookies();
 
-      // The GET still only peeks: the confirm step shows, not knowing
-      // yet that the address was taken meanwhile.
+      // The GET still only peeks: with no session here, the account
+      // page hands the link to the sign-in page's card (#345), not
+      // knowing yet that the address was taken meanwhile.
       await page.goto(linkIn(mail, VERIFY));
+      await expect(page).toHaveURL(/\/login\//);
       await expect(page.locator("#login-confirm")).toBeVisible();
       await page.locator("#login-confirm-submit").click();
       await expect(page.locator("[data-confirm-error]")).toContainText(

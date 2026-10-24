@@ -114,6 +114,9 @@
           </section>
 
           <section class="account-section" id="acct-settings" data-section="settings" aria-label="Settings" hidden>
+            {{/* The link in the email that changes the address lands
+                 here (#345); main.js shows the card above the form. */}}
+            {{ partial "email-confirm.html" (dict "prefix" "account") }}
             {{/* Groups under headings (#238, #344): the first is the
                  pane's own heading, so every group carries the same
                  one. */}}
@@ -146,10 +149,9 @@
                   <div class="col-12" id="prof-email-row" data-own-save>
                     <label class="form-label" for="prof-email">Email address</label>
                     <div class="account-email-row">
-                      <input class="form-control-plaintext account-email-value" type="email" id="prof-email" readonly tabindex="-1" aria-describedby="prof-email-note">
+                      <input class="form-control-plaintext account-email-value" type="email" id="prof-email" readonly tabindex="-1">
                       <button class="btn btn-outline-primary btn-sm" type="button" id="email-change-open" aria-expanded="false" aria-controls="email-change">Change</button>
                     </div>
-                    <div class="form-text" id="prof-email-note">Your email address is how you sign in.</div>
                     <div class="account-email-change" id="email-change" data-support="{{ hugo.Data.company.emailInfo }}" hidden>
                       <label class="form-label" for="email-new">New email address</label>
                       <div class="input-group">

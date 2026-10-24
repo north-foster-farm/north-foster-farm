@@ -210,7 +210,8 @@ describe("the endpoints (#240)", () => {
 
     assert.equal(res.status, 302);
     assert.equal(res.headers.get("location"),
-      `/login/#confirm=${token}&email=${encodeURIComponent(NEW)}`);
+      `/account/#confirm=${token}&email=${encodeURIComponent(NEW)}` +
+      `&from=${encodeURIComponent(OLD)}`);
     assert.equal(res.headers.get("set-cookie"), null);
     assert.ok(await getCustomer(stores, OLD));
     assert.equal(await getCustomer(stores, NEW), null);

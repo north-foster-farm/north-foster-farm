@@ -14,6 +14,9 @@ import {
   FAILED, isBusy, setBusy, whileBusy,
 } from "../utils/busy-button.js";
 import { say } from "../utils/contact-link.js";
+import {
+  confirmHash, isFor, readConfirm, showConfirm,
+} from "../utils/email-confirm.js";
 import { whileLoading } from "../utils/skeleton.js";
 import { Autoplay } from "../video/video.js";
 import {
@@ -112,6 +115,10 @@ class Account {
     this.customer = null;
     this.orders = [];
     this.dates = null;
+    // The link in the email that changes the address (#345): its
+    // fragment is read, and dropped, before anything else looks at
+    // the hash, which opens Settings.
+    this.confirm = readConfirm("#settings");
   }
 
   // The page loads as one region (#271): its skeleton holds the place
@@ -130,6 +137,13 @@ class Account {
     // Maintenance keeps sessions but closes the account: the message
     // stands in for the page (#267).
     if (me.ok && me.data.maintenance) return { maintenance: me.data.message };
+    if (this.confirm && (me.status === 401
+      || (me.ok && !me.data.signedIn))) {
+      // No session here to confirm in: the sign-in page can.
+      location.replace(`/login/${confirmHash(this.confirm)}`);
+
+      return new Promise(() => {});
+    }
     if (me.status === 401 || (me.ok && !me.data.signedIn)) {
       // Come back to where they were headed, not just the account
       // page, so a link to one order survives signing in.
@@ -157,6 +171,14 @@ class Account {
       return;
     }
 
+    // Signed in as someone the link isn't for: the sign-in page's
+    // card takes it, as it does for any browser (#345).
+    if (this.confirm && !isFor(this.confirm, customer)) {
+      location.replace(`/login/${confirmHash(this.confirm)}`);
+
+      return;
+    }
+
     this.customer = customer;
     this.wire();
     this.renderHead();
@@ -175,6 +197,22 @@ class Account {
     this.showTab(location.hash.replace("#", "") || "orders");
     this.openOrder(orderFromPath());
     this.emailChanged();
+    this.confirmChange();
+  }
+
+  // The card that asks whether to move the account to the new address
+  // (#345): on Settings, above the form. Cancel puts the focus back
+  // on Change; the link stays good until it expires.
+  confirmChange() {
+    if (!this.confirm) return;
+
+    const panel = document.getElementById("account-confirm");
+
+    this.showTab("settings");
+    showConfirm(panel, this.confirm, () => {
+      document.getElementById("email-change-open").focus();
+    });
+    panel.focus();
   }
 
   // Arrived from the link that moved the account (#240): say so once,

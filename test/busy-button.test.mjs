@@ -42,7 +42,7 @@ const REQUEST_BUTTONS = [
   ["layouts/partials/order/wrap.html", "Pay and place your order"],
   ["layouts/partials/order/wrap.html", "Save changes"],
   ["layouts/login/single.html", "Email me a sign-in link"],
-  ["layouts/login/single.html", "Confirm new email address"],
+  ["layouts/partials/email-confirm.html", "Confirm new email address"],
   ["layouts/account/single.html", "Sign out"],
   ["layouts/account/single.html", "Confirm"],
   ["layouts/account/single.html", "Send"],

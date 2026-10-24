@@ -501,6 +501,18 @@
     margin-top: 0.75rem;
   }
 
+  // The card that confirms a new address (#345): the question, one
+  // red banner, then the two buttons side by side.
+  .account-confirm {
+    margin-bottom: var(--account-gap, 1.25rem);
+  }
+
+  .account-confirm-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
   // What the last save did: "Saving…" with the egg spinner, "Saved 👍",
   // which fades, or why it failed. It sits beside its group's heading
   // (#344) and takes no height when empty.

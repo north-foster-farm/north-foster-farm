@@ -4,6 +4,9 @@
 import { api } from "../utils/api.js";
 import { isBusy, whileBusy } from "../utils/busy-button.js";
 import { say } from "../utils/contact-link.js";
+import {
+  CHANGE_ERRORS, readConfirm, showConfirm,
+} from "../utils/email-confirm.js";
 
 const ERRORS = {
   expired: "That sign-in link expired. Ask for a new one below.",
@@ -11,30 +14,8 @@ const ERRORS = {
     "a new one below.",
   invalid: "That sign-in link isn't valid. Ask for a new one below.",
   // A link to a new email address that could not move the account
-  // (#240). "[contact us]" is the support link.
-  "change-expired": "That link has expired. Sign in and change your " +
-    "email address again from your account settings.",
-  "change-taken": "That email address already exists. For additional " +
-    "support, [contact us].",
-  "change-failed": "We couldn't change your email address. Continue " +
-    "using your current email address, or [contact us] for additional " +
-    "support.",
-};
-
-// A change link's confirm step (#240): #confirm=TOKEN&email=NEW, read
-// from the fragment so the token never reaches a server log.
-const confirmStep = () => {
-  const panel = document.getElementById("login-confirm");
-
-  if (!panel || !location.hash.startsWith("#confirm=")) return null;
-
-  const params = new URLSearchParams(location.hash.slice(1));
-  const token = params.get("confirm");
-  const email = params.get("email") || "";
-
-  history.replaceState(null, "", location.pathname + location.search);
-
-  return token ? { panel, token, email } : null;
+  // (#240).
+  ...CHANGE_ERRORS,
 };
 
 const start = () => {
@@ -57,43 +38,16 @@ const start = () => {
     notice.hidden = false;
   }
 
-  const confirm = confirmStep();
+  // A change link that reached this page rather than the account
+  // page (#345): a browser with no matching session.
+  const panel = document.getElementById("login-confirm");
+  const confirm = panel && readConfirm();
 
   if (confirm) {
     form.hidden = true;
-
-    const { panel, token, email: newEmail } = confirm;
-    const panelError = panel.querySelector("[data-confirm-error]");
-    const confirmButton = document.getElementById("login-confirm-submit");
-
-    panel.querySelector("[data-confirm-email]").textContent = newEmail;
-    panel.hidden = false;
-
-    confirmButton.addEventListener("click", async () => {
-      if (isBusy(confirmButton)) return;
-      panelError.hidden = true;
-
-      const { data } = await whileBusy(confirmButton, api(
-        "/api/auth/verify", { method: "POST", body: { token } }
-      ).catch(() => ({ data: null })));
-
-      if (data && data.ok) {
-        location.href = data.next || "/account/";
-
-        return;
-      }
-
-      say(panelError, (data && ERRORS[data.reason]) || "We couldn't " +
-        "change your email address. Please try again later. If the " +
-        "problem persists, [contact us] for additional support.");
-      panelError.hidden = false;
+    showConfirm(panel, confirm, () => {
+      form.hidden = false;
     });
-
-    document.getElementById("login-confirm-cancel")
-      .addEventListener("click", () => {
-        panel.hidden = true;
-        form.hidden = false;
-      });
   }
 
   const fail = (message) => {

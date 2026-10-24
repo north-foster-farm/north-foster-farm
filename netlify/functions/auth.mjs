@@ -96,13 +96,18 @@ export const handle = async (req, {
     // or a scanner following the emailed link must not move the
     // account on its own (#240). The token travels on to the confirm
     // step in the fragment, which the server never sees again, so it
-    // never reaches a log. A plain sign-in link still works in one GET.
+    // never reaches a log. The step is on the account page (#345);
+    // `from` is only a hint for the page, which sends a browser signed
+    // in as anyone else to the sign-in page's card. The POST below
+    // decides, from the token alone. A plain sign-in link still works
+    // in one GET.
     const peek = await peekToken(stores, token, { now });
 
     if (!peek.ok) return redirect(`/login/?error=${peek.reason}`);
     if (peek.changeFrom) {
-      return redirect(`/login/#confirm=${encodeURIComponent(token)}` +
-        `&email=${encodeURIComponent(peek.email)}`);
+      return redirect(`/account/#confirm=${encodeURIComponent(token)}` +
+        `&email=${encodeURIComponent(peek.email)}` +
+        `&from=${encodeURIComponent(peek.changeFrom)}`);
     }
 
     const result = await verifyToken(stores, token, { now });
