@@ -137,6 +137,44 @@ test.describe("staging toolbar", () => {
       await expect(page.locator("footer [data-news-block]")).toBeVisible();
     });
 
+  // #350: the reset empties the cart on the order page, whose quantity
+  // boxes a plain reload would refill from the browser's form memory,
+  // and starts the toolbar's list of this session's emails afresh. The
+  // gate session and the open toolbar stay.
+  test("Reset to first visit empties the cart and the session's mail",
+    async ({ page, context, baseURL }) => {
+      test.skip(!branch(baseURL), "only on a branch deploy");
+      test.skip(!process.env.E2E_GATE_SESSION,
+        "needs the toolbar owner's gate session");
+      await context.addCookies([{
+        name: "nff_gate", value: process.env.E2E_GATE_SESSION,
+        domain: new URL(baseURL).hostname, path: "/",
+        httpOnly: true, secure: true, sameSite: "Lax",
+      }]);
+      await page.goto("/order/");
+      await page.evaluate(() => {
+        localStorage.setItem("staging.open", "1");
+        localStorage.setItem("nff-order-draft", JSON.stringify({
+          payload: { lines: [{ sku: "NFF-CHK-EGG-LG", qty: 2 }] },
+          savedAt: Date.now(),
+        }));
+      });
+      await page.reload();
+      await Promise.all([
+        page.waitForEvent("load"),
+        page.locator("[data-staging-forget]").click(),
+      ]);
+
+      expect(await page.evaluate(() => localStorage.getItem(
+        "nff-order-draft"))).toBeNull();
+      await expect(page.locator('#order-form [data-qty="NFF-CHK-EGG-LG"]'))
+        .toHaveValue("0");
+      await expect(page.locator("[data-staging-list] li")).toHaveCount(0);
+      await expect(page.locator("[data-staging-panel]")).toBeVisible();
+      expect((await page.request.get("/api/staging/info")).status())
+        .toBe(200);
+    });
+
   // #294 §4: the first time a gate session opens the order page, the
   // sandbox card takes the page as a modal until it is closed; it
   // stays closed for the session, and Reset to first visit brings

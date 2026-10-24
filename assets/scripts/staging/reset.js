@@ -10,11 +10,13 @@
 // - every cookie a script can reach, among them the nff_signed_in
 //   stamp;
 // - the sign-in itself, ended on the server, which also clears the
-//   session cookie scripts cannot touch.
+//   session cookie scripts cannot touch;
+// - this gate session's emails, emptied on the server: the gate
+//   session stays, and the emails are filed under it;
+// - the page's form fields, reset, so the reload does not restore them.
 //
 // What stays is the toolbar's own state (STAY), or the toolbar would
-// close. Filters and form values live in the page and
-// the address, so the reload that follows drops them.
+// close, and the gate session, or the reset would lock its user out.
 
 export const STAY = ["staging.open"];
 
@@ -43,20 +45,73 @@ const expire = (jar) => {
   }
 };
 
+// A reload puts back what the browser remembers of the page's form
+// fields, quantity boxes among them, and the order form builds the cart
+// again from them. Resetting each form first leaves nothing to restore.
+const resetForms = (forms) => {
+  try {
+    for (const form of Array.from(forms())) form.reset();
+  } catch {
+    // No forms to reset.
+  }
+};
+
+// Cache Storage and IndexedDB, which the two storages above do not
+// cover. Nothing in the site uses either today; a script that starts
+// to will be cleared with no change here.
+const dropStores = async () => {
+  try {
+    for (const key of await window.caches.keys()) {
+      await window.caches.delete(key);
+    }
+    for (const db of await window.indexedDB.databases()) {
+      window.indexedDB.deleteDatabase(db.name);
+    }
+  } catch {
+    // Not offered here, or blocked.
+  }
+};
+
+// A request the server must answer well: fetch does not throw on a 403
+// or a 503, so a refused sign-out would look like a done one.
+const ask = async (path, method, body) => {
+  const res = await fetch(path, {
+    method,
+    headers: body ? { "Content-Type": "application/json" } : {},
+    body,
+  });
+
+  if (!res.ok) throw new Error(`${method} ${path}: ${res.status}`);
+};
+
+// -> { signedOut, mailCleared }: whether the server ended the sign-in
+// and emptied this gate session's emails. The browser is cleared
+// either way; the caller says what the server did not do.
 export const forgetEverything = async ({
   local = () => window.localStorage, session = () => window.sessionStorage,
-  jar = document, signOut = () => fetch("/api/auth/signout", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: "{}",
-  }),
+  jar = document, forms = () => document.forms,
+  signOut = () => ask("/api/auth/signout", "POST", "{}"),
+  // "this session's emails" are kept by the gate session, which the
+  // reset keeps, so only the server can empty them.
+  clearMail = () => ask("/api/staging/outbox", "DELETE"),
 } = {}) => {
+  const done = { signedOut: true, mailCleared: true };
+
   try {
     await signOut();
   } catch {
-    // Offline, or already signed out: the cookies go below anyway.
+    done.signedOut = false;
   }
+  try {
+    await clearMail();
+  } catch {
+    done.mailCleared = false;
+  }
+  resetForms(forms);
   wipe(local);
   wipe(session);
   expire(jar);
+  await dropStores();
+
+  return done;
 };
