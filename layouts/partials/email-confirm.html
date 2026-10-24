@@ -13,7 +13,7 @@
 <div class="account-card account-confirm" id="{{ .prefix }}-confirm" role="status" aria-live="polite" tabindex="-1" data-support="{{ hugo.Data.company.emailInfo }}" hidden>
   <h2 class="h4">Confirm your new email address</h2>
   <p>Change your email address to <strong data-confirm-email></strong>?</p>
-  <div class="alert alert-danger">Your email address is the way you sign in to your account. You will no longer be able to sign in with your current email address once you confirm this change.</div>
+  <div class="alert alert-danger">Once you confirm, you can no longer sign in with your current address.</div>
   <div class="alert alert-danger" role="alert" data-confirm-error hidden></div>
   <div class="account-confirm-actions">
     {{ partial "busy-button.html" (dict "label" "Confirm new email address" "busy" "Confirming" "class" "btn-primary" "id" (printf "%s-confirm-submit" .prefix) "type" "button" "fit" true) }}

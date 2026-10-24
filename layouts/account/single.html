@@ -71,10 +71,10 @@
             <form class="account-form" id="address-form" novalidate>
               <section class="account-group" aria-labelledby="acct-address-h">
                 <div class="account-group-head">
-                  <h2 class="h4 account-group-title" id="acct-address-h">Save a delivery address</h2>
+                  <h2 class="h4 account-group-title" id="acct-address-h">Delivery address</h2>
                   {{ partial "account/save.html" . }}
                 </div>
-                <p>This address is automatically pre-filled for new orders on the order page.</p>
+                <p>We fill in this address for you on the order page.</p>
                 <p class="account-address-status" id="address-status" hidden></p>
                 <div class="row g-3">
                   <div class="col-12">
@@ -159,7 +159,7 @@
                         {{ partial "busy-button.html" (dict "label" "Send link" "busy" "Sending" "class" "btn-primary" "id" "email-change-send" "type" "button" "fit" true) }}
                       </div>
                       <div class="invalid-feedback d-block" id="err-email-new"></div>
-                      <div class="form-text" id="email-change-note">We'll email a link to the new email address. Click the link in the message to complete the change. <button class="btn btn-link btn-sm p-0 align-baseline" type="button" id="email-change-cancel">Cancel</button></div>
+                      <div class="form-text" id="email-change-note">We'll email a link to the new address. Open it to complete the change. <button class="btn btn-link btn-sm p-0 align-baseline" type="button" id="email-change-cancel">Cancel</button></div>
                     </div>
                     <p class="form-text mb-0" id="email-change-sent" role="status"></p>
                   </div>
@@ -238,7 +238,7 @@
                  (reviewDismissedAt), so it stays gone on every device. */}}
             <section class="account-review" id="account-review" aria-labelledby="prof-review-h" hidden>
               <h2 class="h4 account-group-title" id="prof-review-h">Leave us a review</h2>
-              <p>If you enjoy {{ hugo.Data.company.name }} products and would like to leave us a review, we appreciate it.</p>
+              <p>If you enjoy {{ hugo.Data.company.name }} products, we'd appreciate a review.</p>
               <div class="account-review-actions">
                 <a class="btn btn-primary" href="{{ hugo.Data.company.reviews.google }}" target="_blank" rel="noopener">Review us on Google<span class="visually-hidden"> (opens in a new tab)</span></a>
                 <button class="btn btn-link" type="button" id="account-review-dismiss">Dismiss permanently</button>
@@ -256,7 +256,7 @@
                 <li>Your access to your order history and receipts</li>
               </ul>
               <p>We keep records of past orders, but we permanently remove your details from them.</p>
-              <p class="account-delete-warning"><strong>Deleting your account is irreversible. It cannot be undone.</strong></p>
+              <p class="account-delete-warning"><strong>Deleting your account cannot be undone.</strong></p>
               <button class="btn btn-outline-danger" type="button" id="account-delete" aria-haspopup="dialog" aria-controls="delete-dialog">Delete my account</button>
             </section>
 

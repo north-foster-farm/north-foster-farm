@@ -362,8 +362,8 @@ class Account {
 
       input.value = "";
       show(false);
-      sent.textContent = `We sent a link to ${data.email}. Click the ` +
-        "link in the message to confirm this change.";
+      sent.textContent = `We sent a link to ${data.email}. Open it to ` +
+        "confirm this change.";
     };
 
     open.addEventListener("click", () => show(true));
@@ -451,7 +451,7 @@ class Account {
 
   // One save, told beside the heading of the group that changed
   // (#238, #344): "Saving…" with a spinner while it is out, "Saved 👍"
-  // for ten seconds, or "Failed to save: <why>" until the next save.
+  // for ten seconds, or "We couldn't save that. <Why>" until the next save.
   // `anchor` is the field that changed; with none (Enter), the form's
   // first group tells it. A failure also goes to the console with the
   // field that sent it. `save` resolves to { ok, error }.
@@ -474,7 +474,10 @@ class Account {
       this.saveLine(line, "saved", "Saved ", "👍");
     } else {
       console.error("Account save failed", { field, error: result.error });
-      this.saveLine(line, "failed", `Failed to save: ${result.error}`);
+      const why = String(result.error);
+      const sentence = why.charAt(0).toUpperCase() + why.slice(1);
+
+      this.saveLine(line, "failed", `We couldn't save that. ${sentence}`);
       // The Address tab's one group is a screen tall on a phone, so the
       // heading's status can sit out of sight above the field.
       line.scrollIntoView({ block: "nearest" });
