@@ -1,18 +1,29 @@
-{{/* The site builds relative URLs, which this page cannot use: it is
-     served at whatever path was asked for, so "./about/" would stack
-     onto it. A base at the site root fixes every link and asset on it
-     (the CSP allows a same-origin base; a root-relative one Hugo
-     would rewrite as relative too). */}}
-{{ define "head-extra" }}<base href="{{ .Site.BaseURL }}">{{ end }}
+{{/* The site builds relative URLs ("./order/"), which this page cannot
+     use: Netlify serves it at whatever path was asked for, so at
+     /a/b/c they would resolve under /a/b/. A base of "/" makes every
+     link and asset resolve from the root of whichever origin served
+     the page: production, staging, a deploy preview or a local build
+     each get their own. It must never be built from .Site.BaseURL,
+     which names the origin the build was told about (a plain `hugo`
+     says production). The slash is written as an entity so Hugo's
+     relative-URL pass, which rewrites a quoted leading "/", leaves it
+     alone. test/not-found.test.mjs holds the built page to this. */}}
+{{ define "head-extra" }}<base href="&sol;">{{ end }}
 {{ define "main" }}
   <section class="{{ .Type }}">
     <div class="page container py-5">
       <div class="row justify-content-center mb-5">
         <div class="col text-column">
           <div class="page-heading border-bottom border-light d-flex align-items-baseline mb-4">
-            <h1 class="me-auto mb-0">404: page not found</h1>
+            <h1 class="me-auto mb-0">Page not found</h1>
           </div>
-          <p class="mb-0">The page you're looking for couldn't be found.</p>
+          <p>We couldn't find that page. It may have moved, or the address may have a typo.</p>
+          <p class="mb-4">Here are some ways to get where you were headed:</p>
+          <div class="d-flex flex-wrap gap-3">
+            <a class="btn btn-primary" href="{{ relURL "order/" }}">Order</a>
+            <a class="btn btn-outline-primary" href="./">Home</a>
+            <a class="btn btn-outline-primary" href="{{ relURL "contact/" }}">Contact us</a>
+          </div>
         </div>
       </div>
     </div>

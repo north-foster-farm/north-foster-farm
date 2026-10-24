@@ -7,10 +7,11 @@
      Netlify's CONTEXT tells them apart (see staging-toolbar.html).
      Pages kept out of the sitemap, and the 404, stay out of search. */}}
 {{ $context := getenv "CONTEXT" }}
+{{ $is404 := eq .RelPermalink "/404.html" }}
 {{ $noindex := or
   (and $context (ne $context "production"))
   .Params.sitemap.disable
-  (eq .RelPermalink "/404.html")
+  $is404
 }}
 
 {{/* A page of the news list past the first is its own page, not a
@@ -44,7 +45,10 @@
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="The {{ hugo.Data.company.name }} logo, a green hen: pasture-raised chicken and eggs, {{ hugo.Data.company.address.city }}, {{ hugo.Data.company.address.state }}">
 {{ end }}
-<meta property="og:url" content="{{ $canonical }}">
+{{/* The missing address is no page's address: no og:url or canonical. */}}
+{{ if not $is404 }}
+  <meta property="og:url" content="{{ $canonical }}">
+{{ end }}
 <meta property="og:site_name" content="{{ .Site.Title }}">
 <meta property="og:locale" content="en_US">
 {{ if $isPost }}
@@ -55,4 +59,6 @@
 {{ end }}
 <meta name="twitter:card" content="summary_large_image">
 
-<link rel="canonical" href="{{ $canonical }}">
+{{ if not $is404 }}
+  <link rel="canonical" href="{{ $canonical }}">
+{{ end }}
