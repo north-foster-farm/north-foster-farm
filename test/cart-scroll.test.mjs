@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  keyboardInset, moreStop, rowsFloor, visibleArea,
+  keyboardInset, moreStop, ringsCart, rowsFloor, visibleArea,
 } from "../assets/scripts/order/lib/cart-scroll.mjs";
 
 // Ten rows of 40px, 100px of view in a 400px list.
@@ -99,5 +99,33 @@ describe("rowsFloor", () => {
 
   it("is nothing for an empty list", () => {
     assert.equal(rowsFloor([], 0, 8, 28), 0);
+  });
+});
+
+describe("ringsCart", () => {
+  it("always rings the xl column, on screen or not", () => {
+    assert.equal(ringsCart(true, { top: 16, bottom: 600 }, 800), true);
+    assert.equal(ringsCart(true, { top: -900, bottom: -300 }, 800), true);
+  });
+
+  it("rings a cart wholly in view below xl", () => {
+    assert.equal(ringsCart(false, { top: 500, bottom: 788 }, 800), true);
+    assert.equal(ringsCart(false, { top: -0.5, bottom: 800.5 }, 800),
+      true);
+  });
+
+  it("rings a cart that fills the screen below xl", () => {
+    assert.equal(ringsCart(false, { top: -200, bottom: 1400 }, 800), true);
+  });
+
+  it("does not ring a cart off screen or half in view below xl", () => {
+    assert.equal(ringsCart(false, { top: 1200, bottom: 1600 }, 800),
+      false);
+    assert.equal(ringsCart(false, { top: 600, bottom: 1000 }, 800), false);
+    assert.equal(ringsCart(false, { top: -300, bottom: 200 }, 800), false);
+  });
+
+  it("does not ring a cart with no height", () => {
+    assert.equal(ringsCart(false, { top: 0, bottom: 0 }, 800), false);
   });
 });

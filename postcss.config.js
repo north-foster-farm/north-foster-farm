@@ -145,6 +145,7 @@ const plugins = [
         "is-entering",
         "is-fading",
         "is-new",
+        "is-ringed",
         "is-ticked",
         // The account page marks the order an email linked to.
         "is-linked",

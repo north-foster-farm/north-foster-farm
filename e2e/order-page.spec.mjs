@@ -297,6 +297,86 @@ test.describe("order page", () => {
       await expect(page.locator("#order-cart")).toBeFocused();
     });
 
+  // From xl the cart is on screen beside the catalog, so the link
+  // seemed to do nothing. It now rings the whole pane in the green for
+  // a moment, or holds a still ring under reduced motion (#337).
+  const ring = (page) => page.locator("#order-cart").evaluate(
+    (el) => getComputedStyle(el, "::after").opacity
+  );
+
+  test("the rail's Cart link rings the cart in the xl column (#337)",
+    async ({ page }) => {
+      const order = new OrderPage(page);
+      const cart = page.locator("#order-cart");
+
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await order.open({ eggs: 1 });
+      await expect(cart).toBeInViewport();
+      await page.locator("#order-nav a[href='#order-cart']").click();
+      await expect(cart).toHaveClass(/\bis-ringed\b/);
+      await expect(cart).toBeInViewport();
+      await expect(cart).toBeFocused();
+      await expect.poll(async () => Number(await ring(page)), {
+        message: "the ring shows round the pane",
+      }).toBeGreaterThan(0.5);
+      await expect(cart).not.toHaveClass(/\bis-ringed\b/, {
+        timeout: 4000,
+      });
+      expect(Number(await ring(page))).toBe(0);
+    });
+
+  test("under reduced motion the cart's ring holds still (#337)",
+    async ({ page }) => {
+      const order = new OrderPage(page);
+      const cart = page.locator("#order-cart");
+
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await order.open({ eggs: 1 });
+      await page.locator("#order-nav a[href='#order-cart']").click();
+      await expect(cart).toHaveClass(/\bis-ringed\b/);
+
+      const look = () => cart.evaluate((el) => {
+        const after = getComputedStyle(el, "::after");
+
+        return { opacity: after.opacity, animation: after.animationName };
+      });
+
+      expect(await look()).toEqual({ opacity: "1", animation: "none" });
+      await page.waitForTimeout(800);
+      expect(await look()).toEqual({ opacity: "1", animation: "none" });
+      await expect(cart).not.toHaveClass(/\bis-ringed\b/, {
+        timeout: 4000,
+      });
+    });
+
+  // Below xl the link scrolls as before, and rings a cart that was in
+  // view already. When it rings is ringsCart's (cart-scroll.test.mjs).
+  test("below xl the link rings a cart already in view (#337)",
+    async ({ page }) => {
+      const order = new OrderPage(page);
+      const cart = page.locator("#order-cart");
+      const link = page.locator("#order-nav a[href='#order-cart']");
+      const heading = page.locator("#order-cart-heading");
+
+      await page.setViewportSize({ width: 1100, height: 800 });
+      await order.open({ eggs: 1 });
+      // Settled at the foot of the page, the cart is in view.
+      await page.evaluate(
+        () => window.scrollTo({ top: document.body.scrollHeight })
+      );
+      await order.scrollSettled();
+      await expect(cart).toBeInViewport({ ratio: 1 });
+      await link.click();
+      await expect(cart).toHaveClass(/\bis-ringed\b/);
+      await order.scrollSettled();
+      await expect(heading).toBeInViewport();
+      await expect(heading).toBeFocused();
+      await expect(cart).not.toHaveClass(/\bis-ringed\b/, {
+        timeout: 4000,
+      });
+    });
+
   // The glide measures its destination as it starts, and the layout
   // moves under it (a cart lifting off or settling resizes the page),
   // so it ended short or at the foot. The link now looks again when

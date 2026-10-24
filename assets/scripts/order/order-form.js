@@ -5,7 +5,7 @@ import {
 } from "./lib/cart-float.mjs";
 import { current, indexCatalog, packLabel } from "./lib/catalog.mjs";
 import {
-  keyboardInset, moreStop, rowsFloor, visibleArea,
+  keyboardInset, moreStop, ringsCart, rowsFloor, visibleArea,
 } from "./lib/cart-scroll.mjs";
 import { buildModel } from "./lib/events.mjs";
 import { moneyOn } from "./lib/money-on.mjs";
@@ -127,6 +127,11 @@ const SHORT = "(max-height: 500px)";
 // motion. 2000 until #274 round 4 added 1.5 s.
 const TEACH_DWELL = 3500;
 const PULSE_MS = { teach: 4400, once: 520, still: 2600 };
+
+// The ring the rail's Cart link puts round the cart (#337): two pulses
+// of the stylesheet's order-cart-ring, or a still ring for as long
+// under reduced motion.
+const RING_MS = 1600;
 
 export class OrderForm {
   static init() {
@@ -745,7 +750,14 @@ export class OrderForm {
       ?.querySelector("a[href='#order-cart']")
       ?.addEventListener("click", (e) => {
         e.preventDefault();
+
+        const column = matchMedia("(min-width: 1200px)").matches;
+        const ring = ringsCart(
+          column, this.cart.getBoundingClientRect(), innerHeight
+        );
+
         toCart(true);
+        if (ring) this.ringCart();
       });
     window.addEventListener("hashchange", () => {
       if (location.hash === "#order-cart") toCart(true);
@@ -1741,6 +1753,18 @@ export class OrderForm {
     this.pulseTimer = setTimeout(() => {
       pill.removeAttribute("data-pulse");
     }, PULSE_MS[still ? "still" : kind]);
+  }
+
+  // Rings the whole cart in the brand green for a moment, so a press
+  // on the rail's Cart link shows where the cart is even when it was on
+  // screen already (#337). A timer, not animationend, ends it: under
+  // reduced motion the ring is still and has no animation to end.
+  ringCart() {
+    clearTimeout(this.ringTimer);
+    pulse(this.cart, "is-ringed");
+    this.ringTimer = setTimeout(() => {
+      this.cart.classList.remove("is-ringed");
+    }, RING_MS);
   }
 
   // The pane is the customer's once they touch it or focus in it: the

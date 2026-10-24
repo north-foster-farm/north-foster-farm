@@ -66,3 +66,17 @@ export const rowsFloor = (rows, listHeight, padding, strip, keep = 3) => {
       + (rows.length > keep ? strip : 0)
   );
 };
+
+// Whether the rail's Cart link rings the cart (#337). From xl the cart
+// is a column beside the catalog, on screen already, so the link rings
+// it every time. Below xl it rings only a cart that was in view when
+// the link was pressed: wholly on screen, or filling it. `rect` is the
+// cart's { top, bottom } in the viewport; `height` the screen's.
+export const ringsCart = (column, rect, height) => {
+  if (column) return true;
+
+  const whole = rect.top >= -1 && rect.bottom <= height + 1;
+  const fills = rect.top <= 0 && rect.bottom >= height;
+
+  return rect.bottom > rect.top && (whole || fills);
+};

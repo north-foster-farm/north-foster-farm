@@ -650,6 +650,32 @@
     @media (max-width: 575.98px) {
       padding: 0.75rem var(--order-gutter);
     }
+
+    // The rail's Cart link rings the whole pane (#337): the pill's
+    // green ring, on a layer of its own so the pane keeps its shadow.
+    // order-form.js ringCart sets the class and takes it off.
+    &::after {
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      box-shadow: $pill-ring;
+      opacity: 0;
+      pointer-events: none;
+      content: "";
+    }
+
+    &.is-ringed::after {
+      animation: order-cart-ring 800ms var(--order-ease) 2;
+    }
+
+    // Reduced motion: no pulse, a still ring for as long. More
+    // specific than the global rule, which would cut it to 1ms.
+    @media (prefers-reduced-motion: reduce) {
+      &.is-ringed::after {
+        animation: none !important;
+        opacity: 1;
+      }
+    }
   }
 
   // Folds with the one height transition that works on auto.
@@ -3037,6 +3063,19 @@
     box-shadow:
       0 0 0 0.3rem color-mix(in srgb, var(--bs-primary) 30%, transparent);
     transform: scale(1.1);
+  }
+}
+
+// The cart's ring: in, held a moment, out.
+@keyframes order-cart-ring {
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  35%,
+  60% {
+    opacity: 1;
   }
 }
 
