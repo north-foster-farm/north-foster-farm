@@ -17,9 +17,9 @@ const JOINED = "You're on the list. Thanks!";
 
 const LANDED = {
   confirmed: JOINED,
-  expired: "That link had expired. Enter your email here to join.",
+  expired: "That link has expired. Enter your email address here to join.",
   invalid: "That link was already used or isn't valid. If you haven't " +
-    "joined yet, enter your email here.",
+    "joined yet, enter your email address here.",
 };
 
 // Drafts, to approve.
@@ -81,7 +81,7 @@ export const wire = (form) => {
       setInvalid(true);
       say(note, data.errors.email, "no");
     } else {
-      say(note, "That didn't work. Try again in a moment.", "wait");
+      say(note, "Something went wrong. Please try again.", "wait");
     }
   });
 };
