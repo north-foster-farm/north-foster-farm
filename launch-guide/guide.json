@@ -1,5 +1,5 @@
 {
- "revision": 43,
+ "revision": 44,
  "updated": "2026-10-24",
  "notice": null,
  "phases": [
@@ -188,7 +188,7 @@
     {
      "id": "sq-prod",
      "title": "Check production's Square values",
-     "body": "These came in from your `.env`. Production keeps them; nothing here is replaced. If any field is empty, get it from the Developer Console with the toggle set to **Production**:\n- **Credentials:** the Application ID (it starts `sq0idp-`) and the access token (**Show**). Never use **Replace** now: it switches the old token off at once. On a later rotation, switch maintenance mode on first (the December rotation step).\n- **Locations:** North Foster Farm's location ID, `L6PRYPQ7VW659`. Every sale lives there now (#267), not at the northfosterfarm.com location; step sq-location moves the site.\n- **Webhooks → Subscriptions:** open the production subscription, then **Show** the Signature Key.\n\nIf you fixed the subscription URL in the previous step, its signature key is unchanged.",
+     "body": "These came in from your `.env`. Production keeps them; nothing here is replaced. If any field is empty, get it from the Developer Console with the toggle set to **Production**:\n- **Credentials:** the Application ID (it starts `sq0idp-`) and the access token (**Show**). Never use **Replace** now: it switches the old token off at once. On a later rotation, switch maintenance mode on first (the December rotation step).\n- **Locations:** North Foster Farm's location ID, `L6PRYPQ7VW659`. Every sale lives there now (#267), not at the northfosterfarm.com location; step sq-location moves the site.\n- **Webhooks → Subscriptions:** open the production subscription, then **Show** the Signature Key.\n\nIf you fixed the subscription URL in the previous step, its signature key is unchanged.\n\n**Note, 2026-10-24:** For the release a new Square application is created (#331, a line in #237) and its token, application id and webhook replace production's values. Check the new app's values, not the old ones, and revoke the old app's token after the test order passes.",
      "minutes": 5,
      "links": [
       {
@@ -535,7 +535,6 @@
      "title": "Delete the Resend webhook that points at staging",
      "body": "Staging sends no email and holds no Resend team, key, audience or webhook, so the farm team's endpoint for staging has to go. On the farm team, open **Webhooks** and delete the endpoint that points at `staging--north-foster-farm.netlify.app/api/resend/webhook`.\n\nDo this only after the unsubscribe test in the review section (R-234) is done: that test needs the endpoint. Then tell Claude it is gone, and Claude removes staging's `RESEND_AUDIENCE_ID`, `RESEND_AUDIENCE_KEY` and `RESEND_WEBHOOK_SECRET` from Netlify.",
      "minutes": 3,
-     "blocked": "Waits on R-234, the unsubscribe test on staging. Do not delete the endpoint before that test passes.",
      "links": [
       {
        "label": "Resend webhooks",
@@ -1074,7 +1073,7 @@
     {
      "id": "gh-rules",
      "title": "Check the branch rules on GitHub",
-     "body": "The security lane applied these on 2026-10-18; you only confirm them. Open **Settings, Rules, Rulesets** in `north-foster-farm`. There should be two, both **Active**, both with an **empty Bypass list**:\n1. **fast-forward only: next, staging, main**: linear history, no force push, no deletion.\n2. **required checks: staging, main**: `lint-and-test`, `supply-chain` and `codeql`, each from GitHub Actions. `audit` joins when you answer the advisories decision.\n\n`next` requires no check, so lanes keep landing work. There is no pull-request rule on `main`, on purpose: GitHub's merge button cannot fast-forward, and a pull-request rule would reject the fast-forward push. `bin/nff promote main` checks your `LGTM` on the pull request instead. Whether to make GitHub enforce that with a second account is a decision below (D-SEC-REVIEWER). The full account is `docs/security.md`.",
+     "body": "The security lane applied these on 2026-10-18; you only confirm them. Open **Settings, Rules, Rulesets** in `north-foster-farm`. There should be two, both **Active**, both with an **empty Bypass list**:\n1. **fast-forward only: next, staging, main**: linear history, no force push, no deletion.\n2. **required checks: staging, main**: `lint-and-test`, `supply-chain` and `codeql`, each from GitHub Actions. `audit` joins when you answer the advisories decision.\n\n`next` requires no check, so lanes keep landing work. There is no pull-request rule on `main`, on purpose: GitHub's merge button cannot fast-forward, and a pull-request rule would reject the fast-forward push. `bin/nff promote main` checks your `LGTM` on the pull request instead. Whether to make GitHub enforce that with a second account is a decision below (D-SEC-REVIEWER). The full account is `docs/security.md`.\n\n**Note, 2026-10-24:** The 2026-10-22 decision on #283 replaced the check above. You create a `staging` ruleset (lint-and-test, supply-chain, codeql, build, record-shape), narrow the old combined ruleset 25361919 to `main`, then create the `main` ruleset (the same list with release-audit in place of record-shape) and delete 25361919. `e2e` stays out of both while the e2e pause stands. The line in #237 is the master.",
      "minutes": 5,
      "links": [
       {
@@ -1169,7 +1168,7 @@
     {
      "id": "sec-migration",
      "title": "Apply the dashboard's migration 0054 (after a backup)",
-     "body": "After the dashboard's PR #30 merges. The migration takes execute away from the signed-out role on four database functions and changes nothing else. Back up first, then push, in the dashboard's folder:\n```\nnode scripts/backup-db.mjs\nsupabase db push\n```\nThe file is `0054_revoke_anon_execute_on_definer_functions.sql`. Done when the push lists it and the daily sign-out check stays green.",
+     "body": "After the dashboard's PR #30 merges. The migration takes execute away from the signed-out role on four database functions and changes nothing else. Back up first, then push, in the dashboard's folder:\n```\nnode scripts/backup-db.mjs\nsupabase db push\n```\nThe file is `0054_revoke_anon_execute_on_definer_functions.sql`. Done when the push lists it and the daily sign-out check stays green.\n\n**Note, 2026-10-24:** Before this step check that nff-dashboard PR #30 carries migration 0054; dashboard #29 says 0053 is still uncommitted, and the numbers must not collide.",
      "minutes": 10,
      "copy": [
       {
@@ -1629,7 +1628,7 @@
     {
      "id": "mm-snapshot",
      "title": "Prove a republished deploy keeps its old env (staging)",
-     "body": "The rollback runbook assumes that republishing an old deploy runs no build and serves the env values it was built with. Nobody has proved it. This test does, on staging, and it settles the first item in `docs/rollback.md` under *Not verified*. It needs Netlify access, so you run it or allow Claude to.\n1. Set a harmless staging value, for example `SNAPSHOT_TEST` to `one`, and build a deploy.\n2. Change it to `two`.\n3. Republish the older deploy with `restoreSiteDeploy`. That runs no build.\n4. Check which value its functions see, and whether auto publishing is now locked.\n5. Redeploy (a new build) and check that `two` shows. That is the other half: a **redeploy** uses today's values, a **republish** uses the old ones.\n6. Delete the test value.\n\nClaude records the result on #267 and in the runbook. Until it is recorded, the rule stands: never publish a deploy built before a key change. Before launch if it fits; in any case before the second production release.",
+     "body": "The rollback runbook assumes that republishing an old deploy runs no build and serves the env values it was built with. Nobody has proved it. This test does, on staging, and it settles the first item in `docs/rollback.md` under *Not verified*. It needs Netlify access, so you run it or allow Claude to.\n1. Set a harmless staging value, for example `SNAPSHOT_TEST` to `one`, and build a deploy.\n2. Change it to `two`.\n3. Republish the older deploy with `restoreSiteDeploy`. That runs no build.\n4. Check which value its functions see, and whether auto publishing is now locked.\n5. Redeploy (a new build) and check that `two` shows. That is the other half: a **redeploy** uses today's values, a **republish** uses the old ones.\n6. Delete the test value.\n\nClaude records the result on #267 and in the runbook. Until it is recorded, the rule stands: never publish a deploy built before a key change. Before launch if it fits; in any case before the second production release.\n\n**Note, 2026-10-24:** The env-snapshot test is also scheduled with the one-tap rollback (#376), where it is required before the second release. You may do it after launch.",
      "minutes": 20,
      "device": "laptop",
      "type": "terminal"
@@ -1715,7 +1714,8 @@
       }
      ],
      "device": "laptop",
-     "type": "terminal"
+     "type": "terminal",
+     "body": "**Note, 2026-10-24:** D-EXPORT: before launch the copy goes to Cloudflare R2 only. Backblaze B2 is a second copy after launch (#377)."
     },
     {
      "id": "ld-trailer",
@@ -1728,7 +1728,7 @@
     {
      "id": "ld-venmo",
      "title": "Leave VENMO_HIDDEN empty",
-     "body": "You decided (V1, #192) that Venmo launches **live** for everyone. Nothing to set: production's `VENMO_HIDDEN` stays empty, and the env builder writes it that way. Launching live is the test, and the setting is the safety net: if Venmo misbehaves after the release, set `VENMO_HIDDEN=1` on the production context and redeploy. The button then greys out with \"Coming soon\".",
+     "body": "You decided (V1, #192) that Venmo launches **live** for everyone. Nothing to set: production's `VENMO_HIDDEN` stays empty, and the env builder writes it that way. Launching live is the test, and the setting is the safety net: if Venmo misbehaves after the release, set `VENMO_HIDDEN=1` on the production context and redeploy. The button then greys out with \"Coming soon\".\n\n**Note, 2026-10-24:** Open conflict: #237 and #381 say to set `VENMO_HIDDEN` before the release and unset it after the $1 test. Which one stands is D28 in Decisions for James (#354).",
      "minutes": 1,
      "device": "laptop",
      "type": "look"
@@ -2034,7 +2034,8 @@
       }
      ],
      "device": "laptop",
-     "type": "terminal"
+     "type": "terminal",
+     "body": "**Note, 2026-10-24:** D-EXPORT: after the release the copy goes to R2. Backblaze B2 is a second copy after launch (#377)."
     },
     {
      "id": "ld-announce",
@@ -2119,7 +2120,7 @@
     {
      "id": "pd-invite",
      "title": "Invite the old mailing list",
-     "body": "One send, no batches. The day after the launch email, and only once Resend Pro is in place (the step **Upgrade the production team to Pro**): remove anyone who replied \"unsubscribe\" from your CSV, then do a dry run and the real send.",
+     "body": "One send, no batches. The day after the launch email, and only once Resend Pro is in place (the step **Upgrade the production team to Pro**): remove anyone who replied \"unsubscribe\" from your CSV, then do a dry run and the real send.\n\n**Note, 2026-10-24:** One send, once Resend is on Pro (D-INVITE). #153 and #237 now say the same.",
      "minutes": 15,
      "copy": [
       {
