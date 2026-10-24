@@ -531,8 +531,14 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
   .place-way {
     grid-template-areas:
       "icon head"
+      "icon line"
       "icon facts"
       "icon cta";
+  }
+
+  .place-tagline {
+    grid-area: line;
+    margin: 0 0 0.75rem;
   }
 
   .place-head {
@@ -735,6 +741,7 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
       grid-template:
         "icon" auto
         "head" auto
+        "line" auto
         "facts" auto
         "cta" 1fr
         / 1fr;

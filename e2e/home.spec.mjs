@@ -550,18 +550,23 @@ test.describe("home", () => {
     const WAYS = [
       {
         method: "onfarm", name: "On-farm pickup",
-        when: "Pick a time when you order",
+        line: "Choose a day and time to get your order right here at " +
+          "the farm",
         where: "99 E Killingly Rd, Foster, RI",
         cost: "No minimum, no fee", cta: "Shop for pickup",
       },
       {
         method: "scheduled", name: "Scheduled pickup",
         when: /Saturdays, 10:00\s–\u2060\s11:00\sAM/,
-        where: "The drop site, 46 Institute Ln, North Scituate, RI",
+        line: "Order in advance and get your order at any upcoming " +
+          "market, pop-up, or drop site",
+        where: "46 Institute Ln, North Scituate, RI",
         cost: "No minimum, no fee", cta: "Shop for scheduled pickup",
       },
       {
         method: "delivery", name: "Delivery",
+        line: "Our farm-to-doorstep service: delivery to your front " +
+          "door, every week",
         when: /Every Thursday, 10:00\sAM\s–\u2060\s4:00\sPM/,
         where: "Most of central Rhode Island and parts of eastern " +
           "Connecticut",
@@ -589,9 +594,14 @@ test.describe("home", () => {
           await expect(place.locator(".place-name")).toHaveText(way.name);
           await expect(place.locator(".home-icon svg")).toBeVisible();
           // #212: when, where and cost are one list, each with an icon.
-          await expect(place.locator(".place-fact")).toHaveCount(3);
-          await expect(place.locator(".place-fact svg")).toHaveCount(3);
-          await expect(place.locator(".place-when")).toHaveText(way.when);
+          const facts = way.when ? 3 : 2;
+
+          await expect(place.locator(".place-tagline")).toHaveText(way.line);
+          await expect(place.locator(".place-fact")).toHaveCount(facts);
+          await expect(place.locator(".place-fact svg")).toHaveCount(facts);
+          if (way.when) {
+            await expect(place.locator(".place-when")).toHaveText(way.when);
+          }
           await expect(place.locator(".place-where")).toHaveText(way.where);
           await expect(place.locator(".place-note")).toHaveText(way.cost);
           await expect(place.getByRole("link")).toHaveText(way.cta);
