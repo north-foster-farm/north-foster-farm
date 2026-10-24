@@ -2,7 +2,7 @@
 
 James follows a local page, `launch-guide.html`, from now until after launch. On load it fetches `launch-guide/guide.json` from this branch (raw.githubusercontent.com). If the file's `revision` is higher than the copy built into the page, the page switches to it. Everything James types is saved in his browser only.
 
-**Agents change data only.** Add, update and remove entries in `guide.json` (steps, review items, revisions, tags), and nothing else. Never edit `launch-guide.html` here or the copy on James's Mac: the page is built from a source the voice assistant keeps, and a hand edit would be overwritten without anyone noticing. If the page itself needs a change, ask on #354 ("Decisions for James").
+**Agents change data only.** Add, update and remove entries in `guide.json` (steps, review items, revisions, tags), and nothing else. Never edit `launch-guide.html` here or the copy on James's Mac: the page is built from a source the voice assistant keeps, and a hand edit would be overwritten without anyone noticing. If the page itself needs a change, tell the coordinator, who asks the voice assistant.
 
 **This branch never holds values.** No secrets, no customer or personal data: only steps, review items and variable names. It is not merged anywhere.
 
@@ -35,4 +35,4 @@ Then **increase the top-level `revision` by 1** and commit to this branch with a
   - `type`: `look` (look and review), `decide`, `account` (setup in a web console), `terminal` (command line), `live` (live test) or `claude` (tell Claude).
   - Set both on anything you add. When unsure, use `laptop`: hiding a phone-friendly item costs less than sending James to a step he can't finish.
 
-The guide is built from Python sources the voice assistant keeps. Small edits to `guide.json` directly are fine. For larger changes, ask the voice assistant, and put questions for James on #354 ("Decisions for James").
+The guide is built from Python sources the voice assistant keeps. Small edits to `guide.json` directly are fine. For larger changes, ask the voice assistant, and send questions for James to the coordinator, who adds each as a decision item (`rv-decide`) in this file.
