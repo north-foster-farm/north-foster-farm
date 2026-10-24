@@ -28,6 +28,14 @@ body > .flex-grow-1 {
   background-color: var(--bs-body-bg);
 }
 
+// A short page (sign-in, the account's Address tab, the 404) would
+// leave the footer riding up under a few lines. The floor gives every
+// page, and so every account tab, the same room above it (#343). The
+// rem cap keeps a tall window from gaining a scrollbar.
+body > main {
+  min-height: min(65svh, 34rem);
+}
+
 p {
   &:last-child {
     margin-bottom: 0;
