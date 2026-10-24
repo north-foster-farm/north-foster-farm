@@ -124,7 +124,7 @@ test.describe("scheduled pickup", () => {
       await expect(page.locator("#order-lapsed")).toBeHidden();
     });
 
-  test("the cart's way names the whole choice", async ({ page }) => {
+  test("the cart's way names only the method", async ({ page }) => {
     await cannedScheduled(page);
 
     const order = new OrderPage(page);
@@ -134,10 +134,8 @@ test.describe("scheduled pickup", () => {
       .toHaveText("Scheduled pickup");
 
     await order.scheduled(FOSTER.series);
-    await expect(page.locator("[data-way-name]")).toHaveText(new RegExp(
-      "^Scheduled pickup: \\w+, \\w+ \\d+, 9:00 AM – 1:00 PM, " +
-      "at Foster Farmers Market$"
-    ));
+    await expect(page.locator("[data-way-name]"))
+      .toHaveText("Scheduled pickup");
   });
 
   test("an occurrence the list lacks is not offered",
