@@ -26,13 +26,8 @@
 
 import { createHash } from "node:crypto";
 
-import catalog from "../../../data/catalog.json" with { type: "json" };
 import terms from "../../../data/delivery.json" with { type: "json" };
 import signatures from "../../../data/signatures.json" with { type: "json" };
-import skuAliases from "../../../data/skuAliases.json" with { type: "json" };
-import {
-  current, indexCatalog,
-} from "../../../assets/scripts/order/lib/catalog.mjs";
 import { pickupTimes } from "../../../assets/scripts/order/lib/schedule.mjs";
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import {
@@ -432,24 +427,6 @@ const banner = (doc, at, word, { x = RIGHT - 170, w = 170 } = {}) => {
 
 // --- The customer's slip ------------------------------------------------
 
-const catalogIndex = indexCatalog(catalog);
-const byLineName = new Map([...catalogIndex.values()]
-  .map((item) => [item.lineName, item]));
-
-// A line as the slip names it: an item graded in the catalog shows its
-// grade, "Eggs, Grade A · Large", as Rhode Island wants on the invoice
-// (250-RICR-40-20-7). Found by SKU, or for an older record by the
-// name it was sold under (with or without its grade); anything else
-// keeps its own name.
-export const slipLabel = (line) => {
-  const item = catalogIndex.get(current(line.sku, skuAliases))
-    || byLineName.get(line.label.replace(/ · Grade .*$/, ""));
-
-  return item && /^Grade /.test(item.note || "")
-    ? `${item.groupName}, ${item.note} · ${item.label}`
-    : line.label;
-};
-
 // "a, b and c", as the site writes a list.
 const list = (words) => (words.length > 1
   ? `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`
@@ -667,7 +644,7 @@ const slipPage = (doc, order, env) => {
   at.y += 33;
 
   for (const l of order.lines) {
-    const rows = wrap(slipLabel(l), PRICE_X - 70 - M - 50, {
+    const rows = wrap(l.label, PRICE_X - 70 - M - 50, {
       ...ALLER, size: 11, rows: LABEL_ROWS,
     });
     const each = l.unitPrice ?? l.lineTotal / l.qty;

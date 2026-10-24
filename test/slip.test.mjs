@@ -13,7 +13,7 @@ import { company } from "../netlify/functions/lib/company.mjs";
 import { samplePacket } from "../netlify/functions/lib/library.mjs";
 import {
   FARM_COPY, PAY_WORDS, acceptedWays, dueLines, packetPdf, paidLine,
-  paymentName, paymentState, slipAddress, slipContacts, slipLabel,
+  paymentName, paymentState, slipAddress, slipContacts,
 } from "../netlify/functions/lib/packing.mjs";
 import { readWoff } from "../netlify/functions/lib/ttf.mjs";
 
@@ -51,15 +51,6 @@ describe("the slip's embedded files", () => {
 });
 
 describe("the slip's words", () => {
-  it("names eggs with their grade, by SKU or an older record's name", () => {
-    assert.equal(slipLabel({ sku: "NFF-CHK-EGG-LG", label: "Eggs, Large" }),
-      "Eggs, Grade A · Large");
-    assert.equal(slipLabel({ sku: "OLD", label: "Eggs, Medium" }),
-      "Eggs, Grade A · Medium");
-    assert.equal(slipLabel({ sku: "X", label: "Wings, 1.0 – 1.9 lbs" }),
-      "Wings, 1.0 – 1.9 lbs");
-  });
-
   it("says how it was paid, in the customer's words", () => {
     const paid = (...methods) => paidLine({
       payments: methods.map(([method, via]) => ({
