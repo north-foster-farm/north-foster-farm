@@ -94,5 +94,43 @@ describe("the market band giving way to the off-season band", () => {
     hideExpired(root, Date.now());
     assert.equal(band.hidden, false);
     assert.equal(ways.hidden, true);
+    // Moving the clock changes nothing for them either.
+    hideExpired(root, Date.parse("2027-01-01T00:00:00-05:00"));
+    assert.equal(band.hidden, false);
+    assert.equal(ways.hidden, true);
   });
+
+  it("uses the now it is given, not the real clock", () => {
+    const { band, ways, root } = page(ends);
+
+    // The real time is past the moment; the given one is before it.
+    hideExpired(root, Date.parse("2020-01-01T00:00:00-05:00"));
+    assert.equal(band.hidden, false);
+    assert.equal(ways.hidden, true);
+    hideExpired(root, Date.parse("2099-01-01T00:00:00-05:00"));
+    assert.equal(band.hidden, true);
+    assert.equal(ways.hidden, false);
+  });
+
+  it("never shows what another rule hid, when the clock moves back",
+    () => {
+      const { band, root } = page(ends);
+      const skipped = { dataset: { hideFrom: ends }, hidden: true };
+      const all = { ...root, querySelectorAll: (selector) => (
+        selector === "[data-hide-from]"
+          ? [band, skipped] : root.querySelectorAll(selector)) };
+
+      // Hidden by wireSkips before the date rule looks.
+      hideExpired(all, Date.parse("2026-11-01T09:00:00-05:00"));
+      hideExpired(all, Date.parse("2026-10-20T09:00:00-04:00"));
+      assert.equal(band.hidden, false);
+      assert.equal(skipped.hidden, true);
+
+      // Hidden by the date rule, then by wireSkips (which clears the
+      // mark, as schedule.js does).
+      hideExpired(all, Date.parse("2026-11-01T09:00:00-05:00"));
+      delete band.dataset.expiry;
+      hideExpired(all, Date.parse("2026-10-20T09:00:00-04:00"));
+      assert.equal(band.hidden, true);
+    });
 });

@@ -20,6 +20,7 @@ import { maybeShowOverlay, wireCopy } from "./card.js";
 import { mountClock } from "./clock.js";
 import { mountLibrary } from "./library.js";
 import { mountNav } from "./nav.js";
+import { keepOffset, OFFSET_KEY, savedOffset } from "./offset.js";
 import { forgetEverything, unfinished } from "./reset.js";
 import { SEEN_MAIL, unseen } from "./seen.js";
 import { mountSignatures } from "./signatures.js";
@@ -235,6 +236,13 @@ const slips = mountSlips({
   onOpen: () => { root.hidden = false; },
 });
 
+// This bundle runs right after the site's, in the same deferred pass and
+// before the first paint: move the date-bound blocks to the kept offset
+// now, not after the info fetch, so the wrong block never shows (#385).
+const offset = savedOffset(store("localStorage", OFFSET_KEY));
+
+if (offset !== 0) hideExpired(document, Date.now() + offset);
+
 const boot = async () => {
   store("sessionStorage", HIDDEN, null);
 
@@ -249,10 +257,10 @@ const boot = async () => {
   if (info.data.clock && info.data.clock.available) {
     clock.draw(info.data.clock);
     // The date-bound blocks (expiry.js) read the browser's clock; make
-    // them follow the toolbar's (#385). Nothing to do when it is unset.
-    if (info.data.clock.offset !== 0) {
-      hideExpired(document, new Date(info.data.clock.now).getTime());
-    }
+    // them follow the toolbar's (#385). Keep the offset for the next
+    // load's first pass (below); at 0 it is cleared, back to now.
+    store("localStorage", OFFSET_KEY, keepOffset(info.data.clock.offset));
+    hideExpired(document, new Date(info.data.clock.now).getTime());
   } else {
     can = can.filter((a) => a !== "clock");
   }
