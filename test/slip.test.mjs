@@ -12,7 +12,8 @@ import { METHODS } from "../netlify/functions/lib/checkout.mjs";
 import { company } from "../netlify/functions/lib/company.mjs";
 import { samplePacket } from "../netlify/functions/lib/library.mjs";
 import {
-  FARM_COPY, PAY_WORDS, acceptedWays, dueLines, packetPdf, paidLine,
+  FARM_COPY, PAY_WORDS, acceptedWays, addressLines, dueLines, packetPdf,
+  paidLine,
   paymentName, paymentState, slipAddress, slipContacts,
 } from "../netlify/functions/lib/packing.mjs";
 import { readWoff } from "../netlify/functions/lib/ttf.mjs";
@@ -21,8 +22,8 @@ const root = join(import.meta.dirname, "..");
 const PAYPAL = { PAYPAL_CLIENT_ID: "id", PAYPAL_CLIENT_SECRET: "secret" };
 const now = new Date("2026-10-06T10:00:00Z");
 const entries = samplePacket().entries;
-const text = (list) => packetPdf({
-  entries: list, now, title: "T", cover: false, env: PAYPAL,
+const text = (list, cover = false) => packetPdf({
+  entries: list, now, title: "T", cover, env: PAYPAL,
 }).toString("latin1");
 const farmCopy = `(${FARM_COPY.replace("·", "\\267")})`;
 
@@ -146,6 +147,39 @@ describe("the slip's round 2 (James, 2026-10-24)", () => {
   it("leaves the farm's sheets their Printed timestamp", () => {
     assert.match(text([entries.find((e) => e.kind === "cancelled")]),
       /\(Printed /);
+  });
+});
+
+describe("the slip's round 5 (James, 2026-10-24)", () => {
+  it("stacks an address so no ZIP stands alone", () => {
+    assert.deepEqual(addressLines(
+      "Village Green, 46 Institute Lane, North Scituate, RI 02857"),
+    ["Village Green", "46 Institute Lane", "North Scituate, RI 02857"]);
+    assert.deepEqual(addressLines("99 E Killingly Rd, Foster, RI 02825"),
+      ["99 E Killingly Rd", "Foster, RI 02825"]);
+    assert.deepEqual(addressLines("Pickup, WAC5-261025"),
+      ["Pickup", "WAC5-261025"]);
+    assert.deepEqual(addressLines(""), []);
+  });
+
+  it("draws no rule above Total or Due", () => {
+    const pdf = text([entries.find((e) => e.kind === "new")]);
+
+    // The slip's lines are the header and footer rules and one under
+    // each item; the totals add none.
+    const lines = (pdf.match(/ l S/g) || []).length;
+
+    assert.ok(lines <= 4, `${lines} stroked lines`);
+  });
+
+  it("gives the cover sheet its column headers", () => {
+    const cover = text(entries, "only");
+
+    for (const head of ["ORDER", "CUSTOMER", "METHOD", "DATE", "STATUS",
+      "Contents", "Pick list", "In this packet"]) {
+      assert.ok(cover.includes(`(${head})`), head);
+    }
+    assert.ok(!cover.includes("(North Foster Farm)"), "no company line");
   });
 });
 

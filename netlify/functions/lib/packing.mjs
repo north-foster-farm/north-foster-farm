@@ -394,7 +394,6 @@ const sheet = (doc, { title, id, now }) => {
     doc.text(FARM_COPY, CENTER, 59, {
       size: 14, bold: true, color: 1, align: "center",
     });
-    doc.text(company.name, M, 88, { size: 9, shade: 0.35 });
     doc.text(`${title}${n > 1 ? " (continued)" : ""}`, M, 110, {
       size: 18, bold: true,
     });
@@ -531,7 +530,11 @@ const slipSheet = (doc, { id }) => {
 
     const w = doc.art(mark, M, 44, { height: 44, color: GREEN });
 
-    doc.art(wordmark, M + w + 11, 58, { height: 16, color: GREEN });
+    // The header's proportions (_header.scss, lg): the wordmark 20/48
+    // the hen's height, centered on it, 12/48 of it away.
+    doc.art(wordmark, M + w + 11, 66 - 44 * 20 / 96, {
+      height: 44 * 20 / 48, color: GREEN,
+    });
     doc.text("Order", RIGHT, 60, {
       ...ALLER, size: 9, color: MUTED, align: "right",
     });
@@ -565,6 +568,18 @@ const payBadge = (doc, state, x, top, w, h) => {
   doc.text(paidWord(state), x + w / 2, top + h / 2 + 8, {
     ...ALLER, size: 22, bold: true, color, align: "center",
   });
+};
+
+// An address as lines that never wrap or leave a ZIP alone: split at
+// the commas, the state and ZIP kept with their town.
+// "Village Green, 46 Institute Lane, North Scituate, RI 02857" ->
+// ["Village Green", "46 Institute Lane", "North Scituate, RI 02857"]
+export const addressLines = (place) => {
+  const parts = String(place || "").split(/,\s*/).filter(Boolean);
+  const last = parts.length > 2 && /^[A-Z]{2}(?: \d{5})?$/.test(parts.at(-1))
+    ? parts.splice(-2) : [];
+
+  return last.length ? [...parts, last.join(", ")] : parts;
 };
 
 // A column of the slip's details: a small label, then lines of text.
@@ -623,7 +638,7 @@ const slipPage = (doc, order, env) => {
   const right = column(doc, M + 260, top, RIGHT - M - 260, where.name, [
     [label(order.fulfilment.date), true],
     ...(where.window ? [[where.window]] : []),
-    [where.place],
+    ...addressLines(where.place).map((row) => [row]),
     ...(d.gate ? [[`Gate or code: ${d.gate}`]] : []),
   ]);
 
@@ -669,8 +684,10 @@ const slipPage = (doc, order, env) => {
 
   // The totals as one right-aligned ledger (James, 2026-10-24, round
   // 4): each line's label ends where the amounts' column begins, a
-  // rule sets off the bold Total, each payment is "Paid by Visa *4242"
-  // with its amount taken off, and a second rule sets off the bold Due.
+  // space sets off the bold Total, each payment is "Paid by Visa *4242"
+  // with its amount taken off, and space sets off the bold Due. No
+  // rules: they read as the arithmetic's sum lines (James, 2026-10-24,
+  // round 5).
   const t = order.totals;
   const paid = paymentsOf(order).filter((p) => p.amount > 0);
   const lines = [["Subtotal", dollars(t.subtotal)]];
@@ -682,7 +699,6 @@ const slipPage = (doc, order, env) => {
   if (t.deliveryFee) lines.push(["Delivery fee", dollars(t.deliveryFee)]);
 
   const LABEL_X = RIGHT - 70;
-  const RULE_X = RIGHT - 250;
   const row = (name, value, bold) => {
     const size = bold ? 12 : 11;
 
@@ -694,22 +710,19 @@ const slipPage = (doc, order, env) => {
     });
     at.y += LINE;
   };
-  const rule = () => {
-    doc.line(RULE_X, at.y - 9, RIGHT, at.y - 9, {
-      width: 0.75, color: GREEN,
-    });
+  const gap = () => {
     at.y += 9;
   };
 
   at.room((lines.length + paid.length + 4) * LINE + 40);
   for (const [name, value] of lines) row(name, value);
-  rule();
+  gap();
   row("Total", dollars(t.total), true);
   for (const p of paid) row(`Paid by ${paymentName(p)}`,
     `-${dollars(p.amount)}`);
   if (state.refunded) row("Refunded", dollars(state.refunded));
   if (paid.length) {
-    rule();
+    gap();
     row("Due", dollars(state.due), true);
   }
 };
@@ -781,8 +794,10 @@ const coverPage = (doc, { entries, now, title }) => {
   doc.text(packetCounts(countsOf(entries)), M, at.y, { size: 11 });
   at.y += LINE + 12;
 
-  doc.text("Pick list", M, at.y, { size: 14, bold: true });
-  at.y += LINE + 4;
+  doc.text("Contents", M, at.y, { size: 14, bold: true });
+  at.y += LINE + 6;
+  doc.text("Pick list", M, at.y, { size: 12, bold: true });
+  at.y += LINE + 2;
   if (!picks.length) {
     doc.text("Nothing to pick.", M, at.y, { size: 11 });
     at.y += LINE;
@@ -804,23 +819,44 @@ const coverPage = (doc, { entries, now, title }) => {
   }
 
   at.y += 16;
-  at.room(LINE * 3);
-  doc.text("In this packet", M, at.y, { size: 14, bold: true });
-  at.y += LINE + 4;
+  at.room(LINE * 4);
+  doc.text("In this packet", M, at.y, { size: 12, bold: true });
+  at.y += LINE + 2;
+
+  // Each column ends before the next begins; a name that doesn't fit
+  // wraps to a second line rather than run into its neighbor.
+  const COLS = { id: M, name: M + 95, method: M + 215, date: M + 340,
+    status: M + 445 };
+  const head = { size: 8, bold: true, shade: 0.4 };
+
+  for (const [text, x] of [["ORDER", COLS.id], ["CUSTOMER", COLS.name],
+    ["METHOD", COLS.method], ["DATE", COLS.date],
+    ["STATUS", COLS.status]]) {
+    doc.text(text, x, at.y, head);
+  }
+  at.y += LINE - 1;
   for (const e of entries) {
     const f = e.order.fulfilment || {};
     const name = (e.order.customer && e.order.customer.name) || "";
-
-    at.room(LINE);
-    doc.text(e.order.id, M, at.y, { size: 10, bold: true });
-    doc.text(wrap(name, 125, { size: 10 })[0], M + 95, at.y, { size: 10 });
-    doc.text(f.method ? placeOf(e.order).name : "", M + 225, at.y, {
-      size: 10,
+    const names = wrap(name, COLS.method - COLS.name - 10, {
+      size: 10, rows: 2,
     });
-    doc.text(f.date ? label(f.date) : "", M + 310, at.y, { size: 10 });
-    doc.text(KIND[e.kind], M + 430, at.y, { size: 10, bold: e.kind !== "new"
-      && e.kind !== "weekly" });
-    at.y += LINE;
+    const methods = wrap(f.method ? placeOf(e.order).name : "",
+      COLS.date - COLS.method - 10, { size: 10, rows: 2 });
+    const rows = Math.max(names.length, methods.length, 1);
+
+    at.room(rows * 12 + 3);
+    doc.text(e.order.id, COLS.id, at.y, { size: 10, bold: true });
+    names.forEach((row, i) => doc.text(row, COLS.name, at.y + i * 12, {
+      size: 10,
+    }));
+    methods.forEach((row, i) => doc.text(row, COLS.method, at.y + i * 12, {
+      size: 10,
+    }));
+    doc.text(f.date ? label(f.date) : "", COLS.date, at.y, { size: 10 });
+    doc.text(KIND[e.kind], COLS.status, at.y, { size: 10,
+      bold: e.kind !== "new" && e.kind !== "weekly" });
+    at.y += (rows - 1) * 12 + LINE;
   }
 };
 
