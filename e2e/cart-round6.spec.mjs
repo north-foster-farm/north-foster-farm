@@ -262,3 +262,38 @@ for (const size of [WIDTHS[1], WIDTHS[2]]) {
     await expect(below).toBeHidden();
   });
 }
+
+// An Add to a cart that loaded empty shows the panel at once, not the
+// total row alone, whose Expand then has no lines to fold, until the
+// first scroll (#274, round 6, James's bug). Not the session's first
+// Add, which opens the lines on its own.
+for (const size of WIDTHS) {
+  test(`at ${size.width} px an Add to an empty cart shows the panel`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(size);
+    await page.addInitScript(() => {
+      sessionStorage.setItem("nff-cart-first-add", "1");
+    });
+
+    const order = new OrderPage(page);
+    const toggle = order.cart.locator("[data-cart-toggle]");
+
+    await order.open();
+    await expect(order.cart).toHaveAttribute("data-stuck", "true");
+    await page.evaluate(() => {
+      for (const b of document.querySelectorAll(".order-qty-add")) {
+        if (!b.disabled) {
+          b.click();
+          break;
+        }
+      }
+    });
+    await expect(order.cart).toHaveAttribute("data-open", "true");
+    await expect(order.cart).toHaveAttribute("data-items", "closed");
+    await expect(toggle).toHaveText("Expand");
+    await toggle.click();
+    await expect(order.cart).toHaveAttribute("data-items", "open");
+    await expect(order.cart.locator("[data-cart-items]")).toBeVisible();
+  });
+}

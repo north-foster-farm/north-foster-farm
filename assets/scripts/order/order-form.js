@@ -2217,6 +2217,13 @@ export class OrderForm {
     } else if (count > 0 && !this.lastCount && !this.adding) {
       this.setOpen(true);
     }
+    // A panel with lines is never folded to its total row, whatever
+    // added them: its Expand folds the lines, so the row alone would
+    // leave Expand with nothing to do (#274, round 6).
+    if (count > 0 && this.panel() && c.dataset.open === "false") {
+      this.setOpen(true);
+      this.setPart("items", false);
+    }
     this.lastCount = count;
 
     // A badge that just turned on sends its chicks; the first render
