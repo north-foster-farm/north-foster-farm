@@ -589,6 +589,20 @@
     right: 1rem;
   }
 
+  // The address to copy, between the sentence and the field (#346).
+  .account-delete-copy {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .account-delete-address {
+    font-weight: bold;
+    overflow-wrap: anywhere;
+  }
+
   .account-delete-form {
     max-width: none;
     margin: 1.5rem 0 0;

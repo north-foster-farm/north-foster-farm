@@ -238,10 +238,10 @@
                  (reviewDismissedAt), so it stays gone on every device. */}}
             <section class="account-review" id="account-review" aria-labelledby="prof-review-h" hidden>
               <h2 class="h4 account-group-title" id="prof-review-h">Leave us a review</h2>
-              <p>If you enjoy {{ hugo.Data.company.name }} products and would like to leave us a review, we would truly appreciate it.</p>
+              <p>If you enjoy {{ hugo.Data.company.name }} products and would like to leave us a review, we appreciate it.</p>
               <div class="account-review-actions">
                 <a class="btn btn-primary" href="{{ hugo.Data.company.reviews.google }}" target="_blank" rel="noopener">Review us on Google<span class="visually-hidden"> (opens in a new tab)</span></a>
-                <button class="btn btn-link" type="button" id="account-review-dismiss">Dismiss</button>
+                <button class="btn btn-link" type="button" id="account-review-dismiss">Dismiss permanently</button>
               </div>
             </section>
             <section class="account-delete" aria-labelledby="prof-delete-h">
@@ -253,6 +253,7 @@
                 <li>Your phone number</li>
                 <li>Your delivery address</li>
                 <li>Your customer profile in Square</li>
+                <li>Your access to your order history and receipts</li>
               </ul>
               <p>We keep records of past orders, but we permanently remove your details from them.</p>
               <p class="account-delete-warning"><strong>Deleting your account is irreversible. It cannot be undone.</strong></p>
@@ -266,7 +267,13 @@
               <div class="account-delete-dialog-inner">
                 <button class="btn-close account-delete-close" type="button" aria-label="Close" data-delete-close></button>
                 <h2 class="h3" id="delete-dialog-h">Confirm account deletion</h2>
-                <p id="delete-dialog-text">Enter your email address and click Confirm to permanently delete your account.</p>
+                <p id="delete-dialog-text">Enter your email address, then click Confirm to permanently delete your account.</p>
+                {{/* The address to copy and paste into the field (#346). */}}
+                <div class="account-delete-copy">
+                  <span class="account-delete-address" id="delete-address"></span>
+                  <button class="btn btn-outline-secondary btn-sm" type="button" id="delete-copy">Copy</button>
+                  <span class="visually-hidden" id="delete-copied" role="status"></span>
+                </div>
                 <form class="news-signup account-delete-form" id="delete-confirm-form" novalidate>
                   <label class="visually-hidden" for="delete-confirm-email">Your email address</label>
                   <div class="input-group">
@@ -280,11 +287,7 @@
           </section>
 
           <section class="account-section" id="acct-help" data-section="help" aria-label="Help" hidden>
-            <p class="account-lede">
-              Something wrong with an order? Open it under Orders and use
-              "Report a problem". For anything else, write to us here and
-              we'll answer by email.
-            </p>
+            <p class="account-lede">If you're having a problem, please get in touch with us right away so that we can make it right.</p>
             <form class="account-form" id="support-form" novalidate>
               <div class="row g-3">
                 <div class="col-12">

@@ -783,14 +783,36 @@ class Account {
     const note = document.getElementById("delete-confirm-note");
     const button = busyButton(form);
 
+    const address = document.getElementById("delete-address");
+    const copied = document.getElementById("delete-copied");
+    const copy = document.getElementById("delete-copy");
+
     this.deleteUi = { dialog, form, field, note, button };
     document.getElementById("account-delete").addEventListener("click",
       () => {
         form.reset();
         this.deleteNote("");
+        address.textContent = this.customer.email;
+        copied.textContent = "";
+        copy.textContent = "Copy";
         dialog.showModal();
         field.focus();
       });
+    // The address to paste into the field (#346). Where the browser
+    // won't write the clipboard, the address is selected to copy by
+    // hand.
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(address.textContent);
+        copy.textContent = "Copied";
+        copied.textContent = "Email address copied.";
+      } catch (error) {
+        console.error("Copy failed", error);
+        getSelection().selectAllChildren(address);
+        copied.textContent = "Copying failed. The address is selected: " +
+          "copy it yourself.";
+      }
+    });
     qs(dialog, "[data-delete-close]").addEventListener("click", () => {
       if (!isBusy(button)) dialog.close();
     });
