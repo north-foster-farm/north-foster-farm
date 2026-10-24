@@ -2449,7 +2449,7 @@ export class OrderForm {
 
     if (info.status === "outside") {
       note.textContent = "That's outside our delivery area. On-farm pickup " +
-        "and scheduled pickup are open to everyone.";
+        "and our pickup days are open to everyone.";
       note.classList.add("text-danger-emphasis");
     } else if (info.status === "unlisted") {
       note.textContent = "A little outside our usual area: delivery is " +
@@ -2791,7 +2791,8 @@ export class OrderForm {
     }
 
     this.settle(outcome, payload);
-    throw new Error(outcome.message || "Couldn't start the Venmo payment.");
+    throw new Error(outcome.message
+      || "We couldn't start the Venmo payment.");
   }
 
   venmoCapture(payload, paypalOrderId) {

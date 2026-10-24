@@ -8,21 +8,21 @@
 // and every market or pop-up in one list.
 const NOUN = {
   onfarm: "pickup time",
-  scheduled: "scheduled pickup",
+  scheduled: "pickup",
   delivery: "delivery day",
 };
 const NONE = {
   onfarm: "No pickup times are open right now",
-  scheduled: "No scheduled pickups are open right now",
+  scheduled: "No pickup days are open right now",
   delivery: "No delivery days are open right now",
 };
 const OTHER = {
-  onfarm: "Choose scheduled pickup or delivery instead",
+  onfarm: "Choose a pickup day or delivery instead",
   scheduled: "Choose on-farm pickup or delivery instead",
-  delivery: "Choose on-farm or scheduled pickup instead",
+  delivery: "Choose on-farm pickup or a pickup day instead",
 };
 const LEGEND = {
-  onfarm: "Pickup times", scheduled: "Scheduled pickups", delivery: "Days",
+  onfarm: "Pickup times", scheduled: "Pickup days", delivery: "Days",
 };
 const USE = {
   onfarm: "Use this time",

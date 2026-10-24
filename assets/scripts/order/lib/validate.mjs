@@ -226,8 +226,8 @@ export const validateOrder = (payload, {
       out.minimumWaived = true;
     } else if (!meetsMinimum(totals, money)) {
       errors["delivery.minimum"] =
-        `Delivery orders are $${money.deliveryMinimum} or more after ` +
-        "discounts. On-farm pickup and scheduled pickup have no " +
+        `Delivery requires $${money.deliveryMinimum} or more after ` +
+        "discounts. On-farm pickup and our pickup days have no " +
         "minimum.";
     }
 
