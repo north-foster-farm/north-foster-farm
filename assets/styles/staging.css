@@ -89,6 +89,9 @@
   background: var(--stg-bg);
   box-shadow: 0 6px 24px var(--stg-shadow);
   overflow: hidden;
+  /* Bootstrap gives the active nav item z-index 2. Without a stacking
+     context of its own, that item drew over the open libraries. */
+  isolation: isolate;
   container: staging-panel / inline-size;
 }
 
