@@ -323,4 +323,34 @@ test.describe("the card form", () => {
       if (size.width >= 576) expect(field.height).toBeLessThanOrEqual(60);
     });
   }
+
+  for (const size of [WIDTHS[0], WIDTHS[4]]) {
+    test(`${size.width}px: an empty card message takes no space`, async ({
+      page, request,
+    }) => {
+      test.skip((await paymentFakes(request)).square,
+        "Square's own card field; the stub SDK has none");
+      await page.setViewportSize(size);
+
+      const order = new OrderPage(page);
+
+      await order.open({ eggs: 1 });
+      await order.method("onfarm");
+      await order.openCard();
+      await expect(
+        page.locator("iframe[src*='single-card-element-iframe']"),
+      ).toBeVisible();
+      await page.waitForTimeout(800);
+
+      const message = page.locator("[data-card] .sq-card-message");
+
+      // Whatever Square says, an empty line is flat; one with text keeps
+      // its height.
+      const text = (await message.textContent()).trim();
+      const height = (await box(message)).height;
+
+      if (text === "") expect(height).toBe(0);
+      else expect(height).toBeGreaterThan(0);
+    });
+  }
 });
