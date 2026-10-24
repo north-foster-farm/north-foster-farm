@@ -95,7 +95,7 @@ import { archivedOnHand } from "./stock.mjs";
 import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import { deletionsPaused } from "./square-pause.mjs";
-import { ORDER_ID, SITE_VERSION } from "./square.mjs";
+import { ORDER_ID } from "./square.mjs";
 import {
   deliveryReminder, farmMorningReport, farmTomorrow,
 } from "./templates.mjs";
@@ -528,7 +528,7 @@ const squareFinds = async (stores, day) => {
 export const SQUARE_OPEN_GRACE = 24 * HOUR;
 export const SQUARE_SWEEP_MAX = 25;
 
-export const leftOpen = (o) => o.tenders === 0 && o.siteVersion === SITE_VERSION
+export const leftOpen = (o) => o.tenders === 0 && Boolean(o.siteVersion)
   && ORDER_ID.test(o.referenceId || "");
 
 // -> [{ squareOrderId, orderId, createdAt, total, cancelled, later?,

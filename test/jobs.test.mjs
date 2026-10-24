@@ -1005,6 +1005,10 @@ describe("a Square order left open is the site's by its tag (#331)", () => {
     assert.equal(leftOpen(found({ source: null })), true);
   });
 
+  it("keeps sweeping orders from an earlier version", () => {
+    assert.equal(leftOpen(found({ siteVersion: "0.9.0" })), true);
+  });
+
   it("skips an order with no tag, a paid one or a stray reference", () => {
     assert.equal(leftOpen(found({ siteVersion: null })), false);
     assert.equal(leftOpen(found({ tenders: 1 })), false);
