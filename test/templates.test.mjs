@@ -6,8 +6,9 @@ import {
   farmMorningReport, farmOrderChanged, farmOrderPlaced, farmPackingSlips,
   farmPickupChanged,
   farmRefundNeeded, farmReturnRequest, farmSquareOutOfSync, farmSupport,
-  farmTomorrow, magicLink, missedDelivery, movedDelivery, orderCancelled,
-  orderChanged, orderConfirmed, paymentPhrase, summaryLine,
+  emailChanged, emailChangeLink, farmTomorrow, magicLink, missedDelivery,
+  movedDelivery, orderCancelled, orderChanged, orderConfirmed, paymentPhrase,
+  summaryLine,
 } from "../netlify/functions/lib/templates.mjs";
 
 const order = (method = "delivery") => ({
@@ -894,6 +895,19 @@ describe("addresses and sign-in", () => {
     has(m.text, "If you didn't request this email, you can safely ignore " +
       "it.");
     has(m.text, "Need help? Contact us: mailto:sales@northfosterfarm.com");
+  });
+
+  it("centers the account emails and no other", () => {
+    const centered = /border-radius:5px;padding:20px 24px;text-align:center/;
+
+    for (const m of [
+      magicLink("pat@example.com", "https://x/t", { links }),
+      emailChangeLink("pat@example.com", "https://x/t", { links }),
+      emailChanged("a@example.com", "b@example.com", { links }),
+    ]) {
+      assert.match(m.html, centered);
+    }
+    assert.doesNotMatch(orderConfirmed(order()).html, centered);
   });
 
   it("summarises an order in one line", () => {
