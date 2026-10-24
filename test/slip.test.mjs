@@ -163,15 +163,18 @@ describe("the slip's round 5 (James, 2026-10-24)", () => {
   });
 
   it("draws a rule above Total and above Due (round 6)", () => {
-    const pdf = text([entries.find((e) => e.kind === "new")]);
+    // The footer's rule and the one under each item start at the left
+    // margin; the totals' rules start at the "T" in "Total" (RULE_X).
+    // One sits above Total, and one above Due when a payment is applied.
+    const rules = (entry) => [...text([entry])
+      .matchAll(/([\d.]+) [\d.]+ m [\d.]+ [\d.]+ l S/g)]
+      .filter((m) => Number(m[1]) !== 54).length;
+    const paid = entries.find((e) => e.kind === "new"
+      && paymentState(e.order).paid);
+    const unpaid = entries.find((e) => !paymentState(e.order).paid);
 
-    // The slip's lines are the header and footer rules and one under
-    // each item; the totals add one above Total, and one above Due when
-    // a payment is applied (this slip is unpaid).
-    const lines = (pdf.match(/ l S/g) || []).length;
-    const items = entries.find((e) => e.kind === "new").order.lines.length;
-
-    assert.equal(lines, 2 + items + 1, `${lines} stroked lines`);
+    assert.equal(rules(paid), 2, "a paid slip: above Total and Due");
+    assert.equal(rules(unpaid), 1, "an unpaid slip: above Total only");
   });
 
   it("gives the cover sheet its column headers", () => {
