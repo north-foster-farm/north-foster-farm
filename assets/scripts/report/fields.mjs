@@ -27,12 +27,14 @@ export const LIMITS = {
   where: 40, message: 300, stack: 2000, build: 40, page: 200, crumbs: 20,
 };
 
-// The places a report may name: each one pay.js reports from, and the
-// window's own two. Anything else is sent and kept as null.
+// The places a report may name: each one pay.js reports from, the
+// stock check's two (order/stock.js), and the window's own two.
+// Anything else is sent and kept as null.
 export const WHERES = [
   "checkout.config", "checkout.init", "square.load", "sdks.gone",
   "card.attach", "paypal.load", "paypal.render", "paypal.error",
   "cashapp.tokenize", "wallet.tokenize", "wallet.pay",
+  "stock.unavailable", "stock.final_check",
   "window.error", "window.rejection",
 ];
 

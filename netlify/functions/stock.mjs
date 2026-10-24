@@ -42,6 +42,10 @@ export const handle = async (req, {
   mail,
   catalogIndex,
   inventory,
+  // Where the farm's daily notice runs once the answer is out: the
+  // platform's waitUntil for the real function; here it is awaited,
+  // which tests rely on.
+  after = (work) => work,
 } = {}) => {
   if (deployContext(env) === "production"
     && rateLimited(ip, real(now).getTime())) {
@@ -61,13 +65,24 @@ export const handle = async (req, {
   });
   const items = await availability(stores, { catalogIndex, counts });
 
-  await archivedInStock(stores, { env, mail, now, catalogIndex, counts });
+  // A slow or failing Resend must never cost the page its answer:
+  // without stock the order page is shut (#333).
+  await after(archivedInStock(stores, {
+    env, mail, now, catalogIndex, counts,
+  }));
 
   return json(200, { at: now.toISOString(), items });
 };
 
 export default withLog("stock", async (req, context) =>
-  handle(req, { ip: context && context.ip }));
+  handle(req, {
+    ip: context && context.ip,
+    after: (work) => {
+      if (context && typeof context.waitUntil === "function") {
+        context.waitUntil(work);
+      }
+    },
+  }));
 
 export const config = {
   path: "/api/stock",

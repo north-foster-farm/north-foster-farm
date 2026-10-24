@@ -195,6 +195,7 @@ export class OrderForm {
       onChange: (notice) => this.stockMoved(notice),
       setQty: (input, n) => this.setQty(input, n),
       inStockOnly: wireSwitch(form),
+      onLock: () => this.refresh(),
     });
     this.stockNotice = document.getElementById("order-stock");
     this.cart = document.getElementById("order-cart");
@@ -2113,6 +2114,7 @@ export class OrderForm {
     }
     short.hidden = !s.deliveryShort;
     qs(c, "[data-checkout]").disabled = count === 0
+      || (this.stock && this.stock.locked)
       || (method === "delivery" && !s.eligible);
 
     // Empty, the cart folds away; the first item opens it. A fold the
@@ -2481,6 +2483,12 @@ export class OrderForm {
 
   prepare() {
     if (this.busy) return null;
+    // No order is taken while stock is unknown (#333).
+    if (this.stock.locked) {
+      this.stock.warn();
+
+      return null;
+    }
 
     const payload = this.collect();
     const check = this.check(payload);
@@ -2538,7 +2546,13 @@ export class OrderForm {
     }
 
     this.moved = false;
-    await this.stock.refresh();
+    // A last look at stock that fails shuts the page and stops the
+    // order (#333).
+    if (!await this.stock.refresh({ final: true })) {
+      this.stock.warn();
+
+      return null;
+    }
     if (this.moved) return null;
 
     return payload;

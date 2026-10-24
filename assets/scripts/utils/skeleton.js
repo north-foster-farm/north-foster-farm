@@ -109,7 +109,7 @@ const TIMED_OUT = Symbol("timed out");
 
 // The usual case: runs request() with the regions loading, then
 // render(result) as the content takes their place. An error, a result
-// failed(result) refuses, or no answer within GIVE_UP_MS shows the
+// failed(result) refuses, or no answer within giveUpMs shows the
 // failure instead. An answer that comes after that still lands, unless
 // a retry has started since.
 //
@@ -118,12 +118,14 @@ export const whileLoading = async (regions, request, {
   render = () => {},
   failed = (result) => result == null || result.ok === false,
   retry,
+  // A request that retries by itself (stock's backoff) needs longer.
+  giveUpMs = GIVE_UP_MS,
 } = {}) => {
   const view = loading(regions);
   let timer;
   const answer = Promise.resolve().then(request);
   const late = new Promise((resolve) => {
-    timer = setTimeout(() => resolve(TIMED_OUT), GIVE_UP_MS);
+    timer = setTimeout(() => resolve(TIMED_OUT), giveUpMs);
   });
 
   let result;

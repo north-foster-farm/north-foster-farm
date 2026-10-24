@@ -710,6 +710,15 @@ carries a name, contact details or an order;
 customer filled in and fails if any of it reaches `/api/health`. A new
 field goes in `fields.mjs` and nowhere else.
 
+A stock check that fails shuts the order page (#333) and reports
+`stock.unavailable` (the first load, after its 2, 5 and 15 second
+retries) or `stock.final_check` (the look right before a submission),
+both `client.error`, so the farm sees how often customers meet the
+notice. `/api/stock` itself alerts through the crash handler
+(`function.crashed`) whenever it throws; a Square that does not
+answer is not a failure, the page then sells from the store's counts.
+The farm's archived-stock email goes after the answer, never in it.
+
 What fails decides the kind. Config, init, Square's script and both
 ways gone are `client.payment_unavailable`, an alert; everything else
 (the card field, PayPal, a wallet, an uncaught error) is

@@ -266,4 +266,18 @@ describe("GET /api/stock", () => {
     assert.ok(Object.keys(data.items).length > 30);
     assert.equal(res.headers.get("cache-control"), "no-store");
   });
+
+  it("answers before the farm's notice is done,",
+    async () => {
+      const stores = testStores();
+      const work = [];
+      const res = await handle(new Request("http://x/api/stock"), {
+        stores,
+        after: (w) => work.push(w),
+      });
+
+      assert.equal(res.status, 200);
+      assert.equal(work.length, 1);
+      await work[0];
+    });
 });
