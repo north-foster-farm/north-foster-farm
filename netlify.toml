@@ -251,7 +251,9 @@ autoLaunch = false
     # Venmo button. Netlify does not say how two header rules for one
     # path merge, so one policy covers every page. Each line ends in a
     # backslash, which TOML folds away: the value is one line, since
-    # `netlify dev` stops at a header with a newline in it.
+    # `netlify dev` stops at a header with a newline in it. frame-src
+    # allows blob: for the staging toolbar's packing-slip reader, which
+    # frames the PDF it fetched rather than building it twice (#159).
     Content-Security-Policy = """\
       default-src 'none'; \
       base-uri 'self'; \
@@ -270,7 +272,7 @@ autoLaunch = false
         https://cash-f.squarecdn.com https://fonts.gstatic.com; \
       form-action 'self'; \
       frame-ancestors 'none'; \
-      frame-src 'self' https://www.youtube-nocookie.com \
+      frame-src 'self' blob: https://www.youtube-nocookie.com \
         https://web.squarecdn.com https://sandbox.web.squarecdn.com \
         https://pay.google.com \
         https://kit.cash.app https://sandbox.kit.cash.app \

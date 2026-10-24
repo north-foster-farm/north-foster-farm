@@ -58,47 +58,69 @@ export const mountSlips = ({ root, api, onOpen }) => {
     summary.textContent = `${slips.length} pages`;
   };
 
+  // The PDF shown, fetched once and held as a blob URL, so a page is
+  // built once (#159): the frame and Download use it, and Open alone
+  // the page's own address. A new page or day revokes the old one.
+  let blob = null;
+
+  const drop = () => {
+    frame.removeAttribute("src");
+    if (blob) URL.revokeObjectURL(blob);
+    blob = null;
+  };
+
   const link = (url) => {
     for (const a of [alone, download]) {
-      if (url) a.href = url;
+      if (url) a.href = a === alone ? url : blob;
       else a.removeAttribute("href");
       a.toggleAttribute("aria-disabled", !url);
     }
     download.download = url ? `${current.id}.pdf` : "";
   };
 
-  // A day with nothing to pack says so, plainly.
-  const none = () => {
-    frame.removeAttribute("src");
+  // A day with nothing to pack, or a page that could not be built,
+  // says so plainly, with no frame and nothing to open or download.
+  const fail = (words) => {
+    drop();
     frame.hidden = true;
     link(null);
-    note.textContent = "No orders to pack";
+    note.textContent = words;
   };
 
   const show = async () => {
     const url = urlOf(current);
     const shown = current;
-
-    frame.hidden = false;
-    note.textContent = shown.note;
-    if (shown.id !== "today") {
-      frame.src = url;
-      link(url);
-
-      return;
-    }
-
     const day = date.value;
-    const res = await fetch(url);
+    const moved = () => current !== shown || date.value !== day;
+    let status = 0;
+    let pdf = null;
 
-    // The reader moved on while the packet was built.
-    if (current !== shown || date.value !== day) return;
-    if (res.status === 404) {
-      none();
+    note.textContent = shown.note;
+    try {
+      const res = await fetch(url);
+
+      status = res.status;
+      if (res.ok) pdf = await res.blob();
+    } catch {
+      // A network error: no PDF, said so below.
+    }
+
+    // The reader moved on while the page was built.
+    if (moved()) return;
+    if (status === 404 && shown.id === "today") {
+      fail("No orders to pack");
 
       return;
     }
-    frame.src = url;
+    if (!pdf) {
+      fail("This page couldn't be built. Try again.");
+
+      return;
+    }
+    drop();
+    blob = URL.createObjectURL(pdf);
+    frame.src = blob;
+    frame.hidden = false;
     link(url);
   };
 
@@ -170,7 +192,7 @@ export const mountSlips = ({ root, api, onOpen }) => {
   qs("[data-staging-slips-back]").addEventListener("click", () => {
     current = null;
     reader.hidden = true;
-    frame.removeAttribute("src");
+    drop();
     box.classList.remove("staging-reading");
     history.replaceState(null, "", "#slips");
     drawList();
