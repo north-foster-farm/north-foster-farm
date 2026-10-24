@@ -7,6 +7,7 @@
 
 import { api } from "../utils/api.js";
 import { looksLikeEmail } from "../utils/email.js";
+import { fieldError } from "../utils/field-errors.mjs";
 import { isBusy, whileBusy } from "../utils/busy-button.js";
 import { celebrate } from "../order/celebrate.js";
 import { forget } from "../session/session.js";
@@ -56,9 +57,7 @@ export const wire = (form) => {
 
     if (!looksLikeEmail(email)) {
       setInvalid(true);
-      say(note, email
-        ? "Enter a valid email address, like you@example.com."
-        : "Enter your email address.", "no");
+      say(note, fieldError("email", email), "no");
       input.focus();
 
       return;

@@ -30,7 +30,7 @@ test.describe("button states", () => {
 
     await button.tap();
     await expect(page.locator("footer [data-news-note]"))
-      .toHaveText("Enter your email address.");
+      .toHaveText("Please enter an email address.");
     await page.waitForTimeout(400);
     expect(await look(button)).toEqual(rest);
   });

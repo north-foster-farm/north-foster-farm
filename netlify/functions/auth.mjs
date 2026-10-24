@@ -6,6 +6,9 @@
 //   GET  /api/me                               -> { signedIn, customer }
 
 import {
+  fieldError,
+} from "../../assets/scripts/utils/field-errors.mjs";
+import {
   clearCookieHeader, clearStampHeader, cookieHeader, createSession,
   endSession, hasStamp, normalizeEmail, peekToken, publicCustomer,
   requestLink, safeNext, sameSite, sessionFrom, stampHeader, tokenEmail,
@@ -76,7 +79,7 @@ export const handle = async (req, {
 
     if (!result.ok && result.reason === "invalid") {
       return json(422, {
-        errors: { email: "That email address doesn't look right." },
+        errors: { email: fieldError("email", body.email) },
       });
     }
 

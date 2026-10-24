@@ -55,7 +55,7 @@ test.describe("farm news", () => {
       await form.locator("input[type='email']").fill("not-an-email");
       await form.getByRole("button").click();
       await expect(form.locator("[data-news-note]"))
-        .toHaveText("Enter a valid email address, like you@example.com.");
+        .toHaveText("Please enter a valid email address.");
       expect(sent, "no request for a malformed address").toBe(0);
     });
 

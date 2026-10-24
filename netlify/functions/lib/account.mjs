@@ -12,6 +12,9 @@ import terms from "./terms.mjs";
 import { cartOf } from "../../../assets/scripts/order/lib/cart-sync.mjs";
 import { indexCatalog } from "../../../assets/scripts/order/lib/catalog.mjs";
 import {
+  fieldError,
+} from "../../../assets/scripts/utils/field-errors.mjs";
+import {
   datesFor, isScheduled, orderOccurrence,
 } from "../../../assets/scripts/order/lib/dates.mjs";
 import {
@@ -511,7 +514,7 @@ export const updateProfile = async (stores, customer, changes, {
   if (c.phone !== undefined) {
     patch.phone = text(c.phone, 40);
     if (patch.phone && !phoneOk(patch.phone)) {
-      errors.phone = "That phone number doesn't look right.";
+      errors.phone = fieldError("phone", patch.phone);
     }
   }
   if (c.avatar !== undefined) {
@@ -588,7 +591,7 @@ export const saveAddress = async (stores, customer, address, {
 
   if (!next.address1) errors.address1 = "Please enter your street address.";
   if (!next.town) errors.town = "Please enter your town.";
-  if (next.zip.length !== 5) errors.zip = "Please enter a five-digit ZIP.";
+  if (next.zip.length !== 5) errors.zip = fieldError("zip", next.zip);
   if (Object.keys(errors).length) return fail(422, errors);
 
   const info = zipInfo(next.zip, terms.area);

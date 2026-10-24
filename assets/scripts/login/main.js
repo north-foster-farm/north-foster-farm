@@ -4,6 +4,8 @@
 import { api } from "../utils/api.js";
 import { isBusy, whileBusy } from "../utils/busy-button.js";
 import { say } from "../utils/contact-link.js";
+import { looksLikeEmail } from "../utils/email.js";
+import { fieldError } from "../utils/field-errors.mjs";
 import {
   CHANGE_ERRORS, readConfirm, showConfirm,
 } from "../utils/email-confirm.js";
@@ -69,8 +71,8 @@ const start = () => {
 
     const value = email.value.trim();
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) {
-      fail("Please enter the email address you order with.");
+    if (!looksLikeEmail(value)) {
+      fail(fieldError("email", value));
 
       return;
     }

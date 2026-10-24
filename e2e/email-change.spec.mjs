@@ -140,7 +140,8 @@ test.describe("changing your own email", () => {
       await expect(error).toHaveText("That's already your email address.");
       await page.locator("#email-new").fill("not-an-email");
       await page.locator("#email-change-send").click();
-      await expect(error).toHaveText("That email address doesn't look right.");
+      await expect(error)
+        .toHaveText("Please enter a valid email address.");
       await page.locator("#email-new").fill(taken);
       await page.locator("#email-new").press("Enter");
       await expect(error).toContainText(

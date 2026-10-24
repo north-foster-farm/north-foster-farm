@@ -22,6 +22,7 @@
 
 import { venmoGate } from "./lib/venmo.mjs";
 import { crumb, reportError, reportUnavailable, sdk } from "./report.js";
+import { validField } from "../utils/field-errors.mjs";
 import { whileLoading } from "../utils/skeleton.js";
 
 const qs = (root, selector) => root.querySelector(selector);
@@ -98,7 +99,7 @@ const tokenMessage = (result) => {
     return "Check the security code and try again.";
   }
   if (/cardNumber|number/i.test(first.field || "")) {
-    return "That card number doesn't look right.";
+    return validField("card");
   }
 
   return first.message || "Check your card details and try again.";

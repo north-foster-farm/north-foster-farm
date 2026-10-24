@@ -13,6 +13,9 @@
 //                              List-Unsubscribe-Post; no sign-in, so
 //                              it takes requests from any site
 
+import {
+  fieldError,
+} from "../../assets/scripts/utils/field-errors.mjs";
 import { sameSite } from "./lib/auth.mjs";
 import { now as clock } from "./lib/clock.mjs";
 import { json, readJson } from "./lib/http.mjs";
@@ -64,7 +67,7 @@ export const handle = async (req, {
 
     if (!r.ok && r.reason === "invalid") {
       return json(422, {
-        errors: { email: "That email address doesn't look right." },
+        errors: { email: fieldError("email", body.email) },
       });
     }
     // A rate-limited address gets the same answer as any other: it

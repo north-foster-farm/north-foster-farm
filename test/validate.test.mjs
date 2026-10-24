@@ -151,7 +151,8 @@ describe("the customer's details", () => {
       const r = validateOrder(withCustomer({ phone }), ctx);
 
       assert.equal(r.status, 422, phone);
-      assert.match(r.errors["customer.phone"], /doesn't look right/);
+      assert.equal(r.errors["customer.phone"],
+        "Please enter a valid phone number.");
     }
 
     for (const phone of ["4015550100", "(401) 555-0100", "1-401-555-0100"]) {
