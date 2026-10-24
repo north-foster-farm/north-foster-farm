@@ -52,12 +52,10 @@
              be bought now; Full catalog also shows what is out,
              greyed, with its restock label and no way to add it.
              order/restock.js remembers the choice. */}}
-        <div class="order-filter" role="radiogroup" aria-label="Show">
-          <div class="order-filter-seg">
-            <span class="order-filter-fill" aria-hidden="true"></span>
-            <label class="order-filter-option"><input class="order-filter-input" type="radio" name="order-show" id="order-show-stock" value="stock" checked data-show><span>In stock</span></label>
-            <label class="order-filter-option"><input class="order-filter-input" type="radio" name="order-show" id="order-show-all" value="all" data-show><span>Full catalog</span></label>
-          </div>
+        <div class="order-filter">
+          {{ partial "order/seg.html" (dict "label" "Show" "name" "order-show" "options" (slice
+            (dict "id" "order-show-stock" "value" "stock" "text" "In stock" "checked" true "hook" "data-show")
+            (dict "id" "order-show-all" "value" "all" "text" "Full catalog" "hook" "data-show"))) }}
         </div>
       </div>
     </div>

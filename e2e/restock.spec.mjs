@@ -103,7 +103,7 @@ test.describe("restock types (#267)", () => {
     await expect(choice(page, "Full catalog")).toBeChecked();
     await expect(choice(page, "Full catalog")).toBeFocused();
     await expect(row(page, OUT.soon)).toBeVisible();
-    expect(await page.locator(".order-filter-option:has(#order-show-all)")
+    expect(await page.locator(".seg-option:has(#order-show-all)")
       .evaluate((el) => getComputedStyle(el).outlineStyle)).toBe("solid");
 
     // The chosen side is lighter than the track.
@@ -114,8 +114,8 @@ test.describe("restock types (#267)", () => {
       return r + g + b;
     });
 
-    expect(await lum(".order-filter-fill"))
-      .toBeGreaterThan(await lum(".order-filter-seg"));
+    expect(await lum(".order-filter .seg-fill"))
+      .toBeGreaterThan(await lum(".order-filter .seg"));
   });
 
   // The lead line and the visible "Show" went (#274, round 4 part 2):
@@ -141,7 +141,7 @@ test.describe("restock types (#267)", () => {
 
         const offset = await page.locator(".order-intro").evaluate((el) => {
           const box = el.getBoundingClientRect();
-          const seg = el.querySelector(".order-filter-seg")
+          const seg = el.querySelector(".seg")
             .getBoundingClientRect();
 
           return (seg.left + seg.right) / 2 - (box.left + box.right) / 2;

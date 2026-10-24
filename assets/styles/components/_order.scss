@@ -1223,90 +1223,133 @@
     rotate: 180deg;
   }
 
-  // The total row's two controls are one segmented control (#267): a
-  // track that binds them before any tap, and a fill that slides to
-  // the side showing. Only the count, the word Total and the amount
-  // take a tap. Settled, in the column and on a tablet's two columns
-  // the fill gives way to plain text, or to a fill under each part
-  // that is open.
-  .order-cart-seg {
+  // One segmented control (#392), used by the Show switcher and the
+  // cart's count and total: a grey track with a hairline ring, a fill
+  // that slides to the chosen side (the page's white, lifted by the
+  // small shadow, so the chosen side is lighter, never darker), and
+  // two options. The Show switcher's options are radios under their
+  // labels, the cart's are buttons; the classes are the same. The fill
+  // is a transform, not layout: half the track, moved by its own width
+  // with the pane's easing.
+  .seg {
     position: relative;
     display: grid;
-    flex: 1 1 auto;
-
-    // The track reaches out by the padding, so the text still stands
-    // where it did: the total under the column of line prices.
-    margin-inline: -0.75rem;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     border-radius: 999px;
     background-color: $pill-bg;
     box-shadow: inset 0 0 0 1px var(--bs-border-color-translucent);
-    transition:
-      background-color var(--order-base) var(--order-ease),
-      box-shadow var(--order-base) var(--order-ease);
-
-    // Past a phone, a track across the whole pane no longer read as a
-    // two-part control (#274): it keeps a phone's width, at the right,
-    // so the total still stands under the column of prices.
-    @media (min-width: 576px) {
-      flex: 0 1 24rem;
-      margin-left: auto;
-    }
   }
 
-  // A transform, not layout: the fill is half the track and moves by
-  // its own width, with the pane's easing and duration.
-  .order-cart-seg-fill {
+  .seg-fill {
     position: absolute;
-    inset: 0 50% 0 0;
+    inset: 2px calc(50% + 2px) 2px 2px;
     border-radius: 999px;
-    background-color: var(--bs-primary);
+    background-color: var(--bs-body-bg);
+    box-shadow: var(--bs-box-shadow-sm);
+    pointer-events: none;
     transition:
       transform var(--order-base) var(--order-ease),
       opacity var(--order-base) ease;
   }
 
-  .order-cart-disclose {
+  // The second option chosen: the fill moves under it.
+  .seg:has(.seg-input[value="all"]:checked) .seg-fill {
+    transform: translateX(calc(100% + 4px));
+  }
+
+  .seg-option {
     position: relative;
-    display: inline-flex;
-    align-items: baseline;
-    gap: 0.5rem;
+    display: block;
     min-height: 2rem;
-    padding: 0 0.75rem;
+    padding: 0.3125rem 0.875rem;
     border: 0;
     border-radius: 999px;
     background: none;
     font: inherit;
-    color: inherit;
+    font-size: 0.875rem;
+    text-align: center;
     white-space: nowrap;
+    color: var(--bs-body-color);
+    cursor: pointer;
+  }
+
+  // Over its whole label, unseen: focus brings the label into view.
+  .seg-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+    scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
+  }
+
+  // The cart's size (#392): 2.5rem tall to the Show switcher's 2rem,
+  // 1rem text to its 0.875rem, and up to 20rem wide to its 12.5rem or
+  // so, short of the pane's whole width.
+  .seg-lg {
+    width: 100%;
+    max-width: 20rem;
+
+    .seg-option {
+      min-height: 2.5rem;
+      padding-inline: 0.5rem;
+      font-size: 1rem;
+    }
+  }
+
+  .seg-option:focus-visible,
+  .seg-option:has(.seg-input:focus-visible) {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .seg-fill {
+      transition: none;
+    }
+  }
+
+  // The total row's two controls are one segmented control (#267).
+  // Only the count, the word Total and the amount take a tap. Settled,
+  // in the column the track gives way to plain text; a tablet's panel
+  // keeps the look as a readout (#274).
+  .order-cart-seg {
+    flex: 1 1 auto;
+    margin-inline: auto;
+    transition:
+      background-color var(--order-base) var(--order-ease),
+      box-shadow var(--order-base) var(--order-ease);
+  }
+
+  .order-cart-disclose {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.375rem;
     transition:
       background-color var(--order-base) var(--order-ease),
       color var(--order-base) ease;
 
-    &:focus-visible {
-      outline: 2px solid var(--bs-primary);
-      outline-offset: 2px;
-    }
-
     &:disabled {
       cursor: default;
-    }
-
-    &[data-on="true"] {
-      color: #fff;
     }
   }
 
   .order-cart-count {
     align-items: center;
-    justify-content: flex-start;
-    font-size: 0.875rem;
     color: var(--bs-secondary-color);
+  }
+
+  .order-cart-disclose[data-on="true"] {
+    color: var(--bs-body-color);
   }
 
   // Settled, or in the column: no track, no fill, plain text.
   .order-cart-seg[data-plain] {
     flex: 1 1 auto;
+    max-width: none;
     margin-inline: 0;
     background-color: transparent;
     box-shadow: none;
@@ -1315,17 +1358,43 @@
       opacity: 0;
     }
 
-    // An open part's own fill too: in the column it was a green pill
-    // clipped around "0 items" (#274).
+    // An open part's own fill too (#274).
     .order-cart-disclose,
     .order-cart-disclose[data-on="true"] {
+      min-height: 2rem;
       padding-inline: 0;
       background-color: transparent;
       color: inherit;
     }
 
     .order-cart-count {
+      justify-content: flex-start;
       color: var(--bs-secondary-color);
+    }
+
+    .order-cart-sum {
+      justify-content: flex-end;
+    }
+
+    // A tablet's panel keeps the look as a readout (#274, #392): the
+    // same track and size, with no tap.
+    @media (min-width: 576px) and (max-width: 1199.98px) {
+      flex: 0 1 20rem;
+      margin-inline: auto;
+      background-color: $pill-bg;
+      box-shadow: inset 0 0 0 1px var(--bs-border-color-translucent);
+      pointer-events: none;
+
+      .order-cart-disclose,
+      .order-cart-disclose[data-on="true"] {
+        min-height: 2.5rem;
+        padding-inline: 0.5rem;
+      }
+
+      .order-cart-count,
+      .order-cart-sum {
+        justify-content: center;
+      }
     }
   }
 
@@ -1337,12 +1406,13 @@
 
   .order-cart-seg[data-multi]:not([data-plain]) {
     .order-cart-disclose[data-on="true"] {
-      background-color: var(--bs-primary);
+      background-color: var(--bs-body-bg);
+      box-shadow: var(--bs-box-shadow-sm);
     }
   }
 
   .order-cart[data-money="open"][data-items="closed"] .order-cart-seg-fill {
-    transform: translateX(100%);
+    transform: translateX(calc(100% + 4px));
   }
 
   // The bar's word for an Add while the pane is shut (#267): it slides
@@ -1450,10 +1520,6 @@
     visibility: hidden;
   }
 
-  .order-cart-sum {
-    justify-content: flex-end;
-  }
-
   .order-cart-sum-label {
     font-weight: bold;
   }
@@ -1475,25 +1541,19 @@
   }
 
   .order-cart-total {
-    // On white the flash is the success green; on the green fill, a
-    // pale brand green with a soft glow. Black there was unreadable.
+    // The fill is white now, so the flash is the success green
+    // everywhere.
     --order-flash: var(--bs-success-text-emphasis);
     --order-flash-glow: none;
 
     display: inline-block;
-    font-size: 1.375rem;
+    font-size: 1.125rem;
     font-weight: bold;
     font-variant-numeric: tabular-nums;
 
     &.is-bumped {
       animation: order-bump 260ms var(--order-ease);
     }
-  }
-
-  .order-cart-seg:not([data-plain])
-    .order-cart-disclose[data-on="true"] .order-cart-total {
-    --order-flash: #{tint-color($green, 70%)};
-    --order-flash-glow: 0 0 0.5rem rgb(255 255 255 / 55%);
   }
 
 
@@ -1924,74 +1984,14 @@
     }
   }
 
-  // Show "In stock" or "Full catalog", in the intro (#267): the cart's
-  // segmented control, a pill track with a fill that slides to the
-  // chosen side. Here the fill is the page's white on the grey track,
-  // so the chosen side is lighter, never darker. The radios stay in
-  // place under their labels, unseen, so arrows move between them.
+  // Show "In stock" or "Full catalog", in the intro (#267): the
+  // segmented control (.seg, above), its radios in place under their
+  // labels, unseen, so arrows move between them.
   .order-filter {
     display: flex;
     flex: none;
     gap: 0.75rem;
     align-items: center;
-  }
-
-  .order-filter-seg {
-    position: relative;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    border-radius: 999px;
-    background-color: $pill-bg;
-    box-shadow: inset 0 0 0 1px var(--bs-border-color-translucent);
-  }
-
-  .order-filter-fill {
-    position: absolute;
-    inset: 2px calc(50% + 2px) 2px 2px;
-    border-radius: 999px;
-    background-color: var(--bs-body-bg);
-    box-shadow: var(--bs-box-shadow-sm);
-    transition: transform var(--order-base) var(--order-ease);
-  }
-
-  .order-filter-seg:has(.order-filter-input[value="all"]:checked)
-    .order-filter-fill {
-    transform: translateX(calc(100% + 4px));
-  }
-
-  // Over its whole label, unseen: focus brings the label into view.
-  .order-filter-input {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    opacity: 0;
-    cursor: pointer;
-    scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
-  }
-
-  .order-filter-option {
-    position: relative;
-    min-height: 2rem;
-    padding: 0.3125rem 0.875rem;
-    border-radius: 999px;
-    font-size: 0.875rem;
-    text-align: center;
-    white-space: nowrap;
-    color: var(--bs-body-color);
-    cursor: pointer;
-  }
-
-  .order-filter-option:has(.order-filter-input:focus-visible) {
-    outline: 2px solid var(--bs-primary);
-    outline-offset: 2px;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .order-filter-fill {
-      transition: none;
-    }
   }
 
   .order-method-label {

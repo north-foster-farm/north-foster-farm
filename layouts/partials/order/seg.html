@@ -1,0 +1,14 @@
+{{- /* The segmented control (#392): a track, a fill that slides to the
+       chosen side, and two options, as real radios under their labels
+       so arrows, focus and a screen reader work as for any radio group.
+       The cart's count and total is the same pattern with .seg-lg and
+       buttons in place of radios (order/cart.html).
+       Takes: label (the group's name), name, size ("" or "lg"),
+       options (each: id, value, text, checked, hook). The first option
+       is the left side; the fill moves when the second is checked. */ -}}
+<div class="seg{{ with .size }} seg-{{ . }}{{ end }}" role="radiogroup" aria-label="{{ .label }}">
+  <span class="seg-fill" aria-hidden="true"></span>
+  {{- range .options }}
+  <label class="seg-option"><input class="seg-input" type="radio" name="{{ $.name }}" id="{{ .id }}" value="{{ .value }}"{{ if .checked }} checked{{ end }}{{ with .hook }} {{ . | safeHTMLAttr }}{{ end }}><span>{{ .text }}</span></label>
+  {{- end }}
+</div>
