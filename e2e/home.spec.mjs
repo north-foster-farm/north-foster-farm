@@ -516,6 +516,28 @@ test.describe("home", () => {
       await expect(ways.locator(".place")).toHaveCount(3);
     });
 
+  // #385: on staging, the toolbar's set time moves the date-bound
+  // blocks too. Written, not run.
+  test("the staging clock swaps the market and off-season bands",
+    async ({ page }) => {
+      await page.route("**/api/staging/info", async (route) => {
+        const at = Date.parse("2027-01-15T12:00:00-05:00");
+
+        await route.fulfill({
+          json: {
+            can: ["clock"], session: "x",
+            clock: { available: true, offset: at - Date.now(), now: at },
+          },
+        });
+      });
+      await page.goto("/");
+      test.skip(await page.locator("#staging").count() === 0,
+        "not a staging build");
+      await expect(page.locator(".ways")).toBeVisible();
+      await expect(page.locator(".places.home-band:not(.ways)"))
+        .toBeHidden();
+    });
+
   // #137: while no market runs, the market band gives way to the three
   // ways to buy, every fact from data/delivery.json.
   test.describe("off-season band (#137)", () => {

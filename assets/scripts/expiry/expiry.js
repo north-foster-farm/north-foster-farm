@@ -11,11 +11,18 @@ export const expired = (from, now = Date.now()) => {
   return Number.isFinite(at) && now >= at;
 };
 
+// A moment that cannot be read leaves the block as built. Both ways are
+// set, not just forward, so the staging toolbar's clock (#385), which
+// can sit before the real time, brings back what the real time hid.
 export const hideExpired = (root = document, now = Date.now()) => {
   for (const el of root.querySelectorAll("[data-hide-from]")) {
-    if (expired(el.dataset.hideFrom, now)) el.hidden = true;
+    if (Number.isFinite(Date.parse(el.dataset.hideFrom))) {
+      el.hidden = expired(el.dataset.hideFrom, now);
+    }
   }
   for (const el of root.querySelectorAll("[data-show-from]")) {
-    if (expired(el.dataset.showFrom, now)) el.hidden = false;
+    if (Number.isFinite(Date.parse(el.dataset.showFrom))) {
+      el.hidden = !expired(el.dataset.showFrom, now);
+    }
   }
 };

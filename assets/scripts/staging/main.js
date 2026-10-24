@@ -14,6 +14,7 @@
 // The email library (library.js) opens from the panel or from a
 // #email=<id> link, even when the toolbar is hidden.
 
+import { hideExpired } from "../expiry/expiry.js";
 import { onPress, setBusy } from "../utils/busy-button.js";
 import { maybeShowOverlay, wireCopy } from "./card.js";
 import { mountClock } from "./clock.js";
@@ -247,6 +248,11 @@ const boot = async () => {
   can = info.data.can || [];
   if (info.data.clock && info.data.clock.available) {
     clock.draw(info.data.clock);
+    // The date-bound blocks (expiry.js) read the browser's clock; make
+    // them follow the toolbar's (#385). Nothing to do when it is unset.
+    if (info.data.clock.offset !== 0) {
+      hideExpired(document, new Date(info.data.clock.now).getTime());
+    }
   } else {
     can = can.filter((a) => a !== "clock");
   }
