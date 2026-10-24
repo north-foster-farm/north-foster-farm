@@ -49,10 +49,11 @@ without the answer gets done first.
 2. Commit as you go, then `git rebase origin/next` before the end,
    keeping both sides' intent in a conflict. Never drop someone else's
    change.
-3. Push only `HEAD:lane/cloud-<issue>`, with `--force-with-lease` after
-   a rebase. Never push, merge into or deploy `next`, `staging` or
-   `main`, and never open or merge a pull request: the coordinator
-   reviews your branch and lands it.
+3. Never run `git push`: a run never pushes. The workflow pushes
+   `lane/cloud-<issue>` in a step after you finish, so commit
+   everything you want kept. Never merge into or deploy `next`,
+   `staging` or `main`, and never open or merge a pull request: the
+   coordinator reviews your branch and lands it.
 
 ## Checks
 
@@ -125,5 +126,5 @@ Then give:
 - lines that are drafts of customer-facing words
 
 A run that is blocked says `cloud-<issue> blocked:` instead, with the
-blocker first and the branch if you pushed one. Say what failed
+blocker first and the branch if you committed to one. Say what failed
 plainly; never report a failing check as passing.

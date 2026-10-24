@@ -17,27 +17,35 @@ name: Claude
 # The one secret is CLAUDE_CODE_OAUTH_TOKEN. The action trades the run's
 # OIDC token for a short-lived token of the Claude GitHub app, scoped to
 # this repository, which is why id-token is granted. Checkout leaves no
-# credentials in .git/config. The tool allowlist below lets the run push
-# only lane/cloud-* branches; it can never push next, staging or main.
+# credentials in .git/config. The run itself never pushes: the tool
+# allowlist has no `git push`, and the last step of the job, which the
+# model does not control, pushes HEAD to lane/cloud-<issue> and nothing
+# else. That step cannot reach next, staging or main.
+#
+# What the workflow cannot enforce: the deny rules on Write and Edit
+# keep the run out of .github/ and .git/, but they are the action's
+# tool rules, not a filesystem boundary. The push step therefore turns
+# off git hooks and takes the branch name from the event, not from
+# anything the run wrote.
 
 on:
   issue_comment:
     types: [created]
   issues:
-    types: [opened, assigned]
-
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-  id-token: write
+    types: [opened]
 
 jobs:
   claude:
     name: claude
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
     if: >-
       (
         github.event_name == 'issue_comment'
+        && github.event.issue.user.login == 'jbboynton'
         && github.event.comment.user.login == 'jbboynton'
         && github.actor == 'jbboynton'
         && contains(github.event.comment.body, '@claude')
@@ -76,12 +84,49 @@ jobs:
       # bin/prod use them, each checked against a pinned SHA-256.
       - uses: ./.github/actions/setup-hugo
 
-      - uses: anthropics/claude-code-action@1b705f16976f0aa709c1c2e313dced92a66dbde5 # v1.0.252
+      - uses: anthropics/claude-code-action@f27be6b65a4652f08a2ba3cff79114829b588967 # v1.0.252
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           include_comments_by_actor: jbboynton
+          base_branch: next
           branch_name_template: lane/cloud-{{entityNumber}}
           claude_args: |
             --max-turns 200
-            --append-system-prompt "You are a cloud lane of the North Foster Farm bullpen. Read docs/cloud-lanes.md first and follow it for the whole run. Work only on the issue or pull request that started this run. Push only a lane/cloud-<issue> branch. Never push, merge into or deploy next, staging or main, and never touch workflows, secrets or settings."
-            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(git fetch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git rebase origin/next),Bash(git push origin HEAD:lane/cloud-*),Bash(git push --force-with-lease origin HEAD:lane/cloud-*),Bash(npm run lint:*),Bash(npm test),Bash(npm run check:*),Bash(hugo:*),Bash(node bin/audit/check.mjs:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh search issues:*)"
+            --append-system-prompt "You are a cloud lane of the North Foster Farm bullpen. Read docs/cloud-lanes.md first and follow it for the whole run. Work only on the issue or pull request that started this run. Commit on the lane/cloud-<issue> branch; the workflow pushes it after you finish, so never run git push. Never merge into or deploy next, staging or main, and never touch workflows, secrets or settings."
+            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(git fetch origin),Bash(git checkout:*),Bash(git switch:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git rebase origin/next),Bash(npm run lint:*),Bash(npm test),Bash(npm run check:*),Bash(hugo:*),Bash(node bin/audit/check.mjs:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh search issues:*)"
+            --disallowedTools "Write(.github/**),Edit(.github/**),Write(.git/**),Edit(.git/**)"
+
+      # The only push of the run. The model has no push rule, and this
+      # step names the one ref it may update. It runs even when the
+      # action fails, so work already committed is not lost; with
+      # nothing committed past origin/next it does nothing. Hooks are
+      # off so nothing the run wrote under .git/ executes here. A rerun
+      # fetches the branch first so --force-with-lease has a lease.
+      - name: Push the lane branch
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          case "$ISSUE" in ''|*[!0-9]*) echo "bad issue number"; exit 1;; esac
+          branch="lane/cloud-$ISSUE"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git_push() {
+            git -c core.hooksPath=/dev/null \
+              -c "http.extraheader=AUTHORIZATION: basic $auth" "$@"
+          }
+          if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/next)" ]; then
+            echo "Nothing committed; no push."
+            exit 0
+          fi
+          url="https://github.com/$REPO"
+          if git_push fetch "$url" "+refs/heads/$branch:refs/remotes/lane/$branch"
+          then
+            git_push push --no-verify \
+              --force-with-lease="refs/heads/$branch:refs/remotes/lane/$branch" \
+              "$url" "HEAD:refs/heads/$branch"
+          else
+            git_push push --no-verify "$url" "HEAD:refs/heads/$branch"
+          fi
