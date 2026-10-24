@@ -55,7 +55,7 @@ test.describe("home", () => {
         "Pick up at our farm, choose a scheduled pickup, or get it "
           + "delivered to your door.",
         "Sign in with just your email, no password, and update your order.",
-        "Our customers tell us the difference time and time again.",
+        "Our customers tell us they can, time and time again.",
       ]);
       for (const step of await steps.all()) {
         await expect(step.locator(".home-icon svg")).toBeVisible();

@@ -9,7 +9,7 @@
   (dict "icon" "changes" "title" "Change of plans?"
     "copy" "Sign in with just your email, no password, and update your order.")
   (dict "icon" "tractor" "title" "Taste the difference"
-    "copy" "Our customers tell us the difference time and time again.")
+    "copy" "Our customers tell us <em>they can</em>, time and time again.")
 }}
 {{/* The photo beside the steps (#230, option 1). James approved the
      alt text and asked for the credit to link to her Instagram. */}}
@@ -38,7 +38,7 @@
               <span class="how-num">{{ add $i 1 }}</span>
             </span>
             <h3 class="how-step-title"><span class="visually-hidden">Step {{ add $i 1 }}: </span>{{ $step.title }}</h3>
-            <p class="how-step-copy">{{ $step.copy }}</p>
+            <p class="how-step-copy">{{ $step.copy | safeHTML }}</p>
           </li>
         {{ end }}
       </ol>
