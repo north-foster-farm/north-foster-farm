@@ -426,9 +426,11 @@ const banner = (doc, at, word, { x = RIGHT - 170, w = 170 } = {}) => {
 
 // --- The customer's slip ------------------------------------------------
 
-// "a, b and c", as the site writes a list.
+// "a and b", "a, b, and c": the serial comma, as the site writes a
+// list.
 const list = (words) => (words.length > 1
-  ? `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`
+  ? `${words.slice(0, -1).join(", ")}${words.length > 2 ? "," : ""} and ${
+    words.at(-1)}`
   : words.join(""));
 
 // Each way to pay as the slip says it, by checkout's method keys.
@@ -639,7 +641,7 @@ const slipPage = (doc, order, env) => {
     [label(order.fulfilment.date), true],
     ...(where.window ? [[where.window]] : []),
     ...addressLines(where.place).map((row) => [row]),
-    ...(d.gate ? [[`Gate or code: ${d.gate}`]] : []),
+    ...(d.gate ? [[`Gate or door code: ${d.gate}`]] : []),
   ]);
 
   at.y = Math.max(left, right) + 14;
