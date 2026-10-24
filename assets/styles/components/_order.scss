@@ -590,8 +590,8 @@
     }
   }
 
-  // The farm-news box belongs to the email above it: closer to that
-  // field than one field is to the next (#228).
+  // The farm-news box closes the Confirm section, under the agreement
+  // (#352; #228 had it under the email).
   .order-optin {
     margin: 0.25rem 0 0;
 
@@ -1654,18 +1654,40 @@
     border: 1px solid var(--bs-border-color-translucent);
     border-radius: var(--order-radius);
     background-color: var(--bs-body-bg);
-    box-shadow:
-      var(--order-shadow),
-      0 0.75rem 2rem rgb(0 0 0 / 12%);
+    box-shadow: var(--order-shadow);
+
+    // The cart's shadow at each width: the lighter one alone from xl,
+    // below it the one off its back edge.
+    @media (max-width: 1199.98px) {
+      box-shadow:
+        var(--order-shadow),
+        -1rem 0.25rem 1rem rgb(0 0 0 / 12%);
+    }
 
     @media (max-width: 575.98px) {
       padding: 0.75rem var(--order-gutter);
     }
   }
 
-  // The news opt-in closes the page, under the agreement (#352).
+  // The news opt-in closes the Confirm section, under the agreement
+  // (#352). On a phone it aligns right with the button and the line
+  // above it, as one column; from md it stands at the left.
   .order-confirm .order-optin {
     margin-top: 0;
+
+    @media (max-width: 767.98px) {
+      display: flex;
+      flex-direction: row-reverse;
+      justify-content: flex-start;
+      gap: 0.5rem;
+      padding-left: 0;
+      text-align: right;
+
+      .form-check-input {
+        float: none;
+        margin-left: 0;
+      }
+    }
   }
 
   // "Prefer text or call?" is hidden until there is a phone number,
