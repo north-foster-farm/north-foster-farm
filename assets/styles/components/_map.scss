@@ -14,7 +14,7 @@
 // enough for them to read at phone size; the neighbours' are a grey.
 $map-water: tint-color($teal, 84%);
 $map-land: #f2eee5;
-$map-land-line: #7a766a;
+$map-land-line: #dfdacd;
 $map-away: #e5d7b7;
 $map-ours: tint-color($green, 40%);
 $map-border: #868276;
@@ -108,8 +108,9 @@ $map-hover: #fbf8ef;
   }
 
   // The neighbours, where we don't deliver: plain land, with each
-  // town outlined at rest (James, #214), the lines a grey that reads
-  // on the land.
+  // town outlined at rest (James, #214), the lines a pale grey. James
+  // chose them light, below 3:1 on the land: the "No delivery" tag
+  // carries the meaning too.
   &.is-land {
     fill: $map-land;
     stroke: $map-land-line;
