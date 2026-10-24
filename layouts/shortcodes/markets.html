@@ -33,7 +33,7 @@
           <strong class="d-block">{{ .name }}</strong>
           {{ .when }}<br>
           {{ partial "market/season.html" . }}<br>
-          <a href="{{ $map }}" target="_blank" rel="noopener">{{ .venue }}<br>{{ .street }}<br>{{ .city }}, Rhode Island</a>
+          <a href="{{ $map }}" target="_blank" rel="noopener">{{ .venue }}<br>{{ .street }}, {{ .city }}, {{ .state }} {{ .zip }}</a>
           {{/* Shown by schedule.js while the market has a date open
                for pickup. */}}
           <span class="d-block" data-pickup-for="{{ .code }}" hidden>

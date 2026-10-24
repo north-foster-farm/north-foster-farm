@@ -43,7 +43,7 @@ test.describe("walkthrough of 2026-10-24", () => {
       expect(await background(call)).toBe("rgba(0, 0, 0, 0)");
     });
 
-  test("the markets block is three address lines and no season note (#340)",
+  test("the markets block is two address lines and no season note (#348)",
     async ({ page }) => {
       await page.goto("/");
 
@@ -54,8 +54,8 @@ test.describe("walkthrough of 2026-10-24", () => {
       for (const place of await band.locator(".place").all()) {
         const lines = place.locator(".place-where .place-line");
 
-        await expect(lines).toHaveCount(3);
-        await expect(lines.nth(2)).toHaveText(/, Rhode Island$/);
+        await expect(lines).toHaveCount(2);
+        await expect(lines.nth(1)).toHaveText(/, [A-Z]{2} \d{5}$/);
       }
     });
 

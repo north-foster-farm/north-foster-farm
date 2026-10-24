@@ -31,7 +31,7 @@
             <a href="{{ .href }}" target="_blank" rel="noopener" title="{{ .name }} website">{{ .name }}</a>
           </h3>
           <p class="place-when">{{ .when }}</p>
-          <p class="place-where"><span class="place-line">{{ .venue }}</span><span class="place-line">{{ .street }}</span><span class="place-line">{{ .city }}, Rhode Island</span></p>
+          <p class="place-where"><span class="place-line">{{ .venue }}</span><span class="place-line">{{ .street }}, {{ .city }}, {{ .state }} {{ .zip }}</span></p>
           <p class="place-note">{{ partial "market/season.html" . }}</p>
           <p class="place-pickup" data-pickup-for="{{ .code }}" hidden>
             <a href="{{ relURL "order/" }}?method=scheduled&amp;series={{ .code }}">Order for pickup here</a>

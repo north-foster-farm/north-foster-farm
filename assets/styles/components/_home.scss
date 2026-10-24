@@ -489,11 +489,11 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     font-weight: 600;
   }
 
-  // One line each for the venue, the street and the town, none
-  // wrapping inside (#340).
+  // Two lines, the venue and then the street, town and ZIP, neither
+  // wrapping inside (#340, #348).
   .place-where {
     grid-area: where;
-    margin: 0;
+    margin: 1rem 0 0;
   }
 
   .place-line {
@@ -505,6 +505,12 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     grid-area: note;
     margin: 0.5rem 0 0;
     font-size: 0.9375rem;
+    font-style: italic;
+    font-weight: lighter;
+  }
+
+  .place-pickup {
+    margin-top: 2rem;
   }
 
   .place-cta {
@@ -718,10 +724,6 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
 
     .home-band .home-title {
       margin-bottom: 3rem;
-    }
-
-    .place-note {
-      margin-top: 0.75rem;
     }
 
     .place-name {
