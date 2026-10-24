@@ -18,13 +18,6 @@
   --order-base: 220ms;
   --order-slow: 420ms;
 
-  // The segmented controls' design, once (#392): the Show control and
-  // the cart's count and total read these four and nothing else.
-  --order-seg-track: #{$pill-bg};
-  --order-seg-ring: inset 0 0 0 1px var(--bs-border-color-translucent);
-  --order-seg-fill: var(--bs-body-bg);
-  --order-seg-lift: var(--bs-box-shadow-sm);
-
   .order-page {
     max-width: 1040px;
   }
@@ -1242,8 +1235,8 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     border-radius: 999px;
-    background-color: var(--order-seg-track);
-    box-shadow: var(--order-seg-ring);
+    background-color: $pill-bg;
+    box-shadow: inset 0 0 0 1px var(--bs-border-color-translucent);
   }
 
   .order-filter-fill,
@@ -1251,8 +1244,8 @@
     position: absolute;
     inset: 2px calc(50% + 2px) 2px 2px;
     border-radius: 999px;
-    background-color: var(--order-seg-fill);
-    box-shadow: var(--order-seg-lift);
+    background-color: var(--bs-body-bg);
+    box-shadow: var(--bs-box-shadow-sm);
     transition:
       transform var(--order-base) var(--order-ease),
       opacity var(--order-base) ease;
@@ -1337,8 +1330,8 @@
     @media (min-width: 576px) and (max-width: 1199.98px) {
       flex: 0 1 20rem;
       margin-inline: auto;
-      background-color: var(--order-seg-track);
-      box-shadow: var(--order-seg-ring);
+      background-color: $pill-bg;
+      box-shadow: inset 0 0 0 1px var(--bs-border-color-translucent);
       pointer-events: none;
 
       .order-cart-disclose,
@@ -1356,8 +1349,8 @@
 
   .order-cart-seg[data-multi]:not([data-plain]) {
     .order-cart-disclose[data-on="true"] {
-      background-color: var(--order-seg-fill);
-      box-shadow: var(--order-seg-lift);
+      background-color: var(--bs-body-bg);
+      box-shadow: var(--bs-box-shadow-sm);
     }
   }
 
