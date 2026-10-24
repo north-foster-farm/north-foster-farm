@@ -289,7 +289,17 @@ qs("[data-staging-defaults]").addEventListener("click", async (ev) => {
 qs("[data-staging-forget]").addEventListener("click", async (ev) => {
   setBusy(ev.currentTarget, true);
   await realTime();
-  await forgetEverything();
+
+  const { signedOut, mailCleared } = await forgetEverything();
+
+  // Reloading would hide that the server kept the sign-in or the mail.
+  if (!signedOut || !mailCleared) {
+    say(`The browser is reset, but the server did not ${
+      signedOut ? "empty this session's emails" : "end the sign-in"}.`);
+    setBusy(ev.currentTarget, false);
+
+    return;
+  }
   window.location.reload();
 });
 qs("[data-staging-hide]").addEventListener("click", () => {

@@ -92,6 +92,46 @@ describe("Reset to first visit (#267)", () => {
     assert.equal(cookies.held.size, 0);
   });
 
+  it("empties this session's emails on the server (#350)", async () => {
+    const { local, session, cookies } = seed();
+    let cleared = 0;
+
+    const done = await forgetEverything({
+      local: () => local, session: () => session, jar: cookies,
+      signOut: async () => {},
+      clearMail: async () => { cleared += 1; },
+    });
+
+    assert.equal(cleared, 1);
+    assert.deepEqual(done, { signedOut: true, mailCleared: true });
+  });
+
+  it("says what the server did not do (#350)", async () => {
+    const { local, session, cookies } = seed();
+
+    const done = await forgetEverything({
+      local: () => local, session: () => session, jar: cookies,
+      signOut: async () => { throw new Error("POST: 403"); },
+      clearMail: async () => { throw new Error("DELETE: 401"); },
+    });
+
+    assert.deepEqual(done, { signedOut: false, mailCleared: false });
+    assert.equal(local.map.has("nff-order-draft"), false);
+  });
+
+  it("resets the page's forms so a reload restores no cart (#350)",
+    async () => {
+      const { local, session, cookies } = seed();
+      const reset = [];
+      const forms = [1, 2].map((n) => ({ reset: () => reset.push(n) }));
+
+      await forgetEverything({
+        local: () => local, session: () => session, jar: cookies,
+        forms: () => forms, signOut: async () => {}, clearMail: async () => {},
+      });
+      assert.deepEqual(reset, [1, 2]);
+    });
+
   it("survives storage that throws", async () => {
     const { cookies } = seed();
 
