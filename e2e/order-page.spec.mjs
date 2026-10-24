@@ -47,11 +47,19 @@ test.describe("order page", () => {
 
       await order.open();
       await expect(page.locator(".order-rest > .order-section > legend"))
-        .toHaveText(["Pickup or delivery", "Contact information", "Payment"]);
-      // Farm news sits in the email's own row, under the field (#228).
-      expect(await page.locator("#customer-email").evaluate((el) =>
-        el.closest(".row").querySelector("#customer-marketing") !== null))
-        .toBe(true);
+        .toHaveText([
+          "Pickup or delivery", "Contact information", "Payment", "Confirm",
+        ]);
+      // Farm news closes the Confirm section, after the agreement
+      // (#352).
+      expect(await page.locator("#confirm").evaluate((el) => {
+        const agree = el.querySelector(".order-agree");
+        const optin = el.querySelector(".order-optin");
+
+        return Boolean(optin?.querySelector("#customer-marketing")) &&
+          Boolean(agree.compareDocumentPosition(optin) &
+            Node.DOCUMENT_POSITION_FOLLOWING);
+      })).toBe(true);
     });
 
   test("Add becomes a stepper and the cart itemizes the line",
