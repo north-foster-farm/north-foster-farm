@@ -1,5 +1,5 @@
 {
- "revision": 48,
+ "revision": 49,
  "updated": "2026-10-24",
  "notice": null,
  "phases": [
@@ -3333,6 +3333,22 @@
       }
      ],
      "recommendation": "Read and approve each at the staging build: say \"approved\" or the rewrite."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "The launch audit (#405) says this decision gates the code freeze, so it needs an answer first.",
+     "summary": "From the audit in #405: **answer this before the code freeze.** Also before the market on Oct 25: **#371 flyers**, which still say \"We send a payment link\". Retire or reprint them.",
+     "look": [
+      {
+       "label": "#405 audit",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/405#issuecomment-6390477409"
+      },
+      {
+       "label": "#371",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/371"
+      }
+     ]
     }
    ],
    "device": "phone",
@@ -4478,6 +4494,164 @@
      "look": []
     }
    ]
+  },
+  {
+   "id": "D-354-36",
+   "section": "rv-decide",
+   "title": "Phone order page: should the first Add open the cart?",
+   "area": "#159 OP-27",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "On a phone, the first Add opens the floating cart over about two thirds of the catalog, covering the row you just used (QA case OP-27). A judgement call.\n\n- Keep it: the cart appearing confirms the Add.\n- Show only the cart pill on the first Add and open the cart when the customer taps it.",
+     "look": [
+      {
+       "label": "#159, order page and cart",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/159"
+      }
+     ],
+     "recommendation": "Show the pill only; a sheet over the catalog on the first tap hides the row the customer is working on."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-37",
+   "section": "rv-decide",
+   "title": "Which fulfilment-card link opens in a new tab?",
+   "area": "#159 walkthrough c",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "In clip 8.13.23 AM you said a button \"should link to or open in a new tab. Farm appointments.\" The transcript does not say which link you mean.\n\n- The \"2 locations\" link under Scheduled pickup (goes to the home page's places section, same tab).\n- \"By appointment\" under On-farm pickup (goes to the appointment rules).\n- Both.",
+     "look": [
+      {
+       "label": "#159, order page and cart",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/159"
+      }
+     ],
+     "recommendation": "\"By appointment\": it leads away from a form in progress, and the farm appointments rules are what you named. Then add `target=\"_blank\" rel=\"noopener\"` to it."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-38",
+   "section": "rv-decide",
+   "title": "Header account icon at phone width: what does it lack?",
+   "area": "#159 walkthrough c",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "In clip 7.36.21 AM (00:00 to 00:20) you said the chicken account icon beside Search \"is doing what I want it to do at that screen size, but it lacks the\", and the clip ends there. What is missing?\n\n- A text label.\n- A signed-in mark.\n- A hover or focus state.\n- Something else.",
+     "look": [
+      {
+       "label": "#159, order page and cart",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/159"
+      }
+     ],
+     "recommendation": "No recommendation: finish the sentence and an agent builds it."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-39",
+   "section": "rv-decide",
+   "title": "Is MAIL_REPLY_TO still sales@? Make it info@?",
+   "area": "PR #410",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "The emails' Reply-To comes from the `MAIL_REPLY_TO` environment value, which PR #410 cannot see. If it is sales@, a customer's reply goes to the order mailbox while the Contact us link goes to info@. Check the value in Netlify (Production and Staging).\n\n- It is sales@: change it to info@.\n- It is already info@: nothing to do.\n- Replies should keep going to sales@: say so.",
+     "look": [
+      {
+       "label": "PR #410",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/pull/410"
+      }
+     ],
+     "recommendation": "If it is sales@, change it to info@ so replies and Contact us reach the same mailbox."
+    }
+   ],
+   "device": "laptop",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-40",
+   "section": "rv-decide",
+   "title": "Rename the label \"Scheduled pickup\"?",
+   "area": "#400",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "\"Scheduled pickup\" appears as the fulfilment card title, the cart switch, the emails' Order type, the account page and the packing slip. The writers keep it for now. Their draft replacement is \"Market or drop-site pickup\".\n\n- Keep \"Scheduled pickup\".\n- Rename it to \"Market or drop-site pickup\" everywhere (draft wording).\n- Another name.",
+     "look": [
+      {
+       "label": "#400 comment",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/400#issuecomment-6390244741"
+      }
+     ],
+     "recommendation": "Keep it for launch; renaming touches five places and the emails already sent under the old name."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-41",
+   "section": "rv-decide",
+   "title": "Farm news confirmation subject: say \"email address\"?",
+   "area": "PR #418",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "The confirmation's subject, your own wording (W19), reads \"Confirm your email for farm news from North Foster Farm\". Your rule elsewhere is \"email address\".\n\n- Keep the subject as is.\n- Change it to \"Confirm your email address for farm news from North Foster Farm\" (draft).",
+     "look": [
+      {
+       "label": "PR #418",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/pull/418"
+      }
+     ],
+     "recommendation": "Change it to the longer subject, to follow your own rule."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-42",
+   "section": "rv-decide",
+   "title": "Sales and refund policy (#415): its 16 questions",
+   "area": "#415",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-24",
+     "summary": "The first draft of the sales and refund policy ends in 16 numbered questions. They are one item here so you can answer them in one sitting, in the comment linked below.\n\n- Answer each with the draft's recommendation.\n- Answer some differently: reply by number.",
+     "look": [
+      {
+       "label": "#415 first draft",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/415#issuecomment-6390331937"
+      },
+      {
+       "label": "#415",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/415"
+      }
+     ],
+     "recommendation": "Answer each with the draft's recommendation."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
   }
  ],
  "env": {
