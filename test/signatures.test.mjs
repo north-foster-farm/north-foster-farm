@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
@@ -30,28 +31,39 @@ const ask = (path) => new Request(`https://x${path}`, {
 
 describe("email signatures", () => {
   it("render as inline-styled markup with nothing around it", () => {
-    for (const s of library(env)) {
+    for (const s of library()) {
       assert.doesNotMatch(s.html, /<(html|head|body|style|script)\b/i);
       assert.doesNotMatch(s.html, /\sclass=/);
       assert.match(s.html, /^<table /);
-      assert.match(s.html, /https:\/\/farm\.example\/email-signature\//);
+      assert.match(s.html,
+        /https:\/\/www\.northfosterfarm\.com\/email-signature\//);
     }
   });
 
-  it("show a gap, never an invented detail, for what is missing", () => {
-    const s = library(env).find((v) => v.id === "james");
+  it("match James's final markup, whitespace aside", () => {
+    // His james and jim files carry a stray nested <tr>; the team file
+    // does not. One template serves all three, so drop the stray one.
+    const squash = (html) => html.replace(/<tr>\s*<tr>/, "<tr>")
+      .replace(/\s+/g, " ").replace(/> </g, "><").trim();
 
-    assert.deepEqual(s.missing, ["role", "email", "phone"]);
-    assert.match(s.html, /\[role\]/);
-    assert.match(s.text, /\[phone\]/);
+    for (const id of ["james", "jim", "team"]) {
+      const file = readFileSync(
+        new URL(`./fixtures/signatures/${id}.html`, import.meta.url), "utf8",
+      );
+      const s = library().find((v) => v.id === id);
+
+      assert.equal(squash(s.html), squash(file), id);
+    }
   });
 
-  it("fill an address and a phone from the farm's own data", () => {
-    const v = { ...entry("james"), email: "sales", phone: "company" };
+  it("have no role, email or phone, and so no gaps", () => {
+    for (const s of library()) {
+      assert.deepEqual(s.missing, []);
+      assert.doesNotMatch(s.html, /\[(role|email|phone)\]|mailto:|tel:/);
+    }
 
-    assert.deepEqual(missing({ ...v, role: "Farmer" }), []);
-    assert.match(render(v, env).html, /mailto:sales@/);
-    assert.match(render(v, env).html, /tel:\+1/);
+    assert.deepEqual(missing(entry("james")), []);
+    assert.match(render(entry("jim")).html, /<b>Jim Boynton<\/b>/);
   });
 
   it("open alone as exactly head, body and the signature", () => {
