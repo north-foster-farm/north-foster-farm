@@ -231,6 +231,8 @@ test.describe("loading skeletons (#271)", () => {
 
     await expect(failed).toBeVisible();
     await expect(failed).toContainText("We couldn't load your account.");
+    // The site's alert component (#333).
+    await expect(failed).toHaveClass(/\balert\b/);
     await expect(region).toHaveAttribute("data-load", "failed");
     await expect(region).not.toHaveAttribute("aria-busy", /./);
     await failed.getByRole("link", { name: "Try again" }).click();
