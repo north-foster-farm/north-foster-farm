@@ -422,11 +422,11 @@ status. For a change, nothing retries: record the difference in
 Square by hand.
 
 **`square.edit_failed`.** A customer's change to a paid order went
-through and is recorded, but Square's fulfilment could not follow it,
+through and is recorded, but Square's fulfillment could not follow it,
 so what Square shows to pack or where is out of date. The order is
 flagged `squareOutOfSync`. Pack from `bin/nff orders show <id>`, not
 from Square. Check Square status and the log (`event:
-square.update_failed`), then fix the fulfilment in the Square
+square.update_failed`), then fix the fulfillment in the Square
 dashboard by hand.
 
 **`square.refund_failed`.** A refund made in PayPal could not be
@@ -643,7 +643,7 @@ have said so.
 **Packing slips**, 6:00 (#292, `lib/packing.mjs`), to
 `FARM_NOTIFICATIONS_EMAIL`: one PDF to print whole. Its cover is the
 pick list, each product and tier with its total across the slips;
-then the slips by fulfilment date, type and pickup time. Sunday's
+then the slips by fulfillment date, type and pickup time. Sunday's
 packet holds every order for Sunday to Saturday. Other days hold the
 orders not printed yet, a revision sheet and a new slip for each
 order changed since it was printed, and a CANCELLED sheet for each

@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import terms from "../data/delivery.json" with { type: "json" };
 import {
-  answerMessage, answeredLine, cancelOrder, decideAddress, fulfilOrder,
+  answerMessage, answeredLine, cancelOrder, decideAddress, fulfillOrder,
   listMessages, listOrders, markAttempted, messageLine, missedUntold,
   moveDelivery, plain,
   refundOrder, removeCustomer, removeOrder, resolveReturn, setCustomer,
@@ -74,9 +74,9 @@ const harness = () => {
 
           return { squareRefundId: "SQR-1", status: "PENDING", amount };
         },
-        cancelFulfilment: async (id) => { calls.push(["fulfilment", id]); },
-        updateFulfilment: async (id, o) => {
-          calls.push(["updateFulfilment", id, o.fulfilment.date]);
+        cancelFulfillment: async (id) => { calls.push(["fulfilment", id]); },
+        updateFulfillment: async (id, o) => {
+          calls.push(["updateFulfillment", id, o.fulfilment.date]);
         },
       },
       paypal: {
@@ -164,16 +164,16 @@ describe("orders from the CLI", () => {
     assert.equal((await listOrders(stores, { email: "x@y.com" })).length, 0);
   });
 
-  it("fulfil, delete", async () => {
+  it("fulfill, delete", async () => {
     const stores = testStores();
     const { opts } = harness();
 
     await saveOrder(stores, order("A"), now);
-    assert.equal((await fulfilOrder(stores, "A", opts)).status, "fulfilled");
+    assert.equal((await fulfillOrder(stores, "A", opts)).status, "fulfilled");
     assert.equal((await openOrders(stores)).length, 0);
     assert.equal(await removeOrder(stores, "A"), true);
     await assert.rejects(removeOrder(stores, "A"), /No such order/);
-    await assert.rejects(fulfilOrder(stores, "A", opts), /No such order/);
+    await assert.rejects(fulfillOrder(stores, "A", opts), /No such order/);
   });
 
   it("refund a card order through Square, whole or part, once", async () => {
@@ -545,7 +545,7 @@ describe("an attempted delivery keeps its fee", () => {
     await assert.rejects(markAttempted(stores, "B", { cause, now }),
       /Only a delivery/);
     await saveOrder(stores, delivered("C"), now);
-    await fulfilOrder(stores, "C", { now });
+    await fulfillOrder(stores, "C", { now });
     await assert.rejects(markAttempted(stores, "C", { cause, now }),
       /This order is fulfilled/);
     await assert.rejects(markAttempted(stores, "Z", { cause, now }),
@@ -765,7 +765,7 @@ describe("an attempted delivery keeps its fee", () => {
     await saveOrder(stores, closed("A"), now);
     await saveOrder(stores, closed("B"), now);
     await saveOrder(stores, delivered("C"), now);
-    await fulfilOrder(stores, "C", { now });
+    await fulfillOrder(stores, "C", { now });
 
     const a = await markAttempted(stores, "A",
       { ...on("2026-10-10T20:00:00Z"), cause: "no-cooler" });
@@ -797,7 +797,7 @@ describe("an attempted delivery keeps its fee", () => {
       assert.equal(moved.fulfilment.date, "2026-10-15");
       assert.equal(moved.attempted.date, "2026-10-08");
       assert.equal(moved.question, null);
-      assert.deepEqual(calls, [["updateFulfilment", "SQO", "2026-10-15"]]);
+      assert.deepEqual(calls, [["updateFulfillment", "SQO", "2026-10-15"]]);
       assert.equal(sent.length, 1);
       assert.equal(sent[0].subject, "Your delivery is moved to next Thursday");
       assert.ok(moved.emails["movedDelivery-2026-10-15"]);
@@ -879,7 +879,7 @@ describe("an attempted delivery keeps its fee", () => {
     assert.equal(b.fulfilment.date, "2026-10-15");
     assert.equal(b.question.answer, "reschedule");
     assert.equal(b.question.by, "farm");
-    assert.deepEqual(calls.at(-1), ["updateFulfilment", "SQO", "2026-10-15"]);
+    assert.deepEqual(calls.at(-1), ["updateFulfillment", "SQO", "2026-10-15"]);
     assert.equal(sent.at(-1).subject, "Your order is updated");
 
     // Not yet attempted: any delivery day ahead, past the cutoff.

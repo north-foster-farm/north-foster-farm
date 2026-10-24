@@ -4,7 +4,7 @@
 // nothing here chases money; the jobs mind what happens after.
 //
 //   delivery    18:00 the day before a delivery: cooler reminder
-//   close       an order the day after fulfilment is fulfilled
+//   close       an order the day after fulfillment is fulfilled
 //   square      a Venmo order whose Square copy failed gets another
 //               try, so the dashboard sees it
 //   question    an order with an open question from the farm (a
@@ -194,7 +194,7 @@ export const runJobs = async (stores, {
 
   // A customer's reminder settings, read once per run however many
   // orders they have open. A reminder they turned off is skipped and
-  // reported, never sent; fulfilment still closes on its clock.
+  // reported, never sent; fulfillment still closes on its clock.
   const prefs = new Map();
   const wants = async (order, kind) => {
     const email = order.customer.email;

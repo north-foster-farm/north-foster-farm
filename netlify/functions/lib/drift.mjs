@@ -1,5 +1,5 @@
 // A website order changed directly in Square (#293): a line, the
-// fulfilment date or place, a cancel. The site's record stays the
+// fulfillment date or place, a cancel. The site's record stays the
 // truth. A change made in Square is never copied into it, since the
 // record carries the money (payments, refunds, totals) and the packing
 // slips print from it; it is flagged instead. The farm gets one email
@@ -13,13 +13,13 @@
 // checkOrder, which asks Square for the order and compares.
 //
 // What is compared, for a paid order only:
-//   cancel   the Square order, or its fulfilment, is CANCELED
-//   date     the fulfilment day, and the time within it
+//   cancel   the Square order, or its fulfillment, is CANCELED
+//   date     the fulfillment day, and the time within it
 //   place    a delivery address, or the pickup place (the note's first
 //            part); notes and instructions are not compared
 //   lines    quantities per item, but not on an order the customer has
 //            changed since (its items are spread over several Square
-//            orders, so only the fulfilment is compared there)
+//            orders, so only the fulfillment is compared there)
 //
 // Nothing here writes to a record or calls Square for anything but a
 // read, so a mistake costs an email, never money.
@@ -64,8 +64,8 @@ const timeOf = (f) => {
   return d && (d.pickup_at || d.deliver_at) || null;
 };
 
-// What the record would send to Square for its fulfilment.
-const expectedFulfilment = (order) => {
+// What the record would send to Square for its fulfillment.
+const expectedFulfillment = (order) => {
   try {
     return buildOrder(order, null, { locationId: "-", catalog: false })
       .fulfillments[0];
@@ -119,7 +119,7 @@ const lineDifferences = (order, squareOrder) => {
 };
 
 // -> the differences, as lines for the farm; none when they agree.
-// `carrier` holds the fulfilment, `original` the lines: one order
+// `carrier` holds the fulfillment, `original` the lines: one order
 // unless the customer changed the order since.
 export const differences = (order, { original, carrier }) => {
   const out = [];
@@ -131,7 +131,7 @@ export const differences = (order, { original, carrier }) => {
     out.push("Canceled in Square; still paid and open on the site");
   }
 
-  const want = expectedFulfilment(order);
+  const want = expectedFulfillment(order);
   const got = carrier && fulfilmentOf(carrier);
 
   if (!canceled.length && want && got) {
@@ -139,7 +139,7 @@ export const differences = (order, { original, carrier }) => {
     const seen = timeOf(got);
 
     if (want.type !== got.type) {
-      out.push(`Fulfilment type: ${want.type.toLowerCase()} on the ` +
+      out.push(`Fulfillment type: ${want.type.toLowerCase()} on the ` +
         `site, ${String(got.type).toLowerCase()} in Square`);
     } else {
       if (wanted && seen && dayOf(wanted) !== dayOf(seen)) {
@@ -169,7 +169,7 @@ export const differences = (order, { original, carrier }) => {
 };
 
 // The Square orders that matter for a record: the one holding the
-// lines and the one holding the fulfilment.
+// lines and the one holding the fulfillment.
 const fetchBoth = async (order, square, opts) => {
   const ids = [order.square.squareOrderId,
     order.square.fulfilmentOrderId || order.square.squareOrderId];

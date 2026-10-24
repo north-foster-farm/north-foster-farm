@@ -304,7 +304,9 @@ describe("runJobs", () => {
 
         return { squareRefundId: "R", status: "PENDING", amount };
       },
-      cancelFulfilment: async (id) => { calls.push(["cancelFulfilment", id]); },
+      cancelFulfillment: async (id) => {
+        calls.push(["cancelFulfillment", id]);
+      },
     };
 
     await saveOrder(stores, {
@@ -337,7 +339,7 @@ describe("runJobs", () => {
     assert.equal(a.question.answer, "expired");
     assert.deepEqual(calls, [
       ["refund", "PAY-A", 700, "refund-hold-A-0"],
-      ["cancelFulfilment", "SQO"],
+      ["cancelFulfillment", "SQO"],
     ]);
     assert.equal(sent.length, 1);
     assert.match(sent[0].text, /We held your order for seven days/);
@@ -359,7 +361,7 @@ describe("runJobs", () => {
     const calls = [];
     const square = {
       refundPayment: async (r) => { calls.push(["refund", r]); return {}; },
-      cancelFulfilment: async (id) => { calls.push(["cancel", id]); },
+      cancelFulfillment: async (id) => { calls.push(["cancel", id]); },
     };
     const missed = {
       ...order("A"),
@@ -422,7 +424,7 @@ describe("runJobs", () => {
 
         return { squareRefundId: "R", status: "PENDING", amount };
       },
-      cancelFulfilment: async () => {},
+      cancelFulfillment: async () => {},
     };
 
     // Marked on the 8th, but missedDelivery never went.
@@ -501,7 +503,7 @@ describe("runJobs", () => {
 
         return { squareRefundId: "R", status: "PENDING", amount };
       },
-      cancelFulfilment: async () => {},
+      cancelFulfillment: async () => {},
     };
 
     await saveOrder(stores, {

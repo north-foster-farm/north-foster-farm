@@ -14,7 +14,7 @@
 // those any more and the jobs flag any `submitted` one they find.
 //
 // "Open" means the job runner still has something to do: a paid
-// order waits for its delivery reminder and fulfilment.
+// order waits for its delivery reminder and fulfillment.
 //
 // Beside the orders sit the checkouts: a Venmo payment is approved
 // in the Venmo app and captured afterwards, so the validated order

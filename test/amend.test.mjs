@@ -42,11 +42,11 @@ const fakeSquare = ({ refuse } = {}) => {
       return { squareOrderId: id };
     },
     cancelOrder: async () => {},
-    cancelFulfilment: async (id) => calls.push(["cancelFulfilment", id]),
-    updateFulfilment: async (id, o) => {
-      calls.push(["updateFulfilment", id, o.fulfilment.date,
+    cancelFulfillment: async (id) => calls.push(["cancelFulfillment", id]),
+    updateFulfillment: async (id, o) => {
+      calls.push(["updateFulfillment", id, o.fulfilment.date,
         o.fulfilment.method, o.fulfilment.occurrence]);
-      if (refuse) throw new Error("Square: the fulfilment is completed");
+      if (refuse) throw new Error("Square: the fulfillment is completed");
     },
   };
 
@@ -155,7 +155,7 @@ describe("orders change, the farm's change to any order", () => {
     assert.equal(last.square, "updated");
     assert.match(last.before, /On-farm pickup/);
     assert.match(last.after, /Foster/);
-    assert.deepEqual(calls[0].slice(0, 2), ["updateFulfilment", "SQO"]);
+    assert.deepEqual(calls[0].slice(0, 2), ["updateFulfillment", "SQO"]);
     assert.equal(sent.length, 1);
     assert.equal(sent[0].to, "pat@example.com");
     // The schedule hasn't opened Foster: a warning, not a refusal.
@@ -320,11 +320,11 @@ describe("orders change, the farm's change to any order", () => {
     const saved = await getOrder(stores, id);
 
     assert.equal(forced.ok, true);
-    assert.match(forced.report.square, /refused.*kept the old fulfilment/);
+    assert.match(forced.report.square, /refused.*kept the old fulfillment/);
     assert.equal(saved.fulfilment.method, "scheduled");
     assert.equal(saved.flags.squareOutOfSync, true);
     assert.match(saved.history.find((h) => h.event === "farm.changed").square,
-      /kept the old fulfilment/);
+      /kept the old fulfillment/);
   });
 
   it("lists every side effect, and --dry-run changes nothing", async () => {
@@ -437,7 +437,7 @@ describe("orders change, the farm's change to any order", () => {
 
         return { squareOrderId: "SQC1", customerId: "CUST" };
       };
-      square.cancelFulfilment = async () => { throw new Error("stuck"); };
+      square.cancelFulfillment = async () => { throw new Error("stuck"); };
       square.cancelOrder = async (sid) => {
         cancelled.push(sid);
 
@@ -492,7 +492,7 @@ describe("orders change, the farm's change to any order", () => {
       assert.equal(new Set(keys).size, 3, keys.join());
 
       // A again, but its last Square step fails.
-      square.cancelFulfilment = async () => { throw new Error("stuck"); };
+      square.cancelFulfillment = async () => { throw new Error("stuck"); };
 
       const failed = await change(stores, id, DELIVERY,
         { at: at(13), square });
@@ -509,7 +509,7 @@ describe("orders change, the farm's change to any order", () => {
         const { stores, id } = await delivered();
         const { square } = fakeSquare();
 
-        square.cancelFulfilment = async () => { throw new Error("stuck"); };
+        square.cancelFulfillment = async () => { throw new Error("stuck"); };
         square.cancelOrder = async (sid) => ({ id: sid, cancelled: false,
           paid });
 
@@ -529,7 +529,7 @@ describe("orders change, the farm's change to any order", () => {
       const { stores, id } = await delivered();
       const { square } = fakeSquare();
 
-      square.cancelFulfilment = async () => { throw new Error("stuck"); };
+      square.cancelFulfillment = async () => { throw new Error("stuck"); };
       square.cancelOrder = async () => { throw new Error("no"); };
 
       const forced = await change(stores, id, MARKET, { square, force: true });

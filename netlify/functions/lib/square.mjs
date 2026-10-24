@@ -1,8 +1,8 @@
 // The Square seam. One order in, one paid Square order out: the
-// customer, the order with its fulfilment, and the payment against
+// customer, the order with its fulfillment, and the payment against
 // it, whether a card token from the Web Payments SDK or the record
 // of money that came through Venmo. Square stays the system of record
-// for money; the dashboard shows every order with its fulfilment.
+// for money; the dashboard shows every order with its fulfillment.
 //
 // Every mutation carries an idempotency key derived from the
 // submission's key and attempt, so a retry of any step, or of the
@@ -278,7 +278,7 @@ const staffNote = (order) => {
     if (order.flags.zipUnlisted) bits.push("ZIP not on the approved list");
   }
   // A changed order's items are spread over several Square orders, so
-  // the fulfilment the farm packs from lists them whole.
+  // the fulfillment the farm packs from lists them whole.
   if ((order.edits || []).length) {
     bits.unshift(`changed; pack ${order.lines
       .map((l) => `${l.qty} × ${l.label || l.name}`).join(", ")}`);
@@ -434,7 +434,7 @@ const findOrCreateCustomer = async (cfg, customer, key, fetchImpl, ref) => {
   return { id: created.customer.id, made: !!ref };
 };
 
-// The customer and the order with its fulfilment, before any money.
+// The customer and the order with its fulfillment, before any money.
 // `customerMade` says the profile was made for this order, not found.
 // -> { squareOrderId, customerId, customerMade }
 // throws SquareError { retryable, detail }
@@ -465,7 +465,7 @@ export const createOrder = async (order, key, {
 // and one discount for whatever the change took off, so its total is
 // the difference to pay (never below zero). A charge the added items
 // do not cover (a discount lost) is a line of its own. With `carries`
-// it takes the order's fulfilment too, for a switch between delivery
+// it takes the order's fulfillment too, for a switch between delivery
 // and pickup, which Square cannot make on the first order's.
 export const buildChangeOrder = (order, change, customerId, cfg) => {
   const lines = change.added.map((line) => (
@@ -705,9 +705,9 @@ export const findPaid = async (order, {
   });
 };
 
-// Square's copy of the fulfilment is what the farm packs from, so a
+// Square's copy of the fulfillment is what the farm packs from, so a
 // customer's change to the date or the details goes there too. Square
-// wants the order's current version and the fulfilment's uid.
+// wants the order's current version and the fulfillment's uid.
 // The updates below send the order's own location, so one placed
 // before SQUARE_LOCATION_ID moved is changed where it lives (#267).
 const currentOrder = async (cfg, squareOrderId, fetchImpl) => {
@@ -730,17 +730,17 @@ export const getOrder = async (squareOrderId, {
   return currentOrder(settings(env), squareOrderId, fetchImpl);
 };
 
-export const updateFulfilment = async (squareOrderId, order, {
+export const updateFulfillment = async (squareOrderId, order, {
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) => {
-  if (isFake(env)) return fake.updateFulfilment(squareOrderId, order, { env });
+  if (isFake(env)) return fake.updateFulfillment(squareOrderId, order, { env });
 
   const cfg = settings(env);
   const current = await currentOrder(cfg, squareOrderId, fetchImpl);
   const existing = (current.fulfillments || [])[0];
 
-  if (!existing) throw new SquareError("Square order has no fulfilment");
+  if (!existing) throw new SquareError("Square order has no fulfillment");
 
   const next = fulfillment(order);
 
@@ -761,11 +761,11 @@ export const updateFulfilment = async (squareOrderId, order, {
   return { id: squareOrderId, version: data.order && data.order.version };
 };
 
-export const cancelFulfilment = async (squareOrderId, {
+export const cancelFulfillment = async (squareOrderId, {
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) => {
-  if (isFake(env)) return fake.cancelFulfilment(squareOrderId, { env });
+  if (isFake(env)) return fake.cancelFulfillment(squareOrderId, { env });
 
   const cfg = settings(env);
   const current = await currentOrder(cfg, squareOrderId, fetchImpl);
@@ -846,7 +846,7 @@ export const cancelOrder = async (squareOrderId, {
 
 // The location's OPEN orders created before `before`, newest first,
 // at most `max` of them, for the sweep in jobs.mjs (#241). Paid orders
-// stay OPEN until their fulfilment completes, so the newest come first
+// stay OPEN until their fulfillment completes, so the newest come first
 // and the old paid ones fall past the cap.
 // -> [{ id, referenceId, source, createdAt, tenders, total }]
 export const searchOpenOrders = async ({ before, max = 500 }, {

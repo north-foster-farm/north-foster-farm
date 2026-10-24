@@ -388,7 +388,7 @@ export const refundOrder = async (stores, id, {
 
 // A cancel, the farm's or the customer's: any status but fulfilled,
 // which it refuses.
-// Stock goes back, the fulfilment is cancelled in Square, the money
+// Stock goes back, the fulfillment is cancelled in Square, the money
 // goes back unless the farm says otherwise (--no-refund: W11a-1,
 // T1c), the customer is told. The farm's `reason`, one of the
 // templates' CANCEL_REASONS keys, or its `reasonText` is the
@@ -429,7 +429,7 @@ export const cancelOrder = async (stores, id, {
 
   if (order.square && order.square.squareOrderId) {
     try {
-      await square.cancelFulfilment(order.square.squareOrderId, {
+      await square.cancelFulfillment(order.square.squareOrderId, {
         env, fetchImpl,
       });
     } catch (error) {
@@ -608,7 +608,7 @@ export const nextDeliveryDay = (date) => {
 };
 
 // A delivery moved to another delivery day by the farm, past any
-// cutoff: the record, Square's fulfilment, and the customer told.
+// cutoff: the record, Square's fulfillment, and the customer told.
 // It answers a missed delivery's question, unless that miss was the
 // customer's and kept the fee: the next trip charges the fee again
 // (C1), which only the customer can pay, on the order page. `email`
@@ -648,7 +648,7 @@ export const moveDelivery = async (stores, id, date, {
 
   if (holder) {
     try {
-      await square.updateFulfilment(holder, moved, { env, fetchImpl });
+      await square.updateFulfillment(holder, moved, { env, fetchImpl });
     } catch (error) {
       console.error(`Square could not follow the move: ${error.message}`);
       saved = await amendOrder(stores, id, {
@@ -667,7 +667,7 @@ export const moveDelivery = async (stores, id, date, {
     { mail, env, now });
 };
 
-export const fulfilOrder = async (stores, id, { now = new Date() } = {}) =>
+export const fulfillOrder = async (stores, id, { now = new Date() } = {}) =>
   need(await setStatus(stores, id, "fulfilled", now, { source: "farm" }),
     "order");
 

@@ -54,7 +54,7 @@ const METHODS = ["onfarm", "scheduled", "delivery"];
 const fail = (errors, extra = {}) => ({ ok: false, errors, ...extra });
 
 // "Foster Farmers Market, Shady Acres Diner, ..., Sun Oct 25 9:00 AM –
-// 1:00 PM": what a fulfilment is, for the plan's before and after.
+// 1:00 PM": what a fulfillment is, for the plan's before and after.
 const describe = (order) => {
   const f = order.fulfilment;
   const where = placeOf(order);
@@ -80,7 +80,7 @@ const movedEvent = (order, next, now) => {
     : [];
 };
 
-// The Square order that carries an order's fulfilment.
+// The Square order that carries an order's fulfillment.
 const holderOf = (order) => order.square
   && (order.square.fulfilmentOrderId || order.square.squareOrderId);
 
@@ -330,18 +330,18 @@ export const planAmend = async (stores, id, body, {
         "email; the farm gets none";
 
   if (noSquare) {
-    effects.square = "none (--no-square): Square keeps its old fulfilment";
+    effects.square = "none (--no-square): Square keeps its old fulfillment";
   } else if (!holder) {
     effects.square = "none: the order has no Square order";
   } else if (!fulfilmentMoved) {
     effects.square = "none: Square holds nothing of the contact or notes";
   } else if (typeChanged) {
     effects.square = `a new $0 Square order carries the ${
-      delivering(next) ? "delivery" : "pickup"} fulfilment (its type ` +
-      `changes), paid at $0 and linked to ${holder}; the fulfilment on ` +
+      delivering(next) ? "delivery" : "pickup"} fulfillment (its type ` +
+      `changes), paid at $0 and linked to ${holder}; the fulfillment on ` +
       `${holder} is canceled`;
   } else {
-    effects.square = `Square order ${holder}: the fulfilment's ${
+    effects.square = `Square order ${holder}: the fulfillment's ${
       delivering(next) ? "delivery time and address" : "pickup time and note"
     } are updated`;
   }
@@ -376,7 +376,7 @@ const followInSquare = async (plan, { square, env, fetchImpl, k }) => {
   const { next, holder, typeChanged, order } = plan;
 
   if (!typeChanged) {
-    await square.updateFulfilment(holder, next, { env, fetchImpl });
+    await square.updateFulfillment(holder, next, { env, fetchImpl });
 
     return null;
   }
@@ -388,7 +388,7 @@ const followInSquare = async (plan, { square, env, fetchImpl, k }) => {
 
   try {
     await square.payZeroOrder(created.squareOrderId, k, { env, fetchImpl });
-    await square.cancelFulfilment(holder, { env, fetchImpl });
+    await square.cancelFulfillment(holder, { env, fetchImpl });
   } catch (error) {
     // The new order exists: take it back if Square lets us, and say
     // which one is left if it does not.
@@ -471,7 +471,7 @@ export const applyAmend = async (stores, plan, {
       kept = why;
       if (left) squareNow = { ...order.square, fulfilmentOrderId: left };
       report.square = `Square refused (${why}) and kept the old ` +
-        `fulfilment: ${describe(order)}.${note} The record was changed ` +
+        `fulfillment: ${describe(order)}.${note} The record was changed ` +
         "anyway (--force).";
     }
   } else if (noSquare) {
@@ -479,7 +479,7 @@ export const applyAmend = async (stores, plan, {
   }
 
   const squareState = noSquare ? "skipped (--no-square)"
-    : kept ? `kept the old fulfilment (--force): ${kept}`
+    : kept ? `kept the old fulfillment (--force): ${kept}`
       : plan.holder && plan.fulfilmentMoved ? "updated" : "none";
   const saved = await saveOrder(stores, {
     ...order,

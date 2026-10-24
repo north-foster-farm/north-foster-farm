@@ -1529,7 +1529,7 @@ Manual: automatable; not yet written.
 - **Setup:** A paid delivery order; signed in.
 - **Test:**
   1. Change the date and the cooler note; save.
-- **Assert:** "Your order is updated"; the Square order's fulfilment
+- **Assert:** "Your order is updated"; the Square order's fulfillment
   moves; no `squareOutOfSync`.
 - **Teardown:** Cancel (it refunds); delete.
 
@@ -1688,8 +1688,8 @@ is charged" (through the endpoint, with `cnon:card-nonce-ok`).
 - **Test:** Change items; choose Delivery, fill the address, pay the
   fee; and on another order, switch delivery to the drop site.
 - **Assert:** The record's method changes; `square.fulfilmentOrderId`
-  names a new Square order carrying the new fulfilment, and the old
-  one's fulfilment is cancelled in Square. A switch to on-farm pickup
+  names a new Square order carrying the new fulfillment, and the old
+  one's fulfillment is cancelled in Square. A switch to on-farm pickup
   takes a time the schedule offers, booked as it stands. With nothing
   to pay, the
   new Square order is $0 and paid.
@@ -1728,7 +1728,7 @@ Manual; every automated payment's teardown runs it, without asserting.
 - **Test:**
   1. `bin/nff --staging orders cancel <id> --reason-text "Test order."`
 - **Assert:** `status` cancelled, `refund.total` true, stock back, the
-  Square fulfilment Canceled, "Your order is cancelled" saying the
+  Square fulfillment Canceled, "Your order is cancelled" saying the
   refund is on its way.
 - **Teardown:** `bin/nff --staging orders delete <id>`.
 

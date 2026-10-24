@@ -10,12 +10,12 @@
 //          added (square.mjs, buildChangeOrder)
 //   less   the difference goes back through whichever processor took
 //          the money, newest payment first (admin.mjs, refundOrder)
-//   same   only the record and Square's fulfilment change
+//   same   only the record and Square's fulfillment change
 //
 // Stock moves by the change alone, and a line already in the order may
 // stay even if it has sold out since. A switch between delivery and
-// pickup moves the fulfilment to a new Square order, since Square
-// cannot change a fulfilment's type: the old one is cancelled.
+// pickup moves the fulfillment to a new Square order, since Square
+// cannot change a fulfillment's type: the old one is cancelled.
 //
 // Every edit carries its own idempotency key. It is written to the
 // record as pending before any money moves, so a retry finishes the
@@ -205,7 +205,7 @@ export const planEdit = async (stores, order, body, {
 
   change.difference = next.totals.total - creditOn(order);
   change.switched = switched;
-  // A switch needs a Square order to carry the new fulfilment, even
+  // A switch needs a Square order to carry the new fulfillment, even
   // when there is nothing to pay.
   change.carries = switched;
 
@@ -333,10 +333,10 @@ const chargeSquare = async (order, change, k, payment, {
   };
 };
 
-// Square's view after the money: the fulfilment the farm packs from
+// Square's view after the money: the fulfillment the farm packs from
 // follows the change, on the order that carries it. Failures are the
 // farm's to fix by hand; the customer's change stands.
-const syncFulfilment = async (stores, saved, change, { changeOrderId, k,
+const syncFulfillment = async (stores, saved, change, { changeOrderId, k,
   square, env, fetchImpl, mail, now }) => {
   const holder = saved.square && (saved.square.fulfilmentOrderId
     || saved.square.squareOrderId);
@@ -345,7 +345,7 @@ const syncFulfilment = async (stores, saved, change, { changeOrderId, k,
 
   try {
     if (!change.carries) {
-      await square.updateFulfilment(holder, saved, { env, fetchImpl });
+      await square.updateFulfillment(holder, saved, { env, fetchImpl });
 
       return saved;
     }
@@ -360,7 +360,7 @@ const syncFulfilment = async (stores, saved, change, { changeOrderId, k,
       carrier = created.squareOrderId;
       await square.payZeroOrder(carrier, k, { env, fetchImpl });
     }
-    await square.cancelFulfilment(holder, { env, fetchImpl });
+    await square.cancelFulfillment(holder, { env, fetchImpl });
 
     return amendOrder(stores, saved.id, {
       square: { ...saved.square, fulfilmentOrderId: carrier },
@@ -466,7 +466,7 @@ export const applyEdit = async (stores, plan, {
 
   order = await amendOrder(stores, id, markEdit(order, key, { state: "done" }),
     by === "farm" ? "farm.changed" : "edit.done", now);
-  order = await syncFulfilment(stores, order, change, {
+  order = await syncFulfillment(stores, order, change, {
     changeOrderId, k, square, env, fetchImpl, mail, now,
   });
 

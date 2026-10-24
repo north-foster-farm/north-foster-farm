@@ -93,16 +93,16 @@ export const createPayment = async ({ order, key, source }) => {
 // Nothing is remembered here, so nothing was paid before.
 export const findPaid = async () => null;
 
-export const updateFulfilment = async (squareOrderId) => ({
+export const updateFulfillment = async (squareOrderId) => ({
   id: squareOrderId, version: null,
 });
 
-export const cancelFulfilment = async (squareOrderId) => ({
+export const cancelFulfillment = async (squareOrderId) => ({
   id: squareOrderId, cancelled: true,
 });
 
 // Nothing is remembered here, so nothing can differ from the record: an
-// order with no lines or fulfilment to compare (lib/drift.mjs).
+// order with no lines or fulfillment to compare (lib/drift.mjs).
 export const getOrder = async (squareOrderId) => ({
   id: squareOrderId, version: null, state: "OPEN", fulfillments: [],
 });

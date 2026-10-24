@@ -1525,7 +1525,7 @@ export const farmOrderCancelled = (order, customer, { links } = {}) => {
 export const farmSquareOutOfSync = (order, customer, { links } = {}) =>
   farmCard(`Square out of sync: ${order.id}`, "Square out of sync", [
     p(`${customer.name || customer.email} changed order ${order.id}, but ` +
-      "Square could not be updated. Check the fulfilment in Square: " +
+      "Square could not be updated. Check the fulfillment in Square: " +
       `${methodOn(order.fulfilment)}.`),
   ], links, { orderId: order.id });
 

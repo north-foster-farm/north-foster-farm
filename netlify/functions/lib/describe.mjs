@@ -80,7 +80,7 @@ const withoutName = (place, name) => (place.startsWith(`${name}, `)
 
 // Where and when an order is handed over, for any way of getting it:
 // { method, name, window, place }. `place` is the address the order
-// goes to or is collected from. A fulfilment type added later (a
+// goes to or is collected from. A fulfillment type added later (a
 // second drop site, a market) gets its words here and nowhere else.
 export const placeOf = (order) => {
   const f = order.fulfilment;

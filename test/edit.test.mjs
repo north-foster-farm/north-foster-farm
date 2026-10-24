@@ -68,9 +68,9 @@ const fakeSquare = ({ pay } = {}) => {
       return { squareOrderId: id };
     },
     cancelOrder: async (id) => calls.push(["cancelOrder", id]),
-    cancelFulfilment: async (id) => calls.push(["cancelFulfilment", id]),
-    updateFulfilment: async (id, o) => {
-      calls.push(["updateFulfilment", id, o.fulfilment.date]);
+    cancelFulfillment: async (id) => calls.push(["cancelFulfillment", id]),
+    updateFulfillment: async (id, o) => {
+      calls.push(["updateFulfillment", id, o.fulfilment.date]);
     },
     refundPayment: async ({ squarePaymentId, amount, key }) => {
       calls.push(["refund", squarePaymentId, amount, key]);
@@ -277,7 +277,8 @@ describe("editOrder", () => {
       ["SQC1"]);
     assert.deepEqual(calls.find((c) => c[0] === "payment").slice(2),
       [diff, "SQC1"]);
-    assert.ok(calls.some((c) => c[0] === "updateFulfilment" && c[1] === "SQO"));
+    assert.ok(calls.some((c) => c[0] === "updateFulfillment"
+      && c[1] === "SQO"));
     assert.equal(saved.edits[0].state, "done");
 
     // A retry of the same edit charges nothing more.
@@ -464,7 +465,8 @@ describe("editOrder", () => {
     assert.equal(saved.square.fulfilmentOrderId, "SQC1");
     assert.deepEqual(calls.find((c) => c[0] === "changeOrder").slice(3),
       [true, "delivery"]);
-    assert.ok(calls.some((c) => c[0] === "cancelFulfilment" && c[1] === "SQO"));
+    assert.ok(calls.some((c) => c[0] === "cancelFulfillment"
+      && c[1] === "SQO"));
     assert.ok(!calls.some((c) => c[0] === "payZero"));
   });
 
@@ -761,7 +763,8 @@ describe("farmEdit", () => {
     assert.ok(events.includes("farm.changed"));
     assert.ok(!events.includes("edit.done"));
     assert.equal(saved.edits[0].by, "farm");
-    assert.ok(calls.some((c) => c[0] === "cancelFulfilment" && c[1] === "SQO"));
+    assert.ok(calls.some((c) => c[0] === "cancelFulfillment"
+      && c[1] === "SQO"));
     // The customer is told; the farm is not told of its own change.
     assert.equal(sent.length, 1);
     assert.equal(sent[0].to, "pat@example.com");
@@ -784,7 +787,7 @@ describe("farmEdit", () => {
       assert.equal(saved.fulfilment.date, "2026-10-08");
       assert.equal(saved.fulfilment.onfarm.window, AFTERNOON);
       assert.ok(saved.history.some((h) => h.event === "farm.changed"));
-      assert.ok(calls.some((c) => c[0] === "updateFulfilment"
+      assert.ok(calls.some((c) => c[0] === "updateFulfillment"
         && c[2] === "2026-10-08"));
       assert.deepEqual(sent.map((m) => m.subject), ["Your order is updated"]);
     });
@@ -804,7 +807,7 @@ describe("farmEdit", () => {
     assert.equal(saved.fulfilment.method, "scheduled");
     assert.equal(saved.fulfilment.occurrence, "WAC5-261025");
     assert.equal(saved.fulfilment.date, "2026-10-25");
-    assert.ok(calls.some((c) => c[0] === "cancelFulfilment"));
+    assert.ok(calls.some((c) => c[0] === "cancelFulfillment"));
     assert.equal(sent.length, 1);
     assert.match(sent[0].text, /Foster Farmers Market/);
     assert.match(summaryLine(saved), /paid \$55 Foster Farmers Market 2026/);
@@ -871,7 +874,7 @@ describe("farmEdit", () => {
       "mail.suppressed.orderChanged-")));
     assert.equal(saved.emails[`orderChanged-${saved.edits[0].key}`]
       .suppressed, true);
-    assert.ok(calls.some((c) => c[0] === "cancelFulfilment"));
+    assert.ok(calls.some((c) => c[0] === "cancelFulfillment"));
 
     const later = await farmEdit(stores, id, {
       fulfilment: { date: "2026-10-18" },
@@ -972,7 +975,7 @@ describe("farmEdit", () => {
       const r = await changeOrder(stores, customer, id,
         { notes: "Leave the eggs for last" },
         { now, env, mail: async () => ({}), square: {
-          updateFulfilment: async () => ({}) } });
+          updateFulfillment: async () => ({}) } });
 
       assert.equal(r.ok, true, JSON.stringify(r.errors));
 
@@ -1217,7 +1220,7 @@ describe("farmEdit", () => {
     assert.equal(saved.customer.contact, "text");
     assert.equal(saved.customer.email, "pat@example.com");
     assert.ok(saved.history.some((h) => h.event === "farm.changed"));
-    assert.equal(calls.filter((c) => c[0] !== "updateFulfilment").length, 0);
+    assert.equal(calls.filter((c) => c[0] !== "updateFulfillment").length, 0);
     assert.equal(sent.length, 1);
   });
 
@@ -1237,7 +1240,7 @@ describe("farmEdit", () => {
       const { stores, id } = await placed();
       const { square } = fakeSquare();
 
-      square.updateFulfilment = async () => {
+      square.updateFulfillment = async () => {
         throw new SquareError("down");
       };
 
@@ -1302,7 +1305,7 @@ describe("farmEdit", () => {
       const { square } = fakeSquare();
       const { sent, mail } = outbox();
 
-      square.updateFulfilment = async () => {
+      square.updateFulfillment = async () => {
         throw new SquareError("down");
       };
 

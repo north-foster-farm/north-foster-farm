@@ -414,7 +414,7 @@ export const planChange = (order, changes, { now, env, by = "customer" }) => {
   return { patch, moved, from: !sameSite ? was : null };
 };
 
-// Saves a planned change, keeps Square's fulfilment in step and tells
+// Saves a planned change, keeps Square's fulfillment in step and tells
 // the customer, and the farm too when the customer made it. `by` names
 // the history event: customer.changed or farm.changed. -> the order.
 export const applyChange = async (stores, order, plan, {
@@ -425,10 +425,10 @@ export const applyChange = async (stores, order, plan, {
   const f = patch.fulfilment;
   const changed = await amendOrder(stores, id, patch, `${by}.changed`, now);
 
-  // Square carries the fulfilment the farm packs from; keep it in step.
+  // Square carries the fulfillment the farm packs from; keep it in step.
   if (order.square && order.square.squareOrderId) {
     try {
-      await square.updateFulfilment(order.square.squareOrderId, changed, {
+      await square.updateFulfillment(order.square.squareOrderId, changed, {
         env,
       });
     } catch (error) {
@@ -469,7 +469,7 @@ export const applyChange = async (stores, order, plan, {
 // What can change without touching money, for the signed-in owner.
 export const changeOrder = async (stores, customer, id, changes, {
   now = clock(), env = process.env, mail = sendMail,
-  square = { updateFulfilment: squareApi.updateFulfilment },
+  square = { updateFulfillment: squareApi.updateFulfillment },
 } = {}) => {
   const order = await owned(stores, customer, id);
 

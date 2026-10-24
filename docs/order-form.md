@@ -2,7 +2,7 @@
 
 The form takes an order, recomputes every figure on the server, takes
 the payment on the page, and only then records the order: a Square
-order with its fulfilment and the payment against it. Until the money
+order with its fulfillment and the payment against it. Until the money
 is in, the order is a draft in the customer's browser and nothing
 else. Cards and the wallets (Apple Pay, Google Pay, Cash App Pay) go
 through Square's Web Payments SDK; Venmo goes through PayPal's button
@@ -301,7 +301,7 @@ The customer: a first and last name (kept together as `name` as well,
 which records from before the split carry alone), an email, a phone
 number (required, ten digits or eleven with a leading 1) and whether
 they prefer a text or a call (`customer.contact`, `text` or `call`).
-The preference and the on-farm window go to Square in the fulfilment
+The preference and the on-farm window go to Square in the fulfillment
 note. On-farm pickup asks only for the day and the window; delivery
 asks for the address, the town, the ZIP, where the cooler will be and
 optional notes.
@@ -413,13 +413,13 @@ Environment variables, set in Netlify, never in the repo:
 
 Per card or wallet payment (`payWithSquare` in `lib/checkout.mjs`):
 search the customer by email or create one; create the order with a
-`PICKUP` or `DELIVERY` fulfilment scheduled for the chosen day, an
+`PICKUP` or `DELIVERY` fulfillment scheduled for the chosen day, an
 order-scope discount and a delivery-fee service charge (two charges
 when the outside-area fee applies); create the payment against that
 order with the SDK's token, the recomputed total and the customer's
 email. A decline (`DECLINE_MESSAGES` in `lib/square.mjs` maps Square's
 codes to the customer's words) cancels the order and answers `402`.
-The paid order appears in the Square dashboard with its fulfilment.
+The paid order appears in the Square dashboard with its fulfillment.
 
 A Venmo payment is recorded on Square the same way, except the
 payment is an external tender: `source_id: "EXTERNAL"` with
@@ -428,8 +428,8 @@ PayPal capture id> }`. No money moves through Square for it; the
 dashboard, the reports and the refunds keep one shape.
 
 `refundPayment` refunds a Square payment, whole or part;
-`cancelFulfilment` closes the fulfilment when an order is cancelled;
-`updateFulfilment` carries a customer's date or detail change across.
+`cancelFulfillment` closes the fulfillment when an order is cancelled;
+`updateFulfillment` carries a customer's date or detail change across.
 `GET /api/checkout/config` gives the page the application id, the
 location and the SDK host (`clientConfig`).
 
@@ -550,7 +550,7 @@ records from before keep `window: "morning"` or `"afternoon"` (9 to 12,
 reads both, and a confirmed range wins, as in the email). Square's
 pickup time is the window's start in New York time (`instant`, so
 right on both sides of a DST change), and every change to the date or
-window writes it again by the fulfilment's uid (#308). A pickup the
+window writes it again by the fulfillment's uid (#308). A pickup the
 farm can't keep after all is cancelled like any order, with
 `bin/nff orders cancel <id> --reason <why>` or `--reason-text`, and
 refunded; nothing is denied (T2d). Records from before may carry a
@@ -608,7 +608,7 @@ return sends nothing: James answers those himself. Links point at
 
 The farm's own notice goes to every address in `FARM_NOTIFICATIONS_EMAIL`:
 `farmOrderPlaced`, the moment the order is paid, since that is the
-moment it exists. It carries the fulfilment sentence, how to reach
+moment it exists. It carries the fulfillment sentence, how to reach
 the customer, the drop-off details for a delivery, the lines, the
 totals, the line `Paid: $55 by Visa ending 4242` and a link to the
 order in the Square dashboard. It is recorded under the order's
@@ -627,7 +627,7 @@ for Venmo the Square copy is noted as refunded too, best effort, so
 the books agree. It can be called again for the rest, until
 everything is back. `bin/nff orders cancel <id> --reason <why>` (or
 `--reason-text "..."`, or `--no-reason`) refunds what is left first,
-then cancels: stock back, the fulfilment closed in
+then cancels: stock back, the fulfillment closed in
 Square, the customer emailed "Your refund is on its way" (said only
 when money went back just then). Only `--no-refund` cancels without
 money back (T1c), and its email says nothing more will be charged.
@@ -690,7 +690,7 @@ counts each as `held`.
 
 The farm's or the weather's miss asks nothing (C7): the order moves
 to the next delivery day (a holiday pushes it a week further), Square's
-fulfilment follows, and movedDelivery tells the customer, who can
+fulfillment follows, and movedDelivery tells the customer, who can
 still change it or cancel for a full refund. `bin/nff orders move
 <id> <date>` moves any paid delivery to a later delivery day, past
 the cutoff, answers the question and emails orderChanged; it refuses
@@ -707,7 +707,7 @@ time), `--address1`, `--address2`, `--town`, `--zip`, `--cooler`,
 `--key` (to retry one change safely). A new method or address goes
 through `planEdit` and `applyEdit` in `lib/edit.mjs` (`farmEdit`
 there), with the customer's validation, schedule and fee rules and
-the Square fulfilment move; a date, pickup time, drop-off detail or
+the Square fulfillment move; a date, pickup time, drop-off detail or
 note goes through `planChange` and `applyChange` in `lib/account.mjs`,
 which the customer's own quick change shares. Both send the customer
 `orderChanged` and flag `squareOutOfSync` if Square fails. History
@@ -813,10 +813,10 @@ recorded as a second payment, with the Square order in
 `square.changes`. Less is refunded as above, newest payment first,
 with `source: "customer"`. Stock moves by the change alone, and a line
 the order already holds may stay after it sells out. A switch between
-delivery and pickup puts the fulfilment on a new Square order ($0 and
+delivery and pickup puts the fulfillment on a new Square order ($0 and
 paid when nothing is owed, named in `square.fulfilmentOrderId`) and
-cancels the old one, since Square cannot change a fulfilment's type;
-once changed, the fulfilment's note lists the whole order. Each edit
+cancels the old one, since Square cannot change a fulfillment's type;
+once changed, the fulfillment's note lists the whole order. Each edit
 has its own idempotency key and a line in `edits`; the customer gets
 "Your order is updated" with the money, the farm "Order changed".
 
@@ -830,7 +830,7 @@ function) and calls `lib/jobs.mjs`, which decides in
 | -------------------------------------- | --------------------------- |
 | every run, a Venmo order without its Square copy | `squareSync`      |
 | 18:00 the day before a delivery        | cooler reminder             |
-| the day after fulfilment               | `fulfilled`                 |
+| the day after fulfillment               | `fulfilled`                 |
 | every run                              | checkouts older than a day swept |
 | 8:00 daily, always                     | "Morning report"            |
 | 18:00 daily, always                    | "Tomorrow", the manifest    |
@@ -880,7 +880,7 @@ Settings, Help) rendered from `GET /api/me` and
   pickup), or while a question from the farm is open on an older
   record.
 - Change: the date (from the offered list), pickup window,
-  drop-off cooler, gate and notes, order notes. Square's fulfilment is
+  drop-off cooler, gate and notes, order notes. Square's fulfillment is
   updated; if that fails the order is flagged `squareOutOfSync` and
   the farm is emailed. Items cannot change: cancel and reorder.
 - Address: approved at once when the ZIP is on the list; otherwise
@@ -943,7 +943,7 @@ customers (list, show, set, delete), address (approve, deny), orders
 <why> | --reason-text | --no-reason [--no-refund] [--amount]`, which
 says what it refunds; attempted; change `[--method] [--date] ...
 [--dry-run]`; refund
-`[--amount] [--reason]`; fulfil; delete), returns resolve, stock
+`[--amount] [--reason]`; fulfill; delete), returns resolve, stock
 (list, set), schedule (check, set), login and masquerade (a
 single-use sign-in link, opened for you), audience (invite, sync),
 jobs (run, history), health.
@@ -1213,4 +1213,4 @@ to the function log; Square's receipt still reaches the customer.
    the steps.
 7. **Merge and deploy** per the branch rules, then place one real $7
    egg order on the live site, confirm the receipt and the Square
-   order with its fulfilment, and refund it from the CLI.
+   order with its fulfillment, and refund it from the CLI.

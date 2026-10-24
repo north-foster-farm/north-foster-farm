@@ -13,7 +13,7 @@
 
 import { launchEmail } from "./launch.mjs";
 import {
-  attachment, byFulfilment, changesBetween, countsOf, fileName, packetPdf,
+  attachment, byFulfillment, changesBetween, countsOf, fileName, packetPdf,
   packetTitle, snapshotOf,
 } from "./packing.mjs";
 import * as t from "./templates.mjs";
@@ -296,7 +296,7 @@ export const samplePacket = () => {
         kind: "new", changes: [],
       },
       { order: jo, kind: "cancelled", changes: [] },
-    ].sort(byFulfilment),
+    ].sort(byFulfillment),
   };
 };
 

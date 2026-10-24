@@ -84,15 +84,15 @@ const harness = () => {
         return { id: `m${sent.length}`, driver: "test" };
       },
       square: {
-        updateFulfilment: async (id, o) => {
-          calls.push(["updateFulfilment", id, o.fulfilment.date]);
+        updateFulfillment: async (id, o) => {
+          calls.push(["updateFulfillment", id, o.fulfilment.date]);
         },
         refundPayment: async ({ squarePaymentId, amount, key }) => {
           calls.push(["square.refund", squarePaymentId, amount, key]);
 
           return { squareRefundId: "SQR-1", status: "PENDING", amount };
         },
-        cancelFulfilment: async (id) => { calls.push(["fulfilment", id]); },
+        cancelFulfillment: async (id) => { calls.push(["fulfilment", id]); },
       },
       paypal: {
         refundCapture: async ({ paypalCaptureId, amount }) => {
@@ -342,7 +342,7 @@ describe("changeOrder", () => {
     assert.equal(r.order.fulfilment.date, "2026-10-15");
     assert.equal(r.order.fulfilment.delivery.cooler, "Back steps");
     assert.equal(r.order.notes, "Thanks!");
-    assert.deepEqual(calls, [["updateFulfilment", "SQO", "2026-10-15"]]);
+    assert.deepEqual(calls, [["updateFulfillment", "SQO", "2026-10-15"]]);
     assert.match(sent[0].subject, /updated/);
     assert.match(sent[0].text, /find your cooler\? _\*\*Back steps\*\*_/);
   });
@@ -523,7 +523,7 @@ describe("changeOrder", () => {
         onfarm: { window: AFTERNOON },
       }, {
         ...opts,
-        square: { updateFulfilment: async () => { throw new Error("no"); } },
+        square: { updateFulfillment: async () => { throw new Error("no"); } },
       });
 
       assert.equal(r.ok, true);

@@ -267,7 +267,7 @@ export const choose = ({ open, printed, gone, day }) => {
     entries.push({ order: order || record, kind: "cancelled", changes: [] });
   }
 
-  return entries.sort(byFulfilment);
+  return entries.sort(byFulfillment);
 };
 
 const startOf = (order) => {
@@ -286,8 +286,8 @@ const rank = (method) => {
   return i < 0 ? METHOD_ORDER.length : i;
 };
 
-// By fulfilment date, then type, then pickup time, then order number.
-export const byFulfilment = (a, b) => {
+// By fulfillment date, then type, then pickup time, then order number.
+export const byFulfillment = (a, b) => {
   const fa = a.order.fulfilment;
   const fb = b.order.fulfilment;
 

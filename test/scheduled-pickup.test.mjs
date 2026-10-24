@@ -78,7 +78,7 @@ const outbox = () => {
   } };
 };
 const move = (stores, id, changes, mail) => changeOrder(stores, customer, id,
-  changes, { now, env, mail, square: { updateFulfilment: async () => ({}) } });
+  changes, { now, env, mail, square: { updateFulfillment: async () => ({}) } });
 
 // What Stage 1 stored, put back by hand.
 const legacy = async (stores, id, fulfilment) => amendOrder(stores, id, {

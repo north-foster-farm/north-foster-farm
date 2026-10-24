@@ -142,12 +142,12 @@ export const GUIDE = {
   },
   "square.edit_failed": {
     means: "A customer's change to a paid order went through and is " +
-      "recorded, but Square's fulfilment could not follow it, so what " +
+      "recorded, but Square's fulfillment could not follow it, so what " +
       "Square shows to pack or where is out of date. The order is " +
       "flagged squareOutOfSync.",
     action: "Pack from bin/nff orders show <id>, not from Square. Check " +
       "Square status and the log (event square.update_failed), then fix " +
-      "the fulfilment in the Square dashboard by hand.",
+      "the fulfillment in the Square dashboard by hand.",
   },
   "square.refund_failed": {
     means: "A refund made in PayPal could not be repeated on the Square " +

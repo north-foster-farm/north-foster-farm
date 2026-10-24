@@ -68,7 +68,7 @@ const USAGE = `Usage:
   bin/nff address approve|deny <email>
   bin/nff orders list [--open] [--status=paid] [--email=x]
   bin/nff orders occurrences          every occurrence a stored order
-                                      names (in its fulfilment or the
+                                      names (in its fulfillment or the
                                       history of a move), and any no
                                       data file defines any more (read
                                       only; run it against production
@@ -95,7 +95,7 @@ const USAGE = `Usage:
                              --no-reason [--no-refund] [--amount 12.34]
                                       the money back first, all of it
                                       unless told; then stock back and
-                                      the fulfilment closed in Square;
+                                      the fulfillment closed in Square;
                                       --no-refund only on purpose. The
                                       customer is told why: sold-out,
                                       delay, weather, emergency or
@@ -158,7 +158,7 @@ const USAGE = `Usage:
                                       what Square kept. The customer
                                       gets the "order changed" email
                                       unless --no-email.
-  bin/nff orders fulfil <id>
+  bin/nff orders fulfill <id>
   bin/nff orders delete <id>
   bin/nff passes issue [--email <email>] [--days 14] [--note "..."]
                      [--standing] [--waive-fee]
@@ -1191,7 +1191,7 @@ const run = async () => {
   }
   case "orders fulfil":
   case "orders fulfill":
-    return out(summaryLine(await admin.fulfilOrder(stores, rest[0])));
+    return out(summaryLine(await admin.fulfillOrder(stores, rest[0])));
   case "orders delete":
     await admin.removeOrder(stores, rest[0]);
 

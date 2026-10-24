@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  SOURCE_NAME, SquareError, buildOrder, cancelFulfilment, cancelOrder,
+  SOURCE_NAME, SquareError, buildOrder, cancelFulfillment, cancelOrder,
   clientConfig, createOrder, createPayment, customerOrders, dashboardUrl,
   deleteCustomer, e164, getPayment, inventoryCounts, refundPayment,
-  searchOpenOrders, settings, updateFulfilment,
+  searchOpenOrders, settings, updateFulfillment,
 } from "../netlify/functions/lib/square.mjs";
 import {
   KILL_SWITCH, deletionsPaused, readPause, setPause,
@@ -822,8 +822,8 @@ describe("an update to an order at another location", () => {
 
   it("moves and cancels its fulfilment there", async () => {
     for (const run of [
-      (impl) => updateFulfilment("SQO", order(), { env, fetchImpl: impl }),
-      (impl) => cancelFulfilment("SQO", { env, fetchImpl: impl }),
+      (impl) => updateFulfillment("SQO", order(), { env, fetchImpl: impl }),
+      (impl) => cancelFulfillment("SQO", { env, fetchImpl: impl }),
     ]) {
       const { impl, calls } = fakeFetch({
         "/v2/orders/SQO": (n) => (n === 1
@@ -863,7 +863,7 @@ describe("a rescheduled pickup", () => {
         order: { ...placed, version: n === 1 ? 7 : 8 },
       })),
     });
-    const out = await updateFulfilment("SQO", moved(), {
+    const out = await updateFulfillment("SQO", moved(), {
       env, fetchImpl: impl,
     });
     const put = calls.find((c) => c.method === "PUT").body.order;
@@ -886,7 +886,7 @@ describe("a rescheduled pickup", () => {
     });
 
     await assert.rejects(
-      updateFulfilment("SQO", moved(), { env, fetchImpl: impl }),
+      updateFulfillment("SQO", moved(), { env, fetchImpl: impl }),
       SquareError);
   });
 });
