@@ -81,7 +81,9 @@ import { runJobs } from "./lib/jobs.mjs";
 import { entry, library } from "./lib/library.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { OUTBOX_PREFIX, attached } from "./lib/mail.mjs";
-import { SENT as PACKING_SENT } from "./lib/packing.mjs";
+import {
+  SENT as PACKING_SENT, fileName as packetFile, packetPreview,
+} from "./lib/packing.mjs";
 import {
   cleanParts, joined, revert, reviews, saveApproval, saveRewrite, standing,
   tokenize, versionFor, withdrawApproval,
@@ -91,6 +93,7 @@ import { sameToken } from "./lib/token.mjs";
 import {
   alone, entry as signature, library as signatures, render,
 } from "./lib/signatures.mjs";
+import { build as buildSlip, has, pages } from "./lib/slips.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 import terms from "../../data/delivery.json" with { type: "json" };
 import { instant, today } from "../../assets/scripts/order/lib/zoned.mjs";
@@ -114,13 +117,13 @@ const tokenOf = (req) => {
 // listed in docs/secrets.md.
 const AREAS = [
   "info", "inbox", "sent", "jobs", "clock", "emails", "review",
-  "signatures", "throw",
+  "signatures", "slips", "throw",
 ];
 
 export const KEYS = {
   "owner session": AREAS,
   "gate session": [
-    "info", "inbox", "jobs", "clock", "emails", "signatures",
+    "info", "inbox", "jobs", "clock", "emails", "signatures", "slips",
   ],
   STAGING_TOKEN: ["info", "jobs", "throw"],
 };
@@ -216,6 +219,7 @@ export const areaOf = (method, path) => {
   if (path.startsWith("/api/staging/jobs")) return "jobs";
   if (path.startsWith("/api/staging/emails")) return "emails";
   if (path.startsWith("/api/staging/signatures")) return "signatures";
+  if (path.startsWith("/api/staging/slips")) return "slips";
   if (method === "POST" && path === "/api/staging/throw") return "throw";
 
   return null;
@@ -247,6 +251,18 @@ const MESSAGE_HEADERS = {
     "style-src 'unsafe-inline'; font-src https:",
   "Cache-Control": "no-store",
 };
+
+// A PDF to show in the reader, open alone or download. Same-origin
+// framing only; the toolbar's reader embeds it.
+const pdfResponse = (bytes, filename) => new Response(bytes, {
+  status: 200,
+  headers: {
+    "Content-Type": "application/pdf",
+    "Content-Disposition": `inline; filename="${filename}"`,
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff",
+  },
+});
 
 // A message's attachments as links under `base` (#292: the packing
 // slips' PDF).
@@ -565,6 +581,34 @@ export const handle = async (req, {
         ...MESSAGE_HEADERS, "Content-Type": "text/html; charset=utf-8",
       },
     });
+  }
+
+  if (req.method === "GET" && path === "/api/staging/slips") {
+    return json(200, { slips: pages(), today: today(now, terms.timeZone) });
+  }
+
+  // The packet the morning job would build from staging's orders for a
+  // day (?date=YYYY-MM-DD, default today), read-only.
+  if (req.method === "GET" && path === "/api/staging/slips/today") {
+    const date = url.searchParams.get("date")
+      || today(now, terms.timeZone);
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return json(400, { error: "Give the date as YYYY-MM-DD." });
+    }
+
+    const { bytes } = await packetPreview(stores, date, { env, now });
+
+    return bytes ? pdfResponse(bytes, packetFile(date)) : json(404, {
+      error: "Nothing to pack for that day.",
+    });
+  }
+
+  if (req.method === "GET" && path.startsWith("/api/staging/slips/")) {
+    const id = decodeURIComponent(path.slice("/api/staging/slips/".length));
+
+    return has(id) ? pdfResponse(buildSlip(id, env), `${id}.pdf`)
+      : json(404, { error: "No such page." });
   }
 
   if (req.method === "POST" && path === "/api/staging/jobs/run") {

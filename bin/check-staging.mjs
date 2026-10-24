@@ -14,7 +14,8 @@ import { join } from "node:path";
 export const TRACES = [
   /data-staging-card-dialog/, /data-staging-clock/, /id="staging"/,
   /staging\.card-seen/, /\/api\/staging\/clock/, /4111 1111 1111 1111/,
-  /Simulate an order in staging/,
+  /Simulate an order in staging/, /data-staging-slips/,
+  /\/api\/staging\/slips/,
 ];
 
 // What the staging order page must carry.

@@ -872,8 +872,9 @@ const coverPage = (doc, { entries, now, title }) => {
   }
 };
 
-// The whole packet: the cover (unless `cover` is false), then for each
-// entry its revision sheet and slip as it needs. `env` says which ways
+// The whole packet: the cover (unless `cover` is false; "only" is the
+// cover alone), then for each entry its revision sheet and slip as it
+// needs. `env` says which ways
 // to pay an unpaid slip lists. -> a Buffer.
 export const packetPdf = ({
   entries, now, title, cover = true, env = process.env,
@@ -881,7 +882,7 @@ export const packetPdf = ({
   const doc = pdf({ title });
 
   if (cover) coverPage(doc, { entries, now, title });
-  for (const e of entries) {
+  for (const e of cover === "only" ? [] : entries) {
     if (e.kind === "changed" || e.kind === "cancelled") {
       revisionPage(doc, e, now);
     }
@@ -1104,6 +1105,23 @@ export const packingDaily = async (stores, {
   }
 
   return result;
+};
+
+// A day's packet as the morning job would build it from the orders
+// and printed records in `stores`, for the staging toolbar's preview
+// (#334). It reads and writes nothing, sends nothing.
+// -> { day, entries, bytes } (bytes null when there is nothing to pack).
+export const packetPreview = async (stores, day, {
+  env = process.env, now = clock(),
+} = {}) => {
+  const entries = choose({ ...(await gather(stores, day)), day });
+
+  return {
+    day, entries,
+    bytes: entries.length ? packetPdf({
+      entries, now, title: packetTitle(day), env,
+    }) : null,
+  };
 };
 
 // --- After the packet ---------------------------------------------------

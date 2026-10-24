@@ -36,6 +36,16 @@ test.describe("staging toolbar", () => {
       expect((await request.get("/api/staging/outbox")).status()).toBe(401);
     });
 
+  // The packing slips (#334): the suite's machine cookie is no session,
+  // so the endpoint refuses it like the rest.
+  test("the packing slips refuse the suite's machine",
+    async ({ request, baseURL }) => {
+      test.skip(!branch(baseURL), "only on a branch deploy");
+      expect((await request.get("/api/staging/slips")).status()).toBe(401);
+      expect((await request.get("/api/staging/slips/card")).status())
+        .toBe(401);
+    });
+
   // A page after the reset is the page a stranger gets: nothing the
   // site keeps in the browser survives, and the farm news forms,
   // hidden for someone on the list, are back (#267).

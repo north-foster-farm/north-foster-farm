@@ -22,6 +22,7 @@ import { mountNav } from "./nav.js";
 import { forgetEverything } from "./reset.js";
 import { SEEN_MAIL, unseen } from "./seen.js";
 import { mountSignatures } from "./signatures.js";
+import { mountSlips } from "./slips.js";
 
 const root = document.getElementById("staging");
 const qs = (sel) => root.querySelector(sel);
@@ -227,6 +228,12 @@ const signatures = mountSignatures({
   onOpen: () => { root.hidden = false; },
 });
 
+const slips = mountSlips({
+  root,
+  api,
+  onOpen: () => { root.hidden = false; },
+});
+
 const boot = async () => {
   store("sessionStorage", HIDDEN, null);
 
@@ -256,6 +263,10 @@ const boot = async () => {
   if (allowed("signatures")) {
     signatures.fromHash();
     signatures.counted();
+  }
+  if (allowed("slips")) {
+    slips.fromHash();
+    slips.counted();
   }
 };
 

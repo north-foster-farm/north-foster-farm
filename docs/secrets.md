@@ -817,6 +817,7 @@ the request before it arrives.
 | Clock: this browser's date and time for the site (branch-deploy and dev only) | yes | yes | no |
 | Jobs run: the scheduled jobs now, as of a time, or at 6:00, 8:00 or 18:00 on the clock's day, and send today's reports again | yes | yes | yes |
 | Signature library: copy-ready email signatures | yes | yes | no |
+| Packing slips: every packet page type from fake orders as PDFs, and a day's packet built from staging's orders (reads them, changes nothing) | yes | yes | no |
 | Info: the deploy's context, mail driver, Square environment and clock, and the key in use | yes | yes | yes |
 | Crash test: throws on purpose to prove the alert | no | yes | yes |
 

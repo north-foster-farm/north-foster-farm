@@ -39,6 +39,7 @@
           <div class="list-group list-group-flush">
             <a class="list-group-item list-group-item-action" href="#staging-time" data-staging-section="clock">Current time <span class="badge staging-dot" data-staging-badge-time hidden>Set</span></a>
             <a class="list-group-item list-group-item-action" href="#staging-email" data-staging-section="emails signatures inbox">Email <span class="badge staging-dot" data-staging-badge-email hidden></span></a>
+            <a class="list-group-item list-group-item-action" href="#staging-slips" data-staging-section="slips">Packing slips</a>
             <a class="list-group-item list-group-item-action" href="#staging-jobs" data-staging-section="jobs">Jobs</a>
             <a class="list-group-item list-group-item-action" href="#staging-orders">Orders</a>
             <a class="list-group-item list-group-item-action" href="#staging-reset">Reset</a>
@@ -85,7 +86,15 @@
                 <p><button type="button" class="staging-action" data-staging-sigs-open>Signature library</button></p>
               </div>
             </section>
-            <section id="staging-jobs" tabindex="-1" aria-labelledby="staging-jobs-h" data-staging-section="jobs">
+            <section id="staging-slips" tabindex="-1" aria-labelledby="staging-slips-h" data-staging-section="slips">
+              <h2 id="staging-slips-h">Packing slips</h2>
+              <div data-staging-scope="slips">
+                <h3>Packing slips</h3>
+                <p class="staging-muted" data-staging-slips-count></p>
+                <p><button type="button" class="staging-action" data-staging-slips-open>Packing slips</button></p>
+              </div>
+            </section>
+            <section id="staging-jobs" tabindex="-1"aria-labelledby="staging-jobs-h" data-staging-section="jobs">
               <h2 id="staging-jobs-h">Jobs</h2>
               <div data-staging-scope="jobs">
                 <h3>Trigger jobs</h3>
@@ -239,6 +248,46 @@
           <span class="staging-item-name"></span>
           <span class="staging-item-subject"></span>
           <span class="staging-item-tags"><span class="staging-badge" data-approval="to approve" hidden></span></span>
+        </a>
+      </li>
+    </template>
+    {{/* The packing slips: every kind of page the morning packet can
+      hold, from fixed fake orders, and today's packet from staging's
+      own orders. The open one shows as the PDF itself (#334).
+      #slips or #slip=<id> opens it. */}}
+    <div class="staging-library" data-staging-slips hidden>
+      <aside class="staging-shelf" aria-label="Packing slips">
+        <header class="staging-shelf-head">
+          <strong>Packing slips</strong>
+          <span class="staging-muted" data-staging-slips-summary></span>
+          <button type="button" class="staging-icon" data-staging-slips-close title="Close the packing slips" aria-label="Close">×</button>
+        </header>
+        <div class="staging-shelf-list">
+          <p class="staging-muted staging-pad" data-staging-slips-empty hidden>The packing slips could not be loaded.</p>
+          <ol class="staging-sigs-list" data-staging-slips-list></ol>
+        </div>
+      </aside>
+      <section class="staging-reader" data-staging-slips-reader aria-label="Packing slip" hidden>
+        <header class="staging-reader-head">
+          <button type="button" class="staging-icon staging-back" data-staging-slips-back title="Back to the packing slips" aria-label="Back to the packing slips">‹</button>
+          <div class="staging-reader-title">
+            <strong data-staging-slips-name></strong>
+          </div>
+          <a class="staging-action staging-link" data-staging-slips-alone target="_blank" rel="noopener">Open alone</a>
+          <a class="staging-action staging-link" data-staging-slips-download>Download</a>
+        </header>
+        <p class="staging-reader-meta">
+          <label data-staging-slips-day hidden>Packet for <input type="date" class="staging-edit" data-staging-slips-date></label>
+          <span class="staging-muted" data-staging-slips-note role="status"></span>
+        </p>
+        <iframe class="staging-frame" data-staging-slips-frame title="The packing slip as a PDF"></iframe>
+      </section>
+    </div>
+    <template data-staging-slips-item>
+      <li>
+        <a class="staging-item" href="#">
+          <span class="staging-item-name"></span>
+          <span class="staging-item-subject"></span>
         </a>
       </li>
     </template>
