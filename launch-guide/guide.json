@@ -1,6 +1,6 @@
 {
- "revision": 41,
- "updated": "2026-10-22",
+ "revision": 42,
+ "updated": "2026-10-24",
  "notice": null,
  "phases": [
   {
@@ -918,49 +918,6 @@
      "type": "terminal"
     },
     {
-     "id": "bk-b2",
-     "title": "Backblaze B2: account, bucket and key",
-     "body": "1. Sign up (no card needed). Choose region **US East**, which can't be changed later.\n2. **Buckets → Create a Bucket.** Name it something like `nff-backups-` plus a few random letters. Choose **Private**, leave **Object Lock off**, and create. Copy the bucket's **Endpoint**.\n3. **Lifecycle Settings → Use custom lifecycle rules.** Add one rule, with no prefix: days from uploading to hiding 30, hiding to deleting 1. That matches R2's 30 days (D-189).\n4. **Application Keys → Add a New Application Key.** Name it `nff-site`, allow access to that one bucket only, type **Read and Write**. Copy the **keyID** and the **applicationKey**; the second is shown only once.\n5. Optional: **Caps & Alerts**, with a $1 daily cap.",
-     "minutes": 15,
-     "links": [
-      {
-       "label": "Backblaze sign-up",
-       "url": "https://www.backblaze.com/sign-up/cloud-storage"
-      },
-      {
-       "label": "Backblaze sign in",
-       "url": "https://secure.backblaze.com/user_signin.htm"
-      }
-     ],
-     "fields": [
-      {
-       "id": "b2_endpoint",
-       "label": "Endpoint",
-       "secret": false,
-       "save": "Add `https://` in front if the page shows it without.",
-       "placeholder": "https://s3.us-east-005.backblazeb2.com"
-      },
-      {
-       "id": "b2_bucket",
-       "label": "Bucket name",
-       "secret": false
-      },
-      {
-       "id": "b2_key_id",
-       "label": "keyID",
-       "secret": false
-      },
-      {
-       "id": "b2_app_key",
-       "label": "applicationKey",
-       "secret": true,
-       "save": "Also in your password manager, in the **NFF launch** folder."
-      }
-     ],
-     "device": "laptop",
-     "type": "account"
-    },
-    {
      "id": "bk-r2",
      "title": "Cloudflare R2: bucket and token",
      "body": "1. In the Cloudflare dashboard, open **Storage & databases → R2** and complete the checkout to add R2. It may ask for a card; at this size it stays free.\n2. **Create bucket.** Name it like the B2 one, with location hint **Eastern North America (enam)** and the Standard storage class.\n3. In the bucket's **Settings → Object Lock**, turn it on and add a lock rule: Compliance mode, 30 days. Nothing can delete or overwrite a copy before then, even with the token below.\n4. In **Object Lifecycle Rules → Add rule**: one rule, with no prefix, that deletes objects 30 days after they were created. Backups are kept 30 days (D-189), which is also how long deleted details can remain in them.\n5. On the R2 Overview page, under **Account Details**, choose **Manage** API Tokens, then **Create Account API token**. Choose **Object Read & Write**, limit it to the one bucket, and create. R2 has no write-only token, so this one can read; that is accepted (D-EXPORT): the lock rule from step 3 stops deletes and overwrites, and the age encryption makes a read worthless. Copy the **Access Key ID**, the **Secret Access Key** (shown once) and the **S3 endpoint**, which looks like `https://<account id>.r2.cloudflarestorage.com`.",
@@ -1555,15 +1512,6 @@
      "type": "claude"
     },
     {
-     "id": "env-blockers",
-     "title": "Launch blockers still open in code",
-     "body": "These four block launch. Agents build them; you only check the list is closed. Each sits in the milestone **Launch: checkout and the autumn refresh**.\n- **#251, one set of credentials per environment, previews none.** The big one. Waits on the clean-up of the preview and local contexts (step env-contexts) and on the new `bin/nff env check` proof.\n- **#255, close the staging API when no token is set.** Landed on `next` as 2e7be30: with no `STAGING_TOKEN`, every `/api/staging/*` route answers 404, and staging works with its token. Left: confirm a deploy preview shows no staging toolbar (the issue's done-when), and tick it once staging has the change.\n- **#266, e2e must stop using `NETLIFY_AUTH_TOKEN`.** No test run, CI or staging, may hold the personal access token. Not built. The issue still sits in After launch; D-OPEN has the command that moves it.\n- **Hash sessions at rest.** Store sessions under a hash of the id, as sign-in links already are, so whoever can read Blobs cannot use a live session id. Move or end existing sessions, with tests for both. No issue yet; D-OPEN has the command that files it.\n\nAlso before launch: a deploy preview shows a plain \"payments are switched off in previews\" message, not a raw 5xx, on the order page and on any other page that would show a raw error.",
-     "minutes": 2,
-     "blocked": "Code from the checkout lane: #251, #266, session hashing and the preview message.",
-     "device": "any",
-     "type": "claude"
-    },
-    {
      "id": "env-contexts",
      "title": "Launch blocker: empty the preview and local-development contexts",
      "body": "**This blocks launch.** Today every branch's deploy preview holds production's `RESEND_AUDIENCE_KEY`, `RESEND_WEBHOOK_SECRET` and `RESEND_READ_KEY`, and the repository is public. A linked `netlify dev` would also hand real secrets to your Mac.\n\nEmpty the **Deploy Previews** and **Local development** contexts of every production value, those three and any other. Previews keep only `SITE_CONTEXT=deploy-preview` and a pickup schedule; Local development keeps nothing. Claude gives you the exact commands, names only.\n\n**Proof:** run `bin/nff env check` and it must report both contexts clean. If the check does not cover them yet, the checkout lane adds it (#251); it lands before this step is ticked.",
@@ -1623,70 +1571,6 @@
      "minutes": 1,
      "device": "laptop",
      "type": "terminal"
-    },
-    {
-     "id": "stg-jobs-clock",
-     "title": "Pick the staging jobs clock (#164)",
-     "body": "GitHub's schedule ran staging's jobs 12 times in 36 hours, two to six hours apart. Production runs every fifteen minutes. A day with no evening run on staging skips the delivery reminder and the next day's manifest.\n\n- **Worker** (recommended): a Cloudflare Worker with a `*/15 * * * *` trigger makes one POST to staging's jobs endpoint, with the staging token kept as a Worker secret. Cloudflare runs triggers on time. Claude writes the few lines and a doc section; you create the Worker and set the secret (about ten minutes). You already have the Cloudflare account for backups. The GitHub workflow stays as the by-hand button.\n- **Accept GitHub:** no work, but #164 stays unmet by design and is recorded as an accepted gap.\n- **Mac:** a launchd job running `bin/nff jobs run --staging`. Free, but only while the Mac is awake.",
-     "minutes": 2,
-     "fields": [
-      {
-       "id": "jobs_clock",
-       "label": "Staging jobs clock",
-       "secret": false,
-       "type": "choice",
-       "options": [
-        {
-         "value": "worker",
-         "label": "Cloudflare Worker"
-        },
-        {
-         "value": "github",
-         "label": "Accept GitHub's schedule"
-        },
-        {
-         "value": "mac",
-         "label": "A job on my Mac"
-        }
-       ]
-      }
-     ],
-     "device": "any",
-     "type": "decide"
-    },
-    {
-     "id": "stg-square-down",
-     "title": "Accept the Square-down path on its unit tests (#151)",
-     "body": "The path: PayPal captured the money and Square then fails. Unit tests cover it. Forcing it on staging means breaking staging's Square token on Netlify for a few minutes.\n\n**Recommended: accept the unit tests.** The failure branch does not depend on anything the sandbox adds, and breaking the token risks a staging run in flight.",
-     "minutes": 1,
-     "fields": [
-      {
-       "id": "square_down",
-       "label": "Square-down path",
-       "secret": false,
-       "type": "choice",
-       "options": [
-        {
-         "value": "accept",
-         "label": "Accept the unit tests"
-        },
-        {
-         "value": "force",
-         "label": "Force it on staging"
-        }
-       ]
-      }
-     ],
-     "device": "any",
-     "type": "decide"
-    },
-    {
-     "id": "stg-final",
-     "title": "Tell Claude the env is in place",
-     "body": "Export the report and paste it to Claude. That starts qa's final staging pass (the signed-in checks, the outbox check and the remaining live checks), which has waited on these values.",
-     "minutes": 2,
-     "device": "any",
-     "type": "claude"
     },
     {
      "id": "stg-actions-runs",
@@ -2354,20 +2238,6 @@
    "title": "After launch, when you're ready",
    "steps": [
     {
-     "id": "pl-held",
-     "title": "Choose which held work to pull in",
-     "body": "Built and reviewed, waiting on your word: #241 (cancel stale Square orders), #236 (tidy duplicate Square customers), #149 (cart sync across devices), #193, #165 (order CSV and receipts tab), #114, #182 (pass codes), #183 (ride-along), #161, #167, #191, #215, #235, #240. Tell Claude which to pull, in which order.",
-     "minutes": 15,
-     "links": [
-      {
-       "label": "#233 held list",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/233"
-      }
-     ],
-     "device": "any",
-     "type": "decide"
-    },
-    {
      "id": "pl-236",
      "title": "Before turning on the Square customer tidy (#236)",
      "body": "When #236 lands: give the production Square token the **MERCHANT_PROFILE_READ** permission, run the check on staging and then production, and only then set `SQUARE_CUSTOMER_CLEANUP`. The same goes for `SQUARE_SWEEP_CANCEL` (#241): it reports only, until you turn it on.",
@@ -2398,22 +2268,6 @@
      ],
      "device": "any",
      "type": "decide"
-    },
-    {
-     "id": "pl-rest",
-     "title": "The rest of the after-launch list",
-     "body": "When you're ready, any order:\n- error tracking parts C–F (#259–#262), including the Checkly trial check;\n- the remaining account strings (#158), the photo-ask plan (#199) and /about/'s people section;\n- the automated accessibility scan (QF1, #197): no CI gate and no rescan before launch, and the launch bugs already on #159 still ship as planned;\n- a function that filters for production deploy failures and pages your phone through the alerts check (D-NOTIFY, #248);\n- the header vector file (D15, #170), a manual keyboard and VoiceOver pass, and #181 and #184's decisions;\n- Resend's Contacts and Segments (D-148, #148): built and held on `hold/148`; the old API still works, so launch day has no migration step. **Switch maintenance mode on first, for the cutover** (`bin/nff --production maintenance on`, then off when it is checked), so no sign-up or order lands half in the old audience and half in the new;\n- nothing to check in November about the drop site's \"starting October 17\" (W10, #218): the launch email drops the date itself from Oct 17, and the dated September post keeps it on purpose;\n- delete the stray notes in the repo root (#159);\n- revisit moving the repositories to your personal account and making them private when site revenue makes the cost a non-issue (decided 2026-10-18: they stay public and in the organization for now, because a private organization repository needs Netlify's $20 a month plan, and GitHub's code security costs extra on a private one). The standing rules that replace the old wait are in `docs/security.md`;\n- script the revert of a release as `bin/nff rollback revert` (branch, revert range, CI dispatch, watch, fast-forward, push). It stops on any failure and asks for your go before it pushes `main`;\n- the checkout lane's `Record-shape:` commit-trailer check in `lint-and-test` (`docs/rollback.md`), and the check that the rotation log has a seed line for every secret (`docs/secrets.md`).\n\nTick this when you've told Claude your order.\n- **Evaluate a scoped Square OAuth login** in place of the long-lived access token (your 10/18 note on #267). A research item, not built.\n- a switch that stops only the PayPal and Venmo path, so a leaked PayPal secret does not need the whole shop closed while Card keeps taking orders (`docs/secrets.md`, PayPal);\n- evaluate a scoped Square login (OAuth with the minimum permissions) instead of the all-powerful personal access token;\n- replace bin/nff's Blobs calls with the site's own admin API, behind an admin session or a scoped admin key, so the Netlify token can be deleted.",
-     "minutes": 5,
-     "device": "any",
-     "type": "decide"
-    },
-    {
-     "id": "pl-svgo",
-     "title": "Give the agents your svgo options",
-     "body": "Every new or replaced SVG goes through `svgo` with your preferred options (a standing rule from #267). Paste your options to Claude. Claude then commits them as the repo's svgo config with svgo pinned as a dev dependency, adds one command that optimizes a file in place, and adds a check that fails when an SVG under `assets/` or `static/` differs from its svgo output.\n\nUntil then the new globe icon waits for the pass, and no options are guessed. Existing SVGs are only counted, never rewritten, until you say. Nothing about launch waits on this.",
-     "minutes": 3,
-     "device": "laptop",
-     "type": "claude"
     }
    ]
   },
@@ -2473,101 +2327,6 @@
   }
  ],
  "reviews": [
-  {
-   "id": "R-STG-STALE",
-   "section": "rv-look",
-   "title": "Staging deploys again (it stalled after a938114)",
-   "area": "Netlify, staging",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-18",
-     "changed": "New. Every change since a938114 is on `next`, but none of it is on staging, so the reviews below may show old pages.",
-     "summary": "**This is a deduction; nobody can see Netlify's log.** Since e3839bb committed the three `.env.*.sample` files, every staging build runs `check:env` first, and it fails because staging was never env pushed. Netlify's last good staging deploy carries build a938114; `next` and `staging` are at bd364da.\n\n**What to do:**\n1. In Netlify, open **Deploys** and the latest failed staging build. The first line from `check:env` names the exact misses, under \"Required for a staging build, and not set:\".\n2. Set those names on the staging context. The likeliest gaps: `ACCOUNTS_ENABLED`, `AXIOM_DATASET`, `STAGING_TOKEN`, `ADMIN_EMAILS`, `MAIL_FROM`, `MAIL_REPLY_TO`, `SITE_CONTEXT`, `SITE_URL`. `SITE_CONTEXT` may sit on the branch-deploy scope; the build only needs it present. Or run step **env-push** for staging, which sets them all.\n3. Then **Deploys, Trigger deploy, Clear cache and deploy site**, on the staging branch.\n\n**Required on staging:** `SITE_CONTEXT`, `SITE_URL`, `ACCOUNTS_ENABLED`, `SQUARE_ENV`, `SQUARE_APPLICATION_ID`, `SQUARE_LOCATION_ID`, `SQUARE_ACCESS_TOKEN`, `SQUARE_WEBHOOK_SIGNATURE_KEY`, `PAYPAL_ENV`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `MAIL_DRIVER`, `MAIL_FROM`, `MAIL_REPLY_TO`, `ADMIN_EMAILS`, `AXIOM_DATASET`, `STAGING_TOKEN`.\n**Optional on staging** (the checkout lane marked them so): `MAINTENANCE_SECRET`, `DEV_NOTIFICATIONS_EMAIL`, `E2E_STAGING_TOKEN`, `AXIOM_TOKEN`, both Healthchecks URLs, `STAGING_REVIEWER_TOKEN`. `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS` is optional everywhere now.\n\n**Two other causes, less likely:** `check:schedule` needs `PICKUP_SCHEDULE` to reach the Saturday of next week (Oct 31 now, Nov 7 from Oct 25), and the schedule runs to Dec 31, so that should pass; and Netlify build minutes ([#229](https://github.com/north-foster-farm/north-foster-farm/issues/229)). The failed build's log tells which.",
-     "look": [
-      {
-       "label": "Netlify deploys",
-       "url": "https://app.netlify.com/projects/north-foster-farm/deploys"
-      }
-     ],
-     "recommendation": "Open the failed build's log and read its first line before changing anything."
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-18",
-     "changed": "Fixed. Staging deploys again; the live build is f05aafb or later. The cause is confirmed.",
-     "summary": "Nothing for you to do. `check:env` was failing every staging build because the committed sample listed keys staging never held. The checkout lane marked the keys that really are optional for their context (bd364da), and staging built from f05aafb.\n\n**Keep this list in case a production build fails the same check.** The first line of `check:env` names the exact misses under \"Required for a staging build, and not set:\". Required on staging: `SITE_CONTEXT`, `SITE_URL`, `ACCOUNTS_ENABLED`, `SQUARE_ENV`, `SQUARE_APPLICATION_ID`, `SQUARE_LOCATION_ID`, `SQUARE_ACCESS_TOKEN`, `SQUARE_WEBHOOK_SIGNATURE_KEY`, `PAYPAL_ENV`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `MAIL_DRIVER`, `MAIL_FROM`, `MAIL_REPLY_TO`, `ADMIN_EMAILS`, `AXIOM_DATASET`, `STAGING_TOKEN`. Optional: `MAINTENANCE_SECRET`, `DEV_NOTIFICATIONS_EMAIL`, `E2E_STAGING_TOKEN`, `AXIOM_TOKEN`, both Healthchecks URLs, `STAGING_REVIEWER_TOKEN`, and `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS` everywhere. Production's list is the same shape; step **env-push** sets them all.",
-     "look": [
-      {
-       "label": "Netlify deploys",
-       "url": "https://app.netlify.com/projects/north-foster-farm/deploys"
-      }
-     ],
-     "recommendation": "No action. Look only if a production build fails."
-    }
-   ],
-   "device": "laptop",
-   "type": "look"
-  },
-  {
-   "id": "R-204",
-   "section": "rv-look",
-   "title": "The sticky band on the order page, on your iPhone",
-   "area": "#204, iPhone",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "On your iPhone, open the order page and scroll. The band of category buttons should sit **flat at rest** and only **show a shadow along its bottom edge once it sticks** to the top (25b1183). Also check the part-1 label as you scroll fast. The issue closes after this look.",
-     "look": [
-      {
-       "label": "Order page on staging",
-       "url": "https://staging--north-foster-farm.netlify.app/order/"
-      },
-      {
-       "label": "Before and after",
-       "url": "https://claude.ai/artifact/5rXDoAknHhgYFWjejjbFa4"
-      },
-      {
-       "label": "#204",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/204"
-      }
-     ],
-     "recommendation": "Approve if the band looks right on the phone."
-    }
-   ],
-   "device": "phone",
-   "type": "look"
-  },
-  {
-   "id": "R-H14",
-   "section": "rv-look",
-   "title": "Safari's bar colour on the order page (H14)",
-   "area": "#205, iPhone",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "On your iPhone in Safari, open the order page. The browser's bar at the top and bottom should show **brand green at the ends**, the same as on the home page and About (5e1cab8, 0ded44b).",
-     "look": [
-      {
-       "label": "Order page on staging",
-       "url": "https://staging--north-foster-farm.netlify.app/order/"
-      },
-      {
-       "label": "Home, to compare",
-       "url": "https://staging--north-foster-farm.netlify.app/"
-      },
-      {
-       "label": "#205",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/205"
-      }
-     ]
-    }
-   ],
-   "device": "phone",
-   "type": "look"
-  },
   {
    "id": "R-214",
    "section": "rv-look",
@@ -2667,52 +2426,6 @@
    "type": "look"
   },
   {
-   "id": "R-232",
-   "section": "rv-look",
-   "title": "The news-post header",
-   "area": "#232",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "The header is already live on staging, but **no approval is recorded**. It's a centred, light-italic title with no breadcrumbs, letter-spacing −0.02em (−0.05em was offered), and the home page shares the same header.",
-     "look": [
-      {
-       "label": "News on staging",
-       "url": "https://staging--north-foster-farm.netlify.app/news/"
-      },
-      {
-       "label": "Mock-ups",
-       "url": "https://claude.ai/artifact/86UPztPacod8xNEqnpjEun"
-      },
-      {
-       "label": "#232",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/232"
-      }
-     ],
-     "recommendation": "Approve as built. The stale hold/232 branch is then deleted."
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-17",
-     "changed": "More room between the green stripe and the title, as you asked: the post page's top padding doubled, 1.5rem to 3rem, at every width. On `next`; on staging after the next promotion.",
-     "summary": "Open any post and look at the gap under the green stripe. Home's copy of the header is unchanged.",
-     "look": [
-      {
-       "label": "September post on staging",
-       "url": "https://staging--north-foster-farm.netlify.app/news/2026-09-22-september-update/"
-      },
-      {
-       "label": "#232",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/232"
-      }
-     ]
-    }
-   ],
-   "device": "any",
-   "type": "look"
-  },
-  {
    "id": "R-230",
    "section": "rv-look",
    "title": "Where the roast chicken photo goes",
@@ -2759,195 +2472,6 @@
    "type": "look"
   },
   {
-   "id": "R-FT",
-   "section": "rv-look",
-   "title": "The footer (FT1–FT3)",
-   "area": "#226, item 34",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "FT1: built as shown (ffaff73). FT2: two columns from 992px wide. FT3: on a phone, the order links come first and the sign-up after them.",
-     "look": [
-      {
-       "label": "Footer mock-up",
-       "url": "https://claude.ai/artifact/GKWaduR8DkvvY5eMPQVjUJ"
-      },
-      {
-       "label": "Any staging page",
-       "url": "https://staging--north-foster-farm.netlify.app/"
-      }
-     ]
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-18",
-     "changed": "Rebuilt as the two screenshots you approved: one centered column at every width, no side columns and no layout switch at a breakpoint.",
-     "summary": "The order is the sign-up and its Yes button, the APPPA logo, the page links, the contact line, then the copyright. Rows wrap, centered, as the width shrinks. The strip shows 390, 430, 600, 768, 1024, 1280 and 1440px; none scrolls sideways.\n\n- **The question's wording** is still \"Want occasional farm news by email?\" (W14, \"farm news\" everywhere). Your screenshots read \"Want occasional news and updates from North Foster Farm?\"; it is one of the questions under **Open for James**.\n- The panel's tint stays the site's green-grey, not the mock-up's plain grey.\n\nIt is on `next` and reaches staging with the next promotion.",
-     "look": [
-      {
-       "label": "The footer at seven widths",
-       "url": "https://raw.githubusercontent.com/north-foster-farm/north-foster-farm/launch-guide/launch-guide/feedback/ft-rev2-strip.png"
-      },
-      {
-       "label": "Any staging page",
-       "url": "https://staging--north-foster-farm.netlify.app/"
-      }
-     ]
-    },
-    {
-     "rev": 3,
-     "date": "2026-10-18",
-     "changed": "The gaps between the footer's rows are built to your numbers (#226, 06b5532, on `next`).",
-     "summary": "The sign-up to the APPPA logo, the logo to the page links and the page links to the contact line are 2.5 units apart. The contact line to the copyright is 2 units. One unit was the old uniform gap, but the old gaps were not uniform (32, 28, 12 and 16px), so **the build took a unit as 1.5rem**. That gives 60, 60, 60 and 48px, identical at 390px and 1440px.\n\n**Check:** open the two screenshots below, then a staging page on your phone. Done when the spacing reads right to you. If it is too much or too little, say what a unit should be and the numbers follow.",
-     "recommendation": "Approve 1.5rem as the unit, or give another.",
-     "look": [
-      {
-       "label": "Footer at 390px",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/ft-spacing/footer-390.png"
-      },
-      {
-       "label": "Footer at 1440px",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/ft-spacing/footer-1440.png"
-      }
-     ]
-    }
-   ],
-   "device": "any",
-   "type": "look"
-  },
-  {
-   "id": "R-203",
-   "section": "rv-look",
-   "title": "The cart chevrons",
-   "area": "#203, item 21",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "Your panel-open and panel-close files are byte-identical to the pill's icons. **Approve** means one drawing for all three, as it ships now. If you want separate drawings, write that in feedback and re-save the bare pair as `~/Code/nff/cart-chevron-open.svg` and `~/Code/nff/cart-chevron-close.svg`.",
-     "look": [
-      {
-       "label": "Order page on staging",
-       "url": "https://staging--north-foster-farm.netlify.app/order/"
-      },
-      {
-       "label": "#203",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/203"
-      }
-     ],
-     "recommendation": "One drawing for all three (approve)."
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-17",
-     "changed": "Your #204 review replaces the cart chevrons with plain chevrons and reworks the cart controls, so this item is now covered by R-204. Nothing is built for it separately.",
-     "summary": "Approve this to close it out; R-204 carries the work, and nothing gets built until you approve the joint recommendation there."
-    }
-   ],
-   "device": "any",
-   "type": "look"
-  },
-  {
-   "id": "R-OP27",
-   "section": "rv-look",
-   "title": "The phone cart after the first Add (OP-27)",
-   "area": "#159",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "On a phone-width screen (390px), the first **Add** opens the floating cart over about two-thirds of the catalog. Should the catalog row stay reachable without pressing Hide? This was never put on the blocker list.",
-     "look": [
-      {
-       "label": "Order page on staging",
-       "url": "https://staging--north-foster-farm.netlify.app/order/"
-      },
-      {
-       "label": "#159",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/159"
-      }
-     ],
-     "recommendation": "Approve to keep it as is for launch. Write feedback if it should change before launch."
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-17",
-     "changed": "Your #204 review replaces the phone cart after the first Add with plain chevrons and reworks the cart controls, so this item is now covered by R-204. Nothing is built for it separately.",
-     "summary": "Approve this to close it out; R-204 carries the work, and nothing gets built until you approve the joint recommendation there."
-    }
-   ],
-   "device": "any",
-   "type": "look"
-  },
-  {
-   "id": "R-234",
-   "section": "rv-look",
-   "title": "The unsubscribe test on staging",
-   "area": "#234, item 30",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "Do this now, while staging still has its Resend setup. In Resend, send a broadcast to the staging farm-news audience with your own address in it. Click its unsubscribe link and unsubscribe. Resend's webhook log should show **200**. Then sign in on staging with that address: account settings should show farm news off straight away (7af935b).",
-     "look": [
-      {
-       "label": "Staging checks page",
-       "url": "https://claude.ai/artifact/VYo8DiuG1sFv7ATcUi7Ca7"
-      },
-      {
-       "label": "Resend webhooks",
-       "url": "https://resend.com/webhooks"
-      },
-      {
-       "label": "Staging account",
-       "url": "https://staging--north-foster-farm.netlify.app/account/"
-      }
-     ]
-    }
-   ],
-   "device": "any",
-   "type": "live"
-  },
-  {
-   "id": "R-CHECKS",
-   "section": "rv-look",
-   "title": "The rest of the staging checks page",
-   "area": "22 looks",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "The checks page has more looks than the items above. Go through the rest there: Add to Home Screen opens in Safari (B1); the order page's lead (Q3b); the floating and settled cart (O1a, O1b, O6–O8); the gap around the payment choices (PY1); the cart by keyboard; the hero (H5, H15, H16); the news tiles; About's where-to-find-us, video and photo alt text; both Sign out buttons; the sign-in email field skipping Tab; and, optionally, the September post. Approve when they all look right, or list what doesn't in feedback.",
-     "look": [
-      {
-       "label": "Staging checks page",
-       "url": "https://claude.ai/artifact/VYo8DiuG1sFv7ATcUi7Ca7"
-      }
-     ]
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-17",
-     "changed": "Three fixes from your iPhone notes are on `next` and reach staging with the next promotion: the order page's lead, the eggs' flavour note and the hero's outline.",
-     "summary": "- **The order page's lead (Q3b)** now reads exactly \"Pasture-raised, processed, and packed in Rhode Island.\" It breaks after \"processed,\" at 390, 360 and 320px, so the no-break span is gone.\n- **The eggs' note** (\"in the carton within days of being laid\") is deleted; nothing else rendered it.\n- **The hero's white outline** on \"chicken.\" is halved, 0.052em to 0.026em. Safari honors the same stroke order as Chrome, so one value serves both; it looks lighter in WebKit at iPhone 15 size too.\n\nLook once staging has them (the next promotion).",
-     "look": [
-      {
-       "label": "Order page on staging",
-       "url": "https://staging--north-foster-farm.netlify.app/order/"
-      },
-      {
-       "label": "Home on staging",
-       "url": "https://staging--north-foster-farm.netlify.app/"
-      }
-     ],
-     "text": "Pasture-raised, processed, and packed in Rhode Island."
-    }
-   ],
-   "device": "laptop",
-   "type": "look"
-  },
-  {
    "id": "R-W7b",
    "section": "rv-copy",
    "title": "The privacy page's cookie paragraph (W7b)",
@@ -2991,38 +2515,6 @@
      ],
      "text": "…two random codes that PayPal's script stores when the payment buttons appear on the order page. They hold nothing about you.",
      "recommendation": "Approve as is."
-    }
-   ],
-   "device": "any",
-   "type": "look"
-  },
-  {
-   "id": "R-MAIL",
-   "section": "rv-copy",
-   "title": "Privacy page contact: info@ or sales@",
-   "area": "#146",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "On 09-26 you said info@ is a real inbox and the privacy page keeps it. An agent later switched it to sales@ (6ec7336), taking the address from the site's data file. **Approve** keeps sales@. To keep info@, write \"info@\" in feedback, and it's added as a second address.",
-     "look": [
-      {
-       "label": "Privacy on staging",
-       "url": "https://staging--north-foster-farm.netlify.app/privacy/"
-      }
-     ]
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-16",
-     "changed": "James decided on #267: both addresses stay, each for its own role. sales@ is for anything commercial (ordering, orders, pickup, delivery, order problems): the contact page, flyers and cards, and the reply-to on order and transactional email. info@ is for anything non-commercial: the privacy and accessibility pages, data deletion and export requests, press and legal. Both are shared inboxes reaching James and Jim. The privacy and accessibility pages now use info@; nothing else changed.",
-     "look": [
-      {
-       "label": "#267",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6219841453"
-      }
-     ]
     }
    ],
    "device": "any",
@@ -3232,60 +2724,6 @@
    "type": "look"
   },
   {
-   "id": "D-OPEN",
-   "section": "rv-decide",
-   "title": "Open for James",
-   "area": "Waiting on you",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-18",
-     "summary": "Everything agents are waiting on, in one place. Each has the choices and what I'd pick. Answer in the feedback box here; one line each is enough.\n\n**a) Previewing the site on another day (#267, item 1).** Three questions. The spec is `~/Code/nff/lanes/template/.ignored/date-preview-spec.md` and the mock-up is `~/Code/nff/lanes/template/.ignored/shots/date-preview-mock.png`.\n1. Is it view only, with no ordering while you preview? **Recommend yes.**\n2. Does the date field use farm time (New York), whatever your browser's zone? **Recommend yes.**\n3. Tier 2 costs about five templates. Build it, or stop at tier 1 plus the banner warning? **Recommend tier 1 first, then tier 2.**\n\n**b) Email signatures.** The Signatures panel is on staging's toolbar (`lane/template` 942c0f3). For James, Jim and \"The NFF team\":\n1. The role line under each name. Only you know it; no recommendation.\n2. Which email: sales@, info@ or their own. **Recommend sales@ for all three**, so replies reach the shared inbox.\n3. Which phone: the farm's or their own. **Recommend the farm's.**\n4. Any other variants, and any extra links (say what).\n5. Remake `globe.png` from the Lucide globe? **Recommend yes**: Lucide is open source, so its origin is known (rule #220).\n6. Then paste each signature into Fastmail and send yourself a message from Mac Safari, Mac Chrome and iPhone Safari, and say how each looks.\n\n**c) The footer's question.** Keep \"Want occasional farm news by email?\" (the site says \"farm news\" everywhere, W14), or use \"Want occasional news and updates from North Foster Farm?\" as in your screenshots. **Recommend keeping \"farm news\".**\n\n**d) Promote the waiting work.** These commits are done and wait for qa, then `next`, then staging: `lane/home` a44fb66 (footer), `lane/orders` 6a7c9bc (cart review items), `lane/email` c014bd0 and 16dc287 (launch post), `lane/checkout` 0029af3 (pickup days), `lane/template` 942c0f3 (signatures panel), `lane/pages` 938eb99 and 2b44814 (news URLs, hover). Wake qa and promote them? **Recommend yes, as one batch.**",
-     "look": []
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-18",
-     "changed": "Two new items (e, f), and (d) is done.",
-     "summary": "(a), (b) and (c) above are still open. (d) is done: `next` and staging are at 4dfd7f4, with the pickup horizon, the #204 fixes, the footer, the ordering-tour post, the hover, the signatures panel, the rollback docs and maintenance mode. The news addresses are the one piece still waiting (f).\n\n**e) A secret for maintenance mode.** Set `MAINTENANCE_SECRET` (any long random string) on staging and on production, in Netlify and in `.env.staging` and `.env.production`, and confirm `ADMIN_EMAILS` holds you and Jim in both. The step is in \"Your env files\". **Recommend:** the signed link alone is the authentication; a PIN on top is possible but not built. Without the secret only the command line flips the switch. The staging rehearsal and qa's maintenance spec wait on the staging secret.\n\n**f) News addresses without dates are not on `next` yet.** They clash with the ordering-tour post in `docs/qa-launch.md`, `e2e/home.spec.mjs`, `e2e/news-page.spec.mjs` and `e2e/wording.spec.mjs`. The pages lane fixed the clashes in its working folder (the post gets the address `/news/ordering-tour/`, and the old September-update address points to it), but the permission check refused its `git add` and `git rebase --continue`, and refused the coordinator's attempt in another folder. Nothing was worked around. Either allow it, or run this in `~/Code/nff/lanes/pages`:\n```\ngit add -A docs e2e content netlify.toml\ngit rebase --continue\ngit fetch && git rebase origin/next\nnpm run check\nnpm run check:news\ngit push origin HEAD:next\n```\nThen staging should follow `next`. **Recommend yes.**",
-     "look": []
-    },
-    {
-     "rev": 3,
-     "date": "2026-10-18",
-     "changed": "Item g: two GitHub edits an agent was not allowed to make.",
-     "summary": "**g) Move #266 to the launch milestone and file the session-hashing blocker.** #251 and #255 already sit in the launch milestone; #266 is in After launch. The permission check refused the edit, so run these (the second files the session-hashing item, which has no issue yet):\n```\ngh issue edit 266 --milestone \"Launch: checkout and the autumn refresh\" --add-label \"lane: checkout\"\ngh issue create --title \"Hash sessions at rest\" --milestone \"Launch: checkout and the autumn refresh\" --label \"lane: checkout\" --body \"Store sessions under a hash of the id, as sign-in links are, so whoever can read Blobs cannot use a live session id. Move existing sessions in a migration, or end them (customers sign in again by link). Tests for both. Remove it from Known gaps in docs/secrets.md. A launch blocker (James, #267).\"\n```\n**Recommend yes.**",
-     "look": [
-      {
-       "label": "#267",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
-      }
-     ]
-    },
-    {
-     "rev": 4,
-     "date": "2026-10-18",
-     "changed": "Items h to k: what round 1 of the runbooks leaves for you.",
-     "summary": "**h) The dashboard's `docs/secrets.md` is not started.** You put the dashboard on hold. It will cover the Supabase service key, VAPID, the same Dec 1 to Jan 1 rotation and Jan 31 expiry, its own rotation log, two-factor, and its place in the lost-laptop list. Waiting for your go.\n**i) A note, not a fix: maintenance mode shows who is an admin.** While it is on, an admin address asking for a sign-in link gets the link and any other address gets the 503, so someone could learn whether an address is an admin's. Low risk; the bypass is by design. Accept or ask for a change.\n**j) Leave the \"check your email to confirm\" note unbuilt.** Site sign-ups opt in at once, so nothing is pending; only the invite flow is, and the page cannot see it. Recommend leaving it.\n**k) The four vendor questions** (step vendor-checks) and the open items listed at the end of [docs/secrets.md](https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/secrets.md).\n**Recommend yes** to h to k as stated.",
-     "look": [
-      {
-       "label": "#267",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
-      }
-     ]
-    },
-    {
-     "rev": 5,
-     "date": "2026-10-18",
-     "changed": "New order: the staging token first, then the git rules, then the rest.",
-     "summary": "Read in this order; (a) to (k) above still stand.\n\n**1. `E2E_STAGING_TOKEN` (the only thing blocking qa).** The staging back-office API answers 404 without it, so no back-office spec can run: PY-01 to PY-18, AO and the maintenance rehearsal. The card path on a real sandbox charge (Card is now open by default) is unrun until then. Make a long random token, set `E2E_STAGING_TOKEN` on Netlify's branch:staging context, save it in `.env.e2e-staging` (qa never uses `.env.staging` for it) and in the password manager. **Recommend: do it first.** Step **env-e2e-token** has the details; the other specs pass (154 passed, 3 skipped, 0 failed on 6a726eb).\n\n**2. Allow git commits for the lanes.** Several lanes cannot `git add`, `commit` or `rebase --continue`, so finished work sits uncommitted. The script `/private/tmp/claude-501/-Users-james-Code-nff/707e073a-b931-4f62-b657-7756ba342c3c/scratchpad/add-allow-rules-2.py` adds the allow rules (git commit and the rest). Read it, then run it. **Recommend yes.**\n\n**3. The rest:** the lists above (a to k) and the review items R-ORDERS and R-TOOLBAR.",
-     "look": []
-    }
-   ],
-   "device": "any",
-   "type": "decide"
-  },
-  {
    "id": "D-VENMO",
    "section": "rv-decide",
    "title": "Is Venmo hidden at launch?",
@@ -3314,284 +2752,6 @@
      "changed": "The launch-day steps now follow your V1 decision (#192): Venmo launches live.",
      "summary": "Earlier steps still described hiding Venmo until the live test passed. They are fixed.\n- *Before the release*: leave `VENMO_HIDDEN` empty. There is no choice to make.\n- *Prove payments*: the $1 Venmo payment, its CLI refund and the check that Square shows the refund **Completed** now come first, right after the release deploy.\n- If Venmo misbehaves: set `VENMO_HIDDEN=1` on production and redeploy. The button greys out as \"Coming soon\".",
      "look": []
-    }
-   ],
-   "device": "any",
-   "type": "decide"
-  },
-  {
-   "id": "D-EXPORT",
-   "section": "rv-decide",
-   "title": "Does the backup export ship before launch?",
-   "area": "#249, #244",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "You approved the encrypted export to Backblaze B2 and Cloudflare R2 (both $0 at your size, checked today). Its issue isn't filed yet, and it isn't stated whether it must be built before launch. Without it, the only copy of orders, consent records and pickup agreements is Netlify Blobs.",
-     "recommendation": "Before launch, with exports just before and after the release deploy. Approve, or write \"after launch\"."
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-16",
-     "changed": "James decided on #267: the backup export ships before launch, scoped to the minimum.",
-     "summary": "Decided. Before launch: a nightly scheduled export of the order, customer and subscriber stores, encrypted with age to James's public key (he holds the private key; nothing that runs can decrypt), uploaded to one dedicated Cloudflare R2 bucket on the business's existing Cloudflare account with a write-only token scoped to that bucket, a Healthchecks dead-man's-switch alert when a night's export fails or doesn't arrive (with an entry in the alert guide), and one restore rehearsal before launch (download, decrypt, restore into a scratch environment, check the counts, write up the steps in `docs/`), with James taking part in the decryption step. After launch: a second copy in Backblaze B2 on a new business account (James's own B2 account stays personal), schema versioning of the export, and a recovery procedure on record for every store, including \"cannot be restored\" where that's the honest answer. Nothing further to approve here.",
-     "look": [
-      {
-       "label": "#267",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6219560731"
-      }
-     ]
-    },
-    {
-     "rev": 3,
-     "date": "2026-10-16",
-     "changed": "The export landed (251c46f): nightly, age-encrypted, to R2, with the Healthchecks alert and a restore rehearsal procedure in docs/backup.md.",
-     "summary": "One open question: R2 has no write-only token, so the export uses a bucket-scoped Read & Write token, with a bucket lock rule stopping deletes and the encryption making a read worthless. Do you accept that in place of the write-only token in the original decision?"
-    },
-    {
-     "rev": 4,
-     "date": "2026-10-17",
-     "changed": "Recorded as approved on #267: the bucket-scoped Read & Write token with the bucket lock, in place of the write-only token. Step bk-r2 and docs/secrets.md now say so.",
-     "summary": "Nothing more to decide. Approve to close this item; the R2 step in Before launch is the only work left."
-    }
-   ],
-   "device": "any",
-   "type": "decide"
-  },
-  {
-   "id": "D-ROT",
-   "section": "rv-decide",
-   "title": "How often secrets rotate",
-   "area": "#244",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "The Netlify token expires on Jan 1 and is rotated every Jan 1. Should **every other secret** follow the same yearly Jan 1 schedule, or rotate every six months as you said earlier?",
-     "recommendation": "Yearly on Jan 1 for everything: one date to remember, and rotate early on any leak. Approve, or write \"six months\"."
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-16",
-     "changed": "James decided on #267: every secret rotates yearly, on January 1 (the Netlify token already does). This replaces the six-month rule. Every secret also rotates at once after any suspected leak; docs/secrets.md now puts that incident response first and the yearly schedule second.",
-     "look": [
-      {
-       "label": "#267",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267#issuecomment-6219841453"
-      }
-     ]
-    },
-    {
-     "rev": 3,
-     "date": "2026-10-18",
-     "changed": "James amended the rule on #267: every secret and token rotates **between Dec 1 and Jan 1**, and every token that can expire is set to **expire Jan 31**, which leaves a month to rotate and a month of buffer. This replaces \"rotates on January 1\". The Netlify token (nf-pat) and the Axiom tokens (ax-prod, ax-stg) now expire Jan 31, 2027. The Square token rotates under maintenance mode, in a quiet hour inside the window. On Dec 1 each year a reminder email lists what is due, built from docs/rotation-log.md; it repeats weekly, with a louder one in the last week of December. docs/secrets.md follows in the single revision.",
-     "look": [
-      {
-       "label": "#267",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
-      }
-     ]
-    }
-   ],
-   "device": "any",
-   "type": "decide"
-  },
-  {
-   "id": "D-QF1",
-   "section": "rv-decide",
-   "title": "The accessibility scan (QF1)",
-   "area": "#197, item 7",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "Land qafix's automated accessibility scan with Square's card frame and PayPal's Venmo frame left out (they're other companies' code), after a rescan of the payment and confirmation views. The baseline is then empty, and the new CI fails any change that adds a problem.",
-     "look": [
-      {
-       "label": "#197",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/197"
-      }
-     ],
-     "recommendation": "Yes."
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-17",
-     "changed": "Deferred to after launch, as you decided on #267. It is now a line in the after-launch list (pl-rest), with no CI gate and no rescan work before launch. #197 moved to the After launch milestone.",
-     "summary": "Nothing is built for this before launch. Approve to close the item."
-    }
-   ],
-   "device": "any",
-   "type": "decide"
-  },
-  {
-   "id": "D-PY17",
-   "section": "rv-decide",
-   "title": "How to prove the Square-down path (PY-17)",
-   "area": "#151, item 13",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "PY-17 proves that when Square is down, Venmo still works. (a) On staging, with a broken Square token and a Venmo sandbox payment: two staging builds, and staging is getting its own Square app anyway. (b) Accept the unit tests now and do the live proof after launch. Previews can't do it any more, since they'll have no payment keys. (c) A local run with the new fake payment drivers (#265).",
-     "look": [
-      {
-       "label": "#151",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/151"
-      }
-     ],
-     "recommendation": "(c) once the fakes land, otherwise (b). Approve, or write a or b."
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-17",
-     "changed": "Decided (b) with the live proof on launch day, as you said on #267. The unit tests are accepted now; no staging builds, and (c) with the fakes is optional, not a gate. The two launch-day steps are now one, with ld-r3's Visible and Hidden instructions kept.",
-     "summary": "On launch day, with `web.squarecdn.com` blocked, you check the alert reaches your phone, then pay $1 by Venmo on the same page with `?venmo`, refund it, and check the order record, Square and both webhooks agree. It is the step **Check a broken checkout, then pay $1 by Venmo** under Launch day. Approve to close this item."
-    }
-   ],
-   "device": "any",
-   "type": "decide"
-  },
-  {
-   "id": "D-148",
-   "section": "rv-decide",
-   "title": "Resend's new Contacts and Segments: now or later?",
-   "area": "#148",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "Resend renamed Audiences to Segments in November 2025 and will retire the old API. #148 moves the site over. It's built and ready (hold/148). (a) After launch, as its milestone says. (b) In this release, as you said on 09-24; then a migration step joins launch day.",
-     "look": [
-      {
-       "label": "#148",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/148"
-      }
-     ],
-     "recommendation": "(a) after launch: the old API still works, and launch day stays shorter. Approve, or write b."
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-17",
-     "changed": "Decided (a), after launch, as you said on #267. `hold/148` stays held and launch day has no migration step. It is a line in the after-launch list (pl-rest), and #148 is already on the After launch milestone.",
-     "summary": "Nothing to do before launch. Approve to close the item."
-    }
-   ],
-   "device": "any",
-   "type": "decide"
-  },
-  {
-   "id": "D-MA2",
-   "section": "rv-decide",
-   "title": "The Aller font",
-   "area": "#220, item 9",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "You have no licence of your own; a designer gave you the font. Aller is Dalton Maag's free family under its own free licence.",
-     "look": [
-      {
-       "label": "#220",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/220"
-      }
-     ],
-     "recommendation": "Keep it on the site with the licence text beside the font files, take it out of email, and drop the font CORS header."
-    }
-   ],
-   "device": "any",
-   "type": "decide"
-  },
-  {
-   "id": "D-MA1",
-   "section": "rv-decide",
-   "title": "Where three files came from",
-   "area": "#220, item 10",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "Where did `delivery-flyer.jpg`, `icons/eggs.svg` and `icons/globe.svg` come from? If globe.svg is an Apple SF Symbols export, it's swapped for an openly licensed icon (Lucide or Tabler). Write what you know in feedback.",
-     "recommendation": "If you're unsure about globe.svg, approve and it gets swapped."
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-17",
-     "changed": "`delivery-flyer.jpg` is recorded as your original design. `icons/globe.svg` is not Lucide, as you suspected: it is a filled outline on a 129.741 by 129.841 canvas with the marks of an SF Symbols export. The map's whole-map button now uses Lucide's `globe` (ISC), drawn as a stroke like the search, close and pin icons (on `next`, on staging at the next promotion). `icons/eggs.svg` is untouched: it is neither Lucide nor Tabler's `eggs`.",
-     "summary": "Look at the before and after of the button. Two questions remain:\n- Where did `icons/eggs.svg` (the map's egg tag) come from?\n- `static/email-signature/globe.png`, your public email-signature glyph, still carries the old globe. Want it remade from the new one?",
-     "look": [
-      {
-       "label": "Globe, before and after",
-       "url": "https://claude.ai/artifact/77tTz6o2XL5jHHCxkNLBMf"
-      }
-     ]
-    },
-    {
-     "rev": 3,
-     "date": "2026-10-17",
-     "changed": "Settled on #267: both icons are replaced. The globe is Lucide's `globe` (ISC) and the eggs are Tabler's outline `eggs` (MIT), restyled to fit: the map tag and key draw the eggs as an outline at a heavier stroke beside the filled hen, and the search palette's card strokes it in the site's green. NOTICE and the provenance table are current. On `next`; on staging at the next promotion.",
-     "summary": "Look at both icons before and after, and at the key as built. The earlier question about where `eggs.svg` came from is answered by the swap. One thing waits: both new icons have not been through svgo yet, because your options are not in (see the step in the after-launch section). The email-signature `globe.png` will be rebuilt from the new globe by the signature builder.",
-     "look": [
-      {
-       "label": "Globe and eggs, before and after",
-       "url": "https://claude.ai/artifact/77tTz6o2XL5jHHCxkNLBMf"
-      }
-     ]
-    },
-    {
-     "rev": 4,
-     "date": "2026-10-18",
-     "changed": "Your 10/18 note on #267, in commit ea17549 on `next`. The map key's words changed: \"We deliver it\" is now \"Available for delivery\", and \"Not delivered there\" is now \"Unavailable for delivery\". The eggs icon is the original filled pair again, on the map's tags and key and on the search palette's eggs card; it comes from your own banner design for the market stall. The Tabler swap (757574b) is reverted and the Tabler credit is out of NOTICE. The Lucide globe stays.",
-     "summary": "Look at the key, the whole map and the search card. No screen-reader label carried the old phrases; the key's icons are decorative and hidden from readers. `e2e/map.spec.mjs` checks the new words.\n- Key: before, outlined eggs, \"We deliver it\", \"Not delivered there\". After, filled eggs, \"Available for delivery\", \"Unavailable for delivery\".\n- Search, \"eggs\": before, outlined eggs in green. After, the filled pair in green.\nThe svgo pass now waits on the globe alone.",
-     "look": [
-      {
-       "label": "Map key, before",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/dma1-before-key.png"
-      },
-      {
-       "label": "Map key, after",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/dma1-after-key.png"
-      },
-      {
-       "label": "Whole map, before",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/dma1-before-map.png"
-      },
-      {
-       "label": "Whole map, after",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/dma1-after-map.png"
-      },
-      {
-       "label": "Search, before",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/dma1-before-search.png"
-      },
-      {
-       "label": "Search, after",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/dma1-after-search.png"
-      }
-     ]
-    }
-   ],
-   "device": "any",
-   "type": "decide"
-  },
-  {
-   "id": "D-164",
-   "section": "rv-decide",
-   "title": "Staging's scheduled jobs run 2–6 hours apart",
-   "area": "#164",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "Staging's jobs are triggered from GitHub, which delays them by hours, so staging's health check reads stale. Production uses Netlify's own scheduler and isn't affected.",
-     "recommendation": "Accept it for staging. Approve, or write that you want a steadier trigger."
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-17",
-     "changed": "Accepted on #267: staging's scheduled jobs stay on GitHub Actions. The site already depends on Actions for CI and the LGTM auto-merge, and so does the dashboard's `check`, so there is no new service.",
-     "summary": "The off-quarter cron stays, and so does the 6-hour period on staging's Healthchecks check. A missed evening run on staging is accepted. Approve to close the item."
     }
    ],
    "device": "any",
@@ -3681,106 +2841,6 @@
      "date": "2026-10-17",
      "changed": "Decided on #267: one send, no batches, and only once Resend Pro is in place. The step Invite the old mailing list now says so and is marked as waiting on rs-pro.",
      "summary": "If Pro is not done by the day after the launch email, the invite waits until it is. Approve to close the item."
-    }
-   ],
-   "device": "any",
-   "type": "decide"
-  },
-  {
-   "id": "D-WH",
-   "section": "rv-decide",
-   "title": "The production Resend webhook uses www",
-   "area": "#237",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "#237 gives the webhook URL as `https://northfosterfarm.com/api/resend/webhook`. The bare domain answers with a redirect, which webhooks don't follow.",
-     "recommendation": "Use `https://www.northfosterfarm.com/api/resend/webhook`."
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-17",
-     "changed": "Approved on #267. Checked every place the production webhook URL appears: #237, the step Add production's Resend webhook (its copy value) and the docs all use `https://www.northfosterfarm.com/api/resend/webhook` or name only the path; the one bare-domain URL left was inside a unit test's fake request, now www too.",
-     "summary": "Nothing more to change. Use the www address when you add the webhook on launch day. Approve to close the item."
-    }
-   ],
-   "device": "any",
-   "type": "decide"
-  },
-  {
-   "id": "D-NOTIFY",
-   "section": "rv-decide",
-   "title": "Failed deploys: email only, or a phone page now?",
-   "area": "#248",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "Netlify can't limit deploy notifications to production, so an HTTP POST to your alerts check would page your phone for staging failures too. For launch: one **email-only** \"Deploy failed\" notification, no HTTP POST and no success ping. A function that filters for production and pages you is optional, after launch. `bin/nff --production alert test` exists now (c9e4de8).",
-     "look": [
-      {
-       "label": "#248, the proposal",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/248#issuecomment-6212825847"
-      }
-     ],
-     "recommendation": "Email only for launch. Approve, or write \"push now\"."
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-17",
-     "changed": "Approved on #267. For launch: one email-only \"Deploy failed\" notification, with no HTTP POST and no success ping, which is the step Email yourself when a deploy fails. After launch, also approved: a function that filters for production deploy failures and pages your phone through the alerts check. It is now a line in the after-launch list (pl-rest).",
-     "summary": "Nothing more to decide. Approve to close the item."
-    }
-   ],
-   "device": "any",
-   "type": "decide"
-  },
-  {
-   "id": "R-DECIDED",
-   "section": "rv-decide",
-   "title": "What agents decided as recommended",
-   "area": "#233",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-16",
-     "summary": "Some smaller choices were settled under \"execute the spec\": the agent took its own recommendation, and you can overrule any of them. They're listed in #233's body under \"Decided as recommended\". Skim them; approve, or name any you'd overrule.",
-     "look": [
-      {
-       "label": "#233",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/233"
-      }
-     ]
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-16",
-     "changed": "Added a wording decision taken outside the review list: the privacy page's sentence on order-page error reports.",
-     "summary": "The order page's error-report sentence was **approved as drafted**. It is in `content/privacy.md` and lands with #258; it is not on staging yet.",
-     "look": [
-      {
-       "label": "#258",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/258"
-      }
-     ],
-     "text": "The order page reports its own errors to that log: what went wrong, on which page, and your browser and its version, but never your name, your contact details or your order."
-    },
-    {
-     "rev": 3,
-     "date": "2026-10-16",
-     "changed": "#246 and #258 have landed: the browser reporter ships, and a test proves it scrubs emails and phone numbers before anything is logged.",
-     "summary": "The order page's error-report sentence, approved as drafted, is live on `next`. Nothing further to approve here.",
-     "look": [
-      {
-       "label": "#246",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/246"
-      },
-      {
-       "label": "#258",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/258"
-      }
-     ]
     }
    ],
    "device": "any",
@@ -4065,37 +3125,6 @@
    "type": "look"
   },
   {
-   "id": "R-PICKUP",
-   "section": "rv-look",
-   "title": "Pickup days: only through next week's Saturday",
-   "area": "#267, order page",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-18",
-     "changed": "The on-farm pickup list ran to the end of the schedule, into December. It now stops at the Saturday of the following week.",
-     "summary": "Weeks start on Sunday. The list runs from the first available day through **next week's Saturday**, in farm time:\n\n- Sunday Oct 18: Monday Oct 19 through Friday Oct 30. Wednesday Oct 21 still ends Oct 30.\n- Sunday Oct 25: through Friday Nov 6.\n- The first day keeps its rule: tomorrow on, closed at midnight before.\n- The server checks the same limit, so an old tab cannot book a day past it.\n\n**The drop site and delivery do not share this list or horizon**, so they are unchanged. They each offer the next two Saturdays or Thursdays whose cutoff has not passed, so they never ran long. A horizon there would leave a single Thursday after Wednesday noon, so I did not apply it. Say if you want it anyway.\n\nThe change is commit 0029af3 on `lane/checkout`. Look on staging once it is promoted: the pickup select on the order page should end on Friday Oct 30 today.",
-     "look": [
-      {
-       "label": "Order page on staging",
-       "url": "https://staging--north-foster-farm.netlify.app/order/"
-      },
-      {
-       "label": "#267",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
-      },
-      {
-       "label": "The list before the fix",
-       "url": "https://raw.githubusercontent.com/north-foster-farm/north-foster-farm/launch-guide/launch-guide/feedback/pickup-days-too-long.png"
-      }
-     ],
-     "recommendation": "Approve if the list ends where you expect."
-    }
-   ],
-   "device": "phone",
-   "type": "look"
-  },
-  {
    "id": "R-NEWSURL",
    "section": "rv-look",
    "title": "News post addresses without the date",
@@ -4199,188 +3228,6 @@
    "type": "look"
   },
   {
-   "id": "R-PREVIEWS",
-   "section": "rv-copy",
-   "title": "What a deploy preview says about payments",
-   "area": "#251, #255",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-18",
-     "summary": "A draft from the checkout lane. A preview holds no payment keys, so its order page shows this in place of the pay buttons, and the order API answers 403 with it.",
-     "text": "\"Payments are switched off in previews.\"",
-     "recommendation": "Approve as is; it is for you and the agents, never customers."
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-18",
-     "changed": "Approved by you on #267: the wording from 3a82919 stays as it is.",
-     "summary": "You first asked to remove \"Payments are switched off in previews,\" then kept it once you saw that it appears where the payment buttons normally sit. Change nothing. Approve to close the item.",
-     "look": []
-    }
-   ],
-   "device": "any",
-   "type": "look"
-  },
-  {
-   "id": "R-ORDERS",
-   "section": "rv-look",
-   "title": "The order page and cart pane, on your iPhone",
-   "area": "#267, iPhone",
-   "device": "phone",
-   "type": "look",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-18",
-     "changed": "New. Eleven commits on `next`, 6ab69bd to 9c344db, from your two notes on #267.",
-     "summary": "**Check these on your iPhone, in portrait and in landscape. The keyboard and Dynamic Island behaviors were only simulated; the real device is the test.** Rotate to landscape on the order page, open Add discount with the keyboard up, tap \"N more\", and tick the news box.\n\n**Order form**\n- Name, email and phone are ordinary inputs at all times, prefilled when you are signed in. The click-to-edit code and its line are gone (6ab69bd).\n- News box: unticked \"Get news and updates from us?\", ticked \"Getting news and updates from us.\" Ticking sends chicks from the box; the footer and news-page buttons send them on a successful sign-up. None under reduced motion (d605d7b). A still cannot show the chicks.\n- Card is chosen when the page opens, so its fields and Pay button show. With no card payments on offer the Pay button hides; a page with Venmo only says \"Card payments aren't available right now. Pay with one of the buttons above instead.\" That last note was not exercised (db514d1).\n- On-farm pickup says \"By appointment\" (6a726eb).\n\n**Cart pane**\n- The next-discount note sits right-aligned under Continue to payment (778fd94).\n- Add discount, the way buttons, the code field and Apply are one height, 36px, and the cart does not shift (97c2244).\n- On a phone the lines and the sums take turns: opening one folds the other (d4af18c).\n- \"N more\" glides to the hidden row and stops (6dfec8d). The old overshoot could not be reproduced off a device.\n- **Keyboard (ddbc060, simulated only):** while the discount field is open the floating cart rides up by the keyboard's height, so the field stays above it.\n- Neither the lines nor the sums take more than 55% of the screen height (2b4c10d). The empty area under the last row in your screenshot looks like iOS's rubber-band bounce; I could not reproduce it. If the gap shows without a drag, it is a bug not yet found.\n- **Landscape (9c344db, emulated insets of 59px, not a real Dynamic Island):** the page padding is the larger of the gutter and the safe area, and the top bar bleeds out by the same amount. Portrait is unchanged.",
-     "look": [
-      {
-       "label": "Contact, before",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-before-form-contact.png"
-      },
-      {
-       "label": "Contact, after",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-form-contact.png"
-      },
-      {
-       "label": "News box ticked, before",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-before-form-contact-ticked.png"
-      },
-      {
-       "label": "News box ticked, after",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-form-contact-ticked.png"
-      },
-      {
-       "label": "Payment, first paint, before",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-before-form-payment-first-paint.png"
-      },
-      {
-       "label": "Payment, first paint, after",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-form-payment-first-paint.png"
-      },
-      {
-       "label": "On-farm pickup, before",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-before-form-onfarm-card.png"
-      },
-      {
-       "label": "On-farm pickup, after",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-form-onfarm-card.png"
-      },
-      {
-       "label": "Cart lines, portrait",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-portrait-items.png"
-      },
-      {
-       "label": "Cart sums, portrait",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-portrait-money.png"
-      },
-      {
-       "label": "Discount code, portrait",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-portrait-code.png"
-      },
-      {
-       "label": "Long cart, \"N more\" (iPhone 14)",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-iphone14-long-more.png"
-      },
-      {
-       "label": "Long cart, lines (iPhone 14)",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-iphone14-long-items.png"
-      },
-      {
-       "label": "Long cart, lines (14 Pro Max)",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-iphone-max-long-items.png"
-      },
-      {
-       "label": "Keyboard, simulated",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-keyboard-sim.png"
-      },
-      {
-       "label": "Landscape, top",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-landscape-top.png"
-      },
-      {
-       "label": "Landscape, page top",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-landscape-page-top.png"
-      },
-      {
-       "label": "Landscape, end",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/orders-after-landscape-end.png"
-      },
-      {
-       "label": "Order page on staging",
-       "url": "https://staging--north-foster-farm.netlify.app/order/"
-      },
-      {
-       "label": "#267",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/267"
-      }
-     ],
-     "recommendation": "Approve once the keyboard, the Dynamic Island and \"N more\" look right on the iPhone, portrait and landscape."
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-18",
-     "changed": "The phone cart pane is capped at 58% of the screen, the \"N more\" pills have their own strip, and the badge line shows only for delivery (b4e4d1f, 02b82e8, 4dabd6d, on `next`). Your two screenshots on #267 were the faults.",
-     "summary": "Open the cart on /order with 1, 4 and 10 items, in portrait and in landscape, with On-farm pickup and then Delivery. **Done when:**\n1. The open pane, every row of it, takes no more than about 60% of the screen in portrait (it is 58%; 43 to 49% with one item), and the lines scroll inside what is left.\n2. The \"N more\" pills sit in their own strip under the lines: \"N more\" for what is above at the left and for what is below at the right, never on a heading or a line.\n3. The badge line is gone on On-farm pickup and the drop site, and under Delivery reads on two lines: \"Delivery · Free delivery\" and \"Bulk discount: $50+ · $100+ · $150+ · $200+\".\n\nThe screenshots are 390 by 664 in portrait, 844 by 390 in landscape and 667 by 375 for an iPhone SE on its side; the ones ending -delivery show the Delivery state. **A known limit, ruled on in the decision item:** with ten items the lines get about two rows in portrait, and on the SE on its side they get none.",
-     "look": [
-      {
-       "label": "Portrait, 1 items",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/portrait-1.png"
-      },
-      {
-       "label": "Portrait, 4 items",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/portrait-4.png"
-      },
-      {
-       "label": "Portrait, 10 items",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/portrait-10.png"
-      },
-      {
-       "label": "Landscape, 1 items",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/landscape-1.png"
-      },
-      {
-       "label": "Landscape, 4 items",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/landscape-4.png"
-      },
-      {
-       "label": "Landscape, 10 items",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/landscape-10.png"
-      },
-      {
-       "label": "SE on its side, 1 items",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/landscape-se-1.png"
-      },
-      {
-       "label": "SE on its side, 4 items",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/landscape-se-4.png"
-      },
-      {
-       "label": "SE on its side, 10 items",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/landscape-se-10.png"
-      },
-      {
-       "label": "Portrait, 10 items, Delivery",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/portrait-10-delivery.png"
-      },
-      {
-       "label": "SE on its side, 10 items, Delivery",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/shots/landscape-se-10-delivery.png"
-      }
-     ],
-     "recommendation": "Check with ten items first: it is the worst case."
-    },
-    {
-     "rev": 3,
-     "date": "2026-10-18",
-     "changed": "The cart part of this check is superseded by cart round 2.",
-     "summary": "Check the order form and payment items above as before. Hold the cart items (the 58% cap, the \"N more\" strip, the badge line) until round 2 lands: the cap is now about 48%, the two toggles become one segmented control, and a guaranteed minimum replaces the cap on small screens. See D-CART4. Everything in R-ORDERS that is not the cart pane still stands."
-    }
-   ]
-  },
-  {
    "id": "R-TOOLBAR",
    "section": "rv-look",
    "title": "The staging toolbar, navigation and contact page",
@@ -4478,48 +3325,6 @@
       }
      ],
      "recommendation": "Approve if the header stays on top."
-    }
-   ]
-  },
-  {
-   "id": "D-CART4",
-   "section": "rv-decide",
-   "title": "The cart: how it switches between items and the subtotal",
-   "area": "#267, order page (item 4)",
-   "device": "phone",
-   "type": "decide",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-18",
-     "summary": "**Today** (clip below) the item count and the Total are two toggles. One folds the lines, the other opens the sums above the Total row, and the pane's height jumps with each tap. Both options keep a fixed-height stage, so the pane never changes height, and meet four requirements: one obvious tap target per pane; no height jump; a 0.22 second fade or slide that is off under reduced motion; the open pane named and the other one a tap away. **Neither is built in the site.** The clips are throwaway prototypes injected into the page, with the taps shown as red dots.\n\n**A, a segmented Total row.** The Total row becomes a two-segment switch, \"10 items\" and \"Total $94\", the open one filled white. The lines and the sums cross-fade in the stage above it. Both panes are always one tap away, and the fill shows the state.\n\n**B, one swap button.** The row reads \"10 items   Total $94   [Subtotal >]\"; the one button names the other pane, and on the sums it becomes \"[< Items]\" while the label changes to \"Subtotal\". The stage slides sideways. One target only and the clearest wording, but a label, not a fill, says which pane is open.\n\n**A second ruling:** with ten items the lines get about two rows in portrait, because the rows that never give way (total row, badges or way and code, Hide and Continue, the nudge) take about 330px of the 385px the cap allows. On an SE on its side the lines have no room at all under the cap. Say which fix: raise the cap, or trim those rows.",
-     "look": [
-      {
-       "label": "Today (clip)",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/today.mp4"
-      },
-      {
-       "label": "Option A (clip)",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/option-A.mp4"
-      },
-      {
-       "label": "Option B (clip)",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/cart-204/option-B.mp4"
-      }
-     ],
-     "recommendation": "A. Pick A or B, and say raise the cap or trim the rows. Nothing is built until you pick."
-    },
-    {
-     "rev": 2,
-     "date": "2026-10-18",
-     "changed": "Decided: the segmented control (option A). The orders lane is building cart round 2.",
-     "summary": "You chose the segmented control on #267, with the fill sliding between the halves, so the two clips above are superseded and nothing is left to pick. Two more rules came with it:\n- **Small screens.** The pane keeps a guaranteed minimum of three item rows, the total row and \"Continue to payment\". Where that fits under the cap of about 48% of the screen, the cap applies. Where it does not, the pane grows, never past the visible area above Safari's toolbar: on an SE on its side it becomes a full-height sheet with its own scrolling list. This answers the known limit in R-ORDERS.\n- **Add-to-cart feedback.** The first add of a visit opens the pane, outlines the new line, closes it after three or four seconds and pulses the Hide/Show pill twice. Later adds leave it closed, show \"Added: item\" on the bar and pulse the pill once. Touching the pane keeps it open. Reduced motion gets no pulse and no slide.\n\nA review item with iPhone screenshots and two clips comes when round 2 lands on staging.",
-     "look": [
-      {
-       "label": "Your screenshot: the pane sits too high",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/cart-pane-gap-safari.png"
-      }
-     ]
     }
    ]
   },
@@ -5464,6 +4269,40 @@
   "drill_when": "Retired 2026-10-18: the launch is fixed forward, with no rollback to the invoice checkout (James, #267). (A field of a retired step.)",
   "pre-drill": "Retired 2026-10-18: the launch is fixed forward, with no rollback to the invoice checkout (James, #267). (A section; its place goes to pre-maint.)",
   "vendor-checks": "Retired 2026-10-18: its four questions moved. Axiom: ax-checks. Resend: rs-breaker-keys and the Pro step. Square and PayPal: post-launch QA (qa-sq-token, qa-pp-secret).",
-  "stg-reviewer": "Retired 2026-10-18: STAGING_REVIEWER_TOKEN is gone. Reviewers sign in through the staging access gate and see the site only, never the toolbar (gate-key, gate-allow, R-GATE)."
+  "stg-reviewer": "Retired 2026-10-18: STAGING_REVIEWER_TOKEN is gone. Reviewers sign in through the staging access gate and see the site only, never the toolbar (gate-key, gate-allow, R-GATE).",
+  "bk-b2": "Retired 2026-10-24: B2 is a post-launch second copy (#377); R2 only before launch (D-EXPORT, #373).",
+  "env-blockers": "Retired 2026-10-24: agent work; #251 and #381 track it.",
+  "stg-final": "Retired 2026-10-24: the coordinator asks when needed.",
+  "pl-held": "Retired 2026-10-24: held work landed or closed (#233 closing comment).",
+  "pl-rest": "Retired 2026-10-24: each item is an issue in the After launch milestone (index: #303).",
+  "pl-svgo": "Retired 2026-10-24: #295 reads his script; nothing to paste.",
+  "stg-jobs-clock": "Retired 2026-10-24: done: GitHub Actions stays for staging jobs (D-164, #164).",
+  "stg-square-down": "Retired 2026-10-24: done: accepted on the unit tests (2026-10-22, #151).",
+  "R-OP27": "Retired 2026-10-24: OP-27 lives on #274.",
+  "R-234": "Retired 2026-10-24: staging has no audience; the unsubscribe test runs on production (a line in #237).",
+  "R-CHECKS": "Retired 2026-10-24: Q3b and H16 were superseded (#192 closing comment).",
+  "R-PICKUP": "Retired 2026-10-24: superseded by scheduled pickup (#309).",
+  "R-ORDERS": "Retired 2026-10-24: superseded by the cart rounds on #274.",
+  "D-OPEN": "Retired 2026-10-24: replaced by #354 (questions) and #237 (steps).",
+  "R-STG-STALE": "Retired 2026-10-24: done: staging deploys again.",
+  "R-204": "Retired 2026-10-24: done: #204 closed; two unverified checks are #366.",
+  "R-H14": "Retired 2026-10-24: done: #205 closed.",
+  "R-232": "Retired 2026-10-24: done: #232 closed.",
+  "R-FT": "Retired 2026-10-24: done: #226 closed.",
+  "R-203": "Retired 2026-10-24: done: #203 closed.",
+  "R-MAIL": "Retired 2026-10-24: decided and built (sales@ for commerce, info@ for non-commercial, #267).",
+  "R-PREVIEWS": "Retired 2026-10-24: approved on #267: change nothing.",
+  "D-EXPORT": "Retired 2026-10-24: decided: R2 only before launch, B2 after (#373, #377).",
+  "D-ROT": "Retired 2026-10-24: decided: rotate Dec 1 to Jan 1 (docs/secrets.md).",
+  "D-QF1": "Retired 2026-10-24: decided: the accessibility scan is after launch (#197).",
+  "D-PY17": "Retired 2026-10-24: decided: unit tests now, live proof on launch day (#151, #237).",
+  "D-148": "Retired 2026-10-24: decided: Resend segments after launch (#148).",
+  "D-MA2": "Retired 2026-10-24: settled 2026-10-22 (#220).",
+  "D-MA1": "Retired 2026-10-24: settled 2026-10-22 (#220).",
+  "D-164": "Retired 2026-10-24: accepted (#164).",
+  "D-WH": "Retired 2026-10-24: decided: the webhook URL uses www (#237).",
+  "D-NOTIFY": "Retired 2026-10-24: decided: email only at launch; the phone page is a line in #377.",
+  "R-DECIDED": "Retired 2026-10-24: nothing further; see the closing comments of #233 and #192.",
+  "D-CART4": "Retired 2026-10-24: decided: the segmented control (#274)."
  }
 }
