@@ -1,5 +1,5 @@
 {
- "revision": 42,
+ "revision": 43,
  "updated": "2026-10-24",
  "notice": null,
  "phases": [
@@ -2420,6 +2420,18 @@
       }
      ],
      "recommendation": "Yes to A1 to A4 and B1 to B4 as drafted. Remove the Village card's Instagram link now."
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the map's open picks are **D20**, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D20 and #214)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -2466,6 +2478,18 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/issues/230"
       }
      ]
+    },
+    {
+     "rev": 3,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the placement pick is **D13**, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D13)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -2492,6 +2516,18 @@
       }
      ],
      "text": "The site sets two cookies, and only when you sign in. One holds a random code that tells the site you're signed in, and scripts on the page can't read it. The other holds only the time you signed in. Scripts on the page read it to notice when you sign in or out. Both last 30 days, and signing out deletes both."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the approval is **D1**, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D1)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -2515,6 +2551,18 @@
      ],
      "text": "…two random codes that PayPal's script stores when the payment buttons appear on the order page. They hold nothing about you.",
      "recommendation": "Approve as is."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the approval is **D2**, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D2)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -2549,6 +2597,18 @@
       }
      ],
      "text": "Pickup: \"On-farm pickup is at 99 East Killingly Road, Foster, RI 02825. The order page shows the times we have open, from tomorrow on; the one you choose is confirmed when you place your order. If something at the farm means we can't keep it, we'll cancel your order, refund it in full and email you to say so.\"\n\nHold: \"We hold your order for 7 days while you choose. If you haven't chosen by then, we cancel it, refund your items and email you to say so.\"\n\nContact: \"Visits are by appointment. To pick up an order, choose on-farm pickup and a time on the order page. To visit, call, text or send us a message first.\"\n\nAccessibility: \"We aim to meet the Web Content Accessibility Guidelines (WCAG) 2.1 at level A. The site has not been formally assessed.\""
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the final pass is **D5**, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D5)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -2575,6 +2635,18 @@
       }
      ],
      "recommendation": "Approve here once all 17 are done in the library; write \"clear them\" or \"keep them\" in the box."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the approvals are **D8** and **D9**, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D8, D9)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -2611,6 +2683,18 @@
      ],
      "text": "A Tour of Our New Ordering System\nOctober 18, 2026\n\n**Ordering from the farm online has been open for a few weeks now.** This summer was the first we sold our chicken, and we're grateful to everyone who tried it. Now you can keep buying from us after the market season ends. Here's a tour of how it works.\n\nOrdering\nThe order page has eggs by the dozen, whole chickens, cuts, and sausage. What's in stock changes as we go, and the page always shows what's available now. Choose what you'd like, say how you want to get it, and pay on the page. We email you to confirm your order.\n\nThere are three ways to get it:\n\nDelivery\n- We deliver every week on Thursday\n- Order by noon on Wednesday\n- As affordable as possible: $40 minimum, $5 fee\n- Check your ZIP code\n\nOn-farm pickup\n- Pick a day and a time when you order, 9 AM to 1 PM or 1 to 5 PM\n- No fee, no minimum\n\nDrop site\n- Every Saturday morning in Scituate, 10:00 to 11:00 AM\n- Pick up your order for free\n\nYour account\nYou don't need an account to order. If you'd like one, there's no password: type the email you order with on the sign-in page and we'll send you a link that signs you in. Signed in, you can see past orders and receipts, change or cancel an order in progress, and keep a delivery address on file.\n\nFarm news\nNews like this goes only to people who ask for it. You can sign up any time, or tick the email box when you place an order.\n\nAfter market season\nOur last market of the season is the Foster Farmers Market on October 25. After that, ordering online is the way to buy from us. Our hens, although slowing down, will keep laying all year round.\n\nThis is the first version of our online ordering system, and we want to hear how it works for you. Get in touch if you run into any problems.\n\n— James and Jim",
      "recommendation": "Approve the tour. Decide whether the email's opening should change (I'd leave it: the list hasn't heard from us). Say whether to keep the pay sentence."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the tour post rewrite is in **D25**, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D25)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -2692,6 +2776,18 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/blob/launch-guide/launch-guide/feedback/rw17-rev5.png"
       }
      ]
+    },
+    {
+     "rev": 6,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the subject and body are **D4**, with P1 to P12 in **D25**, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D4, D25)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -2718,6 +2814,18 @@
       }
      ],
      "text": "Our freezers are full, and you can now order from us online, for delivery or pickup. 🐓 The markets are ending, but you can keep enjoying our whole chickens, breasts, thighs, drumsticks, wings, maple sausage, and eggs all year round.\n…\n📷 Slide 3: @fussica"
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the approval is **D3**, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D3)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -2752,6 +2860,18 @@
      "changed": "The launch-day steps now follow your V1 decision (#192): Venmo launches live.",
      "summary": "Earlier steps still described hiding Venmo until the live test passed. They are fixed.\n- *Before the release*: leave `VENMO_HIDDEN` empty. There is no choice to make.\n- *Prove payments*: the $1 Venmo payment, its CLI refund and the check that Square shows the refund **Completed** now come first, right after the release deploy.\n- If Venmo misbehaves: set `VENMO_HIDDEN=1` on production and redeploy. The button greys out as \"Coming soon\".",
      "look": []
+    },
+    {
+     "rev": 4,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the launch-day setting conflicts with #237, so the question is **D28**, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D28)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -2819,6 +2939,18 @@
      "changed": "Your third answer on #267 is in (0052d05 and 5964969 on `next`, on staging at the next promotion; nothing is live until the release): backups are kept 30 days. That settles all three questions.",
      "summary": "For your approval: one more sentence on the privacy page, shown below with the others from the last revision. The R2 step (**Cloudflare R2: bucket and token**) now sets the bucket lock and one lifecycle rule to 30 days, so set them that way when you create the bucket; the B2 step matches. The old rules used `daily/` and `monthly/` prefixes that the backup files don't have, so the single rule is also what makes the 30 days true. `docs/backup.md` and `docs/secrets.md` say the same.",
      "text": "Privacy page, retention paragraph, the new last sentence:\n\nDeleted details can remain in our encrypted backups for up to 30 days."
+    },
+    {
+     "rev": 6,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the quiet-account sentence and notice are **D10**, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D10)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -2990,6 +3122,18 @@
      "date": "2026-10-18",
      "summary": "This is the one message Jim ever gets from the system. The email lane's draft (`escalation` in `lib/templates.mjs`), in full:\n\n**Subject:** Please switch on the order pause\n\n> James hasn't responded to an urgent problem with online orders: some payments may be going through without an order being saved.\n\n> To stop more orders from coming in until James can look, switch on maintenance mode with the button below. Customers will see a short notice that the site is under maintenance.\n\n**Button:** Switch on maintenance mode\n\nIt goes out an hour after the alert is raised and again every hour while the alert stays open. The detector that raises it is not built yet, so nothing sends it today.\n\nThe subject says \"order pause\" and the rest says \"maintenance mode\"; Jim sees both words.",
      "recommendation": "Approve the body and button as drafted. Change the subject to \"Please switch on maintenance mode\", so the subject and the button use the same words. Add one line before the button: \"This message repeats every hour until someone responds.\" Write \"as is\" to keep the draft unchanged."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the wording is **D29**, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D29)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ]
   },
@@ -3006,6 +3150,18 @@
      "date": "2026-10-18",
      "summary": "Your comment on #267 named two secrets that are swapped at once, with no 31-day overlap: `STAGING_TOKEN` and the maintenance secret. `docs/secrets.md` (rule 6) also lists `E2E_STAGING_TOKEN` there, because it is the same kind of secret: we generate it, only staging and the test suite hold it, and it opens only the staging back-office API. Keeping the old one 31 days would need code that accepts two values, for a token that unlocks nothing on production.\n\nThe swap is one sitting: Netlify's staging context, the GitHub secret, `.env.e2e-staging` and the password manager.",
      "recommendation": "Approve: swap `E2E_STAGING_TOKEN` at once, like the other two. Otherwise say which overlap you want, and the rule and the token's code change."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the swap question is **D30**, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D30)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ]
   },
@@ -3026,6 +3182,18 @@
       {
        "label": "docs/security.md",
        "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/security.md"
+      }
+     ]
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the red audit is #330 and clears 2026-10-26, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (#330)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
     }
@@ -3050,6 +3218,18 @@
        "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/security.md"
       }
      ]
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the second GitHub login is a line in #377, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (#377)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ]
   },
@@ -3070,6 +3250,18 @@
       {
        "label": "docs/security.md",
        "url": "https://github.com/north-foster-farm/north-foster-farm/blob/next/docs/security.md"
+      }
+     ]
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: where scan reports go is a line in #377, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (#377)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
       }
      ]
     }
@@ -3119,6 +3311,18 @@
      ],
      "text": "No off-season\nThree ways to get your order\nOn-farm pickup: Pick a time when you order; 99 E Killingly Rd, Foster, RI; No minimum, no fee\nDrop site: Saturdays, 10:00–11:00 AM; 46 Institute Ln, North Scituate, RI; No minimum, no fee\nDelivery: Every Thursday, 10:00 AM–4:00 PM; Most of central Rhode Island and parts of eastern Connecticut; $40 minimum, $5 fee",
      "recommendation": "Approve as it stands."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the wording approval is **D31**, urgent: the band swaps on October 26, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D31)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -3143,6 +3347,18 @@
      ],
      "text": "June 2025 Update\nDecember 2024 Update",
      "recommendation": "Approve the two new titles."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the title approval is **D32**, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D32)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -3200,6 +3416,18 @@
      ],
      "text": "**Before (logs):** \"When something goes wrong with an order, the line may hold the order as it was sent, including your contact details, so we can put it right.\"\n\n**After (logs):** \"Log lines never hold your contact details: your name, email address, phone number and address are removed before a line is written.\"\n\n**New, under What your browser keeps:** \"If you sign up for farm news, this browser remembers that you did, so it can hide the sign-up forms. That note holds no personal information and never your email address. It stays until you unsubscribe or turn farm news off.\"",
      "recommendation": "Approve both. Retention (30 days) stays as written until you confirm Axiom's setting."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the approval is **D33**, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D33)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -3222,6 +3450,18 @@
       }
      ],
      "recommendation": "Approve once the key names look right to you; the check script already fails on a missing or extra name."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the approval is **D21** (#372), in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D21)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ],
    "device": "any",
@@ -3302,6 +3542,18 @@
       }
      ],
      "recommendation": "Approve if staging looks right. Keep both calls as built unless you say otherwise."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the rebuild is tracked on #214, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (#214)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ]
   },
@@ -3370,6 +3622,18 @@
       }
      ],
      "recommendation": "Approve the required sets and the promotion flow as proposed, and turn on secret scanning first: it is a setting, free, and blocks at GitHub."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the rulesets are a line in #237, with **D22** and **D23** for the two open calls, in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D22, D23, #237)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ]
   },
@@ -3447,6 +3711,18 @@
       }
      ],
      "recommendation": "A: it costs no height above the catalog, and it is the placement you preferred in #303."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-24",
+     "changed": "Moved to GitHub, which is now the one place for questions (curator, 2026-10-24).",
+     "summary": "This item's question lives on GitHub: the placement pick is **D34** (#370), in [Decisions for James (#354)](https://github.com/north-foster-farm/north-foster-farm/issues/354). Answer there. Nothing in this item changed; it stays here as the history.",
+     "look": [
+      {
+       "label": "Decisions for James (D34)",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/354"
+      }
+     ]
     }
    ]
   }
