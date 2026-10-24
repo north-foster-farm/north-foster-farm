@@ -37,6 +37,8 @@ targetPort = 1313
 port = 8888
 publish = "public"
 framework = "#custom"
+# Agents run netlify dev often; without this it opens a browser each time.
+autoLaunch = false
 
 # One order, deep-linked from the emails about it. The account page
 # reads the id off the path; the session decides whose order it is.
