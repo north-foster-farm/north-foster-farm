@@ -3,17 +3,12 @@
 {{ $instagram := hugo.Data.socialMedia.instagram.url }}
 <div class="flex-grow-1"></div>
 {{ partial "footer/shop.html" . }}
-{{/* One centered column at every width (#226, R-FT, #303): the
-     sign-up on the dark band, the silhouette, then the links, how to
-     reach the farm, and the copyright. Rows wrap as the width
-     shrinks; nothing switches layout at a breakpoint. */}}
+{{/* One centered column at every width (#226, R-FT, #303, #341): the
+     dark band's room for the silhouette, then the links, the news
+     sign-up, how to reach the farm, and the copyright. Rows wrap as
+     the width shrinks; nothing switches layout at a breakpoint. */}}
 <footer class="site-footer">
-  <div class="footer-news" data-news-block>
-    <div class="container">
-      <h2 class="news-signup-heading">Want occasional farm news by email?</h2>
-      {{ partial "news-signup.html" (dict "id" "news-footer" "button" "Yes") }}
-    </div>
-  </div>
+  <div class="footer-news" aria-hidden="true"></div>
   {{/* The wrapper carries the drop shadow round the silhouette; the
        base carries the mask (_footer.scss). */}}
   <div class="footer-wrap">
@@ -21,6 +16,10 @@
   <div class="container">
     <div class="footer-lists">
       {{ partial "footer/menu.html" . }}
+      <div class="footer-signup" data-news-block>
+        <h2 class="news-signup-heading">Want occasional farm news by email?</h2>
+        {{ partial "news-signup.html" (dict "id" "news-footer" "button" "Yes") }}
+      </div>
       {{/* How to reach the farm, on one dotted line like the links. */}}
       <ul class="dot-list footer-contact" data-dot-list>
         <li><a href="{{ $phone.href }}">{{ $phone.display }}</a></li>
