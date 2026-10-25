@@ -1,5 +1,5 @@
 {
- "revision": 50,
+ "revision": 51,
  "updated": "2026-10-24",
  "notice": null,
  "phases": [
@@ -4661,6 +4661,28 @@
       }
      ],
      "recommendation": "Add both before the first scheduled run."
+    }
+   ],
+   "device": "laptop",
+   "type": "account"
+  },
+  {
+   "id": "D-354-44",
+   "section": "rv-decide",
+   "title": "Approve 14 coverage packages for the supply check (#450)",
+   "area": "#450",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-25",
+     "summary": "Coverage per PR (#450, report only) adds c8 to the dev dependencies. The supply-chain check (`check:supply`) refuses 14 of its packages because they have no provenance attestation. Approving means adding them to `security/attestation-baseline.json`, the same kind of approval as the fast-uri exceptions in #330.\n\n- All are development-only: CI's coverage job uses them, and nothing reaches the site or the functions.\n- c8 12.0.0 was published 2026-07-14, well past the cooldown.\n- `npm audit signatures` verifies all 325 registry signatures.\n- Most are long-standing istanbul packages that predate npm provenance.\n\nTo approve, reply \"approved\" on the #450 comment below. The full package list is there.",
+     "look": [
+      {
+       "label": "#450 comment with the package list",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/450#issuecomment-6398947082"
+      }
+     ],
+     "recommendation": "Approve."
     }
    ],
    "device": "laptop",
