@@ -1,8 +1,9 @@
 // Farm news by email: opt-in only, ever. Consent is `marketing` and
-// `marketingAt` on the customer record, set by the sign-up field, the
-// checkout box, the settings box, or the confirmation link this file
-// mails to the old list. A sign-up on the site joins at once; only
-// the old list is asked to confirm (James, W1, 2026-09-26). Anyone
+// `marketingAt` on the customer record, set by the confirmation link
+// the public sign-up field mails, the checkout box, the settings box,
+// or the import of the old list's paper sheets. Only the public field,
+// which anyone can type any address into, asks to confirm; the boxes
+// and the old list join at once (James, #303, 2026-10-25). Anyone
 // with an email address may opt in; a record is made for an address
 // that has never ordered.
 //
@@ -173,8 +174,9 @@ export const joined = (before, after) => !!after
   && after.marketing === true && !(before && before.marketing === true);
 
 // The welcome (T6), the whole welcome sequence (#267), to a record
-// just put on the list: the news field, account settings, the order
-// box once the order is placed, or the old list's confirmation. Never
+// just put on the list: the news field's confirmation, account
+// settings, the order box once the order is placed, or the import of
+// the old list. Never
 // throws; a welcome that fails leaves them on the list.
 // -> true when it went.
 export const welcome = async (stores, customer, {
@@ -220,9 +222,12 @@ const withinRate = async (stores, address, now) => {
 
 // --- Signing up on the site ----------------------------------------
 
-// The footer and news-page field: on the list at once (W1), then the
-// welcome (T6). `page` is the path it was sent from, for the consent
-// log. -> { ok: true, email } or { ok: false, reason }.
+// The footer and news-page field: anyone can type any address into
+// it, so it mails the confirmation link below, and the address joins
+// only when that link is followed (James, #303). An address already
+// on the list is sent nothing and gets the same answer. `page` is the
+// path it was sent from, for the consent log.
+// -> { ok: true, email } or { ok: false, reason }.
 export const subscribe = async (stores, { email, firstName, lastName }, {
   page = "",
   now = clock(),
@@ -237,21 +242,23 @@ export const subscribe = async (stores, { email, firstName, lastName }, {
     return { ok: false, reason: "rate" };
   }
 
-  const before = await getCustomer(stores, address);
-  const after = await optIn(stores, address, {
-    firstName: text(firstName), lastName: text(lastName), source: "signup",
-    detail: page ? `the sign-up form on ${page}` : "the sign-up form",
-  }, now);
+  const existing = await getCustomer(stores, address);
 
-  if (joined(before, after)) await welcome(stores, after, { env, mail, now });
+  if (existing && existing.marketing === true) {
+    return { ok: true, email: address };
+  }
 
-  return { ok: true, email: address };
+  const r = await requestSubscribe(stores, {
+    email: address, firstName, lastName,
+  }, { now, env, mail, limit: false, page });
+
+  return { ok: r.ok, email: address };
 };
 
 // --- The confirmation link -----------------------------------------
 
-// Mails the old list's one-click confirmation. The address is only
-// added when that link is followed.
+// Mails the sign-up field's one-click confirmation. The address is
+// only added when that link is followed.
 // -> { ok: true, url, email } or { ok: false, reason }.
 export const requestSubscribe = async (stores, {
   email, firstName, lastName,
@@ -262,6 +269,7 @@ export const requestSubscribe = async (stores, {
   send = true,
   limit = true,
   ttl = CONFIRM_TTL,
+  page = "",
 } = {}) => {
   const address = normalizeEmail(email);
 
@@ -278,6 +286,10 @@ export const requestSubscribe = async (stores, {
     email: address,
     firstName: first,
     lastName: last,
+    // Marks the sign-up field's links. A link without it was mailed
+    // by the old list's re-invite, before #303, and confirms as one.
+    via: "form",
+    page: text(page, 100),
     expires: now.getTime() + ttl,
     createdAt: now.toISOString(),
   });
@@ -301,8 +313,9 @@ export const requestSubscribe = async (stores, {
 };
 
 // The click. Single use; expired links are refused. A click that puts
-// the address on the list starts the welcome, as a sign-up here does
-// (#267). -> { ok: true, email } or { ok: false, reason }.
+// the address on the list starts the welcome, as every way on does
+// (#267). The consent is the sign-up field's, confirmed.
+// -> { ok: true, email } or { ok: false, reason }.
 export const confirmSubscribe = async (stores, token, {
   now = clock(),
   env = process.env,
@@ -321,12 +334,21 @@ export const confirmSubscribe = async (stores, token, {
 
   if (now.getTime() > found.expires) return { ok: false, reason: "expired" };
 
+  const sent = String(found.createdAt || "").slice(0, 10);
+  const form = found.page ? `the sign-up form on ${found.page}`
+    : "the sign-up form";
   const before = await getCustomer(stores, found.email);
-  const customer = await optIn(stores, found.email, {
-    firstName: found.firstName, lastName: found.lastName, source: "confirm",
-    detail: `the confirmation link sent ${
-      String(found.createdAt || "").slice(0, 10) || "to the old list"}`,
-  }, now);
+  const customer = await optIn(stores, found.email, found.via === "form"
+    ? {
+      firstName: found.firstName, lastName: found.lastName,
+      source: "signup",
+      detail: `${form}, confirmed by the link sent ${sent}`,
+    }
+    : {
+      firstName: found.firstName, lastName: found.lastName,
+      source: "confirm",
+      detail: `the confirmation link sent ${sent || "to the old list"}`,
+    }, now);
 
   if (joined(before, customer)) {
     await welcome(stores, customer, { env, mail, now });
@@ -335,23 +357,57 @@ export const confirmSubscribe = async (stores, token, {
   return { ok: true, email: customer.email };
 };
 
-// The re-opt-in of an existing list: the confirmation email to each
-// address, once. Addresses already consenting are skipped, bad
-// ones reported. With `bin/nff --no-email` nothing is sent and the
-// addresses that would have been invited are listed as withheld.
-// -> { invited, skipped, invalid, withheld }.
-export const inviteSubscribers = async (stores, rows, {
+// --- The old list --------------------------------------------------
+
+// YYYY-MM-DD, a real day. -> noon UTC that day, which is the same day
+// in the farm's zone, as an ISO time; or null.
+const sheetDay = (value) => {
+  const day = String(value || "").trim();
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+
+  const at = new Date(`${day}T12:00:00.000Z`);
+
+  return !Number.isNaN(at.getTime()) && at.toISOString().startsWith(day)
+    ? at.toISOString() : null;
+};
+
+// The old list, imported as subscribed (James, #303): it signed up on
+// the farm's paper sheets, which are the record of consent, so there
+// is no confirmation round. Each consent is dated by its sheet (the
+// row's `date`, else `date` here) and names its market (`market`), so
+// the welcome can say "you signed up on our sign-up sheet at ...".
+// `capturedBy` and `evidence` (a scan's file name) go in the log.
+//
+// Left alone: an address already consenting (skipped); one whose
+// record has said no here, through Resend or by an unsubscribe link,
+// which a sheet older than that choice can't overrule, or whose owner
+// had their details deleted (declined); a bad address or a missing,
+// unreal or future date (invalid). Each address joined gets the
+// welcome, with its one-click unsubscribe; with `bin/nff --no-email`
+// it is withheld and the address listed so. Nothing reaches Resend
+// from here: the next sync adds the contacts.
+// -> { imported, skipped, declined, invalid, withheld }.
+export const importSubscribers = async (stores, rows, {
+  date = "",
+  market = "",
+  capturedBy = null,
+  evidence = null,
   now = clock(),
   env = process.env,
   mail = sendMail,
   dryRun = false,
 } = {}) => {
-  const report = { invited: [], skipped: [], invalid: [], withheld: [] };
+  const report = {
+    imported: [], skipped: [], declined: [], invalid: [], withheld: [],
+  };
 
   for (const row of rows) {
     const address = normalizeEmail(row.email);
+    const givenAt = sheetDay(row.date || date);
 
-    if (!validEmail(address)) {
+    if (!validEmail(address) || !givenAt
+      || Date.parse(givenAt) > now.getTime()) {
       report.invalid.push(row.email);
       continue;
     }
@@ -362,23 +418,37 @@ export const inviteSubscribers = async (stores, rows, {
       report.skipped.push(address);
       continue;
     }
+    if ((existing && existing.marketingAt)
+      || await stores.customers.get(forgottenKey(address))) {
+      report.declined.push(address);
+      continue;
+    }
+
+    report.imported.push(address);
+    if (dryRun) continue;
+
+    const customer = await optIn(stores, address, {
+      firstName: text(row.firstName), lastName: text(row.lastName),
+      source: "import",
+      detail: text(row.market || market, 100),
+      capturedBy: capturedBy || null,
+      evidence: evidence || null,
+      givenAt,
+    }, now);
+
     if (customerEmailWithheld()) {
       report.withheld.push(address);
       continue;
     }
-    if (!dryRun) {
-      await requestSubscribe(stores, {
-        email: address, firstName: row.firstName, lastName: row.lastName,
-      }, { now, env, mail, limit: false });
-    }
-    report.invited.push(address);
+    await welcome(stores, customer, { env, mail, now });
   }
 
   return report;
 };
 
-// A CSV of addresses: a header row naming email, first and last (any
-// order, any case) or, without one, email first then the names.
+// A CSV of addresses: a header row naming email, first and last, and
+// for the old list's sheets date and market (any order, any case) or,
+// without one, email first then the names.
 export const parseCsv = (content) => {
   const lines = String(content).split(/\r?\n/).map((l) => l.trim())
     .filter(Boolean);
@@ -397,11 +467,15 @@ export const parseCsv = (content) => {
   const e = col("email", 0);
   const f = col("first", 1);
   const l = col("last", 2);
+  const d = col("date", -1);
+  const m = col("market", -1);
 
   return rows.map((r) => ({
     email: e >= 0 ? r[e] || "" : "",
     firstName: f >= 0 ? r[f] || "" : "",
     lastName: l >= 0 ? r[l] || "" : "",
+    date: d >= 0 ? r[d] || "" : "",
+    market: m >= 0 ? r[m] || "" : "",
   }));
 };
 

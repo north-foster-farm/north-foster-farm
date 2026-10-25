@@ -564,6 +564,8 @@ describe("profile and address", () => {
 
     assert.equal(sent.length, 1, "welcomed to farm news (T6)");
     assert.equal(sent[0].subject, "You're on the North Foster Farm list");
+    assert.doesNotMatch(sent[0].text, /confirm\?token=/,
+      "on the list at once, with no confirmation (#303)");
 
     const off = await updateProfile(stores, ok.customer, {
       marketing: false,

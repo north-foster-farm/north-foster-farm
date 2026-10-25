@@ -1,6 +1,7 @@
 // The consent log, the schema-only fields and the list template
 // (#273).
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { describe, it } from "node:test";
 
 import {
@@ -27,19 +28,23 @@ const mailbox = () => {
 const tokenIn = (url) => new URL(url).searchParams.get("token");
 
 describe("the consent log", () => {
-  it("logs a sign-up with its page and time", async () => {
+  it("logs a confirmed sign-up with its page and time", async () => {
     const stores = testStores();
-    const { mail } = mailbox();
+    const { sent, mail } = mailbox();
 
     await subscribe(stores, { email: "pat@example.com" },
       { now, env, mail, page: "/news/" });
+    await confirmSubscribe(stores, tokenIn(sent[0].text
+      .match(/https:\S+confirm\?token=\S+/)[0]), { now: later, env, mail });
 
     const [event] = (await getCustomer(stores, "pat@example.com")).consent;
 
     assert.deepEqual(event, {
       action: "in", type: "website-form",
-      detail: "the sign-up form on /news/", at: now.toISOString(),
-      recordedAt: now.toISOString(), capturedBy: null, evidence: null,
+      detail: "the sign-up form on /news/, confirmed by the link sent " +
+        "2026-10-20",
+      at: later.toISOString(),
+      recordedAt: later.toISOString(), capturedBy: null, evidence: null,
     });
   });
 
@@ -152,8 +157,8 @@ describe("the schema-only fields", () => {
   });
 });
 
-describe("the re-invite's click", () => {
-  it("starts the welcome, naming the confirmation", async () => {
+describe("the sign-up field's click", () => {
+  it("starts the welcome, naming the website", async () => {
     const stores = testStores();
     const { sent, mail } = mailbox();
     const r = await requestSubscribe(stores, { email: "sam@example.com" },
@@ -163,12 +168,30 @@ describe("the re-invite's click", () => {
       { now: later, env, mail });
 
     assert.equal(sent.length, 2);
-    assert.match(sent[1].text,
-      /because you confirmed you'd like to keep hearing from us/);
-    assert.match(sent[1].text,
-      /moved our list to a new email provider, so this welcome/);
+    assert.match(sent[1].text, /because you signed up on our website/);
+    assert.doesNotMatch(sent[1].text, /moved our list/);
     assert.ok(sent[1].headers["List-Unsubscribe"]);
   });
+
+  it("starts the re-invite's welcome for a link mailed before #303",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+      const token = "old-invite-token";
+
+      await stores.auth.set(`news/${createHash("sha256").update(token)
+        .digest("hex")}`, {
+        email: "sam@example.com", firstName: "", lastName: "",
+        expires: later.getTime() + 1, createdAt: now.toISOString(),
+      });
+      await confirmSubscribe(stores, token, { now: later, env, mail });
+
+      assert.equal(sent.length, 1);
+      assert.match(sent[0].text,
+        /because you confirmed you'd like to keep hearing from us/);
+      assert.match(sent[0].text,
+        /moved our list to a new email provider, so this welcome/);
+    });
 });
 
 const who = (type, detail = "", at = now.toISOString()) => ({
@@ -253,12 +276,13 @@ describe("the list template", () => {
     assert.match(m.text, /Order: https:\/\/x\/order\//);
   });
 
-  it("gives the invitation no unsubscribe and no second reason", () => {
+  it("gives the confirmation no unsubscribe and no second reason", () => {
     const invite = newsConfirm("a@b.co", "https://x/c", { links });
 
     assert.doesNotMatch(invite.text, /Unsubscribe/);
     assert.doesNotMatch(invite.text, /You're getting this because/);
-    assert.match(invite.text, /previously joined our mailing list\./);
+    assert.match(invite.text,
+      /If you didn't request this email, you can safely ignore it\./);
   });
 
   it("opens on James's T6 line, or thanks the re-invite for staying",

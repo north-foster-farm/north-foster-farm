@@ -7,7 +7,6 @@
 import email from "../../../data/emails/launch-email.json" with {
   type: "json",
 };
-import accounts from "../../../data/accounts.json" with { type: "json" };
 import company from "../../../data/company.json" with { type: "json" };
 import terms from "./terms.mjs";
 import {
@@ -77,8 +76,6 @@ export const facts = (now = clock()) => {
     bulkFirstAt: dollars(tiers[0].threshold),
     bulkLastOff: dollars(tiers.at(-1).off),
     bulkLastAt: dollars(tiers.at(-1).threshold),
-    // How long the sign-up email's button works (news.mjs CONFIRM_TTL).
-    inviteLife: span(accounts.newsInviteDays),
   };
 };
 

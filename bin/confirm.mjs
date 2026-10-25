@@ -42,8 +42,10 @@ const DESTRUCTIVE = {
     whole: true },
   "jobs run": { does: "run every job, which emails customers, running",
     whole: true },
-  "audience invite": { does: "email the sign-up confirmations, running",
-    unless: "dry-run", whole: true },
+  "audience import": {
+    does: "put the old list on farm news and email the welcomes, running",
+    unless: "dry-run", whole: true,
+  },
   "audience sync": { does: "sync the audience, running",
     unless: "dry-run", whole: true },
   "migrate scheduled-pickup": {
