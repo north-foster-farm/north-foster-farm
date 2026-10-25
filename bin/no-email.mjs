@@ -8,7 +8,7 @@
 const SENDS_NEWS = {
   "jobs run": "the daily jobs send the quiet-account notices and the " +
     "farm-news welcome",
-  "audience invite": "an invitation is a farm-news confirmation link",
+  "audience import": "each address imported gets the farm-news welcome",
 };
 
 // -> the refusal's words, or null when the command may run.

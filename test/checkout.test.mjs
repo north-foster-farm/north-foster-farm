@@ -201,6 +201,8 @@ describe("completeOrder", () => {
     assert.equal(sent.length, 3);
     assert.equal(sent[2].subject, "You're on the North Foster Farm list");
     assert.equal(sent[2].to, boxed.customer.email);
+    assert.doesNotMatch(sent.map((m) => m.text).join("\n"),
+      /confirm\?token=/, "on the list at once, with no confirmation (#303)");
 
     // Sent once: a second run (the jobs after the page's own) adds none.
     await announceNew(stores, saved, { mail, env, now });

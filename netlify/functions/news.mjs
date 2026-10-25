@@ -1,12 +1,14 @@
 // Farm news by email.
 //
-//   POST /api/news/subscribe   { email, firstName? }  on the list at
-//                              once; answers { ok: true } for any
-//                              address that looks like one, so the
-//                              list cannot be probed from here
-//   GET  /api/news/confirm     ?token=  the old list's click (bin/nff
-//                              audience invite); lands on /news/ with
-//                              ?news=confirmed, expired or invalid
+//   POST /api/news/subscribe   { email, firstName? }  mails the
+//                              confirmation link (#303); answers
+//                              { ok: true } for any address that looks
+//                              like one, so the list cannot be probed
+//                              from here
+//   GET  /api/news/confirm     ?token=  that link's click, which puts
+//                              the address on the list; lands on
+//                              /news/ with ?news=confirmed, expired or
+//                              invalid
 //   POST /api/news/unsubscribe ?token= or { token }  off the list in
 //                              one click (T6c): the welcome's link, by
 //                              way of /news/, or a mail app's
@@ -70,8 +72,8 @@ export const handle = async (req, {
         errors: { email: fieldError("email", body.email) },
       });
     }
-    // A rate-limited address gets the same answer as any other: it
-    // is on the list already.
+    // A rate-limited address gets the same answer as any other: its
+    // link is on the way already.
     log.info({ event: "news.subscribed", ok: r.ok, reason: r.reason || null });
 
     return json(200, { ok: true });

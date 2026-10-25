@@ -1,7 +1,8 @@
 // Farm news by email: the field in the footer and on the news page.
-// One request puts the address on the list (W1). The old list's
-// confirmation link lands back on /news/ with ?news=, which the line
-// under the field explains. The welcome email's unsubscribe link
+// Anyone can type any address here, so a request mails a confirmation
+// link, and only its click puts the address on the list (#303). The
+// click lands back on /news/ with ?news=, which the line under the
+// field explains. The welcome email's unsubscribe link
 // lands with ?unsubscribe=<token>, posted from here so that a mail
 // scanner fetching the link takes no one off (T6c).
 
@@ -14,6 +15,8 @@ import { forget } from "../session/session.js";
 import { forgetJoined, remember, wireNewsHiding } from "./hide.js";
 
 const JOINED = "You're on the list. Thanks!";
+// Draft, to approve (#303).
+const SENT = "Check your email: click the link we sent you to join.";
 
 const LANDED = {
   confirmed: JOINED,
@@ -70,10 +73,11 @@ export const wire = (form) => {
       api("/api/news/subscribe", { method: "POST", body: { email } })
         .catch(() => ({ ok: false })));
 
+    // Not on the list until the click, so the forms stay: the
+    // confirmed landing remembers the sign-up.
     if (ok) {
-      say(note, JOINED, "ok");
+      say(note, SENT, "ok");
       input.value = "";
-      remember();
       celebrate(button);
     } else if (data && data.maintenance) {
       say(note, data.message, "wait");
