@@ -52,8 +52,8 @@ moment the payment goes through, and we email you to confirm it.
 ## Your account
 
 You don't need an account to order. If you'd like one, there's no
-password: type the email you order with on the
-[sign-in page](/login/) and we send you a link that signs you in.
+password: type the email address you order with on the
+[sign-in page](/login/), and we'll send you a link that signs you in.
 Signed in, you can see past orders and receipts, change or cancel an
 order in progress, and keep a delivery address on file.
 
