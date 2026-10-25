@@ -1,8 +1,10 @@
-// The launch email James sends from Fastmail, with its facts read from
-// data/ (Q21b). data/emails/launch-email.json holds the email lane's
-// words with a {token} wherever a price, fee, day, hour, date or place
-// would go; fill() puts in the values for the day it renders. An unknown
-// token throws, so a typo can't reach the list.
+// The launch email to the old list (#153), with its facts read from
+// data/ (Q21b). data/emails/launch-email.json holds the writers' words
+// with a {token} wherever a price, fee, day, hour, date or place would
+// go; fill() puts in the values for the day it renders. An unknown
+// token throws, so a typo can't reach the list. The one-click
+// unsubscribe link is each reader's own, so only the send knows it;
+// until then {unsubscribeUrl} shows a placeholder, as the photo does.
 
 import email from "../../../data/emails/launch-email.json" with {
   type: "json",
@@ -48,9 +50,14 @@ const starting = (now) =>
     ? `, starting ${monthDay(drop.start)}`
     : "";
 
+export const UNSUBSCRIBE_PLACEHOLDER =
+  "[each reader's own one-click unsubscribe link]";
+
 // The facts as of now, so an email sent after the drop site opens
 // doesn't announce its first day.
-export const facts = (now = clock()) => {
+export const facts = (
+  now = clock(), { unsubscribeUrl = UNSUBSCRIBE_PLACEHOLDER } = {},
+) => {
   const money = moneyOn(terms.money, today(now, terms.timeZone));
   const tiers = money.bulkTiers;
 
@@ -77,6 +84,7 @@ export const facts = (now = clock()) => {
     bulkLastAt: dollars(tiers.at(-1).threshold),
     // How long the sign-up email's button works (news.mjs CONFIRM_TTL).
     inviteLife: span(accounts.newsInviteDays),
+    unsubscribeUrl,
   };
 };
 
@@ -86,8 +94,8 @@ export const fill = (text, values = facts()) =>
     return values[key];
   });
 
-export const launchEmail = (now = clock()) => {
-  const values = facts(now);
+export const launchEmail = (now = clock(), options = {}) => {
+  const values = facts(now, options);
   return {
     subject: fill(email.subject, values),
     preview: fill(email.preview, values),

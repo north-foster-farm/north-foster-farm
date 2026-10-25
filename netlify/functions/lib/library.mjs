@@ -811,7 +811,8 @@ export const library = [
   // Farm news
   {
     id: "news-launch-email", name: "Farm news: we're online",
-    when: "Sent by James from Fastmail at launch, to the old list",
+    when: "To the old list at launch, from Resend once its send " +
+      "exists (#153); the list is not asked to opt in again (#303)",
     audience: "list", tags: ["list", "farm news", "launch", "draft"],
     build: () => {
       const launch = launchEmail();
@@ -932,10 +933,10 @@ const WAITING = {
     "the words and photos are placeholders. The photos have no public " +
     "address yet, so here they show as broken images.",
   "news-launch-email": "Subject and preview text are his (2026-09-26). " +
-    "The whole body is the email lane\x27s draft and waits on him (W18), " +
-    "with \"much of Rhode Island\" (Q5). Draft: \"In the next few days " +
-    "you\x27ll get one more email from us\", since the invitations go out " +
-    "over several mornings (F6).",
+    "The body is writer2\x27s redraft of 2026-10-25 for the #303 " +
+    "decision (the old list is not asked to opt in again) and waits on " +
+    "him (Q8). The send fills each reader\x27s unsubscribe link; here it " +
+    "is a placeholder.",
 };
 
 for (const e of library) {
