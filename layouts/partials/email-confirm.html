@@ -10,7 +10,7 @@
   Params:
     prefix  "account" or "login": the ids' first word
 */}}
-<div class="account-card account-confirm" id="{{ .prefix }}-confirm" role="status" aria-live="polite" tabindex="-1" data-support="{{ hugo.Data.company.emailInfo }}" hidden>
+<div class="account-card account-confirm" id="{{ .prefix }}-confirm" role="status" aria-live="polite" tabindex="-1" data-support="{{ hugo.Data.company.email }}" hidden>
   <h2 class="h4">Confirm your new email address</h2>
   <p>Change your email address to <strong data-confirm-email></strong>?</p>
   <div class="alert alert-danger">Once you confirm, you can no longer sign in with your current address.</div>

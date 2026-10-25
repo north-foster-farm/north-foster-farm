@@ -142,7 +142,7 @@ describe("following the link (#240)", () => {
         /email address on your .* account was changed/);
       assert.match(sent[0].text, new RegExp(`changed from ${OLD} to ${NEW}`));
       assert.match(sent[0].text,
-        /contact us at info@northfosterfarm\.com right away/);
+        /contact us at sales@northfosterfarm\.com right away/);
       // James's approved sentence, "if you get it" and all.
       assert.match(sent[0].text, /farm news, if you get it, will be sent/);
     });

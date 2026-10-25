@@ -270,9 +270,9 @@ const contactUrl = (links) =>
   (links && links.contact) || `mailto:${company.email}`;
 
 // The support address, a mailto link (#240): "[contact us]" in a
-// paragraph is a link to it in the HTML and "contact us at info@..."
-// in the plain text.
-const SUPPORT = company.emailInfo;
+// paragraph is a link to it in the HTML and "contact us at sales@..."
+// in the plain text. sales@, like every customer contact link (#400).
+const SUPPORT = company.email;
 const pSupport = (text) => ({
   text: text.replace("[contact us]", `contact us at ${SUPPORT}`),
   html: `<p>${inline(text).replace("[contact us]",

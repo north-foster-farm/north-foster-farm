@@ -148,7 +148,7 @@ test.describe("changing your own email", () => {
         "That email address already exists."
       );
       await expect(error.getByRole("link", { name: "contact us" }))
-        .toHaveAttribute("href", "mailto:info@northfosterfarm.com");
+        .toHaveAttribute("href", "mailto:sales@northfosterfarm.com");
 
       // Escape closes the field and gives the focus back to Change.
       await page.locator("#email-new").press("Escape");
