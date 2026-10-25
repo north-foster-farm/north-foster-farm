@@ -233,7 +233,8 @@ describe("what does not count", () => {
       }), { stores, env, now: yearOn, mail: mailbox().mail });
 
     assert.equal(res.status, 200);
-    assert.equal((await getCustomer(stores, PAT)).marketing, true);
+    assert.equal((await getCustomer(stores, PAT)).marketing, false,
+      "not on the list until the link is followed (#303)");
     assert.equal(await last(stores), made);
   });
 

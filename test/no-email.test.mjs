@@ -7,7 +7,7 @@ import { buildModel } from "../assets/scripts/order/lib/events.mjs";
 describe("--no-email refusals", () => {
   it("refuses the commands that send retention or news email", () => {
     assert.match(noEmailRefusal("jobs", "run"), /transactional/);
-    assert.match(noEmailRefusal("audience", "invite"), /confirmation/);
+    assert.match(noEmailRefusal("audience", "import"), /welcome/);
   });
 
   it("lets the order commands through", () => {

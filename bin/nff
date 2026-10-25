@@ -42,7 +42,7 @@ const USAGE = `Usage:
   email is noted on the order as suppressed (history
   mail.suppressed.<name>), so the jobs never send it later. The
   farm's own notices still go. It does not cover the retention and
-  farm-news emails, so jobs run and audience invite refuse it.
+  farm-news emails, so jobs run and audience import refuse it.
   bin/nff customers list
   bin/nff customers show <email>
   bin/nff customers set <email> name=.. phone=.. group=friends|none
@@ -187,8 +187,12 @@ const USAGE = `Usage:
   bin/nff stock set <sku> <count|none>
   bin/nff login <email>               print a sign-in link
   bin/nff masquerade <email>          open a sign-in link as them
-  bin/nff audience invite <csv> [--dry-run]   the confirmation email,
-                                      once, to each address not yet in
+  bin/nff audience import <csv> [--date=YYYY-MM-DD] [--market=..]
+        [--captured-by=..] [--evidence=..] [--dry-run]
+                                      the old list's paper sheets, on
+                                      the list at once with the welcome;
+                                      the CSV's date and market columns
+                                      win over the flags
   bin/nff audience sync [--dry-run]   the Resend audience and the
                                       records, made to agree
   bin/nff schedule check <file>       the pickup schedule, checked as a
@@ -349,7 +353,7 @@ const [
   { runJobs, runsSince, sweepMadeCustomers, sweepSquareOrders },
   { stores: makeStores },
   { CANCEL_REASONS, paymentPhrase, summaryLine },
-  { inviteSubscribers, parseCsv, syncAudience },
+  { importSubscribers, parseCsv, syncAudience },
   { dollars, toCents },
   { snapshot },
   { keptFee, paidTotal, refundedTotal },
@@ -418,7 +422,8 @@ const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
   "to", "waive", "detail", "reason-text", "sha", "deploy", "label",
   "out", "count", "hours", "advisory", "file", "email", "days", "method",
   "date", "window", "phone", "contact", "address1", "address2", "town",
-  "zip", "cooler", "gate", "delivery-notes", "notes", "key", "site"];
+  "zip", "cooler", "gate", "delivery-notes", "notes", "key", "site",
+  "market", "captured-by", "evidence"];
 const args = process.argv.slice(2);
 
 for (let i = 0; i < args.length; i += 1) {
@@ -1221,12 +1226,19 @@ const run = async () => {
     return out(await admin.stockList(stores));
   case "stock set":
     return out(await admin.stockSet(stores, rest[0], rest[1]));
-  case "audience invite": {
-    if (!rest[0]) throw new Error("Which CSV? bin/nff audience invite <csv>");
+  case "audience invite":
+    throw new Error("The old list is imported as subscribed now, with no "
+      + "invitation (#303): bin/nff audience import <csv> --date=..");
+  case "audience import": {
+    if (!rest[0]) throw new Error("Which CSV? bin/nff audience import <csv>");
 
     const rows = parseCsv(readFileSync(rest[0], "utf8"));
 
-    return out(await inviteSubscribers(stores, rows, {
+    return out(await importSubscribers(stores, rows, {
+      date: flags.date || "",
+      market: flags.market || "",
+      capturedBy: flags["captured-by"] || null,
+      evidence: flags.evidence || null,
       dryRun: !!flags["dry-run"],
     }));
   }

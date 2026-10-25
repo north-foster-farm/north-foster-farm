@@ -1819,23 +1819,29 @@ Manual: James only; it reads production.
 
 ## Farm news
 
-### FN-01 Sign up, opted in at once
+### FN-01 Sign up, confirmed by the link
 
 Automated: `news.spec.mjs`, "the footer sign-up joins at once and
-sends a welcome". Tagged `@regression`.
+sends a welcome". Tagged `@regression`. Pins the single opt-in that
+#303 replaced; the spec needs rewriting to this case.
 
-- **Scenario:** Single opt-in from the footer (W1, 2026-09-26), with a
-  welcome that carries a one-click unsubscribe (T6, 6166efa).
+- **Scenario:** Confirmed opt-in from the public footer field (James,
+  #303, 2026-10-25, replacing W1), then a welcome that carries a
+  one-click unsubscribe (T6, 6166efa).
 - **Setup:** A unique address.
 - **Test:**
   1. Home page footer: type the address; press Sign me up.
   2. Check the record and the outbox.
-- **Assert:** The note says "You're on the list. Thanks!" and the field
-  empties. The record has `marketing` true, a `marketingAt` and
-  `marketingSource` signup. The outbox holds one message to that
-  address, "You're on the North Foster Farm list", with a link carrying
-  `?unsubscribe=`.
-- **Teardown:** `customers delete`; the welcome is removed from the
+  3. Open the confirmation link; check the record and the outbox.
+- **Assert:** The note says "Check your email: click the link we sent
+  you to join." and the field empties. Before the click the record is
+  absent or not consenting, and the outbox holds one message, "Confirm
+  your email address for Farm News". The link lands on
+  `/news/` with "You're on the list. Thanks!"; the record has
+  `marketing` true, a `marketingAt` and `marketingSource` signup, and
+  the outbox adds "You're on the North Foster Farm list", with a link
+  carrying `?unsubscribe=`.
+- **Teardown:** `customers delete`; both messages are removed from the
   outbox.
 
 ### FN-02 A bad address
@@ -1871,34 +1877,51 @@ Manual: automatable; not yet written.
 - **Setup:** A unique address.
 - **Test:**
   1. Sign up four times in a minute.
-- **Assert:** "You're on the list. Thanks!" each time; the fourth
-  request is refused quietly (`news.subscribed` logged with reason
-  rate).
+- **Assert:** "Check your email: click the link we sent you to join."
+  each time; three links are mailed and the fourth request is refused
+  quietly (`news.subscribed` logged with reason rate).
 - **Teardown:** Delete the customer.
 
-### FN-05 An old-list invitation, clicked and expired
+### FN-05 The confirmation link, clicked twice and expired
 
 Manual: the link lives seven days.
 
-- **Scenario:** The confirmation that only the old list receives
-  (`bin/nff audience invite`).
-- **Setup:** A one-line CSV with a unique address;
-  `bin/nff --staging audience invite <csv>`. For the expired case, a
-  preview with a shortened lifetime.
+- **Scenario:** The confirmation the public sign-up field mails
+  (#303).
+- **Setup:** A unique address, signed up in the footer. For the
+  expired case, a preview with a shortened lifetime.
 - **Test:**
   1. Read the outbox; open the link; open it again.
   2. Open an expired link.
 - **Assert:** The email's subject is "Confirm your email address for
   Farm News"; it reads "Click the button below to receive Farm News
-  from North Foster Farm.", has a "Sign up"
-  button, "This link expires in 7 days. You're receiving this message
-  because you previously joined our mailing list." and "Need help?
-  Contact us". Before the click the record is absent or not
-  consenting. The link, to the staging host, lands on `/news/` with
-  "You're on the list. Thanks!"; the record has `marketing` true and
-  `marketingSource` confirm. The second click says "That link isn't
-  valid any more. Enter your email here to join." An expired link
-  says "That link had expired. Enter your email here to join."
+  from North Foster Farm.", has a "Sign up" button, "This
+  link expires in 7 days. If you didn't request this email, you can
+  safely ignore it." and "Need help? Contact us". Before the click the
+  record is absent or not consenting. The link, to the staging host,
+  lands on `/news/` with "You're on the list. Thanks!"; the record has
+  `marketing` true and `marketingSource` signup. The second click
+  says "That link was already used or isn't valid." An expired link
+  says "That link has expired."
+- **Teardown:** Delete the customer; the messages removed.
+
+### FN-05b The old list, imported
+
+Manual: runs `bin/nff` against staging.
+
+- **Scenario:** The old list joins at once from its paper sheets, with
+  no confirmation round (#303).
+- **Setup:** A one-line CSV with a unique address;
+  `bin/nff --staging audience import <csv> --date=2024-07-12
+  --market="the Foster Farmers Market"`.
+- **Test:**
+  1. Read the report, the record and the outbox.
+- **Assert:** The report lists the address under `imported`. The record
+  has `marketing` true and `marketingSource` import; its last consent
+  event is a `market-sheet` dated 2024-07-12 with the market as its
+  detail. The outbox holds one message, the welcome, saying "you
+  signed up on our sign-up sheet at the Foster Farmers Market in July"
+  and that the list moved; no confirmation email.
 - **Teardown:** Delete the customer; the message removed.
 
 ### FN-06 The settings box
@@ -2404,7 +2427,8 @@ so nobody is added; FN-01 covers the real sign-up.
   held: `data-state="busy"`, "Submitting" and the egg spinner faded in,
   "Sign me up" faded out, the button's width unchanged, the line under
   the field empty, and the second press sends nothing. Then the
-  "You're on the list. Thanks!" answer at the same width.
+  "Check your email: click the link we sent you to join." answer at
+  the same width (#303).
 - **Teardown:** None.
 
 ### AR-19 The footer layout (#141)

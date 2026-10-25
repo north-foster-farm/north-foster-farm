@@ -1,11 +1,12 @@
 /* eslint-disable camelcase -- Resend names contact fields its way */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { describe, it } from "node:test";
 
 import {
   CONFIRM_TTL, REQUESTS_PER_WINDOW, SYNC_KEY, confirmSubscribe,
-  inviteSubscribers, optIn, optOut, parseCsv, requestSubscribe,
-  subscribe, syncAudience, unsubscribe,
+  forgottenKey, importSubscribers, optIn, optOut, parseCsv,
+  requestSubscribe, subscribe, syncAudience, unsubscribe,
 } from "../netlify/functions/lib/news.mjs";
 import {
   withholdCustomerEmail,
@@ -41,49 +42,71 @@ const customer = (email, extra = {}) => ({
   createdAt: "2026-09-01T00:00:00.000Z", lastOrderAt: null, ...extra,
 });
 
+// The token of the confirmation link in a sent email.
+const confirmToken = (m) =>
+  tokenIn(m.text.match(/https:\S+confirm\?token=\S+/)[0]);
+
+// A sign-up on the site, confirmed: on the list, welcomed.
+const join = async (stores, email, mail, sent) => {
+  await subscribe(stores, { email }, { now, env, mail });
+  await confirmSubscribe(stores, confirmToken(sent.at(-1)),
+    { now, env, mail });
+};
+
 describe("a sign-up on the site", () => {
-  it("opts a normalised address in at once, dated, and welcomes it once",
-    async () => {
-      const stores = testStores();
-      const { sent, mail } = mailbox();
-      const r = await subscribe(stores, {
-        email: " Pat@Example.COM ", firstName: "Pat",
-      }, { now, env, mail });
+  it("mails a normalised address the confirmation link, and adds nothing " +
+    "until it is followed (#303)", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const r = await subscribe(stores, {
+      email: " Pat@Example.COM ", firstName: "Pat",
+    }, { now, env, mail, page: "/news/" });
 
-      assert.deepEqual(r, { ok: true, email: "pat@example.com" });
+    assert.deepEqual(r, { ok: true, email: "pat@example.com" });
+    assert.equal(await getCustomer(stores, "pat@example.com"), null,
+      "nothing on the record until the click");
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].to, "pat@example.com");
+    assert.equal(sent[0].subject, "Confirm your email address for Farm News");
 
-      const saved = await getCustomer(stores, "pat@example.com");
+    await confirmSubscribe(stores, confirmToken(sent[0]),
+      { now: later, env, mail });
 
-      assert.equal(saved.marketing, true);
-      assert.equal(saved.marketingAt, now.toISOString());
-      assert.equal(saved.marketingSource, "signup");
-      assert.equal(saved.firstName, "Pat");
-      assert.equal(saved.lastOrderAt, null, "never ordered");
+    const saved = await getCustomer(stores, "pat@example.com");
 
-      assert.equal(sent.length, 1);
-      assert.equal(sent[0].to, "pat@example.com");
-      assert.equal(sent[0].subject, "You're on the North Foster Farm list");
-      assert.match(sent[0].text, /^Hi Pat,$/m);
-      assert.ok(sent[0].text.includes("Unsubscribe here: " +
-        "https://northfosterfarm.com/news/?unsubscribe="));
-      assert.ok(sent[0].headers["List-Unsubscribe"].startsWith(
-        "<https://northfosterfarm.com/api/news/unsubscribe?token="));
-      assert.equal(sent[0].headers["List-Unsubscribe-Post"],
-        "List-Unsubscribe=One-Click");
+    assert.equal(saved.marketing, true);
+    assert.equal(saved.marketingAt, later.toISOString());
+    assert.equal(saved.marketingSource, "signup");
+    assert.equal(saved.firstName, "Pat");
+    assert.equal(saved.lastOrderAt, null, "never ordered");
+    assert.equal(saved.consent.at(-1).type, "website-form");
+    assert.equal(saved.consent.at(-1).detail,
+      "the sign-up form on /news/, confirmed by the link sent 2026-10-01");
 
-      // Already on the list: no second welcome.
-      await subscribe(stores, { email: "pat@example.com" }, { now, env, mail });
-      assert.equal(sent.length, 1);
-    });
+    assert.equal(sent.length, 2, "the welcome, once confirmed");
+    assert.equal(sent[1].subject, "You're on the North Foster Farm list");
+    assert.match(sent[1].text, /^Hi Pat,$/m);
+    assert.ok(sent[1].text.includes("Unsubscribe here: " +
+      "https://northfosterfarm.com/news/?unsubscribe="));
+    assert.ok(sent[1].headers["List-Unsubscribe"].startsWith(
+      "<https://northfosterfarm.com/api/news/unsubscribe?token="));
+    assert.equal(sent[1].headers["List-Unsubscribe-Post"],
+      "List-Unsubscribe=One-Click");
+
+    // Already on the list: no second link, no second welcome.
+    assert.deepEqual(await subscribe(stores, { email: "pat@example.com" },
+      { now, env, mail }), { ok: true, email: "pat@example.com" });
+    assert.equal(sent.length, 2);
+  });
 
   it("takes an address off in one click from the welcome, as often as " +
     "it is clicked", async () => {
     const stores = testStores();
     const { sent, mail } = mailbox();
 
-    await subscribe(stores, { email: "pat@example.com" }, { now, env, mail });
+    await join(stores, "pat@example.com", mail, sent);
 
-    const token = new URL(sent[0].text.match(/https:\S+unsubscribe=[\w-]+/)[0])
+    const token = new URL(sent[1].text.match(/https:\S+unsubscribe=[\w-]+/)[0])
       .searchParams.get("unsubscribe");
 
     assert.deepEqual(await unsubscribe(stores, token, { now: later }),
@@ -154,7 +177,7 @@ describe("the click", () => {
 
     assert.equal(saved.marketing, true);
     assert.equal(saved.marketingAt, later.toISOString());
-    assert.equal(saved.marketingSource, "confirm");
+    assert.equal(saved.marketingSource, "signup");
     assert.equal(saved.name, "Sam New");
     assert.equal(saved.lastOrderAt, null, "never ordered");
 
@@ -163,6 +186,26 @@ describe("the click", () => {
 
     assert.equal(again.reason, "unknown", "single use");
   });
+
+  it("confirms a link the old re-invite mailed before #303 as one",
+    async () => {
+      const stores = testStores();
+      const token = "old-invite-token";
+      const key = `news/${createHash("sha256").update(token).digest("hex")}`;
+
+      await stores.auth.set(key, {
+        email: "old@example.com", firstName: "", lastName: "",
+        expires: later.getTime() + 1, createdAt: now.toISOString(),
+      });
+
+      assert.equal((await confirmSubscribe(stores, token,
+        { now: later, env, mail: mailbox().mail })).ok, true);
+
+      const saved = await getCustomer(stores, "old@example.com");
+
+      assert.equal(saved.marketingSource, "confirm");
+      assert.equal(saved.consent.at(-1).type, "reinvite-confirmation");
+    });
 
   it("opts an existing record in without touching its name", async () => {
     const stores = testStores();
@@ -224,42 +267,114 @@ describe("consent on the record", () => {
   });
 });
 
-describe("the invitation of an old list", () => {
-  it("mails each address not already in, once, and reports the rest",
-    async () => {
-      const stores = testStores();
-      const { sent, mail } = mailbox();
+describe("the import of the old list (#303)", () => {
+  it("puts each address on the list at once, its consent the dated " +
+    "sheet, with the welcome and no confirmation", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
 
-      await saveCustomer(stores, customer("in@example.com", {
-        marketing: true, marketingAt: now.toISOString(),
-      }));
+    await saveCustomer(stores, customer("in@example.com", {
+      marketing: true, marketingAt: now.toISOString(),
+    }));
+    await saveCustomer(stores, customer("never@example.com"));
 
-      const report = await inviteSubscribers(stores, [
-        { email: "In@Example.com" },
-        { email: "new@example.com", firstName: "Sam" },
-        { email: "not an address" },
-      ], { now, env, mail });
-
-      assert.deepEqual(report, {
-        invited: ["new@example.com"],
-        skipped: ["in@example.com"],
-        invalid: ["not an address"],
-        withheld: [],
-      });
-      assert.equal(sent.length, 1);
-      assert.equal(sent[0].to, "new@example.com");
-      assert.match(sent[0].text, /Farm News from North Foster Farm/);
-      assert.match(sent[0].text,
-        /because you previously joined our mailing list\.$/m);
-
-      const dry = await inviteSubscribers(stores, [{ email: "x@y.co" }],
-        { now, env, mail, dryRun: true });
-
-      assert.deepEqual(dry.invited, ["x@y.co"]);
-      assert.equal(sent.length, 1, "a dry run sends nothing");
+    const report = await importSubscribers(stores, [
+      { email: "In@Example.com" },
+      { email: "new@example.com", firstName: "Sam", lastName: "New" },
+      { email: "never@example.com", date: "2025-06-14",
+        market: "the Scituate Farmers Market" },
+      { email: "not an address" },
+    ], {
+      date: "2024-07-12", market: "the Foster Farmers Market",
+      capturedBy: "James", evidence: "foster-2024-07-12.pdf",
+      now, env, mail,
     });
 
-  it("sends no invitation under --no-email, and lists who it held",
+    assert.deepEqual(report, {
+      imported: ["new@example.com", "never@example.com"],
+      skipped: ["in@example.com"],
+      declined: [],
+      invalid: ["not an address"],
+      withheld: [],
+    });
+
+    const saved = await getCustomer(stores, "new@example.com");
+    const event = saved.consent.at(-1);
+
+    assert.equal(saved.marketing, true);
+    assert.equal(saved.marketingAt, now.toISOString(), "when it was written");
+    assert.equal(saved.marketingSource, "import");
+    assert.equal(saved.name, "Sam New");
+    assert.deepEqual(event, {
+      action: "in", type: "market-sheet",
+      detail: "the Foster Farmers Market",
+      at: "2024-07-12T12:00:00.000Z", recordedAt: now.toISOString(),
+      capturedBy: "James", evidence: "foster-2024-07-12.pdf",
+    });
+
+    const row = (await getCustomer(stores, "never@example.com")).consent
+      .at(-1);
+
+    assert.equal(row.at, "2025-06-14T12:00:00.000Z", "the row's own date");
+    assert.equal(row.detail, "the Scituate Farmers Market");
+
+    assert.deepEqual(sent.map((m) => m.to),
+      ["new@example.com", "never@example.com"], "a welcome each");
+    assert.equal(sent[0].subject, "You're on the North Foster Farm list");
+    assert.match(sent[0].text,
+      /you signed up on our sign-up sheet at the Foster Farmers Market/);
+    assert.doesNotMatch(sent.map((m) => m.text).join("\n"),
+      /confirm\?token=/, "no confirmation round");
+  });
+
+  it("leaves alone an address that said no here, or was deleted, and " +
+    "refuses a row with no real date", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await saveCustomer(stores, customer("left@example.com", {
+      marketing: false, marketingAt: "2026-09-20T12:00:00.000Z",
+      marketingSource: "unsubscribe",
+    }));
+    await stores.customers.set(forgottenKey("gone@example.com"), {});
+
+    const report = await importSubscribers(stores, [
+      { email: "left@example.com" },
+      { email: "gone@example.com" },
+      { email: "nodate@example.com", date: "" },
+      { email: "unreal@example.com", date: "2025-02-30" },
+      { email: "future@example.com", date: "2026-12-01" },
+    ], { date: "2024-07-12", now, env, mail });
+
+    assert.deepEqual(report.declined,
+      ["left@example.com", "gone@example.com"]);
+    assert.deepEqual(report.invalid, ["unreal@example.com",
+      "future@example.com"]);
+    assert.deepEqual(report.imported, ["nodate@example.com"],
+      "an empty cell takes the flag's date");
+    assert.equal((await getCustomer(stores, "left@example.com")).marketing,
+      false);
+    assert.equal(await getCustomer(stores, "gone@example.com"), null);
+
+    const none = await importSubscribers(stores, [{ email: "x@y.co" }],
+      { now, env, mail });
+
+    assert.deepEqual(none.invalid, ["x@y.co"], "a date is required");
+    assert.equal(sent.length, 1);
+  });
+
+  it("writes and sends nothing on a dry run", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const dry = await importSubscribers(stores, [{ email: "x@y.co" }],
+      { date: "2024-07-12", now, env, mail, dryRun: true });
+
+    assert.deepEqual(dry.imported, ["x@y.co"]);
+    assert.equal(await getCustomer(stores, "x@y.co"), null);
+    assert.equal(sent.length, 0);
+  });
+
+  it("imports with no welcome under --no-email, and lists who it held",
     async () => {
       const stores = testStores();
       const { sent, mail } = mailbox();
@@ -267,29 +382,61 @@ describe("the invitation of an old list", () => {
       withholdCustomerEmail();
 
       try {
-        const report = await inviteSubscribers(stores, [
+        const report = await importSubscribers(stores, [
           { email: "new@example.com" },
-        ], { now, env, mail });
+        ], { date: "2024-07-12", now, env, mail });
 
         assert.deepEqual(report.withheld, ["new@example.com"]);
-        assert.deepEqual(report.invited, []);
+        assert.deepEqual(report.imported, ["new@example.com"]);
+        assert.equal((await getCustomer(stores, "new@example.com"))
+          .marketing, true);
         assert.equal(sent.length, 0);
       } finally {
         withholdCustomerEmail(false);
       }
     });
 
+  it("reaches Resend at the next sync as a new contact", async () => {
+    const stores = testStores();
+    const calls = [];
+    const fetchImpl = async (url, init) => {
+      calls.push({ method: init.method, body: init.body
+        ? JSON.parse(init.body) : null });
+
+      return { ok: true, json: async () => ({ data: [] }) };
+    };
+
+    await importSubscribers(stores, [{ email: "new@example.com" }],
+      { date: "2024-07-12", now, env, mail: mailbox().mail });
+
+    const r = await syncAudience(stores, {
+      env: { ...env, RESEND_AUDIENCE_ID: "aud", RESEND_API_KEY: "k" },
+      fetchImpl, now, pace: 0,
+    });
+
+    assert.deepEqual(r.created, ["new@example.com"]);
+    assert.equal(calls[1].body.unsubscribed, false);
+  });
+
   it("reads a CSV with or without a header", () => {
     assert.deepEqual(parseCsv("Email,First name,Last name\n" +
       "a@b.co,Pat,Example\n\"b@c.co\",,\n"), [
-      { email: "a@b.co", firstName: "Pat", lastName: "Example" },
-      { email: "b@c.co", firstName: "", lastName: "" },
+      { email: "a@b.co", firstName: "Pat", lastName: "Example",
+        date: "", market: "" },
+      { email: "b@c.co", firstName: "", lastName: "", date: "", market: "" },
     ]);
     assert.deepEqual(parseCsv("last,email\nExample,a@b.co\n"), [
-      { email: "a@b.co", firstName: "", lastName: "Example" },
+      { email: "a@b.co", firstName: "", lastName: "Example",
+        date: "", market: "" },
     ]);
     assert.deepEqual(parseCsv("a@b.co,Pat\n"), [
-      { email: "a@b.co", firstName: "Pat", lastName: "" },
+      { email: "a@b.co", firstName: "Pat", lastName: "", date: "",
+        market: "" },
+    ]);
+    assert.deepEqual(parseCsv("email,sheet date,market\n" +
+      "a@b.co,2024-07-12,Foster\n"), [
+      { email: "a@b.co", firstName: "", lastName: "", date: "2024-07-12",
+        market: "Foster" },
     ]);
   });
 });
@@ -472,37 +619,39 @@ describe("the endpoints", () => {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
 
-  it("take a sign-up at once and land the click on the news page",
+  it("mail a sign-up its link and land the click on the news page",
     async () => {
       const stores = testStores();
       const { sent, mail } = mailbox();
       const ok = await handle(req("/api/news/subscribe", "POST",
-        { email: "Pat@Example.com" }), { stores, env, now, mail });
+        { email: "Pat@Example.com" }, {
+          referer: "https://northfosterfarm.com/news/",
+        }), { stores, env, now, mail });
 
       assert.equal(ok.status, 200);
       assert.deepEqual(await ok.json(), { ok: true });
-      assert.equal((await getCustomer(stores, "pat@example.com")).marketing,
-        true);
+      assert.equal(await getCustomer(stores, "pat@example.com"), null,
+        "not on the list until the click");
+      assert.equal(sent.length, 1, "the confirmation link");
 
-      assert.equal(sent.length, 1, "the welcome");
-
-      const r = await requestSubscribe(stores, { email: "old@example.com" },
-        { now, env, mail });
-      const url = sent[1].text.match(/https:\S+confirm\?token=\S+/)[0];
       const landed = await handle(
-        req(`/api/news/confirm?token=${tokenIn(url)}`),
-        { stores, env, now: later }
+        req(`/api/news/confirm?token=${confirmToken(sent[0])}`),
+        { stores, env, now: later, mail }
       );
 
-      assert.equal(r.ok, true);
       assert.equal(landed.status, 303);
       assert.equal(landed.headers.get("location"),
         "https://northfosterfarm.com/news/?news=confirmed");
-      assert.equal((await getCustomer(stores, "old@example.com")).marketing,
-        true);
+
+      const saved = await getCustomer(stores, "pat@example.com");
+
+      assert.equal(saved.marketing, true);
+      assert.match(saved.consent.at(-1).detail,
+        /^the sign-up form on \/news\/, confirmed/);
+      assert.equal(sent.length, 2, "then the welcome");
 
       const again = await handle(
-        req(`/api/news/confirm?token=${tokenIn(url)}`),
+        req(`/api/news/confirm?token=${confirmToken(sent[0])}`),
         { stores, env, now: later }
       );
 
@@ -536,9 +685,9 @@ describe("the unsubscribe endpoint", () => {
     const stores = testStores();
     const { sent, mail } = mailbox();
 
-    await subscribe(stores, { email: "pat@example.com" }, { now, env, mail });
+    await join(stores, "pat@example.com", mail, sent);
 
-    const header = sent[0].headers["List-Unsubscribe"].slice(1, -1);
+    const header = sent[1].headers["List-Unsubscribe"].slice(1, -1);
     const token = new URL(header).searchParams.get("token");
     const page = await handle(new Request(
       "https://northfosterfarm.com/api/news/unsubscribe", {
@@ -573,16 +722,17 @@ describe("the unsubscribe endpoint", () => {
 });
 
 describe("the confirmation email", () => {
-  it("reads as James wrote it", () => {
+  it("reads as James wrote it, for a stranger's sign-up (#303)", () => {
     const m = newsConfirm("a@b.co", "https://x/confirm?token=t", {
       days: 7, links: { site: "https://x" },
     });
 
     assert.equal(m.subject, "Confirm your email address for Farm News");
     assert.match(m.text, /^Click the button below to receive Farm News /m);
-    assert.match(m.text, /^This link expires in 7 days\. You're receiving /m);
+    assert.match(m.text, /^This link expires in 7 days\. If you didn't /m);
     assert.match(m.text,
-      /because you previously joined our mailing list\.$/m);
+      /request this email, you can safely ignore it\.$/m);
+    assert.doesNotMatch(m.text, /previously joined/);
     assert.match(m.html, />Sign up</);
     assert.match(m.html, /https:\/\/x\/confirm\?token=t/);
     assert.match(m.html, /name="format-detection"/);

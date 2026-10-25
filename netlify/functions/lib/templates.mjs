@@ -1049,22 +1049,23 @@ const MIGRATED = ["market-sheet", "reinvite-confirmation"];
 
 const capital = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-// Farm news: the one click that puts an address from the old list on
-// the new one, when it is asked to opt in again (D-INVITE). A sign-up
-// on the site needs no click (W1). The wording is James's, on the
-// pattern of the sign-in email, ending on his line for the old list
-// (W19); the list layout is #273's.
+// Farm news: the one click that puts an address typed into the public
+// sign-up field on the list (#303); the checkout and settings boxes
+// and the old list need no click. The wording is James's, on the
+// pattern of the sign-in email, with his first closing line back in
+// place of the one for the old list (W19); the preview is a draft.
+// The list layout is #273's.
 export const newsConfirm = (email, url, {
   days = accounts.newsInviteDays, links,
 } = {}) => listMail(
   "Confirm your email address for Farm News", {
-    preview: "One click keeps you on our list.",
+    preview: "One click puts you on our list.",
     blocks: [
       listBlocks.p("Click the button below to receive Farm News from " +
         `${company.name}.`),
       listBlocks.button("Sign up", url),
-      listBlocks.p(`This link expires in ${days} days. You're receiving ` +
-        "this message because you previously joined our mailing list."),
+      listBlocks.p(`This link expires in ${days} days. If you didn't ` +
+        "request this email, you can safely ignore it."),
       listBlocks.linked("Need help? ", "Contact us", contactUrl(links)),
     ],
     links,
@@ -1072,9 +1073,10 @@ export const newsConfirm = (email, url, {
 );
 
 // Farm news: the welcome, the one email of the welcome sequence
-// (#267), to everyone who comes onto the list: a sign-up here, the
-// checkout or settings box, the old list's confirmation, or an
-// import. It always says how they opted in, from the consent log;
+// (#267), to everyone who comes onto the list: a confirmed sign-up
+// here, the checkout or settings box, or the import of the old list's
+// sheets (#303). The re-invite's confirmation, before #303, has its
+// own opening. It always says how they opted in, from the consent log;
 // those who were on the list before it moved hear why a welcome comes
 // now. `unsubscribeUrl` takes them off in one click, no sign-in (T6c).
 // T6's lines are James's (2026-09-28); the re-invite's opening and the

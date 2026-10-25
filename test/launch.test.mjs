@@ -28,7 +28,7 @@ describe("launch email", () => {
       "from $5 off orders of $50 up to $20 off orders of $200",
       "SCHEDULED PICKUP\n- At the drop site: back on Saturday",
       "Markets and pop-ups we open for pickup show up on the order",
-      "Click it within a week and you're on the new list",
+      "You signed up on one of our sheets, so you're on it already",
     ]) assert.ok(body.includes(line), line);
   });
 
