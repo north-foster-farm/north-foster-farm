@@ -22,7 +22,7 @@ describe("launch email", () => {
       "Order by noon on Wednesday",
       "$40 minimum, $5 fee",
       "99 East Killingly Road, Foster, RI 02825",
-      "DROP-SITE PICKUP\n- At one of our drop sites: every Saturday",
+      "PICKUP DAYS\n- At one of our drop sites: every Saturday",
       "Markets and pop-ups we open for pickup show up on the order",
       `Unsubscribe in one click: ${UNSUBSCRIBE_PLACEHOLDER}`,
     ]) assert.ok(body.includes(line), line);
