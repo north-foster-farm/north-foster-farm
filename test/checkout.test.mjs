@@ -199,7 +199,7 @@ describe("completeOrder", () => {
     assert.equal(sent.length, 0);
     await announceNew(stores, saved, { mail, env, now });
     assert.equal(sent.length, 3);
-    assert.equal(sent[2].subject, "You're on the North Foster Farm list");
+    assert.equal(sent[2].subject, "Welcome to Farm News");
     assert.equal(sent[2].to, boxed.customer.email);
 
     // Sent once: a second run (the jobs after the page's own) adds none.

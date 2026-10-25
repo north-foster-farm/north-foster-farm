@@ -107,8 +107,8 @@ The CSV has a header naming email, first and last (any order, any
 case), or no header and the email first. Each address not already
 consenting gets the confirmation email (`newsConfirm` in
 `templates.mjs`), once, with no rate limit: one button, a link that
-works for seven days, single use, ending on "You're receiving this
-message because you previously joined our mailing list." Those
+works for seven days, single use, ending on "If you didn't sign up,
+you can ignore this email." (James, 2026-10-25, #400). Those
 already in are skipped and bad addresses reported. Nothing else
 happens until they click. `GET /api/news/confirm?token=` is the
 click: it opts the record in, dated, source `confirm`, sends the

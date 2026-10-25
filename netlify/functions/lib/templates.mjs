@@ -1047,51 +1047,53 @@ export const optInPhrase = (event) => {
 // market sheets and the old list's re-invite (#267).
 const MIGRATED = ["market-sheet", "reinvite-confirmation"];
 
-const capital = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-
-// Farm news: the one click that puts an address from the old list on
-// the new one, when it is asked to opt in again (D-INVITE). A sign-up
-// on the site needs no click (W1). The wording is James's, on the
-// pattern of the sign-in email, ending on his line for the old list
-// (W19); the list layout is #273's.
+// Farm News: the confirmation, for a sign-up on the public form when
+// the form asks for one (whether it does is James's open question on
+// #303; the old list is not asked, comment 6404591477). It welcomes
+// too, and carries no unsubscribe and no reason line: the reader is
+// not on the list until the click. The subject is James's
+// (2026-10-25); the rest is a draft on his structure (#400, comments
+// 6404615116 and 6404632787). The list layout is #273's.
 export const newsConfirm = (email, url, {
   days = accounts.newsInviteDays, links,
 } = {}) => listMail(
   "Confirm your email address for Farm News", {
-    preview: "One click keeps you on our list.",
+    preview: "One click, and you're on the list.",
     blocks: [
-      listBlocks.p("Click the button below to receive Farm News from " +
-        `${company.name}.`),
-      listBlocks.button("Sign up", url),
-      listBlocks.p(`This link expires in ${days} days. You're receiving ` +
-        "this message because you previously joined our mailing list."),
-      listBlocks.linked("Need help? ", "Contact us", contactUrl(links)),
+      listBlocks.p("Welcome to Farm News. Please confirm your email " +
+        "address to start receiving it."),
+      listBlocks.button("Confirm my email address", url),
+      listBlocks.p(`This link works for ${days} days. If you didn't ` +
+        "sign up, you can ignore this email."),
     ],
     links,
   },
 );
 
-// Farm news: the welcome, the one email of the welcome sequence
-// (#267), to everyone who comes onto the list: a sign-up here, the
-// checkout or settings box, the old list's confirmation, or an
-// import. It always says how they opted in, from the consent log;
-// those who were on the list before it moved hear why a welcome comes
-// now. `unsubscribeUrl` takes them off in one click, no sign-in (T6c).
-// T6's lines are James's (2026-09-28); the re-invite's opening and the
-// rest are drafts.
+// Farm News: the welcome, the one email of the welcome sequence
+// (#267), to everyone who comes onto the list: a sign-up here (after
+// the confirmation, when the form asks for one), the checkout or
+// settings box, or an import. James's structure (#400, comments
+// 6404632787 and 6404652710): thanks, what to expect, where to catch
+// up, unsubscribe from the link in any email (never account settings:
+// a sign-up has no account), the chickens-and-sheep close. How they
+// opted in goes at the bottom, by the unsubscribe, from the consent
+// log; those who were on the list before it moved hear why a welcome
+// comes now. `unsubscribeUrl` takes them off in one click, no sign-in
+// (T6c). Every line is a draft for James (Q8).
 export const newsWelcome = (who, unsubscribeUrl, { links } = {}) => {
   const name = firstName(who);
   const event = currentOptIn(who);
   const phrase = optInPhrase(event);
   const migrated = !!event && MIGRATED.includes(event.type);
+  const site = links && links.site;
   const b = listBlocks;
   const blocks = [
     b.p(name ? `Hi ${name},` : "Hi,"),
     b.p(`${event && event.type === "reinvite-confirmation"
-      ? "Thanks for staying on our Farm News list."
-      : "Thanks for signing up. You're on our Farm News list."} ` +
-      `We're writing because ${phrase}. We don't take a place in your ` +
-      "inbox lightly."),
+      ? "Thanks for sticking with Farm News."
+      : "Thanks for joining Farm News."} ` +
+      "We don't take a place in your inbox lightly."),
     ...(migrated
       ? [b.p("We've moved our list to a new email provider, so this " +
         "welcome reaches you even if you've been with us for years.")]
@@ -1099,17 +1101,27 @@ export const newsWelcome = (who, unsubscribeUrl, { links } = {}) => {
     b.p("Every now and then, we'll email you what's happening on the " +
       "farm: what's in stock, where to find us, and news from the " +
       "pasture. We hope it goes without saying, but we will never sell " +
-      "or give out your address."),
+      "or give out your email address."),
+    ...(site
+      ? [
+        b.linked("In the meantime, catch up on ",
+          "the news from our first year", `${site}/news/`, "."),
+        b.linked("New to us? ", "Here's how we raise our birds",
+          `${site}/about/`, "."),
+      ]
+      : []),
     ...(links && links.order
       ? [b.button("See what's in stock", links.order)]
       : []),
-    b.linked("Don't want these after all? ", "Unsubscribe here",
-      unsubscribeUrl, ". One click and you're off."),
+    b.p("You can unsubscribe any time from the link at the bottom of " +
+      "any of our emails. One click and you're off."),
+    b.p("Stay tuned for more pictures of chickens, sheep, and who knows " +
+      "what else."),
     b.p("— James and Jim"),
   ];
 
-  return listMail(`You're on the ${company.name} list`, {
-    preview: `${capital(phrase)}. Here's what to expect.`,
+  return listMail("Welcome to Farm News", {
+    preview: "Thanks for joining. Here's what to expect from us.",
     blocks,
     reason: event && event.at
       ? `${phrase}${event.type === "market-sheet" ? ""

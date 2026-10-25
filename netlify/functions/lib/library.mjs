@@ -585,9 +585,10 @@ export const library = [
       `${links.site}/account/?token=abc123`, { links }),
   },
   {
-    id: "news-invite", name: "Farm news invitation",
-    when: "The old list is invited to opt in again",
-    audience: C, tags: ["list", "sign-up", "launch"],
+    id: "news-invite", name: "Farm News confirmation",
+    when: "A sign-up on the public form, if the form asks to confirm " +
+      "(James\x27s open question on #303); the old list is not asked",
+    audience: C, tags: ["list", "sign-up", "farm news"],
     build: (links) => t.newsConfirm(customer.email,
       `${links.site}/api/news/confirm?token=abc123`, { links }),
   },
@@ -881,13 +882,14 @@ const T4 = "Removed items head the list under \"Removed\", as plain " +
 const W11D = "W11d (2026-09-28): a pickup is booked by paying, from " +
   "the farm\x27s schedule; no farm confirmation, and the window " +
   "reads as its times (9 AM – noon).";
-const WELCOME = "Draft (#273, Q8): one welcome for everyone, naming " +
-  "how they opted in; the moved-provider paragraph only for the market " +
-  "sheets and the re-invite. James\x27s T6 lines kept verbatim: the " +
-  "opening (except the re-invite\x27s, which thanks them for staying), " +
-  "what to expect, never sell your address, the unsubscribe line, the " +
-  "sign-off. Drafts: the opt-in sentence, the inbox line, the " +
-  "moved-provider paragraph, the button and the footer.";
+const WELCOME = "Writer2\x27s redraft of 2026-10-25 on James\x27s " +
+  "structure (#400, comments 6404632787 and 6404652710): thanks for " +
+  "joining, what to expect, the news and About pages to catch up on, " +
+  "unsubscribe from the link in any email (never account settings), " +
+  "the chickens-and-sheep close. How they opted in sits at the bottom " +
+  "by the unsubscribe, from the consent log; the moved-provider " +
+  "paragraph only for the market sheets and the re-invite. Every line " +
+  "waits on him (Q8).";
 const WAITING = {
   "farm-archived-in-stock": "#267: to sales@ only, and listed in the " +
     "morning report until resolved. Draft wording.",
@@ -920,11 +922,11 @@ const WAITING = {
     `for outside limits. ${W11D} Its pickups are now those waiting on ` +
     "the customer, and it warns when the schedule runs short. Draft. " +
     "So is its list of messages waiting on an answer (#167).",
-  "news-invite": "His dictation of 2026-09-24, ending on his line for " +
-    "the old list (W19, 2026-09-26) in place of \"If you didn\x27t " +
-    "request this email, you can safely ignore it.\" Site sign-ups get " +
-    "no email since W1. \"Farm news\" for the list, settled (W14, " +
-    "2026-09-28).",
+  "news-invite": "Subject is his (2026-10-25). The body is writer2\x27s " +
+    "redraft on his structure (#400, comment 6404632787): a welcome, " +
+    "the confirm button, the expiry and the ignore line, no " +
+    "unsubscribe. W19\x27s old-list line is retired with #303. Whether " +
+    "the public form sends it at all is his open question on #303.",
   "news-welcome": WELCOME,
   ...Object.fromEntries(WELCOMES.map(([type]) =>
     [`news-welcome-${type}`, WELCOME])),
