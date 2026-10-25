@@ -1864,7 +1864,7 @@ export const farmMorningReport = (stats, pickups, {
       heading("Pickup schedule"),
       p(`**${schedule.last
         ? `The pickup schedule's last window is on ${
-          label(schedule.last)}; it must reach the week of ${
+          label(schedule.last)}. It must reach the week of ${
           label(schedule.until)}.`
         : "The pickup schedule offers no windows."}**`),
       p("Add windows and deploy, or the next deploy fails:"),
@@ -1901,7 +1901,7 @@ export const farmMorningReport = (stats, pickups, {
     let text = `${lead}. To see ${all}:`;
 
     if (square.cancelled && left) {
-      text = `${lead}. The sweep canceled ${square.cancelled}; ${still}. ` +
+      text = `${lead}. The sweep canceled ${square.cancelled}, and ${still}. ` +
         "To see them:";
     } else if (square.cancelled) {
       text = `${lead}, and the sweep canceled ${all}. To see ${all}:`;
@@ -2005,8 +2005,8 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
   // unpaid one on this list means that step did not happen.
   const state = (o) => (o.status === "paid" ? "paid"
     : o.fulfilment.method === "delivery"
-      ? "**UNPAID, past the cutoff: it should have been canceled; " +
-        "check it before loading**"
+      ? "**UNPAID, past the cutoff: it should have been canceled. " +
+        "Check it before loading**"
       : "UNPAID");
 
   if (!orders.length) {
@@ -2123,7 +2123,7 @@ export const farmPackingSlips = (entries, {
     return {
       subject: title,
       ...render(title, [
-        p("No order has come in, changed or been canceled since the " +
+        p("No order has come in, changed, or been canceled since the " +
           "last packet."),
         adminFooter(links),
       ], links, { tag: "Packing slips" }),
@@ -2142,7 +2142,7 @@ export const farmPackingSlips = (entries, {
         "opens with the pick list for every slip in it."),
       sunday
         ? p(`It's Sunday, so it has a slip for every order due by ${
-          label(addDays(day, 6))}, as well as anything new, changed or ` +
+          label(addDays(day, 6))}, as well as anything new, changed, or ` +
           "canceled since yesterday, and replaces every earlier slip for " +
           "this week.")
         : null,
