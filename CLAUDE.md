@@ -36,6 +36,12 @@ npm run lint:styles         # Stylelint for SCSS
 # before every commit
 npm run check
 
+# The unit tests under c8 (lcov in coverage/, a summary on stdout),
+# then the report CI shows on a pull request into next: overall, and
+# of the lines added since <ref>. Insight only; nothing fails on it
+npm run coverage
+npm run coverage:report -- --base <ref>
+
 # Production build. NETLIFY ONLY -- do not run this locally.
 # bin/prod installs Dart Sass into /opt/build/repo, a path that only
 # exists on the Netlify build image, so this fails on a dev machine.

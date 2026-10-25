@@ -34,6 +34,9 @@ CLAUDE.local.md
 incidents/*
 !incidents/README.md
 
+# c8's report (npm run coverage).
+/coverage/
+
 # Playwright's run output (npm run e2e).
 test-results/
 playwright-report/
