@@ -73,5 +73,4 @@ our table the next time you get the chance.
   alt="Someone in a giant chicken suit behind our table at the Foster Farmers Market" />}}
 
 Between seasons, [order online](/order) for delivery, on-farm pickup
-or [scheduled pickup](/delivery-policy/#pickup-days) at our drop
-site.
+or [pickup at one of our drop sites](/delivery-policy/#pickup-days).
