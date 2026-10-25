@@ -73,4 +73,5 @@ our table the next time you get the chance.
   alt="Someone in a giant chicken suit behind our table at the Foster Farmers Market" />}}
 
 Any week of the year, [order online](/order) for delivery, on-farm
-pickup or [pickup at our drop site](/delivery-policy/#scheduled-pickup).
+pickup or [pickup at one of our drop
+sites](/delivery-policy/#scheduled-pickup).

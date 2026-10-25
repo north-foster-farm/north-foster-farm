@@ -4,8 +4,8 @@ slug: "ordering-tour"
 date: 2026-10-18
 description: >-
   Our freezer is full of big whole chickens, and ordering online is how
-  you get one all winter: delivery, pickup at the farm, or Saturdays at
-  our drop site in Scituate.
+  you get one all winter: delivery, on-farm pickup, or pickup at one of
+  our drop sites.
 home: true
 ---
 
@@ -43,11 +43,12 @@ moment the payment goes through, and we email you to confirm it.
   {{< terms "cutoff-hour" >}} on {{< terms "cutoff-day" >}}. As
   affordable as we can make it: {{< terms "minimum" >}} minimum,
   {{< terms "fee" >}} fee. [Check your ZIP code](/#map).
-- **Pickup at the farm**: pick a day and a time when you order, 9 AM to
+- **On-farm pickup**: pick a day and a time when you order, 9 AM to
   1 PM or 1 to 5 PM. No fee, no minimum.
-- **Our drop site in Scituate**: every {{< terms "day" "drop" >}}
+- **Pickup at one of our drop sites**: every {{< terms "day" "drop" >}}
   morning, {{< terms "window" "drop" >}}, at
-  {{< terms "place" "drop" >}}. Pick up your order for free.
+  {{< terms "place" "drop" >}}. Markets and pop-ups we open for pickup
+  show up on the order page too. Pick up your order for free.
 
 ## Your account
 
@@ -64,8 +65,8 @@ order in progress, and keep a delivery address on file.
   caption="The hens slow down when the days get short, but they keep laying." />}}
 
 The freezer is full, and we have eggs all year round. Order whenever
-you run low, and we'll see you at your door, at the farm, or on
-{{< terms "day" "drop" >}} morning at the drop site.
+you run low, and we'll see you at your door, at the farm, or at one of
+our drop sites.
 
 News like this goes only to people who ask for it. [Sign up](/news/)
 any time, or tick the email box when you place an order.
