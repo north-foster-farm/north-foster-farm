@@ -1839,7 +1839,7 @@ sends a welcome". Tagged `@regression`. Pins the single opt-in that
   your email address for Farm News". The link lands on
   `/news/` with "You're on the list. Thanks!"; the record has
   `marketing` true, a `marketingAt` and `marketingSource` signup, and
-  the outbox adds "You're on the North Foster Farm list", with a link
+  the outbox adds "Welcome to Farm News", with a link
   carrying `?unsubscribe=`.
 - **Teardown:** `customers delete`; both messages are removed from the
   outbox.
@@ -1894,10 +1894,10 @@ Manual: the link lives seven days.
   1. Read the outbox; open the link; open it again.
   2. Open an expired link.
 - **Assert:** The email's subject is "Confirm your email address for
-  Farm News"; it reads "Click the button below to receive Farm News
-  from North Foster Farm.", has a "Sign up" button, "This
-  link expires in 7 days. If you didn't request this email, you can
-  safely ignore it." and "Need help? Contact us". Before the click the
+  Farm News"; it reads "Welcome to Farm News. Please confirm your
+  email address to start receiving it.", has a "Confirm my email
+  address" button and "This link works for 7 days. If you didn't
+  sign up, you can ignore this email." Before the click the
   record is absent or not consenting. The link, to the staging host,
   lands on `/news/` with "You're on the list. Thanks!"; the record has
   `marketing` true and `marketingSource` signup. The second click

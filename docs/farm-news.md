@@ -70,9 +70,10 @@ A field in the footer and on the news page (`farm-list.html`,
 `scripts/news/farm-list.js`). `POST /api/news/subscribe` mails the
 confirmation email (`newsConfirm` in `templates.mjs`): one button, a
 link that works for seven days, single use, ending on "If you didn't
-request this email, you can safely ignore it." Nothing is written to
-the record until the click. An address already on the list is sent
-nothing. It is rate-limited per address like sign-in. The answer is
+sign up, you can ignore this email." (James, 2026-10-25, #400).
+Nothing is written to the record until the click. An address
+already on the list is sent nothing. It is rate-limited per address
+like sign-in. The answer is
 `{ ok: true }` for any address that looks like one, rate limit
 included, so nobody can learn who is on the list from here, and the
 note under the field says to check for the link.

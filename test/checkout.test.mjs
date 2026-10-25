@@ -199,7 +199,7 @@ describe("completeOrder", () => {
     assert.equal(sent.length, 0);
     await announceNew(stores, saved, { mail, env, now });
     assert.equal(sent.length, 3);
-    assert.equal(sent[2].subject, "You're on the North Foster Farm list");
+    assert.equal(sent[2].subject, "Welcome to Farm News");
     assert.equal(sent[2].to, boxed.customer.email);
     assert.doesNotMatch(sent.map((m) => m.text).join("\n"),
       /confirm\?token=/, "on the list at once, with no confirmation (#303)");
