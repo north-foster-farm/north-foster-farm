@@ -190,7 +190,7 @@ describe("what goes in a packet", () => {
       assert.equal(h.sent[1].subject, "Packing slips, Wednesday, " +
         "October 7: nothing to print");
       assert.match(h.sent[1].text,
-        /No order has come in, changed or been\s+canceled/);
+        /No order has come in, changed, or been\s+canceled/);
       assert.deepEqual(h.sent[1].attachments, []);
     });
 

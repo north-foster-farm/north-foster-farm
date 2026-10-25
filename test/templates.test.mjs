@@ -366,7 +366,7 @@ describe("the monitoring emails", () => {
         "[^>]*text-align:center[^>]*>🫥"), "figures right, marks centred");
     assert.doesNotMatch(m.text, /poll|Venmo check|invoice/i);
     has(m.text, "The pickup schedule's last window is on Friday, " +
-        "October 16; it must reach the week of Monday, October 19.");
+        "October 16. It must reach the week of Monday, October 19.");
     has(m.text, "\n    bin/nff schedule set <file>\n");
     has(m.text, "A failed payment left 1 order open in Square, and the " +
         "sweep canceled it. To see it:");
@@ -404,7 +404,7 @@ describe("the monitoring emails", () => {
     has(left({ open: 2, cancelled: 0 }),
       "Failed payments left 2 orders open in Square. To see them:");
     has(left({ open: 3, cancelled: 1 }), "Failed payments left 3 orders " +
-      "open in Square. The sweep canceled 1; 2 are still open. To see " +
+      "open in Square. The sweep canceled 1, and 2 are still open. To see " +
       "them:");
     has(left({ open: 2, cancelled: 2 }), "Failed payments left 2 orders " +
       "open in Square, and the sweep canceled them. To see them:");
@@ -515,7 +515,7 @@ describe("the monitoring emails", () => {
     });
 
     has(odd.text, "**NFF-2610-ABCD**, Pat Example, **UNPAID, past the " +
-      "cutoff: it should have been canceled; check it before loading**");
+      "cutoff: it should have been canceled. Check it before loading**");
     has(odd.text, "**NFF-2610-CONF**, Pat Example, 9 – 11 AM, paid");
 
     const none = farmTomorrow([], { date: "2026-10-09", links });
