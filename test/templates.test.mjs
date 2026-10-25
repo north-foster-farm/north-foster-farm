@@ -87,7 +87,7 @@ describe("the order details block", () => {
     o.fulfilment.date = "2026-10-17";
     const drop = orderConfirmed(o, { links });
 
-    assert.match(drop.text, /Order type: \*\*Scheduled pickup\*\*/);
+    assert.match(drop.text, /Order type: \*\*Pickup days\*\*/);
     assert.match(drop.text,
       /- When: Saturday, October 17, between 10 and 11 AM/);
     assert.match(drop.text, /- Where: Village Green/);
@@ -278,7 +278,7 @@ describe("scheduled pickup emails", () => {
       const { market } = await library;
       const m = orderConfirmed(market(), { links });
 
-      has(m.text, "Order type: **Scheduled pickup**");
+      has(m.text, "Order type: **Pickup days**");
       has(m.text, "- When: Sunday, October 25, between 9 AM and 1 PM");
       has(m.text, "- Where: Foster Farmers Market, Shady Acres Diner, " +
         "164 Danielson Pike, Foster");

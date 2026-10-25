@@ -20,9 +20,9 @@ export const between = (window) =>
 // own name for the place.
 export const methodName = (method) => ({
   delivery: "Delivery",
-  scheduled: "Scheduled pickup",
-  scituate: "Scheduled pickup",
-  market: "Scheduled pickup",
+  scheduled: "Pickup days",
+  scituate: "Pickup days",
+  market: "Pickup days",
   onfarm: "On-farm pickup",
 }[method] || method);
 

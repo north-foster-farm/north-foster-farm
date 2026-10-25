@@ -36,7 +36,7 @@ test.describe("order page", () => {
 
     await order.open();
     await expect(page.locator(".order-method-title")).toHaveText([
-      "On-farm pickup", "Scheduled pickup", "Delivery",
+      "On-farm pickup", "Pickup days", "Delivery",
     ]);
     await expect(page.locator("#method-onfarm")).toBeChecked();
   });

@@ -556,12 +556,12 @@ test.describe("home", () => {
         cost: "No minimum, no fee", cta: "Shop for pickup",
       },
       {
-        method: "scheduled", name: "Scheduled pickup",
+        method: "scheduled", name: "Pickup days",
         when: /Saturdays, 10:00\s–\u2060\s11:00\sAM/,
         line: "Order in advance and get your order at any upcoming " +
           "market, pop-up, or drop site",
         where: "46 Institute Ln, North Scituate, RI",
-        cost: "No minimum, no fee", cta: "Shop for scheduled pickup",
+        cost: "No minimum, no fee", cta: "Shop for pickup days",
       },
       {
         method: "delivery", name: "Delivery",

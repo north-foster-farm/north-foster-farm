@@ -87,15 +87,15 @@ describe("ordersCsv", () => {
     for (const method of ["scheduled", "scituate", "market"]) {
       assert.equal(howOf(order({
         fulfilment: { method, date: "2026-09-24" }, pickup,
-      })), "Scheduled pickup, Foster Farmers Market", method);
+      })), "Pickup days, Foster Farmers Market", method);
     }
     assert.equal(howOf(order({
       fulfilment: { method: "scheduled" },
       pickup: { name: "Old", gone: true },
-    })), "Scheduled pickup", "an occurrence gone from the data");
+    })), "Pickup days", "an occurrence gone from the data");
     assert.match(rows(ordersCsv([order({
       fulfilment: { method: "scituate", date: "2026-09-24" }, pickup,
-    })], NY))[1], /,Paid,Scheduled pickup, Foster|,"Scheduled pickup, Foster/);
+    })], NY))[1], /,Paid,Pickup days, Foster|,"Pickup days, Foster/);
   });
 
   it("is only a header with no orders", () => {

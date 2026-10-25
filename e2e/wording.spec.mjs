@@ -65,11 +65,11 @@ test.describe("no retired words (#150)", () => {
   // #313: scheduled pickup is a way to get an order, and llms.txt
   // says so from the data. Markets and pop-ups appear on the order
   // page when the farm opens them; no market's dates are listed.
-  test("llms.txt has a Scheduled pickup section", async ({ request }) => {
+  test("llms.txt has a Pickup days section", async ({ request }) => {
     const text = await (await request.get("/llms.txt")).text();
-    const section = text.match(/\n## Scheduled pickup\n([\s\S]*?)\n## /);
+    const section = text.match(/\n## Pickup days\n([\s\S]*?)\n## /);
 
-    expect(section, "a Scheduled pickup section").toBeTruthy();
+    expect(section, "a Pickup days section").toBeTruthy();
     expect(section[1]).toMatch(/drop site: Saturdays, 10:00 – 11:00 AM/i);
     expect(section[1]).toMatch(/46 Institute Lane/);
     expect(section[1]).toMatch(/11:59 PM the day before/);

@@ -41,20 +41,20 @@ test.describe("policies", () => {
       .toBeGreaterThanOrEqual(new Date("2026-09-24T12:00").getTime());
   });
 
-  // #313: the delivery policy has a section on scheduled pickup, with
-  // the drop site, how markets and pop-ups work and the cutoff. No
+  // #313: the delivery policy has a section on pickup days, with the
+  // drop site, how markets and pop-ups work and the cutoff. No
   // market's hours are copied into it.
-  test("the delivery policy names scheduled pickup (#313)",
+  test("the delivery policy names pickup days (#313)",
     async ({ page }) => {
       await page.goto("/delivery-policy/");
 
       const main = page.locator("main");
 
-      await expect(main.getByRole("heading", { name: "Scheduled pickup" }))
+      await expect(main.getByRole("heading", { name: "Pickup days" }))
         .toBeVisible();
 
       const text = await main.innerText();
-      const section = text.slice(text.indexOf("Scheduled pickup"));
+      const section = text.slice(text.indexOf("Pickup days"));
 
       expect(section).toMatch(/the drop site, a market or a pop-up/);
       expect(section).toMatch(/Saturdays from\s+10:00 to 11:00 AM/);
@@ -62,7 +62,7 @@ test.describe("policies", () => {
       expect(section).toMatch(/11:59 PM the day before/);
       expect(section).toMatch(/no minimum or fee/i);
       expect(section).not.toMatch(/Farmers Market|9:00 AM|Tilted Barn/);
-      expect(text).toMatch(/Scheduled pickup:\s+11:59 PM the day before/);
+      expect(text).toMatch(/Pickup days:\s+11:59 PM the day before/);
     });
 
   for (const path of ["/privacy/", "/delivery-policy/", "/accessibility/"]) {

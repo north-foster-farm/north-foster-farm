@@ -3020,7 +3020,8 @@ export class OrderForm {
   // Foster Farmers Market": the occurrence's own hours and name, from
   // the lists (one that has since left them is still remembered). A
   // draft saved before scheduled pickup (`scituate`) reads as the drop
-  // site's did; an occurrence the page cannot name, as "the scheduled pickup".
+  // site's did; an occurrence the page cannot name, as "the pickup you
+  // chose".
   pickupAt(f) {
     if (f.method === "scituate") {
       return `${this.drop.window}, at the drop site`;
@@ -3028,7 +3029,7 @@ export class OrderForm {
 
     const entry = this.dates.occurrence(f.occurrence);
 
-    if (!entry) return "at the scheduled pickup";
+    if (!entry) return "at the pickup you chose";
 
     const place = entry.series === this.dropSeries
       ? "the drop site" : entry.name;

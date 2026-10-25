@@ -60,7 +60,7 @@ describe("home page ways band", { skip: !hasHugo }, () => {
     assert.deepEqual(cards.map((c) => [c.name, c.line]), [
       ["On-farm pickup",
         "Choose a day and time to get your order right here at the farm"],
-      ["Scheduled pickup", "Order in advance and get your order at any " +
+      ["Pickup days", "Order in advance and get your order at any " +
         "upcoming market, pop-up, or drop site"],
       ["Delivery",
         "Our farm-to-doorstep service: delivery to your front door, " +

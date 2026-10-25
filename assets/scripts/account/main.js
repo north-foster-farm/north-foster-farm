@@ -1168,7 +1168,7 @@ class Account {
 
       option.value = held;
       option.textContent = `${when(order).replace(
-        /^Scheduled pickup, /, ""
+        `${METHOD.scheduled}, `, ""
       )} (as booked)`;
       select.prepend(option);
     }

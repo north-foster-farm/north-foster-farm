@@ -280,7 +280,7 @@ test.describe("a scheduled pickup on the account page", () => {
       const when = page.locator("[data-out='when']").first();
 
       await expect(when).toContainText(
-        `Scheduled pickup, ${m.label}, 10 AM – 12 PM, at Canned Market`
+        `Pickup days, ${m.label}, 10 AM – 12 PM, at Canned Market`
       );
       await expect(when).not.toContainText("scheduled,");
       await expect(when).not.toContainText("scituate");

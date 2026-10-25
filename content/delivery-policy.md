@@ -67,15 +67,15 @@ We email you a reminder the evening before.
 If we can't make it due to unforeseen circumstances, such as
 inclement weather, we'll notify you via email and postpone your
 delivery until the following {{< terms "day" >}}. Alternatively, you
-can choose to pick up your order at the farm or at a scheduled pickup,
-or cancel your order for a full refund.
+can choose to pick up your order at the farm or on one of our pickup
+days, or cancel your order for a full refund.
 
 You don't need to be home. If there's no cooler where you told us, we
 can't get to that spot, or we can't find your address as you gave it,
 we'll try to reach you by phone, text or the doorbell. If we can't
 reach you, we won't leave your order. You can choose to have it
-delivered the following {{< terms "day" >}}, pick it up at the farm or at
-a scheduled pickup, or cancel your order for a refund of your items. We
+delivered the following {{< terms "day" >}}, pick it up at the farm or on
+one of our pickup days, or cancel your order for a refund of your items. We
 hold your order for {{< terms "hold" >}} while you choose a new way to
 get your order. If you haven't chosen after {{< terms "hold" >}}, we
 cancel your order, refund your items, and send you an email to confirm
@@ -112,10 +112,10 @@ order. If we can't accommodate your pick-up appointment, we'll cancel
 your order, refund it in full, and send you an email to confirm the
 cancellation.
 
-## Scheduled pickup
+## Pickup days
 
-Scheduled pickup is pickup at a place and a time we set: the drop
-site, a market or a pop-up. There is no minimum or fee.
+On pickup days, you pick up your order at a place and a time we set:
+the drop site, a market or a pop-up. There is no minimum or fee.
 
 **The drop site** in {{< terms "town" "drop" >}} runs on
 {{< terms "days" "drop" >}} from
@@ -140,7 +140,7 @@ notes, or cancel the order, until the cutoff:
 
 - **Delivery:** {{< cutoff "delivery" >}}, the day before your
   {{< terms "day" >}}.
-- **Scheduled pickup:** 11:59 PM the day before your pickup.
+- **Pickup days:** 11:59 PM the day before your pickup.
 - **On-farm pickup:** 11:59 PM the day before your pickup.
 
 To change what's in an order, cancel it and place a new one. After the

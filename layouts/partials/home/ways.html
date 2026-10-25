@@ -52,13 +52,13 @@
   (dict
     "method" "scheduled"
     "icon" "lot-location"
-    "name" "Scheduled pickup"
+    "name" "Pickup days"
     "badge" $dropBadge
     "line" "Order in advance and get your order at any upcoming market, pop-up, or drop site"
     "when" (printf "%ss, %s" $drop.day (replace (replace $drop.window "–" "–\u2060") " " "\u00a0"))
     "where" $drop.short
     "cost" "No minimum, no fee"
-    "cta" "Shop for scheduled pickup")
+    "cta" "Shop for pickup days")
   (dict
     "method" "delivery"
     "icon" "delivery"

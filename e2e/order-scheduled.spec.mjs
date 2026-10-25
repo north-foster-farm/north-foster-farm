@@ -131,11 +131,11 @@ test.describe("scheduled pickup", () => {
 
     await order.open({ eggs: 1 }, { method: "scheduled" });
     await expect(page.locator("[data-way-name]"))
-      .toHaveText("Scheduled pickup");
+      .toHaveText("Pickup days");
 
     await order.scheduled(FOSTER.series);
     await expect(page.locator("[data-way-name]"))
-      .toHaveText("Scheduled pickup");
+      .toHaveText("Pickup days");
   });
 
   test("an occurrence the list lacks is not offered",

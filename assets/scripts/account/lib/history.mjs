@@ -8,7 +8,7 @@ import { today } from "../../order/lib/zoned.mjs";
 
 export const METHOD = {
   delivery: "Delivery",
-  scheduled: "Scheduled pickup",
+  scheduled: "Pickup days",
   onfarm: "On-farm pickup",
 };
 
@@ -60,7 +60,7 @@ export const statusOf = (order) => (order.status === "fulfilled"
   ? "Picked up"
   : STATUS[order.status] || order.status);
 
-// "Delivery", "On-farm pickup" or "Scheduled pickup, {place}". The
+// "Delivery", "On-farm pickup" or "Pickup days, {place}". The
 // account's derived pickup names the place, a migrated drop-site order
 // included; one whose occurrence is gone names none.
 export const howOf = (order) => {

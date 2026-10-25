@@ -27,7 +27,7 @@
 
 {{- with (partial "scheduled-places.html" .).drop }}
 
-## Scheduled pickup
+## Pickup days
 
 - The drop site: {{ .day }}s, {{ .window }}, {{ .place }}.{{ if gt .start (now.Format "2006-01-02") }} Starting {{ (time.AsTime .start).Format "January 2" }}.{{ end }}
 - Markets and pop-ups appear on the order page when the farm opens them for pickup: {{ (site.GetPage "/order").Permalink }}
