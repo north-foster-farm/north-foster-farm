@@ -133,7 +133,8 @@ describe("POST /api/contact", () => {
         "the writer learns nothing about the order");
     }
 
-    assert.match(sent[0].text, /NFF-2610-AAAA, placed with this email/);
+    assert.match(sent[0].text,
+      /NFF-2610-AAAA, placed with this email address/);
     assert.doesNotMatch(sent[0].html, /orders\/NFF-2610-AAAA/, "T5b");
     assert.match(sent[1].text, /BBBB: no order by that number/);
     assert.doesNotMatch(sent[1].html, /View order/);

@@ -113,9 +113,9 @@ test.describe("payments", () => {
       "with us.");
 
     const farm = await waitForMail({
-      // The subject is "New order <id>", a dash, then the total and how.
+      // The subject is "New order <id>:", then the total and how.
       subject: new RegExp(
-        `^New order ${body.orderId} . \\$7, on-farm pickup$`
+        `^New order ${body.orderId}: \\$7, on-farm pickup$`
       ),
       since,
     });
@@ -243,7 +243,7 @@ test.describe("payments", () => {
       );
       await waitForMail({
         subject: new RegExp(
-          `^New order ${body.orderId} . \\$50, delivery$`
+          `^New order ${body.orderId}: \\$50, delivery$`
         ),
         since,
       });

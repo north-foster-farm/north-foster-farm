@@ -670,7 +670,7 @@ describe("POST /api/orders with a card", () => {
       /- When: Wednesday, October 7, 9 AM – noon/);
     assert.equal(farm.length, 1);
     assert.deepEqual(farm[0].to, ["farm@x.com"]);
-    assert.match(farm[0].subject, /^New order NFF-.* — \$55, on-farm pickup$/);
+    assert.match(farm[0].subject, /^New order NFF-.*: \$55, on-farm pickup$/);
     assert.match(farm[0].text, /Paid: \*\*\$55 by Visa ending 4242\*\*/);
     assert.match(farm[0].text,
       /app\.squareup\.com\/dashboard\/orders\/overview\/SQO/);

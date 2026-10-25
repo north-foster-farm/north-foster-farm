@@ -104,7 +104,7 @@ test.describe("contact messages (#140)", () => {
       });
 
       expect(mail.text).toContain(
-        "NFF-0000-QAQA: no order by that number with this email"
+        "NFF-0000-QAQA: no order by that number with this email address"
       );
       expect((await contactMessages(email))
         .find((m) => m.orderId === "NFF-0000-QAQA")).toMatchObject({
@@ -160,7 +160,7 @@ test.describe("contact messages (#140)", () => {
       });
 
       expect(mail.text).toContain(
-        `Order ${body.orderId}, placed with this email`
+        `Order ${body.orderId}, placed with this email address`
       );
       expect((await contactMessages(email))
         .find((m) => m.orderId === body.orderId)).toMatchObject({

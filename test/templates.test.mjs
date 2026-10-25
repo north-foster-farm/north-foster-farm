@@ -870,7 +870,7 @@ describe("addresses and sign-in", () => {
 
       assert.match(m.subject, /Address to review: Pat Example/);
       has(m.text, "Pat Example (pat@example.com) saved an address " +
-        "outside of the published delivery area.");
+        "outside the published delivery area.");
       assert.doesNotMatch(m.html, /admin\.example\.com\/customers/,
         "no link to a dashboard page without the customer (T5b)");
       assert.match(m.text, /Location: \*\*5 Far Rd, Nowhere, MA 01234\*\*/);
@@ -999,11 +999,11 @@ describe("the farm's own notices", () => {
   it("says in the subject what it is, which order and how much", () => {
     assert.equal(
       farmOrderPlaced(reachable("delivery")).subject,
-      "New order NFF-2610-ABCD — $67, delivery"
+      "New order NFF-2610-ABCD: $67, delivery"
     );
     assert.equal(
       farmOrderPlaced(reachable("onfarm")).subject,
-      "New order NFF-2610-ABCD — $62, on-farm pickup"
+      "New order NFF-2610-ABCD: $62, on-farm pickup"
     );
   });
 
