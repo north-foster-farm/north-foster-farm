@@ -132,7 +132,7 @@ describe("line names", () => {
       const r = order([{ sku: FEET, qty: 1 }]);
 
       assert.equal(r.errors[`lines.${FEET}`],
-        "Feet, 1 lb avg. is sold out.");
+        "Feet, 1 lb avg.: out of stock.");
     });
 
     it("name a line stock can't fill", async () => {
@@ -142,7 +142,7 @@ describe("line names", () => {
       const { errors } = await checkLines(stores, [{ sku: LIVERS, qty: 1 }]);
 
       assert.equal(errors[`lines.${LIVERS}`],
-        "Livers, 1.0 – 1.4 lbs just sold out.");
+        "Livers, 1.0 – 1.4 lbs: out of stock.");
     });
   });
 });

@@ -279,14 +279,14 @@ export const checkLines = async (stores, lines, {
 
     if (!state || !item) continue;
 
+    // The item's full name, a colon, then what is left (#400).
     const name = item.lineName;
 
     if (!state.inStock) {
-      errors[`lines.${line.sku}`] = `${name} just sold out.`;
+      errors[`lines.${line.sku}`] = `${name}: out of stock.`;
     } else if (state.available !== null && line.qty > state.available) {
-      errors[`lines.${line.sku}`] = state.available === 1
-        ? `Only 1 ${name} left.`
-        : `Only ${state.available} of ${name} left.`;
+      errors[`lines.${line.sku}`] =
+        `${name}: only ${state.available} left in stock.`;
     }
   }
 

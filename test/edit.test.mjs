@@ -427,7 +427,7 @@ describe("editOrder", () => {
       }, square);
 
       assert.equal(more.status, 422);
-      assert.match(more.errors[`lines.${SKU}`], /sold out/);
+      assert.match(more.errors[`lines.${SKU}`], /: out of stock\.$/);
     });
 
   it("moves stock by the change alone", async () => {

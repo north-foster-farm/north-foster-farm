@@ -154,7 +154,7 @@ export const validateOrder = (payload, {
     if ((!item.inStock || archived(item)) && qty > (held[sku] || 0)) {
       errors[`lines.${sku}`] = archived(item)
         ? `${item.lineName} is not available.`
-        : `${item.lineName} is sold out.`;
+        : `${item.lineName}: out of stock.`;
       continue;
     }
 

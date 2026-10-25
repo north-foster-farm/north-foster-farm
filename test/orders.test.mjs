@@ -783,7 +783,7 @@ describe("POST /api/orders with a card", () => {
     const data = await short.json();
 
     assert.equal(short.status, 422);
-    assert.match(data.errors[`lines.${SKU}`], /Only 1/);
+    assert.match(data.errors[`lines.${SKU}`], /: only 1 left in stock\.$/);
     assert.equal(data.stock[SKU].available, 1);
   });
 
