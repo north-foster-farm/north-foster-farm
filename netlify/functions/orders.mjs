@@ -400,7 +400,9 @@ export const handle = async (req, {
         }, options)));
       }
 
-      return json(422, { errors: { payment: "Which Venmo step?" } });
+      return json(422, { errors: {
+        payment: "The Venmo payment didn't come through. Start it again.",
+      } });
     }
 
     const sourceId = String(payment.sourceId || "");
