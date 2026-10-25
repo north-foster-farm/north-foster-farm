@@ -128,3 +128,18 @@ Then give:
 A run that is blocked says `cloud-<issue> blocked:` instead, with the
 blocker first and the branch if you committed to one. Say what failed
 plainly; never report a failing check as passing.
+
+## The e2e suite against staging
+
+Push staging's sha to `e2e/staging` (`git push origin
+<sha>:refs/heads/e2e/staging --force`; only the coordinator does) and
+`.github/workflows/e2e-staging.yml` waits for Netlify to serve that commit,
+then runs every spec not on `e2e/staging-passing.txt`; push to
+`e2e/staging-full` for the whole suite, as the final run on the frozen
+commit. The run's summary lists the failed specs and the passed ones as `spec
+sha date` lines: paste those into `e2e/staging-passing.txt` on the next
+commit, so later runs take only what still fails. `e2e/staging-attention.txt`
+names the specs open work may break, and `bin/e2e-summary.mjs` writes the
+summary. It needs the Actions secrets `E2E_STAGING_TOKEN` and
+`E2E_STAGING_PING_URL`, and a failure alerts through the Healthchecks
+`/fail`. `orders-api` leaves a paid sandbox order on staging each run.

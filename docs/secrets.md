@@ -145,6 +145,7 @@ of every row.
 | `AXIOM_TOKEN` | secret | production; staging | env file | Axiom |
 | `HEALTHCHECKS_JOBS_URL`, `_ALERT_URL`, `_BACKUP_URL`, `_PACKING_URL` | ping URLs | each environment (backup and packing: production only) | env file | healthchecks.io |
 | `PROD_AUDIT_PING_URL` | ping URL | GitHub Actions secret, in each repository | password manager | healthchecks.io |
+| `E2E_STAGING_PING_URL` | ping URL | GitHub Actions secret | password manager | healthchecks.io |
 | The ntfy topic | secret name | Healthchecks' channel and James's phone | password manager | us |
 | `BACKUP_R2_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY` | secret | production only | env file | Cloudflare |
 | The age private key | secret | James's Mac only; never Netlify | offline copy | us |
@@ -649,10 +650,11 @@ before he approves.
 
 ## healthchecks.io
 
-**`HEALTHCHECKS_JOBS_URL`, `_ALERT_URL`, `_BACKUP_URL`** and
-**`PROD_AUDIT_PING_URL`** (a GitHub Actions secret, one check per
-repository, for the daily production audit): ping URLs
-with the check's UUID in them, which is immutable. Leaked, someone can
+**`HEALTHCHECKS_JOBS_URL`, `_ALERT_URL`, `_BACKUP_URL`**,
+**`E2E_STAGING_PING_URL`** (a GitHub Actions secret, for the e2e run
+against staging, #449) and **`PROD_AUDIT_PING_URL`** (a GitHub Actions
+secret, one check per repository, for the daily production audit):
+ping URLs with the check's UUID in them, which is immutable. Leaked, someone can
 ping a check well and hide an outage, or post `/fail` and page James.
 To replace one, create a new check with the same period, grace and
 channels (dashboard, or `POST /api/v3/checks/` with a read-write API

@@ -44,3 +44,4 @@ MAINTENANCE_SECRET | 2026-10-18 | staging | seed | prod agent
 NETLIFY_AUTH_TOKEN | 2026-10-18 | all | seed | prod agent
 netlify CLI login | 2026-10-18 | all | seed | prod agent
 PROD_AUDIT_PING_URL | 2026-10-18 | production | seed | prod agent
+E2E_STAGING_PING_URL | 2026-10-25 | staging | seed | pipeline agent

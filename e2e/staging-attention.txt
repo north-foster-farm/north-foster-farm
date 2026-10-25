@@ -1,0 +1,38 @@
+# Specs that open work is likely to break (#449). "Passing for now,
+# needs attention": when a spec here passes on staging, it goes on
+# e2e/staging-passing.txt like any other, but the work named beside it
+# can turn it red, so the final full run on the frozen commit (#423)
+# must cover it. One line per spec: the path, then the issues or pull
+# requests, separated by spaces. A line that starts with # is skipped.
+# Remove a line when its work lands and the spec still passes.
+#
+# Pinned wording that the #400 copy pull requests may change:
+e2e/wording.spec.mjs #407 #410 #413 #417
+e2e/payment.spec.mjs #407 #414 #440
+e2e/account.spec.mjs #419 #414
+e2e/news.spec.mjs #412
+e2e/news-page.spec.mjs #412
+e2e/footer.spec.mjs #410 #417
+e2e/top-bar.spec.mjs #417
+e2e/contact.spec.mjs #411
+e2e/policies.spec.mjs #415 #416
+e2e/order-page.spec.mjs #413
+e2e/missed-delivery.spec.mjs #304 #444
+# The $40 delivery minimum becomes $50 on 2027-01-01:
+e2e/forms.spec.mjs #362
+e2e/pricing.spec.mjs #362
+e2e/home.spec.mjs #362 #417
+e2e/cart-round4.spec.mjs #362
+e2e/delivery-pass.spec.mjs #362 #301
+e2e/orders-api.spec.mjs #362
+# Open bugs and unbuilt design against what the spec checks:
+e2e/cart-layout.spec.mjs #388
+e2e/cart-round3.spec.mjs #384
+e2e/cart-discount-keyboard.spec.mjs #389
+e2e/cart-totals-keyboard.spec.mjs #448
+e2e/order-scheduled.spec.mjs #439
+e2e/map.spec.mjs #429 #433
+e2e/restock.spec.mjs #370
+e2e/skeletons.spec.mjs #271
+e2e/keyboard.spec.mjs #427 #356
+e2e/staging-toolbar.spec.mjs #350
