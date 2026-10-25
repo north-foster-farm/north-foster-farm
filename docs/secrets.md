@@ -136,6 +136,7 @@ of every row.
 | `SQUARE_ACCESS_TOKEN` | secret | production; staging | env file | Square |
 | `SQUARE_WEBHOOK_SIGNATURE_KEY` | secret | production; staging | env file | Square |
 | `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS` | secret, optional | production, during a swap only | env file | Square |
+| `STOCK_SOURCE_TOKEN` | secret, optional | staging only; never production | `.env.staging` | Square |
 | `PAYPAL_CLIENT_SECRET` | secret | production; staging | env file | PayPal |
 | `PAYPAL_WEBHOOK_ID` | id | production; staging | env file | PayPal |
 | `RESEND_API_KEY` | secret | production only | env file | Resend |
@@ -439,6 +440,19 @@ under maintenance mode (`docs/order-form.md`).
 **After launch:** evaluate a scoped login (OAuth with the minimum
 permissions) instead of the all-powerful personal access token, to
 limit what a leak could do.
+
+**`STOCK_SOURCE_TOKEN` (#453).** Staging's read of production stock
+counts (`docs/order-form.md`, "Staging's stock from production"). A
+production token from the scoped app #331 and #361 set up, with
+`INVENTORY_READ` and `ITEMS_READ` and nothing else, so staging cannot
+change production Square even with a bug; never a personal access
+token, which has full access. Set on the staging context alone: env
+check fails a production that holds it. Leaked, it shows the farm's
+catalog and stock counts and nothing more. To rotate, make the new
+token in the app, `bin/nff env push --staging`, deploy staging, and
+revoke the old one; until then the read falls back to the store's
+counts, so nothing breaks in between. Add the line to
+`docs/rotation-log.md`.
 
 ## PayPal
 

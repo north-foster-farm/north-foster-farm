@@ -49,7 +49,8 @@ import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { mailLinks } from "./site.mjs";
-import { inventoryCounts } from "./square.mjs";
+import { inventoryCounts, productionStock } from "./square.mjs";
+import { productionRead, stockOverrides } from "./stock-source.mjs";
 import { farmArchivedInStock } from "./templates.mjs";
 
 const index = indexCatalog(catalog);
@@ -61,6 +62,8 @@ export const getCounts = async (stores) =>
 
 export const SNAPSHOT = "square";
 export const SNAPSHOT_MS = 15_000;
+// Production's counts by SKU, where staging reads them (#453).
+export const PRODUCTION_SNAPSHOT = "square-production";
 
 // Square's counts by variation id, or null when it doesn't answer.
 const readSquare = async (ids, { env, deadline, inventory }) => {
@@ -76,9 +79,9 @@ const readSquare = async (ids, { env, deadline, inventory }) => {
 // Square's counts from the snapshot while it is young, else read and
 // kept. A failed read is kept too, as null, so a Square that is down
 // is not asked again until the snapshot ages.
-const snapshotCounts = async (stores, ids, opts, now) => {
+const snapshotCounts = async (stores, ids, opts, now, key = SNAPSHOT) => {
   const t = now.getTime();
-  const kept = await stores.stock.get(SNAPSHOT);
+  const kept = await stores.stock.get(key);
   const age = kept ? t - Date.parse(kept.at) : NaN;
 
   if (age >= 0 && age < SNAPSHOT_MS) return kept.counts;
@@ -86,7 +89,7 @@ const snapshotCounts = async (stores, ids, opts, now) => {
   const counts = await readSquare(ids, opts);
 
   try {
-    await stores.stock.set(SNAPSHOT, { at: now.toISOString(), counts });
+    await stores.stock.set(key, { at: now.toISOString(), counts });
   } catch (error) {
     log.warn({ event: "stock.snapshot_unsaved", error: String(error) });
   }
@@ -99,30 +102,38 @@ const snapshotCounts = async (stores, ids, opts, now) => {
 // that fails is logged and leaves the store's. With `snapshot`,
 // Square's come from the snapshot (above). With `check`, the line
 // logged says whether Square's counts or only the store's were used.
-// `inventory` is for tests.
+// On staging and previews, production's counts by SKU may stand in for
+// Square's, and STOCK_OVERRIDES over everything (lib/stock-source.mjs,
+// #453). `inventory` and `production` are for tests.
 export const liveCounts = async (stores, {
   catalogIndex = index, env = process.env, deadline,
-  inventory = inventoryCounts, snapshot = false, now = clock(), check,
+  inventory = inventoryCounts, production = productionStock,
+  snapshot = false, now = clock(), check,
 } = {}) => {
   const counts = await getCounts(stores);
+  const sourced = productionRead(env);
   const skus = new Map();
 
   for (const [sku, item] of catalogIndex) {
-    if (item.squareVariationId) skus.set(item.squareVariationId, sku);
+    if (sourced) skus.set(sku, sku);
+    else if (item.squareVariationId) skus.set(item.squareVariationId, sku);
   }
 
   const ids = [...skus.keys()];
-  const opts = { env, deadline, inventory };
+  const opts = { env, deadline, inventory: sourced ? production : inventory };
   const square = snapshot
-    ? await snapshotCounts(stores, ids, opts, now)
+    ? await snapshotCounts(stores, ids, opts, now,
+      sourced ? PRODUCTION_SNAPSHOT : SNAPSHOT)
     : await readSquare(ids, opts);
 
   for (const [id, n] of Object.entries(square || {})) {
     if (skus.has(id)) counts[skus.get(id)] = n;
   }
+  Object.assign(counts, stockOverrides(env));
   if (check) {
     log.info({ event: "stock.checked", for: check,
-      via: square ? "square" : "store" });
+      via: square ? "square" : "store",
+      ...(sourced ? { source: "production" } : {}) });
   }
 
   return counts;

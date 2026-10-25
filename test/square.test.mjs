@@ -7,7 +7,8 @@ import {
   ORDER_METADATA, SITE_VERSION, SOURCE_NAME, SquareError, buildChangeOrder,
   buildOrder, cancelFulfillment, cancelOrder, clientConfig, completeOrder,
   createOrder, createPayment, customerOrders, dashboardUrl, deleteCustomer,
-  e164, getPayment, inventoryCounts, receiptLink, refundPayment,
+  e164, getPayment, inventoryCounts, productionStock, receiptLink,
+  refundPayment,
   searchOpenOrders, settings, updateFulfillment,
 } from "../netlify/functions/lib/square.mjs";
 import {
@@ -867,6 +868,81 @@ describe("inventoryCounts (#267)", () => {
     await assert.rejects(inventoryCounts(["V1"],
       { env: prod, fetchImpl: impl }), SquareError);
   });
+});
+
+// Staging's read of production's stock, by SKU (#453).
+describe("productionStock", () => {
+  const staging = { SQUARE_ENV: "sandbox", STOCK_SOURCE_TOKEN: "read-only",
+    STOCK_SOURCE_LOCATION_ID: "PRODLOC" };
+  const SEARCH = "/v2/catalog/search";
+  const COUNTS = "/v2/inventory/counts/batch-retrieve";
+  const EGGS = "NFF-CHK-EGG-LG";
+  const BIRD = "NFF-CHK-WHL-20-24";
+  const variation = (id, sku, extra = {}) => ({
+    id, type: "ITEM_VARIATION", item_variation_data: { sku }, ...extra,
+  });
+
+  it("maps production's counts onto the catalog by SKU", async () => {
+    const hosts = [];
+    const { impl, calls } = fakeFetch({
+      [SEARCH]: (n) => new Response(JSON.stringify(n === 1
+        ? { objects: [variation("P1", EGGS), variation("PX", "ELSE")],
+          cursor: "C2" }
+        : { objects: [variation("P2", BIRD),
+          variation("P3", "NFF-OLD", { is_deleted: true })] })),
+      [COUNTS]: { counts: [
+        { catalog_object_id: "P1", location_id: "PRODLOC", quantity: "2" },
+        { catalog_object_id: "P2", location_id: "PRODLOC", quantity: "1" },
+        { catalog_object_id: "P2", location_id: "OTHER", quantity: "8" },
+      ] },
+    });
+    const out = await productionStock([EGGS, BIRD, "NFF-OLD"], {
+      env: staging,
+      fetchImpl: (url, init) => {
+        hosts.push(new URL(url).host);
+
+        return impl(url, init);
+      },
+    });
+
+    assert.deepEqual(out, { [EGGS]: 2, [BIRD]: 1 });
+    assert.deepEqual(calls.map((c) => c.path), [SEARCH, SEARCH, COUNTS]);
+    assert.deepEqual(calls[0].body.object_types, ["ITEM_VARIATION"]);
+    assert.equal(calls[1].body.cursor, "C2");
+    assert.deepEqual(calls[2].body.catalog_object_ids, ["P1", "P2"]);
+    assert.deepEqual(calls[2].body.location_ids, ["PRODLOC"]);
+    assert.deepEqual([...new Set(hosts)], ["connect.squareup.com"]);
+    for (const c of calls) {
+      assert.equal(c.method, "POST");
+      assert.equal(c.headers.Authorization, "Bearer read-only");
+    }
+  });
+
+  it("asks nothing without its own token and location", async () => {
+    const { impl, calls } = fakeFetch({});
+
+    for (const without of [
+      { ...staging, STOCK_SOURCE_TOKEN: "" },
+      { ...staging, STOCK_SOURCE_LOCATION_ID: "" },
+      // SQUARE_ACCESS_TOKEN is never borrowed.
+      { ...env, STOCK_SOURCE_LOCATION_ID: "PRODLOC" },
+    ]) {
+      assert.equal(await productionStock([EGGS],
+        { env: without, fetchImpl: impl }), null);
+    }
+    assert.equal(calls.length, 0);
+  });
+
+  it("asks for no counts when production has none of the SKUs",
+    async () => {
+      const { impl, calls } = fakeFetch({
+        [SEARCH]: { objects: [variation("PX", "ELSE")] },
+      });
+
+      assert.deepEqual(await productionStock([EGGS],
+        { env: staging, fetchImpl: impl }), {});
+      assert.deepEqual(calls.map((c) => c.path), [SEARCH]);
+    });
 });
 
 // An order placed before SQUARE_LOCATION_ID moved (#267, one location)

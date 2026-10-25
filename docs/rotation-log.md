@@ -36,6 +36,7 @@ HEALTHCHECKS_PACKING_URL | 2026-10-21 | production | seed | orders agent
 ntfy topic | 2026-10-18 | production | seed | checkout agent
 PICKUP_SCHEDULE_HOOK | 2026-10-18 | production | seed | checkout agent
 GATE_RESEND_KEY | 2026-10-18 | staging | seed | checkout agent
+STOCK_SOURCE_TOKEN | 2026-10-25 | staging | seed | cloud-453
 age private key | 2026-10-18 | production | seed | prod agent
 STAGING_TOKEN | 2026-10-18 | staging | seed | prod agent
 E2E_STAGING_TOKEN | 2026-10-18 | staging | seed | prod agent

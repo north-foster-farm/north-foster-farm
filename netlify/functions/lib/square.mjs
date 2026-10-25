@@ -1065,12 +1065,18 @@ export const inventoryCounts = async (variationIds, {
 
   const end = Date.now() + STOCK_MS;
   const cfg = { ...base, deadline: deadline ? Math.min(deadline, end) : end };
+
+  return countsAt(cfg, variationIds, fetchImpl);
+};
+
+// IN_STOCK at cfg's location for these variations. -> { [id]: n }
+const countsAt = async (cfg, ids, fetchImpl) => {
   const counts = {};
   let cursor;
 
   for (let page = 0; page < STOCK_PAGES; page++) {
     const data = await call(cfg, "/v2/inventory/counts/batch-retrieve", {
-      catalog_object_ids: variationIds,
+      catalog_object_ids: ids,
       location_ids: [cfg.locationId],
       states: ["IN_STOCK"],
       limit: 1000,
@@ -1088,6 +1094,61 @@ export const inventoryCounts = async (variationIds, {
   }
 
   return counts;
+};
+
+// Production's stock by SKU, for staging and previews alone (#453,
+// lib/stock-source.mjs decides where). Sandbox and production
+// variation ids differ, so production's item library is asked which of
+// its variations carry the SKUs, then their counts at
+// STOCK_SOURCE_LOCATION_ID, all with STOCK_SOURCE_TOKEN: a token that
+// can only read (INVENTORY_READ, ITEMS_READ), never
+// SQUARE_ACCESS_TOKEN. Only reads are sent. -> { [sku]: quantity },
+// or null without the keys.
+export const productionStock = async (skus, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+  deadline,
+} = {}) => {
+  if (isFake(env)) return fake.productionStock();
+  if (!env.STOCK_SOURCE_TOKEN || !env.STOCK_SOURCE_LOCATION_ID
+    || !skus.length) return null;
+
+  const end = Date.now() + STOCK_MS;
+  const cfg = {
+    token: env.STOCK_SOURCE_TOKEN,
+    locationId: env.STOCK_SOURCE_LOCATION_ID,
+    host: HOSTS.production,
+    version: env.SQUARE_VERSION || "2026-09-16",
+    deadline: deadline ? Math.min(deadline, end) : end,
+  };
+  const wanted = new Set(skus);
+  const bySku = new Map();
+  let cursor;
+
+  for (let page = 0; page < STOCK_PAGES; page++) {
+    const data = await call(cfg, "/v2/catalog/search", {
+      object_types: ["ITEM_VARIATION"],
+      limit: 1000,
+      cursor,
+    }, fetchImpl);
+
+    for (const o of data.objects || []) {
+      const sku = o.item_variation_data && o.item_variation_data.sku;
+
+      if (!o.is_deleted && wanted.has(sku)) bySku.set(o.id, sku);
+    }
+    cursor = data.cursor;
+    if (!cursor) break;
+  }
+
+  if (!bySku.size) return {};
+
+  const counts = await countsAt(cfg, [...bySku.keys()], fetchImpl);
+  const out = {};
+
+  for (const [id, n] of Object.entries(counts)) out[bySku.get(id)] = n;
+
+  return out;
 };
 
 // Every Square customer under one email, moved to another, for

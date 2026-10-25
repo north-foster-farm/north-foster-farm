@@ -412,6 +412,39 @@ Environment variables, set in Netlify, never in the repo:
 - `SQUARE_WEBHOOK_SIGNATURE_KEY` and, if the registered URL is not the
   site's own `/api/square/webhook`, `SQUARE_WEBHOOK_URL`.
 
+**Staging's stock from production (#453).** The sandbox's counts are
+not the ones customers see, so staging and deploy previews may read
+production's instead. Only where counts are read from changes: orders,
+payments, fulfilments and every stock change still go to the sandbox
+(`lib/stock-source.mjs`, `productionStock` in `lib/square.mjs`).
+
+- `STOCK_SOURCE`: `production` turns the read on; empty or anything
+  else leaves the sandbox's counts, as before.
+- `STOCK_SOURCE_TOKEN`: the read-only production app's token, scoped
+  to `INVENTORY_READ` and `ITEMS_READ` alone, so staging cannot change
+  production Square even with a bug. It comes from the app #331 and
+  #361 set up, never a personal access token, which has full access.
+- `STOCK_SOURCE_LOCATION_ID`: the production location whose counts
+  are read, North Foster Farm.
+- `STOCK_OVERRIDES`: a few SKUs pinned to a count, `SKU:n`
+  comma-separated (`NFF-CHK-WHL-30-34:1,NFF-CHK-WNG-30-99:0`), for the
+  browser tests: a tier at exactly 1, a sold-out item. A listed SKU
+  wins over every read; every other SKU reads as it would without it.
+  A part without a SKU or a whole number is skipped. Never the whole
+  catalog. It works with the production read off too.
+
+Sandbox and production variation ids differ, so the read asks
+production's item library which variations carry the catalog's SKUs,
+then their counts at the location, and keeps them by SKU in their own
+15 s snapshot (`square-production` in the stock store). A SKU
+production doesn't count sells by the store's count or its flag, as
+before. Neither setting applies outside `branch-deploy` and
+`deploy-preview`, nor where `SQUARE_ENV` is `production`, and
+`bin/nff env check` fails a production that holds any of the four.
+A test order on staging moves the sandbox's count, not production's,
+so staging never sells out by its own orders: pin the SKU at 0 for
+that.
+
 **Which release made an order (#331).** Every Square order the site
 creates, and every change order, carries `metadata { site_version,
 order_flow: "order-page" }` and a `source.name` of the domain and
