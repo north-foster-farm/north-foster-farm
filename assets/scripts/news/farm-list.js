@@ -81,7 +81,7 @@ export const wire = (form) => {
       setInvalid(true);
       say(note, data.errors.email, "no");
     } else {
-      say(note, "That didn't work. Try again in a moment.", "wait");
+      say(note, "Something went wrong. Please try again.", "wait");
     }
   });
 };

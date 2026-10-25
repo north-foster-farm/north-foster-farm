@@ -52,7 +52,7 @@ test.describe("home", () => {
       await expect(steps).toHaveCount(4);
       await expect(how.locator(".how-step-copy")).toHaveText([
         "Browse what’s in stock, or check out the whole catalog.",
-        "Pick up at our farm, choose a scheduled pickup, or get it "
+        "Pick up at our farm, at one of our pickup days, or get it "
           + "delivered to your door.",
         "Sign in with just your email, no password, and update your order.",
         "Our customers tell us they can, time and time again.",

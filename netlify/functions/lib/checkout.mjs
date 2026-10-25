@@ -306,7 +306,7 @@ const recordFound = async (stores, order, found, method, options) => {
     }, { env, mail, now });
 
     throw new CheckoutError("We found a payment for this order already, " +
-      "and we will sort it out with you by email. Please do not pay " +
+      "and we will work it out with you by email. Please do not pay " +
       "again.", { code: "payment.unreconciled" });
   }
 

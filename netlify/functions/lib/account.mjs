@@ -190,7 +190,7 @@ const index = indexCatalog(catalog);
 // A pickup at an occurrence that no data file defines any more (a
 // series is archived, never deleted, so this should not happen): there
 // is no day to move it to, so the page shows the order without the
-// change control and says to call, text or email.
+// change control and says to call, text, or email.
 const siteGone = (order) => {
   const f = order.fulfilment;
 

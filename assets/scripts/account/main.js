@@ -1101,7 +1101,8 @@ class Account {
     );
 
     if (!ok) {
-      this.say((data.errors && data.errors.order) || "That didn't work.");
+      this.say((data.errors && data.errors.order)
+        || "Something went wrong. Please try again.");
 
       return;
     }
