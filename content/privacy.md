@@ -47,12 +47,15 @@ it.
 
 We send Farm News only to people who ask for it. You can sign up on the site,
 tick "I want to get email from North Foster Farm" when you place an order, or
-turn Farm News on in your account. The box starts unticked. Signing up adds
-you to the list at once. We send you a welcome email, not one asking you to
-confirm. If you were on our old mailing list, we email you an invitation
-instead, and you join only if you follow its link within
-{{< fact "accounts" "newsInviteDays" >}} days. We add an
-address only when its owner asks, and we record when and how you signed up.
+turn Farm News on in your account. The box starts unticked. Ticking it, or
+turning Farm News on, adds you to the list at once, and we send you a welcome
+email. Signing up on the site sends you an email with a link instead, and you
+join only if you follow it within
+{{< fact "accounts" "newsInviteDays" >}} days, so nobody can sign up an
+address that isn't theirs. If you signed up on one of our paper sheets at a
+market, we added you from the sheet, and your welcome email says so. We add
+an address only when its owner asks, and we record when and how you signed
+up.
 
 Resend keeps the list and sends the emails. Every Farm News email has an
 unsubscribe link that takes you off the list in one click. You can also turn

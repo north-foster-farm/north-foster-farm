@@ -172,9 +172,10 @@ const WELCOMES = [
   ["account-settings", "account settings", "from account settings",
     "Farm news turned on in account settings"],
   ["reinvite-confirmation", "the confirmation link sent 2026-10-21",
-    "after the re-invite", "Someone on the old list clicked to confirm"],
+    "after the re-invite", "Not sent since #303: the old list is " +
+      "imported. Kept for a link mailed before"],
   ["market-sheet", "the Foster Farmers Market", "from a market sheet",
-    "A market sign-up sheet is imported (the import is not built yet)"],
+    "The old list's paper sheets are imported (bin/nff audience import)"],
   ["in-person", "", "for an in-person opt-in",
     "Someone asked in person to be added (recorded later, #267)"],
 ];
@@ -585,16 +586,15 @@ export const library = [
       `${links.site}/account/?token=abc123`, { links }),
   },
   {
-    id: "news-invite", name: "Farm news invitation",
-    when: "The old list is invited to opt in again",
+    id: "news-invite", name: "Farm news confirmation",
+    when: "Someone signs up with the field in the footer or on /news/",
     audience: C, tags: ["list", "sign-up", "launch"],
     build: (links) => t.newsConfirm(customer.email,
       `${links.site}/api/news/confirm?token=abc123`, { links }),
   },
   {
     id: "news-welcome", name: "Farm news welcome",
-    when: "Someone joins on the site: the news field, account settings, " +
-      "or the order box once the order is placed",
+    when: "Someone follows the news field's confirmation link",
     audience: C, tags: ["list", "sign-up", "farm news"],
     build: (links) => t.newsWelcome(subscriber("website-form",
       "the sign-up form on /news/"), unsub(links), { links }),
@@ -920,11 +920,12 @@ const WAITING = {
     `for outside limits. ${W11D} Its pickups are now those waiting on ` +
     "the customer, and it warns when the schedule runs short. Draft. " +
     "So is its list of messages waiting on an answer (#167).",
-  "news-invite": "His dictation of 2026-09-24, ending on his line for " +
-    "the old list (W19, 2026-09-26) in place of \"If you didn\x27t " +
-    "request this email, you can safely ignore it.\" Site sign-ups get " +
-    "no email since W1. \"Farm news\" for the list, settled (W14, " +
-    "2026-09-28).",
+  "news-invite": "His dictation of 2026-09-24. Since #303 it goes to " +
+    "the public sign-up field, not the old list, so his first closing " +
+    "line, \"If you didn\x27t request this email, you can safely " +
+    "ignore it.\", is back in place of his line for the old list " +
+    "(W19). Draft: the preview, \"One click puts you on our list.\" " +
+    "\"Farm news\" for the list, settled (W14, 2026-09-28).",
   "news-welcome": WELCOME,
   ...Object.fromEntries(WELCOMES.map(([type]) =>
     [`news-welcome-${type}`, WELCOME])),
@@ -933,9 +934,10 @@ const WAITING = {
     "address yet, so here they show as broken images.",
   "news-launch-email": "Subject and preview text are his (2026-09-26). " +
     "The whole body is the email lane\x27s draft and waits on him (W18), " +
-    "with \"much of Rhode Island\" (Q5). Draft: \"In the next few days " +
-    "you\x27ll get one more email from us\", since the invitations go out " +
-    "over several mornings (F6).",
+    "with \"much of Rhode Island\" (Q5). Draft, since the old list is " +
+    "imported with no invitation (#303): its last paragraph, from " +
+    "\"You signed up on one of our sheets\", and the footer\x27s \"we " +
+    "won\x27t move you to the new list\".",
 };
 
 for (const e of library) {

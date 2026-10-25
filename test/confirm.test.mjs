@@ -145,6 +145,8 @@ describe("bin/nff's production confirmation (#268)", () => {
         "jobs history", "health", "alert test", "mail test-dev",
         "maintenance status", "maintenance links",
         "sessions end-all", "errors show",
+        // Gone since #303: it only says to use audience import.
+        "audience invite",
       ]);
       const open = commands.filter(
         (c) => !GUARDED.includes(c) && !harmless.has(c));

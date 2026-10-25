@@ -2,10 +2,11 @@
 
 Opt-in only, ever. Consent is `marketing` and `marketingAt` on the
 customer record (`marketingSource` says how it came: `signup`,
-`order`, `account`, `confirm`, `resend`, `unsubscribe`), set by the
-sign-up field, the checkout box, the settings box, or the old list's
-confirmation link below. Anyone with an email address may opt in; a
-record is made for an address that has never ordered.
+`order`, `account`, `import`, `resend`, `unsubscribe`, and `confirm`
+for a re-invite link mailed before #303), set by the sign-up field's
+confirmation link, the checkout box, the settings box, or the import
+of the old list's paper sheets below. Anyone with an email address
+may opt in; a record is made for an address that has never ordered.
 
 ## The consent log
 
@@ -49,11 +50,13 @@ Supabase. Customers live in Blobs until households move there (see
 the workspace `CLAUDE.md`); the move carries the log as an events
 table keyed by household and these as columns.
 
-A sign-up on the site joins at once and gets a welcome, with no
-confirmation step. Only
-the old Fastmail list is asked to confirm (James, W1, 2026-09-26:
-"we should only be asking Fastmail contacts to confirm, no double opt
-in on the website including news sign up").
+Who confirms, by path (James, #303, 2026-10-25, replacing W1): the
+public sign-up field, which anyone can type any address into, mails
+a confirmation link and joins only on its click. The checkout box and
+the account settings switch join at once, with no confirmation email.
+The old Fastmail list is not asked to opt in again: it signed up on
+the farm's paper sheets, which are the record of consent, and is
+imported as subscribed.
 
 The list itself lives in Resend as an audience, so broadcasts go out
 with Resend's unsubscribe link, and the sync keeps the audience and
@@ -64,15 +67,28 @@ wanted, come from our own records.
 ## Signing up
 
 A field in the footer and on the news page (`farm-list.html`,
-`scripts/news/farm-list.js`). `POST /api/news/subscribe` opts the record
-in, dated, source `signup`, creating the record if there is none. It
-is rate-limited per address like sign-in. The answer is
+`scripts/news/farm-list.js`). `POST /api/news/subscribe` mails the
+confirmation email (`newsConfirm` in `templates.mjs`): one button, a
+link that works for seven days, single use, ending on "If you didn't
+request this email, you can safely ignore it." Nothing is written to
+the record until the click. An address already on the list is sent
+nothing. It is rate-limited per address like sign-in. The answer is
 `{ ok: true }` for any address that looks like one, rate limit
-included, so nobody can learn who is on the list from here.
+included, so nobody can learn who is on the list from here, and the
+note under the field says to check for the link.
+
+`GET /api/news/confirm?token=` is the click: it opts the record in,
+dated, source `signup`, detail `the sign-up form on /news/, confirmed
+by the link sent <day>`, creating the record if there is none, sends
+the welcome, and lands on `/news/?news=confirmed` (or `expired`,
+`invalid`), where the note under the field says so. A link the old
+list's re-invite mailed before #303 has no `via` and still confirms,
+as source `confirm`.
 
 The checkout box joins when the order is placed (`touchCustomer`,
 source `order`). The account page's box writes the same consent,
-source `account`. Everything else is in `lib/news.mjs`.
+source `account`. Neither sends a confirmation. Everything else is in
+`lib/news.mjs`.
 
 ## The welcome
 
@@ -84,9 +100,9 @@ after the order's own emails. A failed send is logged as
 
 It names how they opted in, from the last event in the log ("you
 signed up on our sheet at the Foster Farmers Market in July"), and
-the footer says it again. The market sheets and the re-invite also
-hear that the list moved to a new provider, so a welcome reaching a
-long-standing customer makes sense.
+the footer says it again. The market sheets (the old list's import)
+also hear that the list moved to a new provider, so a welcome
+reaching a long-standing customer makes sense.
 
 Its unsubscribe takes one click and no sign-in (T6c). A random token,
 kept hashed in the auth store with no expiry, names the address. The
@@ -97,33 +113,52 @@ the RFC 8058 one-click POST to `/api/news/unsubscribe`, which takes
 it from any site. Opting out dates the record, source `unsubscribe`,
 and the sync then unsubscribes the contact in Resend.
 
-## Asking an old list to opt in again
+## Importing the old list
 
 ```
-bin/nff --production audience invite contacts.csv [--dry-run]
+bin/nff --production audience import contacts.csv --date=2024-07-12 \
+  [--market="the Foster Farmers Market"] [--captured-by=James] \
+  [--evidence=foster-2024-07-12.pdf] [--dry-run]
 ```
 
-The CSV has a header naming email, first and last (any order, any
-case), or no header and the email first. Each address not already
-consenting gets the confirmation email (`newsConfirm` in
-`templates.mjs`), once, with no rate limit: one button, a link that
-works for seven days, single use, ending on "You're receiving this
-message because you previously joined our mailing list." Those
-already in are skipped and bad addresses reported. Nothing else
-happens until they click. `GET /api/news/confirm?token=` is the
-click: it opts the record in, dated, source `confirm`, sends the
-welcome, and lands on `/news/?news=confirmed` (or `expired`,
-`invalid`), where the note under the field says so. This is the
-Fastmail list's way in.
+The old list signed up on paper sheets at the markets, and the
+sheets are the record of consent, so it is imported as subscribed
+with no confirmation round (James, #303). The CSV has a header naming
+email, first and last, and optionally date and market (any order,
+any case), or no header and the email first. A row's date and market
+win over `--date` and `--market`; a date is required, as YYYY-MM-DD,
+and must be a real day not in the future.
+
+Each address joins at once, dated: `marketingAt` is when it was
+written, source `import`, and the consent log's event is a
+`market-sheet` whose `at` is the sheet's day, `detail` the market,
+and `capturedBy` and `evidence` from the flags. Then it gets the
+welcome, which names the sheet and the move to a new provider, with
+its one-click unsubscribe. The report lists:
+
+- `imported`, `skipped` (already consenting), `invalid` (a bad
+  address or date) and `withheld` (welcome held by `--no-email`,
+  which the command refuses today);
+- `declined`: a record that said no here, through Resend or by an
+  unsubscribe link, or whose owner had their details deleted while
+  the deletion's marker for the sync is still there. A sheet older
+  than that choice never overrules it. An address whose owner was
+  deleted and whose marker the sync has already cleared looks new,
+  so take such addresses out of the CSV.
+
+Nothing reaches Resend from the import: the next sync (or
+`audience sync`) adds each as a contact. Replies of "unsubscribe" to
+the launch email are not known here either; leave those addresses out
+of the CSV. `audience invite` is gone and says so.
 
 ## The list template
 
 `listMail` in `templates.mjs` is the layout for mail to the list:
-the welcome, the invitation and, later, newsletters. It has the order
+the welcome, the confirmation and, later, newsletters. It has the order
 emails' wordmark, card, font and green, plus a hero image, preview
 text, and blocks in `listBlocks`: `p`, `heading`, `image` (with an
 optional caption), `button` and `linked`. Its footer says why the
-mail came (the invitation leaves that to its body), gives the
+mail came (the confirmation leaves that to its body), gives the
 one-click unsubscribe and the farm's postal
 address (CAN-SPAM), and the text version says the same. It follows
 the reader's dark mode in Apple Mail, iOS Mail and Outlook; Gmail
