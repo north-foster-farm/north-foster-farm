@@ -24,35 +24,54 @@ we'd do with the free time.
 
 Honestly, summer was a blur. Pasture, processing, markets. Move the
 pens in the morning, pack the coolers, put up the tent, come home, do
-it again. The birds lived on grass here in Foster, in pens we moved to
-fresh pasture every day, eating grain that's free of GMOs. We know the
-summer happened because the freezer is full. We also know it because so
-many of you tried our chicken for the first time, came back to tell us
-how it tasted, and bought more. That part we remember clearly.
+it again. The birds lived on grass here in Foster, eating grain that's
+free of GMOs. We know the summer happened because the freezer is full.
+We also know it because so many of you tried our chicken for the first
+time, came back to tell us how it tasted, and bought more. That part we
+remember clearly.
 
 ## Fall
 
 {{< figure src="images/tilted-tent-square.jpg"
   alt="North Foster Farm's market booth: a green tent over a checked table, a Chicken & Eggs banner and a chalkboard sign, on grass"
-  caption="Our tent at the Tilted Barn this summer. It came down for the year after our last market in October." />}}
+  caption="Our tent at the Tilted Barn this summer. That market ended at the beginning of September." />}}
 
-Things came into sharper focus this fall. {{< terms "last-market-day" >}}
-was our last market of the year, the {{< terms "last-market" >}}, and
-the weeks leading up to it taught us more than the whole summer did. We
-added freezers. We learned what it takes to do this well, and how much
-of it happens before anyone sees a tent. And we saw the plain truth of
-the thing: a farm with a full freezer needs customers in January, not
-just July.
+The turning point came in September. The Tilted Barn market ended at
+the beginning of the month, and for the first time we could see, week
+by week, what losing a market costs. The Scituate market had about four
+weeks left. That's when it hit us: once we stopped talking to these
+people at the market, they couldn't reach us unless they knew exactly
+how. And unless they could reach us, they couldn't get anything from us
+at all.
+
+So we needed something to give people. What did we have to give them,
+and what would they do once they had it? One realization led to the
+next. There was going to be an abrupt point where the face-to-face
+contact we'd had all year stopped, and unless someone was very
+motivated, they wouldn't be able to find us.
+
+We kept adding freezers. We learned what it takes to do this well, and
+how much of it happens before anyone sees a tent. A farm with a full
+freezer needs customers in January, not just July. By the time the
+{{< terms "last-market" >}} closed on {{< terms "last-market-day" >}},
+our last market of the year, the answer was already under way.
 
 ## Three quarters of the way
 
-The realization came slowly, somewhere between the second freezer and
-the last market. There is no end of the season for us, not the way
-there used to be. We aren't standing at a finish line. We're three
-quarters of the way through our first year, and the last quarter is the
-one we know the least about. Winter can't mean hibernating until there
-are birds on the farm again. The hens, for their part, never planned
-to.
+Selling online was an idea from before the business really started. We
+had always put it off. Isn't it more important to be out in the fields
+working? Isn't what comes out of the pasture more important than
+technology, marketing, sales, or running a real business? It became
+obvious, fast, that none of these is more important than the others.
+They are equal parts of the problem, and solving one at the expense of
+the others is a recipe for failure. That was the focus this fall put on
+us.
+
+The grass stops growing in the fall. The rest of the work doesn't. So
+the finish line we pictured in April isn't there. We're three quarters
+of the way through our first year, and the last quarter is the one we
+know the least about. Winter can't mean hibernating until there are
+birds on the farm again. The hens, for their part, never planned to.
 
 ## Winter
 
