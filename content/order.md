@@ -1,7 +1,7 @@
 ---
 description: >
   Order pasture-raised chicken and eggs from North Foster Farm for on-farm
-  pickup, pickup at one of our drop sites, a market or a pop-up, or
+  pickup, pickup at one of our drop sites, markets or pop-ups, or
   delivery.
 slug: "order"
 title: "Place an order"
