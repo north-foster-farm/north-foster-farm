@@ -596,7 +596,7 @@ const missedReason = (order) => {
   const a = order.attempted || {};
   const d = order.fulfilment.delivery || {};
   const where = [d.address1, d.town].filter(Boolean).join(", ");
-  const unreached = "and we couldn't reach you by phone, text or the " +
+  const unreached = "and we couldn't reach you by phone, text, or the " +
     "doorbell";
 
   if (a.cause === "no-access") {
@@ -643,8 +643,8 @@ export const missedDelivery = (order, {
           "delivery fee " +
           `of ${dollars(fee)}`,
         // Draft wording, for communications and James.
-        "Have it ready for on-farm pickup or a scheduled pickup, at no " +
-          "charge",
+        "Have it ready for on-farm pickup or one of our pickup days, at " +
+          "no charge",
         `Cancel it, and we'll refund ${items} for your items`,
       ]),
       p(`${late ? "That day's" : "Today's"} delivery fee of ${
@@ -658,7 +658,7 @@ export const missedDelivery = (order, {
       p("Please choose what you'd like us to do:"),
       list([
         `Deliver it next ${DELIVERY_DAY}, ${next}, at no extra charge`,
-        "Have it ready for on-farm pickup or a scheduled pickup",
+        "Have it ready for on-farm pickup or one of our pickup days",
         `Cancel it for a full refund of ${dollars(order.totals.total)}`,
       ]),
       p(`We'll hold your order until ${hold}. If you haven't chosen by ` +
@@ -682,7 +682,7 @@ export const movedDelivery = (order, { pickUrl, links } = {}) => {
   const date = order.fulfilment.date;
   const next = !a.date || addDays(a.date, 7) === date;
   const when = next ? `next ${DELIVERY_DAY}` : DELIVERY_DAY;
-  const title = `Your delivery is moved to ${next ? when : label(date)}`;
+  const title = `Your delivery has moved to ${next ? when : label(date)}`;
   const why = a.cause === "weather"
     ? "The weather kept us from delivering your order today"
     : "We weren't able to deliver your order today";
@@ -691,9 +691,8 @@ export const movedDelivery = (order, { pickUrl, links } = {}) => {
     p(`${why}, so we've moved your delivery to ${when}, ${
       dayAfter(date, 0)}. You don't need to do anything.`),
     p(`If ${next ? when : "that day"} doesn't suit you, you can choose ` +
-      "another day, " +
-      "choose on-farm pickup or a scheduled pickup, or cancel for a full " +
-      "refund " +
+      "another day, switch to on-farm pickup or one of our pickup days, " +
+      "or cancel for a full refund " +
       `of ${dollars(order.totals.total)}, delivery fee included.`),
   ];
 

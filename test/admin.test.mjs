@@ -842,7 +842,7 @@ describe("an attempted delivery keeps its fee", () => {
       assert.equal(moved.question, null);
       assert.deepEqual(calls, [["updateFulfillment", "SQO", "2026-10-15"]]);
       assert.equal(sent.length, 1);
-      assert.equal(sent[0].subject, "Your delivery is moved to next Thursday");
+      assert.equal(sent[0].subject, "Your delivery has moved to next Thursday");
       assert.ok(moved.emails["movedDelivery-2026-10-15"]);
 
       // A cancel now refunds it all, fee and all.
