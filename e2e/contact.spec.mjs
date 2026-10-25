@@ -13,8 +13,8 @@ const LEAD = "Get in touch by calling, texting, sending us an email, or " +
 const NOTE = "Visits are by appointment only. Contact us to set up a " +
   "farm visit. To pick up an order at the farm, choose on-farm pickup " +
   "on the order page.";
-const LIMITED = "There have been too many messages from here. Wait a " +
-  "few minutes and send it again; what you wrote is still here.";
+const LIMITED = "There have been too many tries to send a message. Wait " +
+  "a few minutes and try again.";
 
 const fields = (page) => ({
   name: page.locator("#contact-name"),

@@ -42,8 +42,8 @@ export const handle = async (req, {
   if (rateLimited(ip, now.getTime())) {
     return json(429, {
       ok: false,
-      message: "There have been too many tries from here. Wait a few " +
-        "minutes and try again.",
+      message: "There have been too many tries to apply a discount " +
+        "code. Wait a few minutes and try again.",
     });
   }
 

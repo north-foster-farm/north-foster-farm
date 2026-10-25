@@ -205,8 +205,8 @@ const start = () => {
       } else if (status === 429) {
         // Too many from here: said by the button, the message kept.
         limit.textContent = (data && data.message) || "There have been " +
-          "too many messages from here. Wait a few minutes and send it " +
-          "again; what you wrote is still here.";
+          "too many tries to send a message. Wait a few minutes and try " +
+          "again.";
         limit.hidden = false;
       } else {
         error.textContent = "We couldn't send that just now. Please try " +
