@@ -163,7 +163,7 @@ test.describe("scheduled pickup", () => {
       await order.open({ eggs: 1 });
       await listed(page);
       await expect(page.locator("[data-scheduled-facts] dd").first())
-        .toHaveText("During markets, pop-ups, and drops");
+        .toHaveText("At our markets and pickup days");
       await expect(page.locator("[data-scheduled-where]"))
         .toContainText("Village Green");
     });
@@ -175,7 +175,7 @@ test.describe("scheduled pickup", () => {
 
     await order.open({ eggs: 1 });
     await expect(page.locator("[data-scheduled-facts] dd").first())
-      .toHaveText("During markets, pop-ups, and drops");
+      .toHaveText("At our markets and pickup days");
     await expect(page.locator("[data-scheduled-where]")).toHaveText(
       "Drop site, Summer Concert, and Foster Farmers Market"
     );
@@ -205,7 +205,7 @@ test.describe("scheduled pickup", () => {
 
     await order.open({ eggs: 1 });
     await expect(page.locator("[data-scheduled-none]")).toHaveText(
-      "No scheduled pickups are open right now"
+      "No pickup days are open right now."
     );
     await expect(page.locator("#method-scheduled")).toBeDisabled();
     await expect(pickupRadios(page)).toHaveCount(0);

@@ -133,7 +133,7 @@ export const validateOrder = (payload, {
     errors["customer.phone"] = fieldError("phone", phone);
   }
   if (!CONTACT.includes(contact)) {
-    errors["customer.contact"] = "Text or call?";
+    errors["customer.contact"] = "Choose text or call.";
   }
 
   const lines = [];

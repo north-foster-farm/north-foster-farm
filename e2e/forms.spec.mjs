@@ -192,7 +192,7 @@ test.describe("contact and pickup forms", () => {
     await order.open({ eggs: 5 }, { method: "delivery" });
     await expect(order.short).toBeVisible();
     await expect(order.short).toHaveText(
-      "You need $40 or more in your cart to use this option. Add $5 more."
+      "Delivery requires $40 or more after discounts. Add $5 more."
     );
 
     const color = await order.short.evaluate(
@@ -244,7 +244,7 @@ test.describe("contact and pickup forms", () => {
 
       await order.open({ wings: 5 }, { method: "delivery" });
       await expect(page.locator("[data-countdown-text]")).toHaveText(
-        /^Order in the next .+ to get your order on our next delivery day/
+        /^Order within .+ for delivery on [A-Z][a-z]+day\.$/
       );
     });
 

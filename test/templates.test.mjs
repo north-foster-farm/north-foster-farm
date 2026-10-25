@@ -227,8 +227,8 @@ describe("order confirmed", () => {
   it("tells a pickup its time is set, with its window's times", () => {
     const m = orderConfirmed(order("onfarm"), { orderUrl: url, links });
 
-    has(m.text, "Thanks, Pat. Your payment of $62 came through and your " +
-      "pickup time is set, so your order is confirmed.");
+    has(m.text, "Thanks, Pat. We received your payment of $62, and your " +
+      "pickup time is set. Your order is confirmed.");
     assert.match(m.text, /- When: Thursday, October 8, 9 AM – noon\n/);
     assert.doesNotMatch(m.text, /not a booking|Requested:/);
     has(m.text, `View or edit this order: ${url}`);

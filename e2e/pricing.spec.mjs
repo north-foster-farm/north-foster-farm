@@ -102,7 +102,7 @@ test.describe("pricing and discounts", () => {
         "Add $5 to reach the $40 delivery minimum."
       );
       await expect(order.short).toHaveText(
-        "You need $40 or more in your cart to use this option. Add $5 more."
+        "Delivery requires $40 or more after discounts. Add $5 more."
       );
       await expect(order.next).toBeDisabled();
       await order.method("scheduled");

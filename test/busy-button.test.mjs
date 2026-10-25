@@ -39,7 +39,7 @@ const SCRIPTS = files("assets/scripts", /\.m?js$/);
 const REQUEST_BUTTONS = [
   ["layouts/contact/single.html", "Send"],
   ["layouts/partials/farm-list.html", null],
-  ["layouts/partials/order/wrap.html", "Pay and place your order"],
+  ["layouts/partials/order/wrap.html", "Place your order"],
   ["layouts/partials/order/wrap.html", "Save changes"],
   ["layouts/login/single.html", "Send a sign-in link"],
   ["layouts/partials/email-confirm.html", "Confirm new email address"],

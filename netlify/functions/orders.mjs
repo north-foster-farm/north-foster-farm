@@ -327,8 +327,8 @@ export const handle = async (req, {
 
     return json(503, {
       retryable: true,
-      message: "We couldn't reach our payment provider. Nothing was " +
-        "charged; please try again in a moment.",
+      message: "We couldn't reach our payment system. Nothing was " +
+        "charged. Please try again in a moment.",
     });
   }
 
@@ -471,8 +471,8 @@ export const handle = async (req, {
       retryable,
       orderId: order.id,
       message: retryable
-        ? "We couldn't reach our payment provider. Please try again in a " +
-          "moment; a retry never charges you twice."
+        ? "We couldn't reach our payment system. Please try again in a " +
+          "moment. A retry never charges you twice."
         : "Something went wrong taking your payment.",
       detail: sandbox
         ? { error: String(error.message), processor: error.detail }

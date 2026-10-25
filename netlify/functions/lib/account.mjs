@@ -162,6 +162,8 @@ export const publicOrder = (order, now = clock()) => ({
   // Paid and not refundable: a missed delivery's fee (#193). A change
   // on the order page counts what is paid less this.
   keptFee: keptFee(order),
+  // The day of that trip, so the ledger can name it.
+  keptDate: (order.attempted && order.attempted.date) || null,
   question: order.question ? {
     kind: order.question.kind,
     reason: order.question.reason || "",

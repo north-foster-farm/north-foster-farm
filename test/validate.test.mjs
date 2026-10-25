@@ -172,7 +172,7 @@ describe("the customer's details", () => {
       const r = validateOrder(withCustomer({ contact }), ctx);
 
       assert.equal(r.status, 422, String(contact));
-      assert.equal(r.errors["customer.contact"], "Text or call?");
+      assert.equal(r.errors["customer.contact"], "Choose text or call.");
     }
   });
 

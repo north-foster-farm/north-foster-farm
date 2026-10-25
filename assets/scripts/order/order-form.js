@@ -332,7 +332,8 @@ export class OrderForm {
     // nothing now (#193).
     this.editing = {
       id: order.id, held: sum(order.payments) - sum(order.refunds),
-      kept: order.keptFee || 0, placed: order.submittedAt,
+      kept: order.keptFee || 0, keptDate: order.keptDate || null,
+      placed: order.submittedAt,
     };
     for (const line of order.lines) {
       this.stock.held[line.sku] = line.qty;
@@ -395,17 +396,20 @@ export class OrderForm {
     if (!this.editing) return;
 
     const box = qs(this.cart, "[data-edit-money]");
-    const { held, kept } = this.editing;
+    const { held, kept, keptDate } = this.editing;
     const diff = total - (held - kept);
 
     box.hidden = false;
     qs(box, "[data-total='paid']").textContent = dollars(held);
     qs(box, "[data-edit-kept]").hidden = !kept;
     qs(box, "[data-total='kept']").textContent = `−${dollars(kept)}`;
+    qs(box, "[data-total='kept-label']").textContent = keptDate
+      ? `Delivery fee for the trip on ${label(keptDate)}`
+      : "Delivery fee for the trip";
     // Draft wording.
     qs(box, "[data-total='due-label']").textContent = diff < 0
-      ? "To refund"
-      : "To pay";
+      ? "We refund"
+      : "You pay";
     qs(box, "[data-total='due']").textContent = dollars(Math.abs(diff));
     this.payment.root.hidden = diff <= 0;
     this.saveButton.hidden = diff > 0;

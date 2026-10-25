@@ -105,7 +105,7 @@ test.describe("payments", () => {
       to: email, subject: "Your order is confirmed", since,
     });
 
-    expect(receipt.text).toContain("Your payment of $7 came through and " +
+    expect(receipt.text).toContain("We received your payment of $7, and " +
       "your pickup time is set");
     expect(receipt.text).toContain("When:");
     // A first order says once that the email is an account (#114).
