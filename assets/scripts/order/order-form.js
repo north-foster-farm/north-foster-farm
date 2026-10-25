@@ -5,7 +5,7 @@ import {
 } from "./lib/cart-float.mjs";
 import { current, indexCatalog, packLabel } from "./lib/catalog.mjs";
 import {
-  keyboardInset, moreStop, ringsCart, rowsFloor, scrollIntoPane,
+  keyboardInset, moreStop, paneFit, ringsCart, rowsFloor, scrollIntoPane,
   visibleArea,
 } from "./lib/cart-scroll.mjs";
 import { buildModel } from "./lib/events.mjs";
@@ -596,10 +596,13 @@ export class OrderForm {
 
       return true;
     };
+    // The other part shuts first, so the picked one opens alone and
+    // measures itself: opened first, the Total tab measured the lines
+    // still showing (#448).
     const pick = (part) => {
       unfold();
-      this.setPart(part, true);
       this.setPart(other[part], false);
+      this.setPart(part, true);
     };
     const flip = (part) => {
       if (narrow.matches) return pick(part);
@@ -1382,7 +1385,9 @@ export class OrderForm {
     this.cart.dataset[part] = open ? "open" : "closed";
     this.syncSeg();
     if (part === "items") this.syncToggle();
-    if (part === "items" && open) this.syncScroll();
+    // Either side opening re-measures the pane's floor: the sums have
+    // one of their own (#448).
+    if (open) this.syncScroll();
   }
 
   // Dresses the total row's two controls for what they are at this
@@ -1558,27 +1563,38 @@ export class OrderForm {
   // The floor under the pane (#267): three rows of the lines, the total
   // row and Continue. The lines' wrapper keeps the rows' room
   // (--cart-scroll-min), and the pane's cap gives way to the whole
-  // floor (--cart-min-h), up to the visible area. Only measured while
-  // the lines show; a folded list keeps the last figure.
+  // floor (--cart-min-h), up to the visible area. Measured while the
+  // lines or, on a phone, the sums show; otherwise the last figure
+  // stands.
+  //
+  // On a phone's Total tab the sums take the lines' fold (#448). Once
+  // only the lines were measured, so the floor and data-tight there
+  // were the lines' last figures: under the keyboard the pane stayed
+  // untight and the sums' fold, the one part left to give way, was
+  // squeezed to a sliver, its rule gone and its rows clipped. The sums
+  // keep their whole height (--cart-sums-min) and what is under the
+  // total row gives way instead, down to the code row and the dark
+  // rule above it, which the sums never take.
   measureFloor(list, wrap) {
     const fold = qs(this.cart, ".order-cart-fold");
     const after = qs(this.cart, ".order-cart-after");
+    const lines = !!list.offsetParent;
+    const sums = !lines && this.cart.dataset.money === "open"
+      && !this.cart.hasAttribute("data-empty") && matchMedia(SHEET).matches;
 
-    if (!list.offsetParent || this.cart.dataset.open !== "true") return;
+    if (!(lines || sums) || this.cart.dataset.open !== "true") return;
 
-    const rows = all(list, ".order-cart-item").map((li) => ({
-      top: li.offsetTop - list.offsetTop,
-      bottom: li.offsetTop - list.offsetTop + li.offsetHeight,
-    }));
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
-    const room = rowsFloor(
-      rows, list.scrollHeight,
-      parseFloat(getComputedStyle(list).paddingBottom) || 0, 1.75 * rem
-    );
+    const set = (el, name, px) => {
+      const now = parseFloat(el.style.getPropertyValue(name));
+
+      if (!(Math.abs(now - px) < 1)) el.style.setProperty(name, `${px}px`);
+    };
     // A fold clips what does not fit and the parts under the total row
     // give way, so the floor is summed from the parts' own heights: the
-    // lines' floor, what shares their fold, the pane around the folds,
-    // and what is under the total row at its natural height.
+    // lines' floor or the sums', what shares their fold, the pane
+    // around the folds, and what is under the total row at its natural
+    // height.
     const outer = (el) => {
       const css = getComputedStyle(el);
 
@@ -1589,9 +1605,27 @@ export class OrderForm {
       .filter((el) => !but.includes(el))
       .reduce((n, el) => n + outer(el), 0);
     const spacer = 0.3 * rem;
-    const listBox = wrap.parentElement;
-    const foldMin = room + others(wrap.parentElement, wrap)
-      + others(listBox.parentElement, listBox) + spacer;
+    let foldMin;
+
+    if (lines) {
+      const rows = all(list, ".order-cart-item").map((li) => ({
+        top: li.offsetTop - list.offsetTop,
+        bottom: li.offsetTop - list.offsetTop + li.offsetHeight,
+      }));
+      const room = rowsFloor(
+        rows, list.scrollHeight,
+        parseFloat(getComputedStyle(list).paddingBottom) || 0, 1.75 * rem
+      );
+      const listBox = wrap.parentElement;
+
+      set(wrap, "--cart-scroll-min", room);
+      foldMin = room + others(wrap.parentElement, wrap)
+        + others(listBox.parentElement, listBox) + spacer;
+    } else {
+      // The sums and their rule at full height, mid-unfold or not.
+      foldMin = others(qs(this.cart, ".order-cart-money-inner")) + spacer;
+    }
+
     // What is under the total row: the badges, the way and the code.
     // The badges once gave way first; they are where a discount's
     // chicks come from, so they stay and the cap gives way (#274).
@@ -1600,26 +1634,26 @@ export class OrderForm {
     const pane = others(this.cart, fold, after)
       + ["paddingTop", "paddingBottom", "borderTopWidth", "borderBottomWidth"]
         .reduce((n, key) => n + parseFloat(css[key]), 0);
-    const set = (el, name, px) => {
-      const now = parseFloat(el.style.getPropertyValue(name));
-
-      if (!(Math.abs(now - px) < 1)) el.style.setProperty(name, `${px}px`);
-    };
-    const floor = pane + foldMin + below;
     const visible = parseFloat(this.cart.style.getPropertyValue("--cart-vis"))
       || window.innerHeight;
     // The room ends at the top bar's foot: the bar stays over the pane
     // (#278).
     const bar = parseFloat(this.cart.style.getPropertyValue("--cart-bar")) || 0;
-    const roomPx = visible - rem - bar;
+    // The open code row and the dark rule over the badges keep their
+    // room under the sums, so the field and Apply stay in reach (#389).
+    const keep = outer(qs(after, "[data-share]"))
+      + outer(qs(after, ".order-cart-rule-dark"));
+    const fit = paneFit(
+      { pane, fold: foldMin, below, keep }, visible - rem - bar
+    );
 
-    set(wrap, "--cart-scroll-min", room);
-    set(this.cart, "--cart-fold-min", Math.ceil(foldMin));
-    set(this.cart, "--cart-min-h", Math.ceil(floor));
+    if (lines) set(this.cart, "--cart-fold-min", Math.ceil(foldMin));
+    else set(this.cart, "--cart-sums-min", fit.fold);
+    set(this.cart, "--cart-min-h", fit.floor);
 
     // Too short for the floor itself, what is under the total row
     // scrolls, so the rows, the total and Continue keep their room.
-    this.cart.toggleAttribute("data-tight", floor > roomPx);
+    this.cart.toggleAttribute("data-tight", fit.tight);
   }
 
   // Quantity controls.

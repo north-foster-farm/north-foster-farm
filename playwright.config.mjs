@@ -60,6 +60,7 @@ const desktopOnly = [
   "**/cart-round4.spec.mjs",
   "**/cart-round5.spec.mjs",
   "**/keyboard.spec.mjs",
+  "**/cart-totals-keyboard.spec.mjs",
 ];
 
 // What only a deployed non-production site can show: the access gate
@@ -117,6 +118,7 @@ export default defineConfig({
       testMatch: [
         "**/overflow.spec.mjs", "**/a11y.spec.mjs", "**/keyboard.spec.mjs",
         "**/payment-stacking.spec.mjs", "**/cart-round4.spec.mjs",
+        "**/cart-totals-keyboard.spec.mjs",
       ],
       use: { ...devices["iPhone 15"] },
     },

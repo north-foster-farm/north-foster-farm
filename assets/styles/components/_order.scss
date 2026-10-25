@@ -2749,13 +2749,33 @@
     }
 
     // When the room is too short even for the floor (a phone on its
-    // side), the parts under the total row give way and scroll: the
-    // sheet still keeps the rows, the total and Continue.
+    // side, or the keyboard up), the parts under the total row give way
+    // and scroll: the sheet still keeps the rows, the total and
+    // Continue.
     .order-cart[data-tight] .order-cart-after {
       flex: 0 1 auto;
       min-height: 0;
 
       > .order-cart-inner {
+        overflow-y: auto;
+        overscroll-behavior: contain;
+      }
+    }
+
+    // On the Total tab the sums take the lines' fold, and keep their
+    // own section: every row and the rule above the toggle (#448). With
+    // the keyboard up the fold was the one part left to give way, and
+    // it clipped the rows and the rule. --cart-sums-min is their whole
+    // height, or the room left when even that is short: then they
+    // scroll as a whole (order-form.js measureFloor). Only a tight pane
+    // scrolls them; otherwise the fold clips as it always has.
+    .order-cart[data-open="true"][data-items="closed"][data-money="open"] {
+      > .order-cart-fold:not(.order-cart-after) {
+        min-height: var(--cart-sums-min, 0);
+      }
+
+      &[data-tight] > .order-cart-fold:not(.order-cart-after)
+        > .order-cart-inner {
         overflow-y: auto;
         overscroll-behavior: contain;
       }

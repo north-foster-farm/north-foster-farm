@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  keyboardInset, moreStop, ringsCart, rowsFloor, scrollIntoPane,
+  keyboardInset, moreStop, paneFit, ringsCart, rowsFloor, scrollIntoPane,
   visibleArea,
 } from "../assets/scripts/order/lib/cart-scroll.mjs";
 
@@ -115,6 +115,63 @@ describe("rowsFloor", () => {
 
   it("is nothing for an empty list", () => {
     assert.equal(rowsFloor([], 0, 8, 28), 0);
+  });
+});
+
+// The Total tab at 390 by 664: the sums' fold, three rows and their
+// rule, 104px; the total row and the foot, 140px; the badges, the way
+// and the code, 120px, of which the open code row and the dark rule
+// are 44px.
+describe("paneFit", () => {
+  const parts = { pane: 140, fold: 104, below: 120, keep: 44 };
+
+  it("is not tight while the room holds the floor", () => {
+    assert.deepEqual(paneFit(parts, 600), {
+      floor: 364, fold: 104, tight: false,
+    });
+  });
+
+  it("is tight under the keyboard, the sums still whole", () => {
+    // 364 visible, less the margin and the top bar.
+    assert.deepEqual(paneFit(parts, 292), {
+      floor: 364, fold: 104, tight: true,
+    });
+  });
+
+  it("keeps the sums whole until only they, the pane and the row fit",
+    () => {
+      assert.deepEqual(paneFit(parts, 288), {
+        floor: 364, fold: 104, tight: true,
+      });
+    });
+
+  it("gives the sums what the pane and the open row leave", () => {
+    // 320 by 568, 300px of it keyboard: room for the pane and the row,
+    // not for the sums too.
+    assert.deepEqual(paneFit(parts, 230), {
+      floor: 364, fold: 46, tight: true,
+    });
+  });
+
+  it("gives the sums nothing where not even the pane and row fit", () => {
+    assert.deepEqual(paneFit(parts, 170), {
+      floor: 364, fold: 0, tight: true,
+    });
+    assert.deepEqual(paneFit(parts, 100), {
+      floor: 364, fold: 0, tight: true,
+    });
+  });
+
+  it("keeps nothing back without a kept row", () => {
+    assert.deepEqual(paneFit({ ...parts, keep: undefined }, 200), {
+      floor: 364, fold: 60, tight: true,
+    });
+  });
+
+  it("rounds up to whole pixels", () => {
+    assert.deepEqual(paneFit({ pane: 140.2, fold: 103.4, below: 0 }, 600), {
+      floor: 244, fold: 104, tight: false,
+    });
   });
 });
 

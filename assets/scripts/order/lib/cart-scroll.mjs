@@ -74,6 +74,27 @@ export const rowsFloor = (rows, listHeight, padding, strip, keep = 3) => {
   );
 };
 
+// How the phone pane fits its room (#448). `pane` is what never gives
+// way (the total row, the foot, the pane's padding), `fold` the part
+// above the total row at its floor, `below` what is under the total
+// row at its natural height, `keep` the part of that which never gives
+// way either (the open code row and the dark rule above it), and
+// `room` the height the pane may take. The floor is the three summed;
+// past the room the pane is tight and what is under the total row
+// scrolls. The fold keeps its whole floor while the room holds it
+// beside the pane and the kept row, and the room left otherwise: then
+// it scrolls as a whole, never clipped, and the field and Apply keep
+// their room on the smallest phones.
+export const paneFit = ({ pane, fold, below, keep = 0 }, room) => {
+  const floor = pane + fold + below;
+
+  return {
+    floor: Math.ceil(floor),
+    fold: Math.ceil(Math.min(fold, Math.max(0, room - pane - keep))),
+    tight: floor > room,
+  };
+};
+
 // Whether the rail's Cart link rings the cart (#337). From xl the cart
 // is a column beside the catalog, on screen already, so the link rings
 // it every time. Below xl it rings only a cart that was in view when
