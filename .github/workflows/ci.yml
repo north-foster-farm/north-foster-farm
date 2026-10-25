@@ -52,6 +52,47 @@ jobs:
       - name: Test
         run: env -i PATH="$PATH" HOME="$HOME" npm test
 
+  # Coverage as insight, never a gate (#450): on a pull request into
+  # next, the unit tests under c8, then overall coverage and that of
+  # the lines the pull request adds, in this job's summary and as an
+  # annotation. No token and no new action; no step fails the job,
+  # and no branch requires it.
+  coverage:
+    name: coverage
+    if: github.event_name == 'pull_request' && github.base_ref == 'next'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # A failing test fails lint-and-test, not this job.
+      - name: Coverage
+        continue-on-error: true
+        run: env -i PATH="$PATH" HOME="$HOME" npm run coverage
+
+      # HEAD is the merge commit, so the diff from the base is the pull
+      # request's own change.
+      - name: Report
+        if: always()
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          env -i PATH="$PATH" HOME="$HOME" npm run --silent \
+            coverage:report -- --base "$BASE" >> "$GITHUB_STEP_SUMMARY" || true
+          env -i PATH="$PATH" HOME="$HOME" npm run --silent \
+            coverage:report -- --base "$BASE" --notice || true
+
   # The Record-shape trailer, as its own check: required on staging,
   # and so on main, which takes only what staging has (James, #283).
   # It fails on every branch, next included, so a commit that skipped
