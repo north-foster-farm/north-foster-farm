@@ -84,9 +84,9 @@ describe("a sign-up on the site", () => {
       "the sign-up form on /news/, confirmed by the link sent 2026-10-01");
 
     assert.equal(sent.length, 2, "the welcome, once confirmed");
-    assert.equal(sent[1].subject, "You're on the North Foster Farm list");
+    assert.equal(sent[1].subject, "Welcome to Farm News");
     assert.match(sent[1].text, /^Hi Pat,$/m);
-    assert.ok(sent[1].text.includes("Unsubscribe here: " +
+    assert.ok(sent[1].text.includes("Unsubscribe in one click: " +
       "https://northfosterfarm.com/news/?unsubscribe="));
     assert.ok(sent[1].headers["List-Unsubscribe"].startsWith(
       "<https://northfosterfarm.com/api/news/unsubscribe?token="));
@@ -153,7 +153,7 @@ describe("the confirmation request", () => {
     assert.equal(sent[0].to, "pat@example.com");
     assert.equal(sent[0].subject,
       "Confirm your email address for Farm News");
-    assert.match(sent[0].text, /^Click the button below/m);
+    assert.match(sent[0].text, /^Welcome to Farm News\. Please confirm/m);
     assert.match(sent[0].text, /7 days/);
     assert.match(sent[0].text, new RegExp(tokenIn(r.url)));
     assert.equal(await getCustomer(stores, "pat@example.com"), null,
@@ -320,7 +320,7 @@ describe("the import of the old list (#303)", () => {
 
     assert.deepEqual(sent.map((m) => m.to),
       ["new@example.com", "never@example.com"], "a welcome each");
-    assert.equal(sent[0].subject, "You're on the North Foster Farm list");
+    assert.equal(sent[0].subject, "Welcome to Farm News");
     assert.match(sent[0].text,
       /you signed up on our sign-up sheet at the Foster Farmers Market/);
     assert.doesNotMatch(sent.map((m) => m.text).join("\n"),
@@ -728,12 +728,12 @@ describe("the confirmation email", () => {
     });
 
     assert.equal(m.subject, "Confirm your email address for Farm News");
-    assert.match(m.text, /^Click the button below to receive Farm News /m);
-    assert.match(m.text, /^This link expires in 7 days\. If you didn't /m);
     assert.match(m.text,
-      /request this email, you can safely ignore it\.$/m);
-    assert.doesNotMatch(m.text, /previously joined/);
-    assert.match(m.html, />Sign up</);
+      /^Welcome to Farm News\. Please confirm your email address /m);
+    assert.match(m.text,
+      /^This link works for 7 days\. If you didn't sign up, you can /m);
+    assert.doesNotMatch(m.text, /previously joined|Unsubscribe/i);
+    assert.match(m.html, />Confirm my email address</);
     assert.match(m.html, /https:\/\/x\/confirm\?token=t/);
     assert.match(m.html, /name="format-detection"/);
   });

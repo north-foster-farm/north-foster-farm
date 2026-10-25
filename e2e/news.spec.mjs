@@ -35,7 +35,7 @@ test.describe("farm news", () => {
         const mail = await mailTo(email, since);
 
         expect(mail.map((m) => m.subject), "only the welcome")
-          .toEqual(["You're on the North Foster Farm list"]);
+          .toEqual(["Welcome to Farm News"]);
         expect(linkIn(mail[0], /unsubscribe=/)).toBeTruthy();
       } finally {
         await deleteCustomer(email);

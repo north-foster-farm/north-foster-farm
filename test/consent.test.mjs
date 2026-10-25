@@ -203,14 +203,14 @@ const who = (type, detail = "", at = now.toISOString()) => ({
 describe("the welcome", () => {
   it("names how each person opted in", () => {
     assert.match(newsWelcome(who("website-form"), "https://u", {}).text,
-      /because you signed up on our website\./);
+      /because you signed up on our website on [A-Z][a-z]+ \d+, \d{4}\./);
     assert.match(newsWelcome(who("market-sheet", "the Foster Farmers " +
       "Market", "2026-07-12T14:00:00Z"), "https://u", {}).text,
     /you signed up on our sign-up sheet at the Foster Farmers Market in /);
     assert.match(newsWelcome(who("market-sheet", "the market",
       "2026-07-12T14:00:00Z"), "u", {}).text, /the market in July\./);
     assert.match(newsWelcome(who("in-person"), "https://u", {}).text,
-      /you asked us to add you when we met in person\./);
+      /you asked us to add you when we met in person on /);
   });
 
   it("tells only the moved contacts about the new provider", () => {
@@ -223,17 +223,39 @@ describe("the welcome", () => {
       moved);
   });
 
-  it("keeps James's T6 lines and the one-click link", () => {
+  it("keeps James's lines and the one-click link", () => {
     const m = newsWelcome(who("checkout"), "https://x/news/?unsubscribe=t",
       { links });
 
-    assert.equal(m.subject, "You're on the North Foster Farm list");
+    assert.equal(m.subject, "Welcome to Farm News");
     assert.match(m.text, /^Hi Pat,$/m);
-    assert.match(m.text, /we will never sell or give out your address\./);
-    assert.match(m.text, /Unsubscribe here: https:\/\/x\/news\/\?unsub/);
+    assert.match(m.text,
+      /we will never sell or give out your email address\./);
+    assert.match(m.text, /^You can unsubscribe any time from the link /m);
+    assert.match(m.text,
+      /Unsubscribe in one click: https:\/\/x\/news\/\?unsub/);
+    assert.match(m.text, /^Stay tuned for more pictures of chickens, /m);
     assert.match(m.text, /^— James and Jim$/m);
     assert.match(m.html, /href="https:\/\/x\/news\/\?unsubscribe=t"/);
     assert.match(newsWelcome({}, "u", {}).text, /^Hi,$/m);
+  });
+
+  it("points at the site's content and never at account settings", () => {
+    const m = newsWelcome(who("website-form"), "u", { links });
+
+    assert.match(m.text, /the news from our first year: https:\/\/x\/news\//);
+    assert.match(m.text, /how we raise our birds: https:\/\/x\/about\//);
+    assert.doesNotMatch(m.text, /account|settings/i);
+    assert.doesNotMatch(newsWelcome(who("website-form"), "u", {}).text,
+      /\/news\/|\/about\//);
+  });
+
+  it("keeps the reason out of the opening", () => {
+    const { text } = newsWelcome(who("website-form"), "u", {});
+    const opening = text.split("\n--\n")[0];
+
+    assert.doesNotMatch(opening, /because you/);
+    assert.match(text, /^You're getting this because you signed up/m);
   });
 
   it("words a missing event plainly", () => {
@@ -276,21 +298,21 @@ describe("the list template", () => {
     assert.match(m.text, /Order: https:\/\/x\/order\//);
   });
 
-  it("gives the confirmation no unsubscribe and no second reason", () => {
+  it("gives the confirmation no unsubscribe and no reason line", () => {
     const invite = newsConfirm("a@b.co", "https://x/c", { links });
 
-    assert.doesNotMatch(invite.text, /Unsubscribe/);
+    assert.doesNotMatch(invite.text, /Unsubscribe/i);
     assert.doesNotMatch(invite.text, /You're getting this because/);
-    assert.match(invite.text,
-      /If you didn't request this email, you can safely ignore it\./);
+    assert.match(invite.text, /^Welcome to Farm News\. Please confirm /m);
+    assert.match(invite.text, /If you didn't sign up, you can ignore /);
   });
 
-  it("opens on James's T6 line, or thanks the re-invite for staying",
+  it("opens on thanks, or thanks the re-invite for sticking with us",
     () => {
       assert.match(newsWelcome(who("website-form"), "u", {}).text,
-        /^Thanks for signing up\. You're on our Farm News list\. /m);
+        /^Thanks for joining Farm News\. /m);
       assert.match(
         newsWelcome(who("reinvite-confirmation"), "u", {}).text,
-        /^Thanks for staying on our Farm News list\. /m);
+        /^Thanks for sticking with Farm News\. /m);
     });
 });
