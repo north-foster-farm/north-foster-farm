@@ -57,9 +57,9 @@ Farming as advertised.
 
 Pasture-raised whole chickens and cuts, chicken sausage, and eggs by
 the dozen. Everything is available at our farmers markets and through
-[the order page](/order) for on-farm pickup, [scheduled
-pickup](/delivery-policy/#scheduled-pickup) at the drop site, a market
-or a pop-up, or [delivery](/delivery-policy).
+[the order page](/order) for on-farm pickup, [pickup at one of our drop
+sites, markets or pop-ups](/delivery-policy/#scheduled-pickup), or
+[delivery](/delivery-policy).
 
 ## Where to find us
 
