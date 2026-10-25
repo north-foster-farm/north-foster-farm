@@ -9,12 +9,13 @@ description: >-
 home: true
 ---
 
-**We jumped into this head first in April.** Chicks under the heat
-lamps, pens to build, feed to haul, and three farmers markets to get
-ready for. We had a plan for the year, and the plan ended in the fall.
-Back then, the last market of the year looked like a finish line: raise
-the birds, get them to market, take a breath. We even talked about what
-we'd do with the free time.
+**Spring felt like jumping onto a treadmill that was already moving.**
+We started in April with chicks under the heat lamps, pens to build,
+feed to haul, and three farmers markets to get ready for. We had a plan
+for the year, and the plan ended in the fall. Back then, the last market
+of the year looked like a finish line: raise the birds, get them to
+market, take a breath. We even talked about what we'd do with the free
+time.
 
 ## Summer
 
@@ -22,13 +23,14 @@ we'd do with the free time.
   alt="Pens of white meat birds on grass at the edge of the woods: two open shade pens with a hoop pen in front"
   caption="Our meat birds on pasture this summer. Every pen moved to fresh grass every day." />}}
 
-Honestly, summer was a blur. Pasture, processing, markets. Move the
-pens in the morning, pack the coolers, put up the tent, come home, do
-it again. The birds lived on grass here in Foster, eating grain that's
-free of GMOs. We know the summer happened because the freezer is full.
-We also know it because so many of you tried our chicken for the first
-time, came back to tell us how it tasted, and bought more. That part we
-remember clearly.
+Summer felt like getting used to the routines and the batch cycles.
+Honestly, it was a blur, but somewhere in it we found the rhythm.
+Pasture, processing, markets. Move the pens in the morning, pack the
+coolers, put up the tent, come home, do it again. The birds lived on
+grass here in Foster, eating grain that's free of GMOs. We know the
+summer happened because the freezer is full. We also know it because so
+many of you tried our chicken for the first time, came back to tell us
+how it tasted, and bought more. That part we remember clearly.
 
 ## Fall
 
@@ -36,13 +38,13 @@ remember clearly.
   alt="North Foster Farm's market booth: a green tent over a checked table, a Chicken & Eggs banner and a chalkboard sign, on grass"
   caption="Our tent at the Tilted Barn this summer. That market ended at the beginning of September." />}}
 
-The turning point came in September. The Tilted Barn market ended at
-the beginning of the month, and for the first time we could see, week
-by week, what losing a market costs. The Scituate market had about four
-weeks left. That's when it hit us: once we stopped talking to these
-people at the market, they couldn't reach us unless they knew exactly
-how. And unless they could reach us, they couldn't get anything from us
-at all.
+Fall feels very different. The turning point came in September. The
+Tilted Barn market ended at the beginning of the month, and for the
+first time we could see, week by week, what losing a market means. The
+Scituate market had about four weeks left. That's when it hit us: once
+we stopped talking to these people at the market, they couldn't reach
+us unless they knew exactly how. And unless they could reach us, they
+couldn't get anything from us at all.
 
 So we needed something to give people. What did we have to give them,
 and what would they do once they had it? One realization led to the
