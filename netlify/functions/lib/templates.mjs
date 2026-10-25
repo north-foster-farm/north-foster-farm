@@ -1671,10 +1671,11 @@ export const maintenanceFlipped = (on, {
     + `${context && context !== "production" ? ` (${context})` : ""}`;
   const blocks = [
     p(on
-      ? "Ordering, checkout, sign-in and the account area are closed. " +
-        "Customers see the maintenance message; nothing they submit goes " +
-        "through. Payments and webhooks already under way still finish."
-      : "Ordering, sign-in and the account area are open again."),
+      ? "Ordering, checkout, sign-in, and the account area are closed. " +
+        "Customers see the maintenance message, and nothing they submit " +
+        "goes through. Payments and webhooks already under way still " +
+        "finish."
+      : "Ordering, sign-in, and the account area are open again."),
     table(["Field", "Value"], [
       ["Flipped by", by || "unknown"],
       ["At", when(at ? at.toISOString() : null)],
@@ -1715,7 +1716,7 @@ export const devMailTest = ({ at, context } = {}) => {
     context && context !== "production" ? ` (${context})` : ""}`;
   const blocks = [
     p("This is a test of the address that receives deploy-failed, " +
-      "alert and rotation notices. Nothing is wrong. If you can read " +
+      "alert, and rotation notices. Nothing is wrong. If you can read " +
       "this, those notices will reach you."),
     table(["Field", "Value"], [
       ["Context", context || "unknown"],
@@ -1747,7 +1748,7 @@ export const rotationReminder = ({
   }
   let intro = "**Every secret rotates between Dec 1 and Jan 1.** " +
     "Tokens that can expire are set to expire Jan 31. Log each rotation " +
-    "in docs/rotation-log.md as you go; this reminder repeats weekly " +
+    "in docs/rotation-log.md as you go. This reminder repeats weekly " +
     "for what the log still shows as due.";
 
   if (final) {
@@ -1755,7 +1756,7 @@ export const rotationReminder = ({
       "unrotated in the log. Rotate it now, in the quiet hour " +
       "docs/secrets.md names, and log each rotation.";
   } else if (revokeOnly) {
-    intro = "**Every secret is rotated; the old credentials below are " +
+    intro = "**Every secret is rotated, but the old credentials below are " +
       "still valid.** Revoke each at its vendor by the date shown, then " +
       "log it as revoked in docs/rotation-log.md. This reminder repeats " +
       "weekly until the log shows them all revoked.";
@@ -1782,7 +1783,7 @@ export const rotationReminder = ({
       heading("Old credentials still to revoke"),
       p("Each was rotated and its replacement is live. The old one " +
         "stays valid for 31 days, or until its Jan 31 expiry if that " +
-        "comes first; revoke it at the vendor, then add a `revoked` " +
+        "comes first. Revoke it at the vendor, then add a `revoked` " +
         "line for it to docs/rotation-log.md."),
       table(["Secret", "Environment", "Rotated", "Revoke by"],
         pending.map((e) => [e.name, e.environment, e.date,
@@ -1790,7 +1791,7 @@ export const rotationReminder = ({
     );
   }
   blocks.push(
-    p("Ping URLs, ids and the build hook rotate only on a leak: skip " +
+    p("Ping URLs, ids, and the build hook rotate only on a leak: skip " +
       "them. The Square token rotates under maintenance mode."),
     adminFooter(links)
   );

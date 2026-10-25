@@ -30,7 +30,7 @@ export const SUBJECT = `Your secure sign-in link to ${SITE}`;
 export const linkText = (url, minutes = LINK_TTL / 60_000) => [
   `Sign in to ${SITE}`,
   "",
-  `Click the link below to finish signing into ${SITE}. The link ` +
+  `Click the link below to sign in to ${SITE}. The link ` +
     `expires in ${minutes} minutes.`,
   "",
   url,
