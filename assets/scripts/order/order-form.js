@@ -2479,7 +2479,7 @@ export class OrderForm {
 
     if (info.status === "outside") {
       note.textContent = "That's outside our delivery area. On-farm pickup " +
-        "and scheduled pickup are open to everyone.";
+        "and our pickup days are open to everyone.";
       note.classList.add("text-danger-emphasis");
     } else if (info.status === "unlisted") {
       note.textContent = "A little outside our usual area: delivery is " +

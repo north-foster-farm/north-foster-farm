@@ -190,7 +190,7 @@ const index = indexCatalog(catalog);
 // A pickup at an occurrence that no data file defines any more (a
 // series is archived, never deleted, so this should not happen): there
 // is no day to move it to, so the page shows the order without the
-// change control and says to call, text or email.
+// change control and says to call, text, or email.
 const siteGone = (order) => {
   const f = order.fulfilment;
 
@@ -480,7 +480,7 @@ export const changeOrder = async (stores, customer, id, changes, {
   if (siteGone(order)) {
     // Draft wording, for communications and James.
     return fail(409, { order: "We can't change this pickup here. Please " +
-      "call, text or email us and we'll sort it out." });
+      "call, text, or email us, and we'll work it out." });
   }
   if (!canChange(order, now)) {
     return fail(409, { order: "This order can't be changed any more." });
@@ -590,7 +590,7 @@ export const saveAddress = async (stores, customer, address, {
   };
 
   if (!next.address1) errors.address1 = "Please enter your street address.";
-  if (!next.town) errors.town = "Please enter your town.";
+  if (!next.town) errors.town = "Please enter your city or town.";
   if (next.zip.length !== 5) errors.zip = fieldError("zip", next.zip);
   if (Object.keys(errors).length) return fail(422, errors);
 

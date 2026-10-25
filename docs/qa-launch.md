@@ -2789,7 +2789,7 @@ order, and moves it to the drop site" (live), and `account.spec.mjs`,
   `date` follows, history has `fulfilment.moved` `{ from, to }`.
   Outbox: "Your order is updated" to the customer naming the drop site
   only; the farm's "Pickup moved: <id>". An occurrence gone from the
-  data reads "Pickup, <id>", the card says to call, text or email us,
+  data reads "Pickup, <id>", the card says to call, text, or email us,
   and there is no Change button.
 - **Teardown:** As PY-01.
 

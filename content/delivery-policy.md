@@ -144,7 +144,7 @@ notes, or cancel the order, until the cutoff:
 - **On-farm pickup:** 11:59 PM the day before your pickup.
 
 To change what's in an order, cancel it and place a new one. After the
-cutoff, call, text or email us.
+cutoff, call, text, or email us.
 
 ## Refunds
 

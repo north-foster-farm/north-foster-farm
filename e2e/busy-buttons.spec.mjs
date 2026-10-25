@@ -55,7 +55,7 @@ test.describe("busy buttons", () => {
     hold.release();
     await expectIdle(button, { width: at });
     await expect(page.locator("#account-flash"))
-      .toHaveText("Sent. We'll answer by email.");
+      .toHaveText("Thanks. We'll answer by email.");
     expect(hold.calls()).toBe(1);
   });
 

@@ -356,7 +356,7 @@ class Account {
 
       if (!ok) {
         fail((data && data.errors && data.errors.email)
-          || "We couldn't send the link. Try again in a moment.");
+          || "We couldn't send a link just now. Please try again.");
 
         return;
       }
@@ -466,8 +466,7 @@ class Account {
     try {
       result = await save();
     } catch (error) {
-      result = { ok: false, error: "we couldn't reach the farm's site. " +
-        "Check your connection." };
+      result = { ok: false, error: "please try again in a moment." };
       console.error("Account save failed", { field, error });
     }
 
@@ -590,12 +589,12 @@ class Account {
       text = "Approved for delivery.";
       tone = "ok";
     } else if (a && a.status === "pending") {
-      text = "Outside our usual area. We're checking whether we can " +
-        "deliver here and will email you.";
+      text = "This address is outside our usual area. We're checking " +
+        "whether we can deliver here and will email you.";
       tone = "wait";
     } else if (a && a.status === "denied") {
       text = "We can't deliver to this address. On-farm pickup and " +
-        "scheduled pickup are open to everyone.";
+        "our pickup days are open to everyone.";
       tone = "no";
     }
     status.textContent = text;
@@ -754,7 +753,7 @@ class Account {
 
     this.clearErrors(form);
     form.reset();
-    this.say("Sent. We'll answer by email.");
+    this.say("Thanks. We'll answer by email.");
   }
 
   // Leave us a review (#303): Dismiss hides the section at once and the
@@ -958,7 +957,7 @@ class Account {
     // change control. Draft wording.
     if (order.pickup && order.pickup.gone) {
       pickup.textContent = "We can't change this pickup here. Please " +
-        "call, text or email us and we'll sort it out.";
+        "call, text, or email us, and we'll work it out.";
       pickup.hidden = false;
     }
 
@@ -1102,7 +1101,8 @@ class Account {
     );
 
     if (!ok) {
-      this.say((data.errors && data.errors.order) || "That didn't work.");
+      this.say((data.errors && data.errors.order)
+        || "Something went wrong. Please try again.");
 
       return;
     }
@@ -1155,7 +1155,7 @@ class Account {
       ? `${d.label}, ${at(d)}` : d.label);
     const held = scheduled ? order.pickup.occurrence : order.fulfilment.date;
 
-    if (scheduled) qs(form, "[data-dates-label]").textContent = "Pickup";
+    if (scheduled) qs(form, "[data-dates-label]").textContent = "Pickup day";
     for (const d of dates) {
       const option = document.createElement("option");
 
@@ -1291,7 +1291,8 @@ class Account {
       ));
 
       if (!ok) {
-        this.say((data.errors && data.errors.order) || "That didn't work.");
+        this.say((data.errors && data.errors.order)
+          || "Something went wrong. Please try again.");
 
         return;
       }
@@ -1300,9 +1301,9 @@ class Account {
       // When the refund couldn't go through at once, the order is only
       // flagged for the farm to refund (copy's #158 review; draft).
       this.say(data.order.status === "cancelled"
-        ? "Canceled. Your refund is on its way."
-        : "We've asked for this cancellation. We'll refund you the way " +
-          "you paid and email you when it's done.");
+        ? "Your order's canceled, and your refund is on its way."
+        : "We've received your cancellation request. We'll refund you " +
+          "the way you paid and email you when it's done.");
     });
 
     this.panel(card).appendChild(node);
@@ -1348,7 +1349,7 @@ class Account {
       }
 
       this.replaceOrder(data.order);
-      this.say("Thanks. We'll be in touch by email.");
+      this.say("Thanks. We'll answer by email.");
     });
 
     this.panel(card).appendChild(node);

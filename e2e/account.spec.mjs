@@ -344,7 +344,7 @@ test.describe("a scheduled pickup on the account page", () => {
       await page.goto("/account/#orders");
 
       await expect(page.locator("[data-out='pickup']").first())
-        .toContainText("call, text or email us");
+        .toContainText("call, text, or email us");
       await expect(page.getByRole("button", { name: "Change", exact: true }))
         .toHaveCount(0);
       await expect(page.locator("[data-out='when']").first())
@@ -363,7 +363,7 @@ test.describe("a scheduled pickup on the account page", () => {
       await page.goto("/account/#address");
 
       await expect(page.locator("body")).toContainText(
-        "On-farm pickup and scheduled pickup are open to everyone."
+        "On-farm pickup and our pickup days are open to everyone."
       );
     });
 });

@@ -1,6 +1,6 @@
 ---
 description: >
-  Sign in to North Foster Farm to see your orders and receipts and to
+  Sign in to North Foster Farm to see your orders and receipts or
   update your delivery address.
 slug: "login"
 title: "Sign in"

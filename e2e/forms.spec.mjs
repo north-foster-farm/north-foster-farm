@@ -66,7 +66,7 @@ test.describe("contact and pickup forms", () => {
     await expect(order.errorFor("delivery.address1"))
       .toHaveText("Please enter your street address.");
     await expect(order.errorFor("delivery.town"))
-      .toHaveText("Please enter your town.");
+      .toHaveText("Please enter your city or town.");
     await expect(order.errorFor("delivery.zip"))
       .toHaveText("Please enter a ZIP code.");
     await expect(order.errorFor("delivery.cooler"))

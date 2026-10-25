@@ -138,7 +138,7 @@
             <span data-countdown-text></span>
           </p>
           <div class="row">
-            <label class="col-sm-4 col-form-label" for="delivery-date">Delivery date</label>
+            <label class="col-sm-4 col-form-label" for="delivery-date">Delivery day</label>
             <div class="col-sm-8 skeleton-slot" data-dates-region>
               {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
               <select class="form-select" id="delivery-date" name="delivery.date" data-dates="delivery" data-field="fulfilment.date" disabled aria-describedby="err-delivery-date">
@@ -169,7 +169,7 @@
             </div>
           </div>
           <div class="row">
-            <label class="col-sm-4 col-form-label" for="delivery-zip">ZIP</label>
+            <label class="col-sm-4 col-form-label" for="delivery-zip">ZIP code</label>
             <div class="col-sm-8 col-lg-4">
               <input class="form-control" type="text" id="delivery-zip" name="delivery.zip" autocomplete="shipping postal-code" inputmode="numeric" maxlength="10" data-field="delivery.zip" aria-describedby="help-delivery-zip err-delivery-zip">
               <div class="form-text" id="help-delivery-zip" data-zip-note></div>

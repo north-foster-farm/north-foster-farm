@@ -343,7 +343,7 @@ describe("the account's pickup", () => {
       const r = await move(stores, id, { date: "2026-10-18" });
 
       assert.equal(r.ok, false);
-      assert.match(r.errors.order, /call, text or email/);
+      assert.match(r.errors.order, /call, text, or email/);
     });
 });
 
