@@ -747,6 +747,8 @@ describe("order changed and canceled", () => {
     assert.equal(m.subject, "We couldn't deliver your order");
     has(m.text, "- Deliver it next Thursday, October 15, for " +
       "another delivery fee of $5");
+    has(m.text, "- Have it ready for on-farm pickup or one of our pickup " +
+      "days, at no charge");
     has(m.text, "- Cancel it, and we'll refund $62 for your items");
     has(m.text, "Today's delivery fee of $5 isn't refunded, whichever " +
       "you choose.");
@@ -789,11 +791,11 @@ describe("order changed and canceled", () => {
     const tail = ". Your order is back at the farm.";
 
     has(missed("no-cooler"), `${lead}we didn't find a cooler where you ` +
-      `told us (${d.cooler}), and we couldn't reach you by phone, text ` +
+      `told us (${d.cooler}), and we couldn't reach you by phone, text, ` +
       `or the doorbell${tail}`);
     has(missed("no-access", { detail: "the gate was locked" }), `${lead}we ` +
       "couldn't get to where you asked us to leave it (the gate was " +
-      "locked), and we couldn't reach you by phone, text or the doorbell");
+      "locked), and we couldn't reach you by phone, text, or the doorbell");
     has(missed("no-access"), "leave it, and we couldn't reach you");
     has(missed("no-address"), `${lead}we couldn't find your address as ` +
       `you gave it (${d.address1}, ${d.town}), and we couldn't reach ` +
@@ -814,13 +816,15 @@ describe("order changed and canceled", () => {
     const f = movedDelivery(moved("farm"), { links });
     const h = movedDelivery(moved("farm", "2026-10-22"), { links });
 
-    assert.equal(w.subject, "Your delivery is moved to next Thursday");
+    assert.equal(w.subject, "Your delivery has moved to next Thursday");
     has(w.text, "The weather kept us from delivering your order today, so " +
       "we've moved your delivery to next Thursday, October 15.");
     has(f.text, "We weren't able to deliver your order today, so");
+    has(f.text, "you can choose another day, switch to on-farm pickup or " +
+      "one of our pickup days, or cancel for a full refund of $67");
     has(f.text, "cancel for a full refund of $67, delivery fee included.");
     // A holiday a week on: the day is named, not "next".
-    assert.equal(h.subject, "Your delivery is moved to Thursday, October 22");
+    assert.equal(h.subject, "Your delivery has moved to Thursday, October 22");
     has(h.text, "we've moved your delivery to Thursday, October 22.");
     has(h.text, "If that day doesn't suit you");
   });
