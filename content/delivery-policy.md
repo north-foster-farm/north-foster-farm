@@ -1,8 +1,8 @@
 ---
 description: >
   How ordering from North Foster Farm works: delivery days, cutoffs,
-  minimums, fees and area, on-farm and scheduled pickup, changes,
-  cancellations and refunds.
+  minimums, fees, our delivery area, on-farm pickup, pickup days,
+  changes, cancellations, and refunds.
 slug: "delivery-policy"
 title: "Delivery policy"
 type: "policy"
@@ -13,7 +13,7 @@ pageScript: "zip-check"
 
 {{< delivery-area-button >}}
 This policy covers delivery to an address you choose. Its last
-sections, on pickup, changes, cancellations and refunds, apply to
+sections, on pickup, changes, cancellations, and refunds, apply to
 every order.
 {{< /delivery-area-button >}}
 
@@ -36,8 +36,8 @@ your items come to {{< terms "waived-at" >}} or more.
 
 {{% bulk-tiers %}}
 
-Bulk discounts apply to every order, on-farm and scheduled pickup
-included. The highest tier you reach applies, automatically.
+Bulk discounts apply to every order, pickup orders included. The
+highest tier you reach applies, automatically.
 Discounts never combine: if more than one applies, your order takes
 whichever saves you more.
 
@@ -125,7 +125,7 @@ our tent sits in market season.
 
 **Markets and pop-ups** are opened one event at a time. When we open
 one, it appears on the order page, with its place and hours, and you
-can choose it there; the place and hours are the event's own. We
+can choose it there. The place and hours are the event's own. We
 don't open every market or pop-up we attend.
 
 You can order for a pickup through the end of next week. Order by
@@ -134,8 +134,8 @@ You can order for a pickup through the end of next week. Order by
 ## Changing or canceling an order
 
 Sign in with the email address you ordered with. We email you a link
-to sign in; there's no password. Your account page lets you change
-the day, your pickup time, where we'll find your cooler and your
+to sign in. There's no password. Your account page lets you change
+the day, your pickup time, where we'll find your cooler, and your
 notes, or cancel the order, until the cutoff:
 
 - **Delivery:** {{< cutoff "delivery" >}}, the day before your
