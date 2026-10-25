@@ -282,7 +282,7 @@ describe("forgetCustomer and the Square profile", () => {
     });
 
     assert.equal(r.ok, false);
-    assert.match(r.message, /payment provider/);
+    assert.match(r.message, /payment system/);
     assert.ok(await getCustomer(stores, PAT));
     assert.equal((await getOrder(stores, "A")).customer.email, PAT);
   });

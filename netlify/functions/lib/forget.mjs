@@ -178,7 +178,7 @@ export const WAIT = {
   checkout: "A Venmo payment is under way. Try again in a day.",
 };
 
-export const SQUARE_DOWN = "We couldn't reach our payment provider to " +
+export const SQUARE_DOWN = "We couldn't reach our payment system to " +
   "delete your payment profile, so nothing was deleted. Please try " +
   "again in a few minutes.";
 
