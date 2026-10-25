@@ -569,6 +569,22 @@ export const payZeroOrder = async (squareOrderId, key, {
   return { squareOrderId };
 };
 
+// The receipt link a page may show, or null. The sandbox gives each
+// payment a squareupsandbox.com receipt that opens Page not found
+// (#441), so staging shows none; production's squareup.com one passes.
+export const receiptLink = (url) => {
+  if (!url) return null;
+
+  try {
+    const { hostname } = new URL(url);
+
+    return hostname === "squareupsandbox.com"
+      || hostname.endsWith(".squareupsandbox.com") ? null : url;
+  } catch {
+    return null;
+  }
+};
+
 // What the record keeps of a Square payment.
 const paymentRecord = (payment) => {
   const card = payment.card_details && payment.card_details.card;

@@ -133,6 +133,19 @@ describe("listOrders", () => {
       assert.equal(orders[0].history, undefined);
     });
 
+  it("shows no receipt link for a sandbox payment (#441)", async () => {
+    const stores = testStores();
+    const record = order("S");
+
+    record.payment.receiptUrl =
+      "https://squareupsandbox.com/receipt/preview/PAY-S";
+    await saveOrder(stores, record);
+
+    const { orders } = await listOrders(stores, customerOf(), { now });
+
+    assert.equal(orders[0].payments[0].receiptUrl, null);
+  });
+
   it("gives a Venmo payment what its receipt needs, not the email",
     async () => {
       const stores = testStores();

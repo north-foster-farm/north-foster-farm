@@ -7,8 +7,8 @@ import {
   ORDER_METADATA, SITE_VERSION, SOURCE_NAME, SquareError, buildChangeOrder,
   buildOrder, cancelFulfillment, cancelOrder, clientConfig, completeOrder,
   createOrder, createPayment, customerOrders, dashboardUrl, deleteCustomer,
-  e164, getPayment, inventoryCounts, refundPayment, searchOpenOrders,
-  settings, updateFulfillment,
+  e164, getPayment, inventoryCounts, receiptLink, refundPayment,
+  searchOpenOrders, settings, updateFulfillment,
 } from "../netlify/functions/lib/square.mjs";
 import {
   KILL_SWITCH, deletionsPaused, readPause, setPause,
@@ -700,6 +700,27 @@ describe("createPayment", () => {
     const out = await createPayment(args(), { env, fetchImpl: impl });
 
     assert.equal(out.status, "APPROVED");
+  });
+});
+
+describe("receiptLink (#441)", () => {
+  it("passes production's receipt", () => {
+    const url = "https://squareup.com/receipt/preview/PAY";
+
+    assert.equal(receiptLink(url), url);
+  });
+
+  it("drops the sandbox's receipt, which opens Page not found", () => {
+    assert.equal(
+      receiptLink("https://squareupsandbox.com/receipt/preview/PAY"), null);
+    assert.equal(
+      receiptLink("https://app.squareupsandbox.com/receipt/preview/P"), null);
+  });
+
+  it("answers null for no link or one that is not a URL", () => {
+    assert.equal(receiptLink(null), null);
+    assert.equal(receiptLink(""), null);
+    assert.equal(receiptLink("not a url"), null);
   });
 });
 

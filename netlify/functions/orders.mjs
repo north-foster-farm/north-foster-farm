@@ -47,7 +47,9 @@ import { pickupSchedule } from "./lib/pickups.mjs";
 import {
   getOrder, orderForSubmission, paymentsOf, reserveOrderId,
 } from "./lib/records.mjs";
-import { DECLINE_MESSAGES as SQUARE_DECLINES } from "./lib/square.mjs";
+import {
+  DECLINE_MESSAGES as SQUARE_DECLINES, receiptLink,
+} from "./lib/square.mjs";
 import { checkLines } from "./lib/stock.mjs";
 import { limitExempt } from "./lib/limit-exempt.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
@@ -117,7 +119,7 @@ const paidResponse = (order) => {
       brand: p.brand || null,
       last4: p.last4 || null,
       wallet: p.wallet || null,
-      receiptUrl: p.receiptUrl || null,
+      receiptUrl: receiptLink(p.receiptUrl),
     },
   });
 };

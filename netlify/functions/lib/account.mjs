@@ -144,7 +144,7 @@ export const publicOrder = (order, now = clock()) => ({
     method: p.method || null,
     brand: p.brand || null,
     last4: p.last4 || null,
-    receiptUrl: p.receiptUrl || null,
+    receiptUrl: squareApi.receiptLink(p.receiptUrl),
     // PayPal gives a Venmo payment no receipt link, so the account
     // page writes its own from these (#238).
     paypalCaptureId: p.via === "venmo" ? p.paypalCaptureId || null : null,

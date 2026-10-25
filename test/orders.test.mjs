@@ -589,6 +589,20 @@ describe("completeOrder and finishVenmo, on another's record", () => {
 });
 
 describe("POST /api/orders with a card", () => {
+  it("answers no receipt link for a sandbox payment (#441)", async () => {
+    const { square } = fakeSquare({
+      pay: () => ({
+        squarePaymentId: "PAY", status: "COMPLETED",
+        receiptUrl: "https://squareupsandbox.com/receipt/preview/PAY",
+        brand: "VISA", last4: "4242", wallet: null,
+      }),
+    });
+    const data = await (await run(body(), { square })).json();
+
+    assert.equal(data.status, "paid");
+    assert.equal(data.payment.receiptUrl, null);
+  });
+
   it("makes the Square order and payment under one key and answers paid",
     async () => {
       const { square, calls } = fakeSquare();
