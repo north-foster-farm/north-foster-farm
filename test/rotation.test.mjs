@@ -194,7 +194,7 @@ describe("the old credentials still to revoke", () => {
     });
     assert.equal(sent[1].subject, "Old credentials are waiting to be revoked");
     assert.match(sent[1].text, /overdue/);
-    assert.match(sent[1].text, /Every secret is rotated; the old/);
+    assert.match(sent[1].text, /Every secret is rotated, but the old/);
     assert.doesNotMatch(sent[1].text, /rotates between Dec 1 and Jan 1/);
 
     // Revoked at last: January goes quiet.

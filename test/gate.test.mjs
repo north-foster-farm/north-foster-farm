@@ -502,7 +502,7 @@ describe("the sign-in email", () => {
       assert.equal(body.subject, SUBJECT);
       assert.match(body.text, /^Sign in to \[STAGING\] North Foster Farm\n/);
       assert.ok(body.text.includes(
-        "\nClick the link below to finish signing into " +
+        "\nClick the link below to sign in to " +
         "[STAGING] North Foster Farm. The link expires in 15 minutes.\n",
       ));
       assert.ok(body.text.includes(
