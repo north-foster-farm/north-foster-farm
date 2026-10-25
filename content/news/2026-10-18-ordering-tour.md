@@ -1,74 +1,76 @@
 ---
-title: "A Tour of Our New Ordering System"
+title: "The Big Birds Are in the Freezer"
 slug: "ordering-tour"
 date: 2026-10-18
 description: >-
-  How ordering from the farm works: delivery, on-farm pickup, our drop
-  site in Scituate, and signing in to see your orders.
+  Our freezer is full of big whole chickens, and ordering online is how
+  you get one all winter: delivery, pickup at the farm, or Saturdays at
+  our drop site in Scituate.
 home: true
-featured: "images/linus-featured.jpg"
 ---
 
-{{< figure src="images/online-ordering.png" frame="false"
-  alt="A laptop showing the North Foster Farm order page, with whole chickens and boneless breasts in the cart"
-  caption="Online ordering, on-farm pickup, and delivery." />}}
+**The freezer is full of big whole chickens, and something new is
+beginning.** This was our first summer selling our own chicken, and
+we're grateful to everyone who tried it. Our last market of the year is
+the {{< terms "last-market" >}} on {{< terms "last-market-day" >}}, but
+that's not the news. The news is that you can now order from us online,
+any week of the year, and have it delivered or pick it up.
 
-**Ordering from the farm online has been open for a few weeks now.**
-This summer was the first we sold our chicken, and we're grateful to
-everyone who tried it. Now you can keep buying from us after the market
-season ends. Here's a tour of how it works.
+## Raised on grass in Foster
 
-## Ordering
+{{< figure src="images/broilers-square.jpg"
+  alt="Pens of white meat birds on grass at the edge of the woods: two open shade pens with a hoop pen in front"
+  caption="Our meat birds on pasture this summer." />}}
 
-The [order page](/order/) has eggs by the dozen, whole chickens, cuts,
-and sausage. What's in stock changes as we go, and the page always
-shows what's available now. Choose what you'd like, say how you want to
-get it, and pay on the page. We email you to confirm your order.
+Every one of those birds lived on grass here in Foster, in a pen we
+moved to fresh pasture every day, eating grain that's free of GMOs. We
+think that's how chickens should be raised, and we think you can taste
+the difference. A big bird feeds the table twice: a roast tonight, and
+soup from the bones tomorrow.
 
-There are three ways to get it:
+## Three ways to get your order
 
-## Delivery
+{{< figure src="images/tilted-tent-square.jpg"
+  alt="North Foster Farm's market booth: a green tent over a checked table, a Chicken & Eggs banner and a chalkboard sign, on grass"
+  caption="Our tent at the Tilted Barn market this summer. The tent goes into the barn for the winter, and the order page stays open." />}}
 
-- We deliver every week on {{< terms "day" >}}
-- Order by {{< terms "cutoff-hour" >}} on {{< terms "cutoff-day" >}}
-- As affordable as possible: {{< terms "minimum" >}} minimum,
-  {{< terms "fee" >}} fee
-- [Check your ZIP code](/#map)
+The [order page](/order/) has eggs by the dozen, whole chickens, cuts
+and sausage, and it always shows what's in stock. Choose what you'd
+like, say how you want to get it, and pay. Your order is placed the
+moment the payment goes through, and we email you to confirm it.
 
-## On-farm pickup
-
-- Pick a day and a time when you order, 9 AM to 1 PM or 1 to 5 PM
-- No fee, no minimum
-
-## Drop site
-
-- Every {{< terms "day" "scituate" >}} morning in
-  {{< terms "town" "scituate" >}}, {{< terms "window" "scituate" >}}
-- Pick up your order for free
+- **Delivery**: every {{< terms "day" >}}. Order by
+  {{< terms "cutoff-hour" >}} on {{< terms "cutoff-day" >}}. As
+  affordable as we can make it: {{< terms "minimum" >}} minimum,
+  {{< terms "fee" >}} fee. [Check your ZIP code](/#map).
+- **Pickup at the farm**: pick a day and a time when you order, 9 AM to
+  1 PM or 1 to 5 PM. No fee, no minimum.
+- **Our drop site in Scituate**: every {{< terms "day" "drop" >}}
+  morning, {{< terms "window" "drop" >}}, at
+  {{< terms "place" "drop" >}}. Pick up your order for free.
 
 ## Your account
 
 You don't need an account to order. If you'd like one, there's no
 password: type the email you order with on the
-[sign-in page](/login/) and we'll send you a link that signs you in.
+[sign-in page](/login/) and we send you a link that signs you in.
 Signed in, you can see past orders and receipts, change or cancel an
 order in progress, and keep a delivery address on file.
 
-## Farm news
+## No off-season
 
-News like this goes only to people who ask for it. You can
-[sign up](/news/) any time, or tick the email box when you place an
-order.
+{{< figure src="images/chickens.jpg"
+  alt="Our laying hens coming down the ramp of their mobile coop onto the grass on a foggy morning"
+  caption="The hens slow down when the days get short, but they keep laying." />}}
 
-## After market season
+The freezer is full, and we have eggs all year round. Order whenever
+you run low, and we'll see you at your door, at the farm, or on
+{{< terms "day" "drop" >}} morning at the drop site.
 
-Our last market of the season is the {{< terms "last-market" >}} on
-{{< terms "last-market-day" >}}. After that, ordering online is the way
-to buy from us. Our hens, although slowing down, will keep
-laying all year round.
+News like this goes only to people who ask for it. [Sign up](/news/)
+any time, or tick the email box when you place an order.
 
-This is the first version of our online ordering system, and we want
-to hear how it works for you. [Get in touch](/contact/) if you run into
-any problems.
+This is our first winter doing this, and we want to hear how it works
+for you. [Get in touch](/contact/) if you run into any problems.
 
 {{< sign-off "James and Jim" >}}

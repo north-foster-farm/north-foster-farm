@@ -29,15 +29,17 @@ repository.
 | `assets/images/tilted-market.jpg` | James or Jim | | Farm iPhone, Pixelmator Pro. August post, home markets band. Original has GPS. |
 | `assets/images/winter-tunnel.jpg` | James or Jim | | iPhone 14 Pro, Pixelmator Pro. Home ways band (#137), Instagram slide 5. Original has GPS. |
 | `assets/images/egg-basket.jpg` | James or Jim | | Farm iPhone, Pixelmator Pro, 2024. Unused on the site; kept for the Instagram questions on #192. Original has GPS. |
-| `assets/images/chickens.jpg` | James or Jim | | iPhone 13 Pro Max, 2024. Unused on the site; kept for the Instagram questions on #192. |
-| `assets/images/linus-featured.jpg` | James | | Byte for byte `~/Code/nff/linus-featured.jpg`, which James supplied. |
+| `assets/images/chickens.jpg` | James or Jim | | iPhone 13 Pro Max, 2024. The ordering-tour post's closing figure (#430); until then unused, kept for the Instagram questions on #192. |
+| `assets/images/broilers-square.jpg` | James | | Broilers on pasture, from IMG_7035: the Instagram folder's `photos/broilers-square.jpg` (see below), resized to 2400px with sips for #430. No EXIF or location in either. Ordering-tour post. |
+| `assets/images/tilted-tent-square.jpg` | James | | The farm's tent at the Tilted Barn (#233 item 31): the Instagram folder's `photos/tilted-tent-square.jpg` (see below), resized to 2400px with sips for #430. No EXIF or location in either. Ordering-tour post. |
+| `assets/images/linus-featured.jpg` | James | | Byte for byte `~/Code/nff/linus-featured.jpg`, which James supplied. The ordering-tour post's thumbnail until #430; unused on the site since. |
 | `assets/images/linus.jpg` | Unknown | | A tighter crop of the `linus-featured.jpg` scene (c1893a8, walkthrough finding 24); who cropped it is not recorded. About, egg mask. |
 | `assets/images/sunset.jpg` | James | | `~/Code/nff/sunset.jpg`, scaled from 4030 to 2400 wide. Unused since James removed it from the ordering-tour post and the launch email (2026-10-17). |
 | `assets/images/delivery-flyer.jpg` | James | | His original design (D-MA1, 2026-10-17). In production's tree, not on `next`. |
 | `assets/images/lily.jpg` | Unknown | | Metadata stripped; PR #67, the August post's hero and news thumbnail. |
 | `assets/images/scituate-market.jpg` | Unknown | | Metadata stripped; PR #67, August post. James on #192: not the farm's stand. |
 | `assets/images/mc-1.jpg` | Unknown | | Metadata stripped; the mobile coop, About (c1893a8, walkthrough finding 22). |
-| `assets/images/online-ordering.png` | Unknown | | A screenshot of deploy-preview-106 set in a MacBook frame (f76da25); who composited it is not recorded. Ordering-tour post, launch email. A stopgap until James's photo of the site on the laptop. |
+| `assets/images/online-ordering.png` | Unknown | | A screenshot of deploy-preview-106 set in a MacBook frame (f76da25); who composited it is not recorded. Launch email; the ordering-tour post's lead figure until #430. A stopgap until James's photo of the site on the laptop. |
 
 Photos in `~/Code/nff/`, not in the repository; EXIF and location
 stripped, but their `*.jpg_original` backups still hold GPS and are
@@ -45,10 +47,10 @@ never committed or uploaded (#230):
 
 | File | Made by | Credit | Source and notes |
 | --- | --- | --- | --- |
-| `broilers.jpg`, `broilers-square.jpg` | James | | Broilers on pasture, from IMG_7035. The square one is Instagram slide 2 (#230). |
+| `broilers.jpg`, `broilers-square.jpg` | James | | Broilers on pasture, from IMG_7035. The square one is Instagram slide 2 (#230) and, resized, `assets/images/broilers-square.jpg` (#430). |
 | `sheep-with-broilers.jpg`, `sheep-with-broilers-square.jpg` | James | | Sheep by a pen of broilers, from IMG_7109. The square one is the Instagram post's cover and its Story. |
 | `cooked.jpg` | Jess Brayton (@fussica) | @fussica, her choice | The original of `assets/images/cooked.jpg`. Instagram slide 3. |
-| `tilted-tent.jpg`, `tilted-tent-square.jpg` | James | | The farm's tent at the Tilted Barn; James took it (#233 item 31). No metadata in either. The square one is Instagram slide 4, untagged. |
+| `tilted-tent.jpg`, `tilted-tent-square.jpg` | James | | The farm's tent at the Tilted Barn; James took it (#233 item 31). No metadata in either. The square one is Instagram slide 4, untagged, and, resized, `assets/images/tilted-tent-square.jpg` (#430). |
 
 ## Video and posters
 
