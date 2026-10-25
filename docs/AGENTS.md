@@ -146,3 +146,13 @@ material. Restore it with the commands in [README.md](README.md). Do not
 
 If you add another vendored clone here, add it to `.gitignore` in the
 same change.
+
+## Dates on posts and policy pages
+
+This one is not about the vendored reference. Dates on news posts and on
+pages with a "Last updated" line are James's to set, never yours or a
+script's (#467). Before you finish a change that creates or edits one,
+ask: **Dates confirmed on every changed post and policy page?** Name each
+changed page and the date it carries in your report and your PR body.
+CI lists them on every push (`bin/dated-pages.mjs`) as a reminder, never
+a gate.

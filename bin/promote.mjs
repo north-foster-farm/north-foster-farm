@@ -93,7 +93,9 @@ export const pullRequest = () => ({
   body: "Fast-forwards main to the head of staging. Opened by "
     + "`bin/nff promote main` so release-audit runs on it. Label it LGTM "
     + "to approve, then run `bin/nff promote main` again. It is never "
-    + "merged here: main moves only by fast-forward.",
+    + "merged here: main moves only by fast-forward.\n\n"
+    + "Release checklist:\n\n"
+    + "- [ ] Dates confirmed on every changed post and policy page",
 });
 
 // The open pull requests into main from this repository's own staging

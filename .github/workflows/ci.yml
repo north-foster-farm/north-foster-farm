@@ -52,6 +52,19 @@ jobs:
       - name: Test
         run: env -i PATH="$PATH" HOME="$HOME" npm test
 
+      # A reminder, never a gate (#467): the posts and policy pages this
+      # change touches, with the date each carries, as warnings and in
+      # the job summary. The script always exits 0, and the step may not
+      # fail the job either. Only the summary path survives env -i.
+      - name: Dates to confirm
+        continue-on-error: true
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: >
+          env -i PATH="$PATH" HOME="$HOME"
+          GITHUB_STEP_SUMMARY="$GITHUB_STEP_SUMMARY"
+          node bin/dated-pages.mjs "$BASE"
+
   # The Record-shape trailer, as its own check: required on staging,
   # and so on main, which takes only what staging has (James, #283).
   # It fails on every branch, next included, so a commit that skipped
