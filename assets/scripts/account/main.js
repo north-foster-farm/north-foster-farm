@@ -1279,7 +1279,7 @@ class Account {
       : "";
 
     qs(form, "[data-out='explain']").textContent = `${fee}We'll refund you ` +
-      "the way you paid. It usually shows within a few business days.";
+      "the way you paid. Most refunds arrive within a few business days.";
     qs(form, "[data-close]").addEventListener("click",
       () => this.closePanel(card));
     form.addEventListener("submit", async (e) => {
