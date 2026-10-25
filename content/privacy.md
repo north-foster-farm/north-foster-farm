@@ -135,9 +135,9 @@ Your browser also keeps:
   appear on the order page. They hold nothing about you.
 
 Other companies set a few things of their own. When the payment section of
-the order page appears, Square sets a cookie that identifies your device;
+the order page appears, Square sets a cookie that identifies your device.
 [Cloudflare](https://www.cloudflare.com/privacypolicy/), which guards
-Square's service, sets one that lasts 30 minutes; and Google sets one for the
+Square's service, sets one that lasts 30 minutes, and Google sets one for the
 Google Pay button. A news post with a YouTube video lets YouTube keep two
 entries in your browser, but no cookie. Each company's own policy, linked on
 this page, covers what it sets. Your browser may block some of these.
@@ -171,11 +171,13 @@ you, and to send farm news if you asked for it. We do not share personal
 information with outside parties except to the extent necessary to provide our
 services.
 
-We may disclose your information in response to subpoenas, court orders, or
-other legal requirements; to exercise our legal rights or defend against legal
-claims; to investigate, prevent, or take action regarding illegal activities,
-suspected fraud or abuse, violations of our policies; or to protect our rights
-and property.
+We may disclose your information:
+
+- in response to subpoenas, court orders, or other legal requirements
+- to exercise our legal rights or defend against legal claims
+- to investigate, prevent, or take action regarding illegal activities,
+  suspected fraud or abuse, or violations of our policies
+- to protect our rights and property
 
 In the future, we may sell to, buy, merge with, or partner with other
 businesses. In such transactions, user information may be among the transferred
@@ -202,4 +204,4 @@ By using our website, you consent to our privacy policy.
 If you have questions regarding this privacy policy, you may email
 {{% company "email-info" %}}.
 
-Last updated October 16, 2026.
+Last updated October 24, 2026.
