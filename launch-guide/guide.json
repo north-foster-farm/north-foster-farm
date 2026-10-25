@@ -1,5 +1,5 @@
 {
- "revision": 49,
+ "revision": 50,
  "updated": "2026-10-24",
  "notice": null,
  "phases": [
@@ -4562,28 +4562,6 @@
    "type": "decide"
   },
   {
-   "id": "D-354-39",
-   "section": "rv-decide",
-   "title": "Is MAIL_REPLY_TO still sales@? Make it info@?",
-   "area": "PR #410",
-   "revisions": [
-    {
-     "rev": 1,
-     "date": "2026-10-24",
-     "summary": "The emails' Reply-To comes from the `MAIL_REPLY_TO` environment value, which PR #410 cannot see. If it is sales@, a customer's reply goes to the order mailbox while the Contact us link goes to info@. Check the value in Netlify (Production and Staging).\n\n- It is sales@: change it to info@.\n- It is already info@: nothing to do.\n- Replies should keep going to sales@: say so.",
-     "look": [
-      {
-       "label": "PR #410",
-       "url": "https://github.com/north-foster-farm/north-foster-farm/pull/410"
-      }
-     ],
-     "recommendation": "If it is sales@, change it to info@ so replies and Contact us reach the same mailbox."
-    }
-   ],
-   "device": "laptop",
-   "type": "decide"
-  },
-  {
    "id": "D-354-40",
    "section": "rv-decide",
    "title": "Rename the label \"Scheduled pickup\"?",
@@ -4622,6 +4600,19 @@
       }
      ],
      "recommendation": "Change it to the longer subject, to follow your own rule."
+    },
+    {
+     "rev": 2,
+     "date": "2026-10-25",
+     "changed": "PR #418 was approved on 2026-10-25. The subject wording below is still open.",
+     "summary": "The confirmation's subject, your own wording (W19), reads \"Confirm your email for farm news from North Foster Farm\". Your rule elsewhere is \"email address\".\n\n- Keep the subject as is.\n- Change it to \"Confirm your email address for farm news from North Foster Farm\" (draft).",
+     "look": [
+      {
+       "label": "PR #418",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/pull/418"
+      }
+     ],
+     "recommendation": "Change it to the longer subject, to follow your own rule."
     }
    ],
    "device": "phone",
@@ -4652,6 +4643,28 @@
    ],
    "device": "phone",
    "type": "decide"
+  },
+  {
+   "id": "D-354-43",
+   "section": "rv-decide",
+   "title": "Add two Actions secrets for the staging e2e suite (#449)",
+   "area": "#449",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-25",
+     "summary": "The e2e suite against staging (#449) needs two GitHub Actions secrets in the north-foster-farm repo. Until both exist the first run fails.\n\n- `E2E_STAGING_TOKEN`: the same value as the Netlify branch:staging token.\n- `E2E_STAGING_PING_URL`: the ping URL of a new Healthchecks check named \"E2E staging\", period 1 day.\n\nAdd them under Settings, Secrets and variables, Actions. Names only are recorded here; docs/secrets.md in the repo has the details.",
+     "look": [
+      {
+       "label": "#449",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/449"
+      }
+     ],
+     "recommendation": "Add both before the first scheduled run."
+    }
+   ],
+   "device": "laptop",
+   "type": "account"
   }
  ],
  "env": {
@@ -5506,6 +5519,7 @@
   "D-WH": "Retired 2026-10-24: decided: the webhook URL uses www (#237).",
   "D-NOTIFY": "Retired 2026-10-24: decided: email only at launch; the phone page is a line in #377.",
   "R-DECIDED": "Retired 2026-10-24: nothing further; see the closing comments of #233 and #192.",
-  "D-CART4": "Retired 2026-10-24: decided: the segmented control (#274)."
+  "D-CART4": "Retired 2026-10-24: decided: the segmented control (#274).",
+  "D-354-39": "Retired 2026-10-25: answered: MAIL_REPLY_TO stays sales@ (James, https://github.com/north-foster-farm/north-foster-farm/pull/410#issuecomment-6398585975). The coordinator set it in Netlify, all contexts. Contact links stay on sales@ too (house rule 4 reversed, https://github.com/north-foster-farm/north-foster-farm/issues/400#issuecomment-6398586198). PR #410 was rejected and closed."
  }
 }
