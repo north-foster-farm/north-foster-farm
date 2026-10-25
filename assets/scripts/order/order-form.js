@@ -210,6 +210,7 @@ export class OrderForm {
       setQty: (input, n) => this.setQty(input, n),
       inStockOnly: wireSwitch(form),
       onLock: () => this.refresh(),
+      nameOf: (sku) => this.index.get(sku)?.lineName,
     });
     this.stockNotice = document.getElementById("order-stock");
     this.cart = document.getElementById("order-cart");
@@ -1194,7 +1195,7 @@ export class OrderForm {
     }
   }
 
-  // Stock moved under the cart: quantities were already brought into
+  // Stock changed under the cart: quantities were already brought into
   // line by Stock; say so, and let a submission in flight stop.
   stockMoved(notice) {
     this.moved = true;

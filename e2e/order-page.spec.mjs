@@ -290,7 +290,8 @@ test.describe("order page", () => {
       .toBeHidden();
     await expect(row(SKU.drums)).toBeVisible();
     await expect(page.locator("#order-stock"))
-      .toContainText("Large sold out and was removed");
+      .toContainText("Eggs, Grade A · Large, is out of stock, so we"
+        + " removed it from your cart.");
     await expect(order.count).toHaveText("0 items");
   });
 

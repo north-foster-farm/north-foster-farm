@@ -12,6 +12,7 @@
 import { clear, whileLoading } from "../utils/skeleton.js";
 import { showRows } from "./restock.js";
 import { ATTEMPT_MS, StockGate, withBackoff } from "./lib/stock-gate.mjs";
+import { stockNotice } from "./lib/stock-notice.mjs";
 import { syncSchema } from "./schema.js";
 
 // The first load may retry for about half a minute.
@@ -22,8 +23,9 @@ export class Stock {
   // customer, with a sentence to show. `setQty(input, n)` is the
   // form's own setter, so the row's state follows. `inStockOnly()`
   // says whether Show is on "In stock". `onLock()` is called when
-  // adding and paying open or shut.
-  constructor(form, { onChange, setQty, inStockOnly, onLock }) {
+  // adding and paying open or shut. `nameOf(sku)` is the item's full
+  // name for the notice; the row's own label is only its variety.
+  constructor(form, { onChange, setQty, inStockOnly, onLock, nameOf }) {
     this.form = form;
     this.region = document.getElementById("order-catalog");
     this.callout = document.getElementById("order-stock-down");
@@ -35,6 +37,7 @@ export class Stock {
     this.starting = false;
     this.setQty = setQty || ((input, n) => { input.value = String(n); });
     this.inStockOnly = inStockOnly || (() => true);
+    this.nameOf = nameOf || (() => null);
     this.items = null;
     this.timer = null;
     // Packs a paid order being changed (?edit=) already holds: they
@@ -236,7 +239,7 @@ export class Stock {
         else delete row.dataset.stock;
         if (qty > 0) {
           this.setQty(input, 0);
-          changed.push(`${label} sold out and was removed`);
+          changed.push({ name: this.nameOf(sku) || label });
         }
       } else if (archived) {
         delete row.dataset.stock;
@@ -247,7 +250,7 @@ export class Stock {
         text = available === 1 ? "1 left" : `${available} left`;
         if (qty > available) {
           this.setQty(input, available);
-          changed.push(`only ${available} of ${label} left`);
+          changed.push({ name: this.nameOf(sku) || label, left: available });
         }
       } else {
         delete row.dataset.stock;
@@ -262,9 +265,6 @@ export class Stock {
 
     showRows(this.form, this.inStockOnly());
 
-    if (changed.length) {
-      this.onChange(`Stock moved while you were shopping: ${
-        changed.join("; ")}. Your cart was updated.`);
-    }
+    if (changed.length) this.onChange(stockNotice(changed));
   }
 }
