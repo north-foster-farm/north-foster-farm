@@ -1417,8 +1417,9 @@ instance, so more than six posts may be needed to reach it.
   1. Post until the endpoint answers 429; post the honeypot.
   2. On `/contact/`: name, email, message; press Send.
 - **Assert:** 429 with a `Retry-After` of 1 to 600 seconds and the
-  message "There have been too many tries to send a message. Wait a
-  few minutes and try again."; the
+  message "There have been too many tries to send a message. Please
+  wait a few minutes and send it again. What you wrote is still
+  here."; the
   honeypot still gets 200 `{ ok: true }`. The page shows that message
   under Send (`role="alert"`), no thanks card, the message kept; no
   `messages/<id>` record for the address.

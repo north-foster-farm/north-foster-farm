@@ -110,8 +110,9 @@ export const handle = async (req, {
 
   if (wait) {
     return json(429, {
-      message: "There have been too many tries to send a message. Wait " +
-        "a few minutes and try again.",
+      message: "There have been too many tries to send a message. " +
+        "Please wait a few minutes and send it again. What you wrote is " +
+        "still here.",
     }, { "Retry-After": String(wait) });
   }
 

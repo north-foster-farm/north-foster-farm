@@ -102,7 +102,8 @@ test.describe("rate limit", () => {
 // message (#178). Every post counts, a refused one too, so this also
 // locks this address out of the contact form for ten minutes.
 const CONTACT_MESSAGE = "There have been too many tries to send a " +
-  "message. Wait a few minutes and try again.";
+  "message. Please wait a few minutes and send it again. What you " +
+  "wrote is still here.";
 
 test.describe("contact rate limit", () => {
   test.skip(!process.env.E2E_LOCKOUT,
