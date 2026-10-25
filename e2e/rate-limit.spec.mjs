@@ -19,8 +19,8 @@ import {
   deleteContactMessages, deleteCustomer, nff, teardown,
 } from "./support/staging.mjs";
 
-const MESSAGE = "There have been too many tries from here. Wait a few " +
-  "minutes and try again; your order is saved on this page.";
+const MESSAGE = "There have been too many tries to place your order. " +
+  "Wait a few minutes and try again.";
 
 // The limit is 12 per address, but each function instance keeps its
 // own count, so more may be needed when Netlify runs several.
@@ -101,8 +101,9 @@ test.describe("rate limit", () => {
 // from one address, /api/contact says so and the page keeps the
 // message (#178). Every post counts, a refused one too, so this also
 // locks this address out of the contact form for ten minutes.
-const CONTACT_MESSAGE = "There have been too many messages from here. " +
-  "Wait a few minutes and send it again; what you wrote is still here.";
+const CONTACT_MESSAGE = "There have been too many tries to send a " +
+  "message. Please wait a few minutes and send it again. What you " +
+  "wrote is still here.";
 
 test.describe("contact rate limit", () => {
   test.skip(!process.env.E2E_LOCKOUT,

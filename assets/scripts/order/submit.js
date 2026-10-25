@@ -8,7 +8,7 @@
 //                                        again
 //   { kind: "invalid", errors, stock }   fix and resubmit
 //   { kind: "stale", dates }             date closed, fresh list attached
-//   { kind: "busy", message }            too many tries from here;
+//   { kind: "busy", message }            too many tries to place it;
 //                                        wait, then try again
 //   { kind: "retry" }                    transient, safe to try again
 //   { kind: "failed", message }          permanent
@@ -73,9 +73,8 @@ export class Submitter {
     if (res.status === 429) {
       return {
         kind: "busy",
-        message: data.message || "There have been too many tries from " +
-          "here. Wait a few minutes and try again; your order is saved on " +
-          "this page.",
+        message: data.message || "There have been too many tries to " +
+          "place your order. Wait a few minutes and try again.",
       };
     }
     // Maintenance (#267) is a 503 that is not transient: waiting and

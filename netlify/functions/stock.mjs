@@ -49,7 +49,10 @@ export const handle = async (req, {
 } = {}) => {
   if (deployContext(env) === "production"
     && rateLimited(ip, real(now).getTime())) {
-    return new Response(JSON.stringify({ message: "Too many tries." }), {
+    return new Response(JSON.stringify({
+      message: "We've checked stock too many times from here. Wait a " +
+        "few minutes and try again.",
+    }), {
       status: 429,
       headers: {
         "Content-Type": "application/json",

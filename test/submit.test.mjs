@@ -47,7 +47,9 @@ describe("what the page makes of an answer", () => {
   });
 
   it("says to wait on a 429, and never retries it", async () => {
-    answer(429, { message: "There have been too many tries from here." });
+    answer(429, {
+      message: "There have been too many tries to place your order.",
+    });
 
     const r = await send();
 

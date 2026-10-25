@@ -178,7 +178,9 @@ describe("POST /api/contact", () => {
       assert.equal(sixth.headers.get("Retry-After"), "300",
         "until the first of the five is ten minutes old");
       assert.equal(seventh.headers.get("Retry-After"), "240");
-      assert.match((await sixth.json()).message, /too many messages/);
+      assert.equal((await sixth.json()).message,
+        "There have been too many tries to send a message. Please wait " +
+        "a few minutes and send it again. What you wrote is still here.");
     });
 
   // As for orders (docs/staging.md, "The order limit"): the e2e suite

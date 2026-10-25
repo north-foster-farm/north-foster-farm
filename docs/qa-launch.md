@@ -1392,8 +1392,8 @@ the order handler.
   2. On the page: 1 egg, pickup, details, the approved card; press
      Place your order.
 - **Assert:** 429 with `Retry-After: 600` and the message "There have
-  been too many tries from here. Wait a few minutes and try again; your
-  order is saved on this page."; the honeypot still gets 204. The page
+  been too many tries to place your order. Wait a few minutes and try
+  again."; the honeypot still gets 204. The page
   shows that message by the Pay button, no "Your order is placed", the
   button enabled, the cart kept; `orders list` finds nothing.
 - **Teardown:** None (nothing is recorded).
@@ -1417,8 +1417,9 @@ instance, so more than six posts may be needed to reach it.
   1. Post until the endpoint answers 429; post the honeypot.
   2. On `/contact/`: name, email, message; press Send.
 - **Assert:** 429 with a `Retry-After` of 1 to 600 seconds and the
-  message "There have been too many messages from here. Wait a few
-  minutes and send it again; what you wrote is still here."; the
+  message "There have been too many tries to send a message. Please
+  wait a few minutes and send it again. What you wrote is still
+  here."; the
   honeypot still gets 200 `{ ok: true }`. The page shows that message
   under Send (`role="alert"`), no thanks card, the message kept; no
   `messages/<id>` record for the address.

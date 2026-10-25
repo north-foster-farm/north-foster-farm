@@ -179,8 +179,8 @@ export const handle = async (req, {
   if (!closed && !limitExempt(req, env)
     && rateLimited(ip, real(now).getTime())) {
     return new Response(JSON.stringify({
-      message: "There have been too many tries from here. Wait a few " +
-        "minutes and try again; your order is saved on this page.",
+      message: "There have been too many tries to place your order. " +
+        "Wait a few minutes and try again.",
     }), {
       status: 429,
       headers: {
@@ -400,7 +400,9 @@ export const handle = async (req, {
         }, options)));
       }
 
-      return json(422, { errors: { payment: "Which Venmo step?" } });
+      return json(422, { errors: {
+        payment: "The Venmo payment didn't come through. Start it again.",
+      } });
     }
 
     const sourceId = String(payment.sourceId || "");
