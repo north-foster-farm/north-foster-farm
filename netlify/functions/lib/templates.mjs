@@ -507,7 +507,7 @@ export const quietNotice = (customer, {
   ];
 
   if (wasSubscribed) {
-    blocks.push(p("We've stopped sending you our farm news emails. You " +
+    blocks.push(p("We've stopped sending you our Farm News emails. You " +
       "can turn them back on in your account settings at any time."));
   }
   blocks.push(
@@ -840,7 +840,7 @@ export const emailChanged = (from, to, { links } = {}) => {
     "was changed";
   const blocks = [
     p(`Your email address has been changed from ${from} to ${to}. ` +
-      "Order emails and farm news, if you get it, will be sent to the " +
+      "Order emails and Farm News, if you get it, will be sent to the " +
       "new email address from now on."),
     pSupport("If you didn't make this change, [contact us] right away."),
   ];
@@ -1025,9 +1025,9 @@ export const optInPhrase = (event) => {
   case "website-form":
     return "you signed up on our website";
   case "checkout":
-    return "you ticked the farm news box when you placed your order";
+    return "you ticked the Farm News box when you placed your order";
   case "account-settings":
-    return "you turned on farm news in your account";
+    return "you turned on Farm News in your account";
   case "reinvite-confirmation":
     return "you confirmed you'd like to keep hearing from us";
   case "market-sheet":
@@ -1039,7 +1039,7 @@ export const optInPhrase = (event) => {
   case "resend":
     return "you asked us to add you to our list";
   default:
-    return "you joined our farm news list";
+    return "you joined our Farm News list";
   }
 };
 
@@ -1057,10 +1057,10 @@ const capital = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 export const newsConfirm = (email, url, {
   days = accounts.newsInviteDays, links,
 } = {}) => listMail(
-  `Confirm your email for farm news from ${company.name}`, {
+  "Confirm your email address for Farm News", {
     preview: "One click keeps you on our list.",
     blocks: [
-      listBlocks.p("Click the button below to receive farm news from " +
+      listBlocks.p("Click the button below to receive Farm News from " +
         `${company.name}.`),
       listBlocks.button("Sign up", url),
       listBlocks.p(`This link expires in ${days} days. You're receiving ` +
@@ -1088,8 +1088,8 @@ export const newsWelcome = (who, unsubscribeUrl, { links } = {}) => {
   const blocks = [
     b.p(name ? `Hi ${name},` : "Hi,"),
     b.p(`${event && event.type === "reinvite-confirmation"
-      ? "Thanks for staying on our farm news list."
-      : "Thanks for signing up. You're on our farm news list."} ` +
+      ? "Thanks for staying on our Farm News list."
+      : "Thanks for signing up. You're on our Farm News list."} ` +
       `We're writing because ${phrase}. We don't take a place in your ` +
       "inbox lightly."),
     ...(migrated

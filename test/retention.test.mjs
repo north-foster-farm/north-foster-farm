@@ -370,7 +370,7 @@ describe("quiet accounts", () => {
       assert.equal(sent.length, 1);
       assert.equal(sent[0].to, PAT);
       assert.equal(sent[0].subject, "Your account is still here");
-      assert.match(sent[0].text, /stopped sending you our farm news/);
+      assert.match(sent[0].text, /stopped sending you our Farm News/);
       assert.match(sent[0].text, /delete them/);
       assert.match(sent[0].text, /northfosterfarm\.com\/account\//);
 
@@ -402,7 +402,7 @@ describe("quiet accounts", () => {
 
       await quietAccounts(stores, { env, mail, now: yearOn });
       assert.equal(sent.length, 1);
-      assert.doesNotMatch(sent[0].text, /farm news/);
+      assert.doesNotMatch(sent[0].text, /farm news/i);
     });
 
   it("start a new year with a new interaction, and a second quiet year " +
@@ -444,7 +444,7 @@ describe("quiet accounts", () => {
       await quietAccounts(stores, { env, mail, now: yearOn });
       assert.equal(sent.length, 1);
       // Taken off on the first try, it still says so.
-      assert.match(sent[0].text, /stopped sending you our farm news/);
+      assert.match(sent[0].text, /stopped sending you our Farm News/);
     });
 
   it("get at most QUIET_PER_RUN notices a run, the longest quiet first",

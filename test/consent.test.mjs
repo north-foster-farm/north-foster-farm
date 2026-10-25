@@ -214,7 +214,7 @@ describe("the welcome", () => {
   });
 
   it("words a missing event plainly", () => {
-    assert.equal(optInPhrase(null), "you joined our farm news list");
+    assert.equal(optInPhrase(null), "you joined our Farm News list");
   });
 });
 
@@ -264,9 +264,9 @@ describe("the list template", () => {
   it("opens on James's T6 line, or thanks the re-invite for staying",
     () => {
       assert.match(newsWelcome(who("website-form"), "u", {}).text,
-        /^Thanks for signing up\. You're on our farm news list\. /m);
+        /^Thanks for signing up\. You're on our Farm News list\. /m);
       assert.match(
         newsWelcome(who("reinvite-confirmation"), "u", {}).text,
-        /^Thanks for staying on our farm news list\. /m);
+        /^Thanks for staying on our Farm News list\. /m);
     });
 });

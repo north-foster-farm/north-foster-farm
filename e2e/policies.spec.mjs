@@ -7,7 +7,7 @@
 import { expect, test } from "./support/order.mjs";
 
 const PRIVACY_TOPICS = [
-  "Accounts and sign-in links", "Farm news", "What we store and where",
+  "Accounts and sign-in links", "Farm News", "What we store and where",
   "What your browser keeps", "Hosting and service providers",
 ];
 

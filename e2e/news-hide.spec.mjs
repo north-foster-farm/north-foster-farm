@@ -70,7 +70,7 @@ for (const { name, path, block } of PAGES) {
           route.fulfill({ json: { ok: true } }));
         await page.goto("/news/?unsubscribe=abc");
         await expect(page.locator("[data-farm-list-note]").first())
-          .toHaveText("You're off the list. We won't send you farm news.");
+          .toHaveText("You're off the list. We won't send you Farm News.");
         expect(await page.evaluate(() => localStorage.getItem("nff-news")))
           .toBeNull();
 
@@ -108,7 +108,7 @@ test.describe("the order page's farm news opt-in (#391)", () => {
       await page.goto("/order/");
       await expect(page.locator(block)).toBeVisible();
       await expect(page.locator(`${block} h3`))
-        .toHaveText("Farm news and updates");
+        .toHaveText("Farm News and updates");
       await expect(page.locator("#customer-marketing")).toBeVisible();
     });
 

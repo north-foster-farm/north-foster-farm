@@ -131,7 +131,7 @@ test.describe("footer (#141)", () => {
 
       await page.goto("/");
       await expect(form.locator("label"))
-        .toHaveText("Farm news by email");
+        .toHaveText("Farm News by email");
       await expect(note, "nothing under the field until an answer")
         .toHaveText("");
 

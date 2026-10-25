@@ -144,7 +144,7 @@ describe("following the link (#240)", () => {
       assert.match(sent[0].text,
         /contact us at sales@northfosterfarm\.com right away/);
       // James's approved sentence, "if you get it" and all.
-      assert.match(sent[0].text, /farm news, if you get it, will be sent/);
+      assert.match(sent[0].text, /Farm News, if you get it, will be sent/);
     });
 
   it("refuses once the new address has an account of its own",

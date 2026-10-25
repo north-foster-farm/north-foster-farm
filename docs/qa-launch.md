@@ -1888,9 +1888,9 @@ Manual: the link lives seven days.
 - **Test:**
   1. Read the outbox; open the link; open it again.
   2. Open an expired link.
-- **Assert:** The email's subject is "Confirm your email for North
-  Foster Farm news and updates"; it reads "Click the button below to
-  receive news and updates from North Foster Farm.", has a "Sign up"
+- **Assert:** The email's subject is "Confirm your email address for
+  Farm News"; it reads "Click the button below to receive Farm News
+  from North Foster Farm.", has a "Sign up"
   button, "This link expires in 7 days. You're receiving this message
   because you previously joined our mailing list." and "Need help?
   Contact us". Before the click the record is absent or not
@@ -1905,7 +1905,7 @@ Manual: the link lives seven days.
 
 Manual: automatable with a sign-in; not yet written.
 
-- **Scenario:** The account page's "Farm news" box writes the same
+- **Scenario:** The account page's "Farm News" box writes the same
   consent.
 - **Setup:** Signed in.
 - **Test:**

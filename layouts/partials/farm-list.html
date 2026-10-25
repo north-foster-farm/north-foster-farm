@@ -15,7 +15,7 @@
 */}}
 {{ $id := .id | default "news" }}
 <form class="farm-list-form{{ with .class }} {{ . }}{{ end }}" data-farm-list-form novalidate>
-  <label class="visually-hidden" for="{{ $id }}-email">Farm news by email</label>
+  <label class="visually-hidden" for="{{ $id }}-email">Farm News by email</label>
   <div class="input-group">
     <input class="form-control" type="email" id="{{ $id }}-email" name="email" placeholder="Email address" autocomplete="email" inputmode="email" enterkeyhint="send" required aria-describedby="{{ $id }}-note">
     {{ partial "busy-button.html" (dict "label" (.button | default "Sign me up") "busy" "Sending" "class" "btn-primary" "fit" true) }}

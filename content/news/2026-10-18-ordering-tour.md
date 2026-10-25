@@ -54,7 +54,7 @@ password: type the email you order with on the
 Signed in, you can see past orders and receipts, change or cancel an
 order in progress, and keep a delivery address on file.
 
-## Farm news
+## Farm News
 
 News like this goes only to people who ask for it. You can
 [sign up](/news/) any time, or tick the email box when you place an

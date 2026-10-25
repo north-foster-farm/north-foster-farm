@@ -43,22 +43,22 @@ the picture you chose, your email settings, whether videos autoplay, your
 orders, the order you're filling out and the messages you have sent us from
 it.
 
-### Farm news
+### Farm News
 
-We send farm news only to people who ask for it. You can sign up on the site,
+We send Farm News only to people who ask for it. You can sign up on the site,
 tick "I want to get email from North Foster Farm" when you place an order, or
-turn farm news on in your account. The box starts unticked. Signing up adds
+turn Farm News on in your account. The box starts unticked. Signing up adds
 you to the list at once. We send you a welcome email, not one asking you to
 confirm. If you were on our old mailing list, we email you an invitation
 instead, and you join only if you follow its link within
 {{< fact "accounts" "newsInviteDays" >}} days. We add an
 address only when its owner asks, and we record when and how you signed up.
 
-Resend keeps the list and sends the emails. Every farm news email has an
+Resend keeps the list and sends the emails. Every Farm News email has an
 unsubscribe link that takes you off the list in one click. You can also turn
-farm news off in your account. We never track whether you open our emails.
+Farm News off in your account. We never track whether you open our emails.
 
-Emails about your order are separate from farm news. We send a receipt when
+Emails about your order are separate from Farm News. We send a receipt when
 you pay, and a reminder the evening before a delivery. You can turn the
 reminder off in your account or from the link in the reminder itself.
 
@@ -125,7 +125,7 @@ Your browser also keeps:
 - a note that you've seen the delivery policy on the order form.
 - whether you turned off videos playing on their own.
 - whether the order page shows only what's in stock or the full catalog.
-- a note that you signed up for farm news, so the sign-up forms stay out of
+- a note that you signed up for Farm News, so the sign-up forms stay out of
   your way. It holds no email address.
 - for up to {{< fact "accounts" "sessionCacheMinutes" >}} minutes at a time,
   whether you're signed in and your account
@@ -167,7 +167,7 @@ We don't collect any data for advertising or analytics.
 ## Information usage
 
 We use the information we collect to fill your orders, to communicate with
-you, and to send farm news if you asked for it. We do not share personal
+you, and to send Farm News if you asked for it. We do not share personal
 information with outside parties except to the extent necessary to provide our
 services.
 

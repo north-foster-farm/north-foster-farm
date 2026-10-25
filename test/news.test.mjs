@@ -129,7 +129,7 @@ describe("the confirmation request", () => {
       /^https:\/\/northfosterfarm.com\/api\/news\/confirm\?token=/);
     assert.equal(sent[0].to, "pat@example.com");
     assert.equal(sent[0].subject,
-      "Confirm your email for farm news from North Foster Farm");
+      "Confirm your email address for Farm News");
     assert.match(sent[0].text, /^Click the button below/m);
     assert.match(sent[0].text, /7 days/);
     assert.match(sent[0].text, new RegExp(tokenIn(r.url)));
@@ -248,7 +248,7 @@ describe("the invitation of an old list", () => {
       });
       assert.equal(sent.length, 1);
       assert.equal(sent[0].to, "new@example.com");
-      assert.match(sent[0].text, /farm news from North Foster Farm/);
+      assert.match(sent[0].text, /Farm News from North Foster Farm/);
       assert.match(sent[0].text,
         /because you previously joined our mailing list\.$/m);
 
@@ -578,9 +578,8 @@ describe("the confirmation email", () => {
       days: 7, links: { site: "https://x" },
     });
 
-    assert.equal(m.subject,
-      "Confirm your email for farm news from North Foster Farm");
-    assert.match(m.text, /^Click the button below to receive farm news /m);
+    assert.equal(m.subject, "Confirm your email address for Farm News");
+    assert.match(m.text, /^Click the button below to receive Farm News /m);
     assert.match(m.text, /^This link expires in 7 days\. You're receiving /m);
     assert.match(m.text,
       /because you previously joined our mailing list\.$/m);
