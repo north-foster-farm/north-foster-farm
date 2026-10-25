@@ -82,7 +82,7 @@ describe("announcePaid", () => {
       assert.equal(sent[0].to, "pat@example.com");
       assert.match(sent[0].subject, /^Your order is confirmed$/);
       assert.deepEqual(sent[1].to, ["farm@x.com", "second@x.com"]);
-      assert.match(sent[1].subject, /^New order NFF-1 — \$7, delivery$/);
+      assert.match(sent[1].subject, /^New order NFF-1: \$7, delivery$/);
       assert.match(sent[1].text, /Paid: \*\*\$7 by Visa ending 4242\*\*/);
       assert.match(sent[1].text,
         new RegExp("View order in Square: https://app\\.squareupsandbox" +

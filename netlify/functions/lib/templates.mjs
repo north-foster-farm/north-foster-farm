@@ -1157,13 +1157,13 @@ export const addressReview = (customer, { links } = {}) => {
   const blocks = [
     url
       ? {
-        text: `${who} (${url}) saved an address outside of the ` +
+        text: `${who} (${url}) saved an address outside the ` +
           "published delivery area.",
         html: `<p><a href="${escape(url)}" style="color:${GREEN}">${
-          escape(who)}</a> saved an address outside of the published ` +
+          escape(who)}</a> saved an address outside the published ` +
           "delivery area.</p>",
       }
-      : p(`${who} (${customer.email}) saved an address outside of the ` +
+      : p(`${who} (${customer.email}) saved an address outside the ` +
         "published delivery area."),
     p(`Location: **${streetAddress(a)}**`),
     button("View location in Maps", mapsUrl(a)),
@@ -1260,7 +1260,7 @@ export const paymentPhrase = (order) => {
 
 // The moment an order is placed, which is the moment it is paid.
 export const farmOrderPlaced = (order, { squareUrl, links } = {}) => {
-  const title = `New order ${order.id} — ${dollars(order.totals.total)}, ` +
+  const title = `New order ${order.id}: ${dollars(order.totals.total)}, ` +
     `${isScheduled(order.fulfilment)
       ? `pickup at ${placeOf(order).name}`
       : methodName(order.fulfilment.method).toLowerCase()}`;
@@ -1414,11 +1414,11 @@ export const farmContactMessage = (message, { order = null, links } = {}) => {
   const about = message.orderId
     ? [{
       text: `Order ${message.orderId}${order
-        ? ", placed with this email"
-        : ": no order by that number with this email"}`,
+        ? ", placed with this email address"
+        : ": no order by that number with this email address"}`,
       html: `Order ${mono(message.orderId).html}${order
-        ? ", placed with this email"
-        : ": no order by that number with this email"}`,
+        ? ", placed with this email address"
+        : ": no order by that number with this email address"}`,
     }]
     : [];
   const blocks = [
@@ -1516,8 +1516,8 @@ export const farmOrderCancelled = (order, customer, { links } = {}) => {
     [
       p(`${who} canceled paid order ${order.id}, ${
         methodOn(order.fulfilment)}. ${back
-        ? `We refunded ${dollars(back)} automatically; there's nothing ` +
-          "to run."
+        ? `We refunded ${dollars(back)} automatically, so there's ` +
+          "nothing to run."
         : "Nothing was left to refund."} Don't pack it.`),
     ],
     links, { orderId: order.id }
