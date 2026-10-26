@@ -91,18 +91,28 @@ test.describe("changing a paid order's items (#284)", () => {
       const sent = page.waitForRequest(
         (r) => r.url().includes(`/api/account/orders/${orderId}/edit`)
       );
+      // What the page did after the press, for a Save that sends nothing.
+      const after = [];
+
+      page.on("request", (r) => {
+        if (r.url().includes("/api/")) after.push(`${r.method()} ${
+          new URL(r.url()).pathname}`);
+      });
+      page.on("pageerror", (e) => after.push(`error: ${e.message}`));
+      page.on("console", (m) => {
+        if (m.type() === "error") after.push(`console: ${m.text()}`);
+      });
 
       await page.locator("#order-save").click();
       release();
-      // Said on the page when nothing went, to tell a refusal from a
-      // Save that never ran.
       await sent.catch(async (error) => {
         const said = (await page.locator(
-          "[role='alert'], .invalid-feedback, [data-stock-notice]"
+          "[role='alert']:visible, .invalid-feedback:visible"
         ).allInnerTexts()).map((t) => t.trim()).filter(Boolean);
 
-        throw new Error(`${error.message}\nOn the page: ${
-          said.join(" | ") || "nothing"}`, { cause: error });
+        throw new Error(`${error.message}\nShown: ${
+          said.join(" | ") || "nothing"}\nAfter the press: ${
+          after.join(", ") || "nothing"}`, { cause: error });
       });
       await expect(page).toHaveURL(/\/account\/#orders/);
 
