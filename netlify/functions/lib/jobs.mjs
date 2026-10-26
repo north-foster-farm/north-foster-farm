@@ -168,6 +168,9 @@ export const runJobs = async (stores, {
   // The catalog as indexCatalog makes it, for tests of the archived
   // check; the real one by default.
   catalogIndex,
+  // The end-to-end suite's run as of another day (lib/e2e.mjs) works
+  // only the orders it names, so shared staging orders keep their state.
+  orderIds = null,
 } = {}) => {
   const report = {
     at: now.toISOString(), announced: [], deliveryReminded: [], closed: [],
@@ -296,6 +299,7 @@ export const runJobs = async (stores, {
   };
 
   for (const order of await openOrders(stores)) {
+    if (orderIds && !orderIds.includes(order.id)) continue;
     await attempt(order.id, "order", () => workOrder(order));
   }
 

@@ -88,3 +88,40 @@ export const postOrder = async (request, payload, { limited = false } = {}) => {
 
   return { status: res.status(), body: text ? JSON.parse(text) : null };
 };
+
+// A valid delivery order for eight dozen eggs ($56, over either
+// minimum) on the first delivery day offered, to the first test
+// address: a paid order the jobs and the farm's actions can work on.
+export const deliveryOrder = async (request, { email, qty = 8 } = {}) => {
+  const dates = await (await request.get("/api/dates")).json();
+  const payload = await eggOrder(request, { email, qty, claimedTotal: 0 });
+
+  payload.customer.phone = "4015550100";
+  payload.fulfilment = {
+    method: "delivery", date: dates.delivery[0].date, onfarm: {},
+    delivery: {
+      address1: "12 Test Road", town: "Scituate", zip: "02857",
+      cooler: "By the front steps",
+    },
+  };
+
+  return payload;
+};
+
+// Posts an order whose total the caller leaves to the server: the
+// first answer, a 422 for a total that differs, carries the real one,
+// and the order goes again at that figure. A 422 means nothing was
+// charged. -> { status, body }.
+export const postPriced = async (request, payload) => {
+  const first = await postOrder(request, payload);
+
+  if (first.status !== 422 || !first.body.errors
+    || !first.body.errors.total) {
+    return first;
+  }
+
+  return postOrder(request, {
+    ...payload, claimedTotal: first.body.totals.total,
+    idempotencyKey: randomUUID(),
+  });
+};

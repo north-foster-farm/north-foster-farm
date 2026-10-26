@@ -9,12 +9,18 @@
 // it can touch.
 
 import {
-  cancelOrder, listOrders, refundOrder, removeCustomer, removeOrder,
-  showCustomer, showOrder,
+  cancelOrder, decideAddress, fulfillOrder, listOrders, markAttempted,
+  refundOrder, removeCustomer, removeOrder, showCustomer, showOrder,
 } from "./admin.mjs";
 import { requestLink } from "./auth.mjs";
+import { MAX_OFFSET } from "./clock.mjs";
+import { runJobs } from "./jobs.mjs";
 import { links, readState, setState } from "./maintenance.mjs";
 import { OUTBOX_PREFIX } from "./mail.mjs";
+import { inviteSubscribers } from "./news.mjs";
+import { getCustomer, saveCustomer } from "./records.mjs";
+import { quietAccounts } from "./retention.mjs";
+import * as squareApi from "./square.mjs";
 
 const need = (value, what) => {
   if (!value) throw new Error(`${what} is required.`);
@@ -54,6 +60,101 @@ export const OPS = {
       env, reason: reason || "QA e2e",
     }),
   }),
+  // The farm hands the order over, as `bin/nff orders fulfill` does.
+  orderFulfil: async (stores, { id }, env) => ({
+    order: await fulfillOrder(stores, need(id, "id"), { env }),
+  }),
+  // Square's own copy of the order's Square order, for a check that the
+  // site's change reached it. `fake` is true where there is no Square.
+  squareOrder: async (stores, { id }, env) => {
+    const order = await showOrder(stores, need(id, "id"));
+    const squareOrderId = order.square && order.square.squareOrderId;
+
+    if (!squareOrderId) throw new Error("This order has no Square order.");
+
+    const found = await squareApi.getOrder(squareOrderId, { env });
+
+    return {
+      fake: squareApi.isFake(env),
+      squareOrder: {
+        id: squareOrderId,
+        state: found.state,
+        fulfillments: (found.fulfillments || []).map((f) => ({
+          type: f.type, state: f.state,
+        })),
+      },
+    };
+  },
+  // The delivery did not happen: `cause` as `bin/nff orders attempt`
+  // takes it. A customer's miss asks them what to do; the farm's or
+  // the weather's moves the delivery on.
+  orderAttempt: async (stores, { id, cause, waive }, env) => ({
+    order: await markAttempted(stores, need(id, "id"), {
+      cause: need(cause, "cause"), waive: waive || "", env,
+    }),
+  }),
+  addressDecide: async (stores, { email, decision }, env) => ({
+    customer: await decideAddress(stores, need(email, "email"),
+      need(decision, "decision"), { env }),
+  }),
+  // The old list's confirmation email, as `bin/nff audience invite`.
+  newsInvite: async (stores, { email }, env) => ({
+    report: await inviteSubscribers(stores, [{ email: need(email, "email") }],
+      { env }),
+  }),
+  // A customer last seen `years` years ago, for the quiet notice. No
+  // order or session of theirs is touched.
+  customerSeedQuiet: async (stores, { email, years = 2 }) => {
+    const address = lower(need(email, "email"));
+
+    if (await getCustomer(stores, address)) {
+      throw new Error("That customer already has a record.");
+    }
+
+    const then = new Date();
+
+    then.setUTCFullYear(then.getUTCFullYear() - Number(years));
+
+    return {
+      customer: await saveCustomer(stores, {
+        email: address, firstName: "Quiet", createdAt: then.toISOString(),
+        marketing: true, marketingAt: then.toISOString(),
+        marketingSource: "signup",
+      }),
+    };
+  },
+  // The quiet-account notice, for the one address, as the daily job
+  // sends it to every address that is due.
+  quietRun: async (stores, { email }, env) => ({
+    report: await quietAccounts(stores, {
+      env, only: [lower(need(email, "email"))],
+    }),
+  }),
+  // The scheduled jobs as of `at` (an ISO time within the clock's
+  // reach), working only the named orders. The sweeps and reports keep
+  // the real time, as in the toolbar's run.
+  jobsRun: async (stores, { at, orders }, env) => {
+    const when = new Date(need(at, "at"));
+
+    if (Number.isNaN(when.getTime())
+      || Math.abs(when.getTime() - Date.now()) > MAX_OFFSET) {
+      throw new Error("Bad at: within three years of now.");
+    }
+    if (!Array.isArray(orders) || !orders.length) {
+      throw new Error("orders is required: the ids to work.");
+    }
+
+    const report = await runJobs(stores, {
+      env, now: when, orderIds: orders,
+    });
+
+    return {
+      report: {
+        deliveryReminded: report.deliveryReminded, closed: report.closed,
+        missedTold: report.missedTold, errors: report.errors,
+      },
+    };
+  },
   orderDelete: async (stores, { id }) => {
     await removeOrder(stores, need(id, "id"));
 
