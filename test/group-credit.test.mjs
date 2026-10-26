@@ -17,7 +17,7 @@ import { refundOrder } from "../netlify/functions/lib/admin.mjs";
 import { createSession } from "../netlify/functions/lib/auth.mjs";
 import { METHODS } from "../netlify/functions/lib/checkout.mjs";
 import {
-  creditBalance, getLedger, grantCredit,
+  creditBalance, getLedger, grantCredit, heldBy, spendCredit,
 } from "../netlify/functions/lib/credit.mjs";
 import { joinGroup, setGroupCode } from "../netlify/functions/lib/groups.mjs";
 import { creditPaid } from "../netlify/functions/lib/rounds.mjs";
@@ -595,4 +595,141 @@ describe("credit and the delivery fee", () => {
       // A failure that will not be retried gives the credit back.
       assert.equal(await creditBalance(stores, EMAIL, now), 10_000);
     });
+});
+
+// The security re-re-review's change 1 (6427102482): a retry of a
+// submission whose first try timed out holds credit against the id
+// it reserved; that hold counts as available, and the order ends
+// with exactly that credit, on the record and on the ledger.
+describe("credit on a retried checkout", () => {
+  // Square times out on every payment while `failing`, however often
+  // one request retries it; the test heals it between requests.
+  const fakeSquare = ({ failing = false } = {}) => {
+    const calls = [];
+    const state = { failing };
+    const square = {
+      createOrder: async (order, key) => {
+        calls.push(["order", key, order.totals.total, order.totals.credit]);
+
+        return { squareOrderId: "SQO", customerId: "CUST" };
+      },
+      createPayment: async (args) => {
+        if (state.failing) {
+          calls.push(["timeout"]);
+
+          const error = new Error("/v2/payments did not finish answering");
+
+          error.retryable = true;
+          error.code = "timeout";
+          throw error;
+        }
+        calls.push(["payment", args.amount || args.order.totals.total]);
+
+        return {
+          squarePaymentId: "PAY", status: "COMPLETED", receiptUrl: null,
+          brand: "VISA", last4: "4242", wallet: null,
+        };
+      },
+      cancelOrder: async (id) => ({ id, cancelled: true }),
+      findPaid: async () => null,
+    };
+
+    return { square, calls, state };
+  };
+  const body = (overrides = {}) => ({
+    idempotencyKey: "6f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f",
+    attempt: 1,
+    customer: {
+      firstName: "Pat", lastName: "Example", email: EMAIL,
+      phone: "401-555-0100", contact: "call",
+    },
+    lines: [{ sku: SKU, qty: 2 }],
+    fulfilment: { method: "scheduled", occurrence: "36TS-261108" },
+    claimedTotal: 3500,
+    payment: { method: "card", sourceId: "cnon:tok" },
+    ...overrides,
+  });
+  const member = async (credit) => {
+    const stores = testStores();
+
+    await setGroupCode(stores, "vff", { code: "GYM-2026", now });
+
+    const session = await createSession(stores, EMAIL, { now });
+
+    await joinGroup(stores, EMAIL, "vff", { now });
+    await grantCredit(stores, EMAIL, { amount: credit, from, now,
+      timeZone: terms.timeZone });
+
+    return { stores, cookie: { cookie: `nff_session=${session.id}` } };
+  };
+  const send = (stores, square, payload, headers = {}) => placeOrder(
+    new Request("http://x/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify(payload),
+    }),
+    { stores, square, now, env, mail: async () => ({}),
+      sleep: async () => {} }
+  );
+
+  it("keeps its hold through a timeout and pays with it", async () => {
+    const { stores, cookie } = await member(2000);
+    const { square, calls, state } = fakeSquare({ failing: true });
+    const first = await send(stores, square, body(), cookie);
+
+    assert.equal(first.status, 503);
+    assert.equal((await first.json()).retryable, true);
+    // The spend stands for the retry.
+    assert.equal(await creditBalance(stores, EMAIL, now), 0);
+
+    state.failing = false;
+
+    const again = await send(stores, square, body({ attempt: 2 }), cookie);
+    const data = await again.json();
+
+    assert.equal(again.status, 200, JSON.stringify(data));
+    assert.equal(data.totals.credit, 2000);
+    assert.equal(data.totals.total, 3500);
+    assert.deepEqual(calls.filter((c) => c[0] === "payment"),
+      [["payment", 3500]]);
+
+    const order = await getOrder(stores, data.orderId);
+    const ledger = await getLedger(stores, EMAIL);
+
+    assert.equal(order.creditFrom, EMAIL);
+    assert.deepEqual(paymentsOf(order).map((p) => [p.via, p.amount]),
+      [["square", 3500], ["credit", 2000]]);
+    assert.equal(heldBy(ledger, data.orderId), 2000);
+    assert.equal(await creditBalance(stores, EMAIL, now), 0);
+  });
+
+  it("brings a hold up or down to the order's credit, once", async () => {
+    const stores = testStores();
+    const t = ny("2026-11-23");
+
+    await grantCredit(stores, "m@x.com", { amount: 3_000, from, now: t,
+      timeZone: terms.timeZone });
+    await spendCredit(stores, "m@x.com", { orderId: "O1", amount: 1_000,
+      now: t });
+    assert.equal(heldBy(await getLedger(stores, "m@x.com"), "O1"), 1_000);
+    // More: the difference is spent.
+    await spendCredit(stores, "m@x.com", { orderId: "O1", amount: 2_500,
+      now: t });
+    assert.equal(heldBy(await getLedger(stores, "m@x.com"), "O1"), 2_500);
+    assert.equal(await creditBalance(stores, "m@x.com", t), 500);
+    // Less: the difference goes back.
+    await spendCredit(stores, "m@x.com", { orderId: "O1", amount: 800,
+      now: t });
+    assert.equal(heldBy(await getLedger(stores, "m@x.com"), "O1"), 800);
+    assert.equal(await creditBalance(stores, "m@x.com", t), 2_200);
+    // The same: nothing.
+    const same = await spendCredit(stores, "m@x.com", { orderId: "O1",
+      amount: 800, now: t });
+
+    assert.equal(heldBy(same, "O1"), 800);
+    // Short of the difference: refused, the hold as it was.
+    await assert.rejects(spendCredit(stores, "m@x.com", { orderId: "O1",
+      amount: 3_500, now: t }), /less credit than 2700/);
+    assert.equal(heldBy(await getLedger(stores, "m@x.com"), "O1"), 800);
+  });
 });

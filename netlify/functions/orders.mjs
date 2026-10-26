@@ -36,7 +36,7 @@ import {
 } from "./lib/checkout.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import {
-  creditBalance, restoreCredit, spendCredit,
+  balanceOf, creditBalance, getLedger, heldBy, restoreCredit, spendCredit,
 } from "./lib/credit.mjs";
 import { json, ORDER_BUDGET_MS, readJson } from "./lib/http.mjs";
 import { alert, count } from "./lib/health.mjs";
@@ -55,7 +55,7 @@ import {
 import { PAYMENTS_OFF, paymentsOff } from "./lib/payments.mjs";
 import { pickupSchedule } from "./lib/pickups.mjs";
 import {
-  getOrder, orderForSubmission, paymentsOf, reserveOrderId,
+  getOrder, orderForSubmission, paymentsOf, reserveOrderId, submissionKey,
 } from "./lib/records.mjs";
 import {
   DECLINE_MESSAGES as SQUARE_DECLINES, receiptLink,
@@ -269,8 +269,17 @@ export const handle = async (req, {
   // A member's credit (#471) spends only when signed in: the account
   // is what says the credit is theirs. As much as the order needs
   // comes off, and the rest of the total is paid as usual.
-  const creditAvailable = session && buying
-    ? await creditBalance(stores, session.email, now)
+  // A retry of this submission (a timeout kept the spend for it)
+  // already holds credit against the id it reserved; that hold counts
+  // as available, or the retry would price the order without it and
+  // the hold would be lost (security re-re-review, 6427102482).
+  const reserved = session && buying
+    ? await stores.orders.get(submissionKey(key)) : null;
+  const ledger = session && buying
+    ? await getLedger(stores, session.email) : null;
+  const creditAvailable = ledger
+    ? balanceOf(ledger, now)
+      + (reserved && reserved.id ? heldBy(ledger, reserved.id) : 0)
     : 0;
   // A pass (#182) lifts the delivery minimum for this one order, and
   // the fee if it was issued so. It is checked against the order's

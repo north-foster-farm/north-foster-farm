@@ -106,25 +106,50 @@ export const heldBy = (ledger, orderId) => ledger.entries
     .filter((x) => x.orderId === orderId)
     .reduce((t, x) => t + x.amount, 0), 0);
 
-// Spends `amount` on an order, from the grants that expire soonest.
-// Once per order: a retry finds the order holding its credit and
-// leaves the ledger; an order whose credit went back (a refused
-// payment) may spend again. Throws when the balance is short.
-// -> the ledger.
+// Brings what an order holds of the ledger to exactly `amount`: more
+// is spent from the grants that expire soonest, less is put back on
+// the grants the order spent (security re-re-review, 6427102482: a
+// retry under the same order id may hold some already, or too much).
+// A hold already at `amount` leaves the ledger. Throws when the
+// balance is short of what more is needed. -> the ledger.
 export const spendCredit = (stores, email, {
   orderId, amount, now = new Date(),
 }) => swapLedger(stores, email, (ledger) => {
-  if (heldBy(ledger, orderId) > 0) return null;
-  if (balanceOf(ledger, now) < amount) {
-    throw new Error(`${emailOf(email)} has less credit than ${amount}.`);
+  const held = heldBy(ledger, orderId);
+
+  if (held === amount) return null;
+
+  const at = now.toISOString();
+  const entries = ledger.entries.map((e) => ({ ...e, spent: [...e.spent] }));
+
+  if (held > amount) {
+    // Too much held: give the difference back, newest spends first.
+    let back = held - amount;
+
+    for (const e of [...entries].reverse()) {
+      if (back === 0) break;
+
+      const mine = (e.spent || []).filter((x) => x.orderId === orderId)
+        .reduce((s, x) => s + x.amount, 0);
+
+      if (mine <= 0) continue;
+
+      const give = Math.min(mine, back);
+
+      e.spent.push({ orderId, amount: -give, at, trimmed: true });
+      back -= give;
+    }
+
+    return { ...ledger, entries };
   }
 
-  let left = amount;
-  const at = now.toISOString();
-  const entries = ledger.entries.map((e) => ({ ...e, spent: [...e.spent] }))
-    .sort((a, b) => a.expiresAt.localeCompare(b.expiresAt));
+  let left = amount - held;
 
-  for (const e of entries) {
+  if (balanceOf(ledger, now) < left) {
+    throw new Error(`${emailOf(email)} has less credit than ${left}.`);
+  }
+  for (const e of entries.sort((a, b) =>
+    a.expiresAt.localeCompare(b.expiresAt))) {
     if (left === 0) break;
     if (!live(e, now) || leftOf(e) === 0) continue;
 
