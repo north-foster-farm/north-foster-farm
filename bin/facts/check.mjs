@@ -118,6 +118,7 @@ export const knownFacts = () => {
   const hold = terms.delivery.holdDays;
   add("hold", d, `${hold} days`);
   add("hold", d, `${hold}-day`);
+  add("on-farm pickup", d, terms.onfarm.when);
   const drop = series.find((s) => s.kind === "drop-site");
   const dropWindow = buildModel(locations, series).series
     .find((s) => s.kind === "drop-site").window;

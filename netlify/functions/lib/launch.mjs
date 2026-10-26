@@ -63,6 +63,8 @@ export const facts = (now = clock()) => {
     minimum: dollars(money.deliveryMinimum),
     fee: dollars(money.deliveryFee),
     feeWaivedAt: dollars(money.feeWaivedAt),
+    // On-farm pickup's "When", as the order page and the map say it.
+    onfarmWhen: terms.onfarm.when,
     farmAddress:
       `${address.street}, ${address.city}, ${address.state} ${address.zip}`,
     dropDay: dayName(drop.weekday),
