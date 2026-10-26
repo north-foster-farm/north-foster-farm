@@ -102,6 +102,36 @@ only. Every Netlify build runs `npm run check:env`, which fails when a
 key the context's sample lists is missing; a layout slip in the
 sample only warns.
 
+### Tab completion
+
+`bin/nff` completes its commands, actions, flags and file arguments
+(a CSV, a schedule file, `--file`, `--out`) in zsh and bash, as
+`bin/nff`, `./bin/nff` or `nff`. The script is built from the usage text
+`bin/nff` prints, so a command added there is completed with nothing
+more to do. One line in `~/.zshrc`, after `compinit`, with the path to
+your checkout:
+
+```bash
+source <(/path/to/north-foster-farm/bin/nff completion zsh)
+```
+
+In bash, in `~/.bashrc`:
+
+```bash
+source <(/path/to/north-foster-farm/bin/nff completion bash)
+```
+
+That runs node once at every shell start, about a tenth of a second. To
+skip it, write the script to a file and source the file, and write it
+again after the commands change:
+
+```bash
+bin/nff completion zsh > ~/.nff-completion.zsh
+source ~/.nff-completion.zsh
+```
+
+The script prints nothing else, so sourcing it never shows a message.
+
 ## Checks
 
 ```bash
