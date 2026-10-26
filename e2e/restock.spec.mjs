@@ -255,17 +255,44 @@ test.describe("restock types (#267)", () => {
 
     expect(await color(OUT.soon)).toBe(await color(SKU.eggs));
 
-    // Every egg says its grade (#303, James, final): Large beside its
-    // price; Medium and Small, on hiatus, on the price line with no price.
+    // Every egg says its grade (#303, James, final), by its name and
+    // out of the price column (#437): Large with its price, Medium and
+    // Small, on hiatus, with none.
+    await expect(row(page, SKU.eggs).locator(".order-item-name"))
+      .toHaveText("Large · Grade A", { useInnerText: true });
     await expect(row(page, SKU.eggs).locator(".order-item-price"))
-      .toHaveText("$7 · Grade A", { useInnerText: true });
+      .toHaveText("$7");
     for (const sku of ["NFF-CHK-EGG-MD", "NFF-CHK-EGG-SM"]) {
+      await expect(row(page, sku).locator(".order-item-name"), sku)
+        .toHaveText(/· Grade A$/, { useInnerText: true });
       await expect(row(page, sku).locator(".order-item-price"), sku)
-        .toHaveText("Grade A", { useInnerText: true });
-      await expect(row(page, sku).locator(".order-item-amount"), sku)
         .toBeHidden();
       await expect(row(page, sku).locator(".order-qty-out"), sku)
         .toHaveText("On hiatus");
+    }
+
+    // One column for every row (#437): each price ends where the
+    // others do, and each restock label centers on Add's column.
+    const edges = await page.locator("#cat-eggs, #cat-sausage")
+      .locator(".order-item:visible").evaluateAll((rows) => rows.map(
+        (el) => {
+          const box = (s) => el.querySelector(s)?.getBoundingClientRect();
+          const price = box(".order-item-price");
+          const qty = box(".order-qty");
+          const out = box(".order-qty-out");
+
+          return {
+            price: price?.width ? price.right : null,
+            qty: qty.left + qty.width / 2,
+            out: out?.width ? out.left + out.width / 2 : null,
+          };
+        }
+      ));
+    const prices = edges.map((e) => e.price).filter((p) => p !== null);
+
+    expect(Math.max(...prices) - Math.min(...prices)).toBeLessThan(1);
+    for (const e of edges.filter((x) => x.out !== null)) {
+      expect(Math.abs(e.out - edges[0].qty)).toBeLessThan(1);
     }
 
     // Empty categories return, with their links.
