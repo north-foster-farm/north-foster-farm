@@ -299,13 +299,19 @@ export const closeOrder = async (id) => {
     ? paid - sum(list(record.refunds, record.refund))
     : 0;
 
-  if (record.status === "paid") {
-    await nff(["orders", "cancel", id, "--reason-text=QA e2e"]);
-  } else if (owed > 0) {
-    await nff(["orders", "refund", id, "--reason=QA e2e"]);
+  // The record goes even when the money would not (a sandbox refund
+  // refused), so a failed run leaves no paid order behind; the error
+  // still fails the teardown.
+  try {
+    if (record.status === "paid") {
+      await nff(["orders", "cancel", id, "--reason-text=QA e2e"]);
+    } else if (owed > 0) {
+      await nff(["orders", "refund", id, "--reason=QA e2e"]);
+    }
+  } finally {
+    if (!process.env.E2E_KEEP) await nff(["orders", "delete", id]);
+    await clearMail({ subject: id });
   }
-  if (!process.env.E2E_KEEP) await nff(["orders", "delete", id]);
-  await clearMail({ subject: id });
 };
 
 // Runs every teardown step even when one fails, then reports them all.
