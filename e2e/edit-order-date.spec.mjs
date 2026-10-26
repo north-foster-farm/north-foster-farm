@@ -125,6 +125,16 @@ test.describe("changing a paid order's items (#284)", () => {
         ).allInnerTexts()).map((t) => t.trim()).filter(Boolean);
 
         const steps = await page.evaluate(() => ({
+          // Every error the form holds, shown or not, and what the
+          // pickup fields stood at.
+          errors: [...document.querySelectorAll("[data-error-for]")]
+            .map((e) => `${e.dataset.errorFor}: ${e.textContent.trim()}`)
+            .filter((t) => !t.endsWith(": ")),
+          date: (document.querySelector("[data-dates='onfarm']") || {}).value,
+          dates: document.querySelectorAll(
+            "[data-dates='onfarm'] option").length,
+          window: [...document.querySelectorAll(
+            "[name='onfarm.window']:checked")].map((r) => r.value),
           crumbs: window.testCrumbs, stockDown: !!document.querySelector(
             "[data-stock-down]"), busy: !!document.querySelector(
             "#order-save[aria-busy='true'], #order-save:disabled"),
