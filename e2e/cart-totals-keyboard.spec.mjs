@@ -62,7 +62,9 @@ const fakeKeyboard = () => {
 
 // The stuck pane open on the Total tab with the bulk discount showing,
 // the code field open and focused and the keyboard up.
-const totalsUnderKeyboard = async (page, size) => {
+// `roundTrip` first scrolls the cart down into its place in the page
+// (settled) and back up to float again, as James's phone does (#448).
+const totalsUnderKeyboard = async (page, size, { roundTrip = false } = {}) => {
   await page.setViewportSize(size);
   await page.addInitScript(fakeKeyboard);
 
@@ -70,6 +72,11 @@ const totalsUnderKeyboard = async (page, size) => {
   const cart = order.cart;
 
   await order.open(FULL_CART);
+  if (roundTrip) {
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await expect(cart).toHaveAttribute("data-stuck", "false");
+    await page.waitForTimeout(500);
+  }
   await page.evaluate(() => window.scrollTo(0, 400));
   await expect(cart).toHaveAttribute("data-stuck", "true");
 
@@ -173,6 +180,29 @@ for (const size of WIDTHS) {
       });
   });
 }
+
+// #448, round 2: after the cart settles in the page and floats again,
+// the tight pane's scroller (the tier line, the way, the code) began
+// flush under the items/total switch, and what had scrolled up clipped
+// against it; with four items the tier line lay on the switch's foot.
+// The scroller keeps a gap under the switch, as the dark rule gave it
+// with the keyboard down.
+test.describe("after the settle and float round trip", () => {
+  const size = WIDTHS[2];
+
+  test("the tier line keeps its room under the switch", async ({ page }) => {
+    const parts = await totalsUnderKeyboard(page, size, { roundTrip: true });
+    const { cart } = parts;
+    const pane = await paneInRoom(cart, size);
+    const seg = await rect(cart.locator("[data-cart-seg]"));
+    const edge = await rect(cart.locator(AFTER));
+
+    expect(edge.top).toBeGreaterThanOrEqual(seg.bottom + 8);
+
+    // The room costs the code row nothing: it stays in reach.
+    await rowInReach(parts, pane);
+  });
+});
 
 test.describe(`at ${SMALL.width} by ${SMALL.height}`, () => {
   test("the code row keeps its room and the sums scroll as a whole",
