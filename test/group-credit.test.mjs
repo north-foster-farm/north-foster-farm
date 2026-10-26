@@ -22,7 +22,7 @@ import {
 import { joinGroup, setGroupCode } from "../netlify/functions/lib/groups.mjs";
 import { creditPaid } from "../netlify/functions/lib/rounds.mjs";
 import {
-  getOrder, paymentsOf, refundedTotal,
+  getOrder, openOrders, paymentsOf, refundedTotal,
 } from "../netlify/functions/lib/records.mjs";
 import {
   buildOrder, settings,
@@ -60,13 +60,15 @@ describe("credit in the totals", () => {
     // More credit than the order: the order's worth, no more.
     assert.equal(at(9000).total, 0);
     assert.equal(at(9000).credit, 5500);
-    // On a delivery, the fee is in before the credit comes off.
+    // On a delivery the credit covers the items, never the fee (fakes
+    // audit, 6426321360, C1): Square applies the credit discount to
+    // the items alone, so the fee is always money.
     const delivered = at(10_000, { method: "delivery",
       zipStatus: "approved" });
 
     assert.equal(delivered.deliveryFee, 500);
-    assert.equal(delivered.credit, 6000);
-    assert.equal(delivered.total, 0);
+    assert.equal(delivered.credit, 5500);
+    assert.equal(delivered.total, 500);
     // Never negative, never a fraction.
     assert.equal(at(-500).credit, undefined);
     assert.equal(at(1250.7).credit, 1250);
@@ -441,4 +443,156 @@ describe("whose credit, and when", () => {
     assert.equal(paid.status, 200);
     assert.equal(await creditBalance(stores, EMAIL, now), 0);
   });
+});
+
+// The fakes audit's C1 (6426321360): Square applies the credit
+// discount to the items alone, so credit never covers the delivery
+// fee, and a zero-pay Square refuses fails the order.
+describe("credit and the delivery fee", () => {
+  const cfg = settings({
+    SQUARE_ACCESS_TOKEN: "tok", SQUARE_LOCATION_ID: "LOC",
+    SQUARE_ENV: "sandbox",
+  });
+  const fakeSquare = ({ zeroFails = false } = {}) => {
+    const calls = [];
+    const square = {
+      createOrder: async (order, key) => {
+        calls.push(["order", key, order.totals.total, order.totals.credit]);
+
+        return { squareOrderId: "SQO", customerId: "CUST" };
+      },
+      createPayment: async (args) => {
+        calls.push(["payment", args.amount || args.order.totals.total]);
+
+        return {
+          squarePaymentId: "PAY", status: "COMPLETED", receiptUrl: null,
+          brand: "VISA", last4: "4242", wallet: null,
+        };
+      },
+      payZeroOrder: async (id) => {
+        calls.push(["zero", id]);
+        if (zeroFails) {
+          const error = new Error("Square 400 on /v2/orders/SQO/pay");
+
+          error.retryable = false;
+          error.detail = [{ code: "BAD_REQUEST" }];
+          throw error;
+        }
+
+        return { squareOrderId: id };
+      },
+      cancelOrder: async (id) => {
+        calls.push(["cancel", id]);
+
+        return { id, cancelled: true };
+      },
+      findPaid: async () => null,
+    };
+
+    return { square, calls };
+  };
+  const delivery = (overrides = {}) => ({
+    idempotencyKey: "5f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f",
+    customer: {
+      firstName: "Pat", lastName: "Example", email: EMAIL,
+      phone: "401-555-0100", contact: "call",
+    },
+    lines: [{ sku: SKU, qty: 2 }],
+    fulfilment: {
+      method: "delivery", date: "2026-11-05",
+      delivery: { address1: "1 Main St", town: "Foster", zip: "02825",
+        cooler: "Porch" },
+    },
+    claimedTotal: 500,
+    payment: { method: "card", sourceId: "cnon:tok" },
+    ...overrides,
+  });
+  const member = async (credit) => {
+    const stores = testStores();
+
+    await setGroupCode(stores, "vff", { code: "GYM-2026", now });
+
+    const session = await createSession(stores, EMAIL, { now });
+
+    await joinGroup(stores, EMAIL, "vff", { now });
+    await grantCredit(stores, EMAIL, { amount: credit, from, now,
+      timeZone: terms.timeZone });
+
+    return { stores, cookie: { cookie: `nff_session=${session.id}` } };
+  };
+  const send = (stores, square, payload, headers = {}) => placeOrder(
+    new Request("http://x/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify(payload),
+    }),
+    { stores, square, now, env, mail: async () => ({}),
+      sleep: async () => {} }
+  );
+
+  it("keeps Square's credit discount within the items' net", () => {
+    const lines = [{ sku: SKU, label: "Whole", name: "Whole", unitPrice: 30,
+      qty: 2, lineTotal: 60, squareVariationId: null }];
+    const built = (totals) => buildOrder({
+      id: "NFF-2611-FEE1",
+      customer: { name: "Pat Example", email: EMAIL, phone: "", contact: "" },
+      fulfilment: { method: "delivery", date: "2026-11-05", onfarm: null,
+        delivery: { address1: "1 Main St", town: "Foster", zip: "02825",
+          cooler: "Porch" } },
+      lines, totals, notes: "", source: "",
+      flags: { zipUnlisted: false, totalMismatch: false },
+    }, "CUST", cfg);
+    // $60 of items, the $5 tier, the $5 fee: credit of $100 covers the
+    // items' net, $55, and the fee is the money due.
+    const t = computeTotals({
+      lines: [{ sku: SKU, qty: 2 }], method: "delivery", index, money,
+      zipStatus: "approved", credit: 10_000,
+    });
+    const o = built(t);
+    const itemsNet = lines.reduce((s, l) => s + l.lineTotal * 100, 0)
+      - t.discountAmount;
+    const creditLine = o.discounts.find((d) => d.name === "Group credit");
+
+    assert.equal(t.credit, 5500);
+    assert.equal(t.total, 500);
+    assert.ok(creditLine.amount_money.amount <= itemsNet);
+    assert.equal(creditLine.amount_money.amount, 5500);
+    assert.deepEqual(o.service_charges.map((c) => [c.name,
+      c.amount_money.amount]), [["Delivery fee", 500]]);
+    // Square's total: items less every discount, plus the fee.
+    const discounts = o.discounts.reduce((s, d) => s + d.amount_money.amount,
+      0);
+
+    assert.equal(6000 - discounts + 500, t.total);
+  });
+
+  it("charges the fee by card on a delivery the credit covers", async () => {
+    const { stores, cookie } = await member(10_000);
+    const { square, calls } = fakeSquare();
+    const res = await send(stores, square, delivery(), cookie);
+    const data = await res.json();
+
+    assert.equal(res.status, 200, JSON.stringify(data));
+    assert.equal(data.totals.credit, 5500);
+    assert.equal(data.totals.total, 500);
+    assert.deepEqual(calls.map((c) => c[0]), ["order", "payment"]);
+    assert.deepEqual(calls[1], ["payment", 500]);
+    assert.equal(await creditBalance(stores, EMAIL, now), 4500);
+  });
+
+  it("fails the order, with nothing recorded, when the zero-pay fails",
+    async () => {
+      const { stores, cookie } = await member(10_000);
+      const { square, calls } = fakeSquare({ zeroFails: true });
+      const res = await send(stores, square, delivery({
+        fulfilment: { method: "scheduled", occurrence: "36TS-261108" },
+        claimedTotal: 0, payment: { method: "credit" },
+      }), cookie);
+
+      assert.equal(res.status, 502);
+      assert.deepEqual(calls.map((c) => c[0]), ["order", "zero", "cancel"]);
+      assert.deepEqual(await openOrders(stores), []);
+      // A failure that will not be retried gives the credit back.
+      assert.equal(await creditBalance(stores, EMAIL, now), 10_000);
+    });
 });

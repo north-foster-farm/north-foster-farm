@@ -600,18 +600,32 @@ export const payWithCredit = async (stores, order, {
     { sleep, until }
   );
 
+  // A zero-pay Square refuses is a failure of the order, never
+  // swallowed (fakes audit, 6426321360): nothing is recorded, the
+  // page hears, and the open Square order is closed like a declined
+  // card's.
   try {
     await retry(() => square.payZeroOrder(created.squareOrderId, k, {
       env, fetchImpl,
     }), { sleep, until });
   } catch (error) {
-    // The order stands in Square either way; the record is what the
-    // farm packs from, and the drift check sees the rest.
-    log.warn({
+    log.error({
       event: "square.zero_pay_failed", id: order.id,
       squareOrderId: created.squareOrderId,
-      error: String(error && error.message),
+      error: String(error && error.message), detail: error && error.detail,
     });
+    try {
+      await square.cancelOrder(created.squareOrderId, {
+        env, fetchImpl, deadline,
+      });
+    } catch (cancelError) {
+      log.warn({
+        event: "square.cancel_failed", id: order.id,
+        squareOrderId: created.squareOrderId,
+        error: String(cancelError && cancelError.message),
+      });
+    }
+    throw error;
   }
 
   return completeOrder(stores, order, {

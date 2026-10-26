@@ -622,6 +622,11 @@ export const handle = async (req, {
     const sandbox = env.SQUARE_ENV !== "production"
       && deployContext(env) !== "production";
 
+    // A failure that will not be retried took no money for good (a
+    // retryable one may have, and its retry settles it), so the
+    // credit goes back.
+    if (!retryable) await giveBack();
+
     return json(retryable ? 503 : 502, {
       retryable,
       orderId: order.id,

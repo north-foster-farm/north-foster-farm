@@ -175,8 +175,12 @@ export const computeTotals = ({
         ? `${byGroup.label} (${byGroup.percent}%)`
         : (bulk.tier ? `Bulk discount ($${bulk.tier}+)` : null)));
   const owedBeforeCredit = subtotal - discountAmount + deliveryFee;
+  // Credit covers the items, never the delivery fee: Square carries
+  // the credit as an order discount, which it applies to the items
+  // alone, so a fee paid with credit would leave Square's total above
+  // ours (fakes audit, 6426321360, C1). The fee is always money.
   const creditUsed = Math.min(
-    Math.max(0, Math.floor(Number(credit) || 0)), owedBeforeCredit
+    Math.max(0, Math.floor(Number(credit) || 0)), subtotal - discountAmount
   );
 
   return {
