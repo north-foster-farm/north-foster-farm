@@ -576,10 +576,13 @@ test.describe("home", () => {
 
     test("three ways to buy, in the market band's place",
       async ({ page }) => {
+        // The scheduled card adds a fact for each place open now, from
+        // /api/dates; this test counts the facts the build prints.
+        await page.route("**/api/dates", (route) => route.abort());
         await page.goto("/");
 
         const band = page.locator(".ways");
-        const places = band.locator(".place");
+        const places = band.locator(".place-way");
 
         await expect(band.locator(".home-eyebrow")).toHaveText(
           "No off-season"
@@ -664,7 +667,7 @@ test.describe("home", () => {
       async ({ page }) => {
         await page.goto("/");
 
-        const badge = page.locator(".ways .place-badge");
+        const badge = page.locator(".ways .place-head .place-badge");
 
         test.skip(await badge.count() === 0, "built after the start");
         const until = await badge.getAttribute("data-hide-from");
@@ -684,7 +687,7 @@ test.describe("home", () => {
         async ({ page }) => {
           await page.goto("/");
           await page.locator(".ways .place").getByRole("link", {
-            name: way.cta,
+            name: way.cta, exact: true,
           }).click();
           await expect(page).toHaveURL(/\/order\//);
           await expect(page.locator("#onfarm-date")).toBeEnabled();
