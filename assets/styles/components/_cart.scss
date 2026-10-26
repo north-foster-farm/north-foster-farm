@@ -26,8 +26,11 @@
 @use "sass:math";
 
 .order {
-  // Three rows of lines at their size, and the list's own padding.
-  --cart-lines-min: calc(3 * #{$cart-font-size} * #{$cart-line-height} + 0.75rem);
+  // Three rows of lines under their group's heading, at their size,
+  // with the list's own padding and the strip for the "more" pills.
+  --cart-lines-min: calc(
+    4 * #{$cart-font-size} * #{$cart-line-height} + 0.75rem + #{$cart-more-strip}
+  );
 
   // The sheet's parts other than the lines, at one line each: the
   // sums, the total row, the badges, the way and the code, the foot
