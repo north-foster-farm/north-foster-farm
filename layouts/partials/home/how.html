@@ -27,7 +27,7 @@
     <h2 class="home-title">Order our chicken and eggs all year round</h2>
     <div class="how-grid">
       <figure class="how-photo figure">
-        <img src="{{ $fallback.RelPermalink }}" srcset="{{ delimit $srcset ", " }}" sizes="(min-width: 1200px) 488px, (min-width: 992px) 436px, min(520px, calc(100vw - 1.5rem))" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="A whole chicken, breasts, thighs, drumsticks, wings and sausages cooking together on a round charcoal grill, with grass behind." class="figure-img img-fluid d-block rounded-3 shadow-sm mb-0" loading="lazy">
+        <img src="{{ $fallback.RelPermalink }}" srcset="{{ delimit $srcset ", " }}" sizes="(min-width: 1200px) 488px, (min-width: 992px) 436px, min(520px, calc(100vw - 1.5rem))" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="A whole chicken, breasts, thighs, drumsticks, wings and sausages cooking together on a round charcoal grill." class="figure-img img-fluid d-block rounded-3 shadow-sm mb-0" loading="lazy">
       </figure>
       <ol class="how-steps list-unstyled">
         {{ range $i, $step := $steps }}
