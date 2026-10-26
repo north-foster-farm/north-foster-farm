@@ -53,6 +53,12 @@ const pulse = (el, className) => {
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+// Resolves once nothing animates the pane: an ease that another ease
+// cancelled resolves early, while the newer one still runs.
+const stilled = (pane) => Promise.all(
+  pane.getAnimations().map((a) => a.finished.catch(() => {}))
+);
+
 export class Cart {
   // `root` is #order-cart; its parent is the slot and the heading sits
   // before the slot. `bar` is the phone's sticky top bar, if any. The
@@ -361,11 +367,16 @@ export class Cart {
       next.empty = count === 0;
       // The badges after the ease: a badge that lights sends its chicks
       // from where it is seen, and mid-ease it may lie past the pane's
-      // old edge.
+      // old edge. A render that follows at once cancels this ease and
+      // starts its own, and the ease it cancels resolves early: only
+      // the latest render's end counts.
+      const seq = this.renders = (this.renders || 0) + 1;
+
       animateFold(root, () => {
         this.apply(next);
         draw();
-      }, { reduce: reduced() }).then(() => {
+      }, { reduce: reduced() }).then(() => stilled(root)).then(() => {
+        if (seq !== this.renders) return;
         this.placement.refresh();
         this.lines.sync();
         this.renderBadges(s);

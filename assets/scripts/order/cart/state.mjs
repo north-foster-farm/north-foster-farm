@@ -50,10 +50,12 @@ export const place = (state, {
 
 const floating = (state) => state.placement === "floating";
 
-export const open = (state) => (floating(state)
+// The same state object when nothing changes, so a caller can tell a
+// move from a no-op by identity and start no ease for nothing.
+export const open = (state) => (floating(state) && state.fold !== "open"
   ? { ...state, fold: "open" } : state);
 
-export const close = (state) => (floating(state)
+export const close = (state) => (floating(state) && state.fold !== "closed"
   ? { ...state, fold: "closed" } : state);
 
 export const toggle = (state) => (state.fold === "open"
