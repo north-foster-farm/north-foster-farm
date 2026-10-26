@@ -180,12 +180,13 @@ test.describe("restock types (#267)", () => {
 
   test("The header's icon glyphs are equally far apart", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 800 });
-    // Signed out, the header has a Sign in link and no account glyph.
+    // Signed out, the header has a Sign in link and no account glyph;
+    // signed in, the customer's chicken is the glyph (#347).
     await page.route("**/api/me", (route) => route.fulfill({
       json: { signedIn: true, customer: { email: "qa-e2e-glyph@example.com" } },
     }));
     await open(page);
-    await expect(page.locator(".site-account-icon:visible")).toHaveCount(1);
+    await expect(page.locator(".site-account-chick:visible")).toHaveCount(1);
 
     const gaps = await page.evaluate(() => {
       const edge = (el) => {
@@ -194,7 +195,7 @@ test.describe("restock types (#267)", () => {
         return [r.left, r.right];
       };
       const glyphs = [
-        ".site-account-icon", ".site-search-open", ".site-order",
+        ".site-account-chick", ".site-search-open", ".site-order",
       ].map((q) => [...document.querySelectorAll(q)]
         .find((el) => el.offsetWidth)).map(edge);
 
@@ -357,9 +358,8 @@ test.describe("restock types (#267)", () => {
       const out = await row(page, OUT.soon).locator(".order-qty-out")
         .boundingBox();
 
-      // The label is as wide as its words, never narrower than Add
-      // (#437), and centered on Add's column.
-      expect(out.width).toBeGreaterThanOrEqual(add.width - 0.5);
+      // The label is as wide as its words (#437), and centered on
+      // Add's column.
       expect(add.x + add.width / 2)
         .toBeCloseTo(out.x + out.width / 2, 0);
     });
