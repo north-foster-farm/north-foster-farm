@@ -112,9 +112,19 @@ test.describe("changing a paid order's items (#284)", () => {
         if (r.url().includes("/api/")) after.push(`${r.method()} ${
           new URL(r.url()).pathname}`);
       });
+      page.on("response", (r) => {
+        if (r.url().includes("/api/")) after.push(`${r.status()} ${
+          new URL(r.url()).pathname}`);
+      });
+      page.on("requestfailed", (r) => {
+        if (r.url().includes("/api/")) after.push(`failed ${
+          new URL(r.url()).pathname}: ${r.failure()?.errorText}`);
+      });
       page.on("pageerror", (e) => after.push(`error: ${e.message}`));
       page.on("console", (m) => {
-        if (m.type() === "error") after.push(`console: ${m.text()}`);
+        if (["error", "warning"].includes(m.type())) {
+          after.push(`console ${m.type()}: ${m.text()}`);
+        }
       });
 
       await page.locator("#order-save").click();
