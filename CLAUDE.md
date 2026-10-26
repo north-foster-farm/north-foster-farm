@@ -6,6 +6,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 North Foster Farm website - a static site built with Hugo (v0.164.0) and hosted on Netlify. The site uses Bootstrap 5.3.3, custom SCSS styling, and vanilla JavaScript with ES modules.
 
+## Working rules for agents (James, 2026-10-25)
+
+These apply to every lane, cloud run and the coordinator. They come from decisions James made on GitHub. The issue numbers point to the source.
+
+- **Do small work, don't file it.** If a fix can be done, checked and landed in about 15 minutes, do it in the change you're making, or batch it with others in the same area. Don't open an issue for a follow-up smaller than the fix itself. #372 is the example of what not to do.
+- **Keep the open issues honest.** Close what is done or superseded as soon as you notice it. Steps only James can take go on #237, his checklist, not into issues of their own. #303 is the one ordered queue.
+- **Work has landed when it is on `next`.** Approved PRs are squashed onto `next` and closed, so GitHub shows them as "closed", not "merged". Check `next`'s history before calling anything stalled.
+- **e2e:** Claude cloud runs (`.github/workflows/claude.yml`) have no browser, so never ask one to run Playwright. The suite runs in GitHub Actions through `e2e.yml` and `e2e-run.yml` (a local build with fake payments), or on James's Mac. Specs that need real staging or a real phone are hands-on checks for James (#449).
+- **Customer copy follows the #400 house rules:**
+  - no semicolons and no em dashes in prose;
+  - no internal model names in customer text ("Pickup days", not "scheduled pickup");
+  - "email address" when it means the address;
+  - drop sites are plural and unnamed unless the line is about one site;
+  - every rate-limit message names what was tried;
+  - an approved wording applies everywhere the same text appears.
+- **Contact links go to sales@** (`company.email`). info@ is deliberately less public (#410).
+- **Confirm dates before production.** Any change to a news post, or to a page with a "Last updated" line, has its date confirmed before it ships. The right date is often not the commit date.
+- **This repo and its branches are public.** No customer data, no credentials, and no full names of James's family members in code, issues, comments or screenshots.
+
 ## Development Commands
 
 Env files: `.env.sample` (tracked) names every key, without values.
