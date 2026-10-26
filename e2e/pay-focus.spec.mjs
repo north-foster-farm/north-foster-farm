@@ -13,6 +13,10 @@ test("the pressed Card button shows a focus ring", async ({ page }) => {
   await expect(card).toBeVisible({ timeout: 30_000 });
   await card.click();
   await expect(card).toHaveAttribute("aria-pressed", "true");
+  // The card fields mount under a skeleton and may take focus as they
+  // load (Square's SDK does on staging), so wait them out first.
+  await expect(page.locator("#pay-card-panel"))
+    .not.toHaveAttribute("data-load", /./, { timeout: 30_000 });
   // A key press, so the focus that follows is keyboard focus.
   await page.keyboard.press("Shift");
   await card.focus();

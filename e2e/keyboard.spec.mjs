@@ -270,6 +270,15 @@ const settle = async (page) => {
   await page.waitForFunction(
     () => !document.querySelector("[aria-busy='true']"),
   );
+  // The order page's card panel mounts Square's fields under a
+  // skeleton of its own, and the page below it moves when they land.
+  if (await page.locator("#pay-card-panel").count()) {
+    await page.waitForFunction(() => {
+      const panel = document.querySelector("#pay-card-panel");
+
+      return !panel || !panel.hasAttribute("data-load");
+    }, null, { timeout: 30_000 });
+  }
 };
 
 // Escape closes what `open` opened and gives the focus back to

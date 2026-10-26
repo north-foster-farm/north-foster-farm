@@ -7,7 +7,7 @@
 // 4000 0000 0000 0002 is declined.
 
 import {
-  OrderPage, expect, paymentFakes, test, uniqueEmail,
+  OrderPage, expect, test, uniqueEmail,
 } from "./support/order.mjs";
 import {
   BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, deleteCustomer,
@@ -38,7 +38,7 @@ test.describe("payments", () => {
   ]));
 
   test("a card pays for an on-farm pickup, booked by paying " +
-    "(W11d)", { tag: "@regression" }, async ({ page, request }) => {
+    "(W11d)", { tag: "@regression" }, async ({ page }) => {
     const order = new OrderPage(page);
     const email = uniqueEmail("card");
 
@@ -74,12 +74,9 @@ test.describe("payments", () => {
     await expect(card.locator("[data-out='when']")).toHaveText(
       /, \d.* (AM|PM|noon), at the farm\.$/
     );
-    // Only Square issues a receipt; the fake driver has none to link.
-    if (!(await paymentFakes(request)).square) {
-      await expect(card.locator("[data-out='receiptUrl']")).toHaveAttribute(
-        "href", /^https:\/\/([\w-]+\.)*squareup(sandbox)?\.com\//
-      );
-    }
+    // The fake driver has no receipt, and the sandbox's opens Page not
+    // found, so the card shows none (#441).
+    await expect(card.locator("[data-out='receiptUrl']")).toBeHidden();
     // Signed out, the card says the email is an account (#114).
     await expect(card.locator("[data-out='account']")).toBeVisible();
     await expect(card.locator("[data-out='account'] a"))

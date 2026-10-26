@@ -7,7 +7,7 @@
 
 import { expect, test, uniqueEmail } from "./support/order.mjs";
 import {
-  BACK_OFFICE_MISSING, backOffice, clearMail, customerRecord,
+  BACK_OFFICE_MISSING, backOffice, clearMail, clearSession, customerRecord,
   deleteCustomer, linkIn, teardown, waitForMail,
 } from "./support/staging.mjs";
 
@@ -42,7 +42,7 @@ test.describe("changing your own email", () => {
   const signIn = async (page, email) => {
     const asked = new Date();
 
-    await page.context().clearCookies();
+    await clearSession(page.context());
     await page.goto("/login/");
     await page.locator("#login-email").fill(email);
     await page.locator("#login-submit").click();
@@ -124,7 +124,7 @@ test.describe("changing your own email", () => {
       expect(await customerRecord(from)).toBeNull();
 
       // Spent: the same link no longer works.
-      await page.context().clearCookies();
+      await clearSession(page.context());
       await page.goto(linkIn(mail, VERIFY));
       await expect(page).toHaveURL(/\/login\/\?error=unknown/);
     });
@@ -173,7 +173,7 @@ test.describe("changing your own email", () => {
 
       // The new address signs in on its own before the link is used.
       await signIn(page, late);
-      await page.context().clearCookies();
+      await clearSession(page.context());
 
       // The GET still only peeks: with no session here, the account
       // page hands the link to the sign-in page's card (#345), not

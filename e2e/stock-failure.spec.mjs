@@ -131,11 +131,19 @@ test.describe("stock that cannot be checked", () => {
 
       await flaky(page, state);
       await open(page);
-      await page.clock.runFor(1_000);
 
       const callout = page.locator("#order-stock-down");
       const order = new OrderPage(page);
 
+      // The first good answer must be in before stock goes down: the
+      // Add buttons are enabled under the skeleton, and a slow first
+      // answer on a real deploy would still be loading, or retrying on
+      // the page clock, when the two minutes run.
+      await expect.poll(async () => {
+        await page.clock.runFor(1_000);
+
+        return page.locator("#order-catalog").getAttribute("data-load");
+      }, { timeout: 30_000 }).toBeNull();
       await expect(order.item("eggs").locator("[data-step='1']").first())
         .toBeEnabled();
       state.up = false;

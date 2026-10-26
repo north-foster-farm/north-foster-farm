@@ -13,6 +13,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { MACHINE_COOKIE } from "../../netlify/functions/lib/gate.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 export const BASE_URL = process.env.E2E_BASE_URL
@@ -44,6 +46,22 @@ const env = {
 // One value of that environment, for the specs that sign or log in as
 // the deploy's own secrets would (the maintenance rehearsal).
 export const stagingEnv = (name) => env[name] || "";
+
+// Forget the visitor's cookies, the way a signed-out browser does,
+// but keep the staging gate's machine cookie: clearing it too sends
+// the next request to the gate's sign-in page, not to the site.
+export const clearSession = async (context) => {
+  await context.clearCookies();
+
+  const host = new URL(BASE_URL).hostname;
+
+  if (env.E2E_STAGING_TOKEN && host.includes("--")) {
+    await context.addCookies([{
+      name: MACHINE_COOKIE, value: env.E2E_STAGING_TOKEN, domain: host,
+      path: "/", httpOnly: true, secure: true, sameSite: "Lax",
+    }]);
+  }
+};
 
 // Whether the back office can be reached from here.
 export const backOffice = () => ({ ready: !!env.E2E_STAGING_TOKEN });

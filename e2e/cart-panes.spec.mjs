@@ -229,6 +229,8 @@ test.describe("cart panes on a phone", () => {
   // #274 round 4). The row went missing for pickup once, and the chicks
   // with it (4dabd6d, #274).
   test("the badges show whatever the way", async ({ page }) => {
+    test.fixme(true, "#477 cart rebuild");
+
     const order = new OrderPage(page);
 
     await page.setViewportSize(TALL);

@@ -10,7 +10,8 @@ import {
 } from "./support/canned.mjs";
 import { expect, test, uniqueEmail } from "./support/order.mjs";
 import {
-  BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, deleteCustomer,
+  BACK_OFFICE_MISSING, backOffice, clearMail, clearSession, closeOrder,
+  deleteCustomer,
   linkIn, mailTo, teardown, waitForMail,
 } from "./support/staging.mjs";
 
@@ -74,7 +75,7 @@ test.describe("accounts", () => {
         .toBeHidden();
 
       // The same link a second time explains itself on /login/.
-      await page.context().clearCookies();
+      await clearSession(page.context());
       await page.goto(link);
       await expect(page).toHaveURL(/\/login\//);
       await expect(page.locator("[data-login-notice]")).toContainText(
@@ -151,7 +152,7 @@ test.describe("sign-in links are rate limited", () => {
       expect(sent).toHaveLength(3);
 
       for (const message of [sent[0], sent[2]]) {
-        await page.context().clearCookies();
+        await clearSession(page.context());
         await page.goto(linkIn(message, /\/api\/auth\/verify\?token=/));
         await expect(page).toHaveURL(/\/account\/?/);
         await expect(page.locator("#account-email")).toHaveText(email);
