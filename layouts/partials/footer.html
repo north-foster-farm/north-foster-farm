@@ -17,7 +17,9 @@
     <div class="footer-lists">
       {{ partial "footer/menu.html" . }}
       <div class="farm-list" data-farm-list-block>
-        <h2 class="farm-list-heading">Want occasional farm news by email?</h2>
+        {{/* James's words (#436), with Farm News capitalized as the
+             list's name (#400). */}}
+        <h2 class="farm-list-heading">Get Farm News</h2>
         {{ partial "farm-list.html" (dict "id" "farm-list-footer" "button" "Sign up") }}
       </div>
       {{/* How to reach the farm, on one dotted line like the links. */}}
