@@ -83,6 +83,7 @@ import { farmEmails, sendMail } from "./mail.mjs";
 import { audienceConfigured, syncAudience } from "./news.mjs";
 import { changedAfterPrint, packingDaily } from "./packing.mjs";
 import { sendForOrder } from "./payments.mjs";
+import { sweepStrandedCredit } from "./credit.mjs";
 import { workRounds } from "./rounds.mjs";
 import { checkRefunds } from "./settle.mjs";
 import * as paypalApi from "./paypal.mjs";
@@ -409,6 +410,11 @@ export const runJobs = async (stores, {
 
     return { closed: r.closed, settled: r.settled };
   });
+
+  // Credit a submission spent a day ago and never settled goes back
+  // to its member (lib/credit.mjs). Every run; nothing twice.
+  report.creditSwept = (await attempt(null, "creditSweep",
+    () => sweepStrandedCredit(stores, { now }))) || [];
 
   report.invariants = (await attempt(null, "invariants", async () =>
     checkInvariants(await openOrders(stores), now))) || [];
@@ -843,6 +849,7 @@ export const summarize = (report) => ({
   refunds: report.refunds || null,
   drift: report.drift || null,
   rounds: report.rounds || null,
+  creditSwept: (report.creditSwept || []).length,
   errors: report.errors,
   invariants: report.invariants,
 });

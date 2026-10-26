@@ -14,6 +14,7 @@
 import {
   instant, parts,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { getOrder } from "./records.mjs";
 
 const emailOf = (value) => String(value || "").trim().toLowerCase();
 
@@ -171,4 +172,53 @@ export const restoreCredit = async (stores, email, {
   });
 
   return { ledger, restored };
+};
+
+// How long a spend may stand with no order to show for it: a
+// submission the page would have retried has long since been
+// abandoned (lib/records.mjs CHECKOUT_TTL is a day too).
+export const STRANDED_MS = 24 * 60 * 60_000;
+
+// Credit a submission spent and never settled (a failure the page
+// would have retried, then a closed tab; security re-review,
+// 6426747224): the spend stays on the ledger for an order id that
+// has no record. Once it is a day old it goes back, so the member
+// loses nothing. For the jobs; every ledger is read.
+// -> [{ email, orderId, restored }]
+export const sweepStrandedCredit = async (stores, {
+  now = new Date(),
+} = {}) => {
+  const keys = await stores.customers.list("credit/");
+  const out = [];
+
+  for (const { key } of keys) {
+    const ledger = await stores.customers.get(key);
+
+    if (!ledger || !Array.isArray(ledger.entries)) continue;
+
+    const since = new Map();
+
+    for (const e of ledger.entries) {
+      for (const s of e.spent || []) {
+        if (s.amount > 0 && (!since.has(s.orderId)
+          || s.at < since.get(s.orderId))) since.set(s.orderId, s.at);
+      }
+    }
+
+    for (const [orderId, at] of since) {
+      const held = heldBy(ledger, orderId);
+
+      if (held <= 0) continue;
+      if (now.getTime() - Date.parse(at) < STRANDED_MS) continue;
+      if (await getOrder(stores, orderId)) continue;
+
+      const { restored } = await restoreCredit(stores, ledger.email, {
+        orderId, amount: held, now,
+      });
+
+      if (restored > 0) out.push({ email: ledger.email, orderId, restored });
+    }
+  }
+
+  return out;
 };

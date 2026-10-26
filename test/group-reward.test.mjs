@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 
 import {
   balanceOf, creditBalance, getLedger, grantCredit, restoreCredit,
-  spendCredit, yearEnd,
+  spendCredit, sweepStrandedCredit, yearEnd,
 } from "../netlify/functions/lib/credit.mjs";
 import {
   groupOf, setGroupHost,
@@ -533,3 +533,36 @@ describe("a settlement that fails partway", () => {
   });
 });
 
+describe("credit a lost submission spent", () => {
+  const from = { group: "vff", round: "2026-11-08", kind: "host" };
+
+  it("goes back after a day, unless its order exists", async () => {
+    const stores = testStores();
+    const t0 = ny("2026-11-23", 10);
+
+    await grantCredit(stores, "m@x.com", { amount: 3_000, from,
+      now: t0, timeZone: tz });
+    // Two spends: one whose order was never recorded, one whose was.
+    await spendCredit(stores, "m@x.com", { orderId: "NFF-2611-GHOST1",
+      amount: 1_000, now: t0 });
+    await spendCredit(stores, "m@x.com", { orderId: "NFF-2611-REAL01",
+      amount: 500, now: t0 });
+    await seed(stores, [order("NFF-2611-REAL01", "m@x.com", 5,
+      "2026-12-06")]);
+    assert.equal(await creditBalance(stores, "m@x.com", t0), 1_500);
+
+    const soon = ny("2026-11-23", 20);
+
+    assert.deepEqual(await sweepStrandedCredit(stores, { now: soon }), []);
+    assert.equal(await creditBalance(stores, "m@x.com", soon), 1_500);
+
+    const later = ny("2026-11-24", 11);
+    const swept = await sweepStrandedCredit(stores, { now: later });
+
+    assert.deepEqual(swept,
+      [{ email: "m@x.com", orderId: "NFF-2611-GHOST1", restored: 1_000 }]);
+    assert.equal(await creditBalance(stores, "m@x.com", later), 2_500);
+    // Once: the next sweep finds nothing held by the lost one.
+    assert.deepEqual(await sweepStrandedCredit(stores, { now: later }), []);
+  });
+});
