@@ -29,7 +29,14 @@ const setFold = async (cart, fold) => {
     await cart.locator("[data-cart-toggle]").click();
   }
   await expect(cart).toHaveAttribute("data-fold", fold);
+  await paneStill(cart);
 };
+
+// Waits for the pane's height ease to end, so a measurement after a
+// fold, a render or a settle sees the pane at rest.
+export const paneStill = (cart) => expect.poll(
+  () => cart.evaluate((el) => el.getAnimations().length), { timeout: 5_000 }
+).toBe(0);
 
 export const foldCart = (page, cart) => setFold(cart, "closed");
 export const unfoldCart = (order) => setFold(order.cart, "open");

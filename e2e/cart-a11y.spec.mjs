@@ -123,11 +123,12 @@ test.describe("on a phone", () => {
       await order.scrollSettled();
       await expect(order.cart).toHaveAttribute("data-placement", "floating");
 
-      // A row under the pane: focus its Add (hidden from the
-      // accessibility tree, so by class) and it comes up clear.
-      const add = order.item("drums").locator(".order-qty-add");
+      // A row under the pane, one not in the cart so it still shows
+      // Add (hidden from the accessibility tree, so by class): focus it
+      // and it comes up clear.
+      const add = order.item("whole").locator(".order-qty-add");
 
-      await order.item("drums").evaluate((el) => {
+      await order.item("whole").evaluate((el) => {
         el.scrollIntoView({ block: "end", behavior: "instant" });
       });
       await add.focus();

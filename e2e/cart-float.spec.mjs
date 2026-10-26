@@ -25,10 +25,9 @@ const box = (locator) => locator.evaluate((el) => {
   return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
 });
 
-// The pane's place in the page (the slot has no box below xl), and
-// the content column the panel sits in.
+// The pane's place in the page (the slot has no box below xl): its
+// top, and the width the pane has to work with.
 const anchor = (page) => page.locator("[data-cart-anchor]");
-const column = (page) => page.locator("#order-form");
 
 // Settle the cart: its heading near the top of the screen.
 const settle = async (page, order) => {
@@ -237,7 +236,7 @@ test.describe("the tablet's panel", () => {
         await expect(order.cart).toHaveAttribute("data-placement", "floating");
         await unfoldCart(order);
 
-        const col = await box(column(page));
+        const col = await box(anchor(page));
         const open = await box(order.cart);
         const sums = order.cart.locator("[data-part='sums']");
         const sumsOpen = await box(sums);
@@ -306,13 +305,17 @@ test.describe("the column", () => {
     expect(await order.cart.evaluate((el) => getComputedStyle(el).position))
       .toBe("sticky");
 
-    const before = await box(order.cart);
-
+    // Scrolled, it holds at its sticky offset, 1rem under the top.
     await page.evaluate(() => window.scrollTo(0, 600));
     await page.waitForTimeout(100);
     const after = await box(order.cart);
 
-    expect(Math.abs(after.top - before.top)).toBeLessThanOrEqual(1);
+    expect(Math.abs(after.top - 16)).toBeLessThanOrEqual(1);
+    await page.evaluate(() => window.scrollTo(0, 1200));
+    await page.waitForTimeout(100);
+    const further = await box(order.cart);
+
+    expect(Math.abs(further.top - 16)).toBeLessThanOrEqual(1);
   });
 
   test("eases to its new height as lines come and go", async ({ page }) => {
@@ -321,12 +324,12 @@ test.describe("the column", () => {
     const order = new OrderPage(page);
 
     await order.open({ wings: 1 });
-    await order.item("eggs").locator(".order-qty-add").click();
-    // Caught mid-ease: an animation runs on the pane.
-    const eased = await order.cart.evaluate((el) => (
-      el.getAnimations().some((a) => a.playState === "running")
-    ));
+    await page.waitForTimeout(600);
+    const before = await order.cart.evaluate((el) => el.eases || 0);
 
-    expect(eased).toBe(true);
+    await order.item("eggs").locator(".order-qty-add").click();
+    // The view counts every ease it starts on the pane.
+    await expect.poll(() => order.cart.evaluate((el) => el.eases || 0))
+      .toBeGreaterThan(before);
   });
 });

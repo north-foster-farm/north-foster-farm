@@ -212,6 +212,9 @@ export const animateFold = (pane, apply, { reduce = reduced() } = {}) => {
     );
 
     pane.currentEase = ease;
+    // How many eases have started, for the specs: an ease is over
+    // before they can see it run.
+    pane.eases = (pane.eases || 0) + 1;
     const done = () => {
       if (pane.currentEase === ease) pane.currentEase = null;
       resolve();
