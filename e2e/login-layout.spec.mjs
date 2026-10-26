@@ -15,7 +15,7 @@ for (const width of WIDTHS) {
       await page.goto("/login/");
 
       const button = page.locator("#login-submit");
-      await expect(button).toHaveText("Send a sign-in link");
+      await expect(button).toHaveAccessibleName("Send a sign-in link");
 
       await button.click();
       const message = page.locator("#err-login-email");
