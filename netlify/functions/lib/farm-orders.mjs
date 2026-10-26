@@ -33,10 +33,13 @@ import {
   validateOrder,
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { orderId } from "../orders.mjs";
-import { announceNew, attemptKey } from "./checkout.mjs";
+import { publicOrder } from "./account.mjs";
+import { METHODS, announceNew, attemptKey } from "./checkout.mjs";
 import { now as clock } from "./clock.mjs";
 import { completeInSquare } from "./complete.mjs";
-import { mark } from "./health.mjs";
+import { KEY } from "./edit.mjs";
+import { alert, mark } from "./health.mjs";
+import { retry } from "./http.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { pickupSchedule } from "./pickups.mjs";
@@ -45,6 +48,7 @@ import {
   reserveOrderId, saveOrder, setStatus, touchCustomer,
 } from "./records.mjs";
 import * as squareApi from "./square.mjs";
+import { DECLINE_MESSAGES } from "./square.mjs";
 import terms from "./terms.mjs";
 import { adjust, checkLines } from "./stock.mjs";
 
@@ -306,4 +310,135 @@ export const payFarmOrder = async (stores, id, {
   const announced = await announceNew(stores, current, { mail, env, now });
 
   return { ok: true, order: announced || current, payment };
+};
+
+// --- The customer pays later -----------------------------------------
+
+const refuse = (status, errors, extra = {}) =>
+  ({ ok: false, status, errors, ...extra });
+
+// A processor's failure as the page reads it, as the order and edit
+// endpoints answer: 402 a decline, 503 try again, 502 not.
+const asAnswer = async (stores, id, error, { env, mail, now }) => {
+  if (error && error.declined) {
+    return refuse(402, {
+      payment: DECLINE_MESSAGES[error.code]
+        || "The payment didn't go through. Try another way to pay.",
+    }, { declined: true, code: error.code || null });
+  }
+
+  log.error({
+    event: "order.pay_failed", id, error: String(error && error.message),
+    detail: error && error.detail,
+  });
+  await alert(stores, "order.pay_failed", {
+    id, error: String(error && error.message),
+  }, { env, mail, now });
+
+  return refuse(error && error.retryable ? 503 : 502, {
+    order: "We couldn't take the payment. Try again in a minute.",
+  }, { retryable: !!(error && error.retryable) });
+};
+
+// POST /api/account/orders/<id>/pay (#181): the signed-in customer
+// pays what is due on an order the farm made for them, with the
+// SDK's token for a card or a wallet, on the order's own Square order.
+// Venmo is not offered for paying later. The page's submission key
+// and attempt make the Square key, as a new order's do, so a retry
+// after a lost answer finds the payment Square took; a key whose
+// payment is on the record answers with the record and charges
+// nothing. -> { ok, order (public), difference } or
+// { ok: false, status, errors }.
+export const payOrder = async (stores, customer, id, body, {
+  now = clock(), env = process.env, mail = sendMail, square = squareApi,
+  fetchImpl, sleep,
+} = {}) => {
+  const order = await getOrder(stores, id);
+
+  if (!order || order.customer.email !== customer.email) {
+    return refuse(404, { order: "We can't find that order." });
+  }
+
+  const b = body && typeof body === "object" ? body : {};
+  const key = String(b.idempotencyKey || "");
+
+  if (!KEY.test(key)) {
+    return refuse(422, { idempotencyKey: "Missing submission key." });
+  }
+  if (paymentsOf(order).some((p) => p.pay === key)) {
+    return { ok: true, order: publicOrder(order, now), difference: 0 };
+  }
+
+  const due = dueOn(order);
+
+  if (order.status !== "unpaid" || due === 0) {
+    return refuse(409, { order: "Nothing is due on this order." });
+  }
+
+  const payment = b.payment && typeof b.payment === "object" ? b.payment : {};
+  const method = String(payment.method || "");
+
+  if (!METHODS[method] || method === "venmo") {
+    return refuse(422, { payment: "Choose how to pay." });
+  }
+  if (!payment.sourceId) {
+    return refuse(422, { payment: "Enter your card details." });
+  }
+
+  const attempt = Number.isInteger(b.attempt) && b.attempt >= 1
+    && b.attempt <= 50 ? b.attempt : 1;
+  const k = attemptKey(key, attempt);
+  let holder = order.square;
+  let paid;
+
+  try {
+    if (!holder || !holder.squareOrderId) {
+      const created = await retry(() => square.createOrder(order, k, {
+        env, fetchImpl,
+      }), { sleep });
+
+      holder = {
+        squareOrderId: created.squareOrderId, customerId: created.customerId,
+      };
+    }
+    paid = await retry(() => square.createPayment({
+      order,
+      squareOrderId: holder.squareOrderId,
+      customerId: holder.customerId,
+      key: k,
+      amount: due,
+      source: {
+        sourceId: String(payment.sourceId),
+        verificationToken: payment.verificationToken
+          ? String(payment.verificationToken) : undefined,
+      },
+    }, { env, fetchImpl }), { sleep });
+  } catch (error) {
+    return asAnswer(stores, id, error, { env, mail, now });
+  }
+
+  const payments = paymentsOf(order);
+  const known = payments.some(
+    (p) => p.squarePaymentId === paid.squarePaymentId
+  );
+  const recorded = known ? order : await amendOrder(stores, id, {
+    ...moneyPatch(order, { payments: [...payments, {
+      at: now.toISOString(), amount: due, via: "square", method,
+      squarePaymentId: paid.squarePaymentId, receiptUrl: paid.receiptUrl,
+      brand: paid.brand, last4: paid.last4, wallet: paid.wallet, pay: key,
+    }] }),
+    square: holder,
+  }, "customer.paid", now);
+  const settled = await setStatus(stores, id, "paid", now, {
+    source: "customer",
+  }) || recorded;
+
+  await mark(stores, "paid", { id, via: "square" }, now);
+  log.info({ event: "order.paid_later", id, amount: due, method });
+
+  const announced = await announceNew(stores, settled, { mail, env, now });
+
+  return {
+    ok: true, order: publicOrder(announced || settled, now), difference: due,
+  };
 };

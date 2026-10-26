@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  TENDERS, createFarmOrder, payFarmOrder, planFarmOrder,
+  TENDERS, createFarmOrder, payFarmOrder, payOrder, planFarmOrder,
 } from "../netlify/functions/lib/farm-orders.mjs";
+import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { readMark } from "../netlify/functions/lib/health.mjs";
 import {
-  dueOn, getCustomer, openOrders, paymentsOf, setStatus,
+  dueOn, getCustomer, getOrder, openOrders, paymentsOf, setStatus,
 } from "../netlify/functions/lib/records.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
@@ -385,4 +386,110 @@ describe("payFarmOrder", () => {
     assert.equal(none.ok, false);
     assert.deepEqual(Object.keys(TENDERS), ["cash", "check", "venmo"]);
   });
+});
+
+describe("payOrder: the customer pays later", () => {
+  const PAT = { email: "pat@example.com" };
+  const SUB = "0f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f";
+  const card = {
+    idempotencyKey: SUB, attempt: 1,
+    payment: { method: "card", sourceId: "cnon:tok" },
+  };
+  const unpaid = async (stores) => (await make(stores)).r.order;
+
+  it("takes what is due on the order's own Square order, and the order " +
+    "is paid with its confirmation", async () => {
+    const stores = testStores();
+    const order = await unpaid(stores);
+    const { square, calls } = fakeSquare();
+    const { sent, mail } = mailbox();
+    const r = await payOrder(stores, PAT, order.id, card, {
+      now, env, mail, square,
+    });
+
+    assert.equal(r.ok, true);
+    assert.equal(r.difference, 5500);
+    assert.equal(r.order.status, "paid");
+    assert.equal(r.order.due, 0);
+    assert.equal(r.order.canPay, false);
+    assert.deepEqual(r.order.payments.map((p) => [p.via, p.method,
+      p.amount]), [["square", "card", 5500]]);
+    assert.deepEqual(calls.map((c) => c[0]), ["payment"],
+      "never a second Square order");
+    assert.equal(calls[0][2], 5500);
+    assert.deepEqual(calls[0][3], { sourceId: "cnon:tok",
+      verificationToken: undefined });
+    assert.ok(sent.length, "the confirmation goes");
+  });
+
+  it("answers a retry of a key already paid with the record, charging " +
+    "nothing", async () => {
+    const stores = testStores();
+    const order = await unpaid(stores);
+    const { square, calls } = fakeSquare();
+    const { mail } = mailbox();
+    const opts = { now, env, mail, square };
+
+    await payOrder(stores, PAT, order.id, card, opts);
+
+    const again = await payOrder(stores, PAT, order.id, card, opts);
+
+    assert.equal(again.ok, true);
+    assert.equal(again.difference, 0);
+    assert.equal(again.order.payments.length, 1);
+    assert.equal(calls.length, 1);
+  });
+
+  it("refuses another customer's order, a paid one, a missing key, " +
+    "Venmo and a card with no token", async () => {
+    const stores = testStores();
+    const order = await unpaid(stores);
+    const { square, calls } = fakeSquare();
+    const opts = { now, env, square };
+    const sam = await payOrder(stores, { email: "sam@example.com" },
+      order.id, card, opts);
+    const nokey = await payOrder(stores, PAT, order.id,
+      { ...card, idempotencyKey: "" }, opts);
+    const venmo = await payOrder(stores, PAT, order.id, {
+      ...card, payment: { method: "venmo", stage: "create" },
+    }, opts);
+    const bare = await payOrder(stores, PAT, order.id, {
+      ...card, payment: { method: "card" },
+    }, opts);
+
+    assert.equal(sam.status, 404);
+    assert.equal(nokey.status, 422);
+    assert.equal(venmo.status, 422);
+    assert.equal(bare.status, 422);
+    assert.deepEqual(calls, []);
+
+    await payFarmOrder(stores, order.id, { tender: "cash" }, opts);
+
+    const settled = await payOrder(stores, PAT, order.id, card, opts);
+
+    assert.equal(settled.status, 409);
+  });
+
+  it("answers a decline as the order endpoint does, recording nothing",
+    async () => {
+      const stores = testStores();
+      const order = await unpaid(stores);
+      const { square } = fakeSquare();
+
+      square.createPayment = async () => {
+        throw new SquareError("Square 402", {
+          declined: true, code: "CARD_DECLINED",
+        });
+      };
+
+      const r = await payOrder(stores, PAT, order.id, card, {
+        now, env, square,
+      });
+
+      assert.equal(r.ok, false);
+      assert.equal(r.status, 402);
+      assert.equal(r.declined, true);
+      assert.ok(r.errors.payment);
+      assert.equal(dueOn(await getOrder(stores, order.id)), 5500);
+    });
 });

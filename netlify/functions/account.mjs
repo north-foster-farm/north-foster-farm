@@ -30,6 +30,7 @@ import {
 } from "./lib/account.mjs";
 import { now as clock } from "./lib/clock.mjs";
 import { editOrder } from "./lib/edit.mjs";
+import { payOrder } from "./lib/farm-orders.mjs";
 import {
   clearCookieHeader, clearStampHeader, publicCustomer, sameSite, sessionFrom,
 } from "./lib/auth.mjs";
@@ -43,7 +44,7 @@ import { stores as defaultStores } from "./lib/store.mjs";
 
 // Ownership is checked by the logic; the route only shapes the id.
 const ORDER = new RegExp("^/api/account/orders/([A-Za-z0-9-]{1,32})/" +
-  "(cancel|change|edit|return)$");
+  "(cancel|change|edit|pay|return)$");
 
 // A failure keeps what came with its errors (an edit's fresh totals,
 // stock or dates, a decline), for the page to act on.
@@ -127,6 +128,11 @@ export const handle = async (req, {
       return answer(await took(await editOrder(stores, customer, id, body, {
         ...opts, group: customer.discountGroup || null,
       })));
+    }
+    // An order the farm made, paid now by its customer (#181).
+    if (action === "pay") {
+      return answer(await took(
+        await payOrder(stores, customer, id, body, opts)));
     }
 
     return answer(await took(
