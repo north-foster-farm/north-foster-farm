@@ -228,11 +228,23 @@ const walk = async (page, key) => {
   for (; steps < limit; steps += 1) {
     await page.keyboard.press(key);
 
-    // WebKit scrolls to the focus a frame or two after it moves.
+    // WebKit scrolls to the focus a frame or two after it moves, and a
+    // page with smooth scrolling glides for longer: read the stop once
+    // scrollY has held for three frames (at most 60 frames, about a
+    // second).
     let s = await page.evaluate(() => new Promise((done) => {
-      requestAnimationFrame(() => requestAnimationFrame(
-        () => done(window.kbdStep()),
-      ));
+      let last = -1;
+      let steady = 0;
+      let frames = 0;
+      const look = () => {
+        frames += 1;
+        steady = scrollY === last ? steady + 1 : 0;
+        last = scrollY;
+        if (steady >= 3 || frames >= 60) done(window.kbdStep());
+        else requestAnimationFrame(look);
+      };
+
+      requestAnimationFrame(look);
     }));
 
     if (s.end) break;
