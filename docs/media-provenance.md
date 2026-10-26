@@ -135,4 +135,4 @@ changes how its paths are spelled but not its shapes.
 
 | File | Made by | Credit | Source and notes |
 | --- | --- | --- | --- |
-| `static/fonts/aller-*.woff`, `.woff2` (twelve) | Dalton Maag | | Aller, converted with Font Squirrel's Webfont Generator on 2024-05-25. The files carry no license record, and Aller is under Dalton Maag's own license, not the OFL; which terms were accepted is waiting on James (MA2 on #233). |
+| `static/fonts/aller-*.woff`, `.woff2` (twelve) | Dalton Maag | `static/fonts/aller-license.txt` | Aller, converted with Font Squirrel's Webfont Generator on 2024-05-25. Licensed to the farm under Dalton Maag's Free Licence Agreement on top of its EULA v1.2, from Font Squirrel's official package; James accepted it on 2026-10-22 (MA2, #220). The text sits beside the fonts. It allows self-hosting on the site (up to 25,000 visitors a day) and fonts in business mail such as receipts and sign-in links, but not in a newsletter, so the email templates no longer load Aller. |
