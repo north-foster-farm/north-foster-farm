@@ -92,7 +92,9 @@ test.describe("scheduled pickup", () => {
 
       expect(await bg()).toBe("rgb(255, 255, 255)");
       await card.locator("input").check();
-      expect(await bg()).not.toBe("rgb(255, 255, 255)");
+      // The fill eases in (--order-hover), so it leaves white a moment
+      // after the check.
+      await expect.poll(bg).not.toBe("rgb(255, 255, 255)");
     });
 
   test("none is chosen until the customer chooses", async ({ page }) => {
