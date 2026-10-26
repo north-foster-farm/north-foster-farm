@@ -201,13 +201,20 @@ autoLaunch = false
 
 [[redirects]]
   from = "/news/2026-09-22-september-update/"
-  to = "/news/ordering-tour/"
+  to = "/news/three-quarters-of-the-way/"
   status = 301
   force = true
 
 [[redirects]]
-  from = "/news/2026-10-18-ordering-tour/"
-  to = "/news/ordering-tour/"
+  from = "/news/2026-10-18-three-quarters-of-the-way/"
+  to = "/news/three-quarters-of-the-way/"
+  status = 301
+  force = true
+
+# The post's address while it was in review, before James retitled it.
+[[redirects]]
+  from = "/news/ordering-tour/"
+  to = "/news/three-quarters-of-the-way/"
   status = 301
   force = true
 

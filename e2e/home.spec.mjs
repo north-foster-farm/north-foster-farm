@@ -395,10 +395,10 @@ test.describe("home", () => {
       });
   });
 
-  // #136: the ordering tour lives at /news/<slug>/ and the home
+  // #136: the newest post lives at /news/<slug>/ and the home
   // page publishes it in full under a news eyebrow.
   test.describe("home news section (#136)", () => {
-    const POST = "/news/ordering-tour/";
+    const POST = "/news/three-quarters-of-the-way/";
 
     test("the post in full, linked to its own page", async ({ page }) => {
       await page.goto("/");
@@ -408,7 +408,7 @@ test.describe("home", () => {
       await expect(card.locator(".home-eyebrow"))
         .toHaveText("News and updates");
       await expect(card.locator(".news-header-link"))
-        .toHaveText("A Tour of Our New Ordering System");
+        .toHaveText("Three Quarters of the Way");
       await expect(card.locator(".news-header-link"))
         .toHaveAttribute("href", new RegExp(`${POST}$`));
       await expect(card.locator(".news-header time"))
@@ -448,7 +448,7 @@ test.describe("home", () => {
         await expect(page.locator("link[rel='canonical']"))
           .toHaveAttribute("href", new RegExp(`${POST}$`));
         await expect(page.locator("h1"))
-          .toHaveText("A Tour of Our New Ordering System");
+          .toHaveText("Three Quarters of the Way");
         await expect(page.locator("main")
           .getByRole("link", { name: "Check your ZIP code" }))
           .toHaveAttribute("href", /\/#map$/);
