@@ -293,6 +293,11 @@ export class OrderPage {
     await expect(this.page.locator("[data-pay]")).toHaveAttribute(
       "data-pay-state", /ready|venmo-only/, { timeout: 30_000 }
     );
+    // The state turns ready before the panel's skeleton clears (it
+    // waits for the wallets too), and the fields stay unseen under it:
+    // a spec that typed at once found them hidden for its whole wait.
+    await expect(this.page.locator("#pay-card-panel"))
+      .not.toHaveAttribute("data-load", /./, { timeout: 30_000 });
     await this.cardChoose.click();
     await expect(this.submit).toBeVisible();
     await expect(this.submit).toBeEnabled();
