@@ -18,6 +18,7 @@ import { runJobs } from "./jobs.mjs";
 import { links, readState, setState } from "./maintenance.mjs";
 import { OUTBOX_PREFIX } from "./mail.mjs";
 import { requestSubscribe } from "./news.mjs";
+import { issuePass, passKey } from "./passes.mjs";
 import { getCustomer, saveCustomer } from "./records.mjs";
 import { quietAccounts } from "./retention.mjs";
 import * as squareApi from "./square.mjs";
@@ -68,7 +69,8 @@ export const OPS = {
     order: await fulfillOrder(stores, need(id, "id"), { env }),
   }),
   // Square's own copy of the order's Square order, for a check that the
-  // site's change reached it. `fake` is true where there is no Square.
+  // site's change reached it, and what it was charged (a pass's $0
+  // delivery fee, #182). `fake` is true where there is no Square.
   squareOrder: async (stores, { id }, env) => {
     const order = await showOrder(stores, need(id, "id"));
     const squareOrderId = order.square && order.square.squareOrderId;
@@ -76,6 +78,7 @@ export const OPS = {
     if (!squareOrderId) throw new Error("This order has no Square order.");
 
     const found = await squareApi.getOrder(squareOrderId, { env });
+    const cents = (money) => (money ? money.amount : null);
 
     return {
       fake: squareApi.isFake(env),
@@ -85,6 +88,13 @@ export const OPS = {
         fulfillments: (found.fulfillments || []).map((f) => ({
           type: f.type, state: f.state,
         })),
+        serviceCharges: (found.service_charges || []).map((c) => ({
+          name: c.name, amount: cents(c.amount_money),
+        })),
+        discounts: (found.discounts || []).map((d) => ({
+          name: d.name, amount: cents(d.amount_money),
+        })),
+        total: cents(found.total_money),
       },
     };
   },
@@ -204,6 +214,20 @@ export const OPS = {
     for (const m of found) await stores.customers.delete(m.key);
 
     return { removed: found.length };
+  },
+  // A pass for one order (#182), as `bin/nff passes issue` makes one:
+  // single use, for a day, tied to `email` when given, and waiving the
+  // fee when asked. -> { code }.
+  passIssue: async (stores, { email, waiveFee }) => ({
+    code: (await issuePass(stores, {
+      email: email || null, days: 1, waiveFee: !!waiveFee, note: "e2e",
+    })).code,
+  }),
+  // The spec's pass, used or not, gone when the run is done.
+  passDelete: async (stores, { code }) => {
+    await stores.orders.delete(passKey(need(code, "code")));
+
+    return { removed: true };
   },
   // Every message in the outbox with its HTML and text, newest first.
   outboxList: async (stores) => {

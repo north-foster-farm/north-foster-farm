@@ -327,6 +327,21 @@ export const teardown = async (steps) => {
 export const deleteCustomer = (email) =>
   nff(["customers", "delete", email], { allowFail: true });
 
+// A single-use pass (#182) for the run, as the farm's `passes issue`
+// makes one: good for a day, tied to `email`, and waiving the delivery
+// fee when `waiveFee`. -> its code. `deletePass` removes it after.
+export const issuePass = async ({ email, waiveFee = false } = {}) =>
+  (await op("passIssue", { email, waiveFee })).code;
+
+export const deletePass = async (code) => {
+  await op("passDelete", { code }, { allowFail: true });
+};
+
+// Square's own copy of an order, as the sandbox holds it now: its
+// state, fulfillments, service charges, discounts and total.
+export const squareOrder = async (id) =>
+  (await op("squareOrder", { id })).squareOrder;
+
 // The contact page's messages (messages/<id> in the customers store)
 // from one address.
 export const contactMessages = async (email) =>

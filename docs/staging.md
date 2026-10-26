@@ -219,7 +219,8 @@ tests both limits without it.
 
 ## The end-to-end suite's access (#266)
 
-`e2e/` reaches staging's records, outbox and maintenance switch only
+`e2e/` reaches staging's records, outbox and maintenance switch, a
+pass for a run (#182) and Square's copy of an order (read only) only
 through `POST /api/staging/e2e` (`lib/e2e.mjs`), with
 `E2E_STAGING_TOKEN`. The deploy runs each step against its own
 stores, so the suite holds no Netlify personal access token and no

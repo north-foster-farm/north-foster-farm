@@ -166,6 +166,23 @@ test.describe("contact messages (#140)", () => {
         .find((m) => m.orderId === body.orderId)).toMatchObject({
         order: true, message: "Can I add wings?",
       });
+
+      // #186: a message from the account page's help form reaches the
+      // farm with the customer's name on its Reply-To, like the
+      // contact page's. The order above named the customer "QA Api".
+      const support = await tab.request.post("/api/account/support", {
+        headers: { Origin: new URL(tab.url()).origin },
+        data: { subject: "Reply-To check", message: "Is my order on?" },
+      });
+
+      expect(support.status(), await support.text()).toBe(200);
+
+      const notice = await waitForMail({
+        subject: `Support: Reply-To check from ${email}`, since,
+      });
+
+      expect(notice.replyTo).toBe(`"QA Api" <${email}>`);
+      expect(notice.text).toContain("Is my order on?");
     });
 
   test("the honeypot and bad fields are refused at the API",

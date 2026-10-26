@@ -1,10 +1,12 @@
 // The back-office ops the end-to-end suite added for #455, #456 and
 // #461 (lib/e2e.mjs): each is one farm action or job run, scoped to
-// what the suite made, so shared staging data keeps its state.
+// what the suite made, so shared staging data keeps its state. Also
+// the pass ops for #182's staging check.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { runOp } from "../netlify/functions/lib/e2e.mjs";
+import { getPass, passKey } from "../netlify/functions/lib/passes.mjs";
 import {
   getCustomer, saveCustomer,
 } from "../netlify/functions/lib/records.mjs";
@@ -154,4 +156,35 @@ describe("the order ops", () => {
       assert.equal(await getCustomer(stores, "lee@example.com"), null,
         "not on the list until the link is followed");
     });
+});
+
+describe("the pass ops (#182)", () => {
+  it("issue a single-use pass for a day, and delete it", async () => {
+    const stores = testStores();
+    const issued = await runOp(stores, {
+      op: "passIssue", email: "pat@example.com", waiveFee: true,
+    }, env);
+
+    assert.equal(issued.status, 200);
+    assert.match(issued.body.code, /^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+
+    const pass = await getPass(stores, issued.body.code);
+
+    assert.equal(pass.email, "pat@example.com");
+    assert.equal(pass.standing, false);
+    assert.deepEqual(pass.lifts, ["minimum", "fee"]);
+    assert.ok(pass.expiresAt);
+
+    const plain = await runOp(stores, { op: "passIssue" }, env);
+
+    assert.deepEqual((await getPass(stores, plain.body.code)).lifts,
+      ["minimum"]);
+
+    assert.equal((await runOp(stores, {
+      op: "passDelete", code: issued.body.code,
+    }, env)).status, 200);
+    assert.equal(await stores.orders.get(passKey(issued.body.code)), null);
+    assert.equal((await runOp(stores, { op: "passDelete" }, env)).status,
+      400);
+  });
 });
