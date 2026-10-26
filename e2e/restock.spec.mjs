@@ -180,7 +180,12 @@ test.describe("restock types (#267)", () => {
 
   test("The header's icon glyphs are equally far apart", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 800 });
+    // Signed out, the header has a Sign in link and no account glyph.
+    await page.route("**/api/me", (route) => route.fulfill({
+      json: { signedIn: true, customer: { email: "qa-e2e-glyph@example.com" } },
+    }));
     await open(page);
+    await expect(page.locator(".site-account-icon:visible")).toHaveCount(1);
 
     const gaps = await page.evaluate(() => {
       const edge = (el) => {
@@ -352,7 +357,9 @@ test.describe("restock types (#267)", () => {
       const out = await row(page, OUT.soon).locator(".order-qty-out")
         .boundingBox();
 
-      expect(add.width).toBeCloseTo(out.width, 0);
+      // The label is as wide as its words, never narrower than Add
+      // (#437), and centered on Add's column.
+      expect(out.width).toBeGreaterThanOrEqual(add.width - 0.5);
       expect(add.x + add.width / 2)
         .toBeCloseTo(out.x + out.width / 2, 0);
     });
@@ -425,7 +432,7 @@ test.describe("restock types (#267)", () => {
       await open(page, { wings: 1 });
       await expect(row(page, SKU.wings)).toBeHidden();
       await show(page, "Full catalog");
-      await expect(row(page, SKU.wings).locator(".order-item-stock"))
+      await expect(row(page, SKU.wings).locator(".order-qty-out"))
         .toHaveText("Back in spring");
       await expect(new OrderPage(page).count).toHaveText("0 items");
     });
@@ -609,10 +616,12 @@ test.describe("search and restock types (#267)", () => {
     await p.input.fill("cornish");
     await expect(p.rows).toHaveCount(0);
 
-    await p.input.fill("eggs");
-    await expect(p.rows).toHaveCount(3);
+    await p.input.fill("feet");
     await expect(p.rows.and(page.locator(`[data-sku="${OUT.soon}"]`)))
       .toContainText("Returning soon");
+
+    await p.input.fill("eggs");
+    await expect(p.rows).toHaveCount(3);
     await expect(p.rows.and(page.locator(`[data-sku="${SKU.eggs}"]`)))
       .toContainText("$7");
   });
