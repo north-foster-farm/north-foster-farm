@@ -5,6 +5,9 @@
 // deleted after the run (#463).
 // docs/qa-launch.md, "Payments".
 
+import terms from "../data/delivery.json" with { type: "json" };
+import { moneyOn } from "../assets/scripts/order/lib/money-on.mjs";
+import { today } from "../assets/scripts/order/lib/zoned.mjs";
 import {
   NONCE, eggOrder, firstScheduled, postOrder,
 } from "./support/api.mjs";
@@ -13,6 +16,11 @@ import {
   BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, deleteCustomer,
   nff, teardown,
 } from "./support/staging.mjs";
+
+// The minimum in force on the day the spec runs (#362): $50 from
+// 2027-01-01, as the endpoint itself reads it.
+const { deliveryMinimum: MINIMUM } = moneyOn(terms.money,
+  today(new Date(), terms.timeZone));
 
 test.describe("orders API", () => {
   const made = [];
@@ -95,7 +103,7 @@ test.describe("orders API", () => {
       "customer.email": "Please enter a valid email address.",
       "customer.phone": "Please enter a phone number.",
       "delivery.zip": "That's outside our delivery area.",
-      "delivery.minimum": expect.stringContaining("$40 or more"),
+      "delivery.minimum": expect.stringContaining(`$${MINIMUM} or more`),
     });
   });
 

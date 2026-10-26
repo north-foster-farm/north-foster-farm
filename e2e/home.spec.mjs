@@ -1,7 +1,14 @@
 // The home page as the home lane lands it. docs/qa-launch.md, "The
 // autumn refresh".
 
+import terms from "../data/delivery.json" with { type: "json" };
+import { moneyOn } from "../assets/scripts/order/lib/money-on.mjs";
+import { today } from "../assets/scripts/order/lib/zoned.mjs";
 import { expect, test } from "./support/order.mjs";
+
+// The delivery figures the build printed, from the same money.html
+// rule the page uses (#362): the minimum is $50 from 2027-01-01.
+const MONEY = moneyOn(terms.money, today(new Date(), terms.timeZone));
 
 const INVOICE_ERA = /invoice|payment link|pay to confirm/i;
 
@@ -570,7 +577,8 @@ test.describe("home", () => {
         when: /Every Thursday, 10:00\sAM\s–\u2060\s4:00\sPM/,
         where: "Most of central Rhode Island and parts of eastern " +
           "Connecticut",
-        cost: "$40 minimum, $5 fee", cta: "Shop for delivery",
+        cost: `$${MONEY.deliveryMinimum} minimum, $${MONEY.deliveryFee} fee`,
+        cta: "Shop for delivery",
       },
     ];
 

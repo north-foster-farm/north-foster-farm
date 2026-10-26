@@ -2,9 +2,18 @@
 // processor is asked, and revalidation after a failed attempt.
 // docs/qa-launch.md, "Contact and pickup forms". Nothing here pays.
 
+import terms from "../data/delivery.json" with { type: "json" };
+import { moneyOn } from "../assets/scripts/order/lib/money-on.mjs";
+import { today } from "../assets/scripts/order/lib/zoned.mjs";
 import {
   OrderPage, expect, test, uniqueEmail,
 } from "./support/order.mjs";
+
+// The minimum in force on the day the spec runs (#362): $50 from
+// 2027-01-01. Five dozen eggs ($35) is short of either.
+const { deliveryMinimum: MINIMUM } = moneyOn(terms.money,
+  today(new Date(), terms.timeZone));
+const SHORT = `Delivery requires $${MINIMUM} or more after discounts.`;
 
 // Presses Pay with the card form open and nothing typed into it. The
 // form validates first, so no request reaches /api/orders.
@@ -192,7 +201,7 @@ test.describe("contact and pickup forms", () => {
     await order.open({ eggs: 5 }, { method: "delivery" });
     await expect(order.short).toBeVisible();
     await expect(order.short).toHaveText(
-      "Delivery requires $40 or more after discounts. Add $5 more."
+      `${SHORT} Add $${MINIMUM - 35} more.`
     );
 
     const color = await order.short.evaluate(
@@ -207,8 +216,7 @@ test.describe("contact and pickup forms", () => {
     await order.contact({ email: uniqueEmail("short"), phone: "4015550100" });
     await order.delivery();
     await attempt(order);
-    await expect(order.short)
-      .toContainText("Delivery requires $40 or more after discounts");
+    await expect(order.short).toContainText(SHORT);
     expect(posted).toBe(0);
   });
 
