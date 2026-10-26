@@ -3,8 +3,8 @@ import { describe, it } from "node:test";
 
 import {
   addressLines, draftOccurrence, dropOnly, dropSeriesCode, fallbackChoice,
-  fulfilmentDate, locationCount, occurrenceId, pickupParts, placeNames,
-  placesFact, scheduledChoice,
+  fulfilmentDate, locationCount, occurrenceId, pickupName, pickupParts,
+  placeNames, placesFact, scheduledChoice,
 } from "../assets/scripts/order/lib/scheduled.mjs";
 
 const drop = {
@@ -166,6 +166,17 @@ describe("a pickup as its card's parts", () => {
         "The Village Green", "46 Institute Lane", "North Scituate, RI 02857",
       ],
     });
+  });
+
+  it("names the town once (#439)", () => {
+    assert.equal(pickupName("Foster", "Foster Farmers Market"),
+      "Foster Farmers Market");
+    assert.equal(pickupName("Warwick", "Warwick Night Market"),
+      "Warwick Night Market");
+    assert.equal(pickupName("Foster", "Fosterville Market"),
+      "Foster · Fosterville Market");
+    assert.equal(pickupName("Scituate", "Drop site"), "Scituate · Drop site");
+    assert.equal(pickupName("", "Drop site"), "Drop site");
   });
 
   it("keeps a second street line and leaves out what is missing", () => {

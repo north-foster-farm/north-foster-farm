@@ -96,13 +96,20 @@ export const addressLines = (loc) => {
   ].filter(Boolean);
 };
 
-// A pickup as its card's parts: the day, the hours, the subtitle (the
-// town, then the pickup's own name: "Scituate · Drop site", as on the
-// Places cards) and the address of the place it is at.
+// A pickup's subtitle: the town, then the pickup's own name,
+// "Scituate · Drop site", as on the Places cards. A name that already
+// says its town says it alone: "Foster Farmers Market" (#439).
+export const pickupName = (town, name) => {
+  if (town && name && ` ${name} `.includes(` ${town} `)) return name;
+
+  return [town, name].filter(Boolean).join(" · ");
+};
+
+// A pickup as its card's parts: the day, the hours, the subtitle and
+// the address of the place it is at.
 export const pickupParts = (entry, loc) => ({
   date: entry.label,
   time: entry.window,
-  name: [entry.town || (loc || {}).town, entry.name]
-    .filter(Boolean).join(" · "),
+  name: pickupName(entry.town || (loc || {}).town, entry.name),
   address: addressLines(loc),
 });
