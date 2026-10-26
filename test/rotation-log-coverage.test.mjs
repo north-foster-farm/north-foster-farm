@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
-  missingFromLog, requiredNames, sampleNames, secretRows,
+  missingFromLog, readSamples, requiredNames, sampleNames, secretRows,
 } from "../bin/check-rotation-log.mjs";
 
 const sample = [
@@ -49,6 +49,13 @@ describe("rotation log coverage: reading the sources", () => {
     ]);
   });
 
+  it("reads the development, staging and production samples", () => {
+    const read = (path) => `${path.split(".")[2].toUpperCase()}_KEY=`;
+
+    assert.deepEqual(sampleNames(readSamples(read)),
+      ["DEVELOPMENT_KEY", "STAGING_KEY", "PRODUCTION_KEY"]);
+  });
+
   it("expands a _SUFFIX to the sample names that end in it", () => {
     const rows = secretRows(secrets, sampleNames(sample));
     const row = rows.find((r) => r.kind === "ping URLs");
@@ -92,7 +99,7 @@ describe("rotation log coverage: the check", () => {
     const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url),
       "utf8");
     const required = requiredNames(read("docs/secrets.md"),
-      read(".env.sample"));
+      readSamples(read));
 
     assert.ok(required.length > 15, "found the secrets");
     assert.deepEqual(missingFromLog(required, read("docs/rotation-log.md")),

@@ -83,7 +83,7 @@ describe("no env file holds the Netlify token", () => {
       ".env": "SITE_URL=x\n",
       ".env.staging": "NETLIFY_AUTH_TOKEN=abc\n",
       ".env.production.sample": "# NETLIFY_AUTH_TOKEN\nNETLIFY_SITE_ID=1\n",
-      ".env.sample": "  export NETLIFY_AUTH_TOKEN = abc\n",
+      ".env.development.sample": "  export NETLIFY_AUTH_TOKEN = abc\n",
       "notes.md": "NETLIFY_AUTH_TOKEN=abc\n",
     };
     const found = tokenInFiles("/r", {
@@ -92,8 +92,8 @@ describe("no env file holds the Netlify token", () => {
     });
 
     assert.deepEqual(found, [
-      ".env.sample: sets NETLIFY_AUTH_TOKEN, which lives only in the " +
-        "Keychain.",
+      ".env.development.sample: sets NETLIFY_AUTH_TOKEN, which lives " +
+        "only in the Keychain.",
       ".env.staging: sets NETLIFY_AUTH_TOKEN, which lives only in the " +
         "Keychain.",
     ]);

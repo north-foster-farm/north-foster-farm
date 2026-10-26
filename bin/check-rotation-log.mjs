@@ -5,8 +5,9 @@
 // silently never rotate.
 //
 // The secrets are the rows of docs/secrets.md's table whose Kind is a
-// secret, a ping URL or a hook URL, and every name in .env.sample that
-// ends in SECRET, TOKEN, PASSWORD or _KEY. A row marked old (retired
+// secret, a ping URL or a hook URL, and every name in the development,
+// staging or production sample that ends in SECRET, TOKEN, PASSWORD
+// or _KEY. A row marked old (retired
 // at launch) or optional (the previous key during a swap, logged under
 // the key it replaces) is left out.
 //
@@ -17,6 +18,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { parseRotationLog } from "../netlify/functions/lib/rotation.mjs";
+import { ENVIRONMENTS, sampleFile } from "./env/sample.mjs";
 
 const SECRETISH = /(?:SECRET|TOKEN|PASSWORD|_KEY)$/;
 const SECRET_KIND = /^secret|URL/;
@@ -27,6 +29,11 @@ export const sampleNames = (text) => String(text).split("\n")
   .map((line) => /^([A-Z][A-Z0-9_]*)=?\s*$|^([A-Z][A-Z0-9_]*)=/.exec(line))
   .filter(Boolean)
   .map((m) => m[1] || m[2]);
+
+// The three tracked samples as one text, so a name any environment
+// declares is counted once. `read` takes a repo-relative path.
+export const readSamples = (read) => ENVIRONMENTS
+  .map((env) => read(sampleFile(env))).join("\n");
 
 // The rows of secrets.md's table: { names, kind }. A name in backticks
 // is an env name; "_SUFFIX" stands for every sample name ending in it;
@@ -85,7 +92,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const read = (path) => readFileSync(join(root, path), "utf8");
   const required = requiredNames(read("docs/secrets.md"),
-    read(".env.sample"));
+    readSamples(read));
   const missing = missingFromLog(required, read("docs/rotation-log.md"));
 
   if (missing.length) {

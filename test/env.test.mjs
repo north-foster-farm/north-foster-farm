@@ -518,7 +518,7 @@ describe("the build's env check", () => {
   });
 
   it("holds ADMIN_EMAILS out of every sample, and requires the three", () => {
-    for (const which of ["", ".development", ".staging", ".production"]) {
+    for (const which of [".development", ".staging", ".production"]) {
       const text = readFileSync(join(here, `../.env${which}.sample`),
         "utf8");
       const names = parseSample(text).entries.map((e) => e.name);

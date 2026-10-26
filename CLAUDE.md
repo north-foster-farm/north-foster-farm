@@ -8,11 +8,14 @@ North Foster Farm website - a static site built with Hugo (v0.164.0) and hosted 
 
 ## Development Commands
 
-Env files: `.env.sample` (tracked) names every key, without values.
+Env files: `.env.development.sample`, `.env.staging.sample` and
+`.env.production.sample` (tracked) name each environment's keys.
 `.env.development`, `.env.staging` and `.env.production` (ignored)
-each hold all of them; `.env` is a symlink to `.env.development`.
-`bin/nff` reads `.env`; `--production` and `--staging` read their own
-file only. Never read, print or copy any of them.
+each hold all of their sample's keys; `.env` is a symlink to
+`.env.development`. `bin/nff` reads `.env`; `--production` and
+`--staging` read their own file only, and `--preview` reads
+`.env.staging` (there is no `.env.preview`). Never read, print or copy
+any of the ignored ones.
 
 ```bash
 # Install dependencies (npm, not yarn -- package-lock.json is the

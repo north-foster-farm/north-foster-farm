@@ -979,7 +979,8 @@ bundle) asks `/api/me` once per five minutes, cached in
 
 `bin/nff` is the farm's admin surface; there are no admin pages. It
 reads one env file from the repo root, each complete, with the keys
-`.env.sample` names. `--production` reads `.env.production`:
+its tracked `.env.<name>.sample` names. `--production` reads
+`.env.production`:
 `NETLIFY_SITE_ID`, with the Netlify token read from the Keychain,
 to reach the site's Blobs stores, the production Square token and
 location, the live PayPal pair, the mail variables
@@ -987,9 +988,10 @@ location, the live PayPal pair, the mail variables
 `MAIL_REPLY_TO`), `ACCOUNTS_ENABLED=true` and `SITE_URL`, so a
 cancel or an address decision sent from here reads as one sent from
 the site.
-`--staging` and `--preview` read `.env.staging` or `.env.preview`
-(the sandbox token and its location, `MAIL_DRIVER=outbox`, that
-deploy's `SITE_URL`). With no flag it reads `.env`, linked locally
+`--staging` and `--preview` both read `.env.staging` (the sandbox
+token and its location, `MAIL_DRIVER=outbox`, staging's `SITE_URL`).
+There is no `.env.preview`: previews use staging's sandbox. With no
+flag it reads `.env`, linked locally
 to `.env.development`, and acts on the `dev-` stores: only
 `--production` reaches production's records, whatever a file holds.
 The commands below act on production when given `--production`.
