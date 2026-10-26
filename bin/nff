@@ -220,8 +220,10 @@ const USAGE = `Usage:
                                       set one by hand; either replaces
                                       the code in force, and members
                                       on record stay members
-  bin/nff groups set <key> host=<email>|none
-                                      the host, for the reward
+  bin/nff groups set <key> host=<email>|none name="..."
+                                      the host, for the reward, and
+                                      the name members see (the data
+                                      file's name until one is set)
   bin/nff groups round <key> [YYYY-MM-DD]
                                       a round's orders by member, the
                                       pick list and the net total;
@@ -1578,6 +1580,7 @@ const run = async () => {
 
     out({
       ...g,
+      name: (record && record.name) || g.name,
       priceLock: g.priceLock
         ? { ...g.priceLock, prices: `${Object.keys(g.priceLock.prices)
           .length} SKUs` }
@@ -1608,15 +1611,24 @@ const run = async () => {
   }
   case "groups set": {
     const patch = kv(rest.slice(1));
+    const said = [];
 
-    if (patch.host === undefined) {
-      throw new Error("groups set <key> host=<email>|none");
+    if (patch.host === undefined && patch.name === undefined) {
+      throw new Error("groups set <key> host=<email>|none name=\"...\"");
+    }
+    if (patch.host !== undefined) {
+      const record = await groups.setGroupHost(stores, rest[0],
+        patch.host === "none" ? null : patch.host);
+
+      said.push(`host ${record.host ? "set" : "cleared"}`);
+    }
+    if (patch.name !== undefined) {
+      const record = await groups.setGroupName(stores, rest[0], patch.name);
+
+      said.push(`name "${record.name}"`);
     }
 
-    const record = await groups.setGroupHost(stores, rest[0],
-      patch.host === "none" ? null : patch.host);
-
-    return out(`${rest[0]}  host ${record.host ? "set" : "cleared"}.`);
+    return out(`${rest[0]}  ${said.join(", ")}.`);
   }
   // A round's orders by member, the pick list across them, and the
   // net total: what the farm packs and what the host reward reads.

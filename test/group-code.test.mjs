@@ -12,8 +12,9 @@ import {
   createSession, publicCustomer,
 } from "../netlify/functions/lib/auth.mjs";
 import {
-  INVALID_CODE, findGroupByCode, getGroupRecord, groupCodeOf, joinGroup,
-  leaveGroup, memberKeyOf, roundFor, setGroupCode, setGroupHost,
+  INVALID_CODE, findGroupByCode, getGroupRecord, groupCodeOf, groupOf,
+  joinGroup, leaveGroup, memberKeyOf, namedGroup, roundFor, setGroupCode,
+  setGroupHost, setGroupName,
 } from "../netlify/functions/lib/groups.mjs";
 import {
   getCustomer, getOrder, saveCustomer,
@@ -332,4 +333,31 @@ describe("customers set member=", () => {
     await assert.rejects(setCustomer(stores, "pat@example.com",
       { member: "gym" }, terms.money), /Unknown group "gym"/);
   });
+});
+
+describe("the name the farm sets", () => {
+  it("is the one members see, on the group, its series and its rounds",
+    async () => {
+      const stores = await withCode();
+      const before = await (await ask({ code: CODE }, { stores })).json();
+
+      assert.equal(before.group.name, "The Village Family Fitness");
+
+      const record = await setGroupName(stores, "vff", " VFF Buying Club ",
+        { now });
+
+      assert.equal(record.name, "VFF Buying Club");
+      // The code stays as it was.
+      assert.equal(record.code, CODE);
+
+      const after = await (await ask({ code: CODE }, { stores })).json();
+
+      assert.equal(after.group.name, "VFF Buying Club");
+      assert.equal(after.group.places.series[0].name, "VFF Buying Club");
+      assert.equal(after.dates[0].name, "VFF Buying Club");
+      assert.equal((await namedGroup(stores, groupOf("vff"))).name,
+        "VFF Buying Club");
+      await assert.rejects(setGroupName(stores, "vff", "  "), /A name/);
+      await assert.rejects(setGroupName(stores, "nope", "x"), /Unknown group/);
+    });
 });

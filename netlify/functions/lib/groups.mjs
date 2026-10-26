@@ -111,6 +111,37 @@ export const setGroupHost = async (stores, key, email, {
   return record;
 };
 
+// The name members see, set from the CLI without a deploy (James:
+// the farm sets the name, the host and the code itself); the data
+// file's name is the default. -> the record.
+export const setGroupName = async (stores, key, name, {
+  now = new Date(),
+} = {}) => {
+  if (!groupOf(key)) throw new Error(`Unknown group "${key}".`);
+
+  const clean = String(name || "").trim().slice(0, 80);
+
+  if (!clean) throw new Error("A name is needed.");
+
+  const stored = (await getGroupRecord(stores, key)) || {
+    key, code: null, codeSetAt: null, previous: [], host: null,
+  };
+  const record = { ...stored, name: clean, nameSetAt: now.toISOString() };
+
+  await stores.orders.set(groupKey(key), record);
+
+  return record;
+};
+
+// The group with the name the farm set on its record, if any.
+export const namedGroup = async (stores, group) => {
+  if (!group) return group;
+
+  const record = await getGroupRecord(stores, group.key);
+
+  return record && record.name ? { ...group, name: record.name } : group;
+};
+
 // The group a typed code unlocks, or null. Only the current code
 // counts: a replaced one is as wrong as any other.
 export const findGroupByCode = async (stores, typed) => {

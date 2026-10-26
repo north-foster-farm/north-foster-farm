@@ -19,7 +19,7 @@ import { now as clock } from "./lib/clock.mjs";
 import { creditBalance } from "./lib/credit.mjs";
 import {
   INVALID_CODE, findGroupByCode, groupOf, memberKeyOf, memberTerms,
-  publicGroup,
+  namedGroup, publicGroup,
 } from "./lib/groups.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
@@ -82,10 +82,18 @@ export const handle = async (req, {
     return json(404, { ok: false, message: INVALID_CODE });
   }
 
+  // The name the farm set on the record, if any, is the one members
+  // see: on the group, its series and its rounds.
+  const named = await namedGroup(stores, group);
+  const pub = publicGroup(named);
+
+  pub.places.series = pub.places.series
+    .map((s) => ({ ...s, name: named.name }));
+
   return json(200, {
     ok: true,
-    group: publicGroup(group),
-    dates: groupDates(group, now, env),
+    group: pub,
+    dates: groupDates(group, now, env).map((d) => ({ ...d, name: named.name })),
     // A member signed in learns their credit (#471), in cents, which
     // the order handler reads again from the ledger. A code alone
     // earns none: the account is what says the credit is theirs.
