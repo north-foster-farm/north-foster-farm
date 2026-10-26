@@ -197,7 +197,7 @@ test.describe("restock types (#267)", () => {
       const glyphs = [
         ".site-account-chick", ".site-search-open", ".site-order",
       ].map((q) => [...document.querySelectorAll(q)]
-        .find((el) => el.offsetWidth)).map(edge);
+        .find((el) => el.getClientRects().length)).map(edge);
 
       return [
         glyphs[1][0] - glyphs[0][1], glyphs[2][0] - glyphs[1][1],
