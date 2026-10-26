@@ -180,7 +180,7 @@ test.describe("customer emails, from their triggers", () => {
       const record = await customerRecord(email);
 
       expect(record.marketing).toBe(true);
-      expect(record.marketingSource).toBe("confirm");
+      expect(record.marketingSource).toBe("signup");
       await waitForMail({
         to: email, subject: "You're on the North Foster Farm list", since,
       });
