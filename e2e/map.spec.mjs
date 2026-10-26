@@ -969,11 +969,14 @@ test.describe("map (#138, #214)", () => {
       (els) => [...new Set(els.map((el) => getComputedStyle(el).fill))]
     );
 
-    expect(fills).toHaveLength(1);
+    // The towns we don't deliver to are away or plain land (#214); a
+    // pin tints none of them.
+    expect(fills.length).toBeLessThanOrEqual(2);
+    for (const fill of fills) {
+      const [r, , b] = fill.match(/\d+/g).map(Number);
 
-    const [r, , b] = fills[0].match(/\d+/g).map(Number);
-
-    expect(b, "not blue").toBeLessThanOrEqual(r);
+      expect(b, `${fill} is not blue`).toBeLessThanOrEqual(r);
+    }
   });
 
   // Beside the map, a list longer than the map scrolls (#214).
