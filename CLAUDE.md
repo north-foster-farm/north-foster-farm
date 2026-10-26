@@ -35,7 +35,10 @@ decisions James made on GitHub. The issue numbers point to the source.
   - "email address" when it means the address;
   - drop sites are plural and unnamed unless the line is about one site;
   - every rate-limit message names what was tried;
-  - an approved wording applies everywhere the same text appears.
+  - an approved wording applies everywhere the same text appears;
+  - step-by-step instructions only for what the reader may not know
+    how to do, never for the obvious ("choose, say how you want it,
+    pay") just to fill space (#303, 2026-10-26).
 - **Contact links go to sales@** (`company.email`). info@ is
   deliberately less public (#410).
 - **Confirm dates before production.** Any change to a news post, or to
