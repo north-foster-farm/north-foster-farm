@@ -41,6 +41,11 @@ decisions James made on GitHub. The issue numbers point to the source.
     pay") just to fill space (#303, 2026-10-26).
 - **Contact links go to sales@** (`company.email`). info@ is
   deliberately less public (#410).
+- **Fakes return recorded responses.** A fake or stub for a network
+  service returns a fixture recorded from a real request (the sandbox
+  will do), with secrets scrubbed but the real shape kept. Never a
+  hand-written response object. Note the source and date with it
+  (James, 2026-10-26).
 - **Confirm dates before production.** Any change to a news post, or to
   a page with a "Last updated" line, has its date confirmed before it
   ships. The right date is often not the commit date.
