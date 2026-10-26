@@ -291,8 +291,9 @@ describe("what is still owed (#181)", () => {
     assert.equal(dueOn(owed), 100);
     assert.equal(dueOn({ ...owed, payments: [{ amount: 40 }] }), 60);
     assert.equal(dueOn({ ...owed, payments: [{ amount: 140 }] }), 0);
+    // Money recorded on an invoice-era record counts once, too.
     assert.equal(dueOn({ ...owed, status: "submitted",
-      payments: [{ amount: 40 }] }), 100);
+      payments: [{ amount: 40 }] }), 60);
     // An unpaid order is open: the jobs remind and close it.
     assert.ok(OPEN.includes("unpaid"));
   });

@@ -22,9 +22,10 @@ import * as paypalApi from "./paypal.mjs";
 import {
   OPEN, allCustomers, allOrders, amendOrder, answerQuestion, byEmailKey,
   cartKey, deleteCustomer, deleteOrder, dueOn, getCustomer, getOrder, keptFee,
-  listCheckouts, ordersFor, paidTotal, paymentRef, paymentsOf, questionOpen,
-  refundedTotal, saveCustomer, setStatus, settledRefunds,
+  listCheckouts, ordersFor, paidByHand, paidTotal, paymentRef, paymentsOf,
+  questionOpen, refundedTotal, saveCustomer, setStatus, settledRefunds,
 } from "./records.mjs";
+import { paymentPending } from "./farm-orders.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import {
@@ -354,7 +355,12 @@ export const refundOrder = async (stores, id, {
     const key = `${base || `refund-${id}-${stamp}`}-${i}`;
     let refund;
 
-    if (p.via === "venmo" && p.paypalCaptureId) {
+    if (paidByHand(p)) {
+      // Money the farm took by hand (#181): Square holds a note of it,
+      // not the money, so the farm hands it back itself and the record
+      // says so. Nothing is asked of Square or PayPal.
+      refund = { status: "COMPLETED", byHand: true };
+    } else if (p.via === "venmo" && p.paypalCaptureId) {
       refund = await paypal.refundCapture({
         paypalCaptureId: p.paypalCaptureId, amount: take, key,
         note: reason || `${company.name} order ${id}`,
@@ -408,6 +414,11 @@ export const cancelOrder = async (stores, id, {
   // cancel.
   if (order.status === "fulfilled") {
     throw new Error("This order is fulfilled. Refund it instead.");
+  }
+  // An unpaid order being paid this minute (#181): money must never
+  // land on an order being cancelled.
+  if (order.status === "unpaid" && await paymentPending(stores, id, now)) {
+    throw new Error("A payment is under way; try again in a minute.");
   }
 
   // Whatever has not gone back yet, less a fee an attempted delivery

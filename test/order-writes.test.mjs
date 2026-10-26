@@ -65,6 +65,26 @@ describe("concurrent writes to one order", () => {
       .includes(h.event)).length, 3);
   });
 
+  it("hands over an unpaid order the farm delivers first, and only " +
+    "from paid or unpaid (#181)", async () => {
+    const stores = await seeded();
+
+    await updateOrder(stores, ID, (o) => ({ ...o, status: "unpaid",
+      payments: [] }));
+
+    const closed = await setStatus(stores, ID, "fulfilled", at);
+
+    assert.equal(closed.status, "fulfilled");
+
+    const other = await seeded();
+
+    await setStatus(other, ID, "cancelled", at);
+
+    const again = await setStatus(other, ID, "fulfilled", at);
+
+    assert.equal(again.status, "cancelled");
+  });
+
   it("never moves a cancelled or fulfilled order back to paid",
     async () => {
       for (const status of ["cancelled", "fulfilled"]) {

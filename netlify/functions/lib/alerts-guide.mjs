@@ -105,6 +105,18 @@ export const GUIDE = {
       "what is still due. If the customer does not retry, take the money " +
       "another way and record it with bin/nff orders pay.",
   },
+  "order.paid_twice": {
+    means: "Money reached Square for an order the farm made (#181) " +
+      "that would not take it: the order was already settled (two " +
+      "payments crossed in the last moment, one from the customer's " +
+      "page or the farm's tender), or it was cancelled while the money " +
+      "was being taken. The record is left as it was, so the " +
+      "squarePaymentId in the alert is money Square holds that no " +
+      "record answers for; status says which case.",
+    action: "Refund that payment in Square's dashboard (the alert names " +
+      "its id and amount), and tell the customer if it was their card. " +
+      "bin/nff orders show <id> shows what the record kept.",
+  },
   "client.payment_unavailable": {
     means: "A customer's order page could not offer any way to pay, so " +
       "it told them to email the order instead. The where field says " +

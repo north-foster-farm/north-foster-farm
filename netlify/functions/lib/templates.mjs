@@ -1259,6 +1259,9 @@ const onePayment = (p) => {
   if (WALLETS[p.method]) return `${total} by ${WALLETS[p.method]}`;
   if (p.last4) return `${total} by ${brand} ending ${p.last4}`;
   // Money the farm took in person (#181): "$55 by cash", "$55 by check".
+  // A tender Square holds whose kind the record never learned (a lost
+  // write found again) is "paid in person". Draft wording.
+  if (p.via === "external") return `${total} paid in person`;
   if (p.via && p.via !== "square") return `${total} by ${p.via}`;
 
   return `${total} by card`;

@@ -203,6 +203,8 @@ export const recordRefund = async (
         paypalRefundId: refund.paypalRefundId || null,
         status: refund.status || null,
         ...(refund.edit ? { edit: refund.edit } : {}),
+        // Handed back by the farm itself (#181): no processor to ask.
+        ...(refund.byHand ? { byHand: true } : {}),
       }],
     });
   }, "refund.recorded", now).catch(async (error) => {

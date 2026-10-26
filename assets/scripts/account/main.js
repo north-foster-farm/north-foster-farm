@@ -1002,8 +1002,8 @@ class Account {
       note.textContent = `${what} on ${
         placed(order.refunds.at(-1).at)}, back to the way you paid.`;
       note.hidden = false;
-    } else if (order.canPay) {
-      // Draft wording (#181).
+    } else if (order.status === "unpaid" && order.due > 0) {
+      // An order the farm made (#181). Draft wording.
       note.textContent = `Not paid yet: ${dollars(order.due)} due.`;
       note.hidden = false;
     } else if (order.status === "abandoned") {
@@ -1081,16 +1081,6 @@ class Account {
 
       items.href = `/order/?edit=${encodeURIComponent(order.id)}`;
       actions.appendChild(items);
-    }
-    if (order.canPay) {
-      // An order the farm made, not paid yet (#181): paid on the
-      // order page, which takes a card or a wallet. Draft wording.
-      const pay = el("a", "btn btn-sm btn-primary", "Pay now");
-
-      pay.href = `/order/?pay=${encodeURIComponent(order.id)}`;
-      pay.setAttribute("aria-label", `Pay ${dollars(order.due)} for ${
-        order.id}`);
-      actions.appendChild(pay);
     }
     if (order.canCancel) {
       button("Cancel order", "btn-outline-secondary",

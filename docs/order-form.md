@@ -1015,9 +1015,11 @@ says what it refunds; attempted; change `[--method] [--date] ...
 [--dry-run]`; refund
 `[--amount] [--reason]`; create, the farm's own order for a customer,
 unpaid or `--paid cash|venmo|check` for money already in hand, with
-`--dry-run`; pay `--cash|--venmo|--check [--amount] [--ref]`, a
-tender on an unpaid order (`lib/farm-orders.mjs`, #181); fulfill;
-delete), returns resolve, stock
+`--dry-run`; pay `--cash|--venmo|--check [--ref]`, the one tender
+that settles an unpaid order, in Square on the order's own Square
+order (`lib/farm-orders.mjs`, #181; money taken by hand is refunded
+by hand, and the site lets its customer neither cancel nor change
+such an order); fulfill; delete), returns resolve, stock
 (list, set), schedule (check, set), login and masquerade (a
 single-use sign-in link, opened for you), audience (invite, sync),
 jobs (run, history), health.

@@ -46,7 +46,7 @@ import {
 } from "./paypal.mjs";
 import { pdf, widthOf, wrap } from "./pdf.mjs";
 import {
-  allOrders, getOrder, paidTotal, paymentsOf, settledRefunds,
+  allOrders, dueOn, getOrder, paymentsOf, settledRefunds,
 } from "./records.mjs";
 import { resendAllowed } from "./resend-guard.mjs";
 import { mailLinks } from "./site.mjs";
@@ -89,9 +89,7 @@ const hash = (...values) => createHash("sha256")
 // the difference (its refund carries `edit`), so counting it again
 // would read as money kept back.
 export const paymentState = (order) => {
-  const due = order.status === "submitted"
-    ? order.totals.total
-    : Math.max(0, order.totals.total - paidTotal(order));
+  const due = dueOn(order);
   const refunded = settledRefunds(order).filter((r) => !r.edit)
     .reduce((s, r) => s + (r.amount || 0), 0);
 
