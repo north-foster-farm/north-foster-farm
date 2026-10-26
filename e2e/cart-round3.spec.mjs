@@ -314,6 +314,14 @@ test("empty, the pane shows the way and the code only", async ({ page }) => {
       && (await hide.getAttribute("aria-expanded")) !== "true") {
       await hide.click();
     }
+    // A panel that floats shut (md) opens on a tap of the count
+    // (cart-round4); the phone's pane and the xl column show the way
+    // already.
+    const way = order.cart.locator("[data-way-toggle]");
+
+    if (!(await way.isVisible())) {
+      await order.cart.locator("[data-cart-items-toggle]").click();
+    }
     await expect(order.subtotal, `${size.width}px`).toBeHidden();
     await expect(order.cart.locator(".order-badges")).toBeHidden();
     await expect(order.cart.locator("[data-way-toggle]")).toBeVisible();
