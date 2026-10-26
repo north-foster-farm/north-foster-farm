@@ -17,7 +17,7 @@ import {
 import { finishEmailChange } from "./lib/email-change.mjs";
 import { cartOwner } from "./lib/records.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
-import { json, readJson } from "./lib/http.mjs";
+import { json, noCopy, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
 import {
   MESSAGE, gate, isAdminAddress, readState,
@@ -39,11 +39,6 @@ const rateLimited = (ip, now) => {
 
   return recent.length > RATE.max;
 };
-
-// Netlify copies the request's query onto a function's redirect whose
-// Location has none, and on a link that is its token: the next page's
-// request line would carry it. An empty query stops the copy.
-const noCopy = (location) => location.replace(/^([^?#]*)(#|$)/, "$1?$2");
 
 // Headers as [name, value] pairs, so Set-Cookie can repeat.
 const redirect = (location, headers = []) => new Response(null, {

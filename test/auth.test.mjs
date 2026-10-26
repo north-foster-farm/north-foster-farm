@@ -169,6 +169,12 @@ describe("verifyToken", () => {
     assert.equal(safeNext("https://evil.example/"), "/account/");
     assert.equal(safeNext("//evil.example/"), "/account/");
     assert.equal(safeNext(""), "/account/");
+    // Browsers drop a tab or newline from a URL, so these would read
+    // as //evil.example.
+    assert.equal(safeNext("/\t/evil.example"), "/account/");
+    assert.equal(safeNext("/\n/evil.example"), "/account/");
+    assert.equal(safeNext("/\r/evil.example"), "/account/");
+    assert.equal(safeNext("/\u0000/evil.example"), "/account/");
   });
 });
 

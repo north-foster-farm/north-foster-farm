@@ -78,11 +78,17 @@ export const same = async (a, b) => {
   return diff === 0 && !!a && !!b;
 };
 
-// Only a same-site path may follow a sign-in.
+// Only a same-site path may follow a sign-in. A control character is
+// out too: browsers drop a tab or newline from a URL, so
+// "/\t/evil.example" would resolve to "//evil.example".
 export const safeNext = (next) => {
   const s = String(next || "");
 
+  // eslint-disable-next-line no-control-regex
+  const control = /[\x00-\x1f]/.test(s);
+
   return s.startsWith("/") && !s.startsWith("//") && !s.includes("\\")
+    && !control
     && !s.startsWith("/api/gate/") ? s : "/";
 };
 

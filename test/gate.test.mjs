@@ -297,7 +297,8 @@ describe("asking for a link", () => {
     let n = 0;
 
     for (const next of ["https://evil.example/", "//evil.example",
-      "/\\evil", "/api/gate/signin"]) {
+      "/\\evil", "/api/gate/signin", "/\t/evil.example",
+      "/\n/evil.example", "/\r/evil.example"]) {
       n += 1;
 
       const { token } = await requestLink(store,
@@ -417,7 +418,8 @@ describe("the gate's function", () => {
     });
 
     assert.equal(res.status, 302);
-    assert.equal(res.headers.get("location"), "/order/");
+    // The empty query keeps Netlify from copying the token onto it.
+    assert.equal(res.headers.get("location"), "/order/?");
 
     const cookie = res.headers.get("set-cookie");
 

@@ -1,5 +1,12 @@
 // Small helpers shared by the functions.
 
+// Netlify copies the request's query onto a function's redirect whose
+// Location has none, and on a sign-in link that is its token: the next
+// page's request line would carry it. An empty query stops the copy.
+export const noCopy = (location) => location.replace(
+  /^([^?#]*)(#|$)/, "$1?$2"
+);
+
 export const json = (status, body, headers = {}) =>
   new Response(JSON.stringify(body), {
     status,

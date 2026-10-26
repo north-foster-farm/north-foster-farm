@@ -23,7 +23,7 @@ import { sendLink } from "./lib/gate-mail.mjs";
 import {
   checkEmailPage, invalidLinkPage, signInPage,
 } from "./lib/gate-page.mjs";
-import { json } from "./lib/http.mjs";
+import { json, noCopy } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 
@@ -40,7 +40,8 @@ const html = (status, body, headers = []) => new Response(body, {
 const redirect = (location, headers = []) => new Response(null, {
   status: 302,
   headers: [
-    ["Location", location], ["Cache-Control", "no-store"], ...headers,
+    ["Location", noCopy(location)], ["Cache-Control", "no-store"],
+    ...headers,
   ],
 });
 
