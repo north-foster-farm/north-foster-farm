@@ -1,0 +1,1247 @@
+// The order page's cart (#477, docs/cart.md). Written against
+// Bootstrap's CSS variables only, as _order.scss is: no @extend, no
+// mixins, no colour functions.
+
+// One tree, flat (layouts/partials/order/cart.html): the slot, the
+// pane, its body (every part that gives way) and its foot (what never
+// does). The pane's state is four attributes cart/state.mjs decides
+// and cart/cart.js writes: data-placement (column, inline, floating),
+// data-fold (open, closed), data-empty and data-share (way, code or
+// none). Everything each state shows is decided here, by width.
+
+// No height is measured by script and written back. The browser lays
+// the pane out from these rules alone: the room comes from three raw
+// inputs cart/view.mjs relays from the visual viewport (--cart-vis,
+// --cart-gap, --cart-kb) and the top bar's foot (--cart-bar, from the
+// bar's resting place and scrollY, never a rect); the order in which
+// the parts give way is flex: the lines shrink first, down to three
+// rows, and scroll on their own; when even that is too tall for the
+// room the body scrolls as a whole and the foot stays in reach. The
+// soft cap of about two thirds of the visible height is a rem
+// constant for the parts other than the lines (--cart-chrome), not a
+// sum of their measured heights: a line of badges more or less moves
+// the cap by that line, which is the error accepted for a layout that
+// cannot oscillate.
+
+@use "sass:math";
+
+.order {
+  // Three rows of lines at their size, and the list's own padding.
+  --cart-lines-min: calc(3 * #{$cart-font-size} * #{$cart-line-height} + 0.75rem);
+
+  // The sheet's parts other than the lines, at one line each: the
+  // sums, the total row, the badges, the way and the code, the foot
+  // and the nudge, the pane's padding and rules. Tuned against the
+  // built page at 390px; see docs/cart.md.
+  --cart-chrome: 19rem;
+
+  // The closed sheet: its padding, the total row, the foot and one
+  // nudge line. cart/view.mjs reads it for the lift-off threshold.
+  --cart-closed-h: 9.25rem;
+
+  // The share of the visible height the open sheet may take on a
+  // phone (James, #267 and #475).
+  --cart-share: 0.66;
+
+  // What the pane rests on: a margin, the browser toolbar's share of
+  // the layout viewport, the safe area, and the keyboard.
+  --cart-rest-margin: 0.5rem;
+  --cart-rest: max(env(safe-area-inset-bottom, 0px), var(--cart-gap, 0px));
+
+  // The heading stands in the flow where the pane settles, a
+  // category's distance below the catalog and a legend's above the
+  // pane. The header's total scrolls back to it, clear of the top bar.
+  h2.order-cart-heading {
+    margin: 2.75rem 0 1.5rem;
+    scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
+
+    &:focus {
+      outline: 0;
+    }
+  }
+
+  // The slot is the pane's place in the page. The pane sticks to the
+  // foot of the screen while the slot is below it and takes its place
+  // in the slot as the slot comes up: the browser's own sticky
+  // behaviour, with no decision of ours. What the script decides is
+  // only when the pane's chrome changes (data-placement), from the
+  // slot's top and a cached height, never from a frame's rect.
+  .order-cart-slot {
+    min-width: 0;
+  }
+
+  // The pane.
+
+  .order-cart {
+    container: cart / inline-size;
+    position: relative;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    padding: 0.75rem var(--order-gutter);
+    border: 1px solid var(--bs-border-color-translucent);
+    border-radius: var(--order-radius);
+    background-color: var(--bs-body-bg);
+    box-shadow:
+      var(--order-shadow),
+      0 0.75rem 2rem rgb(0 0 0 / 12%);
+
+    // Only the chrome eases between floating and settled: never a
+    // height, a width or a position.
+    transition:
+      padding var(--order-slow) var(--order-ease),
+      border-color var(--order-slow) ease,
+      box-shadow var(--order-slow) ease;
+
+    // Focused by the rail's Cart link (#337); the pane needs no ring
+    // for it.
+    &:focus {
+      outline: 0;
+    }
+
+    // The rail's Cart link rings the whole pane (#337): the pill's
+    // green ring, on a layer of its own so the pane keeps its shadow.
+    // cart/view.mjs ringCart sets the class and takes it off.
+    &::after {
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      box-shadow: $pill-ring;
+      opacity: 0;
+      pointer-events: none;
+      content: "";
+    }
+
+    &.is-ringed::after {
+      animation: order-cart-ring 800ms var(--order-ease) 2;
+    }
+
+    // Reduced motion: no pulse, a still ring for as long. More
+    // specific than the global rule, which would cut it to 1ms.
+    @media (prefers-reduced-motion: reduce) {
+      &.is-ringed::after {
+        animation: none !important;
+        opacity: 1;
+      }
+    }
+  }
+
+  // The body: the parts that give way, top to bottom as James set
+  // them (#203): the lines, the sums, the total row, the badges, the
+  // way and the code. It scrolls as a whole when the room is too
+  // short for its parts at their floors, and the foot under it never
+  // moves. A ring's width of room at the sides and the foot, so a
+  // control's ring is not cut by the scroller's edge.
+  .order-cart-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    margin: 0 -0.3rem;
+    padding: 0 0.3rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  // Every part but the lines keeps its height.
+  .order-cart-sums,
+  .order-cart-total-row,
+  .order-cart-badges,
+  .order-cart-share,
+  .order-cart-code-note {
+    flex: 0 0 auto;
+  }
+
+  // The lines give way first, down to three rows, and scroll on their
+  // own. Their cap is the soft two-thirds rule less the chrome; where
+  // the pane is settled or a column it is lifted below.
+  .order-cart-lines {
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
+    min-height: var(--cart-lines-min);
+    max-height: max(
+      var(--cart-lines-min),
+      calc(var(--cart-vis, 100svh) * var(--cart-share) - var(--cart-chrome))
+    );
+  }
+
+  // The scroller around the rows, which also carries the "more" pills
+  // and the fades at its edges.
+  .order-cart-scroll {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    margin: 0;
+
+    // As wide as the rows' outlines, which reach a little past the
+    // wrapper (#278).
+    &::before,
+    &::after {
+      content: "";
+      position: absolute;
+      right: -0.25rem;
+      left: -0.25rem;
+      z-index: 1;
+      height: 2.5rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--order-fast) ease;
+    }
+
+    // While the rows overflow, a strip under them is the pills' own:
+    // the rows end at the strip, so a pill never sits on a heading or
+    // a line.
+    &[data-scroll] {
+      padding-bottom: $cart-more-strip;
+
+      &::after {
+        bottom: $cart-more-strip;
+      }
+    }
+
+    &::before {
+      top: 0;
+      background: linear-gradient(var(--bs-body-bg), transparent);
+    }
+
+    &::after {
+      bottom: 0;
+      background: linear-gradient(transparent, var(--bs-body-bg));
+    }
+
+    &[data-top]::before,
+    &[data-more]::after {
+      opacity: 1;
+    }
+  }
+
+  // "3 more ↓", at the strip's right; a tap glides the list a screen.
+  .order-cart-more {
+    position: absolute;
+    right: 0;
+    bottom: 0.125rem;
+    z-index: 2;
+    padding: 0.2rem 0.625rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 999px;
+    background-color: var(--bs-body-bg);
+    box-shadow: var(--order-shadow);
+    font-size: 0.75rem;
+    font-weight: bold;
+    line-height: 1.2;
+    white-space: nowrap;
+    color: var(--bs-primary);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  // "2 more ↑", its twin at the strip's left once the list has
+  // scrolled.
+  .order-cart-more-top {
+    right: auto;
+    left: 0;
+  }
+
+  // The lines: what is in the cart, grouped under its category with
+  // the tiers indented beneath, then the sum. The rows stack from the
+  // top: where the list is taller than the room, the rows scroll.
+  .order-cart-items {
+    display: grid;
+    align-content: start;
+    gap: $cart-group-gap;
+    flex: 1 1 auto;
+    min-height: 0;
+
+    // A line's outline reaches into this padding, inside the clip.
+    margin: 0 -0.25rem;
+    padding: 0 0.25rem 0.75rem;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    font-size: $cart-font-size;
+  }
+
+  .order-cart-group-name {
+    display: block;
+    font-weight: bold;
+  }
+
+  .order-cart-group-items {
+    display: grid;
+    gap: $cart-line-gap;
+    margin: $cart-line-gap 0 0;
+    padding-left: $cart-indent;
+  }
+
+  .order-cart-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    column-gap: 0.75rem;
+    align-items: center;
+    margin-inline: -0.25rem;
+    padding-inline: 0.25rem;
+    border-radius: 0.25rem;
+    line-height: $cart-line-height;
+  }
+
+  // Takes every unit of the line out of the cart in one tap.
+  .order-cart-remove {
+    display: grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin: -0.125rem 0 -0.125rem -0.375rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    font-size: 1.25rem;
+    line-height: 1;
+    color: var(--bs-secondary-color);
+    transition:
+      background-color var(--order-hover) ease,
+      color var(--order-hover) ease;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--bs-danger);
+    }
+  }
+
+  .order-cart-item-name {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .order-cart-item-qty {
+    white-space: nowrap;
+    color: var(--bs-secondary-color);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .order-cart-item-sub {
+    min-width: 3.5rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  // The rules between the parts are the parts' own top borders:
+  // hairlines, and one darker over the badges.
+  .order-cart-sums,
+  .order-cart-total-row,
+  .order-cart-foot {
+    border-top: 1px solid var(--bs-border-color-translucent);
+  }
+
+  // The sums: subtotal, discount, fee; and, changing a paid order,
+  // paid, kept and due. One line each, whatever the width.
+  .order-cart-sums {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    row-gap: 0.375rem;
+    margin: 0;
+    padding: 0.5rem 0;
+    font-size: $cart-font-size;
+
+    .order-cart-row {
+      display: contents;
+    }
+
+    dt {
+      overflow: hidden;
+      font-weight: normal;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    dd {
+      margin: 0;
+      text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  // The joke: a credit that grows while the page is open and changes
+  // nothing, for the people who know the code.
+  .order-cart-joke dd {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .order-cart-credit {
+    dt,
+    dd {
+      color: var(--bs-success-text-emphasis);
+    }
+  }
+
+  .order-cart-free {
+    font-weight: bold;
+    color: var(--bs-success-text-emphasis);
+  }
+
+  // The total row: the count on the left, the total under the column
+  // of line prices. A readout at every width (#477): no track, no
+  // fill, no tap.
+  .order-cart-total-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+  }
+
+  // The count ticks as it goes up.
+  .order-cart-count {
+    display: inline-block;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+
+    &.is-ticked {
+      animation: order-tick 260ms var(--order-ease);
+    }
+  }
+
+  .order-cart-sum {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+
+  .order-cart-sum-label {
+    font-weight: bold;
+  }
+
+  .order-cart-total {
+    --order-flash: var(--bs-success-text-emphasis);
+    --order-flash-glow: none;
+
+    display: inline-block;
+    font-size: 1.375rem;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+
+    &.is-bumped {
+      animation: order-bump 260ms var(--order-ease);
+    }
+  }
+
+  // Badges: one tight line of small text, delimited by dots like the
+  // footer nav. Muted until earned; earned ones turn the primary green
+  // and italic. A tap explains one.
+  .order-cart-badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    margin: 0;
+    padding: 0.5rem 0;
+    border-top: 1px solid var(--bs-emphasis-color);
+    font-size: 0.8125rem;
+    font-weight: bold;
+    line-height: 1.4;
+    color: var(--bs-secondary-color);
+    container: badges / inline-size;
+
+    li {
+      display: inline-flex;
+      align-items: baseline;
+    }
+
+    &[hidden] {
+      display: none;
+    }
+
+    li + li::before {
+      content: "·";
+      padding: 0 0.325rem;
+      color: var(--bs-breadcrumb-divider-color);
+    }
+
+    // One line wherever it fits with room to spare: under 22rem the
+    // tiers start a line of their own (#274, round 4).
+    .order-badges-break {
+      display: none;
+    }
+
+    @container badges (width < 22rem) {
+      .order-badges-break {
+        display: block;
+        flex: 0 0 100%;
+        height: 0;
+      }
+
+      .order-badges-break::before,
+      .order-badges-break + li::before {
+        content: none;
+      }
+    }
+
+    // A phone's floating pane has about 254 to 324px for them: closer
+    // dots keep each line well inside it (#278, #274).
+    @media (max-width: 413.98px) {
+      li + li::before {
+        padding: 0 0.1875rem;
+      }
+    }
+
+    // At 320 the row has 254px; Linux rounds each letter to a whole
+    // pixel (#289), so the text steps down.
+    @media (max-width: 359.98px) {
+      font-size: 0.75rem;
+    }
+  }
+
+  .order-badge {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: inherit;
+    white-space: nowrap;
+    transition:
+      color var(--order-base) ease,
+      font-style var(--order-base) ease;
+
+    &:hover {
+      color: var(--bs-secondary-color);
+    }
+
+    &[data-on="true"] {
+      color: var(--bs-primary);
+      font-style: italic;
+    }
+  }
+
+  // The shared row (#203): the way and Add discount, half each. Either
+  // opens over the whole row: the way into a switch of the three, Add
+  // discount into the field and Apply. Which is open is the pane's
+  // data-share, so the row holds no state of its own.
+  .order-cart-share {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  // A label too long for its half of the row takes a second line, and
+  // the button beside it grows to match, never overflowing (#274,
+  // round 4 part 2: "On-farm pickup" at 320).
+  .order-cart-way,
+  .order-cart-add-code {
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 2.25rem;
+    padding-block: 0.25rem;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  // One height for what the shared row opens into, so opening the
+  // field or the switch moves nothing where the labels fit one line.
+  .order-cart-pick,
+  .order-cart-code-input,
+  .order-cart-apply {
+    box-sizing: border-box;
+    height: 2.25rem;
+    min-height: 0;
+    padding-block: 0;
+    line-height: 1;
+  }
+
+  .order-cart-way,
+  .order-cart-add-code,
+  .order-cart-pick,
+  .order-cart-apply {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .order-cart-way {
+    gap: 0.375rem;
+  }
+
+  // The three ways, as one switch; the one the page holds is filled.
+  .order-cart-pick {
+    flex: 1 1 auto;
+    padding-inline: 0.5rem;
+    white-space: nowrap;
+  }
+
+  // The discount code: a small field and its button on one line, a
+  // note under the row.
+  .order-cart-code {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    margin: 0;
+  }
+
+  // Shut, the row shows its two buttons; open, one side takes the
+  // whole row.
+  .order-cart-ways,
+  .order-cart-code {
+    display: none;
+    grid-column: 1 / -1;
+    animation: order-share-in var(--order-fast) var(--order-ease);
+  }
+
+  .order-cart[data-share="way"],
+  .order-cart[data-share="code"] {
+    .order-cart-way,
+    .order-cart-add-code {
+      display: none;
+    }
+  }
+
+  .order-cart[data-share="way"] .order-cart-ways {
+    display: flex;
+  }
+
+  .order-cart[data-share="code"] .order-cart-code {
+    display: grid;
+  }
+
+  .order-cart-code-input {
+    text-transform: uppercase;
+
+    &::placeholder {
+      text-transform: none;
+    }
+  }
+
+  .order-cart-code-note {
+    margin: 0 0 0.5rem;
+    text-align: center;
+    font-size: 0.8125rem;
+    color: var(--bs-secondary-color);
+    transition: opacity 0.6s ease;
+
+    &.is-fading {
+      opacity: 0;
+    }
+
+    &[data-tone="good"] {
+      color: var(--bs-success-text-emphasis);
+    }
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  // The body is a scroller, and a control often sits flush on one of
+  // its edges: a ring drawn outside the field or a button would be
+  // cut there (#448), so inside the body every ring is drawn inside,
+  // the same width and colour, and nothing moves.
+  .order-cart-body .order-cart-code-input:focus {
+    box-shadow: inset 0 0 $input-btn-focus-blur $input-btn-focus-width
+      $input-btn-focus-color;
+  }
+
+  .order-cart-body .btn {
+    --bs-btn-focus-box-shadow: inset 0 0 0 #{$btn-focus-width}
+      rgba(var(--bs-btn-focus-shadow-rgb), 0.5);
+  }
+
+  .order-cart-body .order-badge:focus-visible {
+    outline-offset: -1px;
+  }
+
+  // The foot never gives way: Expand or Hide on the left, Proceed to
+  // checkout at the right, the nudge under them. The button fills the
+  // room beside the pill until that would make it wider than about
+  // 370px; from there it is as wide as its words. However narrow,
+  // the two keep one row (#274, round 4 part 2).
+  .order-cart-foot {
+    container: cart-end / inline-size;
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0 0.75rem;
+    padding-top: 0.75rem;
+  }
+
+  .order-cart-next {
+    display: inline-flex;
+    flex: 1 1 0;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    margin-left: auto;
+    text-align: center;
+  }
+
+  @container cart-end (min-width: 30rem) {
+    .order-cart-next {
+      flex: 0 0 auto;
+    }
+  }
+
+  .order-cart-nudge {
+    flex: 1 0 100%;
+    margin: 0.5rem 0 0;
+    font-size: 0.8125rem;
+    text-align: right;
+    color: var(--bs-secondary-color);
+
+    // Short of the delivery minimum: body black, bold (O1b).
+    &[data-tone="warn"] {
+      font-weight: bold;
+      color: var(--bs-body-color);
+    }
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  // The fold control: a pale pill, James's chevrons that say what a
+  // press does, then the word. Settled, and in the column, the pane
+  // is always open, so the pill is gone and its room goes to the
+  // button.
+  .order-cart-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    flex: none;
+    min-width: 6.25rem;
+    max-width: 10rem;
+    min-height: 2.25rem;
+    padding: 0 0.875rem;
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color-translucent);
+    border-radius: 999px;
+    background-color: $pill-bg;
+    font-size: 0.875rem;
+    font-weight: bold;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--bs-body-color);
+    transition: background-color var(--order-hover) ease;
+
+    &:hover {
+      background-color: var(--bs-tertiary-bg);
+    }
+  }
+
+  // Once the pane has shut itself, or on a later Add, the pill pulses
+  // to say where the cart went: three pairs the first time (#278),
+  // once after (cart/view.mjs pulsePill times them).
+  .order-cart-toggle[data-pulse="once"] {
+    animation: order-pill 520ms var(--order-ease);
+  }
+
+  .order-cart-toggle[data-pulse="teach"] {
+    animation: order-pill-teach 4400ms linear;
+  }
+
+  // Reduced motion: no pulse, a still emphasis for a moment. More
+  // specific than the global rule, which would cut it to 1ms.
+  @media (prefers-reduced-motion: reduce) {
+    .order-cart-toggle[data-pulse] {
+      animation: none !important;
+      background-color: var(--bs-primary-bg-subtle);
+      box-shadow: $pill-ring;
+    }
+  }
+
+  .order-cart-icon {
+    display: inline-flex;
+    flex: none;
+
+    svg {
+      width: 1rem;
+      height: 1rem;
+    }
+  }
+
+  // The chevron points down when folded and up when open.
+  [aria-expanded="true"] > .order-cart-icon {
+    rotate: 180deg;
+  }
+
+  // The strip's word for an Add while the pane is closed (#267): it
+  // slides open under the foot, stays a moment and folds away. With
+  // reduced motion the global rule makes it a swap.
+  .order-cart-added {
+    display: grid;
+    flex: 0 0 auto;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows var(--order-base) var(--order-ease);
+
+    &[data-show] {
+      grid-template-rows: 1fr;
+    }
+  }
+
+  .order-cart-added-text {
+    min-height: 0;
+    margin: 0;
+    overflow: hidden;
+    font-size: 0.8125rem;
+    font-weight: bold;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--bs-primary);
+  }
+
+  .order-cart-added[data-show] .order-cart-added-text {
+    padding-top: 0.375rem;
+  }
+
+  // Empty, there are no lines and nothing to sum: the pane shows the
+  // way and the code alone (#274).
+  .order-cart[data-empty] {
+    .order-cart-lines,
+    .order-cart-sums:not(.order-cart-edit),
+    .order-cart-badges {
+      display: none;
+    }
+
+    .order-cart-total-row {
+      border-top: 0;
+      padding-top: 0;
+    }
+  }
+
+  // Floating: the pane sticks to the foot of the screen while its slot
+  // is below, on the page's gutters, over the page. It rests a margin
+  // above the browser's toolbar and never behind it (James, #267),
+  // and rides up by the keyboard's height while the code field is
+  // open. Its room ends at the top bar's foot, which stays over it.
+  .order-cart[data-placement="floating"] {
+    --cart-foot-room: calc(var(--cart-rest-margin) + var(--cart-rest) + 0.5rem);
+    --cart-room-top: calc(var(--cart-vis, 100svh) - var(--cart-bar, 0px));
+
+    position: sticky;
+    bottom: calc(var(--cart-rest-margin) + var(--cart-rest) + var(--cart-kb, 0px));
+    max-height: calc(var(--cart-room-top) - var(--cart-foot-room));
+  }
+
+  // Closed, a phone's sheet keeps the total row and the foot: the body
+  // loses every other part, and the total row is the body's first
+  // thing, so it needs no rule above it.
+  .order-cart[data-placement="floating"][data-fold="closed"] {
+    .order-cart-body > :not(.order-cart-total-row) {
+      display: none;
+    }
+
+    .order-cart-total-row {
+      border-top: 0;
+      padding-top: 0;
+    }
+  }
+
+  // Settled into the flow: flat, text on the page's own edges (#203 O2),
+  // nothing capped, every line showing, no inner scroll and no pill.
+  // The border's pixel is taken back by the margin.
+  .order-cart[data-placement="inline"] {
+    position: relative;
+    max-height: none;
+    margin-inline: -1px;
+    padding: 0;
+    border-color: transparent;
+    box-shadow: 0 0 0 rgb(0 0 0 / 0%);
+
+    .order-cart-body {
+      overflow: visible;
+    }
+
+    .order-cart-lines {
+      max-height: none;
+    }
+
+    .order-cart-toggle {
+      display: none;
+    }
+
+    // Continue is as wide as its words, like any other button (#274).
+    .order-cart-next {
+      flex: 0 0 auto;
+    }
+  }
+
+  // The column (xl): beside the catalog, stuck to the top for the
+  // length of the page, never settling and never folding. The lines
+  // scroll inside; the heading and the pill are gone.
+  .order-cart[data-placement="column"] {
+    position: sticky;
+    top: 1rem;
+    bottom: auto;
+    max-height: calc(100svh - 2rem);
+    box-shadow: var(--order-shadow);
+
+    .order-cart-lines {
+      max-height: none;
+    }
+
+    .order-cart-toggle {
+      display: none;
+    }
+
+    // As wide as its words, at the right (#274, round 5).
+    .order-cart-next {
+      flex: 0 0 auto;
+      margin-left: auto;
+    }
+  }
+
+  @media (min-width: 1200px) {
+    h2.order-cart-heading {
+      display: none;
+    }
+  }
+
+  // A phone turned sideways has the height for little else than the
+  // lines, the total and Continue: some of the room around the parts
+  // goes. The pane never floats there (cart/state.mjs: short is
+  // inline), so these only tighten the settled pane.
+  @media #{$cart-short} {
+    .order-cart {
+      padding-block: 0.5rem;
+    }
+
+    .order-cart-sums,
+    .order-cart-total-row,
+    .order-cart-badges {
+      padding-block: 0.25rem;
+    }
+
+    // One row for the foot: the nudge at the left, then the button at
+    // the right (#278).
+    .order-cart-foot {
+      flex-wrap: nowrap;
+    }
+
+    .order-cart-nudge {
+      flex: 1 1 auto;
+      order: -1;
+      min-width: 0;
+      margin: 0;
+      text-align: left;
+    }
+
+    .order-cart-next {
+      flex: 0 0 auto;
+      margin-left: 0;
+    }
+  }
+
+  // From 576 to xl, floating, the pane is James's panel (#274, round
+  // 6) at the foot of the content column: closed, the right column
+  // alone (the total row, the badges, the way and the code, the foot),
+  // half the column wide; open, it widens leftward to the column's
+  // full width and the lines take the left column behind a rule, the
+  // pane's whole height. The right column does not move. The parts
+  // sit in the pane's own grid; the body is no scroller here, since a
+  // tablet has the height, and the lines scroll in their column. The
+  // closed height is the right column's.
+  @media #{$cart-split} {
+    .order-cart {
+      --cart-closed-h: 15rem;
+      --panel-w: min(100cqw, max(50cqw, 22rem));
+    }
+
+    .order-form {
+      container: form / inline-size;
+    }
+
+    .order-cart[data-placement="floating"] {
+      display: grid;
+      grid-template-columns:
+        minmax(0, 1fr)
+        calc(var(--panel-w) - 2 * var(--order-gutter) - 2px);
+      column-gap: 1.5rem;
+      width: 100%;
+      max-height: none;
+      margin-left: 0;
+      border-top: 3px solid var(--bs-primary);
+      transition:
+        width var(--order-slow) var(--order-ease),
+        margin var(--order-slow) var(--order-ease),
+        column-gap var(--order-slow) var(--order-ease),
+        border-color var(--order-slow) ease,
+        box-shadow var(--order-slow) ease;
+
+      .order-cart-body {
+        display: contents;
+      }
+
+      .order-cart-sums,
+      .order-cart-total-row,
+      .order-cart-badges,
+      .order-cart-share,
+      .order-cart-code-note,
+      .order-cart-foot,
+      .order-cart-added {
+        grid-column: 2;
+      }
+
+      // The lines run the pane's whole height, the foot's rows too,
+      // and add nothing to it: the right column sets the height.
+      .order-cart-lines {
+        grid-column: 1;
+        grid-row: 1 / span 12;
+        max-height: none;
+        padding-right: 1.5rem;
+        border-right: 1px solid var(--bs-border-color-translucent);
+        contain: size;
+      }
+
+      // Where the column leaves the lines too little room for four
+      // parts on a row, the name has the row to itself.
+      @container form (max-width: 44rem) {
+        .order-cart-item {
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          row-gap: 0;
+        }
+
+        .order-cart-remove {
+          grid-row: 1 / span 2;
+        }
+
+        .order-cart-item-name {
+          grid-column: 2 / -1;
+        }
+
+        .order-cart-item-qty {
+          grid-column: 2;
+          font-size: 0.8125rem;
+        }
+
+        .order-cart-item-sub {
+          grid-column: 3;
+          min-width: 0;
+        }
+      }
+
+      // Expand points left at the lines it brings, Hide right at them
+      // going.
+      .order-cart-toggle .order-cart-icon {
+        rotate: 90deg;
+      }
+
+      .order-cart-toggle[aria-expanded="true"] > .order-cart-icon {
+        rotate: -90deg;
+      }
+    }
+
+    // Closed: the right column alone, at the column's right.
+    .order-cart[data-placement="floating"][data-fold="closed"] {
+      grid-template-columns: calc(var(--panel-w) - 2 * var(--order-gutter) - 2px);
+      column-gap: 0;
+      width: var(--panel-w);
+      margin-left: calc(100% - var(--panel-w));
+
+      .order-cart-body > :not(.order-cart-total-row),
+      .order-cart-foot,
+      .order-cart-added {
+        display: revert;
+      }
+
+      .order-cart-lines {
+        display: none;
+      }
+
+      .order-cart-total-row {
+        border-top: 0;
+        padding-top: 0;
+      }
+
+      .order-cart-sums,
+      .order-cart-total-row,
+      .order-cart-badges,
+      .order-cart-share,
+      .order-cart-code-note,
+      .order-cart-foot,
+      .order-cart-added {
+        grid-column: 1;
+      }
+    }
+
+    // Empty, with nothing in the left column, the pane keeps the
+    // right column's width whatever its fold.
+    .order-cart[data-placement="floating"][data-empty] {
+      grid-template-columns: calc(var(--panel-w) - 2 * var(--order-gutter) - 2px);
+      column-gap: 0;
+      width: var(--panel-w);
+      margin-left: calc(100% - var(--panel-w));
+
+      .order-cart-sums,
+      .order-cart-total-row,
+      .order-cart-badges,
+      .order-cart-share,
+      .order-cart-code-note,
+      .order-cart-foot,
+      .order-cart-added {
+        grid-column: 1;
+      }
+    }
+
+    // Settled, the same two columns at the page's own width, every
+    // line showing.
+    .order-cart[data-placement="inline"]:not([data-empty]) {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      column-gap: 1.5rem;
+
+      .order-cart-body {
+        display: contents;
+      }
+
+      .order-cart-sums,
+      .order-cart-total-row,
+      .order-cart-badges,
+      .order-cart-share,
+      .order-cart-code-note {
+        grid-column: 2;
+      }
+
+      .order-cart-foot,
+      .order-cart-added {
+        grid-column: 1 / -1;
+      }
+
+      .order-cart-lines {
+        grid-column: 1;
+        grid-row: 1 / span 8;
+        padding-right: 1.5rem;
+        border-right: 1px solid var(--bs-border-color-translucent);
+      }
+    }
+
+    // The totals live on the right, so the nudge reads from there.
+    .order-cart-nudge {
+      text-align: right;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .order-cart {
+        transition: none !important;
+      }
+    }
+  }
+
+  // Below xl the pane floats on the page's gutters, as wide as it is
+  // settled, with a shadow off its back edge.
+  @media (max-width: 1199.98px) {
+    .order-cart[data-placement="floating"] {
+      box-shadow:
+        var(--order-shadow),
+        -1rem 0.25rem 1rem rgb(0 0 0 / 12%);
+    }
+  }
+
+  // Phones and tablets: the pane is a distinct floating panel with an
+  // accent along its top, and the heading has more room above it.
+  @media (max-width: 991.98px) {
+    .order-cart[data-placement="floating"] {
+      border-color: var(--bs-border-color);
+      border-top: 3px solid var(--bs-primary);
+    }
+
+    h2.order-cart-heading {
+      margin-top: 3rem;
+    }
+  }
+}
+
+// The shared row's open part slides in from its button's side.
+@keyframes order-share-in {
+  from {
+    opacity: 0;
+    transform: translateX(-0.5rem);
+  }
+}
+
+@keyframes order-tick {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+
+  35% {
+    transform: translateY(-3px) scale(1.14);
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes order-pill {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    transform: scale(1);
+  }
+
+  40% {
+    box-shadow:
+      0 0 0 0.3rem color-mix(in srgb, var(--bs-primary) 30%, transparent);
+    transform: scale(1.1);
+  }
+}
+
+// The cart's ring: in, held a moment, out.
+@keyframes order-cart-ring {
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  35%,
+  60% {
+    opacity: 1;
+  }
+}
+
+// The first Add's lesson (#278): two pulses 400ms apart, a second's
+// rest, two more, a rest, the last two. Each pulse peaks 160ms in.
+$teach-ms: 4400;
+$teach-starts: 0, 400, 1800, 2200, 3600, 4000;
+
+@keyframes order-pill-teach {
+  @each $start in $teach-starts {
+    #{math.percentage(math.div($start, $teach-ms))},
+    #{math.percentage(math.div($start + 400, $teach-ms))} {
+      box-shadow: 0 0 0 0 transparent;
+      background-color: $pill-bg;
+      transform: scale(1);
+    }
+
+    #{math.percentage(math.div($start + 160, $teach-ms))} {
+      box-shadow: $pill-ring;
+      background-color: var(--bs-primary-bg-subtle);
+      transform: scale(1.16);
+    }
+  }
+}
+
+// The total's flash on a change: the success green on white.
+@keyframes order-bump {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  40% {
+    transform: scale(1.07);
+    color: var(--order-flash);
+    text-shadow: var(--order-flash-glow);
+  }
+}

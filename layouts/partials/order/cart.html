@@ -8,109 +8,90 @@
   (dict "value" "scheduled" "name" "Pickup days")
   (dict "value" "delivery" "name" "Delivery")
 }}
-{{/* The heading sits in the flow where the pane settles, so it
-     appears as the pane arrives; at xl the pane is a column with no
-     heading. The header's total scrolls back to it. */}}
+{{/* The cart (#477, docs/cart.md). One tree, flat: the heading in the
+     flow, then the slot, which keeps the pane's place and height in
+     the page while the pane floats; then the pane. The pane's state is
+     four attributes the Cart class writes from cart/state.mjs and
+     nothing else: data-placement (column, inline, floating),
+     data-fold (open, closed), data-empty, data-share (way, code or
+     none). What each state shows is the stylesheet's (_cart.scss).
+
+     Inside: the body, which holds every part that gives way and
+     scrolls as a whole when the room is short; then the foot, which
+     never gives way. The lines come first and give way first, down to
+     three rows, scrolling on their own. No wrapper folds anything: a
+     closed pane hides the body. */}}
 <h2 class="order-cart-heading h2" id="order-cart-heading" tabindex="-1">Cart</h2>
-{{/* One column, top to bottom: the lines, a rule, the sums, a rule,
-     the total row, a darker rule, the badges, the way and the code, a
-     rule, and the foot: the fold toggle, the way on, the nudge. The
-     two parts either side of the total row fold away together; the
-     total row and the foot are what stay. Below xl the total row's
-     count folds the lines, and its total unfolds the sums above it
-     (#203). From md to xl the lines take the left column, the sums to
-     the code the right, and the foot runs across both (order-form.js
-     and _order.scss). */}}
-<aside class="order-cart" id="order-cart" aria-labelledby="order-cart-heading" tabindex="-1" data-open="true" data-items="open" data-money="closed">
-  <div class="order-cart-fold" id="order-cart-body">
-    <div class="order-cart-inner">
-      <div class="order-cart-list" id="order-cart-list">
-        <div class="order-cart-scroll">
-          {{/* Both "more" pills come before the rows, though the
-               down one shows under them: Tab meets it while there is
-               more below. After the rows, Tab reached it only once
-               the rows had scrolled to their end and hidden it
-               (#288). */}}
+<div class="order-cart-slot" data-cart-slot>
+  <aside class="order-cart" id="order-cart" aria-labelledby="order-cart-heading" tabindex="-1" data-placement="floating" data-fold="open" data-empty>
+    <div class="order-cart-body" id="order-cart-body" data-cart-body>
+      {{/* The lines, grouped under their category (cart.js renders
+           them into the list). Both "more" pills come before the rows,
+           though the down one shows under them: Tab meets it while
+           there is more below (#288). */}}
+      <section class="order-cart-lines" data-part="lines" aria-label="Items">
+        <div class="order-cart-scroll" data-cart-scroll>
           <button type="button" class="order-cart-more order-cart-more-top" data-cart-more-top hidden></button>
           <button type="button" class="order-cart-more" data-cart-more hidden></button>
           <ul class="order-cart-items list-unstyled" data-cart-items></ul>
         </div>
-        <hr class="order-cart-rule order-cart-rule-items">
-      </div>
-      <div class="order-cart-money" id="order-cart-money">
-        <div class="order-cart-money-inner">
-          <dl class="order-cart-lines">
-            <div class="order-cart-row">
-              <dt>Subtotal</dt>
-              <dd data-total="subtotal">$0</dd>
-            </div>
-            <div class="order-cart-row order-cart-credit" data-total-row="discount" hidden>
-              <dt data-total="discount-label">Bulk discount</dt>
-              <dd data-total="discount">&minus;$0</dd>
-            </div>
-            <div class="order-cart-row" data-total-row="fee" hidden>
-              <dt>Delivery fee</dt>
-              <dd data-total="fee">+$0</dd>
-            </div>
-          </dl>
-          <hr class="order-cart-rule">
+        {{/* A group with its heading, and one line in it, which cart.js
+             copies for each; here, not in the script, so the build
+             keeps their classes. */}}
+        <template data-cart-group>
+          <li class="order-cart-group"><span class="order-cart-group-name" data-group-name></span><ul class="order-cart-group-items list-unstyled" data-group-items></ul></li>
+        </template>
+        <template data-cart-line>
+          <li class="order-cart-item"><button type="button" class="order-cart-remove" data-remove>×</button><span class="order-cart-item-name" data-line-name></span><span class="order-cart-item-qty" data-line-qty></span><span class="order-cart-item-sub" data-line-sub></span></li>
+        </template>
+      </section>
+      <dl class="order-cart-sums" data-part="sums">
+        <div class="order-cart-row">
+          <dt>Subtotal</dt>
+          <dd data-total="subtotal">$0</dd>
         </div>
+        <div class="order-cart-row order-cart-credit" data-total-row="discount" hidden>
+          <dt data-total="discount-label">Bulk discount</dt>
+          <dd data-total="discount">&minus;$0</dd>
+        </div>
+        <div class="order-cart-row" data-total-row="fee" hidden>
+          <dt>Delivery fee</dt>
+          <dd data-total="fee">+$0</dd>
+        </div>
+      </dl>
+      {{/* The count on the left, the total under the column of line
+           prices: a readout at every width (#477; the tabs, the
+           disclosures and the readout it was by width are gone). */}}
+      <div class="order-cart-total-row" data-part="total">
+        <span class="order-cart-count" data-cart-count>0 items</span>
+        <span class="order-cart-sum">
+          <span class="order-cart-sum-label">Total</span>
+          <span class="order-cart-total" data-total="total">$0</span>
+        </span>
       </div>
-    </div>
-  </div>
-
-  {{/* The count on the left, the total under the column of line
-       prices: one segmented control (#267). On a phone it is a pair of
-       tabs, and the fill slides to the one that shows its view above;
-       from md the two fold their parts independently, so they read as
-       buttons (order-form.js syncSeg). */}}
-  <div class="order-cart-total-row">
-    <div class="order-cart-seg" data-cart-seg>
-      <span class="order-cart-seg-fill" aria-hidden="true"></span>
-      <button type="button" class="order-cart-disclose order-cart-count" id="order-cart-tab-items" aria-expanded="true" aria-controls="order-cart-list" data-cart-items-toggle>
-        <span data-cart-count>0 items</span>
-      </button>
-      <button type="button" class="order-cart-disclose order-cart-sum" id="order-cart-tab-money" aria-expanded="false" aria-controls="order-cart-money" data-cart-money-toggle>
-        <span class="order-cart-sum-label">Total</span>
-        <span class="order-cart-total" data-total="total">$0</span>
-      </button>
-    </div>
-  </div>
-  {{/* The feedback for an Add (#267): the bar says what was added for a
-       moment while the pane is shut; the live region says it to a
-       screen reader on every Add. */}}
-  <div class="order-cart-added" data-cart-added-box>
-    <p class="order-cart-added-text" data-cart-added aria-hidden="true"></p>
-  </div>
-  <p class="visually-hidden" role="status" aria-live="polite" data-cart-live></p>
-  {{/* Changing a paid order: what is paid, and the difference to pay
-       or to get back. */}}
-  <dl class="order-cart-lines" data-edit-money hidden>
-    <div class="order-cart-row">
-      <dt>Paid</dt>
-      <dd data-total="paid">$0</dd>
-    </div>
-    {{/* A fee a missed delivery kept (#193). Draft wording. */}}
-    <div class="order-cart-row" data-edit-kept hidden>
-      <dt data-total="kept-label">Delivery fee for the trip</dt>
-      <dd data-total="kept">$0</dd>
-    </div>
-    <div class="order-cart-row">
-      <dt data-total="due-label">To pay</dt>
-      <dd data-total="due">$0</dd>
-    </div>
-  </dl>
-
-  <div class="order-cart-fold order-cart-after">
-    <div class="order-cart-inner">
-      <hr class="order-cart-rule order-cart-rule-dark">
+      {{/* Changing a paid order: what is paid, and the difference to
+           pay or to get back. */}}
+      <dl class="order-cart-sums order-cart-edit" data-part="edit" data-edit-money hidden>
+        <div class="order-cart-row">
+          <dt>Paid</dt>
+          <dd data-total="paid">$0</dd>
+        </div>
+        {{/* A fee a missed delivery kept (#193). Draft wording. */}}
+        <div class="order-cart-row" data-edit-kept hidden>
+          <dt data-total="kept-label">Delivery fee for the trip</dt>
+          <dd data-total="kept">$0</dd>
+        </div>
+        <div class="order-cart-row">
+          <dt data-total="due-label">To pay</dt>
+          <dd data-total="due">$0</dd>
+        </div>
+      </dl>
       {{/* Badges on one dotted line, whatever the way (#278):
            "Delivery" at the delivery minimum and "Free delivery" at
-           the threshold, two badges each lit on its own (#274, round
-           4: one "Free Delivery" read as earned at the minimum), then
-           the bulk tiers. Where one line has no room, the tiers break
-           onto a second (_order.scss). */}}
-      <ul class="order-badges list-unstyled" aria-label="What this order qualifies for">
+           the threshold, each lit on its own (#274, round 4), then the
+           bulk tiers. Where one line has no room, the tiers break onto
+           a second (_cart.scss). */}}
+      <ul class="order-badges list-unstyled" data-part="badges" aria-label="What this order qualifies for">
         <li><button type="button" class="order-badge" data-badge="delivery" data-tip="{{ $deliveryTip }}">Delivery</button></li>
         <li><button type="button" class="order-badge" data-badge="free-delivery" data-tip="{{ $freeTip }}">Free delivery</button></li>
         <li class="order-badges-break" aria-hidden="true"></li>
@@ -121,8 +102,9 @@
       {{/* One row shared by the way and the discount code (#203): two
            buttons, half each. The way opens into a switch of the three
            over the whole row; Add discount opens the field and Apply
-           over it. A pick, or a tap away, folds either back. */}}
-      <div class="order-cart-share" data-share="">
+           over it. A pick, or a tap away, folds either back. Which
+           side is open is the pane's data-share. */}}
+      <div class="order-cart-share" data-part="share" data-cart-share>
         <button type="button" class="btn btn-sm btn-outline-primary order-cart-way" aria-expanded="false" aria-controls="order-cart-ways" data-way-toggle>
           <span data-way-name>{{ (index $ways 0).name }}</span>
           {{ partial "order/cart-chevrons.html" . }}
@@ -144,17 +126,24 @@
       </div>
       <p class="order-cart-code-note" id="order-code-note" data-code-note aria-live="polite" hidden></p>
     </div>
-  </div>
 
-  <hr class="order-cart-rule order-cart-rule-end">
-  {{/* The foot: Hide or Expand on the left (below xl, where the cart
-       floats and folds), the way on at the right, the nudge under it. */}}
-  <div class="order-cart-end">
-    <button class="order-cart-toggle" type="button" aria-expanded="true" aria-controls="order-cart-body" aria-label="Show or hide the cart details" data-cart-toggle>
-      {{ partial "order/cart-chevrons.html" . }}
-      <span class="order-cart-words"><span data-cart-word>Hide</span></span>
-    </button>
-    <button type="button" class="btn btn-primary order-cart-next" data-checkout disabled>Proceed to checkout</button>
-    <p class="order-cart-nudge" data-nudge aria-live="polite" hidden></p>
-  </div>
-</aside>
+    {{/* The foot never gives way: Expand or Hide on the left (below
+         xl, where the pane floats and folds), Proceed to checkout at
+         the right, the nudge under them. */}}
+    <div class="order-cart-foot" data-part="foot">
+      <button class="order-cart-toggle" type="button" aria-expanded="true" aria-controls="order-cart-body" aria-label="Show or hide the cart details" data-cart-toggle>
+        {{ partial "order/cart-chevrons.html" . }}
+        <span class="order-cart-words"><span data-cart-word>Hide</span></span>
+      </button>
+      <button type="button" class="btn btn-primary order-cart-next" data-checkout disabled>Proceed to checkout</button>
+      <p class="order-cart-nudge" data-nudge aria-live="polite" hidden></p>
+    </div>
+    {{/* The feedback for an Add (#267): the strip says what was added
+         for a moment while the pane is closed; the live region says it
+         to a screen reader on every Add. */}}
+    <div class="order-cart-added" data-cart-added-box>
+      <p class="order-cart-added-text" data-cart-added aria-hidden="true"></p>
+    </div>
+    <p class="visually-hidden" role="status" aria-live="polite" data-cart-live></p>
+  </aside>
+</div>
