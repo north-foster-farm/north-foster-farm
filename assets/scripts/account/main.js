@@ -989,7 +989,8 @@ class Account {
         "time with Change pickup, or cancel the order.";
       pickup.hidden = false;
     }
-    // A delivery we couldn't leave (#193). Draft wording.
+    // A delivery we couldn't leave (#193). James approved the words as
+    // they stand on 2026-10-26 (#304).
     if (q && !q.answeredAt && q.kind === "missed") {
       const back = total(order.payments) - total(order.refunds)
         - order.keptFee;
@@ -1313,7 +1314,8 @@ class Account {
     const node = clone("tpl-cancel");
     const form = qs(node, "form");
 
-    // After a missed delivery the fee stays (#193). Draft wording.
+    // After a missed delivery the fee stays (#193). James approved the
+    // words as they stand on 2026-10-26 (#304).
     const fee = order.keptFee
       ? `The delivery fee of ${dollars(order.keptFee)} isn't refunded ` +
         "because we made the trip. "

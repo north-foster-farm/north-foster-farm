@@ -588,10 +588,10 @@ const dayAfter = (iso, days) => label(addDays(iso, days)).replace(/^\w+, /, "");
 // days for them to choose (C8). The fee the attempt kept decides the
 // wording: kept, the customer is warned before choosing that it stays
 // whatever they choose; waived, everything comes back (James, C3). A
-// farm or weather miss gets movedDelivery instead (C7). Policy-pages'
-// drafts of 2026-09-28, to approve. The hold runs to the order's
-// `question.until`; an email sent after the day of the miss (a resend,
-// a late mark) names that day instead of "today" (draft).
+// farm or weather miss gets movedDelivery instead (C7). James approved
+// the words as they stand on 2026-10-26 (#304). The hold runs to the
+// order's `question.until`; an email sent after the day of the miss (a
+// resend, a late mark) names that day instead of "today".
 
 // What we saw, not what the customer did (C6a, James's drafts).
 const missedReason = (order) => {
@@ -644,7 +644,6 @@ export const missedDelivery = (order, {
         `Deliver it next ${DELIVERY_DAY}, ${next}, for another ` +
           "delivery fee " +
           `of ${dollars(fee)}`,
-        // Draft wording, for communications and James.
         "Have it ready for on-farm pickup or one of our pickup days, at " +
           "no charge",
         `Cancel it, and we'll refund ${items} for your items`,
@@ -677,8 +676,8 @@ export const missedDelivery = (order, {
 // have moved it to the next delivery day; they may pick otherwise.
 // `order` is the moved record, and `attempted.date` the day we missed;
 // a holiday a week on puts the new day further out, and the email
-// names it without "next". Policy-pages' draft of 2026-09-28, to
-// approve; `orders attempted` sends it.
+// names it without "next". James approved the words as they stand on
+// 2026-10-26 (#304); `orders attempted` sends it.
 export const movedDelivery = (order, {
   pickUrl, links, now = new Date(),
 } = {}) => {
