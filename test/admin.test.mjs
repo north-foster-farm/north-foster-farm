@@ -12,6 +12,7 @@ import {
 import { requestReturn } from "../netlify/functions/lib/account.mjs";
 import {
   getCustomer, getOrder, keptFee, openOrders, saveCustomer, saveOrder,
+  setStatus,
 } from "../netlify/functions/lib/records.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
@@ -347,6 +348,61 @@ describe("orders from the CLI", () => {
     assert.deepEqual(calls, []);
     assert.deepEqual(sent, []);
   });
+
+  it("a cancel that loses to a close does nothing else: no Square, no " +
+    "stock, no email", async () => {
+    const stores = testStores();
+    const { sent, calls, opts } = harness();
+
+    await setCount(stores, "NFF-CHK-EGG-LG", 3);
+    await saveOrder(stores, order("A"), now);
+
+    // The close lands between the cancel's read and its write.
+    const tagged = stores.orders.getTagged.bind(stores.orders);
+    let closed = false;
+
+    stores.orders.getTagged = async (key) => {
+      if (!closed && key === "order/A") {
+        closed = true;
+        await setStatus(stores, "A", "fulfilled", now);
+      }
+
+      return tagged(key);
+    };
+
+    await assert.rejects(cancelOrder(stores, "A", { ...opts, refund: false }),
+      /became fulfilled while it was being cancelled/);
+    assert.equal((await getOrder(stores, "A")).status, "fulfilled");
+    assert.deepEqual(calls, []);
+    assert.deepEqual(sent, []);
+    assert.equal((await getCounts(stores))["NFF-CHK-EGG-LG"], 3,
+      "stock stays out");
+  });
+
+  it("says a refund was already made when the cancel loses after it",
+    async () => {
+      const stores = testStores();
+      const { opts } = harness();
+
+      await saveOrder(stores, order("A"), now);
+
+      const tagged = stores.orders.getTagged.bind(stores.orders);
+      let reads = 0;
+
+      // The refund's own writes read first; the close lands before the
+      // cancel's.
+      stores.orders.getTagged = async (key) => {
+        reads += 1;
+        if (reads === 2 && key === "order/A") {
+          await setStatus(stores, "A", "fulfilled", now);
+        }
+
+        return tagged(key);
+      };
+
+      await assert.rejects(cancelOrder(stores, "A", opts),
+        /after its refund was made/);
+    });
 
   // The fixture is a pickup: it cancels like a delivery (T2d).
   it("cancel gives the customer the farm's reason (T2a)", async () => {

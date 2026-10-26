@@ -9,7 +9,7 @@ import {
   createSession, publicCustomer,
 } from "../netlify/functions/lib/auth.mjs";
 import {
-  getCustomer, getOrder, saveCustomer, saveOrder,
+  getCustomer, getOrder, saveCustomer, saveOrder, setStatus,
 } from "../netlify/functions/lib/records.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
@@ -251,6 +251,35 @@ describe("cancelOrder", () => {
 
     assert.equal(again.status, 409);
     assert.equal(sent.length, 2);
+  });
+
+  it("answers 409, and asks the farm for nothing, when the order is " +
+    "handed over while the cancel is under way", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+
+    await saveOrder(stores, order("A"), now);
+
+    const tagged = stores.orders.getTagged.bind(stores.orders);
+    let reads = 0;
+
+    // The refund's own write reads first; the close lands before the
+    // cancel's.
+    stores.orders.getTagged = async (key) => {
+      reads += 1;
+      if (reads === 2 && key === "order/A") {
+        await setStatus(stores, "A", "fulfilled", now);
+      }
+
+      return tagged(key);
+    };
+
+    const r = await cancelOrder(stores, customerOf(), "A", opts);
+
+    assert.equal(r.status, 409);
+    assert.equal((await getOrder(stores, "A")).status, "fulfilled");
+    assert.equal((await getOrder(stores, "A")).cancelRequested, undefined);
+    assert.deepEqual(sent, [], "no email to the customer or the farm");
   });
 
   it("when the refund fails, flags the order and tells the farm what " +

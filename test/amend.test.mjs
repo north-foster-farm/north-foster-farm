@@ -6,7 +6,9 @@ import {
   applyAmend, planAmend,
 } from "../netlify/functions/lib/amend.mjs";
 import { editOrder } from "../netlify/functions/lib/edit.mjs";
-import { amendOrder, getOrder } from "../netlify/functions/lib/records.mjs";
+import {
+  amendOrder, getOrder, setStatus,
+} from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import {
   withholdCustomerEmail,
@@ -137,6 +139,36 @@ const change = async (stores, id, body, {
 afterEach(() => withholdCustomerEmail(false));
 
 describe("orders change, the farm's change to any order", () => {
+  it("refuses an order cancelled while Square was changing, and flags it " +
+    "out of sync with Square", async () => {
+    const { stores, id } = await placed();
+    const { square, calls } = fakeSquare();
+    const update = square.updateFulfillment;
+
+    // A customer's cancel lands while the farm's change is in Square.
+    square.updateFulfillment = async (...args) => {
+      await update(...args);
+      await setStatus(stores, id, "cancelled", now);
+    };
+
+    const planned = await planAmend(stores, id, MARKET, {
+      now, env, noSquare: false,
+    });
+
+    assert.equal(planned.ok, true, JSON.stringify(planned));
+    await assert.rejects(applyAmend(stores, planned.plan, {
+      now, env, mail: async () => ({}), square, force: false, ...quiet,
+    }), /became cancelled.*flagged out of sync/);
+    assert.equal(calls.filter((c) => c[0] === "updateFulfillment").length, 1);
+
+    const saved = await getOrder(stores, id);
+
+    assert.equal(saved.status, "cancelled");
+    assert.equal(saved.flags.squareOutOfSync, true);
+    assert.equal(saved.history.some((h) => h.event === "farm.changed"),
+      false, "the change was not recorded");
+  });
+
   it("changes a future order and follows in Square", async () => {
     const { stores, id } = await placed();
     const { square, calls } = fakeSquare();

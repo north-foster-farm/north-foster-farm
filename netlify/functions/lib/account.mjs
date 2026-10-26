@@ -262,6 +262,11 @@ export const cancelOrder = async (stores, customer, id, {
   if (current.status === "cancelled") {
     return { ok: true, order: publicOrder(current, now) };
   }
+  // Handed over while the cancel was under way: nothing to ask the
+  // farm to refund and close.
+  if (current.status === "fulfilled") {
+    return fail(409, { order: "This order can't be canceled any more." });
+  }
 
   const flagged = await amendOrder(stores, id, {
     cancelRequested: true, cancelRequestedAt: now.toISOString(),

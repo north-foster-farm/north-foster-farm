@@ -182,7 +182,7 @@ test.describe("customer emails, from their triggers", () => {
       expect(record.marketing).toBe(true);
       expect(record.marketingSource).toBe("signup");
       await waitForMail({
-        to: email, subject: "You're on the North Foster Farm list", since,
+        to: email, subject: "Welcome to Farm News", since,
       });
     });
 
