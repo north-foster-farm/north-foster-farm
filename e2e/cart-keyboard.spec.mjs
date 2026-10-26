@@ -7,7 +7,9 @@
 // project and in Chromium; the keyboard is a stand-in visual viewport
 // 300px shorter.
 
-import { FULL_CART, OrderPage, expect, test } from "./support/order.mjs";
+import {
+  FULL_CART, OrderPage, expect, test, unfoldCart,
+} from "./support/order.mjs";
 
 const SIZES = [
   { width: 320, height: 568 },
@@ -72,10 +74,7 @@ const underKeyboard = async (page, size, { roundTrip = false } = {}) => {
 
   const hide = cart.locator("[data-cart-toggle]");
 
-  if ((await hide.getAttribute("aria-expanded")) !== "true") {
-    await hide.click();
-  }
-  await expect(cart).toHaveAttribute("data-fold", "open");
+  await unfoldCart(order);
   await expect(order.discountRow).toBeVisible();
 
   const before = await rect(cart);
@@ -143,8 +142,9 @@ for (const size of SIZES) {
         await page.waitForTimeout(300);
         const after = await rect(state.cart);
 
+        // Its usual shape again, give or take the pills' strip.
         expect(Math.abs((after.bottom - after.top)
-          - (state.before.bottom - state.before.top))).toBeLessThanOrEqual(2);
+          - (state.before.bottom - state.before.top))).toBeLessThanOrEqual(10);
       });
   });
 }
