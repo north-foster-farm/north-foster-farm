@@ -37,6 +37,9 @@ const DESTRUCTIVE = {
   // Replacing the code kills the link the host handed out (#471).
   "groups code": { does: "replace the code of the group" },
   "groups set": { does: "change the host of the group" },
+  // Makes a paid order in Square and the stores (#471).
+  "groups walkin": { does: "record a walk-in sale, running",
+    unless: "dry-run", whole: true },
   "customers rename": { does: "move the account of", apply: true },
   "customers forget": { does: "erase the details of", apply: true },
   "stock set": { does: "set the stock count of" },

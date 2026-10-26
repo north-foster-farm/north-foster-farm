@@ -48,6 +48,9 @@ import { METHODS, announceNew, attemptKey } from "./checkout.mjs";
 import { now as clock } from "./clock.mjs";
 import { completeInSquare } from "./complete.mjs";
 import { KEY } from "./edit.mjs";
+import {
+  groupOf, joinGroup, memberKeyOf, memberTerms, roundFor,
+} from "./groups.mjs";
 import { alert, mark } from "./health.mjs";
 import { retry } from "./http.mjs";
 import { log } from "./log.mjs";
@@ -280,12 +283,18 @@ const refusedTender = (order, payment) => fail({
 // farm's overrides (any date the schedule knows; the delivery minimum
 // only when waived). -> { ok: true, order } (no id yet) or
 // { ok: false, errors }.
+// `group` is a buying group (#471) the order belongs to, else the
+// customer's own membership decides; `kept` is an occurrence the
+// order may hold though it is no longer offered (a walk-in sale at a
+// round, recorded after it); `walkIn` marks such a sale on the tag.
 export const planFarmOrder = async (stores, body, {
-  now = clock(), env = process.env,
+  now = clock(), env = process.env, group = null, kept = null,
+  walkIn = false,
 } = {}) => {
   const b = body && typeof body === "object" ? body : {};
   const email = String((b.customer || {}).email || "").trim().toLowerCase();
   const customer = email ? await getCustomer(stores, email) : null;
+  const buying = group || groupOf(memberKeyOf(customer));
   // The page drops a SKU it does not know; the farm typed it, so it
   // hears.
   const unknown = (Array.isArray(b.lines) ? b.lines : [])
@@ -299,9 +308,10 @@ export const planFarmOrder = async (stores, body, {
   }
 
   const options = {
-    index, terms, now, codes: discountCodes.codes,
+    index, terms: memberTerms(terms, buying), now, codes: discountCodes.codes,
     group: (customer && customer.discountGroup) || null,
-    schedule: pickupSchedule(env), farm: true,
+    lock: buying ? buying.priceLock || null : null,
+    schedule: pickupSchedule(env), farm: true, kept,
     // The delivery minimum binds the farm too unless it says so
     // (`--waive-minimum`), so a $20 delivery is never an accident.
     waive: { minimum: b.waiveMinimum === true },
@@ -324,6 +334,15 @@ export const planFarmOrder = async (stores, body, {
     order: {
       ...result.order,
       fulfilment: { ...result.order.fulfilment, state: "agreed" },
+      // The group tag (#471), as POST /api/orders gives it.
+      group: buying
+        ? {
+          key: buying.key,
+          round: roundFor(buying, terms, result.order.fulfilment.date),
+          viaCode: false,
+          ...(walkIn ? { walkIn: true } : {}),
+        }
+        : null,
     },
   };
 };
@@ -340,14 +359,16 @@ export const planFarmOrder = async (stores, body, {
 export const createFarmOrder = async (stores, body, {
   paid = null, key = `farm-${randomUUID()}`, dryRun = false,
   now = clock(), env = process.env, mail = sendMail, square = squareApi,
-  fetchImpl,
+  fetchImpl, group = null, kept = null, walkIn = false,
 } = {}) => {
   if (paid && !TENDERS[paid.tender]) {
     return fail({ paid: `The tender is one of: ${
       Object.keys(TENDERS).join(", ")}.` });
   }
 
-  const planned = await planFarmOrder(stores, body, { now, env });
+  const planned = await planFarmOrder(stores, body, {
+    now, env, group, kept, walkIn,
+  });
 
   if (!planned.ok) return planned;
 
@@ -384,6 +405,13 @@ export const createFarmOrder = async (stores, body, {
   }, now);
 
   await touchCustomer(stores, order.customer, now, { orderId: id });
+  // A buying group's order makes its customer a member (#471), as a
+  // paid order with the code does.
+  if (order.group && order.group.key) {
+    await joinGroup(stores, order.customer.email, order.group.key, {
+      now, via: walkIn ? "walk-in" : "farm",
+    });
+  }
   await adjust(stores, order.lines, -1);
   await mark(stores, "order", { id }, now);
   log.info({ event: "order.farm_made", id, paid: !!paid });

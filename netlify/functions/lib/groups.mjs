@@ -21,10 +21,16 @@ import locationData from "../../../data/locations.json" with {
   type: "json",
 };
 import seriesData from "../../../data/series.json" with { type: "json" };
-import { seriesDates } from "../../../assets/scripts/order/lib/events.mjs";
-import { addDays } from "../../../assets/scripts/order/lib/zoned.mjs";
+import {
+  occurrenceId, seriesDates,
+} from "../../../assets/scripts/order/lib/events.mjs";
+import {
+  addDays, today,
+} from "../../../assets/scripts/order/lib/zoned.mjs";
 import { newPassCode } from "./passes.mjs";
-import { getCustomer, saveCustomer } from "./records.mjs";
+import {
+  allOrders, getCustomer, paidTotal, refundedTotal, saveCustomer,
+} from "./records.mjs";
 
 export const GROUPS = groupData.groups;
 
@@ -156,6 +162,92 @@ export const roundFor = (group, terms, date) => {
   if (!s || !date) return null;
 
   return seriesDates(s, date, addDays(date, 366))[0] || null;
+};
+
+// The occurrence a round is: the group's series on that Sunday.
+export const roundOccurrence = (group, round) =>
+  occurrenceId(group.series, round);
+
+// A walk-in buyer's details for the farm-made order: what the farm
+// typed, else what the record has, else a placeholder the farm can
+// fix with `customers set`. The email address is the one thing that
+// must be real (James, 6424244841).
+export const walkInCustomer = async (stores, email, {
+  first, last, phone,
+} = {}) => {
+  const existing = (await getCustomer(stores, email)) || {};
+
+  return {
+    email,
+    firstName: first || existing.firstName || "Walk-in",
+    lastName: last || existing.lastName || "Customer",
+    phone: phone || existing.phone || "",
+    contact: "text",
+  };
+};
+
+// The group's round today or next: the one its orders gather for.
+export const nextRound = (group, terms, now = new Date()) =>
+  roundFor(group, terms, today(now, terms.timeZone));
+
+// The orders that fall in a round: every order tagged with the group
+// and the round, whatever its status, newest first.
+export const roundOrders = async (stores, key, round) =>
+  (await allOrders(stores)).filter((o) => o.group && o.group.key === key
+    && o.group.round === round);
+
+// A round's orders added up, for the farm and the host: each member
+// with what they ordered and paid, the pick list across the round,
+// and the net total (paid less refunded, in cents), which the host
+// reward will read. Pure, so the close can use it on a snapshot.
+export const roundSummary = (orders) => {
+  const members = new Map();
+  const pick = new Map();
+  let paid = 0;
+  let refunded = 0;
+
+  for (const o of orders) {
+    const email = o.customer.email;
+    const m = members.get(email) || {
+      email, name: o.customer.name || "", orders: 0, lines: new Map(),
+      paid: 0, refunded: 0, walkIn: false, cancelled: 0,
+    };
+    const took = paidTotal(o);
+    const back = refundedTotal(o);
+
+    m.orders += 1;
+    m.paid += took;
+    m.refunded += back;
+    if (o.group && o.group.walkIn) m.walkIn = true;
+    if (o.status === "cancelled") m.cancelled += 1;
+    if (o.status !== "cancelled") {
+      for (const l of o.lines) {
+        const key = l.sku;
+        const label = l.label || l.name || l.sku;
+
+        m.lines.set(key, { sku: key, label,
+          qty: ((m.lines.get(key) || {}).qty || 0) + l.qty });
+        pick.set(key, { sku: key, label,
+          qty: ((pick.get(key) || {}).qty || 0) + l.qty });
+      }
+    }
+    paid += took;
+    refunded += back;
+    members.set(email, m);
+  }
+
+  const list = [...members.values()].map((m) => ({
+    ...m, lines: [...m.lines.values()], net: m.paid - m.refunded,
+  })).sort((a, b) => b.net - a.net || a.email.localeCompare(b.email));
+
+  return {
+    count: orders.length,
+    members: list,
+    pickList: [...pick.values()].sort((a, b) => a.sku.localeCompare(b.sku)),
+    paid,
+    refunded,
+    net: paid - refunded,
+  };
 };
 
 // The customer's group key from their record, or null.

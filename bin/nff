@@ -222,6 +222,19 @@ const USAGE = `Usage:
                                       on record stay members
   bin/nff groups set <key> host=<email>|none
                                       the host, for the reward
+  bin/nff groups round <key> [YYYY-MM-DD]
+                                      a round's orders by member, the
+                                      pick list and the net total;
+                                      today's or the next round unless
+                                      a date is given
+  bin/nff groups walkin <key> <email> --line SKU=qty [--line ...]
+                     --paid cash|venmo|check [--ref ..] [--date YYYY-MM-DD]
+                     [--first ..] [--last ..] [--phone ..] [--dry-run]
+                                      an in-person sale at a round with
+                                      the buyer's email address, so it
+                                      counts toward the round: a paid,
+                                      handed-over order that makes the
+                                      buyer a member
   bin/nff refunds check               every refund not yet settled,
                                       asked of Square or PayPal: the
                                       jobs do it daily; alerts as they
@@ -1588,6 +1601,93 @@ const run = async () => {
       patch.host === "none" ? null : patch.host);
 
     return out(`${rest[0]}  host ${record.host ? "set" : "cleared"}.`);
+  }
+  // A round's orders by member, the pick list across them, and the
+  // net total: what the farm packs and what the host reward reads.
+  case "groups round": {
+    const g = groups.groupOf(rest[0]);
+
+    if (!g) throw new Error(`Unknown group "${rest[0]}".`);
+
+    const round = rest[1] || groups.nextRound(g, terms);
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(round))) {
+      throw new Error("groups round <key> [YYYY-MM-DD]");
+    }
+
+    const orders = await groups.roundOrders(stores, g.key, round);
+    const sum = groups.roundSummary(orders);
+
+    out(`${g.name}, round ${round}: ${sum.count} order${
+      sum.count === 1 ? "" : "s"}, net ${dollars(sum.net)}${
+      sum.refunded ? ` (refunded ${dollars(sum.refunded)})` : ""}`);
+    for (const m of sum.members) {
+      out(`  ${m.email}  ${m.name || "-"}  ${dollars(m.net)}${
+        m.walkIn ? "  walk-in" : ""}${m.cancelled ? "  cancelled" : ""}`);
+      for (const l of m.lines) out(`      ${l.qty} × ${l.label}`);
+    }
+    if (sum.pickList.length) out("  Pick list:");
+    for (const l of sum.pickList) out(`    ${l.qty} × ${l.label}  ${l.sku}`);
+    if (!orders.length) out("  No orders yet.");
+
+    return undefined;
+  }
+  // An in-person sale at a round (cash, Venmo, a check), with the
+  // buyer's email address, so it counts toward the round (James,
+  // 6424244841): a farm-made order at the round, paid and handed
+  // over, which makes the buyer a member. Needs --line SKU=qty and
+  // --paid; --date names the round (today's or next by default).
+  case "groups walkin": {
+    const g = groups.groupOf(rest[0]);
+    const email = rest[1];
+    const given = (k) => (typeof flags[k] === "string" ? flags[k] : undefined);
+    const lines = (Array.isArray(flags.line) ? flags.line : [])
+      .map((l) => {
+        const m = String(l).match(/^([A-Za-z0-9-]+)=(\d+)$/);
+
+        if (!m) throw new Error(`--line is <SKU>=<qty>, not "${l}".`);
+
+        return { sku: m[1], qty: Number(m[2]) };
+      });
+
+    if (!g) throw new Error(`Unknown group "${rest[0]}".`);
+    if (!email) throw new Error("groups walkin <key> <email> --line ...");
+    if (!lines.length) throw new Error("Give at least one --line SKU=qty.");
+    if (!given("paid") || !TENDERS[given("paid")]) {
+      throw new Error(`--paid is one of: ${Object.keys(TENDERS).join(", ")}.`);
+    }
+
+    const round = given("date") || groups.nextRound(g, terms);
+    const occurrence = groups.roundOccurrence(g, round);
+    const r = await createFarmOrder(stores, {
+      customer: await groups.walkInCustomer(stores, email, {
+        first: given("first"), last: given("last"), phone: given("phone"),
+      }),
+      lines,
+      fulfilment: { method: "scheduled", occurrence },
+    }, {
+      paid: { tender: given("paid"), ref: given("ref") || "" },
+      group: g, kept: occurrence, walkIn: true,
+      dryRun: !!flags["dry-run"],
+    });
+
+    if (!r.ok) {
+      throw new Error(Object.entries(r.errors)
+        .map(([k, v]) => `${k}: ${v}`).join("\n"));
+    }
+
+    const o = r.order;
+
+    for (const l of o.lines) out(`  ${l.qty} × ${l.label}  ${
+      dollars(l.lineTotal * 100)}`);
+    out(`  Total ${dollars(o.totals.total)}`);
+    if (r.dryRun) return out("--dry-run: nothing was recorded.");
+
+    const done = o.status === "paid"
+      ? await admin.fulfillOrder(stores, o.id) : o;
+
+    return out(`${done.id}  ${done.status}  ${g.name}, round ${round}, ` +
+      `${email}: ${dollars(o.totals.total)} by ${given("paid")}.`);
   }
   case "jobs run":
     return out(await runJobs(stores));
