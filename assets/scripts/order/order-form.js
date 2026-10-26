@@ -224,6 +224,13 @@ export class OrderForm {
     this.resume();
     if (await pullCart()) this.resume({ fresh: true });
 
+    // Another tab changed the cart (search's Add on another page, a
+    // line taken out there): take its lines, so the next change here
+    // does not save a stale cart over them (#356).
+    window.addEventListener("storage", (e) => {
+      if (e.key === this.draft.name) this.syncLines();
+    });
+
     this.methodFromQuery();
     this.addFromQuery();
     this.dates.load();
@@ -1318,6 +1325,28 @@ export class OrderForm {
       if (!["checkbox", "radio"].includes(el.type)) el.value = "";
     }
     if (prefill) me().then((who) => this.signedIn(who)).catch(() => {});
+  }
+
+  // Brings the quantities to the saved draft's lines and leaves every
+  // other field as it is: what another tab did to the cart, without
+  // touching what is being typed here.
+  syncLines() {
+    const draft = this.draft.load();
+    const lines = (draft && draft.payload && draft.payload.lines) || [];
+    const wanted = new Map(
+      lines.map((l) => [current(l.sku, this.aliases), l.qty])
+    );
+    let moved = false;
+
+    for (const input of all(this.form, "[data-qty]")) {
+      const qty = Math.min(99, Math.max(0, wanted.get(input.dataset.qty) || 0));
+
+      if (input !== this.typing && this.qty(input) !== qty) {
+        this.setQty(input, qty);
+        moved = true;
+      }
+    }
+    if (moved) this.refresh();
   }
 
   // Fills the form from the saved draft. `fresh` first empties the
