@@ -1082,7 +1082,7 @@ with a fresh list" covers the server. The page's message is manual.
   `dates`. Page: the blocking dialog (W11d, U3) "That delivery day is no
   longer available", "Nothing has been charged.", the open days as
   radios; "Use this day" puts it on the form and says "Delivery is now
-  ... Pay to place your order." by the Pay button; nothing charged.
+  ... Pay again to place your order." by the Pay button; nothing charged.
 - **Teardown:** None.
 
 ### FM-14 The date lists
