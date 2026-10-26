@@ -48,6 +48,8 @@ e2e/orders-api.spec.mjs daa775382947 2026-10-26
 e2e/overflow.spec.mjs daa775382947 2026-10-26
 e2e/pass-order.spec.mjs 9877065b199a 2026-10-26
 e2e/pay-focus.spec.mjs c5b80508ee19 2026-10-26
+e2e/payment-stacking.spec.mjs 63c6f7500673 2026-10-26
+e2e/payment.spec.mjs 63c6f7500673 2026-10-26
 e2e/pickup-horizon.spec.mjs daa775382947 2026-10-26
 e2e/policies.spec.mjs daa775382947 2026-10-26
 e2e/pricing.spec.mjs daa775382947 2026-10-26
@@ -60,6 +62,7 @@ e2e/skip-link.spec.mjs daa775382947 2026-10-26
 e2e/sku-alias.spec.mjs daa775382947 2026-10-26
 e2e/square-fulfilment.spec.mjs c5b80508ee19 2026-10-26
 e2e/staging-toolbar.spec.mjs daa775382947 2026-10-26
+e2e/stock-failure.spec.mjs 63c6f7500673 2026-10-26
 e2e/top-bar.spec.mjs daa775382947 2026-10-26
 e2e/venmo-paid.spec.mjs daa775382947 2026-10-26
 e2e/verify-redirect.spec.mjs 9877065b199a 2026-10-26
