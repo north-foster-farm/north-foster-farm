@@ -23,6 +23,12 @@
      closed pane hides the body. */}}
 <h2 class="order-cart-heading h2" id="order-cart-heading" tabindex="-1">Cart</h2>
 <div class="order-cart-slot" data-cart-slot>
+  {{/* Below xl the slot has no box of its own (a sticky pane cannot
+       leave its parent's box, and this one must reach the foot of the
+       screen from far above its place), so the anchor, an empty block
+       in the flow, marks where the pane's top sits in the page for
+       cart/view.mjs watchPlacement. */}}
+  <div class="order-cart-anchor" data-cart-anchor aria-hidden="true"></div>
   <aside class="order-cart" id="order-cart" aria-labelledby="order-cart-heading" tabindex="-1" data-placement="floating" data-fold="open" data-empty>
     <div class="order-cart-body" id="order-cart-body" data-cart-body>
       {{/* The lines, grouped under their category (cart.js renders
@@ -91,7 +97,7 @@
            the threshold, each lit on its own (#274, round 4), then the
            bulk tiers. Where one line has no room, the tiers break onto
            a second (_cart.scss). */}}
-      <ul class="order-badges list-unstyled" data-part="badges" aria-label="What this order qualifies for">
+      <ul class="order-cart-badges list-unstyled" data-part="badges" aria-label="What this order qualifies for">
         <li><button type="button" class="order-badge" data-badge="delivery" data-tip="{{ $deliveryTip }}">Delivery</button></li>
         <li><button type="button" class="order-badge" data-badge="free-delivery" data-tip="{{ $freeTip }}">Free delivery</button></li>
         <li class="order-badges-break" aria-hidden="true"></li>
