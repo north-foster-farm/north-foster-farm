@@ -836,14 +836,16 @@ test.describe("map (#138, #214)", () => {
     });
 
   // The field is bare on the map, bottom right, on Delivery only; its
-  // placeholder is the instruction (#214).
+  // label floats, reading as the placeholder in the empty field and as
+  // a small line above a value (#214, #429).
   test("the ZIP field floats on the map, Delivery only",
     async ({ page }) => {
       await page.goto(HOME.path);
 
       const input = page.locator(HOME.input);
 
-      await expect(input).toHaveAttribute("placeholder", "Enter your ZIP");
+      await expect(input).toHaveAttribute("placeholder", "ZIP code");
+      await expect(input).toHaveAccessibleName("ZIP code");
       await expect(map(page).getByText("Do we deliver to you?"))
         .toHaveCount(0);
       const [field, frame] = await Promise.all([
@@ -857,6 +859,24 @@ test.describe("map (#138, #214)", () => {
         .toBeLessThanOrEqual(frame.y + frame.height);
       expect(field.y + field.height)
         .toBeGreaterThan(frame.y + frame.height - 40);
+
+      // One size, empty, focused or filled (#429), and the label
+      // shrinks above the value instead of giving way to it.
+      const label = page.locator(`label[for="${HOME.input.slice(1)}"]`);
+      const restingLabel = await label.boundingBox();
+
+      await input.focus();
+      await input.fill("02825");
+      await expect(input).toHaveValue("02825");
+
+      const filled = await input.boundingBox();
+      const floatedLabel = await label.boundingBox();
+
+      expect(filled.width).toBe(field.width);
+      expect(filled.height).toBe(field.height);
+      expect(floatedLabel.height).toBeLessThan(restingLabel.height);
+      expect(floatedLabel.y + floatedLabel.height)
+        .toBeLessThan(field.y + field.height / 2);
 
       await map(page).getByRole("tab", { name: "Places" }).click();
       await expect(input).toBeHidden();

@@ -8,6 +8,13 @@
   scripts/zip-check/main.js wires every form on the page; a page that
   uses this sets pageScript: "zip-check".
 
+  The label floats (#429, James): it reads as the placeholder in the
+  empty field and shrinks to a small line above the digits once the
+  field takes focus or a value, so the field is one size whether empty,
+  focused or filled. The placeholder attribute is the same words, made
+  transparent in CSS: :placeholder-shown is what moves the label. The
+  label's text is a draft for James.
+
   Params:
     id  Prefix for the field's id, unique on the page
 */}}
@@ -15,7 +22,7 @@
 {{ $money := hugo.Data.delivery.money }}
 <form class="zip-check" data-zip-check data-fee="{{ $money.deliveryFee }}" data-extra="{{ $money.outsideAreaFee }}" novalidate>
   <script type="application/json" data-zip-area>{{ hugo.Data.delivery.area | jsonify | safeJS }}</script>
-  <label class="visually-hidden" for="{{ $id }}-input">ZIP code</label>
-  <input class="form-control" type="text" id="{{ $id }}-input" name="zip" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="Enter your ZIP" aria-describedby="{{ $id }}-result">
+  <input class="form-control" type="text" id="{{ $id }}-input" name="zip" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="ZIP code" aria-describedby="{{ $id }}-result">
+  <label for="{{ $id }}-input">ZIP code</label>
   <p class="visually-hidden" id="{{ $id }}-result" data-zip-result role="status" aria-live="polite"></p>
 </form>
