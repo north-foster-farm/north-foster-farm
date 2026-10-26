@@ -323,30 +323,37 @@ nothing outside. `OrderForm` keeps the form's model: quantities in the
 catalog rows, the method radios, the draft, stock, dates, payment and
 submission. The contract between them:
 
-- `OrderForm` calls `cart.render(summary, { method, edit })` on every
-  `refresh()`, where `summary` is `summarize()`'s output (count, groups,
-  sums, badges, nudge, eligibility) plus `ways` (which are enabled).
-  The cart never reads the form.
-- `OrderForm` calls `cart.added(sku, name)` after an Add, and
-  `cart.locked(bool)` from the stock gate.
+- `OrderForm` calls `cart.render(summary, { method, ways, edit,
+  locked, adding, fixed })` on every `refresh()`: `summary` is
+  `summarize()`'s output (count, groups, sums, badges, nudge,
+  eligibility); `ways` says which of the three can be picked; `edit`
+  is a paid order being changed (`{ held, kept, keptDate, total }`) or
+  null; `locked` the stock gate; `adding` that an Add caused the
+  render; `fixed` that the lines cannot change (#181). The cart never
+  reads the form.
+- `OrderForm` calls `cart.added(sku, name)` after an Add,
+  `cart.setMoney(money)` once for the day's tiers and minimum,
+  `cart.startJoke()` and `cart.stopJoke()` for the joke's row, and
+  `cart.codeResult({ text, tone, accepted })` with a code's outcome.
+  It reads the field with `cart.codeValue()` and writes it with
+  `cart.setCodeValue()`, and brings the cart into view with
+  `cart.show({ smooth, ring })` for the rail's link, the header's link
+  and `#order-cart` in the URL.
 - The cart calls back: `onRemove(sku)`, `onWay(method)`,
-  `onCode(text)` (the form applies it and answers with
-  `cart.codeResult({ tone, text })`), `onCheckout()`.
-- The code field, the way picks, the badges and the pill are the
-  cart's. The joke row is the cart's too (a render flag `joke` with the
-  running amount from the form's clock, or the cart's own timer; one
-  of the two, decided in the build).
+  `onCode(text)`, `onCheckout()`.
+- The code field, the way picks, the badges, the pill, the joke row
+  and the bars' readouts are the cart's.
 - Draft, sync and the header badge stay in `draft.js`, `cart-sync.mjs`,
   `session/cart-sync.js` and `cart-badge/*`, unchanged in shape. The
   cart announces nothing itself; `OrderForm` keeps `announceCart`.
 
-`order-form.js` loses the pane: `wire()`'s cart half, `wireShare`,
+`order-form.js` lost the pane: `wire()`'s cart half, `wireShare`,
 `watchKeyboard`, `scrollMore`, `setShare`, `setPart`, `syncSeg`,
 `hiddenHeight`, `setOpen`, `panel`, `syncToggle`, `syncScroll`,
 `measureFloor`, `added`, `firstAdd`, `reveal`, `pulsePill`, `ringCart`,
 `keepOpen`, `watchTouch`, `renderCart`, `ease`, `renderItems`,
 `startJoke`, `stopJoke`, and the cart parts of `stuckWatch` and
-`landOn`. About 1,300 lines move or go.
+`landOn`: 3,242 lines to 1,930.
 
 **`cart/view.mjs`.** The view module owns what touches the viewport,
 the clock and the pane's own motion. It writes no height, floor or cap
@@ -650,7 +657,7 @@ Everything not listed here looks and behaves as today.
 | --- | --- |
 | "N items" and "Total $X" are a readout at every width, not tabs or disclosure buttons. The pill is the one fold control. This reverses James's own pick of the segmented control on 2026-10-18 (#204, item 5, the day after his "half the controls" line), so it is his to overrule. | R1 and R6: the pair had four semantics by width (#278 item 3 and 5, round 3 item 2, round 5 item 4, round 6, #392 twice reverted). Round 6 already made it a readout from 576. |
 | When the room is too short for the pane (the keyboard, a small phone), the body scrolls as a whole and the foot stays in reach. Today the parts under the total row scroll and the lines are squeezed. The total row scrolls with the body only while the keyboard is up on the smallest phones (320 by 568), against James's lines that the total is always visible (#180) and does not move (#203); with the keyboard down it is in view at every size. | R2: the measured floors and `data-tight` (#180, #389, #448 three times, #476 still failing). |
-| The floating pane lifts off at a line set by a constant, at once; today it lifts off up to 370px later on the way up, and the seam can be off by a line if the nudge wraps. | R3: the clone measurement and the hidden-height memory. |
+| The floating pane lifts off at once, at the line its closed height sets (cached while it floats closed; the stylesheet's constants are the lower bound before the first measurement); today it lifts off up to 370px later on the way up. | R3: the clone measurement and the hidden-height memory. |
 | The header's mini cart dropdown becomes a link to the cart with its badge. | James's decision on #402; one renderer of the lines less (R5). |
 | Open parts are shown with `hidden`, not folded with a grid animation; the pane's height eases instead (the column already does). | R2: the fold wrappers between the parts and the pane are what forced the measurements. |
 
@@ -658,21 +665,31 @@ Everything not listed here looks and behaves as today.
 
 Unit (`test/`): `cart-state.test.mjs` for every transition and rule in
 4.3, including the load state at every width, the empty rules, the
-first Add, lift-off and settle thresholds; `cart-scroll.test.mjs` keeps
-`moreStop`, `keyboardInset`, `visibleArea`, `ringsCart`; `rowsFloor`,
-`paneFit`, `scrollIntoPane`, `look`, `floatAgain`, `segOn` and
-`segShown` go with the code they served; `summary`, `totals`,
-`cart-sync`, `cart-touch` and `share-away` stay.
+first Add, lift-off and settle thresholds; `cart-view.test.mjs` for
+the view's pure helpers; `cart-scroll.test.mjs` keeps `moreStop`,
+`keyboardInset`, `visibleArea`, `ringsCart`; `rowsFloor`, `paneFit`,
+`scrollIntoPane`, `look`, `floatAgain`, `segOn` and `segShown` went
+with the code they served; `summary`, `totals`, `cart-sync`,
+`cart-touch` and `share-away` stay.
 
-End to end (`e2e/`), replacing the thirteen `cart-*` specs, named by
+End to end (`e2e/`), replacing the eleven old `cart-*` specs, named by
 behavior and run in the desktop, phone and iphone projects:
 
-- `cart-lines.spec.mjs`: lines, groups, ×, count, the pills and the
-  glide, the first click after typing (#155).
-- `cart-money.spec.mjs`: sums, tiers, group, code, pass, joke, fee
-  cells, nudge, badges, chicks' origin, edit mode rows.
-- `cart-way.spec.mjs`: the switch, the Safari tap, the link wins,
-  Pickup days disabled, the code row's open, apply, refuse, fold.
+- `cart-lines.spec.mjs`: lines, groups, the pack labels, the catalog
+  order, another tab's change (#356), the pills and the glide, the
+  column's list. Adding, removing and typing a quantity, and the first
+  click after typing (#155), stay `order-page.spec.mjs`'s.
+- `cart-money.spec.mjs`: badges whatever the way, the delivery badges,
+  the lit badges' lines by width, the chicks' origin, the total's
+  bump, the nudge and the total's place, the empty cart, the discount
+  in force. The figures are `pricing.spec.mjs`'s.
+- `cart-way.spec.mjs`: the switch, the Safari tap, the page's choice
+  and the link, the row's fold by a tap outside and by Escape, a code
+  refused, applied and taken off, the row's one height.
+- `cart-one.spec.mjs`: one cart root in the document; the pane's
+  contents equal settled and floating at 390, 768 and 1280, and equal
+  to the bars' readouts and the header's badge, before and after a
+  change in either placement (James's one model, one render).
 - `cart-fold.spec.mjs`: the pill, Escape, the empty rule, the first
   Add's open, dwell, close and pulse, the touch judge, the "Added:"
   strip, reduced motion.
@@ -685,43 +702,26 @@ behavior and run in the desktop, phone and iphone projects:
   the field, Apply, Hide and Proceed in reach; the sums whole; a
   customer's scroll not pulled back; the round trip; whole rings.
 - `cart-a11y.spec.mjs`: names, roles, `aria-expanded`, the live
-  regions, hidden parts out of the tab order, the keyboard walk with a
-  full cart (the #427 flake, fixed or explained).
+  regions, a closed sheet's tab order, the rings inside the body, a
+  control focused under the floating pane scrolled clear. The keyboard
+  walk of every page stays `keyboard.spec.mjs`'s.
 - `cart-sync.spec.mjs` and `cart-badge.spec.mjs` stay, the latter
   losing its mini cart cases and gaining the cart link.
+- `order-layout.spec.mjs` holds the order page's own layout cases the
+  old cart specs carried: the contact form's spacing, the card form,
+  the sticky bar's scrollspy, Pay's alignment, the date dropdowns.
 
-## 7. The split and the order of work
+## 7. How it was built
 
-Two lanes, one branch to integrate on (`lane/cart1`), each on its own
-until then. No file has two owners.
-
-- **cart1: the model and the contract.** `cart/state.mjs` and its
-  tests; `cart/cart.js`, the `Cart` class (the state, `render`,
-  `added`, the callbacks, every write of content and attributes to the
-  DOM); the extraction from `order-form.js` (render, added, code, way,
-  checkout, the joke, edit mode); the mini cart's retirement and the
-  cart link; `cart-lines`, `cart-money`, `cart-way`, `cart-sync`,
-  `cart-badge` specs; `docs/order-form.md`'s cart section.
-- **cart2: the view at every width.** `cart.html`, `_cart.scss` (the
-  cart's rules out of `_order.scss` and `_variables.scss`), and
-  `cart/view.mjs`: `watchPlacement` (the tick that feeds `place()` and
-  the slot's placeholder), `watchKeyboard` (the three properties), the
-  fold and width animations, the pills and fades with `moreStop`, the
-  teach timing with `cart-touch`, the pulse, the ring, focus clearing,
-  accessibility; `cart-fold`, `cart-float`, `cart-keyboard`,
-  `cart-a11y` specs. The class imports `view.mjs` by these names:
-  `watchKeyboard(pane, { onInset })`, `watchPlacement(pane, slot,
-  { look })` returning `{ dispose, refresh }` (the tick feeds `look`
-  exactly `place()`'s inputs and the class applies the result;
-  `refresh()` recaches the height after a render or a fold),
-  `animateFold(pane, apply, { reduced })` (the view measures before
-  and after the class's `apply`), `watchList(list, wrap, { more,
-  moreTop })` returning `{ sync, dispose }`, `teach(pane, pill, { dwell,
-  onShut })` returning `{ keep, cancel }`, `pulsePill(pill, kind)`,
-  `ringCart(pane)`, `showAdded(box, text)`, `clearFocusUnder(pane,
-  bar)`, `revealLine(list, row)`.
-
-Order: the skeleton and the markup first (both, one day), so each can
-build against the other's shape; then in parallel; then the old pane's
-code, styles and specs deleted together, in one commit, so nothing of
-the old cart survives beside the new one.
+Two lanes on 2026-10-26, each from the same two studies: cart1 the
+model and the contract (`cart/state.mjs`, `cart/cart.js`, the
+extraction from `order-form.js`, the mini cart's retirement, the lines,
+money, way, one, sync and badge specs), cart2 the view at every width
+(`cart.html`, `_cart.scss`, `cart/view.mjs`, the fold, float, keyboard
+and a11y specs). No file had two owners; the view's surface (4.1) was
+agreed before either built against it, and the branches integrated on
+`lane/cart1`. The old pane's code, styles and specs went in one commit,
+so nothing of it survived beside the new one. James then kept one
+lane (cart1) and preserved `lane/cart2` as the fallback until he is
+satisfied; version 1 went to staging as 63c6f750 behind the `pre-cart`
+tag (23dcbd82), the way back if the rebuild fails.
