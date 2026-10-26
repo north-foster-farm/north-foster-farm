@@ -81,6 +81,20 @@ test.describe("changing a paid order's items (#284)", () => {
         await route.continue();
       });
       await page.goto(`/order/?edit=${orderId}`);
+      // The page's own steps, read back if Save sends nothing.
+      await page.evaluate(() => {
+        const report = window.nffReport;
+        const crumb = report && report.crumb;
+
+        window.testCrumbs = [];
+        if (crumb) {
+          report.crumb = (name) => {
+            window.testCrumbs.push(name);
+
+            return crumb(name);
+          };
+        }
+      });
 
       const qty = page.locator(`[data-qty="${SKU.eggs}"]`);
 
@@ -110,9 +124,16 @@ test.describe("changing a paid order's items (#284)", () => {
           "[role='alert']:visible, .invalid-feedback:visible"
         ).allInnerTexts()).map((t) => t.trim()).filter(Boolean);
 
+        const steps = await page.evaluate(() => ({
+          crumbs: window.testCrumbs, stockDown: !!document.querySelector(
+            "[data-stock-down]"), busy: !!document.querySelector(
+            "#order-save[aria-busy='true'], #order-save:disabled"),
+        }));
+
         throw new Error(`${error.message}\nShown: ${
           said.join(" | ") || "nothing"}\nAfter the press: ${
-          after.join(", ") || "nothing"}`, { cause: error });
+          after.join(", ") || "nothing"}\nPage: ${
+          JSON.stringify(steps)}`, { cause: error });
       });
       await expect(page).toHaveURL(/\/account\/#orders/);
 
