@@ -30,7 +30,8 @@ repository.
 | `assets/images/winter-tunnel.jpg` | James or Jim | | iPhone 14 Pro, Pixelmator Pro. Home ways band (#137), Instagram slide 5. Original has GPS. |
 | `assets/images/egg-basket.jpg` | James or Jim | | Farm iPhone, Pixelmator Pro, 2024. Unused on the site; kept for the Instagram questions on #192. Original has GPS. |
 | `assets/images/chickens.jpg` | James or Jim | | iPhone 13 Pro Max, 2024. The ordering-tour post's closing figure (#430); until then unused, kept for the Instagram questions on #192. |
-| `assets/images/broilers-square.jpg` | James | | Broilers on pasture, from IMG_7035: the Instagram folder's `photos/broilers-square.jpg` (see below), resized to 2400px with sips for #430. No EXIF or location in either. Ordering-tour post. |
+| `assets/images/brooder.jpg` | James | | Three-day-old chicks in the brooder, 2000 × 1125, handed to the coordinator directly (2026-10-26). EXIF and location stripped. Spring figure of the "Three Quarters of the Way" post (#431). |
+| `assets/images/sheep-with-broilers.jpg` | James | | A sheep by a pen of broilers, from IMG_7109: the clean original of the Instagram post's cover (not the mockup with text on it), scaled from 4032 to 2400 wide. EXIF and location stripped. Summer figure of the "Three Quarters of the Way" post (#431). |
 | `assets/images/tilted-tent-square.jpg` | James | | The farm's tent at the Tilted Barn (#233 item 31): the Instagram folder's `photos/tilted-tent-square.jpg` (see below), resized to 2400px with sips for #430. No EXIF or location in either. Ordering-tour post. |
 | `assets/images/linus-featured.jpg` | James | | Byte for byte `~/Code/nff/linus-featured.jpg`, which James supplied. The ordering-tour post's thumbnail until #430; unused on the site since. |
 | `assets/images/linus.jpg` | Unknown | | A tighter crop of the `linus-featured.jpg` scene (c1893a8, walkthrough finding 24); who cropped it is not recorded. About, egg mask. |
@@ -47,7 +48,7 @@ never committed or uploaded (#230):
 
 | File | Made by | Credit | Source and notes |
 | --- | --- | --- | --- |
-| `broilers.jpg`, `broilers-square.jpg` | James | | Broilers on pasture, from IMG_7035. The square one is Instagram slide 2 (#230) and, resized, `assets/images/broilers-square.jpg` (#430). |
+| `broilers.jpg`, `broilers-square.jpg` | James | | Broilers on pasture, from IMG_7035. The square one is Instagram slide 2 (#230). Its resized copy in `assets/images` served the ordering-tour post until #431 replaced it. |
 | `sheep-with-broilers.jpg`, `sheep-with-broilers-square.jpg` | James | | Sheep by a pen of broilers, from IMG_7109. The square one is the Instagram post's cover and its Story. |
 | `cooked.jpg` | Jess Brayton (@fussica) | @fussica, her choice | The original of `assets/images/cooked.jpg`. Instagram slide 3. |
 | `tilted-tent.jpg`, `tilted-tent-square.jpg` | James | | The farm's tent at the Tilted Barn; James took it (#233 item 31). No metadata in either. The square one is Instagram slide 4, untagged, and, resized, `assets/images/tilted-tent-square.jpg` (#430). |

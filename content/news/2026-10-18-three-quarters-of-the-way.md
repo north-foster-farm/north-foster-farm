@@ -11,6 +11,10 @@ home: true
 
 ## Spring
 
+{{< figure src="images/brooder.jpg"
+  alt="Three-day-old chicks on wood shavings in the brooder, with more gathered under the red glow of a heat lamp along the back wall."
+  caption="A brooder of chicks, still only days old." />}}
+
 Spring felt like jumping onto a treadmill that was already moving. We
 started in April, at the beginning of our first year raising chickens,
 without much idea of what to expect. It wasn't long before we had our
@@ -22,9 +26,9 @@ a breath.
 
 ## Summer
 
-{{< figure src="images/broilers-square.jpg"
-  alt="Pens of white meat birds on grass at the edge of the woods: two open shade pens with a hoop pen in front"
-  caption="Our meat birds on pasture this summer. Every pen moved to fresh grass every day." />}}
+{{< figure src="images/sheep-with-broilers.jpg"
+  alt="A sheep lying in the grass beside a wooden chicken pen, with white meat birds inside the wire mesh."
+  caption="One of the sheep, keeping the birds company." />}}
 
 We learned a couple of important lessons in the spring, for better or
 worse, and went into summer a little more confident. After a few
@@ -42,8 +46,8 @@ reminded us that what we were doing was worth it.
 ## Fall
 
 {{< figure src="images/tilted-tent-square.jpg"
-  alt="North Foster Farm's market booth: a green tent over a checked table, a Chicken & Eggs banner and a chalkboard sign, on grass"
-  caption="Our tent at the Tilted Barn this summer. That market ended at the beginning of September." />}}
+  alt="North Foster Farm's market booth on grass: a green tent over a table with a checkered tablecloth, a Chicken & Eggs banner, a whiteboard price list, and a chalkboard sign."
+  caption="Our tent at the Tilted Barn this summer." />}}
 
 Fall felt very different. The last week of August was the last week of
 the Tilted Barn market, and with it, fall was suddenly close. Back in
