@@ -41,7 +41,7 @@ const savedLines = () => {
 
 // The saved cart's lines the cart can show (#322): renamed SKUs
 // brought up to date, unknown ones and empty ones left out, so the
-// count, the mini cart and the order page agree. A page with no
+// count, the cart link and the order page agree. A page with no
 // catalog can't tell, and takes the lines as saved.
 export const draftLines = () => {
   const { products, aliases } = pageCatalog();

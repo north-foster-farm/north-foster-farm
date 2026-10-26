@@ -5,7 +5,6 @@ import "bootstrap/js/dist/offcanvas.js";
 
 import { Extensions } from "./extensions/extensions.js";
 import { wireCartBadge } from "./cart-badge/cart-badge.js";
-import { wireMiniCart } from "./cart-badge/mini-cart.js";
 import { Copyright } from "./copyright/copyright.js";
 import { wireDotLists } from "./dot-list/dot-list.js";
 import { hideExpired } from "./expiry/expiry.js";
@@ -28,7 +27,6 @@ wireSchedule();
 // Now, not on DOMContentLoaded: the order page's own bundle runs after
 // this one and announces its first count before that event.
 wireCartBadge();
-wireMiniCart();
 wireCartSync();
 Touchable.addTouchedListener();
 // The account menu opens on hover where there is a pointer to hover
