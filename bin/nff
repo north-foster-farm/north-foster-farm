@@ -31,6 +31,7 @@ import {
   PREVIEW_ALLOWED, PREVIEW_CONTEXTS, TARGETS, checkEnv, envRunner, planPush,
   preflight, previewLeaks, pushEnv, redact, remoteFor, remoteVars,
 } from "./env/netlify.mjs";
+import { SHELLS, completionScript } from "./completion.mjs";
 import { checkFilled } from "./env/filled.mjs";
 import { keychainToken, tokenInFiles } from "./env/keychain.mjs";
 import {
@@ -391,6 +392,10 @@ ${PROMOTE_USAGE}
   bin/nff library [--staging]         James's approvals and rewrites
                                       from the email library, to port
   bin/nff library clear <id>          drop an email's, once ported
+  bin/nff completion zsh|bash         print the tab-completion script,
+                                      built from this usage so it cannot
+                                      drift: source <(bin/nff completion
+                                      zsh) in ~/.zshrc (README)
 
   --production, --staging, --preview  act on that deploy context's
                                       data; with none, on the dev
@@ -420,6 +425,24 @@ const ENV_FILES = {
 };
 const context = Object.keys(CONTEXTS)
   .find((name) => process.argv.includes(`--${name}`)) || null;
+
+// `bin/nff completion zsh|bash` prints a script a shell sources at start,
+// so it runs before anything loads or prints: nothing but the script
+// reaches the terminal. It is built from USAGE, so it cannot drift.
+if (process.argv[2] === "completion") {
+  const shell = process.argv[3];
+
+  if (!SHELLS.includes(shell)) {
+    console.error(`Which shell? bin/nff completion ${SHELLS.join("|")}`);
+    process.exit(1);
+  }
+  // Wait for the write, then exit: the rest of this file must not run.
+  await new Promise((resolve) => {
+    process.stdout.write(completionScript(shell, USAGE, {
+      contexts: [...Object.keys(CONTEXTS), "development"],
+    }), () => { resolve(); process.exit(0); });
+  });
+}
 
 loadEnv(join(root, context ? ENV_FILES[context] : ".env"));
 
