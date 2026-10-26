@@ -115,6 +115,23 @@ jobs:
             --retries=0 --workers=2 --trace=off \
             --reporter=list,json "${specs[@]}"
 
+      # Each failure's screenshot, to see what the deploy served when a
+      # spec could not tell (#449). Screenshots only: the page
+      # snapshots (error-context.md) and traces can carry sign-in
+      # links, tokens and the gate cookie, and this repository is
+      # public. Playwright writes nothing else to test-results/e2e/
+      # with --trace=off. Safe only while E2E_GATE_SESSION stays out
+      # of this workflow: with it, the toolbar specs sign in as a
+      # person and a screenshot could show the real staging outbox.
+      - name: Failure screenshots
+        if: failure() && env.SUPERSEDED != '1'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: staging-failure-screenshots
+          path: test-results/e2e/**/test-failed-*.png
+          retention-days: 2
+          if-no-files-found: ignore
+
       - name: Summary
         if: always() && env.SUPERSEDED != '1'
         env:
