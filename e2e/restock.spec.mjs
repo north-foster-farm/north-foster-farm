@@ -151,9 +151,11 @@ test.describe("restock types (#267)", () => {
         // The heading is still the h1, for a screen reader only.
         await expect(page.locator(".page-heading h1"))
           .toHaveText("Place an order");
-        const h1 = await page.locator(".page-heading h1").boundingBox();
+        // Its box is a pixel, clipped; the h1 inside keeps its own
+        // size, which the clip hides.
+        const head = await page.locator(".page-heading").boundingBox();
 
-        expect(h1.width * h1.height, `${size.width}px`).toBeLessThan(4);
+        expect(head.width * head.height, `${size.width}px`).toBeLessThan(4);
       }
     });
 
