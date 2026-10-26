@@ -22,14 +22,12 @@ e2e/missed-delivery.spec.mjs #304 #444
 e2e/forms.spec.mjs #362
 e2e/pricing.spec.mjs #362
 e2e/home.spec.mjs #362 #417
-e2e/cart-round4.spec.mjs #362
+e2e/cart-money.spec.mjs #362
 e2e/delivery-pass.spec.mjs #362 #301
 e2e/orders-api.spec.mjs #362
 # Open bugs and unbuilt design against what the spec checks:
-e2e/cart-layout.spec.mjs #388
-e2e/cart-round3.spec.mjs #384
-e2e/cart-discount-keyboard.spec.mjs #389
-e2e/cart-totals-keyboard.spec.mjs #448
+e2e/order-layout.spec.mjs #388 #384
+e2e/cart-keyboard.spec.mjs #389 #448
 e2e/order-scheduled.spec.mjs #439
 e2e/map.spec.mjs #429 #433
 e2e/restock.spec.mjs #370

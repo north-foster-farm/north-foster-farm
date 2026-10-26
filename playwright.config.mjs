@@ -34,9 +34,6 @@ const gate = token && host.includes("--") ? {
 // What only the wide layout needs, or what must not run twice against
 // the sandbox: the phone project skips these.
 const desktopOnly = [
-  "**/cart-layout.spec.mjs",
-  "**/cart-added.spec.mjs",
-  "**/cart-panes.spec.mjs",
   "**/pricing.spec.mjs",
   "**/payment.spec.mjs",
   "**/recovery.spec.mjs",
@@ -56,11 +53,11 @@ const desktopOnly = [
   "**/skip-link.spec.mjs",
   // They set their own widths.
   "**/overflow.spec.mjs",
-  "**/cart-round3.spec.mjs",
-  "**/cart-round4.spec.mjs",
-  "**/cart-round5.spec.mjs",
   "**/keyboard.spec.mjs",
-  "**/cart-totals-keyboard.spec.mjs",
+  "**/order-layout.spec.mjs",
+  "**/cart-lines.spec.mjs",
+  "**/cart-money.spec.mjs",
+  "**/cart-way.spec.mjs",
   "**/cart-fold.spec.mjs",
   "**/cart-float.spec.mjs",
   "**/cart-keyboard.spec.mjs",
@@ -120,8 +117,7 @@ export default defineConfig({
       name: "iphone",
       testMatch: [
         "**/overflow.spec.mjs", "**/a11y.spec.mjs", "**/keyboard.spec.mjs",
-        "**/payment-stacking.spec.mjs", "**/cart-round4.spec.mjs",
-        "**/cart-totals-keyboard.spec.mjs", "**/cart-keyboard.spec.mjs",
+        "**/payment-stacking.spec.mjs", "**/cart-keyboard.spec.mjs",
         "**/cart-a11y.spec.mjs",
       ],
       use: { ...devices["iPhone 15"] },
