@@ -1,0 +1,10 @@
+{{/* The cart half of the Order button, off the order page: hidden
+     until the cart holds something, then the cart icon with its count,
+     a second link to the order page that lands on the cart section
+     below the catalog, where the whole cart shows with its fees and
+     discounts (James, #402). cart-badge.js shows it and names it:
+     "Your cart, 3 items". */}}
+<a class="site-cart-link" href="{{ relURL "order/" }}#order-cart" aria-label="Your cart" data-cart-link hidden>
+  <span class="site-cart-icon" aria-hidden="true">{{ partial "svg.html" "icons/cart" }}</span>
+  {{- partial "header/cart-badge.html" -}}
+</a>

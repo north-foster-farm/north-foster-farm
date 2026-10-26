@@ -6,14 +6,14 @@
 //
 // #173: off the order page the row's count sits on the cart half of
 // the Order button, which shows only while the cart holds something
-// and opens a mini cart with the way to checkout; on the order page
-// it stays on Order.
+// and is a second link to the order page, landing on the cart (#402);
+// on the order page it stays on Order.
 
 import { OrderPage, expect, test } from "./support/order.mjs";
 
 const rowBadge = (page) => page
   .locator("header .site-actions [data-cart-badge]");
-const cartHalf = (page) => page.locator("[data-cart-toggle]");
+const cartHalf = (page) => page.locator("[data-cart-link]");
 const menuBadge = (page) => page
   .locator("#site-menu .site-nav-link [data-cart-badge]");
 
@@ -105,52 +105,21 @@ test.describe("cart count on the Order link (#166)", () => {
     await expect(rowBadge(other)).toHaveText("2");
   });
 
-  test("the cart half lists the cart and goes to the cart (#337)",
-    async ({ page }) => {
-      const order = new OrderPage(page);
+  test("the cart half goes to the cart (#402)", async ({ page }) => {
+    const order = new OrderPage(page);
 
-      await order.open({ eggs: 2 });
-      await page.goto("/about/");
-      await cartHalf(page).click();
+    await order.open({ eggs: 2 });
+    await page.goto("/about/");
+    await expect(cartHalf(page)).toHaveAttribute(
+      "href", /\/order\/#order-cart$/
+    );
+    await cartHalf(page).click();
+    await expect(page).toHaveURL(/\/order\/#order-cart$/);
+    await expect(order.count).toHaveText("2 items");
+    await expect(page.locator("#order-cart")).toBeInViewport();
+  });
 
-      const mini = page.locator(".site-mini-cart");
-
-      await expect(mini).toBeVisible();
-      await expect(mini.locator(".site-mini-cart-line")).toHaveCount(1);
-      await expect(mini.locator(".site-mini-cart-line"))
-        .toContainText("× 2");
-      await expect(mini.locator("[data-mini-cart-subtotal]"))
-        .toHaveText(/^\$\d/);
-      await expect(mini.getByRole("link", { name: "Continue shopping" }))
-        .toHaveAttribute("href", /\/order\/$/);
-      await mini.getByRole("link", { name: "Go to cart" }).click();
-      await expect(page).toHaveURL(/\/order\/#order-cart$/);
-      await expect(order.count).toHaveText("2 items");
-      await expect(page.locator("#order-cart")).toBeInViewport();
-    });
-
-  test("a mini cart line comes out with its ×, count and all (#337)",
-    async ({ page }) => {
-      const order = new OrderPage(page);
-
-      await order.open({ eggs: 2 });
-      await page.goto("/about/");
-      await cartHalf(page).click();
-
-      const mini = page.locator(".site-mini-cart");
-
-      await mini.getByRole("button", { name: /^Remove .* from your cart$/ })
-        .click();
-      await expect(mini.locator(".site-mini-cart-line")).toHaveCount(0);
-      await expect(mini.locator("[data-mini-cart-subtotal]"))
-        .toHaveText("$0");
-      await expect(rowBadge(page)).toBeHidden();
-      // The menu closed with the cart empty: focus lands on Order.
-      await expect(page.locator(".site-order-group .site-order"))
-        .toBeFocused();
-    });
-
-  test("a saved cart from before a SKU rename still shows (#322)",
+  test("a saved cart from before a SKU rename still counts (#322)",
     async ({ page }) => {
       await page.addInitScript(() => {
         localStorage.setItem("nff-order-draft", JSON.stringify({
@@ -161,15 +130,11 @@ test.describe("cart count on the Order link (#166)", () => {
         }));
       });
       await page.goto("/about/");
-      // The badge counts only what the mini cart can show.
+      // The badge counts only what the order page can show.
       await expect(rowBadge(page)).toHaveText("1");
-      await cartHalf(page).click();
-
-      const mini = page.locator(".site-mini-cart");
-
-      await expect(mini.locator(".site-mini-cart-line")).toHaveCount(1);
-      await expect(mini.locator("[data-mini-cart-subtotal]"))
-        .not.toHaveText("$0");
+      await expect(cartHalf(page)).toHaveAttribute(
+        "aria-label", "Your cart, 1 item"
+      );
     });
 
   test("blocked storage reads as an empty cart", async ({ page }) => {

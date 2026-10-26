@@ -346,8 +346,8 @@ test.describe("search (#142)", () => {
     });
 
   // #208: once something is in the cart, Go to cart closes search and
-  // opens the header's cart.
-  test("Go to cart opens the header's cart", async ({ page }) => {
+  // goes to the order page's cart (#402).
+  test("Go to cart goes to the order page's cart", async ({ page }) => {
     await page.goto("/about/");
 
     const p = palette(page);
@@ -358,7 +358,7 @@ test.describe("search (#142)", () => {
     await expect(goToCart).toBeHidden();
     await p.add.click();
     await goToCart.click();
-    await expect.poll(() => isOpen(p)).toBe(false);
-    await expect(page.locator(".site-mini-cart")).toBeVisible();
+    await expect(page).toHaveURL(/\/order\/#order-cart$/);
+    await expect(page.locator("#order-cart")).toBeInViewport();
   });
 });

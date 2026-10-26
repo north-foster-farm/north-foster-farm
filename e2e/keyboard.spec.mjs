@@ -397,20 +397,6 @@ for (const width of WIDTHS) {
       });
     });
 
-    test("Escape closes the header's cart", async ({ page, browserName }) => {
-      const toggle = page.locator(".site-cart-toggle");
-      const menu = page.locator(".site-mini-cart");
-
-      await cannedDates(page);
-      await new OrderPage(page).open({ eggs: 2 });
-      await page.goto("/about/");
-      await expect(toggle).toBeVisible();
-      await escapes(page, tabKey(browserName), {
-        opener: toggle,
-        isOpen: () => menu.evaluate((m) => m.classList.contains("show")),
-      });
-    });
-
     test("Escape closes the account menu", async ({ page, browserName }) => {
       // Two in the header, one shown at a time: with the links
       // from md up, with the actions below md (#303).

@@ -2664,9 +2664,9 @@ PY-01 for the placed order. Passed on staging 2026-09-25 at 810174c,
 with the split Order button of a8e6e52.
 
 - **Scenario:** The header shows how many items the cart holds: off
-  the order page on the cart half of a split Order button, which opens
-  a mini cart with the way to checkout; on the order page on Order
-  itself; and in the phone menu.
+  the order page on the cart half of a split Order button, a second
+  link to the order page that lands on the cart (#402); on the order
+  page on Order itself; and in the phone menu.
 - **Setup:** A fresh browser.
 - **Test:**
   1. Open `/`.
@@ -2675,8 +2675,7 @@ with the split Order button of a8e6e52.
   3. On `/about/`, add 2 eggs from search.
   4. With 1 egg on `/order/`, open `/about/` in a second tab; press
      One more in the first.
-  5. With 2 eggs, open `/about/`; press the cart half; press Check
-     out.
+  5. With 2 eggs, open `/about/`; press the cart half.
   6. Block `localStorage`; open `/about/`.
   7. Place an order (PY-01).
 - **Assert:** Empty, no badge and no cart half. Then "5" on the order
@@ -2684,10 +2683,9 @@ with the split Order button of a8e6e52.
   items" and the disc is `aria-hidden`; "5" in the phone menu; Order
   keeps its width when the cart empties and the cart half goes.
   Search's add shows "2" at once; the second tab goes from "1" to "2"
-  with no reload. The mini cart lists one line "× 2" and a subtotal;
-  Proceed to checkout lands on `/order/#details`, in view, with "2
-  items". Blocked storage shows no badge and no page error; a placed
-  order leaves no badge.
+  with no reload. The cart half lands on `/order/#order-cart`, the
+  cart in view, with "2 items". Blocked storage shows no badge and no
+  page error; a placed order leaves no badge.
 - **Teardown:** None.
 
 ### AR-30 The skip link (#159)

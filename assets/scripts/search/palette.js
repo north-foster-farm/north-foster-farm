@@ -6,7 +6,6 @@
 // the quantity in the cart, as on the order page, and taking it to 0
 // takes the product out (#208).
 
-import Dropdown from "bootstrap/js/dist/dropdown.js";
 import { index, search } from "./match.js";
 import { cartCount, inCart, setCart } from "./cart.js";
 import { room as roomFor, soldOut as isSoldOut } from "./stock.js";
@@ -312,7 +311,8 @@ export const wireSearch = () => {
   q("[data-search-close]").addEventListener("click", () => close());
 
   // On the order page, the cart on the page, opened if folded; anywhere
-  // else, the header's cart.
+  // else, the header's cart link: the order page, landing on the cart
+  // (#402).
   cartButton.addEventListener("click", () => close(() => {
     const pageCart = document.getElementById("order-cart");
 
@@ -325,9 +325,9 @@ export const wireSearch = () => {
       return;
     }
 
-    const toggle = document.querySelector("[data-cart-toggle]");
+    const link = document.querySelector("[data-cart-link]");
 
-    if (toggle) Dropdown.getOrCreateInstance(toggle).show();
+    if (link) location.assign(link.href);
   }));
 
   document.addEventListener("keydown", (e) => {
