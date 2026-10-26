@@ -5,6 +5,7 @@ import {
   draftOccurrence, dropOnly, dropSeriesCode, fulfilmentDate, locationCount,
   placesFact,
 } from "./lib/scheduled.mjs";
+import { groupFromQuery, withPlaces } from "./lib/group.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
 import { sentence } from "./lib/sentence.mjs";
 import { summarize } from "./lib/summary.mjs";
@@ -135,6 +136,18 @@ export class OrderForm {
     // discount code like any other.
     this.pass = null;
     this.passFee = false;
+    // A buying group (#471): what /api/group said its code unlocks
+    // (the name, the lock, its place and series), and the code itself
+    // when one was typed or linked, so the order carries it; null for
+    // a member signed in, whose account the server knows. The page
+    // embeds nothing of a group, so its places are folded into the
+    // model from the answer (`raw` is what the page embeds).
+    this.raw = { locations: data.locations, series: data.series };
+    this.member = null;
+    this.groupCode = null;
+    // A draft's pickup at a round the lists lack until the group is
+    // unlocked, chosen then.
+    this.wantedOccurrence = null;
     this.index = indexCatalog(this.catalog);
     this.errors = new Errors(form);
     // /order/?edit=<id> changes a paid order (startEdit): its own draft,
@@ -234,6 +247,12 @@ export class OrderForm {
     this.methodFromQuery();
     this.addFromQuery();
     this.dates.load();
+    // /order/?group=<code>: a buying group's link (#471) puts its code
+    // in the box, and applyCode tries it as a typed one would be.
+    const linked = groupFromQuery(location.search);
+
+    this.clearQuery("group");
+    if (linked) this.cart.setCodeValue(linked);
     this.applyCode({ quiet: true });
     this.refresh();
     this.stock.start();
@@ -260,6 +279,11 @@ export class OrderForm {
     if (group && group !== this.group) {
       this.group = group;
       this.refresh();
+    }
+    // A buying group's member (#471) needs no code: the account's
+    // group is asked for, and its pickup and prices follow.
+    if (who.customer.memberGroup && !this.member && !this.editing) {
+      this.applyGroup("").catch(() => {});
     }
     this.prefill(who.customer);
   }
@@ -854,6 +878,7 @@ export class OrderForm {
       money: this.money,
       group: this.group,
       code: this.code,
+      lock: this.member ? this.member.lock : null,
       zipStatus: this.zipStatus(),
       waiveFee: !!this.pass && this.passFee,
     });
@@ -907,6 +932,20 @@ export class OrderForm {
       return;
     }
 
+    // A buying group's code (#471): the server says what it unlocks.
+    // Only its own shape, six characters or more, is worth a request.
+    const member = this.editing || typed.length < 6
+      ? { ok: false }
+      : await this.applyGroup(typed);
+
+    if (member.ok) {
+      // Draft wording.
+      accepted(`Applied: you can pick up at ${this.member.name}.`);
+      this.refresh();
+
+      return;
+    }
+
     const pass = this.editing ? { ok: false } : await this.applyPass(typed);
 
     // James's wording (6333286808, and on #182 since): the minimum is
@@ -955,6 +994,47 @@ export class OrderForm {
     this.passFee = false;
     this.cart.codeResult({ text: message });
     this.refresh();
+  }
+
+  // Asks the server what a buying group's code unlocks (#471), or,
+  // with no code, what the signed-in account's group is. An accepted
+  // answer unlocks the group. -> { ok, message? }.
+  async applyGroup(code) {
+    const { ok, data } = await api("/api/group", {
+      method: "POST", body: code ? { code } : {},
+    }).catch(() => ({ ok: false, data: null }));
+
+    if (ok && data && data.group) this.unlockGroup(data, code || null);
+
+    return { ok: !!(ok && data && data.group), message: data && data.message };
+  }
+
+  // The group's place and series join the model and its rounds the
+  // pickup list, its lock prices the totals, and the order carries
+  // the code (or, for a member signed in, nothing: the server knows).
+  unlockGroup(data, code) {
+    this.member = data.group;
+    this.groupCode = code;
+    this.terms = withPlaces(this.terms, this.raw, data.group);
+    this.dates.addScheduled(data.dates || []);
+    if (this.wantedOccurrence && this.dates.choose(this.wantedOccurrence)) {
+      this.wantedOccurrence = null;
+    }
+    this.refresh();
+    this.draft.save(this.collect());
+  }
+
+  // A code the server refused at submission (replaced since the page
+  // applied it): the group comes off, its pickup with it, and the
+  // words go by the code box, as for a pass.
+  dropGroup(message) {
+    this.member = null;
+    this.groupCode = null;
+    this.terms = withPlaces(this.terms, this.raw);
+    this.dates.dropExtra();
+    this.cart.codeResult({ text: message });
+    this.refresh();
+    this.draft.save(this.collect());
   }
 
   // The money rules the page holds the order to: a pass lifts the
@@ -1313,6 +1393,8 @@ export class OrderForm {
         ? this.code.code
         : normalizeCode(qs(this.form, "[data-field='code']").value),
       pass: this.pass,
+      // A buying group's code (#471), when one was typed or linked.
+      groupCode: this.groupCode,
       claimedTotal: this.totals().total,
       website: qs(this.form, "[name='website']").value,
     };
@@ -1398,6 +1480,11 @@ export class OrderForm {
     if (payload.pass && !this.editing) {
       this.applyPass(payload.pass).then(() => this.refresh());
     }
+    // So is a buying group's code (#471): replaced since, it is gone,
+    // and the pickup it unlocked with it.
+    if (payload.groupCode && !this.editing) {
+      this.applyGroup(payload.groupCode).catch(() => {});
+    }
 
     for (const line of payload.lines || []) {
       // A saved cart may predate a rename; a paid order being changed
@@ -1427,6 +1514,9 @@ export class OrderForm {
     if (way === "scheduled") {
       this.dates.want(way, draftOccurrence(f, this.dropSeries),
         f.method === "scituate" ? this.dropSeries : "");
+      // A round of a buying group is not in the lists until the group
+      // is unlocked (#471); it is chosen then.
+      this.wantedOccurrence = f.occurrence || null;
     } else if (way && f.date) {
       this.dates.want(way, f.date);
     }
@@ -1475,6 +1565,7 @@ export class OrderForm {
       index: this.index, terms: this.terms, now: this.dates.now(),
       placed: this.editing && this.editing.placed,
       group: this.group, code: this.code, schedule: this.dates.schedule(),
+      lock: this.member ? this.member.lock : null,
       waive: { minimum: !!this.pass, fee: !!this.pass && this.passFee },
     });
   }
@@ -1707,6 +1798,13 @@ export class OrderForm {
       // follow, and the words go by the code box, not under a field.
       if (outcome.errors.pass) {
         this.dropPass(outcome.errors.pass);
+
+        return;
+      }
+      // A buying group's code the server no longer knows (#471), the
+      // same way.
+      if (outcome.errors.groupCode) {
+        this.dropGroup(outcome.errors.groupCode);
 
         return;
       }

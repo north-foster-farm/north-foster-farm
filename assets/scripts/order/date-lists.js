@@ -2,6 +2,7 @@
 // server on load, and the clock is anchored to the server's, so a
 // visitor's wrong clock cannot offer a closed date.
 
+import { mergeScheduled } from "./lib/group.mjs";
 import {
   fallbackChoice, pickupParts, scheduledChoices,
 } from "./lib/scheduled.mjs";
@@ -43,6 +44,10 @@ export class DateLists {
     // Every occurrence /api/dates has listed, kept after it has gone, so
     // a confirmation can still name where an order is to be picked up.
     this.occurrences = new Map();
+    // A buying group's rounds (#471), from /api/group once its code is
+    // accepted: /api/dates never lists them, so every load of the
+    // lists joins them back in.
+    this.extra = [];
     // A location by its code, for a pickup's address; the form sets it
     // from the model (data/locations.json).
     this.place = () => null;
@@ -121,7 +126,10 @@ export class DateLists {
 
   apply(data) {
     this.offset = Date.parse(data.now) - Date.now();
-    this.lists = { ...data, scheduled: this.scheduled(data.scheduled) };
+    this.lists = {
+      ...data,
+      scheduled: this.scheduled(mergeScheduled(data.scheduled, this.extra)),
+    };
 
     for (const select of this.form.querySelectorAll("[data-dates]")) {
       this.fill(select, this.lists[select.dataset.dates] || []);
@@ -144,6 +152,31 @@ export class DateLists {
   // An occurrence's place and window, from any entry it has had.
   occurrence(id) {
     return this.occurrences.get(id) || null;
+  }
+
+  // A buying group's rounds (#471), joined to the scheduled list now
+  // and on every load after; `dropExtra` takes them out again when
+  // the code is dropped. The pickup chosen stays chosen.
+  addScheduled(entries) {
+    this.setExtra(entries || []);
+  }
+
+  dropExtra() {
+    this.setExtra([]);
+  }
+
+  setExtra(entries) {
+    const gone = new Set(this.extra.map((e) => e.occurrence));
+
+    this.extra = entries;
+    if (!this.lists) return;
+
+    const base = this.lists.scheduled.filter((d) => !gone.has(d.occurrence));
+
+    this.lists.scheduled = this.scheduled(mergeScheduled(base, this.extra));
+    this.fill(this.form.querySelector("[data-dates='scheduled']"),
+      this.lists.scheduled);
+    this.onChange();
   }
 
   // A date to choose once the lists come: a restored draft's, or the

@@ -36,13 +36,20 @@ export const cutoffFor = (iso, terms) => {
   return instant(addDays(iso, -back), cutoffHour, 0, terms.timeZone);
 };
 
+// How far ahead a buying group's next round is looked for: its
+// series runs every other week, so well within this.
+const ROUND_AHEAD = 60;
+
 // Every occurrence the schedule has a line for, from today through
 // the horizon, with its line's action: [{ occurrence, action }], by
 // date and then opening time. An occurrence with no line is not
 // offered, and is left out here. An archived series never appears,
 // and a buying group's series (#471) only when `terms.groups` names
-// its group; its rounds are open unless the schedule says otherwise,
-// so no line is needed to run one.
+// its group. A group's rounds are open unless the schedule says
+// otherwise, so no line is needed to run one, and its next round is
+// open whatever the horizon, one round at a time: orders gather for
+// it until it closes (James, 6424212209), and the one after opens
+// then.
 export const scheduledLines = (now, terms, schedule = []) => {
   const { model } = terms;
   const first = today(now, terms.timeZone);
@@ -51,7 +58,13 @@ export const scheduledLines = (now, terms, schedule = []) => {
   const out = [];
 
   for (const s of offered(model, terms.groups || [])) {
-    for (const date of seriesDates(s, first, last)) {
+    // A round today closed last night, so the next is tomorrow's on.
+    const dates = s.group
+      ? seriesDates(s, addDays(first, 1), addDays(first, ROUND_AHEAD))
+        .slice(0, 1)
+      : seriesDates(s, first, last);
+
+    for (const date of dates) {
       const line = lines.find((l) => l.date === date && l.code === s.code)
         || (s.group ? { action: "pickup" } : null);
 

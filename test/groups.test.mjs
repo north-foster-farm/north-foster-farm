@@ -128,11 +128,29 @@ describe("a group's series is offered only to its group", () => {
     assert.equal(round.cutoff, ny("2026-11-07", 23, 59).toISOString());
   });
 
+  it("opens the next round whatever the horizon, one at a time", () => {
+    // Monday 2026-10-26: the horizon is Saturday 2026-11-07, and the
+    // first round, Sunday the 8th, is open to the group all the same.
+    const early = ny("2026-10-26");
+    const mine = scheduledDates(early, member, schedule);
+
+    assert.deepEqual(mine.filter((d) => d.series === "HHHH")
+      .map((d) => d.date), ["2026-11-08"]);
+    assert.equal(mine.some((d) => d.date > "2026-11-07"
+      && d.series !== "HHHH"), false);
+    assert.equal(scheduledDates(early, base, schedule)
+      .some((d) => d.series === "HHHH"), false);
+    // The round after opens the moment this one closes.
+    assert.deepEqual(scheduledDates(ny("2026-11-08", 0, 1), member, schedule)
+      .filter((d) => d.series === "HHHH").map((d) => d.date),
+    ["2026-11-22"]);
+  });
+
   it("closes once its cutoff has passed", () => {
     const late = ny("2026-11-08", 0, 1);
     const mine = scheduledDates(late, member, schedule);
 
-    assert.equal(mine.some((d) => d.series === "HHHH"), false);
+    assert.equal(mine.some((d) => d.occurrence === "HHHH-261108"), false);
   });
 
   it("sits out a round the schedule skips, and attends one it says", () => {

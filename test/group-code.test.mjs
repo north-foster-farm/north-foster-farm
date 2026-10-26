@@ -134,14 +134,20 @@ describe("POST /api/group", () => {
     assert.equal(JSON.stringify(data).includes(CODE), false);
   });
 
-  it("limits tries by address", async () => {
+  it("limits misses by address, never a member's own page", async () => {
     const stores = await withCode();
     const ip = "9.9.9.9";
 
-    for (let i = 0; i < RATE.max; i++) {
+    for (let i = 0; i < RATE.max - 1; i++) {
       assert.equal((await ask({ code: "WRONG-ONE" }, { stores, ip })).status,
         404);
     }
+    // The right code is answered however many times a page asks.
+    for (let i = 0; i < RATE.max; i++) {
+      assert.equal((await ask({ code: CODE }, { stores, ip })).status, 200);
+    }
+    assert.equal((await ask({ code: "WRONG-TWO" }, { stores, ip })).status,
+      404);
 
     const res = await ask({ code: CODE }, { stores, ip });
 

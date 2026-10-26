@@ -14,6 +14,7 @@ import {
 } from "./admin.mjs";
 import { requestLink } from "./auth.mjs";
 import { MAX_OFFSET } from "./clock.mjs";
+import { getGroupRecord, setGroupCode } from "./groups.mjs";
 import { runJobs } from "./jobs.mjs";
 import { links, readState, setState } from "./maintenance.mjs";
 import { OUTBOX_PREFIX } from "./mail.mjs";
@@ -234,6 +235,18 @@ export const OPS = {
     await stores.orders.delete(passKey(need(code, "code")));
 
     return { removed: true };
+  },
+  // A buying group's code (#471), for the spec that orders with one.
+  // The code in force is returned as it is; one is minted only where
+  // none is set, so a run never replaces the code the farm handed out
+  // on staging. -> { code }.
+  groupCode: async (stores, { key }) => {
+    const found = await getGroupRecord(stores, need(key, "key"));
+
+    return {
+      code: found && found.code ? found.code
+        : (await setGroupCode(stores, key)).code,
+    };
   },
   // Every message in the outbox with its HTML and text, newest first.
   outboxList: async (stores) => {

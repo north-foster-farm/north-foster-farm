@@ -25,21 +25,21 @@ import { withLog } from "./lib/log.mjs";
 import { pickupSchedule } from "./lib/pickups.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
-// Per-instance, best effort: a minted code is eight characters from
-// 31, so a script gains nothing within this, and a member mistyping
-// has tries to spare.
+// Per-instance, best effort, and on misses only (James, 6424477473):
+// a minted code is eight characters from 31, so a script gains
+// nothing within this, while a member whose page asks again on every
+// load is never held back.
 export const RATE = { windowMs: 10 * 60_000, max: 10 };
-const hits = new Map();
+const misses = new Map();
 
-const rateLimited = (ip, now) => {
-  if (!ip) return false;
+const recentMisses = (ip, now) =>
+  (misses.get(ip) || []).filter((t) => now - t < RATE.windowMs);
 
-  const recent = (hits.get(ip) || []).filter((t) => now - t < RATE.windowMs);
+const rateLimited = (ip, now) => !!ip
+  && recentMisses(ip, now).length >= RATE.max;
 
-  recent.push(now);
-  hits.set(ip, recent);
-
-  return recent.length > RATE.max;
+const missed = (ip, now) => {
+  if (ip) misses.set(ip, [...recentMisses(ip, now), now]);
 };
 
 // The group's open rounds, as /api/dates would list them for a member.
@@ -75,7 +75,11 @@ export const handle = async (req, {
     ? await findGroupByCode(stores, typed)
     : (session ? groupOf(memberKeyOf(session.customer)) : null);
 
-  if (!group) return json(404, { ok: false, message: INVALID_CODE });
+  if (!group) {
+    if (typed) missed(ip, now.getTime());
+
+    return json(404, { ok: false, message: INVALID_CODE });
+  }
 
   return json(200, {
     ok: true,
