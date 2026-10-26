@@ -30,7 +30,6 @@ e2e/gate.spec.mjs daa775382947 2026-10-26
 e2e/header-chick.spec.mjs daa775382947 2026-10-26
 e2e/history-download.spec.mjs daa775382947 2026-10-26
 e2e/home.spec.mjs daa775382947 2026-10-26
-e2e/keyboard.spec.mjs c5b80508ee19 2026-10-26
 e2e/limit-exempt.spec.mjs c5b80508ee19 2026-10-26
 e2e/llms.spec.mjs daa775382947 2026-10-26
 e2e/login-layout.spec.mjs daa775382947 2026-10-26

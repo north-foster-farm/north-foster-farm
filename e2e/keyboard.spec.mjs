@@ -282,6 +282,19 @@ const settle = async (page) => {
 
       return !panel || !panel.hasAttribute("data-load");
     }, null, { timeout: 30_000 });
+    // And the page's height holds still: the wallets, stock and dates
+    // land at their own pace, and a stop the browser scrolled to can
+    // end up below the fold when the page grows after it.
+    let last = -1;
+
+    for (let steady = 0; steady < 3;) {
+      await page.waitForTimeout(300);
+
+      const height = await page.evaluate(() => document.body.scrollHeight);
+
+      steady = height === last ? steady + 1 : 0;
+      last = height;
+    }
   }
 };
 
