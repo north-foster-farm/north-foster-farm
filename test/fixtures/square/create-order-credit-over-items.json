@@ -1,0 +1,110 @@
+{
+  "_source": "Square sandbox, POST /v2/orders, Square-Version 2026-09-16, recorded by James on 2026-10-26 for #471 (the fakes audit's C1, comment 6426321360). Ids scrubbed to placeholders; amounts, shape and timestamps as Square answered.",
+  "_shows": "An ORDER-scope FIXED_AMOUNT discount larger than the items is applied to the line items only (applied_money 700 of 1200) and never to a SUBTOTAL_PHASE service charge, so the order's total is the fee, 500. Credit on our side is therefore capped at the items' net (lib/totals.mjs).",
+  "request": {
+    "idempotency_key": "fixture-c1-<timestamp>",
+    "order": {
+      "location_id": "<LOCATION_ID>",
+      "reference_id": "FIXTURE-C1",
+      "line_items": [
+        {
+          "name": "Eggs, Grade A · Large",
+          "quantity": "1",
+          "base_price_money": { "amount": 700, "currency": "USD" }
+        }
+      ],
+      "service_charges": [
+        {
+          "uid": "delivery-fee",
+          "name": "Delivery fee",
+          "amount_money": { "amount": 500, "currency": "USD" },
+          "calculation_phase": "SUBTOTAL_PHASE",
+          "taxable": false
+        }
+      ],
+      "discounts": [
+        {
+          "uid": "group-credit",
+          "name": "Group credit",
+          "type": "FIXED_AMOUNT",
+          "amount_money": { "amount": 1200, "currency": "USD" },
+          "scope": "ORDER"
+        }
+      ]
+    }
+  },
+  "response": {
+    "order": {
+      "created_at": "2026-10-26T20:46:37.255Z",
+      "discounts": [
+        {
+          "amount_money": { "amount": 1200, "currency": "USD" },
+          "applied_money": { "amount": 700, "currency": "USD" },
+          "name": "Group credit",
+          "scope": "ORDER",
+          "type": "FIXED_AMOUNT",
+          "uid": "group-credit"
+        }
+      ],
+      "id": "<ORDER_ID>",
+      "line_items": [
+        {
+          "applied_discounts": [
+            {
+              "applied_money": { "amount": 700, "currency": "USD" },
+              "discount_uid": "group-credit",
+              "uid": "<APPLIED_DISCOUNT_UID>"
+            }
+          ],
+          "base_price_money": { "amount": 700, "currency": "USD" },
+          "gross_sales_money": { "amount": 700, "currency": "USD" },
+          "item_type": "ITEM",
+          "name": "Eggs, Grade A · Large",
+          "quantity": "1",
+          "total_card_surcharge_money": { "amount": 0, "currency": "USD" },
+          "total_discount_money": { "amount": 700, "currency": "USD" },
+          "total_money": { "amount": 0, "currency": "USD" },
+          "total_service_charge_money": { "amount": 0, "currency": "USD" },
+          "total_tax_money": { "amount": 0, "currency": "USD" },
+          "uid": "<LINE_ITEM_UID>",
+          "variation_total_price_money": { "amount": 700, "currency": "USD" }
+        }
+      ],
+      "location_id": "<LOCATION_ID>",
+      "net_amount_due_money": { "amount": 500, "currency": "USD" },
+      "net_amounts": {
+        "card_surcharge_money": { "amount": 0, "currency": "USD" },
+        "discount_money": { "amount": 700, "currency": "USD" },
+        "service_charge_money": { "amount": 500, "currency": "USD" },
+        "tax_money": { "amount": 0, "currency": "USD" },
+        "tip_money": { "amount": 0, "currency": "USD" },
+        "total_money": { "amount": 500, "currency": "USD" }
+      },
+      "reference_id": "FIXTURE-C1",
+      "service_charges": [
+        {
+          "amount_money": { "amount": 500, "currency": "USD" },
+          "applied_money": { "amount": 500, "currency": "USD" },
+          "calculation_phase": "SUBTOTAL_PHASE",
+          "name": "Delivery fee",
+          "taxable": false,
+          "total_money": { "amount": 500, "currency": "USD" },
+          "total_tax_money": { "amount": 0, "currency": "USD" },
+          "treatment_type": "LINE_ITEM_TREATMENT",
+          "type": "CUSTOM",
+          "uid": "delivery-fee"
+        }
+      ],
+      "source": { "name": "Sandbox for <APPLICATION_ID>" },
+      "state": "OPEN",
+      "total_card_surcharge_money": { "amount": 0, "currency": "USD" },
+      "total_discount_money": { "amount": 700, "currency": "USD" },
+      "total_money": { "amount": 500, "currency": "USD" },
+      "total_service_charge_money": { "amount": 500, "currency": "USD" },
+      "total_tax_money": { "amount": 0, "currency": "USD" },
+      "total_tip_money": { "amount": 0, "currency": "USD" },
+      "updated_at": "2026-10-26T20:46:37.255Z",
+      "version": 1
+    }
+  }
+}

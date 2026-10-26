@@ -45,6 +45,12 @@ export const createChangeOrder = async (order, change, key, {
   return { squareOrderId: fakeId("FAKE-ORDER", key), customerId: id };
 };
 
+// A zero-total order paid with no payment. square.mjs keeps nothing of
+// Square's answer but the id, so this answers the same; what Square
+// does with an order whose credit discount outruns its items is in
+// test/fixtures/square/create-order-credit-over-items.json, recorded
+// from the sandbox, and test/square-fixtures.test.mjs holds buildOrder
+// to it. A recording of the zero-pay answer itself is still to come.
 export const payZeroOrder = async (squareOrderId) => ({ squareOrderId });
 
 // Square's sandbox test values for a declined card nonce
