@@ -22,7 +22,7 @@ repository.
 | File | Made by | Credit | Source and notes |
 | --- | --- | --- | --- |
 | `assets/images/chicken-suit.jpg` | Jim | | Photo of the farm's table at the Foster Farmers Market, fall 2025, someone in a chicken suit behind it. No person in it can be identified, so no permission is needed. James supplied the file for #224. |
-| `assets/images/grill.jpg` | James | | A whole chicken and its parts cooking on a round charcoal grill, which James cooked and photographed on 2026-10-26 with the farm's iPhone 14 Pro, exported in Pixelmator Pro. James chose it and supplied the file (#303, comment 6423373984). Resized to 2400px wide, uncropped, EXIF and GPS stripped. Beside How to buy on the home page. It replaced `cooked.jpg`, so the home page carries no photo credit. |
+| `assets/images/grill.jpg` | James | | A whole chicken and its parts cooking on a round charcoal grill, which James cooked and photographed on 2026-10-26 (13:35 by the file's own timestamp) with the farm's iPhone 14 Pro, exported in Pixelmator Pro. It is the first of two shots a minute apart. James chose and supplied the file (#303): the second shot first (comment 6423373984), then this one instead. Resized to 2400px wide, uncropped, EXIF and GPS stripped. Beside How to buy on the home page. It replaced `cooked.jpg`, so the home page carries no photo credit. |
 | `assets/images/chicks.jpg` | James or Jim | | Farm iPhone, exported in Pixelmator Pro. June post. Original has GPS. |
 | `assets/images/ivy-sniffs-chick.jpg` | James or Jim | | Farm iPhone, Pixelmator Pro. June post. Original has GPS. |
 | `assets/images/photogenic-hen.jpg` | James or Jim | | Farm iPhone, Pixelmator Pro. June post. Original has GPS. |
