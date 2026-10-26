@@ -14,11 +14,21 @@ import {
 import {
   checkSchedule, parseSchedule,
 } from "../assets/scripts/order/lib/schedule.mjs";
+import {
+  computeTotals, lockDiscountFor,
+} from "../assets/scripts/order/lib/totals.mjs";
+import { validateOrder } from "../assets/scripts/order/lib/validate.mjs";
+import { indexCatalog } from "../assets/scripts/order/lib/catalog.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
+import catalog from "../data/catalog.json" with { type: "json" };
 import groupData from "../data/groups.json" with { type: "json" };
 import locationData from "../data/locations.json" with { type: "json" };
 import seriesData from "../data/series.json" with { type: "json" };
 import terms from "../netlify/functions/lib/terms.mjs";
+import {
+  buildOrder, settings,
+} from "../netlify/functions/lib/square.mjs";
+import { SCHEDULE } from "./schedule-fixture.mjs";
 
 const ny = (iso, hour = 9, minute = 0) =>
   instant(iso, hour, minute, "America/New_York");
@@ -225,5 +235,172 @@ describe("the real group data", () => {
 
     assert.deepEqual(seriesDates(s, "2026-11-01", "2026-12-07"),
       ["2026-11-08", "2026-11-22", "2026-12-06"]);
+  });
+});
+
+describe("a buying group's price lock", () => {
+  const { money } = terms;
+  // Retail as the catalog has it today, and a catalog after a rise.
+  const index = indexCatalog(catalog);
+  const raised = new Map([...index].map(([sku, item]) =>
+    [sku, { ...item, price: item.price + 2 }]));
+  const lock = groupData.groups[0].priceLock;
+  const lines = [
+    { sku: "NFF-CHK-WHL-35-39", qty: 2 }, { sku: "NFF-CHK-EGG-LG", qty: 1 },
+  ];
+  const at = (idx, extra = {}) => computeTotals({
+    lines, method: "onfarm", index: idx, money, lock, ...extra,
+  });
+
+  it("is today's retail price of every SKU, locked through 2027", () => {
+    assert.equal(lock.from, "2026-10-26");
+    assert.equal(lock.through, "2027-12-31");
+    for (const [sku, item] of index) {
+      assert.equal(lock.prices[sku], item.price, sku);
+    }
+    assert.equal(Object.keys(lock.prices).length, index.size);
+  });
+
+  it("holds nothing down while the locked prices are retail", () => {
+    assert.equal(lockDiscountFor(lines, index, lock), null);
+
+    const t = at(index);
+
+    // $67: the $50 tier, as for anyone.
+    assert.equal(t.subtotal, 6700);
+    assert.equal(t.discountTier, 50);
+    assert.equal(t.discountAmount, 500);
+    assert.equal(t.discountLock, undefined);
+    assert.equal(t.lockLines, undefined);
+    assert.equal(t.total, 6200);
+  });
+
+  it("charges the locked price once retail rises, per item", () => {
+    const found = lockDiscountFor(lines, raised, lock);
+
+    assert.equal(found.amount, 600);
+    assert.equal(found.label, "Price lock");
+    assert.deepEqual(found.lines, [
+      { sku: "NFF-CHK-WHL-35-39", off: 200, qty: 2, amount: 400 },
+      { sku: "NFF-CHK-EGG-LG", off: 200, qty: 1, amount: 200 },
+    ]);
+
+    const t = at(raised);
+
+    // $73 at the new retail, $6 held down: more than the $50 tier.
+    assert.equal(t.subtotal, 7300);
+    assert.equal(t.discountAmount, 600);
+    assert.equal(t.discountLabel, "Price lock");
+    assert.equal(t.discountTier, null);
+    assert.equal(t.discountLock, true);
+    assert.equal(t.lockLines.length, 2);
+    assert.equal(t.total, 6700);
+  });
+
+  it("never stacks: the larger of the lock and the tier, a tie to the lock",
+    () => {
+      const one = new Map([["X", { price: 52 }]]);
+      const held = { prices: { X: 50 } };
+      // $2 held down against the $50 tier's $5: the tier wins.
+      const tier = computeTotals({
+        lines: [{ sku: "X", qty: 1 }], method: "onfarm", index: one, money,
+        lock: held,
+      });
+
+      assert.equal(tier.discountAmount, 500);
+      assert.equal(tier.discountTier, 50);
+      assert.equal(tier.discountLock, undefined);
+
+      // $5 held down against $5: the lock.
+      const tie = computeTotals({
+        lines: [{ sku: "X", qty: 1 }], method: "onfarm", index: one, money,
+        lock: { prices: { X: 47 } },
+      });
+
+      assert.equal(tie.discountAmount, 500);
+      assert.equal(tie.discountLock, true);
+      assert.equal(tie.discountTier, null);
+    });
+
+  it("gives a code its due, and a SKU outside the lock retail", () => {
+    const code = { code: "TEN", label: "Ten", off: 10 };
+    const t = at(raised, { code });
+
+    assert.equal(t.discountCode, "TEN");
+    assert.equal(t.discountAmount, 1000);
+    assert.equal(t.discountLock, undefined);
+
+    const partial = { prices: { "NFF-CHK-EGG-LG": 7 } };
+    const found = lockDiscountFor(lines, raised, partial);
+
+    assert.deepEqual(found.lines.map((l) => l.sku), ["NFF-CHK-EGG-LG"]);
+    assert.equal(lockDiscountFor(lines, raised, null), null);
+    assert.equal(lockDiscountFor(lines, raised, { prices: {} }), null);
+  });
+
+  it("reaches the order through validateOrder", () => {
+    const payload = {
+      customer: {
+        firstName: "Pat", lastName: "Example", email: "pat@example.com",
+        phone: "401-555-0100", contact: "call",
+      },
+      lines,
+      fulfilment: { method: "onfarm", date: "2026-10-07",
+        onfarm: { window: "09:00-12:00" } },
+      claimedTotal: 6700,
+    };
+    const schedule = Object.assign(parseSchedule(SCHEDULE).windows,
+      { lines: parseSchedule(SCHEDULE).lines });
+    const result = validateOrder(payload, {
+      index: raised, terms, now: ny("2026-10-06"), schedule, lock,
+    });
+
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    assert.equal(result.order.totals.total, 6700);
+    assert.equal(result.order.totals.discountLock, true);
+    assert.equal(result.order.lines[0].unitPrice, 32);
+  });
+
+  it("reaches Square as one line-item discount per held item", () => {
+    const cfg = settings({
+      SQUARE_ACCESS_TOKEN: "tok", SQUARE_LOCATION_ID: "LOC",
+      SQUARE_ENV: "sandbox",
+    });
+    const t = at(raised);
+    const order = {
+      id: "NFF-2611-ABCD",
+      customer: { name: "Pat Example", email: "pat@example.com",
+        phone: "401-555-0100", contact: "text" },
+      fulfilment: { method: "onfarm", date: "2026-11-03",
+        onfarm: { window: "09:00-12:00", from: "09:00", to: "12:00" },
+        delivery: null },
+      lines: lines.map(({ sku, qty }) => ({
+        sku, label: sku, name: sku, unitPrice: raised.get(sku).price, qty,
+        lineTotal: raised.get(sku).price * qty, squareVariationId: null,
+      })),
+      totals: t,
+      notes: "", source: "",
+      flags: { zipUnlisted: false, totalMismatch: false },
+    };
+    const built = buildOrder(order, "CUST", cfg);
+
+    assert.deepEqual(built.discounts, [
+      { uid: "lock-NFF-CHK-WHL-35-39", name: "Price lock",
+        amount_money: { amount: 400, currency: "USD" }, scope: "LINE_ITEM" },
+      { uid: "lock-NFF-CHK-EGG-LG", name: "Price lock",
+        amount_money: { amount: 200, currency: "USD" }, scope: "LINE_ITEM" },
+    ]);
+    assert.deepEqual(built.line_items[0].applied_discounts,
+      [{ discount_uid: "lock-NFF-CHK-WHL-35-39" }]);
+    assert.deepEqual(built.line_items[1].applied_discounts,
+      [{ discount_uid: "lock-NFF-CHK-EGG-LG" }]);
+    assert.equal(built.line_items[0].base_price_money.amount, 3200);
+
+    // Nothing held down: the usual one order-scope discount.
+    const plain = buildOrder({ ...order, totals: at(index) }, "CUST", cfg);
+
+    assert.equal(plain.discounts.length, 1);
+    assert.equal(plain.discounts[0].scope, "ORDER");
+    assert.equal(plain.line_items[0].applied_discounts, undefined);
   });
 });

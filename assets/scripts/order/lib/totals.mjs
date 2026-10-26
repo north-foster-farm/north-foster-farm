@@ -71,16 +71,49 @@ export const codeDiscountFor = (subtotal, code) => {
   };
 };
 
+// A buying group's locked price list (#471): a member pays the lower
+// of an item's locked price and its retail price, so a rise in retail
+// shows as a whole-dollar discount on each item the lock holds down.
+// `lock` is the group's `priceLock` (data/groups.json): { prices:
+// { [sku]: dollars }, label? }. -> { key, label, amount, lines:
+// [{ sku, off, qty, amount }] } in cents, or null while nothing is
+// held down (today the locked prices are retail).
+export const lockDiscountFor = (lines, index, lock) => {
+  if (!lock || !lock.prices) return null;
+
+  const out = [];
+  let amount = 0;
+
+  for (const { sku, qty } of lines) {
+    const item = index.get(sku);
+    const locked = lock.prices[sku];
+
+    if (!item || !(locked >= 0) || !(item.price > locked)) continue;
+
+    const off = toCents(item.price - locked);
+
+    out.push({ sku, off, qty, amount: off * qty });
+    amount += off * qty;
+  }
+
+  return amount > 0
+    ? { key: "lock", label: lock.label || "Price lock", amount, lines: out }
+    : null;
+};
+
 // `lines` is [{ sku, qty }]; `index` is indexCatalog(catalog); `group`
 // is the customer's discount group key, if any; `code` is a discount
-// code entry, if a known one was typed. The bulk tier, the group
-// discount and the code never stack: the customer gets the largest.
+// code entry, if a known one was typed; `lock` is a buying group
+// member's locked price list, if any. The bulk tier, the group
+// discount, the code and the price lock never stack: the customer
+// gets the largest.
 // `zipStatus` is the delivery ZIP's status from zipInfo, when known.
 // `waiveFee` is a farm-issued pass that waives the delivery fee
 // (#182): no fee and no outside-area fee, and `feeWaived` set when
 // there was one to waive. Discounts apply as usual.
 export const computeTotals = ({
-  lines, method, index, money, group, code, zipStatus, waiveFee = false,
+  lines, method, index, money, group, code, lock, zipStatus,
+  waiveFee = false,
 }) => {
   let subtotal = 0;
 
@@ -93,11 +126,17 @@ export const computeTotals = ({
   const bulk = discountFor(subtotal, money);
   const byGroup = groupDiscountFor(subtotal, group, money);
   const byCode = codeDiscountFor(subtotal, code);
+  const byLock = lockDiscountFor(lines, index, lock);
   const best = Math.max(
-    bulk.amount, byGroup ? byGroup.amount : 0, byCode ? byCode.amount : 0
+    bulk.amount, byGroup ? byGroup.amount : 0, byCode ? byCode.amount : 0,
+    byLock ? byLock.amount : 0
   );
   const useCode = !!byCode && byCode.amount === best && byCode.amount > 0;
-  const useGroup = !useCode && !!byGroup && byGroup.amount > bulk.amount;
+  // A tie between the lock and the tier goes to the lock: it is the
+  // member's own, and the record then says which group the order is.
+  const useLock = !useCode && !!byLock && byLock.amount === best;
+  const useGroup = !useCode && !useLock && !!byGroup
+    && byGroup.amount > bulk.amount;
   // An empty cart owes nothing, whatever method is chosen: Delivery
   // is the starting choice, and a fee on nothing read as a $5 order.
   const isDelivery = method === "delivery" && subtotal > 0;
@@ -115,16 +154,18 @@ export const computeTotals = ({
 
   const discountAmount = useCode
     ? byCode.amount
-    : (useGroup ? byGroup.amount : bulk.amount);
+    : (useLock ? byLock.amount
+      : (useGroup ? byGroup.amount : bulk.amount));
   const discountLabel = useCode
     ? byCode.label
-    : (useGroup
-      ? `${byGroup.label} (${byGroup.percent}%)`
-      : (bulk.tier ? `Bulk discount ($${bulk.tier}+)` : null));
+    : (useLock ? byLock.label
+      : (useGroup
+        ? `${byGroup.label} (${byGroup.percent}%)`
+        : (bulk.tier ? `Bulk discount ($${bulk.tier}+)` : null)));
 
   return {
     subtotal,
-    discountTier: useCode || useGroup ? null : bulk.tier,
+    discountTier: useCode || useGroup || useLock ? null : bulk.tier,
     discountGroup: useGroup ? byGroup.key : null,
     discountCode: useCode ? byCode.key : null,
     discountLabel,
@@ -133,6 +174,9 @@ export const computeTotals = ({
     areaFee: feeWaived ? 0 : areaFee,
     // Only on an order that waived one, so no other record changes.
     ...(feeWaived ? { feeWaived: true } : {}),
+    // Only on an order the price lock held down (#471): the per-item
+    // amounts Square shows on the receipt.
+    ...(useLock ? { discountLock: true, lockLines: byLock.lines } : {}),
     total: subtotal - discountAmount + deliveryFee,
   };
 };

@@ -212,7 +212,8 @@ subtotal    = Σ qty × unitPrice
 bulk        = highest tier where subtotal >= threshold   (never stacked)
 group       = customer's discountGroup percent × subtotal (signed in)
 code        = a known discount code's `off`, capped at the subtotal
-discount    = max(bulk, group, code)                      (never stacked)
+lock        = Σ qty × (unitPrice - locked price), a buying group member
+discount    = max(bulk, group, code, lock)                (never stacked)
 baseFee     = delivery && subtotal < 150.00 ? 5.00 : 0    (pre-discount)
 areaFee     = delivery && ZIP unlisted (other RI) ? 3.00 : 0 (never waived)
 deliveryFee = baseFee + areaFee
@@ -225,7 +226,17 @@ minimum     = delivery only: subtotal - discount >= 40.00
 record and is set by the CLI; the order handler reads it from the
 session, never from the payload. `totals.discountLabel` names whichever
 discount applied and is what every surface shows; `discountTier`,
-`discountGroup` and `discountCode` say which kind it was.
+`discountGroup`, `discountCode` and `discountLock` say which kind it
+was.
+
+A buying group's price lock (#471, `priceLock` in `data/groups.json`)
+is not a discount today: the locked prices are the retail prices of
+the day the lock began. A member pays the lower of the locked price
+and retail, so when retail rises the difference shows as a whole-dollar
+"Price lock" discount per item, listed in `totals.lockLines` and sent
+to Square as one line-item discount each. A SKU the lock has no price
+for is charged at retail. A tie between the lock and the bulk tier
+goes to the lock.
 
 A discount code is typed into the cart and sent as `code` on the
 payload. The server looks it up in `data/discount-codes.json`

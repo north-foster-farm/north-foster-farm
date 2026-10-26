@@ -402,7 +402,27 @@ export const buildOrder = (order, customerId, cfg) => {
     fulfillments: [fulfillment(order)],
   };
 
-  if (t.discountAmount > 0) {
+  // A buying group's price lock (#471) is per item, whole dollars, so
+  // the receipt shows each item at retail with its own discount, as
+  // #132 wants member pricing recorded. Every other discount is one
+  // order-scope amount.
+  if (t.discountLock && (t.lockLines || []).length) {
+    const uid = (sku) => `lock-${sku}`;
+
+    out.discounts = t.lockLines.map((l) => ({
+      uid: uid(l.sku),
+      name: t.discountLabel || "Price lock",
+      amount_money: money(l.amount),
+      scope: "LINE_ITEM",
+    }));
+    out.line_items = out.line_items.map((item, i) => {
+      const held = t.lockLines.find((l) => l.sku === order.lines[i].sku);
+
+      return held
+        ? { ...item, applied_discounts: [{ discount_uid: uid(held.sku) }] }
+        : item;
+    });
+  } else if (t.discountAmount > 0) {
     out.discounts = [{
       name: t.discountLabel || "Discount",
       amount_money: money(t.discountAmount),

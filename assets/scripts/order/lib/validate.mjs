@@ -91,9 +91,13 @@ export const findCode = (value, codes) => {
 // `waive.fee` takes the delivery fee off: the caller has checked the
 // customer's pass (lib/passes.mjs, #182), and the order says it used
 // one in `flags.minimumWaived` and `totals.feeWaived`.
+// `lock` is a buying group member's locked price list (#471), the
+// group's `priceLock`, which the caller has settled from the group
+// code or the customer's record; `terms.groups` then names the group
+// too, so its pickup is offered.
 export const validateOrder = (payload, {
-  index, terms, now, group, codes, code, schedule = [], held = {},
-  waive = {}, placed = null, farm = false, kept = null,
+  index, terms, now, group, codes, code, lock = null, schedule = [],
+  held = {}, waive = {}, placed = null, farm = false, kept = null,
 }) => {
   const errors = {};
   const p = payload && typeof payload === "object" ? payload : {};
@@ -194,8 +198,8 @@ export const validateOrder = (payload, {
     ? zipInfo((fulfilment.delivery || {}).zip, terms.area).status
     : null;
   const totals = computeTotals({
-    lines, method, index, money, group, code: discountCode, zipStatus,
-    waiveFee: !!waive.fee,
+    lines, method, index, money, group, code: discountCode, lock,
+    zipStatus, waiveFee: !!waive.fee,
   });
   const out = {
     customer: {

@@ -89,7 +89,7 @@ module.exports = [
       "netlify/functions/lib/paypal.mjs", "test/paypal.test.mjs",
       "netlify/functions/paypal-webhook.mjs", "test/checkout.test.mjs",
       "test/payments.test.mjs", "test/fake.test.mjs", "test/webhooks.test.mjs",
-      "test/sourcemaps.test.mjs",
+      "test/sourcemaps.test.mjs", "test/groups.test.mjs",
     ],
     "rules": {
       "camelcase": ["error", { "properties": "never" }],
