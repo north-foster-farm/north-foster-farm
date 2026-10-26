@@ -3,6 +3,7 @@
 // customer typed can become markup. Sections are tabs keyed by the
 // URL hash.
 
+import { mergeScheduled } from "../order/lib/group.mjs";
 import { pickupTimes, windowLabel } from "../order/lib/schedule.mjs";
 import { dollars } from "../order/lib/totals.mjs";
 import { forgetCustomer } from "../order/draft.js";
@@ -1139,6 +1140,18 @@ class Account {
       const { ok, data } = await api("/api/dates");
 
       this.dates = ok ? data : {};
+      // A buying group's member (#471) may move a pickup to the
+      // group's round, which /api/dates never lists: the account's
+      // group is asked for it.
+      if (ok && this.customer && this.customer.memberGroup) {
+        const mine = await api("/api/group", { method: "POST", body: {} })
+          .catch(() => ({ ok: false, data: null }));
+
+        if (mine.ok && mine.data && mine.data.dates) {
+          this.dates.scheduled = mergeScheduled(this.dates.scheduled,
+            mine.data.dates);
+        }
+      }
     }
 
     return this.dates[method] || [];

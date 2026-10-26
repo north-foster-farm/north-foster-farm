@@ -26,7 +26,10 @@ import terms from "./terms.mjs";
 import discountCodes from "../../../data/discount-codes.json" with {
   type: "json",
 };
-import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
+import {
+  dollars, lockOn,
+} from "../../../assets/scripts/order/lib/totals.mjs";
+import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { indexCatalog } from "../../../assets/scripts/order/lib/catalog.mjs";
 import {
   fieldError,
@@ -40,6 +43,7 @@ import {
 } from "./account.mjs";
 import { refundOrder } from "./admin.mjs";
 import { attemptKey, CheckoutError, METHODS } from "./checkout.mjs";
+import { buyingFor, memberTerms, retag } from "./groups.mjs";
 import { alert } from "./health.mjs";
 import { retry } from "./http.mjs";
 import { now as clock } from "./clock.mjs";
@@ -170,12 +174,22 @@ export const planEdit = async (stores, order, body, {
     }
   }
 
+  // A buying group's order (#471), or a member's, is offered the
+  // group's pickup and priced by its lock through every change.
+  const buying = await buyingFor(stores, order);
+
   // An order placed with a pass (#182) keeps its waiver through every
   // change, the fee's too if the pass waives it; the pass is already
   // used up by this order.
   const result = validate(payloadFor(order, body), {
-    index, terms, now, group, codes, schedule, placed: order.submittedAt,
-    farm,
+    index, terms: memberTerms(terms, buying), now, group, codes, schedule,
+    placed: order.submittedAt, farm,
+    // The lock as it stood the day the order was placed, like the
+    // prices (moneyOn), so a change never reprices an order.
+    lock: buying
+      ? lockOn(buying.priceLock || null,
+        today(new Date(order.submittedAt), terms.timeZone))
+      : null,
     kept: modelled(terms, order.fulfilment).occurrence || null,
     held: Object.fromEntries(order.lines.map((l) => [l.sku, l.qty])),
     waive: {
@@ -189,6 +203,10 @@ export const planEdit = async (stores, order, body, {
   }
 
   const next = result.order;
+
+  // The tag follows the order's new date (#471).
+  next.group = retag(order, buying, terms, next.fulfilment.date);
+
   const change = diffLines(order.lines, next.lines);
   // Square's inventory is read only for what the change adds.
   const stock = change.added.length
@@ -252,6 +270,7 @@ const changedRecord = (order, next, change, key, now, by = "customer") => {
     code: next.code,
     flags: { ...(order.flags || {}), zipUnlisted: next.flags.zipUnlisted },
     fulfilment,
+    ...(next.group !== undefined ? { group: next.group } : {}),
     edits: [...(order.edits || []), {
       key, at: now.toISOString(), state: "pending", by,
       difference: change.difference, switched: change.switched,

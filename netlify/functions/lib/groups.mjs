@@ -250,6 +250,31 @@ export const roundSummary = (orders) => {
   };
 };
 
+// The group an order's change is priced and offered by: the one its
+// tag names, else the customer's own membership, else null.
+export const buyingFor = async (stores, order) => {
+  const tagged = groupOf(order.group && order.group.key);
+
+  if (tagged) return tagged;
+
+  const customer = await getCustomer(stores, order.customer.email);
+
+  return groupOf(memberKeyOf(customer));
+};
+
+// The tag an order carries after a change (#471): the same group,
+// its round following the order's new date; an order that has none
+// and is a member's gains one. -> the tag, or the order's as it was.
+export const retag = (order, group, terms, date) => {
+  if (!group) return order.group || null;
+
+  return {
+    ...(order.group || { viaCode: false }),
+    key: group.key,
+    round: roundFor(group, terms, date),
+  };
+};
+
 // The customer's group key from their record, or null.
 export const memberKeyOf = (customer) => (customer && customer.memberGroup
   && typeof customer.memberGroup === "object"

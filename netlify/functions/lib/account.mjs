@@ -25,6 +25,7 @@ import {
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { cancelOrder as cancelAndRefund } from "./admin.mjs";
 import { placeOf } from "./describe.mjs";
+import { groupOf, memberKeyOf, memberTerms, retag } from "./groups.mjs";
 import { AUTOPLAY } from "./auth.mjs";
 import { cutoffAt } from "./jobs.mjs";
 import { now as clock } from "./clock.mjs";
@@ -302,9 +303,15 @@ export const cancelOrder = async (stores, customer, id, {
 // pickup window, the drop-off details, the notes. Nothing is saved.
 // `by` is who answers a question the farm asked ("customer", "farm").
 // -> { errors } or { patch, moved }
-export const planChange = (order, changes, { now, env, by = "customer" }) => {
+// `member` is the customer's buying group (#471), if any: with it, or
+// with the order's own tag, the group's pickup is among the choices,
+// and the tag's round follows the new date.
+export const planChange = (order, changes, {
+  now, env, by = "customer", member = null,
+}) => {
   const c = changes && typeof changes === "object" ? changes : {};
   const errors = {};
+  const buying = groupOf(order.group && order.group.key) || member;
   const f = JSON.parse(JSON.stringify(order.fulfilment));
   const was = order.fulfilment;
   const wasScheduled = isScheduled(was);
@@ -341,7 +348,8 @@ export const planChange = (order, changes, { now, env, by = "customer" }) => {
   // The held occurrence stays valid for the order that already holds
   // it (the farm booked it beyond the usual list).
   const allowed = errors.method ? []
-    : datesFor(method, now, terms, pickupSchedule(env), by === "farm");
+    : datesFor(method, now, memberTerms(terms, buying), pickupSchedule(env),
+      by === "farm");
 
   if (!sameSite && !errors.method) {
     const day = allowed.find((d) => d.occurrence === target);
@@ -416,6 +424,10 @@ export const planChange = (order, changes, { now, env, by = "customer" }) => {
   // another day answers a missed one.
   const patch = { fulfilment: f, notes };
 
+  // The group tag's round follows the new day (#471).
+  if (buying && f.date !== order.fulfilment.date) {
+    patch.group = retag(order, buying, terms, f.date);
+  }
   if (moved) f.state = "agreed";
   if (moved || f.date !== order.fulfilment.date || !sameSite) {
     patch.question = answerQuestion(order, "reschedule", by, now);
@@ -501,7 +513,9 @@ export const changeOrder = async (stores, customer, id, changes, {
     return fail(409, { order: "This order can't be changed any more." });
   }
 
-  const plan = planChange(order, changes, { now, env });
+  const plan = planChange(order, changes, {
+    now, env, member: groupOf(memberKeyOf(customer)),
+  });
 
   if (plan.errors) return fail(422, plan.errors);
 

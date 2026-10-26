@@ -39,9 +39,11 @@ import discountCodes from "../../../data/discount-codes.json" with {
   type: "json",
 };
 import { indexCatalog } from "../../../assets/scripts/order/lib/catalog.mjs";
+import { lockOn } from "../../../assets/scripts/order/lib/totals.mjs";
 import {
   validateOrder,
 } from "../../../assets/scripts/order/lib/validate.mjs";
+import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { orderId } from "../orders.mjs";
 import { publicOrder } from "./account.mjs";
 import { METHODS, announceNew, attemptKey } from "./checkout.mjs";
@@ -310,7 +312,9 @@ export const planFarmOrder = async (stores, body, {
   const options = {
     index, terms: memberTerms(terms, buying), now, codes: discountCodes.codes,
     group: (customer && customer.discountGroup) || null,
-    lock: buying ? buying.priceLock || null : null,
+    lock: buying
+      ? lockOn(buying.priceLock || null, today(now, terms.timeZone))
+      : null,
     schedule: pickupSchedule(env), farm: true, kept,
     // The delivery minimum binds the farm too unless it says so
     // (`--waive-minimum`), so a $20 delivery is never an accident.
