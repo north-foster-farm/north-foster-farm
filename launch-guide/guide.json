@@ -1,6 +1,6 @@
 {
- "revision": 51,
- "updated": "2026-10-24",
+ "revision": 52,
+ "updated": "2026-10-26",
  "notice": null,
  "phases": [
   {
@@ -4687,6 +4687,28 @@
    ],
    "device": "laptop",
    "type": "account"
+  },
+  {
+   "id": "D-354-45",
+   "section": "rv-decide",
+   "title": "Two cancel emails for orders not paid online (#181)",
+   "area": "#181",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-26",
+     "summary": "Pay-later and by-hand orders (#181) raise two questions about the customer's cancel email. Until you answer, both emails stay as they are today.\n\n1. Money taken by hand (cash, check, Venmo outside the site): today the email says \"A refund of $x is on its way.\" and gives a few business days. Draft: \"We'll give you back the $x you paid, in person or by Venmo.\" with no business-days line.\n2. An unpaid order that is cancelled: send the customer nothing (the farm's notice still goes), or keep today's cancel email.",
+     "look": [
+      {
+       "label": "#181 comment with both questions",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/181#issuecomment-6413200036"
+      }
+     ],
+     "recommendation": "1: use the draft line. 2: send the customer nothing."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
   }
  ],
  "env": {
