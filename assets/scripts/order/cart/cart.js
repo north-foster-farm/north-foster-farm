@@ -141,6 +141,7 @@ export class Cart {
     // Where the cart sits: the view's tick feeds place() and this
     // applies what it decides. Settling opens; lifting off closes.
     this.placement = watchPlacement(root, this.slot, {
+      bar,
       look: (seen) => {
         const next = state.place(this.state, seen);
 

@@ -20,11 +20,6 @@ export const SKU = {
   necks: "NFF-CHK-NCK-10-19", // $5
 };
 
-// Where the floating cart is a panel and Expand folds only its lines
-// (#274, round 6); the stylesheet's $cart-split.
-export const PANEL = "(min-width: 576px) and (max-width: 1199.98px) "
-  + "and (min-height: 500.02px)";
-
 // Folds or opens a floating cart as a customer does, with its pill
 // (#477): one fold at every width, data-fold open or closed. What
 // closed hides is the stylesheet's: a phone keeps the total row and
@@ -208,12 +203,11 @@ export class OrderPage {
     // The cart's scroll watch runs on the next frames.
     await this.scrollSettled();
 
-    // A panel shut on its right column floats over a corner only, and
-    // the row at the middle is clear of it.
+    // A closed pane floats over the foot or a corner only, and the row
+    // at the middle is clear of it; an open one covers it (#477).
     const floating = await this.cart.evaluate(
-      (el, q) => el.dataset.stuck === "true" && el.dataset.open === "true"
-        && !(matchMedia(q).matches && el.dataset.items === "closed"),
-      PANEL
+      (el) => el.dataset.placement === "floating"
+        && el.dataset.fold === "open"
     );
 
     if (floating) {
