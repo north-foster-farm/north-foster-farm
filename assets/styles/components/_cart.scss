@@ -175,14 +175,18 @@
     flex: 0 0 auto;
   }
 
-  // The lines give way first, down to three rows, and scroll on their
-  // own. Their cap is the soft two-thirds rule less the chrome; where
-  // the pane is settled or a column it is lifted below.
+  // The lines take their own height, so a short list leaves no gap
+  // under it (#203, O7c), up to a cap, past which they scroll on their
+  // own: the soft two-thirds rule less the chrome, and never under
+  // three rows. The cap follows the visible height, so with the
+  // keyboard up it is the three rows, and the body scrolls for the
+  // rest. Nothing else shrinks them: the floor is the cap's, not a
+  // padding. Settled or a column, the cap is lifted below.
   .order-cart-lines {
     display: flex;
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     flex-direction: column;
-    min-height: var(--cart-lines-min);
+    min-height: 0;
     max-height: max(
       var(--cart-lines-min),
       calc(var(--cart-vis, 100svh) * var(--cart-share) - var(--cart-chrome))
