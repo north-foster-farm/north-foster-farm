@@ -267,12 +267,12 @@ test.describe("restock types (#267)", () => {
     // out of the price column (#437): Large with its price, Medium and
     // Small, on hiatus, with none.
     await expect(row(page, SKU.eggs).locator(".order-item-name"))
-      .toHaveText("Large · Grade A", { useInnerText: true });
+      .toHaveText("Grade A · Large", { useInnerText: true });
     await expect(row(page, SKU.eggs).locator(".order-item-price"))
       .toHaveText("$7");
     for (const sku of ["NFF-CHK-EGG-MD", "NFF-CHK-EGG-SM"]) {
       await expect(row(page, sku).locator(".order-item-name"), sku)
-        .toHaveText(/· Grade A$/, { useInnerText: true });
+        .toHaveText(/^Grade A · /, { useInnerText: true });
       await expect(row(page, sku).locator(".order-item-price"), sku)
         .toBeHidden();
       await expect(row(page, sku).locator(".order-qty-out"), sku)

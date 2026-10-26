@@ -8,8 +8,8 @@ settings; the rules are the farm's policy as of 2026-10-26.
 
 1. Open the farm's order page and add what you want.
 2. Open **Add discount** in the cart and enter the group's code. The
-   note says "Applied: you can pick up at The Village Family
-   Fitness." and the pickup days now include the gym.
+   note says "Code applied. Welcome to the group!" and the pickup
+   days now include the gym.
 3. Choose the gym under **Pickup days**, enter your details, and pay.
    Cards, Apple Pay, Google Pay, Cash App Pay and Venmo all work.
 

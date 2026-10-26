@@ -5,13 +5,16 @@
 {{ $id := printf "qty-%s" (.sku | lower) }}
 <li class="order-item" data-sku="{{ .sku }}" data-restock-label="{{ .restockLabel }}"{{ with .restock }} data-restock="{{ . }}"{{ end }} tabindex="-1"{{ if eq .restock "archived" }} data-archived{{ end }}{{ if .out }} data-out{{ with .restockLabel }} data-stock="out"{{ end }} hidden{{ end }}>
   <span class="order-item-name">
-    {{/* Capitalized here, never in the catalog (#278). */}}
+    {{- /* A grade goes before the name, "Grade A · Large", as the
+         cart's grouped row and Square's name read it (James,
+         2026-10-26); a note after it, "8 per pack". Either goes by
+         the name, never in the price column, so every price lines up
+         (#437). A row out of stock without a price keeps it: every
+         egg says "Grade A" (#303, James, final). */}}
+    {{- with .grade }}<span class="order-item-note">{{ . }} &middot;</span> {{ end }}
+    {{- /* Capitalized here, never in the catalog (#278). */}}
     <label for="{{ $id }}">{{ .row | strings.FirstUpper }}</label>
-    {{- /* The note goes by the name, never in the price column, so
-         every price lines up (#437). A row out of stock without a
-         price keeps it: every egg says "Grade A" (#303, James,
-         final). */}}
-    {{- with .note }} <span class="order-item-note">&middot; {{ . }}</span>{{ end }}
+    {{- if not .grade }}{{ with .note }} <span class="order-item-note">&middot; {{ . }}</span>{{ end }}{{ end }}
   </span>
   <span class="order-item-price">${{ .price }}</span>
   <span class="order-item-stock" data-stock-note aria-live="polite"></span>

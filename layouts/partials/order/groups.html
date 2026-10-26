@@ -20,7 +20,7 @@
       {{ $out := not .inStock }}
       {{ if not $out }}{{ $inStock = true }}{{ end }}
       {{/* A graded item (eggs, #300) shows its grade where a note
-           goes, by its name, "Large · Grade A" (#437); `graded` is the
+           goes, by its name, "Grade A · Large" (#437); `graded` is the
            label with it, as
            order/lib/catalog.mjs names a line. */}}
       {{ $graded := cond (isset . "grade") (printf "%s · %s" .grade .label) .label }}

@@ -461,7 +461,7 @@ export class Cart {
   }
 
   // Changing a paid order: what is paid, a fee a missed delivery kept
-  // (#193), and the difference to pay or to get back. Draft wording.
+  // (#193), and the difference to pay or to get back.
   renderEdit(edit) {
     const box = qs(this.root, "[data-edit-money]");
 

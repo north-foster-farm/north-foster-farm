@@ -48,7 +48,7 @@ test.describe("a buying group's code (#471)", () => {
       await order.codeInput.fill(code);
       await order.codeApply.click();
       await expect(order.codeNote)
-        .toHaveText(`Applied: you can pick up at ${GYM}.`);
+        .toHaveText("Code applied. Welcome to the group!");
 
       const round = await order.scheduled(SERIES);
 

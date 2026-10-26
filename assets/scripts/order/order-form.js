@@ -945,8 +945,8 @@ export class OrderForm {
       : await this.applyGroup(typed);
 
     if (member.ok) {
-      // Draft wording.
-      accepted(`Applied: you can pick up at ${this.member.name}.`);
+      // James's wording (2026-10-26, through the coordinator).
+      accepted("Code applied. Welcome to the group!");
       this.refresh();
 
       return;
@@ -1704,7 +1704,7 @@ export class OrderForm {
     // press says so rather than nothing (#284).
     if (this.stock.locked) {
       this.stock.warn();
-      // Draft wording.
+      // James's wording (2026-10-26, through the coordinator).
       if (!this.stock.down) {
         this.payment.fail("We're still checking what's in stock. "
           + "Please try again in a moment.");
