@@ -58,7 +58,12 @@ const DESTRUCTIVE = {
   "jobs run": { does: "run every job, which emails customers, running",
     whole: true },
   "audience import": {
-    does: "put the old list on farm news and email the welcomes, running",
+    does: "put the old list on farm news, emailing the welcomes unless "
+      + "--skip, running",
+    unless: "dry-run", whole: true,
+  },
+  "audience welcome": {
+    does: "email the farm-news welcomes the old list is owed, running",
     unless: "dry-run", whole: true,
   },
   "audience sync": { does: "sync the audience, running",

@@ -385,9 +385,12 @@ const sheetDay = (value) => {
 // had their details deleted (declined); a bad address or a missing,
 // unreal or future date (invalid). Each address joined gets the
 // welcome, with its one-click unsubscribe; with `bin/nff --no-email`
-// it is withheld and the address listed so. Nothing reaches Resend
-// from here: the next sync adds the contacts.
-// -> { imported, skipped, declined, invalid, withheld }.
+// it is withheld and the address listed so. With `skip` (James,
+// 2026-10-26) each is joined as ever but sent no welcome yet: the
+// record is marked as owing one (`welcome`, see sendOwedWelcomes) and
+// listed as held. Nothing reaches Resend from here: the next sync adds
+// the contacts.
+// -> { imported, skipped, declined, invalid, withheld, held }.
 export const importSubscribers = async (stores, rows, {
   date = "",
   market = "",
@@ -397,9 +400,11 @@ export const importSubscribers = async (stores, rows, {
   env = process.env,
   mail = sendMail,
   dryRun = false,
+  skip = false,
 } = {}) => {
   const report = {
     imported: [], skipped: [], declined: [], invalid: [], withheld: [],
+    held: [],
   };
 
   for (const row of rows) {
@@ -425,6 +430,7 @@ export const importSubscribers = async (stores, rows, {
     }
 
     report.imported.push(address);
+    if (skip) report.held.push(address);
     if (dryRun) continue;
 
     const customer = await optIn(stores, address, {
@@ -436,11 +442,118 @@ export const importSubscribers = async (stores, rows, {
       givenAt,
     }, now);
 
+    if (skip) {
+      // The same consent write, so the log gets no second event.
+      await saveCustomer(stores, {
+        ...customer,
+        welcome: {
+          state: "owed", for: customer.marketingAt, at: now.toISOString(),
+        },
+      });
+      continue;
+    }
     if (customerEmailWithheld()) {
       report.withheld.push(address);
       continue;
     }
     await welcome(stores, customer, { env, mail, now });
+  }
+
+  return report;
+};
+
+// The welcomes an import with `skip` held back (James, 2026-10-26),
+// sent later: every record that still owes one, or the one `email`.
+// A held record carries `welcome: { state, for, at }`:
+//
+//   owed      imported, welcome not sent yet
+//   sending   a send began and did not finish: a crash, or a send
+//             whose outcome is not known
+//   sent      done; nothing sends again
+//
+// `for` is the `marketingAt` the welcome is owed for. A record that has
+// since opted out owes nothing (`optedOut`); one that opted out and in
+// again, by any way on, was welcomed then, so its old debt is void
+// (`superseded`). Both lose the mark.
+//
+// Each record is claimed (`sending`), sent with the welcome's own
+// idempotency key, and marked `sent`, so a rerun after a crash never
+// sends a record twice: a record left `sending` is listed as `unsure`
+// and not sent, unless `email` names it, which sends it again under the
+// same key (Resend answers a repeat of a key within a day with the
+// first send). A send that fails goes back to `owed` and is listed as
+// `failed`. Every step reads the record afresh and changes only its
+// `welcome`, so an unsubscribe made meanwhile stands. `dryRun` lists
+// who is `due` and changes nothing; `--no-email` (customerEmailWithheld)
+// sends nothing and lists them `withheld`.
+// -> { sent, due, failed, unsure, optedOut, superseded, withheld, none }.
+export const sendOwedWelcomes = async (stores, {
+  email = null,
+  dryRun = false,
+  now = clock(),
+  env = process.env,
+  mail = sendMail,
+} = {}) => {
+  const report = {
+    sent: [], due: [], failed: [], unsure: [], optedOut: [],
+    superseded: [], withheld: [], none: [],
+  };
+  const named = email ? normalizeEmail(email) : null;
+  const holding = (c) => c && c.welcome && c.welcome.state !== "sent";
+  const candidates = named
+    ? [await getCustomer(stores, named)]
+    : await allCustomers(stores);
+  const owing = candidates.filter(holding)
+    .sort((a, b) => a.email.localeCompare(b.email));
+
+  if (named && !owing.length) report.none.push(named);
+
+  const mark = (record, state) => saveCustomer(stores, {
+    ...record, welcome: { ...record.welcome, state, at: now.toISOString() },
+  });
+  const clear = (record) => {
+    const rest = { ...record };
+
+    delete rest.welcome;
+
+    return saveCustomer(stores, rest);
+  };
+
+  for (const held of owing) {
+    // The list is a snapshot, and a send takes time.
+    const customer = await getCustomer(stores, held.email);
+
+    if (!holding(customer)) continue;
+    if (customer.marketing !== true) {
+      report.optedOut.push(customer.email);
+      if (!dryRun) await clear(customer);
+      continue;
+    }
+    if (customer.marketingAt !== customer.welcome.for) {
+      report.superseded.push(customer.email);
+      if (!dryRun) await clear(customer);
+      continue;
+    }
+    if (customer.welcome.state === "sending" && !named) {
+      report.unsure.push(customer.email);
+      continue;
+    }
+    if (dryRun) {
+      report.due.push(customer.email);
+      continue;
+    }
+    if (customerEmailWithheld()) {
+      report.withheld.push(customer.email);
+      continue;
+    }
+
+    const claimed = await mark(customer, "sending");
+    const went = await welcome(stores, claimed, { env, mail, now });
+    const fresh = await getCustomer(stores, customer.email);
+
+    // A record forgotten meanwhile has nothing left to mark.
+    if (fresh && fresh.welcome) await mark(fresh, went ? "sent" : "owed");
+    (went ? report.sent : report.failed).push(customer.email);
   }
 
   return report;

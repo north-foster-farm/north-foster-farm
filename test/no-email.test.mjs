@@ -8,6 +8,7 @@ describe("--no-email refusals", () => {
   it("refuses the commands that send retention or news email", () => {
     assert.match(noEmailRefusal("jobs", "run"), /transactional/);
     assert.match(noEmailRefusal("audience", "import"), /welcome/);
+    assert.match(noEmailRefusal("audience", "welcome"), /welcome/);
   });
 
   it("lets the order commands through", () => {

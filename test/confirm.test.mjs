@@ -50,6 +50,13 @@ describe("bin/nff's production confirmation (#268)", () => {
     assert.equal(phrase("audience", "sync"), "audience sync");
     assert.equal(phrase("audience", "sync", [], { "dry-run": true }),
       undefined);
+    assert.equal(phrase("audience", "import", ["list.csv"]),
+      "audience import");
+    assert.equal(phrase("audience", "welcome"), "audience welcome");
+    assert.equal(phrase("audience", "welcome", [], { "dry-run": true }),
+      undefined, "a dry run sends nothing, so it asks nothing");
+    assert.equal(phrase("audience", "welcome", [], { email: "a@b.co" }),
+      "audience welcome", "naming one address still sends");
   });
 
   it("guards square deletions pause and resume, not status", () => {

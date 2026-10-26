@@ -119,7 +119,7 @@ and the sync then unsubscribes the contact in Resend.
 ```
 bin/nff --production audience import contacts.csv --date=2024-07-12 \
   [--market="the Foster Farmers Market"] [--captured-by=James] \
-  [--evidence=foster-2024-07-12.pdf] [--dry-run]
+  [--evidence=foster-2024-07-12.pdf] [--dry-run] [--skip]
 ```
 
 The old list signed up on paper sheets at the markets, and the
@@ -138,8 +138,8 @@ welcome, which names the sheet and the move to a new provider, with
 its one-click unsubscribe. The report lists:
 
 - `imported`, `skipped` (already consenting), `invalid` (a bad
-  address or date) and `withheld` (welcome held by `--no-email`,
-  which the command refuses today);
+  address or date), `withheld` (welcome held by `--no-email`, which the
+  command refuses today) and `held` (welcome held by `--skip`, below);
 - `declined`: a record that said no here, through Resend or by an
   unsubscribe link, or whose owner had their details deleted while
   the deletion's marker for the sync is still there. A sheet older
@@ -151,6 +151,45 @@ Nothing reaches Resend from the import: the next sync (or
 `audience sync`) adds each as a contact. Replies of "unsubscribe" to
 the launch email are not known here either; leave those addresses out
 of the CSV. `audience invite` is gone and says so.
+
+### Holding the welcomes: `--skip` and `audience welcome`
+
+`--skip` (or `--skip-welcome`) imports and records consent exactly as
+above but sends no welcome. Each record is marked as owing one:
+`welcome: { state: "owed", for: <marketingAt>, at }`, where `for` is
+the consent the welcome is owed for. This is not `mail.suppressed`,
+which means never. The report lists these as `held`, and a `--dry-run`
+lists them too.
+
+```
+bin/nff --production audience welcome [--dry-run] [--email <addr>]
+```
+
+sends the owed welcomes: to every record still owing one, or to the one
+address. It asks for the typed confirmation on production, as the
+other sends do (`--dry-run` does not ask and sends nothing, only
+listing who is `due`).
+
+- **Once each.** Each record is claimed (`sending`), sent under the
+  welcome's own idempotency key, then marked `sent`, one record at a
+  time, so a rerun sends to no one twice. A send that fails goes back
+  to `owed` and is listed as `failed`; run the command again.
+- **After a crash.** A record left `sending` is one whose send began
+  and whose outcome is not known. A run for everyone lists it as
+  `unsure` and does not send it. To send it, name it with `--email`:
+  Resend answers a repeat of the same key within a day with the first
+  send, so inside that day it cannot double. After a day, look in
+  Resend (or `bin/nff mail list`) before naming it.
+- **Opt-outs.** Anyone who has since opted out is skipped (`optedOut`)
+  and loses the mark. So does anyone who opted out and joined again by
+  another way on (`superseded`): that way welcomed them, so no second
+  welcome is owed.
+- **`none`** lists an `--email` address that owes nothing: it was
+  never held, or its welcome is sent. `--no-email` is refused, as for
+  the import.
+
+The record gains the `welcome` field only when imported with `--skip`;
+a record imported without it, or joined any other way, never has it.
 
 ## The list template
 

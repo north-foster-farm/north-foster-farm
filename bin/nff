@@ -44,7 +44,8 @@ const USAGE = `Usage:
   email is noted on the order as suppressed (history
   mail.suppressed.<name>), so the jobs never send it later. The
   farm's own notices still go. It does not cover the retention and
-  farm-news emails, so jobs run and audience import refuse it.
+  farm-news emails, so jobs run, audience import and audience welcome
+  refuse it.
   bin/nff customers list
   bin/nff customers show <email>
   bin/nff customers set <email> name=.. phone=.. group=friends|none
@@ -266,10 +267,21 @@ const USAGE = `Usage:
   bin/nff masquerade <email>          open a sign-in link as them
   bin/nff audience import <csv> [--date=YYYY-MM-DD] [--market=..]
         [--captured-by=..] [--evidence=..] [--dry-run]
+        [--skip | --skip-welcome]
                                       the old list's paper sheets, on
                                       the list at once with the welcome;
                                       the CSV's date and market columns
-                                      win over the flags
+                                      win over the flags. --skip sends
+                                      no welcome yet and marks each
+                                      record as owing one (the report's
+                                      held list)
+  bin/nff audience welcome [--dry-run] [--email <addr>]
+                                      send the welcomes a --skip import
+                                      held, once each, skipping anyone
+                                      who has since opted out; a rerun
+                                      sends nothing twice. On
+                                      production it asks for the typed
+                                      confirmation, like any send
   bin/nff audience sync [--dry-run]   the Resend audience and the
                                       records, made to agree
   bin/nff schedule check <file>       the pickup schedule, checked as a
@@ -444,7 +456,7 @@ const [
   { runJobs, runsSince, sweepMadeCustomers, sweepSquareOrders },
   { stores: makeStores },
   { CANCEL_REASONS, paymentPhrase, summaryLine },
-  { importSubscribers, parseCsv, syncAudience },
+  { importSubscribers, parseCsv, sendOwedWelcomes, syncAudience },
   { dollars, toCents },
   { snapshot },
   { dueOn, keptFee, paidTotal, refundedTotal, refundsOf },
@@ -564,6 +576,9 @@ if (flags["no-email"] && flags["no-email"] !== "false") {
   }
   withholdCustomerEmail();
 }
+
+// A flag given and not `=false`.
+const flagOn = (value) => !!value && value !== "false";
 
 const [group, action, ...rest] = words;
 const out = (value) => console.log(
@@ -1479,6 +1494,17 @@ const run = async () => {
       market: flags.market || "",
       capturedBy: flags["captured-by"] || null,
       evidence: flags.evidence || null,
+      dryRun: !!flags["dry-run"],
+      skip: flagOn(flags.skip) || flagOn(flags["skip-welcome"]),
+    }));
+  }
+  case "audience welcome": {
+    if (flags.email !== undefined && typeof flags.email !== "string") {
+      throw new Error("Which address? audience welcome --email <addr>");
+    }
+
+    return out(await sendOwedWelcomes(stores, {
+      email: flags.email || null,
       dryRun: !!flags["dry-run"],
     }));
   }

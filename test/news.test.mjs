@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 import {
   CONFIRM_TTL, REQUESTS_PER_WINDOW, SYNC_KEY, confirmSubscribe,
   forgottenKey, importSubscribers, optIn, optOut, parseCsv,
-  requestSubscribe, subscribe, syncAudience, unsubscribe,
+  requestSubscribe, sendOwedWelcomes, subscribe, syncAudience, unsubscribe,
 } from "../netlify/functions/lib/news.mjs";
 import {
   withholdCustomerEmail,
@@ -296,6 +296,7 @@ describe("the import of the old list (#303)", () => {
       declined: [],
       invalid: ["not an address"],
       withheld: [],
+      held: [],
     });
 
     const saved = await getCustomer(stores, "new@example.com");
@@ -438,6 +439,231 @@ describe("the import of the old list (#303)", () => {
       { email: "a@b.co", firstName: "", lastName: "", date: "2024-07-12",
         market: "Foster" },
     ]);
+  });
+});
+
+describe("holding the old list's welcomes (--skip)", () => {
+  const A = "a@example.com";
+  const B = "b@example.com";
+  const C = "c@example.com";
+  const rows = [A, B, C].map((email) => ({ email }));
+  const third = new Date("2026-10-03T12:00:00Z");
+  const key = (email) => `welcome-${createHash("sha256")
+    .update(`${email} ${now.toISOString()}`).digest("hex").slice(0, 16)}`;
+  const empty = {
+    sent: [], due: [], failed: [], unsure: [], optedOut: [],
+    superseded: [], withheld: [], none: [],
+  };
+  const held = (stores, mail, extra = {}) => importSubscribers(stores, rows, {
+    date: "2024-07-12", market: "the Foster Farmers Market",
+    now, env, mail, skip: true, ...extra,
+  });
+  const run = (stores, mail, extra = {}) => sendOwedWelcomes(stores,
+    { now: later, env, mail, ...extra });
+  const stateOf = async (stores, email) =>
+    ((await getCustomer(stores, email)).welcome || {}).state;
+
+  it("imports and consents as ever, sends nothing, and marks each " +
+    "record as owing a welcome", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await saveCustomer(stores, customer("in@example.com", {
+      marketing: true, marketingAt: now.toISOString(),
+    }));
+
+    const report = await importSubscribers(stores,
+      [{ email: "in@example.com" }, ...rows],
+      { date: "2024-07-12", now, env, mail, skip: true });
+
+    assert.deepEqual(report.imported, [A, B, C]);
+    assert.deepEqual(report.held, [A, B, C]);
+    assert.deepEqual(report.skipped, ["in@example.com"]);
+    assert.deepEqual(report.withheld, []);
+    assert.equal(sent.length, 0, "no welcome yet");
+
+    const saved = await getCustomer(stores, A);
+
+    assert.equal(saved.marketing, true);
+    assert.equal(saved.marketingAt, now.toISOString());
+    assert.equal(saved.marketingSource, "import");
+    assert.equal(saved.consent.length, 1, "one consent event, not two");
+    assert.equal(saved.consent[0].type, "market-sheet");
+    assert.deepEqual(saved.welcome, {
+      state: "owed", for: now.toISOString(), at: now.toISOString(),
+    });
+    assert.equal((await getCustomer(stores, "in@example.com")).welcome,
+      undefined, "a record already consenting owes nothing");
+  });
+
+  it("lists who it would hold on a dry run and writes nothing", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const report = await held(stores, mail, { dryRun: true });
+
+    assert.deepEqual(report.held, [A, B, C]);
+    assert.equal(await getCustomer(stores, A), null);
+    assert.equal(sent.length, 0);
+  });
+
+  it("sends each owed welcome once, skips whoever has opted out, and " +
+    "sends nothing on a rerun", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await held(stores, mail);
+    await optOut(stores, C, { source: "unsubscribe" }, later);
+
+    const first = await run(stores, mail);
+
+    assert.deepEqual(first, { ...empty, sent: [A, B], optedOut: [C] });
+    assert.deepEqual(sent.map((m) => m.to), [A, B]);
+    assert.equal(sent[0].subject, "Welcome to Farm News");
+    assert.match(sent[0].text,
+      /you signed up on our sign-up sheet at the Foster Farmers Market/);
+    assert.equal(sent[0].idempotencyKey, key(A),
+      "the welcome's own key, for the consent it is owed for");
+    assert.match(sent[0].headers["List-Unsubscribe"], /^<https:/);
+    assert.equal(await stateOf(stores, A), "sent");
+    assert.equal(await stateOf(stores, C), undefined, "the mark is gone");
+    assert.equal((await getCustomer(stores, C)).marketing, false);
+
+    assert.deepEqual(await run(stores, mail), empty);
+    assert.equal(sent.length, 2, "a rerun sends no one twice");
+  });
+
+  it("puts a failed send back to owed, and the next run sends it",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+
+      await held(stores, mail);
+
+      const broken = async () => { throw new Error("Resend 500"); };
+      const first = await run(stores, broken);
+
+      assert.deepEqual(first.failed, [A, B, C]);
+      assert.equal(await stateOf(stores, A), "owed");
+
+      const second = await run(stores, mail);
+
+      assert.deepEqual(second.sent, [A, B, C]);
+      assert.equal(sent.length, 3);
+    });
+
+  it("lists a record left sending as unsure, sends it only when named, " +
+    "and never twice", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await held(stores, mail);
+
+    const owing = await getCustomer(stores, A);
+
+    await saveCustomer(stores, {
+      ...owing, welcome: { ...owing.welcome, state: "sending" },
+    });
+
+    const bulk = await run(stores, mail);
+
+    assert.deepEqual(bulk, { ...empty, sent: [B, C], unsure: [A] });
+    assert.equal(await stateOf(stores, A), "sending");
+
+    const named = await run(stores, mail, { email: "A@Example.com" });
+
+    assert.deepEqual(named.sent, [A]);
+    assert.equal(sent.at(-1).idempotencyKey, key(A), "the same key");
+    assert.deepEqual((await run(stores, mail, { email: A })).none, [A]);
+    assert.equal(sent.length, 3);
+  });
+
+  it("sends the one address it is told to, and no other", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await held(stores, mail);
+
+    const report = await run(stores, mail, { email: B });
+
+    assert.deepEqual(report.sent, [B]);
+    assert.equal(await stateOf(stores, A), "owed");
+    assert.deepEqual((await run(stores, mail, { email: "x@y.co" })).none,
+      ["x@y.co"]);
+    assert.equal(sent.length, 1);
+  });
+
+  it("changes nothing and sends nothing on a dry run", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await held(stores, mail);
+    await optOut(stores, C, { source: "unsubscribe" }, later);
+
+    const before = JSON.stringify(await Promise.all(
+      [A, B, C].map((e) => getCustomer(stores, e))));
+    const report = await run(stores, mail, { dryRun: true });
+
+    assert.deepEqual(report, { ...empty, due: [A, B], optedOut: [C] });
+    assert.equal(sent.length, 0);
+    assert.equal(JSON.stringify(await Promise.all(
+      [A, B, C].map((e) => getCustomer(stores, e)))), before);
+  });
+
+  it("owes nothing to one who opted out and joined again since, who " +
+    "was welcomed then", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await held(stores, mail);
+    await optOut(stores, A, { source: "unsubscribe" }, later);
+    await optIn(stores, A, { source: "site" }, third);
+
+    const report = await run(stores, mail);
+
+    assert.deepEqual(report.superseded, [A]);
+    assert.deepEqual(report.sent, [B, C]);
+    assert.deepEqual(sent.map((m) => m.to), [B, C]);
+    assert.equal(await stateOf(stores, A), undefined);
+    assert.equal((await getCustomer(stores, A)).marketing, true);
+  });
+
+  it("sends nothing under --no-email, and keeps the debt", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await held(stores, mail);
+    withholdCustomerEmail();
+
+    try {
+      const report = await run(stores, mail);
+
+      assert.deepEqual(report.withheld, [A, B, C]);
+      assert.equal(sent.length, 0);
+      assert.equal(await stateOf(stores, A), "owed");
+    } finally {
+      withholdCustomerEmail(false);
+    }
+  });
+
+  it("leaves an unsubscribe made during the send standing", async () => {
+    const stores = testStores();
+    const { sent } = mailbox();
+    const mail = async (message) => {
+      sent.push(message);
+      await optOut(stores, message.to, { source: "unsubscribe" }, later);
+
+      return { id: "m1", driver: "test" };
+    };
+
+    await held(stores, mail);
+
+    const report = await run(stores, mail, { email: A });
+    const saved = await getCustomer(stores, A);
+
+    assert.deepEqual(report.sent, [A]);
+    assert.equal(saved.marketing, false, "the opt-out was not overwritten");
+    assert.equal(saved.welcome.state, "sent");
+    assert.equal(sent.length, 1);
   });
 });
 
