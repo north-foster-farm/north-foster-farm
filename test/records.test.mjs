@@ -3,8 +3,9 @@ import { describe, it } from "node:test";
 
 import {
   CHECKOUT_TTL, OPEN, allOrders, amendOrder, belongsTo, byPaymentKey,
-  checkoutByPayPal, deleteCheckout, deleteOrder, getCheckout, getCustomer,
-  getOrder, idKey, moneyPatch, openOrders, orderByPayment, ordersFor,
+  checkoutByPayPal, deleteCheckout, deleteOrder, dueOn, getCheckout,
+  getCustomer, getOrder, idKey, moneyPatch, openOrders, orderByPayment,
+  ordersFor,
   paidTotal, paymentRef, paymentsOf, refundedTotal, refundsOf,
   reserveOrderId, saveCheckout, saveOrder, setStatus, submissionKey,
   sweepAuth, sweepCheckouts, touchCustomer,
@@ -162,7 +163,7 @@ describe("order records", () => {
       (await ordersFor(stores, "Pat@Example.com")).map((o) => o.id), ["NFF-1"]
     );
     assert.deepEqual((await openOrders(stores)).map((o) => o.id), ["NFF-1"]);
-    assert.deepEqual(OPEN, ["paid"]);
+    assert.deepEqual(OPEN, ["paid", "unpaid"]);
   });
 
   it("save twice as one record", async () => {
@@ -276,6 +277,24 @@ describe("order records", () => {
     assert.equal((await openOrders(stores)).length, 0);
     assert.equal(await orderByPayment(stores, "PAY-NFF-1"), null);
     assert.equal(await deleteOrder(stores, "NFF-1"), false);
+  });
+});
+
+describe("what is still owed (#181)", () => {
+  it("is the total less what was paid, never below zero, and an " +
+    "invoice-era record owes it all", () => {
+    const paid = order("NFF-1");
+    const owed = { ...paid, status: "unpaid", payment: undefined,
+      payments: [] };
+
+    assert.equal(dueOn(paid), 0);
+    assert.equal(dueOn(owed), 100);
+    assert.equal(dueOn({ ...owed, payments: [{ amount: 40 }] }), 60);
+    assert.equal(dueOn({ ...owed, payments: [{ amount: 140 }] }), 0);
+    assert.equal(dueOn({ ...owed, status: "submitted",
+      payments: [{ amount: 40 }] }), 100);
+    // An unpaid order is open: the jobs remind and close it.
+    assert.ok(OPEN.includes("unpaid"));
   });
 });
 

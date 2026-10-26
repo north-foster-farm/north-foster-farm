@@ -36,9 +36,9 @@ import { notifyFarm, sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { pickupSchedule } from "./pickups.mjs";
 import {
-  REMINDERS, amendOrder, answerQuestion, cartKey, cartOwner, getOrder, keptFee,
-  ordersFor, paidTotal, paymentRef, paymentsOf, questionOpen, refundedTotal,
-  reminderPrefs, saveCustomer, settledRefunds,
+  REMINDERS, amendOrder, answerQuestion, cartKey, cartOwner, dueOn, getOrder,
+  keptFee, ordersFor, paidTotal, paymentRef, paymentsOf, questionOpen,
+  refundedTotal, reminderPrefs, saveCustomer, settledRefunds,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
@@ -174,6 +174,10 @@ export const publicOrder = (order, now = clock()) => ({
   } : null,
   canCancel: canCancel(order, now),
   canChange: canChange(order, now),
+  // What is still owed on an order the farm made (#181), and whether
+  // the page may take it: the Pay button on the account page.
+  due: dueOn(order),
+  canPay: order.status === "unpaid" && dueOn(order) > 0,
 });
 
 // An order can be cancelled or changed by the customer until the

@@ -337,6 +337,16 @@ describe("the monitoring emails", () => {
     invariants: 0,
   };
 
+  it("tomorrow's manifest: an order the farm made reads UNPAID with " +
+    "what is due (#181)", () => {
+    const owed = { ...order("delivery"), id: "NFF-2610-OWED",
+      status: "unpaid", payment: undefined, payments: [] };
+    const m = farmTomorrow([owed], { date: "2026-10-08", links });
+
+    assert.match(m.text, /NFF-2610-OWED[\s\S]*UNPAID, \$\d+ due/);
+    assert.doesNotMatch(m.text, /should have been canceled/);
+  });
+
   it("morning report: the day in numbers, the pickups waiting on the " +
     "customer, and a schedule running short", () => {
     const denied = { ...order("onfarm"), id: "NFF-2610-EFGH",

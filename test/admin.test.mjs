@@ -574,6 +574,19 @@ describe("an attempted delivery keeps its fee", () => {
     };
   };
 
+  it("marks an unpaid delivery the farm made, too (#181)", async () => {
+    const stores = testStores();
+
+    await saveOrder(stores, {
+      ...delivered("U"), status: "unpaid", payments: [], payment: undefined,
+    }, now);
+
+    const u = await markAttempted(stores, "U", { cause: "no-cooler", now });
+
+    assert.equal(u.attempted.fee, 500);
+    assert.equal(u.status, "unpaid");
+  });
+
   it("marks a delivery once, and nothing else", async () => {
     const stores = testStores();
 
