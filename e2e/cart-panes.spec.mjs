@@ -1,6 +1,6 @@
 // The phone cart's panes (#267): the count and the total are one
 // segmented control and the lines and the sums take turns, the whole
-// pane stays within 48% of the visible height unless the floor (three
+// pane stays within 66% of the visible height unless the floor (three
 // rows, the total row and Continue) needs more, and the shared row's
 // controls are one height whichever side shows. What a spec cannot
 // reach is on a real iPhone: Safari's toolbar, the keyboard riding the
@@ -12,6 +12,8 @@ import { FULL_CART, OrderPage, expect, test } from "./support/order.mjs";
 
 const PHONE = { width: 390, height: 664 };
 const TALL = { width: 390, height: 844 };
+// The open pane's share of the visible height (_order.scss, #475).
+const CAP = 0.66;
 
 test.describe("cart panes on a phone", () => {
   test.use({ viewport: PHONE });
@@ -86,12 +88,13 @@ test.describe("cart panes on a phone", () => {
 
   // The whole open pane, every row of it, not a part: the lines alone
   // stayed under the cap while the pane took 70% (#267). The cap is
-  // 48% of the visible height; it gives way only to the floor of three
+  // 66% of the visible height; it gives way only to the floor of three
   // rows, the total row and Continue (order-form.js measureFloor).
   for (const size of [PHONE, TALL]) {
-    test(`the open pane keeps to 48% of a ${size.height}px screen`, async ({
-      page,
-    }) => {
+    const title = `the open pane keeps to ${Math.round(CAP * 100)}% of`
+      + ` a ${size.height}px screen`;
+
+    test(title, async ({ page }) => {
       await page.setViewportSize(size);
 
       const order = new OrderPage(page);
@@ -117,7 +120,7 @@ test.describe("cart panes on a phone", () => {
 
         expect(b).toBeTruthy();
         expect(b.height).toBeLessThanOrEqual(
-          Math.max(size.height * 0.48, floor) + 1
+          Math.max(size.height * CAP, floor) + 1
         );
       }
     });

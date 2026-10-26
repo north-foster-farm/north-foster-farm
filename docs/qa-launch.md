@@ -547,7 +547,7 @@ toolbar and the feel of the glide are manual (OP-29 for the toolbar).
 
 - **Scenario:** On a phone the count and the total are one segmented
   control. The lines and the sums take turns, one side always showing;
-  neither pane passes 48% of the visible height, unless the floor (three
+  neither pane passes 66% of the visible height, unless the floor (three
   rows, the total row and Continue) needs more, and then the pane grows
   up to the visible area. The shared row's controls are one height, so
   nothing moves when the discount field opens.
@@ -563,7 +563,7 @@ toolbar and the feel of the glide are manual (OP-29 for the toolbar).
   5. Manual, on an iPhone: tap the discount field; turn the phone
      sideways; tap "N more" on a long cart.
 - **Assert:** The fill slides to the side showing, and the tab under it
-  is `aria-selected`; a second tap changes nothing. Each pane is 48% of
+  is `aria-selected`; a second tap changes nothing. Each pane is 66% of
   the visible height or less, or the floor's height. The delivery
   badges go first when the cap has no room for them. Three rows, the
   total row and Continue are whole and on screen at every size. Every
@@ -593,7 +593,7 @@ Manual, on an iPhone: a spec cannot see Safari's chrome (#267).
      row's ×, "N more", the way, Add discount, Hide and Continue.
 - **Assert:** The pane's foot is a small, even margin above the
   toolbar's top edge in every state: no gap of a row's height, and no
-  overlap. The pane is about 48% of the visible height, or taller only
+  overlap. The pane is at most 66% of the visible height, or taller only
   when three rows, the total row and Continue need it, and then no
   taller than the visible area. Every control is tappable.
 - **Teardown:** Clear the draft.
