@@ -136,11 +136,22 @@
   }
 
   .account-order-head {
-    display: flex;
-    align-items: start;
-    justify-content: space-between;
-    gap: 1rem;
     margin-bottom: 0.75rem;
+  }
+
+  // The number with its status beside it, the date under (#442).
+  .account-order-titles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.625rem;
+  }
+
+  // The CSV button at the list's top right (#442).
+  .account-download {
+    display: flex;
+    justify-content: flex-end;
+    margin: 0 0 1rem;
   }
 
   // When and where it goes, on its own row under the number.
@@ -170,19 +181,19 @@
     white-space: nowrap;
   }
 
-  [data-status="submitted"] > * > .account-status {
+  [data-status="submitted"] .account-status {
     background-color: var(--bs-warning-bg-subtle);
     color: var(--bs-warning-text-emphasis);
   }
 
-  [data-status="paid"] > * > .account-status,
-  [data-status="fulfilled"] > * > .account-status {
+  [data-status="paid"] .account-status,
+  [data-status="fulfilled"] .account-status {
     background-color: var(--bs-success-bg-subtle);
     color: var(--bs-success-text-emphasis);
   }
 
-  [data-status="cancelled"] > * > .account-status,
-  [data-status="abandoned"] > * > .account-status {
+  [data-status="cancelled"] .account-status,
+  [data-status="abandoned"] .account-status {
     background-color: var(--bs-danger-bg-subtle);
     color: var(--bs-danger-text-emphasis);
   }
@@ -352,6 +363,13 @@
     align-items: baseline;
     justify-content: space-between;
     gap: 0.25rem 1rem;
+  }
+
+  // The number with its status beside it, as on the order card (#442).
+  .account-receipt-titles {
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.25rem 0.625rem;
   }
 
   .account-receipt-id {

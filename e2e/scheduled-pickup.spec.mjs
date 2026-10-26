@@ -104,7 +104,7 @@ test.describe("a market order, moved to the drop site", () => {
 
     await expect(when).toContainText(`at ${market.name}`);
 
-    await page.getByRole("button", { name: "Change", exact: true })
+    await page.getByRole("button", { name: /^Change (delivery|pickup)$/ })
       .first().click();
 
     const select = page.locator("[data-dates]");

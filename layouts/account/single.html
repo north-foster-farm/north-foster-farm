@@ -38,14 +38,15 @@
 
           {{/* The tabs name the panes (#344): no heading repeats them. */}}
           <section class="account-section" id="acct-orders" data-section="orders" aria-label="Orders">
-            {{/* #165: the whole history as a CSV; the wording is a draft. */}}
-            <p class="mb-3" data-download-row hidden><button type="button" class="btn btn-sm btn-outline-primary" data-download="orders">Download all orders (CSV)</button></p>
+            {{/* #165: the whole history as a CSV; the wording is a draft.
+                 At the list's top right (#442). */}}
+            <p class="account-download" data-download-row hidden><button type="button" class="btn btn-sm btn-outline-primary" data-download="orders">Download all orders (CSV)</button></p>
             <p class="account-empty" id="orders-empty" hidden>No orders yet.</p>
             <div id="orders-list"></div>
           </section>
 
           <section class="account-section" id="acct-receipts" data-section="receipts" aria-label="Receipts" hidden>
-            <p class="mb-3" data-download-row hidden><button type="button" class="btn btn-sm btn-outline-primary" data-download="receipts">Download all receipts (CSV)</button></p>
+            <p class="account-download" data-download-row hidden><button type="button" class="btn btn-sm btn-outline-primary" data-download="receipts">Download all receipts (CSV)</button></p>
             <ul class="account-receipts" id="receipts-list" hidden></ul>
             <p class="account-empty" id="receipts-empty" hidden>No payments yet.</p>
             {{/* Our own receipt for a Venmo payment, which PayPal gives
@@ -321,12 +322,13 @@
        when and where, its lines, its totals and what can be done. */}}
   <template id="tpl-order">
     <article class="account-order" data-order>
+      {{/* The status sits by the number, not across the card (#442). */}}
       <header class="account-order-head">
-        <div>
+        <div class="account-order-titles">
           <h3 class="account-order-title" data-out="id"></h3>
-          <p class="account-order-meta">Placed <span data-out="placed"></span></p>
+          <span class="account-status" data-out="status"></span>
         </div>
-        <span class="account-status" data-out="status"></span>
+        <p class="account-order-meta">Placed <span data-out="placed"></span></p>
       </header>
       <p class="account-order-when" data-out="when"></p>
       <p class="account-order-note" data-out="pickup" hidden></p>
@@ -351,7 +353,7 @@
        how it was paid and the receipt. */}}
   <template id="tpl-receipt">
     <li class="account-receipt-item" data-receipt-item>
-      <div class="account-receipt-row">
+      <div class="account-receipt-row account-receipt-titles">
         <span class="account-receipt-id" data-out="id"></span>
         <span class="account-status" data-out="status"></span>
       </div>

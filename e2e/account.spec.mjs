@@ -312,7 +312,7 @@ test.describe("a scheduled pickup on the account page", () => {
       } } });
     });
     await page.goto("/account/#orders");
-    await page.getByRole("button", { name: "Change", exact: true })
+    await page.getByRole("button", { name: /^Change (delivery|pickup)$/ })
       .first().click();
 
     const select = page.locator("[data-dates]");
@@ -346,8 +346,9 @@ test.describe("a scheduled pickup on the account page", () => {
 
       await expect(page.locator("[data-out='pickup']").first())
         .toContainText("call, text, or email us");
-      await expect(page.getByRole("button", { name: "Change", exact: true }))
-        .toHaveCount(0);
+      await expect(page.getByRole("button", {
+        name: /^Change (delivery|pickup)$/,
+      })).toHaveCount(0);
       await expect(page.locator("[data-out='when']").first())
         .not.toContainText("ZZZZ");
     });

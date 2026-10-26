@@ -72,7 +72,8 @@ test.describe("old SKUs (#267)", () => {
         .toBeVisible();
       await expect(card.getByRole("link", { name: "Change items" }))
         .toHaveCount(0);
-      await expect(card.getByRole("button", { name: "Change" }))
-        .toHaveCount(0);
+      await expect(card.getByRole("button", {
+        name: /^Change (delivery|pickup)$/,
+      })).toHaveCount(0);
     });
 });

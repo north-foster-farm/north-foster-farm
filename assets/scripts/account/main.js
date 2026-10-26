@@ -964,7 +964,7 @@ class Account {
     if (q && !q.answeredAt && q.kind === "window") {
       pickup.textContent = "We can't make that pickup time" +
         `${q.reason ? `: ${q.reason}` : "."} Please choose another day and ` +
-        "time with Change, or cancel the order.";
+        "time with Change pickup, or cancel the order.";
       pickup.hidden = false;
     }
     // A delivery we couldn't leave (#193). Draft wording.
@@ -1065,8 +1065,11 @@ class Account {
     actions.appendChild(again);
 
     if (order.canChange) {
-      button("Change", "btn-outline-primary",
-        () => this.openChange(order, card));
+      // Named by what it changes, beside Change items (#442). Draft
+      // wording.
+      button(order.fulfilment.method === "delivery"
+        ? "Change delivery" : "Change pickup", "btn-outline-primary",
+      () => this.openChange(order, card));
 
       // What is in it and how it comes are changed on the order page,
       // which prices the change (#160). Draft wording.
