@@ -300,8 +300,11 @@ an Add button" (both projects).
 
 ### OP-13 Proceed to checkout can always be reached
 
-Automated: `cart-layout.spec.mjs`, "Proceed to checkout can be reached
-and pressed", at 1500, 1198, 990, 575 and 390. Tagged `@regression`.
+Automated: `cart-keyboard.spec.mjs`, "the field, Apply, Hide and
+Proceed stay in reach", and `cart-float.spec.mjs`. The old `cart-
+layout.spec.mjs` case went with the cart rebuild (#477): the cart's
+placement, sheet, panel and column are `cart-float.spec.mjs`'s, its fold
+and foot `cart-fold.spec.mjs`'s.
 
 - **Scenario:** With a long cart the sticky pane was taller than the
   window and cut the button off (finding 2).
@@ -316,8 +319,10 @@ and pressed", at 1500, 1198, 990, 575 and 390. Tagged `@regression`.
 
 ### OP-14 Proceed to checkout is never wider than 370px
 
-Automated: `cart-layout.spec.mjs`, "Proceed to checkout is never wider
-than 370px", every width.
+Automated since #477: `cart-float.spec.mjs`. The old `cart-
+layout.spec.mjs` case went with the cart rebuild (#477): the cart's
+placement, sheet, panel and column are `cart-float.spec.mjs`'s, its fold
+and foot `cart-fold.spec.mjs`'s.
 
 - **Scenario:** Finding 21.
 - **Setup:** `FULL_CART`.
@@ -328,8 +333,8 @@ than 370px", every width.
 
 ### OP-15 The nudge sits under Continue
 
-Automated: `cart-layout.spec.mjs`, "the next-discount nudge shows under
-Continue", every width.
+Automated: `cart-money.spec.mjs`, "the nudge sits right-aligned under
+Proceed", at 390, 768 and 1280 (#477).
 
 - **Scenario:** The nudge had vanished at most widths (finding 20).
 - **Setup:** `FULL_CART` ($199).
@@ -341,8 +346,8 @@ Continue", every width.
 
 ### OP-16 The total sits under the price column
 
-Automated: `cart-layout.spec.mjs`, "the total sits under the column of
-prices", every width.
+Automated: `cart-money.spec.mjs`, "the total sits under the column of
+prices", at 390, 768 and 1280 (#477).
 
 - **Scenario:** Finding 1.
 - **Setup:** `FULL_CART`.
@@ -354,8 +359,10 @@ prices", every width.
 
 ### OP-17 The cart's foot
 
-Automated: `cart-layout.spec.mjs`, "the foot carries Hide below xl and
-not at xl", every width.
+Automated since #477: `cart-fold.spec.mjs` and `cart-float.spec.mjs`.
+The old `cart-layout.spec.mjs` case went with the cart rebuild (#477):
+the cart's placement, sheet, panel and column are `cart-
+float.spec.mjs`'s, its fold and foot `cart-fold.spec.mjs`'s.
 
 - **Scenario:** Hide on the left, Continue on the right, below xl only
   (finding 3).
@@ -368,8 +375,10 @@ not at xl", every width.
 
 ### OP-18 The settled cart keeps its lines inside
 
-Automated: `cart-layout.spec.mjs`, "the settled cart stays inside its
-own box", every width.
+Automated since #477: `cart-float.spec.mjs`. The old `cart-
+layout.spec.mjs` case went with the cart rebuild (#477): the cart's
+placement, sheet, panel and column are `cart-float.spec.mjs`'s, its fold
+and foot `cart-fold.spec.mjs`'s.
 
 - **Scenario:** At 1198 and 990 the settled cart's lines spilled over
   Contact information (finding 4).
@@ -382,8 +391,10 @@ own box", every width.
 
 ### OP-19 Nothing shows through the cart
 
-Automated: `cart-layout.spec.mjs`, "nothing shows through the cart",
-every width.
+Automated since #477: `cart-float.spec.mjs`. The old `cart-
+layout.spec.mjs` case went with the cart rebuild (#477): the cart's
+placement, sheet, panel and column are `cart-float.spec.mjs`'s, its fold
+and foot `cart-fold.spec.mjs`'s.
 
 - **Scenario:** Catalog headings and buttons showed through the folded
   cart at 575 (finding 7).
@@ -397,8 +408,8 @@ every width.
 
 ### OP-20 The item list scrolls on its own
 
-Automated: `cart-layout.spec.mjs`, "the item list scrolls on its own
-while the cart floats", 1198, 990, 575, 390.
+Automated: `cart-lines.spec.mjs` (the pills and the glide on a phone
+and in the column) and `cart-float.spec.mjs` (the panel) since #477.
 
 - **Scenario:** At 990 the wheel over the floating list did not scroll
   it (finding 5).
@@ -411,8 +422,10 @@ while the cart floats", 1198, 990, 575, 390.
 
 ### OP-21 The total bar is flush with the top
 
-Automated: `cart-layout.spec.mjs`, "the total bar is flush with the top
-once the cart is passed", 1198, 990, 575, 390.
+Automated since #477: `cart-float.spec.mjs`. The old `cart-
+layout.spec.mjs` case went with the cart rebuild (#477): the cart's
+placement, sheet, panel and column are `cart-float.spec.mjs`'s, its fold
+and foot `cart-fold.spec.mjs`'s.
 
 - **Scenario:** The sticky total bar sat below the top with page text
   above it (finding 6).
@@ -426,8 +439,10 @@ once the cart is passed", 1198, 990, 575, 390.
 
 ### OP-22 The Cart heading matches the other headings
 
-Automated: `cart-layout.spec.mjs`, "the Cart heading looks like the
-other section headings", below xl.
+Automated since #477: `cart-float.spec.mjs`. The old `cart-
+layout.spec.mjs` case went with the cart rebuild (#477): the cart's
+placement, sheet, panel and column are `cart-float.spec.mjs`'s, its fold
+and foot `cart-fold.spec.mjs`'s.
 
 - **Scenario:** "Cart" rendered as an h4 (finding 9).
 - **Setup:** Any cart.
@@ -439,8 +454,8 @@ other section headings", below xl.
 
 ### OP-23 Contact form spacing
 
-Partial: `cart-layout.spec.mjs`, "heading to hint is 0.375rem, and each
-label sits with its own field", every width. Whether the form reads as
+Partial: `order-layout.spec.mjs`, "each label sits with its own
+field", every width. Whether the form reads as
 grouped is a visual judgement.
 
 - **Scenario:** Findings 11 and 12.
@@ -545,8 +560,13 @@ Manual: a judgement for James.
 
 ### OP-28 The phone cart's panes
 
-Partial: `cart-panes.spec.mjs`. The keyboard, the notch, Safari's
-toolbar and the feel of the glide are manual (OP-29 for the toolbar).
+Superseded by the cart rebuild (#477): the count and the total are a
+readout at every width, not tabs, and the sheet has one scroller.
+The sheet's height and floor are `cart-float.spec.mjs`'s, the
+keyboard `cart-keyboard.spec.mjs`'s, the row's controls
+`cart-way.spec.mjs`'s, the pills `cart-lines.spec.mjs`'s. The notch,
+Safari's toolbar and the feel of the glide stay manual (OP-29). The
+scenario below is the old cart's.
 
 - **Scenario:** On a phone the count and the total are one segmented
   control. The lines and the sums take turns, one side always showing;
@@ -603,8 +623,8 @@ Manual, on an iPhone: a spec cannot see Safari's chrome (#267).
 
 ### OP-30 The cart's word for an Add
 
-Partial: `cart-added.spec.mjs`. How the pulse and the slide look on an
-iPhone is manual (#267).
+Partial: `cart-fold.spec.mjs`, "the first Add of a session" (#477).
+How the pulse and the slide look on an iPhone is manual (#267).
 
 - **Scenario:** The first Add of a browser session opens the phone cart
   on the new line, shuts the pane after 3.5 seconds and pulses the
@@ -1241,8 +1261,8 @@ send by hand". Finding D3, fixed by #156.
 
 ### PY-10 The card box
 
-Partial: `cart-layout.spec.mjs`, "the card box hugs Square's field" at
-1500, 1198 and 390. The two-row box on a phone is Square's own layout;
+Partial: `order-layout.spec.mjs`, "the card box hugs Square's field"
+at 1500, 1198 and 390. The two-row box on a phone is Square's own layout;
 whether it looks right is a judgement.
 
 - **Scenario:** Finding 13: an oversized card box.
@@ -2335,7 +2355,8 @@ three cases. The real function (c47e66d) is AR-15 and AR-16.
   or text, email, Instagram and the farm; the note "Visits are by
   appointment only. Contact us to set up a farm visit. To pick up an
   order at the farm, choose on-farm pickup on the order page." with the
-  order page linked; the form sits directly below; the honeypot is hidden and out of the tab
+  order page linked; the form sits directly below; the honeypot is
+hidden and out of the tab
   order. On a phone the form sits under the ways. Empty: "Tell us your
   name.", "Enter your email address, so we can answer.", "Write us a
   message first.", Name focused, nothing sent. A bad address is named

@@ -1,5 +1,6 @@
-// Where the cart's "N more" buttons take its list, and how much of the
-// screen's foot the keyboard covers. Pure, so the tests can reach them.
+// Where the cart's "N more" buttons take its list, how much of the
+// screen's foot the keyboard covers, and whether the rail's Cart link
+// rings the cart. Pure, so the tests can reach them.
 
 // Rows are { top, bottom } in the list's own scroll space; `view` is
 // { top, height, full } (scrollTop, clientHeight, scrollHeight). Down:
@@ -26,13 +27,6 @@ export const moreStop = (rows, view, dir) => {
   return Math.min(max, Math.max(0, Math.round(top)));
 };
 
-// How far a scrolling pane must move to bring a row's foot into its
-// view: the gap between the row's bottom and the pane's, never
-// negative. Both are { bottom } in the viewport; a row already inside
-// needs none.
-export const scrollIntoPane = (row, pane) =>
-  Math.max(0, Math.round(row.bottom - pane.bottom));
-
 // Safari on iOS keeps the layout viewport at full height under the
 // keyboard and shrinks only the visual one. The gap under the visual
 // viewport is the keyboard. A gap under a toolbar's worth is not one.
@@ -56,42 +50,6 @@ export const visibleArea = (layoutHeight, visual, least = 120) => {
   return {
     height: Math.round(visual.height),
     gap: gap < least ? Math.round(gap) : 0,
-  };
-};
-
-// The room the lines need at the least: from the top of the list to
-// the foot of its third row, the list's own padding, and the strip for
-// the "more" pills while the rows overflow. `rows` are { top, bottom }
-// in the list's space; `listHeight` is the list's scroll height.
-export const rowsFloor = (rows, listHeight, padding, strip, keep = 3) => {
-  if (!rows.length) return 0;
-
-  const last = rows[Math.min(keep, rows.length) - 1];
-
-  return Math.ceil(
-    Math.min(last.bottom + padding, listHeight)
-      + (rows.length > keep ? strip : 0)
-  );
-};
-
-// How the phone pane fits its room (#448). `pane` is what never gives
-// way (the total row, the foot, the pane's padding), `fold` the part
-// above the total row at its floor, `below` what is under the total
-// row at its natural height, `keep` the part of that which never gives
-// way either (the open code row and the dark rule above it), and
-// `room` the height the pane may take. The floor is the three summed;
-// past the room the pane is tight and what is under the total row
-// scrolls. The fold keeps its whole floor while the room holds it
-// beside the pane and the kept row, and the room left otherwise: then
-// it scrolls as a whole, never clipped, and the field and Apply keep
-// their room on the smallest phones.
-export const paneFit = ({ pane, fold, below, keep = 0 }, room) => {
-  const floor = pane + fold + below;
-
-  return {
-    floor: Math.ceil(floor),
-    fold: Math.ceil(Math.min(fold, Math.max(0, room - pane - keep))),
-    tight: floor > room,
   };
 };
 
