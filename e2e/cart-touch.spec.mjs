@@ -47,9 +47,9 @@ test.describe("a touch on the pane the first Add opened", () => {
   test("a scroll across it leaves it to shut and the pill to pulse",
     async ({ page }) => {
       // In Actions the emulated swipe left scrollY unchanged in every
-      // pass, on a fix (8b52699c) that was written without a run. Not
-      // known whether the emulation or the pane is at fault.
-      test.fixme(true, "the swipe does not scroll the page (8b52699c)");
+      // pass, on a fix (8b52699c) that was written without a run. The
+      // cart is being rebuilt as one component (#477).
+      test.fixme(true, "#477 cart rebuild");
 
       const order = new OrderPage(page);
       const pill = order.cart.locator("[data-cart-toggle]");

@@ -46,9 +46,9 @@ for (const size of WIDTHS) {
 
     test("the open row, Hide and Proceed to checkout stay inside the pane",
       async ({ page }) => {
-        // A real layout bug under the stand-in keyboard: the pane's floor is
-        // taller than the room, so the foot lies past the pane.
-        test.fixme(true, "#476: the pane outgrows the keyboard's room");
+        // A layout bug under the stand-in keyboard (#476); the cart is being
+        // rebuilt as one component (#477).
+        test.fixme(true, "#477 cart rebuild");
 
         const order = new OrderPage(page);
 

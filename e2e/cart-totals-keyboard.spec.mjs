@@ -137,9 +137,9 @@ for (const size of WIDTHS) {
   test.describe(`at ${size.width} by ${size.height}`, () => {
     test("the sums keep their section, and the open row its reach",
       async ({ page }) => {
-        // A real layout bug under the stand-in keyboard: the pane's floor is
-        // taller than the room, so the foot lies past the pane.
-        test.fixme(true, "#476: the pane outgrows the keyboard's room");
+        // A layout bug under the stand-in keyboard (#476); the cart is being
+        // rebuilt as one component (#477).
+        test.fixme(true, "#477 cart rebuild");
 
         const parts = await totalsUnderKeyboard(page, size);
         const { cart } = parts;
@@ -195,9 +195,9 @@ test.describe("after the settle and float round trip", () => {
   const size = WIDTHS[2];
 
   test("the tier line keeps its room under the switch", async ({ page }) => {
-    // The same layout bug (it passed in one Actions pass and not the
-    // other, the float round trip).
-    test.fixme(true, "#476: the pane outgrows the keyboard's room");
+    // The same layout bug (#476), failing in one Actions pass in two;
+    // the cart is being rebuilt as one component (#477).
+    test.fixme(true, "#477 cart rebuild");
 
     const parts = await totalsUnderKeyboard(page, size, { roundTrip: true });
     const { cart } = parts;
@@ -236,9 +236,9 @@ test.describe("after the settle and float round trip", () => {
 test.describe(`at ${SMALL.width} by ${SMALL.height}`, () => {
   test("the code row keeps its room and the sums scroll as a whole",
     async ({ page }) => {
-      // A real layout bug under the stand-in keyboard: the pane's floor is
-      // taller than the room, so the foot lies past the pane.
-      test.fixme(true, "#476: the pane outgrows the keyboard's room");
+      // A layout bug under the stand-in keyboard (#476); the cart is being
+      // rebuilt as one component (#477).
+      test.fixme(true, "#477 cart rebuild");
 
       const parts = await totalsUnderKeyboard(page, SMALL);
       const { cart } = parts;

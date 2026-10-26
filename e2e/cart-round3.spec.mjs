@@ -316,9 +316,9 @@ test("empty, the pane shows the way and the code only", async ({ page }) => {
     }
     await expect(order.subtotal, `${size.width}px`).toBeHidden();
     await expect(order.cart.locator(".order-badges")).toBeHidden();
-    // The md panel (#274 r6) floats an empty cart folded: the way and
-    // the code are folded away with the sums until the first Add. Open
-    // question for James, in the report on #449: should they show?
+    // The md panel (#274 r6) floats an empty cart folded, the way and
+    // the code folded away until the first Add. James: not intended;
+    // it goes to the cart rebuild (#477), so those checks wait.
     if (size !== MD) {
       await expect(order.cart.locator("[data-way-toggle]")).toBeVisible();
       await expect(order.codeOpen).toBeVisible();
