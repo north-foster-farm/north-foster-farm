@@ -335,6 +335,12 @@ test.describe("restock types (#267)", () => {
         ...OUT, seasonal: SEASONAL,
       })) {
         const out = row(page, sku).locator(".order-qty-out");
+
+        // A product the stub sells out shows its label only once the
+        // page has applied the answer, after the skeleton's hold;
+        // measured before that, the label has no box.
+        await expect(out, type).toBeVisible();
+
         const box = await out.boundingBox();
         const lineHeight = await out.evaluate((el) =>
           parseFloat(getComputedStyle(el).lineHeight));
