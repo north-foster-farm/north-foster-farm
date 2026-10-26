@@ -218,7 +218,11 @@ export class Payment {
     const jobs = [];
 
     if (this.config.square) jobs.push(this.initSquare(this.config.square));
-    if (this.config.paypal) jobs.push(this.initVenmo(this.config.paypal));
+    // Paying later for an order the farm made (#181) takes a card or
+    // a wallet; Venmo's two steps are not offered there.
+    if (this.config.paypal && !this.form.paying) {
+      jobs.push(this.initVenmo(this.config.paypal));
+    }
 
     if (!jobs.length) {
       reportUnavailable("checkout.config", `No payment configured (HTTP ${

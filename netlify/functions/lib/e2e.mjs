@@ -14,6 +14,7 @@ import {
 } from "./admin.mjs";
 import { requestLink } from "./auth.mjs";
 import { MAX_OFFSET } from "./clock.mjs";
+import { createFarmOrder } from "./farm-orders.mjs";
 import { runJobs } from "./jobs.mjs";
 import { links, readState, setState } from "./maintenance.mjs";
 import { OUTBOX_PREFIX } from "./mail.mjs";
@@ -64,6 +65,25 @@ export const OPS = {
       ...(amount !== undefined && { amount: Number(amount) }),
     }),
   }),
+  // An order the farm makes for a customer, as `bin/nff orders create`
+  // does (#181): unpaid unless `paid` names a tender. `fulfilment` is
+  // the spec's, from /api/dates; the lines are two of the first SKU
+  // unless given.
+  farmOrder: async (stores, { email, fulfilment, lines, paid }, env) => {
+    const r = await createFarmOrder(stores, {
+      customer: {
+        firstName: "QA", lastName: "Farm", email: need(email, "email"),
+        phone: "401-555-0100", contact: "call",
+      },
+      lines: lines || [{ sku: "NFF-CHK-WHL-35-39", qty: 2 }],
+      fulfilment: need(fulfilment, "fulfilment"),
+    }, { env, ...(paid && { paid: { tender: paid } }) });
+
+    if (!r.ok) throw new Error(JSON.stringify(r.errors));
+
+    return { id: r.order.id, status: r.order.status,
+      total: r.order.totals.total };
+  },
   // The farm hands the order over, as `bin/nff orders fulfill` does.
   orderFulfil: async (stores, { id }, env) => ({
     order: await fulfillOrder(stores, need(id, "id"), { env }),

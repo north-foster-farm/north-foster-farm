@@ -139,11 +139,21 @@ export class OrderForm {
     this.errors = new Errors(form);
     // /order/?edit=<id> changes a paid order (startEdit): its own draft,
     // so the cart the header reads is left alone, and its own endpoint.
-    const edit = new URLSearchParams(location.search).get("edit") || "";
+    // /order/?pay=<id> pays an order the farm made (#181): the same
+    // page with the lines and the way fixed, and the payment section
+    // taking what is due.
+    const params = new URLSearchParams(location.search);
+    const idOf = (name) => {
+      const id = params.get(name) || "";
 
-    this.editId = /^[A-Za-z0-9-]{1,32}$/.test(edit) ? edit : null;
+      return /^[A-Za-z0-9-]{1,32}$/.test(id) ? id : null;
+    };
+
+    this.paying = !!idOf("pay");
+    this.editId = idOf("edit") || idOf("pay");
     this.editing = null;
-    this.draft = new Draft(this.editId ? { name: `nff-edit-${this.editId}` }
+    this.draft = new Draft(this.editId
+      ? { name: `nff-${this.paying ? "pay" : "edit"}-${this.editId}` }
       : {});
     this.dates = new DateLists(form, () => this.refresh());
     this.dates.place = (code) => this.terms.model.location(code);
@@ -155,7 +165,8 @@ export class OrderForm {
       onOther: (method) => this.otherWay(method),
     });
     this.submitter = new Submitter(this.editId
-      ? { url: `/api/account/orders/${this.editId}/edit` }
+      ? { url: `/api/account/orders/${this.editId}/${
+        this.paying ? "pay" : "edit"}` }
       : {});
     this.saveButton = document.getElementById("order-save");
     this.stock = new Stock(form, {
@@ -286,7 +297,7 @@ export class OrderForm {
       ? (data.orders || []).find((o) => o.id === this.editId)
       : null;
 
-    if (!order || !order.canChange) {
+    if (!order || !(this.paying ? order.canPay : order.canChange)) {
       location.replace("/account/#orders");
 
       return;
@@ -296,11 +307,12 @@ export class OrderForm {
       0);
 
     // A fee a missed delivery kept paid for that trip: it counts toward
-    // nothing now (#193).
+    // nothing now (#193). Paying an order the farm made (#181): nothing
+    // is held, so the whole total is the difference to pay.
     this.editing = {
       id: order.id, held: sum(order.payments) - sum(order.refunds),
       kept: order.keptFee || 0, keptDate: order.keptDate || null,
-      placed: order.submittedAt,
+      placed: order.submittedAt, pay: this.paying,
     };
     for (const line of order.lines) {
       this.stock.held[line.sku] = line.qty;
@@ -326,21 +338,47 @@ export class OrderForm {
     const banner = document.getElementById("order-editing");
 
     // Draft wording.
-    banner.textContent = `You're changing order ${order.id}. You pay ` +
-      "only the difference, or we refund it.";
+    banner.textContent = this.paying
+      ? `You're paying for order ${order.id}: ${dollars(order.due)} is due.`
+      : `You're changing order ${order.id}. You pay ` +
+        "only the difference, or we refund it.";
     banner.hidden = false;
     for (const heading of document.querySelectorAll(
       ".page-heading h1, [data-topbar-title]"
     )) {
-      heading.textContent = "Change your order";
+      heading.textContent = this.paying ? "Pay for your order"
+        : "Change your order";
     }
     this.saveButton.addEventListener("click", (e) => this.submit(e));
+    if (this.paying) this.fix();
 
     this.dates.load();
     this.applyCode({ quiet: true });
     this.refresh();
     this.stock.start();
     this.payment.start();
+  }
+
+  // Paying an order the farm made (#181): what is in it and how it
+  // comes are the farm's, so the quantities, the way, the dates and
+  // the code are fixed, and the cart shows no ×. The server charges
+  // what the record says is due, whatever the page sends.
+  fix() {
+    for (const input of all(this.form, "[data-qty]")) {
+      const row = input.closest(".order-item");
+
+      input.dataset.max = String(this.qty(input));
+      input.disabled = true;
+      for (const b of row ? all(row, "button") : []) b.disabled = true;
+    }
+    for (const id of ["pickup"]) {
+      const section = document.getElementById(id);
+
+      if (section) section.disabled = true;
+    }
+    for (const el of all(this.form, "[data-field='code'], [data-code-apply]")) {
+      el.disabled = true;
+    }
   }
 
   // A line the paid order holds. An archived one's row shows, and its
@@ -1036,6 +1074,7 @@ export class OrderForm {
       },
       edit: this.editing ? { ...this.editing, total: totals.total } : null,
       locked: !!(this.stock && this.stock.locked),
+      fixed: !!this.paying,
       adding: !!this.adding,
     });
     this.total = totals.total;
@@ -1761,10 +1800,12 @@ export class OrderForm {
 
   // The cart says the total; the button says what it does.
   submitLabel() {
-    qs(this.submitButton, ".busy-button-idle").textContent = this.editing
-      // Draft wording.
-      ? `Pay ${dollars(this.amount())} and save`
-      : "Place your order";
+    // Draft wording.
+    qs(this.submitButton, ".busy-button-idle").textContent = this.paying
+      ? `Pay ${dollars(this.amount())}`
+      : this.editing
+        ? `Pay ${dollars(this.amount())} and save`
+        : "Place your order";
   }
 
   // One line saying when and where, the sentence people screenshot.
