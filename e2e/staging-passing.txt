@@ -60,7 +60,6 @@ e2e/skip-link.spec.mjs daa775382947 2026-10-26
 e2e/sku-alias.spec.mjs daa775382947 2026-10-26
 e2e/square-fulfilment.spec.mjs c5b80508ee19 2026-10-26
 e2e/staging-toolbar.spec.mjs daa775382947 2026-10-26
-e2e/stock-failure.spec.mjs 375352cc0ef3 2026-10-26
 e2e/top-bar.spec.mjs daa775382947 2026-10-26
 e2e/venmo-paid.spec.mjs daa775382947 2026-10-26
 e2e/verify-redirect.spec.mjs 9877065b199a 2026-10-26
