@@ -34,7 +34,9 @@ import {
   between, methodName, packetCounts, pickupWindow, placeOf, streetAddress,
 } from "./describe.mjs";
 import { now as clock } from "./clock.mjs";
-import { currentOptIn, keptFee, paymentsOf } from "./records.mjs";
+import {
+  currentOptIn, dueOn, keptFee, paymentsOf,
+} from "./records.mjs";
 
 // The delivery day by name, and how long a missed delivery is
 // held for the customer to choose, from data/delivery.json.
@@ -1256,6 +1258,7 @@ const onePayment = (p) => {
   if (p.via === "venmo") return `${total} by Venmo`;
   if (WALLETS[p.method]) return `${total} by ${WALLETS[p.method]}`;
   if (p.last4) return `${total} by ${brand} ending ${p.last4}`;
+  // Money the farm took in person (#181): "$55 by cash", "$55 by check".
   if (p.via && p.via !== "square") return `${total} by ${p.via}`;
 
   return `${total} by card`;
@@ -2015,13 +2018,17 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
   const pack = (o) => ({
     text: "Pack:", children: o.lines.map((l) => `${l.qty} × ${lineLabel(l)}`),
   });
-  // A delivery is abandoned at the Wednesday cutoff if unpaid, so an
-  // unpaid one on this list means that step did not happen.
+  // An order the farm made for a customer who pays later (#181) is
+  // UNPAID with what is due; a delivery from the invoice era was
+  // abandoned at the Wednesday cutoff if unpaid, so one on this list
+  // means that step did not happen.
   const state = (o) => (o.status === "paid" ? "paid"
-    : o.fulfilment.method === "delivery"
-      ? "**UNPAID, past the cutoff: it should have been canceled. " +
-        "Check it before loading**"
-      : "UNPAID");
+    : o.status === "unpaid"
+      ? `UNPAID, ${dollars(dueOn(o))} due`
+      : o.fulfilment.method === "delivery"
+        ? "**UNPAID, past the cutoff: it should have been canceled. " +
+          "Check it before loading**"
+        : "UNPAID");
 
   if (!orders.length) {
     blocks.push(p(`Nothing due ${day}.`));

@@ -21,7 +21,7 @@ import {
 import * as paypalApi from "./paypal.mjs";
 import {
   OPEN, allCustomers, allOrders, amendOrder, answerQuestion, byEmailKey,
-  cartKey, deleteCustomer, deleteOrder, getCustomer, getOrder, keptFee,
+  cartKey, deleteCustomer, deleteOrder, dueOn, getCustomer, getOrder, keptFee,
   listCheckouts, ordersFor, paidTotal, paymentRef, paymentsOf, questionOpen,
   refundedTotal, saveCustomer, setStatus, settledRefunds,
 } from "./records.mjs";
@@ -513,10 +513,10 @@ export const markAttempted = async (stores, id, {
   }
   if (closedLately(order, now)) {
     order = await amendOrder(stores, id, {
-      status: "paid", fulfilledAt: undefined,
+      status: dueOn(order) > 0 ? "unpaid" : "paid", fulfilledAt: undefined,
     }, "reopened", now);
   }
-  if (order.status !== "paid") {
+  if (!OPEN.includes(order.status)) {
     throw new Error(`This order is ${order.status}.`);
   }
 
@@ -565,7 +565,7 @@ const closedLately = (order, now) => order.status === "fulfilled"
 
 // A missed delivery whose email never went out: the customer doesn't
 // know it is held.
-export const missedUntold = (order) => order.status === "paid"
+export const missedUntold = (order) => OPEN.includes(order.status)
   && questionOpen(order) && order.question.kind === "missed"
   && !(order.emails && order.emails.missedDelivery);
 
@@ -624,7 +624,7 @@ export const moveDelivery = async (stores, id, date, {
   if (order.fulfilment.method !== "delivery") {
     throw new Error("Only a delivery can be moved.");
   }
-  if (order.status !== "paid") {
+  if (!OPEN.includes(order.status)) {
     throw new Error(`This order is ${order.status}.`);
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date || "") || !isDeliveryDay(date)
