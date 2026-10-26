@@ -70,7 +70,7 @@ pack for sausage (6305373706).
 A line is named "Group, label" ("Wings, 1.0 – 1.9 lbs") in the cart,
 the stored order, the emails and the errors. A group with `"lines":
 "name"` uses each item's own `name` instead: Other Items, whose lines
-read "Livers, 1.0 – 1.4 lbs" and "Feet, 1 lb avg." (#267). The same
+read "Livers, 1.0 – 1.4 lbs" and "Feet, about 1.2 – 1.5 lbs" (#267). The same
 name is the item's row on the order page and in search, where a cut
 shows its tier. `indexCatalog` works out `lineName`, and `row` for
 the grouped cart; `order/groups.html` gives the templates `row`.
@@ -1057,7 +1057,9 @@ Flags that take a value accept both `--reason "..."` and
   smallest tier becomes a range from 1.0 lbs, Livers, Necks and Backs
   carry their ranges in their names, shown where a cut shows its tier
   (6305330408), Feet reads "Feet, 1 lb avg." until real
-  weights set its tier, and Ground Chicken, never sold, and Cornish
+  weights set its tier (since 2026-10-26: "Feet, about 1.2 – 1.5 lbs"
+  with the note "6 to 8 per pack", from a pack James opened, #303; the
+  SKU stays), and Ground Chicken, never sold, and Cornish
   Hens, discontinued, are archived (6305037316).
 - **Stock set as of 17 September 2026** is the 2026-v3 flyer's 20 line
   items. The August home-page update lists Cornish hens and sweet
