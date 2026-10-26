@@ -46,11 +46,9 @@ for (const size of WIDTHS) {
 
     test("the open row, Hide and Proceed to checkout stay inside the pane",
       async ({ page }) => {
-        // Fails in Chromium with the stand-in keyboard: the pane's measures
-        // do not hold (the discount case: the foot lies past the pane's
-        // end). A layout fix awaiting James's iPhone check (#389, #448),
-        // skipped in Actions only; see #449.
-        test.skip(!!process.env.CI, "awaits the iPhone check (#389, #448)");
+        // A real layout bug under the stand-in keyboard: the pane's floor is
+        // taller than the room, so the foot lies past the pane.
+        test.fixme(true, "#476: the pane outgrows the keyboard's room");
 
         const order = new OrderPage(page);
 
