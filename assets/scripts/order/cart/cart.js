@@ -305,15 +305,19 @@ export class Cart {
   // summarize) and what else the form knows: `method`, the way the
   // page holds; `ways`, which of the three can be picked; `edit`, a
   // paid order being changed ({ held, kept, keptDate, total }) or null;
-  // `locked`, the stock gate; `adding`, that an Add caused this render.
+  // `locked`, the stock gate; `adding`, that an Add caused this render;
+  // `fixed`, that the lines cannot change (an unpaid order being paid,
+  // #181): no × on a line.
   render(s, {
     method, ways = {}, edit = null, locked = false, adding = false,
+    fixed = false,
   }) {
     const root = this.root;
     const count = s.count;
 
     const draw = () => {
       this.renderItems(s);
+      for (const button of all(root, "[data-remove]")) button.hidden = fixed;
       this.renderSums(s);
       this.renderEdit(edit);
       this.renderWays(method, ways);
@@ -348,7 +352,12 @@ export class Cart {
     });
 
     this.lastCount = count;
-    if (next.fold !== this.state.fold || next.empty !== this.state.empty) {
+
+    const moved = next.fold !== this.state.fold
+      || next.empty !== this.state.empty
+      || JSON.stringify(s.groups) !== this.itemsKey;
+
+    if (moved) {
       next.empty = count === 0;
       animateFold(root, () => {
         this.apply(next);
