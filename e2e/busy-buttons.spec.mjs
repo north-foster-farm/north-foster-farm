@@ -27,10 +27,20 @@ test.describe("busy buttons", () => {
     await page.goto("/login/");
     await page.locator("#login-email").fill("qa-e2e-busy@example.com");
 
-    const at = await width(button);
+    // A fitted button (#223) is as wide as the face that's showing, so
+    // while it sends it fits the spinner and "Sending".
+    const busyWidth = await button.evaluate((el) => {
+      const face = el.querySelector(".busy-button-busy");
+      const style = getComputedStyle(el);
+
+      return face.getBoundingClientRect().width
+        + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
+        + parseFloat(style.borderLeftWidth)
+        + parseFloat(style.borderRightWidth);
+    });
 
     await button.click();
-    await expectBusy(page, button, { busyWord: "Sending", width: at });
+    await expectBusy(page, button, { busyWord: "Sending", width: busyWidth });
     await button.click({ force: true });
     hold.release();
     await expect(page.locator("#login-sent")).toBeVisible();
