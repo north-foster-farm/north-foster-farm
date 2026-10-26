@@ -36,9 +36,9 @@
           <a href="{{ $map }}" target="_blank" rel="noopener">{{ .venue }}<br>{{ .street }}, {{ .city }}, {{ .state }} {{ .zip }}</a>
           {{/* Shown by schedule.js while the market has a date open
                for pickup. */}}
-          <span class="d-block" data-pickup-for="{{ .code }}" hidden>
+          <div data-pickup-for="{{ .code }}" hidden>
             <a href="{{ relURL "order/" }}?method=scheduled&amp;series={{ .code }}">Order for pickup here</a>
-          </span>
+          </div>
         </li>
       {{ end }}
     </ul>
