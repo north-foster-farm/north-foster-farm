@@ -121,7 +121,7 @@ the drop site, a market or a pop-up. There is no minimum or fee.
 {{< terms "days" "drop" >}} from
 {{< terms "window" "drop" >}}, {{< terms "starting" "drop" >}}on
 the {{< terms "place" "drop" >}}: the same corner of the lot where
-our tent sits in market season.
+our tent sits on market days.
 
 **Markets and pop-ups** are opened one event at a time. When we open
 one, it appears on the order page, with its place and hours, and you
