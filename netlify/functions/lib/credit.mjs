@@ -1,0 +1,160 @@
+// A buying group's credit (#471): stored value the farm grants a
+// member, the host reward or a share of it (lib/rounds.mjs), spent on
+// a later order alongside member pricing. It is the site's own, in
+// the customers store under `credit/<email>`, never Square's: a
+// ledger of grants, each with what has been spent of it, so the
+// books show every dollar and where it went.
+//
+// Credit expires at the end of the year it was granted (James,
+// 6405284935: a firm rule), by the farm's clock. An expired grant
+// stays on the ledger, worth nothing. A refund of an order paid with
+// credit puts the credit back on the grants it came from, first
+// (James, 6405215783).
+
+import {
+  instant, parts,
+} from "../../../assets/scripts/order/lib/zoned.mjs";
+
+const emailOf = (value) => String(value || "").trim().toLowerCase();
+
+export const creditKey = (email) => `credit/${emailOf(email)}`;
+
+// 11:59 PM on 31 December of the year `now` falls in, as an instant.
+export const yearEnd = (now, timeZone) =>
+  instant(`${parts(now, timeZone).year}-12-31`, 23, 59, timeZone)
+    .toISOString();
+
+export const getLedger = async (stores, email) =>
+  (await stores.customers.get(creditKey(email)))
+  || { email: emailOf(email), entries: [] };
+
+export const spentOf = (entry) =>
+  (entry.spent || []).reduce((s, x) => s + x.amount, 0);
+
+export const leftOf = (entry) => entry.amount - spentOf(entry);
+
+export const live = (entry, now) => now.toISOString() <= entry.expiresAt;
+
+// What a ledger is worth now, in cents: the unexpired grants, less
+// what was spent of them.
+export const balanceOf = (ledger, now) => ledger.entries
+  .filter((e) => live(e, now))
+  .reduce((s, e) => s + leftOf(e), 0);
+
+export const creditBalance = async (stores, email, now = new Date()) =>
+  balanceOf(await getLedger(stores, email), now);
+
+// How many times a change reads the ledger again after losing a swap
+// to another writer before giving up.
+const SWAPS = 5;
+
+// Reads the ledger, lets `change` decide from what is stored, and
+// writes only if no one wrote in between. `change` -> the next
+// ledger, or null to write nothing. -> what is stored after.
+const swapLedger = async (stores, email, change) => {
+  const key = creditKey(email);
+
+  for (let i = 0; i < SWAPS; i++) {
+    const found = await stores.customers.getTagged(key);
+    const ledger = found ? found.value : { email: emailOf(email), entries: [] };
+    const next = change(ledger);
+
+    if (!next) return ledger;
+    if (!found) {
+      if (await stores.customers.create(key, next)) return next;
+    } else if (await stores.customers.swap(key, next, found.etag)) {
+      return next;
+    }
+  }
+
+  throw new Error(`The credit of ${emailOf(email)} kept changing; try again.`);
+};
+
+// A grant, once: the same `from` (the group, the round and the kind,
+// host or share) is never granted twice. -> the ledger.
+export const grantCredit = async (stores, email, {
+  amount, from, now = new Date(), timeZone,
+}) => {
+  if (!(Number.isInteger(amount) && amount > 0)) {
+    throw new Error("A grant is a whole number of cents above zero.");
+  }
+
+  const id = `${from.group}/${from.round}/${from.kind}`;
+
+  return swapLedger(stores, email, (ledger) => (
+    ledger.entries.some((e) => e.id === id) ? null : {
+      ...ledger,
+      entries: [...ledger.entries, {
+        id, amount, from, grantedAt: now.toISOString(),
+        expiresAt: yearEnd(now, timeZone), spent: [],
+      }],
+    }
+  ));
+};
+
+// Spends `amount` on an order, from the grants that expire soonest.
+// Once per order: a retry finds its spend and leaves the ledger.
+// Throws when the balance is short. -> the ledger.
+export const spendCredit = (stores, email, {
+  orderId, amount, now = new Date(),
+}) => swapLedger(stores, email, (ledger) => {
+  if (ledger.entries.some((e) => (e.spent || []).some((x) =>
+    x.orderId === orderId))) return null;
+  if (balanceOf(ledger, now) < amount) {
+    throw new Error(`${emailOf(email)} has less credit than ${amount}.`);
+  }
+
+  let left = amount;
+  const at = now.toISOString();
+  const entries = ledger.entries.map((e) => ({ ...e, spent: [...e.spent] }))
+    .sort((a, b) => a.expiresAt.localeCompare(b.expiresAt));
+
+  for (const e of entries) {
+    if (left === 0) break;
+    if (!live(e, now) || leftOf(e) === 0) continue;
+
+    const take = Math.min(leftOf(e), left);
+
+    e.spent.push({ orderId, amount: take, at });
+    left -= take;
+  }
+
+  return { ...ledger, entries };
+});
+
+// Puts credit back after a refund: onto the grants the order spent,
+// up to `amount`, whatever their expiry (the member lost nothing by
+// the refund). -> the ledger, and how much went back.
+export const restoreCredit = async (stores, email, {
+  orderId, amount, now = new Date(),
+}) => {
+  let restored = 0;
+  const ledger = await swapLedger(stores, email, (stored) => {
+    let left = amount;
+    const at = now.toISOString();
+
+    restored = 0;
+
+    const entries = stored.entries.map((e) => {
+      const spent = [...(e.spent || [])];
+      // What the order still holds of this grant: its spends less
+      // what earlier refunds put back.
+      const held = spent.filter((x) => x.orderId === orderId)
+        .reduce((s, x) => s + x.amount, 0);
+
+      if (left === 0 || held <= 0) return e;
+
+      const give = Math.min(held, left);
+
+      left -= give;
+      restored += give;
+      spent.push({ orderId, amount: -give, at, refund: true });
+
+      return { ...e, spent };
+    });
+
+    return restored > 0 ? { ...stored, entries } : null;
+  });
+
+  return { ledger, restored };
+};

@@ -40,6 +40,10 @@ const DESTRUCTIVE = {
   // Makes a paid order in Square and the stores (#471).
   "groups walkin": { does: "record a walk-in sale, running",
     unless: "dry-run", whole: true },
+  "groups reward": { does: "record the host's choice, running",
+    whole: true },
+  "groups close": { does: "close rounds and grant credit, running",
+    whole: true },
   "customers rename": { does: "move the account of", apply: true },
   "customers forget": { does: "erase the details of", apply: true },
   "stock set": { does: "set the stock count of" },

@@ -83,6 +83,7 @@ import { farmEmails, sendMail } from "./mail.mjs";
 import { audienceConfigured, syncAudience } from "./news.mjs";
 import { changedAfterPrint, packingDaily } from "./packing.mjs";
 import { sendForOrder } from "./payments.mjs";
+import { workRounds } from "./rounds.mjs";
 import { checkRefunds } from "./settle.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
@@ -393,6 +394,19 @@ export const runJobs = async (stores, {
 
   report.drift = await attempt(null, "squareDrift",
     () => driftDaily(stores, { env, mail, now, square, fetchImpl, fail }));
+
+  // A buying group's rounds (#471): closed once their close has
+  // passed, and each host reward settled at the next round's close.
+  // Every run; nothing is done twice. A round that cannot settle (no
+  // host on record) goes on the report as an error and is tried
+  // again next run.
+  report.rounds = await attempt(null, "rounds", async () => {
+    const r = await workRounds(stores, { now, terms });
+
+    for (const e of r.errors) fail(`${e.group}/${e.round}`, "rounds", e.error);
+
+    return { closed: r.closed, settled: r.settled };
+  });
 
   report.invariants = (await attempt(null, "invariants", async () =>
     checkInvariants(await openOrders(stores), now))) || [];
@@ -826,6 +840,7 @@ export const summarize = (report) => ({
   quiet: report.quiet || null,
   refunds: report.refunds || null,
   drift: report.drift || null,
+  rounds: report.rounds || null,
   errors: report.errors,
   invariants: report.invariants,
 });

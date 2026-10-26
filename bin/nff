@@ -235,6 +235,18 @@ const USAGE = `Usage:
                                       counts toward the round: a paid,
                                       handed-over order that makes the
                                       buyer a member
+  bin/nff groups rounds <key>         the closed rounds, each with its
+                                      net, real money, reward and where
+                                      the reward went
+  bin/nff groups reward <key> <YYYY-MM-DD> keep|share
+                                      the host's choice for that
+                                      round's reward, by the close of
+                                      the next round (kept otherwise)
+  bin/nff groups credit <email>       a member's credit: balance,
+                                      grants, spends, expiry
+  bin/nff groups close <key>          close any round whose close has
+                                      passed and settle rewards now;
+                                      the jobs do this on their own
   bin/nff refunds check               every refund not yet settled,
                                       asked of Square or PayPal: the
                                       jobs do it daily; alerts as they
@@ -449,6 +461,8 @@ const [
   { withholdCustomerEmail },
   { TENDERS, createFarmOrder, payFarmOrder },
   groups,
+  rounds,
+  credit,
 ] = await Promise.all([
   import("../netlify/functions/lib/terms.mjs"),
   import("../netlify/functions/lib/admin.mjs"),
@@ -475,6 +489,8 @@ const [
   import("../netlify/functions/lib/payments.mjs"),
   import("../netlify/functions/lib/farm-orders.mjs"),
   import("../netlify/functions/lib/groups.mjs"),
+  import("../netlify/functions/lib/rounds.mjs"),
+  import("../netlify/functions/lib/credit.mjs"),
 ]);
 
 // --scratch: development's env, but stores of their own
@@ -1688,6 +1704,96 @@ const run = async () => {
 
     return out(`${done.id}  ${done.status}  ${g.name}, round ${round}, ` +
       `${email}: ${dollars(o.totals.total)} by ${given("paid")}.`);
+  }
+  // The closed rounds and their rewards: what the host earned, what
+  // he chose, and where it went.
+  case "groups rounds": {
+    const g = groups.groupOf(rest[0]);
+
+    if (!g) throw new Error(`Unknown group "${rest[0]}".`);
+
+    const list = await rounds.listRounds(stores, g.key);
+
+    for (const r of list) {
+      const reward = r.reward.earned
+        ? `reward ${dollars(r.reward.amount)}${r.reward.leftover
+          ? ` (+${r.reward.leftover}¢ kept back)` : ""}`
+        : `no reward (under $${r.threshold})`;
+      const state = r.settled
+        ? `${r.settled.kind === "share" ? "shared among" : "credited to"} ${
+          r.settled.shares.length}${r.settled.leftover
+          ? `, ${dollars(r.settled.leftover)} kept back` : ""}`
+        : (r.choice ? `${r.choice.kind}, not yet settled`
+          : (r.reward.earned ? "awaiting the host's choice" : ""));
+
+      out(`${r.round}  ${r.count} orders  net ${dollars(r.net)}  real ${
+        dollars(r.real)}  ${reward}${state ? `  ${state}` : ""}`);
+    }
+    if (!list.length) out("No rounds closed yet.");
+
+    return undefined;
+  }
+  // The host's choice for a round's reward, by the close of the next
+  // round: keep (credit on his own account) or share (split among
+  // the next round's members by what each spent).
+  case "groups reward": {
+    const g = groups.groupOf(rest[0]);
+
+    if (!g) throw new Error(`Unknown group "${rest[0]}".`);
+    if (!rest[1] || !rest[2]) {
+      throw new Error("groups reward <key> <YYYY-MM-DD> keep|share");
+    }
+
+    const r = await rounds.chooseReward(stores, g, rest[1], rest[2]);
+
+    return out(`${g.key} ${r.round}: the host ${r.choice.kind}s ${
+      dollars(r.reward.amount)}; it lands when the next round closes.`);
+  }
+  // A member's credit: the balance and every grant and spend.
+  case "groups credit": {
+    if (!rest[0]) throw new Error("groups credit <email>");
+
+    const ledger = await credit.getLedger(stores, rest[0]);
+    const now = new Date();
+
+    out(`${ledger.email}  balance ${dollars(credit.balanceOf(ledger, now))}`);
+    for (const e of ledger.entries) {
+      out(`  ${e.grantedAt.slice(0, 10)}  ${dollars(e.amount)}  ${
+        e.from.kind} of ${e.from.group} ${e.from.round}  ${
+        credit.live(e, now) ? `expires ${e.expiresAt.slice(0, 10)}`
+          : "expired"}  left ${dollars(credit.leftOf(e))}`);
+      for (const s of e.spent || []) {
+        out(`      ${s.at.slice(0, 10)}  ${s.refund ? "back" : "spent"} ${
+          dollars(Math.abs(s.amount))}  ${s.orderId}`);
+      }
+    }
+    if (!ledger.entries.length) out("  No credit.");
+
+    return undefined;
+  }
+  // Closes a round now, if its close has passed; the jobs do this on
+  // their own. Then settles any reward whose next round is closed.
+  case "groups close": {
+    const g = groups.groupOf(rest[0]);
+
+    if (!g) throw new Error(`Unknown group "${rest[0]}".`);
+
+    const r = await rounds.workRounds(stores, { terms });
+
+    for (const c of r.closed) {
+      out(`closed ${c.group} ${c.round}: net ${dollars(c.net)}, real ${
+        dollars(c.real)}, reward ${c.earned ? dollars(c.reward) : "none"}`);
+    }
+    for (const s of r.settled) {
+      out(`settled ${s.group} ${s.round}: ${s.kind}, ${s.shares} grant${
+        s.shares === 1 ? "" : "s"}`);
+    }
+    for (const e of r.errors) out(`error ${e.group} ${e.round}: ${e.error}`);
+    if (!r.closed.length && !r.settled.length && !r.errors.length) {
+      out("Nothing to close or settle.");
+    }
+
+    return undefined;
   }
   case "jobs run":
     return out(await runJobs(stores));
