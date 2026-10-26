@@ -339,6 +339,29 @@ describe("credit", () => {
       0);
   });
 
+  it("runs to the end of the next year when granted in December", async () => {
+    // James, 2026-10-26: credit granted in December 2026 expires at
+    // the end of 2027. The round of 2026-12-06 settles at the close of
+    // 2026-12-20, in December.
+    const stores = testStores();
+    const december = { ...from, round: "2026-12-06" };
+
+    await grantCredit(stores, "m@x.com", { amount: 1_000, from: december,
+      now: ny("2026-12-20", 23, 59), timeZone: tz });
+    assert.equal(yearEnd(ny("2026-12-20"), tz),
+      ny("2027-12-31", 23, 59).toISOString());
+    assert.equal(yearEnd(ny("2026-12-01", 0, 0), tz),
+      ny("2027-12-31", 23, 59).toISOString());
+    assert.equal(yearEnd(ny("2026-11-30", 23, 59), tz),
+      ny("2026-12-31", 23, 59).toISOString());
+    assert.equal(await creditBalance(stores, "m@x.com", ny("2027-06-01")),
+      1_000);
+    assert.equal(await creditBalance(stores, "m@x.com", ny("2027-12-31", 23)),
+      1_000);
+    assert.equal(await creditBalance(stores, "m@x.com", ny("2028-01-01", 0)),
+      0);
+  });
+
   it("is spent soonest-expiring first, once per order, and comes back",
     async () => {
       const stores = testStores();

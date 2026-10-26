@@ -54,7 +54,8 @@ prices are there without the code.
 - Credit comes off an order by itself when the member is signed in,
   after the order's discounts and any delivery fee. If it covers the
   whole order, there is nothing to pay.
-- Credit expires at the end of the year it was granted.
+- Credit expires at the end of the year it was granted. Credit granted
+  in December runs to the end of the following year.
 - A refund of an order paid with credit returns the credit first, then
   the money.
 - A reward is worked out once, when the round closes. A later refund

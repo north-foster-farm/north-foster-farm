@@ -19,10 +19,16 @@ const emailOf = (value) => String(value || "").trim().toLowerCase();
 
 export const creditKey = (email) => `credit/${emailOf(email)}`;
 
-// 11:59 PM on 31 December of the year `now` falls in, as an instant.
-export const yearEnd = (now, timeZone) =>
-  instant(`${parts(now, timeZone).year}-12-31`, 23, 59, timeZone)
+// When a grant made at `now` expires: 11:59 PM on 31 December of the
+// same year, or, for a grant made in December, of the following year
+// (James, 2026-10-26: credit granted in December 2026 runs to the end
+// of 2027), as an instant.
+export const yearEnd = (now, timeZone) => {
+  const { year, month } = parts(now, timeZone);
+
+  return instant(`${month === 12 ? year + 1 : year}-12-31`, 23, 59, timeZone)
     .toISOString();
+};
 
 export const getLedger = async (stores, email) =>
   (await stores.customers.get(creditKey(email)))
