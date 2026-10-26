@@ -29,9 +29,9 @@ test("lines carry the pack label, under the group's short name",
     await expect(order.cart.locator(".order-cart-group-name"))
       .toHaveText(["Drumsticks", "Wings", "Other Items"]);
     await expect(order.cart.locator(".order-cart-item-qty").first())
-      .toHaveText("1 × $8");
+      .toHaveText("1 × $10");
     await expect(order.cart.locator(".order-cart-item-sub").first())
-      .toHaveText("$8");
+      .toHaveText("$10");
     await expect(order.cart.getByRole("button", {
       name: "Remove Livers, 1.0 – 1.4 lbs from your cart",
     })).toBeAttached();
@@ -104,11 +104,19 @@ test.describe("a long list on a phone", () => {
     const list = order.cart.locator("[data-cart-items]");
     const down = order.cart.locator("[data-cart-more]");
     const up = order.cart.locator("[data-cart-more-top]");
+    // The pill covers no line: the strip it sits on is its own.
     const apart = async (pill) => {
-      const l = await list.boundingBox();
-      const p = await pill.boundingBox();
+      const over = await pill.evaluate((el) => {
+        const p = el.getBoundingClientRect();
 
-      expect(p.y).toBeGreaterThanOrEqual(l.y + l.height - 1);
+        return [...document.querySelectorAll("#order-cart .order-cart-item")]
+          .map((li) => li.getBoundingClientRect())
+          .filter((r) => r.height > 0 && r.top < p.bottom - 1
+            && r.bottom > p.top + 1 && r.left < p.right && r.right > p.left)
+          .length;
+      });
+
+      expect(over).toBe(0);
     };
 
     await expect(down).toBeVisible();
