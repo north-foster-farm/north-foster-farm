@@ -557,6 +557,13 @@ describe("the build's env check", () => {
       .length, 2);
   });
 
+  it("holds the e2e token to staging, where the suite uses it", () => {
+    assert.ok(STAGING_ONLY.includes("E2E_STAGING_TOKEN"));
+    assert.deepEqual(stagingOnlyIn("production", ["E2E_STAGING_TOKEN"]),
+      ["E2E_STAGING_TOKEN"]);
+    assert.deepEqual(stagingOnlyIn("staging", ["E2E_STAGING_TOKEN"]), []);
+  });
+
   it("keeps staging keys out of production's tracked sample", () => {
     const text = readFileSync(join(here, "../.env.production.sample"),
       "utf8");

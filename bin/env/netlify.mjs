@@ -26,14 +26,14 @@ export const ignoredNames = (env) => new Set([
   ...(env === "production" ? ["RESEND_READ_KEY"] : []),
 ]);
 
-// Names that belong to staging alone: its machine token, the access
-// gate's (docs/secrets.md, "Staging") and the stock source's (#453).
-// Production holds none of them, not even as an empty name: their
-// presence is the failure, whatever the value.
+// Names that belong to staging alone: its machine token, the e2e
+// suite's, the access gate's (docs/secrets.md, "Staging") and the stock
+// source's (#453). Production holds none of them, not even as an empty
+// name: their presence is the failure, whatever the value.
 export const STAGING_ONLY = [
-  "STAGING_TOKEN", "GATE_RESEND_KEY", "GATE_MAIL_FROM", "GATE_TOOLBAR_EMAIL",
-  "STOCK_SOURCE", "STOCK_SOURCE_TOKEN", "STOCK_SOURCE_LOCATION_ID",
-  "STOCK_OVERRIDES",
+  "STAGING_TOKEN", "E2E_STAGING_TOKEN", "GATE_RESEND_KEY", "GATE_MAIL_FROM",
+  "GATE_TOOLBAR_EMAIL", "STOCK_SOURCE", "STOCK_SOURCE_TOKEN",
+  "STOCK_SOURCE_LOCATION_ID", "STOCK_OVERRIDES",
 ];
 
 // Names that no longer exist anywhere. Their presence in a sample, an

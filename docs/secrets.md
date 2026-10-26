@@ -270,7 +270,10 @@ its own, previews get none, and development gets a fake in `.env`.
   exist anywhere. If a name exists in the production context, unset
   it (`bin/nff netlify env:unset NAME --context production`).
 - **`E2E_STAGING_TOKEN`:** staging only; the end-to-end suite's own
-  token (`docs/staging.md`). The suite holds it and no Netlify token
+  token (`docs/staging.md`). Production holds no such name, not even
+  empty: the build fails if it does, and `env check` reports it in
+  the production sample, file or context, as for `STAGING_TOKEN`. The
+  suite holds it and no Netlify token
   (#266). Until it is set on the staging context and saved in
   `.env.e2e-staging`, the back-office e2e specs cannot run.
 - **Previews** (after #255): `SITE_CONTEXT=deploy-preview` and
