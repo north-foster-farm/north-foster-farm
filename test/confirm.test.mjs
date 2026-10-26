@@ -147,6 +147,7 @@ describe("bin/nff's production confirmation (#268)", () => {
         "events undefined", "events new", "refunds check", "stock list",
         "schedule check", "passes issue", "passes list",
         "jobs history", "health", "alert test", "mail test-dev",
+        "news mail",
         "maintenance status", "maintenance links",
         "sessions end-all", "errors show",
         // Gone since #303: it only says to use audience import.

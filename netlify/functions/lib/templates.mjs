@@ -880,7 +880,7 @@ const darkStyles = `<style>
 .nff-ground{background:${DARK.ground}!important}
 .nff-card{background:${DARK.card}!important;
 border-color:${DARK.edge}!important}
-.nff-ink,.nff-ink p,.nff-ink h2{color:${DARK.ink}!important}
+.nff-ink,.nff-ink p,.nff-ink h1,.nff-ink h2{color:${DARK.ink}!important}
 .nff-muted,.nff-ink .nff-muted{color:${DARK.muted}!important}
 .nff-link{color:${DARK.green}!important}
 .nff-btn{background:${DARK.button}!important;
@@ -901,6 +901,24 @@ border-color:${DARK.button}!important;color:#fff!important}
 const link = (text, url) =>
   `<a href="${escape(url)}" class="nff-link" style="color:${GREEN}">${
     escape(text)}</a>`;
+
+// One part of a rich paragraph. A link goes only to a web address or
+// a mail address, never to a script.
+const richPart = ({ text, strong, em, url }) => {
+  let html = escape(text);
+
+  if (url) {
+    if (!/^(https?:|mailto:)/i.test(url)) {
+      throw new Error(`list mail: a link to ${url}`);
+    }
+    html = `<a href="${escape(url)}" class="nff-link" style="color:${
+      GREEN}">${html}</a>`;
+  }
+  if (strong) html = `<strong>${html}</strong>`;
+  if (em) html = `<em>${html}</em>`;
+
+  return html;
+};
 
 // The blocks a list email is built from, exported for newsletters.
 // Each is { text, html }, like the order emails' blocks.
@@ -935,6 +953,34 @@ export const listBlocks = {
     text: `${before}${text}: ${url}${after}`,
     html: `<p style="margin:0 0 16px">${inline(before)}${link(text, url)}${
       inline(after)}</p>`,
+  }),
+  // The blocks a post is sent in (#483). The post's title, above its
+  // first section.
+  title: (text) => ({
+    text,
+    html: `<h1 style="margin:0 0 20px;font-size:26px;line-height:1.25">${
+      escape(text)}</h1>`,
+  }),
+  // A paragraph of parts, { text, strong, em, url }: the words, in the
+  // marks they carry, and the address a link goes to. A link's text
+  // version prints its address after it.
+  rich: (parts) => ({
+    text: parts.map(({ text, url }) => (url
+      ? `${text} (${url.replace(/^mailto:/i, "")})`
+      : text)).join(""),
+    html: `<p style="margin:0 0 16px">${parts.map(richPart).join("")}</p>`,
+  }),
+  // A section break: three italic asterisks, centered, as the site's.
+  dinkus: () => ({
+    text: "* * *",
+    html: `<p role="separator" style="margin:28px 0;text-align:center;` +
+      `font-style:italic;letter-spacing:.4em">*&#8201;*&#8201;*</p>`,
+  }),
+  // The post's signature, set further from the body than paragraphs
+  // are from each other: "— James and Jim".
+  signature: (name) => ({
+    text: `— ${name}`,
+    html: `<p style="margin:32px 0 16px">— ${escape(name)}</p>`,
   }),
 };
 

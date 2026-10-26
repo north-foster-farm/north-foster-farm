@@ -10,7 +10,7 @@
 // everything is in memory and lost on exit, which the banner says.
 
 import { spawn } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { randomInt } from "node:crypto";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import registry from "../data/registry.json" with { type: "json" };
 import { newCode } from "../assets/scripts/order/lib/events.mjs";
 import { loadEnv } from "../netlify/functions/lib/env.mjs";
+import { postMailFromBuild } from "../netlify/functions/lib/post-mail.mjs";
 import { USAGE as BREAKER_USAGE, breakerCommand } from "./breaker.mjs";
 import { noEmailRefusal } from "./no-email.mjs";
 import { confirmed } from "./confirm.mjs";
@@ -316,6 +317,13 @@ ${PROMOTE_USAGE}
                                       source by the maps of the deploy
                                       that built it (--staging or
                                       --production finds it)
+  bin/nff news mail <post> [--out <dir>] [--site <url>] [--preview <text>]
+                                      a news post as a Farm News email,
+                                      from the Hugo build (public/, or
+                                      NEWS_BUILD_DIR): <post>.html and
+                                      <post>.txt in --out (default
+                                      .ignored/outbox), for Resend's
+                                      editor (docs/farm-news.md)
   bin/nff library [--staging]         James's approvals and rewrites
                                       from the email library, to port
   bin/nff library clear <id>          drop an email's, once ported
@@ -468,7 +476,7 @@ const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
   "date", "window", "phone", "contact", "address1", "address2", "town",
   "zip", "cooler", "gate", "delivery-notes", "notes", "key", "site",
   "market", "captured-by", "evidence", "first", "last", "line", "code",
-  "occurrence", "paid", "ref"];
+  "occurrence", "paid", "ref", "preview"];
 // Flags given more than once keep every value, in order: `--line`.
 const REPEATED = ["line"];
 const args = process.argv.slice(2);
@@ -1603,6 +1611,26 @@ const run = async () => {
         "minute."
       : "  The phone will not hear of this one.");
     if (!r.delivered || !r.failed || !r.rearmed) process.exitCode = 1;
+
+    return undefined;
+  }
+  case "news mail": {
+    const slug = rest[0];
+
+    if (!slug) throw new Error("Usage: bin/nff news mail <post>");
+
+    const links = mailLinks();
+
+    if (flags.site) links.site = flags.site;
+
+    const mail = postMailFromBuild(slug, { links, preview: flags.preview });
+    const dir = flags.out || ".ignored/outbox";
+
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, `${slug}.html`), mail.html);
+    writeFileSync(join(dir, `${slug}.txt`), mail.text);
+    out(`${mail.subject}: ${slug}.html and ${slug}.txt are in ${dir}, ` +
+      `with links to ${links.site}.`);
 
     return undefined;
   }

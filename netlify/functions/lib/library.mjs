@@ -12,6 +12,7 @@
 // until it is ported here.
 
 import { launchEmail } from "./launch.mjs";
+import { postMailFromBuild } from "./post-mail.mjs";
 import {
   attachment, byFulfillment, changesBetween, countsOf, fileName, packetPdf,
   packetTitle, snapshotOf,
@@ -164,6 +165,24 @@ const subscriber = (type, detail, at = "2026-10-20T14:00:00.000Z") => ({
 });
 
 const unsub = (links) => `${links.site}/news/?unsubscribe=abc123`;
+
+// A news post as the email it would go out as (#483), from the build
+// in public/. Without a build there is nothing to show but how to get
+// one.
+const post = (slug, links) => {
+  try {
+    return postMailFromBuild(slug, { links, unsubscribeUrl: unsub(links) });
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+
+    return t.listMail(`Not built: ${slug}`, {
+      blocks: [t.listBlocks.p("This email is made from the post's " +
+        "Markdown, which Hugo writes into public/ when it builds the " +
+        "site. Build the site, then reload.")],
+      links,
+    });
+  }
+};
 
 // The welcome as each way onto the list words it.
 const WELCOMES = [
@@ -613,6 +632,14 @@ export const library = [
     audience: C, tags: ["list", "farm news", "template"],
     build: (links) => newsletter(links),
   },
+  {
+    id: "news-post-three-quarters",
+    name: "Farm news post, Three Quarters of the Way",
+    when: "Not sent: the first Farm News broadcast, made from the " +
+      "post's Markdown (#483)",
+    audience: C, tags: ["list", "farm news", "post"],
+    build: (links) => post("three-quarters-of-the-way", links),
+  },
 
   // To the farm
   {
@@ -892,6 +919,12 @@ const WELCOME = "Writer2\x27s redraft of 2026-10-25 on James\x27s " +
   "paragraph only for the market sheets and the re-invite. Every line " +
   "waits on him (Q8).";
 const WAITING = {
+  "news-post-three-quarters": "The words are the post's, as James " +
+    "approved them on #431. The layout, the dinkus, the signature and " +
+    "the title above the first section are drafts (#483). The photos " +
+    "load from this site's /mail/ addresses, so they show only where " +
+    "the site is built. The send's own footer carries Resend's " +
+    "unsubscribe link; here it is a sample.",
   "farm-archived-in-stock": "#267: to sales@ only, and listed in the " +
     "morning report until resolved. Draft wording.",
   "order-confirmed-onfarm": `James approved it in the library on ` +

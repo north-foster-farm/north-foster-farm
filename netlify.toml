@@ -25,7 +25,9 @@ directory = "netlify/functions"
 node_bundler = "esbuild"
 # The jobs read the rotation log to remind the developer what is due
 # (netlify/functions/lib/rotation.mjs); a missing file is tolerated.
-included_files = ["docs/rotation-log.md"]
+# The email library makes a news post's email from the Markdown Hugo
+# wrote for it (lib/post-mail.mjs); without the file it says so.
+included_files = ["docs/rotation-log.md", "public/news/*/index.md"]
 
 # `netlify dev` runs the Hugo server and proxies the functions in
 # front of it, so /api/* is exercisable locally.

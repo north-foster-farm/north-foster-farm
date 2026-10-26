@@ -158,7 +158,9 @@ of the CSV. `audience invite` is gone and says so.
 the welcome, the confirmation and, later, newsletters. It has the order
 emails' wordmark, card, font and green, plus a hero image, preview
 text, and blocks in `listBlocks`: `p`, `heading`, `image` (with an
-optional caption), `button` and `linked`. Its footer says why the
+optional caption), `button`, `linked`, and the blocks a post is sent
+in: `title`, `rich` (a paragraph with links, bold and italics),
+`dinkus` and `signature`. Its footer says why the
 mail came (the confirmation leaves that to its body), gives the
 one-click unsubscribe and the farm's postal
 address (CAN-SPAM), and the text version says the same. It follows
@@ -166,8 +168,38 @@ the reader's dark mode in Apple Mail, iOS Mail and Outlook; Gmail
 shows the light one. The order emails stay light.
 
 Images in list mail need a fixed public address, and Hugo's are
-fingerprinted, so none exists yet. The library's
-`news-letter-sample` shows every block.
+fingerprinted, so the post's own photos are copied at build time to
+`/mail/<post>/<name>.jpg` (the `figure` shortcode's Markdown form,
+for posts only). The library's `news-letter-sample` shows every block
+(its photos are placeholders with no address).
+
+### A post as an email
+
+`lib/post-mail.mjs` turns a post's Markdown, the file Hugo writes at
+`public/news/<post>/index.md` (`layouts/news/single.markdown.md`),
+into a `listMail`. The website footer is not in that Markdown, so it
+is not in the email. It reads headings, paragraphs with links, bold
+and italics, photos with a caption, the dinkus, the signature (a
+paragraph that begins with an em dash) and a link on a line of its
+own, which is the quiet shop link. A list, a quote, a table or a
+photo outside `/mail/` throws, so a post never goes out flattened. The
+title is the subject and the first thing in the body; the date is left
+out, since the post's date is James's to confirm. A post's shortcodes
+need a Markdown form (`*.markdown.md`) to reach it.
+
+The library entry `news-post-three-quarters` shows it for review.
+On staging it reads the deploy's `public/` (`included_files` in
+`netlify.toml`); locally, point `NEWS_BUILD_DIR` at the Hugo output.
+
+```
+hugo --gc --quiet -d .ignored/build
+NEWS_BUILD_DIR=.ignored/build bin/nff news mail <post> \
+  --site https://www.northfosterfarm.com [--preview "<inbox line>"]
+```
+
+writes `<post>.html` and `<post>.txt` to `.ignored/outbox` for Resend's
+editor. The unsubscribe link is Resend's variable,
+`{{{RESEND_UNSUBSCRIBE_URL}}}`; check in the editor that it fills.
 
 ## The audience
 
