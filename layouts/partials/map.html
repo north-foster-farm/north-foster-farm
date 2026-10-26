@@ -268,7 +268,10 @@
                 <span class="map-num" aria-hidden="true" data-map-num>{{ add $i 1 }}</span>
                 <span class="map-key-text">
                   <strong>{{ $p.key }}</strong>
-                  <small>{{ $p.town }}{{ with $p.names }} · {{ . }}{{ end }}</small>
+                  {{/* An open card names the town in its address and
+                       the series in its blocks, so the line goes when
+                       the card opens (#433). */}}
+                  <small {{- if strings.Contains $p.where $p.town }} class="map-key-repeat"{{ end }}>{{ $p.town }}{{ with $p.names }} · {{ . }}{{ end }}</small>
                 </span>
               </button>
               {{/* The card: when (a block for each series: its

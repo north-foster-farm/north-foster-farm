@@ -369,6 +369,12 @@ $map-hover: #fbf8ef;
   color: var(--bs-secondary-color);
 }
 
+// The row's own bottom padding is the gap above When, as wide as the
+// gaps between the card's other parts (#433).
+.map-card > .map-card-label:first-child {
+  margin-top: 0 !important;
+}
+
 .map-card-when {
   display: grid;
   gap: 0.625rem;
@@ -601,6 +607,10 @@ $map-hover: #fbf8ef;
 
   &[aria-expanded="true"] {
     background: none;
+  }
+
+  &[aria-expanded="true"] .map-key-repeat {
+    display: none;
   }
 }
 
