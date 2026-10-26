@@ -80,10 +80,23 @@ export const requiredNames = (secretsText, sampleText) => {
   return [...names].sort();
 };
 
-// -> the required names the log has no line for.
+// The names the log says are planned, not done: a line whose date
+// column reads "planned". The yearly reminder skips such a line (it has
+// no date), and the check counts it, so the log can say a secret is not
+// set up yet and still be asked to name it.
+export const plannedNames = (logText) => String(logText || "")
+  .split("\n")
+  .map((line) => line.replace(/^\s*(?:[-*+]\s+)?/, "")
+    .replace(/^\||\|\s*$/g, "").split("|").map((f) => f.trim()))
+  .filter((f) => f.length >= 2 && /^planned$/i.test(f[1]))
+  .map((f) => f[0].replace(/[`*]/g, ""));
+
+// -> the required names the log has no line for, dated or planned.
 export const missingFromLog = (required, logText) => {
-  const logged = new Set(parseRotationLog(logText)
-    .map((e) => e.name.toLowerCase()));
+  const logged = new Set([
+    ...parseRotationLog(logText).map((e) => e.name),
+    ...plannedNames(logText),
+  ].map((name) => name.toLowerCase()));
 
   return required.filter((name) => !logged.has(name.toLowerCase()));
 };
@@ -100,8 +113,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
       "in docs/rotation-log.md, so the yearly reminder would never " +
       "name them:");
     for (const name of missing) console.error(`  ${name}`);
-    console.error("Add a seed line for each (docs/secrets.md, " +
-      '"Schedule").');
+    console.error("Add a dated line for each, or a `planned` line when " +
+      "it is not set up yet (docs/rotation-log.md).");
     process.exit(1);
   }
 

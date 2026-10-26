@@ -6,43 +6,53 @@ yearly reminder (`netlify/functions/lib/rotation.mjs`) reads this file:
 in the Dec 1 to Jan 1 window it lists every secret whose latest line is
 dated before Dec 1, so a secret with no line here is never reminded.
 
-Reason is `seed`, `schedule`, `leak`, `lost device` or `access ended`.
+Reason is `seed`, `schedule`, `set up` (first made, no earlier
+credential), `leak`, `lost device` or `access ended`.
 A `seed` line stands for a secret whose last change is not recorded; it
-counts as due in the first window. A routine rotation leaves the old
-credential valid for 31 days (`docs/secrets.md`, rule 6); the day it
-is revoked gets a second line, with reason `revoked`.
+counts as due in the first window.
+
+A secret that is not set up yet has a `planned` line: `planned` in the
+date column and `planned, not done` as the reason. The reminder skips
+it, the coverage check counts it, and James's confirmation that it
+exists replaces it with a dated line. A row stays dated only with
+evidence: an Actions secret that exists by name (`gh secret list`) or
+James's word on GitHub. The #237 checklist tracks each planned row.
+
+A routine rotation leaves the old credential valid for 31 days
+(`docs/secrets.md`, rule 6); the day it is revoked gets a second line,
+with reason `revoked`.
 
 name | date | environment | reason | who
 --- | --- | --- | --- | ---
-SQUARE_ACCESS_TOKEN | 2026-10-18 | production | seed | prod agent
-SQUARE_ACCESS_TOKEN | 2026-10-18 | staging | seed | prod agent
-SQUARE_WEBHOOK_SIGNATURE_KEY | 2026-10-18 | production | seed | prod agent
-SQUARE_WEBHOOK_SIGNATURE_KEY | 2026-10-18 | staging | seed | prod agent
-PAYPAL_CLIENT_SECRET | 2026-10-18 | production | seed | prod agent
-PAYPAL_CLIENT_SECRET | 2026-10-18 | staging | seed | prod agent
-RESEND_API_KEY | 2026-10-18 | production | seed | prod agent
-RESEND_AUDIENCE_KEY | 2026-10-18 | production | seed | prod agent
-RESEND_WEBHOOK_SECRET | 2026-10-18 | production | seed | prod agent
-AXIOM_TOKEN | 2026-10-18 | production | seed | prod agent
-AXIOM_TOKEN | 2026-10-18 | staging | seed | prod agent
-BACKUP_R2_ACCESS_KEY_ID | 2026-10-18 | production | seed | checkout agent
-BACKUP_R2_SECRET_ACCESS_KEY | 2026-10-18 | production | seed | prod agent
-HEALTHCHECKS_JOBS_URL | 2026-10-18 | production | seed | checkout agent
-HEALTHCHECKS_JOBS_URL | 2026-10-18 | staging | seed | checkout agent
-HEALTHCHECKS_ALERT_URL | 2026-10-18 | production | seed | checkout agent
-HEALTHCHECKS_ALERT_URL | 2026-10-18 | staging | seed | checkout agent
-HEALTHCHECKS_BACKUP_URL | 2026-10-18 | production | seed | checkout agent
-HEALTHCHECKS_PACKING_URL | 2026-10-21 | production | seed | orders agent
-ntfy topic | 2026-10-18 | production | seed | checkout agent
-PICKUP_SCHEDULE_HOOK | 2026-10-18 | production | seed | checkout agent
-GATE_RESEND_KEY | 2026-10-18 | staging | seed | checkout agent
-STOCK_SOURCE_TOKEN | 2026-10-25 | staging | seed | cloud-453
-age private key | 2026-10-18 | production | seed | prod agent
-STAGING_TOKEN | 2026-10-18 | staging | seed | prod agent
-E2E_STAGING_TOKEN | 2026-10-18 | staging | seed | prod agent
-MAINTENANCE_SECRET | 2026-10-18 | production | seed | prod agent
-MAINTENANCE_SECRET | 2026-10-18 | staging | seed | prod agent
-NETLIFY_AUTH_TOKEN | 2026-10-18 | all | seed | prod agent
-netlify CLI login | 2026-10-18 | all | seed | prod agent
-PROD_AUDIT_PING_URL | 2026-10-18 | production | seed | prod agent
-E2E_STAGING_PING_URL | 2026-10-25 | staging | seed | pipeline agent
+SQUARE_ACCESS_TOKEN | planned | production | planned, not done | James
+SQUARE_ACCESS_TOKEN | planned | staging | planned, not done | James
+SQUARE_WEBHOOK_SIGNATURE_KEY | planned | production | planned, not done | James
+SQUARE_WEBHOOK_SIGNATURE_KEY | planned | staging | planned, not done | James
+PAYPAL_CLIENT_SECRET | planned | production | planned, not done | James
+PAYPAL_CLIENT_SECRET | planned | staging | planned, not done | James
+RESEND_API_KEY | planned | production | planned, not done | James
+RESEND_AUDIENCE_KEY | planned | production | planned, not done | James
+RESEND_WEBHOOK_SECRET | planned | production | planned, not done | James
+AXIOM_TOKEN | planned | production | planned, not done | James
+AXIOM_TOKEN | planned | staging | planned, not done | James
+BACKUP_R2_ACCESS_KEY_ID | planned | production | planned, not done | James
+BACKUP_R2_SECRET_ACCESS_KEY | planned | production | planned, not done | James
+HEALTHCHECKS_JOBS_URL | planned | production | planned, not done | James
+HEALTHCHECKS_JOBS_URL | planned | staging | planned, not done | James
+HEALTHCHECKS_ALERT_URL | planned | production | planned, not done | James
+HEALTHCHECKS_ALERT_URL | planned | staging | planned, not done | James
+HEALTHCHECKS_BACKUP_URL | planned | production | planned, not done | James
+HEALTHCHECKS_PACKING_URL | planned | production | planned, not done | James
+PICKUP_SCHEDULE_HOOK | planned | production | planned, not done | James
+GATE_RESEND_KEY | planned | staging | planned, not done | James
+STOCK_SOURCE_TOKEN | planned | staging | planned, not done | James
+age private key | planned | production | planned, not done | James
+MAINTENANCE_SECRET | planned | production | planned, not done | James
+MAINTENANCE_SECRET | planned | staging | planned, not done | James
+NETLIFY_AUTH_TOKEN | planned | all | planned, not done | James
+netlify CLI login | planned | all | planned, not done | James
+STAGING_TOKEN | 2026-10-26 | staging | schedule | James
+E2E_STAGING_TOKEN | 2026-10-26 | staging | schedule | James
+ntfy topic | 2026-10-26 | production | set up | James
+PROD_AUDIT_PING_URL | 2026-10-26 | production | set up | James
+E2E_STAGING_PING_URL | 2026-10-26 | staging | set up | James

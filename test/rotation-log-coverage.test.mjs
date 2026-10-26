@@ -3,8 +3,10 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
-  missingFromLog, readSamples, requiredNames, sampleNames, secretRows,
+  missingFromLog, plannedNames, readSamples, requiredNames, sampleNames,
+  secretRows,
 } from "../bin/check-rotation-log.mjs";
+import { parseRotationLog } from "../netlify/functions/lib/rotation.mjs";
 
 const sample = [
   "# A comment",
@@ -93,6 +95,17 @@ describe("rotation log coverage: the check", () => {
     assert.deepEqual(missingFromLog(["A_KEY", "b token"],
       "a_key | 2026-01-01 | production | seed | me\n" +
       "B Token | 2026-01-01 | all | seed | me\n"), []);
+  });
+
+  it("counts a planned line as naming the secret", () => {
+    const text = "ntfy topic | planned | production | planned, not done | " +
+      "James\nB Token | 2026-01-01 | all | seed | me\n";
+
+    assert.deepEqual(plannedNames(text), ["ntfy topic"]);
+    assert.deepEqual(parseRotationLog(text).map((e) => e.name), ["B Token"],
+      "the reminder reads dated lines only");
+    assert.deepEqual(missingFromLog(["NTFY TOPIC", "b token", "c"], text),
+      ["c"]);
   });
 
   it("holds for the real files: every secret has a line", () => {
