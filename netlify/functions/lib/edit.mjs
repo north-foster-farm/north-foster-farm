@@ -190,6 +190,7 @@ export const planEdit = async (stores, order, body, {
       ? lockOn(buying.priceLock || null,
         today(new Date(order.submittedAt), terms.timeZone))
       : null,
+    deliverTo: buying ? terms.model.location(buying.location) || null : null,
     kept: modelled(terms, order.fulfilment).occurrence || null,
     held: Object.fromEntries(order.lines.map((l) => [l.sku, l.qty])),
     waive: {

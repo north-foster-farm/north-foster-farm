@@ -148,6 +148,19 @@
               {{ partial "skeleton/status.html" (dict "failed" "We couldn't load the dates.") }}
             </div>
           </div>
+          {{/* A buying group's member (#471) may have a Thursday delivery
+               left at the group's place; the page shows this once the
+               group is unlocked and fills the address from it. Draft
+               wording. */}}
+          <div class="row" data-deliver-to-group hidden>
+            <div class="col-sm-8 offset-sm-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="delivery-to-group" name="delivery.toGroup" data-field="delivery.toGroup">
+                <label class="form-check-label" for="delivery-to-group">Deliver to <span data-group-name></span></label>
+              </div>
+              <p class="form-text">Left in the cooler there on {{ partial "weekday.html" "delivery" }}. The usual ${{ $money.deliveryMinimum }} minimum and ${{ $money.deliveryFee }} delivery fee apply.</p>
+            </div>
+          </div>
           <div class="row">
             <label class="col-sm-4 col-form-label" for="delivery-address1">Street address</label>
             <div class="col-sm-8">

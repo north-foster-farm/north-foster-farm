@@ -315,6 +315,7 @@ export const planFarmOrder = async (stores, body, {
     lock: buying
       ? lockOn(buying.priceLock || null, today(now, terms.timeZone))
       : null,
+    deliverTo: buying ? terms.model.location(buying.location) || null : null,
     schedule: pickupSchedule(env), farm: true, kept,
     // The delivery minimum binds the farm too unless it says so
     // (`--waive-minimum`), so a $20 delivery is never an accident.

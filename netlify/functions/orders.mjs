@@ -292,6 +292,7 @@ export const handle = async (req, {
     lock: buying
       ? lockOn(buying.priceLock || null, today(now, terms.timeZone))
       : null,
+    deliverTo: buying ? terms.model.location(buying.location) || null : null,
     schedule: pickupSchedule(env),
     waive: {
       minimum: !!passCode && !problem,

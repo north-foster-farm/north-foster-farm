@@ -94,10 +94,14 @@ export const findCode = (value, codes) => {
 // `lock` is a buying group member's locked price list (#471), the
 // group's `priceLock`, which the caller has settled from the group
 // code or the customer's record; `terms.groups` then names the group
-// too, so its pickup is offered.
+// too, so its pickup is offered. `deliverTo` is the group's place
+// (data/locations.json): a delivery with `delivery.toGroup` true goes
+// to its address, a Thursday delivery like any other (James,
+// 6406932945), with the usual minimum and fee.
 export const validateOrder = (payload, {
-  index, terms, now, group, codes, code, lock = null, schedule = [],
-  held = {}, waive = {}, placed = null, farm = false, kept = null,
+  index, terms, now, group, codes, code, lock = null, deliverTo = null,
+  schedule = [], held = {}, waive = {}, placed = null, farm = false,
+  kept = null,
 }) => {
   const errors = {};
   const p = payload && typeof payload === "object" ? payload : {};
@@ -192,10 +196,24 @@ export const validateOrder = (payload, {
     errors["fulfilment.occurrence"] = "Choose where you'd like to pick up.";
   }
 
+  // A member's delivery to the group's place (#471) takes the place's
+  // address, never the payload's; the cooler line is a draft.
+  const given = fulfilment.delivery || {};
+  const toGroup = method === "delivery" && !!deliverTo
+    && given.toGroup === true;
+  const where = toGroup
+    ? {
+      ...given,
+      address1: deliverTo.street, address2: "", town: deliverTo.city,
+      zip: deliverTo.zip,
+      cooler: text(given.cooler, 300) || `The cooler at ${deliverTo.name}`,
+    }
+    : given;
+
   // The ZIP's status feeds the totals (an unlisted Rhode Island ZIP
   // adds the outside-area fee) before the delivery block reads it.
   const zipStatus = method === "delivery"
-    ? zipInfo((fulfilment.delivery || {}).zip, terms.area).status
+    ? zipInfo(where.zip, terms.area).status
     : null;
   const totals = computeTotals({
     lines, method, index, money, group, code: discountCode, lock,
@@ -223,7 +241,7 @@ export const validateOrder = (payload, {
   }
 
   if (method === "delivery") {
-    const f = fulfilment.delivery || {};
+    const f = where;
 
     // A pass is used only when the order needs it.
     if (!meetsMinimum(totals, money) && waive.minimum) {
@@ -263,6 +281,9 @@ export const validateOrder = (payload, {
       cooler: text(f.cooler, 300),
       notes: text(f.notes, 1000),
       zipStatus: status,
+      // Only on a delivery to the group's place, so no other record
+      // changes.
+      ...(toGroup ? { toGroup: true } : {}),
     };
   }
 
