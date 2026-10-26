@@ -109,10 +109,13 @@ export const watchKeyboard = (pane, { onInset } = {}) => {
 // mid-animation; the closed height is the stylesheet's constant for
 // this width, read then too. While the keyboard is up nothing is
 // looked at: the room is not the pane's.
-export const watchPlacement = (pane, slot, { bar = null, look }) => {
+export const watchPlacement = (pane, slot, { bar: given, look }) => {
   const column = matchMedia(COLUMN);
   const short = matchMedia(SHORT);
   const anchor = slot.querySelector("[data-cart-anchor]") || slot;
+  // The phone's top bar, whose foot the pane's room ends at.
+  const bar = given === undefined
+    ? document.querySelector(".order-topbar") : given;
   let height = 0;
   let closedH = 0;
   let tick = null;
@@ -291,7 +294,9 @@ export const watchList = (list, wrap, { more, moreTop }) => {
 
   const down = () => scrollMore(1);
   const up = () => scrollMore(-1);
-  const sizes = new ResizeObserver(sync);
+  // A frame later: sync moves the strip, which resizes the list, and
+  // WebKit warns of a loop when that happens inside the observer.
+  const sizes = new ResizeObserver(() => requestAnimationFrame(sync));
 
   list.addEventListener("scroll", sync, { passive: true });
   more.addEventListener("click", down);

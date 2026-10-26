@@ -31,13 +31,14 @@
 
   // The sheet's parts other than the lines, at one line each: the
   // sums, the total row, the badges, the way and the code, the foot
-  // and the nudge, the pane's padding and rules. Tuned against the
-  // built page at 390px; see docs/cart.md.
-  --cart-chrome: 19rem;
+  // and the nudge, the pane's padding and rules. Measured once on the
+  // built page at 390px (330px with a bulk discount and the fee row).
+  --cart-chrome: 20.5rem;
 
   // The closed sheet: its padding, the total row, the foot and one
-  // nudge line. cart/view.mjs reads it for the lift-off threshold.
-  --cart-closed-h: 9.25rem;
+  // nudge line (182px measured at 390px). cart/view.mjs reads it for
+  // the lift-off threshold.
+  --cart-closed-h: 11.5rem;
 
   // The share of the visible height the open sheet may take on a
   // phone (James, #267 and #475).
@@ -851,15 +852,18 @@
 
   // Closed, a phone's sheet keeps the total row and the foot: the body
   // loses every other part, and the total row is the body's first
-  // thing, so it needs no rule above it.
-  .order-cart[data-placement="floating"][data-fold="closed"] {
-    .order-cart-body > :not(.order-cart-total-row) {
-      display: none;
-    }
+  // thing, so it needs no rule above it. The panel (below) closes
+  // differently, so this is the sheet's alone.
+  @media #{$cart-sheet} {
+    .order-cart[data-placement="floating"][data-fold="closed"] {
+      .order-cart-body > :not(.order-cart-total-row) {
+        display: none;
+      }
 
-    .order-cart-total-row {
-      border-top: 0;
-      padding-top: 0;
+      .order-cart-total-row {
+        border-top: 0;
+        padding-top: 0;
+      }
     }
   }
 
@@ -969,7 +973,9 @@
   // closed height is the right column's.
   @media #{$cart-split} {
     .order-cart {
-      --cart-closed-h: 15rem;
+      // The closed panel is its right column: measured once at 768px
+      // (330px with a bulk discount and the fee row).
+      --cart-closed-h: 20.5rem;
       --panel-w: min(100cqw, max(50cqw, 22rem));
     }
 
@@ -1063,12 +1069,6 @@
       column-gap: 0;
       width: var(--panel-w);
       margin-left: calc(100% - var(--panel-w));
-
-      .order-cart-body > :not(.order-cart-total-row),
-      .order-cart-foot,
-      .order-cart-added {
-        display: revert;
-      }
 
       .order-cart-lines {
         display: none;
