@@ -101,14 +101,18 @@ export const watchKeyboard = (pane, { onInset } = {}) => {
 
 // Feeds the placement decision (state.mjs place) on every frame the
 // page moves. `look` gets place()'s inputs and two more, slotBottom
-// and short, and the caller applies the state. The pane's height is
-// read only in refresh(), which the caller runs after a render or a
-// fold has finished, never mid-animation; the closed height is the
-// stylesheet's constant for this width, read then too. While the
-// keyboard is up nothing is looked at: the room is not the pane's.
+// and short, and the caller applies the state. The slot's place is
+// read from its anchor, the empty block before the pane (the slot
+// itself has no box below xl); slotBottom is that place plus the
+// pane's height. The pane's height is read only in refresh(), which
+// the caller runs after a render or a fold has finished, never
+// mid-animation; the closed height is the stylesheet's constant for
+// this width, read then too. While the keyboard is up nothing is
+// looked at: the room is not the pane's.
 export const watchPlacement = (pane, slot, { bar = null, look }) => {
   const column = matchMedia(COLUMN);
   const short = matchMedia(SHORT);
+  const anchor = slot.querySelector("[data-cart-anchor]") || slot;
   let height = 0;
   let closedH = 0;
   let tick = null;
@@ -130,7 +134,7 @@ export const watchPlacement = (pane, slot, { bar = null, look }) => {
     }
     if (toPx(prop(pane, "--cart-kb")) > 0) return;
 
-    const r = slot.getBoundingClientRect();
+    const slotTop = anchor.getBoundingClientRect().top;
     const room = window.innerHeight - restOf({
       margin: 0.5 * rootFont(),
       gap: toPx(prop(pane, "--cart-gap")),
@@ -139,8 +143,8 @@ export const watchPlacement = (pane, slot, { bar = null, look }) => {
     look({
       column: column.matches,
       short: short.matches,
-      slotTop: r.top,
-      slotBottom: r.bottom,
+      slotTop,
+      slotBottom: slotTop + height,
       room,
       height,
       closedH,

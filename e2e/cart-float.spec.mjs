@@ -23,7 +23,10 @@ const box = (locator) => locator.evaluate((el) => {
   return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
 });
 
-const slot = (page) => page.locator("[data-cart-slot]");
+// The pane's place in the page (the slot has no box below xl), and
+// the content column the panel sits in.
+const anchor = (page) => page.locator("[data-cart-anchor]");
+const column = (page) => page.locator("#order-form");
 
 // Settle the cart: its heading near the top of the screen.
 const settle = async (page, order) => {
@@ -91,9 +94,9 @@ test.describe("floating, settling and lifting off", () => {
         await settle(page, order);
         // Settled: in its slot, every line showing, nothing capped.
         const settled = await box(order.cart);
-        const slotBox = await box(slot(page));
+        const place = await box(anchor(page));
 
-        expect(Math.abs(settled.top - slotBox.top)).toBeLessThanOrEqual(1);
+        expect(Math.abs(settled.top - place.top)).toBeLessThanOrEqual(1);
         const list = order.cart.locator("[data-cart-items]");
 
         expect(await list.evaluate((el) => (
@@ -229,12 +232,12 @@ test.describe("the tablet's panel", () => {
         await expect(order.cart).toHaveAttribute("data-placement", "floating");
         await expect(order.cart).toHaveAttribute("data-fold", "open");
 
-        const column = await box(slot(page));
+        const col = await box(column(page));
         const open = await box(order.cart);
         const sumsOpen = await box(order.subtotal);
 
-        expect(Math.abs(open.left - column.left)).toBeLessThanOrEqual(1);
-        expect(Math.abs(open.right - column.right)).toBeLessThanOrEqual(1);
+        expect(Math.abs(open.left - col.left)).toBeLessThanOrEqual(1);
+        expect(Math.abs(open.right - col.right)).toBeLessThanOrEqual(1);
 
         await pill.click();
         await expect(order.cart).toHaveAttribute("data-fold", "closed");
@@ -242,10 +245,10 @@ test.describe("the tablet's panel", () => {
 
         const closed = await box(order.cart);
         const sumsClosed = await box(order.subtotal);
-        const width = column.right - column.left;
+        const width = col.right - col.left;
         const expected = Math.min(width, Math.max(width / 2, 22 * 16));
 
-        expect(Math.abs(closed.right - column.right)).toBeLessThanOrEqual(1);
+        expect(Math.abs(closed.right - col.right)).toBeLessThanOrEqual(1);
         expect(Math.abs(closed.right - closed.left - expected))
           .toBeLessThanOrEqual(2);
         // The right column did not move.

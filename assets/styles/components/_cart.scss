@@ -61,13 +61,29 @@
   }
 
   // The slot is the pane's place in the page. The pane sticks to the
-  // foot of the screen while the slot is below it and takes its place
-  // in the slot as the slot comes up: the browser's own sticky
-  // behaviour, with no decision of ours. What the script decides is
-  // only when the pane's chrome changes (data-placement), from the
-  // slot's top and a cached height, never from a frame's rect.
+  // foot of the screen while its place is below it and takes its
+  // place as the place comes up: the browser's own sticky behaviour,
+  // with no decision of ours. A sticky element cannot leave its
+  // parent's box, so below xl the slot has none (display: contents)
+  // and the pane's parent is the form, which runs to the end of the
+  // page; the anchor, an empty block before the pane, marks the place
+  // for the script. What the script decides is only when the pane's
+  // chrome changes (data-placement), from the anchor's top and a
+  // cached height, never from a frame's rect of the pane. From xl the
+  // slot is the grid area beside the catalog (_order.scss).
   .order-cart-slot {
-    min-width: 0;
+    display: contents;
+  }
+
+  .order-cart-anchor {
+    height: 0;
+  }
+
+  @media (min-width: 1200px) {
+    .order-cart-slot {
+      display: block;
+      min-width: 0;
+    }
   }
 
   // The pane.
